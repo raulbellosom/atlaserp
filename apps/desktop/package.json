@@ -20,6 +20,7 @@
     "react": "latest",
     "react-dom": "latest",
     "react-hook-form": "^7.75.0",
+    "react-router-dom": "^7.14.2",
     "zustand": "latest"
   },
   "devDependencies": {
