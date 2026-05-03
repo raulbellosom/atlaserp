@@ -14,6 +14,7 @@
     "@atlas/validators": "workspace:*",
     "@hono/node-server": "latest",
     "@prisma/client": "^6",
+    "@supabase/supabase-js": "^2.105.1",
     "hono": "latest",
     "zod": "latest"
   }
