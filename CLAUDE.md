@@ -7,7 +7,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # First-time setup
 cp .env.example .env
-pnpm setup            # install + start infra + migrate + seed
+# Fill in SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, DIRECT_URL, JWT_SECRET
+# Get connection strings from https://studio.supabase.racoondevs.com
+
+pnpm install          # install all dependencies
+pnpm db:generate      # generate Prisma client
+pnpm db:migrate       # apply migrations to Supabase PostgreSQL
+pnpm db:seed          # seed core modules, permissions, roles
 
 # Start dev servers (API + Vite web preview + worker)
 pnpm dev              # recommended for daily dev — web at http://localhost:5173
@@ -18,27 +24,20 @@ pnpm dev:api          # API on port 4010
 pnpm dev:frontend     # Vite web preview on port 5173
 pnpm dev:worker       # Background worker
 
-# Infrastructure (Docker — Postgres, Redis, MinIO)
-pnpm infra:up         # start
-pnpm infra:down       # stop
-pnpm infra:reset      # wipe volumes and restart
-pnpm infra:status     # show container status
-
 # Database
 pnpm db:migrate       # run pending migrations
 pnpm db:generate      # regenerate Prisma client after schema changes
 pnpm db:seed          # seed core modules, permissions, roles
-pnpm db:studio        # open Prisma Studio GUI
-pnpm db:reset         # drop + re-migrate + seed (wipes all data)
+pnpm db:studio        # open Prisma Studio GUI (http://localhost:5555)
 pnpm db:fresh         # migrate + generate + seed (non-destructive)
 
 # Build
 pnpm build            # build all packages/apps
 ```
 
-Copy `.env.example` → `.env` before first run. The API reads `DATABASE_URL` and `ATLAS_API_PORT`.
+There is no `pnpm infra:up` or local database stack. All development connects to https://supabase.racoondevs.com.
 
-### Desktop native build (Windows only, outside Docker)
+### Desktop native build (Windows only)
 
 ```bash
 cd apps/desktop
@@ -46,7 +45,7 @@ pnpm tauri build   # Produces .exe via Rust/Tauri toolchain
 pnpm tauri dev     # Native window with hot-reload
 ```
 
-Tauri requires Rust toolchain + Windows SDK. For development without Tauri, use `pnpm dev:desktop` (Vite web preview only).
+Tauri requires Rust toolchain + Windows SDK. For development without Tauri, use `pnpm dev:frontend` (Vite web preview only).
 
 ## Architecture
 
@@ -75,10 +74,16 @@ React (apps/desktop)
   → @atlas/sdk createAtlasClient   (packages/sdk)
   → Hono API (apps/api/src/index.js)
   → Zod validation (@atlas/validators)
-  → Prisma → PostgreSQL
+  → Prisma → Supabase PostgreSQL
 ```
 
 No direct database access from the frontend. The API is the authority for all business rules, validation, and permissions.
+
+### Supabase infrastructure
+
+All development uses the dedicated self-hosted Supabase instance:
+- API: https://supabase.racoondevs.com
+- Studio: https://studio.supabase.racoondevs.com (admin use only)
 
 ### Module system (packages/core + packages/maps)
 
@@ -87,24 +92,22 @@ Every ERP feature is a **map** (module). Modules are registered via manifests de
 A manifest defines: `key`, `name`, `version`, `kind`, `core`, `uninstallable`, `dependencies`, `permissions`, `navigation`, `blueprints`, `exposes`, `consumes`.
 
 Two categories:
-- **Core modules** (`core-modules.js`): `core: true`, `uninstallable: false` — atlas.core, atlas.identity, atlas.files. Cannot be removed via API.
-- **Feature modules** (`feature-modules.js`): installable, versioned, can depend on other modules — e.g. atlas.contacts, atlas.finance.
+- **Core modules** (`core-modules.js`): `core: true`, `uninstallable: false` — atlas.core, atlas.identity, atlas.files, atlas.branding. Cannot be removed via API.
+- **Feature modules** (`feature-modules.js`): installable, versioned, can depend on other modules.
 
-The `ModuleRegistry` class (`packages/core/src/module-registry.js`) handles registration, dependency validation, navigation resolution, and blueprint flattening. The API seeds these into `AtlasModule` rows in PostgreSQL via `prisma/seed.js`.
+The `ModuleRegistry` class (`packages/core/src/module-registry.js`) handles registration, dependency validation, navigation resolution, and blueprint flattening. The API seeds these into `AtlasModule` rows via `prisma/seed.js`.
 
 ### Blueprint system
 
-Blueprints are declarative JSON schemas that describe UI and entity metadata. They live in module manifests under the `blueprints` array, are stored in the `Blueprint` table, and are served via `GET /blueprints`.
+Blueprints are declarative JSON schemas describing UI and entity metadata. They live in module manifests under `blueprints`, are stored in the `Blueprint` table, and are served via `GET /blueprints`.
 
 Blueprint kinds: `ENTITY`, `FORM`, `TABLE`, `DASHBOARD`, `ACTION`, `RELATION`, `PERMISSION`.
 
-Blueprints drive `DynamicForm` and `DynamicTable` UI components — they are not a substitute for Prisma models or backend validation. Prisma schema + API services remain the source of truth.
-
-See `docs/BLUEPRINTS.md` for field type reference and rendering rules.
+See `docs/08_blueprints.md` for field type reference and rendering rules.
 
 ### API structure (apps/api/src/index.js)
 
-Current pattern: routes → direct Prisma calls. As features grow, introduce a service layer:
+Current pattern: routes → direct Prisma calls. Planned service layer:
 
 ```
 routes (Hono handlers)
@@ -118,53 +121,58 @@ Key endpoints:
 - `GET /blueprints` — all enabled blueprints with module metadata
 - `GET /contacts` / `POST /contacts` — first real CRUD module
 
-The `DELETE /modules/:key` endpoint checks `module.core` and `module.uninstallable` before allowing removal.
-
 ### Shared validators (packages/validators)
 
-`moduleInstallSchema` and `contactCreateSchema` are Zod schemas imported by both the API (for request validation) and potentially the frontend (for form validation). Add new schemas here when creating new modules.
+`moduleInstallSchema` and `contactCreateSchema` are Zod schemas shared between API and frontend. Add new schemas here when creating new modules.
 
 ### SDK (packages/sdk)
 
-`createAtlasClient({ baseUrl })` returns a typed client object grouped by domain (`modules`, `blueprints`, `contacts`). The desktop app instantiates this once using `VITE_ATLAS_API_URL` and passes it down via props or context.
+`createAtlasClient({ baseUrl })` returns a typed client grouped by domain (`modules`, `blueprints`, `contacts`). The desktop app instantiates this using `VITE_ATLAS_API_URL`.
 
 ### UI components (packages/ui)
 
-`AppShell` is the main layout: fixed sidebar (w-72) + scrollable main content. Navigation items come from the module manifests resolved at runtime via the API. Import components from `@atlas/ui`.
+`AppShell` is the main layout: fixed sidebar + scrollable main content. Navigation items come from module manifests resolved at runtime. Import from `@atlas/ui`.
 
-Tailwind is configured in `apps/desktop/tailwind.config.js` to scan both `src/**` and `../../packages/ui/src/**`.
+Tailwind scans both `src/**` and `../../packages/ui/src/**` (configured in `apps/desktop/tailwind.config.js`).
 
 ### Prisma schema highlights
 
-Key models relevant to the module system:
 - `AtlasModule` — installed modules (status: INSTALLED/DISABLED/UNINSTALLED/ERROR)
 - `Blueprint` — stored blueprint JSON per module
+- `InstanceConfig` — key-value store for instance-level state (e.g., initialized flag)
 - `Permission` + `Role` + `RolePermission` — RBAC
 - `Company` + `UserProfile` + `Membership` — multi-tenancy foundation
 - `AuditLog` — entity-level audit trail
-- `FileAsset` — file metadata only (actual files in MinIO or Supabase Storage)
+- `FileAsset` — file metadata only (actual files in Supabase Storage)
 - `Contact` — first real business entity
-
-The schema is multi-tenancy-ready but the MVP runs with one company.
 
 ## Language and conventions
 
 - **JavaScript only** — no TypeScript in this repo yet
 - **No emojis** in UI or documentation
+- **All UI text in Spanish** — code, docs, and comments in English
 - **Tailwind** for all styles — no CSS modules or styled-components
 - **React Hook Form + Zod** for forms
 - **TanStack Query** for server state; Zustand for client-only UI state when needed
 - **Hono** for API routes — keep route files thin, push logic to services
 - Business logic stays in `apps/api`, not in React components
-- Soft-delete pattern: disable/archive instead of hard-deleting records
-- Every new module needs: manifest in `packages/maps`, Prisma model(s), API routes, service, Zod schema in `packages/validators`, and documentation update in `docs/TASKS.md`
+- Soft-delete pattern: use `enabled: false` instead of hard-deleting records
+- Every new module needs: manifest in `packages/maps`, Prisma model(s), API routes, service, Zod schema in `packages/validators`, and a `docs/TASKS.md` update
+- Prisma is pinned to `^6` — do not upgrade to v7
+
+## Architecture documentation
+
+Before adding a new feature, read:
+- `docs/01_erp_architecture.md` — full system architecture
+- `docs/02_module_system.md` — module system
+- `docs/03_core_modules.md` — core module definitions
+- `docs/08_blueprints.md` — blueprint field types and rendering rules
+- `docs/TASKS.md` — current phase status and roadmap
 
 ## Development phases (current state)
 
-See `docs/TASKS.md` for the full phased roadmap. The project is a working starter bundle:
+See `docs/TASKS.md` for the full phased roadmap.
 
-- Phase 0 (infrastructure) — partially done; Docker stack defined, Prisma schema complete, seed script exists
-- Phase 1 (ERP shell navigation) — partially done; AppShell exists but navigation is hardcoded in `apps/desktop/src/main.jsx`; needs React Router + dynamic nav from API
-- Phase 2+ (Auth, DynamicForm/Table, Contacts CRUD, Finance) — not yet started
-
-Before adding a new feature, read `docs/ARCHITECTURE.md`, `docs/MODULE_SYSTEM.md`, and `docs/BLUEPRINTS.md` to understand constraints.
+- Phase 0 (repository cleanup + env alignment) — complete
+- Phase 1 (Supabase + Prisma connection) — current
+- Phase 2+ (instance state, setup wizard, auth, shell, contacts) — not yet started
