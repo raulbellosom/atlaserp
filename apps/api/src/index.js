@@ -60,11 +60,24 @@ app.post('/setup/initialize', async (c) => {
 
     const body = await c.req.parseBody()
     const fields = setupInitializeSchema.parse({
-      adminDisplayName: body.adminDisplayName,
+      adminFirstName: body.adminFirstName || undefined,
+      adminLastName: body.adminLastName || undefined,
       adminEmail: body.adminEmail,
       adminPassword: body.adminPassword,
       companyName: body.companyName,
-      primaryColor: body.primaryColor
+      primaryColor: body.primaryColor,
+      legalName: body.legalName || undefined,
+      rfc: body.rfc || undefined,
+      companyType: body.companyType || undefined,
+      companyTypeName: body.companyTypeName || undefined,
+      companySize: body.companySize || undefined,
+      country: body.country || undefined,
+      state: body.state || undefined,
+      city: body.city || undefined,
+      street: body.street || undefined,
+      extNumber: body.extNumber || undefined,
+      intNumber: body.intNumber || undefined,
+      postalCode: body.postalCode || undefined,
     })
 
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -107,10 +120,31 @@ app.post('/setup/initialize', async (c) => {
 
       await prisma.$transaction(async (tx) => {
         const company = await tx.company.create({
-          data: { name: fields.companyName, slug }
+          data: {
+            name: fields.companyName,
+            slug,
+            legalName: fields.legalName,
+            rfc: fields.rfc,
+            companyType: fields.companyType,
+            companyTypeName: fields.companyTypeName,
+            companySize: fields.companySize,
+            country: fields.country,
+            state: fields.state,
+            city: fields.city,
+            street: fields.street,
+            extNumber: fields.extNumber,
+            intNumber: fields.intNumber,
+            postalCode: fields.postalCode,
+          }
         })
         const userProfile = await tx.userProfile.create({
-          data: { authUserId, displayName: fields.adminDisplayName, email: fields.adminEmail }
+          data: {
+            authUserId,
+            firstName: fields.adminFirstName,
+            lastName: fields.adminLastName,
+            displayName: `${fields.adminFirstName} ${fields.adminLastName}`.trim(),
+            email: fields.adminEmail,
+          }
         })
         await tx.membership.create({
           data: { companyId: company.id, userId: userProfile.id, roleId: adminRole.id }

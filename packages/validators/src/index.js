@@ -32,9 +32,22 @@ export const contactCreateSchema = z.object({
 })
 
 export const setupInitializeSchema = z.object({
-  adminDisplayName: z.string().min(2),
+  adminFirstName: z.string().min(1),
+  adminLastName: z.string().min(1),
   adminEmail: z.string().email(),
   adminPassword: z.string().min(8),
   companyName: z.string().min(2),
-  primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/)
+  primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  legalName: z.string().optional(),
+  rfc: z.string().optional(),
+  companyType: z.string().optional(),
+  companyTypeName: z.string().optional(),
+  companySize: z.string().optional(),
+  country: z.string().optional(),
+  state: z.string().optional(),
+  city: z.string().optional(),
+  street: z.string().optional(),
+  extNumber: z.string().optional(),
+  intNumber: z.string().optional(),
+  postalCode: z.string().optional(),
 })
