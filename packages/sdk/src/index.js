@@ -13,6 +13,9 @@ export function createAtlasClient({ baseUrl }) {
 
   return {
     health: () => request('/health'),
+    instance: {
+      status: () => request('/instance/status')
+    },
     modules: {
       list: () => request('/modules'),
       install: (manifest) => request('/modules/install', { method: 'POST', body: JSON.stringify({ manifest }) }),
