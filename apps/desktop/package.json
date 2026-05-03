@@ -17,6 +17,7 @@
     "@tanstack/react-query": "latest",
     "@tauri-apps/api": "latest",
     "lucide-react": "latest",
+    "motion": "^12.38.0",
     "react": "latest",
     "react-dom": "latest",
     "react-hook-form": "^7.75.0",

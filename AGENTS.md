@@ -4,134 +4,156 @@ This file guides Codex and other coding agents working in this repository.
 
 ## Project Identity
 
-Atlas ERP is a desktop-first, full-stack, modular ERP platform inspired by Odoo, built with:
+**Atlas ERP Meridian Edition** — a desktop-first, full-stack, modular ERP platform inspired by Odoo, built with:
 
 - React + Vite + Tauri for the desktop shell
 - Node.js + Hono for the Atlas API
-- Prisma ORM with PostgreSQL
+- Prisma ORM (pinned to `^6`) with PostgreSQL via self-hosted Supabase
 - pnpm workspaces
 - TailwindCSS and shared React UI components
-- Redis and MinIO in local development
+- **Supabase** for Auth, Storage, and PostgreSQL (self-hosted at https://supabase.racoondevs.com)
 
-Do not replace this stack unless the user explicitly asks for an architecture migration.
+There is no local Docker stack (no Redis, no MinIO). All persistence goes through Supabase.
+
+## Infrastructure
+
+- **Supabase API**: https://supabase.racoondevs.com — self-hosted instance, NOT Supabase Cloud
+- **Supabase Studio**: https://studio.supabase.racoondevs.com (admin use only)
+- **PostgreSQL is not publicly exposed.** All Prisma commands require an SSH tunnel:
+  ```bash
+  ssh -L 54322:172.22.0.3:5432 root@76.13.114.109
+  ```
+  Keep the tunnel open for any `db:*` command. `DATABASE_URL` and `DIRECT_URL` connect via `127.0.0.1:54322`.
+- **Supabase Storage**: used for file assets. Current buckets: `atlas-branding`, `atlas-files`.
+- **Supabase Auth**: used for user account creation and authentication.
+
+## MCP Server
+
+The Supabase MCP server is configured and available for database inspection, docs, and debugging:
+
+- **`.vscode/mcp.json`** (VS Code): `https://supabase.racoondevs.com/mcp?features=docs%2Cdatabase%2Cdebugging%2Cdevelopment`
+- **`.mcp.json`** (root, for Claude/other agents): `https://supabase.racoondevs.com/mcp`
+
+Use MCP tools when querying or inspecting live database state, schema, or Supabase docs.
 
 ## Architecture Rules
 
-The required request flow is:
+Required request flow:
 
 ```txt
 React/Tauri desktop app
-  -> @atlas/sdk
-  -> Atlas API
-  -> services/module backend logic
+  -> @atlas/sdk  (packages/sdk)
+  -> Atlas API   (apps/api — Hono)
+  -> Zod validation (@atlas/validators)
   -> Prisma
-  -> PostgreSQL
+  -> Supabase PostgreSQL
 ```
 
-Frontend code must not access the database directly. Business rules, validation, module lifecycle rules, permissions, and persistence belong in the API layer.
-
-For files:
+For file uploads:
 
 ```txt
-React/Tauri
-  -> Atlas API
-  -> storage provider
-  -> MinIO now, Supabase Storage later if requested
+React/Tauri -> Atlas API -> Supabase Storage (supabaseAdmin client)
 ```
 
-Supabase self-hosted is a future/advanced deployment scenario. Keep the current development path compatible with standard PostgreSQL, Redis, and MinIO unless the user explicitly asks to move further into Supabase.
+Frontend code must not access the database or Supabase directly. The API owns all business rules, validation, and auth-admin operations (uses `SUPABASE_SERVICE_ROLE_KEY`). The frontend only holds `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 
-## Current Repository Shape
+## Repository Shape
 
-Important folders:
+| Folder                | Purpose                                                   |
+| --------------------- | --------------------------------------------------------- |
+| `apps/desktop`        | React + Vite + Tauri desktop shell                        |
+| `apps/api`            | Hono API — routes, Prisma, Supabase Admin client          |
+| `apps/worker`         | Background worker stub                                    |
+| `packages/core`       | Module registry, event bus, manifest contract             |
+| `packages/maps`       | Core and feature module manifests                         |
+| `packages/ui`         | Shared React components (`AppShell`, `Button`, `Card`, …) |
+| `packages/sdk`        | `createAtlasClient` factory — all frontend API calls      |
+| `packages/validators` | Zod schemas shared between API and frontend               |
+| `prisma`              | `schema.prisma`, migrations, `seed.js`                    |
+| `docs`                | Architecture and task docs                                |
 
-- `apps/desktop` - React + Vite + Tauri desktop shell
-- `apps/api` - Hono API
-- `apps/worker` - background worker stub
-- `packages/core` - module registry, event bus, manifest contract
-- `packages/maps` - core and feature module manifests
-- `packages/ui` - shared UI components
-- `packages/sdk` - Atlas API client
-- `packages/validators` - shared Zod schemas
-- `prisma` - schema, migrations, seed
-- `docs` - architecture and task docs
-- `codex` - long-form Codex project prompt
-
-Read `README.md`, `CLAUDE.md`, `docs/ARCHITECTURE.md`, `docs/MODULE_SYSTEM.md`, `docs/BLUEPRINTS.md`, and `docs/TASKS.md` before meaningful feature work.
+Before meaningful feature work, read: [CLAUDE.md](CLAUDE.md), [docs/TASKS.md](docs/TASKS.md), [docs/08_blueprints.md](docs/08_blueprints.md).
 
 ## Commands
 
-Use `pnpm.cmd` from PowerShell if `pnpm` is blocked by Windows script execution policy.
+> **SSH tunnel must be open** before any `db:*` command.
+
+Use `pnpm.cmd` from PowerShell if `pnpm` is blocked by Windows execution policy.
 
 ```powershell
+# First time
 pnpm.cmd install --frozen-lockfile
-pnpm.cmd infra:up
-pnpm.cmd db:generate
-pnpm.cmd db:migrate
-pnpm.cmd db:seed
-pnpm.cmd dev
+
+# Database (SSH tunnel required)
+pnpm.cmd db:generate   # regenerate Prisma client after schema changes
+pnpm.cmd db:migrate    # apply pending migrations
+pnpm.cmd db:seed       # seed core modules, roles, permissions
+pnpm.cmd db:fresh      # migrate + generate + seed (non-destructive)
+pnpm.cmd db:studio     # Prisma Studio at http://localhost:5555
+
+# Dev servers
+pnpm.cmd dev           # API (4010) + Vite (5173) + worker
+pnpm.cmd dev:api
+pnpm.cmd dev:frontend
 ```
 
 Useful checks:
 
 ```powershell
-docker compose -f docker-compose.local-lite.yml ps
-pnpm.cmd exec prisma migrate status
 Invoke-WebRequest -UseBasicParsing http://localhost:4010/health
 Invoke-WebRequest -UseBasicParsing http://localhost:5173
 ```
 
-If `pnpm.cmd db:generate` fails on Windows with `EPERM` while renaming `query_engine-windows.dll.node`, check for running Node/API/dev processes that are holding the Prisma client DLL. Do not kill user processes without clear intent; report the lock and retry after dev servers are stopped.
+**Windows gotcha**: If `db:generate` fails with `EPERM` renaming `query_engine-windows.dll.node`, a running Node/API process is holding the Prisma DLL. Stop dev servers first, then retry.
 
 ## Implementation Standards
 
-- Use JavaScript, not TypeScript, unless a specific existing area already uses TypeScript.
-- Keep UI text in Spanish. Keep code, docs, and comments in English.
-- Use TailwindCSS for styling.
-- Keep repeated visual components in `packages/ui` or reusable module-local components.
-- Use `@atlas/sdk` for frontend API calls.
-- Use Zod schemas from `packages/validators` before writes.
-- Keep API route files thin as features grow; move business rules into services.
-- Prefer disabling/archiving over destructive delete behavior.
+- **JavaScript only** — no TypeScript unless an existing area already uses it.
+- UI text in **Spanish**. Code, docs, and comments in **English**.
+- **TailwindCSS** for all styles — no CSS modules or styled-components.
+- Use `@atlas/sdk` for all frontend API calls — never `fetch` directly.
+- Use Zod schemas from `@atlas/validators` before any write.
+- Prefer `enabled: false` (soft-disable) over hard deletes.
 - Core modules must not be uninstallable.
-- Update `docs/TASKS.md` when completing meaningful project phases.
+- Keep API route handlers thin; push business logic into service functions.
+- Update [docs/TASKS.md](docs/TASKS.md) when completing meaningful project phases.
+- Prisma is pinned to `^6` — do not upgrade to v7.
+- Never expose `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `JWT_SECRET`, or `DATABASE_URL` to the frontend via `VITE_` prefixes.
 
 ## Module System
 
 ERP modules are "maps". Manifests live in `packages/maps`.
 
-Core modules:
+**Core modules** (`core: true`, `uninstallable: false`):
 
 - `atlas.core`
 - `atlas.identity`
 - `atlas.files`
+- `atlas.branding`
 
-Feature modules currently include:
+**Feature modules** (installable, versioned):
 
 - `atlas.contacts`
 - `atlas.finance`
 
-Each new module should define a manifest with key, name, version, dependencies, navigation, permissions, blueprints, exposed capabilities, and consumed capabilities. Add Prisma models, API routes/services, validators, UI, and docs only as needed for the current phase.
+Each new module needs: manifest in `packages/maps`, Prisma model(s), API routes/service, Zod schema in `@atlas/validators`, UI screens, and a `docs/TASKS.md` update. See [docs/02_module_system.md](docs/02_module_system.md).
 
-## Current Verified Status
+## Current Phase Status (2026-05-03)
 
-Last checked by Codex on 2026-05-02:
+| Phase                            | Status      | Notes                                                    |
+| -------------------------------- | ----------- | -------------------------------------------------------- |
+| 0 — Repo cleanup + env alignment | Complete    | Supabase-first env, numbered docs suite                  |
+| 1 — Supabase + Prisma connection | Complete    | 3 migrations applied, 4 core modules seeded              |
+| 2 — ERP initialization state     | In progress | `InitGuard`, `react-router-dom`, `/instance/status` done |
+| 3 — Onboarding setup wizard      | In progress | 4-step wizard UI and `POST /setup/initialize` built      |
+| 4 — Auth integration             | Not started |                                                          |
+| 5+ — Shell, Contacts, Files      | Not started |                                                          |
 
-- Dependencies are installed and lockfile is current.
-- Local-lite Docker services are running: PostgreSQL, Redis, MinIO.
-- PostgreSQL is healthy on `localhost:5432`.
-- `pnpm.cmd db:generate` succeeds when no API process is holding the Prisma client DLL.
-- Prisma reports one migration and the database schema is up to date.
-- `pnpm.cmd db:seed` succeeds and seeds core modules.
-- API health endpoint responds at `http://localhost:4010/health` when the API server is started.
-- Vite web preview responds at `http://localhost:5173`.
-- `pnpm.cmd --filter @atlas/desktop build:web` succeeds.
-- The folder is not currently a Git repository.
+See [docs/TASKS.md](docs/TASKS.md) for the full task checklist.
 
-Known starter gaps:
+## Known Gaps
 
-- Desktop app still needs React Router.
-- Navigation is currently hardcoded in `apps/desktop/src/main.jsx`.
-- Module detail and install/disable UI are not complete.
-- Contacts has API list/create foundations but no full CRUD UI yet.
-- DynamicForm and DynamicTable foundations are not implemented yet.
+- Auth login flow (Phase 4) not implemented — `LoginPlaceholder` is a stub.
+- Module install/disable UI is incomplete.
+- `DynamicForm` and `DynamicTable` not yet implemented.
+- Contacts has API foundations (`GET/POST /contacts`) but no full CRUD UI.
