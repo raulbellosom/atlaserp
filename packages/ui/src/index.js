@@ -37,6 +37,7 @@ export {
   SwitchField,
   RadioGroupField,
   TagsField,
+  ComboboxField,
 } from "./components/FormFields.jsx";
 export { Checkbox } from "./components/Checkbox.jsx";
 export { Switch } from "./components/Switch.jsx";

@@ -1316,3 +1316,134 @@ export function DropzoneField({
     </FieldWrapper>
   );
 }
+
+// ─── ComboboxField ────────────────────────────────────────────────────────────
+
+export function ComboboxField({
+  label,
+  id,
+  required,
+  error: externalError,
+  hint,
+  options = [],
+  value,
+  onChange,
+  placeholder = "Seleccionar...",
+  searchPlaceholder = "Buscar...",
+  emptyText = "Sin resultados",
+  minSearchLength = 0,
+  className,
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const containerRef = useRef(null)
+  const searchRef = useRef(null)
+
+  const selected = options.find(o => o.value === value)
+
+  const filtered = search.length >= minSearchLength
+    ? options.filter(o => o.label.toLowerCase().includes(search.toLowerCase())).slice(0, 200)
+    : minSearchLength > 0
+    ? []
+    : options.slice(0, 200)
+
+  useEffect(() => {
+    function handleOutside(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false)
+        setSearch('')
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [])
+
+  function handleOpen() {
+    setOpen(o => !o)
+    // focus search after open
+    setTimeout(() => searchRef.current?.focus(), 50)
+  }
+
+  function handleSelect(opt) {
+    onChange(opt.value)
+    setOpen(false)
+    setSearch('')
+  }
+
+  return (
+    <FieldWrapper label={label} labelFor={id} error={externalError} hint={hint} required={required}>
+      <div ref={containerRef} className={cn('relative', className)}>
+        <button
+          type="button"
+          id={id}
+          onClick={handleOpen}
+          className={cn(
+            fieldCls(externalError, 'flex items-center justify-between text-left cursor-pointer'),
+          )}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+        >
+          <span className={cn('truncate', selected ? 'text-foreground' : 'text-muted-foreground')}>
+            {selected ? selected.label : placeholder}
+          </span>
+          <ChevronDown
+            size={14}
+            strokeWidth={1.75}
+            className={cn('text-muted-foreground/60 shrink-0 ml-2 transition-transform duration-150', open && 'rotate-180')}
+          />
+        </button>
+
+        {open && (
+          <div className="absolute z-50 w-full mt-1 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+              <input
+                ref={searchRef}
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={searchPlaceholder}
+                className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            <div className="max-h-52 overflow-y-auto" role="listbox">
+              {search.length < minSearchLength ? (
+                <p className="px-3 py-4 text-xs text-muted-foreground text-center">
+                  Escribe al menos {minSearchLength} letras para buscar
+                </p>
+              ) : filtered.length === 0 ? (
+                <p className="px-3 py-4 text-sm text-muted-foreground text-center">{emptyText}</p>
+              ) : (
+                filtered.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="option"
+                    aria-selected={opt.value === value}
+                    onClick={() => handleSelect(opt)}
+                    className={cn(
+                      'w-full text-left px-3 py-2 text-sm transition-colors duration-100',
+                      opt.value === value
+                        ? 'bg-primary/10 text-primary font-medium'
+                        : 'text-foreground hover:bg-muted/50',
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </FieldWrapper>
+  )
+}

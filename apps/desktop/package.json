@@ -16,6 +16,7 @@
     "@atlas/ui": "workspace:*",
     "@tanstack/react-query": "latest",
     "@tauri-apps/api": "latest",
+    "country-state-city": "^3.2.1",
     "lucide-react": "latest",
     "motion": "^12.38.0",
     "react": "latest",
