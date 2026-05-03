@@ -30,3 +30,11 @@ export const contactCreateSchema = z.object({
   taxId: z.string().optional(),
   metadata: z.record(z.any()).optional()
 })
+
+export const setupInitializeSchema = z.object({
+  adminDisplayName: z.string().min(2),
+  adminEmail: z.string().email(),
+  adminPassword: z.string().min(8),
+  companyName: z.string().min(2),
+  primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/)
+})
