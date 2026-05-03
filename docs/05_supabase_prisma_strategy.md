@@ -31,7 +31,7 @@ PostgreSQL is **not exposed publicly**. Local development connects through an SS
 ### Open the SSH tunnel (required before any Prisma command)
 
 ```bash
-ssh -L 54322:127.0.0.1:5432 root@76.13.114.109
+ssh -L 54322:172.22.0.3:5432 root@76.13.114.109
 ```
 
 Keep the terminal open. The tunnel maps local port `54322` to PostgreSQL on the VPS.

@@ -36,7 +36,7 @@ pnpm install
 PostgreSQL is not exposed publicly. Open this tunnel in a separate terminal before running any `db:*` command:
 
 ```bash
-ssh -L 54322:127.0.0.1:5432 root@76.13.114.109
+ssh -L 54322:172.22.0.3:5432 root@76.13.114.109
 ```
 
 Keep it open for the duration of your database work.

@@ -38,8 +38,8 @@ cp .env.example .env
 pnpm install
 
 # 3. Open SSH tunnel (keep this terminal open)
-ssh -L 54322:127.0.0.1:5432 root@76.13.114.109
-# This maps localhost:54322 → PostgreSQL on the VPS
+ssh -L 54322:172.22.0.3:5432 root@76.13.114.109
+# This maps localhost:54322 → supabase-db container (172.22.0.3:5432) on the VPS
 
 # 4. First-time database setup (in a new terminal, tunnel must be open)
 pnpm db:generate
@@ -64,8 +64,8 @@ pnpm dev:tauri     # Native Tauri window + all servers (requires Rust)
 ## SSH tunnel reference
 
 ```bash
-# Opens local port 54322 → PostgreSQL port 5432 on the VPS
-ssh -L 54322:127.0.0.1:5432 root@76.13.114.109
+# Opens local port 54322 → supabase-db container (172.22.0.3:5432) on the VPS
+ssh -L 54322:172.22.0.3:5432 root@76.13.114.109
 ```
 
 Required before: `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`, `pnpm db:studio`, `pnpm db:fresh`.

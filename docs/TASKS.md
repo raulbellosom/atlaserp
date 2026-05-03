@@ -15,20 +15,31 @@ Verified: 2026-05-02
 
 ## Phase 1 — Supabase + Prisma connection
 
-- [ ] Fill .env: copy keys from VPS /opt/supabase-atlaserp/supabase/docker/.env
-- [ ] Open SSH tunnel: ssh -L 54322:127.0.0.1:5432 root@76.13.114.109
-- [ ] Run pnpm db:generate — Prisma client against Supabase PostgreSQL (tunnel required)
-- [ ] Run pnpm db:migrate — apply schema including InstanceConfig migration (tunnel required)
-- [ ] Run pnpm db:seed — 4 core modules, admin role, permissions (tunnel required)
-- [ ] Verify GET /health returns 200
-- [ ] Verify GET /modules returns 4 core modules from live Supabase
+- [x] Fill .env: copy keys from VPS /opt/supabase-atlaserp/supabase/docker/.env
+- [x] Open SSH tunnel: ssh -L 54322:172.22.0.3:5432 root@76.13.114.109
+      Note: PostgreSQL is not on host port 5432 — must tunnel to container IP 172.22.0.3:5432
+- [x] Run pnpm db:generate — Prisma client against Supabase PostgreSQL (tunnel required)
+- [x] Run pnpm db:migrate — applied initial_migration + add_instance_config (tunnel required)
+- [x] Run pnpm db:seed — 4 core modules, admin role, permissions (tunnel required)
+- [x] Verify GET /health returns 200
+- [x] Verify GET /modules returns 4 core modules from live Supabase
+
+Verified: 2026-05-03
 
 ## Phase 2 — ERP initialization state
 
-- [ ] Add GET /instance/status endpoint
-- [ ] Read InstanceConfig.instance.initialized from DB
-- [ ] Add frontend route guard (initialized → /login, not initialized → /setup)
-- [ ] Test: fresh instance shows /setup, initialized instance shows /login
+Plan: `docs/superpowers/plans/2026-05-03-phase2-initialization-state.md`
+
+- [ ] Add `GET /instance/status` endpoint — reads `InstanceConfig` key `initialized` from DB (`apps/api/src/index.js`)
+- [ ] Add `instance.status()` to SDK (`packages/sdk/src/index.js`)
+- [ ] Install `react-router-dom` in `apps/desktop`
+- [ ] Add `InitGuard` component — fetches status, redirects to `/setup` or `/login`
+- [ ] Add `SetupPlaceholder` stub screen at `/setup`
+- [ ] Add `LoginPlaceholder` stub screen at `/login`
+- [ ] Move `Dashboard` to `/app` route
+- [ ] Test A: fresh instance (no initialized key) → redirects to `/setup`
+- [ ] Test B: initialized instance (key = `"true"`) → redirects to `/login`
+- [ ] Test C: API down → error message shown in browser
 
 ## Phase 3 — Onboarding setup wizard
 
@@ -51,7 +62,6 @@ Verified: 2026-05-02
 
 ## Phase 5 — Atlas shell and module registry UI
 
-- [ ] React Router setup
 - [ ] Module launcher (app home screen / module grid)
 - [ ] Module-specific layouts and sidebars
 - [ ] Module catalog: install, disable, view status
