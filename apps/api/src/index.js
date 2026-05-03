@@ -75,7 +75,7 @@ app.post('/setup/initialize', async (c) => {
     if (authError) return c.json({ error: authError.message }, 400)
     const authUserId = authData.user.id
 
-    let logoFileAssetId = null
+    let logoUploadData = null
     const logoFile = body.logo
     if (logoFile && logoFile instanceof File && logoFile.size > 0) {
       if (logoFile.size > 2 * 1024 * 1024) {
@@ -93,23 +93,16 @@ app.post('/setup/initialize', async (c) => {
         await supabaseAdmin.auth.admin.deleteUser(authUserId)
         return c.json({ error: 'Logo upload failed' }, 500)
       }
-      const fileAsset = await prisma.fileAsset.create({
-        data: {
-          bucket: 'atlas-branding',
-          objectKey,
-          originalName: logoFile.name,
-          mimeType: logoFile.type,
-          sizeBytes: logoFile.size,
-          moduleKey: 'atlas.branding',
-          entityType: 'BrandingConfig'
-        }
-      })
-      logoFileAssetId = fileAsset.id
+      logoUploadData = { bucket: 'atlas-branding', objectKey, originalName: logoFile.name, mimeType: logoFile.type, sizeBytes: logoFile.size }
     }
 
     try {
       const slug = toSlug(fields.companyName)
       const adminRole = await prisma.role.findFirst({ where: { key: 'atlas.admin' } })
+      if (!adminRole) {
+        await supabaseAdmin.auth.admin.deleteUser(authUserId)
+        return c.json({ error: 'Admin role not configured' }, 500)
+      }
       const now = new Date().toISOString()
 
       await prisma.$transaction(async (tx) => {
@@ -120,8 +113,15 @@ app.post('/setup/initialize', async (c) => {
           data: { authUserId, displayName: fields.adminDisplayName, email: fields.adminEmail }
         })
         await tx.membership.create({
-          data: { companyId: company.id, userId: userProfile.id, roleId: adminRole?.id ?? null }
+          data: { companyId: company.id, userId: userProfile.id, roleId: adminRole.id }
         })
+        let logoFileAssetId = null
+        if (logoUploadData) {
+          const fileAsset = await tx.fileAsset.create({
+            data: { ...logoUploadData, moduleKey: 'atlas.branding', entityType: 'BrandingConfig' }
+          })
+          logoFileAssetId = fileAsset.id
+        }
         await tx.brandingConfig.create({
           data: { companyId: company.id, primaryColor: fields.primaryColor, logoFileId: logoFileAssetId }
         })
@@ -143,6 +143,7 @@ app.post('/setup/initialize', async (c) => {
     }
   } catch (err) {
     if (err?.name === 'ZodError') return c.json({ error: err.errors?.[0]?.message ?? 'Validation error' }, 400)
+    console.error('[setup/initialize]', err)
     return c.json({ error: 'Initialization failed' }, 500)
   }
 })
