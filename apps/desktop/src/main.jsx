@@ -36,7 +36,7 @@ function LoginPlaceholder() {
 
 function InitGuard() {
   const navigate = useNavigate()
-  const { data, isError } = useQuery({
+  const { data, isPending, isError } = useQuery({
     queryKey: ['instance-status'],
     queryFn: atlas.instance.status,
     retry: 1,
@@ -45,9 +45,9 @@ function InitGuard() {
   })
 
   useEffect(() => {
-    if (!data) return
+    if (isPending || !data) return
     navigate(data.initialized ? '/login' : '/setup', { replace: true })
-  }, [data, navigate])
+  }, [data, isPending, navigate])
 
   if (isError) {
     return (
