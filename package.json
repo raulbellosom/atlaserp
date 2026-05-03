@@ -1,0 +1,44 @@
+{
+  "name": "atlas-erp-starter",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "concurrently -n api,web,worker -c cyan,magenta,yellow \"pnpm dev:api\" \"pnpm dev:frontend\" \"pnpm dev:worker\"",
+    "dev:api": "pnpm --filter @atlas/api dev",
+    "dev:frontend": "pnpm --filter @atlas/desktop dev:web",
+    "dev:worker": "pnpm --filter @atlas/worker dev",
+    "dev:tauri": "concurrently -n api,tauri,worker -c cyan,magenta,yellow \"pnpm dev:api\" \"pnpm --filter @atlas/desktop dev\" \"pnpm dev:worker\"",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "infra:up": "docker compose -f docker-compose.local-lite.yml up -d postgres redis minio",
+    "infra:down": "docker compose -f docker-compose.local-lite.yml down",
+    "infra:reset": "docker compose -f docker-compose.local-lite.yml down -v && pnpm infra:up",
+    "infra:logs": "docker compose -f docker-compose.local-lite.yml logs -f postgres redis minio",
+    "infra:status": "docker compose -f docker-compose.local-lite.yml ps",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:seed": "node prisma/seed.js",
+    "db:studio": "prisma studio",
+    "db:reset": "prisma migrate reset --force && node prisma/seed.js",
+    "db:fresh": "prisma migrate deploy && prisma generate && node prisma/seed.js",
+    "setup": "pnpm install && pnpm db:generate && pnpm infra:up && node scripts/wait-for-db.mjs && pnpm db:migrate && pnpm db:seed",
+    "icons:generate": "node scripts/gen-icons.mjs",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "modules:seed": "node scripts/seed-core-modules.js"
+  },
+  "devDependencies": {
+    "@prisma/client": "^6",
+    "prisma": "^6",
+    "concurrently": "latest"
+  },
+  "pnpm": {
+    "overrides": {
+      "prisma": "^6"
+    }
+  }
+}

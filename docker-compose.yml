@@ -1,0 +1,32 @@
+# Production-oriented compose for Atlas services.
+# This expects Supabase self-hosted to already be running or reachable.
+# For a quick local start, use docker-compose.local-lite.yml.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    container_name: atlas-api
+    env_file: .env
+    ports:
+      - "4010:4010"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/worker.Dockerfile
+    container_name: atlas-worker
+    env_file: .env
+    restart: unless-stopped
+
+  web-preview:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+    container_name: atlas-web-preview
+    environment:
+      VITE_ATLAS_API_URL: ${ATLAS_API_URL:-http://localhost:4010}
+    ports:
+      - "5173:80"
+    restart: unless-stopped

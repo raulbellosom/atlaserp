@@ -1,0 +1,13 @@
+{
+  "name": "@atlas/maps",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./core-modules": "./src/core-modules.js"
+  },
+  "dependencies": {
+    "@atlas/core": "workspace:*"
+  }
+}

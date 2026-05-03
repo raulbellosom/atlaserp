@@ -1,0 +1,15 @@
+{
+  "name": "@atlas/worker",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "build": "echo no-build-needed",
+    "lint": "echo lint-pending"
+  },
+  "dependencies": {
+    "@atlas/core": "workspace:^",
+    "@prisma/client": "^6"
+  }
+}

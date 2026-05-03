@@ -1,0 +1,12 @@
+node_modules
+.pnpm-store
+.env
+.env.local
+.DS_Store
+dist
+build
+coverage
+apps/desktop/src-tauri/target
+prisma/generated
+*.db
+*.log

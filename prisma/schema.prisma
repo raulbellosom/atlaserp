@@ -1,0 +1,256 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum ModuleKind {
+  CORE
+  FEATURE
+  INTEGRATION
+  WEBSITE
+}
+
+enum ModuleStatus {
+  INSTALLED
+  DISABLED
+  UNINSTALLED
+  ERROR
+}
+
+enum BlueprintKind {
+  ENTITY
+  FORM
+  TABLE
+  DASHBOARD
+  ACTION
+  RELATION
+  PERMISSION
+}
+
+enum FileVisibility {
+  PRIVATE
+  INTERNAL
+  PUBLIC
+}
+
+model AtlasModule {
+  id             String   @id @default(cuid())
+  key            String   @unique
+  name           String
+  description    String?
+  version        String
+  kind           ModuleKind @default(FEATURE)
+  status         ModuleStatus @default(INSTALLED)
+  core           Boolean  @default(false)
+  uninstallable  Boolean  @default(true)
+  enabled        Boolean  @default(true)
+  manifest       Json
+  installedAt    DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  dependencies   ModuleDependency[] @relation("ModuleDependencies")
+  requiredBy     ModuleDependency[] @relation("RequiredByModules")
+  blueprints     Blueprint[]
+  permissions    Permission[]
+}
+
+model ModuleDependency {
+  id             String @id @default(cuid())
+  moduleId       String
+  dependencyId   String
+  versionRange   String?
+  optional       Boolean @default(false)
+
+  module         AtlasModule @relation("ModuleDependencies", fields: [moduleId], references: [id], onDelete: Cascade)
+  dependency     AtlasModule @relation("RequiredByModules", fields: [dependencyId], references: [id], onDelete: Restrict)
+
+  @@unique([moduleId, dependencyId])
+}
+
+model Blueprint {
+  id          String @id @default(cuid())
+  key         String @unique
+  moduleId    String
+  kind        BlueprintKind
+  version     String
+  schema      Json
+  enabled     Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  module      AtlasModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+}
+
+model Company {
+  id          String @id @default(cuid())
+  name        String
+  slug        String @unique
+  enabled     Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships Membership[]
+}
+
+model UserProfile {
+  id          String @id @default(cuid())
+  authUserId  String @unique
+  displayName String
+  email       String @unique
+  avatarFileId String?
+  enabled     Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships Membership[]
+  auditLogs   AuditLog[]
+}
+
+model Membership {
+  id          String @id @default(cuid())
+  companyId   String
+  userId      String
+  roleId      String?
+  enabled     Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user        UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        Role? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, userId])
+}
+
+model Role {
+  id          String @id @default(cuid())
+  key         String @unique
+  name        String
+  description String?
+  system      Boolean @default(false)
+  enabled     Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships Membership[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String @id @default(cuid())
+  key         String @unique
+  name        String
+  moduleId    String?
+  description String?
+  createdAt   DateTime @default(now())
+
+  module      AtlasModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  id            String @id @default(cuid())
+  roleId        String
+  permissionId  String
+
+  role          Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission    Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+model FileAsset {
+  id            String @id @default(cuid())
+  bucket        String
+  objectKey     String
+  originalName  String
+  mimeType      String
+  sizeBytes     Int
+  checksum      String?
+  visibility    FileVisibility @default(PRIVATE)
+  moduleKey     String?
+  entityType    String?
+  entityId      String?
+  uploadedById  String?
+  metadata      Json?
+  enabled       Boolean @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([moduleKey, entityType, entityId])
+}
+
+model AuditLog {
+  id          String @id @default(cuid())
+  actorId     String?
+  moduleKey   String?
+  entityType  String?
+  entityId    String?
+  action      String
+  before      Json?
+  after       Json?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  actor       UserProfile? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([moduleKey, entityType, entityId])
+  @@index([createdAt])
+}
+
+model Contact {
+  id          String @id @default(cuid())
+  companyId   String?
+  type        String
+  name        String
+  legalName   String?
+  email       String?
+  phone       String?
+  taxId       String?
+  metadata    Json?
+  enabled     Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type])
+  @@index([name])
+}
+
+model FinanceAccount {
+  id          String @id @default(cuid())
+  name        String
+  type        String
+  currency    String @default("MXN")
+  initialBalance Decimal @default(0)
+  enabled     Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transactions FinanceTransaction[]
+}
+
+model FinanceTransaction {
+  id          String @id @default(cuid())
+  accountId   String
+  type        String
+  amount      Decimal
+  currency    String @default("MXN")
+  occurredAt  DateTime
+  concept     String
+  reference   String?
+  contactId   String?
+  metadata    Json?
+  enabled     Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  account     FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([occurredAt])
+  @@index([type])
+}

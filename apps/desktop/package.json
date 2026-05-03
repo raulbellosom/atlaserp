@@ -1,0 +1,35 @@
+{
+  "name": "@atlas/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "dev:web": "vite",
+    "build": "tauri build",
+    "build:web": "vite build",
+    "preview": "vite preview",
+    "lint": "echo lint-pending"
+  },
+  "dependencies": {
+    "@atlas/sdk": "workspace:*",
+    "@atlas/ui": "workspace:*",
+    "@tanstack/react-query": "latest",
+    "@tauri-apps/api": "latest",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-hook-form": "^7.75.0",
+    "zustand": "latest"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.4",
+    "@tailwindcss/vite": "^4.2.4",
+    "@tauri-apps/cli": "latest",
+    "@vitejs/plugin-react": "latest",
+    "autoprefixer": "latest",
+    "postcss": "latest",
+    "tailwindcss": "latest",
+    "vite": "latest"
+  }
+}
