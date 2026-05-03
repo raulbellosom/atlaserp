@@ -86,6 +86,18 @@ export function SetupWizard() {
     adminPassword: "",
     adminConfirmPassword: "",
     companyName: "",
+    legalName: "",
+    rfc: "",
+    companyType: "",
+    companyTypeName: "",
+    companySize: "",
+    country: "",
+    state: "",
+    city: "",
+    street: "",
+    extNumber: "",
+    intNumber: "",
+    postalCode: "",
     primaryColor: "#6366f1",
     logo: null,
   });
@@ -102,6 +114,18 @@ export function SetupWizard() {
       fd.append("adminEmail", formData.adminEmail);
       fd.append("adminPassword", formData.adminPassword);
       fd.append("companyName", formData.companyName);
+      fd.append("legalName", formData.legalName);
+      fd.append("rfc", formData.rfc);
+      fd.append("companyType", formData.companyType);
+      fd.append("companyTypeName", formData.companyTypeName);
+      fd.append("companySize", formData.companySize);
+      fd.append("country", formData.country);
+      fd.append("state", formData.state);
+      fd.append("city", formData.city);
+      fd.append("street", formData.street);
+      fd.append("extNumber", formData.extNumber);
+      fd.append("intNumber", formData.intNumber);
+      fd.append("postalCode", formData.postalCode);
       fd.append("primaryColor", formData.primaryColor);
       if (formData.logo) fd.append("logo", formData.logo);
       return atlas.setup.initialize(fd);
