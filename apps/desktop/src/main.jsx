@@ -39,7 +39,9 @@ function InitGuard() {
   const { data, isError } = useQuery({
     queryKey: ['instance-status'],
     queryFn: atlas.instance.status,
-    retry: 1
+    retry: 1,
+    staleTime: 0,
+    gcTime: 0
   })
 
   useEffect(() => {
