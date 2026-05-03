@@ -27,6 +27,11 @@ app.get('/health', (c) => {
   })
 })
 
+app.get('/instance/status', async (c) => {
+  const record = await prisma.instanceConfig.findUnique({ where: { key: 'initialized' } })
+  return c.json({ initialized: record?.value === 'true' })
+})
+
 app.get('/modules', async (c) => {
   const modules = await prisma.atlasModule.findMany({ orderBy: [{ core: 'desc' }, { name: 'asc' }] })
   return c.json({ data: modules })
