@@ -1,7 +1,10 @@
 export function createAtlasClient({ baseUrl }) {
   async function request(path, options = {}) {
+    const isFormData = options.body instanceof FormData
     const response = await fetch(`${baseUrl}${path}`, {
-      headers: { 'Content-Type': 'application/json', ...(options.headers ?? {}) },
+      headers: isFormData
+        ? (options.headers ?? {})
+        : { 'Content-Type': 'application/json', ...(options.headers ?? {}) },
       ...options
     })
     if (!response.ok) {
@@ -15,6 +18,9 @@ export function createAtlasClient({ baseUrl }) {
     health: () => request('/health'),
     instance: {
       status: () => request('/instance/status')
+    },
+    setup: {
+      initialize: (formData) => request('/setup/initialize', { method: 'POST', body: formData })
     },
     modules: {
       list: () => request('/modules'),
