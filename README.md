@@ -4,22 +4,54 @@ Desktop-first, full-stack modular ERP built with React + Vite + Tauri, a Node/Ho
 
 ## Quick start
 
+### 1. Fill environment variables
+
 ```bash
-# 1. Copy and fill environment variables
 cp .env.example .env
-# Open .env and fill in: SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY,
-# DATABASE_URL, DIRECT_URL, JWT_SECRET
-# Get connection strings from https://studio.supabase.racoondevs.com
+```
 
-# 2. Install dependencies
+Open `.env` and fill in the values. All keys come from the VPS file at:
+`/opt/supabase-atlaserp/supabase/docker/.env`
+
+| .env variable | Source in VPS .env |
+|---|---|
+| `SUPABASE_ANON_KEY` | `ANON_KEY` |
+| `SUPABASE_SERVICE_ROLE_KEY` | `SERVICE_ROLE_KEY` |
+| `SUPABASE_JWT_SECRET` | `JWT_SECRET` |
+| `DATABASE_URL` / `DIRECT_URL` | Use `POSTGRES_PASSWORD` — see below |
+
+`DATABASE_URL` uses the SSH tunnel address:
+```
+DATABASE_URL=postgresql://postgres:<POSTGRES_PASSWORD>@127.0.0.1:54322/postgres
+```
+
+### 2. Install dependencies
+
+```bash
 pnpm install
+```
 
-# 3. Set up database (first time only)
+### 3. Open SSH tunnel (required for all Prisma commands)
+
+PostgreSQL is not exposed publicly. Open this tunnel in a separate terminal before running any `db:*` command:
+
+```bash
+ssh -L 54322:127.0.0.1:5432 root@76.13.114.109
+```
+
+Keep it open for the duration of your database work.
+
+### 4. Set up database (first time only)
+
+```bash
 pnpm db:generate    # generate Prisma client
 pnpm db:migrate     # apply migrations to Supabase PostgreSQL
 pnpm db:seed        # seed core modules, roles, permissions
+```
 
-# 4. Start dev servers
+### 5. Start dev servers
+
+```bash
 pnpm dev            # API + Vite web preview + worker
 ```
 
@@ -37,7 +69,7 @@ Open **http://localhost:5173** in your browser or run `pnpm dev:tauri` for the n
 | `pnpm dev:worker` | Background worker only |
 | `pnpm dev:tauri` | Native Tauri window + all servers (requires Rust toolchain) |
 
-### Database
+### Database (SSH tunnel required for all)
 
 | Command | What it does |
 |---|---|

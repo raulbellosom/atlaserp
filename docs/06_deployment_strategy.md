@@ -2,10 +2,12 @@
 
 ## Two independent stacks
 
-**Supabase stack** (already deployed externally):
-- https://supabase.racoondevs.com — PostgreSQL, Auth, Storage, Realtime, Studio
+**Supabase stack** (self-hosted on VPS, already deployed):
+- https://supabase.racoondevs.com — PostgreSQL, Auth, Storage, Realtime
+- https://studio.supabase.racoondevs.com — Studio (admin use only)
 - Not managed by Atlas ERP's docker-compose
 - Credentials in `.env`, never in version control
+- Config source of truth: `/opt/supabase-atlaserp/supabase/docker/.env` on the VPS
 
 **Atlas ERP stack** (managed here):
 - `apps/api` — Hono REST API
@@ -15,24 +17,36 @@
 
 ## No local database
 
-There is no local PostgreSQL, Redis, or MinIO in the Atlas ERP dev setup. All development connects to https://supabase.racoondevs.com.
+There is no local PostgreSQL, Redis, or MinIO. All development connects to the self-hosted Supabase at https://supabase.racoondevs.com via an SSH tunnel.
 
-## Development setup (local, without Docker)
+## Development setup (local)
+
+### Prerequisites
+
+- Node.js 22, pnpm 9
+- SSH access to the VPS (`root@76.13.114.109`)
+- Credentials from `/opt/supabase-atlaserp/supabase/docker/.env`
+
+### Steps
 
 ```bash
 # 1. Copy and fill env
 cp .env.example .env
-# Fill: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, DIRECT_URL, JWT_SECRET
+# Fill in all values — see .env.example header for instructions
 
 # 2. Install dependencies
 pnpm install
 
-# 3. First-time database setup
+# 3. Open SSH tunnel (keep this terminal open)
+ssh -L 54322:127.0.0.1:5432 root@76.13.114.109
+# This maps localhost:54322 → PostgreSQL on the VPS
+
+# 4. First-time database setup (in a new terminal, tunnel must be open)
 pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
 
-# 4. Start dev servers
+# 5. Start dev servers (tunnel not required at runtime — only for DB commands)
 pnpm dev           # API + Vite web preview + worker
 pnpm dev:tauri     # Native Tauri window + all servers (requires Rust)
 ```
@@ -43,7 +57,20 @@ pnpm dev:tauri     # Native Tauri window + all servers (requires Rust)
 |---|---|
 | API | http://localhost:4010 |
 | Frontend (Vite) | http://localhost:5173 |
-| Prisma Studio | http://localhost:5555 |
+| Prisma Studio | http://localhost:5555 (requires SSH tunnel) |
+| Supabase API | https://supabase.racoondevs.com |
+| Supabase Studio | https://studio.supabase.racoondevs.com |
+
+## SSH tunnel reference
+
+```bash
+# Opens local port 54322 → PostgreSQL port 5432 on the VPS
+ssh -L 54322:127.0.0.1:5432 root@76.13.114.109
+```
+
+Required before: `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`, `pnpm db:studio`, `pnpm db:fresh`.
+
+**Not required** for `pnpm dev` — the API connects to Supabase Auth/Storage via HTTPS, not direct PostgreSQL. However, Prisma queries from the API also need the tunnel during development unless the VPS exposes PostgreSQL on a public port (currently it does not).
 
 ## docker-compose.yml
 

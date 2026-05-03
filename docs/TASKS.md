@@ -15,10 +15,11 @@ Verified: 2026-05-02
 
 ## Phase 1 — Supabase + Prisma connection
 
-- [ ] Fill .env with real Supabase credentials (DATABASE_URL, DIRECT_URL, keys)
-- [ ] Run pnpm db:generate — Prisma client against Supabase PostgreSQL
-- [ ] Run pnpm db:migrate — apply schema including InstanceConfig migration
-- [ ] Run pnpm db:seed — 4 core modules, admin role, permissions
+- [ ] Fill .env: copy keys from VPS /opt/supabase-atlaserp/supabase/docker/.env
+- [ ] Open SSH tunnel: ssh -L 54322:127.0.0.1:5432 root@76.13.114.109
+- [ ] Run pnpm db:generate — Prisma client against Supabase PostgreSQL (tunnel required)
+- [ ] Run pnpm db:migrate — apply schema including InstanceConfig migration (tunnel required)
+- [ ] Run pnpm db:seed — 4 core modules, admin role, permissions (tunnel required)
 - [ ] Verify GET /health returns 200
 - [ ] Verify GET /modules returns 4 core modules from live Supabase
 

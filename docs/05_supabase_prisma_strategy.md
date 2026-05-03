@@ -7,7 +7,7 @@
 | API | https://supabase.racoondevs.com |
 | Studio | https://studio.supabase.racoondevs.com |
 
-Dedicated to Atlas ERP. Not shared with other projects.
+Dedicated to Atlas ERP. Not Supabase Cloud — self-hosted on a VPS.
 
 ## What Atlas uses from Supabase
 
@@ -26,10 +26,28 @@ Prisma manages all tables in the `public` schema. Supabase internal schemas (`au
 
 ## Database connection
 
-Get connection strings from Supabase Studio → Settings → Database → Connection String.
+PostgreSQL is **not exposed publicly**. Local development connects through an SSH tunnel.
+
+### Open the SSH tunnel (required before any Prisma command)
 
 ```bash
-# schema.prisma
+ssh -L 54322:127.0.0.1:5432 root@76.13.114.109
+```
+
+Keep the terminal open. The tunnel maps local port `54322` to PostgreSQL on the VPS.
+
+### Connection strings in .env
+
+```bash
+DATABASE_URL=postgresql://postgres:<POSTGRES_PASSWORD>@127.0.0.1:54322/postgres
+DIRECT_URL=postgresql://postgres:<POSTGRES_PASSWORD>@127.0.0.1:54322/postgres
+```
+
+`POSTGRES_PASSWORD` is in the VPS file at `/opt/supabase-atlaserp/supabase/docker/.env`.
+
+### schema.prisma
+
+```prisma
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
@@ -37,13 +55,28 @@ datasource db {
 }
 ```
 
-```bash
-# .env
-DATABASE_URL=postgresql://postgres:[password]@db.supabase.racoondevs.com:5432/postgres
-DIRECT_URL=postgresql://postgres:[password]@db.supabase.racoondevs.com:5432/postgres
-```
+`DATABASE_URL` and `DIRECT_URL` are identical in this self-hosted setup (no pgBouncer by default).
 
-Self-hosted Supabase typically does not use pgBouncer by default, so DATABASE_URL and DIRECT_URL may have the same value. Verify in Studio.
+## Where to get credentials
+
+All Supabase credentials come from the VPS file:
+`/opt/supabase-atlaserp/supabase/docker/.env`
+
+| .env variable | VPS .env key |
+|---|---|
+| `SUPABASE_ANON_KEY` | `ANON_KEY` |
+| `SUPABASE_SERVICE_ROLE_KEY` | `SERVICE_ROLE_KEY` |
+| `SUPABASE_JWT_SECRET` | `JWT_SECRET` |
+| `DATABASE_URL` / `DIRECT_URL` | Use `POSTGRES_PASSWORD` |
+
+**Note:** The "Settings → API" and "Settings → Database" screens in Studio may not be available on this self-hosted instance. The VPS .env file is the source of truth.
+
+## JWT secrets — two distinct values
+
+| Variable | Purpose |
+|---|---|
+| `SUPABASE_JWT_SECRET` | The secret Supabase uses to sign auth tokens. From VPS .env. |
+| `JWT_SECRET` | Atlas API's own secret for any tokens Atlas generates independently. |
 
 ## Auth bridge: Supabase auth.users → Atlas UserProfile
 
@@ -73,9 +106,10 @@ File metadata stored in `FileAsset` Prisma model (bucket, objectKey, originalNam
 ## Migration workflow
 
 ```bash
-# After changing prisma/schema.prisma:
+# 1. Open SSH tunnel first (see above)
+# 2. After changing prisma/schema.prisma:
 pnpm db:generate   # regenerate Prisma client
-pnpm db:migrate    # apply migration to Supabase PostgreSQL
+pnpm db:migrate    # apply migration via tunnel
 ```
 
 Migrations committed to git in `prisma/migrations/`. Never run `prisma migrate reset` on production.
@@ -83,6 +117,7 @@ Migrations committed to git in `prisma/migrations/`. Never run `prisma migrate r
 ## Hard rules
 
 - Do not access Supabase tables directly from React (`supabase.from('table').select()`)
-- Do not expose `SUPABASE_SERVICE_ROLE_KEY` in frontend or VITE_ env vars
+- Do not expose `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_JWT_SECRET` in frontend or VITE_ env vars
 - Do not call `supabase.auth.signUp()` from frontend for ERP user creation — use Atlas API
 - Do not bypass Atlas API for critical ERP writes
+- Do not expose PostgreSQL publicly without explicit security review
