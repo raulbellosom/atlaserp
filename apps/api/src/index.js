@@ -3,12 +3,27 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import pkg from '@prisma/client'
 const { PrismaClient } = pkg
-import { moduleInstallSchema, contactCreateSchema } from '@atlas/validators'
+import { createClient } from '@supabase/supabase-js'
+import { moduleInstallSchema, contactCreateSchema, setupInitializeSchema } from '@atlas/validators'
 import { formatLogTimestamp, getConfiguredTimeZone } from '@atlas/core'
 
 const prisma = new PrismaClient()
 const app = new Hono()
 const port = Number(process.env.ATLAS_API_PORT ?? 4010)
+
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+)
+
+function toSlug(name) {
+  return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-+|-+$/g, '')
+}
+
+async function ensureBuckets() {
+  await supabaseAdmin.storage.createBucket('atlas-branding', { public: false }).catch(() => {})
+}
+ensureBuckets()
 
 app.use('*', cors({
   origin: (origin) => origin || '*',
@@ -33,6 +48,102 @@ app.get('/instance/status', async (c) => {
     return c.json({ initialized: record?.value === 'true' })
   } catch {
     return c.json({ error: 'Unable to read instance state' }, 503)
+  }
+})
+
+app.post('/setup/initialize', async (c) => {
+  try {
+    const existing = await prisma.instanceConfig.findUnique({ where: { key: 'initialized' } })
+    if (existing?.value === 'true') {
+      return c.json({ error: 'Already initialized' }, 409)
+    }
+
+    const body = await c.req.parseBody()
+    const fields = setupInitializeSchema.parse({
+      adminDisplayName: body.adminDisplayName,
+      adminEmail: body.adminEmail,
+      adminPassword: body.adminPassword,
+      companyName: body.companyName,
+      primaryColor: body.primaryColor
+    })
+
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: fields.adminEmail,
+      password: fields.adminPassword,
+      email_confirm: true
+    })
+    if (authError) return c.json({ error: authError.message }, 400)
+    const authUserId = authData.user.id
+
+    let logoFileAssetId = null
+    const logoFile = body.logo
+    if (logoFile && logoFile instanceof File && logoFile.size > 0) {
+      if (logoFile.size > 2 * 1024 * 1024) {
+        await supabaseAdmin.auth.admin.deleteUser(authUserId)
+        return c.json({ error: 'Logo must be under 2 MB' }, 400)
+      }
+      const slug = toSlug(fields.companyName)
+      const ext = logoFile.name.split('.').pop() || 'png'
+      const objectKey = `logos/${slug}.${ext}`
+      const arrayBuffer = await logoFile.arrayBuffer()
+      const { error: storageError } = await supabaseAdmin.storage
+        .from('atlas-branding')
+        .upload(objectKey, arrayBuffer, { contentType: logoFile.type, upsert: true })
+      if (storageError) {
+        await supabaseAdmin.auth.admin.deleteUser(authUserId)
+        return c.json({ error: 'Logo upload failed' }, 500)
+      }
+      const fileAsset = await prisma.fileAsset.create({
+        data: {
+          bucket: 'atlas-branding',
+          objectKey,
+          originalName: logoFile.name,
+          mimeType: logoFile.type,
+          sizeBytes: logoFile.size,
+          moduleKey: 'atlas.branding',
+          entityType: 'BrandingConfig'
+        }
+      })
+      logoFileAssetId = fileAsset.id
+    }
+
+    try {
+      const slug = toSlug(fields.companyName)
+      const adminRole = await prisma.role.findFirst({ where: { key: 'atlas.admin' } })
+      const now = new Date().toISOString()
+
+      await prisma.$transaction(async (tx) => {
+        const company = await tx.company.create({
+          data: { name: fields.companyName, slug }
+        })
+        const userProfile = await tx.userProfile.create({
+          data: { authUserId, displayName: fields.adminDisplayName, email: fields.adminEmail }
+        })
+        await tx.membership.create({
+          data: { companyId: company.id, userId: userProfile.id, roleId: adminRole?.id ?? null }
+        })
+        await tx.brandingConfig.create({
+          data: { companyId: company.id, primaryColor: fields.primaryColor, logoFileId: logoFileAssetId }
+        })
+        await tx.instanceConfig.upsert({
+          where: { key: 'initialized' }, update: { value: 'true' }, create: { key: 'initialized', value: 'true' }
+        })
+        await tx.instanceConfig.upsert({
+          where: { key: 'company_id' }, update: { value: company.id }, create: { key: 'company_id', value: company.id }
+        })
+        await tx.instanceConfig.upsert({
+          where: { key: 'completed_at' }, update: { value: now }, create: { key: 'completed_at', value: now }
+        })
+      })
+
+      return c.json({ ok: true })
+    } catch (txError) {
+      await supabaseAdmin.auth.admin.deleteUser(authUserId)
+      throw txError
+    }
+  } catch (err) {
+    if (err?.name === 'ZodError') return c.json({ error: err.errors?.[0]?.message ?? 'Validation error' }, 400)
+    return c.json({ error: 'Initialization failed' }, 500)
   }
 })
 
