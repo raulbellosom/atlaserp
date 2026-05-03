@@ -80,7 +80,8 @@ export function SetupWizard() {
   const [direction, setDirection] = useState(1);
   const stepRef = useRef(null);
   const [formData, setFormData] = useState({
-    adminDisplayName: "",
+    adminFirstName: "",
+    adminLastName: "",
     adminEmail: "",
     adminPassword: "",
     adminConfirmPassword: "",
@@ -96,7 +97,8 @@ export function SetupWizard() {
   const mutation = useMutation({
     mutationFn: () => {
       const fd = new FormData();
-      fd.append("adminDisplayName", formData.adminDisplayName);
+      fd.append("adminFirstName", formData.adminFirstName);
+      fd.append("adminLastName", formData.adminLastName);
       fd.append("adminEmail", formData.adminEmail);
       fd.append("adminPassword", formData.adminPassword);
       fd.append("companyName", formData.companyName);
