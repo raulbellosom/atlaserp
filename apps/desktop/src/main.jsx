@@ -4,23 +4,12 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { createAtlasClient } from '@atlas/sdk'
 import { AppShell, Card, CardContent, CardHeader, CardTitle, Button, Badge, Skeleton, Toaster, TooltipProvider } from '@atlas/ui'
+import { SetupWizard } from './setup/SetupWizard'
 import './styles.css'
 
 const apiUrl = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
 const atlas = createAtlasClient({ baseUrl: apiUrl })
 const queryClient = new QueryClient()
-
-function SetupPlaceholder() {
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 text-center p-8">
-      <p className="text-xs font-medium uppercase tracking-[0.25em] text-[hsl(var(--muted-foreground))]">Atlas ERP</p>
-      <h1 className="text-2xl font-semibold">Configuración inicial</h1>
-      <p className="max-w-sm text-sm text-[hsl(var(--muted-foreground))]">
-        Esta instancia aún no ha sido configurada. El asistente de configuración estará disponible próximamente.
-      </p>
-    </div>
-  )
-}
 
 function LoginPlaceholder() {
   return (
@@ -184,7 +173,7 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<InitGuard />} />
-            <Route path="/setup" element={<SetupPlaceholder />} />
+            <Route path="/setup" element={<SetupWizard />} />
             <Route path="/login" element={<LoginPlaceholder />} />
             <Route path="/app" element={<Dashboard isDark={isDark} onThemeToggle={handleThemeToggle} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
