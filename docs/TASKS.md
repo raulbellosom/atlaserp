@@ -60,12 +60,13 @@ Plan: `docs/superpowers/plans/2026-05-03-phase3-setup-wizard.md`
 - [x] Upload logo to Supabase Storage (atlas-branding bucket)
 - [x] Write InstanceConfig records (initialized, company_id, completed_at)
 - [x] Add FormFields component library to @atlas/ui
-- [ ] **PENDING**: Split admin name → firstName + lastName (currently single displayName field)
-- [ ] **PENDING**: Expand Company step — legalName, RFC, companyType, companySize, address fields
-- [ ] **PENDING**: Update Prisma Company + UserProfile models for new fields
-- [ ] **PENDING**: Update setupInitializeSchema and API handler for new fields
+- [x] Split admin name → firstName + lastName
+- [x] Expand Company model — legalName, RFC, companyType, companyTypeName, companySize, full address (country/state/city/street/extNumber/intNumber/postalCode)
+- [x] Add ComboboxField to @atlas/ui with cascading country → state → city (country-state-city library)
+- [x] Update setupInitializeSchema and API handler for all new fields
+- [ ] **MIGRATION REQUIRED** — run `pnpm db:migrate` with SSH tunnel open to apply Company + UserProfile schema changes
 
-Verified: 2026-05-03 (core flow complete; expansions pending)
+Verified: 2026-05-03 (complete — pending DB migration)
 
 ## Phase 4 — Auth integration
 
