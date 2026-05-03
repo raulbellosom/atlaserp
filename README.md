@@ -1,57 +1,58 @@
 # Atlas ERP
 
-Desktop-first, full-stack ERP built with React + Vite + Tauri, a Node/Hono API, Prisma, and a modular blueprint system inspired by Odoo.
+Desktop-first, full-stack modular ERP built with React + Vite + Tauri, a Node/Hono API, Prisma, and a dedicated self-hosted Supabase instance.
 
 ## Quick start
 
 ```bash
+# 1. Copy and fill environment variables
 cp .env.example .env
-pnpm setup      # install + start infra + migrate + seed (first time only)
-pnpm dev        # start API + frontend
+# Open .env and fill in: SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY,
+# DATABASE_URL, DIRECT_URL, JWT_SECRET
+# Get connection strings from https://studio.supabase.racoondevs.com
+
+# 2. Install dependencies
+pnpm install
+
+# 3. Set up database (first time only)
+pnpm db:generate    # generate Prisma client
+pnpm db:migrate     # apply migrations to Supabase PostgreSQL
+pnpm db:seed        # seed core modules, roles, permissions
+
+# 4. Start dev servers
+pnpm dev            # API + Vite web preview + worker
 ```
 
-Open **http://localhost:5173** in your browser.
+Open **http://localhost:5173** in your browser or run `pnpm dev:tauri` for the native window.
 
 ## Dev commands
 
-### Start servers
+### Servers
 
 | Command | What it does |
 |---|---|
-| `pnpm dev` | API + Vite web preview + worker *(recommended for daily dev)* |
+| `pnpm dev` | API + Vite web preview + worker (recommended) |
 | `pnpm dev:api` | API only — port 4010 |
 | `pnpm dev:frontend` | Vite web preview only — port 5173 |
 | `pnpm dev:worker` | Background worker only |
-| `pnpm dev:tauri` | Native Tauri window + API + worker *(requires Rust toolchain)* |
-
-### Infrastructure (Docker)
-
-| Command | What it does |
-|---|---|
-| `pnpm infra:up` | Start Postgres, Redis, MinIO in the background |
-| `pnpm infra:down` | Stop infrastructure containers |
-| `pnpm infra:reset` | Destroy all volumes and restart *(wipes all data)* |
-| `pnpm infra:logs` | Tail infrastructure logs |
-| `pnpm infra:status` | Show container status |
+| `pnpm dev:tauri` | Native Tauri window + all servers (requires Rust toolchain) |
 
 ### Database
 
 | Command | What it does |
 |---|---|
-| `pnpm db:migrate` | Run pending migrations |
 | `pnpm db:generate` | Regenerate Prisma client after schema changes |
-| `pnpm db:seed` | Seed core modules and permissions |
+| `pnpm db:migrate` | Run pending migrations against Supabase PostgreSQL |
+| `pnpm db:seed` | Seed core modules, permissions, roles |
 | `pnpm db:studio` | Open Prisma Studio GUI — http://localhost:5555 |
-| `pnpm db:reset` | Drop + re-migrate + seed *(wipes all data)* |
-| `pnpm db:fresh` | Apply migrations + generate + seed *(non-destructive)* |
+| `pnpm db:fresh` | migrate + generate + seed (non-destructive) |
 
-### Other
+### Build
 
 | Command | What it does |
 |---|---|
-| `pnpm setup` | Full first-time setup: install + infra + migrate + seed |
-| `pnpm icons:generate` | Regenerate Tauri app icons |
 | `pnpm build` | Build all packages and apps |
+| `pnpm icons:generate` | Regenerate Tauri app icons |
 
 ## Ports
 
@@ -60,7 +61,8 @@ Open **http://localhost:5173** in your browser.
 | API | http://localhost:4010 |
 | Frontend (Vite) | http://localhost:5173 |
 | Prisma Studio | http://localhost:5555 |
-| MinIO Console | http://localhost:9001 |
+| Supabase API | https://supabase.racoondevs.com |
+| Supabase Studio | https://studio.supabase.racoondevs.com |
 
 ## Architecture
 
@@ -80,7 +82,7 @@ prisma/
   seed.js         Seeds core modules, roles, permissions
 ```
 
-**Request flow:** `React → @atlas/sdk → Hono API → Zod validation → Prisma → PostgreSQL`
+**Request flow:** `React → @atlas/sdk → Hono API → Zod validation → Prisma → Supabase PostgreSQL`
 
 No direct database access from the frontend. The API owns all business rules and validation.
 
@@ -88,15 +90,15 @@ No direct database access from the frontend. The API owns all business rules and
 
 Every ERP feature is a **module**. Modules register via manifests in `packages/maps/`.
 
-- **Core modules** — `atlas.core`, `atlas.identity`, `atlas.files` — cannot be uninstalled.
+- **Core modules** — `atlas.core`, `atlas.identity`, `atlas.files`, `atlas.branding` — cannot be uninstalled.
 - **Feature modules** — installable, versioned, with declared dependencies.
 
-See [docs/MODULE_SYSTEM.md](docs/MODULE_SYSTEM.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+See [docs/02_module_system.md](docs/02_module_system.md) and [docs/01_erp_architecture.md](docs/01_erp_architecture.md).
 
 ## Notes
 
 - All UI text must be in **Spanish**. Code, docs, and comments are in **English**.
 - JavaScript only — no TypeScript.
 - Tailwind for all styles.
-- Prisma is pinned to `^6`. Do not upgrade to v7 (breaking API changes in datasource config).
-- For Supabase self-hosted, see [infra/supabase/README.md](infra/supabase/README.md).
+- Prisma is pinned to `^6`. Do not upgrade to v7 (breaking API changes).
+- Supabase Studio: https://studio.supabase.racoondevs.com (admin use only).
