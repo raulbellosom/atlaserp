@@ -16,8 +16,10 @@ export const atlasCoreMap = createModuleManifest({
   permissions: [
     { key: 'core.read', name: 'Read Core' },
     { key: 'core.manage', name: 'Manage Core' },
-    { key: 'modules.install', name: 'Install modules' },
-    { key: 'modules.uninstall', name: 'Uninstall modules' }
+    { key: 'modules.install', name: 'Install Modules' },
+    { key: 'modules.uninstall', name: 'Uninstall Modules' },
+    { key: 'modules.disable', name: 'Disable Modules' },
+    { key: 'audit.read', name: 'Read Audit Logs' },
   ],
   blueprints: [
     {
@@ -54,7 +56,11 @@ export const identityMap = createModuleManifest({
   ],
   permissions: [
     { key: 'identity.read', name: 'Read Identity' },
-    { key: 'identity.manage', name: 'Manage Identity' }
+    { key: 'identity.manage', name: 'Manage Identity' },
+    { key: 'roles.read', name: 'Read Roles' },
+    { key: 'roles.manage', name: 'Manage Roles' },
+    { key: 'permissions.read', name: 'Read Permissions' },
+    { key: 'permissions.manage', name: 'Manage Permissions' },
   ]
 })
 
@@ -70,8 +76,28 @@ export const filesMap = createModuleManifest({
   permissions: [
     { key: 'files.read', name: 'Read Files' },
     { key: 'files.upload', name: 'Upload Files' },
-    { key: 'files.delete', name: 'Delete Files' }
+    { key: 'files.delete', name: 'Delete Files' },
+    { key: 'files.manage', name: 'Manage Files' },
   ]
 })
 
-export const coreModules = [atlasCoreMap, identityMap, filesMap]
+export const brandingMap = createModuleManifest({
+  key: 'atlas.branding',
+  name: 'Marca',
+  description: 'Company logo, color palette, theme variables and login screen branding.',
+  version: '0.1.0',
+  kind: MODULE_KINDS.CORE,
+  core: true,
+  uninstallable: false,
+  dependencies: [{ key: 'atlas.core' }, { key: 'atlas.files' }],
+  navigation: [
+    { label: 'Marca', path: '/settings/branding', icon: 'Palette', layout: 'main' }
+  ],
+  permissions: [
+    { key: 'branding.read', name: 'Read Branding' },
+    { key: 'branding.manage', name: 'Manage Branding' },
+  ],
+  exposes: { logoUrl: 'string', primaryColor: 'string', companyName: 'string' }
+})
+
+export const coreModules = [atlasCoreMap, identityMap, filesMap, brandingMap]
