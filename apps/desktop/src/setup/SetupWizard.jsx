@@ -1,14 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { createAtlasClient } from '@atlas/sdk'
+import { Check } from 'lucide-react'
+import { atlas } from '../lib/atlas'
 import { StepAdmin } from './StepAdmin'
 import { StepCompany } from './StepCompany'
 import { StepBranding } from './StepBranding'
 import { StepReview } from './StepReview'
-
-const apiUrl = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
-const atlas = createAtlasClient({ baseUrl: apiUrl })
 
 const STEPS = [
   { label: 'Cuenta admin', subtitle: 'Nombre, email, contraseña' },
@@ -56,7 +54,10 @@ export function SetupWizard() {
     data: formData,
     onChange: handleChange,
     onNext: () => setStep(s => s + 1),
-    onBack: () => setStep(s => s - 1)
+    onBack: () => {
+      mutation.reset()
+      setStep(s => Math.max(0, s - 1))
+    }
   }
 
   return (
@@ -72,12 +73,12 @@ export function SetupWizard() {
               <div className={`flex items-start gap-2.5 ${i !== step ? 'opacity-40' : ''}`}>
                 <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[11px] font-semibold ${
                   i < step
-                    ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]'
+                    ? 'bg-[hsl(var(--primary))]/70 text-[hsl(var(--primary-foreground))]'
                     : i === step
                     ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]'
                     : 'border-2 border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]'
                 }`}>
-                  {i < step ? '✓' : i + 1}
+                  {i < step ? <Check size={12} strokeWidth={2.5} /> : i + 1}
                 </div>
                 <div>
                   <p className="text-xs font-medium">{s.label}</p>
@@ -92,14 +93,17 @@ export function SetupWizard() {
         </div>
       </div>
 
-      <div className="flex-1 p-10" style={{ maxWidth: '480px' }}>
+      <div className="flex-1 p-10 max-w-120">
         {step === 0 && <StepAdmin {...stepProps} />}
         {step === 1 && <StepCompany {...stepProps} />}
         {step === 2 && <StepBranding {...stepProps} />}
         {step === 3 && (
           <StepReview
             data={formData}
-            onBack={() => setStep(2)}
+            onBack={() => {
+              mutation.reset()
+              setStep(2)
+            }}
             onSubmit={() => mutation.mutate()}
             isPending={mutation.isPending}
             error={mutation.error?.message}

@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
-import { createAtlasClient } from '@atlas/sdk'
 import { AppShell, Card, CardContent, CardHeader, CardTitle, Button, Badge, Skeleton, Toaster, TooltipProvider } from '@atlas/ui'
 import { SetupWizard } from './setup/SetupWizard'
+import { atlas } from './lib/atlas'
 import './styles.css'
 
-const apiUrl = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
-const atlas = createAtlasClient({ baseUrl: apiUrl })
 const queryClient = new QueryClient()
 
 function LoginPlaceholder() {
