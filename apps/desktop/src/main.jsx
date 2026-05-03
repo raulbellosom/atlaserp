@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { createAtlasClient } from '@atlas/sdk'
 import { AppShell, Card, CardContent, CardHeader, CardTitle, Button, Badge, Skeleton, Toaster, TooltipProvider } from '@atlas/ui'
@@ -9,22 +10,73 @@ const apiUrl = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
 const atlas = createAtlasClient({ baseUrl: apiUrl })
 const queryClient = new QueryClient()
 
+function SetupPlaceholder() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 text-center p-8">
+      <p className="text-xs font-medium uppercase tracking-[0.25em] text-[hsl(var(--muted-foreground))]">Atlas ERP</p>
+      <h1 className="text-2xl font-semibold">Configuración inicial</h1>
+      <p className="max-w-sm text-sm text-[hsl(var(--muted-foreground))]">
+        Esta instancia aún no ha sido configurada. El asistente de configuración estará disponible próximamente.
+      </p>
+    </div>
+  )
+}
+
+function LoginPlaceholder() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 text-center p-8">
+      <p className="text-xs font-medium uppercase tracking-[0.25em] text-[hsl(var(--muted-foreground))]">Atlas ERP</p>
+      <h1 className="text-2xl font-semibold">Iniciar sesión</h1>
+      <p className="max-w-sm text-sm text-[hsl(var(--muted-foreground))]">
+        Autenticación disponible próximamente.
+      </p>
+    </div>
+  )
+}
+
+function InitGuard() {
+  const navigate = useNavigate()
+  const { data, isError } = useQuery({
+    queryKey: ['instance-status'],
+    queryFn: atlas.instance.status,
+    retry: 1
+  })
+
+  useEffect(() => {
+    if (!data) return
+    navigate(data.initialized ? '/login' : '/setup', { replace: true })
+  }, [data, navigate])
+
+  if (isError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-red-500">
+        No se pudo conectar con el servidor. Verifica que la API esté corriendo.
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center text-sm text-[hsl(var(--muted-foreground))]">
+      Cargando...
+    </div>
+  )
+}
+
 function Dashboard({ isDark, onThemeToggle }) {
   const modules = useQuery({ queryKey: ['modules'], queryFn: atlas.modules.list })
   const blueprints = useQuery({ queryKey: ['blueprints'], queryFn: atlas.blueprints.list })
 
   const navigation = [
-    { label: 'Dashboard', path: '/', icon: 'LayoutDashboard' },
-    { label: 'Módulos', path: '/modules', icon: 'Puzzle' },
-    { label: 'Contactos', path: '/contacts', icon: 'Contact' },
-    { label: 'Finanzas', path: '/finance', icon: 'Wallet' },
-    { label: 'Configuración', path: '/settings', icon: 'Settings' }
+    { label: 'Dashboard', path: '/app', icon: 'LayoutDashboard' },
+    { label: 'Módulos', path: '/app/modules', icon: 'Puzzle' },
+    { label: 'Contactos', path: '/app/contacts', icon: 'Contact' },
+    { label: 'Finanzas', path: '/app/finance', icon: 'Wallet' },
+    { label: 'Configuración', path: '/app/settings', icon: 'Settings' }
   ]
 
   return (
-    <AppShell navigation={navigation} currentPath="/" isDark={isDark} onThemeToggle={onThemeToggle}>
+    <AppShell navigation={navigation} currentPath="/app" isDark={isDark} onThemeToggle={onThemeToggle}>
       <div className="p-6 space-y-6">
-        {/* Header */}
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.25em] text-[hsl(var(--muted-foreground))]">Atlas ERP</p>
@@ -38,7 +90,6 @@ function Dashboard({ isDark, onThemeToggle }) {
           </Button>
         </div>
 
-        {/* Stat cards */}
         <div className="grid grid-cols-3 gap-4">
           <Card>
             <CardHeader>
@@ -82,7 +133,6 @@ function Dashboard({ isDark, onThemeToggle }) {
           </Card>
         </div>
 
-        {/* Modules list */}
         <Card>
           <CardHeader>
             <CardTitle>Módulos</CardTitle>
@@ -129,8 +179,16 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Dashboard isDark={isDark} onThemeToggle={handleThemeToggle} />
-        <Toaster />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<InitGuard />} />
+            <Route path="/setup" element={<SetupPlaceholder />} />
+            <Route path="/login" element={<LoginPlaceholder />} />
+            <Route path="/app" element={<Dashboard isDark={isDark} onThemeToggle={handleThemeToggle} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          <Toaster />
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   )
