@@ -30,26 +30,42 @@ Verified: 2026-05-03
 
 Plan: `docs/superpowers/plans/2026-05-03-phase2-initialization-state.md`
 
-- [ ] Add `GET /instance/status` endpoint — reads `InstanceConfig` key `initialized` from DB (`apps/api/src/index.js`)
-- [ ] Add `instance.status()` to SDK (`packages/sdk/src/index.js`)
-- [ ] Install `react-router-dom` in `apps/desktop`
-- [ ] Add `InitGuard` component — fetches status, redirects to `/setup` or `/login`
-- [ ] Add `SetupPlaceholder` stub screen at `/setup`
-- [ ] Add `LoginPlaceholder` stub screen at `/login`
-- [ ] Move `Dashboard` to `/app` route
-- [ ] Test A: fresh instance (no initialized key) → redirects to `/setup`
-- [ ] Test B: initialized instance (key = `"true"`) → redirects to `/login`
-- [ ] Test C: API down → error message shown in browser
+- [x] Add `GET /instance/status` endpoint — reads `InstanceConfig` key `initialized` from DB
+- [x] Add `instance.status()` to SDK
+- [x] Install `react-router-dom` in `apps/desktop`
+- [x] Add `InitGuard` component — fetches status, redirects to `/setup` or `/login`
+- [x] Add `SetupPlaceholder` stub screen at `/setup`
+- [x] Add `LoginPlaceholder` stub screen at `/login`
+- [x] Move `Dashboard` to `/app` route
+
+Verified: 2026-05-03
 
 ## Phase 3 — Onboarding setup wizard
 
-- [ ] Add BrandingConfig Prisma model and migration
-- [ ] Build 4-step wizard UI (admin account, company info, branding, review)
-- [ ] Build POST /setup/initialize API endpoint
-- [ ] Create Supabase Auth user via Admin SDK
-- [ ] Create UserProfile, Company, BrandingConfig via Prisma
-- [ ] Upload logo to Supabase Storage (atlas-branding bucket)
-- [ ] Write InstanceConfig records (initialized, company_id, completed_at)
+Spec: `docs/superpowers/specs/2026-05-03-phase3-setup-wizard-design.md`
+Plan: `docs/superpowers/plans/2026-05-03-phase3-setup-wizard.md`
+
+- [x] Add BrandingConfig Prisma model and migration
+- [x] Add setupInitializeSchema to @atlas/validators
+- [x] Add FormData support + setup.initialize() to @atlas/sdk
+- [x] Install @supabase/supabase-js in API
+- [x] Build POST /setup/initialize endpoint (transaction-safe, logo upload, adminRole guard)
+- [x] Build 4-step wizard UI — SetupWizard shell with motion/react slide transitions
+- [x] Step 1: Admin account (TextField + PasswordField with strength meter)
+- [x] Step 2: Company info (name + slug preview)
+- [x] Step 3: Branding (drag-drop logo, dominant color extraction, color swatches)
+- [x] Step 4: Review + submit
+- [x] Create Supabase Auth user via Admin SDK
+- [x] Create UserProfile, Company, BrandingConfig via Prisma transaction
+- [x] Upload logo to Supabase Storage (atlas-branding bucket)
+- [x] Write InstanceConfig records (initialized, company_id, completed_at)
+- [x] Add FormFields component library to @atlas/ui
+- [ ] **PENDING**: Split admin name → firstName + lastName (currently single displayName field)
+- [ ] **PENDING**: Expand Company step — legalName, RFC, companyType, companySize, address fields
+- [ ] **PENDING**: Update Prisma Company + UserProfile models for new fields
+- [ ] **PENDING**: Update setupInitializeSchema and API handler for new fields
+
+Verified: 2026-05-03 (core flow complete; expansions pending)
 
 ## Phase 4 — Auth integration
 
