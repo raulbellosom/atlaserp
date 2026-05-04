@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { atlas } from '../lib/atlas'
 import { TextField, PasswordField, Button } from '@atlas/ui'
 
 export function LoginScreen() {
-  const navigate = useNavigate()
   const location = useLocation()
   const [branding, setBranding] = useState(location.state?.branding ?? null)
   const [email, setEmail] = useState('')
@@ -45,7 +44,6 @@ export function LoginScreen() {
         }
         return
       }
-      navigate('/app', { replace: true })
     } catch {
       setError('No se pudo conectar con el servidor. Intenta de nuevo.')
     } finally {

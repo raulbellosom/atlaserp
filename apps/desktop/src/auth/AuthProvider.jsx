@@ -10,24 +10,29 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    let mounted = true
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return
       setSession(session)
       setLoading(false)
       if (session) {
-        atlas.auth.me(session.access_token).then(setUserProfile).catch(() => {})
-      }
-    }).catch(() => setLoading(false))
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session)
-      if (session) {
-        atlas.auth.me(session.access_token).then(setUserProfile).catch(() => {})
+        atlas.auth.me(session.access_token)
+          .then(profile => { if (mounted) setUserProfile(profile) })
+          .catch(() => {})
       } else {
         setUserProfile(null)
       }
     })
 
-    return () => subscription.unsubscribe()
+    supabase.auth.getSession().catch(() => {
+      if (mounted) setLoading(false)
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   return (
