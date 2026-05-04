@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "start": "pnpm dev",
+    "start": "powershell -ExecutionPolicy Bypass -File ./scripts/start-dev.ps1",
     "dev": "concurrently --kill-others-on-fail -n api,web,worker -c cyan,magenta,yellow \"pnpm dev:api\" \"pnpm dev:frontend\" \"pnpm dev:worker\"",
     "dev:api": "pnpm --filter @atlas/api dev",
     "dev:frontend": "pnpm --filter @atlas/desktop dev:web",
