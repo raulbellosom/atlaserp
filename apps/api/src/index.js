@@ -4,7 +4,7 @@ import { cors } from 'hono/cors'
 import pkg from '@prisma/client'
 const { PrismaClient } = pkg
 import { createClient } from '@supabase/supabase-js'
-import { moduleInstallSchema, contactCreateSchema, setupInitializeSchema, notificationCreateSchema } from '@atlas/validators'
+import { moduleInstallSchema, contactCreateSchema, setupInitializeSchema } from '@atlas/validators'
 import { formatLogTimestamp, getConfiguredTimeZone } from '@atlas/core'
 
 const prisma = new PrismaClient()
@@ -365,115 +365,6 @@ app.post('/contacts', async (c) => {
   const contact = await prisma.contact.create({ data })
   return c.json({ data: contact }, 201)
 })
-
-// --- Branding ---
-app.get('/branding', authMiddleware, async (c) => {
-  const authUserId = c.get('authUserId')
-  try {
-    const profile = await prisma.userProfile.findUnique({ where: { authUserId } })
-    if (!profile) return c.json({ error: 'Profile not found' }, 404)
-    const membership = await prisma.membership.findFirst({
-      where: { userId: profile.id, enabled: true },
-      include: { company: { include: { brandingConfig: true } } }
-    })
-    const branding = membership?.company?.brandingConfig ?? null
-    let logoUrl = null
-    if (branding?.logoFileId) {
-      const fileAsset = await prisma.fileAsset.findUnique({ where: { id: branding.logoFileId } })
-      if (fileAsset) {
-        const { data: signedData } = await supabaseAdmin.storage
-          .from(fileAsset.bucket)
-          .createSignedUrl(fileAsset.objectKey, 3600)
-        logoUrl = signedData?.signedUrl ?? null
-      }
-    }
-    return c.json({
-      primaryColor: branding?.primaryColor ?? '#6366f1',
-      logoUrl,
-      companyName: membership?.company?.name ?? null
-    })
-  } catch {
-    return c.json({ error: 'Internal server error' }, 500)
-  }
-})
-
-// --- Memberships ---
-app.get('/memberships/me', authMiddleware, async (c) => {
-  const authUserId = c.get('authUserId')
-  try {
-    const profile = await prisma.userProfile.findUnique({ where: { authUserId } })
-    if (!profile) return c.json({ error: 'Profile not found' }, 404)
-    const memberships = await prisma.membership.findMany({
-      where: { userId: profile.id, enabled: true },
-      include: { company: true, role: true }
-    })
-    const data = memberships.map((m) => ({
-      id: m.id,
-      companyId: m.companyId,
-      companyName: m.company?.name ?? '',
-      companySlug: m.company?.slug ?? '',
-      role: m.role?.key ?? null,
-      roleName: m.role?.name ?? null
-    }))
-    return c.json({ data })
-  } catch {
-    return c.json({ error: 'Internal server error' }, 500)
-  }
-})
-
-// --- Notifications ---
-app.get('/notifications', authMiddleware, async (c) => {
-  const authUserId = c.get('authUserId')
-  try {
-    const profile = await prisma.userProfile.findUnique({ where: { authUserId } })
-    if (!profile) return c.json({ error: 'Profile not found' }, 404)
-    const unreadOnly = c.req.query('unreadOnly') === 'true'
-    const notifications = await prisma.notification.findMany({
-      where: { userId: profile.id, ...(unreadOnly ? { readAt: null } : {}) },
-      orderBy: { createdAt: 'desc' },
-      take: 50
-    })
-    return c.json({ data: notifications })
-  } catch {
-    return c.json({ error: 'Internal server error' }, 500)
-  }
-})
-
-app.post('/notifications/:id/read', authMiddleware, async (c) => {
-  const authUserId = c.get('authUserId')
-  const id = c.req.param('id')
-  try {
-    const profile = await prisma.userProfile.findUnique({ where: { authUserId } })
-    if (!profile) return c.json({ error: 'Profile not found' }, 404)
-    await prisma.notification.updateMany({
-      where: { id, userId: profile.id },
-      data: { readAt: new Date() }
-    })
-    return c.json({ ok: true })
-  } catch {
-    return c.json({ error: 'Internal server error' }, 500)
-  }
-})
-
-app.post('/notifications/read-all', authMiddleware, async (c) => {
-  const authUserId = c.get('authUserId')
-  try {
-    const profile = await prisma.userProfile.findUnique({ where: { authUserId } })
-    if (!profile) return c.json({ error: 'Profile not found' }, 404)
-    await prisma.notification.updateMany({
-      where: { userId: profile.id, readAt: null },
-      data: { readAt: new Date() }
-    })
-    return c.json({ ok: true })
-  } catch {
-    return c.json({ error: 'Internal server error' }, 500)
-  }
-})
-
-// Internal helper — usable from other services
-export async function createNotification({ userId, companyId, kind = 'info', title, body, link } = {}) {
-  return prisma.notification.create({ data: { userId, companyId, kind, title, body, link } })
-}
 
 serve({ fetch: app.fetch, port })
 console.log(`Atlas API running on http://localhost:${port}`)
