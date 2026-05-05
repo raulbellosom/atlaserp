@@ -14,7 +14,9 @@ import {
   financeApplicationPreviewSchema,
   financeApplicationReverseSchema,
   financeDocumentCreateSchema,
+  financeDocumentBulkReminderSchema,
   financeDocumentEnabledSchema,
+  financeDocumentReminderSchema,
   financeDocumentUpdateSchema,
   financeAccountUpdateSchema,
   financeEntryCreateSchema,
@@ -2705,6 +2707,59 @@ app.post(
         return c.json({ error: err.message }, err.status);
       }
       return c.json({ error: "No se pudo aplicar el documento." }, 500);
+    }
+  },
+);
+
+app.post(
+  "/finance/documents/:id/reminder",
+  authMiddleware,
+  requirePermission("finance.update"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const parsed = financeDocumentReminderSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json({ error: "Datos de recordatorio invalidos." }, 400);
+      }
+      const data = await financeDocumentsService.createDocumentReminder({
+        authUserId,
+        id,
+        payload: parsed.data,
+      });
+      return c.json({ data }, 201);
+    } catch (err) {
+      if (err instanceof FinanceServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo generar el recordatorio." }, 500);
+    }
+  },
+);
+
+app.post(
+  "/finance/documents/reminders/bulk",
+  authMiddleware,
+  requirePermission("finance.update"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const parsed = financeDocumentBulkReminderSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json({ error: "Solicitud masiva de recordatorios invalida." }, 400);
+      }
+      const data = await financeDocumentsService.createBulkDocumentReminders({
+        authUserId,
+        documentIds: parsed.data.documentIds,
+        payload: { message: parsed.data.message },
+      });
+      return c.json({ data }, 201);
+    } catch (err) {
+      if (err instanceof FinanceServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudieron generar recordatorios masivos." }, 500);
     }
   },
 );

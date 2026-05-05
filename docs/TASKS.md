@@ -210,9 +210,25 @@ Plan: `docs/superpowers/plans/2026-05-05-phase8-5-finance-taxes-withholdings.md`
 - [x] Extended finance document creation to persist tax trace lines and summary metadata
 - [x] Added finance sidebar route and screen section for `Impuestos`
 - [x] Added document modal tax selection with subtotal and suggested total preview
-- [ ] Apply migration in live dev DB and run DB-backed smoke for tax persistence
+- [x] Apply migration in live dev DB and run DB-backed smoke for tax persistence
 
-Verified: 2026-05-05 (static checks: `node --check apps/api/src/services/finance-service.js`, `node --check apps/api/src/services/finance-documents-service.js`, `node --check apps/api/src/index.js`, `node --check packages/validators/src/index.js`, `node --check packages/sdk/src/index.js`, `pnpm.cmd --filter ./apps/desktop build:web`; pending DB apply due temporary `P1001` tunnel reachability)
+Verified: 2026-05-05 (`pnpm.cmd db:migrate`, `pnpm.cmd db:generate`, `pnpm.cmd --filter ./apps/desktop build:web`, manual smoke for `/finance/tax-rates` and document tax flow)
+
+### Phase 8.6 - Finance operations UX (AR/AP)
+
+Spec: `docs/superpowers/specs/2026-05-05-phase8-6-finance-operations-ux-design.md`  
+Plan: `docs/superpowers/plans/2026-05-05-phase8-6-finance-operations-ux.md`
+
+- [x] Operational status layer in UI with overdue detection (`OVERDUE`)
+- [x] Spanish status labels for AR/AP daily operations
+- [x] Status filter in CxC and CxP tables (`Todos`, `Vencidos`, `Abiertos`, `Parciales`, `Pagados`, `Anulados`)
+- [x] Overdue badge style (`destructive`) for faster visual triage
+- [x] Quick reminder action in AR/AP row action menu for open balances
+- [x] Persist reminder actions as notification records (API-backed)
+- [x] Due-date filters (`Vence hoy`, `Esta semana`) in CxC and CxP
+- [x] Bulk reminder action for visible rows with open balances
+
+Verified: 2026-05-05 (`node --check apps/api/src/services/finance-documents-service.js`, `node --check apps/api/src/index.js`, `node --check packages/validators/src/index.js`, `node --check packages/sdk/src/index.js`, `pnpm.cmd --filter ./apps/desktop build:web`, `FINANCE_FINAL_SMOKE_OK` scripted run covering taxes, reminders, cross-currency apply, and reversal)
 
 ## Phase 9 - Future modules
 

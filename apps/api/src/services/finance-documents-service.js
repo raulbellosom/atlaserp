@@ -191,6 +191,37 @@ export function createFinanceDocumentsService({ prisma }) {
     return row;
   }
 
+  function buildReminderPayload({ document, customMessage }) {
+    const reference = document.reference || document.id;
+    const dueDate = document.dueDate
+      ? new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(
+          new Date(document.dueDate),
+        )
+      : "sin vencimiento";
+    const status = resolveDocumentOperationalStatusForReminder(document);
+    const fallback =
+      status === "OVERDUE"
+        ? `Documento ${reference} vencido (${dueDate}). Requiere seguimiento.`
+        : `Seguimiento de documento ${reference} (vence ${dueDate}).`;
+    return {
+      title: `Recordatorio ${document.direction} - ${reference}`,
+      body: customMessage || fallback,
+      link: `/app/m/atlas.finance/finance/${document.direction === "AR" ? "ar" : "ap"}`,
+    };
+  }
+
+  function resolveDocumentOperationalStatusForReminder(document) {
+    const open = amountToNumber(document.openAmount);
+    if (open <= 0) return "PAID";
+    if (document.dueDate) {
+      const due = new Date(document.dueDate);
+      if (!Number.isNaN(due.getTime()) && due.getTime() < Date.now()) {
+        return "OVERDUE";
+      }
+    }
+    return document.status;
+  }
+
   async function resolveFxRate({
     companyId,
     sourceCurrency,
@@ -1027,6 +1058,61 @@ export function createFinanceDocumentsService({ prisma }) {
         },
       });
       return rows;
+    },
+
+    async createDocumentReminder({ authUserId, id, payload = {} }) {
+      const { companyId, profileId } = await getCompanyContext(authUserId);
+      const document = await getDocumentOwned({ companyId, id });
+      const customMessage = String(payload.message ?? "").trim() || null;
+      const reminder = buildReminderPayload({ document, customMessage });
+      return prisma.notification.create({
+        data: {
+          userId: profileId,
+          companyId,
+          kind: "warning",
+          title: reminder.title,
+          body: reminder.body,
+          link: reminder.link,
+        },
+      });
+    },
+
+    async createBulkDocumentReminders({ authUserId, documentIds = [], payload = {} }) {
+      const { companyId, profileId } = await getCompanyContext(authUserId);
+      const uniqueIds = [...new Set(documentIds.filter(Boolean))];
+      if (!uniqueIds.length) {
+        throw new FinanceServiceError("No se recibieron documentos para recordar.", 400);
+      }
+
+      const rows = await prisma.financeDocument.findMany({
+        where: {
+          companyId,
+          id: { in: uniqueIds },
+        },
+      });
+      if (!rows.length) {
+        throw new FinanceServiceError("No se encontraron documentos para recordar.", 404);
+      }
+
+      const customMessage = String(payload.message ?? "").trim() || null;
+      await prisma.notification.createMany({
+        data: rows.map((document) => {
+          const reminder = buildReminderPayload({ document, customMessage });
+          return {
+            userId: profileId,
+            companyId,
+            kind: "warning",
+            title: reminder.title,
+            body: reminder.body,
+            link: reminder.link,
+          };
+        }),
+      });
+
+      return {
+        requested: uniqueIds.length,
+        created: rows.length,
+      };
     },
   };
 }

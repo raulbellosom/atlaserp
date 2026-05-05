@@ -230,6 +230,15 @@ export const financeDocumentEnabledSchema = z.object({
   enabled: z.boolean(),
 });
 
+export const financeDocumentReminderSchema = z.object({
+  message: z.string().trim().max(280).optional().nullable(),
+});
+
+export const financeDocumentBulkReminderSchema = z.object({
+  documentIds: z.array(z.string().cuid()).min(1).max(200),
+  message: z.string().trim().max(280).optional().nullable(),
+});
+
 export const financeApplicationLineSchema = z.object({
   targetDocumentId: z.string().cuid(),
   amount: z.coerce.number().finite().positive(),

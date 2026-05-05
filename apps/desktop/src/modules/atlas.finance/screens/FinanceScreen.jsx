@@ -90,6 +90,14 @@ const APPLICATION_STATUS_LABELS = {
   REVERSED: "Revertida",
 };
 
+const DOCUMENT_STATUS_LABELS = {
+  OPEN: "Abierto",
+  PARTIAL: "Parcial",
+  PAID: "Pagado",
+  VOID: "Anulado",
+  OVERDUE: "Vencido",
+};
+
 function formatMoney(value, currency = "MXN") {
   const amount = Number(value ?? 0);
   if (!Number.isFinite(amount)) return "$0.00";
@@ -124,6 +132,43 @@ function toCsvCell(value) {
 function formatDocumentTypeLabel(value) {
   const key = String(value ?? "").trim().toUpperCase();
   return DOCUMENT_TYPE_LABELS[key] || key || "-";
+}
+
+function isOverdueDocument(doc) {
+  if (!doc?.dueDate) return false;
+  if (!doc?.enabled) return false;
+  const open = toNumber(doc.openAmount);
+  if (open <= 0) return false;
+  const due = new Date(doc.dueDate);
+  if (Number.isNaN(due.getTime())) return false;
+  const now = new Date();
+  return due.getTime() < now.getTime();
+}
+
+function resolveDocumentOperationalStatus(doc) {
+  if (isOverdueDocument(doc)) return "OVERDUE";
+  return String(doc?.status || "OPEN").toUpperCase();
+}
+
+function matchesDueFilter(doc, dueFilter) {
+  if (dueFilter === "all") return true;
+  if (!doc?.dueDate) return false;
+  const dueDate = new Date(doc.dueDate);
+  if (Number.isNaN(dueDate.getTime())) return false;
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+  if (dueFilter === "today") {
+    return dueDate >= startToday && dueDate <= endToday;
+  }
+  if (dueFilter === "week") {
+    const endWeek = new Date(startToday);
+    endWeek.setDate(endWeek.getDate() + 7);
+    endWeek.setHours(23, 59, 59, 999);
+    return dueDate >= startToday && dueDate <= endWeek;
+  }
+  return true;
 }
 
 function parseApiError(error, fallback) {
@@ -358,6 +403,10 @@ export default function FinanceScreen() {
   const [journalLinks, setJournalLinks] = useState([]);
   const [applicationsDirectionFilter, setApplicationsDirectionFilter] =
     useState("all");
+  const [arStatusFilter, setArStatusFilter] = useState("all");
+  const [apStatusFilter, setApStatusFilter] = useState("all");
+  const [arDueFilter, setArDueFilter] = useState("all");
+  const [apDueFilter, setApDueFilter] = useState("all");
   const [applicationsStatusFilter, setApplicationsStatusFilter] =
     useState("all");
   const [applicationsContactFilter, setApplicationsContactFilter] =
@@ -744,6 +793,34 @@ export default function FinanceScreen() {
     },
   });
 
+  const sendReminderMutation = useMutation({
+    mutationFn: ({ id, message }) =>
+      atlas.finance.sendDocumentReminder(id, { message: message ?? null }, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications", token] });
+      toast.success("Recordatorio enviado");
+    },
+    onError: (error) => {
+      toast.error(parseApiError(error, "No se pudo enviar el recordatorio."));
+    },
+  });
+
+  const sendBulkReminderMutation = useMutation({
+    mutationFn: ({ documentIds, message }) =>
+      atlas.finance.sendBulkDocumentReminders(
+        { documentIds, message: message ?? null },
+        token,
+      ),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ["notifications", token] });
+      const created = response?.data?.created ?? 0;
+      toast.success(`Recordatorios enviados: ${created}`);
+    },
+    onError: (error) => {
+      toast.error(parseApiError(error, "No se pudieron enviar recordatorios masivos."));
+    },
+  });
+
   const accounts = accountsQuery.data?.data ?? [];
   const balances = balancesQuery.data?.data;
   const entries = entriesQuery.data?.data ?? [];
@@ -758,6 +835,22 @@ export default function FinanceScreen() {
   const dashboard = dashboardQuery.data?.data;
   const dashboardTrend = dashboard?.trend ?? [];
   const dashboardVariance = dashboard?.variance;
+  const arFilteredDocuments = useMemo(() => {
+    return arDocuments.filter((doc) => {
+      const status = resolveDocumentOperationalStatus(doc);
+      const statusMatch = arStatusFilter === "all" ? true : status === arStatusFilter;
+      const dueMatch = matchesDueFilter(doc, arDueFilter);
+      return statusMatch && dueMatch;
+    });
+  }, [arDocuments, arStatusFilter, arDueFilter]);
+  const apFilteredDocuments = useMemo(() => {
+    return apDocuments.filter((doc) => {
+      const status = resolveDocumentOperationalStatus(doc);
+      const statusMatch = apStatusFilter === "all" ? true : status === apStatusFilter;
+      const dueMatch = matchesDueFilter(doc, apDueFilter);
+      return statusMatch && dueMatch;
+    });
+  }, [apDocuments, apStatusFilter, apDueFilter]);
 
   const balanceTotals = balances?.totals ?? {
     debit: "0.00",
@@ -1324,6 +1417,38 @@ export default function FinanceScreen() {
     });
   }
 
+  function sendDocumentReminder(doc) {
+    if (!doc?.id) return;
+    const customMessage = window.prompt(
+      "Mensaje opcional para el recordatorio:",
+      "",
+    );
+    if (customMessage === null) return;
+    sendReminderMutation.mutate({
+      id: doc.id,
+      message: customMessage.trim() || null,
+    });
+  }
+
+  function sendBulkRemindersFromRows(rows, label) {
+    const documentIds = rows
+      .filter((doc) => doc.enabled && toNumber(doc.openAmount) > 0)
+      .map((doc) => doc.id);
+    if (!documentIds.length) {
+      toast.error("No hay documentos visibles con saldo abierto para recordar.");
+      return;
+    }
+    const customMessage = window.prompt(
+      `Mensaje opcional para recordatorios masivos (${label}):`,
+      "",
+    );
+    if (customMessage === null) return;
+    sendBulkReminderMutation.mutate({
+      documentIds,
+      message: customMessage.trim() || null,
+    });
+  }
+
   function exportApplicationsHistoryCsv() {
     if (!applicationsHistory.length) {
       toast.error("No hay registros para exportar.");
@@ -1812,9 +1937,47 @@ export default function FinanceScreen() {
                 <CardTitle className="text-base">Documentos por cobrar</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <SelectField
+                    label="Estado"
+                    icon={Component}
+                    value={arStatusFilter}
+                    onValueChange={setArStatusFilter}
+                    options={[
+                      { value: "all", label: "Todos" },
+                      { value: "OVERDUE", label: "Vencidos" },
+                      { value: "OPEN", label: "Abiertos" },
+                      { value: "PARTIAL", label: "Parciales" },
+                      { value: "PAID", label: "Pagados" },
+                      { value: "VOID", label: "Anulados" },
+                    ]}
+                  />
+                  <SelectField
+                    label="Vencimiento"
+                    icon={CalendarDays}
+                    value={arDueFilter}
+                    onValueChange={setArDueFilter}
+                    options={[
+                      { value: "all", label: "Todos" },
+                      { value: "today", label: "Vence hoy" },
+                      { value: "week", label: "Esta semana" },
+                    ]}
+                  />
+                  <div className="md:col-span-2 flex items-end justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        sendBulkRemindersFromRows(arFilteredDocuments, "CxC")
+                      }
+                      loading={sendBulkReminderMutation.isPending}
+                    >
+                      Recordar visibles
+                    </Button>
+                  </div>
+                </div>
                 {arDocumentsQuery.isLoading ? (
                   <Skeleton className="h-40 w-full rounded-xl" />
-                ) : arDocuments.length === 0 ? (
+                ) : arFilteredDocuments.length === 0 ? (
                   <EmptyState
                     title="Sin documentos AR"
                     description="Registra facturas, pagos o anticipos de clientes."
@@ -1840,7 +2003,7 @@ export default function FinanceScreen() {
                         </tr>
                       </thead>
                       <tbody>
-                        {arDocuments.map((doc) => (
+                        {arFilteredDocuments.map((doc) => (
                           <tr key={doc.id} className="border-t border-[hsl(var(--border))]">
                             <td className="px-3 py-2">
                               {formatDocumentTypeLabel(doc.docType)}
@@ -1857,17 +2020,26 @@ export default function FinanceScreen() {
                               {formatMoney(doc.openAmount, doc.currency)}
                             </td>
                             <td className="px-3 py-2">
+                              {(() => {
+                                const operationalStatus =
+                                  resolveDocumentOperationalStatus(doc);
+                                return (
                               <Badge
                                 variant={
-                                  doc.status === "PAID"
+                                  operationalStatus === "PAID"
                                     ? "success"
-                                    : doc.status === "PARTIAL"
+                                    : operationalStatus === "PARTIAL"
                                       ? "glass"
+                                      : operationalStatus === "OVERDUE"
+                                        ? "destructive"
                                       : "secondary"
                                 }
                               >
-                                {doc.status}
+                                {DOCUMENT_STATUS_LABELS[operationalStatus] ||
+                                  operationalStatus}
                               </Badge>
+                                );
+                              })()}
                             </td>
                             <td className="px-3 py-2">
                               <ActionMenu
@@ -1896,6 +2068,17 @@ export default function FinanceScreen() {
                                             pendingApplyDocumentId === doc.id,
                                           onClick: () =>
                                             openApplySheetForDocument(doc),
+                                        },
+                                      ]
+                                    : []),
+                                  ...(doc.enabled &&
+                                  toNumber(doc.openAmount) > 0
+                                    ? [
+                                        {
+                                          label: "Recordatorio",
+                                          icon: CalendarDays,
+                                          disabled: sendReminderMutation.isPending,
+                                          onClick: () => sendDocumentReminder(doc),
                                         },
                                       ]
                                     : []),
@@ -1941,9 +2124,47 @@ export default function FinanceScreen() {
                 <CardTitle className="text-base">Documentos por pagar</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <SelectField
+                    label="Estado"
+                    icon={Component}
+                    value={apStatusFilter}
+                    onValueChange={setApStatusFilter}
+                    options={[
+                      { value: "all", label: "Todos" },
+                      { value: "OVERDUE", label: "Vencidos" },
+                      { value: "OPEN", label: "Abiertos" },
+                      { value: "PARTIAL", label: "Parciales" },
+                      { value: "PAID", label: "Pagados" },
+                      { value: "VOID", label: "Anulados" },
+                    ]}
+                  />
+                  <SelectField
+                    label="Vencimiento"
+                    icon={CalendarDays}
+                    value={apDueFilter}
+                    onValueChange={setApDueFilter}
+                    options={[
+                      { value: "all", label: "Todos" },
+                      { value: "today", label: "Vence hoy" },
+                      { value: "week", label: "Esta semana" },
+                    ]}
+                  />
+                  <div className="md:col-span-2 flex items-end justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        sendBulkRemindersFromRows(apFilteredDocuments, "CxP")
+                      }
+                      loading={sendBulkReminderMutation.isPending}
+                    >
+                      Recordar visibles
+                    </Button>
+                  </div>
+                </div>
                 {apDocumentsQuery.isLoading ? (
                   <Skeleton className="h-40 w-full rounded-xl" />
-                ) : apDocuments.length === 0 ? (
+                ) : apFilteredDocuments.length === 0 ? (
                   <EmptyState
                     title="Sin documentos AP"
                     description="Registra facturas, pagos o anticipos a proveedores."
@@ -1969,7 +2190,7 @@ export default function FinanceScreen() {
                         </tr>
                       </thead>
                       <tbody>
-                        {apDocuments.map((doc) => (
+                        {apFilteredDocuments.map((doc) => (
                           <tr key={doc.id} className="border-t border-[hsl(var(--border))]">
                             <td className="px-3 py-2">
                               {formatDocumentTypeLabel(doc.docType)}
@@ -1986,17 +2207,26 @@ export default function FinanceScreen() {
                               {formatMoney(doc.openAmount, doc.currency)}
                             </td>
                             <td className="px-3 py-2">
+                              {(() => {
+                                const operationalStatus =
+                                  resolveDocumentOperationalStatus(doc);
+                                return (
                               <Badge
                                 variant={
-                                  doc.status === "PAID"
+                                  operationalStatus === "PAID"
                                     ? "success"
-                                    : doc.status === "PARTIAL"
+                                    : operationalStatus === "PARTIAL"
                                       ? "glass"
+                                      : operationalStatus === "OVERDUE"
+                                        ? "destructive"
                                       : "secondary"
                                 }
                               >
-                                {doc.status}
+                                {DOCUMENT_STATUS_LABELS[operationalStatus] ||
+                                  operationalStatus}
                               </Badge>
+                                );
+                              })()}
                             </td>
                             <td className="px-3 py-2">
                               <ActionMenu
@@ -2025,6 +2255,17 @@ export default function FinanceScreen() {
                                             pendingApplyDocumentId === doc.id,
                                           onClick: () =>
                                             openApplySheetForDocument(doc),
+                                        },
+                                      ]
+                                    : []),
+                                  ...(doc.enabled &&
+                                  toNumber(doc.openAmount) > 0
+                                    ? [
+                                        {
+                                          label: "Recordatorio",
+                                          icon: CalendarDays,
+                                          disabled: sendReminderMutation.isPending,
+                                          onClick: () => sendDocumentReminder(doc),
                                         },
                                       ]
                                     : []),

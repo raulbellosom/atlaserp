@@ -313,6 +313,18 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
           body: JSON.stringify({ enabled }),
         }),
+      sendDocumentReminder: (id, payload, token) =>
+        request(`/finance/documents/${encodeURIComponent(id)}/reminder`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(payload ?? {}),
+        }),
+      sendBulkDocumentReminders: (payload, token) =>
+        request("/finance/documents/reminders/bulk", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(payload ?? {}),
+        }),
       previewApplication: (id, payload, token) =>
         request(`/finance/documents/${encodeURIComponent(id)}/apply-preview`, {
           method: "POST",
