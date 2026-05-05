@@ -1,4 +1,4 @@
-# Atlas ERP — Onboarding Setup Wizard
+﻿# Atlas ERP - Onboarding Setup Wizard
 
 ## Purpose
 
@@ -7,24 +7,24 @@ On first launch, Atlas ERP has no company, no admin user, and no configuration. 
 ## First-run detection (Phase 2)
 
 ```
-GET /instance/status → { initialized: boolean, companyId: string | null }
+GET /instance/status -> { initialized: boolean, companyId: string | null }
 ```
 
 Frontend route guard on startup:
-- `initialized: false` → redirect to `/setup`
-- `initialized: true` → redirect to `/login`
+- `initialized: false` -> redirect to `/setup`
+- `initialized: true` -> redirect to `/login`
 
-Initialization state lives in the `InstanceConfig` table (key-value store added in Phase 0):
+Initialization state lives in `InstanceConfig`:
 
 | key | value | written when |
 |---|---|---|
-| `instance.initialized` | `"true"` | Setup wizard completes |
-| `instance.company_id` | company cuid | Company created |
-| `instance.setup_completed_at` | ISO timestamp | Setup wizard completes |
+| `initialized` | `"true"` | Setup wizard completes |
+| `company_id` | company cuid | Company created |
+| `completed_at` | ISO timestamp | Setup wizard completes |
 
 ## Setup wizard steps
 
-### Step 1 — Administrator account
+### Step 1 - Administrator account
 - First name (required)
 - Last name (required)
 - Email (required, valid email format)
@@ -32,7 +32,7 @@ Initialization state lives in the `InstanceConfig` table (key-value store added 
 - Confirm password (must match)
 - Phone number (optional)
 
-### Step 2 — Company information
+### Step 2 - Company information
 - Company name (required)
 - RFC / Tax ID (required)
 - Contact email (required)
@@ -43,13 +43,14 @@ Initialization state lives in the `InstanceConfig` table (key-value store added 
 - State / City (optional)
 - Website (optional)
 
-### Step 3 — Branding
-- Company logo upload (image only, max 5 MB)
-- Primary color picker (defaults to dominant color extracted from logo)
+### Step 3 - Branding
+- Company logo upload (image only, max 2 MB)
+- Primary color picker
 - Secondary/accent color picker
-- Logo uploaded to Supabase Storage bucket `atlas-branding`. FileAsset metadata record created. Colors saved in BrandingConfig.
+- Logo uploaded to Supabase Storage bucket `atlas-files` under `company/branding/<companyId>/...`
+- FileAsset metadata is created with `moduleKey=atlas.company`, `entityType=BrandingConfig`, `entityId=<companyId>`
 
-### Step 4 — Review and confirm
+### Step 4 - Review and confirm
 - Summary of all entered data
 - Back buttons to edit any step
 - Confirm and finish button
@@ -64,11 +65,11 @@ Body: { admin: { firstName, lastName, email, password, phone },
 
 Steps:
 1. Validate all input with Zod
-2. If InstanceConfig instance.initialized == "true" → return 409
+2. If InstanceConfig.initialized == "true" -> return 409
 3. Create Supabase Auth user (Admin SDK, service role key)
 4. Create UserProfile via Prisma
 5. Create Company via Prisma
-6. Upload logo to Supabase Storage (bucket: atlas-branding)
+6. Upload logo to Supabase Storage (bucket: atlas-files)
 7. Create FileAsset metadata via Prisma
 8. Create BrandingConfig via Prisma
 9. Mark all 4 core modules as INSTALLED

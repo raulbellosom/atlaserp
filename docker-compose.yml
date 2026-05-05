@@ -24,9 +24,11 @@ services:
     build:
       context: .
       dockerfile: infra/docker/web.Dockerfile
+      args:
+        VITE_ATLAS_API_URL: ${VITE_ATLAS_API_URL:-http://localhost:4010}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
     container_name: atlas-web-preview
-    environment:
-      VITE_ATLAS_API_URL: ${ATLAS_API_URL:-http://localhost:4010}
     ports:
       - "5173:80"
     restart: unless-stopped

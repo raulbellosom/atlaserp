@@ -1,4 +1,7 @@
-# Phase 3 — Setup Wizard Design
+﻿# Phase 3 â€” Setup Wizard Design
+
+> Superseded in storage policy by Phase 7.1 (2026-05-04): canonical bucket is `atlas-files` for branding and files.
+
 
 ## Goal
 
@@ -6,7 +9,7 @@ Replace the `SetupPlaceholder` stub with a real 4-step onboarding wizard that co
 
 ## Wizard layout
 
-Left sidebar + right content panel (Option B). The sidebar lists all 4 steps with number badges and connector lines. The active step is highlighted; pending steps are dimmed. The right panel shows the step title, subtitle, form fields, and a Back / Next footer. The shell is constant across all steps — only the sidebar highlight and right-panel content change.
+Left sidebar + right content panel (Option B). The sidebar lists all 4 steps with number badges and connector lines. The active step is highlighted; pending steps are dimmed. The right panel shows the step title, subtitle, form fields, and a Back / Next footer. The shell is constant across all steps â€” only the sidebar highlight and right-panel content change.
 
 ## Steps
 
@@ -60,9 +63,9 @@ Accepts `multipart/form-data`.
 
 **Transaction sequence:**
 
-1. Check `InstanceConfig` key `initialized` — if `"true"`, return 409 `{ error: 'Already initialized' }`.
-2. `supabaseAdmin.auth.admin.createUser({ email, password, email_confirm: true })` → capture `authUserId`. If this fails, return 400 with Supabase error message.
-3. If logo provided: upload to Supabase Storage bucket `atlas-branding` at `logos/<company-slug>.<ext>` → create `FileAsset` row → capture `logoFileId`.
+1. Check `InstanceConfig` key `initialized` â€” if `"true"`, return 409 `{ error: 'Already initialized' }`.
+2. `supabaseAdmin.auth.admin.createUser({ email, password, email_confirm: true })` â†’ capture `authUserId`. If this fails, return 400 with Supabase error message.
+3. If logo provided: upload to Supabase Storage bucket `atlas-branding` at `logos/<company-slug>.<ext>` â†’ create `FileAsset` row â†’ capture `logoFileId`.
 4. `prisma.$transaction`:
    - Create `Company` (name, slug)
    - Create `UserProfile` (authUserId, displayName, email)
@@ -71,7 +74,7 @@ Accepts `multipart/form-data`.
    - Upsert `InstanceConfig` keys: `initialized`, `company_id`, `completed_at`
 5. Return `{ ok: true }`.
 
-**Cleanup on failure:** If step 2 succeeds but steps 3–4 fail, call `supabaseAdmin.auth.admin.deleteUser(authUserId)` before returning 500. This prevents orphaned Supabase Auth users.
+**Cleanup on failure:** If step 2 succeeds but steps 3â€“4 fail, call `supabaseAdmin.auth.admin.deleteUser(authUserId)` before returning 500. This prevents orphaned Supabase Auth users.
 
 **Idempotency:** The 409 guard in step 1 prevents double-initialization.
 
@@ -89,7 +92,7 @@ export const setupInitializeSchema = z.object({
 })
 ```
 
-(Logo is a file field handled via Hono's `parseBody` — not part of the Zod schema.)
+(Logo is a file field handled via Hono's `parseBody` â€” not part of the Zod schema.)
 
 ### SDK
 
@@ -101,7 +104,7 @@ setup: {
 }
 ```
 
-`formData` is a browser `FormData` object. No `Content-Type` header is set manually — the browser adds the correct `multipart/form-data` boundary automatically.
+`formData` is a browser `FormData` object. No `Content-Type` header is set manually â€” the browser adds the correct `multipart/form-data` boundary automatically.
 
 ## Frontend
 
@@ -110,11 +113,11 @@ setup: {
 ```
 apps/desktop/src/
   setup/
-    SetupWizard.jsx    — wizard shell: sidebar + step routing + form state
-    StepAdmin.jsx      — step 1 form
-    StepCompany.jsx    — step 2 form
-    StepBranding.jsx   — step 3 form (color picker + optional logo)
-    StepReview.jsx     — step 4 summary + submit
+    SetupWizard.jsx    â€” wizard shell: sidebar + step routing + form state
+    StepAdmin.jsx      â€” step 1 form
+    StepCompany.jsx    â€” step 2 form
+    StepBranding.jsx   â€” step 3 form (color picker + optional logo)
+    StepReview.jsx     â€” step 4 summary + submit
 ```
 
 `main.jsx` imports `SetupWizard` and replaces `SetupPlaceholder` at the `/setup` route.
@@ -165,3 +168,5 @@ All from `@atlas/ui`: `Input`, `Button`, `Label`. Color picker uses a native `<i
 - Multi-language support
 - Custom slug editing during setup
 - Secondary colors or full theme customization (deferred to settings)
+
+

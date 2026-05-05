@@ -20,9 +20,11 @@ import { LoginScreen } from "./auth/LoginScreen";
 import { AtlasApp } from "./app/AtlasApp";
 import { HomeScreen } from "./app/HomeScreen";
 import { ModuleOutlet } from "./app/ModuleOutlet";
+import { ProfileScreen } from "./app/ProfileScreen";
 import { atlas } from "./lib/atlas";
 import { applyBrandTheme } from "./lib/brandTheme";
 import { AppLoader } from "./components/AppLoader";
+import { useBrandingStore } from "./stores/branding";
 import "./styles.css";
 
 const queryClient = new QueryClient();
@@ -56,25 +58,18 @@ function InitGuard() {
   return <AppLoader message="Verificando instancia..." />;
 }
 
-function ProfilePlaceholder() {
-  return (
-    <div className="p-8 max-w-xl mx-auto">
-      <h1 className="text-2xl font-semibold">Mi perfil</h1>
-      <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">
-        Proximamente
-      </p>
-    </div>
-  );
-}
-
 function App() {
   const [brandReady, setBrandReady] = useState(false);
+  const setBranding = useBrandingStore((s) => s.setBranding);
 
   useEffect(() => {
     let mounted = true;
     atlas.instance
       .status()
-      .then((data) => applyBrandTheme(data?.branding?.primaryColor))
+      .then((data) => {
+        applyBrandTheme(data?.branding?.primaryColor);
+        if (mounted) setBranding(data?.branding ?? null);
+      })
       .catch(() => applyBrandTheme())
       .finally(() => {
         if (mounted) setBrandReady(true);
@@ -82,7 +77,7 @@ function App() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [setBranding]);
 
   if (!brandReady) {
     return <AppLoader />;
@@ -102,7 +97,7 @@ function App() {
                   <Route index element={<Navigate to="home" replace />} />
                   <Route path="home" element={<HomeScreen />} />
                   <Route path="m/:moduleKey/*" element={<ModuleOutlet />} />
-                  <Route path="profile" element={<ProfilePlaceholder />} />
+                  <Route path="profile" element={<ProfileScreen />} />
                 </Route>
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

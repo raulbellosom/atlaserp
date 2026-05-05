@@ -10,6 +10,7 @@ const Card = forwardRef(function Card({ className, variant = 'default', ...props
         variant === 'default' && 'glass',
         variant === 'solid' && 'bg-[hsl(var(--card))] border border-[hsl(var(--border))] shadow-sm',
         variant === 'bordered' && 'border border-[hsl(var(--border))] bg-transparent',
+        variant === 'interactive' && 'bg-[hsl(var(--card))] border border-[hsl(var(--border))] shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md hover:border-[hsl(var(--muted-foreground))]/30 active:scale-[0.99]',
         className
       )}
       {...props}

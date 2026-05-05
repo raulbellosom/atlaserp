@@ -38,6 +38,33 @@ enum FileVisibility {
   PUBLIC
 }
 
+enum FinanceDocumentDirection {
+  AR
+  AP
+}
+
+enum FinanceDocumentType {
+  INVOICE
+  CREDIT_NOTE
+  DEBIT_NOTE
+  ADVANCE
+  PAYMENT
+}
+
+enum FinanceDocumentStatus {
+  OPEN
+  PARTIAL
+  PAID
+  VOID
+}
+
+enum FinanceDocumentEventType {
+  ISSUE
+  APPLY
+  VOID
+  ADJUST
+}
+
 model AtlasModule {
   id             String   @id @default(cuid())
   key            String   @unique
@@ -94,7 +121,12 @@ model Company {
   rfc            String?
   companyType    String?
   companyTypeName String?
+  industryKey    String?
+  industryName   String?
   companySize    String?
+  contactEmail   String?
+  phone          String?
+  website        String?
   country        String?
   state          String?
   city           String?
@@ -108,6 +140,12 @@ model Company {
 
   memberships    Membership[]
   brandingConfig BrandingConfig?
+  financeAccounts FinanceAccount[]
+  financeEntries  FinanceJournalEntry[]
+  financeFxRates  FinanceFxRate[]
+  financeDocuments FinanceDocument[]
+  financeDocumentApplications FinanceDocumentApplication[]
+  financeDocumentAccountingLinks FinanceDocumentAccountingLink[]
 }
 
 model UserProfile {
@@ -118,12 +156,24 @@ model UserProfile {
   lastName     String   @default("")
   email        String   @unique
   avatarFileId String?
+  birthDate    DateTime?
+  gender       String?
+  phone        String?
+  country      String?
+  state        String?
+  city         String?
+  street       String?
+  extNumber    String?
+  intNumber    String?
+  postalCode   String?
+  bio          String?
   enabled      Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   memberships  Membership[]
   auditLogs    AuditLog[]
+  notifications Notification[]
 }
 
 model Membership {
@@ -227,47 +277,182 @@ model Contact {
   email       String?
   phone       String?
   taxId       String?
+  notesMarkdown String?
   metadata    Json?
   enabled     Boolean @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  financeLines FinanceJournalLine[]
+  financeDocuments FinanceDocument[]
 
   @@index([type])
   @@index([name])
 }
 
 model FinanceAccount {
-  id          String @id @default(cuid())
-  name        String
-  type        String
-  currency    String @default("MXN")
+  id             String @id @default(cuid())
+  companyId      String
+  parentAccountId String?
+  code           String
+  name           String
+  type           String
+  currency       String @default("MXN")
   initialBalance Decimal @default(0)
-  enabled     Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  metadata       Json?
+  enabled        Boolean @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  transactions FinanceTransaction[]
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parentAccount FinanceAccount? @relation("FinanceAccountHierarchy", fields: [parentAccountId], references: [id], onDelete: SetNull)
+  childAccounts FinanceAccount[] @relation("FinanceAccountHierarchy")
+  journalLines  FinanceJournalLine[]
+
+  @@unique([companyId, code])
+  @@index([companyId, enabled])
+  @@index([companyId, type])
 }
 
-model FinanceTransaction {
+model FinanceJournalEntry {
   id          String @id @default(cuid())
-  accountId   String
-  type        String
-  amount      Decimal
-  currency    String @default("MXN")
+  companyId   String
+  createdById String?
+  entryNumber String
   occurredAt  DateTime
   concept     String
   reference   String?
-  contactId   String?
+  currency    String @default("MXN")
+  sourceType  String @default("manual")
   metadata    Json?
   enabled     Boolean @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  account     FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lines       FinanceJournalLine[]
+  documentLinks FinanceDocumentAccountingLink[]
 
-  @@index([occurredAt])
-  @@index([type])
+  @@unique([companyId, entryNumber])
+  @@index([companyId, occurredAt])
+  @@index([enabled, occurredAt])
+}
+
+model FinanceJournalLine {
+  id          String @id @default(cuid())
+  entryId     String
+  accountId   String
+  contactId   String?
+  debit       Decimal @default(0)
+  credit      Decimal @default(0)
+  currency    String @default("MXN")
+  fxRate      Decimal?
+  baseAmount  Decimal?
+  note        String?
+  metadata    Json?
+  enabled     Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  entry       FinanceJournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account     FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  contact     Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([entryId])
+  @@index([accountId])
+  @@index([contactId])
+}
+
+model FinanceFxRate {
+  id           String @id @default(cuid())
+  companyId    String
+  baseCurrency String
+  quoteCurrency String
+  rateDate     DateTime
+  rate         Decimal
+  source       String @default("manual")
+  metadata     Json?
+  enabled      Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, baseCurrency, quoteCurrency, rateDate])
+  @@index([companyId, rateDate])
+  @@index([companyId, baseCurrency, quoteCurrency])
+}
+
+model FinanceDocument {
+  id            String                   @id @default(cuid())
+  companyId     String
+  direction     FinanceDocumentDirection
+  docType       FinanceDocumentType
+  status        FinanceDocumentStatus    @default(OPEN)
+  contactId     String?
+  currency      String                   @default("MXN")
+  issueDate     DateTime
+  dueDate       DateTime?
+  reference     String?
+  notesMarkdown String?
+  totalAmount   Decimal
+  openAmount    Decimal
+  metadata      Json?
+  enabled       Boolean                  @default(true)
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  company       Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact       Contact?                 @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  sourceApplications FinanceDocumentApplication[] @relation("FinanceDocumentApplicationSource")
+  targetApplications FinanceDocumentApplication[] @relation("FinanceDocumentApplicationTarget")
+  accountingLinks FinanceDocumentAccountingLink[]
+
+  @@index([companyId, direction, status])
+  @@index([companyId, issueDate])
+  @@index([companyId, dueDate])
+  @@index([contactId])
+}
+
+model FinanceDocumentApplication {
+  id               String          @id @default(cuid())
+  companyId        String
+  sourceDocumentId String
+  targetDocumentId String
+  appliedAmount    Decimal
+  appliedAt        DateTime        @default(now())
+  metadata         Json?
+  enabled          Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sourceDocument   FinanceDocument @relation("FinanceDocumentApplicationSource", fields: [sourceDocumentId], references: [id], onDelete: Cascade)
+  targetDocument   FinanceDocument @relation("FinanceDocumentApplicationTarget", fields: [targetDocumentId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, appliedAt])
+  @@index([companyId, sourceDocumentId])
+  @@index([companyId, targetDocumentId])
+}
+
+model FinanceDocumentAccountingLink {
+  id             String                   @id @default(cuid())
+  companyId      String
+  documentId     String
+  journalEntryId String
+  eventType      FinanceDocumentEventType
+  metadata       Json?
+  enabled        Boolean                  @default(true)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  company        Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  document       FinanceDocument          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  journalEntry   FinanceJournalEntry      @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, journalEntryId, eventType])
+  @@index([companyId, documentId])
+  @@index([companyId, journalEntryId])
 }
 
 model InstanceConfig {
@@ -287,4 +472,21 @@ model BrandingConfig {
   updatedAt    DateTime @updatedAt
 
   company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  companyId String?
+  kind      String    @default("info")
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([createdAt])
 }

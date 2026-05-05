@@ -1,55 +1,67 @@
-$ErrorActionPreference = "Stop"
+﻿param()
 
-Write-Host "Starting Atlas ERP dev environment..." -ForegroundColor Cyan
+$ErrorActionPreference = 'Stop'
 
-$sshHost      = "root@76.13.114.109"
-$remoteDbHost = "172.22.0.3"
-$remoteDbPort = "5432"
-$localDbPort  = 54322
+$sshHost = 'root@76.13.114.109'
+$localPort = 54322
+$remoteAddr = '172.22.0.3:5432'
+$tunnelOwned = $false
 
-Write-Host "Checking if local port $localDbPort is already in use..." -ForegroundColor Yellow
+function Test-TunnelPort {
+  param([int]$Port)
+  try {
+    $client = New-Object System.Net.Sockets.TcpClient
+    $iar = $client.BeginConnect('127.0.0.1', $Port, $null, $null)
+    $ok = $iar.AsyncWaitHandle.WaitOne(500)
+    if (-not $ok) {
+      $client.Close()
+      return $false
+    }
+    $client.EndConnect($iar)
+    $client.Close()
+    return $true
+  } catch {
+    return $false
+  }
+}
 
-$existingConnection = Get-NetTCPConnection -LocalPort $localDbPort -ErrorAction SilentlyContinue
+function Stop-Tunnel {
+  param([int]$Port)
+  $matches = Get-CimInstance Win32_Process -Filter "Name = 'ssh.exe'" |
+    Where-Object { $_.CommandLine -match "-L\s*${Port}:" }
 
-$sshProcess = $null
+  foreach ($p in $matches) {
+    Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+  }
+}
 
-if ($existingConnection) {
-  Write-Host "Port $localDbPort is already in use. Assuming SSH tunnel is already running." -ForegroundColor Yellow
+$existingTunnel = Test-TunnelPort -Port $localPort
+
+if ($existingTunnel) {
+  Write-Host "Port $localPort already bound - tunnel already running, skipping."
 } else {
-  Write-Host "Opening SSH tunnel: 127.0.0.1:${localDbPort} -> ${remoteDbHost}:${remoteDbPort}" -ForegroundColor Green
+  Write-Host "Opening SSH tunnel: 127.0.0.1:$localPort -> $remoteAddr ..."
+  Write-Host 'If prompted, enter your SSH password once.'
 
-  $sshArgs = @(
-    "-N",
-    "-o", "ServerAliveInterval=60",
-    "-L", "${localDbPort}:${remoteDbHost}:${remoteDbPort}",
-    $sshHost
-  )
+  & ssh -f -N -o ServerAliveInterval=60 -o StrictHostKeyChecking=accept-new -L "${localPort}:${remoteAddr}" $sshHost
 
-  $sshProcess = Start-Process `
-    -FilePath "ssh" `
-    -ArgumentList $sshArgs `
-    -WindowStyle Hidden `
-    -PassThru
+  Start-Sleep -Seconds 2
 
-  Start-Sleep -Seconds 3
-
-  $connectionReady = Get-NetTCPConnection -LocalPort $localDbPort -ErrorAction SilentlyContinue
-
-  if (-not $connectionReady) {
-    throw "SSH tunnel failed to start on local port $localDbPort. Make sure your SSH key is set up for root@76.13.114.109."
+  if (-not (Test-TunnelPort -Port $localPort)) {
+    throw "SSH tunnel did not start. Check SSH access to $sshHost."
   }
 
-  Write-Host "SSH tunnel is ready." -ForegroundColor Green
+  Write-Host 'SSH tunnel ready.'
+  $tunnelOwned = $true
 }
 
+Write-Host 'Starting dev servers (API + web + worker)...'
 try {
-  Write-Host "Starting pnpm dev processes..." -ForegroundColor Cyan
-  pnpm dev
-}
-finally {
-  if ($sshProcess -and -not $sshProcess.HasExited) {
-    Write-Host "Closing SSH tunnel (pid $($sshProcess.Id))..." -ForegroundColor Yellow
-    Stop-Process -Id $sshProcess.Id -Force
+  & pnpm.cmd dev
+} finally {
+  if ($tunnelOwned) {
+    Write-Host 'Closing SSH tunnel...'
+    Stop-Tunnel -Port $localPort
   }
-  Write-Host "Atlas ERP dev environment stopped." -ForegroundColor Cyan
+  Write-Host 'Atlas ERP dev environment stopped.'
 }

@@ -1,4 +1,7 @@
-# Atlas ERP Phase 0+1 Implementation Plan
+﻿# Atlas ERP Phase 0+1 Implementation Plan
+
+> Superseded in storage policy by Phase 7.1 (2026-05-04): canonical bucket is `atlas-files` for branding and files.
+
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -33,14 +36,14 @@
 - `docs/CODE_STYLE.md`
 
 ### Modified
-- `.env.example` — full rewrite, Supabase-first, dotenv substitution for Vite aliases
-- `README.md` — remove local infra section, add Supabase setup steps
-- `CLAUDE.md` — remove infra:* commands, absorb CODE_STYLE.md content, update architecture section, update doc references
-- `docs/TASKS.md` — update phase status and add Supabase migration as current priority
-- `docs/BLUEPRINTS.md` — update doc cross-references
-- `codex/00_MASTER_PROMPT.md` — harden Supabase as real target, update doc references
-- `packages/maps/src/core-modules.js` — add atlas.branding manifest, update existing permissions
-- `prisma/schema.prisma` — add InstanceConfig model
+- `.env.example` â€” full rewrite, Supabase-first, dotenv substitution for Vite aliases
+- `README.md` â€” remove local infra section, add Supabase setup steps
+- `CLAUDE.md` â€” remove infra:* commands, absorb CODE_STYLE.md content, update architecture section, update doc references
+- `docs/TASKS.md` â€” update phase status and add Supabase migration as current priority
+- `docs/BLUEPRINTS.md` â€” update doc cross-references
+- `codex/00_MASTER_PROMPT.md` â€” harden Supabase as real target, update doc references
+- `packages/maps/src/core-modules.js` â€” add atlas.branding manifest, update existing permissions
+- `prisma/schema.prisma` â€” add InstanceConfig model
 
 ---
 
@@ -90,41 +93,41 @@ git commit -m "chore: remove obsolete local-lite and legacy docs"
 - [ ] **Step 1: Replace .env.example with the following content**
 
 ```bash
-# Atlas ERP — Environment Variables
+# Atlas ERP â€” Environment Variables
 # Copy this file to .env and fill in real values.
 # Never commit .env to version control.
 
-# ─── Atlas app ────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Atlas app â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 NODE_ENV=development
 ATLAS_APP_NAME="Atlas ERP"
 ATLAS_API_PORT=4010
 ATLAS_TIME_ZONE=America/Mexico_City
 TZ=America/Mexico_City
 
-# ─── Supabase — define once ───────────────────────────────────────────────────
-# Get these from Supabase Studio → Project Settings → API
+# â”€â”€â”€ Supabase â€” define once â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# Get these from Supabase Studio â†’ Project Settings â†’ API
 SUPABASE_URL=https://supabase.racoondevs.com
-SUPABASE_ANON_KEY=                   # public — safe for frontend
-SUPABASE_SERVICE_ROLE_KEY=           # SECRET — API/worker only, never expose to frontend
+SUPABASE_ANON_KEY=                   # public â€” safe for frontend
+SUPABASE_SERVICE_ROLE_KEY=           # SECRET â€” API/worker only, never expose to frontend
 
-# ─── Prisma / PostgreSQL ──────────────────────────────────────────────────────
-# Get the connection string from Supabase Studio → Settings → Database → URI
+# â”€â”€â”€ Prisma / PostgreSQL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# Get the connection string from Supabase Studio â†’ Settings â†’ Database â†’ URI
 # Use the same value for both in self-hosted Supabase (no pgBouncer by default)
 DATABASE_URL=postgresql://postgres:[password]@db.supabase.racoondevs.com:5432/postgres
 DIRECT_URL=postgresql://postgres:[password]@db.supabase.racoondevs.com:5432/postgres
 
-# ─── Security ────────────────────────────────────────────────────────────────
-JWT_SECRET=change_me_in_production   # SECRET — generate a random 64-char string
+# â”€â”€â”€ Security â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+JWT_SECRET=change_me_in_production   # SECRET â€” generate a random 64-char string
 CORS_ORIGIN=http://localhost:5173,tauri://localhost
 
-# ─── Vite aliases ─────────────────────────────────────────────────────────────
+# â”€â”€â”€ Vite aliases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Vite requires VITE_ prefix to expose vars to the React bundle.
-# These reference the vars above — do not duplicate values manually.
+# These reference the vars above â€” do not duplicate values manually.
 VITE_SUPABASE_URL=${SUPABASE_URL}
 VITE_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
 VITE_ATLAS_API_URL=http://localhost:4010
 
-# ─── NEVER add VITE_ aliases for these ───────────────────────────────────────
+# â”€â”€â”€ NEVER add VITE_ aliases for these â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # DATABASE_URL, DIRECT_URL, SUPABASE_SERVICE_ROLE_KEY, JWT_SECRET
 # must never reach the React bundle.
 ```
@@ -196,8 +199,8 @@ export const atlasCoreMap = createModuleManifest({
   uninstallable: false,
   navigation: [
     { label: 'Dashboard', path: '/', icon: 'LayoutDashboard', layout: 'main' },
-    { label: 'Módulos', path: '/modules', icon: 'Puzzle', layout: 'main' },
-    { label: 'Configuración', path: '/settings', icon: 'Settings', layout: 'main' }
+    { label: 'MÃ³dulos', path: '/modules', icon: 'Puzzle', layout: 'main' },
+    { label: 'ConfiguraciÃ³n', path: '/settings', icon: 'Settings', layout: 'main' }
   ],
   permissions: [
     { key: 'core.read', name: 'Read Core' },
@@ -214,11 +217,11 @@ export const atlasCoreMap = createModuleManifest({
       version: '0.1.0',
       schema: {
         entity: 'AtlasModule',
-        label: 'Módulo',
+        label: 'MÃ³dulo',
         fields: [
           { name: 'key', label: 'Clave', type: 'text', required: true },
           { name: 'name', label: 'Nombre', type: 'text', required: true },
-          { name: 'version', label: 'Versión', type: 'text', required: true },
+          { name: 'version', label: 'VersiÃ³n', type: 'text', required: true },
           { name: 'kind', label: 'Tipo', type: 'select', options: ['CORE', 'FEATURE', 'INTEGRATION', 'WEBSITE'] },
           { name: 'enabled', label: 'Activo', type: 'boolean' }
         ]
@@ -321,7 +324,7 @@ git commit -m "feat(maps): add atlas.branding module, expand permissions for all
 - [ ] **Step 1: Create the file with the following content**
 
 ```markdown
-# Atlas ERP — Project Status
+# Atlas ERP â€” Project Status
 
 **Last verified:** 2026-05-02
 **Current phase:** Phase 0 complete / Phase 1 in progress
@@ -331,7 +334,7 @@ git commit -m "feat(maps): add atlas.branding module, expand permissions for all
 ### API (apps/api)
 - Hono server on port 4010
 - Routes: GET /health, GET /modules, POST /modules/install, DELETE /modules/:key, GET /blueprints, GET /contacts, POST /contacts
-- Direct Prisma calls (no service layer yet — planned for Phase 4+)
+- Direct Prisma calls (no service layer yet â€” planned for Phase 4+)
 
 ### Frontend (apps/desktop)
 - React 19 + Vite + Tauri 2, web preview on port 5173
@@ -340,11 +343,11 @@ git commit -m "feat(maps): add atlas.branding module, expand permissions for all
 - TanStack Query for server state, glass morphism design
 
 ### Packages
-- `@atlas/core` — ModuleRegistry, AtlasEventBus, createModuleManifest, MODULE_KINDS, time utilities
-- `@atlas/maps` — 4 core module manifests, 2 feature module manifests
-- `@atlas/ui` — 28 React components (AppShell, Button, Card, DataTable, Dialog, Form, etc.)
-- `@atlas/sdk` — createAtlasClient factory
-- `@atlas/validators` — Zod schemas: moduleInstallSchema, contactCreateSchema
+- `@atlas/core` â€” ModuleRegistry, AtlasEventBus, createModuleManifest, MODULE_KINDS, time utilities
+- `@atlas/maps` â€” 4 core module manifests, 2 feature module manifests
+- `@atlas/ui` â€” 28 React components (AppShell, Button, Card, DataTable, Dialog, Form, etc.)
+- `@atlas/sdk` â€” createAtlasClient factory
+- `@atlas/validators` â€” Zod schemas: moduleInstallSchema, contactCreateSchema
 
 ### Database (Prisma, 15 models)
 AtlasModule, ModuleDependency, Blueprint, InstanceConfig, Company, UserProfile, Membership, Role, Permission, RolePermission, FileAsset, AuditLog, Contact, FinanceAccount, FinanceTransaction
@@ -381,7 +384,7 @@ Dedicated to Atlas ERP. All development connects to this instance. No local Post
 
 ## Key constraints
 
-- JavaScript only — no TypeScript
+- JavaScript only â€” no TypeScript
 - No emojis in UI or documentation
 - All UI text in Spanish; code and comments in English
 - Prisma pinned to ^6 (do not upgrade to v7)
@@ -406,7 +409,7 @@ git commit -m "docs: add 00_project_status"
 - [ ] **Step 1: Create the file with the following content**
 
 ```markdown
-# Atlas ERP — Architecture
+# Atlas ERP â€” Architecture
 
 ## Overview
 
@@ -444,42 +447,42 @@ prisma/
 
 ## Layer responsibilities
 
-**apps/desktop** — UI only. No business logic. No direct database access. Reads auth session from Supabase Auth client (anon key only). All ERP data goes through Atlas API via `@atlas/sdk`.
+**apps/desktop** â€” UI only. No business logic. No direct database access. Reads auth session from Supabase Auth client (anon key only). All ERP data goes through Atlas API via `@atlas/sdk`.
 
-**packages/sdk** — Typed client factory `createAtlasClient({ baseUrl })`. Groups calls by domain. Attaches JWT bearer token from Supabase session to every API request.
+**packages/sdk** â€” Typed client factory `createAtlasClient({ baseUrl })`. Groups calls by domain. Attaches JWT bearer token from Supabase session to every API request.
 
-**apps/api** — Single authority for all ERP business rules and validation. Verifies JWT via Supabase Auth Admin SDK (service role key — never exposed to frontend). Loads UserProfile + Role + Permissions from Prisma on each authenticated request. Architecture: Routes → Services → Prisma.
+**apps/api** â€” Single authority for all ERP business rules and validation. Verifies JWT via Supabase Auth Admin SDK (service role key â€” never exposed to frontend). Loads UserProfile + Role + Permissions from Prisma on each authenticated request. Architecture: Routes â†’ Services â†’ Prisma.
 
-**apps/worker** — Background jobs: reports, file processing, scheduled tasks. Connects to Prisma directly. No public endpoints.
+**apps/worker** â€” Background jobs: reports, file processing, scheduled tasks. Connects to Prisma directly. No public endpoints.
 
-**Supabase (external, self-hosted)** — PostgreSQL (Atlas tables via Prisma), Auth (sessions, JWTs, user creation), Storage (physical files), Realtime (future). Studio at https://studio.supabase.racoondevs.com for admin use only.
+**Supabase (external, self-hosted)** â€” PostgreSQL (Atlas tables via Prisma), Auth (sessions, JWTs, user creation), Storage (physical files), Realtime (future). Studio at https://studio.supabase.racoondevs.com for admin use only.
 
 ## Data flows
 
 ### ERP data
 ```
-React → @atlas/sdk (JWT attached) → Atlas API → Service → Prisma → Supabase PostgreSQL
+React â†’ @atlas/sdk (JWT attached) â†’ Atlas API â†’ Service â†’ Prisma â†’ Supabase PostgreSQL
 ```
 
 ### Authentication
 ```
-React → Supabase Auth client (anon key) → session JWT
-Atlas API ← JWT in Authorization header
-Atlas API → verifies via Admin SDK → loads UserProfile + permissions via Prisma
+React â†’ Supabase Auth client (anon key) â†’ session JWT
+Atlas API â† JWT in Authorization header
+Atlas API â†’ verifies via Admin SDK â†’ loads UserProfile + permissions via Prisma
 ```
 
 ### File storage
 ```
-React → Atlas API POST /files/upload (JWT) → API → Supabase Storage (service role)
-                                                   → FileAsset metadata via Prisma
+React â†’ Atlas API POST /files/upload (JWT) â†’ API â†’ Supabase Storage (service role)
+                                                   â†’ FileAsset metadata via Prisma
 ```
 
 ### First-run
 ```
-React → GET /instance/status → { initialized: false }
-      → /setup wizard → Atlas API creates Auth user, Company, UserProfile, BrandingConfig
-                       → writes InstanceConfig.initialized = "true"
-      → /login
+React â†’ GET /instance/status â†’ { initialized: false }
+      â†’ /setup wizard â†’ Atlas API creates Auth user, Company, UserProfile, BrandingConfig
+                       â†’ writes InstanceConfig.initialized = "true"
+      â†’ /login
 ```
 
 ## Supabase / Prisma boundary
@@ -520,7 +523,7 @@ git commit -m "docs: add 01_erp_architecture"
 - [ ] **Step 1: Create the file with the following content**
 
 ```markdown
-# Atlas ERP — Module System
+# Atlas ERP â€” Module System
 
 ## What is a module?
 
@@ -534,7 +537,7 @@ Manifests are defined in `packages/maps/` and seeded into the `AtlasModule` tabl
 import { createModuleManifest, MODULE_KINDS } from '@atlas/core'
 
 export const myModule = createModuleManifest({
-  key: 'atlas.mymodule',        // unique — use reverse domain format
+  key: 'atlas.mymodule',        // unique â€” use reverse domain format
   name: 'My Module',
   description: '...',
   version: '0.1.0',             // semver
@@ -547,7 +550,7 @@ export const myModule = createModuleManifest({
     { key: 'mymodule.manage', name: 'Manage My Module' }
   ],
   navigation: [
-    { label: 'Mi Módulo', path: '/mymodule', icon: 'Package', layout: 'main' }
+    { label: 'Mi MÃ³dulo', path: '/mymodule', icon: 'Package', layout: 'main' }
   ],
   blueprints: [],
   exposes: {},
@@ -570,13 +573,13 @@ Required fields: `key`, `name`, `version`. All others have defaults via `createM
 
 **Core:** Cannot be removed or disabled via API. `DELETE /modules/:key` returns 403.
 
-**Feature:** Can be installed, disabled, and logically uninstalled. Uninstall sets `status: UNINSTALLED` and `enabled: false` — never hard-deletes data.
+**Feature:** Can be installed, disabled, and logically uninstalled. Uninstall sets `status: UNINSTALLED` and `enabled: false` â€” never hard-deletes data.
 
 ## Module lifecycle
 
 ```
-INSTALLED → DISABLED → UNINSTALLED
-              ↑
+INSTALLED â†’ DISABLED â†’ UNINSTALLED
+              â†‘
            re-enable
 ```
 
@@ -615,7 +618,7 @@ Future: service registry, hooks, workflow engine.
 
 - **Patch** (0.1.1): internal fixes, no API/schema changes
 - **Minor** (0.2.0): new features, backwards-compatible
-- **Major** (1.0.0): breaking changes — requires migration plan
+- **Major** (1.0.0): breaking changes â€” requires migration plan
 
 ## Adding a new feature module checklist
 
@@ -645,7 +648,7 @@ git commit -m "docs: add 02_module_system"
 - [ ] **Step 1: Create the file with the following content**
 
 ```markdown
-# Atlas ERP — Core Modules
+# Atlas ERP â€” Core Modules
 
 Four core modules. All have `core: true`, `uninstallable: false`. None can be removed or disabled. All feature modules depend on one or more of these.
 
@@ -657,13 +660,13 @@ Four core modules. All have `core: true`, `uninstallable: false`. None can be re
 
 **Permissions:** `core.read`, `core.manage`, `modules.install`, `modules.uninstall`, `modules.disable`, `audit.read`
 
-**Navigation:** Dashboard (`/`), Módulos (`/modules`), Configuración (`/settings`)
+**Navigation:** Dashboard (`/`), MÃ³dulos (`/modules`), ConfiguraciÃ³n (`/settings`)
 
 ## atlas.identity
 
 **Owns:** Supabase Auth bridge, UserProfile records, Company profile, Membership assignments, Role and Permission definitions. Users UI, Roles UI, Permissions UI.
 
-**Does NOT own:** Branding/theming (→ atlas.branding). HR employee records (→ future atlas.hr).
+**Does NOT own:** Branding/theming (â†’ atlas.branding). HR employee records (â†’ future atlas.hr).
 
 **Depends on:** `atlas.core`
 
@@ -682,8 +685,8 @@ Four core modules. All have `core: true`, `uninstallable: false`. None can be re
 **Navigation:** None (files accessed through other modules' UI)
 
 **Supabase Storage buckets:**
-- `atlas-branding` — company logos and branding assets
-- `atlas-files` — general file uploads from any module
+- `atlas-branding` â€” company logos and branding assets
+- `atlas-files` â€” general file uploads from any module
 
 ## atlas.branding
 
@@ -717,7 +720,7 @@ git commit -m "docs: add 03_core_modules"
 - [ ] **Step 1: Create the file with the following content**
 
 ```markdown
-# Atlas ERP — Onboarding Setup Wizard
+# Atlas ERP â€” Onboarding Setup Wizard
 
 ## Purpose
 
@@ -726,12 +729,12 @@ On first launch, Atlas ERP has no company, no admin user, and no configuration. 
 ## First-run detection (Phase 2)
 
 ```
-GET /instance/status → { initialized: boolean, companyId: string | null }
+GET /instance/status â†’ { initialized: boolean, companyId: string | null }
 ```
 
 Frontend route guard on startup:
-- `initialized: false` → redirect to `/setup`
-- `initialized: true` → redirect to `/login`
+- `initialized: false` â†’ redirect to `/setup`
+- `initialized: true` â†’ redirect to `/login`
 
 Initialization state lives in the `InstanceConfig` table (key-value store added in Phase 0):
 
@@ -743,7 +746,7 @@ Initialization state lives in the `InstanceConfig` table (key-value store added 
 
 ## Setup wizard steps
 
-### Step 1 — Administrator account
+### Step 1 â€” Administrator account
 - First name (required)
 - Last name (required)
 - Email (required, valid email format)
@@ -751,7 +754,7 @@ Initialization state lives in the `InstanceConfig` table (key-value store added 
 - Confirm password (must match)
 - Phone number (optional)
 
-### Step 2 — Company information
+### Step 2 â€” Company information
 - Company name (required)
 - RFC / Tax ID (required)
 - Contact email (required)
@@ -762,13 +765,13 @@ Initialization state lives in the `InstanceConfig` table (key-value store added 
 - State / City (optional)
 - Website (optional)
 
-### Step 3 — Branding
+### Step 3 â€” Branding
 - Company logo upload (image only, max 5 MB)
 - Primary color picker (defaults to dominant color extracted from logo)
 - Secondary/accent color picker
 - Logo uploaded to Supabase Storage bucket `atlas-branding`. FileAsset metadata record created. Colors saved in BrandingConfig.
 
-### Step 4 — Review and confirm
+### Step 4 â€” Review and confirm
 - Summary of all entered data
 - Back buttons to edit any step
 - Confirm and finish button
@@ -783,7 +786,7 @@ Body: { admin: { firstName, lastName, email, password, phone },
 
 Steps:
 1. Validate all input with Zod
-2. If InstanceConfig instance.initialized == "true" → return 409
+2. If InstanceConfig instance.initialized == "true" â†’ return 409
 3. Create Supabase Auth user (Admin SDK, service role key)
 4. Create UserProfile via Prisma
 5. Create Company via Prisma
@@ -826,7 +829,7 @@ git commit -m "docs: add 04_onboarding_setup"
 - [ ] **Step 1: Create the file with the following content**
 
 ```markdown
-# Atlas ERP — Supabase + Prisma Strategy
+# Atlas ERP â€” Supabase + Prisma Strategy
 
 ## Supabase instance
 
@@ -854,7 +857,7 @@ Prisma manages all tables in the `public` schema. Supabase internal schemas (`au
 
 ## Database connection
 
-Get connection strings from Supabase Studio → Settings → Database → Connection String.
+Get connection strings from Supabase Studio â†’ Settings â†’ Database â†’ Connection String.
 
 ```bash
 # schema.prisma
@@ -873,19 +876,19 @@ DIRECT_URL=postgresql://postgres:[password]@db.supabase.racoondevs.com:5432/post
 
 Self-hosted Supabase typically does not use pgBouncer by default, so DATABASE_URL and DIRECT_URL may have the same value. Verify in Studio.
 
-## Auth bridge: Supabase auth.users → Atlas UserProfile
+## Auth bridge: Supabase auth.users â†’ Atlas UserProfile
 
 1. Atlas API calls `supabaseAdmin.auth.admin.createUser(...)` using the service role key
 2. Supabase creates the user in `auth.users`
 3. Atlas API creates a `UserProfile` row with `authUserId` = Supabase auth UUID
 
-`UserProfile.authUserId` is a string UUID — no Prisma foreign key to `auth.users` (Supabase owns that table).
+`UserProfile.authUserId` is a string UUID â€” no Prisma foreign key to `auth.users` (Supabase owns that table).
 
 On login:
-1. React calls Supabase Auth → gets JWT
+1. React calls Supabase Auth â†’ gets JWT
 2. Every API request sends `Authorization: Bearer <jwt>`
 3. Atlas API calls `supabaseAdmin.auth.getUser(jwt)` to verify
-4. Loads UserProfile by `authUserId` → loads Membership → Role → Permissions
+4. Loads UserProfile by `authUserId` â†’ loads Membership â†’ Role â†’ Permissions
 
 ## Supabase Storage bucket strategy
 
@@ -912,7 +915,7 @@ Migrations committed to git in `prisma/migrations/`. Never run `prisma migrate r
 
 - Do not access Supabase tables directly from React (`supabase.from('table').select()`)
 - Do not expose `SUPABASE_SERVICE_ROLE_KEY` in frontend or VITE_ env vars
-- Do not call `supabase.auth.signUp()` from frontend for ERP user creation — use Atlas API
+- Do not call `supabase.auth.signUp()` from frontend for ERP user creation â€” use Atlas API
 - Do not bypass Atlas API for critical ERP writes
 ```
 
@@ -933,19 +936,19 @@ git commit -m "docs: add 05_supabase_prisma_strategy"
 - [ ] **Step 1: Create the file with the following content**
 
 ```markdown
-# Atlas ERP — Deployment Strategy
+# Atlas ERP â€” Deployment Strategy
 
 ## Two independent stacks
 
 **Supabase stack** (already deployed externally):
-- https://supabase.racoondevs.com — PostgreSQL, Auth, Storage, Realtime, Studio
+- https://supabase.racoondevs.com â€” PostgreSQL, Auth, Storage, Realtime, Studio
 - Not managed by Atlas ERP's docker-compose
 - Credentials in `.env`, never in version control
 
 **Atlas ERP stack** (managed here):
-- `apps/api` — Hono REST API
-- `apps/worker` — background job processor
-- `apps/desktop` — Tauri desktop application
+- `apps/api` â€” Hono REST API
+- `apps/worker` â€” background job processor
+- `apps/desktop` â€” Tauri desktop application
 - Connects to Supabase via environment variables
 
 ## No local database
@@ -982,7 +985,7 @@ pnpm dev:tauri     # Native Tauri window + all servers (requires Rust)
 
 ## docker-compose.yml
 
-Runs Atlas ERP application services only. Does not start any database — all services connect to Supabase via env vars.
+Runs Atlas ERP application services only. Does not start any database â€” all services connect to Supabase via env vars.
 
 ```bash
 docker compose up    # start api + worker + web-preview
@@ -1026,7 +1029,7 @@ git commit -m "docs: add 06_deployment_strategy"
 - [ ] **Step 1: Create the file with the following content**
 
 ```markdown
-# Atlas ERP — Authentication and Permissions Strategy
+# Atlas ERP â€” Authentication and Permissions Strategy
 
 ## Two-layer architecture
 
@@ -1047,20 +1050,20 @@ git commit -m "docs: add 06_deployment_strategy"
 3. Supabase client stores session and handles refresh automatically
 4. Every `@atlas/sdk` request includes `Authorization: Bearer <jwt>`
 5. Atlas API calls `supabaseAdmin.auth.getUser(jwt)` to verify (service role key)
-6. API loads UserProfile by `authUserId` → Membership → Role → Permissions
+6. API loads UserProfile by `authUserId` â†’ Membership â†’ Role â†’ Permissions
 7. Route handler receives verified user context
 
 ## RBAC data model
 
 ```
-UserProfile (authUserId → Supabase auth.users.id)
-  ↓
-Membership  (UserProfile ↔ Company ↔ Role)
-  ↓
+UserProfile (authUserId â†’ Supabase auth.users.id)
+  â†“
+Membership  (UserProfile â†” Company â†” Role)
+  â†“
 Role
-  ↓
-RolePermission  (Role ↔ Permission)
-  ↓
+  â†“
+RolePermission  (Role â†” Permission)
+  â†“
 Permission  (key: 'contacts.read', moduleId, etc.)
 ```
 
@@ -1068,10 +1071,10 @@ Permission  (key: 'contacts.read', moduleId, etc.)
 
 ```
 Supabase auth.users
-  ↓ (authUserId)
-UserProfile          ← someone who can log in to Atlas ERP
-  ↓ (optional)
-HREmployee           ← HR/business record (future atlas.hr module)
+  â†“ (authUserId)
+UserProfile          â† someone who can log in to Atlas ERP
+  â†“ (optional)
+HREmployee           â† HR/business record (future atlas.hr module)
 ```
 
 - A `UserProfile` is an Atlas identity with login access.
@@ -1129,7 +1132,7 @@ app.get('/contacts', requirePermission('contacts.read'), async (c) => { ... })
 
 ## Supabase Auth configuration (in Studio)
 
-Navigate to https://studio.supabase.racoondevs.com → Authentication:
+Navigate to https://studio.supabase.racoondevs.com â†’ Authentication:
 - Enable Email provider (email + password)
 - JWT secret must match `JWT_SECRET` in `.env`
 - Configure SMTP for password recovery emails
@@ -1152,7 +1155,7 @@ git commit -m "docs: add 07_auth_permissions_strategy"
 - [ ] **Step 1: Create the file with the following content**
 
 ```markdown
-# Atlas ERP — Blueprint System
+# Atlas ERP â€” Blueprint System
 
 ## What blueprints are
 
@@ -1164,7 +1167,7 @@ Blueprints are declarative JSON definitions that describe entities, forms, table
 - API routes and services (business logic)
 - Custom React components (complex UI)
 
-Source of truth: Prisma → API service → Zod validator → Blueprint (UI hint only).
+Source of truth: Prisma â†’ API service â†’ Zod validator â†’ Blueprint (UI hint only).
 
 ## Blueprint kinds
 
@@ -1216,12 +1219,12 @@ Source of truth: Prisma → API service → Zod validator → Blueprint (UI hint
       },
       { name: 'name', label: 'Nombre', type: 'text', required: true },
       { name: 'email', label: 'Email', type: 'email' },
-      { name: 'phone', label: 'Teléfono', type: 'phone' }
+      { name: 'phone', label: 'TelÃ©fono', type: 'phone' }
     ],
     table: { columns: ['type', 'name', 'email', 'phone'] },
     form: {
       sections: [
-        { title: 'Información general', fields: ['type', 'name', 'email', 'phone', 'taxId'] }
+        { title: 'InformaciÃ³n general', fields: ['type', 'name', 'email', 'phone', 'taxId'] }
       ]
     }
   }
@@ -1245,11 +1248,11 @@ Every blueprint stored in the database must have a corresponding:
 
 ## DynamicForm and DynamicTable (Phase 3)
 
-**DynamicForm** — reads ENTITY or FORM blueprint, renders React Hook Form. Field validation sourced from `@atlas/validators` Zod schemas.
+**DynamicForm** â€” reads ENTITY or FORM blueprint, renders React Hook Form. Field validation sourced from `@atlas/validators` Zod schemas.
 
-**DynamicTable** — reads TABLE blueprint, renders TanStack Table with configured columns, sortable headers, and pagination.
+**DynamicTable** â€” reads TABLE blueprint, renders TanStack Table with configured columns, sortable headers, and pagination.
 
-Both components live in `packages/ui` and are blueprint-consumer only — no module-specific knowledge.
+Both components live in `packages/ui` and are blueprint-consumer only â€” no module-specific knowledge.
 ```
 
 - [ ] **Step 2: Commit**
@@ -1269,16 +1272,16 @@ git commit -m "docs: add 08_blueprints"
 - [ ] **Step 1: Create the file with the following content**
 
 ```markdown
-# Atlas ERP — Next Steps
+# Atlas ERP â€” Next Steps
 
 ## Current: Phase 0+1
 
-### Phase 0 — Repository and environment cleanup
+### Phase 0 â€” Repository and environment cleanup
 Remove obsolete local-lite stack, write numbered docs, align .env.example to Supabase-first, add atlas.branding manifest and InstanceConfig schema model.
 
 **Success:** Repo has one coherent view of the architecture. All docs reference https://supabase.racoondevs.com.
 
-### Phase 1 — Supabase + Prisma connection
+### Phase 1 â€” Supabase + Prisma connection
 Connect to live Supabase, run migrations, seed 4 core modules, verify API responds.
 
 **Success:** `GET /health` returns 200. `GET /modules` returns 4 core modules from Supabase.
@@ -1287,48 +1290,48 @@ Connect to live Supabase, run migrations, seed 4 core modules, verify API respon
 
 ## Upcoming phases
 
-Each phase gets its own brainstorm → spec → plan → implement cycle.
+Each phase gets its own brainstorm â†’ spec â†’ plan â†’ implement cycle.
 
-### Phase 2 — ERP initialization state
+### Phase 2 â€” ERP initialization state
 - `GET /instance/status` API endpoint
-- Frontend route guard: uninitialized → `/setup`, initialized → `/login`
+- Frontend route guard: uninitialized â†’ `/setup`, initialized â†’ `/login`
 
-### Phase 3 — Onboarding setup wizard
+### Phase 3 â€” Onboarding setup wizard
 - 4-step wizard UI (admin account, company info, branding, review)
 - `POST /setup/initialize` API endpoint
 - Create Supabase Auth user, UserProfile, Company, BrandingConfig
 - Add BrandingConfig Prisma model
 - Mark instance as initialized
 
-### Phase 4 — Auth integration
+### Phase 4 â€” Auth integration
 - Login screen (company-branded with logo + colors from API)
 - Supabase Auth `signInWithPassword`
 - Session persistence and logout
 - JWT verification middleware in Atlas API
 - UserProfile + permission loading on each request
 
-### Phase 5 — Atlas shell and module registry UI
+### Phase 5 â€” Atlas shell and module registry UI
 - React Router setup
 - Module launcher (home screen, app grid)
 - Module-specific layouts and sidebars
 - Module catalog: install, disable, view status
 - Core module protection enforced in UI and API
 
-### Phase 6 — Contacts module (first full business module)
+### Phase 6 â€” Contacts module (first full business module)
 - Full CRUD API with service layer
 - Blueprint-driven list and form UI (DynamicForm + DynamicTable)
 - Contact types: customer, supplier, person, company
 - Expose contact picker to other modules via `exposes`
 
-### Phase 7 — Files module
+### Phase 7 â€” Files module
 - Supabase Storage bucket creation
 - Upload endpoint with FileAsset metadata
 - Download/signed URL endpoint
 - FileUploader and FileViewer reusable components
 - Company logo upload connected to atlas.branding
 
-### Phase 8+ — Business modules
-Finance, Purchases, Inventory, HR, Fleet, Reports — one per brainstorm cycle.
+### Phase 8+ â€” Business modules
+Finance, Purchases, Inventory, HR, Fleet, Reports â€” one per brainstorm cycle.
 
 ---
 
@@ -1397,8 +1400,8 @@ Open **http://localhost:5173** in your browser or run `pnpm dev:tauri` for the n
 | Command | What it does |
 |---|---|
 | `pnpm dev` | API + Vite web preview + worker (recommended) |
-| `pnpm dev:api` | API only — port 4010 |
-| `pnpm dev:frontend` | Vite web preview only — port 5173 |
+| `pnpm dev:api` | API only â€” port 4010 |
+| `pnpm dev:frontend` | Vite web preview only â€” port 5173 |
 | `pnpm dev:worker` | Background worker only |
 | `pnpm dev:tauri` | Native Tauri window + all servers (requires Rust toolchain) |
 
@@ -1409,7 +1412,7 @@ Open **http://localhost:5173** in your browser or run `pnpm dev:tauri` for the n
 | `pnpm db:generate` | Regenerate Prisma client after schema changes |
 | `pnpm db:migrate` | Run pending migrations against Supabase PostgreSQL |
 | `pnpm db:seed` | Seed core modules, permissions, roles |
-| `pnpm db:studio` | Open Prisma Studio GUI — http://localhost:5555 |
+| `pnpm db:studio` | Open Prisma Studio GUI â€” http://localhost:5555 |
 | `pnpm db:fresh` | migrate + generate + seed (non-destructive) |
 
 ### Build
@@ -1447,7 +1450,7 @@ prisma/
   seed.js         Seeds core modules, roles, permissions
 ```
 
-**Request flow:** `React → @atlas/sdk → Hono API → Zod validation → Prisma → Supabase PostgreSQL`
+**Request flow:** `React â†’ @atlas/sdk â†’ Hono API â†’ Zod validation â†’ Prisma â†’ Supabase PostgreSQL`
 
 No direct database access from the frontend. The API owns all business rules and validation.
 
@@ -1455,15 +1458,15 @@ No direct database access from the frontend. The API owns all business rules and
 
 Every ERP feature is a **module**. Modules register via manifests in `packages/maps/`.
 
-- **Core modules** — `atlas.core`, `atlas.identity`, `atlas.files`, `atlas.branding` — cannot be uninstalled.
-- **Feature modules** — installable, versioned, with declared dependencies.
+- **Core modules** â€” `atlas.core`, `atlas.identity`, `atlas.files`, `atlas.branding` â€” cannot be uninstalled.
+- **Feature modules** â€” installable, versioned, with declared dependencies.
 
 See [docs/02_module_system.md](docs/02_module_system.md) and [docs/01_erp_architecture.md](docs/01_erp_architecture.md).
 
 ## Notes
 
 - All UI text must be in **Spanish**. Code, docs, and comments are in **English**.
-- JavaScript only — no TypeScript.
+- JavaScript only â€” no TypeScript.
 - Tailwind for all styles.
 - Prisma is pinned to `^6`. Do not upgrade to v7 (breaking API changes).
 - Supabase Studio: https://studio.supabase.racoondevs.com (admin use only).
@@ -1506,7 +1509,7 @@ pnpm db:migrate       # apply migrations to Supabase PostgreSQL
 pnpm db:seed          # seed core modules, permissions, roles
 
 # Start dev servers (API + Vite web preview + worker)
-pnpm dev              # recommended for daily dev — web at http://localhost:5173
+pnpm dev              # recommended for daily dev â€” web at http://localhost:5173
 pnpm dev:tauri        # full native Tauri window (requires Rust toolchain)
 
 # Start individually
@@ -1561,10 +1564,10 @@ prisma/
 
 ```
 React (apps/desktop)
-  → @atlas/sdk createAtlasClient   (packages/sdk)
-  → Hono API (apps/api/src/index.js)
-  → Zod validation (@atlas/validators)
-  → Prisma → Supabase PostgreSQL
+  â†’ @atlas/sdk createAtlasClient   (packages/sdk)
+  â†’ Hono API (apps/api/src/index.js)
+  â†’ Zod validation (@atlas/validators)
+  â†’ Prisma â†’ Supabase PostgreSQL
 ```
 
 No direct database access from the frontend. The API is the authority for all business rules, validation, and permissions.
@@ -1582,7 +1585,7 @@ Every ERP feature is a **map** (module). Modules are registered via manifests de
 A manifest defines: `key`, `name`, `version`, `kind`, `core`, `uninstallable`, `dependencies`, `permissions`, `navigation`, `blueprints`, `exposes`, `consumes`.
 
 Two categories:
-- **Core modules** (`core-modules.js`): `core: true`, `uninstallable: false` — atlas.core, atlas.identity, atlas.files, atlas.branding. Cannot be removed via API.
+- **Core modules** (`core-modules.js`): `core: true`, `uninstallable: false` â€” atlas.core, atlas.identity, atlas.files, atlas.branding. Cannot be removed via API.
 - **Feature modules** (`feature-modules.js`): installable, versioned, can depend on other modules.
 
 The `ModuleRegistry` class (`packages/core/src/module-registry.js`) handles registration, dependency validation, navigation resolution, and blueprint flattening. The API seeds these into `AtlasModule` rows via `prisma/seed.js`.
@@ -1597,19 +1600,19 @@ See `docs/08_blueprints.md` for field type reference and rendering rules.
 
 ### API structure (apps/api/src/index.js)
 
-Current pattern: routes → direct Prisma calls. Planned service layer:
+Current pattern: routes â†’ direct Prisma calls. Planned service layer:
 
 ```
 routes (Hono handlers)
-  → services (business logic)
-  → Prisma (database)
+  â†’ services (business logic)
+  â†’ Prisma (database)
 ```
 
 Key endpoints:
-- `GET /health` — liveness check
-- `GET /modules` / `POST /modules/install` / `DELETE /modules/:key` — module lifecycle
-- `GET /blueprints` — all enabled blueprints with module metadata
-- `GET /contacts` / `POST /contacts` — first real CRUD module
+- `GET /health` â€” liveness check
+- `GET /modules` / `POST /modules/install` / `DELETE /modules/:key` â€” module lifecycle
+- `GET /blueprints` â€” all enabled blueprints with module metadata
+- `GET /contacts` / `POST /contacts` â€” first real CRUD module
 
 ### Shared validators (packages/validators)
 
@@ -1627,52 +1630,52 @@ Tailwind scans both `src/**` and `../../packages/ui/src/**` (configured in `apps
 
 ### Prisma schema highlights
 
-- `AtlasModule` — installed modules (status: INSTALLED/DISABLED/UNINSTALLED/ERROR)
-- `Blueprint` — stored blueprint JSON per module
-- `InstanceConfig` — key-value store for instance-level state (e.g., initialized flag)
-- `Permission` + `Role` + `RolePermission` — RBAC
-- `Company` + `UserProfile` + `Membership` — multi-tenancy foundation
-- `AuditLog` — entity-level audit trail
-- `FileAsset` — file metadata only (actual files in Supabase Storage)
-- `Contact` — first real business entity
+- `AtlasModule` â€” installed modules (status: INSTALLED/DISABLED/UNINSTALLED/ERROR)
+- `Blueprint` â€” stored blueprint JSON per module
+- `InstanceConfig` â€” key-value store for instance-level state (e.g., initialized flag)
+- `Permission` + `Role` + `RolePermission` â€” RBAC
+- `Company` + `UserProfile` + `Membership` â€” multi-tenancy foundation
+- `AuditLog` â€” entity-level audit trail
+- `FileAsset` â€” file metadata only (actual files in Supabase Storage)
+- `Contact` â€” first real business entity
 
 ## Language and conventions
 
-- **JavaScript only** — no TypeScript in this repo yet
+- **JavaScript only** â€” no TypeScript in this repo yet
 - **No emojis** in UI or documentation
-- **All UI text in Spanish** — code, docs, and comments in English
-- **Tailwind** for all styles — no CSS modules or styled-components
+- **All UI text in Spanish** â€” code, docs, and comments in English
+- **Tailwind** for all styles â€” no CSS modules or styled-components
 - **React Hook Form + Zod** for forms
 - **TanStack Query** for server state; Zustand for client-only UI state when needed
-- **Hono** for API routes — keep route files thin, push logic to services
+- **Hono** for API routes â€” keep route files thin, push logic to services
 - Business logic stays in `apps/api`, not in React components
 - Soft-delete pattern: use `enabled: false` instead of hard-deleting records
 - Every new module needs: manifest in `packages/maps`, Prisma model(s), API routes, service, Zod schema in `packages/validators`, and a `docs/TASKS.md` update
-- Prisma is pinned to `^6` — do not upgrade to v7
+- Prisma is pinned to `^6` â€” do not upgrade to v7
 
 ## Architecture documentation
 
 Before adding a new feature, read:
-- `docs/01_erp_architecture.md` — full system architecture
-- `docs/02_module_system.md` — module system
-- `docs/03_core_modules.md` — core module definitions
-- `docs/08_blueprints.md` — blueprint field types and rendering rules
-- `docs/TASKS.md` — current phase status and roadmap
+- `docs/01_erp_architecture.md` â€” full system architecture
+- `docs/02_module_system.md` â€” module system
+- `docs/03_core_modules.md` â€” core module definitions
+- `docs/08_blueprints.md` â€” blueprint field types and rendering rules
+- `docs/TASKS.md` â€” current phase status and roadmap
 
 ## Development phases (current state)
 
 See `docs/TASKS.md` for the full phased roadmap.
 
-- Phase 0 (repository cleanup + env alignment) — complete
-- Phase 1 (Supabase + Prisma connection) — current
-- Phase 2+ (instance state, setup wizard, auth, shell, contacts) — not yet started
+- Phase 0 (repository cleanup + env alignment) â€” complete
+- Phase 1 (Supabase + Prisma connection) â€” current
+- Phase 2+ (instance state, setup wizard, auth, shell, contacts) â€” not yet started
 ```
 
 - [ ] **Step 2: Commit**
 
 ```bash
 git add CLAUDE.md
-git commit -m "docs: rewrite CLAUDE.md — Supabase-first, absorb CODE_STYLE.md, update references"
+git commit -m "docs: rewrite CLAUDE.md â€” Supabase-first, absorb CODE_STYLE.md, update references"
 ```
 
 ---
@@ -1685,14 +1688,14 @@ git commit -m "docs: rewrite CLAUDE.md — Supabase-first, absorb CODE_STYLE.md,
 - [ ] **Step 1: Replace docs/TASKS.md with the following content**
 
 ```markdown
-# Atlas ERP — Tasks and Roadmap
+# Atlas ERP â€” Tasks and Roadmap
 
-## Phase 0 — Repository and environment cleanup
+## Phase 0 â€” Repository and environment cleanup
 
 - [x] Remove docker-compose.local-lite.yml
 - [x] Remove obsolete docs (ARCHITECTURE.md, MODULE_SYSTEM.md, DOCKER.md, SUPABASE_SELF_HOSTED_SCENARIO.md, CODE_STYLE.md)
 - [x] Rewrite .env.example for Supabase-first with dotenv substitution pattern
-- [x] Create numbered docs suite (docs/00–09)
+- [x] Create numbered docs suite (docs/00â€“09)
 - [x] Update README.md, CLAUDE.md, codex/00_MASTER_PROMPT.md
 - [x] Add atlas.branding manifest to core-modules.js
 - [x] Add InstanceConfig model to prisma/schema.prisma
@@ -1700,23 +1703,23 @@ git commit -m "docs: rewrite CLAUDE.md — Supabase-first, absorb CODE_STYLE.md,
 
 Verified: 2026-05-02
 
-## Phase 1 — Supabase + Prisma connection
+## Phase 1 â€” Supabase + Prisma connection
 
 - [ ] Fill .env with real Supabase credentials (DATABASE_URL, DIRECT_URL, keys)
-- [ ] Run pnpm db:generate — Prisma client against Supabase PostgreSQL
-- [ ] Run pnpm db:migrate — apply schema including InstanceConfig migration
-- [ ] Run pnpm db:seed — 4 core modules, admin role, permissions
+- [ ] Run pnpm db:generate â€” Prisma client against Supabase PostgreSQL
+- [ ] Run pnpm db:migrate â€” apply schema including InstanceConfig migration
+- [ ] Run pnpm db:seed â€” 4 core modules, admin role, permissions
 - [ ] Verify GET /health returns 200
 - [ ] Verify GET /modules returns 4 core modules from live Supabase
 
-## Phase 2 — ERP initialization state
+## Phase 2 â€” ERP initialization state
 
 - [ ] Add GET /instance/status endpoint
 - [ ] Read InstanceConfig.instance.initialized from DB
-- [ ] Add frontend route guard (initialized → /login, not initialized → /setup)
+- [ ] Add frontend route guard (initialized â†’ /login, not initialized â†’ /setup)
 - [ ] Test: fresh instance shows /setup, initialized instance shows /login
 
-## Phase 3 — Onboarding setup wizard
+## Phase 3 â€” Onboarding setup wizard
 
 - [ ] Add BrandingConfig Prisma model and migration
 - [ ] Build 4-step wizard UI (admin account, company info, branding, review)
@@ -1726,7 +1729,7 @@ Verified: 2026-05-02
 - [ ] Upload logo to Supabase Storage (atlas-branding bucket)
 - [ ] Write InstanceConfig records (initialized, company_id, completed_at)
 
-## Phase 4 — Auth integration
+## Phase 4 â€” Auth integration
 
 - [ ] Login screen (company-branded, loads logo + colors from API)
 - [ ] Supabase Auth signInWithPassword flow
@@ -1735,7 +1738,7 @@ Verified: 2026-05-02
 - [ ] UserProfile + role + permission loading on each authenticated request
 - [ ] Password recovery placeholder
 
-## Phase 5 — Atlas shell and module registry UI
+## Phase 5 â€” Atlas shell and module registry UI
 
 - [ ] React Router setup
 - [ ] Module launcher (app home screen / module grid)
@@ -1743,21 +1746,21 @@ Verified: 2026-05-02
 - [ ] Module catalog: install, disable, view status
 - [ ] Core module protection in UI and API
 
-## Phase 6 — Contacts module
+## Phase 6 â€” Contacts module
 
 - [ ] Contacts list page with DynamicTable
 - [ ] Contact form page/modal with DynamicForm
 - [ ] Full CRUD API with service layer
 - [ ] Contact picker component exposed to other modules
 
-## Phase 7 — Files module
+## Phase 7 â€” Files module
 
 - [ ] Supabase Storage bucket setup (atlas-branding, atlas-files)
 - [ ] Upload endpoint with FileAsset metadata
 - [ ] Download/signed URL endpoint
 - [ ] FileUploader and FileViewer reusable components
 
-## Phase 8 — Finance module
+## Phase 8 â€” Finance module
 
 - [ ] Accounts CRUD
 - [ ] Transactions CRUD
@@ -1765,7 +1768,7 @@ Verified: 2026-05-02
 - [ ] Dashboard widgets
 - [ ] Optional contact relation
 
-## Phase 9 — Future modules
+## Phase 9 â€” Future modules
 
 - [ ] Purchases
 - [ ] Inventory
@@ -1779,7 +1782,7 @@ Verified: 2026-05-02
 
 ```bash
 git add docs/TASKS.md
-git commit -m "docs: update TASKS.md — Phase 0 complete, Phase 1 current, full roadmap"
+git commit -m "docs: update TASKS.md â€” Phase 0 complete, Phase 1 current, full roadmap"
 ```
 
 ---
@@ -1792,7 +1795,7 @@ git commit -m "docs: update TASKS.md — Phase 0 complete, Phase 1 current, full
 - [ ] **Step 1: Replace docs/BLUEPRINTS.md with the following content**
 
 ```markdown
-# Blueprints — Quick Reference
+# Blueprints â€” Quick Reference
 
 For the full blueprint system architecture, see [docs/08_blueprints.md](08_blueprints.md).
 
@@ -1847,7 +1850,7 @@ Every blueprint stored in the database must have a corresponding Prisma model, A
 
 ```bash
 git add docs/BLUEPRINTS.md
-git commit -m "docs: update BLUEPRINTS.md — add cross-reference to 08_blueprints, expand field types"
+git commit -m "docs: update BLUEPRINTS.md â€” add cross-reference to 08_blueprints, expand field types"
 ```
 
 ---
@@ -1862,7 +1865,7 @@ git commit -m "docs: update BLUEPRINTS.md — add cross-reference to 08_blueprin
 ```markdown
 # Codex Master Prompt - Atlas ERP
 
-Actúa como arquitecto full stack senior y desarrolla Atlas ERP siguiendo estrictamente esta documentación.
+ActÃºa como arquitecto full stack senior y desarrolla Atlas ERP siguiendo estrictamente esta documentaciÃ³n.
 
 ## Producto
 
@@ -1873,7 +1876,7 @@ Atlas ERP es un ERP modular desktop-first construido con React + Vite + Tauri. A
 Atlas ERP usa una instancia dedicada de Supabase self-hosted:
 
 - API: https://supabase.racoondevs.com
-- Studio: https://studio.supabase.racoondevs.com (solo administración)
+- Studio: https://studio.supabase.racoondevs.com (solo administraciÃ³n)
 
 Esta instancia es exclusiva de Atlas ERP. No se comparte con otros proyectos.
 
@@ -1891,25 +1894,25 @@ Esta instancia es exclusiva de Atlas ERP. No se comparte con otros proyectos.
 - Storage: Supabase Storage self-hosted
 - Realtime: futuro
 - Workers: Node.js
-- Validación: Zod
+- ValidaciÃ³n: Zod
 
 ## Principios obligatorios
 
-1. No meter lógica de negocio crítica en React.
+1. No meter lÃ³gica de negocio crÃ­tica en React.
 2. React consume Atlas API mediante `@atlas/sdk`. Nunca accede a Supabase directamente para datos ERP.
 3. Prisma es la fuente para modelos persistentes de Atlas ERP.
-4. Supabase Auth maneja sesión y JWT, pero Atlas maneja perfiles, roles, permisos y compañías.
-5. Supabase Storage maneja archivos físicos, pero PostgreSQL (vía Prisma FileAsset) guarda metadata.
-6. Los módulos core (atlas.core, atlas.identity, atlas.files, atlas.branding) no son desinstalables.
-7. Los módulos feature sí pueden instalarse, desactivarse y desinstalarse lógicamente.
-8. Cada módulo debe declarar su manifest en `packages/maps/`.
-9. Cada módulo debe declarar permisos, blueprints, navegación y dependencias.
-10. Todo componente visual repetible debe vivir en `packages/ui` o en un componente reusable del módulo.
+4. Supabase Auth maneja sesiÃ³n y JWT, pero Atlas maneja perfiles, roles, permisos y compaÃ±Ã­as.
+5. Supabase Storage maneja archivos fÃ­sicos, pero PostgreSQL (vÃ­a Prisma FileAsset) guarda metadata.
+6. Los mÃ³dulos core (atlas.core, atlas.identity, atlas.files, atlas.branding) no son desinstalables.
+7. Los mÃ³dulos feature sÃ­ pueden instalarse, desactivarse y desinstalarse lÃ³gicamente.
+8. Cada mÃ³dulo debe declarar su manifest en `packages/maps/`.
+9. Cada mÃ³dulo debe declarar permisos, blueprints, navegaciÃ³n y dependencias.
+10. Todo componente visual repetible debe vivir en `packages/ui` o en un componente reusable del mÃ³dulo.
 11. `SUPABASE_SERVICE_ROLE_KEY` nunca debe llegar al frontend ni a ninguna variable VITE_.
 
-## Tono de implementación
+## Tono de implementaciÃ³n
 
-Desarrolla incrementalmente. Antes de crear un módulo, revisa:
+Desarrolla incrementalmente. Antes de crear un mÃ³dulo, revisa:
 
 - `docs/01_erp_architecture.md`
 - `docs/02_module_system.md`
@@ -1922,7 +1925,7 @@ No cambies la arquitectura sin documentarlo.
 ## Estado verificado
 
 - Phase 0: completo (2026-05-02)
-- Phase 1: en progreso — conectar Prisma a Supabase PostgreSQL
+- Phase 1: en progreso â€” conectar Prisma a Supabase PostgreSQL
 - Phase 2+: pendiente
 ```
 
@@ -1930,7 +1933,7 @@ No cambies la arquitectura sin documentarlo.
 
 ```bash
 git add codex/00_MASTER_PROMPT.md
-git commit -m "docs: update codex/00_MASTER_PROMPT — harden Supabase as real target, update doc refs, add 11th principle"
+git commit -m "docs: update codex/00_MASTER_PROMPT â€” harden Supabase as real target, update doc refs, add 11th principle"
 ```
 
 ---
@@ -1993,9 +1996,9 @@ This task requires manual input from the developer. The agent cannot fill creden
 Open `.env` (copied from `.env.example`). Fill in:
 
 ```bash
-SUPABASE_ANON_KEY=<get from Supabase Studio → Project Settings → API → anon public>
-SUPABASE_SERVICE_ROLE_KEY=<get from Supabase Studio → Project Settings → API → service_role secret>
-DATABASE_URL=<get from Supabase Studio → Settings → Database → Connection String → URI>
+SUPABASE_ANON_KEY=<get from Supabase Studio â†’ Project Settings â†’ API â†’ anon public>
+SUPABASE_SERVICE_ROLE_KEY=<get from Supabase Studio â†’ Project Settings â†’ API â†’ service_role secret>
+DATABASE_URL=<get from Supabase Studio â†’ Settings â†’ Database â†’ Connection String â†’ URI>
 DIRECT_URL=<same as DATABASE_URL for self-hosted Supabase>
 JWT_SECRET=<generate with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))">
 ```
@@ -2041,7 +2044,7 @@ pnpm db:studio
 
 Navigate to http://localhost:5555. Verify the `InstanceConfig` table appears in the left sidebar.
 
-Alternatively, check via Supabase Studio at https://studio.supabase.racoondevs.com → Table Editor. The `instance_config` table should be visible.
+Alternatively, check via Supabase Studio at https://studio.supabase.racoondevs.com â†’ Table Editor. The `instance_config` table should be visible.
 
 ---
 
@@ -2059,7 +2062,7 @@ Expected output: success messages for seeding atlas.core, atlas.identity, atlas.
 
 - [ ] **Step 2: Verify modules in Supabase Studio**
 
-Open https://studio.supabase.racoondevs.com → Table Editor → `atlas_module` table.
+Open https://studio.supabase.racoondevs.com â†’ Table Editor â†’ `atlas_module` table.
 
 Expected: 4 rows with keys `atlas.core`, `atlas.identity`, `atlas.files`, `atlas.branding`.
 
@@ -2106,19 +2109,19 @@ Expected response: JSON array with 4 objects. Verify the `key` field of each:
 Open `docs/TASKS.md`. Mark the Phase 1 checklist items as complete:
 
 ```markdown
-## Phase 1 — Supabase + Prisma connection
+## Phase 1 â€” Supabase + Prisma connection
 
 - [x] Fill .env with real Supabase credentials
-- [x] Run pnpm db:generate — Prisma client against Supabase PostgreSQL
-- [x] Run pnpm db:migrate — apply schema including InstanceConfig migration
-- [x] Run pnpm db:seed — 4 core modules, admin role, permissions
+- [x] Run pnpm db:generate â€” Prisma client against Supabase PostgreSQL
+- [x] Run pnpm db:migrate â€” apply schema including InstanceConfig migration
+- [x] Run pnpm db:seed â€” 4 core modules, admin role, permissions
 - [x] Verify GET /health returns 200
 - [x] Verify GET /modules returns 4 core modules from live Supabase
 ```
 
 ```bash
 git add docs/TASKS.md
-git commit -m "chore: mark Phase 1 complete — Supabase connection verified"
+git commit -m "chore: mark Phase 1 complete â€” Supabase connection verified"
 ```
 
 ---
@@ -2133,4 +2136,6 @@ At this point:
 - 4 core modules seeded and serving via API
 - `InstanceConfig` table exists and ready for Phase 2
 
-**Next:** Start Phase 2 with `/superpowers:brainstorming` — design the `GET /instance/status` endpoint and frontend route guard.
+**Next:** Start Phase 2 with `/superpowers:brainstorming` â€” design the `GET /instance/status` endpoint and frontend route guard.
+
+

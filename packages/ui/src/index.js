@@ -25,6 +25,7 @@ export {
   TextField,
   PasswordField,
   TextareaField,
+  MarkdownField,
   NumberField,
   CurrencyField,
   DateField,
@@ -66,6 +67,7 @@ export {
 
 // Navigation & Layout
 export { AppShell } from "./components/AppShell.jsx";
+export { ModuleSidebar } from "./components/ModuleSidebar.jsx";
 export {
   Tabs,
   TabsList,
@@ -160,3 +162,23 @@ export {
 } from "./components/Tooltip.jsx";
 export { Toaster } from "./components/Toast.jsx";
 export { Alert, AlertTitle, AlertDescription } from "./components/Alert.jsx";
+
+// Molecules & Organisms
+export { PageHeader } from "./components/PageHeader.jsx";
+export { EmptyState } from "./components/EmptyState.jsx";
+export { ErrorState } from "./components/ErrorState.jsx";
+export { StatCard } from "./components/StatCard.jsx";
+export { SearchInput } from "./components/SearchInput.jsx";
+export { FilterBar } from "./components/FilterBar.jsx";
+export { DynamicTable } from "./components/DynamicTable.jsx";
+export { DynamicForm } from "./components/DynamicForm.jsx";
+export { ActionMenu } from "./components/ActionMenu.jsx";
+export { ConfirmDialog } from "./components/ConfirmDialog.jsx";
+export { ContactPicker } from "./components/ContactPicker.jsx";
+export { FileCard } from "./components/FileCard.jsx";
+export { FileUploader } from "./components/FileUploader.jsx";
+export { FileViewer } from "./components/FileViewer.jsx";
+export { ImageViewer } from "./components/ImageViewer.jsx";
+export { ImageUploader } from "./components/ImageUploader.jsx";
+export { PageFooter } from "./components/PageFooter.jsx";
+export { BrandFooter } from "./components/BrandFooter.jsx";

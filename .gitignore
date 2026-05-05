@@ -1,12 +1,42 @@
+# Dependencies
 node_modules
 .pnpm-store
+
+# pnpm workspace artifacts
+atlas-erp-starter@*
+
+# Environment — never commit real secrets
 .env
 .env.local
+.env.*.local
+
+# MCP server config (may contain URLs with tokens)
+.mcp.json
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Build outputs
 dist
 build
 coverage
+
+# Tauri native build
 apps/desktop/src-tauri/target
+
+# Prisma generated client
 prisma/generated
+
+# Database / logs
 *.db
+*.db-journal
 *.log
+pnpm-debug.log*
+
+# Editor
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln

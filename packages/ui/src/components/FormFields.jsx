@@ -7,9 +7,17 @@ import {
   X,
   Check,
   ChevronDown,
+  ChevronUp,
   Phone,
   Tag,
+  Bold,
+  Italic,
+  List,
+  ListOrdered,
+  CheckSquare,
+  Link2,
 } from "lucide-react";
+import * as SelectPrimitive from "@radix-ui/react-select";
 import { cn } from "../lib/utils.js";
 
 // ─── Base styles ──────────────────────────────────────────────────────────────
@@ -376,6 +384,130 @@ export const TextareaField = forwardRef(function TextareaField(
   );
 });
 
+function insertMarkdownToken(source, token, selectionStart, selectionEnd) {
+  const before = source.slice(0, selectionStart);
+  const selected = source.slice(selectionStart, selectionEnd);
+  const after = source.slice(selectionEnd);
+  return `${before}${token(selected)}${after}`;
+}
+
+function formatLinkSelection(text) {
+  const label = text?.trim() ? text : "texto";
+  return `[${label}](https://)`;
+}
+
+export const MarkdownField = forwardRef(function MarkdownField(
+  {
+    label,
+    error: externalError,
+    hint,
+    required,
+    validate,
+    onBlur,
+    id,
+    maxLength = 5000,
+    value,
+    onChange,
+    className,
+    rows = 8,
+    ...props
+  },
+  ref,
+) {
+  const [localError, setLocalError] = useState("");
+  const error = externalError || localError;
+  const charCount = typeof value === "string" ? value.length : 0;
+  const inputRef = useRef(null);
+
+  function handleBlur(e) {
+    if (validate) setLocalError(validate(e.target.value) || "");
+    onBlur?.(e);
+  }
+
+  function applyFormat(tokenBuilder) {
+    const target = inputRef.current;
+    if (!target) return;
+    const start = target.selectionStart ?? 0;
+    const end = target.selectionEnd ?? start;
+    const currentValue = String(value ?? "");
+    const nextValue = insertMarkdownToken(currentValue, tokenBuilder, start, end);
+    onChange?.({ target: { value: nextValue } });
+    requestAnimationFrame(() => {
+      target.focus();
+      target.selectionStart = start;
+      target.selectionEnd = Math.min(nextValue.length, end + 8);
+    });
+  }
+
+  const toolbar = [
+    { label: "Negrita", icon: Bold, token: (text) => `**${text || "texto"}**` },
+    { label: "Cursiva", icon: Italic, token: (text) => `*${text || "texto"}*` },
+    { label: "Lista", icon: List, token: (text) => `- ${text || "Elemento"}` },
+    {
+      label: "Numerada",
+      icon: ListOrdered,
+      token: (text) => `1. ${text || "Elemento"}`,
+    },
+    { label: "Checklist", icon: CheckSquare, token: (text) => `- [ ] ${text || "Tarea"}` },
+    { label: "Enlace", icon: Link2, token: formatLinkSelection },
+  ];
+
+  return (
+    <FieldWrapper
+      label={label}
+      labelFor={id}
+      error={error}
+      hint={hint}
+      required={required}
+    >
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="flex flex-wrap items-center gap-1 border-b border-border px-2 py-1.5 bg-muted/20">
+          {toolbar.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              onClick={() => applyFormat(item.token)}
+              className="inline-flex items-center gap-1 rounded-md border border-transparent px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/30 transition-colors"
+              aria-label={item.label}
+              title={item.label}
+            >
+              <item.icon size={13} />
+            </button>
+          ))}
+        </div>
+        <textarea
+          ref={(node) => {
+            inputRef.current = node;
+            if (typeof ref === "function") ref(node);
+            else if (ref) ref.current = node;
+          }}
+          id={id}
+          rows={rows}
+          value={value ?? ""}
+          onChange={onChange}
+          maxLength={maxLength}
+          onBlur={handleBlur}
+          className={cn(
+            "w-full px-3.5 py-3 text-sm glass-subtle bg-card resize-y min-h-30",
+            "text-foreground placeholder:text-muted-foreground",
+            "transition-all duration-150 outline-none",
+            "focus:ring-2 focus:ring-primary/20 focus:border-primary",
+            "disabled:cursor-not-allowed disabled:opacity-50 border-0 rounded-none",
+            className,
+          )}
+          placeholder="Escribe observaciones en formato markdown..."
+          {...props}
+        />
+      </div>
+      {maxLength && (
+        <p className="text-right text-[11px] text-muted-foreground -mt-0.5">
+          {charCount} / {maxLength}
+        </p>
+      )}
+    </FieldWrapper>
+  );
+});
+
 // ─── NumberField ──────────────────────────────────────────────────────────────
 
 export const NumberField = forwardRef(function NumberField(
@@ -448,62 +580,140 @@ export const NumberField = forwardRef(function NumberField(
 
 // ─── CurrencyField ────────────────────────────────────────────────────────────
 
-function parseCurrencyRaw(str) {
-  const n = parseFloat(String(str).replace(/[^0-9.-]/g, ""));
-  return isNaN(n) ? "" : n;
+function normalizeMoneyInput(raw, { allowNegative, allowDecimal }) {
+  let next = String(raw ?? "")
+    .replaceAll(" ", "")
+    .replaceAll(",", ".")
+    .replace(/[^0-9.-]/g, "");
+
+  if (allowNegative) {
+    const negative = next.startsWith("-");
+    next = next.replace(/-/g, "");
+    if (negative) next = `-${next}`;
+  } else {
+    next = next.replace(/-/g, "");
+  }
+
+  if (!allowDecimal) {
+    next = next.replace(/\./g, "");
+  } else {
+    const firstDot = next.indexOf(".");
+    if (firstDot !== -1) {
+      next =
+        next.slice(0, firstDot + 1) + next.slice(firstDot + 1).replace(/\./g, "");
+    }
+  }
+
+  if (next.startsWith(".")) next = `0${next}`;
+  if (next.startsWith("-.")) next = next.replace("-.", "-0.");
+  return next;
 }
 
-function formatCurrency(value, locale, currency) {
+function parseMoneyValue(raw, { allowDecimal, min, max }) {
+  if (raw === "" || raw === "-" || raw === "." || raw === "-.") {
+    return { kind: "empty", value: "" };
+  }
+  const parsed = allowDecimal ? Number(raw) : Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return { kind: "invalid", value: "" };
+  if (Number.isFinite(min) && parsed < min) return { kind: "invalid", value: "" };
+  if (Number.isFinite(max) && parsed > max) return { kind: "invalid", value: "" };
+  return { kind: "valid", value: parsed };
+}
+
+function formatCurrency(value, locale, currency, fractionDigits = 2) {
   if (value === "" || value === null || value === undefined) return "";
   const n = parseFloat(value);
   if (isNaN(n)) return "";
+  const digits = Number.isFinite(fractionDigits) ? fractionDigits : 2;
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
   }).format(n);
 }
 
-export function CurrencyField({
-  label,
-  error: externalError,
-  hint,
-  required,
-  id,
-  onBlur,
-  icon,
-  value,
-  onChange,
-  locale = "es-MX",
-  currency = "MXN",
-  symbol = "$",
-  className,
-  ...props
-}) {
+export const CurrencyField = forwardRef(function CurrencyField(
+  {
+    label,
+    error: externalError,
+    hint,
+    required,
+    id,
+    onBlur,
+    icon,
+    value,
+    onChange,
+    locale = "es-MX",
+    currency = "MXN",
+    symbol = "$",
+    className,
+    allowNegative = true,
+    allowDecimal = true,
+    fractionDigits = 2,
+    min,
+    max,
+    invalidMessage = "Monto invalido.",
+    ...props
+  },
+  ref,
+) {
+  const [localError, setLocalError] = useState("");
   const [display, setDisplay] = useState(() =>
-    formatCurrency(value, locale, currency),
+    formatCurrency(value, locale, currency, allowDecimal ? fractionDigits : 0),
   );
   const [focused, setFocused] = useState(false);
+  const error = externalError || localError;
 
   useEffect(() => {
-    if (!focused) setDisplay(formatCurrency(value, locale, currency));
-  }, [value, focused, locale, currency]);
+    if (!focused) {
+      setDisplay(
+        formatCurrency(value, locale, currency, allowDecimal ? fractionDigits : 0),
+      );
+    }
+  }, [value, focused, locale, currency, allowDecimal, fractionDigits]);
 
   function handleFocus() {
     setFocused(true);
+    setLocalError("");
     setDisplay(value != null && value !== "" ? String(value) : "");
   }
 
   function handleChange(e) {
-    const raw = e.target.value.replace(/[^0-9.,-]/g, "");
+    const raw = normalizeMoneyInput(e.target.value, {
+      allowNegative,
+      allowDecimal,
+    });
     setDisplay(raw);
-    onChange?.(parseCurrencyRaw(raw));
+    const parsed = parseMoneyValue(raw, { allowDecimal, min, max });
+    if (parsed.kind === "valid") onChange?.(parsed.value);
+    if (parsed.kind === "empty") onChange?.("");
   }
 
   function handleBlur(e) {
+    const parsed = parseMoneyValue(display, { allowDecimal, min, max });
     setFocused(false);
-    setDisplay(formatCurrency(value, locale, currency));
+    if (parsed.kind === "valid") {
+      setLocalError("");
+      onChange?.(parsed.value);
+      setDisplay(
+        formatCurrency(
+          parsed.value,
+          locale,
+          currency,
+          allowDecimal ? fractionDigits : 0,
+        ),
+      );
+    } else if (parsed.kind === "empty") {
+      setLocalError(required ? "Este campo es obligatorio." : "");
+      onChange?.("");
+      setDisplay("");
+    } else {
+      setLocalError(invalidMessage);
+      setDisplay(
+        formatCurrency(value, locale, currency, allowDecimal ? fractionDigits : 0),
+      );
+    }
     onBlur?.(e);
   }
 
@@ -511,7 +721,7 @@ export function CurrencyField({
     <FieldWrapper
       label={label}
       labelFor={id}
-      error={externalError}
+      error={error}
       hint={hint}
       required={required}
     >
@@ -524,25 +734,27 @@ export function CurrencyField({
           </span>
         )}
         <input
+          ref={ref}
           id={id}
           type="text"
           inputMode="decimal"
           value={
             focused
               ? display
-              : display || formatCurrency(value, locale, currency)
+              : display ||
+                formatCurrency(value, locale, currency, allowDecimal ? fractionDigits : 0)
           }
           onChange={handleChange}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          className={fieldCls(externalError, cn("pl-9", className))}
+          className={fieldCls(error, cn("pl-9", className))}
           placeholder="0.00"
           {...props}
         />
       </div>
     </FieldWrapper>
   );
-}
+});
 
 // ─── DateField ────────────────────────────────────────────────────────────────
 
@@ -728,22 +940,24 @@ export const SelectField = forwardRef(function SelectField(
     hint,
     required,
     validate,
-    onBlur,
     id,
     icon,
     options = [],
     placeholder,
+    value,
+    onValueChange,
+    disabled,
     className,
-    ...props
   },
   ref,
 ) {
   const [localError, setLocalError] = useState("");
   const error = externalError || localError;
 
-  function handleBlur(e) {
-    if (validate) setLocalError(validate(e.target.value) || "");
-    onBlur?.(e);
+  function handleOpenChange(open) {
+    if (!open && validate) {
+      setLocalError(validate(value) || "");
+    }
   }
 
   return (
@@ -756,38 +970,101 @@ export const SelectField = forwardRef(function SelectField(
     >
       <div className="relative">
         <InputIcon icon={icon} />
-        <select
-          ref={ref}
-          id={id}
-          onBlur={handleBlur}
-          className={fieldCls(
-            error,
-            cn(
-              icon && "pl-9",
-              "pr-9 appearance-none cursor-pointer",
-              className,
-            ),
-          )}
-          {...props}
+        <SelectPrimitive.Root
+          value={value || ""}
+          onValueChange={onValueChange}
+          onOpenChange={handleOpenChange}
+          disabled={disabled}
         >
-          {placeholder && (
-            <option value="" disabled>
-              {placeholder}
-            </option>
-          )}
-          {options.map((opt) => {
-            const val = typeof opt === "string" ? opt : opt.value;
-            const lbl = typeof opt === "string" ? opt : opt.label;
-            return (
-              <option key={val} value={val}>
-                {lbl}
-              </option>
-            );
-          })}
-        </select>
-        <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none">
-          <ChevronDown size={14} strokeWidth={1.75} />
-        </span>
+          <SelectPrimitive.Trigger
+            id={id}
+            ref={ref}
+            className={cn(
+              fieldCls(
+                error,
+                cn(
+                  "flex items-center justify-between cursor-pointer text-left gap-2",
+                  icon && "pl-9",
+                  className,
+                ),
+              ),
+            )}
+            aria-label={label}
+          >
+            <span
+              className={cn(
+                "flex-1 truncate text-sm",
+                !value && "text-muted-foreground/70",
+              )}
+            >
+              <SelectPrimitive.Value
+                placeholder={placeholder || "Seleccionar..."}
+              />
+            </span>
+            <SelectPrimitive.Icon asChild>
+              <ChevronDown
+                size={14}
+                strokeWidth={1.75}
+                className="text-muted-foreground/60 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180"
+              />
+            </SelectPrimitive.Icon>
+          </SelectPrimitive.Trigger>
+
+          <SelectPrimitive.Portal>
+            <SelectPrimitive.Content
+              position="popper"
+              sideOffset={5}
+              className={cn(
+                "z-50 min-w-(--radix-select-trigger-width) overflow-hidden rounded-lg",
+                "border border-border bg-card shadow-xl",
+                "data-[state=open]:animate-in data-[state=closed]:animate-out",
+                "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+                "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+                "data-[side=bottom]:slide-in-from-top-1 data-[side=top]:slide-in-from-bottom-1",
+              )}
+            >
+              <SelectPrimitive.ScrollUpButton className="flex cursor-default items-center justify-center py-1 text-muted-foreground">
+                <ChevronUp size={13} />
+              </SelectPrimitive.ScrollUpButton>
+
+              <SelectPrimitive.Viewport className="p-1 max-h-64 overflow-y-auto">
+                {options.map((opt) => {
+                  const val = typeof opt === "string" ? opt : opt.value;
+                  const lbl = typeof opt === "string" ? opt : opt.label;
+                  return (
+                    <SelectPrimitive.Item
+                      key={val}
+                      value={val}
+                      className={cn(
+                        "relative flex w-full cursor-default select-none items-center",
+                        "rounded-md py-2 pl-8 pr-3 text-sm outline-none",
+                        "transition-colors duration-100",
+                        "focus:bg-primary/8 focus:text-foreground",
+                        "data-[state=checked]:text-primary data-[state=checked]:font-medium",
+                        "data-disabled:pointer-events-none data-disabled:opacity-50",
+                      )}
+                    >
+                      <span className="absolute left-2.5 flex h-3.5 w-3.5 items-center justify-center">
+                        <SelectPrimitive.ItemIndicator>
+                          <Check
+                            size={11}
+                            strokeWidth={2.5}
+                            className="text-primary"
+                          />
+                        </SelectPrimitive.ItemIndicator>
+                      </span>
+                      <SelectPrimitive.ItemText>{lbl}</SelectPrimitive.ItemText>
+                    </SelectPrimitive.Item>
+                  );
+                })}
+              </SelectPrimitive.Viewport>
+
+              <SelectPrimitive.ScrollDownButton className="flex cursor-default items-center justify-center py-1 text-muted-foreground">
+                <ChevronDown size={13} />
+              </SelectPrimitive.ScrollDownButton>
+            </SelectPrimitive.Content>
+          </SelectPrimitive.Portal>
+        </SelectPrimitive.Root>
       </div>
     </FieldWrapper>
   );
@@ -1325,6 +1602,7 @@ export function ComboboxField({
   required,
   error: externalError,
   hint,
+  icon,
   options = [],
   value,
   onChange,
@@ -1334,62 +1612,86 @@ export function ComboboxField({
   minSearchLength = 0,
   className,
 }) {
-  const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const containerRef = useRef(null)
-  const searchRef = useRef(null)
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef(null);
+  const searchRef = useRef(null);
 
-  const selected = options.find(o => o.value === value)
+  const selected = options.find((o) => o.value === value);
 
-  const filtered = search.length >= minSearchLength
-    ? options.filter(o => o.label.toLowerCase().includes(search.toLowerCase())).slice(0, 200)
-    : minSearchLength > 0
-    ? []
-    : options.slice(0, 200)
+  const filtered =
+    search.length >= minSearchLength
+      ? options
+          .filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
+          .slice(0, 200)
+      : minSearchLength > 0
+        ? []
+        : options.slice(0, 200);
 
   useEffect(() => {
     function handleOutside(e) {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false)
-        setSearch('')
+        setOpen(false);
+        setSearch("");
       }
     }
-    document.addEventListener('mousedown', handleOutside)
-    return () => document.removeEventListener('mousedown', handleOutside)
-  }, [])
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
 
   function handleOpen() {
-    setOpen(o => !o)
+    setOpen((o) => !o);
     // focus search after open
-    setTimeout(() => searchRef.current?.focus(), 50)
+    setTimeout(() => searchRef.current?.focus(), 50);
   }
 
   function handleSelect(opt) {
-    onChange(opt.value)
-    setOpen(false)
-    setSearch('')
+    onChange(opt.value);
+    setOpen(false);
+    setSearch("");
   }
 
   return (
-    <FieldWrapper label={label} labelFor={id} error={externalError} hint={hint} required={required}>
-      <div ref={containerRef} className={cn('relative', className)}>
+    <FieldWrapper
+      label={label}
+      labelFor={id}
+      error={externalError}
+      hint={hint}
+      required={required}
+    >
+      <div ref={containerRef} className={cn("relative", className)}>
         <button
           type="button"
           id={id}
           onClick={handleOpen}
           className={cn(
-            fieldCls(externalError, 'flex items-center justify-between text-left cursor-pointer'),
+            fieldCls(
+              externalError,
+              cn(
+                "flex items-center justify-between text-left cursor-pointer",
+                icon && "pl-9",
+              ),
+            ),
           )}
           aria-haspopup="listbox"
           aria-expanded={open}
         >
-          <span className={cn('truncate', selected ? 'text-foreground' : 'text-muted-foreground')}>
+          <InputIcon icon={icon} />
+          <span
+            className={cn(
+              "truncate",
+              selected ? "text-foreground" : "text-muted-foreground",
+            )}
+          >
             {selected ? selected.label : placeholder}
           </span>
           <ChevronDown
             size={14}
             strokeWidth={1.75}
-            className={cn('text-muted-foreground/60 shrink-0 ml-2 transition-transform duration-150', open && 'rotate-180')}
+            className={cn(
+              "text-muted-foreground/60 shrink-0 ml-2 transition-transform duration-150",
+              open && "rotate-180",
+            )}
           />
         </button>
 
@@ -1400,14 +1702,14 @@ export function ComboboxField({
                 ref={searchRef}
                 type="text"
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder={searchPlaceholder}
                 className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
               />
               {search && (
                 <button
                   type="button"
-                  onClick={() => setSearch('')}
+                  onClick={() => setSearch("")}
                   className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
                 >
                   <X size={12} />
@@ -1420,9 +1722,11 @@ export function ComboboxField({
                   Escribe al menos {minSearchLength} letras para buscar
                 </p>
               ) : filtered.length === 0 ? (
-                <p className="px-3 py-4 text-sm text-muted-foreground text-center">{emptyText}</p>
+                <p className="px-3 py-4 text-sm text-muted-foreground text-center">
+                  {emptyText}
+                </p>
               ) : (
-                filtered.map(opt => (
+                filtered.map((opt) => (
                   <button
                     key={opt.value}
                     type="button"
@@ -1430,10 +1734,10 @@ export function ComboboxField({
                     aria-selected={opt.value === value}
                     onClick={() => handleSelect(opt)}
                     className={cn(
-                      'w-full text-left px-3 py-2 text-sm transition-colors duration-100',
+                      "w-full text-left px-3 py-2 text-sm transition-colors duration-100",
                       opt.value === value
-                        ? 'bg-primary/10 text-primary font-medium'
-                        : 'text-foreground hover:bg-muted/50',
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-foreground hover:bg-muted/50",
                     )}
                   >
                     {opt.label}
@@ -1445,5 +1749,5 @@ export function ComboboxField({
         )}
       </div>
     </FieldWrapper>
-  )
+  );
 }

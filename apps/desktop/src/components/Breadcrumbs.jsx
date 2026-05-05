@@ -1,0 +1,98 @@
+import { useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
+import { useRuntimeModules } from "../app/useRuntimeModules";
+
+const STATIC_LABELS = {
+  "/app/profile": "Mi perfil",
+};
+
+function buildCrumbs(pathname, moduleMap) {
+  if (pathname === "/app" || pathname === "/app/" || pathname === "/app/home") {
+    return [];
+  }
+
+  const staticLabel = STATIC_LABELS[pathname];
+  if (staticLabel) {
+    return [{ label: staticLabel, path: pathname, isLast: true }];
+  }
+
+  const m = pathname.match(/^\/app\/m\/([^/]+)(\/(.+))?$/);
+  if (!m) return [];
+
+  const moduleKey = m[1];
+  const rawSub = m[3];
+  const mod = moduleMap.get(moduleKey);
+  if (!mod) return [];
+
+  const moduleRoot = `/app/m/${moduleKey}`;
+
+  if (!rawSub) {
+    return [{ label: mod.name, path: moduleRoot, color: mod.color, isLast: true }];
+  }
+
+  const subPath = `/${rawSub}`;
+  const navItem = (mod.navigation ?? []).find(
+    (n) =>
+      n.path === subPath ||
+      n.path === rawSub ||
+      subPath.startsWith(`${n.path}/`),
+  );
+  const subLabel = navItem
+    ? subPath === navItem.path
+      ? navItem.label
+      : `${navItem.label} · Detalle`
+    : rawSub;
+
+  return [
+    { label: mod.name, path: moduleRoot, color: mod.color, isLast: false },
+    { label: subLabel, path: pathname, isLast: true },
+  ];
+}
+
+export function Breadcrumbs() {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { moduleMap } = useRuntimeModules();
+
+  const crumbs = useMemo(
+    () => buildCrumbs(pathname, moduleMap),
+    [pathname, moduleMap],
+  );
+
+  if (crumbs.length === 0) return null;
+
+  return (
+    <nav
+      aria-label="Ruta de navegacion"
+      className="hidden sm:flex items-center gap-0.5 text-xs min-w-0"
+    >
+      {crumbs.map((crumb, i) => (
+        <span key={crumb.path} className="flex items-center gap-0.5 min-w-0">
+          {i > 0 && (
+            <ChevronRight
+              size={11}
+              className="shrink-0 text-[hsl(var(--muted-foreground))] opacity-50"
+            />
+          )}
+          {crumb.isLast ? (
+            <span
+              className="font-medium text-[hsl(var(--foreground))] truncate max-w-[160px]"
+              title={crumb.label}
+            >
+              {crumb.label}
+            </span>
+          ) : (
+            <button
+              onClick={() => navigate(crumb.path)}
+              className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors duration-150 truncate max-w-[160px] cursor-pointer"
+              title={crumb.label}
+            >
+              {crumb.label}
+            </button>
+          )}
+        </span>
+      ))}
+    </nav>
+  );
+}

@@ -8,16 +8,17 @@ import {
 } from "react";
 import { Upload, X, Palette } from "lucide-react";
 
-const TWO_MB_BYTES = 2 * 1024 * 1024;
+const MAX_LOGO_BYTES = 10 * 1024 * 1024;
 
 // Fallback palette if logo has too few distinct colors
 const FALLBACK_COLORS = [
-  "#6366f1",
-  "#8b5cf6",
-  "#06b6d4",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
+  "#21C7FF",
+  "#0A7BFF",
+  "#102A5E",
+  "#0A1D44",
+  "#06152F",
+  "#E6EAF0",
+  "#5F6B7A",
 ];
 
 function formatBytes(bytes) {
@@ -121,9 +122,9 @@ export const StepBranding = forwardRef(function StepBranding(
     (file) => {
       setSizeError("");
       if (!file) return;
-      if (file.size > TWO_MB_BYTES) {
+      if (file.size > MAX_LOGO_BYTES) {
         setSizeError(
-          `Archivo demasiado grande. Máximo ${formatBytes(TWO_MB_BYTES)}`,
+          `Archivo demasiado grande. Máximo ${formatBytes(MAX_LOGO_BYTES)}`,
         );
         return;
       }
@@ -195,7 +196,7 @@ export const StepBranding = forwardRef(function StepBranding(
                   Arrastra tu logotipo aquí
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Opcional · Máximo {formatBytes(TWO_MB_BYTES)}
+                  Opcional · Máximo {formatBytes(MAX_LOGO_BYTES)}
                 </p>
               </div>
               <input

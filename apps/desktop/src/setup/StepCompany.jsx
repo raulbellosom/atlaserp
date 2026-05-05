@@ -8,18 +8,39 @@ const COMPANY_TYPES = [
   { value: "srl_de_cv", label: "SRL de CV" },
   { value: "sa", label: "SA" },
   { value: "srl", label: "SRL" },
-  { value: "sc", label: "SC — Sociedad Cooperativa" },
-  { value: "ac", label: "AC — Asociación Civil" },
+  { value: "sc", label: "SC - Sociedad Cooperativa" },
+  { value: "ac", label: "AC - Asociacion Civil" },
   { value: "sapi_de_cv", label: "SAPI de CV" },
   { value: "otro", label: "Otro" },
 ];
 
 const COMPANY_SIZES = [
-  { value: "micro", label: "Micro — 1 a 10 empleados" },
-  { value: "small", label: "Pequeña — 11 a 50 empleados" },
-  { value: "medium", label: "Mediana — 51 a 200 empleados" },
-  { value: "large", label: "Grande — 201 a 500 empleados" },
-  { value: "corporate", label: "Corporativo — más de 500 empleados" },
+  { value: "micro", label: "Micro - 1 a 10 empleados" },
+  { value: "small", label: "Pequena - 11 a 50 empleados" },
+  { value: "medium", label: "Mediana - 51 a 200 empleados" },
+  { value: "large", label: "Grande - 201 a 500 empleados" },
+  { value: "corporate", label: "Corporativo - mas de 500 empleados" },
+];
+
+const INDUSTRY_OPTIONS = [
+  { value: "tecnologia", label: "Tecnologia" },
+  { value: "software", label: "Software" },
+  { value: "mineria", label: "Mineria" },
+  { value: "contabilidad", label: "Contabilidad" },
+  { value: "manufactura", label: "Manufactura" },
+  { value: "retail", label: "Retail" },
+  { value: "salud", label: "Salud" },
+  { value: "educacion", label: "Educacion" },
+  { value: "logistica", label: "Logistica" },
+  { value: "construccion", label: "Construccion" },
+  { value: "servicios_profesionales", label: "Servicios profesionales" },
+  { value: "agroindustria", label: "Agroindustria" },
+  { value: "financiero", label: "Financiero" },
+  { value: "hospitalidad", label: "Hospitalidad" },
+  { value: "marketing", label: "Marketing" },
+  { value: "inmobiliario", label: "Inmobiliario" },
+  { value: "ong", label: "ONG" },
+  { value: "otro", label: "Otro (especificar)" },
 ];
 
 function toSlug(name) {
@@ -40,8 +61,15 @@ export const StepCompany = forwardRef(function StepCompany(
   useImperativeHandle(ref, () => ({
     validate() {
       const e = {};
-      if (!data.companyName || data.companyName.length < 2)
-        e.companyName = "Mínimo 2 caracteres";
+      if (!data.companyName || data.companyName.length < 2) {
+        e.companyName = "Minimo 2 caracteres";
+      }
+      if (
+        data.companyIndustryKey === "otro" &&
+        !data.companyIndustryName?.trim()
+      ) {
+        e.companyIndustryName = "Especifica el giro de la empresa";
+      }
       setErrors(e);
       return Object.keys(e).length === 0;
     },
@@ -88,10 +116,17 @@ export const StepCompany = forwardRef(function StepCompany(
     onChange({ state: val, city: "" });
   }
 
+  function handleIndustryChange(val) {
+    const selected = INDUSTRY_OPTIONS.find((option) => option.value === val);
+    onChange({
+      companyIndustryKey: val,
+      companyIndustryName: val === "otro" ? "" : selected?.label || "",
+    });
+  }
+
   return (
     <div>
       <div className="space-y-7">
-        {/* ── Section: Datos generales ── */}
         <div className="space-y-4">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
             Datos generales
@@ -105,48 +140,75 @@ export const StepCompany = forwardRef(function StepCompany(
             onChange={(e) => onChange({ companyName: e.target.value })}
             placeholder="Acme SA de CV"
             error={errors.companyName}
-            validate={(v) => (!v || v.length < 2 ? "Mínimo 2 caracteres" : null)}
-            hint={slug && !errors.companyName ? `Identificador: ${slug}` : undefined}
+            validate={(v) =>
+              !v || v.length < 2 ? "Minimo 2 caracteres" : null
+            }
+            hint={
+              slug && !errors.companyName ? `Identificador: ${slug}` : undefined
+            }
           />
           <TextField
             id="legalName"
-            label="Razón social"
+            label="Razon social"
             icon={FileText}
             value={data.legalName || ""}
             onChange={(e) => onChange({ legalName: e.target.value })}
-            placeholder="ACME SOCIEDAD ANÓNIMA DE CAPITAL VARIABLE"
+            placeholder="ACME SOCIEDAD ANONIMA DE CAPITAL VARIABLE"
             hint="Nombre legal registrado ante el SAT u organismo equivalente"
           />
           <div className="grid grid-cols-2 gap-3">
             <SelectField
               id="companyType"
-              label="Tipo de empresa"
+              label="Forma legal"
               options={COMPANY_TYPES}
               placeholder="Seleccionar..."
               value={data.companyType || ""}
-              onChange={(e) => onChange({ companyType: e.target.value, companyTypeName: "" })}
+              onValueChange={(v) =>
+                onChange({ companyType: v, companyTypeName: "" })
+              }
             />
             <SelectField
               id="companySize"
-              label="Tamaño"
+              label="Tamano"
               options={COMPANY_SIZES}
               placeholder="Seleccionar..."
               value={data.companySize || ""}
-              onChange={(e) => onChange({ companySize: e.target.value })}
+              onValueChange={(v) => onChange({ companySize: v })}
             />
           </div>
+          <ComboboxField
+            id="companyIndustryKey"
+            label="Giro de empresa"
+            options={INDUSTRY_OPTIONS}
+            value={data.companyIndustryKey || ""}
+            onChange={handleIndustryChange}
+            placeholder="Seleccionar giro..."
+            searchPlaceholder="Buscar giro..."
+            emptyText="Sin coincidencias"
+          />
+          {data.companyIndustryKey === "otro" && (
+            <TextField
+              id="companyIndustryName"
+              label="Especificar giro"
+              value={data.companyIndustryName || ""}
+              error={errors.companyIndustryName}
+              onChange={(e) =>
+                onChange({ companyIndustryName: e.target.value })
+              }
+              placeholder="Ej. Consultoria ambiental"
+            />
+          )}
           {data.companyType === "otro" && (
             <TextField
               id="companyTypeName"
-              label="Especificar tipo"
+              label="Especificar forma legal"
               value={data.companyTypeName || ""}
               onChange={(e) => onChange({ companyTypeName: e.target.value })}
-              placeholder="Describe el tipo de empresa"
+              placeholder="Describe la forma legal"
             />
           )}
         </div>
 
-        {/* ── Section: Datos fiscales ── */}
         <div className="space-y-4">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
             Datos fiscales
@@ -163,20 +225,19 @@ export const StepCompany = forwardRef(function StepCompany(
           />
         </div>
 
-        {/* ── Section: Domicilio ── */}
         <div className="space-y-4">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
             Domicilio
           </p>
           <ComboboxField
             id="country"
-            label="País"
+            label="Pais"
             icon={MapPin}
             options={countryOptions}
             value={data.country || ""}
             onChange={handleCountryChange}
-            placeholder="Seleccionar país..."
-            searchPlaceholder="Buscar país..."
+            placeholder="Seleccionar pais..."
+            searchPlaceholder="Buscar pais..."
           />
           {stateOptions.length > 0 && (
             <ComboboxField
@@ -201,7 +262,7 @@ export const StepCompany = forwardRef(function StepCompany(
               minSearchLength={2}
             />
           )}
-          {data.state !== undefined && data.state !== "" && cityOptions.length === 0 && (
+          {data.state && cityOptions.length === 0 && (
             <TextField
               id="city"
               label="Ciudad / Municipio"
@@ -222,7 +283,7 @@ export const StepCompany = forwardRef(function StepCompany(
             </div>
             <TextField
               id="extNumber"
-              label="Número ext."
+              label="Numero ext."
               value={data.extNumber || ""}
               onChange={(e) => onChange({ extNumber: e.target.value })}
               placeholder="123"
@@ -231,17 +292,49 @@ export const StepCompany = forwardRef(function StepCompany(
           <div className="grid grid-cols-2 gap-3">
             <TextField
               id="intNumber"
-              label="Número int."
+              label="Numero int."
               value={data.intNumber || ""}
               onChange={(e) => onChange({ intNumber: e.target.value })}
               placeholder="Piso 4 (opcional)"
             />
             <TextField
               id="postalCode"
-              label="Código postal"
+              label="Codigo postal"
               value={data.postalCode || ""}
               onChange={(e) => onChange({ postalCode: e.target.value })}
               placeholder="06600"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Contacto
+          </p>
+          <TextField
+            id="contactEmail"
+            label="Correo de contacto"
+            type="email"
+            value={data.contactEmail || ""}
+            onChange={(e) => onChange({ contactEmail: e.target.value })}
+            placeholder="contacto@miempresa.com"
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <TextField
+              id="phone"
+              label="Telefono"
+              type="tel"
+              value={data.phone || ""}
+              onChange={(e) => onChange({ phone: e.target.value })}
+              placeholder="+52 55 1234 5678"
+            />
+            <TextField
+              id="website"
+              label="Sitio web"
+              type="url"
+              value={data.website || ""}
+              onChange={(e) => onChange({ website: e.target.value })}
+              placeholder="https://miempresa.com"
             />
           </div>
         </div>

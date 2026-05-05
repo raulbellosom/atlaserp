@@ -1,6 +1,7 @@
 import pkg from '@prisma/client'
 const { PrismaClient } = pkg
 import { coreModules } from '../packages/maps/src/core-modules.js'
+import { getPermissionPresentation } from '../apps/api/src/permission-catalog.js'
 
 const prisma = new PrismaClient()
 
@@ -53,17 +54,18 @@ async function main() {
       })
     }
     for (const permission of manifest.permissions ?? []) {
+      const presentation = getPermissionPresentation(permission.key)
       await prisma.permission.upsert({
         where: { key: permission.key },
         update: {
-          name: permission.name,
-          description: permission.description,
+          name: presentation.name,
+          description: presentation.description,
           moduleId: module.id
         },
         create: {
           key: permission.key,
-          name: permission.name,
-          description: permission.description,
+          name: presentation.name,
+          description: presentation.description,
           moduleId: module.id
         }
       })
@@ -71,15 +73,46 @@ async function main() {
   }
 
   await prisma.role.upsert({
+    where: { key: 'atlas.admin' },
+    update: { enabled: true },
+    create: {
+      key: 'atlas.admin',
+      name: 'Atlas Admin',
+      description: 'Full system access',
+      system: true,
+      enabled: true
+    }
+  })
+
+  await prisma.role.upsert({
     where: { key: 'system.admin' },
-    update: {},
+    update: { enabled: true },
     create: {
       key: 'system.admin',
       name: 'System Admin',
       description: 'Full system access',
-      system: true
+      system: true,
+      enabled: true
     }
   })
+
+  const adminRoles = await prisma.role.findMany({
+    where: { key: { in: ['atlas.admin', 'system.admin'] } },
+    select: { id: true }
+  })
+  const allPermissions = await prisma.permission.findMany({ select: { id: true } })
+  for (const role of adminRoles) {
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } })
+    if (allPermissions.length > 0) {
+      await prisma.rolePermission.createMany({
+        data: allPermissions.map((permission) => ({
+          roleId: role.id,
+          permissionId: permission.id
+        })),
+        skipDuplicates: true
+      })
+    }
+  }
 
   console.log('Atlas core modules seeded')
 }

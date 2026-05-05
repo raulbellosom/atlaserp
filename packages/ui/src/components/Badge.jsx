@@ -1,37 +1,35 @@
-import { cva } from 'class-variance-authority'
-import { cn } from '../lib/utils.js'
+import { cva } from "class-variance-authority";
+import { cn } from "../lib/utils.js";
 
 const badgeVariants = cva(
-  'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
+  "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
   {
     variants: {
       variant: {
-        default:
-          'border-transparent bg-[--color-primary] text-white',
+        default: "border-transparent bg-[--color-primary] text-white",
         secondary:
-          'border-transparent bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]',
+          "border-[hsl(var(--border))] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]",
         destructive:
-          'border-transparent bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/20',
+          "bg-red-500/20 border-red-500/45 text-red-800 dark:bg-red-400/20 dark:border-red-400/35 dark:text-red-200",
         success:
-          'border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
+          "bg-emerald-500/20 border-emerald-500/45 text-emerald-800 dark:bg-emerald-400/20 dark:border-emerald-400/35 dark:text-emerald-200",
         warning:
-          'border-transparent bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20',
+          "bg-amber-500/20 border-amber-500/45 text-amber-800 dark:bg-amber-400/20 dark:border-amber-400/35 dark:text-amber-200",
         outline:
-          'border-[hsl(var(--border))] text-[hsl(var(--foreground))] bg-transparent',
-        glass:
-          'glass-tinted text-[--color-primary] border-indigo-500/20',
+          "border-[hsl(var(--border))] text-[hsl(var(--foreground))] bg-transparent",
+        glass: "glass-tinted text-[--color-primary] border-indigo-500/20",
       },
     },
     defaultVariants: {
-      variant: 'default',
+      variant: "default",
     },
-  }
-)
+  },
+);
 
 function Badge({ className, variant, ...props }) {
   return (
     <span className={cn(badgeVariants({ variant }), className)} {...props} />
-  )
+  );
 }
 
-export { Badge, badgeVariants }
+export { Badge, badgeVariants };

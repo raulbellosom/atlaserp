@@ -1,4 +1,4 @@
-# Atlas ERP — Core Modules
+﻿# Atlas ERP - Core Modules
 
 Four core modules. All have `core: true`, `uninstallable: false`. None can be removed or disabled. All feature modules depend on one or more of these.
 
@@ -10,13 +10,13 @@ Four core modules. All have `core: true`, `uninstallable: false`. None can be re
 
 **Permissions:** `core.read`, `core.manage`, `modules.install`, `modules.uninstall`, `modules.disable`, `audit.read`
 
-**Navigation:** Dashboard (`/`), Módulos (`/modules`), Configuración (`/settings`)
+**Navigation:** Dashboard (`/`), Modulos (`/modules`), Configuracion (`/settings`)
 
 ## atlas.identity
 
 **Owns:** Supabase Auth bridge, UserProfile records, Company profile, Membership assignments, Role and Permission definitions. Users UI, Roles UI, Permissions UI.
 
-**Does NOT own:** Branding/theming (→ atlas.branding). HR employee records (→ future atlas.hr).
+**Does NOT own:** Company/branding config (-> atlas.company). HR employee records (-> future atlas.hr).
 
 **Depends on:** `atlas.core`
 
@@ -34,11 +34,12 @@ Four core modules. All have `core: true`, `uninstallable: false`. None can be re
 
 **Navigation:** None (files accessed through other modules' UI)
 
-**Supabase Storage buckets:**
-- `atlas-branding` — company logos and branding assets
-- `atlas-files` — general file uploads from any module
+**Supabase Storage bucket policy:**
 
-## atlas.branding
+- `atlas-files` - canonical bucket for all uploads (branding, files, profile media)
+- Resource ownership and origin are tracked in `FileAsset` (`moduleKey`, `entityType`, `entityId`, `metadata`)
+
+## atlas.company
 
 **Owns:** Company logo (references a FileAsset), color palette, theme variables, login screen branding metadata.
 

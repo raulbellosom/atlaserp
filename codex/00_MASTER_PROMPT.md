@@ -38,12 +38,12 @@ Esta instancia es exclusiva de Atlas ERP. No se comparte con otros proyectos.
 3. Prisma es la fuente para modelos persistentes de Atlas ERP.
 4. Supabase Auth maneja sesión y JWT, pero Atlas maneja perfiles, roles, permisos y compañías.
 5. Supabase Storage maneja archivos físicos, pero PostgreSQL (vía Prisma FileAsset) guarda metadata.
-6. Los módulos core (atlas.core, atlas.identity, atlas.files, atlas.branding) no son desinstalables.
+6. Los módulos core (atlas.core, atlas.identity, atlas.files, atlas.company) no son desinstalables.
 7. Los módulos feature sí pueden instalarse, desactivarse y desinstalarse lógicamente.
 8. Cada módulo debe declarar su manifest en `packages/maps/`.
 9. Cada módulo debe declarar permisos, blueprints, navegación y dependencias.
 10. Todo componente visual repetible debe vivir en `packages/ui` o en un componente reusable del módulo.
-11. `SUPABASE_SERVICE_ROLE_KEY` nunca debe llegar al frontend ni a ninguna variable VITE_.
+11. `SUPABASE_SERVICE_ROLE_KEY` nunca debe llegar al frontend ni a ninguna variable VITE\_.
 
 ## Tono de implementación
 

@@ -25,7 +25,7 @@ export function AppShell({ navigation = [], currentPath = '/', children, onTheme
           'flex items-center gap-3 p-4 border-b border-[hsl(var(--border))]',
           collapsed && 'justify-center'
         )}>
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-indigo-500 text-white shadow-sm">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-(--atlas-blue) text-white shadow-sm">
             <span className="text-xs font-bold">A</span>
           </div>
           {!collapsed && (
@@ -50,7 +50,7 @@ export function AppShell({ navigation = [], currentPath = '/', children, onTheme
                   'flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-150',
                   collapsed && 'justify-center px-0',
                   active
-                    ? 'glass-tinted text-indigo-500 dark:text-indigo-400 font-medium'
+                    ? 'glass-tinted text-(--atlas-cyan) font-medium'
                     : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]'
                 )}
               >

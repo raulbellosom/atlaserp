@@ -1,40 +1,41 @@
 {
-  "name": "atlas-erp-starter",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "packageManager": "pnpm@9.15.0",
-  "scripts": {
-    "start": "bash scripts/start-dev.sh",
-    "dev": "concurrently --kill-others-on-fail -n api,web,worker -c cyan,magenta,yellow \"pnpm dev:api\" \"pnpm dev:frontend\" \"pnpm dev:worker\"",
-    "dev:api": "pnpm --filter @atlas/api dev",
-    "dev:frontend": "pnpm --filter @atlas/desktop dev:web",
-    "dev:worker": "pnpm --filter @atlas/worker dev",
-    "dev:tauri": "concurrently --kill-others-on-fail -n api,tauri,worker -c cyan,magenta,yellow \"pnpm dev:api\" \"pnpm --filter @atlas/desktop dev\" \"pnpm dev:worker\"",
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
-    "db:migrate": "prisma migrate dev",
-    "db:generate": "prisma generate",
-    "db:seed": "node prisma/seed.js",
-    "db:studio": "prisma studio",
-    "db:reset": "prisma migrate reset --force && node prisma/seed.js",
-    "db:fresh": "prisma migrate deploy && prisma generate && node prisma/seed.js",
-    "setup": "pnpm install && pnpm db:generate && pnpm db:migrate && pnpm db:seed",
-    "icons:generate": "node scripts/gen-icons.mjs",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy",
-    "prisma:studio": "prisma studio",
-    "modules:seed": "node scripts/seed-core-modules.js"
-  },
-  "devDependencies": {
-    "@prisma/client": "^6",
-    "prisma": "^6",
-    "concurrently": "latest"
-  },
-  "pnpm": {
-    "overrides": {
-      "prisma": "^6"
-    }
-  }
+    "name":  "atlas-erp-starter",
+    "private":  true,
+    "version":  "0.1.0",
+    "type":  "module",
+    "packageManager":  "pnpm@9.15.0",
+    "scripts":  {
+                    "start":  "bash scripts/start-dev.sh",
+                    "dev":  "concurrently --kill-others-on-fail -n api,web,worker -c cyan,magenta,yellow \"pnpm dev:api\" \"pnpm dev:frontend\" \"pnpm dev:worker\"",
+                    "dev:api":  "pnpm --filter @atlas/api dev",
+                    "dev:frontend":  "pnpm --filter @atlas/desktop dev:web",
+                    "dev:worker":  "pnpm --filter @atlas/worker dev",
+                    "dev:tauri":  "concurrently --kill-others-on-fail -n api,tauri,worker -c cyan,magenta,yellow \"pnpm dev:api\" \"pnpm --filter @atlas/desktop dev\" \"pnpm dev:worker\"",
+                    "build":  "pnpm -r build",
+                    "lint":  "pnpm -r lint",
+                    "db:migrate":  "prisma migrate dev",
+                    "db:generate":  "prisma generate",
+                    "db:seed":  "node prisma/seed.js",
+                    "db:studio":  "prisma studio",
+                    "db:reset":  "prisma migrate reset --force \u0026\u0026 node prisma/seed.js",
+                    "db:fresh":  "prisma migrate deploy \u0026\u0026 prisma generate \u0026\u0026 node prisma/seed.js",
+                    "setup":  "pnpm install \u0026\u0026 pnpm db:generate \u0026\u0026 pnpm db:migrate \u0026\u0026 pnpm db:seed",
+                    "icons:generate":  "node scripts/gen-icons.mjs",
+                    "brand:build":  "node scripts/build-brand-assets.mjs",
+                    "prisma:generate":  "prisma generate",
+                    "prisma:migrate":  "prisma migrate dev",
+                    "prisma:deploy":  "prisma migrate deploy",
+                    "prisma:studio":  "prisma studio",
+                    "modules:seed":  "node scripts/seed-core-modules.js"
+                },
+    "devDependencies":  {
+                            "@prisma/client":  "^6",
+                            "prisma":  "^6",
+                            "concurrently":  "latest"
+                        },
+    "pnpm":  {
+                 "overrides":  {
+                                   "prisma":  "^6"
+                               }
+             }
 }

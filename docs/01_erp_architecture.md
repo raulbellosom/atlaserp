@@ -1,4 +1,4 @@
-# Atlas ERP — Architecture
+# Atlas ERP â€” Architecture
 
 ## Overview
 
@@ -36,42 +36,43 @@ prisma/
 
 ## Layer responsibilities
 
-**apps/desktop** — UI only. No business logic. No direct database access. Reads auth session from Supabase Auth client (anon key only). All ERP data goes through Atlas API via `@atlas/sdk`.
+**apps/desktop** â€” UI only. No business logic. No direct database access. Reads auth session from Supabase Auth client (anon key only). All ERP data goes through Atlas API via `@atlas/sdk`.
+Branding note: `primaryColor` selected during setup is applied at runtime as global brand accents (`--brand-primary`) for primary buttons, active navigation, links, and focus ring while keeping neutral background/surface tokens.
 
-**packages/sdk** — Typed client factory `createAtlasClient({ baseUrl })`. Groups calls by domain. Attaches JWT bearer token from Supabase session to every API request.
+**packages/sdk** â€” Typed client factory `createAtlasClient({ baseUrl })`. Groups calls by domain. Attaches JWT bearer token from Supabase session to every API request.
 
-**apps/api** — Single authority for all ERP business rules and validation. Verifies JWT via Supabase Auth Admin SDK (service role key — never exposed to frontend). Loads UserProfile + Role + Permissions from Prisma on each authenticated request. Architecture: Routes → Services → Prisma.
+**apps/api** â€” Single authority for all ERP business rules and validation. Verifies JWT via Supabase Auth Admin SDK (service role key â€” never exposed to frontend). Loads UserProfile + Role + Permissions from Prisma on each authenticated request. Architecture: Routes â†’ Services â†’ Prisma.
 
-**apps/worker** — Background jobs: reports, file processing, scheduled tasks. Connects to Prisma directly. No public endpoints.
+**apps/worker** â€” Background jobs: reports, file processing, scheduled tasks. Connects to Prisma directly. No public endpoints.
 
-**Supabase (external, self-hosted)** — PostgreSQL (Atlas tables via Prisma), Auth (sessions, JWTs, user creation), Storage (physical files), Realtime (future). Studio at https://studio.supabase.racoondevs.com for admin use only.
+**Supabase (external, self-hosted)** â€” PostgreSQL (Atlas tables via Prisma), Auth (sessions, JWTs, user creation), Storage (physical files), Realtime (future). Studio at https://studio.supabase.racoondevs.com for admin use only.
 
 ## Data flows
 
 ### ERP data
 ```
-React → @atlas/sdk (JWT attached) → Atlas API → Service → Prisma → Supabase PostgreSQL
+React â†’ @atlas/sdk (JWT attached) â†’ Atlas API â†’ Service â†’ Prisma â†’ Supabase PostgreSQL
 ```
 
 ### Authentication
 ```
-React → Supabase Auth client (anon key) → session JWT
-Atlas API ← JWT in Authorization header
-Atlas API → verifies via Admin SDK → loads UserProfile + permissions via Prisma
+React â†’ Supabase Auth client (anon key) â†’ session JWT
+Atlas API â† JWT in Authorization header
+Atlas API â†’ verifies via Admin SDK â†’ loads UserProfile + permissions via Prisma
 ```
 
 ### File storage
 ```
-React → Atlas API POST /files/upload (JWT) → API → Supabase Storage (service role)
-                                                   → FileAsset metadata via Prisma
+React â†’ Atlas API POST /files/upload (JWT) â†’ API â†’ Supabase Storage (service role)
+                                                   â†’ FileAsset metadata via Prisma
 ```
 
 ### First-run
 ```
-React → GET /instance/status → { initialized: false }
-      → /setup wizard → Atlas API creates Auth user, Company, UserProfile, BrandingConfig
-                       → writes InstanceConfig.initialized = "true"
-      → /login
+React â†’ GET /instance/status â†’ { initialized: false }
+      â†’ /setup wizard â†’ Atlas API creates Auth user, Company, UserProfile, BrandingConfig
+                       â†’ writes InstanceConfig.initialized = "true"
+      â†’ /login
 ```
 
 ## Supabase / Prisma boundary

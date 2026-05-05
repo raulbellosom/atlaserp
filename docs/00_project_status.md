@@ -1,66 +1,58 @@
-# Atlas ERP — Project Status
+# Atlas ERP - Project Status
 
-**Last verified:** 2026-05-02
-**Current phase:** Phase 0 complete / Phase 1 in progress
+**Last verified:** 2026-05-04  
+**Current phase:** Phase 7.1.1 complete / Phase 8 planning complete (implementation pending)
 
-## What exists and works
+## What is implemented
 
-### API (apps/api)
-- Hono server on port 4010
-- Routes: GET /health, GET /modules, POST /modules/install, DELETE /modules/:key, GET /blueprints, GET /contacts, POST /contacts
-- Direct Prisma calls (no service layer yet — planned for Phase 4+)
+### Platform foundation
+- Phase 0 and Phase 1 completed against self-hosted Supabase.
+- Phase 2 and Phase 3 completed: initialization guard + setup wizard + transactional bootstrap.
+- Phase 4 completed: Supabase login/session + protected API context loading.
 
-### Frontend (apps/desktop)
-- React 19 + Vite + Tauri 2, web preview on port 5173
-- Single dashboard page (no React Router)
-- Hardcoded navigation array
-- TanStack Query for server state, glass morphism design
+### Shell and module lifecycle
+- Runtime module merge (manifest metadata + live lifecycle state) is active in desktop shell.
+- Module catalog supports install, disable, enable, and uninstall actions.
+- Core module protections and dependency protections are enforced in API and UI.
+- Unavailable module route guard redirects to `atlas.core/modules` with warning state.
 
-### Packages
-- `@atlas/core` — ModuleRegistry, AtlasEventBus, createModuleManifest, MODULE_KINDS, time utilities
-- `@atlas/maps` — 4 core module manifests, 2 feature module manifests
-- `@atlas/ui` — 28 React components (AppShell, Button, Card, DataTable, Dialog, Form, etc.)
-- `@atlas/sdk` — createAtlasClient factory
-- `@atlas/validators` — Zod schemas: moduleInstallSchema, contactCreateSchema
+### Contacts v1
+- Contacts API moved to a dedicated service layer (`apps/api/src/services/contacts-service.js`).
+- Company-scoped, authenticated contacts endpoints for list/create/update/soft-disable.
+- Contact picker endpoint available at `GET /contacts/picker` for downstream modules.
+- `@atlas/ui` now exports reusable `DynamicForm`, `DynamicTable`, and `ContactPicker`.
+- Contacts screen migrated to blueprint-driven `DynamicTable` + `DynamicForm`.
 
-### Database (Prisma, 15 models)
-AtlasModule, ModuleDependency, Blueprint, InstanceConfig, Company, UserProfile, Membership, Role, Permission, RolePermission, FileAsset, AuditLog, Contact, FinanceAccount, FinanceTransaction
+### Files v1
+- Files API moved to a dedicated service layer (`apps/api/src/services/files-service.js`).
+- Authenticated files endpoints implemented for upload/list/detail/signed-url/enabled lifecycle.
+- `@atlas/sdk` includes `atlas.files` domain methods for all Phase 7 contracts.
+- `@atlas/ui` exports reusable `FileUploader` and `FileViewer`.
+- Atlas Files module screen supports upload, preview, download, copy signed link, and enable/disable.
+- Branding logo workflow now uses shared files pipeline (`logoFileId` + signed URL preview).
 
-### Seeded data
-- 4 core modules: atlas.core, atlas.identity, atlas.files, atlas.branding
-- system.admin role with all core permissions
-- All module permissions
+### Files v1.1 (advanced UX)
+- Explorer now supports `Tabla`, `Cards`, and `Cuadricula` modes with shared filtering/sorting state.
+- File visuals include type icons and image thumbnails.
+- Advanced viewer supports image transforms (visual-only), PDF preview, and previous/next navigation.
+- File detail panel includes origin context and `Ir al origen` navigation when mapping exists.
+- Bulk operations include rename and multi-file download (`direct` and `zip`) through API/SDK contracts.
 
-## What is stubbed or not yet started
+## Remaining roadmap highlights
+- Phase 8.1: accounting core (double-entry, company-scoped accounts/journal entries, base balances).
+- Phase 8.2: full multi-currency (manual historical FX, conversion traceability).
+- Phase 8.3: financial analytics dashboard (operational and analytical widgets).
+- Phase 9+: future modules and hardening automation.
 
-| Area | Status | Planned phase |
-|---|---|---|
-| React Router | Not started | Phase 5 |
-| Supabase Auth integration | Not started | Phase 4 |
-| Setup wizard / first-run | Not started | Phase 3 |
-| GET /instance/status endpoint | Not started | Phase 2 |
-| DynamicForm / DynamicTable | Not started | Phase 3 |
-| Service layer in API | Not started | Phase 4+ |
-| Worker jobs | Stub only | Phase 8+ |
-| File upload/download endpoints | Not started | Phase 7 |
-| Auth middleware in API | Not started | Phase 4 |
-| Contacts CRUD UI | Not started | Phase 6 |
-| Finance CRUD | Not started | Phase 8 |
+## Documentation governance
+- `docs/TASKS.md`, `docs/00_project_status.md`, and `docs/09_next_steps.md` are synchronized status sources.
+- Checklist items are marked done only with explicit verification evidence and a dated `Verified:` note.
+- Phase 8 planning artifacts:
+  - Spec: `docs/superpowers/specs/2026-05-04-phase8-finance-design.md`
+  - Plan: `docs/superpowers/plans/2026-05-04-phase8-finance.md`
 
-## Supabase infrastructure
-
-| Endpoint | URL |
-|---|---|
-| API | https://supabase.racoondevs.com |
-| Studio | https://studio.supabase.racoondevs.com |
-
-Dedicated to Atlas ERP. All development connects to this instance. No local PostgreSQL/MinIO fallback.
-
-## Key constraints
-
-- JavaScript only — no TypeScript
-- No emojis in UI or documentation
-- All UI text in Spanish; code and comments in English
-- Prisma pinned to ^6 (do not upgrade to v7)
-- Direct DB access from frontend is forbidden
-- SUPABASE_SERVICE_ROLE_KEY must never reach the frontend bundle
+## Known constraints still in force
+- JavaScript-only codebase.
+- UI text in Spanish; code/docs/comments in English.
+- Prisma pinned to `^6`.
+- Frontend must consume ERP data only via `@atlas/sdk`.

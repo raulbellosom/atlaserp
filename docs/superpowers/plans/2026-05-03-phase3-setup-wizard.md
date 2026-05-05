@@ -1,4 +1,7 @@
-# Phase 3 — Setup Wizard Implementation Plan
+﻿# Phase 3 â€” Setup Wizard Implementation Plan
+
+> Superseded in storage policy by Phase 7.1 (2026-05-04): canonical bucket is `atlas-files` for branding and files.
+
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -21,11 +24,11 @@
 | `packages/sdk/src/index.js` | Fix `request` for FormData; add `setup.initialize()` |
 | `apps/api/package.json` | Add `@supabase/supabase-js` dependency |
 | `apps/api/src/index.js` | Add `POST /setup/initialize` route |
-| `apps/desktop/src/setup/SetupWizard.jsx` | Create — wizard shell, sidebar, step routing |
-| `apps/desktop/src/setup/StepAdmin.jsx` | Create — step 1 form |
-| `apps/desktop/src/setup/StepCompany.jsx` | Create — step 2 form |
-| `apps/desktop/src/setup/StepBranding.jsx` | Create — step 3 form |
-| `apps/desktop/src/setup/StepReview.jsx` | Create — step 4 summary + submit |
+| `apps/desktop/src/setup/SetupWizard.jsx` | Create â€” wizard shell, sidebar, step routing |
+| `apps/desktop/src/setup/StepAdmin.jsx` | Create â€” step 1 form |
+| `apps/desktop/src/setup/StepCompany.jsx` | Create â€” step 2 form |
+| `apps/desktop/src/setup/StepBranding.jsx` | Create â€” step 3 form |
+| `apps/desktop/src/setup/StepReview.jsx` | Create â€” step 4 summary + submit |
 | `apps/desktop/src/main.jsx` | Replace `SetupPlaceholder` import/component with `SetupWizard` |
 
 ---
@@ -74,7 +77,7 @@ model BrandingConfig {
 npx prisma migrate dev --name add_branding_config
 ```
 
-Expected output: `✔ Generated Prisma Client` and a new file in `prisma/migrations/`.
+Expected output: `âœ” Generated Prisma Client` and a new file in `prisma/migrations/`.
 
 - [ ] **Step 3: Regenerate Prisma client**
 
@@ -132,7 +135,7 @@ git commit -m "feat: add setupInitializeSchema to validators"
 
 ---
 
-### Task 3: Update SDK — FormData support and setup.initialize()
+### Task 3: Update SDK â€” FormData support and setup.initialize()
 
 **Files:**
 - Modify: `packages/sdk/src/index.js`
@@ -232,7 +235,7 @@ This task adds the initialization endpoint. It uses Hono's `c.req.parseBody()` f
 
 - [ ] **Step 1: Add imports and Supabase admin client**
 
-Open `apps/api/src/index.js`. Replace the import block and top-level constants (lines 1–11) with:
+Open `apps/api/src/index.js`. Replace the import block and top-level constants (lines 1â€“11) with:
 
 ```js
 import { serve } from '@hono/node-server'
@@ -265,7 +268,7 @@ ensureBuckets()
 
 - [ ] **Step 2: Add the POST /setup/initialize route**
 
-After the `GET /instance/status` handler (after line 37 in the current file — the closing `})`), insert:
+After the `GET /instance/status` handler (after line 37 in the current file â€” the closing `})`), insert:
 
 ```js
 app.post('/setup/initialize', async (c) => {
@@ -410,7 +413,7 @@ const apiUrl = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
 const atlas = createAtlasClient({ baseUrl: apiUrl })
 
 const STEPS = [
-  { label: 'Cuenta admin', subtitle: 'Nombre, email, contraseña' },
+  { label: 'Cuenta admin', subtitle: 'Nombre, email, contraseÃ±a' },
   { label: 'Empresa', subtitle: 'Nombre de la empresa' },
   { label: 'Marca', subtitle: 'Logo y color principal' },
   { label: 'Revisar', subtitle: 'Confirmar e inicializar' }
@@ -463,7 +466,7 @@ export function SetupWizard() {
       <div className="w-56 bg-[hsl(var(--card))] border-r border-[hsl(var(--border))] p-6 flex flex-col shrink-0">
         <div className="mb-8">
           <p className="text-xs font-medium uppercase tracking-[0.15em] text-[hsl(var(--muted-foreground))]">Atlas ERP</p>
-          <p className="text-sm font-semibold mt-1">Configuración inicial</p>
+          <p className="text-sm font-semibold mt-1">ConfiguraciÃ³n inicial</p>
         </div>
         <div className="flex flex-col">
           {STEPS.map((s, i) => (
@@ -476,7 +479,7 @@ export function SetupWizard() {
                     ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]'
                     : 'border-2 border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]'
                 }`}>
-                  {i < step ? '✓' : i + 1}
+                  {i < step ? 'âœ“' : i + 1}
                 </div>
                 <div>
                   <p className="text-xs font-medium">{s.label}</p>
@@ -510,9 +513,9 @@ export function SetupWizard() {
 }
 ```
 
-- [ ] **Step 2: Update main.jsx — replace SetupPlaceholder with SetupWizard**
+- [ ] **Step 2: Update main.jsx â€” replace SetupPlaceholder with SetupWizard**
 
-Open `apps/desktop/src/main.jsx`. Remove the `SetupPlaceholder` function entirely (lines 13–23). Add an import for `SetupWizard` near the top, after the existing imports:
+Open `apps/desktop/src/main.jsx`. Remove the `SetupPlaceholder` function entirely (lines 13â€“23). Add an import for `SetupWizard` near the top, after the existing imports:
 
 ```js
 import { SetupWizard } from './setup/SetupWizard'
@@ -534,7 +537,7 @@ SSH tunnel must be open. Then:
 pnpm dev
 ```
 
-Open `http://localhost:5173`. The InitGuard redirects to `/setup`. Expected: the wizard renders with the left sidebar showing 4 steps. Step 1 is highlighted. The right panel is empty (StepAdmin doesn't exist yet — if you see a blank right panel or a "StepAdmin is not defined" error in the browser console, that's expected until Task 7).
+Open `http://localhost:5173`. The InitGuard redirects to `/setup`. Expected: the wizard renders with the left sidebar showing 4 steps. Step 1 is highlighted. The right panel is empty (StepAdmin doesn't exist yet â€” if you see a blank right panel or a "StepAdmin is not defined" error in the browser console, that's expected until Task 7).
 
 - [ ] **Step 4: Commit**
 
@@ -562,13 +565,13 @@ export function StepAdmin({ data, onChange, onNext }) {
   function validate() {
     const e = {}
     if (!data.adminDisplayName || data.adminDisplayName.length < 2)
-      e.adminDisplayName = 'Mínimo 2 caracteres'
+      e.adminDisplayName = 'MÃ­nimo 2 caracteres'
     if (!data.adminEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.adminEmail))
-      e.adminEmail = 'Correo inválido'
+      e.adminEmail = 'Correo invÃ¡lido'
     if (!data.adminPassword || data.adminPassword.length < 8)
-      e.adminPassword = 'Mínimo 8 caracteres'
+      e.adminPassword = 'MÃ­nimo 8 caracteres'
     if (data.adminPassword !== data.adminConfirmPassword)
-      e.adminConfirmPassword = 'Las contraseñas no coinciden'
+      e.adminConfirmPassword = 'Las contraseÃ±as no coinciden'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -578,7 +581,7 @@ export function StepAdmin({ data, onChange, onNext }) {
       <div>
         <h2 className="text-lg font-semibold">Cuenta de administrador</h2>
         <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1 mb-6">
-          Esta será la cuenta principal del sistema.
+          Esta serÃ¡ la cuenta principal del sistema.
         </p>
         <div className="space-y-4">
           <div>
@@ -587,14 +590,14 @@ export function StepAdmin({ data, onChange, onNext }) {
               id="displayName"
               value={data.adminDisplayName}
               onChange={e => onChange({ adminDisplayName: e.target.value })}
-              placeholder="María García"
+              placeholder="MarÃ­a GarcÃ­a"
             />
             {errors.adminDisplayName && (
               <p className="text-xs text-red-500 mt-1">{errors.adminDisplayName}</p>
             )}
           </div>
           <div>
-            <Label htmlFor="email">Correo electrónico</Label>
+            <Label htmlFor="email">Correo electrÃ³nico</Label>
             <Input
               id="email"
               type="email"
@@ -608,7 +611,7 @@ export function StepAdmin({ data, onChange, onNext }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="password">Contraseña</Label>
+              <Label htmlFor="password">ContraseÃ±a</Label>
               <Input
                 id="password"
                 type="password"
@@ -635,7 +638,7 @@ export function StepAdmin({ data, onChange, onNext }) {
         </div>
       </div>
       <div className="flex justify-end pt-4 mt-4 border-t border-[hsl(var(--border))]">
-        <Button onClick={() => { if (validate()) onNext() }}>Siguiente →</Button>
+        <Button onClick={() => { if (validate()) onNext() }}>Siguiente â†’</Button>
       </div>
     </div>
   )
@@ -676,7 +679,7 @@ export function StepCompany({ data, onChange, onNext, onBack }) {
   function validate() {
     const e = {}
     if (!data.companyName || data.companyName.length < 2)
-      e.companyName = 'Mínimo 2 caracteres'
+      e.companyName = 'MÃ­nimo 2 caracteres'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -686,7 +689,7 @@ export function StepCompany({ data, onChange, onNext, onBack }) {
       <div>
         <h2 className="text-lg font-semibold">Empresa</h2>
         <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1 mb-6">
-          Información de la organización.
+          InformaciÃ³n de la organizaciÃ³n.
         </p>
         <div className="space-y-4">
           <div>
@@ -709,8 +712,8 @@ export function StepCompany({ data, onChange, onNext, onBack }) {
         </div>
       </div>
       <div className="flex justify-between pt-4 mt-4 border-t border-[hsl(var(--border))]">
-        <Button variant="outline" onClick={onBack}>← Atrás</Button>
-        <Button onClick={() => { if (validate()) onNext() }}>Siguiente →</Button>
+        <Button variant="outline" onClick={onBack}>â† AtrÃ¡s</Button>
+        <Button onClick={() => { if (validate()) onNext() }}>Siguiente â†’</Button>
       </div>
     </div>
   )
@@ -719,7 +722,7 @@ export function StepCompany({ data, onChange, onNext, onBack }) {
 
 - [ ] **Step 2: Verify in browser**
 
-Navigate to `/setup`, complete step 1, advance to step 2. Expected: company name field renders. Typing a name shows the auto-generated slug below the input. "Atrás" goes back to step 1 without losing data. "Siguiente" advances to step 3 (blank until Task 9).
+Navigate to `/setup`, complete step 1, advance to step 2. Expected: company name field renders. Typing a name shows the auto-generated slug below the input. "AtrÃ¡s" goes back to step 1 without losing data. "Siguiente" advances to step 3 (blank until Task 9).
 
 - [ ] **Step 3: Commit**
 
@@ -760,7 +763,7 @@ export function StepBranding({ data, onChange, onNext, onBack }) {
       <div>
         <h2 className="text-lg font-semibold">Marca</h2>
         <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1 mb-6">
-          Personalización visual de la instancia.
+          PersonalizaciÃ³n visual de la instancia.
         </p>
         <div className="space-y-4">
           <div>
@@ -798,8 +801,8 @@ export function StepBranding({ data, onChange, onNext, onBack }) {
         </div>
       </div>
       <div className="flex justify-between pt-4 mt-4 border-t border-[hsl(var(--border))]">
-        <Button variant="outline" onClick={onBack}>← Atrás</Button>
-        <Button onClick={onNext}>Siguiente →</Button>
+        <Button variant="outline" onClick={onBack}>â† AtrÃ¡s</Button>
+        <Button onClick={onNext}>Siguiente â†’</Button>
       </div>
     </div>
   )
@@ -808,7 +811,7 @@ export function StepBranding({ data, onChange, onNext, onBack }) {
 
 - [ ] **Step 2: Verify in browser**
 
-Navigate through steps 1–2, reach step 3. Expected: color picker renders with `#6366f1` as default. Picking a new color updates the hex label live. File input accepts images only; selecting a file over 2 MB shows the error. "Siguiente" advances to step 4 (blank until Task 10).
+Navigate through steps 1â€“2, reach step 3. Expected: color picker renders with `#6366f1` as default. Picking a new color updates the hex label live. File input accepts images only; selecting a file over 2 MB shows the error. "Siguiente" advances to step 4 (blank until Task 10).
 
 - [ ] **Step 3: Commit**
 
@@ -879,7 +882,7 @@ export function StepReview({ data, onBack, onSubmit, isPending, error }) {
 
       <div className="flex justify-between pt-4 mt-4 border-t border-[hsl(var(--border))]">
         <Button variant="outline" onClick={onBack} disabled={isPending}>
-          ← Atrás
+          â† AtrÃ¡s
         </Button>
         <Button onClick={onSubmit} disabled={isPending}>
           {isPending ? 'Inicializando...' : 'Inicializar'}
@@ -890,7 +893,7 @@ export function StepReview({ data, onBack, onSubmit, isPending, error }) {
 }
 ```
 
-- [ ] **Step 2: Full end-to-end test — happy path**
+- [ ] **Step 2: Full end-to-end test â€” happy path**
 
 SSH tunnel must be open. Start both servers:
 ```bash
@@ -898,16 +901,16 @@ pnpm dev
 ```
 
 Open `http://localhost:5173`. Complete all 4 steps with valid data:
-- Step 1: any display name (≥2 chars), valid email, password ≥8 chars
-- Step 2: any company name (≥2 chars)
+- Step 1: any display name (â‰¥2 chars), valid email, password â‰¥8 chars
+- Step 2: any company name (â‰¥2 chars)
 - Step 3: pick any color (default is fine), logo is optional
 - Step 4: click "Inicializar"
 
 Expected:
 1. Button shows "Inicializando..." briefly
 2. Browser navigates to `/login`
-3. The `LoginPlaceholder` renders ("Iniciar sesión")
-4. Refreshing `/` no longer redirects to `/setup` — it goes to `/login` (initialized = true)
+3. The `LoginPlaceholder` renders ("Iniciar sesiÃ³n")
+4. Refreshing `/` no longer redirects to `/setup` â€” it goes to `/login` (initialized = true)
 
 - [ ] **Step 3: Verify in the database**
 
@@ -922,7 +925,7 @@ Open `http://localhost:5555`. Check:
 - `Membership` table: one row linking company + user
 - `BrandingConfig` table: one row with your primaryColor
 
-- [ ] **Step 4: Test — already initialized guard**
+- [ ] **Step 4: Test â€” already initialized guard**
 
 With the instance now initialized, try submitting the wizard again via curl:
 ```bash
@@ -949,7 +952,7 @@ In Prisma Studio (`pnpm db:studio`):
 4. Delete rows from `Company`
 5. Delete all `InstanceConfig` rows (`initialized`, `company_id`, `completed_at`)
 
-Also delete the Supabase Auth user via Supabase Studio at `https://studio.supabase.racoondevs.com` → Authentication → Users.
+Also delete the Supabase Auth user via Supabase Studio at `https://studio.supabase.racoondevs.com` â†’ Authentication â†’ Users.
 
 This resets the instance for Phase 4 testing.
 
@@ -968,10 +971,12 @@ Verification checklist:
 - [ ] `BrandingConfig` table exists in DB with correct columns
 - [ ] `POST /setup/initialize` returns 409 when already initialized
 - [ ] `POST /setup/initialize` creates Company, UserProfile, Membership, BrandingConfig in one transaction
-- [ ] Wizard steps 1–3 validate their fields before advancing
+- [ ] Wizard steps 1â€“3 validate their fields before advancing
 - [ ] Step 4 shows a readable summary of all entered data
 - [ ] Clicking "Inicializar" on step 4 submits, navigates to `/login` on success
 - [ ] `/` redirects to `/login` after setup completes (InitGuard reads new InstanceConfig state)
-- [ ] Logo upload is optional — wizard completes without one
+- [ ] Logo upload is optional â€” wizard completes without one
 
-Next: **Phase 4 — Auth integration** (real login screen, Supabase Auth signInWithPassword, JWT middleware).
+Next: **Phase 4 â€” Auth integration** (real login screen, Supabase Auth signInWithPassword, JWT middleware).
+
+

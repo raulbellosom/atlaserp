@@ -1,0 +1,2 @@
+ALTER TABLE "Contact"
+ADD COLUMN IF NOT EXISTS "notesMarkdown" TEXT;

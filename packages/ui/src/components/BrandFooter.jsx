@@ -1,0 +1,17 @@
+export function BrandFooter() {
+  return (
+    <footer className="shrink-0 h-12 border-t border-[hsl(var(--border))] px-4 flex items-center justify-between gap-4 bg-[hsl(var(--background))]">
+      <span className="text-[11px] text-[hsl(var(--muted-foreground))] leading-none">
+        Atlas ERP Meridian <span className="font-medium">v0.1</span>
+      </span>
+      <a
+        href="https://racoondevs.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[11px] text-[hsl(var(--muted-foreground))] leading-none hover:text-[hsl(var(--foreground))] transition-colors duration-150"
+      >
+        Hecho con amor por Racoon Devs
+      </a>
+    </footer>
+  );
+}

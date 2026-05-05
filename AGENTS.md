@@ -4,7 +4,7 @@ This file guides Codex and other coding agents working in this repository.
 
 ## Project Identity
 
-**Atlas ERP Meridian Edition** — a desktop-first, full-stack, modular ERP platform inspired by Odoo, built with:
+**Atlas ERP Meridian Edition** - a desktop-first, full-stack, modular ERP platform inspired by Odoo, built with:
 
 - React + Vite + Tauri for the desktop shell
 - Node.js + Hono for the Atlas API
@@ -17,14 +17,14 @@ There is no local Docker stack (no Redis, no MinIO). All persistence goes throug
 
 ## Infrastructure
 
-- **Supabase API**: https://supabase.racoondevs.com — self-hosted instance, NOT Supabase Cloud
+- **Supabase API**: https://supabase.racoondevs.com - self-hosted instance, NOT Supabase Cloud
 - **Supabase Studio**: https://studio.supabase.racoondevs.com (admin use only)
 - **PostgreSQL is not publicly exposed.** All Prisma commands require an SSH tunnel:
   ```bash
   ssh -L 54322:172.22.0.3:5432 root@76.13.114.109
   ```
   Keep the tunnel open for any `db:*` command. `DATABASE_URL` and `DIRECT_URL` connect via `127.0.0.1:54322`.
-- **Supabase Storage**: used for file assets. Current buckets: `atlas-branding`, `atlas-files`.
+- **Supabase Storage**: used for file assets. Canonical bucket: `atlas-files` (all modules, including branding/logo, organized by objectKey folders + FileAsset metadata).
 - **Supabase Auth**: used for user account creation and authentication.
 
 ## MCP Server
@@ -43,7 +43,7 @@ Required request flow:
 ```txt
 React/Tauri desktop app
   -> @atlas/sdk  (packages/sdk)
-  -> Atlas API   (apps/api — Hono)
+  -> Atlas API   (apps/api - Hono)
   -> Zod validation (@atlas/validators)
   -> Prisma
   -> Supabase PostgreSQL
@@ -62,12 +62,12 @@ Frontend code must not access the database or Supabase directly. The API owns al
 | Folder                | Purpose                                                   |
 | --------------------- | --------------------------------------------------------- |
 | `apps/desktop`        | React + Vite + Tauri desktop shell                        |
-| `apps/api`            | Hono API — routes, Prisma, Supabase Admin client          |
+| `apps/api`            | Hono API - routes, Prisma, Supabase Admin client          |
 | `apps/worker`         | Background worker stub                                    |
 | `packages/core`       | Module registry, event bus, manifest contract             |
 | `packages/maps`       | Core and feature module manifests                         |
-| `packages/ui`         | Shared React components (`AppShell`, `Button`, `Card`, …) |
-| `packages/sdk`        | `createAtlasClient` factory — all frontend API calls      |
+| `packages/ui`         | Shared React components (`AppShell`, `Button`, `Card`, ...) |
+| `packages/sdk`        | `createAtlasClient` factory - all frontend API calls      |
 | `packages/validators` | Zod schemas shared between API and frontend               |
 | `prisma`              | `schema.prisma`, migrations, `seed.js`                    |
 | `docs`                | Architecture and task docs                                |
@@ -108,17 +108,25 @@ Invoke-WebRequest -UseBasicParsing http://localhost:5173
 
 ## Implementation Standards
 
-- **JavaScript only** — no TypeScript unless an existing area already uses it.
+- **JavaScript only** - no TypeScript unless an existing area already uses it.
 - UI text in **Spanish**. Code, docs, and comments in **English**.
-- **TailwindCSS** for all styles — no CSS modules or styled-components.
-- Use `@atlas/sdk` for all frontend API calls — never `fetch` directly.
+- **TailwindCSS** for all styles - no CSS modules or styled-components.
+- Use `@atlas/sdk` for all frontend API calls - never `fetch` directly.
 - Use Zod schemas from `@atlas/validators` before any write.
 - Prefer `enabled: false` (soft-disable) over hard deletes.
 - Core modules must not be uninstallable.
 - Keep API route handlers thin; push business logic into service functions.
 - Update [docs/TASKS.md](docs/TASKS.md) when completing meaningful project phases.
-- Prisma is pinned to `^6` — do not upgrade to v7.
+- In docs checklists, mark `[x]` only with explicit verification evidence and a concrete `Verified: YYYY-MM-DD (...)` note.
+- Prisma is pinned to `^6` - do not upgrade to v7.
 - Never expose `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `JWT_SECRET`, or `DATABASE_URL` to the frontend via `VITE_` prefixes.
+
+## Prisma Migration Safety (Hard Rule)
+
+- Applied migrations are immutable.
+- Never edit an existing file under `prisma/migrations/**/migration.sql` after it was applied in any environment.
+- Never rewrite migration SQL manually to "fix" history. Create a new forward migration instead.
+- If history drift is detected, reconcile `_prisma_migrations` metadata only after verifying data safety; do not reset by default.
 
 ## Module System
 
@@ -129,7 +137,7 @@ ERP modules are "maps". Manifests live in `packages/maps`.
 - `atlas.core`
 - `atlas.identity`
 - `atlas.files`
-- `atlas.branding`
+- `atlas.company`
 
 **Feature modules** (installable, versioned):
 
@@ -138,22 +146,24 @@ ERP modules are "maps". Manifests live in `packages/maps`.
 
 Each new module needs: manifest in `packages/maps`, Prisma model(s), API routes/service, Zod schema in `@atlas/validators`, UI screens, and a `docs/TASKS.md` update. See [docs/02_module_system.md](docs/02_module_system.md).
 
-## Current Phase Status (2026-05-03)
+## Current Phase Status (2026-05-04)
 
-| Phase                            | Status      | Notes                                                    |
-| -------------------------------- | ----------- | -------------------------------------------------------- |
-| 0 — Repo cleanup + env alignment | Complete    | Supabase-first env, numbered docs suite                  |
-| 1 — Supabase + Prisma connection | Complete    | 3 migrations applied, 4 core modules seeded              |
-| 2 — ERP initialization state     | In progress | `InitGuard`, `react-router-dom`, `/instance/status` done |
-| 3 — Onboarding setup wizard      | In progress | 4-step wizard UI and `POST /setup/initialize` built      |
-| 4 — Auth integration             | Not started |                                                          |
-| 5+ — Shell, Contacts, Files      | Not started |                                                          |
+| Phase                              | Status      | Notes                                                    |
+| ---------------------------------- | ----------- | -------------------------------------------------------- |
+| 0 - Repo cleanup + env alignment   | Complete    | Supabase-first env, numbered docs suite                  |
+| 1 - Supabase + Prisma connection   | Complete    | 3 migrations applied, 4 core modules seeded              |
+| 2 - ERP initialization state       | Complete    | InitGuard + instance status routing complete             |
+| 3 - Onboarding setup wizard        | Complete    | Transactional setup + branding flow complete             |
+| 4 - Auth integration               | Complete    | Login, session persistence, protected API context        |
+| 5 - Shell and module lifecycle UI  | Complete    | Runtime registry + catalog + lifecycle guards            |
+| 6 - Contacts module                | Complete    | Full CRUD UI/API + contact picker                        |
+| 7 - Files module                   | Complete    | Files v1 + v1.1 UX + storage unification                 |
+| 8 - Finance module                 | Not started | Spec/plan prepared, implementation pending               |
 
 See [docs/TASKS.md](docs/TASKS.md) for the full task checklist.
 
 ## Known Gaps
 
-- Auth login flow (Phase 4) not implemented — `LoginPlaceholder` is a stub.
-- Module install/disable UI is incomplete.
-- `DynamicForm` and `DynamicTable` not yet implemented.
-- Contacts has API foundations (`GET/POST /contacts`) but no full CRUD UI.
+- Finance module implementation (Phase 8) is pending.
+- Automated contract/regression coverage is still limited for module lifecycle, contacts, and files.
+- Legacy planning docs may include historical unchecked task markers; use `docs/TASKS.md` as status source of truth.
