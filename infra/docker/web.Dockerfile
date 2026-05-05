@@ -1,11 +1,14 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 RUN corepack enable
-COPY package.json pnpm-workspace.yaml ./
+# Copy workspace manifests and lockfile for deterministic install
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
+COPY apps/api/package.json apps/api/package.json
 COPY apps/desktop/package.json apps/desktop/package.json
+COPY apps/worker/package.json apps/worker/package.json
 COPY packages packages
 COPY apps/desktop apps/desktop
-RUN pnpm install
+RUN pnpm install --frozen-lockfile
 
 # Vite bakes these at build-time — must be passed as build args, not runtime env
 ARG VITE_ATLAS_API_URL
