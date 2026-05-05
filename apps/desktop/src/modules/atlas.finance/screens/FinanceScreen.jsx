@@ -79,8 +79,8 @@ const SOURCE_TYPE_OPTIONS = [
 const APPLY_SOURCE_DOC_TYPES = new Set(["PAYMENT", "ADVANCE", "CREDIT_NOTE"]);
 const DOCUMENT_TYPE_LABELS = {
   INVOICE: "Factura",
-  CREDIT_NOTE: "Nota de credito",
-  DEBIT_NOTE: "Nota de debito",
+  CREDIT_NOTE: "Nota de crédito",
+  DEBIT_NOTE: "Nota de débito",
   ADVANCE: "Anticipo",
   PAYMENT: "Pago",
 };
@@ -301,20 +301,20 @@ const SECTION_META = {
   },
   applications: {
     title: "Aplicaciones",
-    description: "Aplicacion FIFO de pagos/anticipos/notas de credito.",
+    description: "Aplicación FIFO de pagos/anticipos/notas de crédito.",
   },
   accounts: {
     title: "Plan de cuentas",
-    description: "Gestiona cuentas contables activas y su configuracion base.",
+    description: "Gestiona cuentas contables activas y su configuración base.",
   },
   entries: {
-    title: "Polizas",
+    title: "Pólizas",
     description:
       "Registra movimientos contables con captura guiada o avanzada.",
   },
   taxes: {
     title: "Impuestos y retenciones",
-    description: "Catalogo fiscal base para AR/AP y calculo documental.",
+    description: "Catálogo fiscal base para AR/AP y cálculo documental.",
   },
   "fx-rates": {
     title: "Tipos de cambio",
@@ -563,10 +563,10 @@ export default function FinanceScreen() {
       queryClient.invalidateQueries({ queryKey: ["finance-balances"] });
       setEntrySheetOpen(false);
       setEntryForm(defaultEntryForm());
-      toast.success("Poliza registrada");
+      toast.success("Póliza registrada");
     },
     onError: (error) => {
-      toast.error(parseApiError(error, "No se pudo registrar la poliza."));
+      toast.error(parseApiError(error, "No se pudo registrar la póliza."));
     },
   });
 
@@ -579,13 +579,13 @@ export default function FinanceScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["finance-entries"] });
       queryClient.invalidateQueries({ queryKey: ["finance-balances"] });
-      toast.success("Estado de poliza actualizado");
+      toast.success("Estado de póliza actualizado");
     },
     onSettled: () => {
       setPendingEntryId(null);
     },
     onError: (error) => {
-      toast.error(parseApiError(error, "No se pudo actualizar la poliza."));
+      toast.error(parseApiError(error, "No se pudo actualizar la póliza."));
     },
   });
 
@@ -683,7 +683,7 @@ export default function FinanceScreen() {
       queryClient.invalidateQueries({ queryKey: ["finance-documents-applications"] });
       queryClient.invalidateQueries({ queryKey: ["finance-aging"] });
       queryClient.invalidateQueries({ queryKey: ["finance-applications-history"] });
-      toast.success("Aplicacion registrada");
+      toast.success("Aplicación registrada");
     },
     onSettled: () => {
       setPendingApplyDocumentId(null);
@@ -734,13 +734,13 @@ export default function FinanceScreen() {
       queryClient.invalidateQueries({ queryKey: ["finance-documents-applications"] });
       queryClient.invalidateQueries({ queryKey: ["finance-aging"] });
       queryClient.invalidateQueries({ queryKey: ["finance-applications-history"] });
-      toast.success("Aplicacion anulada");
+      toast.success("Aplicación anulada");
     },
     onSettled: () => {
       setPendingReverseApplicationId(null);
     },
     onError: (error) => {
-      toast.error(parseApiError(error, "No se pudo anular la aplicacion."));
+      toast.error(parseApiError(error, "No se pudo anular la aplicación."));
     },
   });
 
@@ -880,7 +880,7 @@ export default function FinanceScreen() {
       initialBalance: toNumber(accountForm.initialBalance),
     };
     if (!payload.code || !payload.name) {
-      toast.error("Codigo y nombre son obligatorios.");
+      toast.error("Código y nombre son obligatorios.");
       return;
     }
     if (editingAccount) {
@@ -936,12 +936,12 @@ export default function FinanceScreen() {
     }));
 
     if (lines.some((line) => !line.accountId)) {
-      toast.error("Todas las lineas deben tener cuenta.");
+      toast.error("Todas las líneas deben tener cuenta.");
       return;
     }
 
     if (!entryBalanced) {
-      toast.error("La poliza debe estar balanceada (debitos = creditos).");
+      toast.error("La póliza debe estar balanceada (débitos = créditos).");
       return;
     }
 
@@ -1155,7 +1155,7 @@ export default function FinanceScreen() {
       );
     } catch (error) {
       toast.error(
-        parseApiError(error, "No se pudo cargar la propuesta de aplicacion."),
+        parseApiError(error, "No se pudo cargar la propuesta de aplicación."),
       );
       setApplySheetOpen(false);
     } finally {
@@ -1300,17 +1300,17 @@ export default function FinanceScreen() {
       applyFifoMutation.mutate({
         documentId: document.id,
         lines,
-        note: "Aplicacion FIFO automatica",
+        note: "Aplicación FIFO automática",
       });
     } catch (error) {
-      toast.error(parseApiError(error, "No se pudo preparar la aplicacion."));
+      toast.error(parseApiError(error, "No se pudo preparar la aplicación."));
     }
   }
 
   function reverseApplication(row) {
     if (!row?.id) return;
     if (row.status === "REVERSED") {
-      toast.error("La aplicacion ya esta revertida.");
+      toast.error("La aplicación ya está revertida.");
       return;
     }
     const reason = window.prompt(
@@ -1550,7 +1550,7 @@ export default function FinanceScreen() {
             disabled={!canCreateMoves}
           >
             <NotebookPen className="h-4 w-4" />
-            Nueva poliza
+            Nueva póliza
           </Button>
         </>
       )}
@@ -1750,7 +1750,7 @@ export default function FinanceScreen() {
                   <Skeleton className="h-40 w-full rounded-xl" />
                 ) : (balances?.data ?? []).length === 0 ? (
                   <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                    Aun no hay saldos para mostrar.
+                    Aún no hay saldos para mostrar.
                   </p>
                 ) : (
                   <div className="overflow-x-auto rounded-xl border border-[hsl(var(--border))]">
@@ -1873,7 +1873,7 @@ export default function FinanceScreen() {
                               <ActionMenu
                                 items={[
                                   {
-                                    label: "Ver polizas",
+                                    label: "Ver pólizas",
                                     icon: NotebookPen,
                                     onClick: () => openJournalSheet(doc),
                                   },
@@ -2002,7 +2002,7 @@ export default function FinanceScreen() {
                               <ActionMenu
                                 items={[
                                   {
-                                    label: "Ver polizas",
+                                    label: "Ver pólizas",
                                     icon: NotebookPen,
                                     onClick: () => openJournalSheet(doc),
                                   },
@@ -2210,7 +2210,7 @@ export default function FinanceScreen() {
                                     variant="ghost"
                                     onClick={() => openJournalSheet(doc)}
                                   >
-                                    Ver polizas
+                                    Ver pólizas
                                   </Button>
                                 </div>
                               </td>
@@ -2316,7 +2316,7 @@ export default function FinanceScreen() {
                   <Skeleton className="h-40 w-full rounded-xl" />
                 ) : applicationsHistory.length === 0 ? (
                   <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                    Aun no hay aplicaciones registradas.
+                    Aún no hay aplicaciones registradas.
                   </p>
                 ) : (
                   <div className="overflow-x-auto rounded-xl border border-[hsl(var(--border))]">
@@ -2413,7 +2413,7 @@ export default function FinanceScreen() {
                                     )
                                   }
                                 >
-                                  Poliza origen
+                                  Póliza origen
                                 </Button>
                                 <Button
                                   size="sm"
@@ -2427,7 +2427,7 @@ export default function FinanceScreen() {
                                     )
                                   }
                                 >
-                                  Poliza destino
+                                  Póliza destino
                                 </Button>
                                 {row.status !== "REVERSED" ? (
                                   <Button
@@ -2474,7 +2474,7 @@ export default function FinanceScreen() {
                 ) : accounts.length === 0 ? (
                   <EmptyState
                     title="No hay cuentas registradas"
-                    description="Agrega cuentas para empezar a capturar polizas."
+                    description="Agrega cuentas para empezar a capturar pólizas."
                     icon={ListTree}
                     action={{
                       label: "Crear cuenta",
@@ -2487,7 +2487,7 @@ export default function FinanceScreen() {
                       <thead className="bg-[hsl(var(--muted))/0.35]">
                         <tr>
                           <th className="px-3 py-2 text-left font-medium">
-                            Codigo
+                            Código
                           </th>
                           <th className="px-3 py-2 text-left font-medium">
                             Nombre
@@ -2588,18 +2588,18 @@ export default function FinanceScreen() {
           <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Polizas contables</CardTitle>
+                <CardTitle className="text-base">Pólizas contables</CardTitle>
               </CardHeader>
               <CardContent>
                 {entriesQuery.isLoading ? (
                   <Skeleton className="h-40 w-full rounded-xl" />
                 ) : entries.length === 0 ? (
                   <EmptyState
-                    title="No hay polizas"
-                    description="Registra tu primera poliza balanceada para iniciar movimientos."
+                    title="No hay pólizas"
+                    description="Registra tu primera póliza balanceada para iniciar movimientos."
                     icon={NotebookPen}
                     action={{
-                      label: "Nueva poliza",
+                      label: "Nueva póliza",
                       onClick: () => setEntrySheetOpen(true),
                     }}
                   />
@@ -2711,7 +2711,7 @@ export default function FinanceScreen() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  Libro mayor reciente (lineas)
+                  Libro mayor reciente (líneas)
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -2719,7 +2719,7 @@ export default function FinanceScreen() {
                   <Skeleton className="h-40 w-full rounded-xl" />
                 ) : entries.length === 0 ? (
                   <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                    Sin lineas de poliza para mostrar.
+                    Sin líneas de póliza para mostrar.
                   </p>
                 ) : (
                   <div className="overflow-x-auto rounded-xl border border-[hsl(var(--border))]">
@@ -2857,7 +2857,7 @@ export default function FinanceScreen() {
                     }
                     options={[
                       { value: "TRANSFER", label: "Trasladado" },
-                      { value: "WITHHOLDING", label: "Retencion" },
+                      { value: "WITHHOLDING", label: "Retención" },
                     ]}
                     required
                   />
@@ -2931,7 +2931,7 @@ export default function FinanceScreen() {
                             <td className="px-3 py-2 font-mono text-xs">{tax.key}</td>
                             <td className="px-3 py-2">{tax.name}</td>
                             <td className="px-3 py-2">
-                              {tax.kind === "WITHHOLDING" ? "Retencion" : "Trasladado"}
+                              {tax.kind === "WITHHOLDING" ? "Retención" : "Trasladado"}
                             </td>
                             <td className="px-3 py-2">{Number(tax.rate).toFixed(4)}%</td>
                             <td className="px-3 py-2">{tax.direction || "AR/AP"}</td>
@@ -3178,7 +3178,7 @@ export default function FinanceScreen() {
       >
         <SheetContent className="sm:max-w-4xl lg:max-w-5xl">
           <SheetHeader>
-            <SheetTitle>Aplicacion manual de documento</SheetTitle>
+            <SheetTitle>Aplicación manual de documento</SheetTitle>
           </SheetHeader>
           <form className="space-y-4 py-4" onSubmit={submitManualApply}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -3295,7 +3295,7 @@ export default function FinanceScreen() {
                     : "glass"
                 }
               >
-                LÃ­mite:{" "}
+                Límite:{" "}
                 {formatMoney(
                   applySourceDocument?.openAmount ?? 0,
                   applySourceDocument?.currency || "MXN",
@@ -3304,11 +3304,11 @@ export default function FinanceScreen() {
             </div>
 
             <TextField
-              label="Nota de aplicacion"
+              label="Nota de aplicación"
               icon={Notebook}
               value={applyNote}
               onChange={(event) => setApplyNote(event.target.value)}
-              placeholder="Observacion interna opcional"
+              placeholder="Observación interna opcional"
             />
 
             <SheetFooter className="gap-2">
@@ -3337,7 +3337,7 @@ export default function FinanceScreen() {
                     toNumber(applySourceDocument?.openAmount)
                 }
               >
-                Confirmar aplicacion
+                Confirmar aplicación
               </Button>
             </SheetFooter>
           </form>
@@ -3365,7 +3365,7 @@ export default function FinanceScreen() {
               <Skeleton className="h-40 w-full rounded-xl" />
             ) : journalLinks.length === 0 ? (
               <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                Este documento aun no tiene polizas vinculadas.
+                Este documento aún no tiene pólizas vinculadas.
               </p>
             ) : (
               <div className="overflow-x-auto rounded-xl border border-[hsl(var(--border))]">
@@ -3373,10 +3373,10 @@ export default function FinanceScreen() {
                   <thead className="bg-[hsl(var(--muted))/0.35]">
                     <tr>
                       <th className="px-3 py-2 text-left font-medium">Evento</th>
-                      <th className="px-3 py-2 text-left font-medium">Poliza</th>
+                      <th className="px-3 py-2 text-left font-medium">Póliza</th>
                       <th className="px-3 py-2 text-left font-medium">Fecha</th>
                       <th className="px-3 py-2 text-left font-medium">Concepto</th>
-                      <th className="px-3 py-2 text-left font-medium">Lineas</th>
+                      <th className="px-3 py-2 text-left font-medium">Líneas</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3650,8 +3650,8 @@ export default function FinanceScreen() {
                 }
                 options={[
                   { value: "INVOICE", label: "Factura" },
-                  { value: "DEBIT_NOTE", label: "Nota de debito" },
-                  { value: "CREDIT_NOTE", label: "Nota de credito" },
+                  { value: "DEBIT_NOTE", label: "Nota de débito" },
+                  { value: "CREDIT_NOTE", label: "Nota de crédito" },
                   { value: "PAYMENT", label: "Pago" },
                   { value: "ADVANCE", label: "Anticipo" },
                 ]}
@@ -3758,7 +3758,7 @@ export default function FinanceScreen() {
                             </p>
                             <p className="text-xs text-[hsl(var(--muted-foreground))]">
                               {tax.kind === "WITHHOLDING"
-                                ? "Retencion"
+                                ? "Retención"
                                 : "Trasladado"}{" "}
                               {Number(tax.rate).toFixed(4)}%
                             </p>
@@ -3894,7 +3894,7 @@ export default function FinanceScreen() {
             onSubmit={handleSubmitAccount}
           >
             <TextField
-              label="Codigo"
+              label="Código"
               icon={Hash}
               value={accountForm.code}
               onChange={(event) =>
@@ -3993,7 +3993,7 @@ export default function FinanceScreen() {
       >
         <SheetContent className="sm:max-w-6xl w-[min(96vw,1200px)]">
           <SheetHeader>
-            <SheetTitle>Nueva poliza</SheetTitle>
+            <SheetTitle>Nueva póliza</SheetTitle>
           </SheetHeader>
           <form
             id="finance-entry-form"
@@ -4066,7 +4066,7 @@ export default function FinanceScreen() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium">Lineas de poliza</h4>
+                <h4 className="text-sm font-medium">Líneas de póliza</h4>
                 <Button
                   type="button"
                   size="sm"
@@ -4211,7 +4211,7 @@ export default function FinanceScreen() {
               loading={createEntryMutation.isPending}
               disabled={!entryBalanced || activeAccounts.length < 2}
             >
-              Guardar poliza
+              Guardar póliza
             </Button>
           </SheetFooter>
         </SheetContent>

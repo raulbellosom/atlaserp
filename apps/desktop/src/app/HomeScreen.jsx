@@ -142,7 +142,7 @@ export function HomeScreen() {
       {/* KPI stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          label="Modulos instalados"
+          label="Módulos instalados"
           value={installedCount}
           icon={Puzzle}
           loading={modulesLoading}
@@ -155,7 +155,7 @@ export function HomeScreen() {
         />
         <StatCard
           label="Estado API"
-          value={modulesError ? "Sin conexion" : "Conectada"}
+          value={modulesError ? "Sin conexión" : "Conectada"}
           icon={modulesError ? WifiOff : Wifi}
           loading={modulesLoading}
         />
@@ -213,7 +213,7 @@ export function HomeScreen() {
 
           {!modulesLoading && availableModules.length === 0 && (
             <p className="text-sm text-[hsl(var(--muted-foreground))]">
-              No hay modulos habilitados para mostrar.
+              No hay módulos habilitados para mostrar.
             </p>
           )}
         </div>

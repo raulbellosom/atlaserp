@@ -138,7 +138,7 @@ export function AppLauncher() {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar aplicacion..."
+                placeholder="Buscar aplicación..."
                 className="flex-1 bg-transparent text-sm text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] outline-none"
               />
               <button

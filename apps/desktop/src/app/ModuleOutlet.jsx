@@ -123,7 +123,7 @@ function ModulePlaceholder({ module }) {
           </p>
         )}
         <div className="pt-1">
-          <Badge variant="secondary">Modulo en desarrollo</Badge>
+          <Badge variant="secondary">Módulo en desarrollo</Badge>
         </div>
       </div>
       {module.navigation && module.navigation.length > 0 && (
@@ -143,14 +143,14 @@ function ModulePlaceholder({ module }) {
 }
 
 function unavailableMessage(module) {
-  if (!module) return "El modulo no esta disponible.";
+  if (!module) return "El módulo no está disponible.";
   if (module.status === "DISABLED") {
-    return `El modulo ${module.name} esta deshabilitado.`;
+    return `El módulo ${module.name} está deshabilitado.`;
   }
   if (module.status === "UNINSTALLED") {
-    return `El modulo ${module.name} esta desinstalado.`;
+    return `El módulo ${module.name} está desinstalado.`;
   }
-  return `El modulo ${module.name} no esta disponible.`;
+  return `El módulo ${module.name} no está disponible.`;
 }
 
 function resolveScreen(moduleKey, subPath) {
@@ -215,14 +215,14 @@ export function ModuleOutlet() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60dvh] gap-4 text-center px-6">
         <p className="text-lg font-semibold text-[hsl(var(--foreground))]">
-          Modulo no encontrado
+          Módulo no encontrado
         </p>
         <p className="text-sm text-[hsl(var(--muted-foreground))]">
-          El modulo{" "}
+          El módulo{" "}
           <code className="font-mono text-xs bg-[hsl(var(--muted))] px-1.5 py-0.5 rounded">
             {moduleKey}
           </code>{" "}
-          no existe o no esta registrado.
+          no existe o no está registrado.
         </p>
         <button
           onClick={() => navigate("/app/home")}

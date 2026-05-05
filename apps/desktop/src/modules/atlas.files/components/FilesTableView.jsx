@@ -110,8 +110,8 @@ export function FilesTableView({
           <TableRow className="bg-[hsl(var(--muted))]/40 hover:bg-[hsl(var(--muted))]/40">
             <TableHead className="w-10" />
             <TableHead className="w-[420px]">Archivo</TableHead>
-            <TableHead className="w-[100px]">Tamano</TableHead>
-            <TableHead className="w-[140px]">Modulo</TableHead>
+            <TableHead className="w-[100px]">Tamaño</TableHead>
+            <TableHead className="w-[140px]">Módulo</TableHead>
             <TableHead className="w-[110px]">Entidad</TableHead>
             <TableHead className="w-[170px]">Subido</TableHead>
             <TableHead className="w-[110px]">Estado</TableHead>
@@ -229,7 +229,7 @@ export function FilesTableView({
                     Descargar
                   </Button>
                   <ActionMenu
-                    label="Mas acciones"
+                    label="Más acciones"
                     items={[
                       {
                         label: "Copiar enlace",

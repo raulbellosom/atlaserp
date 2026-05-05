@@ -112,12 +112,12 @@ export default function RoleEditorScreen() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Permisos por modulo</CardTitle>
+              <CardTitle>Permisos por módulo</CardTitle>
             </CardHeader>
             <CardContent className="pt-0 space-y-4">
               {groups.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-[hsl(var(--border))] p-6 text-sm text-[hsl(var(--muted-foreground))]">
-                  No implementado: no hay permisos disponibles en el catalogo.
+                  No implementado: no hay permisos disponibles en el catálogo.
                 </div>
               ) : (
                 <div className="grid gap-3 md:grid-cols-2">

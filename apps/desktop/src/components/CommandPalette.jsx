@@ -118,7 +118,7 @@ export function CommandPalette({ activeModule }) {
         description: m.summary,
         icon: m.icon,
         color: m.color,
-        section: "Modulos",
+        section: "Módulos",
         action() {
           navigate(getModuleLaunchPath(m));
           closeCommand();
@@ -134,7 +134,7 @@ export function CommandPalette({ activeModule }) {
       description: p.description,
       icon: p.icon,
       color: "hsl(var(--muted-foreground))",
-      section: "Paginas",
+      section: "Páginas",
       action() {
         navigate(p.path);
         closeCommand();
@@ -230,7 +230,7 @@ export function CommandPalette({ activeModule }) {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar modulos, acciones, paginas..."
+                placeholder="Buscar módulos, acciones, páginas..."
                 className="flex-1 bg-transparent text-sm text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] outline-none"
               />
               <button
