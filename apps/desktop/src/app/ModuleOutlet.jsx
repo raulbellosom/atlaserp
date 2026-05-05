@@ -87,6 +87,17 @@ const SCREEN_MAP = {
   "atlas.finance:/finance/fx-rates": lazy(
     () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
   ),
+  "atlas.hr:/": lazy(() => import("../modules/atlas.hr/screens/HrScreen.jsx")),
+  "atlas.hr:/hr": lazy(() => import("../modules/atlas.hr/screens/HrScreen.jsx")),
+  "atlas.hr:/hr/employees": lazy(
+    () => import("../modules/atlas.hr/screens/HrScreen.jsx"),
+  ),
+  "atlas.hr:/hr/employees/:id": lazy(
+    () => import("../modules/atlas.hr/screens/HrScreen.jsx"),
+  ),
+  "atlas.hr:/hr/org-chart": lazy(
+    () => import("../modules/atlas.hr/screens/HrScreen.jsx"),
+  ),
 };
 
 function LoadingFallback() {
@@ -173,6 +184,9 @@ function resolveScreen(moduleKey, subPath) {
   }
   if (moduleKey === "atlas.files" && subPath.startsWith("/files/")) {
     return SCREEN_MAP["atlas.files:/files/:id"] ?? null;
+  }
+  if (moduleKey === "atlas.hr" && subPath.startsWith("/hr/employees/")) {
+    return SCREEN_MAP["atlas.hr:/hr/employees/:id"] ?? null;
   }
   if (subPath === "/") return SCREEN_MAP[`${moduleKey}:/`] ?? null;
   return null;

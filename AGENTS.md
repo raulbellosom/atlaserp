@@ -112,6 +112,7 @@ Invoke-WebRequest -UseBasicParsing http://localhost:5173
 - Prefer `enabled: false` (soft-disable) over hard deletes.
 - Core modules must not be uninstallable.
 - Keep API route handlers thin; push business logic into service functions.
+- **Never use native browser dialogs** (`window.confirm`, `window.alert`, `window.prompt`, `prompt`). Always use the shared `<ConfirmDialog>` component from `@atlas/ui` for confirmations.
 - Update [docs/TASKS.md](docs/TASKS.md) when completing meaningful project phases.
 - In docs checklists, mark `[x]` only with explicit verification evidence and a concrete `Verified: YYYY-MM-DD (...)` note.
 - Prisma is pinned to `^6` - do not upgrade to v7.

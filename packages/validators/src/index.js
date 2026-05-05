@@ -42,6 +42,89 @@ export const contactCreateSchema = z.object({
   metadata: z.record(z.any()).optional(),
 });
 
+const hrEmployeeBaseSchema = z.object({
+  employeeCode: z.string().trim().max(40).optional().or(z.literal("")),
+  userProfileId: z.string().cuid().optional().nullable(),
+  supervisorEmployeeId: z.string().cuid().optional().nullable(),
+  departmentId: z.string().cuid().optional().nullable(),
+  jobTitleId: z.string().cuid().optional().nullable(),
+  profileImageFileId: z.string().cuid().optional().nullable(),
+  firstName: z.string().trim().min(1, "El nombre es obligatorio."),
+  lastName: z.string().trim().min(1, "Los apellidos son obligatorios."),
+  workEmail: z.string().email().optional().or(z.literal("")),
+  personalEmail: z.string().email().optional().or(z.literal("")),
+  phone: z.string().trim().max(40).optional().or(z.literal("")),
+  emergencyContactName: z.string().trim().max(140).optional().or(z.literal("")),
+  emergencyContactPhone: z.string().trim().max(40).optional().or(z.literal("")),
+  jobTitle: z.string().trim().max(120).optional().or(z.literal("")),
+  department: z.string().trim().max(120).optional().or(z.literal("")),
+  managerName: z.string().trim().max(140).optional().or(z.literal("")),
+  employmentType: z
+    .enum(["full_time", "part_time", "contractor", "intern"])
+    .optional(),
+  workLocation: z.string().trim().max(120).optional().or(z.literal("")),
+  hireDate: z.string().datetime().optional().or(z.literal("")),
+  terminationDate: z.string().datetime().optional().or(z.literal("")),
+  status: z.enum(["active", "inactive", "vacation", "terminated"]).default("active"),
+  notesMarkdown: z.string().max(10000).optional().or(z.literal("")),
+  metadata: z.record(z.any()).optional(),
+});
+
+function validateEmployeeDates(value, ctx) {
+  if (!value.hireDate || !value.terminationDate) return;
+  const hireDate = new Date(value.hireDate);
+  const terminationDate = new Date(value.terminationDate);
+  if (terminationDate < hireDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["terminationDate"],
+      message: "La fecha de baja no puede ser anterior al ingreso.",
+    });
+  }
+}
+
+function validateEmployeeRelations(value, ctx) {
+  if (
+    value.supervisorEmployeeId &&
+    value.supervisorEmployeeId === value.userProfileId
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["supervisorEmployeeId"],
+      message: "El supervisor no puede ser la misma cuenta vinculada.",
+    });
+  }
+}
+
+export const hrEmployeeCreateSchema = hrEmployeeBaseSchema.superRefine(
+  (value, ctx) => {
+    validateEmployeeDates(value, ctx);
+    validateEmployeeRelations(value, ctx);
+  },
+);
+
+export const hrEmployeeUpdateSchema = hrEmployeeBaseSchema
+  .partial()
+  .superRefine((value, ctx) => {
+    validateEmployeeDates(value, ctx);
+    validateEmployeeRelations(value, ctx);
+  });
+
+export const hrEmployeeEnabledSchema = z.object({
+  enabled: z.boolean(),
+});
+
+export const hrCatalogCreateSchema = z.object({
+  name: z.string().trim().min(2, "El nombre es obligatorio.").max(120),
+  description: z.string().trim().max(300).optional().or(z.literal("")),
+});
+
+export const hrCatalogUpdateSchema = hrCatalogCreateSchema.partial();
+
+export const hrCatalogEnabledSchema = z.object({
+  enabled: z.boolean(),
+});
+
 export const setupInitializeSchema = z.object({
   adminFirstName: z.string().min(1),
   adminLastName: z.string().min(1),

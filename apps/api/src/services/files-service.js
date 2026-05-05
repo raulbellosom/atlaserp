@@ -6,7 +6,13 @@ const BULK_DOWNLOAD_MAX_FILE_IDS = 50;
 const BULK_DOWNLOAD_MAX_TOTAL_BYTES = 250 * 1024 * 1024;
 const STORAGE_BUCKET_NAME = "atlas-files";
 const BULK_ZIP_FOLDER = "system/bulk-downloads";
-const ALLOWED_FILE_ENTITY_TYPES = ["AtlasFile", "BrandingConfig", "Company"];
+const ALLOWED_FILE_ENTITY_TYPES = [
+  "AtlasFile",
+  "BrandingConfig",
+  "Company",
+  "HrEmployee",
+  "Contact",
+];
 const ALLOWED_EXACT_MIME_TYPES = new Set([
   "application/pdf",
   "application/json",
@@ -278,6 +284,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       const moduleKey = String(query.moduleKey ?? "").trim();
       const entityType = String(query.entityType ?? "").trim();
       const requestedEntityId = String(query.entityId ?? "").trim();
+      const sourceEntityId = String(query.sourceEntityId ?? "").trim();
       const mime = String(query.mime ?? "")
         .trim()
         .toLowerCase();
@@ -288,7 +295,13 @@ export function createFilesService({ prisma, supabaseAdmin }) {
           ? "asc"
           : "desc";
 
-      if (requestedEntityId && requestedEntityId !== companyId) {
+      // If a plain entityId is given and it doesn't match the company, bail early
+      // unless caller is using sourceEntityId (metadata-based filter).
+      if (
+        requestedEntityId &&
+        requestedEntityId !== companyId &&
+        !sourceEntityId
+      ) {
         return emptyListResponse(page, pageSize);
       }
 
@@ -302,6 +315,13 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       if (entityType) where.entityType = entityType;
       if (mime) {
         where.mimeType = { startsWith: mime };
+      }
+      // Filter by the originating entity stored in metadata (e.g. HrEmployee ID)
+      if (sourceEntityId) {
+        where.metadata = {
+          path: ["sourceEntityId"],
+          equals: sourceEntityId,
+        };
       }
 
       if (q) {
@@ -567,6 +587,33 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       }
 
       await prisma.fileAsset.delete({ where: { id: file.id } });
+
+      // Audit log for HR employee file deletions
+      if (file.moduleKey === "atlas.hr" && file.entityType === "HrEmployee") {
+        const sourceEntityId = file.metadata?.sourceEntityId ?? null;
+        if (sourceEntityId) {
+          const actor = await prisma.userProfile.findUnique({
+            where: { authUserId },
+            select: { id: true },
+          });
+          if (actor?.id) {
+            await prisma.auditLog.create({
+              data: {
+                actorId: actor.id,
+                moduleKey: "atlas.hr",
+                entityType: "HrEmployee",
+                entityId: String(sourceEntityId),
+                action: "hr.employee.file.delete",
+                metadata: {
+                  fileId: file.id,
+                  originalName: file.originalName,
+                  mimeType: file.mimeType,
+                },
+              },
+            });
+          }
+        }
+      }
 
       return { ok: true };
     },

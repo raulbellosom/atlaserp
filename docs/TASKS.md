@@ -1,4 +1,4 @@
-# Atlas ERP - Tasks and Roadmap
+﻿# Atlas ERP - Tasks and Roadmap
 
 ## Task completion policy
 
@@ -230,6 +230,22 @@ Plan: `docs/superpowers/plans/2026-05-05-phase8-6-finance-operations-ux.md`
 
 Verified: 2026-05-05 (`node --check apps/api/src/services/finance-documents-service.js`, `node --check apps/api/src/index.js`, `node --check packages/validators/src/index.js`, `node --check packages/sdk/src/index.js`, `pnpm.cmd --filter ./apps/desktop build:web`, `FINANCE_FINAL_SMOKE_OK` scripted run covering taxes, reminders, cross-currency apply, and reversal)
 
+
+## Phase 9 - HR module
+
+Spec: `docs/superpowers/specs/2026-05-05-phase9-hr-design.md`  
+Plan: `docs/superpowers/plans/2026-05-05-phase9-hr.md`
+
+- [ ] Dedicated routes for HR list and employee detail (`/hr/employees`, `/hr/employees/:id`)
+- [ ] Single long-form employee view with all core sections visible (not modal-first)
+- [ ] View/Edit toggle with stable layout and async loading safeguards
+- [ ] Full HR v1 employee model fields persisted via API/SDK/Prisma
+- [ ] Rich markdown notes editor + rendered read mode
+- [ ] Employee dossier attachments via canonical files pipeline (`atlas-files`)
+- [ ] Embedded employee audit timeline (`actor/action/timestamp`)
+- [ ] Permission and auth contracts for `hr.read/create/update/delete`
+
+Verified: pending
 ## Phase 9 - Future modules
 
 - [ ] Purchases
@@ -238,3 +254,4 @@ Verified: 2026-05-05 (`node --check apps/api/src/services/finance-documents-serv
 - [ ] Fleet
 - [ ] Reports
 - [ ] Website builder / CMS
+

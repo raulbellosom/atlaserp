@@ -378,6 +378,129 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
         }),
     },
+    hr: {
+      listDepartments: (token, options = {}) => {
+        const params = new URLSearchParams();
+        if (options.q) params.set("q", options.q);
+        if (options.enabled !== undefined) {
+          params.set("enabled", String(options.enabled));
+        }
+        if (options.limit) params.set("limit", String(options.limit));
+        const query = params.toString();
+        const path = query ? `/hr/departments?${query}` : "/hr/departments";
+        return request(path, { headers: withAuthHeaders(token) });
+      },
+      createDepartment: (data, token) =>
+        request("/hr/departments", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateDepartment: (id, data, token) =>
+        request(`/hr/departments/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      setDepartmentEnabled: (id, enabled, token) =>
+        request(`/hr/departments/${encodeURIComponent(id)}/enabled`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ enabled }),
+        }),
+      listJobTitles: (token, options = {}) => {
+        const params = new URLSearchParams();
+        if (options.q) params.set("q", options.q);
+        if (options.enabled !== undefined) {
+          params.set("enabled", String(options.enabled));
+        }
+        if (options.limit) params.set("limit", String(options.limit));
+        const query = params.toString();
+        const path = query ? `/hr/job-titles?${query}` : "/hr/job-titles";
+        return request(path, { headers: withAuthHeaders(token) });
+      },
+      createJobTitle: (data, token) =>
+        request("/hr/job-titles", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateJobTitle: (id, data, token) =>
+        request(`/hr/job-titles/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      setJobTitleEnabled: (id, enabled, token) =>
+        request(`/hr/job-titles/${encodeURIComponent(id)}/enabled`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ enabled }),
+        }),
+      getOrgChart: (token, options = {}) => {
+        const params = new URLSearchParams();
+        if (options.rootEmployeeId) {
+          params.set("rootEmployeeId", options.rootEmployeeId);
+        }
+        if (options.enabled !== undefined) {
+          params.set("enabled", String(options.enabled));
+        }
+        const query = params.toString();
+        const path = query ? `/hr/org-chart?${query}` : "/hr/org-chart";
+        return request(path, { headers: withAuthHeaders(token) });
+      },
+      listEmployees: (token, options = {}) => {
+        const params = new URLSearchParams();
+        if (options.q) params.set("q", options.q);
+        if (options.status) params.set("status", options.status);
+        if (options.enabled !== undefined) {
+          params.set("enabled", String(options.enabled));
+        }
+        if (options.limit) params.set("limit", String(options.limit));
+        const query = params.toString();
+        const path = query ? `/hr/employees?${query}` : "/hr/employees";
+        return request(path, { headers: withAuthHeaders(token) });
+      },
+      getEmployee: (id, token) =>
+        request(`/hr/employees/${encodeURIComponent(id)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      createEmployee: (data, token) =>
+        request("/hr/employees", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateEmployee: (id, data, token) =>
+        request(`/hr/employees/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      setEmployeeEnabled: (id, enabled, token) =>
+        request(`/hr/employees/${encodeURIComponent(id)}/enabled`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ enabled }),
+        }),
+      getEmployeeAudit: (id, token, options = {}) => {
+        const params = new URLSearchParams();
+        if (options.limit) params.set("limit", String(options.limit));
+        const query = params.toString();
+        const path = query
+          ? `/hr/employees/${encodeURIComponent(id)}/audit?${query}`
+          : `/hr/employees/${encodeURIComponent(id)}/audit`;
+        return request(path, { headers: withAuthHeaders(token) });
+      },
+      listUserOptions: (token, options = {}) => {
+        const params = new URLSearchParams();
+        if (options.q) params.set("q", options.q);
+        if (options.limit) params.set("limit", String(options.limit));
+        const query = params.toString();
+        const path = query ? `/hr/user-options?${query}` : "/hr/user-options";
+        return request(path, { headers: withAuthHeaders(token) });
+      },
+    },
     contacts: {
       list: (token, options = {}) => {
         const params = new URLSearchParams();

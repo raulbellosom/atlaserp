@@ -159,6 +159,9 @@ model Company {
   financeDocumentAccountingLinks FinanceDocumentAccountingLink[]
   financeTaxRates FinanceTaxRate[]
   financeDocumentTaxLines FinanceDocumentTaxLine[]
+  hrEmployees    HrEmployee[]
+  hrDepartments  HrDepartment[]
+  hrJobTitles    HrJobTitle[]
 }
 
 model UserProfile {
@@ -188,6 +191,7 @@ model UserProfile {
   auditLogs    AuditLog[]
   notifications Notification[]
   reversedFinanceApplications FinanceDocumentApplication[] @relation("FinanceDocumentApplicationReversedBy")
+  hrEmployee HrEmployee?
 }
 
 model Membership {
@@ -260,6 +264,7 @@ model FileAsset {
   enabled       Boolean @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  hrProfileEmployees HrEmployee[] @relation("HrEmployeeProfileImage")
 
   @@index([moduleKey, entityType, entityId])
 }
@@ -302,6 +307,82 @@ model Contact {
 
   @@index([type])
   @@index([name])
+}
+
+model HrEmployee {
+  id             String   @id @default(cuid())
+  companyId      String
+  userProfileId  String? @unique
+  supervisorEmployeeId String?
+  departmentId   String?
+  jobTitleId     String?
+  profileImageFileId String?
+  employeeCode   String?
+  firstName      String
+  lastName       String
+  workEmail      String?
+  personalEmail  String?
+  phone          String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  jobTitle       String?
+  department     String?
+  managerName    String?
+  employmentType String?
+  workLocation   String?
+  hireDate       DateTime?
+  terminationDate DateTime?
+  status         String   @default("active")
+  notesMarkdown  String?
+  metadata       Json?
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  company        Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userProfile    UserProfile? @relation(fields: [userProfileId], references: [id], onDelete: SetNull)
+  supervisor     HrEmployee? @relation("HrEmployeeSupervisor", fields: [supervisorEmployeeId], references: [id], onDelete: SetNull)
+  reportees      HrEmployee[] @relation("HrEmployeeSupervisor")
+  departmentRef  HrDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  jobTitleRef    HrJobTitle? @relation(fields: [jobTitleId], references: [id], onDelete: SetNull)
+  profileImageFile FileAsset? @relation("HrEmployeeProfileImage", fields: [profileImageFileId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, enabled])
+  @@index([companyId, lastName, firstName])
+  @@index([companyId, supervisorEmployeeId])
+  @@index([companyId, departmentId])
+  @@index([companyId, jobTitleId])
+}
+
+model HrDepartment {
+  id          String @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  enabled     Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employees   HrEmployee[] @relation()
+
+  @@unique([companyId, name])
+  @@index([companyId, enabled])
+}
+
+model HrJobTitle {
+  id          String @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  enabled     Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employees   HrEmployee[] @relation()
+
+  @@unique([companyId, name])
+  @@index([companyId, enabled])
 }
 
 model FinanceAccount {

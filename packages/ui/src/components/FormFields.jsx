@@ -14,9 +14,27 @@ import {
   Italic,
   List,
   ListOrdered,
-  CheckSquare,
+  Heading1,
+  Heading2,
+  Heading3,
+  Strikethrough,
+  Undo2,
+  Redo2,
+  Code,
+  Quote,
+  ListChecks,
   Link2,
+  Link2Off,
+  Minus,
+  Type,
 } from "lucide-react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import LinkExtension from "@tiptap/extension-link";
+import Placeholder from "@tiptap/extension-placeholder";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
+import { Markdown } from "tiptap-markdown";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { cn } from "../lib/utils.js";
 
@@ -384,17 +402,34 @@ export const TextareaField = forwardRef(function TextareaField(
   );
 });
 
-function insertMarkdownToken(source, token, selectionStart, selectionEnd) {
-  const before = source.slice(0, selectionStart);
-  const selected = source.slice(selectionStart, selectionEnd);
-  const after = source.slice(selectionEnd);
-  return `${before}${token(selected)}${after}`;
+// ─── WYSIWYG Markdown toolbar button ─────────────────────────────────────────
+
+function ToolbarBtn({ onClick, active, disabled, icon: Icon, title }) {
+  return (
+    <button
+      type="button"
+      onMouseDown={(e) => {
+        e.preventDefault();
+        onClick();
+      }}
+      disabled={disabled}
+      title={title}
+      aria-label={title}
+      aria-pressed={active}
+      className={cn(
+        "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+        active
+          ? "bg-primary/10 text-primary"
+          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+        disabled && "pointer-events-none opacity-30",
+      )}
+    >
+      <Icon size={13} />
+    </button>
+  );
 }
 
-function formatLinkSelection(text) {
-  const label = text?.trim() ? text : "texto";
-  return `[${label}](https://)`;
-}
+// ─── WYSIWYG MarkdownField ────────────────────────────────────────────────────
 
 export const MarkdownField = forwardRef(function MarkdownField(
   {
@@ -409,47 +444,256 @@ export const MarkdownField = forwardRef(function MarkdownField(
     value,
     onChange,
     className,
+    disabled,
+    readOnly,
     rows = 8,
     ...props
   },
-  ref,
+  _ref,
 ) {
   const [localError, setLocalError] = useState("");
   const error = externalError || localError;
-  const charCount = typeof value === "string" ? value.length : 0;
-  const inputRef = useRef(null);
 
-  function handleBlur(e) {
-    if (validate) setLocalError(validate(e.target.value) || "");
-    onBlur?.(e);
-  }
+  const [linkPopover, setLinkPopover] = useState(false);
+  const [linkHref, setLinkHref] = useState("");
+  const linkInputRef = useRef(null);
 
-  function applyFormat(tokenBuilder) {
-    const target = inputRef.current;
-    if (!target) return;
-    const start = target.selectionStart ?? 0;
-    const end = target.selectionEnd ?? start;
-    const currentValue = String(value ?? "");
-    const nextValue = insertMarkdownToken(currentValue, tokenBuilder, start, end);
-    onChange?.({ target: { value: nextValue } });
-    requestAnimationFrame(() => {
-      target.focus();
-      target.selectionStart = start;
-      target.selectionEnd = Math.min(nextValue.length, end + 8);
-    });
-  }
-
-  const toolbar = [
-    { label: "Negrita", icon: Bold, token: (text) => `**${text || "texto"}**` },
-    { label: "Cursiva", icon: Italic, token: (text) => `*${text || "texto"}*` },
-    { label: "Lista", icon: List, token: (text) => `- ${text || "Elemento"}` },
-    {
-      label: "Numerada",
-      icon: ListOrdered,
-      token: (text) => `1. ${text || "Elemento"}`,
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+        codeBlock: false,
+        code: true,
+        link: false,
+        horizontalRule: true,
+      }),
+      LinkExtension.configure({ openOnClick: false }),
+      Placeholder.configure({
+        placeholder: "Escribe tus observaciones aquí...",
+      }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Markdown.configure({
+        html: false,
+        tightLists: true,
+        tightListClass: "tight",
+        bulletListMarker: "-",
+        linkify: false,
+        breaks: false,
+        transformPastedText: true,
+        transformCopiedText: false,
+      }),
+    ],
+    content: value || "",
+    editable: !disabled && !readOnly,
+    onUpdate({ editor }) {
+      const md = editor.storage.markdown.getMarkdown();
+      onChange?.({ target: { value: md } });
     },
-    { label: "Checklist", icon: CheckSquare, token: (text) => `- [ ] ${text || "Tarea"}` },
-    { label: "Enlace", icon: Link2, token: formatLinkSelection },
+    onBlur({ event }) {
+      if (validate) {
+        const md = editor.storage.markdown.getMarkdown();
+        setLocalError(validate(md) || "");
+      }
+      onBlur?.(event);
+    },
+  });
+
+  // Sync external value changes (e.g. form reset / load) without triggering onUpdate loop
+  const lastPushed = useRef(value);
+  useEffect(() => {
+    if (!editor) return;
+    const current = editor.storage.markdown.getMarkdown();
+    const incoming = value ?? "";
+    if (incoming !== current && incoming !== lastPushed.current) {
+      lastPushed.current = incoming;
+      editor.commands.setContent(incoming, false);
+    }
+  }, [value, editor]);
+
+  // Sync editable state
+  useEffect(() => {
+    if (!editor) return;
+    editor.setEditable(!disabled && !readOnly);
+  }, [disabled, readOnly, editor]);
+
+  const charCount = typeof value === "string" ? value.length : 0;
+
+  // heading dropdown state
+  const [headingOpen, setHeadingOpen] = useState(false);
+  const headingRef = useRef(null);
+
+  // close heading dropdown on outside click
+  useEffect(() => {
+    if (!headingOpen) return;
+    function handler(e) {
+      if (headingRef.current && !headingRef.current.contains(e.target)) {
+        setHeadingOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [headingOpen]);
+
+  // close link popover on outside click
+  const linkPopoverRef = useRef(null);
+  useEffect(() => {
+    if (!linkPopover) return;
+    function handler(e) {
+      if (
+        linkPopoverRef.current &&
+        !linkPopoverRef.current.contains(e.target)
+      ) {
+        setLinkPopover(false);
+        setLinkHref("");
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [linkPopover]);
+
+  function applyLink() {
+    if (!linkHref.trim()) {
+      editor?.chain().focus().unsetLink().run();
+    } else {
+      const href = linkHref.trim().startsWith("http")
+        ? linkHref.trim()
+        : `https://${linkHref.trim()}`;
+      editor?.chain().focus().setLink({ href }).run();
+    }
+    setLinkPopover(false);
+    setLinkHref("");
+  }
+
+  function openLinkPopover() {
+    const existing = editor?.getAttributes("link").href || "";
+    setLinkHref(existing);
+    setLinkPopover(true);
+    setTimeout(() => linkInputRef.current?.focus(), 50);
+  }
+
+  // current heading label
+  function getHeadingLabel() {
+    if (editor?.isActive("heading", { level: 1 })) return "H1";
+    if (editor?.isActive("heading", { level: 2 })) return "H2";
+    if (editor?.isActive("heading", { level: 3 })) return "H3";
+    return "T";
+  }
+
+  const headingOptions = [
+    {
+      label: "Párrafo",
+      icon: Type,
+      active: !editor?.isActive("heading"),
+      action: () => {
+        editor?.chain().focus().setParagraph().run();
+        setHeadingOpen(false);
+      },
+    },
+    {
+      label: "Título 1",
+      icon: Heading1,
+      active: editor?.isActive("heading", { level: 1 }),
+      action: () => {
+        editor?.chain().focus().toggleHeading({ level: 1 }).run();
+        setHeadingOpen(false);
+      },
+    },
+    {
+      label: "Título 2",
+      icon: Heading2,
+      active: editor?.isActive("heading", { level: 2 }),
+      action: () => {
+        editor?.chain().focus().toggleHeading({ level: 2 }).run();
+        setHeadingOpen(false);
+      },
+    },
+    {
+      label: "Título 3",
+      icon: Heading3,
+      active: editor?.isActive("heading", { level: 3 }),
+      action: () => {
+        editor?.chain().focus().toggleHeading({ level: 3 }).run();
+        setHeadingOpen(false);
+      },
+    },
+  ];
+
+  const inlineItems = [
+    {
+      icon: Bold,
+      title: "Negrita",
+      active: editor?.isActive("bold"),
+      action: () => editor?.chain().focus().toggleBold().run(),
+    },
+    {
+      icon: Italic,
+      title: "Cursiva",
+      active: editor?.isActive("italic"),
+      action: () => editor?.chain().focus().toggleItalic().run(),
+    },
+    {
+      icon: Strikethrough,
+      title: "Tachado",
+      active: editor?.isActive("strike"),
+      action: () => editor?.chain().focus().toggleStrike().run(),
+    },
+    {
+      icon: Code,
+      title: "Código",
+      active: editor?.isActive("code"),
+      action: () => editor?.chain().focus().toggleCode().run(),
+    },
+  ];
+
+  const blockItems = [
+    {
+      icon: List,
+      title: "Lista",
+      active: editor?.isActive("bulletList"),
+      action: () => editor?.chain().focus().toggleBulletList().run(),
+    },
+    {
+      icon: ListOrdered,
+      title: "Lista numerada",
+      active: editor?.isActive("orderedList"),
+      action: () => editor?.chain().focus().toggleOrderedList().run(),
+    },
+    {
+      icon: ListChecks,
+      title: "Lista de tareas",
+      active: editor?.isActive("taskList"),
+      action: () => editor?.chain().focus().toggleTaskList().run(),
+    },
+    {
+      icon: Quote,
+      title: "Cita",
+      active: editor?.isActive("blockquote"),
+      action: () => editor?.chain().focus().toggleBlockquote().run(),
+    },
+    {
+      icon: Minus,
+      title: "Divisor",
+      active: false,
+      action: () => editor?.chain().focus().setHorizontalRule().run(),
+    },
+  ];
+
+  const historyItems = [
+    {
+      icon: Undo2,
+      title: "Deshacer",
+      active: false,
+      disabled: !editor?.can().undo(),
+      action: () => editor?.chain().focus().undo().run(),
+    },
+    {
+      icon: Redo2,
+      title: "Rehacer",
+      active: false,
+      disabled: !editor?.can().redo(),
+      action: () => editor?.chain().focus().redo().run(),
+    },
   ];
 
   return (
@@ -460,43 +704,181 @@ export const MarkdownField = forwardRef(function MarkdownField(
       hint={hint}
       required={required}
     >
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
-        <div className="flex flex-wrap items-center gap-1 border-b border-border px-2 py-1.5 bg-muted/20">
-          {toolbar.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              onClick={() => applyFormat(item.token)}
-              className="inline-flex items-center gap-1 rounded-md border border-transparent px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/30 transition-colors"
-              aria-label={item.label}
-              title={item.label}
-            >
-              <item.icon size={13} />
-            </button>
-          ))}
-        </div>
-        <textarea
-          ref={(node) => {
-            inputRef.current = node;
-            if (typeof ref === "function") ref(node);
-            else if (ref) ref.current = node;
-          }}
-          id={id}
-          rows={rows}
-          value={value ?? ""}
-          onChange={onChange}
-          maxLength={maxLength}
-          onBlur={handleBlur}
+      <div
+        className={cn(
+          "rounded-lg border bg-card overflow-hidden transition-colors",
+          error ? "border-destructive" : "border-border",
+          !disabled &&
+            !readOnly &&
+            "focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary",
+          disabled && "opacity-60 cursor-not-allowed",
+          readOnly && "cursor-default select-text",
+          className,
+        )}
+      >
+        {/* toolbar */}
+        {!disabled && !readOnly && (
+          <div className="flex flex-wrap items-center gap-0.5 border-b border-border px-2 py-1.5 bg-muted/20">
+            {/* heading dropdown */}
+            <div className="relative" ref={headingRef}>
+              <button
+                type="button"
+                title="Estilo de texto"
+                onClick={() => setHeadingOpen((v) => !v)}
+                className={cn(
+                  "inline-flex items-center gap-1 h-7 px-2 rounded text-xs font-semibold transition-colors",
+                  "text-muted-foreground hover:bg-accent hover:text-foreground",
+                  editor?.isActive("heading") && "bg-accent text-foreground",
+                )}
+              >
+                <span className="w-5 text-center font-mono">
+                  {getHeadingLabel()}
+                </span>
+                <ChevronDown className="h-3 w-3 opacity-60" />
+              </button>
+              {headingOpen && (
+                <div className="absolute top-full left-0 mt-1 z-50 min-w-35 rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+                  {headingOptions.map((opt) => (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      onClick={opt.action}
+                      className={cn(
+                        "w-full flex items-center gap-2.5 px-3 py-1.5 text-sm transition-colors text-left",
+                        "hover:bg-accent hover:text-foreground text-foreground/80",
+                        opt.active && "bg-accent text-foreground font-medium",
+                      )}
+                    >
+                      <opt.icon className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <span className="mx-0.5 h-4 w-px bg-border shrink-0" />
+
+            {/* inline formatting */}
+            {inlineItems.map((item) => (
+              <ToolbarBtn
+                key={item.title}
+                icon={item.icon}
+                title={item.title}
+                active={item.active}
+                onClick={item.action}
+              />
+            ))}
+
+            <span className="mx-0.5 h-4 w-px bg-border shrink-0" />
+
+            {/* block elements */}
+            {blockItems.map((item) => (
+              <ToolbarBtn
+                key={item.title}
+                icon={item.icon}
+                title={item.title}
+                active={item.active}
+                onClick={item.action}
+              />
+            ))}
+
+            <span className="mx-0.5 h-4 w-px bg-border shrink-0" />
+
+            {/* link */}
+            <div className="relative" ref={linkPopoverRef}>
+              <ToolbarBtn
+                icon={editor?.isActive("link") ? Link2Off : Link2}
+                title={
+                  editor?.isActive("link") ? "Quitar enlace" : "Insertar enlace"
+                }
+                active={editor?.isActive("link")}
+                onClick={() => {
+                  if (editor?.isActive("link")) {
+                    editor.chain().focus().unsetLink().run();
+                  } else {
+                    openLinkPopover();
+                  }
+                }}
+              />
+              {linkPopover && (
+                <div className="absolute top-full left-0 mt-1 z-50 w-72 rounded-lg border border-border bg-popover shadow-lg p-2.5 flex gap-2">
+                  <input
+                    ref={linkInputRef}
+                    type="url"
+                    value={linkHref}
+                    onChange={(e) => setLinkHref(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        applyLink();
+                      }
+                      if (e.key === "Escape") {
+                        setLinkPopover(false);
+                        setLinkHref("");
+                      }
+                    }}
+                    placeholder="https://..."
+                    className="flex-1 min-w-0 h-7 rounded-md border border-border bg-background px-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyLink}
+                    className="shrink-0 h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity"
+                  >
+                    OK
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <span className="mx-0.5 h-4 w-px bg-border shrink-0" />
+
+            {/* history */}
+            {historyItems.map((item) => (
+              <ToolbarBtn
+                key={item.title}
+                icon={item.icon}
+                title={item.title}
+                active={item.active}
+                disabled={item.disabled}
+                onClick={item.action}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* editor area */}
+        <EditorContent
+          editor={editor}
           className={cn(
-            "w-full px-3.5 py-3 text-sm glass-subtle bg-card resize-y min-h-30",
-            "text-foreground placeholder:text-muted-foreground",
-            "transition-all duration-150 outline-none",
-            "focus:ring-2 focus:ring-primary/20 focus:border-primary",
-            "disabled:cursor-not-allowed disabled:opacity-50 border-0 rounded-none",
-            className,
+            "wysiwyg-editor min-h-40 px-3.5 py-3 text-sm text-foreground",
+            "[&_.tiptap]:outline-none [&_.tiptap]:min-h-35",
+            "[&_.tiptap_p]:leading-relaxed [&_.tiptap_p]:my-1",
+            "[&_.tiptap_h1]:text-xl [&_.tiptap_h1]:font-bold [&_.tiptap_h1]:mt-3 [&_.tiptap_h1]:mb-1",
+            "[&_.tiptap_h2]:text-lg [&_.tiptap_h2]:font-semibold [&_.tiptap_h2]:mt-2 [&_.tiptap_h2]:mb-1",
+            "[&_.tiptap_h3]:text-base [&_.tiptap_h3]:font-semibold [&_.tiptap_h3]:mt-2 [&_.tiptap_h3]:mb-1",
+            "[&_.tiptap_strong]:font-semibold",
+            "[&_.tiptap_em]:italic",
+            "[&_.tiptap_s]:line-through",
+            "[&_.tiptap_ul]:list-disc [&_.tiptap_ul]:pl-5 [&_.tiptap_ul]:my-1.5",
+            "[&_.tiptap_ol]:list-decimal [&_.tiptap_ol]:pl-5 [&_.tiptap_ol]:my-1.5",
+            "[&_.tiptap_li]:leading-relaxed",
+            "[&_.tiptap_a]:text-primary [&_.tiptap_a]:underline [&_.tiptap_a]:underline-offset-2",
+            "[&_.tiptap_code]:bg-muted [&_.tiptap_code]:rounded [&_.tiptap_code]:px-1.5 [&_.tiptap_code]:py-0.5 [&_.tiptap_code]:text-xs [&_.tiptap_code]:font-mono [&_.tiptap_code]:text-foreground",
+            "[&_.tiptap_blockquote]:border-l-2 [&_.tiptap_blockquote]:border-border [&_.tiptap_blockquote]:pl-3.5 [&_.tiptap_blockquote]:text-muted-foreground [&_.tiptap_blockquote]:italic [&_.tiptap_blockquote]:my-2",
+            "[&_.tiptap_hr]:border-t [&_.tiptap_hr]:border-border [&_.tiptap_hr]:my-3",
+            "[&_.tiptap_ul[data-type='taskList']]:list-none [&_.tiptap_ul[data-type='taskList']]:pl-0",
+            "[&_.tiptap_li[data-type='taskItem']]:flex [&_.tiptap_li[data-type='taskItem']]:items-start [&_.tiptap_li[data-type='taskItem']]:gap-2 [&_.tiptap_li[data-type='taskItem']]:my-0.5",
+            "[&_.tiptap_li[data-type='taskItem']>label]:flex [&_.tiptap_li[data-type='taskItem']>label]:items-center [&_.tiptap_li[data-type='taskItem']>label]:gap-2 [&_.tiptap_li[data-type='taskItem']>label]:mt-0.5",
+            "[&_.tiptap_li[data-type='taskItem']>label>input]:h-3.5 [&_.tiptap_li[data-type='taskItem']>label>input]:w-3.5 [&_.tiptap_li[data-type='taskItem']>label>input]:accent-primary [&_.tiptap_li[data-type='taskItem']>label>input]:cursor-pointer",
+            "[&_.tiptap_li[data-type='taskItem'][data-checked='true']>div]:line-through [&_.tiptap_li[data-type='taskItem'][data-checked='true']>div]:text-muted-foreground",
+            "[&_.tiptap_.is-editor-empty_p:first-child::before]:content-[attr(data-placeholder)]",
+            "[&_.tiptap_.is-editor-empty_p:first-child::before]:text-muted-foreground",
+            "[&_.tiptap_.is-editor-empty_p:first-child::before]:float-left",
+            "[&_.tiptap_.is-editor-empty_p:first-child::before]:h-0",
+            "[&_.tiptap_.is-editor-empty_p:first-child::before]:pointer-events-none",
           )}
-          placeholder="Escribe observaciones en formato markdown..."
-          {...props}
         />
       </div>
       {maxLength && (
@@ -600,7 +982,8 @@ function normalizeMoneyInput(raw, { allowNegative, allowDecimal }) {
     const firstDot = next.indexOf(".");
     if (firstDot !== -1) {
       next =
-        next.slice(0, firstDot + 1) + next.slice(firstDot + 1).replace(/\./g, "");
+        next.slice(0, firstDot + 1) +
+        next.slice(firstDot + 1).replace(/\./g, "");
     }
   }
 
@@ -615,8 +998,10 @@ function parseMoneyValue(raw, { allowDecimal, min, max }) {
   }
   const parsed = allowDecimal ? Number(raw) : Number.parseInt(raw, 10);
   if (!Number.isFinite(parsed)) return { kind: "invalid", value: "" };
-  if (Number.isFinite(min) && parsed < min) return { kind: "invalid", value: "" };
-  if (Number.isFinite(max) && parsed > max) return { kind: "invalid", value: "" };
+  if (Number.isFinite(min) && parsed < min)
+    return { kind: "invalid", value: "" };
+  if (Number.isFinite(max) && parsed > max)
+    return { kind: "invalid", value: "" };
   return { kind: "valid", value: parsed };
 }
 
@@ -668,7 +1053,12 @@ export const CurrencyField = forwardRef(function CurrencyField(
   useEffect(() => {
     if (!focused) {
       setDisplay(
-        formatCurrency(value, locale, currency, allowDecimal ? fractionDigits : 0),
+        formatCurrency(
+          value,
+          locale,
+          currency,
+          allowDecimal ? fractionDigits : 0,
+        ),
       );
     }
   }, [value, focused, locale, currency, allowDecimal, fractionDigits]);
@@ -711,7 +1101,12 @@ export const CurrencyField = forwardRef(function CurrencyField(
     } else {
       setLocalError(invalidMessage);
       setDisplay(
-        formatCurrency(value, locale, currency, allowDecimal ? fractionDigits : 0),
+        formatCurrency(
+          value,
+          locale,
+          currency,
+          allowDecimal ? fractionDigits : 0,
+        ),
       );
     }
     onBlur?.(e);
@@ -742,7 +1137,12 @@ export const CurrencyField = forwardRef(function CurrencyField(
             focused
               ? display
               : display ||
-                formatCurrency(value, locale, currency, allowDecimal ? fractionDigits : 0)
+                formatCurrency(
+                  value,
+                  locale,
+                  currency,
+                  allowDecimal ? fractionDigits : 0,
+                )
           }
           onChange={handleChange}
           onFocus={handleFocus}

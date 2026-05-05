@@ -1,6 +1,6 @@
-const GROUPS = {
+﻿const GROUPS = {
   core: "Core",
-  modules: "Módulos",
+  modules: "Modulos",
   identity: "Identidad",
   roles: "Roles",
   permissions: "Permisos",
@@ -8,42 +8,43 @@ const GROUPS = {
   company: "Empresa",
   contacts: "Contactos",
   finance: "Finanzas",
-  audit: "Bitácora",
+  hr: "Recursos Humanos",
+  audit: "Bitacora",
 };
 
 export const PERMISSION_CATALOG = {
   "core.read": {
-    displayNameEs: "Ver configuración del sistema",
-    descriptionEs: "Permite consultar información general de Core.",
+    displayNameEs: "Ver configuracion del sistema",
+    descriptionEs: "Permite consultar informacion general de Core.",
     groupKey: "core",
     order: 10,
   },
   "core.manage": {
-    displayNameEs: "Administrar configuración del sistema",
+    displayNameEs: "Administrar configuracion del sistema",
     descriptionEs: "Permite actualizar ajustes clave de Core.",
     groupKey: "core",
     order: 20,
   },
   "modules.install": {
-    displayNameEs: "Instalar módulos",
-    descriptionEs: "Permite instalar módulos en el catálogo.",
+    displayNameEs: "Instalar modulos",
+    descriptionEs: "Permite instalar modulos en el catalogo.",
     groupKey: "modules",
     order: 10,
   },
   "modules.uninstall": {
-    displayNameEs: "Desinstalar módulos",
-    descriptionEs: "Permite desinstalar módulos instalados.",
+    displayNameEs: "Desinstalar modulos",
+    descriptionEs: "Permite desinstalar modulos instalados.",
     groupKey: "modules",
     order: 20,
   },
   "modules.disable": {
-    displayNameEs: "Deshabilitar módulos",
-    descriptionEs: "Permite activar o desactivar módulos del sistema.",
+    displayNameEs: "Deshabilitar modulos",
+    descriptionEs: "Permite activar o desactivar modulos del sistema.",
     groupKey: "modules",
     order: 30,
   },
   "audit.read": {
-    displayNameEs: "Ver bitácora",
+    displayNameEs: "Ver bitacora",
     descriptionEs: "Permite revisar eventos y cambios del sistema.",
     groupKey: "audit",
     order: 10,
@@ -56,7 +57,7 @@ export const PERMISSION_CATALOG = {
   },
   "identity.manage": {
     displayNameEs: "Administrar identidad",
-    descriptionEs: "Permite gestionar configuraciones del módulo de identidad.",
+    descriptionEs: "Permite gestionar configuraciones del modulo de identidad.",
     groupKey: "identity",
     order: 20,
   },
@@ -74,7 +75,7 @@ export const PERMISSION_CATALOG = {
   },
   "permissions.read": {
     displayNameEs: "Ver permisos",
-    descriptionEs: "Permite consultar el catálogo de permisos.",
+    descriptionEs: "Permite consultar el catalogo de permisos.",
     groupKey: "permissions",
     order: 10,
   },
@@ -104,21 +105,19 @@ export const PERMISSION_CATALOG = {
   },
   "files.manage": {
     displayNameEs: "Administrar archivos",
-    descriptionEs: "Permite modificar la gestión general de archivos.",
+    descriptionEs: "Permite modificar la gestion general de archivos.",
     groupKey: "files",
     order: 40,
   },
   "company.read": {
     displayNameEs: "Ver empresa",
-    descriptionEs:
-      "Permite consultar el perfil, direccion y marca visual de la empresa.",
+    descriptionEs: "Permite consultar perfil, direccion y marca visual de la empresa.",
     groupKey: "company",
     order: 10,
   },
   "company.manage": {
     displayNameEs: "Administrar empresa",
-    descriptionEs:
-      "Permite editar el perfil, direccion, logo y colores de la empresa.",
+    descriptionEs: "Permite editar perfil, direccion, logo y colores de la empresa.",
     groupKey: "company",
     order: 20,
   },
@@ -148,7 +147,7 @@ export const PERMISSION_CATALOG = {
   },
   "finance.read": {
     displayNameEs: "Ver finanzas",
-    descriptionEs: "Permite consultar información financiera.",
+    descriptionEs: "Permite consultar informacion financiera.",
     groupKey: "finance",
     order: 10,
   },
@@ -168,6 +167,30 @@ export const PERMISSION_CATALOG = {
     displayNameEs: "Eliminar movimientos financieros",
     descriptionEs: "Permite eliminar registros financieros.",
     groupKey: "finance",
+    order: 40,
+  },
+  "hr.read": {
+    displayNameEs: "Ver RH",
+    descriptionEs: "Permite consultar colaboradores y su expediente.",
+    groupKey: "hr",
+    order: 10,
+  },
+  "hr.create": {
+    displayNameEs: "Crear RH",
+    descriptionEs: "Permite registrar nuevos colaboradores.",
+    groupKey: "hr",
+    order: 20,
+  },
+  "hr.update": {
+    displayNameEs: "Editar RH",
+    descriptionEs: "Permite actualizar informacion de colaboradores.",
+    groupKey: "hr",
+    order: 30,
+  },
+  "hr.delete": {
+    displayNameEs: "Deshabilitar RH",
+    descriptionEs: "Permite deshabilitar colaboradores.",
+    groupKey: "hr",
     order: 40,
   },
 };

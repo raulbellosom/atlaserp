@@ -5,6 +5,7 @@ const MODULE_LABELS = {
   "atlas.company": "Empresa",
   "atlas.contacts": "Contactos",
   "atlas.finance": "Finanzas",
+  "atlas.hr": "Recursos Humanos",
 };
 
 function getModuleLabel(moduleKey) {
@@ -45,6 +46,20 @@ export function resolveFileOrigin(file) {
       detailPath,
       originPath: "/app/m/atlas.files/files",
       originHint: "Archivo cargado desde el explorador",
+    };
+  }
+
+  if (moduleKey === "atlas.hr") {
+    return {
+      label: "Modulo de RH",
+      moduleLabel: getModuleLabel(moduleKey),
+      detailPath,
+      originPath: sourceEntityId
+        ? `/app/m/atlas.hr/hr/employees/${sourceEntityId}`
+        : "/app/m/atlas.hr/hr/employees",
+      originHint: sourceEntityId
+        ? `Relacionado con colaborador ${sourceEntityId}`
+        : "Relacionado con colaboradores",
     };
   }
 

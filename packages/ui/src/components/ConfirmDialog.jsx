@@ -14,6 +14,7 @@ export function ConfirmDialog({
   title,
   description,
   detail,
+  children,
   onConfirm,
   confirmLabel = "Confirmar",
   cancelLabel = "Cancelar",
@@ -31,6 +32,7 @@ export function ConfirmDialog({
             </p>
           )}
         </DialogHeader>
+        {children && <div className="-mt-1">{children}</div>}
         <DialogFooter className="gap-2 sm:gap-3">
           <Button
             variant="outline"

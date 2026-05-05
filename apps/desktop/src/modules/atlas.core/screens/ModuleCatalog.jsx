@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { coreModules, featureModules } from "@atlas/maps";
@@ -155,7 +155,7 @@ function CardAction({ module, isAdmin, onAction, onOpen }) {
   const canInstall =
     module.status === "UNINSTALLED" &&
     isAdmin &&
-    !module.compatibilityStatus === "BLOCKED";
+    module.compatibilityStatus !== "BLOCKED";
   const canEnable =
     module.status === "DISABLED" && !isLocked(module) && isAdmin;
 
@@ -355,6 +355,11 @@ export default function ModuleCatalog() {
 
   const redirectMessage = location.state?.moduleWarning;
 
+  useEffect(() => {
+    if (!redirectMessage) return;
+    navigate(location.pathname, { replace: true, state: null });
+  }, [redirectMessage, navigate, location.pathname]);
+
   function openModule(module) {
     if (!isModuleAvailable(module)) return;
     navigate(getModuleLaunchPath(module));
@@ -377,6 +382,9 @@ export default function ModuleCatalog() {
       !locked;
     return (
       <div className="space-y-2">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
+          Acciones del módulo
+        </p>
         {canOpen && (
           <Button
             className="w-full"
@@ -434,7 +442,7 @@ export default function ModuleCatalog() {
             }}
           >
             <Trash2 className="h-4 w-4" />
-            Desinstalar
+            Desinstalar módulo
           </Button>
         )}
         {locked && !canOpen && (
@@ -992,3 +1000,4 @@ export default function ModuleCatalog() {
     </div>
   );
 }
+

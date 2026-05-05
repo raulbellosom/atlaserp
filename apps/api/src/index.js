@@ -28,6 +28,12 @@ import {
   financeTaxRateListQuerySchema,
   fileBulkDownloadSchema,
   fileRenameSchema,
+  hrCatalogCreateSchema,
+  hrCatalogEnabledSchema,
+  hrCatalogUpdateSchema,
+  hrEmployeeCreateSchema,
+  hrEmployeeEnabledSchema,
+  hrEmployeeUpdateSchema,
   moduleInstallSchema,
   setupInitializeSchema,
 } from "@atlas/validators";
@@ -53,6 +59,7 @@ import {
   FinanceServiceError,
 } from "./services/finance-service.js";
 import { createFinanceDocumentsService } from "./services/finance-documents-service.js";
+import { createHrService, HrServiceError } from "./services/hr-service.js";
 
 const prisma = new PrismaClient();
 const app = new Hono();
@@ -74,6 +81,7 @@ const filesService = createFilesService({ prisma, supabaseAdmin });
 const companyService = createCompanyService({ prisma, supabaseAdmin });
 const financeService = createFinanceService({ prisma });
 const financeDocumentsService = createFinanceDocumentsService({ prisma });
+const hrService = createHrService({ prisma });
 
 function toSlug(name) {
   return name
@@ -1158,6 +1166,30 @@ app.post("/files/upload", authMiddleware, async (c) => {
         metadata: body.metadata,
       },
     });
+
+    if (body.moduleKey === "atlas.hr" && body.entityType === "HrEmployee" && body.entityId) {
+      const actor = await prisma.userProfile.findUnique({
+        where: { authUserId },
+        select: { id: true },
+      });
+      if (actor?.id) {
+        await prisma.auditLog.create({
+          data: {
+            actorId: actor.id,
+            moduleKey: "atlas.hr",
+            entityType: "HrEmployee",
+            entityId: String(body.entityId),
+            action: "hr.employee.file.attach",
+            metadata: {
+              fileId: asset.id,
+              originalName: asset.originalName,
+              mimeType: asset.mimeType,
+            },
+          },
+        });
+      }
+    }
+
     return c.json({ data: asset }, 201);
   } catch (err) {
     if (err instanceof FilesServiceError) {
@@ -2048,6 +2080,439 @@ app.delete("/contacts/:id", authMiddleware, async (c) => {
     return c.json({ error: "No se pudo eliminar el contacto." }, 500);
   }
 });
+
+app.get(
+  "/hr/employees",
+  authMiddleware,
+  requirePermission("hr.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const search = c.req.query("q") ?? "";
+      const status = c.req.query("status");
+      const enabledRaw = c.req.query("enabled");
+      const enabled =
+        enabledRaw === undefined ? undefined : enabledRaw === "true";
+      const limit = c.req.query("limit");
+      const rows = await hrService.listEmployees({
+        authUserId,
+        search,
+        status,
+        enabled,
+        limit,
+      });
+      return c.json({ data: rows });
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudieron cargar colaboradores." }, 500);
+    }
+  },
+);
+
+app.get(
+  "/hr/employees/:id",
+  authMiddleware,
+  requirePermission("hr.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const row = await hrService.getEmployee({ authUserId, id });
+      return c.json({ data: row });
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo cargar el colaborador." }, 500);
+    }
+  },
+);
+
+app.post(
+  "/hr/employees",
+  authMiddleware,
+  requirePermission("hr.create"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const parsed = hrEmployeeCreateSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json(
+          { error: parsed.error.errors?.[0]?.message ?? "Datos invalidos." },
+          400,
+        );
+      }
+      const row = await hrService.createEmployee({
+        authUserId,
+        payload: parsed.data,
+      });
+      return c.json({ data: row }, 201);
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo crear el colaborador." }, 500);
+    }
+  },
+);
+
+app.put(
+  "/hr/employees/:id",
+  authMiddleware,
+  requirePermission("hr.update"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const parsed = hrEmployeeUpdateSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json(
+          { error: parsed.error.errors?.[0]?.message ?? "Datos invalidos." },
+          400,
+        );
+      }
+      const row = await hrService.updateEmployee({
+        authUserId,
+        id,
+        payload: parsed.data,
+      });
+      return c.json({ data: row });
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo actualizar el colaborador." }, 500);
+    }
+  },
+);
+
+app.patch(
+  "/hr/employees/:id/enabled",
+  authMiddleware,
+  requirePermission("hr.delete"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const parsed = hrEmployeeEnabledSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json({ error: "Estado invalido." }, 400);
+      }
+      const row = await hrService.setEmployeeEnabled({
+        authUserId,
+        id,
+        enabled: parsed.data.enabled,
+      });
+      return c.json({ data: row });
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo actualizar el estado." }, 500);
+    }
+  },
+);
+
+app.get(
+  "/hr/employees/:id/audit",
+  authMiddleware,
+  requirePermission("hr.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const limit = c.req.query("limit");
+      const rows = await hrService.getEmployeeAudit({ authUserId, id, limit });
+      return c.json({ data: rows });
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo cargar el historial." }, 500);
+    }
+  },
+);
+
+app.get(
+  "/hr/departments",
+  authMiddleware,
+  requirePermission("hr.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const q = c.req.query("q") ?? "";
+      const enabledRaw = c.req.query("enabled");
+      const enabled =
+        enabledRaw === undefined ? undefined : enabledRaw === "true";
+      const limit = c.req.query("limit");
+      const rows = await hrService.listDepartments({
+        authUserId,
+        search: q,
+        enabled,
+        limit,
+      });
+      return c.json({ data: rows });
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudieron cargar los departamentos." }, 500);
+    }
+  },
+);
+
+app.post(
+  "/hr/departments",
+  authMiddleware,
+  requirePermission("hr.create"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const parsed = hrCatalogCreateSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json(
+          { error: parsed.error.errors?.[0]?.message ?? "Datos inválidos." },
+          400,
+        );
+      }
+      const row = await hrService.createDepartment({
+        authUserId,
+        payload: parsed.data,
+      });
+      return c.json({ data: row }, 201);
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo crear el departamento." }, 500);
+    }
+  },
+);
+
+app.put(
+  "/hr/departments/:id",
+  authMiddleware,
+  requirePermission("hr.update"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const parsed = hrCatalogUpdateSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json(
+          { error: parsed.error.errors?.[0]?.message ?? "Datos inválidos." },
+          400,
+        );
+      }
+      const row = await hrService.updateDepartment({
+        authUserId,
+        id,
+        payload: parsed.data,
+      });
+      return c.json({ data: row });
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo actualizar el departamento." }, 500);
+    }
+  },
+);
+
+app.patch(
+  "/hr/departments/:id/enabled",
+  authMiddleware,
+  requirePermission("hr.delete"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const parsed = hrCatalogEnabledSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json({ error: "Estado inválido." }, 400);
+      }
+      const row = await hrService.setDepartmentEnabled({
+        authUserId,
+        id,
+        enabled: parsed.data.enabled,
+      });
+      return c.json({ data: row });
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json(
+        { error: "No se pudo actualizar el estado del departamento." },
+        500,
+      );
+    }
+  },
+);
+
+app.get(
+  "/hr/job-titles",
+  authMiddleware,
+  requirePermission("hr.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const q = c.req.query("q") ?? "";
+      const enabledRaw = c.req.query("enabled");
+      const enabled =
+        enabledRaw === undefined ? undefined : enabledRaw === "true";
+      const limit = c.req.query("limit");
+      const rows = await hrService.listJobTitles({
+        authUserId,
+        search: q,
+        enabled,
+        limit,
+      });
+      return c.json({ data: rows });
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudieron cargar los puestos." }, 500);
+    }
+  },
+);
+
+app.post(
+  "/hr/job-titles",
+  authMiddleware,
+  requirePermission("hr.create"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const parsed = hrCatalogCreateSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json(
+          { error: parsed.error.errors?.[0]?.message ?? "Datos inválidos." },
+          400,
+        );
+      }
+      const row = await hrService.createJobTitle({
+        authUserId,
+        payload: parsed.data,
+      });
+      return c.json({ data: row }, 201);
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo crear el puesto." }, 500);
+    }
+  },
+);
+
+app.put(
+  "/hr/job-titles/:id",
+  authMiddleware,
+  requirePermission("hr.update"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const parsed = hrCatalogUpdateSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json(
+          { error: parsed.error.errors?.[0]?.message ?? "Datos inválidos." },
+          400,
+        );
+      }
+      const row = await hrService.updateJobTitle({
+        authUserId,
+        id,
+        payload: parsed.data,
+      });
+      return c.json({ data: row });
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo actualizar el puesto." }, 500);
+    }
+  },
+);
+
+app.patch(
+  "/hr/job-titles/:id/enabled",
+  authMiddleware,
+  requirePermission("hr.delete"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const parsed = hrCatalogEnabledSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json({ error: "Estado inválido." }, 400);
+      }
+      const row = await hrService.setJobTitleEnabled({
+        authUserId,
+        id,
+        enabled: parsed.data.enabled,
+      });
+      return c.json({ data: row });
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo actualizar el estado del puesto." }, 500);
+    }
+  },
+);
+
+app.get(
+  "/hr/org-chart",
+  authMiddleware,
+  requirePermission("hr.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const rootEmployeeId = c.req.query("rootEmployeeId") ?? null;
+      const enabledRaw = c.req.query("enabled");
+      const enabled =
+        enabledRaw === undefined ? true : enabledRaw === "true";
+      const chart = await hrService.getOrgChart({
+        authUserId,
+        rootEmployeeId,
+        enabled,
+      });
+      return c.json({ data: chart });
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo cargar el organigrama." }, 500);
+    }
+  },
+);
+
+app.get(
+  "/hr/user-options",
+  authMiddleware,
+  requirePermission("hr.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const q = c.req.query("q") ?? "";
+      const limit = c.req.query("limit");
+      const rows = await hrService.listUserOptions({
+        authUserId,
+        search: q,
+        limit,
+      });
+      return c.json({ data: rows });
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudieron cargar las cuentas disponibles." }, 500);
+    }
+  },
+);
 
 app.get(
   "/finance/accounts",

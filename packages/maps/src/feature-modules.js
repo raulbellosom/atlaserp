@@ -119,4 +119,67 @@ export const financeMap = createModuleManifest({
   ],
 });
 
-export const featureModules = [contactsMap, financeMap];
+export const hrMap = createModuleManifest({
+  key: "atlas.hr",
+  name: "Recursos Humanos",
+  description: "Colaboradores, notas internas y expedientes.",
+  version: "0.1.0",
+  icon: "UsersRound",
+  color: "#2563eb",
+  category: "operaciones",
+  summary: "GestiÃ³n de personal y expediente",
+  dependencies: [{ key: "atlas.core" }, { key: "atlas.files", optional: true }],
+  navigation: [
+    { label: "Colaboradores", path: "/hr/employees", icon: "Users", layout: "main" },
+    { label: "Organigrama", path: "/hr/org-chart", icon: "Network", layout: "main" },
+  ],
+  permissions: [
+    { key: "hr.read", name: "Read HR" },
+    { key: "hr.create", name: "Create HR Records" },
+    { key: "hr.update", name: "Update HR Records" },
+    { key: "hr.delete", name: "Delete HR Records" },
+  ],
+  blueprints: [
+    {
+      key: "hr.employee.entity",
+      kind: "ENTITY",
+      version: "0.1.0",
+      schema: {
+        entity: "HrEmployee",
+        label: "Colaborador",
+        fields: [
+          { name: "employeeCode", label: "Codigo", type: "text" },
+          { name: "userProfileId", label: "Cuenta de usuario", type: "text" },
+          { name: "firstName", label: "Nombre", type: "text", required: true },
+          { name: "lastName", label: "Apellidos", type: "text", required: true },
+          { name: "workEmail", label: "Correo laboral", type: "email" },
+          { name: "personalEmail", label: "Correo personal", type: "email" },
+          { name: "phone", label: "TelÃ©fono", type: "phone" },
+          { name: "emergencyContactName", label: "Contacto de emergencia", type: "text" },
+          { name: "emergencyContactPhone", label: "Telefono de emergencia", type: "phone" },
+          { name: "jobTitle", label: "Puesto", type: "text" },
+          { name: "department", label: "Departamento", type: "text" },
+          { name: "managerName", label: "Supervisor", type: "text" },
+          {
+            name: "employmentType",
+            label: "Tipo de empleo",
+            type: "select",
+            options: ["full_time", "part_time", "contractor", "intern"],
+          },
+          { name: "workLocation", label: "Ubicacion de trabajo", type: "text" },
+          { name: "terminationDate", label: "Fecha de baja", type: "text" },
+          {
+            name: "status",
+            label: "Estado",
+            type: "select",
+            options: ["active", "inactive", "vacation", "terminated"],
+            required: true,
+          },
+          { name: "notesMarkdown", label: "Notas", type: "markdown" },
+        ],
+      },
+    },
+  ],
+});
+
+export const featureModules = [contactsMap, financeMap, hrMap];
