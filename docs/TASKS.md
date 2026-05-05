@@ -164,6 +164,56 @@ Plan: `docs/superpowers/plans/2026-05-04-phase8-finance.md`
 
 Verified: 2026-05-05 (`node --check apps/api/src/index.js`, `node --check apps/api/src/services/finance-service.js`, `node --check packages/sdk/src/index.js`, `pnpm.cmd --filter ./apps/desktop build:web`, `pnpm.cmd prisma migrate status`)
 
+### Phase 8.4-A - AR/AP Core Expansion
+
+Spec: `docs/superpowers/specs/2026-05-04-phase8-4-finance-expansion-design.md`  
+Plan: `docs/superpowers/plans/2026-05-04-phase8-4-finance-expansion.md`
+
+- [x] Unified finance document subledger (AR/AP)
+- [x] FIFO allocation engine with validation tests
+- [x] Document application flows (`preview` and `apply`) in API
+- [x] Automatic accounting traceability links per document event
+- [x] Aging service (`0-30`, `31-60`, `61-90`, `90+`)
+- [x] SDK contracts for documents, applications, aging, and journal links
+- [x] Finance sidebar routes for `CxC`, `CxP`, `Aging`, and `Aplicaciones`
+- [x] Desktop AR/AP screens with document creation and lifecycle actions
+- [x] Desktop application workflows (FIFO automatic + manual editable allocation)
+- [x] Desktop journal-links panel for accounting traceability
+
+Verified: 2026-05-05 (`node --test apps/api/src/services/__tests__/finance-application-engine.test.js`, `node --check apps/api/src/services/finance-documents-service.js`, `node --check apps/api/src/services/finance-posting-service.js`, `node --check apps/api/src/services/finance-aging-service.js`, `node --check apps/api/src/index.js`, `node --check packages/sdk/src/index.js`, `pnpm.cmd --filter ./apps/desktop build:web`)
+
+### Phase 8.4-B - Application reversal + cross-currency traceability
+
+Spec: `docs/superpowers/specs/2026-05-05-phase8-4-b-finance-application-reversal-design.md`  
+Plan: `docs/superpowers/plans/2026-05-05-phase8-4-b-finance-application-reversal.md`
+
+- [x] `FinanceDocumentApplication` extended with status + reversal metadata + FX fields
+- [x] `REVERSE` event support in finance document accounting links
+- [x] Cross-currency application resolution using historical FX rates (direct or inverse)
+- [x] Cross-currency preview/apply API responses include source/target amount trace
+- [x] Reversal endpoint `POST /finance/applications/:id/reverse` with transactional restoration and idempotency guard
+- [x] Validators + SDK contracts updated (`status` filter + reverse mutation)
+- [x] Applications desktop view updated with status filter, status badges, FX columns, and reverse action
+- [x] Applications CSV export expanded with status/FX/reversal metadata
+
+Verified: 2026-05-05 (`pnpm.cmd prisma migrate dev`, `pnpm.cmd db:generate`, `node --check apps/api/src/services/finance-documents-service.js`, `node --check apps/api/src/services/finance-posting-service.js`, `node --check apps/api/src/index.js`, `node --check packages/validators/src/index.js`, `node --check packages/sdk/src/index.js`, `pnpm.cmd --filter ./apps/desktop build:web`)
+
+### Phase 8.5 - Taxes and withholdings
+
+Spec: `docs/superpowers/specs/2026-05-05-phase8-5-finance-taxes-withholdings-design.md`  
+Plan: `docs/superpowers/plans/2026-05-05-phase8-5-finance-taxes-withholdings.md`
+
+- [x] Added tax domain models in Prisma schema (`FinanceTaxRate`, `FinanceDocumentTaxLine`, `FinanceTaxKind`)
+- [x] Added forward migration folder `20260505073000_phase8_5_finance_taxes_withholdings`
+- [x] Added validators and SDK contracts for finance tax catalog
+- [x] Added API tax catalog endpoints (`GET/POST/PATCH /finance/tax-rates`)
+- [x] Extended finance document creation to persist tax trace lines and summary metadata
+- [x] Added finance sidebar route and screen section for `Impuestos`
+- [x] Added document modal tax selection with subtotal and suggested total preview
+- [ ] Apply migration in live dev DB and run DB-backed smoke for tax persistence
+
+Verified: 2026-05-05 (static checks: `node --check apps/api/src/services/finance-service.js`, `node --check apps/api/src/services/finance-documents-service.js`, `node --check apps/api/src/index.js`, `node --check packages/validators/src/index.js`, `node --check packages/sdk/src/index.js`, `pnpm.cmd --filter ./apps/desktop build:web`; pending DB apply due temporary `P1001` tunnel reachability)
+
 ## Phase 9 - Future modules
 
 - [ ] Purchases

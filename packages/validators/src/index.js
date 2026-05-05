@@ -178,6 +178,141 @@ export const financeFxRateEnabledSchema = z.object({
   enabled: z.boolean(),
 });
 
+const financeDirectionSchema = z.enum(["AR", "AP"]);
+const financeDocTypeSchema = z.enum([
+  "INVOICE",
+  "CREDIT_NOTE",
+  "DEBIT_NOTE",
+  "ADVANCE",
+  "PAYMENT",
+]);
+const financeDocStatusSchema = z.enum(["OPEN", "PARTIAL", "PAID", "VOID"]);
+const financeTaxKindSchema = z.enum(["TRANSFER", "WITHHOLDING"]);
+const financeApplicationStatusSchema = z.enum(["APPLIED", "REVERSED"]);
+
+const dateLikeSchema = z.union([
+  z.string().datetime(),
+  z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+]);
+
+export const financeDocumentCreateSchema = z.object({
+  direction: financeDirectionSchema,
+  docType: financeDocTypeSchema,
+  contactId: z.string().cuid().optional().nullable(),
+  currency: currencySchema.default("MXN"),
+  issueDate: dateLikeSchema,
+  dueDate: dateLikeSchema.optional().nullable(),
+  reference: z.string().trim().max(120).optional().nullable(),
+  notesMarkdown: z.string().max(5000).optional().nullable(),
+  subtotalAmount: z.coerce.number().finite().positive().optional(),
+  totalAmount: z.coerce.number().finite().positive(),
+  taxLines: z
+    .array(
+      z.object({
+        taxRateId: z.string().cuid(),
+        baseAmount: z.coerce.number().finite().positive().optional(),
+      }),
+    )
+    .max(20)
+    .optional(),
+  metadata: z.record(z.any()).optional(),
+});
+
+export const financeDocumentUpdateSchema = z.object({
+  dueDate: dateLikeSchema.optional().nullable(),
+  reference: z.string().trim().max(120).optional().nullable(),
+  notesMarkdown: z.string().max(5000).optional().nullable(),
+  metadata: z.record(z.any()).optional(),
+  status: financeDocStatusSchema.optional(),
+});
+
+export const financeDocumentEnabledSchema = z.object({
+  enabled: z.boolean(),
+});
+
+export const financeApplicationLineSchema = z.object({
+  targetDocumentId: z.string().cuid(),
+  amount: z.coerce.number().finite().positive(),
+});
+
+export const financeApplicationPreviewSchema = z.object({
+  targetDocumentIds: z.array(z.string().cuid()).min(1).max(300).optional(),
+  lines: z.array(financeApplicationLineSchema).min(1).max(300).optional(),
+  allocationMode: z.enum(["fifo", "manual"]).default("fifo"),
+  applyDate: dateLikeSchema.optional(),
+});
+
+export const financeApplicationApplySchema = z.object({
+  lines: z.array(financeApplicationLineSchema).min(1).max(300),
+  note: z.string().max(500).optional().nullable(),
+  applyDate: dateLikeSchema.optional(),
+});
+
+export const financeApplicationListQuerySchema = z.object({
+  direction: financeDirectionSchema.optional(),
+  status: financeApplicationStatusSchema.optional(),
+  sourceDocumentId: z.string().cuid().optional(),
+  targetDocumentId: z.string().cuid().optional(),
+  contactId: z.string().cuid().optional(),
+  from: dateLikeSchema.optional(),
+  to: dateLikeSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(300).optional(),
+});
+
+export const financeApplicationReverseSchema = z.object({
+  reason: z.string().trim().max(500).optional().nullable(),
+});
+
+export const financeDocumentListQuerySchema = z.object({
+  direction: financeDirectionSchema.optional(),
+  docType: financeDocTypeSchema.optional(),
+  status: financeDocStatusSchema.optional(),
+  contactId: z.string().cuid().optional(),
+  q: z.string().trim().max(120).optional(),
+  limit: z.coerce.number().int().min(1).max(300).optional(),
+});
+
+export const financeAgingQuerySchema = z.object({
+  direction: financeDirectionSchema.optional(),
+  contactId: z.string().cuid().optional(),
+  asOf: dateLikeSchema.optional(),
+  currency: currencySchema.optional(),
+});
+
+export const financeTaxRateCreateSchema = z.object({
+  key: z
+    .string()
+    .trim()
+    .min(2, "La clave del impuesto es obligatoria.")
+    .max(40),
+  name: z
+    .string()
+    .trim()
+    .min(2, "El nombre del impuesto es obligatorio.")
+    .max(120),
+  kind: financeTaxKindSchema,
+  rate: z.coerce.number().finite().min(0, "La tasa no puede ser negativa."),
+  direction: financeDirectionSchema.optional().nullable(),
+  metadata: z.record(z.any()).optional(),
+});
+
+export const financeTaxRateEnabledSchema = z.object({
+  enabled: z.boolean(),
+});
+
+export const financeTaxRateListQuerySchema = z.object({
+  kind: financeTaxKindSchema.optional(),
+  direction: financeDirectionSchema.optional(),
+  enabled: z
+    .union([z.boolean(), z.enum(["true", "false"])])
+    .transform((value) =>
+      typeof value === "boolean" ? value : value === "true",
+    )
+    .optional(),
+  q: z.string().trim().max(120).optional(),
+  limit: z.coerce.number().int().min(1).max(300).optional(),
+});
+
 export const fileRenameSchema = z.object({
   originalName: z
     .string()

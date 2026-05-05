@@ -8,11 +8,22 @@ import {
   createUserSchema,
   financeAccountCreateSchema,
   financeAccountEnabledSchema,
+  financeAgingQuerySchema,
+  financeApplicationApplySchema,
+  financeApplicationListQuerySchema,
+  financeApplicationPreviewSchema,
+  financeApplicationReverseSchema,
+  financeDocumentCreateSchema,
+  financeDocumentEnabledSchema,
+  financeDocumentUpdateSchema,
   financeAccountUpdateSchema,
   financeEntryCreateSchema,
   financeEntryEnabledSchema,
   financeFxRateCreateSchema,
   financeFxRateEnabledSchema,
+  financeTaxRateCreateSchema,
+  financeTaxRateEnabledSchema,
+  financeTaxRateListQuerySchema,
   fileBulkDownloadSchema,
   fileRenameSchema,
   moduleInstallSchema,
@@ -39,6 +50,7 @@ import {
   createFinanceService,
   FinanceServiceError,
 } from "./services/finance-service.js";
+import { createFinanceDocumentsService } from "./services/finance-documents-service.js";
 
 const prisma = new PrismaClient();
 const app = new Hono();
@@ -59,6 +71,7 @@ const STORAGE_BUCKET_NAME = "atlas-files";
 const filesService = createFilesService({ prisma, supabaseAdmin });
 const companyService = createCompanyService({ prisma, supabaseAdmin });
 const financeService = createFinanceService({ prisma });
+const financeDocumentsService = createFinanceDocumentsService({ prisma });
 
 function toSlug(name) {
   return name
@@ -2364,6 +2377,104 @@ app.patch(
 );
 
 app.get(
+  "/finance/tax-rates",
+  authMiddleware,
+  requirePermission("finance.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const query = {
+        kind: c.req.query("kind"),
+        direction: c.req.query("direction"),
+        enabled: c.req.query("enabled"),
+        q: c.req.query("q"),
+        limit: c.req.query("limit"),
+      };
+      const parsed = financeTaxRateListQuerySchema.safeParse(query);
+      if (!parsed.success) {
+        return c.json(
+          {
+            error:
+              parsed.error.errors?.[0]?.message ??
+              "Filtros de impuestos invalidos.",
+          },
+          400,
+        );
+      }
+      const rows = await financeService.listTaxRates({
+        authUserId,
+        ...parsed.data,
+      });
+      return c.json({ data: rows });
+    } catch (err) {
+      if (err instanceof FinanceServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudieron cargar los impuestos." }, 500);
+    }
+  },
+);
+
+app.post(
+  "/finance/tax-rates",
+  authMiddleware,
+  requirePermission("finance.create"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const parsed = financeTaxRateCreateSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json(
+          {
+            error:
+              parsed.error.errors?.[0]?.message ??
+              "Datos de impuesto invalidos.",
+          },
+          400,
+        );
+      }
+      const row = await financeService.createTaxRate({
+        authUserId,
+        payload: parsed.data,
+      });
+      return c.json({ data: row }, 201);
+    } catch (err) {
+      if (err instanceof FinanceServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo guardar el impuesto." }, 500);
+    }
+  },
+);
+
+app.patch(
+  "/finance/tax-rates/:id/enabled",
+  authMiddleware,
+  requirePermission("finance.update"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const parsed = financeTaxRateEnabledSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json({ error: "Estado de impuesto invalido." }, 400);
+      }
+      const row = await financeService.setTaxRateEnabled({
+        authUserId,
+        id,
+        enabled: parsed.data.enabled,
+      });
+      return c.json({ data: row });
+    } catch (err) {
+      if (err instanceof FinanceServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo actualizar el impuesto." }, 500);
+    }
+  },
+);
+
+app.get(
   "/finance/dashboard",
   authMiddleware,
   requirePermission("finance.read"),
@@ -2379,6 +2490,359 @@ app.get(
         return c.json({ error: err.message }, err.status);
       }
       return c.json({ error: "No se pudo cargar el dashboard financiero." }, 500);
+    }
+  },
+);
+
+app.get(
+  "/finance/documents",
+  authMiddleware,
+  requirePermission("finance.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const query = {
+        direction: c.req.query("direction"),
+        docType: c.req.query("docType"),
+        status: c.req.query("status"),
+        contactId: c.req.query("contactId"),
+        q: c.req.query("q"),
+        limit: c.req.query("limit"),
+      };
+      const data = await financeDocumentsService.listDocuments({
+        authUserId,
+        query,
+      });
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof FinanceServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudieron cargar los documentos." }, 500);
+    }
+  },
+);
+
+app.post(
+  "/finance/documents",
+  authMiddleware,
+  requirePermission("finance.create"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const parsed = financeDocumentCreateSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json(
+          {
+            error:
+              parsed.error.errors?.[0]?.message ??
+              "Datos de documento invalidos.",
+          },
+          400,
+        );
+      }
+      const data = await financeDocumentsService.createDocument({
+        authUserId,
+        payload: parsed.data,
+      });
+      return c.json({ data }, 201);
+    } catch (err) {
+      if (err instanceof FinanceServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo crear el documento." }, 500);
+    }
+  },
+);
+
+app.get(
+  "/finance/documents/:id",
+  authMiddleware,
+  requirePermission("finance.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const data = await financeDocumentsService.getDocumentById({
+        authUserId,
+        id,
+      });
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof FinanceServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo cargar el documento." }, 500);
+    }
+  },
+);
+
+app.put(
+  "/finance/documents/:id",
+  authMiddleware,
+  requirePermission("finance.update"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const parsed = financeDocumentUpdateSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json(
+          {
+            error:
+              parsed.error.errors?.[0]?.message ??
+              "Datos de documento invalidos.",
+          },
+          400,
+        );
+      }
+      const data = await financeDocumentsService.updateDocument({
+        authUserId,
+        id,
+        payload: parsed.data,
+      });
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof FinanceServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo actualizar el documento." }, 500);
+    }
+  },
+);
+
+app.patch(
+  "/finance/documents/:id/enabled",
+  authMiddleware,
+  requirePermission("finance.update"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const parsed = financeDocumentEnabledSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json({ error: "Estado de documento invalido." }, 400);
+      }
+      const data = await financeDocumentsService.setDocumentEnabled({
+        authUserId,
+        id,
+        payload: parsed.data,
+      });
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof FinanceServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json(
+        { error: "No se pudo actualizar el estado del documento." },
+        500,
+      );
+    }
+  },
+);
+
+app.post(
+  "/finance/documents/:id/apply-preview",
+  authMiddleware,
+  requirePermission("finance.update"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const parsed = financeApplicationPreviewSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json(
+          {
+            error:
+              parsed.error.errors?.[0]?.message ??
+              "Datos de aplicacion invalidos.",
+          },
+          400,
+        );
+      }
+      const data = await financeDocumentsService.previewApplication({
+        authUserId,
+        id,
+        payload: parsed.data,
+      });
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof FinanceServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo generar la propuesta de aplicacion." }, 500);
+    }
+  },
+);
+
+app.post(
+  "/finance/documents/:id/apply",
+  authMiddleware,
+  requirePermission("finance.update"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const parsed = financeApplicationApplySchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json(
+          {
+            error:
+              parsed.error.errors?.[0]?.message ??
+              "Datos de aplicacion invalidos.",
+          },
+          400,
+        );
+      }
+      const data = await financeDocumentsService.applyDocument({
+        authUserId,
+        id,
+        payload: parsed.data,
+      });
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof FinanceServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo aplicar el documento." }, 500);
+    }
+  },
+);
+
+app.get(
+  "/finance/applications",
+  authMiddleware,
+  requirePermission("finance.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const query = {
+        direction: c.req.query("direction"),
+        status: c.req.query("status"),
+        sourceDocumentId: c.req.query("sourceDocumentId"),
+        targetDocumentId: c.req.query("targetDocumentId"),
+        contactId: c.req.query("contactId"),
+        from: c.req.query("from"),
+        to: c.req.query("to"),
+        limit: c.req.query("limit"),
+      };
+      const parsed = financeApplicationListQuerySchema.safeParse(query);
+      if (!parsed.success) {
+        return c.json(
+          {
+            error:
+              parsed.error.errors?.[0]?.message ??
+              "Filtros de aplicaciones invalidos.",
+          },
+          400,
+        );
+      }
+      const data = await financeDocumentsService.listApplications({
+        authUserId,
+        query: parsed.data,
+      });
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof FinanceServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json(
+        { error: "No se pudo cargar el historial de aplicaciones." },
+        500,
+      );
+    }
+  },
+);
+
+app.post(
+  "/finance/applications/:id/reverse",
+  authMiddleware,
+  requirePermission("finance.update"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const parsed = financeApplicationReverseSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        return c.json(
+          {
+            error:
+              parsed.error.errors?.[0]?.message ??
+              "Datos de anulacion invalidos.",
+          },
+          400,
+        );
+      }
+      const data = await financeDocumentsService.reverseApplication({
+        authUserId,
+        id,
+        payload: parsed.data,
+      });
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof FinanceServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo anular la aplicacion." }, 500);
+    }
+  },
+);
+
+app.get(
+  "/finance/aging",
+  authMiddleware,
+  requirePermission("finance.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const query = {
+        direction: c.req.query("direction"),
+        contactId: c.req.query("contactId"),
+        asOf: c.req.query("asOf"),
+        currency: c.req.query("currency"),
+      };
+      const parsed = financeAgingQuerySchema.safeParse(query);
+      if (!parsed.success) {
+        return c.json(
+          {
+            error:
+              parsed.error.errors?.[0]?.message ?? "Filtros de aging invalidos.",
+          },
+          400,
+        );
+      }
+      const data = await financeDocumentsService.getAging({
+        authUserId,
+        query: parsed.data,
+      });
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof FinanceServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo calcular el aging." }, 500);
+    }
+  },
+);
+
+app.get(
+  "/finance/documents/:id/journal-links",
+  authMiddleware,
+  requirePermission("finance.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const data = await financeDocumentsService.getJournalLinks({
+        authUserId,
+        id,
+      });
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof FinanceServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo cargar la trazabilidad contable." }, 500);
     }
   },
 );

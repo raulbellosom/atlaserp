@@ -35,7 +35,7 @@ pnpm db:fresh         # migrate + generate + seed (non-destructive)
 pnpm build            # build all packages/apps
 ```
 
-There is no `pnpm infra:up` or local database stack. All development connects to https://supabase.racoondevs.com.
+There is no `pnpm infra:up` or local database stack. All development connects to the self-hosted Supabase instance. Postgres is available directly on port `5433` of the Supabase VPS (port `5432` is the Supavisor pooler — not suitable for Prisma). Your IP must be allowlisted in the Supabase VPS firewall.
 
 ### Desktop native build (Windows only)
 

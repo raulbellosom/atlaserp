@@ -66,7 +66,22 @@ const SCREEN_MAP = {
   "atlas.finance:/finance/accounts": lazy(
     () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
   ),
+  "atlas.finance:/finance/ar": lazy(
+    () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
+  ),
+  "atlas.finance:/finance/ap": lazy(
+    () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
+  ),
+  "atlas.finance:/finance/aging": lazy(
+    () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
+  ),
+  "atlas.finance:/finance/applications": lazy(
+    () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
+  ),
   "atlas.finance:/finance/entries": lazy(
+    () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
+  ),
+  "atlas.finance:/finance/taxes": lazy(
     () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
   ),
   "atlas.finance:/finance/fx-rates": lazy(

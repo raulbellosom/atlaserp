@@ -19,11 +19,7 @@ There is no local Docker stack (no Redis, no MinIO). All persistence goes throug
 
 - **Supabase API**: https://supabase.racoondevs.com - self-hosted instance, NOT Supabase Cloud
 - **Supabase Studio**: https://studio.supabase.racoondevs.com (admin use only)
-- **PostgreSQL is not publicly exposed.** All Prisma commands require an SSH tunnel:
-  ```bash
-  ssh -L 54322:172.22.0.3:5432 root@76.13.114.109
-  ```
-  Keep the tunnel open for any `db:*` command. `DATABASE_URL` and `DIRECT_URL` connect via `127.0.0.1:54322`.
+- **PostgreSQL** is exposed on port `5433` of the Supabase VPS (direct Postgres, not the pooler on `5432`). No SSH tunnel required. Your machine's IP must be allowlisted in the Supabase VPS firewall. `DATABASE_URL` and `DIRECT_URL` connect directly via `<SUPABASE_VPS_IP>:5433`.
 - **Supabase Storage**: used for file assets. Canonical bucket: `atlas-files` (all modules, including branding/logo, organized by objectKey folders + FileAsset metadata).
 - **Supabase Auth**: used for user account creation and authentication.
 
@@ -59,24 +55,24 @@ Frontend code must not access the database or Supabase directly. The API owns al
 
 ## Repository Shape
 
-| Folder                | Purpose                                                   |
-| --------------------- | --------------------------------------------------------- |
-| `apps/desktop`        | React + Vite + Tauri desktop shell                        |
-| `apps/api`            | Hono API - routes, Prisma, Supabase Admin client          |
-| `apps/worker`         | Background worker stub                                    |
-| `packages/core`       | Module registry, event bus, manifest contract             |
-| `packages/maps`       | Core and feature module manifests                         |
+| Folder                | Purpose                                                     |
+| --------------------- | ----------------------------------------------------------- |
+| `apps/desktop`        | React + Vite + Tauri desktop shell                          |
+| `apps/api`            | Hono API - routes, Prisma, Supabase Admin client            |
+| `apps/worker`         | Background worker stub                                      |
+| `packages/core`       | Module registry, event bus, manifest contract               |
+| `packages/maps`       | Core and feature module manifests                           |
 | `packages/ui`         | Shared React components (`AppShell`, `Button`, `Card`, ...) |
-| `packages/sdk`        | `createAtlasClient` factory - all frontend API calls      |
-| `packages/validators` | Zod schemas shared between API and frontend               |
-| `prisma`              | `schema.prisma`, migrations, `seed.js`                    |
-| `docs`                | Architecture and task docs                                |
+| `packages/sdk`        | `createAtlasClient` factory - all frontend API calls        |
+| `packages/validators` | Zod schemas shared between API and frontend                 |
+| `prisma`              | `schema.prisma`, migrations, `seed.js`                      |
+| `docs`                | Architecture and task docs                                  |
 
 Before meaningful feature work, read: [CLAUDE.md](CLAUDE.md), [docs/TASKS.md](docs/TASKS.md), [docs/08_blueprints.md](docs/08_blueprints.md).
 
 ## Commands
 
-> **SSH tunnel must be open** before any `db:*` command.
+> **Port 5433 must be reachable** (`nc -zv <SUPABASE_VPS_IP> 5433`) before any `db:*` command.
 
 Use `pnpm.cmd` from PowerShell if `pnpm` is blocked by Windows execution policy.
 
@@ -148,17 +144,17 @@ Each new module needs: manifest in `packages/maps`, Prisma model(s), API routes/
 
 ## Current Phase Status (2026-05-04)
 
-| Phase                              | Status      | Notes                                                    |
-| ---------------------------------- | ----------- | -------------------------------------------------------- |
-| 0 - Repo cleanup + env alignment   | Complete    | Supabase-first env, numbered docs suite                  |
-| 1 - Supabase + Prisma connection   | Complete    | 3 migrations applied, 4 core modules seeded              |
-| 2 - ERP initialization state       | Complete    | InitGuard + instance status routing complete             |
-| 3 - Onboarding setup wizard        | Complete    | Transactional setup + branding flow complete             |
-| 4 - Auth integration               | Complete    | Login, session persistence, protected API context        |
-| 5 - Shell and module lifecycle UI  | Complete    | Runtime registry + catalog + lifecycle guards            |
-| 6 - Contacts module                | Complete    | Full CRUD UI/API + contact picker                        |
-| 7 - Files module                   | Complete    | Files v1 + v1.1 UX + storage unification                 |
-| 8 - Finance module                 | Not started | Spec/plan prepared, implementation pending               |
+| Phase                             | Status      | Notes                                             |
+| --------------------------------- | ----------- | ------------------------------------------------- |
+| 0 - Repo cleanup + env alignment  | Complete    | Supabase-first env, numbered docs suite           |
+| 1 - Supabase + Prisma connection  | Complete    | 3 migrations applied, 4 core modules seeded       |
+| 2 - ERP initialization state      | Complete    | InitGuard + instance status routing complete      |
+| 3 - Onboarding setup wizard       | Complete    | Transactional setup + branding flow complete      |
+| 4 - Auth integration              | Complete    | Login, session persistence, protected API context |
+| 5 - Shell and module lifecycle UI | Complete    | Runtime registry + catalog + lifecycle guards     |
+| 6 - Contacts module               | Complete    | Full CRUD UI/API + contact picker                 |
+| 7 - Files module                  | Complete    | Files v1 + v1.1 UX + storage unification          |
+| 8 - Finance module                | Not started | Spec/plan prepared, implementation pending        |
 
 See [docs/TASKS.md](docs/TASKS.md) for the full task checklist.
 

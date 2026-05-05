@@ -56,13 +56,12 @@ export function Topbar({ onLauncherOpen, onMobileMenuToggle, networkBusy = false
         <Breadcrumbs />
       </div>
 
-      {/* Center section: command palette trigger */}
-      {/* Desktop: full search bar. Mobile: icon-only button */}
-      <div className="flex-1 flex justify-center">
+      {/* Center section: command palette trigger — absolutely centered so it never shifts */}
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center pointer-events-none">
         {/* Full bar — hidden on mobile */}
         <button
           onClick={openCommand}
-          className="hidden sm:flex h-9 w-64 max-w-xs items-center gap-2 px-3 rounded-xl bg-[hsl(var(--muted))] hover:bg-[hsl(var(--border))] border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] transition-colors duration-150 cursor-pointer"
+          className="pointer-events-auto hidden sm:flex h-9 w-64 max-w-xs items-center gap-2 px-3 rounded-xl bg-[hsl(var(--muted))] hover:bg-[hsl(var(--border))] border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] transition-colors duration-150 cursor-pointer"
         >
           <Search size={13} className="shrink-0" />
           <span className="flex-1 text-xs text-left">Buscar o ejecutar...</span>
@@ -74,14 +73,14 @@ export function Topbar({ onLauncherOpen, onMobileMenuToggle, networkBusy = false
         <button
           onClick={openCommand}
           aria-label="Buscar"
-          className="sm:hidden h-9 w-9 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer"
+          className="pointer-events-auto sm:hidden h-9 w-9 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer"
         >
           <Search size={16} />
         </button>
       </div>
 
-      {/* Right section */}
-      <div className="flex items-center gap-1 shrink-0">
+      {/* Right section — pushed to the right */}
+      <div className="ml-auto flex items-center gap-1 shrink-0">
         {networkBusy && (
           <div className="hidden md:flex items-center gap-2 rounded-full border border-[hsl(var(--border))] px-2.5 py-1 text-xs text-[hsl(var(--muted-foreground))]">
             <span className="h-1.5 w-1.5 rounded-full bg-(--brand-primary) animate-pulse" />

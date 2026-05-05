@@ -188,6 +188,16 @@ export function createFinanceService({ prisma }) {
     }
   }
 
+  async function assertTaxRateOwnership({ id, companyId }) {
+    const row = await prisma.financeTaxRate.findFirst({
+      where: { id, companyId },
+      select: { id: true },
+    });
+    if (!row) {
+      throw new FinanceServiceError("Impuesto no encontrado.", 404);
+    }
+  }
+
   async function getBaseCurrency() {
     const record = await prisma.instanceConfig.findUnique({
       where: { key: "currency" },
@@ -862,6 +872,37 @@ export function createFinanceService({ prisma }) {
       });
     },
 
+    async listTaxRates({
+      authUserId,
+      kind,
+      direction,
+      enabled,
+      q,
+      limit,
+    }) {
+      const { companyId } = await getCompanyContext(authUserId);
+      const take = normalizeLimit(limit, 100, 300);
+      const where = {
+        companyId,
+        kind: kind || undefined,
+        direction: direction || undefined,
+        enabled: enabled === undefined ? undefined : Boolean(enabled),
+        ...(q
+          ? {
+              OR: [
+                { key: { contains: String(q).trim(), mode: "insensitive" } },
+                { name: { contains: String(q).trim(), mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      };
+      return prisma.financeTaxRate.findMany({
+        where,
+        orderBy: [{ kind: "asc" }, { key: "asc" }, { name: "asc" }],
+        take,
+      });
+    },
+
     async createFxRate({ authUserId, payload }) {
       const { companyId } = await getCompanyContext(authUserId);
       const baseCurrency = normalizeCurrency(payload.baseCurrency);
@@ -903,10 +944,74 @@ export function createFinanceService({ prisma }) {
       });
     },
 
+    async createTaxRate({ authUserId, payload }) {
+      const { companyId } = await getCompanyContext(authUserId);
+      const key = String(payload.key ?? "")
+        .trim()
+        .toUpperCase();
+      const name = String(payload.name ?? "").trim();
+      const kind = String(payload.kind ?? "").trim().toUpperCase();
+      const direction = payload.direction
+        ? String(payload.direction).trim().toUpperCase()
+        : null;
+      const rate = Number(payload.rate);
+      if (!key) {
+        throw new FinanceServiceError("La clave del impuesto es obligatoria.", 400);
+      }
+      if (!name) {
+        throw new FinanceServiceError("El nombre del impuesto es obligatorio.", 400);
+      }
+      if (!["TRANSFER", "WITHHOLDING"].includes(kind)) {
+        throw new FinanceServiceError("Tipo de impuesto invalido.", 400);
+      }
+      if (direction && !["AR", "AP"].includes(direction)) {
+        throw new FinanceServiceError("Direccion invalida para el impuesto.", 400);
+      }
+      if (!Number.isFinite(rate) || rate < 0) {
+        throw new FinanceServiceError("La tasa del impuesto es invalida.", 400);
+      }
+
+      return prisma.financeTaxRate.upsert({
+        where: {
+          companyId_key: {
+            companyId,
+            key,
+          },
+        },
+        create: {
+          companyId,
+          key,
+          name,
+          kind,
+          rate: rate.toFixed(6),
+          direction,
+          metadata: payload.metadata ?? null,
+          enabled: true,
+        },
+        update: {
+          name,
+          kind,
+          rate: rate.toFixed(6),
+          direction,
+          metadata: payload.metadata ?? null,
+          enabled: true,
+        },
+      });
+    },
+
     async setFxRateEnabled({ authUserId, id, enabled }) {
       const { companyId } = await getCompanyContext(authUserId);
       await assertFxRateOwnership({ id, companyId });
       return prisma.financeFxRate.update({
+        where: { id },
+        data: { enabled: Boolean(enabled) },
+      });
+    },
+
+    async setTaxRateEnabled({ authUserId, id, enabled }) {
+      const { companyId } = await getCompanyContext(authUserId);
+      await assertTaxRateOwnership({ id, companyId });
+      return prisma.financeTaxRate.update({
         where: { id },
         data: { enabled: Boolean(enabled) },
       });

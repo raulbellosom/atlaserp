@@ -58,11 +58,22 @@ enum FinanceDocumentStatus {
   VOID
 }
 
+enum FinanceTaxKind {
+  TRANSFER
+  WITHHOLDING
+}
+
 enum FinanceDocumentEventType {
   ISSUE
   APPLY
+  REVERSE
   VOID
   ADJUST
+}
+
+enum FinanceApplicationStatus {
+  APPLIED
+  REVERSED
 }
 
 model AtlasModule {
@@ -146,6 +157,8 @@ model Company {
   financeDocuments FinanceDocument[]
   financeDocumentApplications FinanceDocumentApplication[]
   financeDocumentAccountingLinks FinanceDocumentAccountingLink[]
+  financeTaxRates FinanceTaxRate[]
+  financeDocumentTaxLines FinanceDocumentTaxLine[]
 }
 
 model UserProfile {
@@ -174,6 +187,7 @@ model UserProfile {
   memberships  Membership[]
   auditLogs    AuditLog[]
   notifications Notification[]
+  reversedFinanceApplications FinanceDocumentApplication[] @relation("FinanceDocumentApplicationReversedBy")
 }
 
 model Membership {
@@ -407,11 +421,58 @@ model FinanceDocument {
   sourceApplications FinanceDocumentApplication[] @relation("FinanceDocumentApplicationSource")
   targetApplications FinanceDocumentApplication[] @relation("FinanceDocumentApplicationTarget")
   accountingLinks FinanceDocumentAccountingLink[]
+  taxLines       FinanceDocumentTaxLine[]
 
   @@index([companyId, direction, status])
   @@index([companyId, issueDate])
   @@index([companyId, dueDate])
   @@index([contactId])
+}
+
+model FinanceTaxRate {
+  id         String    @id @default(cuid())
+  companyId  String
+  key        String
+  name       String
+  kind       FinanceTaxKind
+  rate       Decimal
+  direction  FinanceDocumentDirection?
+  metadata   Json?
+  enabled    Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  documentTaxLines FinanceDocumentTaxLine[]
+
+  @@unique([companyId, key])
+  @@index([companyId, kind])
+  @@index([companyId, direction])
+}
+
+model FinanceDocumentTaxLine {
+  id          String         @id @default(cuid())
+  companyId   String
+  documentId  String
+  taxRateId   String?
+  taxKey      String
+  taxName     String
+  kind        FinanceTaxKind
+  rate        Decimal
+  baseAmount  Decimal
+  taxAmount   Decimal
+  currency    String         @default("MXN")
+  metadata    Json?
+  enabled     Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  document    FinanceDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  taxRate     FinanceTaxRate? @relation(fields: [taxRateId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, documentId])
+  @@index([companyId, kind])
 }
 
 model FinanceDocumentApplication {
@@ -420,7 +481,14 @@ model FinanceDocumentApplication {
   sourceDocumentId String
   targetDocumentId String
   appliedAmount    Decimal
+  status           FinanceApplicationStatus @default(APPLIED)
+  effectiveFxRate  Decimal?
+  sourceAmount     Decimal?
+  targetAmount     Decimal?
   appliedAt        DateTime        @default(now())
+  reversedAt       DateTime?
+  reversedById     String?
+  reversalReason   String?
   metadata         Json?
   enabled          Boolean         @default(true)
   createdAt        DateTime        @default(now())
@@ -429,10 +497,12 @@ model FinanceDocumentApplication {
   company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   sourceDocument   FinanceDocument @relation("FinanceDocumentApplicationSource", fields: [sourceDocumentId], references: [id], onDelete: Cascade)
   targetDocument   FinanceDocument @relation("FinanceDocumentApplicationTarget", fields: [targetDocumentId], references: [id], onDelete: Cascade)
+  reversedBy       UserProfile?    @relation("FinanceDocumentApplicationReversedBy", fields: [reversedById], references: [id], onDelete: SetNull)
 
   @@index([companyId, appliedAt])
   @@index([companyId, sourceDocumentId])
   @@index([companyId, targetDocumentId])
+  @@index([companyId, status])
 }
 
 model FinanceDocumentAccountingLink {

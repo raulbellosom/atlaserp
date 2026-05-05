@@ -234,6 +234,31 @@ export function createAtlasClient({ baseUrl }) {
         const path = query ? `/finance/fx-rates?${query}` : "/finance/fx-rates";
         return request(path, { headers: withAuthHeaders(token) });
       },
+      listTaxRates: (token, options = {}) => {
+        const params = new URLSearchParams();
+        if (options.kind) params.set("kind", options.kind);
+        if (options.direction) params.set("direction", options.direction);
+        if (options.enabled !== undefined) {
+          params.set("enabled", String(options.enabled));
+        }
+        if (options.q) params.set("q", options.q);
+        if (options.limit) params.set("limit", String(options.limit));
+        const query = params.toString();
+        const path = query ? `/finance/tax-rates?${query}` : "/finance/tax-rates";
+        return request(path, { headers: withAuthHeaders(token) });
+      },
+      createTaxRate: (data, token) =>
+        request("/finance/tax-rates", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      setTaxRateEnabled: (id, enabled, token) =>
+        request(`/finance/tax-rates/${encodeURIComponent(id)}/enabled`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ enabled }),
+        }),
       createFxRate: (data, token) =>
         request("/finance/fx-rates", {
           method: "POST",
@@ -254,6 +279,92 @@ export function createAtlasClient({ baseUrl }) {
         const path = query ? `/finance/dashboard?${query}` : "/finance/dashboard";
         return request(path, { headers: withAuthHeaders(token) });
       },
+      listDocuments: (token, options = {}) => {
+        const params = new URLSearchParams();
+        if (options.direction) params.set("direction", options.direction);
+        if (options.docType) params.set("docType", options.docType);
+        if (options.status) params.set("status", options.status);
+        if (options.contactId) params.set("contactId", options.contactId);
+        if (options.q) params.set("q", options.q);
+        if (options.limit) params.set("limit", String(options.limit));
+        const query = params.toString();
+        const path = query ? `/finance/documents?${query}` : "/finance/documents";
+        return request(path, { headers: withAuthHeaders(token) });
+      },
+      createDocument: (data, token) =>
+        request("/finance/documents", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      getDocument: (id, token) =>
+        request(`/finance/documents/${encodeURIComponent(id)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      updateDocument: (id, data, token) =>
+        request(`/finance/documents/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      setDocumentEnabled: (id, enabled, token) =>
+        request(`/finance/documents/${encodeURIComponent(id)}/enabled`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ enabled }),
+        }),
+      previewApplication: (id, payload, token) =>
+        request(`/finance/documents/${encodeURIComponent(id)}/apply-preview`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(payload),
+        }),
+      applyDocument: (id, payload, token) =>
+        request(`/finance/documents/${encodeURIComponent(id)}/apply`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(payload),
+        }),
+      getAging: (token, options = {}) => {
+        const params = new URLSearchParams();
+        if (options.direction) params.set("direction", options.direction);
+        if (options.contactId) params.set("contactId", options.contactId);
+        if (options.asOf) params.set("asOf", options.asOf);
+        if (options.currency) params.set("currency", options.currency);
+        const query = params.toString();
+        const path = query ? `/finance/aging?${query}` : "/finance/aging";
+        return request(path, { headers: withAuthHeaders(token) });
+      },
+      listApplications: (token, options = {}) => {
+        const params = new URLSearchParams();
+        if (options.direction) params.set("direction", options.direction);
+        if (options.status) params.set("status", options.status);
+        if (options.sourceDocumentId) {
+          params.set("sourceDocumentId", options.sourceDocumentId);
+        }
+        if (options.targetDocumentId) {
+          params.set("targetDocumentId", options.targetDocumentId);
+        }
+        if (options.contactId) params.set("contactId", options.contactId);
+        if (options.from) params.set("from", options.from);
+        if (options.to) params.set("to", options.to);
+        if (options.limit) params.set("limit", String(options.limit));
+        const query = params.toString();
+        const path = query
+          ? `/finance/applications?${query}`
+          : "/finance/applications";
+        return request(path, { headers: withAuthHeaders(token) });
+      },
+      reverseApplication: (id, payload, token) =>
+        request(`/finance/applications/${encodeURIComponent(id)}/reverse`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(payload ?? {}),
+        }),
+      getDocumentJournalLinks: (id, token) =>
+        request(`/finance/documents/${encodeURIComponent(id)}/journal-links`, {
+          headers: withAuthHeaders(token),
+        }),
     },
     contacts: {
       list: (token, options = {}) => {

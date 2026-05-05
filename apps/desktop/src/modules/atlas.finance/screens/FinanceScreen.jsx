@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -9,6 +9,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Checkbox,
   EmptyState,
   Input,
   PageHeader,
@@ -75,6 +76,20 @@ const SOURCE_TYPE_OPTIONS = [
   { value: "transfer", label: "Transferencia" },
 ];
 
+const APPLY_SOURCE_DOC_TYPES = new Set(["PAYMENT", "ADVANCE", "CREDIT_NOTE"]);
+const DOCUMENT_TYPE_LABELS = {
+  INVOICE: "Factura",
+  CREDIT_NOTE: "Nota de credito",
+  DEBIT_NOTE: "Nota de debito",
+  ADVANCE: "Anticipo",
+  PAYMENT: "Pago",
+};
+
+const APPLICATION_STATUS_LABELS = {
+  APPLIED: "Aplicada",
+  REVERSED: "Revertida",
+};
+
 function formatMoney(value, currency = "MXN") {
   const amount = Number(value ?? 0);
   if (!Number.isFinite(amount)) return "$0.00";
@@ -92,6 +107,23 @@ function formatDate(value) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function formatDateInputValue(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function toCsvCell(value) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function formatDocumentTypeLabel(value) {
+  const key = String(value ?? "").trim().toUpperCase();
+  return DOCUMENT_TYPE_LABELS[key] || key || "-";
 }
 
 function parseApiError(error, fallback) {
@@ -121,6 +153,22 @@ function computeLineTotals(lines) {
     },
     { debit: 0, credit: 0 },
   );
+}
+
+function computeApplyTotals(lines, sourceOpenAmount) {
+  const applied = lines.reduce(
+    (sum, line) =>
+      sum +
+      toNumber(
+        line.sourceAmount !== undefined ? line.sourceAmount : line.amount,
+      ),
+    0,
+  );
+  const sourceOpen = toNumber(sourceOpenAmount);
+  return {
+    applied,
+    unapplied: Math.max(0, Number((sourceOpen - applied).toFixed(2))),
+  };
 }
 
 function defaultAccountForm() {
@@ -171,6 +219,33 @@ function defaultFxForm() {
   };
 }
 
+function defaultDocumentForm(direction = "AR") {
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    direction,
+    docType: "INVOICE",
+    contactId: "",
+    currency: "MXN",
+    issueDate: today,
+    dueDate: "",
+    reference: "",
+    notesMarkdown: "",
+    subtotalAmount: "",
+    totalAmount: "",
+    selectedTaxRateIds: [],
+  };
+}
+
+function defaultTaxRateForm() {
+  return {
+    key: "",
+    name: "",
+    kind: "TRANSFER",
+    rate: "",
+    direction: "AR",
+  };
+}
+
 function formatFxDate(value) {
   if (!value) return "-";
   const date = new Date(value);
@@ -196,8 +271,13 @@ function resolveCurrencyOptions(value) {
 }
 
 function resolveFinanceSection(path) {
+  if (path === "/finance/ar") return "ar";
+  if (path === "/finance/ap") return "ap";
+  if (path === "/finance/aging") return "aging";
+  if (path === "/finance/applications") return "applications";
   if (path === "/finance/accounts") return "accounts";
   if (path === "/finance/entries") return "entries";
+  if (path === "/finance/taxes") return "taxes";
   if (path === "/finance/fx-rates") return "fx-rates";
   return "summary";
 }
@@ -207,6 +287,22 @@ const SECTION_META = {
     title: "Finanzas",
     description: "Resumen operativo y saldos convertidos para tu instancia.",
   },
+  ar: {
+    title: "Cuentas por cobrar (CxC)",
+    description: "Facturas, anticipos y pagos de clientes.",
+  },
+  ap: {
+    title: "Cuentas por pagar (CxP)",
+    description: "Facturas, anticipos y pagos a proveedores.",
+  },
+  aging: {
+    title: "Aging",
+    description: "Envejecimiento de saldos abiertos por contacto.",
+  },
+  applications: {
+    title: "Aplicaciones",
+    description: "Aplicacion FIFO de pagos/anticipos/notas de credito.",
+  },
   accounts: {
     title: "Plan de cuentas",
     description: "Gestiona cuentas contables activas y su configuracion base.",
@@ -215,6 +311,10 @@ const SECTION_META = {
     title: "Polizas",
     description:
       "Registra movimientos contables con captura guiada o avanzada.",
+  },
+  taxes: {
+    title: "Impuestos y retenciones",
+    description: "Catalogo fiscal base para AR/AP y calculo documental.",
   },
   "fx-rates": {
     title: "Tipos de cambio",
@@ -231,14 +331,41 @@ export default function FinanceScreen() {
   const [accountSheetOpen, setAccountSheetOpen] = useState(false);
   const [guidedSheetOpen, setGuidedSheetOpen] = useState(false);
   const [entrySheetOpen, setEntrySheetOpen] = useState(false);
+  const [documentSheetOpen, setDocumentSheetOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState(null);
   const [accountForm, setAccountForm] = useState(defaultAccountForm);
   const [guidedForm, setGuidedForm] = useState(defaultGuidedForm);
   const [fxForm, setFxForm] = useState(defaultFxForm);
   const [entryForm, setEntryForm] = useState(defaultEntryForm);
+  const [documentForm, setDocumentForm] = useState(defaultDocumentForm("AR"));
+  const [taxRateForm, setTaxRateForm] = useState(defaultTaxRateForm);
+  const [pendingDocumentId, setPendingDocumentId] = useState(null);
+  const [pendingApplyDocumentId, setPendingApplyDocumentId] = useState(null);
   const [pendingAccountId, setPendingAccountId] = useState(null);
   const [pendingEntryId, setPendingEntryId] = useState(null);
   const [pendingFxRateId, setPendingFxRateId] = useState(null);
+  const [pendingTaxRateId, setPendingTaxRateId] = useState(null);
+  const [applySheetOpen, setApplySheetOpen] = useState(false);
+  const [applyLoading, setApplyLoading] = useState(false);
+  const [applySourceDocument, setApplySourceDocument] = useState(null);
+  const [applyLines, setApplyLines] = useState([]);
+  const [applyTargets, setApplyTargets] = useState([]);
+  const [applyTotals, setApplyTotals] = useState({ applied: 0, unapplied: 0 });
+  const [applyNote, setApplyNote] = useState("");
+  const [journalSheetOpen, setJournalSheetOpen] = useState(false);
+  const [journalLoading, setJournalLoading] = useState(false);
+  const [journalSourceDocument, setJournalSourceDocument] = useState(null);
+  const [journalLinks, setJournalLinks] = useState([]);
+  const [applicationsDirectionFilter, setApplicationsDirectionFilter] =
+    useState("all");
+  const [applicationsStatusFilter, setApplicationsStatusFilter] =
+    useState("all");
+  const [applicationsContactFilter, setApplicationsContactFilter] =
+    useState("all");
+  const [applicationsFromDate, setApplicationsFromDate] = useState("");
+  const [applicationsToDate, setApplicationsToDate] = useState("");
+  const [pendingReverseApplicationId, setPendingReverseApplicationId] =
+    useState(null);
 
   const routePath = wildcard ? `/${wildcard}` : "/";
   const activeSection = resolveFinanceSection(routePath);
@@ -247,6 +374,9 @@ export default function FinanceScreen() {
     activeSection === "summary" ||
     activeSection === "accounts" ||
     activeSection === "entries" ||
+    activeSection === "ar" ||
+    activeSection === "ap" ||
+    activeSection === "applications" ||
     accountSheetOpen ||
     guidedSheetOpen ||
     entrySheetOpen;
@@ -254,6 +384,20 @@ export default function FinanceScreen() {
   const needsDashboard = activeSection === "summary";
   const needsEntries = activeSection === "entries";
   const needsFxRates = activeSection === "fx-rates";
+  const needsTaxRates =
+    activeSection === "taxes" ||
+    activeSection === "ar" ||
+    activeSection === "ap" ||
+    documentSheetOpen;
+  const needsContacts =
+    activeSection === "ar" ||
+    activeSection === "ap" ||
+    activeSection === "applications" ||
+    documentSheetOpen;
+  const needsArDocuments = activeSection === "ar";
+  const needsApDocuments = activeSection === "ap";
+  const needsApplicationDocuments = activeSection === "applications";
+  const needsAging = activeSection === "aging";
 
   const accountsQuery = useQuery({
     queryKey: ["finance-accounts"],
@@ -283,6 +427,84 @@ export default function FinanceScreen() {
     queryKey: ["finance-fx-rates"],
     queryFn: () => atlas.finance.listFxRates(token, { limit: 200 }),
     enabled: Boolean(token) && needsFxRates,
+  });
+
+  const taxRatesQuery = useQuery({
+    queryKey: ["finance-tax-rates"],
+    queryFn: () => atlas.finance.listTaxRates(token, { limit: 200 }),
+    enabled: Boolean(token) && needsTaxRates,
+  });
+
+  const contactsQuery = useQuery({
+    queryKey: ["finance-contacts-options"],
+    queryFn: () => atlas.contacts.list(token, { limit: 200 }),
+    enabled: Boolean(token) && needsContacts,
+  });
+
+  const arDocumentsQuery = useQuery({
+    queryKey: ["finance-documents", "AR"],
+    queryFn: () =>
+      atlas.finance.listDocuments(token, {
+        direction: "AR",
+        limit: 200,
+      }),
+    enabled: Boolean(token) && needsArDocuments,
+  });
+
+  const apDocumentsQuery = useQuery({
+    queryKey: ["finance-documents", "AP"],
+    queryFn: () =>
+      atlas.finance.listDocuments(token, {
+        direction: "AP",
+        limit: 200,
+      }),
+    enabled: Boolean(token) && needsApDocuments,
+  });
+
+  const applicationDocumentsQuery = useQuery({
+    queryKey: ["finance-documents-applications"],
+    queryFn: () =>
+      atlas.finance.listDocuments(token, {
+        status: "OPEN",
+        limit: 250,
+      }),
+    enabled: Boolean(token) && needsApplicationDocuments,
+  });
+
+  const applicationsHistoryQuery = useQuery({
+    queryKey: [
+      "finance-applications-history",
+      applicationsDirectionFilter,
+      applicationsStatusFilter,
+      applicationsContactFilter,
+      applicationsFromDate,
+      applicationsToDate,
+    ],
+    queryFn: () =>
+      atlas.finance.listApplications(token, {
+        direction:
+          applicationsDirectionFilter !== "all"
+            ? applicationsDirectionFilter
+            : undefined,
+        status:
+          applicationsStatusFilter !== "all"
+            ? applicationsStatusFilter
+            : undefined,
+        contactId:
+          applicationsContactFilter !== "all"
+            ? applicationsContactFilter
+            : undefined,
+        from: applicationsFromDate || undefined,
+        to: applicationsToDate || undefined,
+        limit: 200,
+      }),
+    enabled: Boolean(token) && needsApplicationDocuments,
+  });
+
+  const agingQuery = useQuery({
+    queryKey: ["finance-aging"],
+    queryFn: () => atlas.finance.getAging(token, {}),
+    enabled: Boolean(token) && needsAging,
   });
 
   const createAccountMutation = useMutation({
@@ -404,10 +626,135 @@ export default function FinanceScreen() {
     },
   });
 
+  const createDocumentMutation = useMutation({
+    mutationFn: (payload) => atlas.finance.createDocument(payload, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["finance-documents"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-documents-applications"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-aging"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-applications-history"] });
+      setDocumentSheetOpen(false);
+      setDocumentForm(defaultDocumentForm(documentForm.direction || "AR"));
+      toast.success("Documento registrado");
+    },
+    onError: (error) => {
+      toast.error(parseApiError(error, "No se pudo registrar el documento."));
+    },
+  });
+
+  const toggleDocumentMutation = useMutation({
+    mutationFn: ({ id, enabled }) =>
+      atlas.finance.setDocumentEnabled(id, enabled, token),
+    onMutate: ({ id }) => {
+      setPendingDocumentId(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["finance-documents"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-documents-applications"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-aging"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-applications-history"] });
+      toast.success("Estado de documento actualizado");
+    },
+    onSettled: () => {
+      setPendingDocumentId(null);
+    },
+    onError: (error) => {
+      toast.error(
+        parseApiError(error, "No se pudo actualizar el estado del documento."),
+      );
+    },
+  });
+
+  const applyFifoMutation = useMutation({
+    mutationFn: ({ documentId, lines, note }) =>
+      atlas.finance.applyDocument(
+        documentId,
+        {
+          lines,
+          note: note ?? null,
+        },
+        token,
+      ),
+    onMutate: ({ documentId }) => {
+      setPendingApplyDocumentId(documentId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["finance-documents"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-documents-applications"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-aging"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-applications-history"] });
+      toast.success("Aplicacion registrada");
+    },
+    onSettled: () => {
+      setPendingApplyDocumentId(null);
+    },
+    onError: (error) => {
+      toast.error(parseApiError(error, "No se pudo aplicar el documento."));
+    },
+  });
+
+  const createTaxRateMutation = useMutation({
+    mutationFn: (payload) => atlas.finance.createTaxRate(payload, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["finance-tax-rates"] });
+      setTaxRateForm(defaultTaxRateForm());
+      toast.success("Impuesto guardado");
+    },
+    onError: (error) => {
+      toast.error(parseApiError(error, "No se pudo guardar el impuesto."));
+    },
+  });
+
+  const toggleTaxRateMutation = useMutation({
+    mutationFn: ({ id, enabled }) =>
+      atlas.finance.setTaxRateEnabled(id, enabled, token),
+    onMutate: ({ id }) => {
+      setPendingTaxRateId(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["finance-tax-rates"] });
+      toast.success("Estado de impuesto actualizado");
+    },
+    onSettled: () => {
+      setPendingTaxRateId(null);
+    },
+    onError: (error) => {
+      toast.error(parseApiError(error, "No se pudo actualizar el impuesto."));
+    },
+  });
+
+  const reverseApplicationMutation = useMutation({
+    mutationFn: ({ id, reason }) =>
+      atlas.finance.reverseApplication(id, { reason: reason ?? null }, token),
+    onMutate: ({ id }) => {
+      setPendingReverseApplicationId(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["finance-documents"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-documents-applications"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-aging"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-applications-history"] });
+      toast.success("Aplicacion anulada");
+    },
+    onSettled: () => {
+      setPendingReverseApplicationId(null);
+    },
+    onError: (error) => {
+      toast.error(parseApiError(error, "No se pudo anular la aplicacion."));
+    },
+  });
+
   const accounts = accountsQuery.data?.data ?? [];
   const balances = balancesQuery.data?.data;
   const entries = entriesQuery.data?.data ?? [];
   const fxRates = fxRatesQuery.data?.data ?? [];
+  const taxRates = taxRatesQuery.data?.data ?? [];
+  const contacts = contactsQuery.data?.data ?? [];
+  const arDocuments = arDocumentsQuery.data?.data ?? [];
+  const apDocuments = apDocumentsQuery.data?.data ?? [];
+  const applicationDocuments = applicationDocumentsQuery.data?.data ?? [];
+  const applicationsHistory = applicationsHistoryQuery.data?.data ?? [];
+  const agingData = agingQuery.data?.data;
   const dashboard = dashboardQuery.data?.data;
   const dashboardTrend = dashboard?.trend ?? [];
   const dashboardVariance = dashboard?.variance;
@@ -439,6 +786,60 @@ export default function FinanceScreen() {
     () => accounts.filter((account) => account.enabled),
     [accounts],
   );
+  const activeTaxRates = useMemo(
+    () => taxRates.filter((row) => row.enabled),
+    [taxRates],
+  );
+  const selectedDocumentTaxes = useMemo(
+    () =>
+      activeTaxRates.filter((tax) =>
+        (documentForm.selectedTaxRateIds ?? []).includes(tax.id),
+      ),
+    [activeTaxRates, documentForm.selectedTaxRateIds],
+  );
+  const documentTaxPreview = useMemo(() => {
+    const subtotal = toNumber(documentForm.subtotalAmount);
+    const totals = selectedDocumentTaxes.reduce(
+      (acc, tax) => {
+        const rate = toNumber(tax.rate);
+        const amount = Number(((subtotal * rate) / 100).toFixed(2));
+        if (String(tax.kind) === "WITHHOLDING") {
+          acc.withholdings += amount;
+        } else {
+          acc.transfers += amount;
+        }
+        return acc;
+      },
+      { transfers: 0, withholdings: 0 },
+    );
+    const netTaxes = Number((totals.transfers - totals.withholdings).toFixed(2));
+    const suggestedTotal = Number((subtotal + netTaxes).toFixed(2));
+    return {
+      subtotal,
+      transfers: Number(totals.transfers.toFixed(2)),
+      withholdings: Number(totals.withholdings.toFixed(2)),
+      netTaxes,
+      suggestedTotal,
+    };
+  }, [selectedDocumentTaxes, documentForm.subtotalAmount]);
+  const applyTargetById = useMemo(
+    () =>
+      new Map(
+        applyTargets.map((target) => [
+          target.id,
+          {
+            openAmount: toNumber(target.openAmount),
+            currency: target.currency || "MXN",
+            label:
+              target.reference ||
+              target.contact?.name ||
+              target.contact?.legalName ||
+              target.id,
+          },
+        ]),
+      ),
+    [applyTargets],
+  );
   const lineTotals = useMemo(
     () => computeLineTotals(entryForm.lines),
     [entryForm.lines],
@@ -450,6 +851,11 @@ export default function FinanceScreen() {
     setEditingAccount(null);
     setAccountForm(defaultAccountForm());
     setAccountSheetOpen(true);
+  }
+
+  function openCreateDocument(direction) {
+    setDocumentForm(defaultDocumentForm(direction));
+    setDocumentSheetOpen(true);
   }
 
   function openEditAccount(account) {
@@ -583,6 +989,405 @@ export default function FinanceScreen() {
     createFxRateMutation.mutate(payload);
   }
 
+  function handleSubmitTaxRate(event) {
+    event.preventDefault();
+    const rate = toNumber(taxRateForm.rate);
+    const payload = {
+      key: taxRateForm.key.trim().toUpperCase(),
+      name: taxRateForm.name.trim(),
+      kind: taxRateForm.kind,
+      rate,
+      direction: taxRateForm.direction || null,
+    };
+    if (!payload.key || !payload.name) {
+      toast.error("Clave y nombre del impuesto son obligatorios.");
+      return;
+    }
+    if (!Number.isFinite(payload.rate) || payload.rate < 0) {
+      toast.error("La tasa del impuesto es invalida.");
+      return;
+    }
+    createTaxRateMutation.mutate(payload);
+  }
+
+  function toggleDocumentTaxSelection(taxRateId, checked) {
+    setDocumentForm((prev) => {
+      const current = new Set(prev.selectedTaxRateIds ?? []);
+      if (checked) {
+        current.add(taxRateId);
+      } else {
+        current.delete(taxRateId);
+      }
+      const nextSelectedTaxRateIds = [...current];
+      const subtotal = toNumber(prev.subtotalAmount);
+      let nextTotalAmount = prev.totalAmount;
+      if (subtotal > 0) {
+        const selected = activeTaxRates.filter((tax) =>
+          nextSelectedTaxRateIds.includes(tax.id),
+        );
+        const totals = selected.reduce(
+          (acc, tax) => {
+            const amount = Number(
+              ((subtotal * toNumber(tax.rate)) / 100).toFixed(2),
+            );
+            if (String(tax.kind) === "WITHHOLDING") acc.withholdings += amount;
+            else acc.transfers += amount;
+            return acc;
+          },
+          { transfers: 0, withholdings: 0 },
+        );
+        const suggestedTotal = Number(
+          (subtotal + totals.transfers - totals.withholdings).toFixed(2),
+        );
+        nextTotalAmount = String(suggestedTotal);
+      }
+      return {
+        ...prev,
+        selectedTaxRateIds: nextSelectedTaxRateIds,
+        totalAmount: nextTotalAmount,
+      };
+    });
+  }
+
+  function handleSubmitDocument(event) {
+    event.preventDefault();
+    const computedTotalAmount = toNumber(documentForm.totalAmount);
+    const totalAmount =
+      computedTotalAmount > 0
+        ? computedTotalAmount
+        : documentTaxPreview.suggestedTotal > 0
+          ? documentTaxPreview.suggestedTotal
+          : 0;
+    if (totalAmount <= 0) {
+      toast.error("El monto total debe ser mayor a cero.");
+      return;
+    }
+    if (!documentForm.issueDate) {
+      toast.error("La fecha de emision es obligatoria.");
+      return;
+    }
+
+    const payload = {
+      direction: documentForm.direction,
+      docType: documentForm.docType,
+      contactId: documentForm.contactId || null,
+      currency: normalizeCurrencyCode(documentForm.currency || "MXN"),
+      issueDate: documentForm.issueDate,
+      dueDate: documentForm.dueDate || null,
+      reference: documentForm.reference.trim() || null,
+      notesMarkdown: documentForm.notesMarkdown.trim() || null,
+      subtotalAmount:
+        toNumber(documentForm.subtotalAmount) > 0
+          ? toNumber(documentForm.subtotalAmount)
+          : undefined,
+      totalAmount,
+      taxLines: (documentForm.selectedTaxRateIds ?? []).map((taxRateId) => ({
+        taxRateId,
+        baseAmount:
+          toNumber(documentForm.subtotalAmount) > 0
+            ? toNumber(documentForm.subtotalAmount)
+            : undefined,
+      })),
+    };
+    createDocumentMutation.mutate(payload);
+  }
+
+  async function openApplySheetForDocument(document) {
+    setApplySourceDocument(document);
+    setApplyLines([]);
+    setApplyTargets([]);
+    setApplyTotals({
+      applied: 0,
+      unapplied: toNumber(document?.openAmount),
+    });
+    setApplyNote("");
+    setApplySheetOpen(true);
+    setApplyLoading(true);
+    try {
+      const preview = await atlas.finance.previewApplication(
+        document.id,
+        { allocationMode: "fifo" },
+        token,
+      );
+      const previewData = preview?.data ?? {};
+      const targets = previewData.targets ?? [];
+      const fxByTarget = previewData.fxByTarget ?? {};
+      const lineByTarget = new Map(
+        (previewData.lines ?? []).map((line) => [
+          line.targetDocumentId,
+          {
+            amount: toNumber(line.amount),
+            targetAmount: toNumber(line.targetAmount ?? line.amount),
+            sourceAmount: toNumber(line.sourceAmount ?? line.amount),
+            effectiveFxRate: toNumber(line.effectiveFxRate || 1),
+            sourceCurrency:
+              line.sourceCurrency ||
+              previewData.source?.currency ||
+              document?.currency ||
+              "MXN",
+            targetCurrency:
+              line.targetCurrency ||
+              targets.find((target) => target.id === line.targetDocumentId)
+                ?.currency ||
+              document?.currency ||
+              "MXN",
+          },
+        ]),
+      );
+      const draftLines = targets.map((target) => {
+        const targetFx = fxByTarget?.[target.id];
+        return {
+          targetDocumentId: target.id,
+          amount: lineByTarget.get(target.id)?.amount ?? 0,
+          targetAmount: lineByTarget.get(target.id)?.targetAmount ?? 0,
+          sourceAmount: lineByTarget.get(target.id)?.sourceAmount ?? 0,
+          effectiveFxRate:
+            lineByTarget.get(target.id)?.effectiveFxRate ??
+            toNumber(targetFx?.effectiveFxRate || 0),
+          targetCurrency: target.currency || "MXN",
+          sourceCurrency: document?.currency || "MXN",
+        };
+      });
+      setApplyTargets(targets);
+      setApplyLines(draftLines);
+      setApplyTotals(
+        computeApplyTotals(draftLines, document?.openAmount ?? previewData.source?.openAmount),
+      );
+    } catch (error) {
+      toast.error(
+        parseApiError(error, "No se pudo cargar la propuesta de aplicacion."),
+      );
+      setApplySheetOpen(false);
+    } finally {
+      setApplyLoading(false);
+    }
+  }
+
+  function updateApplyLine(targetDocumentId, amountValue) {
+    setApplyLines((prev) => {
+      const next = prev.map((line) =>
+        line.targetDocumentId === targetDocumentId
+          ? (() => {
+              const targetAmount = toNumber(amountValue);
+              const fxRate = toNumber(line.effectiveFxRate || 0);
+              const sourceAmount =
+                fxRate > 0
+                  ? Number((targetAmount / fxRate).toFixed(2))
+                  : targetAmount;
+              return {
+                ...line,
+                amount: targetAmount,
+                targetAmount,
+                sourceAmount,
+              };
+            })()
+          : line,
+      );
+      const totals = computeApplyTotals(next, applySourceDocument?.openAmount);
+      setApplyTotals(totals);
+      return next;
+    });
+  }
+
+  function resetApplyToFifo() {
+    if (!applyTargets.length) return;
+    const next = applyTargets.map((target) => ({
+      targetDocumentId: target.id,
+      amount: 0,
+      targetAmount: 0,
+      sourceAmount: 0,
+      effectiveFxRate: target.currency === applySourceDocument?.currency ? 1 : 0,
+      targetCurrency: target.currency || "MXN",
+      sourceCurrency: applySourceDocument?.currency || "MXN",
+    }));
+    setApplyLines(next);
+    setApplyTotals(computeApplyTotals(next, applySourceDocument?.openAmount));
+  }
+
+  function submitManualApply(event) {
+    event.preventDefault();
+    if (!applySourceDocument?.id) {
+      toast.error("No hay documento origen para aplicar.");
+      return;
+    }
+
+    const lines = applyLines
+      .map((line) => ({
+        targetDocumentId: line.targetDocumentId,
+        amount: toNumber(line.amount),
+        effectiveFxRate: toNumber(line.effectiveFxRate || 0),
+        sourceCurrency: line.sourceCurrency,
+        targetCurrency: line.targetCurrency,
+      }))
+      .filter((line) => line.amount > 0);
+
+    if (!lines.length) {
+      toast.error("Debes asignar al menos un monto mayor a cero.");
+      return;
+    }
+
+    const missingFxLine = lines.find(
+      (line) =>
+        String(line.sourceCurrency || "") !== String(line.targetCurrency || "") &&
+        line.effectiveFxRate <= 0,
+    );
+    if (missingFxLine) {
+      toast.error(
+        "Falta tipo de cambio para uno o mas documentos destino en la fecha actual.",
+      );
+      return;
+    }
+
+    applyFifoMutation.mutate(
+      {
+        documentId: applySourceDocument.id,
+        lines: lines.map(({ targetDocumentId, amount }) => ({
+          targetDocumentId,
+          amount,
+        })),
+        note: applyNote.trim() || null,
+      },
+      {
+        onSuccess: () => {
+          setApplySheetOpen(false);
+          setApplySourceDocument(null);
+          setApplyLines([]);
+          setApplyTargets([]);
+          setApplyNote("");
+        },
+      },
+    );
+  }
+
+  async function openJournalSheet(document) {
+    setJournalSourceDocument(document);
+    setJournalLinks([]);
+    setJournalSheetOpen(true);
+    setJournalLoading(true);
+    try {
+      const response = await atlas.finance.getDocumentJournalLinks(
+        document.id,
+        token,
+      );
+      setJournalLinks(response?.data ?? []);
+    } catch (error) {
+      toast.error(
+        parseApiError(error, "No se pudo cargar la trazabilidad contable."),
+      );
+      setJournalSheetOpen(false);
+    } finally {
+      setJournalLoading(false);
+    }
+  }
+
+  async function applyAutomaticFifo(document) {
+    try {
+      const preview = await atlas.finance.previewApplication(
+        document.id,
+        { allocationMode: "fifo" },
+        token,
+      );
+      const lines = (preview?.data?.lines ?? [])
+        .map((line) => ({
+          targetDocumentId: line.targetDocumentId,
+          amount: toNumber(line.amount),
+        }))
+        .filter((line) => line.amount > 0);
+      if (!lines.length) {
+        toast.error("No hay documentos abiertos compatibles para aplicar.");
+        return;
+      }
+      applyFifoMutation.mutate({
+        documentId: document.id,
+        lines,
+        note: "Aplicacion FIFO automatica",
+      });
+    } catch (error) {
+      toast.error(parseApiError(error, "No se pudo preparar la aplicacion."));
+    }
+  }
+
+  function reverseApplication(row) {
+    if (!row?.id) return;
+    if (row.status === "REVERSED") {
+      toast.error("La aplicacion ya esta revertida.");
+      return;
+    }
+    const reason = window.prompt(
+      "Motivo de anulacion (opcional):",
+      row.reversalReason || "",
+    );
+    if (reason === null) return;
+    reverseApplicationMutation.mutate({
+      id: row.id,
+      reason: reason.trim() || null,
+    });
+  }
+
+  function exportApplicationsHistoryCsv() {
+    if (!applicationsHistory.length) {
+      toast.error("No hay registros para exportar.");
+      return;
+    }
+
+    const headers = [
+      "Fecha",
+      "Estado",
+      "Direccion",
+      "Tipo origen",
+      "Referencia origen",
+      "Contacto origen",
+      "Tipo destino",
+      "Referencia destino",
+      "Contacto destino",
+      "Monto origen",
+      "Moneda origen",
+      "Monto destino",
+      "Moneda destino",
+      "FX efectiva",
+      "Revertida en",
+      "Motivo reversa",
+    ];
+
+    const rows = applicationsHistory.map((row) => [
+      formatDateInputValue(row.appliedAt),
+      APPLICATION_STATUS_LABELS[row.status] || row.status || "",
+      row.sourceDocument?.direction || "",
+      formatDocumentTypeLabel(row.sourceDocument?.docType),
+      row.sourceDocument?.reference || row.sourceDocumentId || "",
+      row.sourceDocument?.contact?.name || "",
+      formatDocumentTypeLabel(row.targetDocument?.docType),
+      row.targetDocument?.reference || row.targetDocumentId || "",
+      row.targetDocument?.contact?.name || "",
+      toNumber(row.sourceAmount ?? row.appliedAmount).toFixed(2),
+      row.sourceDocument?.currency || row.targetDocument?.currency || "MXN",
+      toNumber(row.targetAmount ?? row.appliedAmount).toFixed(2),
+      row.targetDocument?.currency || row.sourceDocument?.currency || "MXN",
+      toNumber(row.effectiveFxRate || 0) > 0
+        ? toNumber(row.effectiveFxRate).toFixed(6)
+        : "",
+      formatDateInputValue(row.reversedAt),
+      row.reversalReason || "",
+    ]);
+
+    const csv = [headers, ...rows]
+      .map((line) => line.map(toCsvCell).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `historial-aplicaciones-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+    toast.success("CSV generado");
+  }
+
   function guidedPresetMeta(sourceType) {
     if (sourceType === "income") {
       return {
@@ -653,6 +1458,35 @@ export default function FinanceScreen() {
     };
   }
 
+  function buildGuidedDraftForAdvanced() {
+    const sourceType = guidedForm.sourceType;
+    const amount = toNumber(guidedForm.amount);
+    const currency = (guidedForm.currency || "MXN").trim().toUpperCase();
+    const note = guidedForm.note.trim();
+
+    return {
+      occurredAt: guidedForm.occurredAt,
+      concept: guidedForm.concept.trim(),
+      reference: guidedForm.reference.trim(),
+      currency,
+      sourceType,
+      lines: [
+        {
+          accountId: guidedForm.toAccountId || "",
+          debit: amount > 0 ? String(amount) : "",
+          credit: "",
+          note,
+        },
+        {
+          accountId: guidedForm.fromAccountId || "",
+          debit: "",
+          credit: amount > 0 ? String(amount) : "",
+          note,
+        },
+      ],
+    };
+  }
+
   function submitGuidedEntry(event) {
     event.preventDefault();
     try {
@@ -669,26 +1503,17 @@ export default function FinanceScreen() {
   }
 
   function openGuidedInAdvanced() {
-    try {
-      const payload = buildGuidedPayload();
-      setEntryForm({
-        occurredAt: guidedForm.occurredAt,
-        concept: payload.concept,
-        reference: payload.reference ?? "",
-        currency: payload.currency,
-        sourceType: payload.sourceType,
-        lines: payload.lines.map((line) => ({
-          accountId: line.accountId,
-          debit: line.debit ? String(line.debit) : "",
-          credit: line.credit ? String(line.credit) : "",
-          note: line.note ?? "",
-        })),
-      });
-      setGuidedSheetOpen(false);
-      setEntrySheetOpen(true);
-    } catch (error) {
-      toast.error(error.message || "No se pudo abrir en editor avanzado.");
-    }
+    const draft = buildGuidedDraftForAdvanced();
+    setEntryForm({
+      occurredAt: draft.occurredAt,
+      concept: draft.concept,
+      reference: draft.reference,
+      currency: draft.currency,
+      sourceType: draft.sourceType,
+      lines: draft.lines,
+    });
+    setGuidedSheetOpen(false);
+    setEntrySheetOpen(true);
   }
 
   const guidedMeta = guidedPresetMeta(guidedForm.sourceType);
@@ -696,6 +1521,14 @@ export default function FinanceScreen() {
 
   const headerActions = (
     <div className="flex flex-wrap gap-2">
+      {(activeSection === "ar" || activeSection === "ap") && (
+        <Button
+          onClick={() => openCreateDocument(activeSection === "ar" ? "AR" : "AP")}
+        >
+          <Plus className="h-4 w-4" />
+          Nuevo documento
+        </Button>
+      )}
       {(activeSection === "summary" || activeSection === "accounts") && (
         <Button variant="outline" onClick={openCreateAccount}>
           <Plus className="h-4 w-4" />
@@ -960,6 +1793,663 @@ export default function FinanceScreen() {
                                 row.totalsBase?.currency ??
                                   balanceTotalsBase.currency,
                               )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeSection === "ar" && (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Documentos por cobrar</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {arDocumentsQuery.isLoading ? (
+                  <Skeleton className="h-40 w-full rounded-xl" />
+                ) : arDocuments.length === 0 ? (
+                  <EmptyState
+                    title="Sin documentos AR"
+                    description="Registra facturas, pagos o anticipos de clientes."
+                    icon={HandCoins}
+                    action={{
+                      label: "Nuevo documento",
+                      onClick: () => openCreateDocument("AR"),
+                    }}
+                  />
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-[hsl(var(--border))]">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-[hsl(var(--muted))/0.35]">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">Tipo</th>
+                          <th className="px-3 py-2 text-left font-medium">Contacto</th>
+                          <th className="px-3 py-2 text-left font-medium">Referencia</th>
+                          <th className="px-3 py-2 text-left font-medium">Emision</th>
+                          <th className="px-3 py-2 text-left font-medium">Total</th>
+                          <th className="px-3 py-2 text-left font-medium">Abierto</th>
+                          <th className="px-3 py-2 text-left font-medium">Estado</th>
+                          <th className="px-3 py-2 text-left font-medium">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {arDocuments.map((doc) => (
+                          <tr key={doc.id} className="border-t border-[hsl(var(--border))]">
+                            <td className="px-3 py-2">
+                              {formatDocumentTypeLabel(doc.docType)}
+                            </td>
+                            <td className="px-3 py-2">
+                              {doc.contact?.name || "Sin contacto"}
+                            </td>
+                            <td className="px-3 py-2">{doc.reference || "-"}</td>
+                            <td className="px-3 py-2">{formatDate(doc.issueDate)}</td>
+                            <td className="px-3 py-2">
+                              {formatMoney(doc.totalAmount, doc.currency)}
+                            </td>
+                            <td className="px-3 py-2">
+                              {formatMoney(doc.openAmount, doc.currency)}
+                            </td>
+                            <td className="px-3 py-2">
+                              <Badge
+                                variant={
+                                  doc.status === "PAID"
+                                    ? "success"
+                                    : doc.status === "PARTIAL"
+                                      ? "glass"
+                                      : "secondary"
+                                }
+                              >
+                                {doc.status}
+                              </Badge>
+                            </td>
+                            <td className="px-3 py-2">
+                              <ActionMenu
+                                items={[
+                                  {
+                                    label: "Ver polizas",
+                                    icon: NotebookPen,
+                                    onClick: () => openJournalSheet(doc),
+                                  },
+                                  ...(doc.enabled &&
+                                  APPLY_SOURCE_DOC_TYPES.has(doc.docType) &&
+                                  toNumber(doc.openAmount) > 0
+                                    ? [
+                                        {
+                                          label: "Aplicar FIFO",
+                                          icon: ArrowRightLeft,
+                                          disabled:
+                                            pendingApplyDocumentId === doc.id,
+                                          onClick: () =>
+                                            applyAutomaticFifo(doc),
+                                        },
+                                        {
+                                          label: "Aplicar manual",
+                                          icon: Edit3,
+                                          disabled:
+                                            pendingApplyDocumentId === doc.id,
+                                          onClick: () =>
+                                            openApplySheetForDocument(doc),
+                                        },
+                                      ]
+                                    : []),
+                                  doc.enabled
+                                    ? {
+                                        label: "Deshabilitar",
+                                        icon: PowerOff,
+                                        disabled: pendingDocumentId === doc.id,
+                                        onClick: () =>
+                                          toggleDocumentMutation.mutate({
+                                            id: doc.id,
+                                            enabled: false,
+                                          }),
+                                      }
+                                    : {
+                                        label: "Habilitar",
+                                        icon: Power,
+                                        disabled: pendingDocumentId === doc.id,
+                                        onClick: () =>
+                                          toggleDocumentMutation.mutate({
+                                            id: doc.id,
+                                            enabled: true,
+                                          }),
+                                      },
+                                ]}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeSection === "ap" && (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Documentos por pagar</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {apDocumentsQuery.isLoading ? (
+                  <Skeleton className="h-40 w-full rounded-xl" />
+                ) : apDocuments.length === 0 ? (
+                  <EmptyState
+                    title="Sin documentos AP"
+                    description="Registra facturas, pagos o anticipos a proveedores."
+                    icon={Receipt}
+                    action={{
+                      label: "Nuevo documento",
+                      onClick: () => openCreateDocument("AP"),
+                    }}
+                  />
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-[hsl(var(--border))]">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-[hsl(var(--muted))/0.35]">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">Tipo</th>
+                          <th className="px-3 py-2 text-left font-medium">Contacto</th>
+                          <th className="px-3 py-2 text-left font-medium">Referencia</th>
+                          <th className="px-3 py-2 text-left font-medium">Emision</th>
+                          <th className="px-3 py-2 text-left font-medium">Total</th>
+                          <th className="px-3 py-2 text-left font-medium">Abierto</th>
+                          <th className="px-3 py-2 text-left font-medium">Estado</th>
+                          <th className="px-3 py-2 text-left font-medium">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {apDocuments.map((doc) => (
+                          <tr key={doc.id} className="border-t border-[hsl(var(--border))]">
+                            <td className="px-3 py-2">
+                              {formatDocumentTypeLabel(doc.docType)}
+                            </td>
+                            <td className="px-3 py-2">
+                              {doc.contact?.name || "Sin contacto"}
+                            </td>
+                            <td className="px-3 py-2">{doc.reference || "-"}</td>
+                            <td className="px-3 py-2">{formatDate(doc.issueDate)}</td>
+                            <td className="px-3 py-2">
+                              {formatMoney(doc.totalAmount, doc.currency)}
+                            </td>
+                            <td className="px-3 py-2">
+                              {formatMoney(doc.openAmount, doc.currency)}
+                            </td>
+                            <td className="px-3 py-2">
+                              <Badge
+                                variant={
+                                  doc.status === "PAID"
+                                    ? "success"
+                                    : doc.status === "PARTIAL"
+                                      ? "glass"
+                                      : "secondary"
+                                }
+                              >
+                                {doc.status}
+                              </Badge>
+                            </td>
+                            <td className="px-3 py-2">
+                              <ActionMenu
+                                items={[
+                                  {
+                                    label: "Ver polizas",
+                                    icon: NotebookPen,
+                                    onClick: () => openJournalSheet(doc),
+                                  },
+                                  ...(doc.enabled &&
+                                  APPLY_SOURCE_DOC_TYPES.has(doc.docType) &&
+                                  toNumber(doc.openAmount) > 0
+                                    ? [
+                                        {
+                                          label: "Aplicar FIFO",
+                                          icon: ArrowRightLeft,
+                                          disabled:
+                                            pendingApplyDocumentId === doc.id,
+                                          onClick: () =>
+                                            applyAutomaticFifo(doc),
+                                        },
+                                        {
+                                          label: "Aplicar manual",
+                                          icon: Edit3,
+                                          disabled:
+                                            pendingApplyDocumentId === doc.id,
+                                          onClick: () =>
+                                            openApplySheetForDocument(doc),
+                                        },
+                                      ]
+                                    : []),
+                                  doc.enabled
+                                    ? {
+                                        label: "Deshabilitar",
+                                        icon: PowerOff,
+                                        disabled: pendingDocumentId === doc.id,
+                                        onClick: () =>
+                                          toggleDocumentMutation.mutate({
+                                            id: doc.id,
+                                            enabled: false,
+                                          }),
+                                      }
+                                    : {
+                                        label: "Habilitar",
+                                        icon: Power,
+                                        disabled: pendingDocumentId === doc.id,
+                                        onClick: () =>
+                                          toggleDocumentMutation.mutate({
+                                            id: doc.id,
+                                            enabled: true,
+                                          }),
+                                      },
+                                ]}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeSection === "aging" && (
+          <div className="space-y-4">
+            {agingQuery.isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                {[1, 2, 3, 4].map((item) => (
+                  <Skeleton key={item} className="h-24 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <StatCard
+                  label="0-30 dias"
+                  value={formatMoney(agingData?.summary?.b0_30 ?? 0)}
+                  icon={Calendar}
+                />
+                <StatCard
+                  label="31-60 dias"
+                  value={formatMoney(agingData?.summary?.b31_60 ?? 0)}
+                  icon={CalendarDays}
+                />
+                <StatCard
+                  label="61-90 dias"
+                  value={formatMoney(agingData?.summary?.b61_90 ?? 0)}
+                  icon={CalendarDays}
+                />
+                <StatCard
+                  label="+90 dias"
+                  value={formatMoney(agingData?.summary?.b90_plus ?? 0)}
+                  icon={CalendarDays}
+                />
+              </div>
+            )}
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Aging por contacto</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {agingQuery.isLoading ? (
+                  <Skeleton className="h-40 w-full rounded-xl" />
+                ) : (agingData?.contacts ?? []).length === 0 ? (
+                  <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                    Sin saldos abiertos para analizar.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-[hsl(var(--border))]">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-[hsl(var(--muted))/0.35]">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">Contacto</th>
+                          <th className="px-3 py-2 text-left font-medium">0-30</th>
+                          <th className="px-3 py-2 text-left font-medium">31-60</th>
+                          <th className="px-3 py-2 text-left font-medium">61-90</th>
+                          <th className="px-3 py-2 text-left font-medium">+90</th>
+                          <th className="px-3 py-2 text-left font-medium">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(agingData?.contacts ?? []).map((row) => (
+                          <tr key={row.contactId || row.contactName} className="border-t border-[hsl(var(--border))]">
+                            <td className="px-3 py-2">{row.contactName}</td>
+                            <td className="px-3 py-2">{formatMoney(row.b0_30, row.currency)}</td>
+                            <td className="px-3 py-2">{formatMoney(row.b31_60, row.currency)}</td>
+                            <td className="px-3 py-2">{formatMoney(row.b61_90, row.currency)}</td>
+                            <td className="px-3 py-2">{formatMoney(row.b90_plus, row.currency)}</td>
+                            <td className="px-3 py-2">{formatMoney(row.totalOpen, row.currency)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeSection === "applications" && (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  Pagos y anticipos pendientes de aplicar
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {applicationDocumentsQuery.isLoading ? (
+                  <Skeleton className="h-40 w-full rounded-xl" />
+                ) : applicationDocuments.length === 0 ? (
+                  <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                    No hay documentos abiertos para aplicar.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-[hsl(var(--border))]">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-[hsl(var(--muted))/0.35]">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">Direccion</th>
+                          <th className="px-3 py-2 text-left font-medium">Tipo</th>
+                          <th className="px-3 py-2 text-left font-medium">Contacto</th>
+                          <th className="px-3 py-2 text-left font-medium">Abierto</th>
+                          <th className="px-3 py-2 text-left font-medium">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {applicationDocuments
+                          .filter(
+                            (doc) =>
+                              doc.enabled &&
+                              APPLY_SOURCE_DOC_TYPES.has(doc.docType) &&
+                              toNumber(doc.openAmount) > 0,
+                          )
+                          .map((doc) => (
+                            <tr key={doc.id} className="border-t border-[hsl(var(--border))]">
+                              <td className="px-3 py-2">{doc.direction}</td>
+                              <td className="px-3 py-2">
+                                {formatDocumentTypeLabel(doc.docType)}
+                              </td>
+                              <td className="px-3 py-2">
+                                {doc.contact?.name || "Sin contacto"}
+                              </td>
+                              <td className="px-3 py-2">
+                                {formatMoney(doc.openAmount, doc.currency)}
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => applyAutomaticFifo(doc)}
+                                    loading={pendingApplyDocumentId === doc.id}
+                                  >
+                                    Aplicar FIFO
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openApplySheetForDocument(doc)}
+                                    disabled={pendingApplyDocumentId === doc.id}
+                                  >
+                                    Aplicar manual
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => openJournalSheet(doc)}
+                                  >
+                                    Ver polizas
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Historial de aplicaciones</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4 grid grid-cols-1 md:grid-cols-6 gap-3">
+                  <SelectField
+                    label="Direccion"
+                    icon={ArrowRightLeft}
+                    value={applicationsDirectionFilter}
+                    onValueChange={(value) =>
+                      setApplicationsDirectionFilter(value)
+                    }
+                    options={[
+                      { value: "all", label: "Todas" },
+                      { value: "AR", label: "AR (CxC)" },
+                      { value: "AP", label: "AP (CxP)" },
+                    ]}
+                  />
+                  <SelectField
+                    label="Estado"
+                    icon={Component}
+                    value={applicationsStatusFilter}
+                    onValueChange={(value) => setApplicationsStatusFilter(value)}
+                    options={[
+                      { value: "all", label: "Todos" },
+                      { value: "APPLIED", label: "Aplicadas" },
+                      { value: "REVERSED", label: "Revertidas" },
+                    ]}
+                  />
+                  <SelectField
+                    label="Contacto"
+                    icon={HandCoins}
+                    value={applicationsContactFilter}
+                    onValueChange={(value) => setApplicationsContactFilter(value)}
+                    options={[
+                      { value: "all", label: "Todos" },
+                      ...contacts.map((contact) => ({
+                        value: contact.id,
+                        label: contact.name,
+                      })),
+                    ]}
+                  />
+                  <DateField
+                    label="Desde"
+                    icon={Calendar}
+                    value={applicationsFromDate}
+                    onChange={(event) =>
+                      setApplicationsFromDate(event.target.value)
+                    }
+                  />
+                  <DateField
+                    label="Hasta"
+                    icon={CalendarDays}
+                    value={applicationsToDate}
+                    onChange={(event) => setApplicationsToDate(event.target.value)}
+                  />
+                  <div className="flex items-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setApplicationsDirectionFilter("all");
+                        setApplicationsStatusFilter("all");
+                        setApplicationsContactFilter("all");
+                        setApplicationsFromDate("");
+                        setApplicationsToDate("");
+                      }}
+                    >
+                      Limpiar
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="mb-4 flex items-center justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={exportApplicationsHistoryCsv}
+                    disabled={
+                      applicationsHistoryQuery.isLoading ||
+                      applicationsHistory.length === 0
+                    }
+                  >
+                    Exportar CSV
+                  </Button>
+                </div>
+
+                {applicationsHistoryQuery.isLoading ? (
+                  <Skeleton className="h-40 w-full rounded-xl" />
+                ) : applicationsHistory.length === 0 ? (
+                  <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                    Aun no hay aplicaciones registradas.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-[hsl(var(--border))]">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-[hsl(var(--muted))/0.35]">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">Fecha</th>
+                          <th className="px-3 py-2 text-left font-medium">Estado</th>
+                          <th className="px-3 py-2 text-left font-medium">Origen</th>
+                          <th className="px-3 py-2 text-left font-medium">Destino</th>
+                          <th className="px-3 py-2 text-left font-medium">Monto origen</th>
+                          <th className="px-3 py-2 text-left font-medium">Monto destino</th>
+                          <th className="px-3 py-2 text-left font-medium">FX</th>
+                          <th className="px-3 py-2 text-left font-medium">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {applicationsHistory.map((row) => (
+                          <tr key={row.id} className="border-t border-[hsl(var(--border))]">
+                            <td className="px-3 py-2">{formatDate(row.appliedAt)}</td>
+                            <td className="px-3 py-2">
+                              <Badge
+                                variant={
+                                  row.status === "REVERSED" ? "secondary" : "success"
+                                }
+                              >
+                                {APPLICATION_STATUS_LABELS[row.status] || row.status || "-"}
+                              </Badge>
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex flex-col">
+                                <span className="font-medium">
+                                  {formatDocumentTypeLabel(
+                                    row.sourceDocument?.docType,
+                                  )}{" "}
+                                  -{" "}
+                                  {row.sourceDocument?.reference ||
+                                    row.sourceDocument?.contact?.name ||
+                                    row.sourceDocumentId}
+                                </span>
+                                <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                                  {row.sourceDocument?.direction || "-"}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex flex-col">
+                                <span className="font-medium">
+                                  {formatDocumentTypeLabel(
+                                    row.targetDocument?.docType,
+                                  )}{" "}
+                                  -{" "}
+                                  {row.targetDocument?.reference ||
+                                    row.targetDocument?.contact?.name ||
+                                    row.targetDocumentId}
+                                </span>
+                                <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                                  {row.targetDocument?.direction || "-"}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2">
+                              {formatMoney(
+                                row.sourceAmount ?? row.appliedAmount,
+                                row.sourceDocument?.currency ||
+                                  row.targetDocument?.currency ||
+                                  "MXN",
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              {formatMoney(
+                                row.targetAmount ?? row.appliedAmount,
+                                row.targetDocument?.currency ||
+                                  row.sourceDocument?.currency ||
+                                  "MXN",
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              {toNumber(row.effectiveFxRate) > 0
+                                ? `${toNumber(row.effectiveFxRate).toFixed(6)}`
+                                : "-"}
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    openJournalSheet(
+                                      row.sourceDocument || {
+                                        id: row.sourceDocumentId,
+                                        reference: row.sourceDocument?.reference,
+                                      },
+                                    )
+                                  }
+                                >
+                                  Poliza origen
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    openJournalSheet(
+                                      row.targetDocument || {
+                                        id: row.targetDocumentId,
+                                        reference: row.targetDocument?.reference,
+                                      },
+                                    )
+                                  }
+                                >
+                                  Poliza destino
+                                </Button>
+                                {row.status !== "REVERSED" ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => reverseApplication(row)}
+                                    loading={pendingReverseApplicationId === row.id}
+                                  >
+                                    Anular
+                                  </Button>
+                                ) : null}
+                              </div>
+                              {row.reversedAt ? (
+                                <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+                                  Revertida: {formatDate(row.reversedAt)}
+                                </p>
+                              ) : null}
+                              {row.reversalReason ? (
+                                <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                                  Motivo: {row.reversalReason}
+                                </p>
+                              ) : null}
                             </td>
                           </tr>
                         ))}
@@ -1321,6 +2811,173 @@ export default function FinanceScreen() {
           </div>
         )}
 
+        {activeSection === "taxes" && (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Registrar impuesto</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form
+                  className="grid grid-cols-1 md:grid-cols-5 gap-3"
+                  onSubmit={handleSubmitTaxRate}
+                >
+                  <TextField
+                    label="Clave"
+                    icon={Hash}
+                    value={taxRateForm.key}
+                    onChange={(event) =>
+                      setTaxRateForm((prev) => ({
+                        ...prev,
+                        key: event.target.value,
+                      }))
+                    }
+                    placeholder="IVA16"
+                    required
+                  />
+                  <TextField
+                    label="Nombre"
+                    icon={Notebook}
+                    value={taxRateForm.name}
+                    onChange={(event) =>
+                      setTaxRateForm((prev) => ({
+                        ...prev,
+                        name: event.target.value,
+                      }))
+                    }
+                    placeholder="IVA general"
+                    required
+                  />
+                  <SelectField
+                    label="Tipo"
+                    icon={Scale}
+                    value={taxRateForm.kind}
+                    onValueChange={(value) =>
+                      setTaxRateForm((prev) => ({ ...prev, kind: value }))
+                    }
+                    options={[
+                      { value: "TRANSFER", label: "Trasladado" },
+                      { value: "WITHHOLDING", label: "Retencion" },
+                    ]}
+                    required
+                  />
+                  <NumberField
+                    label="Tasa %"
+                    icon={Coins}
+                    value={taxRateForm.rate}
+                    onChange={(event) =>
+                      setTaxRateForm((prev) => ({
+                        ...prev,
+                        rate: event.target.value,
+                      }))
+                    }
+                    min="0"
+                    step="0.0001"
+                    placeholder="16"
+                    required
+                  />
+                  <SelectField
+                    label="Direccion"
+                    icon={ArrowRightLeft}
+                    value={taxRateForm.direction}
+                    onValueChange={(value) =>
+                      setTaxRateForm((prev) => ({ ...prev, direction: value }))
+                    }
+                    options={[
+                      { value: "AR", label: "AR (CxC)" },
+                      { value: "AP", label: "AP (CxP)" },
+                    ]}
+                    required
+                  />
+                  <div className="md:col-span-5 flex justify-end">
+                    <Button type="submit" loading={createTaxRateMutation.isPending}>
+                      Guardar impuesto
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Catalogo de impuestos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {taxRatesQuery.isLoading ? (
+                  <Skeleton className="h-40 w-full rounded-xl" />
+                ) : taxRates.length === 0 ? (
+                  <EmptyState
+                    title="Sin impuestos"
+                    description="Registra el primer impuesto o retencion para usarlo en documentos."
+                    icon={FileText}
+                  />
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-[hsl(var(--border))]">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-[hsl(var(--muted))/0.35]">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">Clave</th>
+                          <th className="px-3 py-2 text-left font-medium">Nombre</th>
+                          <th className="px-3 py-2 text-left font-medium">Tipo</th>
+                          <th className="px-3 py-2 text-left font-medium">Tasa</th>
+                          <th className="px-3 py-2 text-left font-medium">Direccion</th>
+                          <th className="px-3 py-2 text-left font-medium">Estado</th>
+                          <th className="px-3 py-2 text-left font-medium">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {taxRates.map((tax) => (
+                          <tr key={tax.id} className="border-t border-[hsl(var(--border))]">
+                            <td className="px-3 py-2 font-mono text-xs">{tax.key}</td>
+                            <td className="px-3 py-2">{tax.name}</td>
+                            <td className="px-3 py-2">
+                              {tax.kind === "WITHHOLDING" ? "Retencion" : "Trasladado"}
+                            </td>
+                            <td className="px-3 py-2">{Number(tax.rate).toFixed(4)}%</td>
+                            <td className="px-3 py-2">{tax.direction || "AR/AP"}</td>
+                            <td className="px-3 py-2">
+                              <Badge variant={tax.enabled ? "success" : "secondary"}>
+                                {tax.enabled ? "Activo" : "Inactivo"}
+                              </Badge>
+                            </td>
+                            <td className="px-3 py-2">
+                              <ActionMenu
+                                items={[
+                                  tax.enabled
+                                    ? {
+                                        label: "Deshabilitar",
+                                        icon: PowerOff,
+                                        disabled: pendingTaxRateId === tax.id,
+                                        onClick: () =>
+                                          toggleTaxRateMutation.mutate({
+                                            id: tax.id,
+                                            enabled: false,
+                                          }),
+                                      }
+                                    : {
+                                        label: "Habilitar",
+                                        icon: Power,
+                                        disabled: pendingTaxRateId === tax.id,
+                                        onClick: () =>
+                                          toggleTaxRateMutation.mutate({
+                                            id: tax.id,
+                                            enabled: true,
+                                          }),
+                                      },
+                                ]}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {activeSection === "fx-rates" && (
           <div className="space-y-4">
             <Card>
@@ -1506,6 +3163,254 @@ export default function FinanceScreen() {
       </div>
 
       <Sheet
+        open={applySheetOpen}
+        onOpenChange={(open) => {
+          if (applyFifoMutation.isPending) return;
+          setApplySheetOpen(open);
+          if (!open) {
+            setApplySourceDocument(null);
+            setApplyTargets([]);
+            setApplyLines([]);
+            setApplyTotals({ applied: 0, unapplied: 0 });
+            setApplyNote("");
+          }
+        }}
+      >
+        <SheetContent className="sm:max-w-4xl lg:max-w-5xl">
+          <SheetHeader>
+            <SheetTitle>Aplicacion manual de documento</SheetTitle>
+          </SheetHeader>
+          <form className="space-y-4 py-4" onSubmit={submitManualApply}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Badge variant="glass">
+                Documento: {applySourceDocument?.reference || applySourceDocument?.id || "-"}
+              </Badge>
+              <Badge variant="glass">
+                Tipo: {formatDocumentTypeLabel(applySourceDocument?.docType)}
+              </Badge>
+              <Badge variant="glass">
+                Abierto:{" "}
+                {formatMoney(
+                  applySourceDocument?.openAmount ?? 0,
+                  applySourceDocument?.currency || "MXN",
+                )}
+              </Badge>
+            </div>
+
+            {applyLoading ? (
+              <Skeleton className="h-40 w-full rounded-xl" />
+            ) : applyTargets.length === 0 ? (
+              <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                No hay documentos destino disponibles para aplicar.
+              </p>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-[hsl(var(--border))]">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-[hsl(var(--muted))/0.35]">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium">Destino</th>
+                      <th className="px-3 py-2 text-left font-medium">Abierto destino</th>
+                      <th className="px-3 py-2 text-left font-medium">Aplicar destino</th>
+                      <th className="px-3 py-2 text-left font-medium">Equivalente origen</th>
+                      <th className="px-3 py-2 text-left font-medium">FX</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {applyLines.map((line) => {
+                      const target = applyTargetById.get(line.targetDocumentId);
+                      return (
+                        <tr
+                          key={line.targetDocumentId}
+                          className="border-t border-[hsl(var(--border))]"
+                        >
+                          <td className="px-3 py-2">
+                            {target?.label || line.targetDocumentId}
+                          </td>
+                          <td className="px-3 py-2">
+                            {formatMoney(
+                              target?.openAmount ?? 0,
+                              target?.currency || "MXN",
+                            )}
+                          </td>
+                          <td className="px-3 py-2 w-48">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={line.amount}
+                              onChange={(event) =>
+                                updateApplyLine(
+                                  line.targetDocumentId,
+                                  event.target.value,
+                                )
+                              }
+                              className="h-10"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            {formatMoney(
+                              line.sourceAmount ?? line.amount ?? 0,
+                              applySourceDocument?.currency || "MXN",
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {toNumber(line.effectiveFxRate) > 0
+                              ? `${toNumber(line.effectiveFxRate).toFixed(6)}`
+                              : "-"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Badge variant="glass">
+                Aplicado:{" "}
+                {formatMoney(
+                  applyTotals.applied,
+                  applySourceDocument?.currency || "MXN",
+                )}
+              </Badge>
+              <Badge
+                variant={
+                  applyTotals.unapplied > 0
+                    ? "secondary"
+                    : "success"
+                }
+              >
+                Pendiente:{" "}
+                {formatMoney(
+                  applyTotals.unapplied,
+                  applySourceDocument?.currency || "MXN",
+                )}
+              </Badge>
+              <Badge
+                variant={
+                  applyTotals.applied >
+                  toNumber(applySourceDocument?.openAmount)
+                    ? "destructive"
+                    : "glass"
+                }
+              >
+                LÃ­mite:{" "}
+                {formatMoney(
+                  applySourceDocument?.openAmount ?? 0,
+                  applySourceDocument?.currency || "MXN",
+                )}
+              </Badge>
+            </div>
+
+            <TextField
+              label="Nota de aplicacion"
+              icon={Notebook}
+              value={applyNote}
+              onChange={(event) => setApplyNote(event.target.value)}
+              placeholder="Observacion interna opcional"
+            />
+
+            <SheetFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setApplySheetOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={resetApplyToFifo}
+                disabled={applyLoading || applyFifoMutation.isPending}
+              >
+                Limpiar
+              </Button>
+              <Button
+                type="submit"
+                loading={applyFifoMutation.isPending}
+                disabled={
+                  applyLoading ||
+                  applyTotals.applied <= 0 ||
+                  applyTotals.applied >
+                    toNumber(applySourceDocument?.openAmount)
+                }
+              >
+                Confirmar aplicacion
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet
+        open={journalSheetOpen}
+        onOpenChange={(open) => {
+          setJournalSheetOpen(open);
+          if (!open) {
+            setJournalSourceDocument(null);
+            setJournalLinks([]);
+          }
+        }}
+      >
+        <SheetContent className="sm:max-w-3xl lg:max-w-4xl">
+          <SheetHeader>
+            <SheetTitle>
+              Trazabilidad contable {journalSourceDocument?.reference ? `- ${journalSourceDocument.reference}` : ""}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 py-4">
+            {journalLoading ? (
+              <Skeleton className="h-40 w-full rounded-xl" />
+            ) : journalLinks.length === 0 ? (
+              <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                Este documento aun no tiene polizas vinculadas.
+              </p>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-[hsl(var(--border))]">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-[hsl(var(--muted))/0.35]">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium">Evento</th>
+                      <th className="px-3 py-2 text-left font-medium">Poliza</th>
+                      <th className="px-3 py-2 text-left font-medium">Fecha</th>
+                      <th className="px-3 py-2 text-left font-medium">Concepto</th>
+                      <th className="px-3 py-2 text-left font-medium">Lineas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {journalLinks.map((link) => (
+                      <tr key={link.id} className="border-t border-[hsl(var(--border))]">
+                        <td className="px-3 py-2">{link.eventType}</td>
+                        <td className="px-3 py-2 font-mono text-xs">
+                          {link.journalEntry?.entryNumber || "-"}
+                        </td>
+                        <td className="px-3 py-2">
+                          {formatDate(link.journalEntry?.occurredAt)}
+                        </td>
+                        <td className="px-3 py-2">
+                          {link.journalEntry?.concept || "-"}
+                        </td>
+                        <td className="px-3 py-2">
+                          {(link.journalEntry?.lines ?? []).length}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <SheetFooter className="gap-2">
+              <Button variant="outline" onClick={() => setJournalSheetOpen(false)}>
+                Cerrar
+              </Button>
+            </SheetFooter>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet
         open={guidedSheetOpen}
         onOpenChange={(open) => {
           if (createEntryMutation.isPending) return;
@@ -1678,7 +3583,11 @@ export default function FinanceScreen() {
             />
           </form>
           <SheetFooter className="gap-2">
-            <Button variant="outline" onClick={() => setGuidedSheetOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setGuidedSheetOpen(false)}
+            >
               Cancelar
             </Button>
             <Button
@@ -1694,6 +3603,265 @@ export default function FinanceScreen() {
               loading={createEntryMutation.isPending}
             >
               Guardar {guidedMeta.title.toLowerCase()}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet
+        open={documentSheetOpen}
+        onOpenChange={(open) => {
+          if (createDocumentMutation.isPending) return;
+          setDocumentSheetOpen(open);
+          if (!open) {
+            setDocumentForm(defaultDocumentForm(documentForm.direction || "AR"));
+          }
+        }}
+      >
+        <SheetContent className="sm:max-w-3xl lg:max-w-4xl">
+          <SheetHeader>
+            <SheetTitle>Nuevo documento financiero</SheetTitle>
+          </SheetHeader>
+          <form
+            id="finance-document-form"
+            className="space-y-4 py-4"
+            onSubmit={handleSubmitDocument}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <SelectField
+                label="Direccion"
+                icon={ArrowRightLeft}
+                value={documentForm.direction}
+                onValueChange={(value) =>
+                  setDocumentForm((prev) => ({ ...prev, direction: value }))
+                }
+                options={[
+                  { value: "AR", label: "AR (CxC)" },
+                  { value: "AP", label: "AP (CxP)" },
+                ]}
+                required
+              />
+              <SelectField
+                label="Tipo"
+                icon={FileText}
+                value={documentForm.docType}
+                onValueChange={(value) =>
+                  setDocumentForm((prev) => ({ ...prev, docType: value }))
+                }
+                options={[
+                  { value: "INVOICE", label: "Factura" },
+                  { value: "DEBIT_NOTE", label: "Nota de debito" },
+                  { value: "CREDIT_NOTE", label: "Nota de credito" },
+                  { value: "PAYMENT", label: "Pago" },
+                  { value: "ADVANCE", label: "Anticipo" },
+                ]}
+                required
+              />
+              <SelectField
+                label="Moneda"
+                icon={Coins}
+                value={documentForm.currency}
+                onValueChange={(value) =>
+                  setDocumentForm((prev) => ({
+                    ...prev,
+                    currency: normalizeCurrencyCode(value),
+                  }))
+                }
+                options={resolveCurrencyOptions(documentForm.currency)}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <SelectField
+                label="Contacto"
+                icon={HandCoins}
+                value={documentForm.contactId}
+                onValueChange={(value) =>
+                  setDocumentForm((prev) => ({ ...prev, contactId: value }))
+                }
+                options={contacts.map((contact) => ({
+                  value: contact.id,
+                  label: `${contact.name}${contact.type ? ` (${contact.type})` : ""}`,
+                }))}
+                placeholder="Selecciona contacto"
+              />
+              <CurrencyField
+                label="Subtotal"
+                icon={Scale}
+                value={documentForm.subtotalAmount}
+                onChange={(value) =>
+                  setDocumentForm((prev) => ({
+                    ...prev,
+                    subtotalAmount: value,
+                  }))
+                }
+                currency={documentForm.currency || "MXN"}
+                allowNegative={false}
+                min={0}
+              />
+              <CurrencyField
+                label="Monto total"
+                icon={Scale}
+                value={documentForm.totalAmount}
+                onChange={(value) =>
+                  setDocumentForm((prev) => ({ ...prev, totalAmount: value }))
+                }
+                currency={documentForm.currency || "MXN"}
+                allowNegative={false}
+                min={0}
+                required
+              />
+            </div>
+
+            <div className="rounded-xl border border-[hsl(var(--border))] p-3 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-[hsl(var(--foreground))]">
+                  Impuestos y retenciones
+                </p>
+                <Badge variant="glass">
+                  {selectedDocumentTaxes.length} seleccionados
+                </Badge>
+              </div>
+
+              {taxRatesQuery.isLoading ? (
+                <Skeleton className="h-16 w-full rounded-xl" />
+              ) : activeTaxRates.length === 0 ? (
+                <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                  No hay impuestos activos. Puedes crearlos en Finanzas &gt; Impuestos.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {activeTaxRates
+                    .filter(
+                      (tax) =>
+                        !tax.direction || tax.direction === documentForm.direction,
+                    )
+                    .map((tax) => {
+                      const checked = (documentForm.selectedTaxRateIds ?? []).includes(
+                        tax.id,
+                      );
+                      return (
+                        <label
+                          key={tax.id}
+                          className="flex items-center gap-2 rounded-lg border border-[hsl(var(--border))] px-3 py-2 text-sm"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(value) =>
+                              toggleDocumentTaxSelection(tax.id, Boolean(value))
+                            }
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">
+                              {tax.key} - {tax.name}
+                            </p>
+                            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                              {tax.kind === "WITHHOLDING"
+                                ? "Retencion"
+                                : "Trasladado"}{" "}
+                              {Number(tax.rate).toFixed(4)}%
+                            </p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                <Badge variant="glass">
+                  Subtotal:{" "}
+                  {formatMoney(
+                    documentTaxPreview.subtotal,
+                    documentForm.currency || "MXN",
+                  )}
+                </Badge>
+                <Badge variant="success">
+                  Trasladados:{" "}
+                  {formatMoney(
+                    documentTaxPreview.transfers,
+                    documentForm.currency || "MXN",
+                  )}
+                </Badge>
+                <Badge variant="secondary">
+                  Retenciones:{" "}
+                  {formatMoney(
+                    documentTaxPreview.withholdings,
+                    documentForm.currency || "MXN",
+                  )}
+                </Badge>
+                <Badge variant="glass">
+                  Sugerido:{" "}
+                  {formatMoney(
+                    documentTaxPreview.suggestedTotal,
+                    documentForm.currency || "MXN",
+                  )}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <DateField
+                label="Emision"
+                icon={Calendar}
+                value={documentForm.issueDate}
+                onChange={(event) =>
+                  setDocumentForm((prev) => ({
+                    ...prev,
+                    issueDate: event.target.value,
+                  }))
+                }
+                required
+              />
+              <DateField
+                label="Vencimiento"
+                icon={CalendarDays}
+                value={documentForm.dueDate}
+                onChange={(event) =>
+                  setDocumentForm((prev) => ({
+                    ...prev,
+                    dueDate: event.target.value,
+                  }))
+                }
+              />
+              <TextField
+                label="Referencia"
+                icon={Hash}
+                value={documentForm.reference}
+                onChange={(event) =>
+                  setDocumentForm((prev) => ({
+                    ...prev,
+                    reference: event.target.value,
+                  }))
+                }
+                placeholder="FAC-0001"
+              />
+            </div>
+
+            <TextField
+              label="Observaciones"
+              icon={Notebook}
+              value={documentForm.notesMarkdown}
+              onChange={(event) =>
+                setDocumentForm((prev) => ({
+                  ...prev,
+                  notesMarkdown: event.target.value,
+                }))
+              }
+              placeholder="Notas del documento"
+            />
+          </form>
+          <SheetFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDocumentSheetOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              form="finance-document-form"
+              loading={createDocumentMutation.isPending}
+            >
+              Guardar documento
             </Button>
           </SheetFooter>
         </SheetContent>
