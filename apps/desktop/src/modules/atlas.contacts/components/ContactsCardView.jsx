@@ -100,9 +100,9 @@ export function ContactsCardView({
 
             {/* header row */}
             <div className="flex items-start justify-between gap-2 pl-6">
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
                 <ContactAvatar contact={contact} />
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-[hsl(var(--foreground))]">
                     {contact.name}
                   </p>
@@ -147,13 +147,13 @@ export function ContactsCardView({
               {contact.phone ? (
                 <div className="flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]">
                   <Phone className="h-3.5 w-3.5 shrink-0" />
-                  <span>{contact.phone}</span>
+                  <span className="truncate">{contact.phone}</span>
                 </div>
               ) : null}
               {contact.taxId ? (
                 <div className="flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]">
                   <FileText className="h-3.5 w-3.5 shrink-0" />
-                  <span className="font-mono">{contact.taxId}</span>
+                  <span className="truncate font-mono">{contact.taxId}</span>
                 </div>
               ) : null}
             </div>
