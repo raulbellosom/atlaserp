@@ -8,7 +8,11 @@ import { CompanySwitcher } from "./CompanySwitcher";
 import { NotificationBell } from "./NotificationBell";
 import { UserMenu } from "./UserMenu";
 
-export function Topbar({ onLauncherOpen, onMobileMenuToggle, networkBusy = false }) {
+export function Topbar({
+  onLauncherOpen,
+  onMobileMenuToggle,
+  networkBusy = false,
+}) {
   const { session } = useAuth();
   const { openCommand } = useCommandStore();
   const navigate = useNavigate();
@@ -87,8 +91,14 @@ export function Topbar({ onLauncherOpen, onMobileMenuToggle, networkBusy = false
             Sincronizando...
           </div>
         )}
-        {token && <span className="hidden md:contents"><CompanySwitcher token={token} /></span>}
-        <span className="hidden sm:contents"><ThemeToggle /></span>
+        {token && (
+          <span className="hidden md:contents">
+            <CompanySwitcher token={token} />
+          </span>
+        )}
+        <span className="hidden sm:contents">
+          <ThemeToggle />
+        </span>
         {token && <NotificationBell token={token} />}
         <UserMenu />
       </div>
