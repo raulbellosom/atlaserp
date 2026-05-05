@@ -24,6 +24,8 @@ import { ProfileScreen } from "./app/ProfileScreen";
 import { atlas } from "./lib/atlas";
 import { applyBrandTheme } from "./lib/brandTheme";
 import { AppLoader } from "./components/AppLoader";
+import { ApiErrorScreen } from "./components/ApiErrorScreen";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useBrandingStore } from "./stores/branding";
 import "./styles.css";
 
@@ -31,7 +33,7 @@ const queryClient = new QueryClient();
 
 function InitGuard() {
   const navigate = useNavigate();
-  const { data, isPending, isError } = useQuery({
+  const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: ["instance-status"],
     queryFn: atlas.instance.status,
     retry: 1,
@@ -49,9 +51,11 @@ function InitGuard() {
 
   if (isError) {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-sm text-red-500">
-        No se pudo conectar con el servidor. Verifica que la API este corriendo.
-      </div>
+      <ApiErrorScreen
+        error={error}
+        onRetry={() => refetch()}
+        context="Verificacion de instancia"
+      />
     );
   }
 
@@ -110,4 +114,8 @@ function App() {
   );
 }
 
-createRoot(document.getElementById("root")).render(<App />);
+createRoot(document.getElementById("root")).render(
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>,
+);
