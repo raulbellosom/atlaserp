@@ -203,6 +203,16 @@ body,
   min-height: 100%;
 }
 
+/* ── Prevent iOS Safari auto-zoom on input focus ─────────── */
+/* iOS zooms in when font-size < 16px. Fix globally at mobile widths. */
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 /* ── AppLoader animations ─────────────────────────────────── */
 @keyframes loader-spin {
   to {
