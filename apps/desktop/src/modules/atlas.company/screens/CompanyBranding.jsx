@@ -400,7 +400,9 @@ function ColorPicker({ value, onChange, suggestedColors, disabled }) {
 export default function CompanyBranding() {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
-  const isAdmin = ["atlas.admin", "system.admin"].includes(userProfile?.role);
+  const canManage = Boolean(
+    userProfile?.isAdmin || userProfile?.permissions?.includes("company.manage"),
+  );
   const queryClient = useQueryClient();
 
   const brandingQuery = useQuery({
@@ -510,7 +512,7 @@ export default function CompanyBranding() {
 
   const uploading = uploadLogoMutation.isPending;
   const saving = saveMutation.isPending;
-  const disabled = !isAdmin || saving;
+  const disabled = !canManage || saving;
 
   return (
     <div className="flex flex-col min-h-full">
@@ -522,9 +524,9 @@ export default function CompanyBranding() {
             description="Logotipo y paleta de colores de la empresa."
           />
 
-          {!isAdmin && (
+          {!canManage && (
             <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
-              Solo los administradores pueden editar la marca visual.
+              Necesitas permiso company.manage para editar la marca visual.
             </div>
           )}
 
@@ -589,7 +591,7 @@ export default function CompanyBranding() {
               </Card>
             </div>
 
-            {isAdmin && (
+            {canManage && (
               <div className="flex justify-end">
                 <Button
                   type="submit"

@@ -20,7 +20,9 @@ export default function CompanyAddress() {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
-  const isAdmin = ["atlas.admin", "system.admin"].includes(userProfile?.role);
+  const canManage = Boolean(
+    userProfile?.isAdmin || userProfile?.permissions?.includes("company.manage"),
+  );
 
   const { data, isLoading } = useQuery({
     queryKey: ["company-address"],
@@ -111,7 +113,7 @@ export default function CompanyAddress() {
     saveMutation.mutate(form);
   }
 
-  const disabled = !isAdmin || saveMutation.isPending;
+  const disabled = !canManage || saveMutation.isPending;
 
   return (
     <div className="flex flex-col min-h-full">
@@ -123,9 +125,9 @@ export default function CompanyAddress() {
             description="Ubicacion fiscal y domicilio de la empresa."
           />
 
-          {!isAdmin && (
+          {!canManage && (
             <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
-              Solo los administradores pueden editar la direccion de la empresa.
+              Necesitas permiso company.manage para editar la direccion de la empresa.
             </div>
           )}
 
@@ -249,7 +251,7 @@ export default function CompanyAddress() {
                 )}
               </Card>
 
-              {isAdmin && (
+              {canManage && (
                 <div className="flex justify-end">
                   <Button
                     type="submit"

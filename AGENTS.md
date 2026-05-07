@@ -112,6 +112,7 @@ Invoke-WebRequest -UseBasicParsing http://localhost:5173
 - Prefer `enabled: false` (soft-disable) over hard deletes.
 - Core modules must not be uninstallable.
 - Keep API route handlers thin; push business logic into service functions.
+- **Atomic file size limit** — No source file may exceed **1000 lines**. Hard ceiling is **1500 lines** (treat as a build-blocking violation). Files approaching 800 lines should be proactively split. Strategies: extract sub-components into their own files, split route files by domain, separate form sheets from list screens, move helpers into `lib/` or `utils/` files. Current known violators that must be decomposed: `FinanceScreen.jsx` (4462), `apps/api/src/index.js` (3583), `FormFields.jsx` (2153), `HrEmployeeDetail.jsx` (1704), `finance-documents-service.js` (1118), `finance-service.js` (1076), `ModuleCatalog.jsx` (1033).
 - **Never use native browser dialogs** (`window.confirm`, `window.alert`, `window.prompt`, `prompt`). Always use the shared `<ConfirmDialog>` component from `@atlas/ui` for confirmations.
 - Update [docs/TASKS.md](docs/TASKS.md) when completing meaningful project phases.
 - In docs checklists, mark `[x]` only with explicit verification evidence and a concrete `Verified: YYYY-MM-DD (...)` note.

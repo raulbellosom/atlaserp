@@ -1,5 +1,12 @@
-import { Badge, Button, FilterBar, SearchInput } from "@atlas/ui";
-import { Grid3X3, LayoutList, Rows3, Download, Archive, CheckSquare } from "lucide-react";
+import {
+  Badge,
+  Button,
+  FilterBar,
+  MobileFiltersSheet,
+  SearchInput,
+  ViewModeSwitch,
+} from "@atlas/ui";
+import { Download, Archive, CheckSquare } from "lucide-react";
 
 const FILTERS = [
   {
@@ -65,52 +72,44 @@ export function FilesToolbar({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Buscar archivo..."
-          className="w-full sm:max-w-sm"
+          className="flex-1 min-w-0 sm:max-w-sm"
         />
-        <FilterBar
-          filters={resolvedFilters}
-          value={filters}
-          onChange={onFiltersChange}
-        />
-        <div className="inline-flex rounded-xl border border-[hsl(var(--border))] overflow-hidden">
-          <Button
-            type="button"
-            variant={viewMode === "table" ? "default" : "ghost"}
-            size="sm"
-            className="rounded-none"
-            onClick={() => onViewModeChange("table")}
-          >
-            <Rows3 className="h-3.5 w-3.5" />
-            Tabla
-          </Button>
-          <Button
-            type="button"
-            variant={viewMode === "cards" ? "default" : "ghost"}
-            size="sm"
-            className="rounded-none"
-            onClick={() => onViewModeChange("cards")}
-          >
-            <LayoutList className="h-3.5 w-3.5" />
-            Cards
-          </Button>
-          <Button
-            type="button"
-            variant={viewMode === "grid" ? "default" : "ghost"}
-            size="sm"
-            className="rounded-none"
-            onClick={() => onViewModeChange("grid")}
-          >
-            <Grid3X3 className="h-3.5 w-3.5" />
-            Cuadricula
-          </Button>
+        {/* Desktop filters inline */}
+        <div className="hidden md:flex items-center gap-2">
+          <FilterBar
+            filters={resolvedFilters}
+            value={filters}
+            onChange={onFiltersChange}
+          />
         </div>
+        {/* Mobile filters sheet */}
+        <MobileFiltersSheet
+          activeCount={Object.values(filters).filter(Boolean).length}
+          onClear={() => onFiltersChange({})}
+        >
+          <FilterBar
+            filters={resolvedFilters}
+            value={filters}
+            onChange={onFiltersChange}
+          />
+        </MobileFiltersSheet>
+        <ViewModeSwitch
+          value={viewMode}
+          onChange={onViewModeChange}
+          storageKey="files"
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline">Seleccionados: {selectedCount}</Badge>
-        <Button type="button" variant="outline" size="sm" onClick={onSelectVisible}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onSelectVisible}
+        >
           <CheckSquare className="h-3.5 w-3.5" />
-          Seleccionar visibles
+          <span className="hidden sm:inline">Seleccionar visibles</span>
         </Button>
         <Button
           type="button"
@@ -120,7 +119,7 @@ export function FilesToolbar({
           disabled={selectedCount === 0 || bulkLoading}
         >
           <Download className="h-3.5 w-3.5" />
-          Descargar seleccionados
+          <span className="hidden sm:inline">Descargar seleccionados</span>
         </Button>
         <Button
           type="button"
@@ -129,7 +128,7 @@ export function FilesToolbar({
           disabled={selectedCount === 0 || bulkLoading}
         >
           <Archive className="h-3.5 w-3.5" />
-          Descargar ZIP
+          <span className="hidden sm:inline">Descargar ZIP</span>
         </Button>
         <Button
           type="button"
@@ -138,9 +137,10 @@ export function FilesToolbar({
           onClick={onClearSelection}
           disabled={selectedCount === 0 || bulkLoading}
         >
-          Limpiar seleccion
+          <span className="hidden sm:inline">Limpiar selecci\u00f3n</span>
+          <span className="sm:hidden">Limpiar</span>
         </Button>
-        <div className="ml-auto inline-flex items-center gap-1.5 rounded-xl border border-[hsl(var(--border))] px-1.5 py-1">
+        <div className="sm:ml-auto inline-flex items-center gap-1.5 rounded-xl border border-[hsl(var(--border))] px-1.5 py-1">
           <Button
             type="button"
             variant={sort.by === "createdAt" ? "secondary" : "ghost"}
@@ -148,7 +148,10 @@ export function FilesToolbar({
             onClick={() =>
               onSortChange({
                 by: "createdAt",
-                dir: sort.by === "createdAt" && sort.dir === "desc" ? "asc" : "desc",
+                dir:
+                  sort.by === "createdAt" && sort.dir === "desc"
+                    ? "asc"
+                    : "desc",
               })
             }
           >
@@ -161,7 +164,10 @@ export function FilesToolbar({
             onClick={() =>
               onSortChange({
                 by: "originalName",
-                dir: sort.by === "originalName" && sort.dir === "asc" ? "desc" : "asc",
+                dir:
+                  sort.by === "originalName" && sort.dir === "asc"
+                    ? "desc"
+                    : "asc",
               })
             }
           >
@@ -174,11 +180,14 @@ export function FilesToolbar({
             onClick={() =>
               onSortChange({
                 by: "sizeBytes",
-                dir: sort.by === "sizeBytes" && sort.dir === "asc" ? "desc" : "asc",
+                dir:
+                  sort.by === "sizeBytes" && sort.dir === "asc"
+                    ? "desc"
+                    : "asc",
               })
             }
           >
-            Tamano
+            Tama\u00f1o
           </Button>
         </div>
       </div>

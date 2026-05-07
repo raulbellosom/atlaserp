@@ -32,7 +32,12 @@ export default function UserEditorScreen() {
   const location = useLocation();
   const token = session?.access_token;
   const userId = getUserIdFromPath(location.pathname);
-  const isAdmin = ["atlas.admin", "system.admin"].includes(userProfile?.role);
+  const permissions = userProfile?.permissions ?? [];
+  const hasPermission = (key) =>
+    Boolean(userProfile?.isAdmin || permissions.includes(key));
+  const canReadUsers = hasPermission("identity.read") || hasPermission("identity.manage");
+  const canManageUsers = hasPermission("identity.manage");
+  const canReadRoles = hasPermission("roles.read");
   const queryClient = useQueryClient();
   const isSelf = userId === userProfile?.id;
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -40,12 +45,12 @@ export default function UserEditorScreen() {
   const usersQuery = useQuery({
     queryKey: ["identity-users"],
     queryFn: () => atlas.identity.listUsers(token),
-    enabled: Boolean(token) && isAdmin,
+    enabled: Boolean(token) && canReadUsers,
   });
   const rolesQuery = useQuery({
     queryKey: ["identity-roles"],
     queryFn: () => atlas.identity.listRoles(token),
-    enabled: Boolean(token) && isAdmin,
+    enabled: Boolean(token) && canReadRoles,
   });
 
   const user = useMemo(
@@ -131,7 +136,7 @@ export default function UserEditorScreen() {
           <ArrowLeft className="h-4 w-4" />
           Volver a usuarios
         </Button>
-        {isAdmin && user && !isSelf && (
+        {canManageUsers && user && !isSelf && (
           <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
             <Trash2 className="h-4 w-4" />
             Eliminar usuario
@@ -139,17 +144,17 @@ export default function UserEditorScreen() {
         )}
       </div>
 
-      {!isAdmin && (
+      {!canReadUsers && (
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-[hsl(var(--muted-foreground))]">
-              Sin permisos para editar: esta sección requiere rol administrador.
+              No tienes permisos para consultar usuarios.
             </p>
           </CardContent>
         </Card>
       )}
 
-      {isAdmin && (usersQuery.isLoading || rolesQuery.isLoading) && (
+      {canReadUsers && (usersQuery.isLoading || rolesQuery.isLoading) && (
         <Card>
           <CardContent className="pt-6 space-y-3">
             <Skeleton className="h-8 w-72 rounded-lg" />
@@ -160,7 +165,7 @@ export default function UserEditorScreen() {
         </Card>
       )}
 
-      {isAdmin && usersQuery.isError && (
+      {canReadUsers && usersQuery.isError && (
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-red-600">
@@ -170,7 +175,7 @@ export default function UserEditorScreen() {
         </Card>
       )}
 
-      {isAdmin && !usersQuery.isLoading && !usersQuery.isError && !user && (
+      {canReadUsers && !usersQuery.isLoading && !usersQuery.isError && !user && (
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-[hsl(var(--muted-foreground))]">
@@ -180,7 +185,7 @@ export default function UserEditorScreen() {
         </Card>
       )}
 
-      {isAdmin && user && !rolesQuery.isLoading && (
+      {canReadUsers && user && !rolesQuery.isLoading && (
         <Card>
           <CardHeader>
             <CardTitle>{user.displayName || "Usuario"}</CardTitle>
@@ -202,6 +207,7 @@ export default function UserEditorScreen() {
                 icon={UserRound}
                 label="Nombre"
                 value={effective.firstName}
+                disabled={!canManageUsers}
                 onChange={(e) =>
                   setDraft((prev) => ({
                     ...(prev ?? {}),
@@ -213,6 +219,7 @@ export default function UserEditorScreen() {
                 icon={UserRound}
                 label="Apellidos"
                 value={effective.lastName}
+                disabled={!canManageUsers}
                 onChange={(e) =>
                   setDraft((prev) => ({
                     ...(prev ?? {}),
@@ -235,7 +242,7 @@ export default function UserEditorScreen() {
                 onValueChange={(value) =>
                   setDraft((prev) => ({ ...(prev ?? {}), roleId: value }))
                 }
-                disabled={!membership}
+                disabled={!canManageUsers || !canReadRoles || !membership}
               />
             </div>
 
@@ -243,25 +250,32 @@ export default function UserEditorScreen() {
               id="user-enabled"
               label="Usuario activo"
               checked={effective.enabled}
+              disabled={!canManageUsers}
               onChange={(checked) =>
                 setDraft((prev) => ({ ...(prev ?? {}), enabled: checked }))
               }
             />
 
-            <div className="flex justify-end">
-              <Button
-                disabled={
-                  updateUserMutation.isPending ||
-                  !effective.firstName ||
-                  !effective.lastName
-                }
-                onClick={saveChanges}
-              >
-                {updateUserMutation.isPending
-                  ? "Guardando..."
-                  : "Guardar cambios"}
-              </Button>
-            </div>
+            {canManageUsers ? (
+              <div className="flex justify-end">
+                <Button
+                  disabled={
+                    updateUserMutation.isPending ||
+                    !effective.firstName ||
+                    !effective.lastName
+                  }
+                  onClick={saveChanges}
+                >
+                  {updateUserMutation.isPending
+                    ? "Guardando..."
+                    : "Guardar cambios"}
+                </Button>
+              </div>
+            ) : (
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                Modo lectura: necesitas permiso identity.manage para editar.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}

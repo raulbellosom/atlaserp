@@ -17,6 +17,19 @@ export const moduleInstallSchema = z.object({
           }),
         )
         .optional(),
+      navigation: z
+        .array(
+          z
+            .object({
+              label: z.string(),
+              path: z.string(),
+              icon: z.string().optional(),
+              layout: z.string().optional(),
+              permissionKey: z.string().optional(),
+            })
+            .passthrough(),
+        )
+        .optional(),
       permissions: z
         .array(
           z.object({
@@ -25,6 +38,22 @@ export const moduleInstallSchema = z.object({
             description: z.string().optional(),
           }),
         )
+        .optional(),
+      acl: z
+        .object({
+          module: z.string().optional().nullable(),
+          actions: z.record(z.string()).optional(),
+          models: z
+            .record(
+              z.object({
+                read: z.string().optional(),
+                create: z.string().optional(),
+                update: z.string().optional(),
+                delete: z.string().optional(),
+              }),
+            )
+            .optional(),
+        })
         .optional(),
       blueprints: z.array(z.any()).optional(),
     })

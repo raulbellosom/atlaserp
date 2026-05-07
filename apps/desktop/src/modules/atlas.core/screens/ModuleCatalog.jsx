@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { coreModules, featureModules } from "@atlas/maps";
 import {
   Badge,
@@ -42,12 +42,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { useRuntimeModules } from "../../../app/useRuntimeModules";
 import { atlas } from "../../../lib/atlas";
 import {
   CATEGORY_LABELS,
   getModuleLaunchPath,
   isModuleAvailable,
+  mergeRuntimeModules,
 } from "../../../lib/runtimeModules";
 
 const MANIFEST_BY_KEY = new Map(
@@ -150,14 +150,20 @@ function StatusPill({ module, className }) {
 }
 
 // ---- Card primary action (inline on card) ----
-function CardAction({ module, isAdmin, onAction, onOpen }) {
+function CardAction({
+  module,
+  canInstallModules,
+  canDisableModules,
+  onAction,
+  onOpen,
+}) {
   const canOpen = isModuleAvailable(module);
   const canInstall =
     module.status === "UNINSTALLED" &&
-    isAdmin &&
+    canInstallModules &&
     module.compatibilityStatus !== "BLOCKED";
   const canEnable =
-    module.status === "DISABLED" && !isLocked(module) && isAdmin;
+    module.status === "DISABLED" && !isLocked(module) && canDisableModules;
 
   if (canOpen) {
     return (
@@ -236,12 +242,28 @@ export default function ModuleCatalog() {
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { runtimeModules, isLoading, isError } = useRuntimeModules();
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
+  const permissions = userProfile?.permissions ?? [];
+  const isAdmin = Boolean(userProfile?.isAdmin);
+  const hasPermission = (key) => isAdmin || permissions.includes(key);
+  const canReadModules = hasPermission("modules.read");
+  const canInstallModules = hasPermission("modules.install");
+  const canDisableModules = hasPermission("modules.disable");
+  const canUninstallModules = hasPermission("modules.uninstall");
 
-  const isAdmin =
-    userProfile?.role === "atlas.admin" || userProfile?.role === "system.admin";
+  const modulesQuery = useQuery({
+    queryKey: ["modules", token],
+    queryFn: () => atlas.modules.list(token),
+    enabled: Boolean(token) && canReadModules,
+    staleTime: 60000,
+  });
+  const runtimeModules = useMemo(
+    () => mergeRuntimeModules(modulesQuery.data),
+    [modulesQuery.data],
+  );
+  const isLoading = modulesQuery.isLoading;
+  const isError = modulesQuery.isError;
 
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
@@ -264,6 +286,7 @@ export default function ModuleCatalog() {
     },
     onSuccess: async (_, { action }) => {
       await queryClient.invalidateQueries({ queryKey: ["modules"] });
+      await queryClient.invalidateQueries({ queryKey: ["runtime-modules"] });
       await queryClient.invalidateQueries({ queryKey: ["blueprints"] });
       setConfirmUninstall(null);
       const labels = {
@@ -398,7 +421,7 @@ export default function ModuleCatalog() {
         {canInstall && (
           <Button
             className="w-full"
-            disabled={!isAdmin || inFlight}
+            disabled={!canInstallModules || inFlight}
             onClick={() =>
               lifecycleMutation.mutate({ action: "install", module })
             }
@@ -409,7 +432,7 @@ export default function ModuleCatalog() {
         {canEnable && (
           <Button
             className="w-full"
-            disabled={!isAdmin || inFlight}
+            disabled={!canDisableModules || inFlight}
             onClick={() =>
               lifecycleMutation.mutate({ action: "enable", module })
             }
@@ -422,7 +445,7 @@ export default function ModuleCatalog() {
           <Button
             className="w-full"
             variant="outline"
-            disabled={!isAdmin || inFlight}
+            disabled={!canDisableModules || inFlight}
             onClick={() =>
               lifecycleMutation.mutate({ action: "disable", module })
             }
@@ -435,7 +458,7 @@ export default function ModuleCatalog() {
           <Button
             className="w-full"
             variant="destructive"
-            disabled={!isAdmin || inFlight}
+            disabled={!canUninstallModules || inFlight}
             onClick={() => {
               setConfirmUninstall(module);
               setSelectedModule(null);
@@ -484,11 +507,10 @@ export default function ModuleCatalog() {
           </div>
         )}
 
-        {!isAdmin && (
+        {!canInstallModules && !canDisableModules && !canUninstallModules && (
           <div className="flex items-center gap-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 text-sm px-4 py-2.5 text-[hsl(var(--muted-foreground))]">
             <Info className="h-4 w-4 shrink-0" />
-            Solo administradores pueden instalar, habilitar o desinstalar
-            módulos.
+            La gestion del ciclo de vida depende de permisos de modulos.
           </div>
         )}
 
@@ -561,7 +583,13 @@ export default function ModuleCatalog() {
         </div>
 
         {/* Content */}
-        {isLoading ? (
+        {!canReadModules ? (
+          <EmptyState
+            icon={Lock}
+            title="Sin acceso al catalogo"
+            description="Necesitas modules.read para consultar el catalogo administrativo."
+          />
+        ) : isLoading ? (
           viewMode === "grid" ? (
             <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {skeletons.map((_, i) => (
@@ -698,7 +726,8 @@ export default function ModuleCatalog() {
                       {!inFlight && (
                         <CardAction
                           module={module}
-                          isAdmin={isAdmin}
+                          canInstallModules={canInstallModules}
+                          canDisableModules={canDisableModules}
                           onAction={handleAction}
                           onOpen={openModule}
                         />
@@ -787,7 +816,8 @@ export default function ModuleCatalog() {
                     {!inFlight ? (
                       <CardAction
                         module={module}
-                        isAdmin={isAdmin}
+                        canInstallModules={canInstallModules}
+                        canDisableModules={canDisableModules}
                         onAction={handleAction}
                         onOpen={openModule}
                       />

@@ -163,6 +163,7 @@ Tailwind scans both `src/**` and `../../packages/ui/src/**` (configured in `apps
 - **TanStack Query** for server state; Zustand for client-only UI state when needed
 - **Hono** for API routes - keep route files thin, push logic to services
 - Business logic stays in `apps/api`, not in React components
+- **Atomic file size limit** — No source file may exceed **1000 lines**. Hard ceiling is **1500 lines** (treat as a build-blocking violation). Files approaching 800 lines should be proactively split. Strategies: extract sub-components, split routes by domain, separate sheets/dialogs from list screens, move helpers into `lib/` or `utils/`. Known violators that must be decomposed: `FinanceScreen.jsx` (4462), `apps/api/src/index.js` (3583), `FormFields.jsx` (2153), `HrEmployeeDetail.jsx` (1704), `finance-documents-service.js` (1118), `finance-service.js` (1076), `ModuleCatalog.jsx` (1033).
 - Soft-delete pattern: use `enabled: false` instead of hard-deleting records
 - Every new module needs: manifest in `packages/maps`, Prisma model(s), API routes, service, Zod schema in `packages/validators`, and a `docs/TASKS.md` update
 - In docs checklists, mark `[x]` only with explicit verification evidence and `Verified: YYYY-MM-DD (...)`

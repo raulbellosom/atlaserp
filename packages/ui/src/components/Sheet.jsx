@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cva } from "class-variance-authority";
@@ -71,9 +71,38 @@ const SheetContent = forwardRef(function SheetContent(
   ref,
 ) {
   const isMobile = useIsMobile();
-  // On mobile, lateral sheets (right/left) become bottom sheets for better UX
   const effectiveSide =
     isMobile && (side === "right" || side === "left") ? "bottom" : side;
+
+  const closeRef = useRef(null);
+  const [dragY, setDragY] = useState(0);
+  const dragStartY = useRef(null);
+  const isDragging = useRef(false);
+
+  function handleDragPointerDown(e) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragStartY.current = e.clientY;
+    isDragging.current = true;
+  }
+
+  function handleDragPointerMove(e) {
+    if (!isDragging.current || dragStartY.current === null) return;
+    const dy = Math.max(0, e.clientY - dragStartY.current);
+    setDragY(dy);
+  }
+
+  function handleDragPointerUp() {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    if (dragY > 80) {
+      setDragY(0);
+      closeRef.current?.click();
+    } else {
+      setDragY(0);
+    }
+    dragStartY.current = null;
+  }
+
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -85,12 +114,30 @@ const SheetContent = forwardRef(function SheetContent(
           effectiveSide === "bottom" && "max-h-[85dvh] overflow-y-auto",
           className,
         )}
+        style={
+          effectiveSide === "bottom" && dragY > 0
+            ? { transform: `translateY(${dragY}px)`, transition: "none" }
+            : undefined
+        }
         {...props}
       >
-        {/* Drag handle — visible only on bottom sheet */}
+        {/* Drag handle — visible only on bottom sheet; handles swipe-to-dismiss */}
         {effectiveSide === "bottom" && (
           <div
-            className="mx-auto -mt-1 mb-2 h-1 w-10 shrink-0 rounded-full bg-[hsl(var(--muted-foreground))]/25"
+            className="mx-auto -mt-1 mb-2 h-1.5 w-12 shrink-0 rounded-full bg-[hsl(var(--muted-foreground))]/30 cursor-grab active:cursor-grabbing touch-none"
+            aria-hidden="true"
+            onPointerDown={handleDragPointerDown}
+            onPointerMove={handleDragPointerMove}
+            onPointerUp={handleDragPointerUp}
+            onPointerCancel={handleDragPointerUp}
+          />
+        )}
+        {/* Hidden close button for programmatic swipe-to-dismiss */}
+        {effectiveSide === "bottom" && (
+          <SheetPrimitive.Close
+            ref={closeRef}
+            className="sr-only"
+            tabIndex={-1}
             aria-hidden="true"
           />
         )}
@@ -112,7 +159,7 @@ const SheetFooter = function SheetFooter({ className, ...props }) {
   return (
     <div
       className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-auto",
+        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-auto safe-bottom",
         className,
       )}
       {...props}

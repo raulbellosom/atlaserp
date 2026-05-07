@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "../lib/utils.js";
@@ -30,6 +30,35 @@ const DialogContent = forwardRef(function DialogContent(
   { className, children, ...props },
   ref,
 ) {
+  const closeRef = useRef(null);
+  const [dragY, setDragY] = useState(0);
+  const dragStartY = useRef(null);
+  const isDragging = useRef(false);
+
+  function handleDragPointerDown(e) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragStartY.current = e.clientY;
+    isDragging.current = true;
+  }
+
+  function handleDragPointerMove(e) {
+    if (!isDragging.current || dragStartY.current === null) return;
+    const dy = Math.max(0, e.clientY - dragStartY.current);
+    setDragY(dy);
+  }
+
+  function handleDragPointerUp() {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    if (dragY > 80) {
+      setDragY(0);
+      closeRef.current?.click();
+    } else {
+      setDragY(0);
+    }
+    dragStartY.current = null;
+  }
+
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -59,9 +88,20 @@ const DialogContent = forwardRef(function DialogContent(
         )}
         {...props}
       >
-        {/* Drag handle — mobile only */}
+        {/* Drag handle — mobile only; handles swipe-to-dismiss */}
         <div
-          className="mx-auto mb-4 h-1 w-10 shrink-0 rounded-full bg-[hsl(var(--muted-foreground))]/25 md:hidden"
+          className="mx-auto mb-4 h-1.5 w-12 shrink-0 rounded-full bg-[hsl(var(--muted-foreground))]/30 md:hidden cursor-grab active:cursor-grabbing touch-none"
+          aria-hidden="true"
+          onPointerDown={handleDragPointerDown}
+          onPointerMove={handleDragPointerMove}
+          onPointerUp={handleDragPointerUp}
+          onPointerCancel={handleDragPointerUp}
+        />
+        {/* Hidden close button for programmatic swipe-to-dismiss */}
+        <DialogPrimitive.Close
+          ref={closeRef}
+          className="sr-only"
+          tabIndex={-1}
           aria-hidden="true"
         />
         {children}
@@ -87,7 +127,7 @@ const DialogFooter = function DialogFooter({ className, ...props }) {
   return (
     <div
       className={cn(
-        "flex flex-col gap-2 sm:flex-row sm:justify-end mt-6",
+        "flex flex-col gap-2 sm:flex-row sm:justify-end mt-6 safe-bottom",
         className,
       )}
       {...props}

@@ -64,14 +64,16 @@ function getSpanishDate() {
 }
 
 export function HomeScreen() {
-  const { userProfile } = useAuth();
+  const { userProfile, session } = useAuth();
+  const token = session?.access_token;
   const navigate = useNavigate();
   const { runtimeModules, availableModules, isLoading: modulesLoading, isError: modulesError } =
     useRuntimeModules();
 
   const blueprintsQuery = useQuery({
-    queryKey: ["blueprints"],
-    queryFn: atlas.blueprints.list,
+    queryKey: ["blueprints", token],
+    queryFn: () => atlas.blueprints.list(token),
+    enabled: Boolean(token),
     staleTime: 60000,
   });
 

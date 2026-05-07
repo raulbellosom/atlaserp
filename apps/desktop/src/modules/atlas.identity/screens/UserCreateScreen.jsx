@@ -21,13 +21,17 @@ export default function UserCreateScreen() {
   const { session, userProfile } = useAuth();
   const navigate = useNavigate();
   const token = session?.access_token;
-  const isAdmin = ["atlas.admin", "system.admin"].includes(userProfile?.role);
+  const permissions = userProfile?.permissions ?? [];
+  const hasPermission = (key) =>
+    Boolean(userProfile?.isAdmin || permissions.includes(key));
+  const canManageUsers = hasPermission("identity.manage");
+  const canReadRoles = hasPermission("roles.read");
   const queryClient = useQueryClient();
 
   const rolesQuery = useQuery({
     queryKey: ["identity-roles"],
     queryFn: () => atlas.identity.listRoles(token),
-    enabled: Boolean(token) && isAdmin,
+    enabled: Boolean(token) && canReadRoles,
   });
 
   const [form, setForm] = useState({
@@ -103,18 +107,17 @@ export default function UserCreateScreen() {
         </Button>
       </div>
 
-      {!isAdmin && (
+      {!canManageUsers && (
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-[hsl(var(--muted-foreground))]">
-              Sin permisos para crear usuarios: esta sección requiere rol
-              administrador.
+              Sin permisos para crear usuarios.
             </p>
           </CardContent>
         </Card>
       )}
 
-      {isAdmin && (
+      {canManageUsers && (
         <Card>
           <CardHeader>
             <CardTitle>Datos del nuevo usuario</CardTitle>
@@ -168,6 +171,7 @@ export default function UserCreateScreen() {
                 onValueChange={(value) =>
                   setForm((prev) => ({ ...prev, roleId: value }))
                 }
+                disabled={!canReadRoles}
               />
             </div>
 

@@ -144,59 +144,17 @@ function mapSetupError(err) {
 async function authMiddleware(c, next) {
   const authHeader = c.req.header("Authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) return c.json({ error: "Unauthorized" }, 401);
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return c.json({ error: "Unauthorized" }, 401);
-  c.set("authUserId", data.user.id);
-  await next();
-}
-
-async function moduleMutationAdminMiddleware(c, next) {
-  const authHeader = c.req.header("Authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) {
-    return c.json({ error: "No autorizado. Debes iniciar sesion." }, 401);
-  }
-
+  if (!token) return c.json({ error: "No autorizado. Debes iniciar sesion." }, 401);
   const { data, error } = await supabaseAdmin.auth.getUser(token);
   if (error || !data.user) {
     return c.json({ error: "No autorizado. Token invalido o expirado." }, 401);
   }
-
-  const profile = await prisma.userProfile.findUnique({
-    where: { authUserId: data.user.id },
-  });
-  if (!profile) {
-    return c.json(
-      { error: "No autorizado. Perfil de usuario no encontrado." },
-      401,
-    );
-  }
-
-  const memberships = await prisma.membership.findMany({
-    where: { userId: profile.id, enabled: true },
-    include: { role: true },
-  });
-
-  const adminMembership = memberships.find((membership) =>
-    ["atlas.admin", "system.admin"].includes(membership?.role?.key),
-  );
-  const roleKey =
-    adminMembership?.role?.key ?? memberships[0]?.role?.key ?? null;
-  const isAdmin = roleKey === "atlas.admin" || roleKey === "system.admin";
-  if (!isAdmin) {
-    return c.json(
-      {
-        error: "No tienes permisos de administrador para modificar modulos.",
-      },
-      403,
-    );
-  }
-
   c.set("authUserId", data.user.id);
-  c.set("authRole", roleKey);
   await next();
 }
+
+const ADMIN_ROLE_KEYS = new Set(["atlas.admin", "system.admin"]);
+const BASE_PERMISSION_KEYS = new Set(["profile.self.read"]);
 
 async function getUserContextByAuthId(authUserId) {
   const profile = await prisma.userProfile.findUnique({
@@ -205,76 +163,162 @@ async function getUserContextByAuthId(authUserId) {
   if (!profile) return null;
   const memberships = await prisma.membership.findMany({
     where: { userId: profile.id, enabled: true },
-    include: { role: true, company: true },
+    include: {
+      company: true,
+      role: {
+        include: {
+          permissions: {
+            include: {
+              permission: {
+                select: { key: true },
+              },
+            },
+          },
+        },
+      },
+    },
   });
-  const adminMembership = memberships.find((membership) =>
-    ["atlas.admin", "system.admin"].includes(membership?.role?.key),
+
+  const activeMemberships = memberships.filter((membership) =>
+    Boolean(membership?.role?.enabled),
+  );
+  const adminMembership = activeMemberships.find((membership) =>
+    ADMIN_ROLE_KEYS.has(membership?.role?.key),
   );
   const roleKey =
-    adminMembership?.role?.key ?? memberships[0]?.role?.key ?? null;
+    adminMembership?.role?.key ?? activeMemberships[0]?.role?.key ?? null;
+  const isAdmin = ADMIN_ROLE_KEYS.has(roleKey);
+  const permissionSet = new Set(BASE_PERMISSION_KEYS);
+  for (const membership of activeMemberships) {
+    for (const rolePermission of membership.role?.permissions ?? []) {
+      const key = rolePermission?.permission?.key;
+      if (key) permissionSet.add(key);
+    }
+  }
+  if (isAdmin) {
+    const allPermissions = await prisma.permission.findMany({
+      select: { key: true },
+    });
+    for (const permission of allPermissions) {
+      permissionSet.add(permission.key);
+    }
+  }
+
   return {
     profile,
-    memberships,
+    memberships: activeMemberships,
     roleKey,
-    isAdmin: roleKey === "atlas.admin" || roleKey === "system.admin",
+    isAdmin,
+    permissions: [...permissionSet].sort(),
+    permissionSet,
   };
 }
 
-async function adminOnlyMiddleware(c, next) {
+async function getOrLoadUserContext(c) {
+  const current = c.get("userContext");
+  if (current) return current;
   const authUserId = c.get("authUserId");
+  if (!authUserId) return null;
   const context = await getUserContextByAuthId(authUserId);
-  if (!context?.isAdmin) {
-    return c.json(
-      { error: "No tienes permisos de administrador para esta accion." },
-      403,
-    );
-  }
+  if (!context) return null;
   c.set("userContext", context);
-  await next();
+  return context;
+}
+
+function forbiddenMessage(permissionKey) {
+  if (!permissionKey) return "No tienes permisos para realizar esta accion.";
+  return `No tienes permisos para realizar esta accion (${permissionKey}).`;
 }
 
 function requirePermission(permissionKey) {
   return async (c, next) => {
-    const authUserId = c.get("authUserId");
-    const context = await getUserContextByAuthId(authUserId);
+    const context = await getOrLoadUserContext(c);
     if (!context?.profile) {
-      return c.json({ error: "Perfil de usuario no encontrado." }, 401);
+      return c.json({ error: "No autorizado. Perfil de usuario no encontrado." }, 401);
     }
-
-    if (context.isAdmin) {
-      c.set("userContext", context);
+    if (context.isAdmin || context.permissionSet.has(permissionKey)) {
       await next();
       return;
     }
+    return c.json({ error: forbiddenMessage(permissionKey) }, 403);
+  };
+}
 
-    const roleIds = context.memberships
-      .map((membership) => membership.roleId)
-      .filter(Boolean);
-    if (roleIds.length === 0) {
-      return c.json(
-        { error: "No tienes permisos para esta accion financiera." },
-        403,
-      );
+function requireAnyPermission(permissionKeys = []) {
+  return async (c, next) => {
+    const context = await getOrLoadUserContext(c);
+    if (!context?.profile) {
+      return c.json({ error: "No autorizado. Perfil de usuario no encontrado." }, 401);
     }
+    if (context.isAdmin) {
+      await next();
+      return;
+    }
+    const keys = Array.isArray(permissionKeys) ? permissionKeys : [];
+    const allowed = keys.some((key) => context.permissionSet.has(key));
+    if (!allowed) {
+      return c.json({ error: forbiddenMessage(keys.join(" o ")) }, 403);
+    }
+    await next();
+  };
+}
 
-    const rolePermission = await prisma.rolePermission.findFirst({
-      where: {
-        roleId: { in: roleIds },
-        permission: {
-          key: permissionKey,
-        },
+function getModuleRequiredPermission(moduleRow) {
+  const manifest = moduleRow?.manifest ?? {};
+  const aclModule = manifest?.acl?.module;
+  if (typeof aclModule === "string" && aclModule.trim().length > 0) {
+    return aclModule.trim();
+  }
+  return null;
+}
+
+function filterModuleNavigation(moduleRow, permissionSet, isAdmin) {
+  const manifest = moduleRow?.manifest ?? {};
+  const navigation = Array.isArray(manifest.navigation) ? manifest.navigation : [];
+  const filteredNavigation = navigation.filter((item) => {
+    const navPermission = item?.permissionKey;
+    if (isAdmin) return true;
+    if (!navPermission) return false;
+    return permissionSet.has(navPermission);
+  });
+  return {
+    ...manifest,
+    navigation: filteredNavigation,
+  };
+}
+
+function userCanAccessModule(context, moduleRow) {
+  if (!context) return false;
+  if (context.isAdmin) return true;
+  const modulePermission = getModuleRequiredPermission(moduleRow);
+  if (!modulePermission) return false;
+  return context.permissionSet.has(modulePermission);
+}
+
+function requireModuleAccess(moduleKey) {
+  return async (c, next) => {
+    const context = await getOrLoadUserContext(c);
+    if (!context?.profile) {
+      return c.json({ error: "No autorizado. Perfil de usuario no encontrado." }, 401);
+    }
+    const moduleRow = await prisma.atlasModule.findUnique({
+      where: { key: moduleKey },
+      select: {
+        key: true,
+        status: true,
+        enabled: true,
+        manifest: true,
       },
-      select: { id: true },
     });
-
-    if (!rolePermission) {
+    if (!moduleRow) {
+      return c.json({ error: "Modulo no encontrado." }, 404);
+    }
+    if (!userCanAccessModule(context, moduleRow)) {
       return c.json(
-        { error: "No tienes permisos para esta accion financiera." },
+        { error: `No tienes permisos para acceder al modulo ${moduleKey}.` },
         403,
       );
     }
-
-    c.set("userContext", context);
     await next();
   };
 }
@@ -389,6 +433,57 @@ async function syncModuleDependencies(tx, moduleId, dependencies = []) {
   });
 }
 
+function validateManifestAcl(manifest = {}) {
+  const declaredPermissionKeys = new Set(
+    (manifest.permissions ?? []).map((permission) => permission.key),
+  );
+  const acl = manifest.acl ?? {};
+
+  if (manifest.navigation?.length) {
+    for (const navItem of manifest.navigation) {
+      const permissionKey = navItem?.permissionKey;
+      if (!permissionKey || !declaredPermissionKeys.has(permissionKey)) {
+        throw Object.assign(new Error("INVALID_MANIFEST_ACL"), {
+          code: "INVALID_MANIFEST_ACL",
+          detail: `El item de navegacion "${navItem?.path ?? "/"}" debe declarar permissionKey valido.`,
+        });
+      }
+    }
+  }
+
+  if (typeof acl.module === "string" && acl.module.trim().length > 0) {
+    if (!declaredPermissionKeys.has(acl.module)) {
+      throw Object.assign(new Error("INVALID_MANIFEST_ACL"), {
+        code: "INVALID_MANIFEST_ACL",
+        detail: `acl.module (${acl.module}) no existe en manifest.permissions.`,
+      });
+    }
+  }
+
+  const actionEntries = Object.entries(acl.actions ?? {});
+  for (const [, permissionKey] of actionEntries) {
+    if (!declaredPermissionKeys.has(permissionKey)) {
+      throw Object.assign(new Error("INVALID_MANIFEST_ACL"), {
+        code: "INVALID_MANIFEST_ACL",
+        detail: `acl.actions referencia permiso no declarado (${permissionKey}).`,
+      });
+    }
+  }
+
+  for (const [, policy] of Object.entries(acl.models ?? {})) {
+    for (const key of ["read", "create", "update", "delete"]) {
+      const permissionKey = policy?.[key];
+      if (!permissionKey) continue;
+      if (!declaredPermissionKeys.has(permissionKey)) {
+        throw Object.assign(new Error("INVALID_MANIFEST_ACL"), {
+          code: "INVALID_MANIFEST_ACL",
+          detail: `acl.models.${key} referencia permiso no declarado (${permissionKey}).`,
+        });
+      }
+    }
+  }
+}
+
 async function getSignedUrlByFileId(fileId) {
   if (!fileId) return null;
   const fileAsset = await prisma.fileAsset.findUnique({
@@ -406,6 +501,45 @@ async function ensureBuckets() {
     .createBucket(STORAGE_BUCKET_NAME, { public: false })
     .catch(() => {});
 }
+
+function serializeModulesForResponse(modules, context, options = {}) {
+  const {
+    filterByPermission = false,
+    filterNavigation = false,
+  } = options;
+
+  return modules
+    .filter((moduleRow) => {
+      if (!filterByPermission) return true;
+      return userCanAccessModule(context, moduleRow);
+    })
+    .map((mod) => {
+      const compatibility = mod.dependencies.map((dep) => {
+        const active =
+          dep.dependency?.status === "INSTALLED" && dep.dependency?.enabled;
+        return {
+          key: dep.dependency?.key,
+          name: dep.dependency?.name,
+          required: !dep.optional,
+          versionRange: dep.versionRange ?? null,
+          active: Boolean(active),
+        };
+      });
+      const blocking = compatibility.filter((dep) => dep.required && !dep.active);
+      const manifest =
+        filterNavigation && context
+          ? filterModuleNavigation(mod, context.permissionSet, context.isAdmin)
+          : mod.manifest;
+      return {
+        ...mod,
+        manifest,
+        compatibility,
+        compatibilityStatus: blocking.length === 0 ? "OK" : "BLOCKED",
+        compatibilityBlocking: blocking,
+      };
+    });
+}
+
 ensureBuckets();
 
 app.use(
@@ -661,7 +795,7 @@ app.post("/setup/initialize", async (c) => {
 app.get("/user/me", authMiddleware, async (c) => {
   const authUserId = c.get("authUserId");
   try {
-    const context = await getUserContextByAuthId(authUserId);
+    const context = await getOrLoadUserContext(c);
     if (!context?.profile) return c.json({ error: "Profile not found" }, 404);
     const avatarUrl = await getSignedUrlByFileId(context.profile.avatarFileId);
     return c.json({
@@ -672,16 +806,18 @@ app.get("/user/me", authMiddleware, async (c) => {
       email: context.profile.email,
       avatarUrl,
       role: context.roleKey,
+      isAdmin: context.isAdmin,
+      permissions: context.permissions,
     });
   } catch {
     return c.json({ error: "Internal server error" }, 500);
   }
 });
 
-app.get("/profile/me", authMiddleware, async (c) => {
+app.get("/profile/me", authMiddleware, requirePermission("profile.self.read"), async (c) => {
   const authUserId = c.get("authUserId");
   try {
-    const context = await getUserContextByAuthId(authUserId);
+    const context = await getOrLoadUserContext(c);
     if (!context?.profile)
       return c.json({ error: "Perfil no encontrado." }, 404);
     const avatarUrl = await getSignedUrlByFileId(context.profile.avatarFileId);
@@ -712,10 +848,14 @@ app.get("/profile/me", authMiddleware, async (c) => {
   }
 });
 
-app.put("/profile/me", authMiddleware, async (c) => {
+app.put(
+  "/profile/me",
+  authMiddleware,
+  requirePermission("profile.self.update"),
+  async (c) => {
   const authUserId = c.get("authUserId");
   try {
-    const context = await getUserContextByAuthId(authUserId);
+    const context = await getOrLoadUserContext(c);
     if (!context?.profile)
       return c.json({ error: "Perfil no encontrado." }, 404);
     const body = await c.req.json();
@@ -779,10 +919,14 @@ app.put("/profile/me", authMiddleware, async (c) => {
   }
 });
 
-app.post("/profile/me/avatar", authMiddleware, async (c) => {
+app.post(
+  "/profile/me/avatar",
+  authMiddleware,
+  requirePermission("profile.avatar.update"),
+  async (c) => {
   const authUserId = c.get("authUserId");
   try {
-    const context = await getUserContextByAuthId(authUserId);
+    const context = await getOrLoadUserContext(c);
     if (!context?.profile) {
       return c.json({ error: "Perfil no encontrado." }, 404);
     }
@@ -836,10 +980,14 @@ app.post("/profile/me/avatar", authMiddleware, async (c) => {
   }
 });
 
-app.post("/profile/me/password", authMiddleware, async (c) => {
+app.post(
+  "/profile/me/password",
+  authMiddleware,
+  requirePermission("profile.password.update"),
+  async (c) => {
   const authUserId = c.get("authUserId");
   try {
-    const context = await getUserContextByAuthId(authUserId);
+    const context = await getOrLoadUserContext(c);
     if (!context?.profile) {
       return c.json({ error: "Perfil no encontrado." }, 404);
     }
@@ -951,7 +1099,7 @@ app.get("/memberships/me", authMiddleware, async (c) => {
   }
 });
 
-app.get("/instance/config", authMiddleware, adminOnlyMiddleware, async (c) => {
+app.get("/instance/config", authMiddleware, requirePermission("core.manage"), async (c) => {
   try {
     const records = await prisma.instanceConfig.findMany({
       where: {
@@ -983,7 +1131,7 @@ app.get("/instance/config", authMiddleware, adminOnlyMiddleware, async (c) => {
   }
 });
 
-app.put("/instance/config", authMiddleware, adminOnlyMiddleware, async (c) => {
+app.put("/instance/config", authMiddleware, requirePermission("core.manage"), async (c) => {
   try {
     const body = await c.req.json();
     const instanceName = String(body.instanceName ?? "").trim();
@@ -1019,7 +1167,7 @@ app.put("/instance/config", authMiddleware, adminOnlyMiddleware, async (c) => {
 
 // ── Company: Profile ─────────────────────────────────────────────────────────
 
-app.get("/company/profile", authMiddleware, adminOnlyMiddleware, async (c) => {
+app.get("/company/profile", authMiddleware, requirePermission("company.read"), async (c) => {
   try {
     const data = await companyService.getProfile();
     return c.json({ data });
@@ -1030,7 +1178,7 @@ app.get("/company/profile", authMiddleware, adminOnlyMiddleware, async (c) => {
   }
 });
 
-app.put("/company/profile", authMiddleware, adminOnlyMiddleware, async (c) => {
+app.put("/company/profile", authMiddleware, requirePermission("company.manage"), async (c) => {
   try {
     const body = await c.req.json();
     const name = String(body.name ?? "").trim();
@@ -1062,7 +1210,7 @@ app.put("/company/profile", authMiddleware, adminOnlyMiddleware, async (c) => {
 
 // ── Company: Address ─────────────────────────────────────────────────────────
 
-app.get("/company/address", authMiddleware, adminOnlyMiddleware, async (c) => {
+app.get("/company/address", authMiddleware, requirePermission("company.read"), async (c) => {
   try {
     const data = await companyService.getAddress();
     return c.json({ data });
@@ -1076,7 +1224,7 @@ app.get("/company/address", authMiddleware, adminOnlyMiddleware, async (c) => {
   }
 });
 
-app.put("/company/address", authMiddleware, adminOnlyMiddleware, async (c) => {
+app.put("/company/address", authMiddleware, requirePermission("company.manage"), async (c) => {
   try {
     const body = await c.req.json();
     const data = await companyService.updateAddress({
@@ -1101,7 +1249,7 @@ app.put("/company/address", authMiddleware, adminOnlyMiddleware, async (c) => {
 
 // ── Company: Branding ────────────────────────────────────────────────────────
 
-app.get("/company/branding", authMiddleware, adminOnlyMiddleware, async (c) => {
+app.get("/company/branding", authMiddleware, requirePermission("company.read"), async (c) => {
   try {
     const data = await companyService.getBranding();
     return c.json({ data });
@@ -1115,7 +1263,7 @@ app.get("/company/branding", authMiddleware, adminOnlyMiddleware, async (c) => {
   }
 });
 
-app.put("/company/branding", authMiddleware, adminOnlyMiddleware, async (c) => {
+app.put("/company/branding", authMiddleware, requirePermission("company.manage"), async (c) => {
   try {
     const companyIdRecord = await prisma.instanceConfig.findUnique({
       where: { key: "company_id" },
@@ -1150,7 +1298,11 @@ app.put("/company/branding", authMiddleware, adminOnlyMiddleware, async (c) => {
   }
 });
 
-app.post("/files/upload", authMiddleware, async (c) => {
+app.post(
+  "/files/upload",
+  authMiddleware,
+  requirePermission("files.upload"),
+  async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const body = await c.req.parseBody();
@@ -1199,7 +1351,7 @@ app.post("/files/upload", authMiddleware, async (c) => {
   }
 });
 
-app.get("/files", authMiddleware, async (c) => {
+app.get("/files", authMiddleware, requirePermission("files.read"), async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const result = await filesService.list({
@@ -1226,7 +1378,7 @@ app.get("/files", authMiddleware, async (c) => {
   }
 });
 
-app.get("/files/:id", authMiddleware, async (c) => {
+app.get("/files/:id", authMiddleware, requirePermission("files.read"), async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const id = c.req.param("id");
@@ -1240,7 +1392,7 @@ app.get("/files/:id", authMiddleware, async (c) => {
   }
 });
 
-app.patch("/files/:id", authMiddleware, adminOnlyMiddleware, async (c) => {
+app.patch("/files/:id", authMiddleware, requirePermission("files.manage"), async (c) => {
   // Intentional policy: renaming is a lifecycle mutation restricted to admin roles.
   try {
     const authUserId = c.get("authUserId");
@@ -1276,7 +1428,11 @@ app.patch("/files/:id", authMiddleware, adminOnlyMiddleware, async (c) => {
   }
 });
 
-app.post("/files/bulk-download", authMiddleware, async (c) => {
+app.post(
+  "/files/bulk-download",
+  authMiddleware,
+  requirePermission("files.read"),
+  async (c) => {
   try {
     const authUserId = c.get("authUserId");
     let body;
@@ -1307,7 +1463,7 @@ app.post("/files/bulk-download", authMiddleware, async (c) => {
   }
 });
 
-app.get("/files/:id/signed-url", authMiddleware, async (c) => {
+app.get("/files/:id/signed-url", authMiddleware, requirePermission("files.read"), async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const id = c.req.param("id");
@@ -1324,7 +1480,7 @@ app.get("/files/:id/signed-url", authMiddleware, async (c) => {
 app.patch(
   "/files/:id/enabled",
   authMiddleware,
-  adminOnlyMiddleware,
+  requirePermission("files.manage"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -1348,7 +1504,7 @@ app.patch(
   },
 );
 
-app.delete("/files/:id", authMiddleware, async (c) => {
+app.delete("/files/:id", authMiddleware, requirePermission("files.delete"), async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const id = c.req.param("id");
@@ -1362,7 +1518,11 @@ app.delete("/files/:id", authMiddleware, async (c) => {
   }
 });
 
-app.get("/identity/permissions", authMiddleware, async (c) => {
+app.get(
+  "/identity/permissions",
+  authMiddleware,
+  requirePermission("permissions.read"),
+  async (c) => {
   try {
     const permissions = await prisma.permission.findMany({
       orderBy: [{ moduleId: "asc" }, { key: "asc" }],
@@ -1390,7 +1550,7 @@ app.get("/identity/permissions", authMiddleware, async (c) => {
   }
 });
 
-app.get("/identity/roles", authMiddleware, async (c) => {
+app.get("/identity/roles", authMiddleware, requirePermission("roles.read"), async (c) => {
   try {
     const roles = await prisma.role.findMany({
       include: {
@@ -1409,7 +1569,7 @@ app.get("/identity/roles", authMiddleware, async (c) => {
   }
 });
 
-app.post("/identity/roles", authMiddleware, adminOnlyMiddleware, async (c) => {
+app.post("/identity/roles", authMiddleware, requirePermission("roles.manage"), async (c) => {
   try {
     const body = await c.req.json();
     const key = String(body.key ?? "").trim();
@@ -1432,7 +1592,7 @@ app.post("/identity/roles", authMiddleware, adminOnlyMiddleware, async (c) => {
 app.put(
   "/identity/roles/:id",
   authMiddleware,
-  adminOnlyMiddleware,
+  requirePermission("roles.manage"),
   async (c) => {
     try {
       const id = c.req.param("id");
@@ -1454,7 +1614,7 @@ app.put(
 app.patch(
   "/identity/roles/:id/enabled",
   authMiddleware,
-  adminOnlyMiddleware,
+  requirePermission("roles.manage"),
   async (c) => {
     try {
       const id = c.req.param("id");
@@ -1474,7 +1634,7 @@ app.patch(
 app.patch(
   "/identity/roles/:id/permissions",
   authMiddleware,
-  adminOnlyMiddleware,
+  requirePermission("permissions.manage"),
   async (c) => {
     try {
       const id = c.req.param("id");
@@ -1511,7 +1671,7 @@ app.patch(
   },
 );
 
-app.get("/identity/users", authMiddleware, adminOnlyMiddleware, async (c) => {
+app.get("/identity/users", authMiddleware, requirePermission("identity.read"), async (c) => {
   try {
     const users = await prisma.userProfile.findMany({
       include: {
@@ -1546,7 +1706,7 @@ app.get("/identity/users", authMiddleware, adminOnlyMiddleware, async (c) => {
   }
 });
 
-app.post("/identity/users", authMiddleware, adminOnlyMiddleware, async (c) => {
+app.post("/identity/users", authMiddleware, requirePermission("identity.manage"), async (c) => {
   try {
     const body = await c.req.json();
     const fields = createUserSchema.parse(body);
@@ -1611,7 +1771,7 @@ app.post("/identity/users", authMiddleware, adminOnlyMiddleware, async (c) => {
 app.delete(
   "/identity/users/:id",
   authMiddleware,
-  adminOnlyMiddleware,
+  requirePermission("identity.manage"),
   async (c) => {
     try {
       const id = c.req.param("id");
@@ -1639,7 +1799,7 @@ app.delete(
 app.patch(
   "/identity/users/:id",
   authMiddleware,
-  adminOnlyMiddleware,
+  requirePermission("identity.manage"),
   async (c) => {
     try {
       const id = c.req.param("id");
@@ -1672,7 +1832,12 @@ app.patch(
   },
 );
 
-app.get("/modules", async (c) => {
+app.get("/runtime/modules", authMiddleware, async (c) => {
+  const context = await getOrLoadUserContext(c);
+  if (!context?.profile) {
+    return c.json({ error: "No autorizado. Perfil de usuario no encontrado." }, 401);
+  }
+
   const modules = await prisma.atlasModule.findMany({
     orderBy: [{ core: "desc" }, { name: "asc" }],
     include: {
@@ -1692,37 +1857,51 @@ app.get("/modules", async (c) => {
       },
     },
   });
+
   return c.json({
-    data: modules.map((mod) => {
-      const compatibility = mod.dependencies.map((dep) => {
-        const active =
-          dep.dependency?.status === "INSTALLED" && dep.dependency?.enabled;
-        return {
-          key: dep.dependency?.key,
-          name: dep.dependency?.name,
-          required: !dep.optional,
-          versionRange: dep.versionRange ?? null,
-          active: Boolean(active),
-        };
-      });
-      const blocking = compatibility.filter(
-        (dep) => dep.required && !dep.active,
-      );
-      return {
-        ...mod,
-        compatibility,
-        compatibilityStatus: blocking.length === 0 ? "OK" : "BLOCKED",
-        compatibilityBlocking: blocking,
-      };
+    data: serializeModulesForResponse(modules, context, {
+      filterByPermission: true,
+      filterNavigation: true,
     }),
   });
 });
 
-app.post("/modules/install", moduleMutationAdminMiddleware, async (c) => {
+app.get("/modules", authMiddleware, requirePermission("modules.read"), async (c) => {
+  const modules = await prisma.atlasModule.findMany({
+    orderBy: [{ core: "desc" }, { name: "asc" }],
+    include: {
+      dependencies: {
+        include: {
+          dependency: {
+            select: {
+              id: true,
+              key: true,
+              name: true,
+              status: true,
+              enabled: true,
+              version: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const context = c.get("userContext");
+  return c.json({
+    data: serializeModulesForResponse(modules, context, {
+      filterByPermission: false,
+      filterNavigation: false,
+    }),
+  });
+});
+
+app.post("/modules/install", authMiddleware, requirePermission("modules.install"), async (c) => {
   try {
     const body = await c.req.json();
     const parsed = moduleInstallSchema.parse(body);
     const manifest = parsed.manifest;
+    validateManifestAcl(manifest);
 
     const module = await prisma.$transaction(async (tx) => {
       const existing = await tx.atlasModule.findUnique({
@@ -1827,12 +2006,19 @@ app.post("/modules/install", moduleMutationAdminMiddleware, async (c) => {
         409,
       );
     }
+    if (err?.code === "INVALID_MANIFEST_ACL") {
+      return c.json({ error: err.detail ?? "El manifiesto ACL es invalido." }, 400);
+    }
     console.error("[modules/install]", err);
     return c.json({ error: "No se pudo instalar el modulo." }, 500);
   }
 });
 
-app.delete("/modules/:key", moduleMutationAdminMiddleware, async (c) => {
+app.delete(
+  "/modules/:key",
+  authMiddleware,
+  requirePermission("modules.uninstall"),
+  async (c) => {
   try {
     const key = c.req.param("key");
     const module = await prisma.atlasModule.findUnique({ where: { key } });
@@ -1867,7 +2053,11 @@ app.delete("/modules/:key", moduleMutationAdminMiddleware, async (c) => {
   }
 });
 
-app.post("/modules/:key/disable", moduleMutationAdminMiddleware, async (c) => {
+app.post(
+  "/modules/:key/disable",
+  authMiddleware,
+  requirePermission("modules.disable"),
+  async (c) => {
   try {
     const key = c.req.param("key");
     const module = await prisma.atlasModule.findUnique({ where: { key } });
@@ -1908,7 +2098,11 @@ app.post("/modules/:key/disable", moduleMutationAdminMiddleware, async (c) => {
   }
 });
 
-app.post("/modules/:key/enable", moduleMutationAdminMiddleware, async (c) => {
+app.post(
+  "/modules/:key/enable",
+  authMiddleware,
+  requirePermission("modules.disable"),
+  async (c) => {
   try {
     const key = c.req.param("key");
     const module = await prisma.atlasModule.findUnique({ where: { key } });
@@ -1963,15 +2157,22 @@ app.post("/modules/:key/enable", moduleMutationAdminMiddleware, async (c) => {
   }
 });
 
-app.get("/blueprints", async (c) => {
+app.get("/blueprints", authMiddleware, async (c) => {
+  const context = await getOrLoadUserContext(c);
+  if (!context?.profile) {
+    return c.json({ error: "No autorizado. Perfil de usuario no encontrado." }, 401);
+  }
   const blueprints = await prisma.blueprint.findMany({
     where: { enabled: true },
     include: { module: true },
   });
-  return c.json({ data: blueprints });
+  const filtered = blueprints.filter((blueprint) =>
+    userCanAccessModule(context, blueprint.module),
+  );
+  return c.json({ data: filtered });
 });
 
-app.get("/contacts", authMiddleware, async (c) => {
+app.get("/contacts", authMiddleware, requirePermission("contacts.read"), async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const search = c.req.query("q") ?? "";
@@ -1986,7 +2187,11 @@ app.get("/contacts", authMiddleware, async (c) => {
   }
 });
 
-app.get("/contacts/picker", authMiddleware, async (c) => {
+app.get(
+  "/contacts/picker",
+  authMiddleware,
+  requirePermission("contacts.read"),
+  async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const query = c.req.query("q") ?? "";
@@ -2004,7 +2209,7 @@ app.get("/contacts/picker", authMiddleware, async (c) => {
   }
 });
 
-app.post("/contacts", authMiddleware, async (c) => {
+app.post("/contacts", authMiddleware, requirePermission("contacts.create"), async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const payload = await c.req.json();
@@ -2024,7 +2229,7 @@ app.post("/contacts", authMiddleware, async (c) => {
   }
 });
 
-app.put("/contacts/:id", authMiddleware, async (c) => {
+app.put("/contacts/:id", authMiddleware, requirePermission("contacts.update"), async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const id = c.req.param("id");
@@ -2045,7 +2250,11 @@ app.put("/contacts/:id", authMiddleware, async (c) => {
   }
 });
 
-app.patch("/contacts/:id/enabled", authMiddleware, async (c) => {
+app.patch(
+  "/contacts/:id/enabled",
+  authMiddleware,
+  requirePermission("contacts.update"),
+  async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const id = c.req.param("id");
@@ -2067,7 +2276,7 @@ app.patch("/contacts/:id/enabled", authMiddleware, async (c) => {
   }
 });
 
-app.delete("/contacts/:id", authMiddleware, async (c) => {
+app.delete("/contacts/:id", authMiddleware, requirePermission("contacts.delete"), async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const id = c.req.param("id");

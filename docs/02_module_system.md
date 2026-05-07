@@ -35,6 +35,23 @@ export const myModule = createModuleManifest({
 
 Required fields: `key`, `name`, `version`. All others have defaults via `createModuleManifest`.
 
+## ACL contract (required)
+
+Atlas RBAC/ACL is server-authoritative and fail-closed.
+
+Every new module must declare ACL in its manifest:
+
+- `acl.module`: base permission to access module runtime
+- `navigation[].permissionKey`: permission needed to expose each menu entry
+- `acl.actions`: action-to-permission map
+- `acl.models`: CRUD model-to-permission map
+
+Rules:
+
+- Navigation item without `permissionKey` is not exposed in runtime.
+- Module without `acl.module` is not exposed in runtime for non-admin users.
+- API routes must enforce the same permissions with `requirePermission`, `requireAnyPermission`, or `requireModuleAccess`.
+
 ## Module kinds
 
 | Kind | Description |
@@ -98,9 +115,12 @@ Future: service registry, hooks, workflow engine.
 ## Adding a new feature module checklist
 
 1. Add manifest to `packages/maps/src/feature-modules.js`
-2. Add Prisma model(s) to `prisma/schema.prisma`
-3. Run `pnpm db:migrate`
-4. Add API routes to `apps/api/src/`
-5. Add service to `apps/api/src/services/`
-6. Add Zod schema to `packages/validators/src/index.js`
-7. Update `docs/TASKS.md`
+2. Declare module ACL (`acl.module`, `navigation[].permissionKey`, `acl.actions`, `acl.models`)
+3. Add Prisma model(s) to `prisma/schema.prisma`
+4. Run `pnpm db:migrate`
+5. Add API routes to `apps/api/src/` with permission guards
+6. Add service to `apps/api/src/services/`
+7. Add Zod schema to `packages/validators/src/index.js`
+8. Ensure runtime visibility works through `GET /runtime/modules`
+9. Add authorization tests (role x endpoint matrix)
+10. Update `docs/TASKS.md`

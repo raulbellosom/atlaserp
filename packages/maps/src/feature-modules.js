@@ -11,7 +11,13 @@ export const contactsMap = createModuleManifest({
   summary: "Clientes, proveedores, personas y empresas",
   dependencies: [{ key: "atlas.core" }, { key: "atlas.identity" }],
   navigation: [
-    { label: "Contactos", path: "/contacts", icon: "Contact", layout: "main" },
+    {
+      label: "Contactos",
+      path: "/contacts",
+      icon: "Contact",
+      layout: "main",
+      permissionKey: "contacts.read",
+    },
   ],
   permissions: [
     { key: "contacts.read", name: "Read Contacts" },
@@ -22,6 +28,25 @@ export const contactsMap = createModuleManifest({
   exposes: {
     contactPicker: true,
     getContactById: true,
+  },
+  acl: {
+    module: "contacts.read",
+    actions: {
+      "contacts.list": "contacts.read",
+      "contacts.picker": "contacts.read",
+      "contacts.create": "contacts.create",
+      "contacts.update": "contacts.update",
+      "contacts.enabled": "contacts.update",
+      "contacts.delete": "contacts.delete",
+    },
+    models: {
+      Contact: {
+        read: "contacts.read",
+        create: "contacts.create",
+        update: "contacts.update",
+        delete: "contacts.delete",
+      },
+    },
   },
   blueprints: [
     {
@@ -71,44 +96,68 @@ export const financeMap = createModuleManifest({
     { key: "atlas.contacts", optional: true },
   ],
   navigation: [
-    { label: "Resumen", path: "/finance", icon: "Wallet", layout: "main" },
-    { label: "CxC", path: "/finance/ar", icon: "HandCoins", layout: "main" },
-    { label: "CxP", path: "/finance/ap", icon: "Receipt", layout: "main" },
+    {
+      label: "Resumen",
+      path: "/finance",
+      icon: "Wallet",
+      layout: "main",
+      permissionKey: "finance.read",
+    },
+    {
+      label: "CxC",
+      path: "/finance/ar",
+      icon: "HandCoins",
+      layout: "main",
+      permissionKey: "finance.read",
+    },
+    {
+      label: "CxP",
+      path: "/finance/ap",
+      icon: "Receipt",
+      layout: "main",
+      permissionKey: "finance.read",
+    },
     {
       label: "Aging",
       path: "/finance/aging",
       icon: "CalendarDays",
       layout: "main",
+      permissionKey: "finance.read",
     },
     {
       label: "Aplicaciones",
       path: "/finance/applications",
       icon: "ArrowRightLeft",
       layout: "main",
+      permissionKey: "finance.read",
     },
     {
       label: "Cuentas",
       path: "/finance/accounts",
       icon: "ListTree",
       layout: "main",
+      permissionKey: "finance.read",
     },
     {
       label: "Polizas",
       path: "/finance/entries",
       icon: "NotebookPen",
       layout: "main",
+      permissionKey: "finance.read",
     },
     {
       label: "Impuestos",
       path: "/finance/taxes",
       icon: "FileText",
       layout: "main",
+      permissionKey: "finance.read",
     },
     {
       label: "Tipo de cambio",
       path: "/finance/fx-rates",
       icon: "TrendingUp",
       layout: "main",
+      permissionKey: "finance.read",
     },
   ],
   permissions: [
@@ -117,6 +166,35 @@ export const financeMap = createModuleManifest({
     { key: "finance.update", name: "Update Finance Records" },
     { key: "finance.delete", name: "Delete Finance Records" },
   ],
+  acl: {
+    module: "finance.read",
+    actions: {
+      "finance.read": "finance.read",
+      "finance.create": "finance.create",
+      "finance.update": "finance.update",
+      "finance.delete": "finance.delete",
+    },
+    models: {
+      FinanceAccount: {
+        read: "finance.read",
+        create: "finance.create",
+        update: "finance.update",
+        delete: "finance.delete",
+      },
+      FinanceJournalEntry: {
+        read: "finance.read",
+        create: "finance.create",
+        update: "finance.update",
+        delete: "finance.delete",
+      },
+      FinanceDocument: {
+        read: "finance.read",
+        create: "finance.create",
+        update: "finance.update",
+        delete: "finance.delete",
+      },
+    },
+  },
 });
 
 export const hrMap = createModuleManifest({
@@ -130,8 +208,20 @@ export const hrMap = createModuleManifest({
   summary: "GestiÃ³n de personal y expediente",
   dependencies: [{ key: "atlas.core" }, { key: "atlas.files", optional: true }],
   navigation: [
-    { label: "Colaboradores", path: "/hr/employees", icon: "Users", layout: "main" },
-    { label: "Organigrama", path: "/hr/org-chart", icon: "Network", layout: "main" },
+    {
+      label: "Colaboradores",
+      path: "/hr/employees",
+      icon: "Users",
+      layout: "main",
+      permissionKey: "hr.read",
+    },
+    {
+      label: "Organigrama",
+      path: "/hr/org-chart",
+      icon: "Network",
+      layout: "main",
+      permissionKey: "hr.read",
+    },
   ],
   permissions: [
     { key: "hr.read", name: "Read HR" },
@@ -139,6 +229,35 @@ export const hrMap = createModuleManifest({
     { key: "hr.update", name: "Update HR Records" },
     { key: "hr.delete", name: "Delete HR Records" },
   ],
+  acl: {
+    module: "hr.read",
+    actions: {
+      "hr.read": "hr.read",
+      "hr.create": "hr.create",
+      "hr.update": "hr.update",
+      "hr.delete": "hr.delete",
+    },
+    models: {
+      HrEmployee: {
+        read: "hr.read",
+        create: "hr.create",
+        update: "hr.update",
+        delete: "hr.delete",
+      },
+      HrDepartment: {
+        read: "hr.read",
+        create: "hr.create",
+        update: "hr.update",
+        delete: "hr.delete",
+      },
+      HrJobTitle: {
+        read: "hr.read",
+        create: "hr.create",
+        update: "hr.update",
+        delete: "hr.delete",
+      },
+    },
+  },
   blueprints: [
     {
       key: "hr.employee.entity",

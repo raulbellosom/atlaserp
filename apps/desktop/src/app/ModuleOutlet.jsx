@@ -164,6 +164,17 @@ function unavailableMessage(module) {
   return `El módulo ${module.name} no está disponible.`;
 }
 
+function isPathAllowedByNavigation(module, subPath) {
+  const navigation = module?.navigation ?? [];
+  if (!navigation.length) return subPath === "/";
+  return navigation.some((item) => {
+    const navPath = item?.path;
+    if (!navPath) return false;
+    if (navPath === "/") return subPath === "/";
+    return subPath === navPath || subPath.startsWith(`${navPath}/`);
+  });
+}
+
 function resolveScreen(moduleKey, subPath) {
   const exact = SCREEN_MAP[`${moduleKey}:${subPath}`];
   if (exact) return exact;
@@ -196,6 +207,10 @@ export function ModuleOutlet() {
   const { moduleKey, "*": wildcard } = useParams();
   const navigate = useNavigate();
   const { moduleMap, isLoading } = useRuntimeModules();
+  const knownModuleKeys = useMemo(
+    () => new Set(Object.keys(SCREEN_MAP).map((entry) => entry.split(":")[0])),
+    [],
+  );
 
   const module = moduleMap.get(moduleKey) ?? null;
   const subPath = useMemo(() => {
@@ -226,6 +241,25 @@ export function ModuleOutlet() {
   if (isLoading) return <LoadingFallback />;
 
   if (!module) {
+    if (knownModuleKeys.has(moduleKey)) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60dvh] gap-4 text-center px-6">
+          <p className="text-lg font-semibold text-[hsl(var(--foreground))]">
+            Acceso restringido
+          </p>
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            No tienes permisos para acceder a este módulo.
+          </p>
+          <button
+            onClick={() => navigate("/app/home")}
+            className="text-sm hover:underline cursor-pointer"
+            style={{ color: "var(--brand-primary)" }}
+          >
+            Volver al inicio
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center justify-center min-h-[60dvh] gap-4 text-center px-6">
         <p className="text-lg font-semibold text-[hsl(var(--foreground))]">
@@ -251,6 +285,25 @@ export function ModuleOutlet() {
 
   if (!isModuleAvailable(module)) {
     return null;
+  }
+  if (!isPathAllowedByNavigation(module, subPath)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60dvh] gap-4 text-center px-6">
+        <p className="text-lg font-semibold text-[hsl(var(--foreground))]">
+          Acceso restringido
+        </p>
+        <p className="text-sm text-[hsl(var(--muted-foreground))]">
+          No tienes permisos para abrir esta sección.
+        </p>
+        <button
+          onClick={() => navigate("/app/home")}
+          className="text-sm hover:underline cursor-pointer"
+          style={{ color: "var(--brand-primary)" }}
+        >
+          Volver al inicio
+        </button>
+      </div>
+    );
   }
 
   const Screen = resolveScreen(moduleKey, subPath);

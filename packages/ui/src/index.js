@@ -182,3 +182,11 @@ export { ImageViewer } from "./components/ImageViewer.jsx";
 export { ImageUploader } from "./components/ImageUploader.jsx";
 export { PageFooter } from "./components/PageFooter.jsx";
 export { BrandFooter } from "./components/BrandFooter.jsx";
+
+// Responsive / Mobile patterns
+export {
+  ViewModeSwitch,
+  getStoredViewMode,
+} from "./components/ViewModeSwitch.jsx";
+export { MobileFiltersSheet } from "./components/MobileFiltersSheet.jsx";
+export { ListLayout } from "./components/ListLayout.jsx";

@@ -1,11 +1,11 @@
-import { Button, FilterBar, SearchInput, cn } from "@atlas/ui";
 import {
-  Rows3,
-  LayoutList,
-  Grid3X3,
-  ChevronUp,
-  ChevronDown,
-} from "lucide-react";
+  FilterBar,
+  MobileFiltersSheet,
+  SearchInput,
+  ViewModeSwitch,
+  cn,
+} from "@atlas/ui";
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 const FILTER_DEFS = [
   {
@@ -52,15 +52,26 @@ export function HrToolbar({
         value={search}
         onChange={(e) => onSearch(e.target.value)}
         onClear={() => onSearch("")}
-        placeholder="Buscar por nombre, código, correo, puesto..."
-        className="w-72"
+        placeholder="Buscar por nombre, c\u00f3digo, correo, puesto..."
+        className="flex-1 min-w-0 sm:max-w-sm"
       />
 
-      <FilterBar filters={FILTER_DEFS} value={filters} onChange={onFilters} />
+      {/* Desktop filters inline */}
+      <div className="hidden md:flex items-center gap-2">
+        <FilterBar filters={FILTER_DEFS} value={filters} onChange={onFilters} />
+      </div>
 
-      <div className="ml-auto flex items-center gap-2">
-        {/* sort pill */}
-        <div className="inline-flex items-center gap-0.5 rounded-xl border border-[hsl(var(--border))] px-1 py-1">
+      {/* Mobile filters sheet */}
+      <MobileFiltersSheet
+        activeCount={Object.values(filters).filter(Boolean).length}
+        onClear={() => onFilters({})}
+      >
+        <FilterBar filters={FILTER_DEFS} value={filters} onChange={onFilters} />
+      </MobileFiltersSheet>
+
+      <div className="sm:ml-auto flex items-center gap-2">
+        {/* sort pill - hidden on mobile */}
+        <div className="hidden sm:inline-flex items-center gap-0.5 rounded-xl border border-[hsl(var(--border))] px-1 py-1">
           {SORT_OPTIONS.map((opt) => {
             const isActive = sort.by === opt.key;
             return (
@@ -87,36 +98,11 @@ export function HrToolbar({
           })}
         </div>
 
-        {/* view mode toggle */}
-        <div className="inline-flex overflow-hidden rounded-xl border border-[hsl(var(--border))]">
-          <Button
-            variant={viewMode === "table" ? "default" : "ghost"}
-            size="sm"
-            className="rounded-none"
-            onClick={() => onViewMode("table")}
-            aria-label="Vista tabla"
-          >
-            <Rows3 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === "cards" ? "default" : "ghost"}
-            size="sm"
-            className="rounded-none"
-            onClick={() => onViewMode("cards")}
-            aria-label="Vista tarjetas"
-          >
-            <LayoutList className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === "grid" ? "default" : "ghost"}
-            size="sm"
-            className="rounded-none"
-            onClick={() => onViewMode("grid")}
-            aria-label="Vista cuadricula"
-          >
-            <Grid3X3 className="h-4 w-4" />
-          </Button>
-        </div>
+        <ViewModeSwitch
+          value={viewMode}
+          onChange={onViewMode}
+          storageKey="hr-employees"
+        />
       </div>
     </div>
   );

@@ -33,11 +33,14 @@ function normalizeLayoutMode(value) {
   return "default";
 }
 
-export function mergeRuntimeModules(rawApiModules) {
+export function mergeRuntimeModules(rawApiModules, options = {}) {
+  const { includeManifestFallback = true } = options;
   const manifestsByKey = getManifestsByKey();
   const apiRows = normalizeApiRows(rawApiModules);
   const apiByKey = new Map(apiRows.map((row) => [row.key, row]));
-  const allKeys = new Set([...manifestsByKey.keys(), ...apiByKey.keys()]);
+  const allKeys = includeManifestFallback
+    ? new Set([...manifestsByKey.keys(), ...apiByKey.keys()])
+    : new Set([...apiByKey.keys()]);
 
   const merged = Array.from(allKeys).map((key) => {
     const manifest = manifestsByKey.get(key) ?? null;
@@ -51,7 +54,7 @@ export function mergeRuntimeModules(rawApiModules) {
       typeof apiRow?.enabled === "boolean" ? apiRow.enabled : core;
 
     const manifestFallback = apiRow?.manifest ?? {};
-    const navigation = manifest?.navigation ?? manifestFallback.navigation ?? [];
+    const navigation = manifestFallback.navigation ?? manifest?.navigation ?? [];
 
     const layoutMode = normalizeLayoutMode(
       manifest?.layoutMode ?? manifestFallback.layoutMode,

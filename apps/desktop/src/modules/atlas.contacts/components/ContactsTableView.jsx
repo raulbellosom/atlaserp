@@ -18,12 +18,12 @@ import { TYPE_LABEL, TYPE_VARIANT } from "../constants";
 import { cn } from "@atlas/ui";
 
 const COLUMNS = [
-  { key: "type", label: "Tipo", width: "w-[120px]" },
+  { key: "type", label: "Tipo", width: "w-24" },
   { key: "name", label: "Nombre" },
-  { key: "email", label: "Correo electronico", width: "w-[220px]" },
-  { key: "phone", label: "Telefono", width: "w-[140px]" },
-  { key: "taxId", label: "RFC / ID fiscal", width: "w-[140px]" },
-  { key: "status", label: "Estado", width: "w-[100px]" },
+  { key: "email", label: "Correo electrónico", width: "min-w-[160px]" },
+  { key: "phone", label: "Teléfono", width: "w-32" },
+  { key: "taxId", label: "RFC / ID fiscal", width: "w-32" },
+  { key: "status", label: "Estado", width: "w-24" },
 ];
 
 function SortIndicator({ active, dir }) {

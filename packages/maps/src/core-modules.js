@@ -14,23 +14,57 @@ export const atlasCoreMap = createModuleManifest({
   category: "sistema",
   summary: "Modulos, permisos, bitacora y configuracion del sistema",
   navigation: [
-    { label: "Dashboard", path: "/", icon: "LayoutDashboard", layout: "main" },
-    { label: "Modulos", path: "/modules", icon: "Puzzle", layout: "main" },
+    {
+      label: "Dashboard",
+      path: "/",
+      icon: "LayoutDashboard",
+      layout: "main",
+      permissionKey: "core.read",
+    },
+    {
+      label: "Modulos",
+      path: "/modules",
+      icon: "Puzzle",
+      layout: "main",
+      permissionKey: "modules.read",
+    },
     {
       label: "Configuracion",
       path: "/settings",
       icon: "Settings",
       layout: "main",
+      permissionKey: "core.manage",
     },
   ],
   permissions: [
     { key: "core.read", name: "Read Core" },
     { key: "core.manage", name: "Manage Core" },
+    { key: "modules.read", name: "Read Modules Catalog" },
     { key: "modules.install", name: "Install Modules" },
     { key: "modules.uninstall", name: "Uninstall Modules" },
     { key: "modules.disable", name: "Disable Modules" },
     { key: "audit.read", name: "Read Audit Logs" },
   ],
+  acl: {
+    module: "core.read",
+    actions: {
+      "modules.catalog.read": "modules.read",
+      "modules.install": "modules.install",
+      "modules.disable": "modules.disable",
+      "modules.enable": "modules.disable",
+      "modules.uninstall": "modules.uninstall",
+      "instance.config.read": "core.manage",
+      "instance.config.update": "core.manage",
+    },
+    models: {
+      AtlasModule: {
+        read: "modules.read",
+        create: "modules.install",
+        update: "modules.disable",
+        delete: "modules.uninstall",
+      },
+    },
+  },
   blueprints: [
     {
       key: "atlas.module.entity",
@@ -75,8 +109,15 @@ export const identityMap = createModuleManifest({
       path: "/identity/users",
       icon: "Users",
       layout: "main",
+      permissionKey: "identity.read",
     },
-    { label: "Roles", path: "/identity/roles", icon: "Shield", layout: "main" },
+    {
+      label: "Roles",
+      path: "/identity/roles",
+      icon: "Shield",
+      layout: "main",
+      permissionKey: "roles.read",
+    },
   ],
   permissions: [
     { key: "identity.read", name: "Read Identity" },
@@ -85,7 +126,48 @@ export const identityMap = createModuleManifest({
     { key: "roles.manage", name: "Manage Roles" },
     { key: "permissions.read", name: "Read Permissions" },
     { key: "permissions.manage", name: "Manage Permissions" },
+    { key: "profile.self.read", name: "Read Own Profile" },
+    { key: "profile.self.update", name: "Update Own Profile" },
+    { key: "profile.avatar.update", name: "Update Own Avatar" },
+    { key: "profile.password.update", name: "Update Own Password" },
   ],
+  acl: {
+    module: "identity.read",
+    actions: {
+      "identity.users.read": "identity.read",
+      "identity.users.create": "identity.manage",
+      "identity.users.update": "identity.manage",
+      "identity.users.delete": "identity.manage",
+      "identity.roles.read": "roles.read",
+      "identity.roles.manage": "roles.manage",
+      "identity.permissions.read": "permissions.read",
+      "identity.permissions.manage": "permissions.manage",
+      "profile.self.read": "profile.self.read",
+      "profile.self.update": "profile.self.update",
+      "profile.avatar.update": "profile.avatar.update",
+      "profile.password.update": "profile.password.update",
+    },
+    models: {
+      UserProfile: {
+        read: "identity.read",
+        create: "identity.manage",
+        update: "identity.manage",
+        delete: "identity.manage",
+      },
+      Role: {
+        read: "roles.read",
+        create: "roles.manage",
+        update: "roles.manage",
+        delete: "roles.manage",
+      },
+      Permission: {
+        read: "permissions.read",
+        create: "permissions.manage",
+        update: "permissions.manage",
+        delete: "permissions.manage",
+      },
+    },
+  },
 });
 
 export const filesMap = createModuleManifest({
@@ -107,6 +189,7 @@ export const filesMap = createModuleManifest({
       path: "/files",
       icon: "FolderOpen",
       layout: "main",
+      permissionKey: "files.read",
     },
   ],
   permissions: [
@@ -115,6 +198,26 @@ export const filesMap = createModuleManifest({
     { key: "files.delete", name: "Delete Files" },
     { key: "files.manage", name: "Manage Files" },
   ],
+  acl: {
+    module: "files.read",
+    actions: {
+      "files.read": "files.read",
+      "files.upload": "files.upload",
+      "files.rename": "files.manage",
+      "files.enabled": "files.manage",
+      "files.delete": "files.delete",
+      "files.bulk-download": "files.read",
+      "files.signed-url": "files.read",
+    },
+    models: {
+      FileAsset: {
+        read: "files.read",
+        create: "files.upload",
+        update: "files.manage",
+        delete: "files.delete",
+      },
+    },
+  },
 });
 
 export const companyMap = createModuleManifest({
@@ -137,30 +240,59 @@ export const companyMap = createModuleManifest({
       path: "/",
       icon: "LayoutDashboard",
       layout: "main",
+      permissionKey: "company.read",
     },
     {
       label: "Perfil",
       path: "/company",
       icon: "Building2",
       layout: "main",
+      permissionKey: "company.read",
     },
     {
       label: "Direccion",
       path: "/company/address",
       icon: "MapPin",
       layout: "main",
+      permissionKey: "company.read",
     },
     {
       label: "Marca visual",
       path: "/company/branding",
       icon: "Palette",
       layout: "main",
+      permissionKey: "company.read",
     },
   ],
   permissions: [
     { key: "company.read", name: "Read Company" },
     { key: "company.manage", name: "Manage Company" },
   ],
+  acl: {
+    module: "company.read",
+    actions: {
+      "company.profile.read": "company.read",
+      "company.profile.update": "company.manage",
+      "company.address.read": "company.read",
+      "company.address.update": "company.manage",
+      "company.branding.read": "company.read",
+      "company.branding.update": "company.manage",
+    },
+    models: {
+      Company: {
+        read: "company.read",
+        create: "company.manage",
+        update: "company.manage",
+        delete: "company.manage",
+      },
+      BrandingConfig: {
+        read: "company.read",
+        create: "company.manage",
+        update: "company.manage",
+        delete: "company.manage",
+      },
+    },
+  },
   exposes: {
     logoUrl: "string",
     primaryColor: "string",

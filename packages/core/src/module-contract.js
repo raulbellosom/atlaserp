@@ -27,6 +27,11 @@ export function createModuleManifest(manifest) {
     dependencies: [],
     permissions: [],
     navigation: [],
+    acl: {
+      module: null,
+      actions: {},
+      models: {},
+    },
     routes: [],
     blueprints: [],
     exposes: {},

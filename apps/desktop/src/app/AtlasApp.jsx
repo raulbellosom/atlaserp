@@ -75,7 +75,9 @@ export function AtlasApp() {
     <div className="h-dvh overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       <Topbar
         onLauncherOpen={openLauncher}
-        onMobileMenuToggle={showSidebar ? () => setMobileOpen((o) => !o) : undefined}
+        onMobileMenuToggle={
+          showSidebar ? () => setMobileOpen((o) => !o) : undefined
+        }
         networkBusy={networkBusy}
       />
 
@@ -88,7 +90,7 @@ export function AtlasApp() {
       )}
 
       {/* Body: sidebar + scrollable main, fills viewport below the topbar */}
-      <div className="flex h-full pt-14">
+      <div className="flex h-full pt-topbar">
         {showSidebar && (
           <ModuleSidebar
             module={activeModule}
@@ -101,7 +103,7 @@ export function AtlasApp() {
           />
         )}
 
-        <main className="flex-1 overflow-y-auto flex flex-col min-h-0">
+        <main className="flex-1 min-w-0 overflow-y-auto flex flex-col min-h-0">
           <div className="flex-1">
             <Outlet />
           </div>

@@ -32,7 +32,13 @@ export default function UsersScreen() {
   const navigate = useNavigate();
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
-  const isAdmin = ["atlas.admin", "system.admin"].includes(userProfile?.role);
+  const permissions = userProfile?.permissions ?? [];
+  const hasPermission = (key) =>
+    Boolean(userProfile?.isAdmin || permissions.includes(key));
+  const canReadUsers = Boolean(
+    hasPermission("identity.read") || hasPermission("identity.manage"),
+  );
+  const canManageUsers = Boolean(hasPermission("identity.manage"));
   const queryClient = useQueryClient();
 
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -40,7 +46,7 @@ export default function UsersScreen() {
   const usersQuery = useQuery({
     queryKey: ["identity-users"],
     queryFn: () => atlas.identity.listUsers(token),
-    enabled: Boolean(token) && isAdmin,
+    enabled: Boolean(token) && canReadUsers,
   });
 
   const updateUserMutation = useMutation({
@@ -154,7 +160,7 @@ export default function UsersScreen() {
         header: "",
         size: 48,
         cell: ({ row }) => {
-          if (!isAdmin) return null;
+          if (!canManageUsers) return null;
           const u = row.original;
           return (
             <ActionMenu
@@ -200,7 +206,7 @@ export default function UsersScreen() {
         },
       },
     ],
-    [isAdmin, navigate, updateUserMutation],
+    [canManageUsers, navigate, updateUserMutation],
   );
 
   return (
@@ -211,7 +217,7 @@ export default function UsersScreen() {
           title="Usuarios"
           description="Gestiona los usuarios y sus roles dentro de la instancia."
           actions={
-            isAdmin && (
+            canManageUsers && (
               <Button
                 onClick={() =>
                   navigate("/app/m/atlas.identity/identity/users/new")
@@ -224,9 +230,9 @@ export default function UsersScreen() {
           }
         />
 
-        {!isAdmin && (
+        {!canReadUsers && (
           <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 text-sm px-4 py-3 text-[hsl(var(--muted-foreground))]">
-            Solo administradores pueden editar usuarios. Estás en modo lectura.
+            No tienes permisos para consultar usuarios.
           </div>
         )}
 

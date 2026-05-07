@@ -83,15 +83,15 @@ function fmtDateShort(value) {
 
 const COLUMNS = [
   { key: "name", label: "Colaborador", sortKey: "name" },
-  { key: "employeeCode", label: "Código", width: "w-[100px]" },
-  { key: "jobTitle", label: "Puesto", width: "w-[180px]" },
-  { key: "department", label: "Departamento", width: "w-[160px]" },
-  { key: "status", label: "Estado", width: "w-[110px]" },
-  { key: "employmentType", label: "Tipo", width: "w-[130px]" },
+  { key: "employeeCode", label: "Código", width: "w-24" },
+  { key: "jobTitle", label: "Puesto", width: "min-w-[140px]" },
+  { key: "department", label: "Departamento", width: "min-w-[120px]" },
+  { key: "status", label: "Estado", width: "w-28" },
+  { key: "employmentType", label: "Tipo", width: "w-28" },
   {
     key: "hireDate",
     label: "Ingreso",
-    width: "w-[120px]",
+    width: "w-28",
     sortKey: "hireDate",
   },
 ];

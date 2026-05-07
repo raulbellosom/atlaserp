@@ -38,7 +38,7 @@ function ToolbarBtn({ children, title, onClick, disabled, active }) {
       title={title}
       aria-label={title}
       className={[
-        "h-7 w-7 rounded-md flex items-center justify-center transition-all duration-150",
+        "h-8 w-8 sm:h-7 sm:w-7 rounded-md flex items-center justify-center transition-all duration-150",
         "disabled:opacity-30 disabled:cursor-not-allowed",
         active
           ? "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]"
@@ -293,6 +293,10 @@ export function AdvancedFileViewer({
         {/* Viewer panel — fills almost the full viewport */}
         <DialogPrimitive.Content
           aria-describedby={undefined}
+          onPointerDownOutside={(e) => {
+            // Prevent accidental close during pinch/pan gestures
+            if (gestureRef.current.mode !== null) e.preventDefault();
+          }}
           className={[
             "fixed inset-3 sm:inset-5 z-50 flex flex-col rounded-2xl overflow-hidden",
             "glass-strong shadow-2xl",
@@ -441,6 +445,7 @@ export function AdvancedFileViewer({
                 src={signedUrl}
                 title={file?.originalName ?? "PDF"}
                 className="h-full w-full"
+                style={{ touchAction: "pan-y" }}
               />
             )}
 
@@ -516,7 +521,7 @@ export function AdvancedFileViewer({
 
           {/* ── BOTTOM TOOLBAR (images only) ────────────── */}
           {kind === "image" && !loading && signedUrl && (
-            <div className="flex items-center justify-center gap-1.5 px-4 h-11 shrink-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60">
+            <div className="flex items-center justify-center gap-1.5 px-4 h-12 safe-bottom shrink-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60">
               {/* Zoom group */}
               <div className="flex items-center rounded-lg bg-[hsl(var(--muted))]/60 p-0.5">
                 <ToolbarBtn

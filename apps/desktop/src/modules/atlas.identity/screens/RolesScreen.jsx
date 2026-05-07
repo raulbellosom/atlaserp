@@ -31,7 +31,13 @@ import { atlas } from "../../../lib/atlas";
 export default function RolesScreen() {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
-  const isAdmin = ["atlas.admin", "system.admin"].includes(userProfile?.role);
+  const permissions = userProfile?.permissions ?? [];
+  const hasPermission = (key) =>
+    Boolean(userProfile?.isAdmin || permissions.includes(key));
+  const canReadRoles = hasPermission("roles.read");
+  const canManageRoles = hasPermission("roles.manage");
+  const canReadPermissions = hasPermission("permissions.read");
+  const canManagePermissions = hasPermission("permissions.manage");
   const queryClient = useQueryClient();
 
   const [selectedRoleId, setSelectedRoleId] = useState(null);
@@ -42,13 +48,13 @@ export default function RolesScreen() {
   const rolesQuery = useQuery({
     queryKey: ["identity-roles"],
     queryFn: () => atlas.identity.listRoles(token),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && canReadRoles,
   });
 
   const permissionsQuery = useQuery({
     queryKey: ["identity-permissions"],
     queryFn: () => atlas.identity.listPermissions(token),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && canReadPermissions,
   });
 
   const roles = rolesQuery.data?.data ?? [];
@@ -122,7 +128,7 @@ export default function RolesScreen() {
   });
 
   function togglePermission(key) {
-    if (!isAdmin) return;
+    if (!canManagePermissions) return;
     setPendingKeys((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -163,8 +169,11 @@ export default function RolesScreen() {
     updateRoleMutation.mutate({ id: selectedRole.id, data });
   }
 
-  const isLoading = rolesQuery.isLoading || permissionsQuery.isLoading;
-  const isError = rolesQuery.isError || permissionsQuery.isError;
+  const isLoading =
+    rolesQuery.isLoading ||
+    (canReadPermissions && permissionsQuery.isLoading);
+  const isError =
+    rolesQuery.isError || (canReadPermissions && permissionsQuery.isError);
 
   return (
     <div className="flex flex-col min-h-full">
@@ -174,7 +183,7 @@ export default function RolesScreen() {
           title="Roles y permisos"
           description="Define roles y asigna permisos para controlar el acceso en tu instancia."
           actions={
-            isAdmin && (
+            canManageRoles && (
               <Button
                 onClick={() => {
                   reset();
@@ -188,10 +197,15 @@ export default function RolesScreen() {
           }
         />
 
-        {!isAdmin && (
+        {!canReadRoles && (
           <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 text-sm px-4 py-3 text-[hsl(var(--muted-foreground))]">
-            Solo administradores pueden modificar roles y permisos. Estás en
-            modo lectura.
+            No tienes permisos para consultar roles.
+          </div>
+        )}
+
+        {canReadRoles && !canManageRoles && !canManagePermissions && (
+          <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 text-sm px-4 py-3 text-[hsl(var(--muted-foreground))]">
+            Modo lectura: necesitas permisos de gestion para modificar roles o permisos.
           </div>
         )}
 
@@ -213,7 +227,7 @@ export default function RolesScreen() {
             title="Error al cargar roles"
             onRetry={() => {
               rolesQuery.refetch();
-              permissionsQuery.refetch();
+              if (canReadPermissions) permissionsQuery.refetch();
             }}
           />
         ) : (
@@ -305,7 +319,7 @@ export default function RolesScreen() {
                         {selectedRole.description || "Sin descripción"}
                       </p>
                     </div>
-                    {isAdmin && !selectedRole.system && (
+                    {canManageRoles && !selectedRole.system && (
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"
@@ -340,7 +354,13 @@ export default function RolesScreen() {
                   </div>
 
                   {/* Permission groups */}
-                  {groups.length === 0 && allPermissions.length === 0 ? (
+                  {!canReadPermissions ? (
+                    <EmptyState
+                      icon={KeyRound}
+                      title="Sin acceso al catalogo de permisos"
+                      description="Necesitas permissions.read para consultar el catalogo."
+                    />
+                  ) : groups.length === 0 && allPermissions.length === 0 ? (
                     <EmptyState
                       icon={KeyRound}
                       title="Sin permisos disponibles"
@@ -352,12 +372,12 @@ export default function RolesScreen() {
                       allPermissions={allPermissions}
                       pendingKeys={pendingKeys ?? savedKeys}
                       onToggle={togglePermission}
-                      disabled={!isAdmin || savePermsMutation.isPending}
+                      disabled={!canManagePermissions || savePermsMutation.isPending}
                     />
                   )}
 
                   {/* Floating save bar */}
-                  {isDirty && (
+                  {isDirty && canManagePermissions && (
                     <div className="sticky bottom-4 z-10">
                       <div className="flex items-center justify-between gap-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))]/90 backdrop-blur px-4 py-3 shadow-lg">
                         <p className="text-sm text-[hsl(var(--muted-foreground))]">
@@ -526,7 +546,7 @@ function PermissionGroups({
         map.set(key, { label: p.groupLabel ?? key, items: [] });
       map.get(key).items.push(p);
     }
-    const order = groups.map((g) => g.key);
+    const order = groups.map((g) => g.groupKey ?? g.key);
     return [...map.entries()].sort(([a], [b]) => {
       const ai = order.indexOf(a);
       const bi = order.indexOf(b);

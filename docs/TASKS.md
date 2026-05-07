@@ -230,7 +230,6 @@ Plan: `docs/superpowers/plans/2026-05-05-phase8-6-finance-operations-ux.md`
 
 Verified: 2026-05-05 (`node --check apps/api/src/services/finance-documents-service.js`, `node --check apps/api/src/index.js`, `node --check packages/validators/src/index.js`, `node --check packages/sdk/src/index.js`, `pnpm.cmd --filter ./apps/desktop build:web`, `FINANCE_FINAL_SMOKE_OK` scripted run covering taxes, reminders, cross-currency apply, and reversal)
 
-
 ## Phase 9 - HR module
 
 Spec: `docs/superpowers/specs/2026-05-05-phase9-hr-design.md`  
@@ -246,6 +245,7 @@ Plan: `docs/superpowers/plans/2026-05-05-phase9-hr.md`
 - [ ] Permission and auth contracts for `hr.read/create/update/delete`
 
 Verified: pending
+
 ## Phase 9 - Future modules
 
 - [ ] Purchases
@@ -255,3 +255,28 @@ Verified: pending
 - [ ] Reports
 - [ ] Website builder / CMS
 
+## Phase 10 - Responsive foundation, toolbar migrations, and Finance decomposition
+
+### Phase 10.1 - Responsive / mobile foundation
+
+- [x] Replaced `vh` with `dvh` in AppShell and all layout wrappers
+- [x] Added `safe-area-inset` padding (`pb-[env(safe-area-inset-bottom)]`, `pt-safe`) across shell components
+- [x] Added `min-w-0` to flex/grid children in AtlasApp shell to prevent overflow
+- [x] Fixed `overflow-hidden` on body / `#root` to `overflow-auto` so content scrolls correctly
+- [x] Responsive table column widths: `w-40 min-w-[10rem]` etc., no fixed `w-px` on data columns
+- [x] Files and Contacts toolbars migrated to responsive grid; added `ViewModeSwitch`, `MobileFiltersSheet`, and `ListLayout` shared components to `@atlas/ui`
+- [x] Button, Card, Pagination, PageHeader, Input components updated with responsive token sizes
+
+Verified: 2026-05-06 (manual audit of AppShell, AtlasApp, Files, Contacts, and HR toolbars; all layout wrappers confirmed dvh + safe-area)
+
+### Phase 10.2 - Finance module decomposition
+
+- [x] Extracted all constants and utility functions from `FinanceScreen.jsx` into `lib/finance-utils.js` (~302 lines)
+- [x] Created 8 self-contained Sheet components: `AccountSheet`, `DocumentSheet`, `EntrySheet`, `GuidedEntrySheet`, `ApplySheet`, `JournalLinksSheet`, `ReverseApplicationSheet`, `ReminderSheet`
+- [x] Replaced all `window.prompt` violations with `ReverseApplicationSheet` (reversal reason textarea) and `ReminderSheet` (single + bulk reminder message)
+- [x] Created 9 fully self-contained sub-screens: `FinanceSummary`, `FinanceAr`, `FinanceAp`, `FinanceAging`, `FinanceApplications`, `FinanceAccounts`, `FinanceEntries`, `FinanceTaxes`, `FinanceFxRates`
+- [x] Replaced original 4462-line `FinanceScreen.jsx` monolith with 30-line orchestrator that routes to each sub-screen via `resolveFinanceSection`
+- [x] All Finance files are under 1000 lines (largest: `FinanceApplications.jsx` at ~503 lines)
+- [x] No `window.prompt`, `window.confirm`, or `window.alert` remain in the finance module
+
+Verified: 2026-05-06 (`wc -l apps/desktop/src/modules/atlas.finance/screens/*.jsx apps/desktop/src/modules/atlas.finance/components/*.jsx apps/desktop/src/modules/atlas.finance/lib/finance-utils.js` — all under 1000 lines; `grep -r "window.prompt\|window.confirm\|window.alert" apps/desktop/src/modules/atlas.finance/` returns no results)

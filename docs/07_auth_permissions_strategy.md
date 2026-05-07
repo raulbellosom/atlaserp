@@ -55,6 +55,35 @@ HREmployee           ← HR/business record (future atlas.hr module)
 
 ## Permission middleware (Phase 4 implementation)
 
+## RBAC/ACL v1 (server-authoritative)
+
+Current behavior (v1):
+
+- API is the source of truth for authorization.
+- Admin bypass only for roles `atlas.admin` and `system.admin`.
+- Every authenticated active user gets base permission `profile.self.read`.
+- If a permission is not explicitly granted, access is denied.
+
+Standard middleware in `apps/api/src/index.js`:
+
+- `requirePermission(permissionKey)`
+- `requireAnyPermission(permissionKeys[])`
+- `requireModuleAccess(moduleKey)`
+
+Runtime exposure is filtered by permissions:
+
+- `GET /runtime/modules` returns only modules allowed by `manifest.acl.module`.
+- Navigation inside each module is filtered by `navigation[].permissionKey`.
+- `GET /blueprints` is filtered by module access.
+- `GET /modules` is administrative and requires `modules.read`.
+
+Profile access is granular:
+
+- `GET /profile/me` -> `profile.self.read`
+- `PUT /profile/me` -> `profile.self.update`
+- `POST /profile/me/avatar` -> `profile.avatar.update`
+- `POST /profile/me/password` -> `profile.password.update`
+
 ```js
 // apps/api/src/middleware/require-permission.js
 export function requirePermission(permissionKey) {

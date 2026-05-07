@@ -4,6 +4,7 @@
   identity: "Identidad",
   roles: "Roles",
   permissions: "Permisos",
+  profile: "Perfil",
   files: "Archivos",
   company: "Empresa",
   contacts: "Contactos",
@@ -30,6 +31,12 @@ export const PERMISSION_CATALOG = {
     descriptionEs: "Permite instalar modulos en el catalogo.",
     groupKey: "modules",
     order: 10,
+  },
+  "modules.read": {
+    displayNameEs: "Ver catalogo de modulos",
+    descriptionEs: "Permite consultar el catalogo administrativo de modulos.",
+    groupKey: "modules",
+    order: 5,
   },
   "modules.uninstall": {
     displayNameEs: "Desinstalar modulos",
@@ -84,6 +91,30 @@ export const PERMISSION_CATALOG = {
     descriptionEs: "Permite asignar o revocar permisos por rol.",
     groupKey: "permissions",
     order: 20,
+  },
+  "profile.self.read": {
+    displayNameEs: "Ver perfil propio",
+    descriptionEs: "Permite consultar la informacion de su propio perfil.",
+    groupKey: "profile",
+    order: 10,
+  },
+  "profile.self.update": {
+    displayNameEs: "Editar perfil propio",
+    descriptionEs: "Permite actualizar informacion personal de su perfil.",
+    groupKey: "profile",
+    order: 20,
+  },
+  "profile.avatar.update": {
+    displayNameEs: "Actualizar avatar propio",
+    descriptionEs: "Permite cambiar su foto de perfil.",
+    groupKey: "profile",
+    order: 30,
+  },
+  "profile.password.update": {
+    displayNameEs: "Actualizar contrasena propia",
+    descriptionEs: "Permite cambiar su contrasena.",
+    groupKey: "profile",
+    order: 40,
   },
   "files.read": {
     displayNameEs: "Ver archivos",

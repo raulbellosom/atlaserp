@@ -105,17 +105,17 @@ export function FilesTableView({
 
   return (
     <div className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden">
-      <Table className="table-fixed">
+      <Table>
         <TableHeader>
           <TableRow className="bg-[hsl(var(--muted))]/40 hover:bg-[hsl(var(--muted))]/40">
             <TableHead className="w-10" />
-            <TableHead className="w-[420px]">Archivo</TableHead>
-            <TableHead className="w-[100px]">Tamaño</TableHead>
-            <TableHead className="w-[140px]">Módulo</TableHead>
-            <TableHead className="w-[110px]">Entidad</TableHead>
-            <TableHead className="w-[170px]">Subido</TableHead>
-            <TableHead className="w-[110px]">Estado</TableHead>
-            <TableHead className="w-[280px]">Acciones</TableHead>
+            <TableHead className="min-w-[180px]">Archivo</TableHead>
+            <TableHead className="w-20">Tamaño</TableHead>
+            <TableHead className="w-28">Módulo</TableHead>
+            <TableHead className="w-24">Entidad</TableHead>
+            <TableHead className="w-32">Subido</TableHead>
+            <TableHead className="w-24">Estado</TableHead>
+            <TableHead className="w-40">Acciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -127,7 +127,7 @@ export function FilesTableView({
                   onCheckedChange={() => onToggleSelect(file.id)}
                 />
               </TableCell>
-              <TableCell className="w-[420px]">
+              <TableCell className="min-w-[180px]">
                 <div className="flex items-center gap-3 min-w-0 w-full">
                   <FileVisual
                     file={file}
@@ -172,7 +172,7 @@ export function FilesTableView({
                       }
                       className={[
                         "block w-full min-w-0 bg-transparent p-0 m-0",
-                        "text-sm font-medium leading-tight truncate",
+                        "text-base sm:text-sm font-medium leading-tight truncate",
                         "border-0 outline-none ring-0 shadow-none",
                         "focus:outline-none focus:ring-0",
                         editingId === file.id

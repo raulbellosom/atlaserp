@@ -17,7 +17,9 @@ import { CURRENCY_OPTIONS, TIME_ZONE_OPTIONS } from "../../../lib/localeCatalogs
 export default function InstanceSettings() {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
-  const isAdmin = ["atlas.admin", "system.admin"].includes(userProfile?.role);
+  const canManage = Boolean(
+    userProfile?.isAdmin || userProfile?.permissions?.includes("core.manage"),
+  );
   const queryClient = useQueryClient();
 
   const configQuery = useQuery({
@@ -62,9 +64,9 @@ export default function InstanceSettings() {
           description="Ajusta el nombre, zona horaria y moneda predeterminada de tu instancia."
         />
 
-        {!isAdmin && (
+        {!canManage && (
           <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 text-sm px-4 py-3 text-[hsl(var(--muted-foreground))]">
-            Solo administradores pueden modificar la configuración de la instancia.
+            Necesitas permiso core.manage para modificar la configuracion de la instancia.
           </div>
         )}
 
@@ -98,7 +100,7 @@ export default function InstanceSettings() {
                   icon={Building2}
                   value={form.instanceName}
                   onChange={(e) => setForm((f) => ({ ...f, instanceName: e.target.value }))}
-                  disabled={!isAdmin}
+                  disabled={!canManage}
                   placeholder="Mi Empresa ERP"
                 />
                 <ComboboxField
@@ -110,7 +112,7 @@ export default function InstanceSettings() {
                   placeholder="Seleccionar zona horaria"
                   searchPlaceholder="Buscar zona horaria..."
                   emptyText="No se encontraron zonas horarias"
-                  className={!isAdmin ? "opacity-60 pointer-events-none" : ""}
+                  className={!canManage ? "opacity-60 pointer-events-none" : ""}
                 />
                 <ComboboxField
                   label="Moneda"
@@ -121,12 +123,12 @@ export default function InstanceSettings() {
                   placeholder="Seleccionar moneda"
                   searchPlaceholder="Buscar moneda..."
                   emptyText="No se encontraron monedas"
-                  className={!isAdmin ? "opacity-60 pointer-events-none" : ""}
+                  className={!canManage ? "opacity-60 pointer-events-none" : ""}
                 />
                 <div className="flex justify-end pt-2 border-t border-[hsl(var(--border))]">
                   <Button
                     onClick={() => saveMutation.mutate()}
-                    disabled={!isAdmin || saveMutation.isPending || !form.instanceName}
+                    disabled={!canManage || saveMutation.isPending || !form.instanceName}
                   >
                     {saveMutation.isPending ? "Guardando..." : "Guardar cambios"}
                   </Button>

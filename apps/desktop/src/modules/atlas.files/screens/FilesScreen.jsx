@@ -56,7 +56,11 @@ export default function FilesScreen() {
   const location = useLocation();
   const routeFileId = useFileIdFromPath(location.pathname);
 
-  const isAdmin = ["atlas.admin", "system.admin"].includes(userProfile?.role);
+  const isAdmin = Boolean(
+    userProfile?.isAdmin ||
+      userProfile?.permissions?.includes("files.manage") ||
+      userProfile?.permissions?.includes("files.delete"),
+  );
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [toggleTarget, setToggleTarget] = useState(null);

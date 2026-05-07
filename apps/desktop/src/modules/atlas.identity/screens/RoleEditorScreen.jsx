@@ -26,18 +26,23 @@ export default function RoleEditorScreen() {
   const location = useLocation();
   const token = session?.access_token;
   const roleId = getRoleIdFromPath(location.pathname);
-  const isAdmin = ["atlas.admin", "system.admin"].includes(userProfile?.role);
+  const permissions = userProfile?.permissions ?? [];
+  const hasPermission = (key) =>
+    Boolean(userProfile?.isAdmin || permissions.includes(key));
+  const canReadRoles = hasPermission("roles.read");
+  const canReadPermissions = hasPermission("permissions.read");
+  const canManagePermissions = hasPermission("permissions.manage");
   const queryClient = useQueryClient();
 
   const rolesQuery = useQuery({
     queryKey: ["identity-roles"],
     queryFn: () => atlas.identity.listRoles(token),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && canReadRoles,
   });
   const permissionsQuery = useQuery({
     queryKey: ["identity-permissions"],
     queryFn: () => atlas.identity.listPermissions(token),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && canReadPermissions,
   });
 
   const role = useMemo(
@@ -62,6 +67,7 @@ export default function RoleEditorScreen() {
   });
 
   function togglePermission(permissionKey, checked) {
+    if (!canManagePermissions) return;
     const base = selectedPermissions.length > 0 ? selectedPermissions : (role?.permissionKeys ?? []);
     const next = checked
       ? [...new Set([...base, permissionKey])]
@@ -84,12 +90,20 @@ export default function RoleEditorScreen() {
         </Button>
       </div>
 
-      {rolesQuery.isLoading || permissionsQuery.isLoading ? (
+      {rolesQuery.isLoading || (canReadPermissions && permissionsQuery.isLoading) ? (
         <Card>
           <CardContent className="pt-6 space-y-3">
             <Skeleton className="h-8 w-80 rounded-lg" />
             <Skeleton className="h-32 w-full rounded-xl" />
             <Skeleton className="h-32 w-full rounded-xl" />
+          </CardContent>
+        </Card>
+      ) : !canReadRoles ? (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">
+              No tienes permisos para consultar roles.
+            </p>
           </CardContent>
         </Card>
       ) : role ? (
@@ -105,7 +119,7 @@ export default function RoleEditorScreen() {
                   {role.enabled ? "Activo" : "Inactivo"}
                 </Badge>
                 <span className="text-xs text-[hsl(var(--muted-foreground))]">Clave: {role.key}</span>
-                {!isAdmin && <Badge variant="secondary">Modo lectura</Badge>}
+                {!canManagePermissions && <Badge variant="secondary">Modo lectura</Badge>}
               </div>
             </CardContent>
           </Card>
@@ -115,9 +129,13 @@ export default function RoleEditorScreen() {
               <CardTitle>Permisos por módulo</CardTitle>
             </CardHeader>
             <CardContent className="pt-0 space-y-4">
-              {groups.length === 0 ? (
+              {!canReadPermissions ? (
                 <div className="rounded-lg border border-dashed border-[hsl(var(--border))] p-6 text-sm text-[hsl(var(--muted-foreground))]">
-                  No implementado: no hay permisos disponibles en el catálogo.
+                  Necesitas permissions.read para consultar el catalogo.
+                </div>
+              ) : groups.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-[hsl(var(--border))] p-6 text-sm text-[hsl(var(--muted-foreground))]">
+                  No hay permisos disponibles en el catalogo.
                 </div>
               ) : (
                 <div className="grid gap-3 md:grid-cols-2">
@@ -133,7 +151,7 @@ export default function RoleEditorScreen() {
                           return (
                             <div key={permission.id} className="rounded-lg border border-[hsl(var(--border))] px-3 py-2">
                               <div className="flex items-start gap-2">
-                                {isAdmin ? (
+                                {canManagePermissions ? (
                                   <Checkbox
                                     checked={checked}
                                     onCheckedChange={(next) => togglePermission(permission.key, Boolean(next))}
@@ -147,7 +165,7 @@ export default function RoleEditorScreen() {
                                 <div className="space-y-1">
                                   <p className="text-xs font-semibold">{permission.name}</p>
                                   <p className="text-xs text-[hsl(var(--muted-foreground))]">{permission.description}</p>
-                                  {isAdmin && (
+                                  {canManagePermissions && (
                                     <p className="text-[11px] text-[hsl(var(--muted-foreground))]">
                                       Clave tecnica: {permission.key}
                                     </p>
@@ -162,7 +180,7 @@ export default function RoleEditorScreen() {
                   ))}
                 </div>
               )}
-              {isAdmin && (
+              {canManagePermissions && (
                 <div className="flex justify-end">
                   <Button disabled={savePermissionsMutation.isPending} onClick={() => savePermissionsMutation.mutate()}>
                     {savePermissionsMutation.isPending ? "Guardando..." : "Guardar permisos"}

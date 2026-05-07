@@ -2,16 +2,24 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { atlas } from "../lib/atlas";
 import { getAvailableModules, mergeRuntimeModules } from "../lib/runtimeModules";
+import { useAuth } from "../auth/AuthProvider";
 
 export function useRuntimeModules() {
+  const { session } = useAuth();
+  const token = session?.access_token;
+
   const modulesQuery = useQuery({
-    queryKey: ["modules"],
-    queryFn: atlas.modules.list,
+    queryKey: ["runtime-modules", token],
+    queryFn: () => atlas.runtime.modules(token),
+    enabled: Boolean(token),
     staleTime: 60000,
   });
 
   const runtimeModules = useMemo(
-    () => mergeRuntimeModules(modulesQuery.data),
+    () =>
+      mergeRuntimeModules(modulesQuery.data, {
+        includeManifestFallback: false,
+      }),
     [modulesQuery.data],
   );
 

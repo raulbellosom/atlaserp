@@ -98,7 +98,14 @@ export function createAtlasClient({ baseUrl }) {
         }),
     },
     modules: {
-      list: () => request("/modules"),
+      list: (token) =>
+        request("/modules", {
+          headers: withAuthHeaders(token),
+        }),
+      runtime: (token) =>
+        request("/runtime/modules", {
+          headers: withAuthHeaders(token),
+        }),
       install: (manifest, token) =>
         request("/modules/install", {
           method: "POST",
@@ -121,7 +128,18 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
         }),
     },
-    blueprints: { list: () => request("/blueprints") },
+    runtime: {
+      modules: (token) =>
+        request("/runtime/modules", {
+          headers: withAuthHeaders(token),
+        }),
+    },
+    blueprints: {
+      list: (token) =>
+        request("/blueprints", {
+          headers: withAuthHeaders(token),
+        }),
+    },
     identity: {
       listUsers: (token) =>
         request("/identity/users", { headers: withAuthHeaders(token) }),
