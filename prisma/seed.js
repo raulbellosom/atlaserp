@@ -115,6 +115,7 @@ async function main() {
   }
 
   console.log('Atlas core modules seeded')
+  console.log('Legacy role permissions can be expanded with: node scripts/migrate-legacy-permissions-to-granular.mjs --dry-run')
 }
 
 main().finally(() => prisma.$disconnect())

@@ -440,14 +440,58 @@ function inferGroupKey(permissionKey) {
   return String(permissionKey ?? "").split(".")[0] || "core";
 }
 
+function toLabel(value) {
+  return String(value ?? "")
+    .split(/[._-]/g)
+    .filter(Boolean)
+    .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+    .join(" ");
+}
+
+function inferGranularPresentation(permissionKey) {
+  const segments = String(permissionKey ?? "")
+    .split(".")
+    .filter(Boolean);
+  if (segments.length < 2) return null;
+
+  const action = segments[segments.length - 1];
+  const moduleKey = segments[0];
+  const featureKey =
+    segments.length >= 3 ? segments.slice(1, -1).join(".") : "general";
+
+  const actionLabels = {
+    read: "Ver",
+    create: "Crear",
+    update: "Editar",
+    delete: "Eliminar",
+    access: "Acceder",
+    install: "Instalar",
+    uninstall: "Desinstalar",
+    disable: "Deshabilitar",
+    reverse: "Revertir",
+    send: "Enviar",
+    manage: "Administrar",
+  };
+
+  const actionLabel = actionLabels[action] ?? `Ejecutar ${toLabel(action)}`;
+  const featureLabel = toLabel(featureKey);
+  const moduleLabel = toLabel(moduleKey);
+
+  return {
+    name: `${actionLabel} ${featureLabel}`.trim(),
+    description: `Permite ${actionLabel.toLowerCase()} acciones de ${featureLabel} en ${moduleLabel}.`,
+  };
+}
+
 export function getPermissionPresentation(permissionKey) {
   const item = PERMISSION_CATALOG[permissionKey];
   const groupKey = item?.groupKey ?? inferGroupKey(permissionKey);
   const groupLabel = GROUPS[groupKey] ?? "General";
+  const inferred = item ? null : inferGranularPresentation(permissionKey);
   return {
     key: permissionKey,
-    name: item?.displayNameEs ?? permissionKey,
-    description: item?.descriptionEs ?? "Permiso del sistema.",
+    name: item?.displayNameEs ?? inferred?.name ?? permissionKey,
+    description: item?.descriptionEs ?? inferred?.description ?? "Permiso del sistema.",
     groupKey,
     groupLabel,
     sortOrder: item?.order ?? 999,

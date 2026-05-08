@@ -43,6 +43,10 @@ import {
   groupPermissionsForUi,
 } from "./permission-catalog.js";
 import {
+  hasAnyPermissionWithLegacyFallback,
+  hasPermissionWithLegacyFallback,
+} from "./permissions/legacy-fallback.js";
+import {
   createContactsService,
   ContactsServiceError,
 } from "./services/contacts-service.js";
@@ -64,6 +68,8 @@ import { createHrService, HrServiceError } from "./services/hr-service.js";
 const prisma = new PrismaClient();
 const app = new Hono();
 const port = Number(process.env.ATLAS_API_PORT ?? 4010);
+const RBAC_LEGACY_FALLBACK_ENABLED =
+  String(process.env.RBAC_LEGACY_FALLBACK_ENABLED ?? "true").toLowerCase() !== "false";
 const contactsService = createContactsService({ prisma });
 
 const supabaseAdmin = createClient(
@@ -236,7 +242,14 @@ function requirePermission(permissionKey) {
     if (!context?.profile) {
       return c.json({ error: "No autorizado. Perfil de usuario no encontrado." }, 401);
     }
-    if (context.isAdmin || context.permissionSet.has(permissionKey)) {
+    if (
+      context.isAdmin ||
+      hasPermissionWithLegacyFallback(
+        context.permissionSet,
+        permissionKey,
+        RBAC_LEGACY_FALLBACK_ENABLED,
+      )
+    ) {
       await next();
       return;
     }
@@ -255,7 +268,11 @@ function requireAnyPermission(permissionKeys = []) {
       return;
     }
     const keys = Array.isArray(permissionKeys) ? permissionKeys : [];
-    const allowed = keys.some((key) => context.permissionSet.has(key));
+    const allowed = hasAnyPermissionWithLegacyFallback(
+      context.permissionSet,
+      keys,
+      RBAC_LEGACY_FALLBACK_ENABLED,
+    );
     if (!allowed) {
       return c.json({ error: forbiddenMessage(keys.join(" o ")) }, 403);
     }
@@ -279,7 +296,11 @@ function filterModuleNavigation(moduleRow, permissionSet, isAdmin) {
     const navPermission = item?.permissionKey;
     if (isAdmin) return true;
     if (!navPermission) return false;
-    return permissionSet.has(navPermission);
+    return hasPermissionWithLegacyFallback(
+      permissionSet,
+      navPermission,
+      RBAC_LEGACY_FALLBACK_ENABLED,
+    );
   });
   return {
     ...manifest,
@@ -292,7 +313,11 @@ function userCanAccessModule(context, moduleRow) {
   if (context.isAdmin) return true;
   const modulePermission = getModuleRequiredPermission(moduleRow);
   if (!modulePermission) return false;
-  return context.permissionSet.has(modulePermission);
+  return hasPermissionWithLegacyFallback(
+    context.permissionSet,
+    modulePermission,
+    RBAC_LEGACY_FALLBACK_ENABLED,
+  );
 }
 
 function requireModuleAccess(moduleKey) {
@@ -1099,7 +1124,7 @@ app.get("/memberships/me", authMiddleware, async (c) => {
   }
 });
 
-app.get("/instance/config", authMiddleware, requirePermission("core.manage"), async (c) => {
+app.get("/instance/config", authMiddleware, requirePermission("core.instance.read"), async (c) => {
   try {
     const records = await prisma.instanceConfig.findMany({
       where: {
@@ -1131,7 +1156,7 @@ app.get("/instance/config", authMiddleware, requirePermission("core.manage"), as
   }
 });
 
-app.put("/instance/config", authMiddleware, requirePermission("core.manage"), async (c) => {
+app.put("/instance/config", authMiddleware, requirePermission("core.instance.update"), async (c) => {
   try {
     const body = await c.req.json();
     const instanceName = String(body.instanceName ?? "").trim();
@@ -1167,7 +1192,7 @@ app.put("/instance/config", authMiddleware, requirePermission("core.manage"), as
 
 // ── Company: Profile ─────────────────────────────────────────────────────────
 
-app.get("/company/profile", authMiddleware, requirePermission("company.read"), async (c) => {
+app.get("/company/profile", authMiddleware, requirePermission("company.profile.read"), async (c) => {
   try {
     const data = await companyService.getProfile();
     return c.json({ data });
@@ -1178,7 +1203,7 @@ app.get("/company/profile", authMiddleware, requirePermission("company.read"), a
   }
 });
 
-app.put("/company/profile", authMiddleware, requirePermission("company.manage"), async (c) => {
+app.put("/company/profile", authMiddleware, requirePermission("company.profile.update"), async (c) => {
   try {
     const body = await c.req.json();
     const name = String(body.name ?? "").trim();
@@ -1210,7 +1235,7 @@ app.put("/company/profile", authMiddleware, requirePermission("company.manage"),
 
 // ── Company: Address ─────────────────────────────────────────────────────────
 
-app.get("/company/address", authMiddleware, requirePermission("company.read"), async (c) => {
+app.get("/company/address", authMiddleware, requirePermission("company.address.read"), async (c) => {
   try {
     const data = await companyService.getAddress();
     return c.json({ data });
@@ -1224,7 +1249,7 @@ app.get("/company/address", authMiddleware, requirePermission("company.read"), a
   }
 });
 
-app.put("/company/address", authMiddleware, requirePermission("company.manage"), async (c) => {
+app.put("/company/address", authMiddleware, requirePermission("company.address.update"), async (c) => {
   try {
     const body = await c.req.json();
     const data = await companyService.updateAddress({
@@ -1249,7 +1274,7 @@ app.put("/company/address", authMiddleware, requirePermission("company.manage"),
 
 // ── Company: Branding ────────────────────────────────────────────────────────
 
-app.get("/company/branding", authMiddleware, requirePermission("company.read"), async (c) => {
+app.get("/company/branding", authMiddleware, requirePermission("company.branding.read"), async (c) => {
   try {
     const data = await companyService.getBranding();
     return c.json({ data });
@@ -1263,7 +1288,7 @@ app.get("/company/branding", authMiddleware, requirePermission("company.read"), 
   }
 });
 
-app.put("/company/branding", authMiddleware, requirePermission("company.manage"), async (c) => {
+app.put("/company/branding", authMiddleware, requirePermission("company.branding.update"), async (c) => {
   try {
     const companyIdRecord = await prisma.instanceConfig.findUnique({
       where: { key: "company_id" },
@@ -1301,7 +1326,7 @@ app.put("/company/branding", authMiddleware, requirePermission("company.manage")
 app.post(
   "/files/upload",
   authMiddleware,
-  requirePermission("files.upload"),
+  requirePermission("files.assets.create"),
   async (c) => {
   try {
     const authUserId = c.get("authUserId");
@@ -1351,7 +1376,7 @@ app.post(
   }
 });
 
-app.get("/files", authMiddleware, requirePermission("files.read"), async (c) => {
+app.get("/files", authMiddleware, requirePermission("files.assets.read"), async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const result = await filesService.list({
@@ -1378,7 +1403,7 @@ app.get("/files", authMiddleware, requirePermission("files.read"), async (c) => 
   }
 });
 
-app.get("/files/:id", authMiddleware, requirePermission("files.read"), async (c) => {
+app.get("/files/:id", authMiddleware, requirePermission("files.assets.read"), async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const id = c.req.param("id");
@@ -1392,7 +1417,7 @@ app.get("/files/:id", authMiddleware, requirePermission("files.read"), async (c)
   }
 });
 
-app.patch("/files/:id", authMiddleware, requirePermission("files.manage"), async (c) => {
+app.patch("/files/:id", authMiddleware, requirePermission("files.assets.update"), async (c) => {
   // Intentional policy: renaming is a lifecycle mutation restricted to admin roles.
   try {
     const authUserId = c.get("authUserId");
@@ -1431,7 +1456,7 @@ app.patch("/files/:id", authMiddleware, requirePermission("files.manage"), async
 app.post(
   "/files/bulk-download",
   authMiddleware,
-  requirePermission("files.read"),
+  requirePermission("files.assets.read"),
   async (c) => {
   try {
     const authUserId = c.get("authUserId");
@@ -1463,7 +1488,7 @@ app.post(
   }
 });
 
-app.get("/files/:id/signed-url", authMiddleware, requirePermission("files.read"), async (c) => {
+app.get("/files/:id/signed-url", authMiddleware, requirePermission("files.assets.read"), async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const id = c.req.param("id");
@@ -1480,7 +1505,7 @@ app.get("/files/:id/signed-url", authMiddleware, requirePermission("files.read")
 app.patch(
   "/files/:id/enabled",
   authMiddleware,
-  requirePermission("files.manage"),
+  requirePermission("files.assets.update"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -1504,7 +1529,7 @@ app.patch(
   },
 );
 
-app.delete("/files/:id", authMiddleware, requirePermission("files.delete"), async (c) => {
+app.delete("/files/:id", authMiddleware, requirePermission("files.assets.delete"), async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const id = c.req.param("id");
@@ -1521,7 +1546,7 @@ app.delete("/files/:id", authMiddleware, requirePermission("files.delete"), asyn
 app.get(
   "/identity/permissions",
   authMiddleware,
-  requirePermission("permissions.read"),
+  requirePermission("identity.permissions.read"),
   async (c) => {
   try {
     const permissions = await prisma.permission.findMany({
@@ -1550,7 +1575,7 @@ app.get(
   }
 });
 
-app.get("/identity/roles", authMiddleware, requirePermission("roles.read"), async (c) => {
+app.get("/identity/roles", authMiddleware, requirePermission("identity.roles.read"), async (c) => {
   try {
     const roles = await prisma.role.findMany({
       include: {
@@ -1569,7 +1594,7 @@ app.get("/identity/roles", authMiddleware, requirePermission("roles.read"), asyn
   }
 });
 
-app.post("/identity/roles", authMiddleware, requirePermission("roles.manage"), async (c) => {
+app.post("/identity/roles", authMiddleware, requirePermission("identity.roles.create"), async (c) => {
   try {
     const body = await c.req.json();
     const key = String(body.key ?? "").trim();
@@ -1592,7 +1617,7 @@ app.post("/identity/roles", authMiddleware, requirePermission("roles.manage"), a
 app.put(
   "/identity/roles/:id",
   authMiddleware,
-  requirePermission("roles.manage"),
+  requirePermission("identity.roles.update"),
   async (c) => {
     try {
       const id = c.req.param("id");
@@ -1614,7 +1639,7 @@ app.put(
 app.patch(
   "/identity/roles/:id/enabled",
   authMiddleware,
-  requirePermission("roles.manage"),
+  requirePermission("identity.roles.update"),
   async (c) => {
     try {
       const id = c.req.param("id");
@@ -1634,7 +1659,7 @@ app.patch(
 app.patch(
   "/identity/roles/:id/permissions",
   authMiddleware,
-  requirePermission("permissions.manage"),
+  requirePermission("identity.permissions.update"),
   async (c) => {
     try {
       const id = c.req.param("id");
@@ -1671,7 +1696,7 @@ app.patch(
   },
 );
 
-app.get("/identity/users", authMiddleware, requirePermission("identity.read"), async (c) => {
+app.get("/identity/users", authMiddleware, requirePermission("identity.users.read"), async (c) => {
   try {
     const users = await prisma.userProfile.findMany({
       include: {
@@ -1706,7 +1731,7 @@ app.get("/identity/users", authMiddleware, requirePermission("identity.read"), a
   }
 });
 
-app.post("/identity/users", authMiddleware, requirePermission("identity.manage"), async (c) => {
+app.post("/identity/users", authMiddleware, requirePermission("identity.users.create"), async (c) => {
   try {
     const body = await c.req.json();
     const fields = createUserSchema.parse(body);
@@ -1771,7 +1796,7 @@ app.post("/identity/users", authMiddleware, requirePermission("identity.manage")
 app.delete(
   "/identity/users/:id",
   authMiddleware,
-  requirePermission("identity.manage"),
+  requirePermission("identity.users.update"),
   async (c) => {
     try {
       const id = c.req.param("id");
@@ -1799,7 +1824,7 @@ app.delete(
 app.patch(
   "/identity/users/:id",
   authMiddleware,
-  requirePermission("identity.manage"),
+  requirePermission("identity.users.update"),
   async (c) => {
     try {
       const id = c.req.param("id");
@@ -1866,7 +1891,7 @@ app.get("/runtime/modules", authMiddleware, async (c) => {
   });
 });
 
-app.get("/modules", authMiddleware, requirePermission("modules.read"), async (c) => {
+app.get("/modules", authMiddleware, requirePermission("core.modules.read"), async (c) => {
   const modules = await prisma.atlasModule.findMany({
     orderBy: [{ core: "desc" }, { name: "asc" }],
     include: {
@@ -1896,7 +1921,7 @@ app.get("/modules", authMiddleware, requirePermission("modules.read"), async (c)
   });
 });
 
-app.post("/modules/install", authMiddleware, requirePermission("modules.install"), async (c) => {
+app.post("/modules/install", authMiddleware, requirePermission("core.modules.create"), async (c) => {
   try {
     const body = await c.req.json();
     const parsed = moduleInstallSchema.parse(body);
@@ -2017,7 +2042,7 @@ app.post("/modules/install", authMiddleware, requirePermission("modules.install"
 app.delete(
   "/modules/:key",
   authMiddleware,
-  requirePermission("modules.uninstall"),
+  requirePermission("core.modules.delete"),
   async (c) => {
   try {
     const key = c.req.param("key");
@@ -2056,7 +2081,7 @@ app.delete(
 app.post(
   "/modules/:key/disable",
   authMiddleware,
-  requirePermission("modules.disable"),
+  requirePermission("core.modules.update"),
   async (c) => {
   try {
     const key = c.req.param("key");
@@ -2101,7 +2126,7 @@ app.post(
 app.post(
   "/modules/:key/enable",
   authMiddleware,
-  requirePermission("modules.disable"),
+  requirePermission("core.modules.update"),
   async (c) => {
   try {
     const key = c.req.param("key");
@@ -2172,7 +2197,7 @@ app.get("/blueprints", authMiddleware, async (c) => {
   return c.json({ data: filtered });
 });
 
-app.get("/contacts", authMiddleware, requirePermission("contacts.read"), async (c) => {
+app.get("/contacts", authMiddleware, requirePermission("contacts.contacts.read"), async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const search = c.req.query("q") ?? "";
@@ -2190,7 +2215,7 @@ app.get("/contacts", authMiddleware, requirePermission("contacts.read"), async (
 app.get(
   "/contacts/picker",
   authMiddleware,
-  requirePermission("contacts.read"),
+  requirePermission("contacts.contacts.read"),
   async (c) => {
   try {
     const authUserId = c.get("authUserId");
@@ -2209,7 +2234,7 @@ app.get(
   }
 });
 
-app.post("/contacts", authMiddleware, requirePermission("contacts.create"), async (c) => {
+app.post("/contacts", authMiddleware, requirePermission("contacts.contacts.create"), async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const payload = await c.req.json();
@@ -2229,7 +2254,7 @@ app.post("/contacts", authMiddleware, requirePermission("contacts.create"), asyn
   }
 });
 
-app.put("/contacts/:id", authMiddleware, requirePermission("contacts.update"), async (c) => {
+app.put("/contacts/:id", authMiddleware, requirePermission("contacts.contacts.update"), async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const id = c.req.param("id");
@@ -2253,7 +2278,7 @@ app.put("/contacts/:id", authMiddleware, requirePermission("contacts.update"), a
 app.patch(
   "/contacts/:id/enabled",
   authMiddleware,
-  requirePermission("contacts.update"),
+  requirePermission("contacts.contacts.update"),
   async (c) => {
   try {
     const authUserId = c.get("authUserId");
@@ -2276,7 +2301,7 @@ app.patch(
   }
 });
 
-app.delete("/contacts/:id", authMiddleware, requirePermission("contacts.delete"), async (c) => {
+app.delete("/contacts/:id", authMiddleware, requirePermission("contacts.contacts.delete"), async (c) => {
   try {
     const authUserId = c.get("authUserId");
     const id = c.req.param("id");
@@ -2293,7 +2318,7 @@ app.delete("/contacts/:id", authMiddleware, requirePermission("contacts.delete")
 app.get(
   "/hr/employees",
   authMiddleware,
-  requirePermission("hr.read"),
+  requirePermission("hr.employee.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2323,7 +2348,7 @@ app.get(
 app.get(
   "/hr/employees/:id",
   authMiddleware,
-  requirePermission("hr.read"),
+  requirePermission("hr.employee.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2342,7 +2367,7 @@ app.get(
 app.post(
   "/hr/employees",
   authMiddleware,
-  requirePermission("hr.create"),
+  requirePermission("hr.employee.create"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2370,7 +2395,7 @@ app.post(
 app.put(
   "/hr/employees/:id",
   authMiddleware,
-  requirePermission("hr.update"),
+  requirePermission("hr.employee.update"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2400,7 +2425,7 @@ app.put(
 app.patch(
   "/hr/employees/:id/enabled",
   authMiddleware,
-  requirePermission("hr.delete"),
+  requirePermission("hr.employee.delete"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2427,7 +2452,7 @@ app.patch(
 app.get(
   "/hr/employees/:id/audit",
   authMiddleware,
-  requirePermission("hr.read"),
+  requirePermission("hr.employee.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2447,7 +2472,7 @@ app.get(
 app.get(
   "/hr/departments",
   authMiddleware,
-  requirePermission("hr.read"),
+  requirePermission("hr.department.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2475,7 +2500,7 @@ app.get(
 app.post(
   "/hr/departments",
   authMiddleware,
-  requirePermission("hr.create"),
+  requirePermission("hr.department.create"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2503,7 +2528,7 @@ app.post(
 app.put(
   "/hr/departments/:id",
   authMiddleware,
-  requirePermission("hr.update"),
+  requirePermission("hr.department.update"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2533,7 +2558,7 @@ app.put(
 app.patch(
   "/hr/departments/:id/enabled",
   authMiddleware,
-  requirePermission("hr.delete"),
+  requirePermission("hr.department.delete"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2563,7 +2588,7 @@ app.patch(
 app.get(
   "/hr/job-titles",
   authMiddleware,
-  requirePermission("hr.read"),
+  requirePermission("hr.job_title.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2591,7 +2616,7 @@ app.get(
 app.post(
   "/hr/job-titles",
   authMiddleware,
-  requirePermission("hr.create"),
+  requirePermission("hr.job_title.create"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2619,7 +2644,7 @@ app.post(
 app.put(
   "/hr/job-titles/:id",
   authMiddleware,
-  requirePermission("hr.update"),
+  requirePermission("hr.job_title.update"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2649,7 +2674,7 @@ app.put(
 app.patch(
   "/hr/job-titles/:id/enabled",
   authMiddleware,
-  requirePermission("hr.delete"),
+  requirePermission("hr.job_title.delete"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2676,7 +2701,7 @@ app.patch(
 app.get(
   "/hr/org-chart",
   authMiddleware,
-  requirePermission("hr.read"),
+  requirePermission("hr.org_chart.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2702,7 +2727,7 @@ app.get(
 app.get(
   "/hr/user-options",
   authMiddleware,
-  requirePermission("hr.read"),
+  requirePermission("hr.employee.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2726,7 +2751,7 @@ app.get(
 app.get(
   "/finance/accounts",
   authMiddleware,
-  requirePermission("finance.read"),
+  requirePermission("finance.accounts.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2753,7 +2778,7 @@ app.get(
 app.post(
   "/finance/accounts",
   authMiddleware,
-  requirePermission("finance.create"),
+  requirePermission("finance.accounts.create"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2784,7 +2809,7 @@ app.post(
 app.put(
   "/finance/accounts/:id",
   authMiddleware,
-  requirePermission("finance.update"),
+  requirePermission("finance.accounts.update"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2820,7 +2845,7 @@ app.put(
 app.patch(
   "/finance/accounts/:id/enabled",
   authMiddleware,
-  requirePermission("finance.update"),
+  requirePermission("finance.accounts.update"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2850,7 +2875,7 @@ app.patch(
 app.get(
   "/finance/entries",
   authMiddleware,
-  requirePermission("finance.read"),
+  requirePermission("finance.entries.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2869,7 +2894,7 @@ app.get(
 app.get(
   "/finance/entries/:id",
   authMiddleware,
-  requirePermission("finance.read"),
+  requirePermission("finance.entries.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2888,7 +2913,7 @@ app.get(
 app.post(
   "/finance/entries",
   authMiddleware,
-  requirePermission("finance.create"),
+  requirePermission("finance.entries.create"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2919,7 +2944,7 @@ app.post(
 app.patch(
   "/finance/entries/:id/enabled",
   authMiddleware,
-  requirePermission("finance.update"),
+  requirePermission("finance.entries.update"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2949,7 +2974,7 @@ app.patch(
 app.get(
   "/finance/balances",
   authMiddleware,
-  requirePermission("finance.read"),
+  requirePermission("finance.dashboard.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2967,7 +2992,7 @@ app.get(
 app.get(
   "/finance/fx-rates",
   authMiddleware,
-  requirePermission("finance.read"),
+  requirePermission("finance.fx_rates.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -2993,7 +3018,7 @@ app.get(
 app.post(
   "/finance/fx-rates",
   authMiddleware,
-  requirePermission("finance.create"),
+  requirePermission("finance.fx_rates.create"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3025,7 +3050,7 @@ app.post(
 app.patch(
   "/finance/fx-rates/:id/enabled",
   authMiddleware,
-  requirePermission("finance.update"),
+  requirePermission("finance.fx_rates.update"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3055,7 +3080,7 @@ app.patch(
 app.get(
   "/finance/tax-rates",
   authMiddleware,
-  requirePermission("finance.read"),
+  requirePermission("finance.tax_rates.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3094,7 +3119,7 @@ app.get(
 app.post(
   "/finance/tax-rates",
   authMiddleware,
-  requirePermission("finance.create"),
+  requirePermission("finance.tax_rates.create"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3126,7 +3151,7 @@ app.post(
 app.patch(
   "/finance/tax-rates/:id/enabled",
   authMiddleware,
-  requirePermission("finance.update"),
+  requirePermission("finance.tax_rates.update"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3153,7 +3178,7 @@ app.patch(
 app.get(
   "/finance/dashboard",
   authMiddleware,
-  requirePermission("finance.read"),
+  requirePermission("finance.dashboard.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3173,7 +3198,7 @@ app.get(
 app.get(
   "/finance/documents",
   authMiddleware,
-  requirePermission("finance.read"),
+  requirePermission("finance.documents.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3202,7 +3227,7 @@ app.get(
 app.post(
   "/finance/documents",
   authMiddleware,
-  requirePermission("finance.create"),
+  requirePermission("finance.documents.create"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3234,7 +3259,7 @@ app.post(
 app.get(
   "/finance/documents/:id",
   authMiddleware,
-  requirePermission("finance.read"),
+  requirePermission("finance.documents.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3256,7 +3281,7 @@ app.get(
 app.put(
   "/finance/documents/:id",
   authMiddleware,
-  requirePermission("finance.update"),
+  requirePermission("finance.documents.update"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3290,7 +3315,7 @@ app.put(
 app.patch(
   "/finance/documents/:id/enabled",
   authMiddleware,
-  requirePermission("finance.update"),
+  requirePermission("finance.documents.update"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3320,7 +3345,7 @@ app.patch(
 app.post(
   "/finance/documents/:id/apply-preview",
   authMiddleware,
-  requirePermission("finance.update"),
+  requirePermission("finance.applications.update"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3354,7 +3379,7 @@ app.post(
 app.post(
   "/finance/documents/:id/apply",
   authMiddleware,
-  requirePermission("finance.update"),
+  requirePermission("finance.applications.update"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3388,7 +3413,7 @@ app.post(
 app.post(
   "/finance/documents/:id/reminder",
   authMiddleware,
-  requirePermission("finance.update"),
+  requirePermission("finance.documents.reminder.send"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3415,7 +3440,7 @@ app.post(
 app.post(
   "/finance/documents/reminders/bulk",
   authMiddleware,
-  requirePermission("finance.update"),
+  requirePermission("finance.documents.reminder.send"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3441,7 +3466,7 @@ app.post(
 app.get(
   "/finance/applications",
   authMiddleware,
-  requirePermission("finance.read"),
+  requirePermission("finance.applications.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3486,7 +3511,7 @@ app.get(
 app.post(
   "/finance/applications/:id/reverse",
   authMiddleware,
-  requirePermission("finance.update"),
+  requirePermission("finance.applications.reverse"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3520,7 +3545,7 @@ app.post(
 app.get(
   "/finance/aging",
   authMiddleware,
-  requirePermission("finance.read"),
+  requirePermission("finance.aging.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
@@ -3557,7 +3582,7 @@ app.get(
 app.get(
   "/finance/documents/:id/journal-links",
   authMiddleware,
-  requirePermission("finance.read"),
+  requirePermission("finance.entries.read"),
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
