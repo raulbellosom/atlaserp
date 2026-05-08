@@ -1,6 +1,7 @@
 import pkg from '@prisma/client'
 const { PrismaClient } = pkg
 import { coreModules } from '../packages/maps/src/core-modules.js'
+import { featureModules } from '../packages/maps/src/feature-modules.js'
 import { getPermissionPresentation } from '../apps/api/src/permission-catalog.js'
 
 const prisma = new PrismaClient()
@@ -32,7 +33,9 @@ async function upsertModule(manifest) {
 }
 
 async function main() {
-  for (const manifest of coreModules) {
+  const allModuleManifests = [...coreModules, ...featureModules]
+
+  for (const manifest of allModuleManifests) {
     const module = await upsertModule(manifest)
     for (const blueprint of manifest.blueprints ?? []) {
       await prisma.blueprint.upsert({
@@ -114,8 +117,7 @@ async function main() {
     }
   }
 
-  console.log('Atlas core modules seeded')
-  console.log('Legacy role permissions can be expanded with: node scripts/migrate-legacy-permissions-to-granular.mjs --dry-run')
+  console.log(`Atlas modules seeded (${allModuleManifests.length})`)
 }
 
 main().finally(() => prisma.$disconnect())

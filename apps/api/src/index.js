@@ -69,7 +69,7 @@ const prisma = new PrismaClient();
 const app = new Hono();
 const port = Number(process.env.ATLAS_API_PORT ?? 4010);
 const RBAC_LEGACY_FALLBACK_ENABLED =
-  String(process.env.RBAC_LEGACY_FALLBACK_ENABLED ?? "true").toLowerCase() !== "false";
+  String(process.env.RBAC_LEGACY_FALLBACK_ENABLED ?? "false").toLowerCase() === "true";
 const contactsService = createContactsService({ prisma });
 
 const supabaseAdmin = createClient(
