@@ -14,7 +14,20 @@ export function createAtlasClient({ baseUrl }) {
     });
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(text || `Atlas API error ${response.status}`);
+      let details = null;
+      let message = text || `Atlas API error ${response.status}`;
+      try {
+        details = text ? JSON.parse(text) : null;
+        if (details?.error) {
+          message = details.error;
+        }
+      } catch {}
+
+      const error = new Error(message);
+      error.status = response.status;
+      error.responseText = text;
+      error.details = details;
+      throw error;
     }
     return response.json();
   }

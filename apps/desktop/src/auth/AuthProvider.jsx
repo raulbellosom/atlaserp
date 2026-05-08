@@ -21,13 +21,18 @@ export function AuthProvider({ children }) {
       setUserProfile(null)
     }
 
-    function isMissingProfileError(error) {
-      const message = String(error?.message ?? '')
+    function shouldForceLogout(error) {
+      if (Number(error?.status) === 401) return true
+      const message = String(error?.message ?? '').toLowerCase()
       return (
-        message.includes('Profile not found') ||
-        message.includes('Unauthorized') ||
-        message.includes('"error":"Profile not found"') ||
-        message.includes('"error":"Unauthorized"')
+        message.includes('profile not found') ||
+        message.includes('unauthorized') ||
+        message.includes('no autorizado') ||
+        message.includes('token invalido') ||
+        message.includes('token inválido') ||
+        message.includes('expirado') ||
+        message.includes('jwt expired') ||
+        message.includes('invalid jwt')
       )
     }
 
@@ -41,7 +46,7 @@ export function AuthProvider({ children }) {
           atlas.auth.me(currentSession.access_token)
             .then(profile => { if (mounted) setUserProfile(profile) })
             .catch(async (error) => {
-              if (isMissingProfileError(error)) {
+              if (shouldForceLogout(error)) {
                 await forceLogout()
               }
             })
@@ -66,7 +71,7 @@ export function AuthProvider({ children }) {
         atlas.auth.me(session.access_token)
           .then(profile => { if (mounted) setUserProfile(profile) })
           .catch(async (error) => {
-            if (isMissingProfileError(error)) {
+            if (shouldForceLogout(error)) {
               await forceLogout()
             }
           })
