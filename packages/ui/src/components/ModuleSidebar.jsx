@@ -28,6 +28,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Network,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "../lib/utils.js";
 
@@ -60,6 +62,8 @@ const ICON_MAP = {
   TrendingUp,
   ChevronLeft,
   ChevronRight,
+  Network,
+  BookOpen,
 };
 
 function NavIcon({ name, size = 15, ...props }) {

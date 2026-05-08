@@ -24,8 +24,8 @@ export default function UserCreateScreen() {
   const permissions = userProfile?.permissions ?? [];
   const hasPermission = (key) =>
     Boolean(userProfile?.isAdmin || permissions.includes(key));
-  const canManageUsers = hasPermission("identity.manage");
-  const canReadRoles = hasPermission("roles.read");
+  const canManageUsers = hasPermission("identity.users.create");
+  const canReadRoles = hasPermission("identity.roles.read");
   const queryClient = useQueryClient();
 
   const rolesQuery = useQuery({

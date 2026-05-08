@@ -43,10 +43,6 @@ import {
   groupPermissionsForUi,
 } from "./permission-catalog.js";
 import {
-  hasAnyPermissionWithLegacyFallback,
-  hasPermissionWithLegacyFallback,
-} from "./permissions/legacy-fallback.js";
-import {
   createContactsService,
   ContactsServiceError,
 } from "./services/contacts-service.js";
@@ -68,8 +64,6 @@ import { createHrService, HrServiceError } from "./services/hr-service.js";
 const prisma = new PrismaClient();
 const app = new Hono();
 const port = Number(process.env.ATLAS_API_PORT ?? 4010);
-const RBAC_LEGACY_FALLBACK_ENABLED =
-  String(process.env.RBAC_LEGACY_FALLBACK_ENABLED ?? "false").toLowerCase() === "true";
 const contactsService = createContactsService({ prisma });
 
 const supabaseAdmin = createClient(
@@ -150,7 +144,8 @@ function mapSetupError(err) {
 async function authMiddleware(c, next) {
   const authHeader = c.req.header("Authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) return c.json({ error: "No autorizado. Debes iniciar sesion." }, 401);
+  if (!token)
+    return c.json({ error: "No autorizado. Debes iniciar sesion." }, 401);
   const { data, error } = await supabaseAdmin.auth.getUser(token);
   if (error || !data.user) {
     return c.json({ error: "No autorizado. Token invalido o expirado." }, 401);
@@ -240,16 +235,12 @@ function requirePermission(permissionKey) {
   return async (c, next) => {
     const context = await getOrLoadUserContext(c);
     if (!context?.profile) {
-      return c.json({ error: "No autorizado. Perfil de usuario no encontrado." }, 401);
+      return c.json(
+        { error: "No autorizado. Perfil de usuario no encontrado." },
+        401,
+      );
     }
-    if (
-      context.isAdmin ||
-      hasPermissionWithLegacyFallback(
-        context.permissionSet,
-        permissionKey,
-        RBAC_LEGACY_FALLBACK_ENABLED,
-      )
-    ) {
+    if (context.isAdmin || context.permissionSet.has(permissionKey)) {
       await next();
       return;
     }
@@ -261,18 +252,17 @@ function requireAnyPermission(permissionKeys = []) {
   return async (c, next) => {
     const context = await getOrLoadUserContext(c);
     if (!context?.profile) {
-      return c.json({ error: "No autorizado. Perfil de usuario no encontrado." }, 401);
+      return c.json(
+        { error: "No autorizado. Perfil de usuario no encontrado." },
+        401,
+      );
     }
     if (context.isAdmin) {
       await next();
       return;
     }
     const keys = Array.isArray(permissionKeys) ? permissionKeys : [];
-    const allowed = hasAnyPermissionWithLegacyFallback(
-      context.permissionSet,
-      keys,
-      RBAC_LEGACY_FALLBACK_ENABLED,
-    );
+    const allowed = keys.some((key) => context.permissionSet.has(key));
     if (!allowed) {
       return c.json({ error: forbiddenMessage(keys.join(" o ")) }, 403);
     }
@@ -291,16 +281,14 @@ function getModuleRequiredPermission(moduleRow) {
 
 function filterModuleNavigation(moduleRow, permissionSet, isAdmin) {
   const manifest = moduleRow?.manifest ?? {};
-  const navigation = Array.isArray(manifest.navigation) ? manifest.navigation : [];
+  const navigation = Array.isArray(manifest.navigation)
+    ? manifest.navigation
+    : [];
   const filteredNavigation = navigation.filter((item) => {
     const navPermission = item?.permissionKey;
     if (isAdmin) return true;
     if (!navPermission) return false;
-    return hasPermissionWithLegacyFallback(
-      permissionSet,
-      navPermission,
-      RBAC_LEGACY_FALLBACK_ENABLED,
-    );
+    return permissionSet.has(navPermission);
   });
   return {
     ...manifest,
@@ -313,18 +301,17 @@ function userCanAccessModule(context, moduleRow) {
   if (context.isAdmin) return true;
   const modulePermission = getModuleRequiredPermission(moduleRow);
   if (!modulePermission) return false;
-  return hasPermissionWithLegacyFallback(
-    context.permissionSet,
-    modulePermission,
-    RBAC_LEGACY_FALLBACK_ENABLED,
-  );
+  return context.permissionSet.has(modulePermission);
 }
 
 function requireModuleAccess(moduleKey) {
   return async (c, next) => {
     const context = await getOrLoadUserContext(c);
     if (!context?.profile) {
-      return c.json({ error: "No autorizado. Perfil de usuario no encontrado." }, 401);
+      return c.json(
+        { error: "No autorizado. Perfil de usuario no encontrado." },
+        401,
+      );
     }
     const moduleRow = await prisma.atlasModule.findUnique({
       where: { key: moduleKey },
@@ -528,10 +515,7 @@ async function ensureBuckets() {
 }
 
 function serializeModulesForResponse(modules, context, options = {}) {
-  const {
-    filterByPermission = false,
-    filterNavigation = false,
-  } = options;
+  const { filterByPermission = false, filterNavigation = false } = options;
 
   return modules
     .filter((moduleRow) => {
@@ -550,7 +534,9 @@ function serializeModulesForResponse(modules, context, options = {}) {
           active: Boolean(active),
         };
       });
-      const blocking = compatibility.filter((dep) => dep.required && !dep.active);
+      const blocking = compatibility.filter(
+        (dep) => dep.required && !dep.active,
+      );
       const manifest =
         filterNavigation && context
           ? filterModuleNavigation(mod, context.permissionSet, context.isAdmin)
@@ -839,236 +825,246 @@ app.get("/user/me", authMiddleware, async (c) => {
   }
 });
 
-app.get("/profile/me", authMiddleware, requirePermission("profile.self.read"), async (c) => {
-  const authUserId = c.get("authUserId");
-  try {
-    const context = await getOrLoadUserContext(c);
-    if (!context?.profile)
-      return c.json({ error: "Perfil no encontrado." }, 404);
-    const avatarUrl = await getSignedUrlByFileId(context.profile.avatarFileId);
-    return c.json({
-      data: {
-        id: context.profile.id,
-        firstName: context.profile.firstName,
-        lastName: context.profile.lastName,
-        displayName: context.profile.displayName,
-        email: context.profile.email,
-        avatarUrl,
-        birthDate: context.profile.birthDate,
-        gender: context.profile.gender,
-        phone: context.profile.phone,
-        country: context.profile.country,
-        state: context.profile.state,
-        city: context.profile.city,
-        street: context.profile.street,
-        extNumber: context.profile.extNumber,
-        intNumber: context.profile.intNumber,
-        postalCode: context.profile.postalCode,
-        bio: context.profile.bio,
-        role: context.roleKey,
-      },
-    });
-  } catch {
-    return c.json({ error: "No se pudo cargar el perfil." }, 500);
-  }
-});
+app.get(
+  "/profile/me",
+  authMiddleware,
+  requirePermission("profile.self.read"),
+  async (c) => {
+    const authUserId = c.get("authUserId");
+    try {
+      const context = await getOrLoadUserContext(c);
+      if (!context?.profile)
+        return c.json({ error: "Perfil no encontrado." }, 404);
+      const avatarUrl = await getSignedUrlByFileId(
+        context.profile.avatarFileId,
+      );
+      return c.json({
+        data: {
+          id: context.profile.id,
+          firstName: context.profile.firstName,
+          lastName: context.profile.lastName,
+          displayName: context.profile.displayName,
+          email: context.profile.email,
+          avatarUrl,
+          birthDate: context.profile.birthDate,
+          gender: context.profile.gender,
+          phone: context.profile.phone,
+          country: context.profile.country,
+          state: context.profile.state,
+          city: context.profile.city,
+          street: context.profile.street,
+          extNumber: context.profile.extNumber,
+          intNumber: context.profile.intNumber,
+          postalCode: context.profile.postalCode,
+          bio: context.profile.bio,
+          role: context.roleKey,
+        },
+      });
+    } catch {
+      return c.json({ error: "No se pudo cargar el perfil." }, 500);
+    }
+  },
+);
 
 app.put(
   "/profile/me",
   authMiddleware,
   requirePermission("profile.self.update"),
   async (c) => {
-  const authUserId = c.get("authUserId");
-  try {
-    const context = await getOrLoadUserContext(c);
-    if (!context?.profile)
-      return c.json({ error: "Perfil no encontrado." }, 404);
-    const body = await c.req.json();
-    const firstName = String(
-      body.firstName ?? context.profile.firstName ?? "",
-    ).trim();
-    const lastName = String(
-      body.lastName ?? context.profile.lastName ?? "",
-    ).trim();
-    if (!firstName || !lastName) {
-      return c.json({ error: "Nombre y apellidos son obligatorios." }, 400);
+    const authUserId = c.get("authUserId");
+    try {
+      const context = await getOrLoadUserContext(c);
+      if (!context?.profile)
+        return c.json({ error: "Perfil no encontrado." }, 404);
+      const body = await c.req.json();
+      const firstName = String(
+        body.firstName ?? context.profile.firstName ?? "",
+      ).trim();
+      const lastName = String(
+        body.lastName ?? context.profile.lastName ?? "",
+      ).trim();
+      if (!firstName || !lastName) {
+        return c.json({ error: "Nombre y apellidos son obligatorios." }, 400);
+      }
+      const birthDate = body.birthDate ? new Date(body.birthDate) : null;
+      if (body.birthDate && Number.isNaN(birthDate?.getTime())) {
+        return c.json({ error: "Fecha de nacimiento invalida." }, 400);
+      }
+      const updated = await prisma.userProfile.update({
+        where: { id: context.profile.id },
+        data: {
+          firstName,
+          lastName,
+          displayName: `${firstName} ${lastName}`.trim(),
+          birthDate,
+          gender: body.gender ? String(body.gender).trim() : null,
+          phone: body.phone ? String(body.phone).trim() : null,
+          country: body.country ? String(body.country).trim() : null,
+          state: body.state ? String(body.state).trim() : null,
+          city: body.city ? String(body.city).trim() : null,
+          street: body.street ? String(body.street).trim() : null,
+          extNumber: body.extNumber ? String(body.extNumber).trim() : null,
+          intNumber: body.intNumber ? String(body.intNumber).trim() : null,
+          postalCode: body.postalCode ? String(body.postalCode).trim() : null,
+          bio: body.bio ? String(body.bio).trim() : null,
+        },
+      });
+      const avatarUrl = await getSignedUrlByFileId(updated.avatarFileId);
+      return c.json({
+        data: {
+          id: updated.id,
+          firstName: updated.firstName,
+          lastName: updated.lastName,
+          displayName: updated.displayName,
+          email: updated.email,
+          avatarUrl,
+          birthDate: updated.birthDate,
+          gender: updated.gender,
+          phone: updated.phone,
+          country: updated.country,
+          state: updated.state,
+          city: updated.city,
+          street: updated.street,
+          extNumber: updated.extNumber,
+          intNumber: updated.intNumber,
+          postalCode: updated.postalCode,
+          bio: updated.bio,
+          role: context.roleKey,
+        },
+      });
+    } catch {
+      return c.json({ error: "No se pudo actualizar el perfil." }, 500);
     }
-    const birthDate = body.birthDate ? new Date(body.birthDate) : null;
-    if (body.birthDate && Number.isNaN(birthDate?.getTime())) {
-      return c.json({ error: "Fecha de nacimiento invalida." }, 400);
-    }
-    const updated = await prisma.userProfile.update({
-      where: { id: context.profile.id },
-      data: {
-        firstName,
-        lastName,
-        displayName: `${firstName} ${lastName}`.trim(),
-        birthDate,
-        gender: body.gender ? String(body.gender).trim() : null,
-        phone: body.phone ? String(body.phone).trim() : null,
-        country: body.country ? String(body.country).trim() : null,
-        state: body.state ? String(body.state).trim() : null,
-        city: body.city ? String(body.city).trim() : null,
-        street: body.street ? String(body.street).trim() : null,
-        extNumber: body.extNumber ? String(body.extNumber).trim() : null,
-        intNumber: body.intNumber ? String(body.intNumber).trim() : null,
-        postalCode: body.postalCode ? String(body.postalCode).trim() : null,
-        bio: body.bio ? String(body.bio).trim() : null,
-      },
-    });
-    const avatarUrl = await getSignedUrlByFileId(updated.avatarFileId);
-    return c.json({
-      data: {
-        id: updated.id,
-        firstName: updated.firstName,
-        lastName: updated.lastName,
-        displayName: updated.displayName,
-        email: updated.email,
-        avatarUrl,
-        birthDate: updated.birthDate,
-        gender: updated.gender,
-        phone: updated.phone,
-        country: updated.country,
-        state: updated.state,
-        city: updated.city,
-        street: updated.street,
-        extNumber: updated.extNumber,
-        intNumber: updated.intNumber,
-        postalCode: updated.postalCode,
-        bio: updated.bio,
-        role: context.roleKey,
-      },
-    });
-  } catch {
-    return c.json({ error: "No se pudo actualizar el perfil." }, 500);
-  }
-});
+  },
+);
 
 app.post(
   "/profile/me/avatar",
   authMiddleware,
   requirePermission("profile.avatar.update"),
   async (c) => {
-  const authUserId = c.get("authUserId");
-  try {
-    const context = await getOrLoadUserContext(c);
-    if (!context?.profile) {
-      return c.json({ error: "Perfil no encontrado." }, 404);
-    }
-    const body = await c.req.parseBody();
-    const file = body.avatar;
-    if (!(file instanceof File) || file.size <= 0) {
-      return c.json({ error: "Selecciona una imagen valida." }, 400);
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      return c.json({ error: "La imagen no puede superar 10 MB." }, 400);
-    }
-    if (!file.type.startsWith("image/")) {
-      return c.json({ error: "Solo se permiten imagenes." }, 400);
-    }
+    const authUserId = c.get("authUserId");
+    try {
+      const context = await getOrLoadUserContext(c);
+      if (!context?.profile) {
+        return c.json({ error: "Perfil no encontrado." }, 404);
+      }
+      const body = await c.req.parseBody();
+      const file = body.avatar;
+      if (!(file instanceof File) || file.size <= 0) {
+        return c.json({ error: "Selecciona una imagen valida." }, 400);
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        return c.json({ error: "La imagen no puede superar 10 MB." }, 400);
+      }
+      if (!file.type.startsWith("image/")) {
+        return c.json({ error: "Solo se permiten imagenes." }, 400);
+      }
 
-    const ext = file.name.split(".").pop() || "png";
-    const objectKey = `modules/atlas-identity/userprofile/${context.profile.id}/${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2, 10)}.${ext}`;
-    const arrayBuffer = await file.arrayBuffer();
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from(STORAGE_BUCKET_NAME)
-      .upload(objectKey, arrayBuffer, {
-        contentType: file.type,
-        upsert: true,
+      const ext = file.name.split(".").pop() || "png";
+      const objectKey = `modules/atlas-identity/userprofile/${context.profile.id}/${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 10)}.${ext}`;
+      const arrayBuffer = await file.arrayBuffer();
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from(STORAGE_BUCKET_NAME)
+        .upload(objectKey, arrayBuffer, {
+          contentType: file.type,
+          upsert: true,
+        });
+      if (uploadError)
+        return c.json({ error: "No se pudo subir el avatar." }, 500);
+
+      const asset = await prisma.fileAsset.create({
+        data: {
+          bucket: STORAGE_BUCKET_NAME,
+          objectKey,
+          originalName: file.name,
+          mimeType: file.type,
+          sizeBytes: file.size,
+          moduleKey: "atlas.identity",
+          entityType: "UserProfile",
+          entityId: context.profile.id,
+        },
       });
-    if (uploadError)
-      return c.json({ error: "No se pudo subir el avatar." }, 500);
 
-    const asset = await prisma.fileAsset.create({
-      data: {
-        bucket: STORAGE_BUCKET_NAME,
-        objectKey,
-        originalName: file.name,
-        mimeType: file.type,
-        sizeBytes: file.size,
-        moduleKey: "atlas.identity",
-        entityType: "UserProfile",
-        entityId: context.profile.id,
-      },
-    });
-
-    await prisma.userProfile.update({
-      where: { id: context.profile.id },
-      data: { avatarFileId: asset.id },
-    });
-    const avatarUrl = await getSignedUrlByFileId(asset.id);
-    return c.json({ data: { avatarUrl } });
-  } catch {
-    return c.json({ error: "No se pudo actualizar el avatar." }, 500);
-  }
-});
+      await prisma.userProfile.update({
+        where: { id: context.profile.id },
+        data: { avatarFileId: asset.id },
+      });
+      const avatarUrl = await getSignedUrlByFileId(asset.id);
+      return c.json({ data: { avatarUrl } });
+    } catch {
+      return c.json({ error: "No se pudo actualizar el avatar." }, 500);
+    }
+  },
+);
 
 app.post(
   "/profile/me/password",
   authMiddleware,
   requirePermission("profile.password.update"),
   async (c) => {
-  const authUserId = c.get("authUserId");
-  try {
-    const context = await getOrLoadUserContext(c);
-    if (!context?.profile) {
-      return c.json({ error: "Perfil no encontrado." }, 404);
-    }
+    const authUserId = c.get("authUserId");
+    try {
+      const context = await getOrLoadUserContext(c);
+      if (!context?.profile) {
+        return c.json({ error: "Perfil no encontrado." }, 404);
+      }
 
-    const body = await c.req.json();
-    const currentPassword = String(body.currentPassword ?? "");
-    const newPassword = String(body.newPassword ?? "");
-    const confirmPassword = String(body.confirmPassword ?? "");
+      const body = await c.req.json();
+      const currentPassword = String(body.currentPassword ?? "");
+      const newPassword = String(body.newPassword ?? "");
+      const confirmPassword = String(body.confirmPassword ?? "");
 
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      return c.json(
-        { error: "Debes completar contraseña actual, nueva y confirmación." },
-        400,
-      );
-    }
-    if (newPassword.length < 8) {
-      return c.json(
-        { error: "La nueva contraseña debe tener al menos 8 caracteres." },
-        400,
-      );
-    }
-    if (newPassword !== confirmPassword) {
-      return c.json({ error: "La confirmación no coincide." }, 400);
-    }
-    if (currentPassword === newPassword) {
-      return c.json(
-        { error: "La nueva contraseña debe ser diferente a la actual." },
-        400,
-      );
-    }
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        return c.json(
+          { error: "Debes completar contraseña actual, nueva y confirmación." },
+          400,
+        );
+      }
+      if (newPassword.length < 8) {
+        return c.json(
+          { error: "La nueva contraseña debe tener al menos 8 caracteres." },
+          400,
+        );
+      }
+      if (newPassword !== confirmPassword) {
+        return c.json({ error: "La confirmación no coincide." }, 400);
+      }
+      if (currentPassword === newPassword) {
+        return c.json(
+          { error: "La nueva contraseña debe ser diferente a la actual." },
+          400,
+        );
+      }
 
-    const { error: authCheckError } =
-      await supabaseAdmin.auth.signInWithPassword({
-        email: context.profile.email,
-        password: currentPassword,
-      });
-    if (authCheckError) {
-      return c.json({ error: "La contraseña actual no es correcta." }, 400);
-    }
+      const { error: authCheckError } =
+        await supabaseAdmin.auth.signInWithPassword({
+          email: context.profile.email,
+          password: currentPassword,
+        });
+      if (authCheckError) {
+        return c.json({ error: "La contraseña actual no es correcta." }, 400);
+      }
 
-    const { error: updateError } =
-      await supabaseAdmin.auth.admin.updateUserById(authUserId, {
-        password: newPassword,
-      });
-    if (updateError) {
-      return c.json(
-        { error: "No se pudo actualizar la contraseña. Intenta de nuevo." },
-        500,
-      );
-    }
+      const { error: updateError } =
+        await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+          password: newPassword,
+        });
+      if (updateError) {
+        return c.json(
+          { error: "No se pudo actualizar la contraseña. Intenta de nuevo." },
+          500,
+        );
+      }
 
-    return c.json({ data: { ok: true } });
-  } catch {
-    return c.json({ error: "No se pudo actualizar la contraseña." }, 500);
-  }
-});
+      return c.json({ data: { ok: true } });
+    } catch {
+      return c.json({ error: "No se pudo actualizar la contraseña." }, 500);
+    }
+  },
+);
 
 app.get("/memberships/me", authMiddleware, async (c) => {
   const authUserId = c.get("authUserId");
@@ -1124,383 +1120,458 @@ app.get("/memberships/me", authMiddleware, async (c) => {
   }
 });
 
-app.get("/instance/config", authMiddleware, requirePermission("core.instance.read"), async (c) => {
-  try {
-    const records = await prisma.instanceConfig.findMany({
-      where: {
-        key: {
-          in: [
-            "initialized",
-            "company_id",
-            "completed_at",
-            "instance_name",
-            "instance_time_zone",
-            "instance_currency",
-          ],
+app.get(
+  "/instance/config",
+  authMiddleware,
+  requirePermission("core.instance.read"),
+  async (c) => {
+    try {
+      const records = await prisma.instanceConfig.findMany({
+        where: {
+          key: {
+            in: [
+              "initialized",
+              "company_id",
+              "completed_at",
+              "instance_name",
+              "instance_time_zone",
+              "instance_currency",
+            ],
+          },
         },
-      },
-    });
-    const values = Object.fromEntries(records.map((r) => [r.key, r.value]));
-    return c.json({
-      data: {
-        initialized: values.initialized === "true",
-        companyId: values.company_id ?? null,
-        completedAt: values.completed_at ?? null,
-        instanceName: values.instance_name ?? "Atlas ERP",
-        timeZone: values.instance_time_zone ?? "America/Mexico_City",
-        currency: values.instance_currency ?? "MXN",
-      },
-    });
-  } catch {
-    return c.json({ error: "No se pudo cargar la configuracion." }, 500);
-  }
-});
-
-app.put("/instance/config", authMiddleware, requirePermission("core.instance.update"), async (c) => {
-  try {
-    const body = await c.req.json();
-    const instanceName = String(body.instanceName ?? "").trim();
-    const timeZone = String(body.timeZone ?? "").trim();
-    const currency = String(body.currency ?? "")
-      .trim()
-      .toUpperCase();
-    if (!instanceName || !timeZone || !currency) {
-      return c.json(
-        { error: "instanceName, timeZone y currency son obligatorios." },
-        400,
-      );
+      });
+      const values = Object.fromEntries(records.map((r) => [r.key, r.value]));
+      return c.json({
+        data: {
+          initialized: values.initialized === "true",
+          companyId: values.company_id ?? null,
+          completedAt: values.completed_at ?? null,
+          instanceName: values.instance_name ?? "Atlas ERP",
+          timeZone: values.instance_time_zone ?? "America/Mexico_City",
+          currency: values.instance_currency ?? "MXN",
+        },
+      });
+    } catch {
+      return c.json({ error: "No se pudo cargar la configuracion." }, 500);
     }
-    const pairs = [
-      ["instance_name", instanceName],
-      ["instance_time_zone", timeZone],
-      ["instance_currency", currency],
-    ];
-    await prisma.$transaction(
-      pairs.map(([key, value]) =>
-        prisma.instanceConfig.upsert({
-          where: { key },
-          update: { value },
-          create: { key, value },
-        }),
-      ),
-    );
-    return c.json({ data: { instanceName, timeZone, currency } });
-  } catch {
-    return c.json({ error: "No se pudo guardar la configuracion." }, 500);
-  }
-});
+  },
+);
+
+app.put(
+  "/instance/config",
+  authMiddleware,
+  requirePermission("core.instance.update"),
+  async (c) => {
+    try {
+      const body = await c.req.json();
+      const instanceName = String(body.instanceName ?? "").trim();
+      const timeZone = String(body.timeZone ?? "").trim();
+      const currency = String(body.currency ?? "")
+        .trim()
+        .toUpperCase();
+      if (!instanceName || !timeZone || !currency) {
+        return c.json(
+          { error: "instanceName, timeZone y currency son obligatorios." },
+          400,
+        );
+      }
+      const pairs = [
+        ["instance_name", instanceName],
+        ["instance_time_zone", timeZone],
+        ["instance_currency", currency],
+      ];
+      await prisma.$transaction(
+        pairs.map(([key, value]) =>
+          prisma.instanceConfig.upsert({
+            where: { key },
+            update: { value },
+            create: { key, value },
+          }),
+        ),
+      );
+      return c.json({ data: { instanceName, timeZone, currency } });
+    } catch {
+      return c.json({ error: "No se pudo guardar la configuracion." }, 500);
+    }
+  },
+);
 
 // ── Company: Profile ─────────────────────────────────────────────────────────
 
-app.get("/company/profile", authMiddleware, requirePermission("company.profile.read"), async (c) => {
-  try {
-    const data = await companyService.getProfile();
-    return c.json({ data });
-  } catch (err) {
-    if (err instanceof CompanyServiceError)
-      return c.json({ error: err.message }, err.status);
-    return c.json({ error: "No se pudo cargar el perfil de la empresa." }, 500);
-  }
-});
+app.get(
+  "/company/profile",
+  authMiddleware,
+  requirePermission("company.profile.read"),
+  async (c) => {
+    try {
+      const data = await companyService.getProfile();
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof CompanyServiceError)
+        return c.json({ error: err.message }, err.status);
+      return c.json(
+        { error: "No se pudo cargar el perfil de la empresa." },
+        500,
+      );
+    }
+  },
+);
 
-app.put("/company/profile", authMiddleware, requirePermission("company.profile.update"), async (c) => {
-  try {
-    const body = await c.req.json();
-    const name = String(body.name ?? "").trim();
-    if (!name)
-      return c.json({ error: "El nombre de la empresa es obligatorio." }, 400);
-    const data = await companyService.updateProfile({
-      name,
-      legalName: String(body.legalName ?? "").trim(),
-      rfc: String(body.rfc ?? "").trim(),
-      companyType: String(body.companyType ?? "").trim(),
-      companyTypeName: String(body.companyTypeName ?? "").trim(),
-      industryKey: String(body.industryKey ?? "").trim(),
-      industryName: String(body.industryName ?? "").trim(),
-      companySize: String(body.companySize ?? "").trim(),
-      contactEmail: String(body.contactEmail ?? "").trim(),
-      phone: String(body.phone ?? "").trim(),
-      website: String(body.website ?? "").trim(),
-    });
-    return c.json({ data });
-  } catch (err) {
-    if (err instanceof CompanyServiceError)
-      return c.json({ error: err.message }, err.status);
-    return c.json(
-      { error: "No se pudo actualizar el perfil de la empresa." },
-      500,
-    );
-  }
-});
+app.put(
+  "/company/profile",
+  authMiddleware,
+  requirePermission("company.profile.update"),
+  async (c) => {
+    try {
+      const body = await c.req.json();
+      const name = String(body.name ?? "").trim();
+      if (!name)
+        return c.json(
+          { error: "El nombre de la empresa es obligatorio." },
+          400,
+        );
+      const data = await companyService.updateProfile({
+        name,
+        legalName: String(body.legalName ?? "").trim(),
+        rfc: String(body.rfc ?? "").trim(),
+        companyType: String(body.companyType ?? "").trim(),
+        companyTypeName: String(body.companyTypeName ?? "").trim(),
+        industryKey: String(body.industryKey ?? "").trim(),
+        industryName: String(body.industryName ?? "").trim(),
+        companySize: String(body.companySize ?? "").trim(),
+        contactEmail: String(body.contactEmail ?? "").trim(),
+        phone: String(body.phone ?? "").trim(),
+        website: String(body.website ?? "").trim(),
+      });
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof CompanyServiceError)
+        return c.json({ error: err.message }, err.status);
+      return c.json(
+        { error: "No se pudo actualizar el perfil de la empresa." },
+        500,
+      );
+    }
+  },
+);
 
 // ── Company: Address ─────────────────────────────────────────────────────────
 
-app.get("/company/address", authMiddleware, requirePermission("company.address.read"), async (c) => {
-  try {
-    const data = await companyService.getAddress();
-    return c.json({ data });
-  } catch (err) {
-    if (err instanceof CompanyServiceError)
-      return c.json({ error: err.message }, err.status);
-    return c.json(
-      { error: "No se pudo cargar la direccion de la empresa." },
-      500,
-    );
-  }
-});
+app.get(
+  "/company/address",
+  authMiddleware,
+  requirePermission("company.address.read"),
+  async (c) => {
+    try {
+      const data = await companyService.getAddress();
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof CompanyServiceError)
+        return c.json({ error: err.message }, err.status);
+      return c.json(
+        { error: "No se pudo cargar la direccion de la empresa." },
+        500,
+      );
+    }
+  },
+);
 
-app.put("/company/address", authMiddleware, requirePermission("company.address.update"), async (c) => {
-  try {
-    const body = await c.req.json();
-    const data = await companyService.updateAddress({
-      country: String(body.country ?? "").trim(),
-      state: String(body.state ?? "").trim(),
-      city: String(body.city ?? "").trim(),
-      street: String(body.street ?? "").trim(),
-      extNumber: String(body.extNumber ?? "").trim(),
-      intNumber: String(body.intNumber ?? "").trim(),
-      postalCode: String(body.postalCode ?? "").trim(),
-    });
-    return c.json({ data });
-  } catch (err) {
-    if (err instanceof CompanyServiceError)
-      return c.json({ error: err.message }, err.status);
-    return c.json(
-      { error: "No se pudo actualizar la direccion de la empresa." },
-      500,
-    );
-  }
-});
+app.put(
+  "/company/address",
+  authMiddleware,
+  requirePermission("company.address.update"),
+  async (c) => {
+    try {
+      const body = await c.req.json();
+      const data = await companyService.updateAddress({
+        country: String(body.country ?? "").trim(),
+        state: String(body.state ?? "").trim(),
+        city: String(body.city ?? "").trim(),
+        street: String(body.street ?? "").trim(),
+        extNumber: String(body.extNumber ?? "").trim(),
+        intNumber: String(body.intNumber ?? "").trim(),
+        postalCode: String(body.postalCode ?? "").trim(),
+      });
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof CompanyServiceError)
+        return c.json({ error: err.message }, err.status);
+      return c.json(
+        { error: "No se pudo actualizar la direccion de la empresa." },
+        500,
+      );
+    }
+  },
+);
 
 // ── Company: Branding ────────────────────────────────────────────────────────
 
-app.get("/company/branding", authMiddleware, requirePermission("company.branding.read"), async (c) => {
-  try {
-    const data = await companyService.getBranding();
-    return c.json({ data });
-  } catch (err) {
-    if (err instanceof CompanyServiceError)
-      return c.json({ error: err.message }, err.status);
-    return c.json(
-      { error: "No se pudo cargar la configuracion de marca." },
-      500,
-    );
-  }
-});
-
-app.put("/company/branding", authMiddleware, requirePermission("company.branding.update"), async (c) => {
-  try {
-    const companyIdRecord = await prisma.instanceConfig.findUnique({
-      where: { key: "company_id" },
-    });
-    if (!companyIdRecord?.value)
-      return c.json({ error: "No hay empresa activa configurada." }, 404);
-    const companyId = companyIdRecord.value;
-    const body = await c.req.json();
-    const primaryColor = String(body.primaryColor ?? "").trim();
-    if (!/^#[0-9a-fA-F]{6}$/.test(primaryColor)) {
-      return c.json({ error: "primaryColor valido es obligatorio." }, 400);
+app.get(
+  "/company/branding",
+  authMiddleware,
+  requirePermission("company.branding.read"),
+  async (c) => {
+    try {
+      const data = await companyService.getBranding();
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof CompanyServiceError)
+        return c.json({ error: err.message }, err.status);
+      return c.json(
+        { error: "No se pudo cargar la configuracion de marca." },
+        500,
+      );
     }
-    const logoFileIdRaw = body.logoFileId;
-    const logoFileId =
-      logoFileIdRaw === null ||
-      logoFileIdRaw === undefined ||
-      logoFileIdRaw === ""
-        ? null
-        : String(logoFileIdRaw).trim();
-    const data = await companyService.updateBranding(
-      { primaryColor, logoFileId },
-      companyId,
-    );
-    return c.json({ data });
-  } catch (err) {
-    if (err instanceof CompanyServiceError)
-      return c.json({ error: err.message }, err.status);
-    return c.json(
-      { error: "No se pudo guardar la configuracion de marca." },
-      500,
-    );
-  }
-});
+  },
+);
+
+app.put(
+  "/company/branding",
+  authMiddleware,
+  requirePermission("company.branding.update"),
+  async (c) => {
+    try {
+      const companyIdRecord = await prisma.instanceConfig.findUnique({
+        where: { key: "company_id" },
+      });
+      if (!companyIdRecord?.value)
+        return c.json({ error: "No hay empresa activa configurada." }, 404);
+      const companyId = companyIdRecord.value;
+      const body = await c.req.json();
+      const primaryColor = String(body.primaryColor ?? "").trim();
+      if (!/^#[0-9a-fA-F]{6}$/.test(primaryColor)) {
+        return c.json({ error: "primaryColor valido es obligatorio." }, 400);
+      }
+      const logoFileIdRaw = body.logoFileId;
+      const logoFileId =
+        logoFileIdRaw === null ||
+        logoFileIdRaw === undefined ||
+        logoFileIdRaw === ""
+          ? null
+          : String(logoFileIdRaw).trim();
+      const data = await companyService.updateBranding(
+        { primaryColor, logoFileId },
+        companyId,
+      );
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof CompanyServiceError)
+        return c.json({ error: err.message }, err.status);
+      return c.json(
+        { error: "No se pudo guardar la configuracion de marca." },
+        500,
+      );
+    }
+  },
+);
 
 app.post(
   "/files/upload",
   authMiddleware,
   requirePermission("files.assets.create"),
   async (c) => {
-  try {
-    const authUserId = c.get("authUserId");
-    const body = await c.req.parseBody();
-    const file = body.file;
-    const asset = await filesService.upload({
-      authUserId,
-      file,
-      fields: {
-        moduleKey: body.moduleKey,
-        entityType: body.entityType,
-        entityId: body.entityId,
-        visibility: body.visibility,
-        metadata: body.metadata,
-      },
-    });
-
-    if (body.moduleKey === "atlas.hr" && body.entityType === "HrEmployee" && body.entityId) {
-      const actor = await prisma.userProfile.findUnique({
-        where: { authUserId },
-        select: { id: true },
-      });
-      if (actor?.id) {
-        await prisma.auditLog.create({
-          data: {
-            actorId: actor.id,
-            moduleKey: "atlas.hr",
-            entityType: "HrEmployee",
-            entityId: String(body.entityId),
-            action: "hr.employee.file.attach",
-            metadata: {
-              fileId: asset.id,
-              originalName: asset.originalName,
-              mimeType: asset.mimeType,
-            },
-          },
-        });
-      }
-    }
-
-    return c.json({ data: asset }, 201);
-  } catch (err) {
-    if (err instanceof FilesServiceError) {
-      return c.json({ error: err.message }, err.status);
-    }
-    return c.json({ error: "No se pudo subir el archivo." }, 500);
-  }
-});
-
-app.get("/files", authMiddleware, requirePermission("files.assets.read"), async (c) => {
-  try {
-    const authUserId = c.get("authUserId");
-    const result = await filesService.list({
-      authUserId,
-      query: {
-        q: c.req.query("q"),
-        moduleKey: c.req.query("moduleKey"),
-        entityType: c.req.query("entityType"),
-        entityId: c.req.query("entityId"),
-        mime: c.req.query("mime"),
-        enabled: c.req.query("enabled"),
-        page: c.req.query("page"),
-        pageSize: c.req.query("pageSize"),
-        sortBy: c.req.query("sortBy"),
-        sortDir: c.req.query("sortDir"),
-      },
-    });
-    return c.json(result);
-  } catch (err) {
-    if (err instanceof FilesServiceError) {
-      return c.json({ error: err.message }, err.status);
-    }
-    return c.json({ error: "No se pudieron cargar los archivos." }, 500);
-  }
-});
-
-app.get("/files/:id", authMiddleware, requirePermission("files.assets.read"), async (c) => {
-  try {
-    const authUserId = c.get("authUserId");
-    const id = c.req.param("id");
-    const asset = await filesService.getById({ authUserId, id });
-    return c.json({ data: asset });
-  } catch (err) {
-    if (err instanceof FilesServiceError) {
-      return c.json({ error: err.message }, err.status);
-    }
-    return c.json({ error: "No se pudo cargar el archivo." }, 500);
-  }
-});
-
-app.patch("/files/:id", authMiddleware, requirePermission("files.assets.update"), async (c) => {
-  // Intentional policy: renaming is a lifecycle mutation restricted to admin roles.
-  try {
-    const authUserId = c.get("authUserId");
-    const id = c.req.param("id");
-    let body;
-
     try {
-      body = await c.req.json();
-    } catch {
-      return c.json({ error: "Nombre de archivo invalido." }, 400);
-    }
+      const authUserId = c.get("authUserId");
+      const body = await c.req.parseBody();
+      const file = body.file;
+      const asset = await filesService.upload({
+        authUserId,
+        file,
+        fields: {
+          moduleKey: body.moduleKey,
+          entityType: body.entityType,
+          entityId: body.entityId,
+          visibility: body.visibility,
+          metadata: body.metadata,
+        },
+      });
 
-    const parsed = fileRenameSchema.safeParse(body);
-    if (!parsed.success) {
-      const schemaMessage = parsed.error.issues?.[0]?.message;
-      return c.json(
-        { error: schemaMessage || "Nombre de archivo invalido." },
-        400,
-      );
-    }
+      if (
+        body.moduleKey === "atlas.hr" &&
+        body.entityType === "HrEmployee" &&
+        body.entityId
+      ) {
+        const actor = await prisma.userProfile.findUnique({
+          where: { authUserId },
+          select: { id: true },
+        });
+        if (actor?.id) {
+          await prisma.auditLog.create({
+            data: {
+              actorId: actor.id,
+              moduleKey: "atlas.hr",
+              entityType: "HrEmployee",
+              entityId: String(body.entityId),
+              action: "hr.employee.file.attach",
+              metadata: {
+                fileId: asset.id,
+                originalName: asset.originalName,
+                mimeType: asset.mimeType,
+              },
+            },
+          });
+        }
+      }
 
-    const updated = await filesService.rename({
-      authUserId,
-      id,
-      originalName: parsed.data.originalName,
-    });
-    return c.json({ data: updated });
-  } catch (err) {
-    if (err instanceof FilesServiceError) {
-      return c.json({ error: err.message }, err.status);
+      return c.json({ data: asset }, 201);
+    } catch (err) {
+      if (err instanceof FilesServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo subir el archivo." }, 500);
     }
-    return c.json({ error: "No se pudo renombrar el archivo." }, 500);
-  }
-});
+  },
+);
+
+app.get(
+  "/files",
+  authMiddleware,
+  requirePermission("files.assets.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const result = await filesService.list({
+        authUserId,
+        query: {
+          q: c.req.query("q"),
+          moduleKey: c.req.query("moduleKey"),
+          entityType: c.req.query("entityType"),
+          entityId: c.req.query("entityId"),
+          mime: c.req.query("mime"),
+          enabled: c.req.query("enabled"),
+          page: c.req.query("page"),
+          pageSize: c.req.query("pageSize"),
+          sortBy: c.req.query("sortBy"),
+          sortDir: c.req.query("sortDir"),
+        },
+      });
+      return c.json(result);
+    } catch (err) {
+      if (err instanceof FilesServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudieron cargar los archivos." }, 500);
+    }
+  },
+);
+
+app.get(
+  "/files/:id",
+  authMiddleware,
+  requirePermission("files.assets.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const asset = await filesService.getById({ authUserId, id });
+      return c.json({ data: asset });
+    } catch (err) {
+      if (err instanceof FilesServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo cargar el archivo." }, 500);
+    }
+  },
+);
+
+app.patch(
+  "/files/:id",
+  authMiddleware,
+  requirePermission("files.assets.update"),
+  async (c) => {
+    // Intentional policy: renaming is a lifecycle mutation restricted to admin roles.
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      let body;
+
+      try {
+        body = await c.req.json();
+      } catch {
+        return c.json({ error: "Nombre de archivo invalido." }, 400);
+      }
+
+      const parsed = fileRenameSchema.safeParse(body);
+      if (!parsed.success) {
+        const schemaMessage = parsed.error.issues?.[0]?.message;
+        return c.json(
+          { error: schemaMessage || "Nombre de archivo invalido." },
+          400,
+        );
+      }
+
+      const updated = await filesService.rename({
+        authUserId,
+        id,
+        originalName: parsed.data.originalName,
+      });
+      return c.json({ data: updated });
+    } catch (err) {
+      if (err instanceof FilesServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo renombrar el archivo." }, 500);
+    }
+  },
+);
 
 app.post(
   "/files/bulk-download",
   authMiddleware,
   requirePermission("files.assets.read"),
   async (c) => {
-  try {
-    const authUserId = c.get("authUserId");
-    let body;
-
     try {
-      body = await c.req.json();
-    } catch {
-      return c.json({ error: "Solicitud de descarga masiva invalida." }, 400);
-    }
+      const authUserId = c.get("authUserId");
+      let body;
 
-    const parsed = fileBulkDownloadSchema.safeParse(body);
-    if (!parsed.success) {
-      return c.json({ error: "Solicitud de descarga masiva invalida." }, 400);
-    }
+      try {
+        body = await c.req.json();
+      } catch {
+        return c.json({ error: "Solicitud de descarga masiva invalida." }, 400);
+      }
 
-    const data = await filesService.bulkDownload({
-      authUserId,
-      fileIds: parsed.data.fileIds,
-      mode: parsed.data.mode,
-    });
+      const parsed = fileBulkDownloadSchema.safeParse(body);
+      if (!parsed.success) {
+        return c.json({ error: "Solicitud de descarga masiva invalida." }, 400);
+      }
 
-    return c.json({ data });
-  } catch (err) {
-    if (err instanceof FilesServiceError) {
-      return c.json({ error: err.message }, err.status);
-    }
-    return c.json({ error: "No se pudo procesar la descarga masiva." }, 500);
-  }
-});
+      const data = await filesService.bulkDownload({
+        authUserId,
+        fileIds: parsed.data.fileIds,
+        mode: parsed.data.mode,
+      });
 
-app.get("/files/:id/signed-url", authMiddleware, requirePermission("files.assets.read"), async (c) => {
-  try {
-    const authUserId = c.get("authUserId");
-    const id = c.req.param("id");
-    const data = await filesService.getSignedUrl({ authUserId, id });
-    return c.json({ data });
-  } catch (err) {
-    if (err instanceof FilesServiceError) {
-      return c.json({ error: err.message }, err.status);
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof FilesServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo procesar la descarga masiva." }, 500);
     }
-    return c.json({ error: "No se pudo generar el enlace del archivo." }, 500);
-  }
-});
+  },
+);
+
+app.get(
+  "/files/:id/signed-url",
+  authMiddleware,
+  requirePermission("files.assets.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const data = await filesService.getSignedUrl({ authUserId, id });
+      return c.json({ data });
+    } catch (err) {
+      if (err instanceof FilesServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json(
+        { error: "No se pudo generar el enlace del archivo." },
+        500,
+      );
+    }
+  },
+);
 
 app.patch(
   "/files/:id/enabled",
@@ -1529,90 +1600,106 @@ app.patch(
   },
 );
 
-app.delete("/files/:id", authMiddleware, requirePermission("files.assets.delete"), async (c) => {
-  try {
-    const authUserId = c.get("authUserId");
-    const id = c.req.param("id");
-    await filesService.delete({ authUserId, id });
-    return c.json({ ok: true });
-  } catch (err) {
-    if (err instanceof FilesServiceError) {
-      return c.json({ error: err.message }, err.status);
+app.delete(
+  "/files/:id",
+  authMiddleware,
+  requirePermission("files.assets.delete"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      await filesService.delete({ authUserId, id });
+      return c.json({ ok: true });
+    } catch (err) {
+      if (err instanceof FilesServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo eliminar el archivo." }, 500);
     }
-    return c.json({ error: "No se pudo eliminar el archivo." }, 500);
-  }
-});
+  },
+);
 
 app.get(
   "/identity/permissions",
   authMiddleware,
   requirePermission("identity.permissions.read"),
   async (c) => {
-  try {
-    const permissions = await prisma.permission.findMany({
-      orderBy: [{ moduleId: "asc" }, { key: "asc" }],
-    });
-    const grouped = groupPermissionsForUi(permissions);
-    return c.json({
-      data: {
-        permissions: permissions.map((permission) => {
-          const presentation = getPermissionPresentation(permission.key);
-          return {
-            ...permission,
-            name: presentation.name,
-            description: presentation.description,
-            groupKey: presentation.groupKey,
-            groupLabel: presentation.groupLabel,
-            sortOrder: presentation.sortOrder,
-            isSystem: true,
-          };
-        }),
-        groups: grouped,
-      },
-    });
-  } catch {
-    return c.json({ error: "No se pudieron cargar los permisos." }, 500);
-  }
-});
-
-app.get("/identity/roles", authMiddleware, requirePermission("identity.roles.read"), async (c) => {
-  try {
-    const roles = await prisma.role.findMany({
-      include: {
-        permissions: { include: { permission: true } },
-      },
-      orderBy: { name: "asc" },
-    });
-    return c.json({
-      data: roles.map((role) => ({
-        ...role,
-        permissionKeys: role.permissions.map((p) => p.permission.key),
-      })),
-    });
-  } catch {
-    return c.json({ error: "No se pudieron cargar los roles." }, 500);
-  }
-});
-
-app.post("/identity/roles", authMiddleware, requirePermission("identity.roles.create"), async (c) => {
-  try {
-    const body = await c.req.json();
-    const key = String(body.key ?? "").trim();
-    const name = String(body.name ?? "").trim();
-    const description = String(body.description ?? "").trim() || null;
-    if (!key || !name)
-      return c.json({ error: "key y name son obligatorios." }, 400);
-    const role = await prisma.role.create({
-      data: { key, name, description, system: false, enabled: true },
-    });
-    if (["atlas.admin", "system.admin"].includes(role.key)) {
-      await syncAdminRolesPermissions(prisma);
+    try {
+      const permissions = await prisma.permission.findMany({
+        orderBy: [{ moduleId: "asc" }, { key: "asc" }],
+      });
+      const grouped = groupPermissionsForUi(permissions);
+      return c.json({
+        data: {
+          permissions: permissions.map((permission) => {
+            const presentation = getPermissionPresentation(permission.key);
+            return {
+              ...permission,
+              name: presentation.name,
+              description: presentation.description,
+              groupKey: presentation.groupKey,
+              groupLabel: presentation.groupLabel,
+              sortOrder: presentation.sortOrder,
+              isSystem: true,
+            };
+          }),
+          groups: grouped,
+        },
+      });
+    } catch {
+      return c.json({ error: "No se pudieron cargar los permisos." }, 500);
     }
-    return c.json({ data: role }, 201);
-  } catch {
-    return c.json({ error: "No se pudo crear el rol." }, 500);
-  }
-});
+  },
+);
+
+app.get(
+  "/identity/roles",
+  authMiddleware,
+  requirePermission("identity.roles.read"),
+  async (c) => {
+    try {
+      const roles = await prisma.role.findMany({
+        include: {
+          permissions: { include: { permission: true } },
+        },
+        orderBy: { name: "asc" },
+      });
+      return c.json({
+        data: roles.map((role) => ({
+          ...role,
+          permissionKeys: role.permissions.map((p) => p.permission.key),
+        })),
+      });
+    } catch {
+      return c.json({ error: "No se pudieron cargar los roles." }, 500);
+    }
+  },
+);
+
+app.post(
+  "/identity/roles",
+  authMiddleware,
+  requirePermission("identity.roles.create"),
+  async (c) => {
+    try {
+      const body = await c.req.json();
+      const key = String(body.key ?? "").trim();
+      const name = String(body.name ?? "").trim();
+      const description = String(body.description ?? "").trim() || null;
+      if (!key || !name)
+        return c.json({ error: "key y name son obligatorios." }, 400);
+      const role = await prisma.role.create({
+        data: { key, name, description, system: false, enabled: true },
+      });
+      if (["atlas.admin", "system.admin"].includes(role.key)) {
+        await syncAdminRolesPermissions(prisma);
+      }
+      return c.json({ data: role }, 201);
+    } catch {
+      return c.json({ error: "No se pudo crear el rol." }, 500);
+    }
+  },
+);
 
 app.put(
   "/identity/roles/:id",
@@ -1696,102 +1783,115 @@ app.patch(
   },
 );
 
-app.get("/identity/users", authMiddleware, requirePermission("identity.users.read"), async (c) => {
-  try {
-    const users = await prisma.userProfile.findMany({
-      include: {
-        memberships: {
-          include: {
-            role: true,
-            company: true,
-          },
-          where: { enabled: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-    const usersWithAvatars = await Promise.all(
-      users.map(async (user) => ({
-        ...user,
-        avatarUrl: await getSignedUrlByFileId(user.avatarFileId),
-        memberships: user.memberships.map((m) => ({
-          id: m.id,
-          companyId: m.companyId,
-          companyName: m.company?.name ?? null,
-          roleId: m.roleId,
-          roleKey: m.role?.key ?? null,
-          roleName: m.role?.name ?? null,
-          enabled: m.enabled,
-        })),
-      })),
-    );
-    return c.json({ data: usersWithAvatars });
-  } catch {
-    return c.json({ error: "No se pudieron cargar los usuarios." }, 500);
-  }
-});
-
-app.post("/identity/users", authMiddleware, requirePermission("identity.users.create"), async (c) => {
-  try {
-    const body = await c.req.json();
-    const fields = createUserSchema.parse(body);
-
-    const { data: authData, error: authError } =
-      await supabaseAdmin.auth.admin.createUser({
-        email: fields.email,
-        password: fields.password,
-        email_confirm: true,
-      });
-    if (authError) {
-      return c.json(
-        { error: translateSupabaseCreateUserError(authError) },
-        400,
-      );
-    }
-    const authUserId = authData.user.id;
-
-    const context = c.get("userContext");
-    const companyId = context.memberships[0]?.companyId;
-    if (!companyId) {
-      await supabaseAdmin.auth.admin.deleteUser(authUserId);
-      return c.json({ error: "No se pudo determinar la empresa activa." }, 400);
-    }
-
+app.get(
+  "/identity/users",
+  authMiddleware,
+  requirePermission("identity.users.read"),
+  async (c) => {
     try {
-      const userProfile = await prisma.$transaction(async (tx) => {
-        const profile = await tx.userProfile.create({
-          data: {
-            authUserId,
-            firstName: fields.firstName,
-            lastName: fields.lastName,
-            displayName: `${fields.firstName} ${fields.lastName}`.trim(),
-            email: fields.email,
+      const users = await prisma.userProfile.findMany({
+        include: {
+          memberships: {
+            include: {
+              role: true,
+              company: true,
+            },
+            where: { enabled: true },
           },
-        });
-        await tx.membership.create({
-          data: {
-            companyId,
-            userId: profile.id,
-            roleId: fields.roleId ?? null,
-          },
-        });
-        return profile;
+        },
+        orderBy: { createdAt: "desc" },
       });
-      return c.json({ data: userProfile }, 201);
-    } catch (txError) {
-      await supabaseAdmin.auth.admin.deleteUser(authUserId);
-      throw txError;
-    }
-  } catch (err) {
-    if (err?.name === "ZodError") {
-      return c.json(
-        { error: err.errors[0]?.message ?? "Datos inválidos." },
-        400,
+      const usersWithAvatars = await Promise.all(
+        users.map(async (user) => ({
+          ...user,
+          avatarUrl: await getSignedUrlByFileId(user.avatarFileId),
+          memberships: user.memberships.map((m) => ({
+            id: m.id,
+            companyId: m.companyId,
+            companyName: m.company?.name ?? null,
+            roleId: m.roleId,
+            roleKey: m.role?.key ?? null,
+            roleName: m.role?.name ?? null,
+            enabled: m.enabled,
+          })),
+        })),
       );
+      return c.json({ data: usersWithAvatars });
+    } catch {
+      return c.json({ error: "No se pudieron cargar los usuarios." }, 500);
     }
-    return c.json({ error: "No se pudo crear el usuario." }, 500);
-  }
-});
+  },
+);
+
+app.post(
+  "/identity/users",
+  authMiddleware,
+  requirePermission("identity.users.create"),
+  async (c) => {
+    try {
+      const body = await c.req.json();
+      const fields = createUserSchema.parse(body);
+
+      const { data: authData, error: authError } =
+        await supabaseAdmin.auth.admin.createUser({
+          email: fields.email,
+          password: fields.password,
+          email_confirm: true,
+        });
+      if (authError) {
+        return c.json(
+          { error: translateSupabaseCreateUserError(authError) },
+          400,
+        );
+      }
+      const authUserId = authData.user.id;
+
+      const context = c.get("userContext");
+      const companyId = context.memberships[0]?.companyId;
+      if (!companyId) {
+        await supabaseAdmin.auth.admin.deleteUser(authUserId);
+        return c.json(
+          { error: "No se pudo determinar la empresa activa." },
+          400,
+        );
+      }
+
+      try {
+        const userProfile = await prisma.$transaction(async (tx) => {
+          const profile = await tx.userProfile.create({
+            data: {
+              authUserId,
+              firstName: fields.firstName,
+              lastName: fields.lastName,
+              displayName: `${fields.firstName} ${fields.lastName}`.trim(),
+              email: fields.email,
+            },
+          });
+          await tx.membership.create({
+            data: {
+              companyId,
+              userId: profile.id,
+              roleId: fields.roleId ?? null,
+            },
+          });
+          return profile;
+        });
+        return c.json({ data: userProfile }, 201);
+      } catch (txError) {
+        await supabaseAdmin.auth.admin.deleteUser(authUserId);
+        throw txError;
+      }
+    } catch (err) {
+      if (err?.name === "ZodError") {
+        return c.json(
+          { error: err.errors[0]?.message ?? "Datos inválidos." },
+          400,
+        );
+      }
+      return c.json({ error: "No se pudo crear el usuario." }, 500);
+    }
+  },
+);
 
 app.delete(
   "/identity/users/:id",
@@ -1860,7 +1960,10 @@ app.patch(
 app.get("/runtime/modules", authMiddleware, async (c) => {
   const context = await getOrLoadUserContext(c);
   if (!context?.profile) {
-    return c.json({ error: "No autorizado. Perfil de usuario no encontrado." }, 401);
+    return c.json(
+      { error: "No autorizado. Perfil de usuario no encontrado." },
+      401,
+    );
   }
 
   const modules = await prisma.atlasModule.findMany({
@@ -1891,301 +1994,320 @@ app.get("/runtime/modules", authMiddleware, async (c) => {
   });
 });
 
-app.get("/modules", authMiddleware, requirePermission("core.modules.read"), async (c) => {
-  const modules = await prisma.atlasModule.findMany({
-    orderBy: [{ core: "desc" }, { name: "asc" }],
-    include: {
-      dependencies: {
-        include: {
-          dependency: {
-            select: {
-              id: true,
-              key: true,
-              name: true,
-              status: true,
-              enabled: true,
-              version: true,
+app.get(
+  "/modules",
+  authMiddleware,
+  requirePermission("core.modules.read"),
+  async (c) => {
+    const modules = await prisma.atlasModule.findMany({
+      orderBy: [{ core: "desc" }, { name: "asc" }],
+      include: {
+        dependencies: {
+          include: {
+            dependency: {
+              select: {
+                id: true,
+                key: true,
+                name: true,
+                status: true,
+                enabled: true,
+                version: true,
+              },
             },
           },
         },
       },
-    },
-  });
-
-  const context = c.get("userContext");
-  return c.json({
-    data: serializeModulesForResponse(modules, context, {
-      filterByPermission: false,
-      filterNavigation: false,
-    }),
-  });
-});
-
-app.post("/modules/install", authMiddleware, requirePermission("core.modules.create"), async (c) => {
-  try {
-    const body = await c.req.json();
-    const parsed = moduleInstallSchema.parse(body);
-    const manifest = parsed.manifest;
-    validateManifestAcl(manifest);
-
-    const module = await prisma.$transaction(async (tx) => {
-      const existing = await tx.atlasModule.findUnique({
-        where: { key: manifest.key },
-        select: { core: true, uninstallable: true, kind: true },
-      });
-      const isCoreKey = CORE_MODULE_KEYS.has(manifest.key);
-      const core = existing?.core ?? isCoreKey;
-      const uninstallable = existing?.uninstallable ?? !isCoreKey;
-      const kind =
-        existing?.kind ?? (isCoreKey ? "CORE" : (manifest.kind ?? "FEATURE"));
-
-      const upserted = await tx.atlasModule.upsert({
-        where: { key: manifest.key },
-        update: {
-          name: manifest.name,
-          description: manifest.description,
-          version: manifest.version,
-          kind,
-          core,
-          uninstallable,
-          status: "INSTALLED",
-          enabled: true,
-          manifest,
-        },
-        create: {
-          key: manifest.key,
-          name: manifest.name,
-          description: manifest.description,
-          version: manifest.version,
-          kind,
-          core,
-          uninstallable,
-          status: "INSTALLED",
-          enabled: true,
-          manifest,
-        },
-      });
-
-      await syncModuleDependencies(
-        tx,
-        upserted.id,
-        manifest.dependencies ?? [],
-      );
-
-      for (const permission of manifest.permissions ?? []) {
-        const presentation = getPermissionPresentation(permission.key);
-        await tx.permission.upsert({
-          where: { key: permission.key },
-          update: {
-            name: presentation.name,
-            description: presentation.description,
-            moduleId: upserted.id,
-          },
-          create: {
-            key: permission.key,
-            name: presentation.name,
-            description: presentation.description,
-            moduleId: upserted.id,
-          },
-        });
-      }
-
-      for (const blueprint of manifest.blueprints ?? []) {
-        await tx.blueprint.upsert({
-          where: { key: blueprint.key },
-          update: {
-            moduleId: upserted.id,
-            kind: blueprint.kind,
-            version: blueprint.version,
-            schema: blueprint.schema,
-            enabled: true,
-          },
-          create: {
-            key: blueprint.key,
-            moduleId: upserted.id,
-            kind: blueprint.kind,
-            version: blueprint.version,
-            schema: blueprint.schema,
-          },
-        });
-      }
-
-      return upserted;
     });
-    await syncAdminRolesPermissions(prisma);
 
-    return c.json({ data: module });
-  } catch (err) {
-    if (err?.name === "ZodError") {
-      return c.json(
-        { error: err.errors?.[0]?.message ?? "Carga de modulo invalida." },
-        400,
-      );
+    const context = c.get("userContext");
+    return c.json({
+      data: serializeModulesForResponse(modules, context, {
+        filterByPermission: false,
+        filterNavigation: false,
+      }),
+    });
+  },
+);
+
+app.post(
+  "/modules/install",
+  authMiddleware,
+  requirePermission("core.modules.create"),
+  async (c) => {
+    try {
+      const body = await c.req.json();
+      const parsed = moduleInstallSchema.parse(body);
+      const manifest = parsed.manifest;
+      validateManifestAcl(manifest);
+
+      const module = await prisma.$transaction(async (tx) => {
+        const existing = await tx.atlasModule.findUnique({
+          where: { key: manifest.key },
+          select: { core: true, uninstallable: true, kind: true },
+        });
+        const isCoreKey = CORE_MODULE_KEYS.has(manifest.key);
+        const core = existing?.core ?? isCoreKey;
+        const uninstallable = existing?.uninstallable ?? !isCoreKey;
+        const kind =
+          existing?.kind ?? (isCoreKey ? "CORE" : (manifest.kind ?? "FEATURE"));
+
+        const upserted = await tx.atlasModule.upsert({
+          where: { key: manifest.key },
+          update: {
+            name: manifest.name,
+            description: manifest.description,
+            version: manifest.version,
+            kind,
+            core,
+            uninstallable,
+            status: "INSTALLED",
+            enabled: true,
+            manifest,
+          },
+          create: {
+            key: manifest.key,
+            name: manifest.name,
+            description: manifest.description,
+            version: manifest.version,
+            kind,
+            core,
+            uninstallable,
+            status: "INSTALLED",
+            enabled: true,
+            manifest,
+          },
+        });
+
+        await syncModuleDependencies(
+          tx,
+          upserted.id,
+          manifest.dependencies ?? [],
+        );
+
+        for (const permission of manifest.permissions ?? []) {
+          const presentation = getPermissionPresentation(permission.key);
+          await tx.permission.upsert({
+            where: { key: permission.key },
+            update: {
+              name: presentation.name,
+              description: presentation.description,
+              moduleId: upserted.id,
+            },
+            create: {
+              key: permission.key,
+              name: presentation.name,
+              description: presentation.description,
+              moduleId: upserted.id,
+            },
+          });
+        }
+
+        for (const blueprint of manifest.blueprints ?? []) {
+          await tx.blueprint.upsert({
+            where: { key: blueprint.key },
+            update: {
+              moduleId: upserted.id,
+              kind: blueprint.kind,
+              version: blueprint.version,
+              schema: blueprint.schema,
+              enabled: true,
+            },
+            create: {
+              key: blueprint.key,
+              moduleId: upserted.id,
+              kind: blueprint.kind,
+              version: blueprint.version,
+              schema: blueprint.schema,
+            },
+          });
+        }
+
+        return upserted;
+      });
+      await syncAdminRolesPermissions(prisma);
+
+      return c.json({ data: module });
+    } catch (err) {
+      if (err?.name === "ZodError") {
+        return c.json(
+          { error: err.errors?.[0]?.message ?? "Carga de modulo invalida." },
+          400,
+        );
+      }
+      if (err?.code === "DEPENDENCY_NOT_FOUND") {
+        const missingList = err.keys.join(", ");
+        return c.json(
+          {
+            error: `No se puede instalar el modulo. Dependencias no encontradas: ${missingList}.`,
+          },
+          409,
+        );
+      }
+      if (err?.code === "INVALID_MANIFEST_ACL") {
+        return c.json(
+          { error: err.detail ?? "El manifiesto ACL es invalido." },
+          400,
+        );
+      }
+      console.error("[modules/install]", err);
+      return c.json({ error: "No se pudo instalar el modulo." }, 500);
     }
-    if (err?.code === "DEPENDENCY_NOT_FOUND") {
-      const missingList = err.keys.join(", ");
-      return c.json(
-        {
-          error: `No se puede instalar el modulo. Dependencias no encontradas: ${missingList}.`,
-        },
-        409,
-      );
-    }
-    if (err?.code === "INVALID_MANIFEST_ACL") {
-      return c.json({ error: err.detail ?? "El manifiesto ACL es invalido." }, 400);
-    }
-    console.error("[modules/install]", err);
-    return c.json({ error: "No se pudo instalar el modulo." }, 500);
-  }
-});
+  },
+);
 
 app.delete(
   "/modules/:key",
   authMiddleware,
   requirePermission("core.modules.delete"),
   async (c) => {
-  try {
-    const key = c.req.param("key");
-    const module = await prisma.atlasModule.findUnique({ where: { key } });
-    if (!module) return c.json({ error: "Modulo no encontrado." }, 404);
-    if (module.core || !module.uninstallable) {
-      return c.json(
-        { error: "Los modulos base no pueden desinstalarse." },
-        409,
-      );
-    }
+    try {
+      const key = c.req.param("key");
+      const module = await prisma.atlasModule.findUnique({ where: { key } });
+      if (!module) return c.json({ error: "Modulo no encontrado." }, 404);
+      if (module.core || !module.uninstallable) {
+        return c.json(
+          { error: "Los modulos base no pueden desinstalarse." },
+          409,
+        );
+      }
 
-    const dependents = await getRequiredDependents(module.id);
-    if (dependents.length > 0) {
-      return c.json(
-        { error: buildDependencyBlockedMessage("desinstalar", dependents) },
-        409,
-      );
-    }
+      const dependents = await getRequiredDependents(module.id);
+      if (dependents.length > 0) {
+        return c.json(
+          { error: buildDependencyBlockedMessage("desinstalar", dependents) },
+          409,
+        );
+      }
 
-    if (module.status === "UNINSTALLED" && module.enabled === false) {
-      return c.json({ data: module });
-    }
+      if (module.status === "UNINSTALLED" && module.enabled === false) {
+        return c.json({ data: module });
+      }
 
-    const updated = await prisma.atlasModule.update({
-      where: { key },
-      data: { status: "UNINSTALLED", enabled: false },
-    });
-    return c.json({ data: updated });
-  } catch (err) {
-    console.error("[modules/uninstall]", err);
-    return c.json({ error: "No se pudo desinstalar el modulo." }, 500);
-  }
-});
+      const updated = await prisma.atlasModule.update({
+        where: { key },
+        data: { status: "UNINSTALLED", enabled: false },
+      });
+      return c.json({ data: updated });
+    } catch (err) {
+      console.error("[modules/uninstall]", err);
+      return c.json({ error: "No se pudo desinstalar el modulo." }, 500);
+    }
+  },
+);
 
 app.post(
   "/modules/:key/disable",
   authMiddleware,
   requirePermission("core.modules.update"),
   async (c) => {
-  try {
-    const key = c.req.param("key");
-    const module = await prisma.atlasModule.findUnique({ where: { key } });
-    if (!module) return c.json({ error: "Modulo no encontrado." }, 404);
-    if (module.core || !module.uninstallable) {
-      return c.json(
-        { error: "Los modulos base no pueden deshabilitarse." },
-        409,
-      );
-    }
-    if (module.status === "UNINSTALLED") {
-      return c.json(
-        { error: "No se puede deshabilitar un modulo desinstalado." },
-        409,
-      );
-    }
+    try {
+      const key = c.req.param("key");
+      const module = await prisma.atlasModule.findUnique({ where: { key } });
+      if (!module) return c.json({ error: "Modulo no encontrado." }, 404);
+      if (module.core || !module.uninstallable) {
+        return c.json(
+          { error: "Los modulos base no pueden deshabilitarse." },
+          409,
+        );
+      }
+      if (module.status === "UNINSTALLED") {
+        return c.json(
+          { error: "No se puede deshabilitar un modulo desinstalado." },
+          409,
+        );
+      }
 
-    const dependents = await getRequiredDependents(module.id);
-    if (dependents.length > 0) {
-      return c.json(
-        { error: buildDependencyBlockedMessage("deshabilitar", dependents) },
-        409,
-      );
-    }
+      const dependents = await getRequiredDependents(module.id);
+      if (dependents.length > 0) {
+        return c.json(
+          { error: buildDependencyBlockedMessage("deshabilitar", dependents) },
+          409,
+        );
+      }
 
-    if (module.status === "DISABLED" && module.enabled === false) {
-      return c.json({ data: module });
-    }
+      if (module.status === "DISABLED" && module.enabled === false) {
+        return c.json({ data: module });
+      }
 
-    const updated = await prisma.atlasModule.update({
-      where: { key },
-      data: { status: "DISABLED", enabled: false },
-    });
-    return c.json({ data: updated });
-  } catch (err) {
-    console.error("[modules/disable]", err);
-    return c.json({ error: "No se pudo deshabilitar el modulo." }, 500);
-  }
-});
+      const updated = await prisma.atlasModule.update({
+        where: { key },
+        data: { status: "DISABLED", enabled: false },
+      });
+      return c.json({ data: updated });
+    } catch (err) {
+      console.error("[modules/disable]", err);
+      return c.json({ error: "No se pudo deshabilitar el modulo." }, 500);
+    }
+  },
+);
 
 app.post(
   "/modules/:key/enable",
   authMiddleware,
   requirePermission("core.modules.update"),
   async (c) => {
-  try {
-    const key = c.req.param("key");
-    const module = await prisma.atlasModule.findUnique({ where: { key } });
-    if (!module) return c.json({ error: "Modulo no encontrado." }, 404);
-    if (module.status === "UNINSTALLED") {
-      return c.json(
-        { error: "No se puede habilitar un modulo desinstalado." },
-        409,
-      );
-    }
-    if (module.status === "INSTALLED" && module.enabled === true) {
-      return c.json({ data: module });
-    }
+    try {
+      const key = c.req.param("key");
+      const module = await prisma.atlasModule.findUnique({ where: { key } });
+      if (!module) return c.json({ error: "Modulo no encontrado." }, 404);
+      if (module.status === "UNINSTALLED") {
+        return c.json(
+          { error: "No se puede habilitar un modulo desinstalado." },
+          409,
+        );
+      }
+      if (module.status === "INSTALLED" && module.enabled === true) {
+        return c.json({ data: module });
+      }
 
-    const requiredDependencies = await prisma.moduleDependency.findMany({
-      where: {
-        moduleId: module.id,
-        optional: false,
-      },
-      include: {
-        dependency: {
-          select: { key: true, name: true, status: true, enabled: true },
+      const requiredDependencies = await prisma.moduleDependency.findMany({
+        where: {
+          moduleId: module.id,
+          optional: false,
         },
-      },
-    });
-
-    const missingEnabledDependencies = requiredDependencies.filter(
-      (entry) =>
-        entry.dependency.status !== "INSTALLED" ||
-        entry.dependency.enabled !== true,
-    );
-    if (missingEnabledDependencies.length > 0) {
-      const dependencyList = missingEnabledDependencies
-        .map((entry) => `${entry.dependency.name} (${entry.dependency.key})`)
-        .join(", ");
-      return c.json(
-        {
-          error: `No se puede habilitar el modulo. Dependencias requeridas no activas: ${dependencyList}.`,
+        include: {
+          dependency: {
+            select: { key: true, name: true, status: true, enabled: true },
+          },
         },
-        409,
-      );
-    }
+      });
 
-    const updated = await prisma.atlasModule.update({
-      where: { key },
-      data: { status: "INSTALLED", enabled: true },
-    });
-    return c.json({ data: updated });
-  } catch (err) {
-    console.error("[modules/enable]", err);
-    return c.json({ error: "No se pudo habilitar el modulo." }, 500);
-  }
-});
+      const missingEnabledDependencies = requiredDependencies.filter(
+        (entry) =>
+          entry.dependency.status !== "INSTALLED" ||
+          entry.dependency.enabled !== true,
+      );
+      if (missingEnabledDependencies.length > 0) {
+        const dependencyList = missingEnabledDependencies
+          .map((entry) => `${entry.dependency.name} (${entry.dependency.key})`)
+          .join(", ");
+        return c.json(
+          {
+            error: `No se puede habilitar el modulo. Dependencias requeridas no activas: ${dependencyList}.`,
+          },
+          409,
+        );
+      }
+
+      const updated = await prisma.atlasModule.update({
+        where: { key },
+        data: { status: "INSTALLED", enabled: true },
+      });
+      return c.json({ data: updated });
+    } catch (err) {
+      console.error("[modules/enable]", err);
+      return c.json({ error: "No se pudo habilitar el modulo." }, 500);
+    }
+  },
+);
 
 app.get("/blueprints", authMiddleware, async (c) => {
   const context = await getOrLoadUserContext(c);
   if (!context?.profile) {
-    return c.json({ error: "No autorizado. Perfil de usuario no encontrado." }, 401);
+    return c.json(
+      { error: "No autorizado. Perfil de usuario no encontrado." },
+      401,
+    );
   }
   const blueprints = await prisma.blueprint.findMany({
     where: { enabled: true },
@@ -2197,123 +2319,153 @@ app.get("/blueprints", authMiddleware, async (c) => {
   return c.json({ data: filtered });
 });
 
-app.get("/contacts", authMiddleware, requirePermission("contacts.contacts.read"), async (c) => {
-  try {
-    const authUserId = c.get("authUserId");
-    const search = c.req.query("q") ?? "";
-    const limit = c.req.query("limit");
-    const contacts = await contactsService.list({ authUserId, search, limit });
-    return c.json({ data: contacts });
-  } catch (err) {
-    if (err instanceof ContactsServiceError) {
-      return c.json({ error: err.message }, err.status);
+app.get(
+  "/contacts",
+  authMiddleware,
+  requirePermission("contacts.contacts.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const search = c.req.query("q") ?? "";
+      const limit = c.req.query("limit");
+      const contacts = await contactsService.list({
+        authUserId,
+        search,
+        limit,
+      });
+      return c.json({ data: contacts });
+    } catch (err) {
+      if (err instanceof ContactsServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudieron cargar los contactos." }, 500);
     }
-    return c.json({ error: "No se pudieron cargar los contactos." }, 500);
-  }
-});
+  },
+);
 
 app.get(
   "/contacts/picker",
   authMiddleware,
   requirePermission("contacts.contacts.read"),
   async (c) => {
-  try {
-    const authUserId = c.get("authUserId");
-    const query = c.req.query("q") ?? "";
-    const limit = c.req.query("limit");
-    const options = await contactsService.picker({ authUserId, query, limit });
-    return c.json({ data: options });
-  } catch (err) {
-    if (err instanceof ContactsServiceError) {
-      return c.json({ error: err.message }, err.status);
-    }
-    return c.json(
-      { error: "No se pudieron cargar opciones de contacto." },
-      500,
-    );
-  }
-});
-
-app.post("/contacts", authMiddleware, requirePermission("contacts.contacts.create"), async (c) => {
-  try {
-    const authUserId = c.get("authUserId");
-    const payload = await c.req.json();
-    const contact = await contactsService.create({ authUserId, payload });
-    return c.json({ data: contact }, 201);
-  } catch (err) {
-    if (err?.name === "ZodError") {
+    try {
+      const authUserId = c.get("authUserId");
+      const query = c.req.query("q") ?? "";
+      const limit = c.req.query("limit");
+      const options = await contactsService.picker({
+        authUserId,
+        query,
+        limit,
+      });
+      return c.json({ data: options });
+    } catch (err) {
+      if (err instanceof ContactsServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
       return c.json(
-        { error: err.errors?.[0]?.message ?? "Datos de contacto invalidos." },
-        400,
+        { error: "No se pudieron cargar opciones de contacto." },
+        500,
       );
     }
-    if (err instanceof ContactsServiceError) {
-      return c.json({ error: err.message }, err.status);
-    }
-    return c.json({ error: "No se pudo crear el contacto." }, 500);
-  }
-});
+  },
+);
 
-app.put("/contacts/:id", authMiddleware, requirePermission("contacts.contacts.update"), async (c) => {
-  try {
-    const authUserId = c.get("authUserId");
-    const id = c.req.param("id");
-    const payload = await c.req.json();
-    const contact = await contactsService.update({ authUserId, id, payload });
-    return c.json({ data: contact });
-  } catch (err) {
-    if (err?.name === "ZodError") {
-      return c.json(
-        { error: err.errors?.[0]?.message ?? "Datos de contacto invalidos." },
-        400,
-      );
+app.post(
+  "/contacts",
+  authMiddleware,
+  requirePermission("contacts.contacts.create"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const payload = await c.req.json();
+      const contact = await contactsService.create({ authUserId, payload });
+      return c.json({ data: contact }, 201);
+    } catch (err) {
+      if (err?.name === "ZodError") {
+        return c.json(
+          { error: err.errors?.[0]?.message ?? "Datos de contacto invalidos." },
+          400,
+        );
+      }
+      if (err instanceof ContactsServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo crear el contacto." }, 500);
     }
-    if (err instanceof ContactsServiceError) {
-      return c.json({ error: err.message }, err.status);
+  },
+);
+
+app.put(
+  "/contacts/:id",
+  authMiddleware,
+  requirePermission("contacts.contacts.update"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const payload = await c.req.json();
+      const contact = await contactsService.update({ authUserId, id, payload });
+      return c.json({ data: contact });
+    } catch (err) {
+      if (err?.name === "ZodError") {
+        return c.json(
+          { error: err.errors?.[0]?.message ?? "Datos de contacto invalidos." },
+          400,
+        );
+      }
+      if (err instanceof ContactsServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo actualizar el contacto." }, 500);
     }
-    return c.json({ error: "No se pudo actualizar el contacto." }, 500);
-  }
-});
+  },
+);
 
 app.patch(
   "/contacts/:id/enabled",
   authMiddleware,
   requirePermission("contacts.contacts.update"),
   async (c) => {
-  try {
-    const authUserId = c.get("authUserId");
-    const id = c.req.param("id");
-    const { enabled } = await c.req.json();
-    const contact = await contactsService.setEnabled({
-      authUserId,
-      id,
-      enabled,
-    });
-    return c.json({ data: contact });
-  } catch (err) {
-    if (err instanceof ContactsServiceError) {
-      return c.json({ error: err.message }, err.status);
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const { enabled } = await c.req.json();
+      const contact = await contactsService.setEnabled({
+        authUserId,
+        id,
+        enabled,
+      });
+      return c.json({ data: contact });
+    } catch (err) {
+      if (err instanceof ContactsServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json(
+        { error: "No se pudo actualizar el estado del contacto." },
+        500,
+      );
     }
-    return c.json(
-      { error: "No se pudo actualizar el estado del contacto." },
-      500,
-    );
-  }
-});
+  },
+);
 
-app.delete("/contacts/:id", authMiddleware, requirePermission("contacts.contacts.delete"), async (c) => {
-  try {
-    const authUserId = c.get("authUserId");
-    const id = c.req.param("id");
-    await contactsService.delete({ authUserId, id });
-    return c.json({ ok: true });
-  } catch (err) {
-    if (err instanceof ContactsServiceError) {
-      return c.json({ error: err.message }, err.status);
+app.delete(
+  "/contacts/:id",
+  authMiddleware,
+  requirePermission("contacts.contacts.delete"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      await contactsService.delete({ authUserId, id });
+      return c.json({ ok: true });
+    } catch (err) {
+      if (err instanceof ContactsServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo eliminar el contacto." }, 500);
     }
-    return c.json({ error: "No se pudo eliminar el contacto." }, 500);
-  }
-});
+  },
+);
 
 app.get(
   "/hr/employees",
@@ -2693,7 +2845,10 @@ app.patch(
       if (err instanceof HrServiceError) {
         return c.json({ error: err.message }, err.status);
       }
-      return c.json({ error: "No se pudo actualizar el estado del puesto." }, 500);
+      return c.json(
+        { error: "No se pudo actualizar el estado del puesto." },
+        500,
+      );
     }
   },
 );
@@ -2707,13 +2862,26 @@ app.get(
       const authUserId = c.get("authUserId");
       const rootEmployeeId = c.req.query("rootEmployeeId") ?? null;
       const enabledRaw = c.req.query("enabled");
-      const enabled =
-        enabledRaw === undefined ? true : enabledRaw === "true";
+      const enabled = enabledRaw === undefined ? true : enabledRaw === "true";
       const chart = await hrService.getOrgChart({
         authUserId,
         rootEmployeeId,
         enabled,
       });
+
+      // Resolve avatar signed URLs for linkedUser on each node
+      async function resolveNodeAvatars(node) {
+        if (node.linkedUser?.avatarFileId) {
+          node.linkedUser.avatarUrl = await getSignedUrlByFileId(
+            node.linkedUser.avatarFileId,
+          );
+        }
+        if (Array.isArray(node.children)) {
+          await Promise.all(node.children.map(resolveNodeAvatars));
+        }
+      }
+      await Promise.all((chart.roots ?? []).map(resolveNodeAvatars));
+
       return c.json({ data: chart });
     } catch (err) {
       if (err instanceof HrServiceError) {
@@ -2743,7 +2911,10 @@ app.get(
       if (err instanceof HrServiceError) {
         return c.json({ error: err.message }, err.status);
       }
-      return c.json({ error: "No se pudieron cargar las cuentas disponibles." }, 500);
+      return c.json(
+        { error: "No se pudieron cargar las cuentas disponibles." },
+        500,
+      );
     }
   },
 );
@@ -3010,7 +3181,10 @@ app.get(
       if (err instanceof FinanceServiceError) {
         return c.json({ error: err.message }, err.status);
       }
-      return c.json({ error: "No se pudieron cargar los tipos de cambio." }, 500);
+      return c.json(
+        { error: "No se pudieron cargar los tipos de cambio." },
+        500,
+      );
     }
   },
 );
@@ -3190,7 +3364,10 @@ app.get(
       if (err instanceof FinanceServiceError) {
         return c.json({ error: err.message }, err.status);
       }
-      return c.json({ error: "No se pudo cargar el dashboard financiero." }, 500);
+      return c.json(
+        { error: "No se pudo cargar el dashboard financiero." },
+        500,
+      );
     }
   },
 );
@@ -3350,7 +3527,9 @@ app.post(
     try {
       const authUserId = c.get("authUserId");
       const id = c.req.param("id");
-      const parsed = financeApplicationPreviewSchema.safeParse(await c.req.json());
+      const parsed = financeApplicationPreviewSchema.safeParse(
+        await c.req.json(),
+      );
       if (!parsed.success) {
         return c.json(
           {
@@ -3371,7 +3550,10 @@ app.post(
       if (err instanceof FinanceServiceError) {
         return c.json({ error: err.message }, err.status);
       }
-      return c.json({ error: "No se pudo generar la propuesta de aplicacion." }, 500);
+      return c.json(
+        { error: "No se pudo generar la propuesta de aplicacion." },
+        500,
+      );
     }
   },
 );
@@ -3384,7 +3566,9 @@ app.post(
     try {
       const authUserId = c.get("authUserId");
       const id = c.req.param("id");
-      const parsed = financeApplicationApplySchema.safeParse(await c.req.json());
+      const parsed = financeApplicationApplySchema.safeParse(
+        await c.req.json(),
+      );
       if (!parsed.success) {
         return c.json(
           {
@@ -3418,7 +3602,9 @@ app.post(
     try {
       const authUserId = c.get("authUserId");
       const id = c.req.param("id");
-      const parsed = financeDocumentReminderSchema.safeParse(await c.req.json());
+      const parsed = financeDocumentReminderSchema.safeParse(
+        await c.req.json(),
+      );
       if (!parsed.success) {
         return c.json({ error: "Datos de recordatorio invalidos." }, 400);
       }
@@ -3444,9 +3630,14 @@ app.post(
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
-      const parsed = financeDocumentBulkReminderSchema.safeParse(await c.req.json());
+      const parsed = financeDocumentBulkReminderSchema.safeParse(
+        await c.req.json(),
+      );
       if (!parsed.success) {
-        return c.json({ error: "Solicitud masiva de recordatorios invalida." }, 400);
+        return c.json(
+          { error: "Solicitud masiva de recordatorios invalida." },
+          400,
+        );
       }
       const data = await financeDocumentsService.createBulkDocumentReminders({
         authUserId,
@@ -3458,7 +3649,10 @@ app.post(
       if (err instanceof FinanceServiceError) {
         return c.json({ error: err.message }, err.status);
       }
-      return c.json({ error: "No se pudieron generar recordatorios masivos." }, 500);
+      return c.json(
+        { error: "No se pudieron generar recordatorios masivos." },
+        500,
+      );
     }
   },
 );
@@ -3516,7 +3710,9 @@ app.post(
     try {
       const authUserId = c.get("authUserId");
       const id = c.req.param("id");
-      const parsed = financeApplicationReverseSchema.safeParse(await c.req.json());
+      const parsed = financeApplicationReverseSchema.safeParse(
+        await c.req.json(),
+      );
       if (!parsed.success) {
         return c.json(
           {
@@ -3560,7 +3756,8 @@ app.get(
         return c.json(
           {
             error:
-              parsed.error.errors?.[0]?.message ?? "Filtros de aging invalidos.",
+              parsed.error.errors?.[0]?.message ??
+              "Filtros de aging invalidos.",
           },
           400,
         );
@@ -3596,7 +3793,10 @@ app.get(
       if (err instanceof FinanceServiceError) {
         return c.json({ error: err.message }, err.status);
       }
-      return c.json({ error: "No se pudo cargar la trazabilidad contable." }, 500);
+      return c.json(
+        { error: "No se pudo cargar la trazabilidad contable." },
+        500,
+      );
     }
   },
 );

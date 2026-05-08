@@ -33,7 +33,7 @@ Role
   ↓
 RolePermission  (Role ↔ Permission)
   ↓
-Permission  (key: 'contacts.read', moduleId, etc.)
+Permission  (key: 'contacts.contacts.read', moduleId, etc.)
 ```
 
 ## User vs. HR employee
@@ -70,11 +70,10 @@ Granular convention (current standard):
 - `module.feature.read|create|update|delete` controls feature operations.
 - Non-CRUD permissions are explicit and exceptional.
 
-Temporary compatibility during migration:
+Granular-only policy:
 
-- API guards support fallback from granular to legacy keys while
-  `RBAC_LEGACY_FALLBACK_ENABLED=true`.
-- Fallback is transitional. Target end-state is granular-only with fallback disabled.
+- API guards validate only granular permissions directly.
+- Legacy fallback and legacy role mappings are removed.
 
 Standard middleware in `apps/api/src/index.js`:
 
@@ -87,7 +86,12 @@ Runtime exposure is filtered by permissions:
 - `GET /runtime/modules` returns only modules allowed by `manifest.acl.module`.
 - Navigation inside each module is filtered by `navigation[].permissionKey`.
 - `GET /blueprints` is filtered by module access.
-- `GET /modules` is administrative and requires `modules.read`.
+- `GET /modules` is administrative and requires `core.modules.read`.
+
+Operational verification:
+
+- `pnpm rbac:verify-catalog` must return `missing_in_catalog = 0` and
+  `extra_in_catalog = 0`.
 
 Profile access is granular:
 
@@ -137,7 +141,7 @@ export function requirePermission(permissionKey) {
 
 Usage in routes (Phase 4+):
 ```js
-app.get('/contacts', requirePermission('contacts.read'), async (c) => { ... })
+app.get('/contacts', requirePermission('contacts.contacts.read'), async (c) => { ... })
 ```
 
 Current granular-style examples:

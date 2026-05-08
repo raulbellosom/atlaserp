@@ -203,6 +203,44 @@ body,
   min-height: 100%;
 }
 
+/* ── Badge variant overrides (light mode: solid; dark mode: glass) ──────────
+   These are defined here — not in the ui package — to guarantee Tailwind
+   always emits the rules regardless of package-boundary scanning. */
+
+/* Light mode: solid saturated pill, white text — always readable at 12px */
+.badge-success {
+  background: #10b981;
+  border-color: transparent;
+  color: #fff;
+}
+.badge-warning {
+  background: #f59e0b;
+  border-color: transparent;
+  color: #fff;
+}
+.badge-destructive {
+  background: #ef4444;
+  border-color: transparent;
+  color: #fff;
+}
+
+/* Dark mode: glass tinted pill — neon look */
+.dark .badge-success {
+  background: rgba(52, 211, 153, 0.18);
+  border-color: rgba(52, 211, 153, 0.35);
+  color: #6ee7b7;
+}
+.dark .badge-warning {
+  background: rgba(251, 191, 36, 0.18);
+  border-color: rgba(251, 191, 36, 0.35);
+  color: #fcd34d;
+}
+.dark .badge-destructive {
+  background: rgba(248, 113, 113, 0.18);
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #fca5a5;
+}
+
 /* ── Prevent iOS Safari auto-zoom on input focus ─────────── */
 /* iOS zooms in when font-size < 16px. Fix globally at mobile widths. */
 @media (max-width: 639px) {

@@ -56,8 +56,9 @@ export default function Overview() {
   } = useRuntimeModules();
 
   const blueprints = useQuery({
-    queryKey: ["blueprints"],
-    queryFn: atlas.blueprints.list,
+    queryKey: ["blueprints", token],
+    queryFn: () => atlas.blueprints.list(token),
+    enabled: Boolean(token),
   });
 
   const [confirm, setConfirm] = useState(null);

@@ -2151,3 +2151,198 @@ export function ComboboxField({
     </FieldWrapper>
   );
 }
+
+// ─── CreatableComboboxField ───────────────────────────────────────────────────
+// Same as ComboboxField but shows a "+ Crear «X»" option when the search term
+// does not match any existing entry. Calls `onCreate(name)` when chosen.
+
+export function CreatableComboboxField({
+  label,
+  id,
+  required,
+  error: externalError,
+  hint,
+  icon,
+  options = [],
+  value,
+  onChange,
+  onCreate,
+  isCreating = false,
+  placeholder = "Seleccionar...",
+  searchPlaceholder = "Buscar...",
+  emptyText = "Sin resultados",
+  className,
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef(null);
+  const searchRef = useRef(null);
+
+  const selected = options.find((o) => o.value === value);
+
+  const filtered = options
+    .filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
+    .slice(0, 200);
+
+  const trimmed = search.trim();
+  const showCreate =
+    typeof onCreate === "function" &&
+    trimmed.length > 0 &&
+    !options.some((o) => o.label.toLowerCase() === trimmed.toLowerCase());
+
+  useEffect(() => {
+    function handleOutside(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+        setSearch("");
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
+
+  function handleOpen() {
+    setOpen((o) => !o);
+    setTimeout(() => searchRef.current?.focus(), 50);
+  }
+
+  function handleSelect(opt) {
+    onChange(opt.value);
+    setOpen(false);
+    setSearch("");
+  }
+
+  function handleCreate() {
+    if (!trimmed || isCreating) return;
+    onCreate(trimmed);
+    setOpen(false);
+    setSearch("");
+  }
+
+  return (
+    <FieldWrapper
+      label={label}
+      labelFor={id}
+      error={externalError}
+      hint={hint}
+      required={required}
+    >
+      <div ref={containerRef} className={cn("relative", className)}>
+        <button
+          type="button"
+          id={id}
+          onClick={handleOpen}
+          className={cn(
+            fieldCls(
+              externalError,
+              cn(
+                "flex items-center justify-between text-left cursor-pointer",
+                icon && "pl-9",
+              ),
+            ),
+          )}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+        >
+          <InputIcon icon={icon} />
+          <span
+            className={cn(
+              "truncate",
+              selected ? "text-foreground" : "text-muted-foreground",
+            )}
+          >
+            {selected ? selected.label : placeholder}
+          </span>
+          <ChevronDown
+            size={14}
+            strokeWidth={1.75}
+            className={cn(
+              "text-muted-foreground/60 shrink-0 ml-2 transition-transform duration-150",
+              open && "rotate-180",
+            )}
+          />
+        </button>
+
+        {open && (
+          <div className="absolute z-50 w-full mt-1 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+              <input
+                ref={searchRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && showCreate) {
+                    e.preventDefault();
+                    handleCreate();
+                  }
+                }}
+                placeholder={searchPlaceholder}
+                className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            <div className="max-h-52 overflow-y-auto" role="listbox">
+              {filtered.length === 0 && !showCreate && (
+                <p className="px-3 py-4 text-sm text-muted-foreground text-center">
+                  {emptyText}
+                </p>
+              )}
+              {filtered.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="option"
+                  aria-selected={opt.value === value}
+                  onClick={() => handleSelect(opt)}
+                  className={cn(
+                    "w-full text-left px-3 py-2 text-sm transition-colors duration-100",
+                    opt.value === value
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-foreground hover:bg-muted/50",
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              {showCreate && (
+                <>
+                  {filtered.length > 0 && (
+                    <div className="mx-3 my-1 border-t border-border" />
+                  )}
+                  <button
+                    type="button"
+                    role="option"
+                    disabled={isCreating}
+                    onClick={handleCreate}
+                    className="w-full text-left px-3 py-2 text-sm transition-colors duration-100 flex items-center gap-2 text-primary hover:bg-primary/5 disabled:opacity-50 disabled:cursor-wait font-medium"
+                  >
+                    <span className="text-base leading-none">+</span>
+                    {isCreating ? (
+                      <span>Creando...</span>
+                    ) : (
+                      <span>
+                        Crear{" "}
+                        <span className="text-foreground font-semibold">
+                          &ldquo;{trimmed}&rdquo;
+                        </span>
+                      </span>
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </FieldWrapper>
+  );
+}

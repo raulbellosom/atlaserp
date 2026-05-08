@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { TextField, PasswordField, Button } from '@atlas/ui'
 import { useBrandingStore } from '../stores/branding'
 import { atlas } from '../lib/atlas'
+import { useAuth } from './AuthProvider'
 
 const SIDEBAR_FEATURES = [
   { icon: Server, label: 'Autoalojado en tu infraestructura' },
@@ -15,6 +16,7 @@ const SIDEBAR_FEATURES = [
 
 export function LoginScreen() {
   const navigate = useNavigate()
+  const { session, loading: authLoading } = useAuth()
   const branding = useBrandingStore((s) => s.branding)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -36,6 +38,13 @@ export function LoginScreen() {
       mounted = false
     }
   }, [navigate])
+
+  useEffect(() => {
+    if (authLoading) return
+    if (session) {
+      navigate('/app', { replace: true })
+    }
+  }, [authLoading, navigate, session])
 
   async function handleSubmit(e) {
     e.preventDefault()

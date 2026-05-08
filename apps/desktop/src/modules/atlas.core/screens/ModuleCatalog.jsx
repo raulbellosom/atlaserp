@@ -247,10 +247,10 @@ export default function ModuleCatalog() {
   const permissions = userProfile?.permissions ?? [];
   const isAdmin = Boolean(userProfile?.isAdmin);
   const hasPermission = (key) => isAdmin || permissions.includes(key);
-  const canReadModules = hasPermission("modules.read");
-  const canInstallModules = hasPermission("modules.install");
-  const canDisableModules = hasPermission("modules.disable");
-  const canUninstallModules = hasPermission("modules.uninstall");
+  const canReadModules = hasPermission("core.modules.read");
+  const canInstallModules = hasPermission("core.modules.create");
+  const canDisableModules = hasPermission("core.modules.update");
+  const canUninstallModules = hasPermission("core.modules.delete");
 
   const modulesQuery = useQuery({
     queryKey: ["modules", token],
@@ -510,7 +510,7 @@ export default function ModuleCatalog() {
         {!canInstallModules && !canDisableModules && !canUninstallModules && (
           <div className="flex items-center gap-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 text-sm px-4 py-2.5 text-[hsl(var(--muted-foreground))]">
             <Info className="h-4 w-4 shrink-0" />
-            La gestion del ciclo de vida depende de permisos de modulos.
+            La gestion del ciclo de vida depende de permisos de core.modules.
           </div>
         )}
 
@@ -587,7 +587,7 @@ export default function ModuleCatalog() {
           <EmptyState
             icon={Lock}
             title="Sin acceso al catalogo"
-            description="Necesitas modules.read para consultar el catalogo administrativo."
+            description="Necesitas core.modules.read para consultar el catalogo administrativo."
           />
         ) : isLoading ? (
           viewMode === "grid" ? (

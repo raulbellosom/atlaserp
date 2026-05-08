@@ -88,7 +88,9 @@ const SCREEN_MAP = {
     () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
   ),
   "atlas.hr:/": lazy(() => import("../modules/atlas.hr/screens/HrScreen.jsx")),
-  "atlas.hr:/hr": lazy(() => import("../modules/atlas.hr/screens/HrScreen.jsx")),
+  "atlas.hr:/hr": lazy(
+    () => import("../modules/atlas.hr/screens/HrScreen.jsx"),
+  ),
   "atlas.hr:/hr/employees": lazy(
     () => import("../modules/atlas.hr/screens/HrScreen.jsx"),
   ),
@@ -97,6 +99,12 @@ const SCREEN_MAP = {
   ),
   "atlas.hr:/hr/org-chart": lazy(
     () => import("../modules/atlas.hr/screens/HrScreen.jsx"),
+  ),
+  "atlas.hr:/hr/catalogs": lazy(
+    () => import("../modules/atlas.hr/screens/HrScreen.jsx"),
+  ),
+  "atlas.identity:/": lazy(
+    () => import("../modules/atlas.identity/screens/IdentityOverview.jsx"),
   ),
 };
 
@@ -167,6 +175,7 @@ function unavailableMessage(module) {
 function isPathAllowedByNavigation(module, subPath) {
   const navigation = module?.navigation ?? [];
   if (!navigation.length) return subPath === "/";
+  if (subPath === "/") return true;
   return navigation.some((item) => {
     const navPath = item?.path;
     if (!navPath) return false;
@@ -237,6 +246,21 @@ export function ModuleOutlet() {
       state: { moduleWarning: unavailableMessage(module) },
     });
   }, [isLoading, module, navigate]);
+
+  useEffect(() => {
+    if (isLoading || !module) return;
+    if (subPath !== "/") return;
+
+    const navigation = module.navigation ?? [];
+    if (!navigation.length) return;
+    const hasRootNavigation = navigation.some((item) => item?.path === "/");
+    if (hasRootNavigation) return;
+
+    const fallbackPath = navigation[0]?.path;
+    if (!fallbackPath || fallbackPath === "/") return;
+
+    navigate(`/app/m/${module.key}${fallbackPath}`, { replace: true });
+  }, [isLoading, module, subPath, navigate]);
 
   if (isLoading) return <LoadingFallback />;
 

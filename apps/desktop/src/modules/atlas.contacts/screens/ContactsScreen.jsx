@@ -208,8 +208,9 @@ export default function ContactsScreen() {
   // ── queries ──────────────────────────────────────────────────────────────
 
   const blueprintsQuery = useQuery({
-    queryKey: ["blueprints"],
-    queryFn: atlas.blueprints.list,
+    queryKey: ["blueprints", token],
+    queryFn: () => atlas.blueprints.list(token),
+    enabled: Boolean(token),
   });
 
   const contactsQuery = useQuery({

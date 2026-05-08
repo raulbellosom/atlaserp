@@ -8,7 +8,7 @@ Four core modules. All have `core: true`, `uninstallable: false`. None can be re
 
 **Depends on:** Nothing (root module).
 
-**Permissions:** `core.read`, `core.manage`, `modules.install`, `modules.uninstall`, `modules.disable`, `audit.read`
+**Permissions:** `core.access`, `core.read`, `core.manage`, `core.modules.read|create|update|delete`, `core.instance.read|create|update|delete`, `audit.read`
 
 **Navigation:** Dashboard (`/`), Modulos (`/modules`), Configuracion (`/settings`)
 
@@ -20,7 +20,7 @@ Four core modules. All have `core: true`, `uninstallable: false`. None can be re
 
 **Depends on:** `atlas.core`
 
-**Permissions:** `identity.read`, `identity.manage`, `roles.read`, `roles.manage`, `permissions.read`, `permissions.manage`
+**Permissions:** `identity.access`, `identity.users.read|create|update|delete`, `identity.roles.read|create|update|delete`, `identity.permissions.read|create|update|delete`, `profile.self.read|update`, `profile.avatar.update`, `profile.password.update`
 
 **Navigation:** Usuarios (`/identity/users`), Roles (`/identity/roles`)
 
@@ -30,7 +30,7 @@ Four core modules. All have `core: true`, `uninstallable: false`. None can be re
 
 **Depends on:** `atlas.core`
 
-**Permissions:** `files.read`, `files.upload`, `files.delete`, `files.manage`
+**Permissions:** `files.access`, `files.assets.read|create|update|delete`
 
 **Navigation:** None (files accessed through other modules' UI)
 
@@ -47,7 +47,7 @@ Four core modules. All have `core: true`, `uninstallable: false`. None can be re
 
 **Depends on:** `atlas.core`, `atlas.files`
 
-**Permissions:** `branding.read`, `branding.manage`
+**Permissions:** `company.access`, `company.profile.read|create|update|delete`, `company.address.read|create|update|delete`, `company.branding.read|create|update|delete`
 
 **Navigation:** Marca (`/settings/branding`)
 

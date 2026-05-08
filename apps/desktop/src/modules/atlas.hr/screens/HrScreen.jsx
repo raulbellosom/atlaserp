@@ -22,6 +22,7 @@ import { HrTableView } from "../components/HrTableView";
 import { HrCardView, HrGridView } from "../components/HrCardView";
 import HrEmployeeDetail from "./HrEmployeeDetail";
 import HrOrgChartScreen from "./HrOrgChartScreen";
+import HrCatalogsScreen from "./HrCatalogsScreen";
 
 // ── List skeleton ─────────────────────────────────────────────────────────────
 
@@ -161,6 +162,7 @@ export default function HrScreen() {
     ? wildcard.replace("hr/employees/", "")
     : null;
   const isOrgChartRoute = wildcard === "hr/org-chart";
+  const isCatalogsRoute = wildcard === "hr/catalogs";
   const isDetailRoute = Boolean(employeeId);
 
   const listQuery = useQuery({
@@ -196,6 +198,10 @@ export default function HrScreen() {
     return <HrOrgChartScreen />;
   }
 
+  if (isCatalogsRoute) {
+    return <HrCatalogsScreen />;
+  }
+
   // detail route — render dossier
   if (isDetailRoute) {
     return (
@@ -220,7 +226,9 @@ export default function HrScreen() {
             >
               Organigrama
             </Button>
-            <Button onClick={() => navigate("/app/m/atlas.hr/hr/employees/new")}>
+            <Button
+              onClick={() => navigate("/app/m/atlas.hr/hr/employees/new")}
+            >
               <Plus className="mr-2 h-4 w-4" />
               Nuevo colaborador
             </Button>

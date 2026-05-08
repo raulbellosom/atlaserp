@@ -21,7 +21,8 @@ export default function CompanyAddress() {
   const token = session?.access_token;
   const queryClient = useQueryClient();
   const canManage = Boolean(
-    userProfile?.isAdmin || userProfile?.permissions?.includes("company.manage"),
+    userProfile?.isAdmin ||
+      userProfile?.permissions?.includes("company.address.update"),
   );
 
   const { data, isLoading } = useQuery({
@@ -127,7 +128,7 @@ export default function CompanyAddress() {
 
           {!canManage && (
             <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
-              Necesitas permiso company.manage para editar la direccion de la empresa.
+              Necesitas permiso company.address.update para editar la direccion de la empresa.
             </div>
           )}
 

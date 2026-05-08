@@ -17,6 +17,7 @@ import { SetupWizard } from "./setup/SetupWizard";
 import { AuthProvider } from "./auth/AuthProvider";
 import { AuthGuard } from "./auth/AuthGuard";
 import { LoginScreen } from "./auth/LoginScreen";
+import { useAuth } from "./auth/AuthProvider";
 import { AtlasApp } from "./app/AtlasApp";
 import { HomeScreen } from "./app/HomeScreen";
 import { ModuleOutlet } from "./app/ModuleOutlet";
@@ -33,6 +34,7 @@ const queryClient = new QueryClient();
 
 function InitGuard() {
   const navigate = useNavigate();
+  const { session, loading: authLoading } = useAuth();
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: ["instance-status"],
     queryFn: atlas.instance.status,
@@ -42,12 +44,15 @@ function InitGuard() {
   });
 
   useEffect(() => {
-    if (isPending || !data) return;
-    navigate(data.initialized ? "/login" : "/setup", {
+    if (isPending || authLoading || !data) return;
+    const nextPath = data.initialized
+      ? (session ? "/app" : "/login")
+      : "/setup";
+    navigate(nextPath, {
       replace: true,
-      state: data.initialized ? { branding: data.branding } : undefined,
+      state: nextPath === "/login" ? { branding: data.branding } : undefined,
     });
-  }, [data, isPending, navigate]);
+  }, [authLoading, data, isPending, navigate, session]);
 
   if (isError) {
     return (

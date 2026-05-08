@@ -54,7 +54,8 @@ export function mergeRuntimeModules(rawApiModules, options = {}) {
       typeof apiRow?.enabled === "boolean" ? apiRow.enabled : core;
 
     const manifestFallback = apiRow?.manifest ?? {};
-    const navigation = manifestFallback.navigation ?? manifest?.navigation ?? [];
+    const navigation =
+      manifest?.navigation ?? manifestFallback.navigation ?? [];
 
     const layoutMode = normalizeLayoutMode(
       manifest?.layoutMode ?? manifestFallback.layoutMode,
@@ -67,10 +68,12 @@ export function mergeRuntimeModules(rawApiModules, options = {}) {
       description: apiRow?.description ?? manifest?.description ?? null,
       summary: manifest?.summary ?? manifestFallback.summary ?? "",
       icon: manifest?.icon ?? manifestFallback.icon ?? "Box",
-      color: manifest?.color ?? manifestFallback.color ?? "var(--brand-primary)",
+      color:
+        manifest?.color ?? manifestFallback.color ?? "var(--brand-primary)",
       category: manifest?.category ?? manifestFallback.category ?? "general",
       navigation,
-      dependencies: manifest?.dependencies ?? manifestFallback.dependencies ?? [],
+      dependencies:
+        manifest?.dependencies ?? manifestFallback.dependencies ?? [],
       layoutMode,
       version: apiRow?.version ?? manifest?.version ?? "0.0.0",
       kind: apiRow?.kind ?? manifest?.kind ?? "FEATURE",
@@ -89,7 +92,8 @@ export function mergeRuntimeModules(rawApiModules, options = {}) {
 
   return merged.sort((a, b) => {
     if (a.core !== b.core) return a.core ? -1 : 1;
-    const byStatus = (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99);
+    const byStatus =
+      (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99);
     if (byStatus !== 0) return byStatus;
     return a.name.localeCompare(b.name, "es", { sensitivity: "base" });
   });

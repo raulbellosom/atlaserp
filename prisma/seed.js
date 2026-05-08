@@ -34,6 +34,11 @@ async function upsertModule(manifest) {
 
 async function main() {
   const allModuleManifests = [...coreModules, ...featureModules]
+  const manifestPermissionKeys = new Set(
+    allModuleManifests.flatMap((manifest) =>
+      (manifest.permissions ?? []).map((permission) => permission.key)
+    )
+  )
 
   for (const manifest of allModuleManifests) {
     const module = await upsertModule(manifest)
@@ -73,6 +78,22 @@ async function main() {
         }
       })
     }
+  }
+
+  const obsoletePermissions = await prisma.permission.findMany({
+    where: {
+      key: { notIn: [...manifestPermissionKeys] }
+    },
+    select: { id: true }
+  })
+  if (obsoletePermissions.length > 0) {
+    const obsoletePermissionIds = obsoletePermissions.map((permission) => permission.id)
+    await prisma.rolePermission.deleteMany({
+      where: { permissionId: { in: obsoletePermissionIds } }
+    })
+    await prisma.permission.deleteMany({
+      where: { id: { in: obsoletePermissionIds } }
+    })
   }
 
   await prisma.role.upsert({

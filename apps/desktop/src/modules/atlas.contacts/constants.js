@@ -22,20 +22,20 @@ export const TYPE_LABEL = {
 // Avatar color per type (bg + text)
 export const TYPE_AVATAR_COLORS = {
   customer: {
-    bg: "bg-emerald-500/15 dark:bg-emerald-400/20",
-    text: "text-emerald-700 dark:text-emerald-300",
+    bg: "bg-emerald-500/20 dark:bg-emerald-400/20 ring-1 ring-emerald-500/50 dark:ring-emerald-400/30",
+    text: "text-emerald-900 dark:text-emerald-300",
   },
   supplier: {
-    bg: "bg-blue-500/15 dark:bg-blue-400/20",
-    text: "text-blue-700 dark:text-blue-300",
+    bg: "bg-blue-500/20    dark:bg-blue-400/20    ring-1 ring-blue-500/50    dark:ring-blue-400/30",
+    text: "text-blue-900    dark:text-blue-300",
   },
   person: {
-    bg: "bg-violet-500/15 dark:bg-violet-400/20",
-    text: "text-violet-700 dark:text-violet-300",
+    bg: "bg-violet-500/20 dark:bg-violet-400/20 ring-1 ring-violet-500/50 dark:ring-violet-400/30",
+    text: "text-violet-900 dark:text-violet-300",
   },
   company: {
-    bg: "bg-amber-500/15 dark:bg-amber-400/20",
-    text: "text-amber-700 dark:text-amber-300",
+    bg: "bg-amber-500/20  dark:bg-amber-400/20  ring-1 ring-amber-500/50  dark:ring-amber-400/30",
+    text: "text-amber-900  dark:text-amber-300",
   },
 };
 

@@ -35,9 +35,9 @@ export default function UserEditorScreen() {
   const permissions = userProfile?.permissions ?? [];
   const hasPermission = (key) =>
     Boolean(userProfile?.isAdmin || permissions.includes(key));
-  const canReadUsers = hasPermission("identity.read") || hasPermission("identity.manage");
-  const canManageUsers = hasPermission("identity.manage");
-  const canReadRoles = hasPermission("roles.read");
+  const canReadUsers = hasPermission("identity.users.read");
+  const canManageUsers = hasPermission("identity.users.update");
+  const canReadRoles = hasPermission("identity.roles.read");
   const queryClient = useQueryClient();
   const isSelf = userId === userProfile?.id;
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -273,7 +273,7 @@ export default function UserEditorScreen() {
               </div>
             ) : (
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                Modo lectura: necesitas permiso identity.manage para editar.
+                Modo lectura: necesitas permiso identity.users.update para editar.
               </p>
             )}
           </CardContent>

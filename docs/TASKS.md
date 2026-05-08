@@ -242,7 +242,7 @@ Plan: `docs/superpowers/plans/2026-05-05-phase9-hr.md`
 - [ ] Rich markdown notes editor + rendered read mode
 - [ ] Employee dossier attachments via canonical files pipeline (`atlas-files`)
 - [ ] Embedded employee audit timeline (`actor/action/timestamp`)
-- [ ] Permission and auth contracts for `hr.read/create/update/delete`
+- [ ] Permission and auth contracts for `hr.employee|department|job_title|org_chart.*`
 
 Verified: pending
 
@@ -287,12 +287,13 @@ Spec: `docs/superpowers/specs/2026-05-08-rbac-granular-phase2-design.md`
 Plan: `docs/superpowers/plans/2026-05-08-rbac-granular-phase2.md`
 
 - [x] Granular contract helpers (`module.access` + `module.feature.action`) and uniqueness checks
-- [x] Legacy fallback helper for transitional compatibility
 - [x] Oleada A manifests (`core`, `identity`, `company`) with ACL granular
 - [x] Oleada B/C manifests (`files`, `contacts`, `finance`, `hr`) with ACL granular
-- [x] API guards with `RBAC_LEGACY_FALLBACK_ENABLED` and fallback-aware permission checks
-- [x] Runtime module and navigation checks updated to use fallback-aware permission resolution
-- [x] Migration script `legacy -> granular` with dry-run support
+- [x] API guards en modo granular-only (sin fallback legacy)
+- [x] Runtime module and navigation checks con verificacion directa granular
+- [x] Catalogo de permisos explicito en espanol para todas las llaves declaradas en manifiestos
+- [x] Limpieza de permisos legacy en seed (Permission + RolePermission obsoletos)
+- [x] Script operativo `rbac:verify-catalog` para validar `missing_in_catalog=0`
 - [x] Roles/Permissions UI redesigned as module > feature > action tree with bulk toggles
 - [x] Documentation rules for future modules (granular convention + authorization checklist)
 - [x] Mandatory checklist for new modules:

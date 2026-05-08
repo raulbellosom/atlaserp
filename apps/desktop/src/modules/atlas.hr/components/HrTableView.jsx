@@ -31,20 +31,20 @@ const EMPLOYMENT_LABEL = {
 
 const STATUS_AVATAR = {
   active: {
-    bg: "bg-emerald-100 dark:bg-emerald-900/30",
-    text: "text-emerald-700 dark:text-emerald-300",
+    bg: "bg-emerald-500/20 dark:bg-emerald-400/20 ring-1 ring-emerald-500/50 dark:ring-emerald-400/30",
+    text: "text-emerald-900 dark:text-emerald-300",
   },
   vacation: {
-    bg: "bg-amber-100 dark:bg-amber-900/30",
-    text: "text-amber-700 dark:text-amber-300",
+    bg: "bg-amber-500/20   dark:bg-amber-400/20   ring-1 ring-amber-500/50   dark:ring-amber-400/30",
+    text: "text-amber-900   dark:text-amber-300",
   },
   inactive: {
-    bg: "bg-[hsl(var(--muted))]",
-    text: "text-[hsl(var(--muted-foreground))]",
+    bg: "bg-slate-500/15   dark:bg-slate-400/20   ring-1 ring-slate-500/40   dark:ring-slate-400/30",
+    text: "text-slate-700   dark:text-slate-300",
   },
   terminated: {
-    bg: "bg-red-100 dark:bg-red-900/30",
-    text: "text-red-700 dark:text-red-300",
+    bg: "bg-red-500/20     dark:bg-red-400/20     ring-1 ring-red-500/50     dark:ring-red-400/30",
+    text: "text-red-900     dark:text-red-300",
   },
 };
 

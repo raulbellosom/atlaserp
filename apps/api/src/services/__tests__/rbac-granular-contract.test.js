@@ -5,11 +5,37 @@ import {
   moduleAccessKey,
   ensureUniquePermissionKeys,
 } from "../../permissions/granular-contract.js";
-import {
-  hasAnyPermissionWithLegacyFallback,
-  hasPermissionWithLegacyFallback,
-  resolveLegacyFallback,
-} from "../../permissions/legacy-fallback.js";
+
+const LEGACY_PERMISSION_KEYS = new Set([
+  "modules.read",
+  "modules.install",
+  "modules.disable",
+  "modules.uninstall",
+  "identity.read",
+  "identity.manage",
+  "roles.read",
+  "roles.manage",
+  "permissions.read",
+  "permissions.manage",
+  "files.read",
+  "files.upload",
+  "files.delete",
+  "files.manage",
+  "company.read",
+  "company.manage",
+  "contacts.read",
+  "contacts.create",
+  "contacts.update",
+  "contacts.delete",
+  "finance.read",
+  "finance.create",
+  "finance.update",
+  "finance.delete",
+  "hr.read",
+  "hr.create",
+  "hr.update",
+  "hr.delete",
+]);
 
 test("featureCrudKeys returns CRUD keys for module+feature", () => {
   assert.deepEqual(featureCrudKeys("finance", "ar"), [
@@ -24,63 +50,6 @@ test("moduleAccessKey returns access key for module", () => {
   assert.equal(moduleAccessKey("finance"), "finance.access");
 });
 
-test("resolveLegacyFallback maps granular read to module.read", () => {
-  assert.equal(resolveLegacyFallback("finance.ar.read"), "finance.read");
-});
-
-test("resolveLegacyFallback maps explicit non-generic granular keys", () => {
-  assert.equal(resolveLegacyFallback("identity.roles.update"), "roles.manage");
-  assert.equal(
-    resolveLegacyFallback("identity.permissions.read"),
-    "permissions.read",
-  );
-  assert.equal(resolveLegacyFallback("company.profile.update"), "company.manage");
-  assert.equal(resolveLegacyFallback("files.assets.create"), "files.upload");
-  assert.equal(resolveLegacyFallback("finance.access"), "finance.read");
-});
-
-test("resolveLegacyFallback returns null for invalid granular keys", () => {
-  assert.equal(resolveLegacyFallback("finance.read"), null);
-  assert.equal(resolveLegacyFallback("finance.ar.read.extra"), null);
-  assert.equal(resolveLegacyFallback("finance.ar.publish"), null);
-});
-
-test("hasPermissionWithLegacyFallback allows direct permission", () => {
-  const permissionSet = new Set(["finance.ar.read"]);
-  assert.equal(
-    hasPermissionWithLegacyFallback(permissionSet, "finance.ar.read", true),
-    true,
-  );
-});
-
-test("hasPermissionWithLegacyFallback allows legacy fallback when enabled", () => {
-  const permissionSet = new Set(["finance.read"]);
-  assert.equal(
-    hasPermissionWithLegacyFallback(permissionSet, "finance.ar.read", true),
-    true,
-  );
-});
-
-test("hasPermissionWithLegacyFallback denies legacy fallback when disabled", () => {
-  const permissionSet = new Set(["finance.read"]);
-  assert.equal(
-    hasPermissionWithLegacyFallback(permissionSet, "finance.ar.read", false),
-    false,
-  );
-});
-
-test("hasAnyPermissionWithLegacyFallback supports fallback across multiple keys", () => {
-  const permissionSet = new Set(["finance.update"]);
-  assert.equal(
-    hasAnyPermissionWithLegacyFallback(
-      permissionSet,
-      ["finance.ar.read", "finance.entries.update"],
-      true,
-    ),
-    true,
-  );
-});
-
 test("ensureUniquePermissionKeys throws on duplicates", () => {
   assert.throws(
     () => ensureUniquePermissionKeys(["a.read", "a.read"]),
@@ -88,15 +57,70 @@ test("ensureUniquePermissionKeys throws on duplicates", () => {
   );
 });
 
-test("oleada A core manifests expose access and feature CRUD permission keys", async () => {
+test("all manifest permissions are explicit in PERMISSION_CATALOG", async () => {
+  const { coreModules } = await import(
+    "../../../../../packages/maps/src/core-modules.js"
+  );
+  const { featureModules } = await import(
+    "../../../../../packages/maps/src/feature-modules.js"
+  );
+  const { PERMISSION_CATALOG } = await import("../../permission-catalog.js");
+
+  const manifestPermissionKeys = [
+    ...new Set(
+      [...coreModules, ...featureModules].flatMap((manifest) =>
+        (manifest.permissions ?? []).map((permission) => permission.key),
+      ),
+    ),
+  ];
+
+  const missingInCatalog = manifestPermissionKeys.filter(
+    (key) => !PERMISSION_CATALOG[key],
+  );
+
+  assert.equal(
+    missingInCatalog.length,
+    0,
+    `Permisos faltantes en catalogo: ${missingInCatalog.join(", ")}`,
+  );
+});
+
+test("manifests do not declare legacy permission keys", async () => {
+  const { coreModules } = await import(
+    "../../../../../packages/maps/src/core-modules.js"
+  );
+  const { featureModules } = await import(
+    "../../../../../packages/maps/src/feature-modules.js"
+  );
+
+  const manifestPermissionKeys = [
+    ...new Set(
+      [...coreModules, ...featureModules].flatMap((manifest) =>
+        (manifest.permissions ?? []).map((permission) => permission.key),
+      ),
+    ),
+  ];
+
+  const legacyFound = manifestPermissionKeys.filter((key) =>
+    LEGACY_PERMISSION_KEYS.has(key),
+  );
+
+  assert.equal(
+    legacyFound.length,
+    0,
+    `Permisos legacy detectados en manifiestos: ${legacyFound.join(", ")}`,
+  );
+});
+
+test("core and identity manifests expose expected granular keys", async () => {
   const { coreModules } = await import(
     "../../../../../packages/maps/src/core-modules.js"
   );
 
   const byKey = Object.fromEntries(
-    coreModules.map((moduleManifest) => [
-      moduleManifest.key,
-      new Set((moduleManifest.permissions ?? []).map((permission) => permission.key)),
+    coreModules.map((manifest) => [
+      manifest.key,
+      new Set((manifest.permissions ?? []).map((permission) => permission.key)),
     ]),
   );
 
@@ -127,70 +151,16 @@ test("oleada A core manifests expose access and feature CRUD permission keys", a
       "identity.permissions.update",
       "identity.permissions.delete",
     ],
-    "atlas.company": [
-      "company.access",
-      "company.profile.read",
-      "company.profile.create",
-      "company.profile.update",
-      "company.profile.delete",
-      "company.address.read",
-      "company.address.create",
-      "company.address.update",
-      "company.address.delete",
-      "company.branding.read",
-      "company.branding.create",
-      "company.branding.update",
-      "company.branding.delete",
-    ],
   };
 
   for (const [moduleKey, requiredKeys] of Object.entries(requiredByModule)) {
     const permissionSet = byKey[moduleKey];
-    assert.ok(permissionSet, `module not found: ${moduleKey}`);
+    assert.ok(permissionSet, `Modulo no encontrado: ${moduleKey}`);
     for (const permissionKey of requiredKeys) {
       assert.ok(
         permissionSet.has(permissionKey),
-        `missing permission ${permissionKey} in ${moduleKey}`,
+        `Permiso faltante ${permissionKey} en ${moduleKey}`,
       );
     }
   }
-});
-
-test("oleada B/C finance manifest exposes granular permission keys", async () => {
-  const { featureModules } = await import(
-    "../../../../../packages/maps/src/feature-modules.js"
-  );
-  const finance = featureModules.find((moduleManifest) => moduleManifest.key === "atlas.finance");
-  assert.ok(finance, "module not found: atlas.finance");
-
-  const keys = new Set((finance.permissions ?? []).map((permission) => permission.key));
-  assert.ok(keys.has("finance.access"));
-  assert.ok(keys.has("finance.ar.read"));
-  assert.ok(keys.has("finance.entries.create"));
-  assert.ok(keys.has("finance.applications.reverse"));
-});
-
-test("legacy finance.read expands to finance feature read keys", async () => {
-  const { expandLegacyPermission } = await import(
-    "../../../../../scripts/migrate-legacy-permissions-to-granular.mjs"
-  );
-  const expanded = expandLegacyPermission("finance.read");
-  assert.ok(expanded.includes("finance.ar.read"));
-  assert.ok(expanded.includes("finance.ap.read"));
-
-  const { featureModules } = await import(
-    "../../../../../packages/maps/src/feature-modules.js"
-  );
-  const finance = featureModules.find((moduleManifest) => moduleManifest.key === "atlas.finance");
-  assert.ok(finance, "module not found: atlas.finance");
-
-  const granularReadKeys = (finance.permissions ?? [])
-    .map((permission) => permission.key)
-    .filter((key) => key.startsWith("finance.") && key.endsWith(".read"));
-
-  const legacyMappedReadKeys = granularReadKeys.filter(
-    (key) => resolveLegacyFallback(key) === "finance.read",
-  );
-  assert.ok(legacyMappedReadKeys.includes("finance.ar.read"));
-  assert.ok(legacyMappedReadKeys.includes("finance.ap.read"));
 });

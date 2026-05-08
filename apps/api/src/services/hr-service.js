@@ -130,7 +130,10 @@ export function createHrService({ prisma }) {
       throw new HrServiceError("Departamento no encontrado.", 404);
     }
     if (!row.enabled) {
-      throw new HrServiceError("El departamento seleccionado está deshabilitado.", 400);
+      throw new HrServiceError(
+        "El departamento seleccionado estï¿½ deshabilitado.",
+        400,
+      );
     }
   }
 
@@ -144,21 +147,34 @@ export function createHrService({ prisma }) {
       throw new HrServiceError("Puesto no encontrado.", 404);
     }
     if (!row.enabled) {
-      throw new HrServiceError("El puesto seleccionado está deshabilitado.", 400);
+      throw new HrServiceError(
+        "El puesto seleccionado estï¿½ deshabilitado.",
+        400,
+      );
     }
   }
 
-  async function assertSupervisor({ supervisorEmployeeId, companyId, currentEmployeeId = null }) {
+  async function assertSupervisor({
+    supervisorEmployeeId,
+    companyId,
+    currentEmployeeId = null,
+  }) {
     if (!supervisorEmployeeId) return;
     if (currentEmployeeId && supervisorEmployeeId === currentEmployeeId) {
-      throw new HrServiceError("Un colaborador no puede ser su propio supervisor.", 400);
+      throw new HrServiceError(
+        "Un colaborador no puede ser su propio supervisor.",
+        400,
+      );
     }
     const row = await prisma.hrEmployee.findFirst({
       where: { id: supervisorEmployeeId, companyId, enabled: true },
       select: { id: true },
     });
     if (!row) {
-      throw new HrServiceError("Supervisor no encontrado en la empresa activa.", 404);
+      throw new HrServiceError(
+        "Supervisor no encontrado en la empresa activa.",
+        404,
+      );
     }
   }
 
@@ -170,16 +186,26 @@ export function createHrService({ prisma }) {
         enabled: true,
         OR: [
           { moduleKey: "atlas.hr", entityType: "HrEmployee" },
-          { moduleKey: "atlas.company", entityType: "BrandingConfig", entityId: companyId },
+          {
+            moduleKey: "atlas.company",
+            entityType: "BrandingConfig",
+            entityId: companyId,
+          },
         ],
       },
       select: { id: true, mimeType: true },
     });
     if (!file) {
-      throw new HrServiceError("La imagen de perfil no es válida para RH.", 400);
+      throw new HrServiceError(
+        "La imagen de perfil no es vï¿½lida para RH.",
+        400,
+      );
     }
     if (!file.mimeType?.startsWith("image/")) {
-      throw new HrServiceError("La imagen de perfil debe ser un archivo de imagen.", 400);
+      throw new HrServiceError(
+        "La imagen de perfil debe ser un archivo de imagen.",
+        400,
+      );
     }
   }
 
@@ -188,7 +214,11 @@ export function createHrService({ prisma }) {
     userProfileId,
     currentEmployeeId = null,
   }) {
-    if (userProfileId === undefined || userProfileId === null || !String(userProfileId).trim()) {
+    if (
+      userProfileId === undefined ||
+      userProfileId === null ||
+      !String(userProfileId).trim()
+    ) {
       return;
     }
 
@@ -212,20 +242,24 @@ export function createHrService({ prisma }) {
     });
     if (linked) {
       throw new HrServiceError(
-        "La cuenta de usuario ya está vinculada a otro colaborador.",
+        "La cuenta de usuario ya estï¿½ vinculada a otro colaborador.",
         409,
       );
     }
   }
 
-  async function assertNoHierarchyCycle({ employeeId, supervisorEmployeeId, companyId }) {
+  async function assertNoHierarchyCycle({
+    employeeId,
+    supervisorEmployeeId,
+    companyId,
+  }) {
     if (!supervisorEmployeeId || !employeeId) return;
     let cursor = supervisorEmployeeId;
     const visited = new Set();
     while (cursor) {
       if (cursor === employeeId) {
         throw new HrServiceError(
-          "La jerarquía propuesta genera un ciclo de supervisión.",
+          "La jerarquï¿½a propuesta genera un ciclo de supervisiï¿½n.",
           409,
         );
       }
@@ -241,7 +275,14 @@ export function createHrService({ prisma }) {
     }
   }
 
-  async function logAudit({ actorId, entityId, action, before, after, metadata }) {
+  async function logAudit({
+    actorId,
+    entityId,
+    action,
+    before,
+    after,
+    metadata,
+  }) {
     await prisma.auditLog.create({
       data: {
         actorId,
@@ -315,7 +356,10 @@ export function createHrService({ prisma }) {
       });
       await assertDepartment({ id: normalized.departmentId, companyId });
       await assertJobTitle({ id: normalized.jobTitleId, companyId });
-      await assertProfileImage({ profileImageFileId: normalized.profileImageFileId, companyId });
+      await assertProfileImage({
+        profileImageFileId: normalized.profileImageFileId,
+        companyId,
+      });
 
       const created = await prisma.hrEmployee.create({
         data: {
@@ -359,7 +403,10 @@ export function createHrService({ prisma }) {
       });
       await assertDepartment({ id: normalized.departmentId, companyId });
       await assertJobTitle({ id: normalized.jobTitleId, companyId });
-      await assertProfileImage({ profileImageFileId: normalized.profileImageFileId, companyId });
+      await assertProfileImage({
+        profileImageFileId: normalized.profileImageFileId,
+        companyId,
+      });
 
       const updated = await prisma.hrEmployee.update({
         where: { id },
@@ -469,9 +516,7 @@ export function createHrService({ prisma }) {
         where: {
           companyId,
           ...(enabled === undefined ? {} : { enabled: Boolean(enabled) }),
-          ...(query
-            ? { name: { contains: query, mode: "insensitive" } }
-            : {}),
+          ...(query ? { name: { contains: query, mode: "insensitive" } } : {}),
         },
         orderBy: [{ name: "asc" }],
         take,
@@ -492,7 +537,10 @@ export function createHrService({ prisma }) {
         });
       } catch (error) {
         if (error?.code === "P2002") {
-          throw new HrServiceError("Ya existe un departamento con ese nombre.", 409);
+          throw new HrServiceError(
+            "Ya existe un departamento con ese nombre.",
+            409,
+          );
         }
         throw error;
       }
@@ -518,7 +566,10 @@ export function createHrService({ prisma }) {
         });
       } catch (error) {
         if (error?.code === "P2002") {
-          throw new HrServiceError("Ya existe un departamento con ese nombre.", 409);
+          throw new HrServiceError(
+            "Ya existe un departamento con ese nombre.",
+            409,
+          );
         }
         throw error;
       }
@@ -548,9 +599,7 @@ export function createHrService({ prisma }) {
         where: {
           companyId,
           ...(enabled === undefined ? {} : { enabled: Boolean(enabled) }),
-          ...(query
-            ? { name: { contains: query, mode: "insensitive" } }
-            : {}),
+          ...(query ? { name: { contains: query, mode: "insensitive" } } : {}),
         },
         orderBy: [{ name: "asc" }],
         take,
@@ -628,6 +677,8 @@ export function createHrService({ prisma }) {
         },
         select: {
           id: true,
+          employeeCode: true,
+          userProfileId: true,
           firstName: true,
           lastName: true,
           status: true,
@@ -637,6 +688,9 @@ export function createHrService({ prisma }) {
           profileImageFileId: true,
           departmentRef: { select: { id: true, name: true } },
           jobTitleRef: { select: { id: true, name: true } },
+          userProfile: {
+            select: { id: true, displayName: true, avatarFileId: true },
+          },
         },
         orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
       });
@@ -653,6 +707,15 @@ export function createHrService({ prisma }) {
       const buildNode = (employee) => ({
         id: employee.id,
         name: `${employee.firstName} ${employee.lastName}`.trim(),
+        employeeCode: employee.employeeCode ?? null,
+        userProfileId: employee.userProfileId ?? null,
+        linkedUser: employee.userProfile
+          ? {
+              id: employee.userProfile.id,
+              displayName: employee.userProfile.displayName,
+              avatarFileId: employee.userProfile.avatarFileId ?? null,
+            }
+          : null,
         status: employee.status,
         department: employee.departmentRef?.name ?? null,
         jobTitle: employee.jobTitleRef?.name ?? null,
@@ -661,9 +724,14 @@ export function createHrService({ prisma }) {
       });
 
       if (rootEmployeeId) {
-        const root = employees.find((employee) => employee.id === rootEmployeeId);
+        const root = employees.find(
+          (employee) => employee.id === rootEmployeeId,
+        );
         if (!root) {
-          throw new HrServiceError("Colaborador raíz no encontrado para organigrama.", 404);
+          throw new HrServiceError(
+            "Colaborador raï¿½z no encontrado para organigrama.",
+            404,
+          );
         }
         return {
           roots: [buildNode(root)],

@@ -52,7 +52,7 @@ export function HrToolbar({
         value={search}
         onChange={(e) => onSearch(e.target.value)}
         onClear={() => onSearch("")}
-        placeholder="Buscar por nombre, c\u00f3digo, correo, puesto..."
+        placeholder="Buscar por nombre, código, correo, puesto..."
         className="flex-1 min-w-0 sm:max-w-sm"
       />
 

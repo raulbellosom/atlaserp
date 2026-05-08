@@ -401,7 +401,8 @@ export default function CompanyBranding() {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const canManage = Boolean(
-    userProfile?.isAdmin || userProfile?.permissions?.includes("company.manage"),
+    userProfile?.isAdmin ||
+      userProfile?.permissions?.includes("company.branding.update"),
   );
   const queryClient = useQueryClient();
 
@@ -526,7 +527,7 @@ export default function CompanyBranding() {
 
           {!canManage && (
             <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
-              Necesitas permiso company.manage para editar la marca visual.
+              Necesitas permiso company.branding.update para editar la marca visual.
             </div>
           )}
 

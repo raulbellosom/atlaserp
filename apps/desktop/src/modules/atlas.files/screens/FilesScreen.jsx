@@ -55,11 +55,13 @@ export default function FilesScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const routeFileId = useFileIdFromPath(location.pathname);
+  const permissions = userProfile?.permissions ?? [];
+  const hasPermission = (key) =>
+    Boolean(userProfile?.isAdmin || permissions.includes(key));
+  const canUploadFiles = hasPermission("files.assets.create");
 
   const isAdmin = Boolean(
-    userProfile?.isAdmin ||
-      userProfile?.permissions?.includes("files.manage") ||
-      userProfile?.permissions?.includes("files.delete"),
+    hasPermission("files.assets.update") || hasPermission("files.assets.delete"),
   );
 
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -427,7 +429,13 @@ export default function FilesScreen() {
               accept="image/*,application/pdf,text/*,.csv,.xlsx,.doc,.docx,.zip,.md"
               emptyLabel="Arrastrar o seleccionar archivos"
               hint="Arrastra tus archivos aqui o selecciona multiples desde tu equipo."
+              disabled={!canUploadFiles}
             />
+            {!canUploadFiles && (
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                Necesitas permiso files.assets.create para subir archivos.
+              </p>
+            )}
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
               {pagination?.total ?? files.length} archivo(s) registrados.
             </p>

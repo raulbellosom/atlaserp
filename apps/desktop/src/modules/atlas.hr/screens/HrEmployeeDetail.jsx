@@ -6,6 +6,7 @@ import {
   Button,
   ComboboxField,
   ConfirmDialog,
+  CreatableComboboxField,
   DateField,
   MarkdownField,
   SelectField,
@@ -78,20 +79,20 @@ const STATUS_LABEL = {
 
 const STATUS_AVATAR = {
   active: {
-    bg: "bg-emerald-100 dark:bg-emerald-900/30",
-    text: "text-emerald-700 dark:text-emerald-300",
+    bg: "bg-emerald-500/20 dark:bg-emerald-400/20 ring-1 ring-emerald-500/50 dark:ring-emerald-400/30",
+    text: "text-emerald-900 dark:text-emerald-300",
   },
   vacation: {
-    bg: "bg-amber-100 dark:bg-amber-900/30",
-    text: "text-amber-700 dark:text-amber-300",
+    bg: "bg-amber-500/20   dark:bg-amber-400/20   ring-1 ring-amber-500/50   dark:ring-amber-400/30",
+    text: "text-amber-900   dark:text-amber-300",
   },
   inactive: {
-    bg: "bg-[hsl(var(--muted))]",
-    text: "text-[hsl(var(--muted-foreground))]",
+    bg: "bg-slate-500/15   dark:bg-slate-400/20   ring-1 ring-slate-500/40   dark:ring-slate-400/30",
+    text: "text-slate-700   dark:text-slate-300",
   },
   terminated: {
-    bg: "bg-red-100 dark:bg-red-900/30",
-    text: "text-red-700 dark:text-red-300",
+    bg: "bg-red-500/20     dark:bg-red-400/20     ring-1 ring-red-500/50     dark:ring-red-400/30",
+    text: "text-red-900     dark:text-red-300",
   },
 };
 
@@ -1169,8 +1170,6 @@ export default function HrEmployeeDetail({ employeeId }) {
   const isNew = employeeId === "new";
   const [isEditing, setIsEditing] = useState(isNew);
   const [form, setForm] = useState(baseForm());
-  const [newDepartmentName, setNewDepartmentName] = useState("");
-  const [newJobTitleName, setNewJobTitleName] = useState("");
   const prevIdRef = useRef(null);
 
   const employeeQuery = useQuery({
@@ -1178,6 +1177,8 @@ export default function HrEmployeeDetail({ employeeId }) {
     queryFn: () => atlas.hr.getEmployee(employeeId, token),
     enabled: Boolean(token && employeeId && !isNew),
   });
+
+  const selected = employeeQuery.data?.data ?? null;
 
   const userOptionsQuery = useQuery({
     queryKey: ["hr-user-options"],
@@ -1191,7 +1192,8 @@ export default function HrEmployeeDetail({ employeeId }) {
   });
   const departmentsQuery = useQuery({
     queryKey: ["hr-departments"],
-    queryFn: () => atlas.hr.listDepartments(token, { limit: 200, enabled: true }),
+    queryFn: () =>
+      atlas.hr.listDepartments(token, { limit: 200, enabled: true }),
     enabled: Boolean(token),
   });
   const jobTitlesQuery = useQuery({
@@ -1202,14 +1204,16 @@ export default function HrEmployeeDetail({ employeeId }) {
   const profileImageQuery = useQuery({
     queryKey: ["hr-profile-image-url", selected?.profileImageFileId],
     queryFn: async () => {
-      const res = await atlas.files.getSignedUrl(selected.profileImageFileId, token);
+      const res = await atlas.files.getSignedUrl(
+        selected.profileImageFileId,
+        token,
+      );
       return res?.data?.signedUrl ?? "";
     },
     enabled: Boolean(token && selected?.profileImageFileId),
     staleTime: 2 * 60 * 1000,
   });
 
-  const selected = employeeQuery.data?.data ?? null;
   const userOptions = (userOptionsQuery.data?.data ?? []).map((r) => ({
     value: r.id,
     label: `${r.label} (${r.email})`,
@@ -1274,8 +1278,8 @@ export default function HrEmployeeDetail({ employeeId }) {
   });
 
   const createDepartmentMutation = useMutation({
-    mutationFn: () =>
-      atlas.hr.createDepartment({ name: newDepartmentName.trim() }, token),
+    mutationFn: (name) =>
+      atlas.hr.createDepartment({ name: name.trim() }, token),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["hr-departments"] });
       const created = res?.data;
@@ -1286,14 +1290,14 @@ export default function HrEmployeeDetail({ employeeId }) {
           department: created.name ?? prev.department,
         }));
       }
-      setNewDepartmentName("");
       toast.success("Departamento creado");
     },
-    onError: (err) => toast.error(err?.message || "No se pudo crear el departamento"),
+    onError: (err) =>
+      toast.error(err?.message || "No se pudo crear el departamento"),
   });
 
   const createJobTitleMutation = useMutation({
-    mutationFn: () => atlas.hr.createJobTitle({ name: newJobTitleName.trim() }, token),
+    mutationFn: (name) => atlas.hr.createJobTitle({ name: name.trim() }, token),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["hr-job-titles"] });
       const created = res?.data;
@@ -1304,7 +1308,6 @@ export default function HrEmployeeDetail({ employeeId }) {
           jobTitle: created.name ?? prev.jobTitle,
         }));
       }
-      setNewJobTitleName("");
       toast.success("Puesto creado");
     },
     onError: (err) => toast.error(err?.message || "No se pudo crear el puesto"),
@@ -1327,7 +1330,10 @@ export default function HrEmployeeDetail({ employeeId }) {
       }
       await atlas.hr.updateEmployee(
         selected.id,
-        normalizeForApi({ ...fromEmployee(selected), profileImageFileId: fileId }),
+        normalizeForApi({
+          ...fromEmployee(selected),
+          profileImageFileId: fileId,
+        }),
         token,
       );
       return fileId;
@@ -1336,10 +1342,13 @@ export default function HrEmployeeDetail({ employeeId }) {
       setForm((prev) => ({ ...prev, profileImageFileId: fileId }));
       queryClient.invalidateQueries({ queryKey: ["hr-employee", employeeId] });
       queryClient.invalidateQueries({ queryKey: ["hr-profile-image-url"] });
-      queryClient.invalidateQueries({ queryKey: ["hr-employee-files", employeeId] });
+      queryClient.invalidateQueries({
+        queryKey: ["hr-employee-files", employeeId],
+      });
       toast.success("Foto de perfil actualizada");
     },
-    onError: (err) => toast.error(err?.message || "No se pudo actualizar la foto"),
+    onError: (err) =>
+      toast.error(err?.message || "No se pudo actualizar la foto"),
   });
 
   function startEdit() {
@@ -1434,7 +1443,10 @@ export default function HrEmployeeDetail({ employeeId }) {
                 }}
                 placeholder="Seleccionar cuenta..."
                 searchPlaceholder="Buscar usuario..."
-                className={cn("md:col-span-2", !isEditing && "pointer-events-none opacity-70")}
+                className={cn(
+                  "md:col-span-2",
+                  !isEditing && "pointer-events-none opacity-70",
+                )}
               />
               <SelectField
                 label="Estado"
@@ -1458,10 +1470,13 @@ export default function HrEmployeeDetail({ employeeId }) {
               />
             </div>
             <div className="mt-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/20 px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">
-              Vinculación opcional con cuenta de usuario para trazabilidad y permisos.
+              Vinculación opcional con cuenta de usuario para trazabilidad y
+              permisos.
               <button
                 type="button"
-                onClick={() => navigate("/app/m/atlas.identity/identity/users/new")}
+                onClick={() =>
+                  navigate("/app/m/atlas.identity/identity/users/new")
+                }
                 className="ml-2 font-medium text-[hsl(var(--primary))] hover:underline"
               >
                 Ir a crear usuario
@@ -1472,7 +1487,7 @@ export default function HrEmployeeDetail({ employeeId }) {
           {/* datos laborales */}
           <SectionCard title="Datos laborales">
             <div className="grid gap-3 sm:grid-cols-2">
-              <ComboboxField
+              <CreatableComboboxField
                 label="Puesto"
                 value={field("jobTitleId") || "__none__"}
                 options={[
@@ -1481,42 +1496,28 @@ export default function HrEmployeeDetail({ employeeId }) {
                 ]}
                 onChange={(v) => {
                   if (!isEditing) return;
-                  const selectedOption = jobTitleOptions.find((opt) => opt.value === v);
+                  const selectedOption = jobTitleOptions.find(
+                    (opt) => opt.value === v,
+                  );
                   setForm((p) => ({
                     ...p,
                     jobTitleId: v === "__none__" ? "" : v,
-                    jobTitle: v === "__none__" ? "" : (selectedOption?.label ?? p.jobTitle),
+                    jobTitle:
+                      v === "__none__"
+                        ? ""
+                        : (selectedOption?.label ?? p.jobTitle),
                   }));
                 }}
+                onCreate={(name) => {
+                  if (!isEditing) return;
+                  createJobTitleMutation.mutate(name);
+                }}
+                isCreating={createJobTitleMutation.isPending}
                 placeholder="Seleccionar puesto..."
-                searchPlaceholder="Buscar puesto..."
+                searchPlaceholder="Buscar o crear puesto..."
                 className={!isEditing ? "pointer-events-none opacity-70" : ""}
               />
-              <div className="space-y-2">
-                <TextField
-                  label="Nuevo puesto"
-                  placeholder="Ej. Coordinador de operaciones"
-                  value={newJobTitleName}
-                  onChange={(e) => setNewJobTitleName(e.target.value)}
-                  disabled={!isEditing || createJobTitleMutation.isPending}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  disabled={
-                    !isEditing ||
-                    !newJobTitleName.trim() ||
-                    createJobTitleMutation.isPending
-                  }
-                  onClick={() => createJobTitleMutation.mutate()}
-                >
-                  {createJobTitleMutation.isPending
-                    ? "Creando..."
-                    : "Agregar puesto"}
-                </Button>
-              </div>
-              <ComboboxField
+              <CreatableComboboxField
                 label="Departamento"
                 value={field("departmentId") || "__none__"}
                 options={[
@@ -1525,41 +1526,27 @@ export default function HrEmployeeDetail({ employeeId }) {
                 ]}
                 onChange={(v) => {
                   if (!isEditing) return;
-                  const selectedOption = departmentOptions.find((opt) => opt.value === v);
+                  const selectedOption = departmentOptions.find(
+                    (opt) => opt.value === v,
+                  );
                   setForm((p) => ({
                     ...p,
                     departmentId: v === "__none__" ? "" : v,
-                    department: v === "__none__" ? "" : (selectedOption?.label ?? p.department),
+                    department:
+                      v === "__none__"
+                        ? ""
+                        : (selectedOption?.label ?? p.department),
                   }));
                 }}
+                onCreate={(name) => {
+                  if (!isEditing) return;
+                  createDepartmentMutation.mutate(name);
+                }}
+                isCreating={createDepartmentMutation.isPending}
                 placeholder="Seleccionar departamento..."
-                searchPlaceholder="Buscar departamento..."
+                searchPlaceholder="Buscar o crear departamento..."
                 className={!isEditing ? "pointer-events-none opacity-70" : ""}
               />
-              <div className="space-y-2">
-                <TextField
-                  label="Nuevo departamento"
-                  placeholder="Ej. Recursos Humanos"
-                  value={newDepartmentName}
-                  onChange={(e) => setNewDepartmentName(e.target.value)}
-                  disabled={!isEditing || createDepartmentMutation.isPending}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  disabled={
-                    !isEditing ||
-                    !newDepartmentName.trim() ||
-                    createDepartmentMutation.isPending
-                  }
-                  onClick={() => createDepartmentMutation.mutate()}
-                >
-                  {createDepartmentMutation.isPending
-                    ? "Creando..."
-                    : "Agregar departamento"}
-                </Button>
-              </div>
               <ComboboxField
                 label="Supervisor"
                 value={field("supervisorEmployeeId") || "__none__"}
@@ -1569,17 +1556,24 @@ export default function HrEmployeeDetail({ employeeId }) {
                 ]}
                 onChange={(v) => {
                   if (!isEditing) return;
-                  const selectedOption = supervisorOptions.find((opt) => opt.value === v);
+                  const selectedOption = supervisorOptions.find(
+                    (opt) => opt.value === v,
+                  );
                   setForm((p) => ({
                     ...p,
                     supervisorEmployeeId: v === "__none__" ? "" : v,
                     managerName:
-                      v === "__none__" ? "" : (selectedOption?.label ?? p.managerName),
+                      v === "__none__"
+                        ? ""
+                        : (selectedOption?.label ?? p.managerName),
                   }));
                 }}
                 placeholder="Seleccionar supervisor..."
                 searchPlaceholder="Buscar colaborador..."
-                className={cn("sm:col-span-2", !isEditing && "pointer-events-none opacity-70")}
+                className={cn(
+                  "sm:col-span-2",
+                  !isEditing && "pointer-events-none opacity-70",
+                )}
               />
               <SelectField
                 label="Tipo de empleo"
