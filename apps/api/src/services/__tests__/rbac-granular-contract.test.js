@@ -16,8 +16,18 @@ test("featureCrudKeys returns CRUD keys for module+feature", () => {
   ]);
 });
 
+test("moduleAccessKey returns access key for module", () => {
+  assert.equal(moduleAccessKey("finance"), "finance.access");
+});
+
 test("resolveLegacyFallback maps granular read to module.read", () => {
   assert.equal(resolveLegacyFallback("finance.ar.read"), "finance.read");
+});
+
+test("resolveLegacyFallback returns null for invalid granular keys", () => {
+  assert.equal(resolveLegacyFallback("finance.read"), null);
+  assert.equal(resolveLegacyFallback("finance.ar.read.extra"), null);
+  assert.equal(resolveLegacyFallback("finance.ar.publish"), null);
 });
 
 test("ensureUniquePermissionKeys throws on duplicates", () => {

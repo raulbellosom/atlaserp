@@ -1,6 +1,9 @@
 export function resolveLegacyFallback(granularKey) {
-  const [moduleKey, , action] = String(granularKey ?? "").split(".");
-  if (!moduleKey || !action) return null;
+  const parts = String(granularKey ?? "").split(".");
+  if (parts.length !== 3) return null;
+
+  const [moduleKey, featureKey, action] = parts;
+  if (!moduleKey || !featureKey || !action) return null;
   if (["read", "create", "update", "delete"].includes(action)) {
     return `${moduleKey}.${action}`;
   }
