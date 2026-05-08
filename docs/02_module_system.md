@@ -52,6 +52,27 @@ Rules:
 - Module without `acl.module` is not exposed in runtime for non-admin users.
 - API routes must enforce the same permissions with `requirePermission`, `requireAnyPermission`, or `requireModuleAccess`.
 
+## Granular permission convention (mandatory)
+
+Every new module **MUST** use the granular pattern below:
+
+- `module.access`
+- `module.feature.read`
+- `module.feature.create`
+- `module.feature.update`
+- `module.feature.delete`
+
+Only add non-CRUD keys when strictly required (example: `finance.applications.reverse`).
+
+Hard rule for new modules:
+
+1. Declare all required permission keys in `manifest.permissions`.
+2. Map each menu entry in `navigation[]` with `permissionKey`.
+3. Map each API capability in `acl.actions`.
+4. Map each persisted model in `acl.models`.
+5. Protect API routes with the same permission key used in ACL.
+6. Add authorization tests (`rol x endpoint`) before marking the module complete.
+
 ## Module kinds
 
 | Kind | Description |

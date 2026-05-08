@@ -280,3 +280,25 @@ Verified: 2026-05-06 (manual audit of AppShell, AtlasApp, Files, Contacts, and H
 - [x] No `window.prompt`, `window.confirm`, or `window.alert` remain in the finance module
 
 Verified: 2026-05-06 (`wc -l apps/desktop/src/modules/atlas.finance/screens/*.jsx apps/desktop/src/modules/atlas.finance/components/*.jsx apps/desktop/src/modules/atlas.finance/lib/finance-utils.js` — all under 1000 lines; `grep -r "window.prompt\|window.confirm\|window.alert" apps/desktop/src/modules/atlas.finance/` returns no results)
+
+## Phase 11 - RBAC granular por feature (v2)
+
+Spec: `docs/superpowers/specs/2026-05-08-rbac-granular-phase2-design.md`  
+Plan: `docs/superpowers/plans/2026-05-08-rbac-granular-phase2.md`
+
+- [x] Granular contract helpers (`module.access` + `module.feature.action`) and uniqueness checks
+- [x] Legacy fallback helper for transitional compatibility
+- [x] Oleada A manifests (`core`, `identity`, `company`) with ACL granular
+- [x] Oleada B/C manifests (`files`, `contacts`, `finance`, `hr`) with ACL granular
+- [x] API guards with `RBAC_LEGACY_FALLBACK_ENABLED` and fallback-aware permission checks
+- [x] Runtime module and navigation checks updated to use fallback-aware permission resolution
+- [x] Migration script `legacy -> granular` with dry-run support
+- [x] Roles/Permissions UI redesigned as module > feature > action tree with bulk toggles
+- [x] Documentation rules for future modules (granular convention + authorization checklist)
+- [x] Mandatory checklist for new modules:
+  - [x] Declare granular permissions in manifest
+  - [x] Map navigation `permissionKey` by route
+  - [x] Protect API endpoints with granular guards
+  - [x] Add role x endpoint authorization tests
+
+Verified: 2026-05-08 (`node --test apps/api/src/services/__tests__/rbac-granular-contract.test.js`, `node --check apps/api/src/index.js`, `node --check packages/maps/src/core-modules.js`, `node --check packages/maps/src/feature-modules.js`, `node --check apps/api/src/permission-catalog.js`, `pnpm.cmd --filter ./apps/desktop build:web`)

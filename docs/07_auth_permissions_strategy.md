@@ -64,6 +64,18 @@ Current behavior (v1):
 - Every authenticated active user gets base permission `profile.self.read`.
 - If a permission is not explicitly granted, access is denied.
 
+Granular convention (current standard):
+
+- `module.access` controls module runtime visibility.
+- `module.feature.read|create|update|delete` controls feature operations.
+- Non-CRUD permissions are explicit and exceptional.
+
+Temporary compatibility during migration:
+
+- API guards support fallback from granular to legacy keys while
+  `RBAC_LEGACY_FALLBACK_ENABLED=true`.
+- Fallback is transitional. Target end-state is granular-only with fallback disabled.
+
 Standard middleware in `apps/api/src/index.js`:
 
 - `requirePermission(permissionKey)`
@@ -126,6 +138,13 @@ export function requirePermission(permissionKey) {
 Usage in routes (Phase 4+):
 ```js
 app.get('/contacts', requirePermission('contacts.read'), async (c) => { ... })
+```
+
+Current granular-style examples:
+```js
+app.get('/finance/accounts', requirePermission('finance.accounts.read'), async (c) => { ... })
+app.post('/finance/accounts', requirePermission('finance.accounts.create'), async (c) => { ... })
+app.get('/runtime/modules', requirePermission('core.access'), async (c) => { ... })
 ```
 
 ## Supabase Auth configuration (in Studio)
