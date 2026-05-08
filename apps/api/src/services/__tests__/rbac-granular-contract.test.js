@@ -104,3 +104,17 @@ test("oleada A core manifests expose access and feature CRUD permission keys", a
     }
   }
 });
+
+test("oleada B/C finance manifest exposes granular permission keys", async () => {
+  const { featureModules } = await import(
+    "../../../../../packages/maps/src/feature-modules.js"
+  );
+  const finance = featureModules.find((moduleManifest) => moduleManifest.key === "atlas.finance");
+  assert.ok(finance, "module not found: atlas.finance");
+
+  const keys = new Set((finance.permissions ?? []).map((permission) => permission.key));
+  assert.ok(keys.has("finance.access"));
+  assert.ok(keys.has("finance.ar.read"));
+  assert.ok(keys.has("finance.entries.create"));
+  assert.ok(keys.has("finance.applications.reverse"));
+});
