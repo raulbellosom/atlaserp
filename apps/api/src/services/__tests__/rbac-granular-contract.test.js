@@ -36,3 +36,71 @@ test("ensureUniquePermissionKeys throws on duplicates", () => {
     /duplicado/i,
   );
 });
+
+test("oleada A core manifests expose access and feature CRUD permission keys", async () => {
+  const { coreModules } = await import(
+    "../../../../../packages/maps/src/core-modules.js"
+  );
+
+  const byKey = Object.fromEntries(
+    coreModules.map((moduleManifest) => [
+      moduleManifest.key,
+      new Set((moduleManifest.permissions ?? []).map((permission) => permission.key)),
+    ]),
+  );
+
+  const requiredByModule = {
+    "atlas.core": [
+      "core.access",
+      "core.modules.read",
+      "core.modules.create",
+      "core.modules.update",
+      "core.modules.delete",
+      "core.instance.read",
+      "core.instance.create",
+      "core.instance.update",
+      "core.instance.delete",
+    ],
+    "atlas.identity": [
+      "identity.access",
+      "identity.users.read",
+      "identity.users.create",
+      "identity.users.update",
+      "identity.users.delete",
+      "identity.roles.read",
+      "identity.roles.create",
+      "identity.roles.update",
+      "identity.roles.delete",
+      "identity.permissions.read",
+      "identity.permissions.create",
+      "identity.permissions.update",
+      "identity.permissions.delete",
+    ],
+    "atlas.company": [
+      "company.access",
+      "company.profile.read",
+      "company.profile.create",
+      "company.profile.update",
+      "company.profile.delete",
+      "company.address.read",
+      "company.address.create",
+      "company.address.update",
+      "company.address.delete",
+      "company.branding.read",
+      "company.branding.create",
+      "company.branding.update",
+      "company.branding.delete",
+    ],
+  };
+
+  for (const [moduleKey, requiredKeys] of Object.entries(requiredByModule)) {
+    const permissionSet = byKey[moduleKey];
+    assert.ok(permissionSet, `module not found: ${moduleKey}`);
+    for (const permissionKey of requiredKeys) {
+      assert.ok(
+        permissionSet.has(permissionKey),
+        `missing permission ${permissionKey} in ${moduleKey}`,
+      );
+    }
+  }
+});
