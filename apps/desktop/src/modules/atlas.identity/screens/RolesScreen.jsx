@@ -4,7 +4,6 @@ import { useForm } from "react-hook-form";
 import {
   Badge,
   Button,
-  Card,
   PageHeader,
   Sheet,
   SheetContent,
@@ -27,6 +26,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
+import PermissionFeatureTree from "../components/PermissionFeatureTree";
 
 export default function RolesScreen() {
   const { session, userProfile } = useAuth();
@@ -34,10 +34,17 @@ export default function RolesScreen() {
   const permissions = userProfile?.permissions ?? [];
   const hasPermission = (key) =>
     Boolean(userProfile?.isAdmin || permissions.includes(key));
-  const canReadRoles = hasPermission("roles.read");
-  const canManageRoles = hasPermission("roles.manage");
-  const canReadPermissions = hasPermission("permissions.read");
-  const canManagePermissions = hasPermission("permissions.manage");
+  const hasAnyPermission = (keys = []) => keys.some((key) => hasPermission(key));
+  const canReadRoles = hasAnyPermission(["identity.roles.read", "roles.read"]);
+  const canManageRoles = hasAnyPermission(["identity.roles.update", "roles.manage"]);
+  const canReadPermissions = hasAnyPermission([
+    "identity.permissions.read",
+    "permissions.read",
+  ]);
+  const canManagePermissions = hasAnyPermission([
+    "identity.permissions.update",
+    "permissions.manage",
+  ]);
   const queryClient = useQueryClient();
 
   const [selectedRoleId, setSelectedRoleId] = useState(null);
@@ -60,7 +67,6 @@ export default function RolesScreen() {
   const roles = rolesQuery.data?.data ?? [];
   const permData = permissionsQuery.data?.data ?? {};
   const allPermissions = permData.permissions ?? [];
-  const groups = permData.groups ?? [];
 
   const selectedRole = useMemo(
     () => roles.find((r) => r.id === selectedRoleId) ?? null,
@@ -133,6 +139,18 @@ export default function RolesScreen() {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
+      return next;
+    });
+  }
+
+  function togglePermissionGroup(keys, checked) {
+    if (!canManagePermissions) return;
+    setPendingKeys((prev) => {
+      const next = new Set(prev);
+      for (const key of keys) {
+        if (checked) next.add(key);
+        else next.delete(key);
+      }
       return next;
     });
   }
@@ -360,18 +378,18 @@ export default function RolesScreen() {
                       title="Sin acceso al catalogo de permisos"
                       description="Necesitas permissions.read para consultar el catalogo."
                     />
-                  ) : groups.length === 0 && allPermissions.length === 0 ? (
+                  ) : allPermissions.length === 0 ? (
                     <EmptyState
                       icon={KeyRound}
                       title="Sin permisos disponibles"
                       description="No hay permisos definidos en el sistema."
                     />
                   ) : (
-                    <PermissionGroups
-                      groups={groups}
+                    <PermissionFeatureTree
                       allPermissions={allPermissions}
                       pendingKeys={pendingKeys ?? savedKeys}
-                      onToggle={togglePermission}
+                      onTogglePermission={togglePermission}
+                      onBulkToggle={togglePermissionGroup}
                       disabled={!canManagePermissions || savePermsMutation.isPending}
                     />
                   )}
@@ -527,86 +545,6 @@ export default function RolesScreen() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
-    </div>
-  );
-}
-
-function PermissionGroups({
-  groups,
-  allPermissions,
-  pendingKeys,
-  onToggle,
-  disabled,
-}) {
-  const byGroup = useMemo(() => {
-    const map = new Map();
-    for (const p of allPermissions) {
-      const key = p.groupKey ?? "other";
-      if (!map.has(key))
-        map.set(key, { label: p.groupLabel ?? key, items: [] });
-      map.get(key).items.push(p);
-    }
-    const order = groups.map((g) => g.groupKey ?? g.key);
-    return [...map.entries()].sort(([a], [b]) => {
-      const ai = order.indexOf(a);
-      const bi = order.indexOf(b);
-      if (ai === -1 && bi === -1) return 0;
-      if (ai === -1) return 1;
-      if (bi === -1) return -1;
-      return ai - bi;
-    });
-  }, [allPermissions, groups]);
-
-  return (
-    <div className="space-y-3">
-      {byGroup.map(([groupKey, group]) => (
-        <Card key={groupKey} className="p-0 overflow-hidden">
-          <div className="px-4 py-2.5 bg-[hsl(var(--muted))]/40 border-b border-[hsl(var(--border))]">
-            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[hsl(var(--muted-foreground))]">
-              {group.label}
-            </p>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3">
-            {group.items
-              .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-              .map((perm) => {
-                const checked = pendingKeys.has(perm.key);
-                return (
-                  <label
-                    key={perm.key}
-                    className={[
-                      "flex items-start gap-3 px-4 py-3 transition-colors",
-                      "border-b border-[hsl(var(--border))]",
-                      "lg:border-r lg:nth-[2n]:border-r-0",
-                      "2xl:nth-[2n]:border-r 2xl:nth-[3n]:border-r-0",
-                      disabled
-                        ? "opacity-60"
-                        : "cursor-pointer hover:bg-[hsl(var(--muted))]/40",
-                    ].join(" ")}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={disabled}
-                      onChange={() => onToggle(perm.key)}
-                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-[hsl(var(--border))] accent-(--brand-primary) cursor-pointer disabled:cursor-default"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">
-                        {perm.name || perm.key}
-                      </p>
-                      {perm.description && (
-                        <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5 leading-relaxed">
-                          {perm.description}
-                        </p>
-                      )}
-                    </div>
-                  </label>
-                );
-              })}
-          </div>
-        </Card>
-      ))}
     </div>
   );
 }
