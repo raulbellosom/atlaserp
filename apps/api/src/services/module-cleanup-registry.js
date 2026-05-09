@@ -15,7 +15,7 @@
 const handlers = new Map()
 
 export function registerModuleHandler(moduleKey, { count, purge }) {
-  if (!moduleKey || typeof count !== 'function' || typeof purge !== 'function') {
+  if (!moduleKey || typeof moduleKey !== 'string' || typeof count !== 'function' || typeof purge !== 'function') {
     throw new Error(`registerModuleHandler: invalid handler for ${moduleKey}`)
   }
   handlers.set(moduleKey, { count, purge })
@@ -36,6 +36,7 @@ export function listRegisteredHandlers() {
 
 registerModuleHandler('atlas.ledger', {
   async count({ prisma, companyId }) {
+    if (!companyId) throw new Error('atlas.ledger handler: companyId is required')
     const movements = await prisma.ledgerMovement.count({ where: { companyId } })
     const accounts = await prisma.ledgerAccount.count({ where: { companyId } })
     return [
@@ -45,6 +46,7 @@ registerModuleHandler('atlas.ledger', {
   },
 
   async purge({ tx, companyId }) {
+    if (!companyId) throw new Error('atlas.ledger handler: companyId is required')
     const { count: movementsDeleted } = await tx.ledgerMovement.deleteMany({
       where: { companyId },
     })
