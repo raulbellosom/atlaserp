@@ -10,6 +10,15 @@ export const contactsMap = createModuleManifest({
   category: "operaciones",
   summary: "Clientes, proveedores, personas y empresas",
   dependencies: [{ key: "atlas.core" }, { key: "atlas.identity" }],
+  lifecycle: {
+    installable: true,
+    uninstallable: true,
+    resettable: false,
+    supportsDataPurge: false,
+    defaultUninstallPolicy: "preserve-data",
+    ownedEntities: ["Contact"],
+    sharedEntities: ["Company", "AuditLog"],
+  },
   navigation: [
     {
       label: "Contactos",
@@ -97,6 +106,15 @@ export const financeMap = createModuleManifest({
     { key: "atlas.core" },
     { key: "atlas.contacts", optional: true },
   ],
+  lifecycle: {
+    installable: true,
+    uninstallable: true,
+    resettable: false,
+    supportsDataPurge: false,
+    defaultUninstallPolicy: "preserve-data",
+    ownedEntities: ["FinanceAccount", "FinanceJournalEntry", "FinanceJournalLine", "FinanceDocument", "FinanceFxRate", "FinanceTaxRate", "FinanceDocumentApplication"],
+    sharedEntities: ["Company", "Contact", "AuditLog"],
+  },
   navigation: [
     {
       label: "Resumen",
@@ -310,6 +328,15 @@ export const hrMap = createModuleManifest({
   category: "operaciones",
   summary: "GestiÃ³n de personal y expediente",
   dependencies: [{ key: "atlas.core" }, { key: "atlas.files", optional: true }],
+  lifecycle: {
+    installable: true,
+    uninstallable: true,
+    resettable: false,
+    supportsDataPurge: false,
+    defaultUninstallPolicy: "preserve-data",
+    ownedEntities: ["HrEmployee", "HrDepartment", "HrJobTitle"],
+    sharedEntities: ["Company", "UserProfile", "FileAsset", "AuditLog"],
+  },
   navigation: [
     {
       label: "Colaboradores",
@@ -453,4 +480,98 @@ export const hrMap = createModuleManifest({
   ],
 });
 
-export const featureModules = [contactsMap, financeMap, hrMap];
+export const ledgerMap = createModuleManifest({
+  key: "atlas.ledger",
+  name: "Cuentas y Movimientos",
+  description: "Libro auxiliar de cuentas con movimientos y exportacion a PDF y Excel.",
+  version: "0.1.0",
+  icon: "BookOpen",
+  color: "#6366f1",
+  category: "contabilidad",
+  summary: "Libro auxiliar de cuentas y movimientos",
+  dependencies: [{ key: "atlas.core" }, { key: "atlas.identity" }],
+  lifecycle: {
+    installable: true,
+    uninstallable: true,
+    resettable: true,
+    supportsDataPurge: true,
+    defaultUninstallPolicy: "preserve-data",
+    ownedEntities: ["LedgerAccount", "LedgerMovement"],
+    sharedEntities: ["Company", "AuditLog"],
+    purgeStrategy: "service-defined",
+    resetStrategy: "service-defined",
+  },
+  navigation: [
+    {
+      label: "Resumen",
+      path: "/ledger",
+      icon: "LayoutDashboard",
+      layout: "main",
+      permissionKey: "ledger.accounts.read",
+    },
+    {
+      label: "Cuentas",
+      path: "/ledger/accounts",
+      icon: "Wallet",
+      layout: "main",
+      permissionKey: "ledger.accounts.read",
+    },
+    {
+      label: "Movimientos",
+      path: "/ledger/movements",
+      icon: "ArrowRightLeft",
+      layout: "main",
+      permissionKey: "ledger.movements.read",
+    },
+    {
+      label: "Reportes",
+      path: "/ledger/reports",
+      icon: "FileText",
+      layout: "main",
+      permissionKey: "ledger.reports.read",
+    },
+  ],
+  permissions: [
+    { key: "ledger.access", name: "Access Ledger" },
+    { key: "ledger.accounts.read", name: "Read Ledger Accounts" },
+    { key: "ledger.accounts.create", name: "Create Ledger Accounts" },
+    { key: "ledger.accounts.update", name: "Update Ledger Accounts" },
+    { key: "ledger.accounts.delete", name: "Delete Ledger Accounts" },
+    { key: "ledger.movements.read", name: "Read Ledger Movements" },
+    { key: "ledger.movements.create", name: "Create Ledger Movements" },
+    { key: "ledger.movements.cancel", name: "Cancel Ledger Movements" },
+    { key: "ledger.reports.read", name: "Read Ledger Reports" },
+    { key: "ledger.reports.export", name: "Export Ledger Reports" },
+  ],
+  acl: {
+    module: "ledger.access",
+    actions: {
+      "ledger.accounts.read": "ledger.accounts.read",
+      "ledger.accounts.create": "ledger.accounts.create",
+      "ledger.accounts.update": "ledger.accounts.update",
+      "ledger.accounts.delete": "ledger.accounts.delete",
+      "ledger.accounts.enable": "ledger.accounts.delete",
+      "ledger.movements.read": "ledger.movements.read",
+      "ledger.movements.create": "ledger.movements.create",
+      "ledger.movements.cancel": "ledger.movements.cancel",
+      "ledger.reports.read": "ledger.reports.read",
+      "ledger.reports.export": "ledger.reports.export",
+    },
+    models: {
+      LedgerAccount: {
+        read: "ledger.accounts.read",
+        create: "ledger.accounts.create",
+        update: "ledger.accounts.update",
+        delete: "ledger.accounts.delete",
+      },
+      LedgerMovement: {
+        read: "ledger.movements.read",
+        create: "ledger.movements.create",
+        update: "ledger.movements.cancel",
+        delete: "ledger.movements.cancel",
+      },
+    },
+  },
+});
+
+export const featureModules = [contactsMap, financeMap, hrMap, ledgerMap];

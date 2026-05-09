@@ -8,6 +8,7 @@ const prisma = new PrismaClient()
 
 async function upsertModule(manifest) {
   const isCore = manifest.core === true;
+  const lifecycleConfig = manifest.lifecycle ?? null;
   return prisma.atlasModule.upsert({
     where: { key: manifest.key },
     update: {
@@ -18,6 +19,7 @@ async function upsertModule(manifest) {
       core: manifest.core,
       uninstallable: manifest.uninstallable,
       manifest,
+      lifecycleConfig,
       // Core modules are always kept enabled; feature module state is managed by the user
       ...(isCore ? { enabled: true, status: "INSTALLED" } : {}),
     },
@@ -30,6 +32,7 @@ async function upsertModule(manifest) {
       core: manifest.core,
       uninstallable: manifest.uninstallable,
       manifest,
+      lifecycleConfig,
       // Feature modules start as uninstalled so the user installs them via the catalog
       ...(isCore ? {} : { status: "UNINSTALLED", enabled: false }),
     }
