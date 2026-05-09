@@ -15,9 +15,10 @@ export function createAtlasClient({ baseUrl }) {
   }
 
   async function requestBlob(path, options = {}) {
+    const { headers, ...rest } = options;
     const response = await fetch(`${baseUrl}${path}`, {
-      headers: options.headers ?? {},
-      ...options,
+      headers: headers ?? {},
+      ...rest,
     });
     if (!response.ok) {
       const text = await response.text();
@@ -139,8 +140,6 @@ export function createAtlasClient({ baseUrl }) {
         request('/modules', { headers: withAuthHeaders(token) }),
       getAvailable: (token) =>
         request('/modules/available', { headers: withAuthHeaders(token) }),
-      runtime: (token) =>
-        request('/runtime/modules', { headers: withAuthHeaders(token) }),
       install: (manifest, token) =>
         request('/modules/install', {
           method: 'POST',
@@ -171,7 +170,7 @@ export function createAtlasClient({ baseUrl }) {
           method: 'DELETE',
           headers: withAuthHeaders(token),
         }),
-      uninstallDryRun: (key, mode = 'preserve-data', token) =>
+      uninstallDryRun: (key, token, mode = 'preserve-data') =>
         request(`/modules/${encodeURIComponent(key)}/uninstall/dry-run`, {
           method: 'POST',
           headers: withAuthHeaders(token),
