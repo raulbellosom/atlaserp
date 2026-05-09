@@ -11,6 +11,11 @@ export default defineConfig({
   envDir: "../..",
   plugins: [tailwindcss(), react()],
   resolve: {
+    // Prevents duplicate React instances across chunks (e.g. workspace packages
+    // that list react in devDependencies). Without this, Rollup's auto-splitting
+    // can place React in a cross-chunk reference cycle where e.useRef is accessed
+    // before the React module finishes initializing (null reference crash).
+    dedupe: ["react", "react-dom"],
     alias: {
       "@atlas/core": resolve(__dirname, "../../packages/core/src/index.js"),
       "@atlas/maps": resolve(__dirname, "../../packages/maps/src/index.js"),
@@ -20,6 +25,43 @@ export default defineConfig({
         __dirname,
         "../../packages/validators/src/index.js",
       ),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        // Put React into its own chunk so it initializes before all other chunks.
+        // Without this, Rollup's auto-splitting can create a circular reference
+        // between the main chunk and AuthProvider's chunk, causing React to be
+        // accessed as null on the first render in production.
+        manualChunks(id) {
+          if (
+            id.includes("/node_modules/react/") ||
+            id.includes("/node_modules/react-dom/") ||
+            id.includes("/node_modules/react-router") ||
+            id.includes("/node_modules/scheduler/")
+          ) {
+            return "react-vendor";
+          }
+          if (id.includes("/node_modules/@supabase/")) {
+            return "supabase-vendor";
+          }
+          if (
+            id.includes("/node_modules/@tanstack/") ||
+            id.includes("/node_modules/zustand/")
+          ) {
+            return "state-vendor";
+          }
+          if (
+            id.includes("/node_modules/@radix-ui/") ||
+            id.includes("/node_modules/@tiptap/") ||
+            id.includes("/node_modules/lucide-react/") ||
+            id.includes("/node_modules/sonner/")
+          ) {
+            return "ui-vendor";
+          }
+        },
+      },
     },
   },
   server: {
