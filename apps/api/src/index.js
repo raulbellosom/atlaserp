@@ -60,6 +60,7 @@ import {
 } from "./services/finance-service.js";
 import { createFinanceDocumentsService } from "./services/finance-documents-service.js";
 import { createHrService, HrServiceError } from "./services/hr-service.js";
+import { createLedgerRouter } from "./routes/ledger.js";
 
 const prisma = new PrismaClient();
 const app = new Hono();
@@ -169,6 +170,7 @@ async function getUserContextByAuthId(authUserId) {
       role: {
         include: {
           permissions: {
+            where: { permission: { active: true } },
             include: {
               permission: {
                 select: { key: true },
@@ -198,6 +200,7 @@ async function getUserContextByAuthId(authUserId) {
   }
   if (isAdmin) {
     const allPermissions = await prisma.permission.findMany({
+      where: { active: true },
       select: { key: true },
     });
     for (const permission of allPermissions) {
@@ -3800,6 +3803,9 @@ app.get(
     }
   },
 );
+
+const ledgerRouter = createLedgerRouter({ prisma, authMiddleware, requirePermission });
+app.route("/ledger", ledgerRouter);
 
 const server = serve({ fetch: app.fetch, port });
 console.log(`Atlas API running on http://localhost:${port}`);
