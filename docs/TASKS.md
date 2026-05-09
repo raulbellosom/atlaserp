@@ -303,3 +303,19 @@ Plan: `docs/superpowers/plans/2026-05-08-rbac-granular-phase2.md`
   - [x] Add role x endpoint authorization tests
 
 Verified: 2026-05-08 (`node --test apps/api/src/services/__tests__/rbac-granular-contract.test.js`, `node --check apps/api/src/index.js`, `node --check packages/maps/src/core-modules.js`, `node --check packages/maps/src/feature-modules.js`, `node --check apps/api/src/permission-catalog.js`, `pnpm.cmd --filter ./apps/desktop build:web`)
+
+## SDD Methodology adoption
+
+Spec: `docs/superpowers/specs/2026-05-08-spec-driven-development-design.md`
+Plan: `docs/superpowers/plans/2026-05-08-spec-driven-development.md`
+
+- [x] Create `docs/spec-driven-development.md` (full methodology, 9 sections)
+- [x] Create `docs/superpowers/README.md` (folder index, quick-start, existing spec/plan table)
+- [x] Create `docs/superpowers/templates/feature-spec-template.md` (annotated 28-section skeleton)
+- [x] Create `docs/superpowers/templates/implementation-plan-template.md` (task/checkbox plan skeleton)
+- [x] Create `docs/superpowers/templates/verification-checklist-template.md` (grouped verification checklist)
+- [x] Create `docs/superpowers/templates/decision-log-template.md` (5-field deviation log)
+- [x] Add `## Spec-Driven Development` section to `CLAUDE.md`
+- [x] Add principle #12 to `codex/00_MASTER_PROMPT.md`
+
+Verified: 2026-05-08 (git commit 8249aac — 9 files changed, 1125 insertions; `grep "Spec-Driven" CLAUDE.md` returns section; `grep "spec aprobado" codex/00_MASTER_PROMPT.md` returns principle #12; all 4 template files present in `docs/superpowers/templates/`)
