@@ -58,10 +58,10 @@ export function createModuleLifecycleService({ prisma }) {
       .map((d) => d.key)
       .filter((k) => !byKey.has(k))
     if (missing.length) {
-      throw Object.assign(new Error('DEPENDENCY_NOT_FOUND'), {
-        code: 'DEPENDENCY_NOT_FOUND',
-        keys: [...new Set(missing)],
-      })
+      throw new ModuleLifecycleError(
+        `Dependencias requeridas no encontradas: ${[...new Set(missing)].join(', ')}.`,
+        409
+      )
     }
 
     await tx.moduleDependency.createMany({
@@ -199,7 +199,11 @@ export function createModuleLifecycleService({ prisma }) {
       return upserted
     })
 
-    await syncAdminPermissions(prisma)
+    try {
+      await syncAdminPermissions(prisma)
+    } catch (err) {
+      console.error('[lifecycle] syncAdminPermissions failed after install:', err)
+    }
     return result
   }
 
@@ -394,6 +398,7 @@ export function createModuleLifecycleService({ prisma }) {
     const handler = getModuleHandler(key)
     let ownedEntities = []
     if (handler) {
+      if (!companyId) throw new ModuleLifecycleError('Se requiere companyId para calcular datos del modulo.', 400)
       const counts = await handler.count({ prisma, companyId })
       ownedEntities = mode === 'purge-data'
         ? counts
