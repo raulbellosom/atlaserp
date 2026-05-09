@@ -44,6 +44,7 @@ Esta instancia es exclusiva de Atlas ERP. No se comparte con otros proyectos.
 9. Cada módulo debe declarar permisos, blueprints, navegación y dependencias.
 10. Todo componente visual repetible debe vivir en `packages/ui` o en un componente reusable del módulo.
 11. `SUPABASE_SERVICE_ROLE_KEY` nunca debe llegar al frontend ni a ninguna variable VITE\_.
+12. Antes de implementar cualquier modulo o feature, se requiere un spec aprobado en `docs/superpowers/specs/` y un plan en `docs/superpowers/plans/`. Ver `docs/spec-driven-development.md`.
 
 ## Tono de implementación
 

@@ -181,6 +181,10 @@ Before adding a new feature, read:
 - `docs/08_blueprints.md` - blueprint field types and rendering rules
 - `docs/TASKS.md` - current phase status and roadmap
 
+## Spec-Driven Development
+
+All new features and modules follow the spec -> plan -> implementation -> verification workflow. Implementation must not begin without an approved spec in `docs/superpowers/specs/` and an approved plan in `docs/superpowers/plans/`. See `docs/spec-driven-development.md` for the full methodology, required spec sections, module checklist, and agent mode rules.
+
 ## Development phases (current state)
 
 See `docs/TASKS.md` for the full phased roadmap.
