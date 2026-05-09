@@ -396,35 +396,37 @@ export default function PermissionFeatureTree({
 
         return (
           <Card key={moduleItem.key} className="p-0 overflow-hidden">
-            {/* Collapsible module header */}
-            <button
-              type="button"
-              onClick={() => toggleModule(moduleItem.key)}
-              className="w-full px-4 py-3 glass-subtle border-b border-[hsl(var(--border))] flex items-center gap-3 hover:bg-[hsl(var(--muted))]/30 transition-colors text-left"
-            >
-              {isOpen ? (
-                <ChevronDown className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
-              ) : (
-                <ChevronRight className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
-              )}
+            {/* Collapsible module header — split into a button + sibling switch to avoid button-in-button */}
+            <div className="w-full px-4 py-3 glass-subtle border-b border-[hsl(var(--border))] flex items-center gap-3 hover:bg-[hsl(var(--muted))]/30 transition-colors">
+              <button
+                type="button"
+                onClick={() => toggleModule(moduleItem.key)}
+                className="flex items-center gap-3 flex-1 text-left min-w-0"
+              >
+                {isOpen ? (
+                  <ChevronDown className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
+                )}
 
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold uppercase tracking-[0.15em] text-[hsl(var(--foreground))]">
-                  {moduleItem.label}
-                </p>
-                <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 tabular-nums">
-                  {moduleSelected}/{allModKeys.length} asignados
-                </p>
-              </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold uppercase tracking-[0.15em] text-[hsl(var(--foreground))]">
+                    {moduleItem.label}
+                  </p>
+                  <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 tabular-nums">
+                    {moduleSelected}/{allModKeys.length} asignados
+                  </p>
+                </div>
+              </button>
 
-              {/* Bulk switch — stopPropagation so it doesn't toggle collapse */}
+              {/* Bulk switch lives outside the collapse button to avoid nested buttons */}
               <BulkSwitch
                 selectedCount={moduleSelected}
                 totalCount={allModKeys.length}
                 disabled={disabled}
                 onToggle={(checked) => onBulkToggle(allModKeys, checked)}
               />
-            </button>
+            </div>
 
             {/* Feature groups (visible when open) */}
             {isOpen && (

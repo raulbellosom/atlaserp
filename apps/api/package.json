@@ -15,8 +15,10 @@
     "@hono/node-server": "latest",
     "@prisma/client": "^6",
     "@supabase/supabase-js": "^2.105.1",
+    "exceljs": "^4.4.0",
     "hono": "latest",
     "jszip": "^3.10.1",
+    "pdfkit": "^0.18.0",
     "zod": "latest"
   }
 }

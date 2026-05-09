@@ -73,7 +73,7 @@ export function FinanceFxRates({ token }) {
   const fxRates = fxRatesQuery.data?.data ?? [];
   const accounts = accountsQuery.data?.data ?? [];
   const currencyOptions = resolveCurrencyOptions(accounts);
-  const pageMeta = SECTION_META.fxRates;
+  const pageMeta = SECTION_META["fx-rates"];
 
   function handleSubmitFxRate(event) {
     event.preventDefault();

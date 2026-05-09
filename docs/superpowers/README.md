@@ -52,3 +52,4 @@ If the implementation deviates from the spec, write a decision log using `templa
 | 2026-05-05 | Phase 9 HR v2 Org Chart | [spec](specs/2026-05-05-phase9-hr-v2-orgchart-design.md) | [plan](plans/2026-05-05-phase9-hr-v2-orgchart.md) |
 | 2026-05-08 | RBAC Granular Phase 2 | [spec](specs/2026-05-08-rbac-granular-phase2-design.md) | [plan](plans/2026-05-08-rbac-granular-phase2.md) |
 | 2026-05-08 | SDD Methodology | [spec](specs/2026-05-08-spec-driven-development-design.md) | — |
+| 2026-05-09 | atlas.ledger — Cuentas y Movimientos | [spec](specs/2026-05-09-atlas-ledger-design.md) | — |

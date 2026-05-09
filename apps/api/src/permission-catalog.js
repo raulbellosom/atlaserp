@@ -7,6 +7,7 @@ const GROUPS = {
   contacts: "Contactos",
   finance: "Finanzas",
   hr: "Recursos Humanos",
+  ledger: "Libro Auxiliar",
   audit: "Bitacora",
 };
 
@@ -19,11 +20,15 @@ const MODULE_LABELS = {
   contacts: "Contactos",
   finance: "Finanzas",
   hr: "Recursos Humanos",
+  ledger: "Libro Auxiliar",
   audit: "Bitacora",
 };
 
 const FEATURE_LABELS = {
   general: "General",
+  accounts: "Cuentas del libro auxiliar",
+  movements: "Movimientos",
+  reports: "Reportes y exportacion",
   modules: "Modulos",
   instance: "Configuracion de instancia",
   users: "Usuarios",
@@ -63,6 +68,8 @@ const ACTION_LABELS = {
   send: "Enviar",
   manage: "Administrar",
   reverse: "Revertir",
+  cancel: "Cancelar",
+  export: "Exportar",
 };
 
 export const PERMISSION_CATALOG = {
@@ -743,6 +750,66 @@ export const PERMISSION_CATALOG = {
     descriptionEs: "Permite eliminar elementos del organigrama.",
     groupKey: "hr",
     order: 53,
+  },
+  "ledger.access": {
+    displayNameEs: "Acceder al libro auxiliar",
+    descriptionEs: "Permite entrar al modulo de cuentas y movimientos.",
+    groupKey: "ledger",
+    order: 10,
+  },
+  "ledger.accounts.read": {
+    displayNameEs: "Ver cuentas del libro auxiliar",
+    descriptionEs: "Permite consultar el listado de cuentas y sus saldos.",
+    groupKey: "ledger",
+    order: 20,
+  },
+  "ledger.accounts.create": {
+    displayNameEs: "Crear cuentas del libro auxiliar",
+    descriptionEs: "Permite crear nuevas cuentas en el libro auxiliar.",
+    groupKey: "ledger",
+    order: 30,
+  },
+  "ledger.accounts.update": {
+    displayNameEs: "Editar cuentas del libro auxiliar",
+    descriptionEs: "Permite modificar nombre, tipo y descripcion de cuentas.",
+    groupKey: "ledger",
+    order: 40,
+  },
+  "ledger.accounts.delete": {
+    displayNameEs: "Deshabilitar cuentas del libro auxiliar",
+    descriptionEs: "Permite habilitar o deshabilitar cuentas del libro auxiliar.",
+    groupKey: "ledger",
+    order: 50,
+  },
+  "ledger.movements.read": {
+    displayNameEs: "Ver movimientos del libro auxiliar",
+    descriptionEs: "Permite consultar movimientos de cualquier cuenta.",
+    groupKey: "ledger",
+    order: 60,
+  },
+  "ledger.movements.create": {
+    displayNameEs: "Crear movimientos del libro auxiliar",
+    descriptionEs: "Permite registrar abonos y cargos en cuentas del libro auxiliar.",
+    groupKey: "ledger",
+    order: 70,
+  },
+  "ledger.movements.cancel": {
+    displayNameEs: "Cancelar movimientos del libro auxiliar",
+    descriptionEs: "Permite cancelar movimientos registrados con motivo de cancelacion.",
+    groupKey: "ledger",
+    order: 80,
+  },
+  "ledger.reports.read": {
+    displayNameEs: "Ver reportes del libro auxiliar",
+    descriptionEs: "Permite consultar el resumen y filtros de reportes del libro auxiliar.",
+    groupKey: "ledger",
+    order: 90,
+  },
+  "ledger.reports.export": {
+    displayNameEs: "Exportar reportes del libro auxiliar",
+    descriptionEs: "Permite exportar movimientos a Excel y PDF.",
+    groupKey: "ledger",
+    order: 100,
   },
 };
 

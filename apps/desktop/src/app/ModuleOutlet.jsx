@@ -103,6 +103,24 @@ const SCREEN_MAP = {
   "atlas.hr:/hr/catalogs": lazy(
     () => import("../modules/atlas.hr/screens/HrScreen.jsx"),
   ),
+  "atlas.ledger:/": lazy(
+    () => import("../modules/atlas.ledger/screens/LedgerScreen.jsx"),
+  ),
+  "atlas.ledger:/ledger": lazy(
+    () => import("../modules/atlas.ledger/screens/LedgerScreen.jsx"),
+  ),
+  "atlas.ledger:/ledger/accounts": lazy(
+    () => import("../modules/atlas.ledger/screens/LedgerScreen.jsx"),
+  ),
+  "atlas.ledger:/ledger/accounts/:id": lazy(
+    () => import("../modules/atlas.ledger/screens/LedgerScreen.jsx"),
+  ),
+  "atlas.ledger:/ledger/movements": lazy(
+    () => import("../modules/atlas.ledger/screens/LedgerScreen.jsx"),
+  ),
+  "atlas.ledger:/ledger/reports": lazy(
+    () => import("../modules/atlas.ledger/screens/LedgerScreen.jsx"),
+  ),
   "atlas.identity:/": lazy(
     () => import("../modules/atlas.identity/screens/IdentityOverview.jsx"),
   ),
@@ -207,6 +225,9 @@ function resolveScreen(moduleKey, subPath) {
   }
   if (moduleKey === "atlas.hr" && subPath.startsWith("/hr/employees/")) {
     return SCREEN_MAP["atlas.hr:/hr/employees/:id"] ?? null;
+  }
+  if (moduleKey === "atlas.ledger" && subPath.startsWith("/ledger/accounts/")) {
+    return SCREEN_MAP["atlas.ledger:/ledger/accounts/:id"] ?? null;
   }
   if (subPath === "/") return SCREEN_MAP[`${moduleKey}:/`] ?? null;
   return null;
