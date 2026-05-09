@@ -7,6 +7,7 @@ import { getPermissionPresentation } from '../apps/api/src/permission-catalog.js
 const prisma = new PrismaClient()
 
 async function upsertModule(manifest) {
+  const isCore = manifest.core === true;
   return prisma.atlasModule.upsert({
     where: { key: manifest.key },
     update: {
@@ -16,8 +17,9 @@ async function upsertModule(manifest) {
       kind: manifest.kind,
       core: manifest.core,
       uninstallable: manifest.uninstallable,
-      enabled: true,
-      manifest
+      manifest,
+      // Core modules are always kept enabled; feature module state is managed by the user
+      ...(isCore ? { enabled: true, status: "INSTALLED" } : {}),
     },
     create: {
       key: manifest.key,
@@ -27,7 +29,9 @@ async function upsertModule(manifest) {
       kind: manifest.kind,
       core: manifest.core,
       uninstallable: manifest.uninstallable,
-      manifest
+      manifest,
+      // Feature modules start as uninstalled so the user installs them via the catalog
+      ...(isCore ? {} : { status: "UNINSTALLED", enabled: false }),
     }
   })
 }
@@ -68,16 +72,37 @@ async function main() {
         update: {
           name: presentation.name,
           description: presentation.description,
-          moduleId: module.id
+          moduleId: module.id,
+          moduleKey: manifest.key,
         },
         create: {
           key: permission.key,
           name: presentation.name,
           description: presentation.description,
-          moduleId: module.id
+          moduleId: module.id,
+          moduleKey: manifest.key,
         }
       })
     }
+  }
+
+  // Set active=false for permissions belonging to uninstalled or disabled modules.
+  // This ensures feature module permissions are not effective until the module is installed.
+  const uninstalledModules = await prisma.atlasModule.findMany({
+    where: {
+      OR: [
+        { status: { not: "INSTALLED" } },
+        { enabled: false },
+      ],
+    },
+    select: { id: true },
+  })
+  if (uninstalledModules.length > 0) {
+    const uninstalledIds = uninstalledModules.map((m) => m.id)
+    await prisma.permission.updateMany({
+      where: { moduleId: { in: uninstalledIds } },
+      data: { active: false },
+    })
   }
 
   const obsoletePermissions = await prisma.permission.findMany({
