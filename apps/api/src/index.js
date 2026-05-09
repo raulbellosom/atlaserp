@@ -1514,7 +1514,9 @@ app.get(
   requirePermission("identity.permissions.read"),
   async (c) => {
     try {
+      const includeInactive = c.req.query('includeInactive') === 'true'
       const permissions = await prisma.permission.findMany({
+        where: includeInactive ? {} : { active: true },
         orderBy: [{ moduleId: "asc" }, { key: "asc" }],
       });
       const grouped = groupPermissionsForUi(permissions);
@@ -1644,7 +1646,7 @@ app.patch(
         ? body.permissionKeys
         : [];
       const permissions = await prisma.permission.findMany({
-        where: { key: { in: permissionKeys } },
+        where: { key: { in: permissionKeys }, active: true },
         select: { id: true },
       });
       await prisma.$transaction([
