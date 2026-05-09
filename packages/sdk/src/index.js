@@ -4,6 +4,30 @@ export function createAtlasClient({ baseUrl }) {
     return { ...headers, Authorization: `Bearer ${token}` };
   }
 
+  function toQueryString(query) {
+    if (!query) return "";
+    const params = new URLSearchParams();
+    Object.entries(query).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) params.set(k, String(v));
+    });
+    const s = params.toString();
+    return s ? `?${s}` : "";
+  }
+
+  async function requestBlob(path, options = {}) {
+    const response = await fetch(`${baseUrl}${path}`, {
+      headers: options.headers ?? {},
+      ...options,
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      const error = new Error(text || `Atlas API error ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    return response.blob();
+  }
+
   async function request(path, options = {}) {
     const isFormData = options.body instanceof FormData;
     const response = await fetch(`${baseUrl}${path}`, {
@@ -112,33 +136,63 @@ export function createAtlasClient({ baseUrl }) {
     },
     modules: {
       list: (token) =>
-        request("/modules", {
-          headers: withAuthHeaders(token),
-        }),
+        request('/modules', { headers: withAuthHeaders(token) }),
+      getAvailable: (token) =>
+        request('/modules/available', { headers: withAuthHeaders(token) }),
       runtime: (token) =>
-        request("/runtime/modules", {
-          headers: withAuthHeaders(token),
-        }),
+        request('/runtime/modules', { headers: withAuthHeaders(token) }),
       install: (manifest, token) =>
-        request("/modules/install", {
-          method: "POST",
+        request('/modules/install', {
+          method: 'POST',
           headers: withAuthHeaders(token),
           body: JSON.stringify({ manifest }),
         }),
-      uninstall: (key, token) =>
-        request(`/modules/${encodeURIComponent(key)}`, {
-          method: "DELETE",
+      sync: (token) =>
+        request('/modules/sync', {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+        }),
+      getLifecycle: (key, token) =>
+        request(`/modules/${encodeURIComponent(key)}/lifecycle`, {
           headers: withAuthHeaders(token),
         }),
       disable: (key, token) =>
         request(`/modules/${encodeURIComponent(key)}/disable`, {
-          method: "POST",
+          method: 'POST',
           headers: withAuthHeaders(token),
         }),
       enable: (key, token) =>
         request(`/modules/${encodeURIComponent(key)}/enable`, {
-          method: "POST",
+          method: 'POST',
           headers: withAuthHeaders(token),
+        }),
+      uninstall: (key, token) =>
+        request(`/modules/${encodeURIComponent(key)}`, {
+          method: 'DELETE',
+          headers: withAuthHeaders(token),
+        }),
+      uninstallDryRun: (key, mode = 'preserve-data', token) =>
+        request(`/modules/${encodeURIComponent(key)}/uninstall/dry-run`, {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ mode }),
+        }),
+      uninstallExplicit: (key, mode, confirmation, token) =>
+        request(`/modules/${encodeURIComponent(key)}/uninstall`, {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ mode, confirmation }),
+        }),
+      resetDryRun: (key, token) =>
+        request(`/modules/${encodeURIComponent(key)}/reset/dry-run`, {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+        }),
+      reset: (key, confirmation, token) =>
+        request(`/modules/${encodeURIComponent(key)}/reset`, {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ confirmation }),
         }),
     },
     runtime: {
@@ -622,6 +676,58 @@ export function createAtlasClient({ baseUrl }) {
           method: "DELETE",
           headers: withAuthHeaders(token),
         }),
+    },
+    ledger: {
+      listAccounts: (token, options = {}) =>
+        request(`/ledger/accounts${toQueryString(options)}`, { headers: withAuthHeaders(token) }),
+      createAccount: (data, token) =>
+        request("/ledger/accounts", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      getAccount: (id, token) =>
+        request(`/ledger/accounts/${encodeURIComponent(id)}`, { headers: withAuthHeaders(token) }),
+      updateAccount: (id, data, token) =>
+        request(`/ledger/accounts/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      setAccountEnabled: (id, enabled, token) =>
+        request(`/ledger/accounts/${encodeURIComponent(id)}/enabled`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ enabled }),
+        }),
+      listAccountMovements: (id, token, query = {}) =>
+        request(`/ledger/accounts/${encodeURIComponent(id)}/movements${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+      createMovement: (id, data, token) =>
+        request(`/ledger/accounts/${encodeURIComponent(id)}/movements`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      cancelMovement: (id, data, token) =>
+        request(`/ledger/movements/${encodeURIComponent(id)}/cancel`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      listAllMovements: (token, query = {}) =>
+        request(`/ledger/movements${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+      getSummary: (token) =>
+        request("/ledger/summary", { headers: withAuthHeaders(token) }),
+      getReportSummary: (token, query = {}) =>
+        request(`/ledger/reports/summary${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+      exportAccountExcel: (id, token, query = {}) =>
+        requestBlob(`/ledger/accounts/${encodeURIComponent(id)}/export/excel${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+      exportAccountPdf: (id, token, query = {}) =>
+        requestBlob(`/ledger/accounts/${encodeURIComponent(id)}/export/pdf${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+      exportMovementsExcel: (token, query = {}) =>
+        requestBlob(`/ledger/movements/export/excel${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+      exportMovementsPdf: (token, query = {}) =>
+        requestBlob(`/ledger/movements/export/pdf${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
     },
   };
 }
