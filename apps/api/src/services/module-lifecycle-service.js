@@ -115,35 +115,54 @@ export function createModuleLifecycleService({ prisma }) {
   // ── Manifest upsert helpers ───────────────────────────────────────────────
 
   async function upsertManifestPermissions(tx, moduleId, moduleKey, permissions = [], activate) {
-    for (const perm of permissions) {
-      const presentation = getPermissionPresentation(perm.key)
-      await tx.permission.upsert({
-        where: { key: perm.key },
-        update: {
-          name: presentation.name,
-          description: presentation.description,
-          moduleId,
-          moduleKey,
-          ...(activate !== undefined ? { active: activate } : {}),
-        },
-        create: {
-          key: perm.key,
+    if (!permissions.length) return
+    const keys = permissions.map((p) => p.key)
+
+    // Insert only new permissions in one batch; skip existing ones
+    await tx.permission.createMany({
+      data: permissions.map((p) => {
+        const presentation = getPermissionPresentation(p.key)
+        return {
+          key: p.key,
           name: presentation.name,
           description: presentation.description,
           moduleId,
           moduleKey,
           active: activate ?? true,
-        },
-      })
-    }
+        }
+      }),
+      skipDuplicates: true,
+    })
+
+    // Sync moduleId, moduleKey, and active for all permissions in one batch
+    await tx.permission.updateMany({
+      where: { key: { in: keys } },
+      data: {
+        moduleId,
+        moduleKey,
+        ...(activate !== undefined ? { active: activate } : {}),
+      },
+    })
   }
 
   async function upsertManifestBlueprints(tx, moduleId, blueprints = []) {
+    if (!blueprints.length) return
+
+    await tx.blueprint.createMany({
+      data: blueprints.map((bp) => ({
+        key: bp.key,
+        moduleId,
+        kind: bp.kind,
+        version: bp.version,
+        schema: bp.schema,
+      })),
+      skipDuplicates: true,
+    })
+
     for (const bp of blueprints) {
-      await tx.blueprint.upsert({
+      await tx.blueprint.update({
         where: { key: bp.key },
-        update: { moduleId, kind: bp.kind, version: bp.version, schema: bp.schema, enabled: true },
-        create: { key: bp.key, moduleId, kind: bp.kind, version: bp.version, schema: bp.schema },
+        data: { moduleId, kind: bp.kind, version: bp.version, schema: bp.schema, enabled: true },
       })
     }
   }
@@ -464,8 +483,9 @@ export function createModuleLifecycleService({ prisma }) {
     let added = 0
     let updated = 0
 
-    await prisma.$transaction(async (tx) => {
-      for (const manifest of manifests) {
+    // Process each module in its own short transaction to avoid timeout on large permission sets
+    for (const manifest of manifests) {
+      await prisma.$transaction(async (tx) => {
         const existing = await tx.atlasModule.findUnique({ where: { key: manifest.key } })
         const isCore = CORE_KEYS.has(manifest.key)
         const lifecycleConfig = manifest.lifecycle ?? null
@@ -500,8 +520,8 @@ export function createModuleLifecycleService({ prisma }) {
         const isInstalled = mod.status === 'INSTALLED' && mod.enabled
         await upsertManifestPermissions(tx, mod.id, manifest.key, manifest.permissions ?? [], isInstalled)
         await upsertManifestBlueprints(tx, mod.id, manifest.blueprints ?? [])
-      }
-    })
+      })
+    }
 
     await writeAuditLog(prisma, {
       action: 'core.module.sync',
