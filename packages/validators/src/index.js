@@ -523,19 +523,19 @@ export const moduleDryRunSchema = z.object({
 export const moduleUninstallSchema = z
   .object({
     mode: z.enum(['preserve-data', 'purge-data']).default('preserve-data'),
-    confirmation: z.string().optional(),
+    confirmation: z.string().trim().optional(),
   })
   .refine(
     (data) => data.mode !== 'purge-data' || data.confirmation === 'ACEPTO',
     {
-      message: 'Para purgar datos debes escribir "ACEPTO" en el campo de confirmacion.',
+      message: 'Para purgar datos debes escribir "ACEPTO" en el campo de confirmación.',
       path: ['confirmation'],
     }
   );
 
 export const moduleResetSchema = z
   .object({
-    confirmation: z.string(),
+    confirmation: z.string().trim(),
   })
   .refine((data) => data.confirmation === 'ACEPTO', {
     message: 'Debes escribir "ACEPTO" para confirmar el reinicio.',
