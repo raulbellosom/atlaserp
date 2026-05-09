@@ -246,6 +246,24 @@ Plan: `docs/superpowers/plans/2026-05-05-phase9-hr.md`
 
 Verified: pending
 
+## Phase 9.5 - Module Lifecycle v2
+
+Spec: `docs/superpowers/specs/2026-05-09-module-lifecycle-v2-and-custom-modules-design.md`
+Plan: `docs/superpowers/plans/2026-05-09-module-lifecycle-v2-and-custom-modules.md`
+
+- [x] `Permission.active`, `Permission.moduleKey`, `AtlasModule.lifecycleConfig` — migration `20260509100000_module_lifecycle_v2`
+- [x] Seed backfill: `active=false` for all permissions belonging to uninstalled/disabled modules
+- [x] `module-cleanup-registry.js` — Map of per-module `{ count, purge }` handlers; atlas.ledger handler registered
+- [x] `module-lifecycle-service.js` — `install`, `disable`, `enable`, `uninstall`, `reset`, `dryRunUninstall`, `dryRunReset`, `syncModules`
+- [x] `getUserContextByAuthId` — `WHERE active = true` filter in both membership and admin permission loads (fail-closed)
+- [x] `routes/modules.js` — 12-endpoint router extracted from `index.js` + new lifecycle endpoints
+- [x] `GET /identity/permissions` — defaults to `active: true` filter; `?includeInactive=true` override available
+- [x] `PATCH /identity/roles/:id/permissions` — only assigns active permissions to roles
+- [x] Manifest v2 lifecycle blocks on all 4 feature manifests (contacts, finance, hr, ledger)
+- [x] SDK `modules` domain expanded: `getAvailable`, `sync`, `getLifecycle`, `uninstallDryRun`, `uninstallExplicit`, `resetDryRun`, `reset`
+
+Verified: 2026-05-09 (`node --check` all 7 modified/created service and route files; `pnpm exec prisma validate` — schema valid; `pnpm build` — full monorepo including Tauri native bundle passes; manual DB steps pending: `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`, and curl smoke tests against running API require stopping dev server for db:generate on Windows)
+
 ## Phase 9 - Future modules
 
 - [ ] Purchases
