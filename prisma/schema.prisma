@@ -76,6 +76,16 @@ enum FinanceApplicationStatus {
   REVERSED
 }
 
+enum LedgerMovementDirection {
+  INCOME
+  EXPENSE
+}
+
+enum LedgerMovementStatus {
+  ACTIVE
+  CANCELLED
+}
+
 model AtlasModule {
   id             String   @id @default(cuid())
   key            String   @unique
@@ -88,6 +98,7 @@ model AtlasModule {
   uninstallable  Boolean  @default(true)
   enabled        Boolean  @default(true)
   manifest       Json
+  lifecycleConfig Json?
   installedAt    DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -162,6 +173,8 @@ model Company {
   hrEmployees    HrEmployee[]
   hrDepartments  HrDepartment[]
   hrJobTitles    HrJobTitle[]
+  ledgerAccounts LedgerAccount[]
+  ledgerMovements LedgerMovement[]
 }
 
 model UserProfile {
@@ -229,7 +242,9 @@ model Permission {
   key         String @unique
   name        String
   moduleId    String?
+  moduleKey   String?
   description String?
+  active      Boolean @default(true)
   createdAt   DateTime @default(now())
 
   module      AtlasModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
@@ -640,4 +655,59 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([createdAt])
+}
+
+model LedgerAccount {
+  id             String   @id @default(cuid())
+  companyId      String
+  name           String
+  type           String   @default("otro")
+  currency       String   @default("MXN")
+  initialBalance Decimal  @default(0)
+  currentBalance Decimal  @default(0)
+  description    String?
+  createdById    String?
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  movements      LedgerMovement[]
+
+  @@unique([companyId, name])
+  @@index([companyId, enabled])
+}
+
+model LedgerMovement {
+  id                 String                  @id @default(cuid())
+  companyId          String
+  accountId          String
+  sequenceNumber     Int
+  occurredAt         DateTime
+  direction          LedgerMovementDirection
+  movementType       String?
+  number             String?
+  name               String?
+  reference          String?
+  concept            String
+  amount             Decimal
+  balanceAfter       Decimal
+  status             LedgerMovementStatus    @default(ACTIVE)
+  cancellationReason String?
+  cancelledAt        DateTime?
+  cancelledById      String?
+  createdById        String?
+  metadata           Json?
+  enabled            Boolean                 @default(true)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  company            Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  account            LedgerAccount           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, sequenceNumber])
+  @@index([companyId, occurredAt])
+  @@index([accountId, occurredAt])
+  @@index([accountId, status])
+  @@index([companyId, status])
 }
