@@ -465,3 +465,79 @@ export const fileBulkDownloadSchema = z.object({
     .max(50, "No puedes seleccionar más de 50 archivos."),
   mode: z.enum(["direct", "zip"]),
 });
+
+export const createLedgerAccountSchema = z.object({
+  name: z.string().trim().min(2, "El nombre es obligatorio.").max(120),
+  type: z.enum(["banco", "caja", "cliente", "proveedor", "otro"]),
+  currency: z.string().trim().length(3).default("MXN"),
+  initialBalance: z.coerce.number().min(0).default(0),
+  description: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+export const updateLedgerAccountSchema = z.object({
+  name: z.string().trim().min(2).max(120).optional(),
+  type: z.enum(["banco", "caja", "cliente", "proveedor", "otro"]).optional(),
+  description: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+export const createLedgerMovementSchema = z.object({
+  occurredAt: z.string().datetime(),
+  direction: z.enum(["INCOME", "EXPENSE"]),
+  movementType: z.string().trim().max(60).optional().or(z.literal("")),
+  number: z.string().trim().max(60).optional().or(z.literal("")),
+  name: z.string().trim().max(140).optional().or(z.literal("")),
+  reference: z.string().trim().max(120).optional().or(z.literal("")),
+  concept: z.string().trim().min(1, "El concepto es obligatorio.").max(500),
+  amount: z.coerce.number().positive("El monto debe ser mayor a cero."),
+});
+
+export const cancelLedgerMovementSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(5, "El motivo debe tener al menos 5 caracteres.")
+    .max(500),
+});
+
+export const ledgerMovementQuerySchema = z.object({
+  dateFrom: z.string().datetime().optional(),
+  dateTo: z.string().datetime().optional(),
+  direction: z.enum(["INCOME", "EXPENSE"]).optional(),
+  status: z.enum(["ACTIVE", "CANCELLED"]).optional(),
+  name: z.string().optional(),
+  reference: z.string().optional(),
+  concept: z.string().optional(),
+  amountMin: z.coerce.number().min(0).optional(),
+  amountMax: z.coerce.number().min(0).optional(),
+  accountId: z.string().cuid().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(500).default(50),
+  orderBy: z.enum(["occurredAt", "sequenceNumber"]).default("occurredAt"),
+  orderDir: z.enum(["asc", "desc"]).default("asc"),
+});
+
+export const moduleDryRunSchema = z.object({
+  mode: z.enum(['preserve-data', 'purge-data']).default('preserve-data'),
+});
+
+export const moduleUninstallSchema = z
+  .object({
+    mode: z.enum(['preserve-data', 'purge-data']).default('preserve-data'),
+    confirmation: z.string().optional(),
+  })
+  .refine(
+    (data) => data.mode !== 'purge-data' || data.confirmation === 'ACEPTO',
+    {
+      message: 'Para purgar datos debes escribir "ACEPTO" en el campo de confirmacion.',
+      path: ['confirmation'],
+    }
+  );
+
+export const moduleResetSchema = z
+  .object({
+    confirmation: z.string(),
+  })
+  .refine((data) => data.confirmation === 'ACEPTO', {
+    message: 'Debes escribir "ACEPTO" para confirmar el reinicio.',
+    path: ['confirmation'],
+  });
