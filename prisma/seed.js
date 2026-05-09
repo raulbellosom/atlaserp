@@ -74,6 +74,7 @@ async function main() {
           description: presentation.description,
           moduleId: module.id,
           moduleKey: manifest.key,
+          active: true,
         },
         create: {
           key: permission.key,
