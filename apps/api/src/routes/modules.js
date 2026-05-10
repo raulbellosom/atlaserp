@@ -90,6 +90,20 @@ function toErrorMessage(error) {
   }
 }
 
+async function resolveSyncActorId(prisma, userContext) {
+  const rawId = userContext?.profile?.id
+  if (typeof rawId !== 'string' || !rawId.trim()) {
+    return null
+  }
+
+  const actorId = rawId.trim()
+  const profile = await prisma.userProfile.findUnique({
+    where: { id: actorId },
+    select: { id: true },
+  })
+  return profile?.id ?? null
+}
+
 function serializeDiscoveredModule(record) {
   return {
     key: record?.key ?? null,
@@ -219,7 +233,7 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
 
   app.post('/sync', authMiddleware, requirePermission('core.modules.create'), async (c) => {
     try {
-      const actorId = c.get('userContext')?.profile?.id ?? null
+      const actorId = await resolveSyncActorId(prisma, c.get('userContext'))
       const discovered = await discoverModules({ rootDir: process.cwd() })
 
       const validModules = discovered.filter((record) => record.status === 'VALID' && record.manifest)
