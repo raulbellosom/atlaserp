@@ -8,6 +8,16 @@ export default defineAtlasModule({
   description: 'Gestion de flota vehicular: vehiculos, mantenimiento y asignacion de conductores.',
   icon: 'Truck',
   dependencies: [{ key: 'atlas.core' }],
+  models: [
+    './models/vehicle.model.js',
+    './models/maintenance.model.js',
+  ],
+  views: [
+    './views/vehicle.table.js',
+    './views/vehicle.form.js',
+    './views/vehicle.detail.js',
+    './views/vehicle.page.js',
+  ],
   lifecycle: {
     installable: true,
     uninstallable: true,

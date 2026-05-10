@@ -29,6 +29,9 @@
                     "prisma:studio":  "prisma studio",
                     "modules:seed":  "node scripts/seed-core-modules.js"
                 },
+    "dependencies":  {
+                         "@atlas/module-engine":  "workspace:*"
+                     },
     "devDependencies":  {
                             "@prisma/client":  "^6",
                             "prisma":  "^6",
