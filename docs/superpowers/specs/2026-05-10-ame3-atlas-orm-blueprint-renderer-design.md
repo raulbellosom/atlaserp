@@ -60,13 +60,15 @@ Additionally, the existing `GET /blueprints` endpoint only serves legacy `Bluepr
 ## 5. Goals
 
 1. When a custom module is installed, the Atlas ORM automatically provisions all physical tables declared via `defineModel` using the existing `module-migration-service.applySqlMigration` — zero Prisma edits required from the module author.
-2. When a custom module is installed, its `api/index.js` Hono router factory is automatically loaded and mounted by the Route Loader — zero manual route mounting in `apps/api/src/index.js`.
+2. When a custom module is installed, its `api/index.js` Hono router factory is automatically loaded and mounted by the Route Loader. The Route Loader initializes synchronously during API boot — after core services are ready and before the server starts listening. A module whose `api/index.js` fails to import must not crash Atlas Core: the Route Loader logs the error, marks `lifecycleConfig.routeLoader.status = 'ERROR'` on the module record, and continues booting (fail-soft per module). Zero manual route mounting in `apps/api/src/index.js`.
 3. The `GET /blueprints` API returns both legacy `Blueprint` rows and `AtlasView` rows, filtered to installed and enabled modules, with module metadata attached.
 4. A new `GET /modules/:key/migrations` endpoint returns the list of applied migrations from `ModuleMigration` for a given module.
 5. The `custom.fleet` module ships `api/index.js` and `fleet-service.js` so that CRUD endpoints for vehicles and maintenance records exist and respond correctly once the module is installed.
 6. `AtlasTable`, `AtlasForm`, `AtlasDetail`, and `AtlasCrudView` React components exist in `@atlas/ui` and can render a blueprint-driven CRUD experience for any TABLE, FORM, and DETAIL blueprint.
 7. The Atlas shell resolves `/app/m/:moduleKey/*` paths by looking up page blueprints from `AtlasView` and rendering the appropriate `AtlasCrudView` or component.
 8. `custom.fleet` works end-to-end: discover → sync → install → physical tables provisioned → routes mounted → shell sidebar links active → vehicle list renders via `AtlasTable` → create/edit form renders via `AtlasForm` — without any edit to `prisma/schema.prisma`, `apps/api/src/index.js`, or any hardcoded screen file.
+
+9. At API boot, the Route Loader scans each installed and enabled module's `components/index.js` (when present) and calls its `register(ComponentRegistry)` export to populate the ComponentRegistry for that module. A module with no `components/index.js` is silently skipped. A module whose `components/index.js` fails to load is handled fail-soft (logged, not fatal). This enables custom column components declared in `AtlasTable` blueprints and custom field components in `AtlasForm` blueprints to be resolved at runtime for modules that provide them.
 
 ---
 
@@ -105,6 +107,7 @@ All user-facing text, labels, placeholders, and messages must be in Spanish. Cod
 
 ### AtlasTable
 - Renders a responsive data table driven by the TABLE blueprint schema.
+- Data is fetched from the endpoint declared at `schema.apiPath` (e.g., `/fleet/vehicles`). The renderer must use `schema.apiPath` as the source of truth; no API path derivation from module key or entity name is allowed.
 - Columns are defined by `schema.columns` — each column entry maps to a field name from the model. Column header is the field's `label` from AtlasField.
 - Supports pagination (page size: 20 default, configurable via blueprint).
 - Supports a single text search bar if `schema.searchable: true` in blueprint.
@@ -114,7 +117,7 @@ All user-facing text, labels, placeholders, and messages must be in Spanish. Cod
 - Error state: displays "No se pudo cargar la informacion." with a retry button.
 - Toolbar: renders action buttons from `schema.actions` filtered by the authenticated user's permissions.
 - Row actions: rendered as a dropdown menu (`...`) per row, listing row-level actions from `schema.rowActions` filtered by permissions.
-- Custom column renderers: if a column declares `component: 'moduleKey:ComponentName'`, the ComponentRegistry resolves and renders the custom component in that cell.
+- Custom column renderers: if a column declares `component: 'moduleKey:ComponentName'`, the ComponentRegistry resolves and renders the custom component in that cell. The ComponentRegistry is populated at boot time from each module's `components/index.js` (see Goal 9).
 
 ### AtlasForm
 - Renders a create/edit form driven by the FORM blueprint schema.
@@ -138,7 +141,7 @@ All user-facing text, labels, placeholders, and messages must be in Spanish. Cod
 - Read-only fields render as text, not input.
 - Submit button: `schema.submitLabel` (Spanish). Cancel button: `schema.cancelLabel` (Spanish).
 - Validation errors: shown inline under each field.
-- Form submission: POST to the module's CRUD endpoint; success → navigate to detail view; error → show error toast.
+- Form submission: POST (create) or PATCH (edit) to the endpoint declared at `schema.apiPath`. The renderer must use `schema.apiPath` as the source of truth; no API path derivation is allowed. Success → navigate to detail view. Error → show error toast.
 
 ### AtlasDetail
 - Renders a read-only detail view driven by the DETAIL blueprint schema.
@@ -205,6 +208,10 @@ Stores view/page blueprint declarations from `defineView` and `definePage`. Fiel
 - `id`, `moduleKey`, `key` (unique), `modelName` (nullable FK → AtlasModel.name), `type` (e.g. `TABLE`, `FORM`, `DETAIL`, `PAGE`), `title`, `schema` (full JSON snapshot), `enabled`, `createdAt`, `updatedAt`.
 - Indexes: `moduleKey`, `modelName`.
 
+**Required `schema` fields for TABLE, FORM, and DETAIL view types:**
+- `apiPath` (string, required): the API endpoint path for CRUD operations, e.g. `/fleet/vehicles`. The blueprint renderer uses `schema.apiPath` as the source of truth. No API path derivation from module key or entity name is performed by the renderer. View declarations that omit `apiPath` will produce a non-functional blueprint; validation should warn at sync time.
+- Other schema fields vary by type: `columns` for TABLE; `sections` for FORM and DETAIL.
+
 #### ModuleMigration
 Ledger of applied module SQL migrations. Fields include:
 - `id`, `moduleKey`, `filename` (e.g. `fleet_vehicle__abc123def456.sql`), `checksum` (SHA-256 of the SQL text), `appliedAt`.
@@ -217,6 +224,8 @@ None. All four metadata models are already present in `prisma/schema.prisma`. Th
 ### Physical tables (created by Atlas ORM, not in Prisma schema)
 
 For `custom.fleet` as the reference implementation:
+
+**Physical table `updated_at` behavior**: The Atlas ORM generates `updated_at TIMESTAMPTZ NOT NULL DEFAULT now()` for INSERT operations but does not generate PostgreSQL triggers in this phase. The service layer (e.g., `fleet-service.js`) must explicitly include `updated_at = now()` in every UPDATE SQL statement. PostgreSQL trigger generation is a future enhancement (see Section 28).
 
 **`fleet_vehicle`** (created by Atlas ORM on module install)
 - `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`
@@ -263,6 +272,21 @@ Migration safety notes: The existing `prisma/migrations/` history is immutable a
 ---
 
 ## 12. API contract
+
+### Module API router factory contract
+
+Each AME3 module's `api/index.js` must export a default factory function with this exact signature:
+
+```js
+export default function createModuleRouter({ prisma, requirePermission, moduleContext })
+```
+
+Where:
+- `prisma`: the platform Prisma client instance injected by the Route Loader. Module services must receive this instance via their own factory (`createFleetService({ prisma })`). A shared Prisma singleton imported at module level is not permitted.
+- `requirePermission`: the platform permission guard middleware factory, identical to the one used in core API routes.
+- `moduleContext`: `{ moduleKey: string, manifest: object }` — module-specific metadata provided by the Route Loader at mount time.
+
+The Route Loader applies `authMiddleware` globally to the module sub-router before mounting it, so individual route handlers within the module do not specify `authMiddleware` but must use `requirePermission` for permission-based access control.
 
 ### Existing endpoints (behavior extended)
 
@@ -459,10 +483,12 @@ Blueprint-related changes in this spec:
 1. `GET /blueprints` is extended to include `AtlasView` rows in its response. This is a behavioral change on an existing endpoint, not a new blueprint kind.
 
 2. New blueprint kinds introduced by `custom.fleet` views (already declared in `AtlasView` after sync):
-   - `fleet.vehicle.table` — kind: `TABLE`
-   - `fleet.vehicle.form` — kind: `FORM`
-   - `fleet.vehicle.detail` — kind: `DETAIL`
-   - `fleet.vehicles` (page) — type: `PAGE`
+   - `fleet.vehicle.table` — kind: `TABLE`, `schema.apiPath: '/fleet/vehicles'`
+   - `fleet.vehicle.form` — kind: `FORM`, `schema.apiPath: '/fleet/vehicles'`
+   - `fleet.vehicle.detail` — kind: `DETAIL`, `schema.apiPath: '/fleet/vehicles'`
+   - `fleet.vehicle.page` — type: `PAGE` (no `apiPath` required; pages are not data-fetching views)
+
+   The `apiPath` field must be added to the existing `vehicle.table.js`, `vehicle.form.js`, and `vehicle.detail.js` view source files as part of Phase 3. The `vehicle.page.js` file requires no changes.
 
 3. The blueprint renderer components (`AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`) are introduced in `@atlas/ui`. They consume the blueprint schema from `GET /blueprints` and render the appropriate UI.
 
@@ -563,7 +589,7 @@ Additionally, the Atlas ORM execution during module install writes an AuditLog e
 
 4. **Route Loader at API boot with module in ERROR state**: Routes for `ERROR` status modules must not be mounted. The Route Loader filters to `status: INSTALLED AND enabled: true` before loading `api/index.js`.
 
-5. **`api/index.js` import fails**: If a module's `api/index.js` cannot be imported (syntax error, missing dependency), the Route Loader must log the error, set the module's `lifecycleConfig.routeLoader.status = 'ERROR'`, and continue booting. Other modules are unaffected.
+5. **`api/index.js` import fails**: If a module's `api/index.js` cannot be imported (syntax error, missing dependency), the Route Loader must log the error, persist `lifecycleConfig.routeLoader.status = 'ERROR'` on the module's `AtlasModule` record in the database, and continue booting. Other modules are unaffected. The Route Loader initialization is synchronous — it runs at boot and awaits all module load attempts (including failed ones) before the HTTP server starts listening. A broken module never prevents Atlas Core from becoming healthy.
 
 6. **Blueprint key collision between `Blueprint` table and `AtlasView`**: If the same `key` exists in both tables, the `AtlasView` record takes precedence (AME3 source wins over legacy). A warning is logged.
 
@@ -599,6 +625,8 @@ Additionally, the Atlas ORM execution during module install writes an AuditLog e
 
 8. **Risk: Route Loader adds startup latency proportional to the number of installed modules.** Mitigation: Routes are loaded once at boot, not per-request. The number of custom modules is expected to be small (under 50) in initial deployments. Route loading is parallelized.
 
+9. **Risk: `updated_at` column staleness in module-owned tables.** The Atlas ORM generates `updated_at TIMESTAMPTZ NOT NULL DEFAULT now()` for INSERT operations but provides no PostgreSQL trigger for UPDATE operations. If a module service's UPDATE statement omits `updated_at = now()`, the column retains the INSERT timestamp indefinitely. Mitigation: All UPDATE functions in module services (starting with `fleet-service.js`) must explicitly include `updated_at = now()` in the SQL statement. Code review must verify this for every new service added. PostgreSQL trigger generation is deferred to a future phase (see Section 28).
+
 ---
 
 ## 25. Acceptance criteria
@@ -632,6 +660,10 @@ Additionally, the Atlas ORM execution during module install writes an AuditLog e
 14. Given `node --check modules/custom/custom.fleet/api/index.js` and `node --check modules/custom/custom.fleet/api/fleet-service.js`, both exit 0.
 
 15. Given `pnpm --filter ./apps/desktop build:web`, the build exits 0 with `AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView` present in the bundle.
+
+16. Given `custom.fleet` is installed and `GET /blueprints` is called by an authenticated user with `fleet.access`, then each fleet blueprint with `source: "atlas-view"` includes `schema.apiPath` as a non-empty string (e.g., `"/fleet/vehicles"`). No fleet blueprint may have an undefined or null `schema.apiPath`.
+
+17. Given a custom module's `api/index.js` contains a deliberate syntax error, when the API boots, then `GET /health` responds 200 and the broken module's `AtlasModule` record has `lifecycleConfig.routeLoader.status = 'ERROR'` in the database. Atlas Core remains fully operational.
 
 ---
 
@@ -712,8 +744,23 @@ pnpm --filter ./apps/desktop build:web
 # Expected: exits 0
 
 # 13. No forbidden file changes
-git diff --name-only HEAD | grep -E "^(apps/api/src/index\.js|prisma/schema\.prisma|prisma/migrations/|apps/desktop/src/)"
-# Expected: empty output (none of those files modified)
+git diff --name-only HEAD | grep -E "^(prisma/schema\.prisma|prisma/migrations/|packages/maps/src/|packages/validators/src/|modules/custom/custom\.fleet/module\.manifest\.js|modules/custom/custom\.fleet/models/)"
+# Expected: empty output
+
+# 14. Blueprint apiPath presence
+curl -s http://localhost:4010/blueprints \
+  -H "Authorization: Bearer $TOKEN" \
+  | jq '[.data[] | select(.source=="atlas-view" and .moduleKey=="custom.fleet") | .schema.apiPath] | all(. != null and . != "")'
+# Expected: true
+
+# 15. Broken-module fail-soft (manual test)
+# Temporarily rename modules/custom/custom.fleet/api/index.js to introduce a load failure,
+# restart the API, verify:
+curl -f http://localhost:4010/health
+# Expected: { "status": "ok" }
+# Then verify in DB: SELECT "lifecycleConfig" FROM "AtlasModule" WHERE key='custom.fleet';
+# Expected: lifecycleConfig.routeLoader.status = 'ERROR'
+# Restore the file and restart before continuing.
 ```
 
 ---
@@ -752,12 +799,14 @@ Migrations involved: **no Prisma migrations in this spec** (none to roll back). 
 2. **Hot-reload Route Loader**: Routes remounted without API restart when a module lifecycle event fires (Phase 4+).
 3. **Full blueprint renderer** (`AtlasTable` with server-side sort, group-by, nested filters; `AtlasForm` with conditional field visibility; `AtlasPage` composition) — Phase 6.
 4. **`AtlasCrudView` inline edit** (edit in the table row without opening a sheet) — Phase 6.
-5. **Custom component key resolution** via ComponentRegistry at runtime (already architecturally designed; full wiring in Phase 4+).
+5. **ComponentRegistry advanced features**: Boot-time registration from each module's `components/index.js` is implemented in Phase 3 (see Goal 9). Advanced features — conditional registration, runtime override, nested component composition, and marketplace-style remote loading — remain deferred to Phase 6. No ZIP upload, eval, or runtime marketplace loading is permitted.
 6. **Fleet vehicle CSV export** (blueprint declares export capability; generic export handler in `AtlasTable`).
 7. **Contact/Employee relation** for `driver_id` field (links to HR employee entity once atlas.hr is migrated to AME3 in Phase 5).
 8. **Audit log timeline** in `AtlasDetail` (embedded audit history panel driven by `AuditLog` records).
 9. **Per-company module enablement** (module installed instance-wide but enabled per company) — major lifecycle feature, deferred.
 10. **Blueprint versioning conflict resolution** (two modules declare blueprints with the same key — last-writer-wins policy documented as a hard error in Phase 3; Phase 4+ will add namespace enforcement).
+
+11. **PostgreSQL trigger generation for `updated_at`**: The Atlas ORM currently generates `CREATE TABLE` DDL without triggers. Phase 3 services update `updated_at` manually in every SQL UPDATE statement. Adding `AFTER UPDATE` triggers via a dedicated migration helper (so module services no longer need to set `updated_at` manually) is deferred to Phase 4+.
 
 ---
 

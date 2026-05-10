@@ -12,7 +12,9 @@ Wire all AME3 Phase 2 foundations (module-migration-service, module-metadata-ser
 
 ## Architecture summary
 
-Phase 3 is a wiring layer. All building blocks exist; this plan connects them. The install lifecycle (Task 1) gains a post-transaction ORM hook that reads persisted `AtlasModel.schema` records and calls `applySqlMigration` for each unprovisioned table. The Route Loader (Task 2) is a new service that, at API boot and after each install/uninstall event, dynamically imports module `api/index.js` router factories and delegates matching paths. The fleet API (Task 3) provides the concrete CRUD endpoints that the Route Loader will mount. The Blueprint API (Task 4) is extended to merge `AtlasView` rows alongside legacy `Blueprint` rows. The `@atlas/ui` blueprint renderer (Task 6) provides four generic React components. The shell (Task 7) adds a `BlueprintCrudScreen` fallback in `ModuleOutlet` that activates for any moduleKey not in the core SCREEN_MAP. Tasks 2 and 7 each require a single one-time modification to `apps/api/src/index.js` and `apps/desktop/src/app/ModuleOutlet.jsx` respectively — these are platform additions, not per-module additions; once in place, new AME3 modules require zero changes to those files (satisfying spec AC 13's intent).
+Phase 3 is a wiring layer. All building blocks exist; this plan connects them.
+
+The **ORM hook** (Task 1) runs after `installModule` succeeds: it reads persisted `AtlasModel.schema` records and calls `applySqlMigration` for each unprovisioned table. The **Route Loader** (Task 2) initializes synchronously at API boot, queries installed+enabled modules, imports each module's `api/index.js` with fail-soft error handling (per-module import failure does not crash the API), applies `authMiddleware` globally to each sub-router, then delegates matching paths. Each module router factory receives injected dependencies `{ prisma, requirePermission, moduleContext }` — no shared Prisma singletons permitted inside module services. The **fleet API** (Task 3) uses `createFleetService({ prisma })` (pure dependency injection) and explicitly sets `updated_at = now()` in every UPDATE statement (no PostgreSQL triggers in this phase). The **`schema.apiPath`** field is the single source of truth for all blueprint renderers — no path derivation from module key or entity name is allowed. The `custom.fleet` view schemas (Task 3a) must be updated to include `apiPath` before the renderer is built. The **`@atlas/ui` blueprint renderer** (Task 6) reads `schema.apiPath` for all data fetching and form submission. The **ComponentRegistry** is populated at boot from each module's `components/index.js` when present (fail-soft). The **shell** (Task 7) adds a `BlueprintCrudScreen` fallback in `ModuleOutlet` for any moduleKey not in the core SCREEN_MAP. Tasks 2 and 7 each require a single one-time modification to `apps/api/src/index.js` and `apps/desktop/src/app/ModuleOutlet.jsx` — platform additions; once in place, new AME3 modules require zero changes to those files.
 
 ---
 
@@ -39,6 +41,9 @@ Phase 3 is a wiring layer. All building blocks exist; this plan connects them. T
 - `packages/sdk/src/index.js` — add `modules.listMigrations`
 - `packages/ui/src/index.js` — re-export atlas-renderer components
 - `apps/desktop/src/app/ModuleOutlet.jsx` — add BlueprintCrudScreen fallback for AME3 custom modules
+- `modules/custom/custom.fleet/views/vehicle.table.js` — add `schema.apiPath`
+- `modules/custom/custom.fleet/views/vehicle.form.js` — add `schema.apiPath`; rename `groups` → `sections`
+- `modules/custom/custom.fleet/views/vehicle.detail.js` — add `schema.apiPath`
 
 ### Forbidden (must not be touched)
 
@@ -49,7 +54,7 @@ Phase 3 is a wiring layer. All building blocks exist; this plan connects them. T
 - `modules/custom/custom.fleet/module.manifest.js` — already correct; not modified
 - `modules/custom/custom.fleet/models/vehicle.model.js` — already correct; not modified
 - `modules/custom/custom.fleet/models/maintenance.model.js` — already correct; not modified
-- `modules/custom/custom.fleet/views/*.js` — already correct; not modified
+- `modules/custom/custom.fleet/views/vehicle.page.js` — no changes needed; PAGE views have no apiPath
 
 ---
 
@@ -65,17 +70,18 @@ After `installModule` succeeds in setting `AtlasModule.status = INSTALLED`, it m
 
 A new endpoint `GET /modules/:key/migrations` returns the ledger of applied migrations for any module.
 
-- [ ] 1.1 At the top of `module-lifecycle-service.js`, import `createModuleMigrationService` from `../services/module-migration-service.js` and instantiate it: `const migrationSvc = createModuleMigrationService({ prisma })`
-- [ ] 1.2 Add private async function `applyModuleOrmMigrations({ moduleKey, moduleId, actorId })`:
+- [ ] 1.1 At the top of `module-lifecycle-service.js`, import `createModuleMigrationService` from `'../services/module-migration-service.js'` and instantiate it inside `createModuleLifecycleService`: `const migrationSvc = createModuleMigrationService({ prisma })`
+- [ ] 1.2 Add private async function `applyModuleOrmMigrations({ moduleKey, actorId })`:
   - Query `prisma.atlasModel.findMany({ where: { moduleKey, enabled: true } })`
-  - If no models found, return early (module has no ORM tables, or sync not yet run)
+  - If no models found, return early — module has no ORM tables or sync has not been run
   - Call `migrationSvc.planModelMigrations({ moduleKey, models: atlasModels.map(m => m.schema) })`
-  - For each plan item with `shouldApply: true`, call `migrationSvc.applySqlMigration({ moduleKey, filename, sql })`
-  - For each successfully applied migration, write audit log with action `atlas.orm.migrate` and payload `{ moduleKey, filename, tableName: item.tableName, checksum: item.checksum }`
-  - On any error, propagate it so `installModule` can catch it
-- [ ] 1.3 In `installModule`, after `await syncAdminPermissions(prisma)` succeeds, add a try/catch block that calls `await applyModuleOrmMigrations({ moduleKey: manifest.key, moduleId: result.id, actorId })`
-- [ ] 1.4 In the catch block, set module status to ERROR: `await prisma.atlasModule.update({ where: { key: manifest.key }, data: { status: 'ERROR' } })`; write audit log with action `core.module.orm.error` and the error message; re-throw so the install route returns 500
-- [ ] 1.5 In `apps/api/src/routes/modules.js`, add `GET /:key/migrations` route after the existing `/:key/lifecycle` route:
+  - For each plan item with `shouldApply: true`, call `migrationSvc.applySqlMigration({ moduleKey, filename: item.filename, sql: item.sql })`
+  - For each successfully applied migration, write audit log: `action: 'atlas.orm.migrate'`, payload `{ moduleKey, filename, tableName: item.tableName, checksum: item.checksum }`
+  - Propagate any error so `installModule` can catch it
+- [ ] 1.3 In `installModule`, after `await syncAdminPermissions(prisma)` completes, add a try/catch that calls `await applyModuleOrmMigrations({ moduleKey: manifest.key, actorId })`
+- [ ] 1.4 In the catch block: call `await prisma.atlasModule.update({ where: { key: manifest.key }, data: { status: 'ERROR' } })`; write audit log with `action: 'core.module.orm.error'` and error message; re-throw so the install route returns 500
+- [ ] 1.5 In `apps/api/src/routes/modules.js`, import `createModuleMigrationService` at the top
+- [ ] 1.6 Add `GET /:key/migrations` route after the existing `/:key/lifecycle` route:
   ```js
   app.get('/:key/migrations', authMiddleware, requirePermission('core.modules.read'), async (c) => {
     const key = c.req.param('key')
@@ -86,7 +92,6 @@ A new endpoint `GET /modules/:key/migrations` returns the ledger of applied migr
     return c.json({ data: migrations })
   })
   ```
-- [ ] 1.6 Import `createModuleMigrationService` at the top of `modules.js`
 
 **Validation:**
 
@@ -114,35 +119,38 @@ curl -s http://localhost:4010/modules/custom.fleet/migrations \
 
 **Changes:**
 
-The Route Loader maintains an in-memory map of `moduleKey → Hono app instance`. At API boot, it queries all `INSTALLED + enabled` modules and attempts to dynamically import each module's `api/index.js`. Each imported file must export a default function `createRouter({ prisma, authMiddleware, requirePermission })` returning a Hono app. The Route Loader mounts a catch-all middleware on the main Hono app that inspects the request path prefix and delegates to the appropriate module router.
+The Route Loader maintains an in-memory map of `moduleKey → Hono sub-router`. It initializes synchronously at API boot (awaited before `serve()` is called), queries all `INSTALLED + enabled` modules, and imports each module's `api/index.js` factory with fail-soft error handling: if any module's import fails, that failure is logged, `lifecycleConfig.routeLoader.status = 'ERROR'` is persisted to the `AtlasModule` record in the database, and boot continues. A failed module never prevents Atlas Core from becoming healthy.
 
-Path validation: before importing a module's `api/index.js`, the resolved absolute path must start with the `modules/` directory of the project root. This prevents path traversal.
+Module router factories receive injected dependencies: `{ prisma, requirePermission, moduleContext }`. There is no `authMiddleware` parameter — the Route Loader applies `authMiddleware` globally to each module's sub-router before mounting it, so individual route handlers within module code only call `requirePermission`.
 
-The Route Loader exposes `reloadModule(moduleKey)` and `unloadModule(moduleKey)` for lifecycle integration. These are called from `installModule` and `disableModule` in the lifecycle service.
+At boot, the Route Loader also scans each installed module's directory for `components/index.js`. If present, it imports the file and calls its `register(ComponentRegistry)` export to populate the ComponentRegistry for that module. A missing or failed `components/index.js` is silently skipped (fail-soft).
 
-`apps/api/src/index.js` receives a minimal addition: import `createRouteLoaderService` and call `await routeLoader.initialize(app)` before any route registrations. This is a one-time 3-line addition.
+Path safety: before importing any module file, the resolved absolute path must start with `path.resolve(process.cwd(), 'modules')`. Any path outside this root is rejected.
+
+`apps/api/src/index.js` receives a one-time addition: after the Hono app is created but before any route registrations, import and initialize the Route Loader (3–5 lines total). After this, no further changes to `index.js` are needed for any new AME3 module.
 
 - [ ] 2.1 Create `apps/api/src/services/route-loader-service.js`:
-  - Export `createRouteLoaderService({ prisma })`
-  - Private: `routerMap` = `new Map()` (moduleKey → { router, prefix })
-  - Private: `getModuleApiPath(manifest)` — resolves the module's `api/index.js` path using `manifest.key` to look up the discovery record's `localPath`; alternatively, derive from known convention `modules/custom/${manifest.key}/api/index.js` and `modules/official/${manifest.key}/api/index.js`
-  - Private: `loadRouter(moduleRow)` — dynamic `import(apiPath)`, calls the default export factory with `{ prisma, authMiddleware: null, requirePermission: null }` as stubs (routes bring their own middleware); catches import errors and logs them
-  - Public: `initialize(app)` — queries `prisma.atlasModule.findMany({ where: { status: 'INSTALLED', enabled: true } })`, loads each module's router, registers a delegating middleware on `app`
-  - Public: `reloadModule(moduleKey)` — unloads if present, loads fresh router for that module
+  - Export `createRouteLoaderService({ prisma, authMiddleware, requirePermission })`
+  - Private: `routerMap = new Map()` (moduleKey → Hono sub-router)
+  - Private: `resolveModuleApiPath(moduleRow)` — derives the expected `api/index.js` path from the module's `lifecycleConfig.discovery.localPath` field; falls back to convention `modules/custom/${moduleRow.key}/api/index.js` or `modules/official/${moduleRow.key}/api/index.js`; validates path is under `modules/` root via `path.resolve`
+  - Private: `resolveModuleComponentsPath(moduleRow)` — same derivation for `components/index.js`
+  - Private: async `loadModuleRouter(moduleRow)` — resolves path, validates it, dynamic `import(apiPath)`, calls the default export factory with `{ prisma, requirePermission, moduleContext: { moduleKey: moduleRow.key, manifest: moduleRow.manifest } }`, wraps the returned Hono app with `authMiddleware` applied globally, stores in `routerMap`
+  - Private: async `loadModuleComponents(moduleRow)` — resolves `components/index.js` path; if file exists, imports it and calls `module.register(ComponentRegistry)`; if file missing or import fails, logs and continues
+  - Private: async `markModuleRouteError(moduleKey, errorMessage)` — `prisma.atlasModule.update` to merge `lifecycleConfig.routeLoader = { status: 'ERROR', error: errorMessage, updatedAt: new Date().toISOString() }`
+  - Public: async `initialize(app)` — queries `prisma.atlasModule.findMany({ where: { status: 'INSTALLED', enabled: true }, include: { ... } })`; for each module, calls `loadModuleRouter` inside try/catch (on error: log + `markModuleRouteError`); then calls `loadModuleComponents` inside its own try/catch; after all modules loaded, registers a delegating middleware on `app`
+  - Public: async `reloadModule(moduleKey)` — removes from `routerMap`, re-runs `loadModuleRouter` for that module
   - Public: `unloadModule(moduleKey)` — removes from `routerMap`
-  - Delegating middleware: `app.use('*', async (c, next) => { ... })` — iterates `routerMap`, checks if request path starts with the module's path prefix, delegates if match
-- [ ] 2.2 Add path safety: resolve `apiPath` using `path.resolve`; validate it starts with `path.resolve(process.cwd(), 'modules')`; throw if outside allowed root
-- [ ] 2.3 Add try/catch in `loadRouter`: on import error, log `[route-loader] Failed to load ${moduleKey}: ${err.message}` and store `null` in `routerMap` to mark as failed (skip delegation)
-- [ ] 2.4 In `apps/api/src/index.js` (immediately after the Hono app is created and before route registrations):
+  - Delegating middleware: `app.use('*', async (c, next) => { ... })` — iterates `routerMap` entries; for each, if the request path starts with a registered prefix, delegates to that sub-router and returns; if no match, calls `next()`
+- [ ] 2.2 Add path safety in `resolveModuleApiPath` and `resolveModuleComponentsPath`: call `path.resolve` on derived path; check `resolvedPath.startsWith(path.resolve(process.cwd(), 'modules'))`; throw if outside allowed root
+- [ ] 2.3 In `loadModuleRouter` catch block: log `[route-loader] ${moduleKey}: ${err.message}`; call `await markModuleRouteError(moduleKey, err.message)`; do NOT throw (continue boot)
+- [ ] 2.4 In `apps/api/src/index.js`, after Hono app creation and before any `app.use` / `app.get` / `app.post` calls:
   ```js
   import { createRouteLoaderService } from './services/route-loader-service.js'
-  const routeLoader = createRouteLoaderService({ prisma })
+  const routeLoader = createRouteLoaderService({ prisma, authMiddleware, requirePermission })
   await routeLoader.initialize(app)
   ```
-- [ ] 2.5 Wire `routeLoader.reloadModule` into `installModule` in `module-lifecycle-service.js`: after ORM migrations succeed, call `routeLoader.reloadModule(manifest.key)` if a `routeLoader` instance is available (pass it in as a dependency or use a module-level singleton)
-- [ ] 2.6 Wire `routeLoader.unloadModule` into `disableModule` and `uninstallModule` in `module-lifecycle-service.js`
-
-> **Implementation note on route prefix**: The fleet module's router serves routes under `/fleet/*`. The Route Loader must know each module's path prefix. Approach: the `api/index.js` router factory registers its routes with full paths (e.g., `/fleet/vehicles`), and the Route Loader mounts the router on the app root. The Hono sub-router will only handle paths it has registered handlers for; unmatched paths fall through to `next()`.
+- [ ] 2.5 Pass `routeLoader` into `createModuleLifecycleService` or make it accessible so `installModule` can call `routeLoader.reloadModule(manifest.key)` after ORM migrations succeed
+- [ ] 2.6 Wire `routeLoader.unloadModule(key)` into `disableModule` and `uninstallModule` in `module-lifecycle-service.js`
 
 **Validation:**
 
@@ -150,16 +158,52 @@ The Route Loader exposes `reloadModule(moduleKey)` and `unloadModule(moduleKey)`
 node --check apps/api/src/services/route-loader-service.js
 # Expected: exits 0
 
-# Start API and verify no crash:
+# Start API and verify no crash (even if no custom modules are installed):
 pnpm dev:api &
 sleep 3
 curl -f http://localhost:4010/health
 # Expected: { "status": "ok" }
+
+# Verify boot does not crash when a module's api/index.js is intentionally broken:
+# (introduce a temporary import error, restart, check health)
+# Expected: { "status": "ok" } — broken module marked ERROR, API healthy
 ```
 
 ---
 
-## Task 3 — custom.fleet API (validators, service, router)
+## Task 3a — Fleet View Schema Updates (apiPath + sections rename)
+
+**Files:**
+- Modify: `modules/custom/custom.fleet/views/vehicle.table.js`
+- Modify: `modules/custom/custom.fleet/views/vehicle.form.js`
+- Modify: `modules/custom/custom.fleet/views/vehicle.detail.js`
+
+**Changes:**
+
+All three data-fetching view schemas must include `apiPath: '/fleet/vehicles'`. The renderer uses this field exclusively; no path derivation is allowed. Additionally, `vehicle.form.js` currently uses the key `groups` for field groupings; rename it to `sections` to match the spec's AtlasForm schema contract (`schema.sections`).
+
+- [ ] 3a.1 In `vehicle.table.js`: add `apiPath: '/fleet/vehicles'` to the `schema` object (top-level field alongside `entity`, `component`, `columns`, etc.)
+- [ ] 3a.2 In `vehicle.form.js`: add `apiPath: '/fleet/vehicles'` to the `schema` object; rename the `groups` key to `sections`
+- [ ] 3a.3 In `vehicle.detail.js`: add `apiPath: '/fleet/vehicles'` to the `schema` object
+
+**Validation:**
+
+```bash
+node --check modules/custom/custom.fleet/views/vehicle.table.js
+node --check modules/custom/custom.fleet/views/vehicle.form.js
+node --check modules/custom/custom.fleet/views/vehicle.detail.js
+# Expected: all exit 0
+
+# After sync, verify apiPath is persisted to AtlasView:
+curl -s http://localhost:4010/blueprints \
+  -H "Authorization: Bearer $TOKEN" \
+  | jq '[.data[] | select(.source=="atlas-view" and .moduleKey=="custom.fleet") | .schema.apiPath] | unique'
+# Expected: ["/fleet/vehicles"]
+```
+
+---
+
+## Task 3b — custom.fleet API (validators, service, router)
 
 **Files:**
 - Create: `modules/custom/custom.fleet/validators/index.js`
@@ -168,39 +212,36 @@ curl -f http://localhost:4010/health
 
 **Changes:**
 
-Fleet validators use Zod (not imported from `@atlas/validators` — these are module-local). The fleet service uses `prisma.$queryRaw` with tagged template literals for all database operations; never builds SQL strings via concatenation. All queries include `company_id = ${companyId}` and `enabled = true` (where applicable). Audit log writes use `prisma.auditLog.create`. The Hono router factory exports a default function `createFleetRouter({ prisma, authMiddleware, requirePermission })` returning a configured Hono app.
+Fleet validators use Zod (module-local, not from `@atlas/validators`). The fleet service receives `prisma` via injection (`createFleetService({ prisma })`) — no module-level Prisma singleton. All database operations use `prisma.$queryRaw` with tagged template literals; SQL string concatenation is prohibited. All UPDATE statements must explicitly include `updated_at = now()` — no triggers are generated in this phase. All queries include `company_id = ${companyId}` (company-scoped guard); all vehicle list queries include `enabled = true` (soft-delete filter). Audit log writes use `prisma.auditLog.create`. The Hono router factory signature matches the Route Loader contract: `export default function createFleetRouter({ prisma, requirePermission, moduleContext })`.
 
-The `api/index.js` must not import from `@atlas/module-engine` or any Atlas platform package that is not available at runtime in the module context. It imports from `../validators/index.js` and from `./fleet-service.js` only.
+The `api/index.js` must not import from `@atlas/module-engine` or any Atlas platform package unavailable in the module runtime context. It imports from `../validators/index.js` and `./fleet-service.js` only.
 
-- [ ] 3.1 Create `modules/custom/custom.fleet/validators/index.js`:
-  - `createVehicleSchema`: plate (string, 1–20), brand (string, 1–100), model_name (string, 1–100), year (integer 1900–2100), status (enum active|maintenance|inactive|retired, default 'active'), color (string, optional, hex pattern `^#[0-9a-fA-F]{3,8}$`), driver_id (UUID, optional), notes (string max 5000, optional)
+- [ ] 3b.1 Create `modules/custom/custom.fleet/validators/index.js`:
+  - `createVehicleSchema`: plate (string 1–20), brand (string 1–100), model_name (string 1–100), year (integer 1900–2100), status (enum active|maintenance|inactive|retired, default `'active'`), color (string optional, hex pattern `^#[0-9a-fA-F]{3,8}$`), driver_id (UUID string optional), notes (string max 5000 optional)
   - `updateVehicleSchema`: all fields optional, same constraints
-  - `createMaintenanceSchema`: vehicle_id (UUID), type (enum preventive|corrective|inspection), description (string 1–5000), scheduled_date (ISO date string), completed_date (ISO date string, optional), cost (number >= 0, optional), notes (string, optional)
+  - `createMaintenanceSchema`: vehicle_id (UUID required), type (enum preventive|corrective|inspection), description (string 1–5000), scheduled_date (ISO date string), completed_date (ISO date string optional), cost (number >= 0 optional), notes (string optional)
   - `updateMaintenanceSchema`: all fields optional, same constraints
-- [ ] 3.2 Create `modules/custom/custom.fleet/api/fleet-service.js`:
-  - Export `createFleetService({ prisma })`
-  - `listVehicles({ companyId, page, pageSize, status, search })` — SELECT with pagination, soft-delete filter, company filter
-  - `getVehicle({ companyId, id })` — SELECT by id + company_id, throws 404 if not found or wrong company
-  - `createVehicle({ companyId, data, actorId })` — INSERT + audit log
-  - `updateVehicle({ companyId, id, data, actorId })` — UPDATE + audit log (before/after)
-  - `setVehicleEnabled({ companyId, id, enabled, actorId })` — UPDATE enabled + audit log
-  - `listMaintenance({ companyId, vehicleId, page, pageSize })` — SELECT with pagination
-  - `getMaintenance({ companyId, id })` — SELECT by id + company_id
-  - `createMaintenance({ companyId, data, actorId })` — INSERT + audit log
-  - `updateMaintenance({ companyId, id, data, actorId })` — UPDATE + audit log
-  - `setMaintenanceEnabled({ companyId, id, enabled, actorId })` — UPDATE enabled + audit log
+- [ ] 3b.2 Create `modules/custom/custom.fleet/api/fleet-service.js`:
+  - Export `createFleetService({ prisma })` — prisma is injected, never imported as a singleton
+  - `listVehicles({ companyId, page, pageSize, status, search })` — SELECT with pagination, `WHERE enabled = true AND company_id = $1`, optional status and ILIKE search on plate/brand/model_name
+  - `getVehicle({ companyId, id })` — SELECT by id and company_id; throw `FleetServiceError` 404 if not found
+  - `createVehicle({ companyId, data, actorId })` — INSERT; write `AuditLog` with action `fleet.vehicle.create`
+  - `updateVehicle({ companyId, id, data, actorId })` — UPDATE; SQL must include `updated_at = now()`; write `AuditLog` action `fleet.vehicle.update` with before/after
+  - `setVehicleEnabled({ companyId, id, enabled, actorId })` — UPDATE `enabled` and `updated_at = now()`; write `AuditLog` action `fleet.vehicle.disable` (when enabled=false)
+  - `listMaintenance({ companyId, vehicleId, page, pageSize })` — SELECT with pagination and company_id filter
+  - `getMaintenance({ companyId, id })` — SELECT by id and company_id
+  - `createMaintenance({ companyId, data, actorId })` — INSERT; write `AuditLog` action `fleet.maintenance.create`
+  - `updateMaintenance({ companyId, id, data, actorId })` — UPDATE with `updated_at = now()`; write `AuditLog` action `fleet.maintenance.update`
+  - `setMaintenanceEnabled({ companyId, id, enabled, actorId })` — UPDATE `enabled` and `updated_at = now()`
   - All page/pageSize: clamp page to min 1, pageSize to range 1–100
-  - Company guard: if `companyId` is null/undefined, throw `FleetServiceError` 400
-  - Table-not-exists catch: if `$queryRaw` throws a Postgres error with code `42P01` (undefined_table), throw `FleetServiceError` with message "Las tablas del modulo no estan disponibles aun." and status 503
-- [ ] 3.3 Create `modules/custom/custom.fleet/api/index.js`:
-  - Default export: `export default function createFleetRouter({ prisma, authMiddleware, requirePermission })`
-  - Creates a Hono app; mounts all vehicle and maintenance endpoints
-  - Uses `authMiddleware` and `requirePermission` from the factory params (passed by Route Loader)
+  - Company guard: if `companyId` is null/undefined, throw `FleetServiceError` 400 "companyId es requerido."
+  - Table-not-exists catch: if `$queryRaw` throws a Postgres error code `42P01`, throw `FleetServiceError` 503 "Las tablas del modulo no estan disponibles aun."
+- [ ] 3b.3 Create `modules/custom/custom.fleet/api/index.js`:
+  - `export default function createFleetRouter({ prisma, requirePermission, moduleContext })` — factory receives injected prisma; creates `createFleetService({ prisma })`; creates a Hono app; mounts all vehicle and maintenance endpoints
+  - Each route: extracts `companyId` from `c.get('userContext')?.memberships?.[0]?.companyId`, `actorId` from `c.get('userContext')?.profile?.id`
+  - Validates request body with Zod; returns 400 on failure
+  - Catches `FleetServiceError` and returns its status code + error message
   - Routes: `GET /fleet/vehicles`, `POST /fleet/vehicles`, `GET /fleet/vehicles/:id`, `PATCH /fleet/vehicles/:id`, `PATCH /fleet/vehicles/:id/enabled`, `GET /fleet/maintenance`, `POST /fleet/maintenance`, `GET /fleet/maintenance/:id`, `PATCH /fleet/maintenance/:id`, `PATCH /fleet/maintenance/:id/enabled`
-  - Each route extracts `companyId` from `c.get('userContext')?.memberships?.[0]?.companyId`
-  - Each route extracts `actorId` from `c.get('userContext')?.profile?.id`
-  - Validates request body against the appropriate Zod schema; returns 400 on failure
-  - Returns `FleetServiceError` responses with the service's status code
 
 **Validation:**
 
@@ -215,9 +256,9 @@ node --check modules/custom/custom.fleet/api/index.js
 # Expected: exits 0
 
 # After sync+install, with admin token having fleet permissions:
-curl -s -X GET http://localhost:4010/fleet/vehicles \
+curl -s http://localhost:4010/fleet/vehicles \
   -H "Authorization: Bearer $TOKEN" | jq '.pagination'
-# Expected: { page: 1, pageSize: 20, total: 0 }
+# Expected: { "page": 1, "pageSize": 20, "total": 0 }
 
 curl -s -X POST http://localhost:4010/fleet/vehicles \
   -H "Authorization: Bearer $TOKEN" \
@@ -225,6 +266,13 @@ curl -s -X POST http://localhost:4010/fleet/vehicles \
   -d '{"plate":"ABC-123","brand":"Toyota","model_name":"Hilux","year":2023,"status":"active"}' \
   | jq '.data.plate'
 # Expected: "ABC-123"
+
+# Verify updated_at is set correctly on update:
+curl -s -X PATCH http://localhost:4010/fleet/vehicles/<id> \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"brand":"Mitsubishi"}' | jq '.data.updated_at'
+# Expected: recent ISO datetime (not the original created_at value)
 ```
 
 ---
@@ -232,30 +280,34 @@ curl -s -X POST http://localhost:4010/fleet/vehicles \
 ## Task 4 — Blueprint API Extension
 
 **Files:**
-- Modify: `apps/api/src/index.js` — extend `GET /blueprints` handler (lines ~1903–1919)
+- Modify: `apps/api/src/index.js` — extend `GET /blueprints` handler
 
 **Changes:**
 
 The existing `GET /blueprints` handler queries only the `Blueprint` table. It must be extended to also query `AtlasView` for installed+enabled modules. Both result sets are normalized to the same response shape. A `source` discriminator field is added: `"blueprint"` for legacy rows, `"atlas-view"` for AME3 rows. On key collision, the `AtlasView` row wins. Both sets are filtered by `userCanAccessModule`.
 
-- [ ] 4.1 In the `GET /blueprints` handler, after fetching `blueprints`, add a second query:
+- [ ] 4.1 In the `GET /blueprints` handler, after fetching `blueprints`, query installed modules:
   ```js
   const installedModuleKeys = new Set(
     (await prisma.atlasModule.findMany({
       where: { status: 'INSTALLED', enabled: true },
-      select: { key: true },
+      select: { key: true, version: true, name: true },
     })).map(m => m.key)
   )
+  const installedModuleRows = await prisma.atlasModule.findMany({
+    where: { status: 'INSTALLED', enabled: true },
+    select: { key: true, name: true, version: true, status: true, enabled: true },
+  })
+  const moduleRowsByKey = new Map(installedModuleRows.map(m => [m.key, m]))
   const atlasViews = await prisma.atlasView.findMany({
     where: { enabled: true, moduleKey: { in: [...installedModuleKeys] } },
-    include: { model: true },
   })
   ```
-- [ ] 4.2 Fetch module rows for AtlasView normalization: build a moduleKey→moduleRow map from the existing `blueprints` include (module is already included) plus any additional modules referenced by AtlasView but not in Blueprint results
-- [ ] 4.3 Normalize each Blueprint row: add `source: "blueprint"` field
-- [ ] 4.4 Normalize each AtlasView row to Blueprint-compatible shape:
+- [ ] 4.2 Normalize each existing Blueprint row: add `source: "blueprint"` field (the existing rows already have `module` attached via `include`)
+- [ ] 4.3 Normalize each AtlasView row to the response shape:
   ```js
-  {
+  const moduleRow = moduleRowsByKey.get(view.moduleKey)
+  return {
     id: view.id,
     key: view.key,
     moduleKey: view.moduleKey,
@@ -265,20 +317,20 @@ The existing `GET /blueprints` handler queries only the `Blueprint` table. It mu
     enabled: view.enabled,
     source: 'atlas-view',
     module: {
-      key: moduleRow?.key,
-      name: moduleRow?.name,
-      status: moduleRow?.status,
-      enabled: moduleRow?.enabled,
+      key: moduleRow?.key ?? view.moduleKey,
+      name: moduleRow?.name ?? view.moduleKey,
+      status: moduleRow?.status ?? 'INSTALLED',
+      enabled: moduleRow?.enabled ?? true,
     },
   }
   ```
-- [ ] 4.5 Merge: start with a `Map` keyed by `key`. Add all Blueprint rows first, then add all AtlasView rows (overwriting on key collision). Apply `userCanAccessModule` filter to the merged array.
-- [ ] 4.6 Return `c.json({ data: [...mergedMap.values()] })`
+- [ ] 4.4 Merge: start with a `Map` keyed by blueprint `key`. Insert all Blueprint-normalized rows first, then insert all AtlasView-normalized rows (overwriting on key collision — AtlasView wins). Apply `userCanAccessModule` filter to the merged array values.
+- [ ] 4.5 Return `c.json({ data: [...mergedMap.values()] })`
 
 **Validation:**
 
 ```bash
-# With custom.fleet installed and fleet.access permission:
+# With custom.fleet installed and user has fleet.access:
 curl -s http://localhost:4010/blueprints \
   -H "Authorization: Bearer $TOKEN" \
   | jq '[.data[] | select(.moduleKey=="custom.fleet")] | length'
@@ -286,8 +338,14 @@ curl -s http://localhost:4010/blueprints \
 
 curl -s http://localhost:4010/blueprints \
   -H "Authorization: Bearer $TOKEN" \
-  | jq '[.data[] | select(.source=="atlas-view")] | map(.key)'
-# Expected: includes "fleet.vehicle.table", "fleet.vehicle.form", "fleet.vehicle.detail"
+  | jq '[.data[] | select(.source=="atlas-view" and .moduleKey=="custom.fleet") | .schema.apiPath] | unique'
+# Expected: ["/fleet/vehicles"]
+
+# apiPath presence check across all atlas-view blueprints:
+curl -s http://localhost:4010/blueprints \
+  -H "Authorization: Bearer $TOKEN" \
+  | jq '[.data[] | select(.source=="atlas-view") | .schema.apiPath] | all(. != null and . != "")'
+# Expected: true
 ```
 
 ---
@@ -299,7 +357,7 @@ curl -s http://localhost:4010/blueprints \
 
 **Changes:**
 
-Add `listMigrations(moduleKey, token)` to the `modules` domain in `createAtlasClient`. This calls `GET /modules/:key/migrations`.
+Add `listMigrations(moduleKey, token)` to the `modules` domain in `createAtlasClient`.
 
 - [ ] 5.1 In the `modules` domain object in `createAtlasClient`, add:
   ```js
@@ -330,55 +388,47 @@ node --check packages/sdk/src/index.js
 
 **Changes:**
 
-Four React components that consume blueprint schemas and render working UIs. All text in Spanish. No TypeScript. All imports from React, `@tanstack/react-query`, `react-hook-form`, `zod`, and existing `@atlas/ui` primitives (Button, Input, Skeleton, etc.).
+Four React components that consume blueprint schemas and render working UIs. All user-facing text in Spanish. No TypeScript. Imports from React, `@tanstack/react-query`, `react-hook-form`, `zod`, and existing `@atlas/ui` primitives. All data fetching and form submission uses `blueprint.schema.apiPath` — never derive paths from module key or entity name.
 
 **AtlasTable** accepts `{ blueprint, token, apiBaseUrl }`:
-- Fetches `GET {apiBaseUrl}{blueprint.schema.entityPath}` with TanStack Query
-- Renders a `<table>` with columns from `blueprint.schema.columns`; column headers use `label` from the blueprint column definition
-- Pagination: `page` and `pageSize` state; uses `blueprint.schema.pagination.defaultPageSize` (default 20)
-- Search: renders a text input if `blueprint.schema.searchable: true`; appends `?search=` query param
-- Filters: renders per `blueprint.schema.filters`; select filter → `<select>`, text filter → text input
+- Fetches `GET {apiBaseUrl}{blueprint.schema.apiPath}` with TanStack Query; query key includes `blueprint.key`, `page`, `pageSize`, `search`, active filters
+- Renders a `<table>` with columns from `blueprint.schema.columns`; column headers use column `label`
+- Pagination: `page` and `pageSize` state; uses `blueprint.schema.pagination?.defaultPageSize ?? 20`
+- Search: text input if `blueprint.schema.searchable: true`; appends `?search=` query param
+- Filters: rendered per `blueprint.schema.filters`; select filter → `<select>`, text filter → text input
 - Loading: skeleton rows matching column count; Error: "No se pudo cargar la informacion." with retry; Empty: `blueprint.schema.emptyState?.message ?? "No hay registros."`
-- Toolbar: action buttons from `blueprint.schema.actions` (e.g., "Agregar" → `schema.actions[0]`)
-- Row actions: `...` dropdown per row from `blueprint.schema.rowActions`
+- Toolbar: action buttons from `blueprint.schema.actions`
+- Row actions: `...` dropdown from `blueprint.schema.rowActions`
+- Custom column renderers: look up `ComponentRegistry` by `column.component` key; render custom component if found; fall back to plain text if not registered
 
 **AtlasForm** accepts `{ blueprint, fields, initialData, onSuccess, onCancel, token, apiBaseUrl }`:
-- `fields` is the array of `AtlasField`-shaped objects (from the model's field definitions in the blueprint schema)
-- Uses `react-hook-form` with a Zod schema derived from field `required`, `type`, and `validation` constraints
-- Sections from `blueprint.schema.sections`; each section has `title` and `fields` array (field names)
-- Each field name is looked up in `fields` to get label/type/required/options
-- Field type → component mapping: text/email/phone → Input; number/decimal → number Input; textarea → Textarea; select → Select (from existing `@atlas/ui` SelectField); boolean → checkbox; date/datetime → Input type=date/datetime-local; color → Input type=color; relation → plain text input for now (full relation picker is Phase 6)
-- Required fields: red asterisk via CSS class on label
-- Read-only fields: render as `<span>` not input
-- Submit button: `blueprint.schema.submitLabel ?? "Guardar"`; Cancel: `blueprint.schema.cancelLabel ?? "Cancelar"`
-- On submit: POST or PATCH to `{apiBaseUrl}{blueprint.schema.entityPath}`; success → call `onSuccess(result)`; error → show inline error toast
+- `fields`: array of `AtlasField`-shaped objects (from blueprint schema)
+- Uses `react-hook-form` with Zod schema derived from field definitions
+- Sections from `blueprint.schema.sections`; each section has `label` and `fields` array of field names
+- Field type → component: text/email/phone → Input; number/decimal → number Input; textarea → Textarea; select → SelectField; boolean → checkbox; date/datetime → Input type=date/datetime-local; color → Input type=color; relation → plain text input (full picker is Phase 6)
+- Required fields: red asterisk via label CSS class; read-only → `<span>` not input
+- Submit: POST to `{apiBaseUrl}{blueprint.schema.apiPath}` (create); PATCH to `{apiBaseUrl}{blueprint.schema.apiPath}/:id` (edit)
+- Submit label: `blueprint.schema.submitLabel ?? "Guardar"`; Cancel: `blueprint.schema.cancelLabel ?? "Cancelar"`
+- On success: call `onSuccess(result)`; on error: inline error toast
 
 **AtlasDetail** accepts `{ blueprint, fields, data }`:
-- Sections same structure as AtlasForm
-- Each field renders as a `<dt>` label + `<dd>` value pair
-- Color type: renders a small color swatch
-- Select type: renders the raw value (enum display mapping is Phase 6)
+- Sections same structure as AtlasForm (uses `blueprint.schema.sections`)
+- Each field: `<dt>` label + `<dd>` value pair; color type → small color swatch; select → raw value (enum display is Phase 6)
+- Custom field renderers: look up `ComponentRegistry` by `field.component`; fall back to plain text
 
 **AtlasCrudView** accepts `{ tableBlueprint, formBlueprint, detailBlueprint, fields, token, apiBaseUrl }`:
-- Manages view state: `list | create | detail | edit` (derived from URL sub-path via `useParams`)
-- `list` → renders `AtlasTable` + floating "Agregar" button if create action is present
-- `create` → renders `AtlasForm` in a Sheet (using `@atlas/ui` Sheet primitives if available, else inline)
-- `detail` → renders `AtlasDetail` + Edit button
-- `edit` → renders `AtlasForm` pre-filled with the record's data
-- On successful create/edit: invalidates the TanStack Query cache for the entity list; returns to list view
-- Handles navigation via `useNavigate` from react-router-dom
+- Derives view state (`list | create | detail | edit`) from URL sub-path via `useParams`
+- `list` → `AtlasTable` + "Agregar" button (if create action present in blueprint)
+- `create` → `AtlasForm` in a Sheet or inline panel
+- `detail` → `AtlasDetail` + Edit button (if update action present); fetches record from `{apiBaseUrl}{tableBlueprint.schema.apiPath}/:id`
+- `edit` → `AtlasForm` pre-filled with fetched record data
+- On successful create/edit: invalidates TanStack Query cache for the entity list (`queryKey: [tableBlueprint.schema.apiPath, ...]`); navigates to list view
 
-- [ ] 6.1 Create `packages/ui/src/atlas-renderer/index.js` barrel:
-  ```js
-  export { AtlasTable } from './AtlasTable.jsx'
-  export { AtlasForm } from './AtlasForm.jsx'
-  export { AtlasDetail } from './AtlasDetail.jsx'
-  export { AtlasCrudView } from './AtlasCrudView.jsx'
-  ```
-- [ ] 6.2 Create `AtlasTable.jsx` per the description above; use TanStack Query `useQuery` with `queryKey: ['atlas-entity', blueprint.key, page, pageSize, search, filters]`
-- [ ] 6.3 Create `AtlasForm.jsx` per the description above; derive Zod schema from fields array at render time
-- [ ] 6.4 Create `AtlasDetail.jsx` per the description above
-- [ ] 6.5 Create `AtlasCrudView.jsx` per the description above; compose the three components
+- [ ] 6.1 Create `packages/ui/src/atlas-renderer/index.js` barrel
+- [ ] 6.2 Create `AtlasTable.jsx` — use `blueprint.schema.apiPath` for the fetch URL
+- [ ] 6.3 Create `AtlasForm.jsx` — use `blueprint.schema.apiPath` for POST/PATCH; use `blueprint.schema.sections` for layout
+- [ ] 6.4 Create `AtlasDetail.jsx` — use `blueprint.schema.sections` for layout
+- [ ] 6.5 Create `AtlasCrudView.jsx` — compose all three; derive view state from URL; use `tableBlueprint.schema.apiPath` for cache invalidation key
 - [ ] 6.6 Add to `packages/ui/src/index.js`:
   ```js
   export { AtlasTable, AtlasForm, AtlasDetail, AtlasCrudView } from './atlas-renderer/index.js'
@@ -407,33 +457,29 @@ pnpm --filter ./apps/desktop build:web 2>&1 | tail -5
 
 **Changes:**
 
-`BlueprintCrudScreen` is a generic shell screen that resolves blueprints from `GET /blueprints` and renders `AtlasCrudView`. It reads `moduleKey` and the sub-path from the URL, finds the matching `AtlasView`-sourced blueprints for the entity, and passes them to `AtlasCrudView`.
+`BlueprintCrudScreen` is a generic shell screen. It reads `moduleKey` and the sub-path from the URL, fetches blueprints from `GET /blueprints`, finds the matching blueprints for this module and entity (by matching against `schema.apiPath`), and renders `AtlasCrudView`. It never derives API paths itself — it reads `schema.apiPath` from the blueprint.
 
-`ModuleOutlet.jsx` currently uses a hardcoded `SCREEN_MAP`. The fallback must be added in `resolveScreen()`: if no match is found in `SCREEN_MAP` AND the moduleKey is NOT a known core module key (atlas.core, atlas.identity, atlas.files, atlas.company, atlas.contacts, atlas.finance, atlas.hr, atlas.ledger, atlas.ledger), return the `BlueprintCrudScreen` component.
-
-This means custom modules like `custom.fleet` will naturally fall through to `BlueprintCrudScreen` without any SCREEN_MAP entry needed.
+`ModuleOutlet.jsx`'s `resolveScreen()` function adds a fallback: if no match is found in `SCREEN_MAP` AND the `moduleKey` is not a known core module key, return `BlueprintCrudScreen`. Custom modules like `custom.fleet` fall through to this fallback without any `SCREEN_MAP` entry.
 
 - [ ] 7.1 Create `apps/desktop/src/shell/BlueprintCrudScreen.jsx`:
   - Imports: `useParams`, `useNavigate` from react-router-dom; `useQuery` from @tanstack/react-query; `AtlasCrudView` from `@atlas/ui`; `useAuth` from `../auth/AuthProvider`; `atlas` from `../lib/atlas`
   - Reads `moduleKey` and `*` (wildcard sub-path) from `useParams`
   - Fetches blueprints: `useQuery({ queryKey: ['blueprints'], queryFn: () => atlas.blueprints.list(token) })`
-  - Derives `entityPath`: the first segment of the sub-path (e.g., `vehicles` from `/vehicles` or `/vehicles/new`)
-  - Finds blueprints for this module+entity: filters by `moduleKey` and `key` containing `entityPath`
-  - Finds `tableBlueprint`, `formBlueprint`, `detailBlueprint` by `kind === 'TABLE'|'FORM'|'DETAIL'`
-  - Also finds `fields` from `tableBlueprint.schema.fields` or `formBlueprint.schema.fields`
-  - If `tableBlueprint` not found: renders "Vista no disponible para este modulo."
-  - If module not installed: redirects to `/app/m/atlas.core/modules`
+  - Derives `entitySegment` from the first segment of the wildcard sub-path (e.g., `vehicles` from `/vehicles` or `/vehicles/new`)
+  - Finds TABLE, FORM, DETAIL blueprints for this module: filter by `moduleKey` and `schema.apiPath` containing `entitySegment`
+  - If TABLE blueprint not found: render "Vista no disponible para este modulo."
+  - If module not installed or not enabled: redirect to `/app/m/atlas.core/modules`
   - Renders `<AtlasCrudView tableBlueprint={...} formBlueprint={...} detailBlueprint={...} fields={...} token={token} apiBaseUrl={apiBaseUrl} />`
-- [ ] 7.2 Add `atlas.blueprints.list` method to `packages/sdk/src/index.js` if not already present (check: it may exist under a different name)
+- [ ] 7.2 Verify `atlas.blueprints.list` exists in `packages/sdk/src/index.js`; add it if absent
 - [ ] 7.3 Modify `apps/desktop/src/app/ModuleOutlet.jsx`:
   - Add at the top: `import { BlueprintCrudScreen } from '../shell/BlueprintCrudScreen.jsx'`
-  - Define `CORE_MODULE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company', 'atlas.contacts', 'atlas.finance', 'atlas.hr', 'atlas.ledger'])`
-  - In `resolveScreen(moduleKey, subPath)`, after all existing checks and the final `return null`:
+  - Define: `const CORE_MODULE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company', 'atlas.contacts', 'atlas.finance', 'atlas.hr', 'atlas.ledger'])`
+  - In `resolveScreen(moduleKey, subPath)`, at the end of the function after all existing resolution logic, replace the final `return null` with:
     ```js
     if (!CORE_MODULE_KEYS.has(moduleKey)) return BlueprintCrudScreen
     return null
     ```
-- [ ] 7.4 Ensure `BlueprintCrudScreen` receives the module as a prop or derives it from `useRuntimeModules` to display module name in the page title
+- [ ] 7.4 `BlueprintCrudScreen` should use `useRuntimeModules` to get the module object (for module name in page title, and for availability check)
 
 **Validation:**
 
@@ -441,23 +487,27 @@ This means custom modules like `custom.fleet` will naturally fall through to `Bl
 pnpm --filter ./apps/desktop build:web
 # Expected: exits 0
 
-# Browser test (requires dev server running):
+# Browser test (requires dev server + custom.fleet installed):
 # Navigate to http://localhost:5173/app/m/custom.fleet/vehicles
-# Expected: AtlasCrudView renders AtlasTable with "Vehiculos" heading
-# Expected: columns match field labels from vehicle.model.js (Matricula, Marca, Modelo, Anio, Estado)
+# Expected: AtlasCrudView renders AtlasTable with "Vehiculos" column headers
+# Expected: table fetches from /fleet/vehicles (schema.apiPath)
+# Expected: no hardcoded fleet paths in BlueprintCrudScreen or AtlasCrudView
 ```
 
 ---
 
 ## Task 8 — End-to-End Verification
 
-Run all 13 verification commands from spec section 26 in sequence. Mark this task complete only when all commands produce the expected output.
+Run all 15 verification commands from spec section 26. Mark this task complete only when all commands produce the expected output.
 
-- [ ] 8.1 Syntax check all new files:
+- [ ] 8.1 Syntax check all new/modified source files:
   ```bash
   node --check modules/custom/custom.fleet/api/index.js
   node --check modules/custom/custom.fleet/api/fleet-service.js
   node --check modules/custom/custom.fleet/validators/index.js
+  node --check modules/custom/custom.fleet/views/vehicle.table.js
+  node --check modules/custom/custom.fleet/views/vehicle.form.js
+  node --check modules/custom/custom.fleet/views/vehicle.detail.js
   node --check apps/api/src/services/route-loader-service.js
   # Expected: all exit 0
   ```
@@ -472,26 +522,39 @@ Run all 13 verification commands from spec section 26 in sequence. Mark this tas
   curl -f http://localhost:4010/health
   # Expected: { "status": "ok" }
   ```
-- [ ] 8.4 Sync custom.fleet:
+- [ ] 8.4 Sync custom.fleet (verifies apiPath is persisted to AtlasView):
   ```bash
   curl -s -X POST http://localhost:4010/modules/sync \
     -H "Authorization: Bearer $TOKEN" | jq '.data.valid'
   # Expected: >= 1
   ```
 - [ ] 8.5 Install custom.fleet and verify INSTALLED status
-- [ ] 8.6 Verify ORM provisioned tables via Prisma db execute
+- [ ] 8.6 Verify ORM provisioned both tables via `information_schema.tables` query
 - [ ] 8.7 Verify ModuleMigration rows (2 rows for custom.fleet)
-- [ ] 8.8 Fleet CRUD smoke: GET returns empty list; POST creates vehicle; GET list returns 1
-- [ ] 8.9 Blueprint API returns >= 3 items for custom.fleet with `source: "atlas-view"`
-- [ ] 8.10 Migration listing returns 2 records for custom.fleet
+- [ ] 8.8 Fleet CRUD smoke: GET empty list → POST vehicle → GET list returns 1 → PATCH → verify updated_at changed
+- [ ] 8.9 Blueprint API: fleet blueprints include `source: "atlas-view"` and non-null `schema.apiPath`:
+  ```bash
+  curl -s http://localhost:4010/blueprints \
+    -H "Authorization: Bearer $TOKEN" \
+    | jq '[.data[] | select(.source=="atlas-view" and .moduleKey=="custom.fleet") | .schema.apiPath] | all(. != null and . != "")'
+  # Expected: true
+  ```
+- [ ] 8.10 Migration listing returns 2 records
 - [ ] 8.11 Permission fail-closed: request without fleet permissions returns 403
 - [ ] 8.12 Desktop build exits 0
 - [ ] 8.13 Forbidden file check:
   ```bash
-  git diff --name-only HEAD | grep -E "^(prisma/schema\.prisma|prisma/migrations/|packages/maps/src/|packages/validators/src/|modules/custom/custom\.fleet/module\.manifest\.js|modules/custom/custom\.fleet/models/|modules/custom/custom\.fleet/views/)"
+  git diff --name-only HEAD | grep -E "^(prisma/schema\.prisma|prisma/migrations/|packages/maps/src/|packages/validators/src/|modules/custom/custom\.fleet/module\.manifest\.js|modules/custom/custom\.fleet/models/|modules/custom/custom\.fleet/views/vehicle\.page\.js)"
   # Expected: empty output
   ```
-  > Note: `apps/api/src/index.js` and `apps/desktop/src/app/ModuleOutlet.jsx` ARE modified in this plan as one-time platform additions (Tasks 2 and 7). The verification confirms that fleet-specific and schema files are untouched.
+- [ ] 8.14 apiPath presence across all atlas-view blueprints:
+  ```bash
+  curl -s http://localhost:4010/blueprints \
+    -H "Authorization: Bearer $TOKEN" \
+    | jq '[.data[] | select(.source=="atlas-view") | .schema.apiPath] | all(. != null and . != "")'
+  # Expected: true
+  ```
+- [ ] 8.15 Broken-module fail-soft: introduce a deliberate import error in a test module's `api/index.js`, restart API, verify `GET /health` returns 200; verify module record has `lifecycleConfig.routeLoader.status = 'ERROR'` in DB; restore file
 
 ---
 
@@ -502,11 +565,13 @@ Commit after each task passes its validation. Suggested message format:
 ```
 feat(ame3): wire ORM execution hook into module install lifecycle
 
-feat(ame3): add route-loader-service for dynamic module API mounting
+feat(ame3): add route-loader-service with synchronous boot and fail-soft per module
 
-feat(ame3): add custom.fleet CRUD API (fleet-service + validators + router)
+feat(ame3): add schema.apiPath to fleet view schemas; rename groups to sections
 
-feat(ame3): extend GET /blueprints to include AtlasView rows
+feat(ame3): add custom.fleet CRUD API with injected prisma and manual updated_at
+
+feat(ame3): extend GET /blueprints to include AtlasView rows with source discriminator
 
 feat(ame3): add modules.listMigrations to Atlas SDK
 
@@ -521,10 +586,11 @@ feat(ame3): end-to-end verification of custom.fleet via blueprint renderer
 
 ## Rollback Notes
 
-- **Before Task 1**: Revert `module-lifecycle-service.js` and `modules.js` changes. No data affected (ORM not called yet).
-- **After Task 1 (ORM ran)**: Module tables (`fleet_vehicle`, `fleet_maintenance`) were created with `CREATE TABLE IF NOT EXISTS`. Tables persist — this is intentional (preserve-data). To drop: DBA must execute `DROP TABLE fleet_vehicle; DROP TABLE fleet_maintenance;` manually. To reset ledger: `DELETE FROM "ModuleMigration" WHERE "moduleKey" = 'custom.fleet';`. The module can then be reinstalled cleanly.
-- **Tasks 2–7**: All changes are additive files plus small modifications to `index.js` and `ModuleOutlet.jsx`. Reverting: `git revert` the relevant commits or `git checkout` individual files. No database schema changes are involved.
-- **No Prisma migrations in this plan**: There is nothing to roll back in `prisma/migrations/`.
+- **Before Task 1**: Revert `module-lifecycle-service.js` and `modules.js`. No data affected.
+- **After Task 1 (ORM ran)**: `fleet_vehicle` and `fleet_maintenance` tables were created. Tables persist (preserve-data). To drop: DBA must execute `DROP TABLE fleet_vehicle; DROP TABLE fleet_maintenance;` manually. To reset ledger: `DELETE FROM "ModuleMigration" WHERE "moduleKey" = 'custom.fleet';`.
+- **Task 3a (view schema changes)**: `git checkout modules/custom/custom.fleet/views/` to restore. Re-run sync to push prior schema to AtlasView.
+- **Tasks 2, 3b, 4, 5, 6, 7**: All additive files plus small edits to `index.js` and `ModuleOutlet.jsx`. Reverting: `git revert` the relevant commits or `git checkout` individual files. No database schema changes involved.
+- **No Prisma migrations**: Nothing to roll back in `prisma/migrations/`.
 
 ---
 
@@ -532,9 +598,9 @@ feat(ame3): end-to-end verification of custom.fleet via blueprint renderer
 
 Before marking Phase 3 tasks complete in `docs/TASKS.md`:
 
-- [ ] All task validation commands have been run and produced the expected output.
+- [ ] All 15 task validation commands have been run and produced the expected output.
 - [ ] All commands exited without errors.
 - [ ] `pnpm exec prisma validate` exits 0 (schema unchanged).
 - [ ] `pnpm --filter ./apps/desktop build:web` exits 0.
 - [ ] `git diff HEAD` shows no uncommitted changes.
-- [ ] `docs/TASKS.md` updated with `Verified: 2026-05-10 (all 13 verification commands executed)`.
+- [ ] `docs/TASKS.md` updated with `Verified: 2026-05-10 (all 15 verification commands executed)`.
