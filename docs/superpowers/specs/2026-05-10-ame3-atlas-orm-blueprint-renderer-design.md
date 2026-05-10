@@ -434,9 +434,9 @@ Domain: `atlas.modules` (extended)
 
 Domain: `atlas.fleet` (new, custom.fleet module SDK — optional, modules may add SDK methods via convention)
 
-N/A — custom module SDK methods are declared by the module author in a module-local file. The `@atlas/sdk` package is extended only for platform-level APIs. Fleet CRUD is called directly from `AtlasCrudView` using the blueprint's declared entity API path.
+N/A — custom module SDK methods are declared by the module author in a module-local file. The `@atlas/sdk` package is extended only for platform-level APIs. Fleet CRUD is called directly from `AtlasCrudView` using `schema.apiPath` declared in each blueprint.
 
-Note: The blueprint renderer uses a convention-based API path resolution (`/fleet/vehicles` derived from the entity name and module key) rather than SDK domain calls. This allows any AME3 module to work with the generic renderer without SDK additions.
+**Blueprint renderer API path rule**: The blueprint renderer uses `schema.apiPath` as the single source of truth for all API calls (data fetching, form submission, record retrieval). It must not derive API paths from module keys, entity names, pluralization, or any naming convention. SDK domain methods are not required for generic CRUD: the renderer calls the explicit `schema.apiPath` value declared by each blueprint, making any conforming AME3 module work with the generic renderer without SDK additions.
 
 ---
 
