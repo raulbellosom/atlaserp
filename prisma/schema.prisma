@@ -135,6 +135,72 @@ model Blueprint {
   module      AtlasModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 }
 
+model AtlasModel {
+  id            String @id @default(cuid())
+  moduleKey     String
+  name          String @unique
+  tableName     String @unique
+  label         String
+  pluralLabel   String?
+  companyScoped Boolean @default(true)
+  schema        Json
+  enabled       Boolean @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  fields        AtlasField[]
+  views         AtlasView[]
+
+  @@index([moduleKey])
+}
+
+model AtlasField {
+  id           String @id @default(cuid())
+  modelId      String
+  name         String
+  label        String
+  type         String
+  required     Boolean @default(false)
+  readonly     Boolean @default(false)
+  defaultValue Json?
+  options      Json?
+  relation     Json?
+  validation   Json?
+  order        Int @default(0)
+
+  model        AtlasModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@unique([modelId, name])
+}
+
+model AtlasView {
+  id         String @id @default(cuid())
+  moduleKey  String
+  key        String @unique
+  modelName  String?
+  type       String
+  title      String?
+  schema     Json
+  enabled    Boolean @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  model      AtlasModel? @relation(fields: [modelName], references: [name], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([moduleKey])
+  @@index([modelName])
+}
+
+model ModuleMigration {
+  id        String @id @default(cuid())
+  moduleKey String
+  filename  String
+  checksum  String
+  appliedAt DateTime @default(now())
+
+  @@unique([moduleKey, filename])
+}
+
 model Company {
   id             String          @id @default(cuid())
   name           String

@@ -132,6 +132,26 @@ No route loader/discovery lifecycle is added in this phase.
 - optional relation to `AtlasModel` by `modelName -> name`
 - indexes `@@index([moduleKey])`, `@@index([modelName])`
 
+Canonical relation shape in Prisma (valid and safe):
+
+```prisma
+model AtlasModel {
+  id    String     @id @default(cuid())
+  name  String     @unique
+  views AtlasView[]
+}
+
+model AtlasView {
+  id        String      @id @default(cuid())
+  modelName String?
+  model     AtlasModel? @relation(fields: [modelName], references: [name], onDelete: SetNull, onUpdate: Cascade)
+}
+```
+
+Safety note:
+- `modelName -> AtlasModel.name` is valid in Prisma because `AtlasModel.name` is unique.
+- To avoid cross-module name collisions, `AtlasModel.name` should be persisted as a namespaced identifier (recommended: `<moduleKey>.<modelKey>`).
+
 ### ModuleMigration
 
 - `id String @id @default(cuid())`
@@ -140,6 +160,10 @@ No route loader/discovery lifecycle is added in this phase.
 - `checksum String`
 - `appliedAt DateTime @default(now())`
 - unique `@@unique([moduleKey, filename])`
+
+Tracking adequacy note:
+- This schema is intentionally minimal and is sufficient for phase scope when combined with deterministic `checksum` and immutable SQL file content.
+- It does not store raw SQL text or execution error payloads; those are deferred to a later observability phase if needed.
 
 Migration strategy:
 - Additive Prisma migration only.
@@ -289,6 +313,8 @@ Rollback posture:
 13. No files under `modules/custom/custom.fleet/**` are modified.
 14. No discovery feature is implemented in this phase.
 15. Existing API and desktop builds remain green.
+16. `AtlasView.modelName -> AtlasModel.name` relation compiles in Prisma with nullable FK semantics.
+17. `AtlasModel.name` persistence strategy is namespaced and deterministic for collision safety.
 
 ---
 
@@ -297,6 +323,7 @@ Rollback posture:
 ```bash
 # 1) Prisma schema checks
 pnpm.cmd prisma validate
+pnpm.cmd db:migrate
 pnpm.cmd db:generate
 
 # 2) Migration creation/apply (additive only)
@@ -312,6 +339,10 @@ node --test apps/api/src/services/__tests__/*.test.js
 # 5) API/desktop regression guards
 pnpm.cmd --filter @atlas/api test
 pnpm.cmd --filter ./apps/desktop build:web
+
+# 6) Service import smoke checks (ESM loadability)
+node -e "import('./apps/api/src/services/module-metadata-service.js').then(() => console.log('metadata service import OK'))" --input-type=module
+node -e "import('./apps/api/src/services/module-migration-service.js').then(() => console.log('migration service import OK'))" --input-type=module
 ```
 
 Expected high-level results:
@@ -319,4 +350,3 @@ Expected high-level results:
 - Migration applies without destructive SQL.
 - New service tests pass.
 - No regression in existing build/test guards.
-

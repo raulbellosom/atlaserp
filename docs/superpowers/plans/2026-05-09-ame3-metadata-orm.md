@@ -58,11 +58,13 @@ Changes: add `AtlasModel`, `AtlasField`, `AtlasView`, `ModuleMigration` models w
 - [ ] **1.3 Add `AtlasView` model with optional relation by `modelName -> AtlasModel.name`**
 - [ ] **1.4 Add `ModuleMigration` model**
 - [ ] **1.5 Add required indexes and unique constraints exactly as specified**
+- [ ] **1.6 Persist `AtlasModel.name` as deterministic namespaced key (`<moduleKey>.<modelKey>`) to keep global uniqueness safe**
 
 Validation commands:
 
 ```bash
 pnpm.cmd prisma validate
+pnpm.cmd db:migrate
 pnpm.cmd db:generate
 ```
 
@@ -87,6 +89,7 @@ git commit -m "feat(ame3): add metadata ORM prisma models"
 - [ ] **2.1 Create migration from updated Prisma schema**
 - [ ] **2.2 Review generated SQL for additive-only behavior**
 - [ ] **2.3 Confirm no destructive SQL operations appear**
+- [ ] **2.4 Confirm existing migration history files were not edited**
 
 Validation commands:
 
@@ -98,6 +101,7 @@ Expected output:
 - New migration directory is created.
 - Migration applies without destructive statements.
 - Database and Prisma migration state remain consistent.
+- No changes in previously applied migration directories.
 
 Commit checkpoint:
 
@@ -129,6 +133,7 @@ Validation commands:
 
 ```bash
 node --check apps/api/src/services/module-metadata-service.js
+node -e "import('./apps/api/src/services/module-metadata-service.js').then(() => console.log('metadata service import OK'))" --input-type=module
 ```
 
 Expected output:
@@ -163,6 +168,7 @@ Validation commands:
 
 ```bash
 node --check apps/api/src/services/module-migration-service.js
+node -e "import('./apps/api/src/services/module-migration-service.js').then(() => console.log('migration service import OK'))" --input-type=module
 ```
 
 Expected output:
@@ -253,6 +259,7 @@ Validation commands:
 ```bash
 node --test apps/api/src/services/__tests__/*.test.js
 pnpm.cmd prisma validate
+pnpm.cmd db:migrate
 pnpm.cmd db:generate
 pnpm.cmd --filter ./apps/desktop build:web
 git status --short
@@ -291,4 +298,3 @@ If implementation must be rolled back:
 1. Revert service files and tests.
 2. Create a forward corrective Prisma migration if schema rollback is needed.
 3. Do not rewrite existing migration history.
-
