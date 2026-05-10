@@ -2,7 +2,7 @@
 
 Date: 2026-05-10
 Spec: docs/superpowers/specs/2026-05-10-ame3-atlas-orm-blueprint-renderer-design.md
-Status: Draft
+Status: Approved
 
 > **For agentic workers:** Declare `Mode: IMPLEMENTATION` before starting. Do not begin coding until the spec is approved and this plan is approved. Use checkbox syntax (`- [ ]`) to track progress. Mark each task completed only after its validation commands pass.
 
