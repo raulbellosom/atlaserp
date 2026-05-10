@@ -165,6 +165,135 @@ async function upsertDiscoveredModuleError({ prisma, record }) {
   })
 }
 
+function normalizeManifestDependencies(dependencies = []) {
+  const records = new Map()
+  const safeDependencies = Array.isArray(dependencies) ? dependencies : []
+
+  for (const dep of safeDependencies) {
+    const rawKey = typeof dep === 'string' ? dep : dep?.key
+    if (typeof rawKey !== 'string' || !rawKey.trim()) continue
+
+    const key = rawKey.trim()
+    const versionRange =
+      typeof dep?.versionRange === 'string' && dep.versionRange.trim()
+        ? dep.versionRange.trim()
+        : null
+    const optional = Boolean(dep?.optional)
+
+    const current = records.get(key)
+    if (!current) {
+      records.set(key, { key, optional, versionRange })
+      continue
+    }
+
+    records.set(key, {
+      key,
+      // If any declaration marks this dependency as required, keep required.
+      optional: current.optional && optional,
+      versionRange: versionRange ?? current.versionRange,
+    })
+  }
+
+  return [...records.values()].sort((a, b) => a.key.localeCompare(b.key))
+}
+
+async function syncDiscoveredModuleDependencies({ prisma, moduleKey, dependencies = [] }) {
+  const moduleRow = await prisma.atlasModule.findUnique({
+    where: { key: moduleKey },
+    select: { id: true, key: true },
+  })
+
+  if (!moduleRow) {
+    return {
+      key: moduleKey,
+      declared: 0,
+      synced: 0,
+      removed: 0,
+      missingRequired: [],
+      missingOptional: [],
+      error: {
+        code: 'MODULE_NOT_FOUND_AFTER_SYNC',
+        message: `No se encontro el modulo ${moduleKey} despues del sync lifecycle.`,
+      },
+    }
+  }
+
+  const normalizedDependencies = normalizeManifestDependencies(dependencies)
+  const keys = normalizedDependencies.map((dep) => dep.key)
+  const dependencyRows =
+    keys.length > 0
+      ? await prisma.atlasModule.findMany({
+          where: { key: { in: keys } },
+          select: { id: true, key: true },
+        })
+      : []
+
+  const dependencyByKey = new Map(dependencyRows.map((row) => [row.key, row.id]))
+  const missingRequired = normalizedDependencies
+    .filter((dep) => !dep.optional && !dependencyByKey.has(dep.key))
+    .map((dep) => dep.key)
+  const missingOptional = normalizedDependencies
+    .filter((dep) => dep.optional && !dependencyByKey.has(dep.key))
+    .map((dep) => dep.key)
+  const resolvable = normalizedDependencies.filter((dep) => dependencyByKey.has(dep.key))
+  const desiredDependencyIds = new Set(resolvable.map((dep) => dependencyByKey.get(dep.key)))
+
+  const txResult = await prisma.$transaction(async (tx) => {
+    for (const dep of resolvable) {
+      await tx.moduleDependency.upsert({
+        where: {
+          moduleId_dependencyId: {
+            moduleId: moduleRow.id,
+            dependencyId: dependencyByKey.get(dep.key),
+          },
+        },
+        create: {
+          moduleId: moduleRow.id,
+          dependencyId: dependencyByKey.get(dep.key),
+          optional: dep.optional,
+          versionRange: dep.versionRange,
+        },
+        update: {
+          optional: dep.optional,
+          versionRange: dep.versionRange,
+        },
+      })
+    }
+
+    const currentRows = await tx.moduleDependency.findMany({
+      where: { moduleId: moduleRow.id },
+      select: { id: true, dependencyId: true },
+    })
+    const staleRowIds = currentRows
+      .filter((row) => !desiredDependencyIds.has(row.dependencyId))
+      .map((row) => row.id)
+
+    if (staleRowIds.length > 0) {
+      await tx.moduleDependency.deleteMany({
+        where: {
+          moduleId: moduleRow.id,
+          id: { in: staleRowIds },
+        },
+      })
+    }
+
+    return {
+      removed: staleRowIds.length,
+      synced: resolvable.length,
+    }
+  })
+
+  return {
+    key: moduleRow.key,
+    declared: normalizedDependencies.length,
+    synced: txResult.synced,
+    removed: txResult.removed,
+    missingRequired,
+    missingOptional,
+    error: null,
+  }
+}
+
 export function createModulesRouter({ prisma, authMiddleware, requirePermission }) {
   const app = new Hono()
   const svc = createModuleLifecycleService({ prisma })
@@ -247,6 +376,58 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
         })
       }
 
+      const dependencySync = {
+        synced: 0,
+        removed: 0,
+        errors: [],
+        warnings: [],
+        modules: [],
+      }
+      for (const record of validModules) {
+        try {
+          const moduleResult = await syncDiscoveredModuleDependencies({
+            prisma,
+            moduleKey: record.manifest.key,
+            dependencies: record.manifest.dependencies ?? [],
+          })
+          dependencySync.synced += moduleResult.synced
+          dependencySync.removed += moduleResult.removed
+          dependencySync.modules.push(moduleResult)
+
+          if (moduleResult.error) {
+            dependencySync.errors.push({
+              key: moduleResult.key,
+              code: moduleResult.error.code,
+              message: moduleResult.error.message,
+            })
+          }
+
+          if (moduleResult.missingRequired.length > 0) {
+            dependencySync.errors.push({
+              key: moduleResult.key,
+              code: 'MISSING_REQUIRED_DEPENDENCY',
+              message: `Dependencias requeridas faltantes: ${moduleResult.missingRequired.join(', ')}`,
+              missing: moduleResult.missingRequired,
+            })
+          }
+
+          if (moduleResult.missingOptional.length > 0) {
+            dependencySync.warnings.push({
+              key: moduleResult.key,
+              code: 'MISSING_OPTIONAL_DEPENDENCY',
+              message: `Dependencias opcionales no encontradas: ${moduleResult.missingOptional.join(', ')}`,
+              missing: moduleResult.missingOptional,
+            })
+          }
+        } catch (error) {
+          dependencySync.errors.push({
+            key: record.key ?? record.manifest?.key ?? null,
+            code: 'DEPENDENCY_SYNC_FAILED',
+            message: toErrorMessage(error),
+          })
+        }
+      }
+
       const metadataSync = {
         synced: 0,
         errors: [],
@@ -289,6 +470,7 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
           valid: validModules.length,
           invalid: invalidModules.length,
           lifecycleSync,
+          dependencySync,
           metadataSync,
           invalidUpserts,
           modules: discovered.map(serializeDiscoveredModule),
