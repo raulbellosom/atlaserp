@@ -129,9 +129,14 @@ git commit -m "feat(ame3): add safe filesystem scanning for official and custom 
 
 - [ ] **3.1 Implement dynamic import for `module.manifest.js` via validated file URL**
 - [ ] **3.2 Validate manifest export shape and capture structured errors**
-- [ ] **3.3 Load model declarations from local `models/*.model.js` within the same discovered `moduleDir`**
-- [ ] **3.4 Load view/page declarations from local `views/*.js` within the same discovered `moduleDir`**
+- [ ] **3.3 Load model declarations only from local paths explicitly listed in `manifest.models`**
+- [ ] **3.4 Load view/page declarations only from local paths explicitly listed in `manifest.views` and `manifest.pages`**
 - [ ] **3.5 Keep per-module error isolation (`status: ERROR`, continue)**
+
+Security constraints for Task 3:
+- Do not rewrite module source code to patch imports.
+- Do not import `data:` URLs or eval-like generated code.
+- If `@atlas/module-engine` (or any package) cannot be resolved by normal module resolution, mark module as `ERROR` and continue.
 
 Validation commands:
 

@@ -7,8 +7,10 @@ import {
 } from '@atlas/validators'
 import { getPermissionPresentation, groupPermissionsForUi } from '../permission-catalog.js'
 import { createModuleLifecycleService, ModuleLifecycleError } from '../services/module-lifecycle-service.js'
-import { coreModules } from '../../../../packages/maps/src/core-modules.js'
-import { featureModules } from '../../../../packages/maps/src/feature-modules.js'
+import { createModuleMetadataService } from '../services/module-metadata-service.js'
+import { discoverModules } from '../services/module-discovery-service.js'
+
+const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company'])
 
 function validateManifestAcl(manifest = {}) {
   const declaredKeys = new Set((manifest.permissions ?? []).map((p) => p.key))
@@ -76,9 +78,83 @@ function handleLifecycleError(c, err, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
+function toErrorMessage(error) {
+  if (!error) return 'Unknown error'
+  if (typeof error === 'string') return error
+  if (error instanceof Error) return error.message
+  if (typeof error.message === 'string') return error.message
+  try {
+    return JSON.stringify(error)
+  } catch {
+    return String(error)
+  }
+}
+
+function serializeDiscoveredModule(record) {
+  return {
+    key: record?.key ?? null,
+    source: record?.source ?? null,
+    localPath: record?.localPath ?? null,
+    moduleDir: record?.moduleDir ?? null,
+    status: record?.status ?? 'ERROR',
+    error: record?.error ?? null,
+    modelsCount: Array.isArray(record?.models) ? record.models.length : 0,
+    viewsCount: Array.isArray(record?.views) ? record.views.length : 0,
+  }
+}
+
+async function upsertDiscoveredModuleError({ prisma, record }) {
+  const key = typeof record?.key === 'string' && record.key.trim() ? record.key.trim() : null
+  if (!key) return null
+
+  const manifest = record?.manifest && typeof record.manifest === 'object' ? record.manifest : {}
+  const isCore = CORE_KEYS.has(key)
+  const name = typeof manifest.name === 'string' && manifest.name.trim() ? manifest.name.trim() : key
+  const version =
+    typeof manifest.version === 'string' && manifest.version.trim() ? manifest.version.trim() : '0.0.0'
+
+  const discoveryError = {
+    discovery: {
+      status: 'ERROR',
+      source: record.source ?? null,
+      localPath: record.localPath ?? null,
+      message: toErrorMessage(record.error),
+      updatedAt: new Date().toISOString(),
+    },
+  }
+
+  return prisma.atlasModule.upsert({
+    where: { key },
+    update: {
+      name,
+      description: typeof manifest.description === 'string' ? manifest.description : null,
+      version,
+      kind: manifest.kind ?? (isCore ? 'CORE' : 'FEATURE'),
+      core: isCore,
+      uninstallable: isCore ? false : (manifest.uninstallable ?? true),
+      manifest: Object.keys(manifest).length ? manifest : { key, name, version },
+      lifecycleConfig: discoveryError,
+    },
+    create: {
+      key,
+      name,
+      description: typeof manifest.description === 'string' ? manifest.description : null,
+      version,
+      kind: manifest.kind ?? (isCore ? 'CORE' : 'FEATURE'),
+      core: isCore,
+      uninstallable: isCore ? false : (manifest.uninstallable ?? true),
+      status: isCore ? 'INSTALLED' : 'UNINSTALLED',
+      enabled: isCore,
+      manifest: Object.keys(manifest).length ? manifest : { key, name, version },
+      lifecycleConfig: discoveryError,
+    },
+  })
+}
+
 export function createModulesRouter({ prisma, authMiddleware, requirePermission }) {
   const app = new Hono()
   const svc = createModuleLifecycleService({ prisma })
+  const metadataSvc = createModuleMetadataService({ prisma })
 
   // ── GET /modules ──────────────────────────────────────────────────────────
 
@@ -144,9 +220,66 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
   app.post('/sync', authMiddleware, requirePermission('core.modules.create'), async (c) => {
     try {
       const actorId = c.get('userContext')?.profile?.id ?? null
-      const allManifests = [...coreModules, ...featureModules]
-      const result = await svc.syncModules({ manifests: allManifests, actorId })
-      return c.json({ data: result })
+      const discovered = await discoverModules({ rootDir: process.cwd() })
+
+      const validModules = discovered.filter((record) => record.status === 'VALID' && record.manifest)
+      const invalidModules = discovered.filter((record) => record.status !== 'VALID')
+
+      let lifecycleSync = { synced: 0, added: 0, updated: 0 }
+      if (validModules.length > 0) {
+        lifecycleSync = await svc.syncModules({
+          manifests: validModules.map((record) => record.manifest),
+          actorId,
+        })
+      }
+
+      const metadataSync = {
+        synced: 0,
+        errors: [],
+      }
+
+      for (const record of validModules) {
+        try {
+          await metadataSvc.syncModuleMetadata({
+            manifest: record.manifest,
+            models: record.models ?? [],
+            views: record.views ?? [],
+          })
+          metadataSync.synced += 1
+        } catch (error) {
+          metadataSync.errors.push({
+            key: record.key ?? null,
+            source: record.source ?? null,
+            localPath: record.localPath ?? null,
+            code: 'METADATA_SYNC_FAILED',
+            message: toErrorMessage(error),
+          })
+        }
+      }
+
+      const invalidUpserts = []
+      for (const record of invalidModules) {
+        if (!record.key) continue
+        const upserted = await upsertDiscoveredModuleError({ prisma, record })
+        if (!upserted) continue
+        invalidUpserts.push({
+          key: upserted.key,
+          status: upserted.status,
+          enabled: upserted.enabled,
+        })
+      }
+
+      return c.json({
+        data: {
+          discovered: discovered.length,
+          valid: validModules.length,
+          invalid: invalidModules.length,
+          lifecycleSync,
+          metadataSync,
+          invalidUpserts,
+          modules: discovered.map(serializeDiscoveredModule),
+        },
+      })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo sincronizar los modulos.')
     }

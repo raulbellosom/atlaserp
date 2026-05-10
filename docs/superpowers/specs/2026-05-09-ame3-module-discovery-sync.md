@@ -148,13 +148,14 @@ Manifest minimums for sync eligibility:
 ## Model/view/page loading behavior
 
 `loadModuleModels({ moduleDir, manifest })`:
-- Discover `models/*.model.js` files.
-- Import each file and collect default/named declaration exports as model definitions.
+- Read local model declaration paths from `manifest.models`.
+- Import only declaration files explicitly referenced by `manifest.models`.
 - Non-fatal behavior on per-file load errors (mark module record `ERROR`).
 
 `loadModuleViews({ moduleDir, manifest })`:
-- Discover `views/*.js`.
-- Import declarations produced via `defineView` and `definePage`.
+- Read local declaration paths from `manifest.views` and `manifest.pages`.
+- Import only declaration files explicitly referenced by `manifest.views`/`manifest.pages`.
+- Validate view declarations with `validateView` and page declarations with `validatePage`.
 - Normalize pages as view-like metadata entries for persistence (`type: "page"` or declared type).
 
 Behavioral rules:
@@ -259,7 +260,11 @@ No class above may crash the entire sync endpoint.
 - module files are local code and treated as privileged repo input, not user input.
 
 2. Controlled import surface:
-- only import `module.manifest.js`, `models/*.model.js`, and `views/*.js` under allowed roots.
+- only import local files under discovered module directories:
+  - `module.manifest.js`
+  - files referenced by `manifest.models`
+  - files referenced by `manifest.views`
+  - files referenced by `manifest.pages`
 
 3. Namespace enforcement:
 - block reserved prefixes for non-official modules.
@@ -289,10 +294,12 @@ Required safeguards:
 2. Discovery entry import is only the local `<moduleDir>/module.manifest.js` file.
 3. Any additional declaration imports (models/views/pages) are allowed only as local files under that same discovered `<moduleDir>`.
 4. Allowlisted declaration patterns:
-- `<moduleDir>/models/*.model.js`
-- `<moduleDir>/views/*.js`
-5. Verify expected export shape after import; reject unknown executable hooks in this phase.
-6. Continue processing after import failures with `ERROR` records.
+- paths explicitly declared in manifest (`models`, `views`, `pages`) and resolved under `<moduleDir>`
+5. Discovery never rewrites module source code and never imports `data:` URLs.
+6. If package resolution fails (for example `@atlas/module-engine` cannot be resolved), mark the module as `ERROR` and continue discovery.
+7. Workspace/dependency linking is fixed in a separate package-resolution phase, not via runtime source rewriting.
+8. Verify expected export shape after import; reject unknown executable hooks in this phase.
+9. Continue processing after import failures with `ERROR` records.
 
 ---
 
