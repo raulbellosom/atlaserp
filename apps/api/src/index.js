@@ -1,7 +1,9 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import "dotenv/config";
 import pkg from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 const { PrismaClient } = pkg;
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -63,7 +65,9 @@ import { createHrService, HrServiceError } from "./services/hr-service.js";
 import { createLedgerRouter } from "./routes/ledger.js";
 import { createModulesRouter } from "./routes/modules.js";
 
-const prisma = new PrismaClient();
+const prismaConnectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
+const prismaAdapter = new PrismaPg({ connectionString: prismaConnectionString });
+const prisma = new PrismaClient({ adapter: prismaAdapter });
 const app = new Hono();
 const port = Number(process.env.ATLAS_API_PORT ?? 4010);
 const contactsService = createContactsService({ prisma });

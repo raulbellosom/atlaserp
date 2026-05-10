@@ -1,10 +1,14 @@
+import "dotenv/config"
 import pkg from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 const { PrismaClient } = pkg
 import { coreModules } from '../packages/maps/src/core-modules.js'
 import { featureModules } from '../packages/maps/src/feature-modules.js'
 import { getPermissionPresentation } from '../apps/api/src/permission-catalog.js'
 
-const prisma = new PrismaClient()
+const prismaConnectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL
+const prismaAdapter = new PrismaPg({ connectionString: prismaConnectionString })
+const prisma = new PrismaClient({ adapter: prismaAdapter })
 
 async function upsertModule(manifest) {
   const isCore = manifest.core === true;
