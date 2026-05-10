@@ -271,9 +271,10 @@ export default function ModuleCatalog() {
   const [viewMode, setViewMode] = useState("grid");
   const [selectedModule, setSelectedModule] = useState(null);
   const [confirmUninstall, setConfirmUninstall] = useState(null);
+  const [purgeOnUninstall, setPurgeOnUninstall] = useState(false);
 
   const lifecycleMutation = useMutation({
-    mutationFn: async ({ action, module }) => {
+    mutationFn: async ({ action, module, purge = false }) => {
       const key = module.key;
       if (action === "install") {
         const manifest = module.manifest ?? MANIFEST_BY_KEY.get(key);
@@ -282,13 +283,18 @@ export default function ModuleCatalog() {
       }
       if (action === "disable") return atlas.modules.disable(key, token);
       if (action === "enable") return atlas.modules.enable(key, token);
-      if (action === "uninstall") return atlas.modules.uninstall(key, token);
+      if (action === "uninstall") {
+        if (purge)
+          return atlas.modules.uninstallExplicit(key, "purge-data", "ACEPTO", token);
+        return atlas.modules.uninstall(key, token);
+      }
     },
     onSuccess: async (_, { action }) => {
       await queryClient.invalidateQueries({ queryKey: ["modules"] });
       await queryClient.invalidateQueries({ queryKey: ["runtime-modules"] });
       await queryClient.invalidateQueries({ queryKey: ["blueprints"] });
       setConfirmUninstall(null);
+      setPurgeOnUninstall(false);
       const labels = {
         install: "instalado",
         disable: "deshabilitado",
@@ -1014,19 +1020,44 @@ export default function ModuleCatalog() {
 
       <ConfirmDialog
         open={Boolean(confirmUninstall)}
-        onOpenChange={(v) => !v && setConfirmUninstall(null)}
+        onOpenChange={(v) => {
+          if (!v) {
+            setConfirmUninstall(null);
+            setPurgeOnUninstall(false);
+          }
+        }}
         title="¿Desinstalar módulo?"
-        description="El módulo será desinstalado. Esta acción puede afectar datos existentes."
+        description="El módulo será desinstalado. Esta acción no se puede deshacer."
         detail={confirmUninstall?.name}
         confirmLabel="Desinstalar"
         onConfirm={() =>
           lifecycleMutation.mutate({
             action: "uninstall",
             module: confirmUninstall,
+            purge: purgeOnUninstall,
           })
         }
         loading={lifecycleMutation.isPending}
-      />
+      >
+        {confirmUninstall?.manifest?.lifecycle?.supportsDataPurge && (
+          <label className="flex items-start gap-3 rounded-md border border-[hsl(var(--border))] p-3 cursor-pointer hover:bg-[hsl(var(--muted)/0.4)] transition-colors">
+            <input
+              type="checkbox"
+              className="mt-0.5 accent-red-500"
+              checked={purgeOnUninstall}
+              onChange={(e) => setPurgeOnUninstall(e.target.checked)}
+            />
+            <span className="text-sm leading-snug">
+              <span className="font-medium text-[hsl(var(--foreground))]">
+                Eliminar todos los datos
+              </span>
+              <span className="block text-[hsl(var(--muted-foreground))]">
+                Se borrarán permanentemente todos los registros de este módulo.
+              </span>
+            </span>
+          </label>
+        )}
+      </ConfirmDialog>
     </div>
   );
 }
