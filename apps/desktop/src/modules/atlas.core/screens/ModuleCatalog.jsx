@@ -24,6 +24,8 @@ import {
 import {
   Home,
   Package,
+  Box,
+  Truck,
   Power,
   PowerOff,
   Trash2,
@@ -36,9 +38,9 @@ import {
   Building2,
   Tag,
   GitBranch,
-  ShieldCheck,
   AlertCircle,
   CheckCircle2,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -75,6 +77,75 @@ const KIND_LABEL = {
   WEBSITE: "Sitio web",
 };
 
+const DEFAULT_MODULE_COLOR = "#6366f1";
+const DEFAULT_MODULE_ACCENT = "#4f46e5";
+
+const MODULE_ICON_REGISTRY = {
+  Box,
+  Package,
+  Truck,
+};
+
+function toAlphaHexColor(color, alphaHex) {
+  if (typeof color !== "string") return color;
+  const trimmed = color.trim();
+  if (!trimmed) return color;
+  if (trimmed.startsWith("#")) {
+    if (trimmed.length === 4 || trimmed.length === 7) {
+      return `${trimmed}${alphaHex}`;
+    }
+  }
+  return color;
+}
+
+function getGeneratedInitials(name) {
+  if (typeof name !== "string" || !name.trim()) return "";
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .map((word) => word[0]?.toUpperCase())
+    .filter(Boolean);
+  if (words.length >= 2) return `${words[0]}${words[1]}`;
+  return words[0] ?? "";
+}
+
+function resolveModuleVisuals(module) {
+  const manifest = module?.manifest ?? {};
+  const name = module?.name ?? module?.key ?? "Módulo";
+  const color = module?.color ?? manifest?.color ?? DEFAULT_MODULE_COLOR;
+  const accentColor =
+    manifest?.accentColor ??
+    module?.color ??
+    manifest?.color ??
+    DEFAULT_MODULE_ACCENT;
+  const logoUrl = manifest?.logoUrl ?? module?.logoUrl ?? null;
+  const requestedIcon = manifest?.icon ?? module?.icon ?? null;
+  const iconComponent =
+    requestedIcon && MODULE_ICON_REGISTRY[requestedIcon]
+      ? MODULE_ICON_REGISTRY[requestedIcon]
+      : null;
+  const generatedInitials = getGeneratedInitials(name);
+  const fallbackInitial = name.trim().charAt(0).toUpperCase();
+  const initials =
+    manifest?.initials ?? generatedInitials ?? fallbackInitial ?? "M";
+
+  return {
+    color,
+    accentColor,
+    logoUrl,
+    iconComponent,
+    initials,
+  };
+}
+
+function getFirstFiniteNumber(...values) {
+  for (const value of values) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
 function statusLabel(module) {
   if (module.core) return "Core";
   if (module.status === "INSTALLED" && module.enabled) return "Instalado";
@@ -98,7 +169,10 @@ function isLocked(module) {
 
 // ---- Module icon: supports future logoUrl ----
 function ModuleIcon({ module, size = "md" }) {
-  const color = module.color ?? "#6366f1";
+  const visuals = resolveModuleVisuals(module);
+  const color = visuals.color;
+  const accentColor = visuals.accentColor;
+  const IconComponent = visuals.iconComponent;
   const cls =
     {
       sm: "h-8 w-8 rounded-lg text-sm",
@@ -113,18 +187,20 @@ function ModuleIcon({ module, size = "md" }) {
         cls,
       )}
       style={{
-        background: `linear-gradient(135deg, ${color} 0%, ${color}bb 100%)`,
+        background: `linear-gradient(135deg, ${color} 0%, ${accentColor} 100%)`,
       }}
     >
-      {module.logoUrl ? (
+      {visuals.logoUrl ? (
         <img
-          src={module.logoUrl}
+          src={visuals.logoUrl}
           alt={module.name}
           className="h-full w-full object-contain rounded-[inherit]"
           draggable={false}
         />
+      ) : IconComponent ? (
+        <IconComponent className="h-1/2 w-1/2" />
       ) : (
-        <span>{module.name.charAt(0)}</span>
+        <span>{visuals.initials}</span>
       )}
     </div>
   );
@@ -310,6 +386,43 @@ export default function ModuleCatalog() {
       } catch {
         toast.error("No se pudo actualizar el módulo");
       }
+    },
+  });
+
+  const syncCatalogMutation = useMutation({
+    mutationFn: () => atlas.modules.sync(token),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["modules"] });
+      await queryClient.invalidateQueries({ queryKey: ["runtime-modules"] });
+      await queryClient.invalidateQueries({ queryKey: ["blueprints"] });
+      const summary = result?.summary ?? result?.data ?? result ?? {};
+      const totals = summary?.totals ?? {};
+      const discovered = getFirstFiniteNumber(
+        summary?.discovered,
+        totals?.discovered,
+      );
+      const valid = getFirstFiniteNumber(summary?.valid, totals?.valid);
+      const invalid = getFirstFiniteNumber(
+        summary?.invalid,
+        totals?.invalid,
+        summary?.errored,
+        totals?.errored,
+      );
+      const hasCounts = [discovered, valid, invalid].every((n) => n !== null);
+      if (hasCounts) {
+        toast.success(
+          `Catálogo sincronizado: ${discovered} descubierto${discovered === 1 ? "" : "s"}, ${valid} válido${valid === 1 ? "" : "s"}, ${invalid} inválido${invalid === 1 ? "" : "s"}.`,
+        );
+      } else {
+        toast.success("Catálogo sincronizado correctamente.");
+      }
+    },
+    onError: (error) => {
+      if (error?.status === 403) {
+        toast.error("No tienes permisos para sincronizar el catálogo de módulos.");
+        return;
+      }
+      toast.error("No se pudo sincronizar el catálogo de módulos.");
     },
   });
 
@@ -507,6 +620,27 @@ export default function ModuleCatalog() {
           description="Gestiona el ciclo de vida de los módulos de tu instancia Atlas."
         />
 
+        <div className="flex items-center justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={
+              syncCatalogMutation.isPending || !canReadModules || !token
+            }
+            onClick={() => syncCatalogMutation.mutate()}
+          >
+            <RefreshCw
+              className={cn(
+                "h-4 w-4",
+                syncCatalogMutation.isPending && "animate-spin",
+              )}
+            />
+            {syncCatalogMutation.isPending
+              ? "Sincronizando..."
+              : "Sincronizar módulos"}
+          </Button>
+        </div>
+
         {redirectMessage && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 text-sm px-4 py-3">
             {redirectMessage}
@@ -634,7 +768,9 @@ export default function ModuleCatalog() {
           // ---- GRID VIEW ----
           <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredModules.map((module) => {
-              const color = module.color ?? "#6366f1";
+              const visuals = resolveModuleVisuals(module);
+              const color = visuals.color;
+              const accentColor = visuals.accentColor;
               const blocked = module.compatibilityStatus === "BLOCKED";
               const isDisabled = module.status === "DISABLED";
               const inFlight =
@@ -655,13 +791,13 @@ export default function ModuleCatalog() {
                   <div
                     className="relative h-[72px] overflow-hidden shrink-0"
                     style={{
-                      background: `linear-gradient(135deg, ${color}22 0%, ${color}08 70%, transparent 100%)`,
+                      background: `linear-gradient(135deg, ${toAlphaHexColor(color, "22")} 0%, ${toAlphaHexColor(accentColor, "08")} 70%, transparent 100%)`,
                     }}
                   >
                     {/* Decorative blobs */}
                     <div
                       className="absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-[0.12]"
-                      style={{ background: color }}
+                      style={{ background: accentColor }}
                     />
                     <div
                       className="absolute right-8 top-2 h-10 w-10 rounded-full opacity-[0.08]"
@@ -753,7 +889,6 @@ export default function ModuleCatalog() {
           // ---- LIST VIEW ----
           <div className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden divide-y divide-[hsl(var(--border))]">
             {filteredModules.map((module, idx) => {
-              const color = module.color ?? "#6366f1";
               const blocked = module.compatibilityStatus === "BLOCKED";
               const isDisabled = module.status === "DISABLED";
               const inFlight =
@@ -848,7 +983,9 @@ export default function ModuleCatalog() {
         <SheetContent className="w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl overflow-y-auto">
           {selectedModule &&
             (() => {
-              const color = selectedModule.color ?? "#6366f1";
+              const visuals = resolveModuleVisuals(selectedModule);
+              const color = visuals.color;
+              const accentColor = visuals.accentColor;
               const blocked = selectedModule.compatibilityStatus === "BLOCKED";
               return (
                 <div className="space-y-5">
@@ -856,12 +993,12 @@ export default function ModuleCatalog() {
                   <div
                     className="rounded-2xl p-5 flex items-start gap-4 -mx-1 relative overflow-hidden"
                     style={{
-                      background: `linear-gradient(135deg, ${color}18 0%, ${color}06 100%)`,
+                      background: `linear-gradient(135deg, ${toAlphaHexColor(color, "18")} 0%, ${toAlphaHexColor(accentColor, "06")} 100%)`,
                     }}
                   >
                     <div
                       className="absolute -right-8 -top-8 h-32 w-32 rounded-full opacity-10"
-                      style={{ background: color }}
+                      style={{ background: accentColor }}
                     />
                     <ModuleIcon module={selectedModule} size="lg" />
                     <div className="min-w-0 flex-1 pt-1">
