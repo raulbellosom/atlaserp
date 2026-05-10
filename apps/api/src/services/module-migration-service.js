@@ -1,3 +1,4 @@
+// TODO(AME3): switch to '@atlas/module-engine' once the package is linked for API runtime resolution.
 import {
   assertSafeMigrationSql,
   createChecksum,
@@ -50,9 +51,9 @@ export function createModuleMigrationService({ prisma }) {
 
     for (const model of safeModels) {
       const safeModel = toObject(model, 'model')
-      const checksum = createChecksum(safeModel)
-      const filename = toMigrationFilename(safeModel, checksum)
       const sql = generateSqlForModel(safeModel)
+      const checksum = createChecksum(sql)
+      const filename = toMigrationFilename(safeModel, checksum)
       const existing = await prisma.moduleMigration.findUnique({
         where: {
           moduleKey_filename: {
@@ -77,16 +78,10 @@ export function createModuleMigrationService({ prisma }) {
     return plans
   }
 
-  async function applySqlMigration({ moduleKey, filename, sql }) {
+  async function applySqlMigration({ moduleKey, filename, sql: sqlInput }) {
     const safeModuleKey = toRequiredString(moduleKey, 'moduleKey')
     const safeFilename = toRequiredString(filename, 'filename')
-    const safeSql = toRequiredString(sql, 'sql')
-    assertSafeMigrationSql(safeSql)
-    const checksum = createChecksum({
-      tableName: safeFilename,
-      fields: [{ name: 'sql', type: 'text', required: true, maxLength: safeSql.length }],
-      indexes: [],
-    })
+    const sql = toRequiredString(sqlInput, 'sql')
 
     return prisma.$transaction(async (tx) => {
       const existing = await tx.moduleMigration.findUnique({
@@ -101,7 +96,10 @@ export function createModuleMigrationService({ prisma }) {
         return { applied: false, reason: 'already_applied', migration: existing }
       }
 
-      for (const statement of splitSqlStatements(safeSql)) {
+      assertSafeMigrationSql(sql)
+      const checksum = createChecksum(sql)
+
+      for (const statement of splitSqlStatements(sql)) {
         assertSafeMigrationSql(statement)
         await tx.$executeRawUnsafe(statement)
       }

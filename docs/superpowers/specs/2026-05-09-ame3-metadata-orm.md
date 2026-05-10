@@ -214,9 +214,9 @@ Behavioral expectations:
 
 - `generateSqlForModel` uses `generateCreateTableSql(model)`.
 - Every produced or incoming SQL statement passes `assertSafeMigrationSql(sql)`.
-- `createChecksum(model)` is used to derive deterministic model fingerprints for planning.
+- `createChecksum(sql)` is used to derive deterministic SQL-content fingerprints for planning.
 - `planModelMigrations` returns additive plan items only.
-- `applySqlMigration` records `(moduleKey, filename, checksum)` in `ModuleMigration` in transaction.
+- `applySqlMigration` records `(moduleKey, filename, checksum)` in `ModuleMigration` in transaction, where `checksum` is the SHA-256 of the exact SQL text being applied.
 - Duplicate `(moduleKey, filename)` is treated as idempotent skip or explicit conflict by policy (must be documented in implementation).
 
 ---

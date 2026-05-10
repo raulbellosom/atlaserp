@@ -156,7 +156,7 @@ git commit -m "feat(ame3): add module metadata service"
 - [ ] **4.1 Export `createModuleMigrationService({ prisma })`**
 - [ ] **4.2 Implement `generateSqlForModel(model)` using `generateCreateTableSql`**
 - [ ] **4.3 Enforce `assertSafeMigrationSql` before execution or plan return**
-- [ ] **4.4 Implement `planModelMigrations({ moduleKey, models })` with deterministic checksum usage via `createChecksum`**
+- [ ] **4.4 Implement `planModelMigrations({ moduleKey, models })` with deterministic SQL-content checksums via `createChecksum(sql)`**
 - [ ] **4.5 Implement `applySqlMigration({ moduleKey, filename, sql })` with transactional ledger write to `ModuleMigration`**
 - [ ] **4.6 Implement `listAppliedMigrations(moduleKey)`**
 
@@ -222,7 +222,7 @@ git commit -m "test(ame3): cover module metadata service"
 
 - [ ] **6.1 Add test: `generateSqlForModel` returns create-table SQL**
 - [ ] **6.2 Add test: unsafe SQL is rejected by `assertSafeMigrationSql` gate**
-- [ ] **6.3 Add test: `planModelMigrations` uses deterministic checksums**
+- [ ] **6.3 Add test: `planModelMigrations` uses deterministic SQL-content checksums (`createChecksum(sql)`)**
 - [ ] **6.4 Add test: `applySqlMigration` writes `ModuleMigration` rows**
 - [ ] **6.5 Add test: duplicate `(moduleKey, filename)` handling is safe**
 
