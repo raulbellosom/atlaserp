@@ -153,6 +153,8 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/module-engine: {}
+
   packages/sdk: {}
 
   packages/ui:
