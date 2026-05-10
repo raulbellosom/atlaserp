@@ -8,7 +8,7 @@ import {
 import { getPermissionPresentation, groupPermissionsForUi } from '../permission-catalog.js'
 import { createModuleLifecycleService, ModuleLifecycleError } from '../services/module-lifecycle-service.js'
 import { createModuleMetadataService } from '../services/module-metadata-service.js'
-import { discoverModules } from '../services/module-discovery-service.js'
+import { discoverModules, getDiscoveryRootInfo } from '../services/module-discovery-service.js'
 
 const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company'])
 
@@ -363,7 +363,8 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
   app.post('/sync', authMiddleware, requirePermission('core.modules.create'), async (c) => {
     try {
       const actorId = await resolveSyncActorId(prisma, c.get('userContext'))
-      const discovered = await discoverModules({ rootDir: process.cwd() })
+      const discoveryRootInfo = await getDiscoveryRootInfo()
+      const discovered = await discoverModules({ rootDir: discoveryRootInfo.projectRoot })
 
       const validModules = discovered.filter((record) => record.status === 'VALID' && record.manifest)
       const invalidModules = discovered.filter((record) => record.status !== 'VALID')
@@ -464,18 +465,27 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
         })
       }
 
-      return c.json({
-        data: {
-          discovered: discovered.length,
-          valid: validModules.length,
-          invalid: invalidModules.length,
-          lifecycleSync,
-          dependencySync,
-          metadataSync,
-          invalidUpserts,
-          modules: discovered.map(serializeDiscoveredModule),
-        },
-      })
+      const payload = {
+        discovered: discovered.length,
+        valid: validModules.length,
+        invalid: invalidModules.length,
+        lifecycleSync,
+        dependencySync,
+        metadataSync,
+        invalidUpserts,
+        modules: discovered.map(serializeDiscoveredModule),
+      }
+
+      if (process.env.NODE_ENV !== 'production') {
+        payload.debug = {
+          cwd: discoveryRootInfo.cwd,
+          projectRoot: discoveryRootInfo.projectRoot,
+          modulesDirExists: discoveryRootInfo.modulesDirExists,
+          customModulesDirExists: discoveryRootInfo.customModulesDirExists,
+        }
+      }
+
+      return c.json({ data: payload })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo sincronizar los modulos.')
     }

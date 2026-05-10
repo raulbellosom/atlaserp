@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 // TODO(AME3): switch to '@atlas/module-engine' once the package is linked for API runtime resolution.
 import {
   validateManifest,
@@ -11,6 +11,7 @@ import {
 
 const SOURCE_OFFICIAL = 'official'
 const SOURCE_CUSTOM = 'custom'
+const apiSourceDir = path.dirname(fileURLToPath(import.meta.url))
 
 const RESERVED_CUSTOM_PREFIXES = ['atlas.', 'core.', 'system.', 'identity.']
 
@@ -28,6 +29,104 @@ function toErrorMessage(error) {
 
 function normalizeRootDir(rootDir) {
   return path.resolve(typeof rootDir === 'string' && rootDir.trim() ? rootDir : process.cwd())
+}
+
+async function isDirectory(targetPath) {
+  try {
+    const stats = await fs.stat(targetPath)
+    return stats.isDirectory()
+  } catch {
+    return false
+  }
+}
+
+async function inspectProjectRoot(candidateDir) {
+  const normalizedDir = normalizeRootDir(candidateDir)
+  const pnpmWorkspacePath = path.join(normalizedDir, 'pnpm-workspace.yaml')
+  const packageJsonPath = path.join(normalizedDir, 'package.json')
+  const modulesPath = path.join(normalizedDir, 'modules')
+  const customModulesPath = path.join(modulesPath, SOURCE_CUSTOM)
+
+  const pnpmWorkspaceExists = await pathExists(pnpmWorkspacePath)
+  const packageJsonExists = await pathExists(packageJsonPath)
+  const modulesDirExists = await isDirectory(modulesPath)
+  const customModulesDirExists = await isDirectory(customModulesPath)
+  const valid = pnpmWorkspaceExists && packageJsonExists && modulesDirExists
+
+  return {
+    projectRoot: normalizedDir,
+    pnpmWorkspaceExists,
+    packageJsonExists,
+    modulesDirExists,
+    customModulesDirExists,
+    valid,
+  }
+}
+
+async function findProjectRootUpward(startDir) {
+  let current = normalizeRootDir(startDir)
+  while (true) {
+    const inspection = await inspectProjectRoot(current)
+    if (inspection.valid) {
+      return inspection
+    }
+    const parentDir = path.dirname(current)
+    if (parentDir === current) {
+      return null
+    }
+    current = parentDir
+  }
+}
+
+export async function getDiscoveryRootInfo(options = {}) {
+  const env = options.env ?? process.env
+  const cwd = normalizeRootDir(options.cwd ?? process.cwd())
+  const sourceDir = normalizeRootDir(options.sourceDir ?? apiSourceDir)
+
+  const envRootRaw = typeof env.ATLAS_PROJECT_ROOT === 'string' ? env.ATLAS_PROJECT_ROOT.trim() : ''
+  if (envRootRaw) {
+    const envInspection = await inspectProjectRoot(envRootRaw)
+    if (envInspection.valid) {
+      return {
+        cwd,
+        projectRoot: envInspection.projectRoot,
+        resolution: 'env',
+        modulesDirExists: envInspection.modulesDirExists,
+        customModulesDirExists: envInspection.customModulesDirExists,
+      }
+    }
+  }
+
+  const fromCwd = await findProjectRootUpward(cwd)
+  if (fromCwd) {
+    return {
+      cwd,
+      projectRoot: fromCwd.projectRoot,
+      resolution: 'cwd-upward',
+      modulesDirExists: fromCwd.modulesDirExists,
+      customModulesDirExists: fromCwd.customModulesDirExists,
+    }
+  }
+
+  const fromSourceDir = await findProjectRootUpward(sourceDir)
+  if (fromSourceDir) {
+    return {
+      cwd,
+      projectRoot: fromSourceDir.projectRoot,
+      resolution: 'api-source-upward',
+      modulesDirExists: fromSourceDir.modulesDirExists,
+      customModulesDirExists: fromSourceDir.customModulesDirExists,
+    }
+  }
+
+  throw new Error(
+    `Project root not found. Expected pnpm-workspace.yaml, package.json, and modules/ starting from cwd (${cwd}) or API source (${sourceDir}).`
+  )
+}
+
+export async function resolveProjectRoot(options = {}) {
+  const info = await getDiscoveryRootInfo(options)
+  return info.projectRoot
 }
 
 function isPlainObject(value) {
