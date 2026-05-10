@@ -2,6 +2,7 @@ import { defineModel } from '@atlas/module-engine'
 
 export default defineModel({
   key: 'vehicle',
+  name: 'fleet.vehicle',
   label: 'Vehiculo',
   tableName: 'fleet_vehicle',
   companyScoped: true,

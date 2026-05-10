@@ -1,7 +1,9 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import pkg from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 const { PrismaClient } = pkg;
@@ -64,6 +66,14 @@ import { createFinanceDocumentsService } from "./services/finance-documents-serv
 import { createHrService, HrServiceError } from "./services/hr-service.js";
 import { createLedgerRouter } from "./routes/ledger.js";
 import { createModulesRouter } from "./routes/modules.js";
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+loadEnv({
+  path: [
+    path.resolve(currentDir, "../.env"),
+    path.resolve(currentDir, "../../../.env"),
+  ],
+});
 
 const prismaConnectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
 const prismaAdapter = new PrismaPg({ connectionString: prismaConnectionString });

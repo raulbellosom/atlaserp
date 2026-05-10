@@ -16,7 +16,7 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:seed": "node prisma/seed.js",
-    "db:studio": "prisma studio",
+    "db:studio": "prisma studio --port 5555 --browser none",
     "db:reset": "prisma migrate reset --force && node prisma/seed.js",
     "db:fresh": "prisma migrate deploy && prisma generate && node prisma/seed.js",
     "setup": "pnpm install && pnpm db:generate && pnpm db:migrate && pnpm db:seed",
@@ -26,7 +26,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:studio": "prisma studio",
+    "prisma:studio": "prisma studio --port 5555 --browser none",
     "modules:seed": "node scripts/seed-core-modules.js"
   },
   "dependencies": {

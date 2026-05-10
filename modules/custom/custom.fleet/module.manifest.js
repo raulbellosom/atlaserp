@@ -24,6 +24,9 @@ export default defineAtlasModule({
     resettable: true,
     supportsDataPurge: true,
     defaultUninstallPolicy: 'preserve-data',
+    ownedModels: ['fleet.vehicle', 'fleet.maintenance'],
+    ownedTables: ['fleet_vehicle', 'fleet_maintenance'],
+    // Legacy compatibility for existing lifecycle handlers.
     ownedEntities: ['Vehicle', 'Maintenance'],
     sharedEntities: ['Company', 'AuditLog'],
   },

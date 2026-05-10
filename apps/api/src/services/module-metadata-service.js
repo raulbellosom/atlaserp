@@ -12,10 +12,48 @@ function toRequiredString(value, label) {
   return value.trim()
 }
 
-function toNamespacedModelName(moduleKey, modelKeyOrName) {
-  const key = toRequiredString(modelKeyOrName, 'model key')
-  if (key.includes('.')) return key
-  return `${moduleKey}.${key}`
+function toModelName(model) {
+  const safeModel = toObject(model, 'model')
+  const rawName =
+    typeof safeModel.name === 'string' && safeModel.name.trim()
+      ? safeModel.name
+      : safeModel.key
+  return toRequiredString(rawName, 'model.name')
+}
+
+function toModelAlias(name) {
+  const safeName = toRequiredString(name, 'name')
+  const segments = safeName.split('.')
+  return segments[segments.length - 1]
+}
+
+function buildModelNameAliasMap(models = []) {
+  const aliases = new Map()
+  for (const model of models) {
+    const name = toModelName(model)
+    const alias = toModelAlias(name)
+
+    aliases.set(name, name)
+    aliases.set(name.toLowerCase(), name)
+    aliases.set(alias, name)
+    aliases.set(alias.toLowerCase(), name)
+  }
+  return aliases
+}
+
+function resolveModelNameFromAliases(rawModelName, modelAliases) {
+  if (typeof rawModelName !== 'string' || !rawModelName.trim()) {
+    return null
+  }
+
+  const candidate = rawModelName.trim()
+  if (modelAliases?.has(candidate)) {
+    return modelAliases.get(candidate)
+  }
+  if (modelAliases?.has(candidate.toLowerCase())) {
+    return modelAliases.get(candidate.toLowerCase())
+  }
+  return candidate
 }
 
 function deriveRelationPayload(field) {
@@ -88,10 +126,12 @@ export function createModuleMetadataService({ prisma }) {
   async function upsertModel({ moduleKey, model, tx = prisma }) {
     const safeModuleKey = toRequiredString(moduleKey, 'moduleKey')
     const safeModel = toObject(model, 'model')
-    const modelKey = toRequiredString(safeModel.key, 'model.key')
+    const modelName = toModelName(safeModel)
     const tableName = toRequiredString(safeModel.tableName, 'model.tableName')
-    const name = toNamespacedModelName(safeModuleKey, modelKey)
-    const label = typeof safeModel.label === 'string' && safeModel.label.trim() ? safeModel.label.trim() : modelKey
+    const label =
+      typeof safeModel.label === 'string' && safeModel.label.trim()
+        ? safeModel.label.trim()
+        : modelName
     const pluralLabel =
       typeof safeModel.pluralLabel === 'string' && safeModel.pluralLabel.trim()
         ? safeModel.pluralLabel.trim()
@@ -99,35 +139,61 @@ export function createModuleMetadataService({ prisma }) {
 
     const existingByTable = await tx.atlasModel.findUnique({
       where: { tableName },
-      select: { id: true, name: true },
+      select: { id: true, name: true, moduleKey: true },
     })
 
-    if (existingByTable && existingByTable.name !== name) {
+    if (existingByTable && existingByTable.name !== modelName && existingByTable.moduleKey !== safeModuleKey) {
       throw new Error(
-        `AtlasModel tableName collision: "${tableName}" already belongs to "${existingByTable.name}", cannot remap to "${name}"`
+        `AtlasModel tableName collision: "${tableName}" already belongs to "${existingByTable.name}", cannot remap to "${modelName}"`
       )
     }
 
+    const modelData = {
+      moduleKey: safeModuleKey,
+      tableName,
+      label,
+      pluralLabel,
+      companyScoped: safeModel.companyScoped !== undefined ? Boolean(safeModel.companyScoped) : true,
+      schema: safeModel,
+      enabled: safeModel.enabled !== undefined ? Boolean(safeModel.enabled) : true,
+    }
+
+    // Preserve declared model names and migrate legacy same-table rows within the same module.
+    if (existingByTable && existingByTable.name !== modelName) {
+      const remapped = await tx.atlasModel.update({
+        where: { id: existingByTable.id },
+        data: {
+          ...modelData,
+          name: modelName,
+        },
+        include: {
+          fields: true,
+          views: true,
+        },
+      })
+      if (Array.isArray(safeModel.fields)) {
+        for (let i = 0; i < safeModel.fields.length; i += 1) {
+          await upsertField({
+            modelId: remapped.id,
+            field: safeModel.fields[i],
+            order: i,
+            tx,
+          })
+        }
+      }
+      return tx.atlasModel.findUnique({
+        where: { id: remapped.id },
+        include: { fields: true, views: true },
+      })
+    }
+
     const upserted = await tx.atlasModel.upsert({
-      where: { name },
-      update: {
-        moduleKey: safeModuleKey,
-        tableName,
-        label,
-        pluralLabel,
-        companyScoped: safeModel.companyScoped !== undefined ? Boolean(safeModel.companyScoped) : true,
-        schema: safeModel,
-        enabled: safeModel.enabled !== undefined ? Boolean(safeModel.enabled) : true,
-      },
+      where: { name: modelName },
+      update: modelData,
       create: {
+        name: modelName,
         moduleKey: safeModuleKey,
-        name,
-        tableName,
-        label,
-        pluralLabel,
-        companyScoped: safeModel.companyScoped !== undefined ? Boolean(safeModel.companyScoped) : true,
-        schema: safeModel,
-        enabled: safeModel.enabled !== undefined ? Boolean(safeModel.enabled) : true,
+        ...modelData,
       },
       include: {
         fields: true,
@@ -152,7 +218,7 @@ export function createModuleMetadataService({ prisma }) {
     })
   }
 
-  async function upsertView({ moduleKey, view, tx = prisma }) {
+  async function upsertView({ moduleKey, view, modelAliases = null, tx = prisma }) {
     const safeModuleKey = toRequiredString(moduleKey, 'moduleKey')
     const safeView = toObject(view, 'view')
     const key = toRequiredString(safeView.key, 'view.key')
@@ -166,7 +232,7 @@ export function createModuleMetadataService({ prisma }) {
           ? safeView.schema.entity
           : null
 
-    const modelName = rawModelName ? toNamespacedModelName(safeModuleKey, rawModelName) : null
+    const modelName = resolveModelNameFromAliases(rawModelName, modelAliases)
 
     return tx.atlasView.upsert({
       where: { key },
@@ -197,6 +263,7 @@ export function createModuleMetadataService({ prisma }) {
     const safeViews = Array.isArray(views) ? views : []
 
     return prisma.$transaction(async (tx) => {
+      const modelAliases = buildModelNameAliasMap(safeModels)
       const persistedModels = []
       for (const model of safeModels) {
         const persisted = await upsertModel({ moduleKey, model, tx })
@@ -205,7 +272,7 @@ export function createModuleMetadataService({ prisma }) {
 
       const persistedViews = []
       for (const view of safeViews) {
-        const persisted = await upsertView({ moduleKey, view, tx })
+        const persisted = await upsertView({ moduleKey, view, modelAliases, tx })
         persistedViews.push(persisted)
       }
 

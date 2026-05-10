@@ -2,6 +2,7 @@ import { defineModel } from '@atlas/module-engine'
 
 export default defineModel({
   key: 'maintenance',
+  name: 'fleet.maintenance',
   label: 'Mantenimiento',
   tableName: 'fleet_maintenance',
   companyScoped: true,
@@ -12,7 +13,7 @@ export default defineModel({
       type: 'relation',
       label: 'Vehiculo',
       required: true,
-      relatedModel: 'Vehicle',
+      relatedModel: 'fleet.vehicle',
     },
     {
       name: 'type',
