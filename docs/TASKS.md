@@ -264,13 +264,113 @@ Plan: `docs/superpowers/plans/2026-05-09-module-lifecycle-v2-and-custom-modules.
 
 Verified: 2026-05-09 (`node --check` all 7 modified/created service and route files; `pnpm exec prisma validate` — schema valid; `pnpm build` — full monorepo including Tauri native bundle passes; manual DB steps pending: `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`, and curl smoke tests against running API require stopping dev server for db:generate on Windows)
 
-## Phase 9 - Future modules
+---
 
-- [ ] Purchases
-- [ ] Inventory
-- [ ] HR (hr_employees, org chart)
-- [ ] Fleet
-- [ ] Reports
+## AME3 — Atlas Module Engine v3
+
+> Atlas ERP is no longer an ERP with modules. Atlas ERP is a module engine that ships ERP modules.
+
+Architecture: `docs/architecture/atlas-module-engine-v3.md`  
+Custom modules guide: `docs/03_custom_modules.md`  
+Module system: `docs/02_module_system.md`
+
+**No new module work should extend the old system.** Old code (`packages/maps/`, transitional Prisma models, manual route mounting) may remain temporarily only to keep the app running during migration. Any new feature waits for the relevant AME3 layer or builds it first.
+
+### AME3 Phase 1 — Package Foundation and Lifecycle v2
+
+**Required spec:** `docs/superpowers/specs/2026-05-09-ame3-module-engine-foundation.md`  
+**Required plan:** `docs/superpowers/plans/2026-05-09-ame3-module-engine-foundation.md`
+
+- [x] `docs/architecture/atlas-module-engine-v3.md` — master AME3 architecture document
+- [x] `docs/03_custom_modules.md` — custom module developer guide
+- [x] `docs/02_module_system.md` — module system rewrite (AME3-first)
+- [x] `docs/01_erp_architecture.md` — updated architecture reference
+- [x] `README.md` — updated module system and architecture sections
+- [x] `docs/00_project_status.md` — AME3 direction and roadmap added
+- [x] Module Lifecycle v2 (Phase 9.5): `Permission.active`, dry-run, reset, purge-data, cleanup registry
+- [x] *Spec approved* → Create `packages/module-engine/` — exports `defineAtlasModule`, `defineModel`, `defineView`, `definePage`
+- [ ] *Spec approved* → Create `modules/custom/` directory with `README.md` and `.gitkeep`
+- [ ] *Spec approved* → File-system discovery from `modules/custom/` at API boot and `POST /modules/sync`
+
+Verified: 2026-05-09 (node --check 13 source files — all pass; node --test 4 test files — 61 tests, 0 fail [15 define-module, 14 define-model, 22 sql-generator, 10 checksum]; 16 named exports verified importable from packages/module-engine/src/index.js; pnpm --filter ./apps/desktop build:web exits 0)
+
+### AME3 Phase 2 — Folder Structure and Custom Sample Module
+
+**Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-route-loader-sample-module.md`  
+**Required plan:** `docs/superpowers/plans/YYYY-MM-DD-ame3-route-loader-sample-module.md`
+
+- [ ] *Spec approved* → Create `modules/official/` directory (migration target, initially empty)
+- [ ] *Spec approved* → Route Loader: mount `api/index.js` from `modules/custom/*/` automatically
+- [ ] *Spec approved* → Build and document one complete sample custom module (`custom.demo` or `custom.fleet`)
+- [ ] *Spec approved* → Module-local validators auto-discovered from `validators/index.js` (no `packages/validators/` edit required)
+- [ ] *Spec approved* → `@atlas/module-engine` ships with `defineAtlasModule`, `defineModel`, `defineView`, `definePage`
+
+### AME3 Phase 3 — Atlas ORM and Blueprint Renderer
+
+**Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-atlas-orm-blueprint-renderer.md`  
+**Required plan:** `docs/superpowers/plans/YYYY-MM-DD-ame3-atlas-orm-blueprint-renderer.md`
+
+- [ ] *Spec approved* → Add `AtlasModel`, `AtlasField`, `AtlasView`, `ModuleMigration` to `prisma/schema.prisma`
+- [ ] *Spec approved* → Atlas ORM: provisions `atlas_*` tables from `defineModel` declarations, forward-only
+- [ ] *Spec approved* → Blueprint renderer: `AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`
+- [ ] *Spec approved* → Component Registry: `registry.register(key, component)` from module `components/index.js`
+- [ ] *Spec approved* → First full AME3 module end-to-end: zero Prisma edits, zero manual route mounting, zero manual screen registration
+
+### AME3 Phase 4 — Discovery as Primary Source
+
+**Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-module-discovery-primary.md`  
+**Required plan:** `docs/superpowers/plans/YYYY-MM-DD-ame3-module-discovery-primary.md`
+
+- [ ] *Spec approved* → API boot reads modules from `modules/custom/` and `modules/official/` as primary sources
+- [ ] *Spec approved* → `packages/maps/` read only as fallback for not-yet-migrated official modules
+- [ ] *Spec approved* → Route Loader: mount all installed module routers at boot; unmount on disable/uninstall
+- [ ] *Spec approved* → Component Registry: load all installed module component registrations at boot
+- [ ] *Spec approved* → `POST /modules/sync` triggers re-discovery without restart
+
+### AME3 Phase 5 — Migrate Official Modules to modules/official/
+
+**Required spec per module:** `docs/superpowers/specs/YYYY-MM-DD-ame3-migrate-<moduleKey>.md`  
+**Required plan per module:** `docs/superpowers/plans/YYYY-MM-DD-ame3-migrate-<moduleKey>.md`
+
+Migration order: atlas.ledger → atlas.contacts → atlas.hr → atlas.finance → atlas.core (navigation/shell only) → atlas.identity → atlas.files → atlas.company
+
+For each module:
+- [ ] *Spec approved* → Move code from `packages/maps/` + `apps/api/src/` + `apps/desktop/src/` into `modules/official/<moduleKey>/`
+- [ ] *Spec approved* → Replace transitional Prisma models with Atlas ORM `defineModel` declarations
+- [ ] *Spec approved* → Replace manual API route mounting with Route Loader
+- [ ] *Spec approved* → Replace hardcoded frontend screens with blueprint-driven pages
+
+### AME3 Phase 6 — Generic CRUD Blueprint Renderer
+
+**Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-crud-blueprint-renderer.md`  
+**Required plan:** `docs/superpowers/plans/YYYY-MM-DD-ame3-crud-blueprint-renderer.md`
+
+- [ ] *Spec approved* → `AtlasTable` fully renders any TABLE blueprint with sort, filter, pagination
+- [ ] *Spec approved* → `AtlasForm` fully renders any FORM blueprint with React Hook Form + generated Zod schema
+- [ ] *Spec approved* → `AtlasDetail` renders any DETAIL blueprint read-only
+- [ ] *Spec approved* → `AtlasCrudView` composes list + form + detail into a full CRUD experience
+- [ ] *Spec approved* → Shell and layout resolution: `atlas.dashboardShell`, `atlas.crudLayout`
+- [ ] *Spec approved* → Custom component key resolution via Component Registry
+
+### AME3 Phase 7 — Remove packages/maps
+
+**Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-remove-packages-maps.md`  
+**Required plan:** `docs/superpowers/plans/YYYY-MM-DD-ame3-remove-packages-maps.md`
+
+- [ ] *Spec approved* → All official modules confirmed operational from `modules/official/`
+- [ ] *Spec approved* → `packages/maps/src/feature-modules.js` deleted
+- [ ] *Spec approved* → `packages/maps/src/core-modules.js` deleted or absorbed into `modules/official/atlas.core/`
+- [ ] *Spec approved* → `packages/maps/` package removed from monorepo
+- [ ] *Spec approved* → No remaining references to `packages/maps/` in core codebase
+
+---
+
+## Future feature modules
+
+- [ ] Purchases (supplier orders, receiving)
+- [ ] Inventory (stock management)
+- [ ] Fleet (vehicles, drivers, maintenance) — candidate first AME3 custom module
+- [ ] Reports (cross-module reporting engine)
 - [ ] Website builder / CMS
 
 ## Phase 10 - Responsive foundation, toolbar migrations, and Finance decomposition

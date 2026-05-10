@@ -1,8 +1,10 @@
-# Atlas ERP â€” Architecture
+# Atlas ERP — Architecture
 
 ## Overview
 
 Atlas ERP is a desktop-first, full-stack modular ERP. The desktop app is a Tauri + React shell. All business logic lives in a Node.js/Hono API. Data is stored in a dedicated self-hosted Supabase instance.
+
+Atlas ERP is a **module engine that ships ERP modules**. The Atlas Module Engine v3 (AME3) is the primary module architecture. See [docs/architecture/atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md) for the full specification.
 
 ## Stack
 
@@ -25,68 +27,80 @@ apps/
   worker/      Background job handler
 packages/
   core/        Module registry, event bus, manifest contract, time utilities
-  maps/        Module manifests: core-modules.js + feature-modules.js
+  maps/        [DEPRECATED] Legacy module manifests — transitional only
   ui/          Shared React components
   sdk/         Atlas API client (createAtlasClient factory)
   validators/  Zod schemas shared between API and frontend
+  module-engine/  @atlas/module-engine — defineAtlasModule, defineModel, defineView, definePage
+modules/
+  official/    Atlas team modules (migration target for Phase 5)
+  custom/      Community and partner modules
 prisma/
-  schema.prisma   Single source of truth for Atlas data models
+  schema.prisma   Single source of truth for Atlas Core data models only
   seed.js         Seeds core modules, permissions, roles
 ```
 
+`packages/maps/` is deprecated. Its contents are the old manifest source for official modules. It remains only while official modules are migrated into `modules/official/`. It will be deleted in Phase 7.
+
 ## Layer responsibilities
 
-**apps/desktop** â€” UI only. No business logic. No direct database access. Reads auth session from Supabase Auth client (anon key only). All ERP data goes through Atlas API via `@atlas/sdk`.
-Branding note: `primaryColor` selected during setup is applied at runtime as global brand accents (`--brand-primary`) for primary buttons, active navigation, links, and focus ring while keeping neutral background/surface tokens.
+**apps/desktop** — UI only. No business logic. No direct database access. Reads auth session from Supabase Auth client (anon key only). All ERP data goes through Atlas API via `@atlas/sdk`.
 
-**packages/sdk** â€” Typed client factory `createAtlasClient({ baseUrl })`. Groups calls by domain. Attaches JWT bearer token from Supabase session to every API request.
+**packages/sdk** — Typed client factory `createAtlasClient({ baseUrl })`. Groups calls by domain. Attaches JWT bearer token from Supabase session to every API request.
 
-**apps/api** â€” Single authority for all ERP business rules and validation. Verifies JWT via Supabase Auth Admin SDK (service role key â€” never exposed to frontend). Loads UserProfile + Role + Permissions from Prisma on each authenticated request. Architecture: Routes â†’ Services â†’ Prisma.
+**apps/api** — Single authority for all ERP business rules and validation. Verifies JWT via Supabase Auth Admin SDK (service role key — never exposed to frontend). Loads UserProfile + Role + Permissions from Prisma on each authenticated request. Architecture: Routes → Services → Prisma / Atlas ORM.
 
-**apps/worker** â€” Background jobs: reports, file processing, scheduled tasks. Connects to Prisma directly. No public endpoints.
+**apps/worker** — Background jobs: reports, file processing, scheduled tasks. Connects to Prisma directly. No public endpoints.
 
-**Supabase (external, self-hosted)** â€” PostgreSQL (Atlas tables via Prisma), Auth (sessions, JWTs, user creation), Storage (physical files), Realtime (future). Studio at https://studio.supabase.racoondevs.com for admin use only.
+**modules/official/** — Official Atlas ERP modules (Phase 5 migration target). Each module is a self-contained directory with manifest, models, views, pages, API routes, and optional components.
+
+**modules/custom/** — Community and partner modules. Same structure as official modules. Namespace must be `custom.*` or `community.*`.
+
+**Supabase (external, self-hosted)** — PostgreSQL (Atlas tables via Prisma), Auth (sessions, JWTs, user creation), Storage (physical files), Realtime (future).
 
 ## Data flows
 
 ### ERP data
 ```
-React â†’ @atlas/sdk (JWT attached) â†’ Atlas API â†’ Service â†’ Prisma â†’ Supabase PostgreSQL
+React → @atlas/sdk (JWT attached) → Atlas API → Service → Prisma / Atlas ORM → Supabase PostgreSQL
 ```
 
 ### Authentication
 ```
-React â†’ Supabase Auth client (anon key) â†’ session JWT
-Atlas API â† JWT in Authorization header
-Atlas API â†’ verifies via Admin SDK â†’ loads UserProfile + permissions via Prisma
+React → Supabase Auth client (anon key) → session JWT
+Atlas API ← JWT in Authorization header
+Atlas API → verifies via Admin SDK → loads UserProfile + permissions via Prisma
 ```
 
 ### File storage
 ```
-React â†’ Atlas API POST /files/upload (JWT) â†’ API â†’ Supabase Storage (service role)
-                                                   â†’ FileAsset metadata via Prisma
+React → Atlas API POST /files/upload (JWT) → API → Supabase Storage (service role)
+                                                 → FileAsset metadata via Prisma
 ```
 
 ### First-run
 ```
-React â†’ GET /instance/status â†’ { initialized: false }
-      â†’ /setup wizard â†’ Atlas API creates Auth user, Company, UserProfile, BrandingConfig
-                       â†’ writes InstanceConfig.initialized = "true"
-      â†’ /login
+React → GET /instance/status → { initialized: false }
+      → /setup wizard → Atlas API creates Auth user, Company, UserProfile, BrandingConfig
+                       → writes InstanceConfig.initialized = "true"
+      → /login
 ```
 
 ## Supabase / Prisma boundary
+
+**Prisma models Atlas Core. Atlas Module Engine models ERP modules.**
 
 | Concern | Owner | Rule |
 |---|---|---|
 | `auth.users` | Supabase Auth | Never in Prisma migrations |
 | `storage.objects` | Supabase Storage | Never in Prisma migrations |
-| `public.*` Atlas tables | Prisma | Never accessed directly from frontend |
+| Atlas Core tables (`AtlasModule`, `Blueprint`, `Permission`, `Role`, `UserProfile`, etc.) | Prisma | Stable — never accessed from frontend |
+| Module-owned business tables (Contact, FinanceAccount, HrEmployee, etc.) | Atlas ORM (Phase 3+) | Declared via `defineModel`; transitionally in Prisma during Phase 1–4 |
 | Business rules / validation | Atlas API | Never in React components |
 | Session tokens | Supabase Auth | Never stored in Atlas tables |
 | File bytes | Supabase Storage | Never on local disk in production |
 | File metadata (FileAsset) | Prisma | Never duplicated in Supabase Storage metadata |
-| SUPABASE_SERVICE_ROLE_KEY | API only | Never in any VITE_ alias or frontend bundle |
+| `SUPABASE_SERVICE_ROLE_KEY` | API only | Never in any VITE_ alias or frontend bundle |
 
 ## Supabase endpoints
 

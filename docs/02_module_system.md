@@ -1,147 +1,198 @@
-# Atlas ERP — Module System
+# Atlas ERP — Module System (AME3)
 
-## What is a module?
+Atlas ERP is a **module engine that ships ERP modules**. Every ERP feature is a module. Modules are self-contained directories that declare everything they need — data models, views, pages, navigation, permissions, API endpoints, and optionally custom React components. The Atlas Core reads these declarations and drives all behavior from them.
 
-Every ERP feature in Atlas is a **module** (also called a **map**). Modules are self-describing via manifests: they declare their permissions, navigation, blueprints, dependencies, and what they expose to or consume from other modules.
+For the full architecture, see [docs/architecture/atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md).
 
-Manifests are defined in `packages/maps/` and seeded into the `AtlasModule` table via `prisma/seed.js`.
+---
 
-## Manifest contract
+## Module locations
+
+| Directory | Namespace | Owner |
+|---|---|---|
+| `modules/official/<moduleKey>/` | `atlas.*` | Atlas core team |
+| `modules/custom/<moduleKey>/` | `custom.*`, `community.*` | Partners, community |
+| `packages/maps/` | `atlas.*` | **Deprecated** — transitional only, will be removed in Phase 7 |
+
+No new module should be added to `packages/maps/`. It exists only to keep current official modules running while they are migrated into `modules/official/`.
+
+---
+
+## Module manifest
+
+Every module contains a `module.manifest.js` file at its root, exporting a `defineAtlasModule` declaration:
 
 ```js
-import { createModuleManifest, MODULE_KINDS } from '@atlas/core'
+import { defineAtlasModule } from '@atlas/module-engine'
 
-export const myModule = createModuleManifest({
-  key: 'atlas.mymodule',        // unique — use reverse domain format
-  name: 'My Module',
-  description: '...',
-  version: '0.1.0',             // semver
-  kind: MODULE_KINDS.FEATURE,   // CORE | FEATURE | INTEGRATION | WEBSITE
-  core: false,
-  uninstallable: true,
+export default defineAtlasModule({
+  key: 'custom.fleet',
+  name: 'Flota',
+  version: '0.1.0',
+  kind: 'FEATURE',
   dependencies: [{ key: 'atlas.core' }],
+  lifecycle: {
+    installable: true,
+    uninstallable: true,
+    resettable: true,
+    supportsDataPurge: true,
+    defaultUninstallPolicy: 'preserve-data',
+    ownedEntities: ['Vehicle'],
+    sharedEntities: ['Company', 'AuditLog'],
+  },
   permissions: [
-    { key: 'mymodule.read', name: 'Read My Module' },
-    { key: 'mymodule.manage', name: 'Manage My Module' }
+    { key: 'fleet.access',        name: 'Access Fleet' },
+    { key: 'fleet.vehicles.read', name: 'Read Vehicles' },
   ],
+  acl: {
+    module: 'fleet.access',
+    actions: { 'fleet.vehicles.read': 'fleet.vehicles.read' },
+    models: { Vehicle: { read: 'fleet.vehicles.read' } },
+  },
   navigation: [
-    { label: 'Mi Módulo', path: '/mymodule', icon: 'Package', layout: 'main' }
+    {
+      label: 'Vehiculos',
+      path: '/fleet/vehicles',
+      icon: 'Truck',
+      layout: 'main',
+      permissionKey: 'fleet.vehicles.read',
+    },
   ],
-  blueprints: [],
-  exposes: {},
-  consumes: {}
 })
 ```
 
-Required fields: `key`, `name`, `version`. All others have defaults via `createModuleManifest`.
+`createModuleManifest` from `@atlas/core` is **deprecated**. Use `defineAtlasModule` for all new modules.
 
-## ACL contract (required)
+---
 
-Atlas RBAC/ACL is server-authoritative and fail-closed.
+## Prisma boundary
 
-Every new module must declare ACL in its manifest:
+**Prisma models Atlas Core. Atlas Module Engine models ERP modules.**
 
-- `acl.module`: base permission to access module runtime
-- `navigation[].permissionKey`: permission needed to expose each menu entry
-- `acl.actions`: action-to-permission map
-- `acl.models`: CRUD model-to-permission map
+Prisma manages only stable Atlas infrastructure models: `AtlasModule`, `Blueprint`, `Permission`, `Role`, `UserProfile`, `Company`, `FileAsset`, `AuditLog`, `InstanceConfig`, and the AME3 metadata tables (`AtlasModel`, `AtlasField`, `AtlasView`, `ModuleMigration`).
 
-Rules:
+Module-owned business tables (contacts, finance, HR, fleet, etc.) are declared using `defineModel` and managed by the Atlas ORM. No module developer should add tables to `prisma/schema.prisma`.
 
-- Navigation item without `permissionKey` is not exposed in runtime.
-- Module without `acl.module` is not exposed in runtime for non-admin users.
-- API routes must enforce the same permissions with `requirePermission`, `requireAnyPermission`, or `requireModuleAccess`.
+Existing Prisma models for feature modules (Contact, FinanceAccount, HrEmployee, LedgerAccount, etc.) are **transitional**. They remain only until those modules are migrated to `modules/official/` in Phase 5.
 
-## Granular permission convention (mandatory)
+---
 
-Every new module **MUST** use the granular pattern below:
+## Module data layer (Atlas ORM)
 
-- `module.access`
-- `module.feature.read`
-- `module.feature.create`
-- `module.feature.update`
-- `module.feature.delete`
+A module declares its entities in `models/*.model.js` using `defineModel`. The Atlas ORM provisions and manages the physical tables, forward-only.
 
-Only add non-CRUD keys when strictly required (example: `finance.applications.reverse`).
+```js
+// modules/custom/custom.fleet/models/vehicle.model.js
+import { defineModel } from '@atlas/module-engine'
 
-Hard rule for new modules:
+export default defineModel({
+  key: 'vehicle',
+  label: 'Vehiculo',
+  tableName: 'atlas_fleet_vehicle',
+  companyScoped: true,
+  fields: [
+    { name: 'plate',  type: 'text',   required: true },
+    { name: 'status', type: 'select', options: ['active', 'maintenance', 'retired'] },
+  ],
+})
+```
 
-1. Declare all required permission keys in `manifest.permissions`.
-2. Map each menu entry in `navigation[]` with `permissionKey`.
-3. Map each API capability in `acl.actions`.
-4. Map each persisted model in `acl.models`.
-5. Protect API routes with the same permission key used in ACL.
-6. Add authorization tests (`rol x endpoint`) before marking the module complete.
+---
+
+## Blueprints (views)
+
+Blueprints are declarative JSON documents that describe how to render an entity. They are Atlas ERP's equivalent to Odoo XML views, designed for React rendering. A module declares views in `views/*.view.js` using `defineView`.
+
+Supported blueprint kinds: `ENTITY`, `FORM`, `TABLE`, `DETAIL`, `PAGE`, `DASHBOARD`, `ACTION`, `RELATION`, `CUSTOM`.
+
+Blueprints reference standard Atlas components (`AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`) or custom registered components (`custom.fleet:VehicleStatusBadge`).
+
+See [docs/08_blueprints.md](08_blueprints.md) for field type reference and rendering rules.
+
+---
 
 ## Module kinds
 
 | Kind | Description |
 |---|---|
-| CORE | `core: true`, `uninstallable: false`. Always present. |
-| FEATURE | Business module. Installable, removable, versioned. |
-| INTEGRATION | Third-party connector. Same lifecycle as FEATURE. |
-| WEBSITE | Public-facing module. Same lifecycle as FEATURE. |
+| `CORE` | `core: true`, `uninstallable: false`. Always installed. Cannot be removed. |
+| `FEATURE` | Business module. Installable, disable-able, uninstallable. |
+| `INTEGRATION` | Third-party connector. Same lifecycle as FEATURE. |
+| `WEBSITE` | Public-facing module. Same lifecycle as FEATURE. |
 
-## Core vs. feature rules
-
-**Core:** Cannot be removed or disabled via API. `DELETE /modules/:key` returns 403.
-
-**Feature:** Can be installed, disabled, and logically uninstalled. Uninstall sets `status: UNINSTALLED` and `enabled: false` — never hard-deletes data.
+---
 
 ## Module lifecycle
 
 ```
-INSTALLED → DISABLED → UNINSTALLED
-              ↑
-           re-enable
+DISCOVERED → UNINSTALLED ←→ INSTALLED ←→ DISABLED
+                                ↑
+                            ERROR (retry install)
 ```
 
-Status stored in `AtlasModule.status` (enum: INSTALLED, DISABLED, UNINSTALLED, ERROR).
+`AtlasModule.status` holds the lifecycle state. `Permission.active` mirrors install status — permissions for uninstalled or disabled modules have `active: false` and grant no access.
 
-## ModuleRegistry (in-memory)
+Destructive operations (purge-data uninstall, reset) require:
+1. A preceding dry-run call
+2. Request body `{ confirmation: "ACEPTO" }`
+3. A Prisma transaction that rolls back on failure
 
-```js
-import { ModuleRegistry } from '@atlas/core'
-const registry = new ModuleRegistry()
-registry.register(myModule)
-registry.list()                // all modules
-registry.get('atlas.mymodule') // one module
-registry.resolveNavigation()   // flattened nav from enabled modules
-registry.resolveBlueprints()   // flattened blueprints from all modules
-registry.assertDependencies()  // throws if a dependency is missing
-```
-
-## AtlasEventBus
-
-```js
-import { AtlasEventBus } from '@atlas/core'
-const bus = new AtlasEventBus()
-const unsubscribe = bus.on('contact.created', async (payload) => { ... })
-await bus.emit('contact.created', { id: '...' })
-unsubscribe()
-```
+---
 
 ## Module-to-module communication
 
-Current: modules communicate via declared `exposes`/`consumes` in manifests, Atlas API endpoints, and AtlasEventBus events.
+Modules communicate through:
+- **Atlas API** — HTTP calls via `@atlas/sdk`
+- **EventBus** — typed pub/sub events via `AtlasEventBus`
+- **Exposes/consumes** — declared component or service keys in the manifest
 
-Future: service registry, hooks, workflow engine.
+Modules do not import each other directly. There is no shared runtime module scope.
 
-## Versioning (SemVer)
+---
 
-- **Patch** (0.1.1): internal fixes, no API/schema changes
-- **Minor** (0.2.0): new features, backwards-compatible
-- **Major** (1.0.0): breaking changes — requires migration plan
+## Permission conventions
 
-## Adding a new feature module checklist
+Every module must declare granular permissions:
 
-1. Add manifest to `packages/maps/src/feature-modules.js`
-2. Declare module ACL (`acl.module`, `navigation[].permissionKey`, `acl.actions`, `acl.models`)
-3. Add Prisma model(s) to `prisma/schema.prisma`
-4. Run `pnpm db:migrate`
-5. Add API routes to `apps/api/src/` with permission guards
-6. Add service to `apps/api/src/services/`
-7. Add Zod schema to `packages/validators/src/index.js`
-8. Ensure runtime visibility works through `GET /runtime/modules`
-9. Add authorization tests (role x endpoint matrix)
-10. Update `docs/TASKS.md`
+```
+module.access
+module.feature.read
+module.feature.create
+module.feature.update
+module.feature.delete
+```
+
+Every navigation entry must declare `permissionKey`. Every API route must call `requirePermission`. The ACL block in the manifest must cover all declared actions and models.
+
+---
+
+## Adding a new module
+
+**Every new module requires an approved spec and plan before any code is written.** See Section 14 of [docs/architecture/atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md) for the SDD mandate, required document sections, and the 13-step module workflow.
+
+See [docs/03_custom_modules.md](03_custom_modules.md) for the full developer guide and checklist.
+
+The short version (after spec and plan are approved):
+
+1. Create `modules/custom/<moduleKey>/module.manifest.js` using `defineAtlasModule`
+2. Declare models in `models/*.model.js` using `defineModel`
+3. Declare views in `views/*.view.js` using `defineView`
+4. Declare pages in `pages/*.page.js` using `definePage`
+5. Optionally add `api/index.js` for custom business endpoints
+6. Optionally add `components/index.js` for custom React components
+7. Call `POST /modules/sync`
+8. Install from the module catalog (`/modules`)
+
+Do not add manifests to `packages/maps/`. Do not add Prisma models. Do not mount routes manually. Do not register screens manually.
+
+---
+
+## Deprecated: packages/maps
+
+`packages/maps/src/core-modules.js` and `packages/maps/src/feature-modules.js` are the old manifest sources. They remain only to keep the currently running application operational during the Phase 5 migration.
+
+- Do not add new modules to these files.
+- Do not modify these files for new work.
+- They will be deleted in Phase 7.
+
+Old code that still imports from `packages/maps/` is transitional. It is not a reference or a pattern to follow.

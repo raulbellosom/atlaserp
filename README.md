@@ -107,27 +107,34 @@ apps/
   worker/      Background job handler
 packages/
   core/        Module registry, event bus, manifest contract
-  maps/        Module manifests: core-modules.js + feature-modules.js
+  maps/        [DEPRECATED] Legacy manifests — transitional only, will be removed
   ui/          Shared React components
   sdk/         Atlas API client (createAtlasClient)
   validators/  Zod schemas shared between API and frontend
+  module-engine/  @atlas/module-engine — defineAtlasModule, defineModel, defineView, definePage
+modules/
+  official/    Atlas team modules (Phase 5 migration target)
+  custom/      Community and partner modules
 prisma/
-  schema.prisma   Database models
+  schema.prisma   Atlas Core stable models only
   seed.js         Seeds core modules, roles, permissions
 ```
 
-**Request flow:** `React → @atlas/sdk → Hono API → Zod validation → Prisma → Supabase PostgreSQL`
+**Request flow:** `React → @atlas/sdk → Hono API → Zod validation → Prisma / Atlas ORM → Supabase PostgreSQL`
 
 No direct database access from the frontend. The API owns all business rules and validation.
 
 ## Module system
 
-Every ERP feature is a **module**. Modules register via manifests in `packages/maps/`.
+Atlas ERP is a **module engine that ships ERP modules**. Every ERP feature is a self-contained module that lives in `modules/official/` or `modules/custom/`. Modules declare their own data models, views, pages, navigation, permissions, and API endpoints — without touching any core files.
 
-- **Core modules** — `atlas.core`, `atlas.identity`, `atlas.files`, `atlas.company` — cannot be uninstalled.
-- **Feature modules** — installable, versioned, with declared dependencies.
+- **Official modules** — `atlas.core`, `atlas.identity`, `atlas.files`, `atlas.company`, and feature modules. Maintained by the Atlas team in `modules/official/`.
+- **Custom modules** — Community and partner modules in `modules/custom/`. Namespace must be `custom.*` or `community.*`.
+- **`packages/maps/`** — Deprecated. Contains legacy manifests only until official modules complete migration.
 
-See [docs/02_module_system.md](docs/02_module_system.md) and [docs/01_erp_architecture.md](docs/01_erp_architecture.md).
+New modules use `defineAtlasModule` from `@atlas/module-engine`. `createModuleManifest` is deprecated.
+
+See [docs/02_module_system.md](docs/02_module_system.md), [docs/03_custom_modules.md](docs/03_custom_modules.md), and [docs/architecture/atlas-module-engine-v3.md](docs/architecture/atlas-module-engine-v3.md).
 
 ## Notes
 

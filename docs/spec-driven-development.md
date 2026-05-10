@@ -179,40 +179,42 @@ Every spec file must contain the following 28 sections in this order. "N/A" is a
 
 ## 5. Atlas Module Checklist
 
-Every new feature module must complete all items in this checklist before the implementation is considered done.
+Every new feature module must complete all items in this checklist before the implementation is considered done. New modules use AME3 (`defineAtlasModule`). See [docs/03_custom_modules.md](03_custom_modules.md) for the full developer guide and [docs/architecture/atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md) for the SDD mandate.
 
-- [ ] 1. Spec created at `docs/superpowers/specs/YYYY-MM-DD-feature-name-design.md`
-- [ ] 2. Implementation plan created at `docs/superpowers/plans/YYYY-MM-DD-feature-name.md`
-- [ ] 3. Module manifest declared in `packages/maps/src/feature-modules.js`
-- [ ] 4. Granular permissions declared in manifest:
+- [ ] 1. Spec created at `docs/superpowers/specs/YYYY-MM-DD-ame3-<moduleKey>-design.md`
+- [ ] 2. Implementation plan created at `docs/superpowers/plans/YYYY-MM-DD-ame3-<moduleKey>.md`
+- [ ] 3. Module manifest at `modules/custom/<moduleKey>/module.manifest.js` using `defineAtlasModule`
+- [ ] 4. Module key uses `custom.*` or `community.*` namespace (`atlas.*` is reserved for the Atlas team)
+- [ ] 5. Granular permissions declared in manifest:
   - `module.access`
   - `module.feature.read`
   - `module.feature.create`
   - `module.feature.update`
   - `module.feature.delete`
   - Non-CRUD extras declared as `module.feature.action` only when applicable
-- [ ] 5. `navigation[].permissionKey` set for every navigation item
-- [ ] 6. `acl.module`, `acl.actions`, and `acl.models` declared in manifest
-- [ ] 7. Prisma models added to `prisma/schema.prisma`
-- [ ] 8. Forward-only migration created (`pnpm db:generate` + `pnpm db:migrate`)
-- [ ] 9. Zod validators added to `packages/validators/src/index.js`
-- [ ] 10. API service layer created at `apps/api/src/services/module-service.js`
-- [ ] 11. API routes added with `requirePermission` guards matching the manifest ACL
-- [ ] 12. SDK domain methods added to `packages/sdk/src/index.js`
-- [ ] 13. Frontend module screens created at `apps/desktop/src/modules/atlas.modulename/`
-- [ ] 14. Exports or reports implemented if the spec requires them
-- [ ] 15. Verification commands run and results documented
-- [ ] 16. `docs/TASKS.md` updated with phase entry and `Verified: YYYY-MM-DD (...)` evidence
+- [ ] 6. `navigation[].permissionKey` set for every navigation item
+- [ ] 7. `acl.module`, `acl.actions`, and `acl.models` declared in manifest
+- [ ] 8. Models declared with `defineModel` in `models/*.model.js` (Phase 3+; Phase 1–2: transitional Prisma model with `// TODO: remove when Phase 3 complete` comment)
+- [ ] 9. Views declared with `defineView` in `views/*.view.js` (Phase 3+)
+- [ ] 10. Pages declared with `definePage` in `pages/*.page.js` (Phase 3+)
+- [ ] 11. Module-local validators in `validators/index.js` (no edit to `packages/validators/src/index.js`)
+- [ ] 12. `api/index.js` exports Hono router factory; all routes guarded by `requirePermission`
+- [ ] 13. Business logic in `api/*-service.js`, not in route handlers
+- [ ] 14. Cleanup handler registered if `resettable: true` or `supportsDataPurge: true`
+- [ ] 15. Exports or reports implemented if the spec requires them
+- [ ] 16. Module discovered (`POST /modules/sync`), installed from catalog, and fail-closed permission test passes
+- [ ] 17. Verification commands run and results documented
+- [ ] 18. `docs/TASKS.md` updated with phase entry and `Verified: YYYY-MM-DD (...)` evidence
 
 ## 6. Atlas Module Contract Questions
 
 Before a spec is considered complete, it must explicitly answer every question below. These questions appear within the relevant spec sections but are listed here for completeness.
 
 **Manifest:**
-- Does this feature need a new manifest in `packages/maps/src/feature-modules.js`?
-- What is the module key? (Use reverse-domain format: `atlas.featurename`)
+- What is the module key? (Use `custom.*` or `community.*` namespace; `atlas.*` is reserved)
+- Where does the manifest live? (`modules/custom/<moduleKey>/module.manifest.js` — uses `defineAtlasModule`, not `createModuleManifest`)
 - What modules does it declare as dependencies?
-- Is it `core: false` and `uninstallable: true`?
+- Is it `kind: 'FEATURE'` and `lifecycle.uninstallable: true`?
 
 **Permissions:**
 - What is the full list of permission keys the module declares?
@@ -230,17 +232,17 @@ Before a spec is considered complete, it must explicitly answer every question b
 - What is the request and response shape for each endpoint?
 
 **Data:**
-- What Prisma models are required (new or modified)?
-- Does the feature require a new forward migration?
+- What entities does the module own? (declared via `defineModel` in AME3; transitional Prisma model in Phase 1–2 only)
+- Does the feature require a new forward migration? (Atlas ORM migration in Phase 3+; Prisma migration in Phase 1–2 only)
 
 **Validators:**
-- What Zod schemas are required in `@atlas/validators`?
+- What Zod schemas are required? (module-local `validators/index.js` in AME3; `@atlas/validators` only for truly shared contracts)
 
 **SDK:**
 - What SDK domain and methods are required in `@atlas/sdk`?
 
 **Frontend:**
-- What screen files are required under `apps/desktop/src/modules/`?
+- What views are required? (declared via `defineView` in AME3; Phase 1–2 only: screen files under `apps/desktop/src/modules/`)
 - Which existing `@atlas/ui` components can be reused?
 
 **Documentation:**

@@ -1,0 +1,570 @@
+# Atlas ERP — Custom Modules
+
+This document explains how to create a custom module for Atlas ERP using Atlas Module Engine v3 (AME3). For the full architectural rationale and roadmap, see [docs/architecture/atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md).
+
+---
+
+## Before you start: Spec-Driven Development
+
+Every new module requires an approved spec and implementation plan before any code is written. This is not optional.
+
+| Document | Path convention | Required sections |
+|---|---|---|
+| Spec | `docs/superpowers/specs/YYYY-MM-DD-ame3-<moduleKey>-design.md` | 15 required — see Section 14.3 of [atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md) |
+| Plan | `docs/superpowers/plans/YYYY-MM-DD-ame3-<moduleKey>.md` | 7 required — see Section 14.4 of [atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md) |
+
+**Module creation workflow (13 steps):**
+
+1. Write module spec at `docs/superpowers/specs/YYYY-MM-DD-ame3-<moduleKey>-design.md`
+2. Get spec approved (explicit confirmation — not implied)
+3. Write implementation plan at `docs/superpowers/plans/YYYY-MM-DD-ame3-<moduleKey>.md`
+4. Get plan approved (explicit confirmation — not implied)
+5. Create module folder at `modules/custom/<moduleKey>/`
+6. Write `module.manifest.js` using `defineAtlasModule`
+7. Declare models in `models/*.model.js` using `defineModel`
+8. Declare views in `views/*.view.js` using `defineView`
+9. Declare pages in `pages/*.page.js` using `definePage`
+10. Write `api/index.js` route factory and service files
+11. Write `validators/index.js`
+12. Register cleanup handler if `resettable: true` or `supportsDataPurge: true`
+13. Call `POST /modules/sync`, install from catalog, run the AME3 checklist below
+
+If any step reveals a deviation from the approved spec or plan, stop and revise before continuing.
+
+---
+
+## The core rule
+
+A custom module must never require editing any of the following files:
+
+| File | Reason it must not be touched |
+|---|---|
+| `packages/maps/src/feature-modules.js` | Deprecated |
+| `prisma/schema.prisma` | Module tables are managed by Atlas ORM |
+| `apps/api/src/index.js` | Routes are auto-loaded by Route Loader |
+| `apps/desktop/src/main.jsx` or any hardcoded route file | Pages are declared in the module |
+| `packages/validators/src/index.js` | Validators live in `validators/index.js` inside the module |
+
+If the AME3 layer needed to avoid these edits is not yet available, wait for it. Do not extend the old system.
+
+---
+
+## Namespace rules
+
+| Prefix | Who | Example |
+|---|---|---|
+| `atlas.*` | Atlas core team only | `atlas.finance` |
+| `custom.*` | Private / company modules | `custom.fleet` |
+| `community.*` | Open-source community modules | `community.crm` |
+| `atlas.*`, `core.*`, `system.*`, `identity.*` | Reserved — rejected by discovery | — |
+
+---
+
+## Folder structure
+
+```
+modules/custom/<moduleKey>/
+  module.manifest.js     ← REQUIRED — defineAtlasModule export
+  models/
+    vehicle.model.js     ← defineModel declarations
+    driver.model.js
+  views/
+    vehicle.list.view.js ← defineView declarations (TABLE, FORM, DETAIL, etc.)
+    vehicle.form.view.js
+  pages/
+    fleet.page.js        ← definePage declarations (full page layouts)
+  api/
+    index.js             ← Hono router factory (optional)
+    fleet-service.js     ← business logic
+    fleet-cleanup.js     ← data purge handler
+  components/
+    VehicleStatusBadge.jsx
+    index.js             ← Component Registry entries
+  validators/
+    index.js             ← Zod schemas for this module
+  migrations/
+    0001_create_vehicle.sql  ← module-local forward migrations (Phase 3+)
+```
+
+---
+
+## Module manifest
+
+`module.manifest.js` must use `defineAtlasModule` from `@atlas/module-engine`. This is the only supported manifest API for new modules.
+
+```js
+// modules/custom/custom.fleet/module.manifest.js
+import { defineAtlasModule } from '@atlas/module-engine'
+
+export default defineAtlasModule({
+  key: 'custom.fleet',
+  name: 'Flota',
+  description: 'Gestion de vehiculos, conductores y mantenimiento.',
+  version: '0.1.0',
+  kind: 'FEATURE',
+  icon: 'Truck',
+  color: '#0f766e',
+  category: 'operaciones',
+
+  dependencies: [
+    { key: 'atlas.core' },
+    { key: 'atlas.identity' },
+    { key: 'atlas.files', optional: true },
+  ],
+
+  lifecycle: {
+    installable: true,
+    uninstallable: true,
+    resettable: true,
+    supportsDataPurge: true,
+    defaultUninstallPolicy: 'preserve-data',
+    ownedEntities: ['Vehicle', 'Driver'],
+    sharedEntities: ['Company', 'UserProfile', 'FileAsset', 'AuditLog'],
+    purgeStrategy: 'service-defined',
+    resetStrategy: 'service-defined',
+  },
+
+  permissions: [
+    { key: 'fleet.access',          name: 'Access Fleet' },
+    { key: 'fleet.vehicles.read',   name: 'Read Vehicles' },
+    { key: 'fleet.vehicles.create', name: 'Create Vehicles' },
+    { key: 'fleet.vehicles.update', name: 'Update Vehicles' },
+    { key: 'fleet.vehicles.delete', name: 'Delete Vehicles' },
+    { key: 'fleet.drivers.read',    name: 'Read Drivers' },
+    { key: 'fleet.drivers.manage',  name: 'Manage Drivers' },
+  ],
+
+  acl: {
+    module: 'fleet.access',
+    actions: {
+      'fleet.vehicles.read':   'fleet.vehicles.read',
+      'fleet.vehicles.create': 'fleet.vehicles.create',
+      'fleet.vehicles.update': 'fleet.vehicles.update',
+      'fleet.vehicles.delete': 'fleet.vehicles.delete',
+      'fleet.drivers.read':    'fleet.drivers.read',
+      'fleet.drivers.manage':  'fleet.drivers.manage',
+    },
+    models: {
+      Vehicle: {
+        read:   'fleet.vehicles.read',
+        create: 'fleet.vehicles.create',
+        update: 'fleet.vehicles.update',
+        delete: 'fleet.vehicles.delete',
+      },
+      Driver: {
+        read:   'fleet.drivers.read',
+        create: 'fleet.drivers.manage',
+        update: 'fleet.drivers.manage',
+        delete: 'fleet.drivers.manage',
+      },
+    },
+  },
+
+  navigation: [
+    {
+      label: 'Vehiculos',
+      path: '/fleet/vehicles',
+      icon: 'Truck',
+      layout: 'main',
+      permissionKey: 'fleet.vehicles.read',
+    },
+    {
+      label: 'Conductores',
+      path: '/fleet/drivers',
+      icon: 'Users',
+      layout: 'main',
+      permissionKey: 'fleet.drivers.read',
+    },
+  ],
+})
+```
+
+> `createModuleManifest` from `@atlas/core` is deprecated. Do not use it for new modules.
+
+---
+
+## Model declarations
+
+Models define the entities owned by the module. The Atlas ORM reads these and provisions the physical tables, with no Prisma migration authored by the module developer.
+
+```js
+// modules/custom/custom.fleet/models/vehicle.model.js
+import { defineModel } from '@atlas/module-engine'
+
+export default defineModel({
+  key: 'vehicle',
+  label: 'Vehiculo',
+  tableName: 'atlas_fleet_vehicle',
+  companyScoped: true,
+  softDelete: true,
+  fields: [
+    { name: 'plate',    type: 'text',    required: true, maxLength: 20,  label: 'Placa' },
+    { name: 'brand',    type: 'text',    required: true, maxLength: 100, label: 'Marca' },
+    { name: 'model',    type: 'text',    required: true, maxLength: 100, label: 'Modelo' },
+    { name: 'year',     type: 'number',  required: true, label: 'Anio' },
+    {
+      name: 'status',
+      type: 'select',
+      required: true,
+      label: 'Estado',
+      options: ['active', 'maintenance', 'retired'],
+      default: 'active',
+    },
+    { name: 'driverId', type: 'relation', relatedModel: 'driver', label: 'Conductor asignado' },
+    { name: 'notes',    type: 'textarea', label: 'Notas' },
+  ],
+  indexes: [
+    { fields: ['companyId', 'plate'], unique: true },
+    { fields: ['companyId', 'status'] },
+  ],
+})
+```
+
+Available in Phase 3. In Phase 1–2, module-owned tables must be added as transitional Prisma models and migrated into Atlas ORM during Phase 5.
+
+---
+
+## View declarations
+
+Views are blueprint definitions that describe how to render an entity. They replace manually written React screens for standard CRUD.
+
+```js
+// modules/custom/custom.fleet/views/vehicle.list.view.js
+import { defineView } from '@atlas/module-engine'
+
+export default defineView({
+  key: 'fleet.vehicle.list',
+  kind: 'TABLE',
+  version: '0.1.0',
+  schema: {
+    entity: 'vehicle',
+    label: 'Vehiculos',
+    shell: 'atlas.dashboardShell',
+    layout: 'atlas.crudLayout',
+    component: 'AtlasTable',
+    columns: ['plate', 'brand', 'model', 'year', 'status'],
+    defaultSort: { field: 'plate', direction: 'asc' },
+    filters: [
+      { field: 'status', type: 'select', label: 'Estado' },
+    ],
+    actions: [
+      { key: 'create', label: 'Agregar vehiculo', permissionKey: 'fleet.vehicles.create' },
+    ],
+  },
+})
+```
+
+```js
+// modules/custom/custom.fleet/views/vehicle.form.view.js
+import { defineView } from '@atlas/module-engine'
+
+export default defineView({
+  key: 'fleet.vehicle.form',
+  kind: 'FORM',
+  version: '0.1.0',
+  schema: {
+    entity: 'vehicle',
+    label: 'Vehiculo',
+    layout: 'atlas.crudLayout',
+    component: 'AtlasForm',
+    sections: [
+      {
+        title: 'Identificacion',
+        columns: 2,
+        fields: ['plate', 'brand', 'model', 'year'],
+      },
+      {
+        title: 'Estado y asignacion',
+        columns: 2,
+        fields: ['status', 'driverId'],
+      },
+      {
+        title: 'Notas',
+        columns: 1,
+        fields: ['notes'],
+      },
+    ],
+  },
+})
+```
+
+Available from Phase 3. In Phase 1–2, write standard React screens.
+
+---
+
+## Page declarations
+
+Pages compose views and components into a full routed screen.
+
+```js
+// modules/custom/custom.fleet/pages/fleet.page.js
+import { definePage } from '@atlas/module-engine'
+
+export default definePage({
+  key: 'fleet.vehicles.index',
+  path: '/fleet/vehicles',
+  title: 'Vehiculos',
+  permissionKey: 'fleet.vehicles.read',
+  view: 'fleet.vehicle.list',
+})
+```
+
+Available from Phase 3. In Phase 1–2, register screens manually in `apps/desktop/src/`.
+
+---
+
+## API route factory
+
+`api/index.js` exports a default factory function that returns a Hono router. The Route Loader mounts this automatically in Phase 4. In Phase 1–2, import and mount it manually in `apps/api/src/index.js`.
+
+```js
+// modules/custom/custom.fleet/api/index.js
+import { Hono } from 'hono'
+import { requirePermission } from '@atlas/api/middleware'
+import { fleetService } from './fleet-service.js'
+import { registerModuleHandler } from '@atlas/api/services/module-cleanup-registry'
+import { fleetCleanupHandler } from './fleet-cleanup.js'
+
+registerModuleHandler('custom.fleet', fleetCleanupHandler)
+
+export default function createFleetRouter() {
+  const app = new Hono()
+
+  app.get('/fleet/vehicles', requirePermission('fleet.vehicles.read'), async (c) => {
+    const user = c.get('user')
+    const data = await fleetService.listVehicles(user.companyId)
+    return c.json({ data })
+  })
+
+  app.post('/fleet/vehicles', requirePermission('fleet.vehicles.create'), async (c) => {
+    const user = c.get('user')
+    const body = await c.req.json()
+    const data = await fleetService.createVehicle(user.companyId, body)
+    return c.json({ data }, 201)
+  })
+
+  return app
+}
+```
+
+**Route conventions:**
+- Every route must be guarded with `requirePermission` or `requireAnyPermission`.
+- Business logic lives in `api/*-service.js`, not in route handlers.
+- Route URL prefix must match the module's declared navigation paths.
+
+---
+
+## Validators
+
+```js
+// modules/custom/custom.fleet/validators/index.js
+import { z } from 'zod'
+
+export const createVehicleSchema = z.object({
+  plate:  z.string().min(1).max(20),
+  brand:  z.string().min(1).max(100),
+  model:  z.string().min(1).max(100),
+  year:   z.number().int().min(1900).max(2100),
+  status: z.enum(['active', 'maintenance', 'retired']).default('active'),
+  notes:  z.string().max(5000).optional(),
+})
+
+export const updateVehicleSchema = createVehicleSchema.partial()
+```
+
+---
+
+## Cleanup handler
+
+Required when `resettable: true` or `supportsDataPurge: true`. Must scope all deletes to the active company. Delete child rows before parent rows to respect FK constraints.
+
+```js
+// modules/custom/custom.fleet/api/fleet-cleanup.js
+
+export const fleetCleanupHandler = {
+  async count({ prisma, companyId }) {
+    const vehicles = await prisma.vehicle.count({ where: { companyId } })
+    const drivers  = await prisma.driver.count({ where: { companyId } })
+    return [
+      { entity: 'Vehicle', rows: vehicles, companyScoped: true },
+      { entity: 'Driver',  rows: drivers,  companyScoped: true },
+    ]
+  },
+
+  async purge({ tx, companyId }) {
+    const { count: driversDeleted }  = await tx.driver.deleteMany({ where: { companyId } })
+    const { count: vehiclesDeleted } = await tx.vehicle.deleteMany({ where: { companyId } })
+    return driversDeleted + vehiclesDeleted
+  },
+}
+```
+
+---
+
+## Custom components
+
+```js
+// modules/custom/custom.fleet/components/index.js
+import { registry } from '@atlas/module-engine'
+import { VehicleStatusBadge } from './VehicleStatusBadge.jsx'
+
+registry.register('custom.fleet:VehicleStatusBadge', VehicleStatusBadge)
+```
+
+Blueprint using the custom component:
+
+```js
+{
+  key: 'fleet.vehicle.status-cell',
+  kind: 'CUSTOM',
+  schema: {
+    componentKey: 'custom.fleet:VehicleStatusBadge',
+    props: { compact: true },
+  },
+}
+```
+
+Available from Phase 3.
+
+---
+
+## Module checklist
+
+Use this checklist after completing the 13-step SDD workflow above. An item is complete only when tested.
+
+**Prerequisite:** Approved spec at `docs/superpowers/specs/YYYY-MM-DD-ame3-<moduleKey>-design.md` and approved plan at `docs/superpowers/plans/YYYY-MM-DD-ame3-<moduleKey>.md` must exist before any item below is checked.
+
+### AME3 checklist (Phase 2+)
+
+- [ ] Create `modules/custom/<moduleKey>/module.manifest.js` using `defineAtlasModule`
+- [ ] Module key uses `custom.*` or `community.*` namespace
+- [ ] `lifecycle` block declares `ownedEntities` and `sharedEntities`
+- [ ] All permission keys declared in `manifest.permissions`
+- [ ] All navigation entries have `permissionKey`
+- [ ] ACL block covers `acl.module`, `acl.actions`, `acl.models`
+- [ ] Models declared with `defineModel` in `models/*.model.js` (Phase 3+)
+- [ ] Views declared with `defineView` in `views/*.view.js` (Phase 3+)
+- [ ] Pages declared with `definePage` in `pages/*.page.js` (Phase 3+)
+- [ ] `api/index.js` exports a Hono router factory with all routes guarded by `requirePermission`
+- [ ] Business logic in `api/*-service.js`, not in route handlers
+- [ ] Module-local validators in `validators/index.js`
+- [ ] Cleanup handler registered if `resettable: true` or `supportsDataPurge: true`
+- [ ] Call `POST /modules/sync` after placing the module directory
+- [ ] Module appears in catalog with `status: UNINSTALLED`
+- [ ] Install from catalog succeeds
+- [ ] API returns 403 when module is uninstalled (fail-closed test)
+- [ ] API returns 200 with correct permission when installed
+- [ ] Dry-run returns expected row counts
+- [ ] Reset with `{ confirmation: "ACEPTO" }` succeeds; module remains installed
+- [ ] AuditLog entry exists for each lifecycle operation
+
+### Phase 1–2 temporary steps (until AME3 layers are available)
+
+These steps are required only while the Atlas ORM, Route Loader, and Blueprint renderer are not yet built. They are not part of the target architecture.
+
+| Temporary step | Replaced by |
+|---|---|
+| Add Prisma model to `prisma/schema.prisma` | Atlas ORM `defineModel` (Phase 3) |
+| Mount routes in `apps/api/src/index.js` | Route Loader auto-discovery (Phase 4) |
+| Add screens to `apps/desktop/src/` | Blueprint-driven pages via `definePage` (Phase 6) |
+| Add validators to `packages/validators/src/index.js` | Module-local `validators/index.js` (Phase 2) |
+
+Document these as temporary when you add them. Add a `// TODO: remove when Phase N complete` comment.
+
+---
+
+## Permission conventions
+
+Every module must follow the granular permission pattern:
+
+```
+module.access
+module.feature.read
+module.feature.create
+module.feature.update
+module.feature.delete
+```
+
+Only add non-CRUD keys when strictly required (e.g., `fleet.reports.export`).
+
+---
+
+## Installing a custom module (Phase 1–2 flow)
+
+**Required before step 1:** Approved spec and plan must exist (see "Before you start" section above).
+
+1. Write and approve spec → Write and approve plan
+2. Place directory at `modules/custom/<moduleKey>/module.manifest.js`
+3. For Phase 1–2 only: add transitional Prisma models, run `pnpm db:migrate && pnpm db:generate`
+4. For Phase 1–2 only: import and mount route factory in `apps/api/src/index.js`
+5. For Phase 1–2 only: add screens to `apps/desktop/src/`
+6. Call `POST /modules/sync` or restart `pnpm dev:api`
+7. Find the module in the catalog at `/modules` and click "Instalar"
+
+From Phase 3 onwards: steps 3–5 are eliminated.
+
+---
+
+## Uninstalling
+
+### Preserve-data (default)
+
+```
+DELETE /modules/custom.fleet
+```
+
+or
+
+```json
+POST /modules/custom.fleet/uninstall
+{ "mode": "preserve-data" }
+```
+
+### Purge-data
+
+```json
+POST /modules/custom.fleet/uninstall/dry-run
+{ "mode": "purge-data" }
+
+POST /modules/custom.fleet/uninstall
+{ "mode": "purge-data", "confirmation": "ACEPTO" }
+```
+
+### Reset (stay installed, wipe data)
+
+```json
+POST /modules/custom.fleet/reset/dry-run
+
+POST /modules/custom.fleet/reset
+{ "confirmation": "ACEPTO" }
+```
+
+---
+
+## Versioning
+
+| Bump | When | Required action |
+|---|---|---|
+| Patch (0.1.1) | Bug fix, no schema or API change | Sync manifest |
+| Minor (0.2.0) | New feature, backwards-compatible | Sync manifest; run migration if schema changed |
+| Major (1.0.0) | Breaking API or schema change | Write upgrade hook; coordinate with operators |
+
+---
+
+## Troubleshooting
+
+**Module discovered with `status: ERROR`**
+- Check API logs for the specific validation error.
+- Common causes: missing `key` / `name` / `version`, reserved namespace, syntax error in `module.manifest.js`.
+
+**Module not discovered after placing directory**
+- Verify `module.manifest.js` exists at the root of the module directory.
+- Call `POST /modules/sync` — discovery does not watch the file system in Phase 1–2.
+
+**API returns 403 after install**
+- Verify the user's role has the required permission assigned in Identity.
+- Verify `Permission.active = true` for the key (Prisma Studio: filter Permission by moduleKey).
+
+**Cleanup handler failed, module stuck**
+- The Prisma transaction rolled back. Module status unchanged.
+- Check the API error for the specific exception. Fix the handler, redeploy, retry.

@@ -1,7 +1,7 @@
 # Atlas ERP - Project Status
 
-**Last verified:** 2026-05-04  
-**Current phase:** Phase 7.1.1 complete / Phase 8 planning complete (implementation pending)
+**Last verified:** 2026-05-09  
+**Current phase:** Phase 9.5 complete / AME3 documentation complete / AME3 package foundation next
 
 ## What is implemented
 
@@ -38,11 +38,37 @@
 - File detail panel includes origin context and `Ir al origen` navigation when mapping exists.
 - Bulk operations include rename and multi-file download (`direct` and `zip`) through API/SDK contracts.
 
+## Architectural direction
+
+Atlas ERP is transitioning to Atlas Module Engine v3 (AME3). The AME3 architecture replaces the legacy system entirely — not as a parallel track, but as the target.
+
+Key decisions in force as of 2026-05-09:
+
+- New modules must use `defineAtlasModule` from `@atlas/module-engine`, not `createModuleManifest`.
+- New modules live in `modules/official/` or `modules/custom/`, not `packages/maps/`.
+- No new module should require editing `prisma/schema.prisma`, `apps/api/src/index.js`, `apps/desktop/src/`, or `packages/validators/src/index.js`.
+- `packages/maps/` is deprecated — transitional only, removed in Phase 7.
+- Prisma manages Atlas Core stable models only. Module-owned tables use the Atlas ORM.
+
+See `docs/architecture/atlas-module-engine-v3.md` for the full specification and 7-phase roadmap.
+
 ## Remaining roadmap highlights
-- Phase 8.1: accounting core (double-entry, company-scoped accounts/journal entries, base balances).
-- Phase 8.2: full multi-currency (manual historical FX, conversion traceability).
-- Phase 8.3: financial analytics dashboard (operational and analytical widgets).
-- Phase 9+: future modules and hardening automation.
+
+### AME3 phases (in progress)
+- AME3 Phase 1: `@atlas/module-engine` package, module lifecycle v2, `modules/custom/` discovery
+- AME3 Phase 2: module folder structure, sample custom module, Route Loader, `modules/official/` foundation
+- AME3 Phase 3: Atlas ORM metadata tables and services, Blueprint renderer
+- AME3 Phase 4: module discovery as primary source, Component Registry
+- AME3 Phase 5: migrate official modules from old locations into `modules/official/`
+- AME3 Phase 6: generic CRUD Blueprint renderer (AtlasTable, AtlasForm, AtlasCrudView)
+- AME3 Phase 7: remove `packages/maps/` entirely
+
+### Feature modules
+- HR module (Phase 9): full employee lifecycle, org chart, dossier
+- Purchases: supplier orders, receiving
+- Inventory: stock management
+- Fleet: vehicles, drivers, maintenance
+- Reports: cross-module reporting engine
 
 ## Documentation governance
 - `docs/TASKS.md`, `docs/00_project_status.md`, and `docs/09_next_steps.md` are synchronized status sources.
