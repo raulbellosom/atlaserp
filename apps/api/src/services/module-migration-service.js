@@ -1,4 +1,5 @@
 // TODO(AME3): switch to '@atlas/module-engine' once the package is linked for API runtime resolution.
+import { createHash } from 'node:crypto'
 import {
   assertSafeMigrationSql,
   createChecksum,
@@ -52,7 +53,7 @@ export function createModuleMigrationService({ prisma }) {
     for (const model of safeModels) {
       const safeModel = toObject(model, 'model')
       const sql = generateSqlForModel(safeModel)
-      const checksum = createChecksum(sql)
+      const checksum = createChecksum(safeModel)
       const filename = toMigrationFilename(safeModel, checksum)
       const existing = await prisma.moduleMigration.findUnique({
         where: {
@@ -96,12 +97,34 @@ export function createModuleMigrationService({ prisma }) {
         return { applied: false, reason: 'already_applied', migration: existing }
       }
 
-      assertSafeMigrationSql(sql)
-      const checksum = createChecksum(sql)
+      try {
+        assertSafeMigrationSql(sql)
+      } catch (err) {
+        const wrapped = new Error(`SQL validation failed for '${safeFilename}': ${err.message}`)
+        wrapped.code = 'AME_SQL_MIGRATION_EXECUTION_FAILED'
+        wrapped.moduleKey = safeModuleKey
+        wrapped.filename = safeFilename
+        wrapped.sqlPreview = sql.slice(0, 500)
+        wrapped.cause = err
+        throw wrapped
+      }
+
+      const checksum = createHash('sha256').update(sql).digest('hex')
 
       for (const statement of splitSqlStatements(sql)) {
-        assertSafeMigrationSql(statement)
-        await tx.$executeRawUnsafe(statement)
+        try {
+          assertSafeMigrationSql(statement)
+          await tx.$executeRawUnsafe(statement)
+        } catch (err) {
+          const wrapped = new Error(`SQL execution failed for '${safeFilename}': ${err.message}`)
+          wrapped.code = 'AME_SQL_MIGRATION_EXECUTION_FAILED'
+          wrapped.moduleKey = safeModuleKey
+          wrapped.filename = safeFilename
+          wrapped.sqlPreview = sql.slice(0, 500)
+          wrapped.statementPreview = statement.slice(0, 500)
+          wrapped.cause = err
+          throw wrapped
+        }
       }
 
       const migration = await tx.moduleMigration.create({

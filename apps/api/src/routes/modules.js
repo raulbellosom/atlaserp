@@ -8,6 +8,7 @@ import {
 import { getPermissionPresentation, groupPermissionsForUi } from '../permission-catalog.js'
 import { createModuleLifecycleService, ModuleLifecycleError } from '../services/module-lifecycle-service.js'
 import { createModuleMetadataService } from '../services/module-metadata-service.js'
+import { createModuleMigrationService } from '../services/module-migration-service.js'
 import { discoverModules, getDiscoveryRootInfo } from '../services/module-discovery-service.js'
 
 const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company'])
@@ -59,6 +60,20 @@ function serializeModule(moduleRow) {
     })),
     manifest: moduleRow.manifest,
   }
+}
+
+function generateRequestId() {
+  return `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+function classifyInstallStage(err) {
+  if (err?.stage) return err.stage
+  if (err?.name === 'ModuleOrmMigrationError' || err?.code === 'AME_ORM_MIGRATION_FAILED' || err?.code === 'AME_SQL_MIGRATION_EXECUTION_FAILED') return 'orm_migration'
+  if (err?.name === 'ZodError') return 'validation'
+  if (err?.code === 'INVALID_MANIFEST_ACL') return 'validation'
+  if (err?.code === 'DEPENDENCY_NOT_FOUND') return 'dependency_sync'
+  if (err instanceof ModuleLifecycleError) return 'install'
+  return 'unknown'
 }
 
 function handleLifecycleError(c, err, fallback) {
@@ -298,6 +313,7 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
   const app = new Hono()
   const svc = createModuleLifecycleService({ prisma })
   const metadataSvc = createModuleMetadataService({ prisma })
+  const migrationSvc = createModuleMigrationService({ prisma })
 
   // ── GET /modules ──────────────────────────────────────────────────────────
 
@@ -346,15 +362,76 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
   // ── POST /modules/install ─────────────────────────────────────────────────
 
   app.post('/install', authMiddleware, requirePermission('core.modules.create'), async (c) => {
+    const requestId = generateRequestId()
+    const isDev = process.env.NODE_ENV !== 'production'
+    let moduleKey = null
+
     try {
       const body = await c.req.json()
       const parsed = moduleInstallSchema.parse(body)
+      moduleKey = parsed.manifest?.key ?? null
       validateManifestAcl(parsed.manifest)
       const actorId = c.get('userContext')?.profile?.id ?? null
       const result = await svc.installModule({ manifest: parsed.manifest, actorId })
       return c.json({ data: result }, 201)
     } catch (err) {
-      return handleLifecycleError(c, err, 'No se pudo instalar el modulo.')
+      const stage = classifyInstallStage(err)
+      const code = err?.code ?? (err instanceof ModuleLifecycleError ? 'LIFECYCLE_ERROR' : 'INTERNAL_ERROR')
+
+      console.error('[modules] POST /install failed', {
+        requestId,
+        moduleKey,
+        stage,
+        errorName: err?.name ?? null,
+        errorMessage: err?.message ?? null,
+        errorCode: err?.code ?? null,
+        causeMessage: err?.cause?.message ?? null,
+        causeCode: err?.cause?.code ?? null,
+        filename: err?.filename ?? null,
+        tableName: err?.tableName ?? null,
+        sqlPreview: err?.sqlPreview ?? err?.cause?.sqlPreview ?? null,
+        statementPreview: err?.statementPreview ?? err?.cause?.statementPreview ?? null,
+        stack: err?.stack ?? null,
+      })
+
+      if (err instanceof ModuleLifecycleError) {
+        return c.json({ error: err.message, code, moduleKey, stage, requestId }, err.status)
+      }
+      if (err?.name === 'ZodError') {
+        return c.json(
+          { error: err.errors?.[0]?.message ?? 'El manifiesto es invalido.', code: 'VALIDATION_ERROR', moduleKey, stage: 'validation', requestId },
+          400
+        )
+      }
+      if (err?.code === 'INVALID_MANIFEST_ACL') {
+        return c.json(
+          { error: err.detail ?? 'El manifiesto ACL es invalido.', code, moduleKey, stage: 'validation', requestId },
+          400
+        )
+      }
+      if (err?.code === 'DEPENDENCY_NOT_FOUND') {
+        return c.json(
+          { error: `Dependencias no encontradas: ${err.keys?.join(', ')}.`, code, moduleKey, stage: 'dependency_sync', requestId },
+          409
+        )
+      }
+
+      return c.json(
+        {
+          error: 'No se pudo instalar el modulo.',
+          code,
+          moduleKey,
+          stage,
+          requestId,
+          ...(isDev
+            ? {
+                details: err?.message ?? null,
+                cause: err?.cause?.message ?? null,
+              }
+            : {}),
+        },
+        500
+      )
     }
   })
 
@@ -541,6 +618,25 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
       })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo cargar el ciclo de vida del modulo.')
+    }
+  })
+
+  // ── GET /modules/:key/migrations ─────────────────────────────────────────
+
+  app.get('/:key/migrations', authMiddleware, requirePermission('core.modules.read'), async (c) => {
+    try {
+      const key = c.req.param('key')
+      const mod = await prisma.atlasModule.findUnique({
+        where: { key },
+        select: { key: true },
+      })
+      if (!mod) return c.json({ error: 'Modulo no encontrado.' }, 404)
+
+      const migrations = await migrationSvc.listAppliedMigrations(key)
+      return c.json({ data: migrations })
+    } catch (err) {
+      console.error('[modules] GET /:key/migrations error:', err)
+      return c.json({ error: 'No se pudieron cargar las migraciones del modulo.' }, 500)
     }
   })
 

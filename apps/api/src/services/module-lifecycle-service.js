@@ -1,5 +1,6 @@
 import { getPermissionPresentation } from '../permission-catalog.js'
 import { getModuleHandler } from './module-cleanup-registry.js'
+import { createModuleMigrationService } from './module-migration-service.js'
 
 const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company'])
 
@@ -12,6 +13,7 @@ export class ModuleLifecycleError extends Error {
 }
 
 export function createModuleLifecycleService({ prisma }) {
+  const migrationSvc = createModuleMigrationService({ prisma })
 
   // ── Permission helpers ────────────────────────────────────────────────────
 
@@ -167,6 +169,60 @@ export function createModuleLifecycleService({ prisma }) {
     }
   }
 
+  // ── ORM migration helpers ─────────────────────────────────────────────────
+
+  async function applyModuleOrmMigrations({ moduleKey, actorId }) {
+    const models = await prisma.atlasModel.findMany({
+      where: { moduleKey },
+      select: { schema: true },
+    })
+    if (!models.length) return
+
+    const modelSchemas = models.map((m) => m.schema)
+    const plans = await migrationSvc.planModelMigrations({ moduleKey, models: modelSchemas })
+
+    for (const plan of plans) {
+      if (!plan.shouldApply) continue
+      let applyResult
+      try {
+        applyResult = await migrationSvc.applySqlMigration({
+          moduleKey: plan.moduleKey,
+          filename: plan.filename,
+          sql: plan.sql,
+        })
+      } catch (err) {
+        const ormErr = new Error(
+          `ORM migration failed for table '${plan.tableName}' (${plan.filename}): ${err.message}`
+        )
+        ormErr.name = 'ModuleOrmMigrationError'
+        ormErr.code = 'AME_ORM_MIGRATION_FAILED'
+        ormErr.moduleKey = moduleKey
+        ormErr.tableName = plan.tableName
+        ormErr.filename = plan.filename
+        ormErr.stage = 'orm_migration'
+        ormErr.cause = err
+        throw ormErr
+      }
+      const { migration } = applyResult
+      await prisma.auditLog.create({
+        data: {
+          actorId: actorId ?? null,
+          moduleKey: 'atlas.core',
+          entityType: 'ModuleMigration',
+          entityId: migration.id,
+          action: 'atlas.orm.migrate',
+          before: null,
+          after: {
+            moduleKey: plan.moduleKey,
+            filename: plan.filename,
+            tableName: plan.tableName,
+            checksum: plan.checksum,
+          },
+        },
+      })
+    }
+  }
+
   // ── Public operations ─────────────────────────────────────────────────────
 
   async function installModule({ manifest, actorId }) {
@@ -223,6 +279,24 @@ export function createModuleLifecycleService({ prisma }) {
     } catch (err) {
       console.error('[lifecycle] syncAdminPermissions failed after install:', err)
     }
+
+    try {
+      await applyModuleOrmMigrations({ moduleKey: manifest.key, actorId })
+    } catch (err) {
+      await prisma.atlasModule.update({
+        where: { key: manifest.key },
+        data: { status: 'ERROR' },
+      })
+      await writeAuditLog(prisma, {
+        action: 'core.module.orm.error',
+        moduleKey: manifest.key,
+        entityId: result.id,
+        actorId,
+        after: { error: err.message },
+      })
+      throw err
+    }
+
     return result
   }
 

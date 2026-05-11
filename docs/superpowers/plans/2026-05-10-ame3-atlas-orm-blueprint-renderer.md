@@ -58,7 +58,7 @@ The **ORM hook** (Task 1) runs after `installModule` succeeds: it reads persiste
 
 ---
 
-## Task 1 — ORM Execution Hook in Module Install Lifecycle
+## Task 1 — ORM Execution Hook in Module Install Lifecycle [IN PROGRESS]
 
 **Files:**
 - Modify: `apps/api/src/services/module-lifecycle-service.js`
@@ -70,18 +70,18 @@ After `installModule` succeeds in setting `AtlasModule.status = INSTALLED`, it m
 
 A new endpoint `GET /modules/:key/migrations` returns the ledger of applied migrations for any module.
 
-- [ ] 1.1 At the top of `module-lifecycle-service.js`, import `createModuleMigrationService` from `'../services/module-migration-service.js'` and instantiate it inside `createModuleLifecycleService`: `const migrationSvc = createModuleMigrationService({ prisma })`
-- [ ] 1.2 Add private async function `applyModuleOrmMigrations({ moduleKey, actorId })`:
+- [x] 1.1 At the top of `module-lifecycle-service.js`, import `createModuleMigrationService` from `'../services/module-migration-service.js'` and instantiate it inside `createModuleLifecycleService`: `const migrationSvc = createModuleMigrationService({ prisma })`
+- [x] 1.2 Add private async function `applyModuleOrmMigrations({ moduleKey, actorId })`:
   - Query `prisma.atlasModel.findMany({ where: { moduleKey, enabled: true } })`
   - If no models found, return early — module has no ORM tables or sync has not been run
   - Call `migrationSvc.planModelMigrations({ moduleKey, models: atlasModels.map(m => m.schema) })`
   - For each plan item with `shouldApply: true`, call `migrationSvc.applySqlMigration({ moduleKey, filename: item.filename, sql: item.sql })`
   - For each successfully applied migration, write audit log: `action: 'atlas.orm.migrate'`, payload `{ moduleKey, filename, tableName: item.tableName, checksum: item.checksum }`
   - Propagate any error so `installModule` can catch it
-- [ ] 1.3 In `installModule`, after `await syncAdminPermissions(prisma)` completes, add a try/catch that calls `await applyModuleOrmMigrations({ moduleKey: manifest.key, actorId })`
-- [ ] 1.4 In the catch block: call `await prisma.atlasModule.update({ where: { key: manifest.key }, data: { status: 'ERROR' } })`; write audit log with `action: 'core.module.orm.error'` and error message; re-throw so the install route returns 500
-- [ ] 1.5 In `apps/api/src/routes/modules.js`, import `createModuleMigrationService` at the top
-- [ ] 1.6 Add `GET /:key/migrations` route after the existing `/:key/lifecycle` route:
+- [x] 1.3 In `installModule`, after `await syncAdminPermissions(prisma)` completes, add a try/catch that calls `await applyModuleOrmMigrations({ moduleKey: manifest.key, actorId })`
+- [x] 1.4 In the catch block: call `await prisma.atlasModule.update({ where: { key: manifest.key }, data: { status: 'ERROR' } })`; write audit log with `action: 'core.module.orm.error'` and error message; re-throw so the install route returns 500
+- [x] 1.5 In `apps/api/src/routes/modules.js`, import `createModuleMigrationService` at the top
+- [x] 1.6 Add `GET /:key/migrations` route after the existing `/:key/lifecycle` route:
   ```js
   app.get('/:key/migrations', authMiddleware, requirePermission('core.modules.read'), async (c) => {
     const key = c.req.param('key')
@@ -99,6 +99,9 @@ A new endpoint `GET /modules/:key/migrations` returns the ledger of applied migr
 node --check apps/api/src/services/module-lifecycle-service.js
 # Expected: exits 0
 
+node --check apps/api/src/services/module-migration-service.js
+# Expected: exits 0
+
 node --check apps/api/src/routes/modules.js
 # Expected: exits 0
 
@@ -108,6 +111,33 @@ curl -s http://localhost:4010/modules/custom.fleet/migrations \
   -H "Authorization: Bearer $TOKEN" | jq '.data | length'
 # Expected: 2
 ```
+
+**Runtime evidence — 2026-05-10:**
+
+| Check | Result |
+|---|---|
+| `node --check module-lifecycle-service.js` | PASS |
+| `node --check module-migration-service.js` | PASS |
+| `node --check modules.js` | PASS |
+| AtlasModel rows for custom.fleet | 2 rows: `fleet.vehicle`, `fleet.maintenance` |
+| SQL generation (`generateCreateTableSql`) | PASS for both models |
+| `assertSafeMigrationSql` | PASS for both models |
+| DDL-in-transaction (`$executeRawUnsafe`) | PASS |
+| `applySqlMigration` fleet_maintenance | applied=true, migrationId recorded |
+| `applySqlMigration` fleet_vehicle | applied=true, migrationId recorded |
+| ModuleMigration rows for custom.fleet | 2 rows (`fleet_maintenance__36d3cc40b4a5.sql`, `fleet_vehicle__02ac7853c0d6.sql`) |
+| `fleet_vehicle` table in PostgreSQL | EXISTS |
+| `fleet_maintenance` table in PostgreSQL | EXISTS |
+| POST /modules/install (custom.fleet) | **NOT YET VERIFIED** — awaiting retry from Module Catalog |
+| GET /modules/custom.fleet/migrations | **NOT YET VERIFIED** — depends on install succeeding |
+
+**Bug found and fixed during runtime validation:**
+
+`module-migration-service.js` called `createChecksum(sql)` in two places, passing the generated SQL string to a function that expects a model object (`typeof sql !== 'object'` → throws `AME_INVALID_MODEL`). Fixed:
+- `planModelMigrations`: `createChecksum(sql)` → `createChecksum(safeModel)`
+- `applySqlMigration`: `createChecksum(sql)` → `createHash('sha256').update(sql).digest('hex')` (added `node:crypto` import)
+
+**Note:** Task 1 remains `[IN PROGRESS]` until `POST /modules/install` and `GET /modules/custom.fleet/migrations` are verified end-to-end from the Module Catalog.
 
 ---
 
