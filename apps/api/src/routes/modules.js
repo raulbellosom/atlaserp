@@ -2,6 +2,9 @@ import { Hono } from 'hono'
 import {
   moduleInstallSchema,
   moduleDryRunSchema,
+  moduleClearErrorSchema,
+  moduleCleanupDryRunSchema,
+  moduleCleanupSchema,
   moduleUninstallSchema,
   moduleResetSchema,
 } from '@atlas/validators'
@@ -372,7 +375,7 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
       moduleKey = parsed.manifest?.key ?? null
       validateManifestAcl(parsed.manifest)
       const actorId = c.get('userContext')?.profile?.id ?? null
-      const result = await svc.installModule({ manifest: parsed.manifest, actorId })
+      const result = await svc.installModule({ manifest: parsed.manifest, actorId, requestId })
       return c.json({ data: result }, 201)
     } catch (err) {
       const stage = classifyInstallStage(err)
@@ -641,6 +644,92 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
   })
 
   // ── POST /modules/:key/disable ────────────────────────────────────────────
+
+  app.get('/:key/error', authMiddleware, requirePermission('core.modules.read'), async (c) => {
+    try {
+      const key = c.req.param('key')
+      const data = await svc.getModuleInstallError({ key })
+      return c.json({ data })
+    } catch (err) {
+      return handleLifecycleError(c, err, 'No se pudo obtener el error del modulo.')
+    }
+  })
+
+  app.post('/:key/retry-install', authMiddleware, requirePermission('core.modules.create'), async (c) => {
+    const requestId = generateRequestId()
+    const key = c.req.param('key')
+    try {
+      const actorId = c.get('userContext')?.profile?.id ?? null
+      const result = await svc.retryInstallModule({ key, actorId, requestId })
+      return c.json({ data: result })
+    } catch (err) {
+      const stage = classifyInstallStage(err)
+      const code = err?.code ?? (err instanceof ModuleLifecycleError ? 'LIFECYCLE_ERROR' : 'INTERNAL_ERROR')
+      if (err instanceof ModuleLifecycleError) {
+        return c.json({ error: err.message, code, moduleKey: key, stage, requestId }, err.status)
+      }
+      return c.json(
+        { error: 'No se pudo reintentar la instalacion del modulo.', code, moduleKey: key, stage, requestId },
+        500
+      )
+    }
+  })
+
+  app.post('/:key/clear-error', authMiddleware, requirePermission('core.modules.update'), async (c) => {
+    try {
+      const key = c.req.param('key')
+      const body = await c.req.json().catch(() => ({}))
+      const parsed = moduleClearErrorSchema.safeParse(body)
+      if (!parsed.success) {
+        return c.json({ error: parsed.error.errors[0]?.message ?? 'Datos invalidos.' }, 400)
+      }
+      const actorId = c.get('userContext')?.profile?.id ?? null
+      const result = await svc.clearFailedInstall({
+        key,
+        actorId,
+        mode: parsed.data.mode,
+      })
+      return c.json({ data: result })
+    } catch (err) {
+      return handleLifecycleError(c, err, 'No se pudo restaurar el modulo.')
+    }
+  })
+
+  app.post('/:key/cleanup-dry-run', authMiddleware, requirePermission('core.modules.delete'), async (c) => {
+    try {
+      const key = c.req.param('key')
+      const body = await c.req.json().catch(() => ({}))
+      const parsed = moduleCleanupDryRunSchema.safeParse(body)
+      if (!parsed.success) {
+        return c.json({ error: parsed.error.errors[0]?.message ?? 'Datos invalidos.' }, 400)
+      }
+      const result = await svc.dryRunFailedInstallCleanup({ key, mode: parsed.data.mode })
+      return c.json({ data: result })
+    } catch (err) {
+      return handleLifecycleError(c, err, 'No se pudo ejecutar la simulacion de limpieza.')
+    }
+  })
+
+  app.post('/:key/cleanup', authMiddleware, requirePermission('core.modules.delete'), async (c) => {
+    try {
+      const key = c.req.param('key')
+      const body = await c.req.json().catch(() => ({}))
+      const parsed = moduleCleanupSchema.safeParse(body)
+      if (!parsed.success) {
+        return c.json({ error: parsed.error.errors[0]?.message ?? 'Datos invalidos.' }, 400)
+      }
+      const actorId = c.get('userContext')?.profile?.id ?? null
+      const result = await svc.clearFailedInstall({
+        key,
+        actorId,
+        mode: parsed.data.mode,
+        confirmation: parsed.data.confirmation,
+      })
+      return c.json({ data: result })
+    } catch (err) {
+      return handleLifecycleError(c, err, 'No se pudo limpiar el intento fallido del modulo.')
+    }
+  })
 
   app.post('/:key/disable', authMiddleware, requirePermission('core.modules.update'), async (c) => {
     try {

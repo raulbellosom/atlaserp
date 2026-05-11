@@ -18,6 +18,8 @@ AME3 Phase 3 — Atlas ORM Execution and Blueprint Renderer: End-to-End Custom M
 
 Approved
 
+Implementation note (2026-05-11): recovery behavior for failed module installs is extended by decision log `docs/superpowers/decisions/2026-05-11-ame3-failed-module-install-recovery.md` and must be completed before Task 2 execution.
+
 ---
 
 ## 3. Context

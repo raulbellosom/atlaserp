@@ -4,6 +4,8 @@ Date: 2026-05-10
 Spec: docs/superpowers/specs/2026-05-10-ame3-atlas-orm-blueprint-renderer-design.md
 Status: Approved
 
+Decision log update (2026-05-11): `docs/superpowers/decisions/2026-05-11-ame3-failed-module-install-recovery.md` documents Task 1 recovery requirements discovered during failed-install validation. Task 2 remains blocked until this remediation is implemented and validated.
+
 > **For agentic workers:** Declare `Mode: IMPLEMENTATION` before starting. Do not begin coding until the spec is approved and this plan is approved. Use checkbox syntax (`- [ ]`) to track progress. Mark each task completed only after its validation commands pass.
 
 ## Goal
@@ -50,7 +52,7 @@ The **ORM hook** (Task 1) runs after `installModule` succeeds: it reads persiste
 - `prisma/schema.prisma` — no new models; all four metadata models already present
 - `prisma/migrations/` — no Prisma migrations; module tables provisioned via Atlas ORM
 - `packages/maps/src/feature-modules.js` — custom.fleet is not added here; discovered from `modules/custom/`
-- `packages/validators/src/index.js` — fleet validators are module-local, not in the shared package
+- `packages/validators/src/index.js` — fleet domain validators are module-local, not in the shared package. Exception: Atlas Core lifecycle request schemas reused by `/modules/:key/*` recovery endpoints are allowed (decision log 2026-05-11).
 - `modules/custom/custom.fleet/module.manifest.js` — already correct; not modified
 - `modules/custom/custom.fleet/models/vehicle.model.js` — already correct; not modified
 - `modules/custom/custom.fleet/models/maintenance.model.js` — already correct; not modified
@@ -58,7 +60,7 @@ The **ORM hook** (Task 1) runs after `installModule` succeeds: it reads persiste
 
 ---
 
-## Task 1 — ORM Execution Hook in Module Install Lifecycle [IN PROGRESS]
+## Task 1 — ORM Execution Hook in Module Install Lifecycle [COMPLETED]
 
 **Files:**
 - Modify: `apps/api/src/services/module-lifecycle-service.js`
@@ -112,7 +114,7 @@ curl -s http://localhost:4010/modules/custom.fleet/migrations \
 # Expected: 2
 ```
 
-**Runtime evidence — 2026-05-10:**
+**Runtime evidence � 2026-05-11:**
 
 | Check | Result |
 |---|---|
@@ -128,8 +130,12 @@ curl -s http://localhost:4010/modules/custom.fleet/migrations \
 | ModuleMigration rows for custom.fleet | 2 rows (`fleet_maintenance__36d3cc40b4a5.sql`, `fleet_vehicle__02ac7853c0d6.sql`) |
 | `fleet_vehicle` table in PostgreSQL | EXISTS |
 | `fleet_maintenance` table in PostgreSQL | EXISTS |
-| POST /modules/install (custom.fleet) | **NOT YET VERIFIED** — awaiting retry from Module Catalog |
-| GET /modules/custom.fleet/migrations | **NOT YET VERIFIED** — depends on install succeeding |
+| `POST /modules/:key/clear-error` (`mode: preserve-data`) | PASS � `custom.fleet` moved `ERROR -> UNINSTALLED`, `enabled=false`, tables/migrations preserved |
+| `POST /modules/install` failure path | PASS � induced dependency failure stored `lifecycleConfig.lastError` and forced `status=ERROR`, `enabled=false` |
+| `POST /modules/:key/retry-install` | PASS � recovered `custom.fleet` to `INSTALLED`, `enabled=true` |
+| `GET /modules/custom.fleet/migrations` | PASS � returned 2 rows |
+| Module Catalog actions for `ERROR` | PASS � shows `Ver error`, `Reintentar instalaci�n`, `Restaurar a sin instalar`, `Limpiar intento fallido` |
+| Guard: no module in `ERROR` with `enabled=true` after failure | PASS � validated on induced failure (`ERROR`, `enabled=false`) |
 
 **Bug found and fixed during runtime validation:**
 
@@ -137,7 +143,7 @@ curl -s http://localhost:4010/modules/custom.fleet/migrations \
 - `planModelMigrations`: `createChecksum(sql)` → `createChecksum(safeModel)`
 - `applySqlMigration`: `createChecksum(sql)` → `createHash('sha256').update(sql).digest('hex')` (added `node:crypto` import)
 
-**Note:** Task 1 remains `[IN PROGRESS]` until `POST /modules/install` and `GET /modules/custom.fleet/migrations` are verified end-to-end from the Module Catalog.
+**Note:** Task 1 recovery gap is closed and verified; Task 2 remains intentionally not started in this session.
 
 ---
 
@@ -617,7 +623,7 @@ feat(ame3): end-to-end verification of custom.fleet via blueprint renderer
 ## Rollback Notes
 
 - **Before Task 1**: Revert `module-lifecycle-service.js` and `modules.js`. No data affected.
-- **After Task 1 (ORM ran)**: `fleet_vehicle` and `fleet_maintenance` tables were created. Tables persist (preserve-data). To drop: DBA must execute `DROP TABLE fleet_vehicle; DROP TABLE fleet_maintenance;` manually. To reset ledger: `DELETE FROM "ModuleMigration" WHERE "moduleKey" = 'custom.fleet';`.
+- **After Task 1 (ORM ran)**: `fleet_vehicle` and `fleet_maintenance` tables were created. Tables persist by default. Use module lifecycle recovery/cleanup endpoints (`clear-error`, `cleanup-dry-run`, `cleanup`) for controlled rollback; do not require manual SQL patches.
 - **Task 3a (view schema changes)**: `git checkout modules/custom/custom.fleet/views/` to restore. Re-run sync to push prior schema to AtlasView.
 - **Tasks 2, 3b, 4, 5, 6, 7**: All additive files plus small edits to `index.js` and `ModuleOutlet.jsx`. Reverting: `git revert` the relevant commits or `git checkout` individual files. No database schema changes involved.
 - **No Prisma migrations**: Nothing to roll back in `prisma/migrations/`.
@@ -634,3 +640,4 @@ Before marking Phase 3 tasks complete in `docs/TASKS.md`:
 - [ ] `pnpm --filter ./apps/desktop build:web` exits 0.
 - [ ] `git diff HEAD` shows no uncommitted changes.
 - [ ] `docs/TASKS.md` updated with `Verified: 2026-05-10 (all 15 verification commands executed)`.
+

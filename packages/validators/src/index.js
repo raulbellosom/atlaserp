@@ -520,6 +520,24 @@ export const moduleDryRunSchema = z.object({
   mode: z.enum(['preserve-data', 'purge-data']).default('preserve-data'),
 });
 
+export const moduleClearErrorSchema = z.object({
+  mode: z.enum(['metadata-only', 'preserve-data']).default('preserve-data'),
+});
+
+export const moduleCleanupDryRunSchema = z.object({
+  mode: z.enum(['purge-empty-tables']).default('purge-empty-tables'),
+});
+
+export const moduleCleanupSchema = z
+  .object({
+    mode: z.enum(['purge-empty-tables']).default('purge-empty-tables'),
+    confirmation: z.string().trim(),
+  })
+  .refine((data) => data.confirmation === 'ACEPTO', {
+    message: 'Debes escribir "ACEPTO" para confirmar la limpieza.',
+    path: ['confirmation'],
+  });
+
 export const moduleUninstallSchema = z
   .object({
     mode: z.enum(['preserve-data', 'purge-data']).default('preserve-data'),

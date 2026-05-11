@@ -3,6 +3,8 @@ import { getModuleHandler } from './module-cleanup-registry.js'
 import { createModuleMigrationService } from './module-migration-service.js'
 
 const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company'])
+const FAILED_INSTALL_CLEAR_MODES = new Set(['metadata-only', 'preserve-data', 'purge-empty-tables'])
+const TABLE_NAME_PATTERN = /^[a-z][a-z0-9_]*$/
 
 export class ModuleLifecycleError extends Error {
   constructor(message, status = 500) {
@@ -10,6 +12,47 @@ export class ModuleLifecycleError extends Error {
     this.name = 'ModuleLifecycleError'
     this.status = status
   }
+}
+
+function toPlainObject(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {}
+  }
+  return value
+}
+
+function uniqueStrings(values = []) {
+  return [...new Set((Array.isArray(values) ? values : []).filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim()))]
+}
+
+function classifyInstallFailureStage(err) {
+  if (typeof err?.stage === 'string' && err.stage.trim()) return err.stage.trim()
+  if (err?.name === 'ModuleOrmMigrationError') return 'orm_migration'
+  if (err?.code === 'AME_ORM_MIGRATION_FAILED') return 'orm_migration'
+  if (err?.code === 'AME_SQL_MIGRATION_EXECUTION_FAILED') return 'orm_migration'
+  if (err?.name === 'ZodError') return 'validation'
+  if (err?.code === 'DEPENDENCY_NOT_FOUND') return 'dependency_sync'
+  if (err instanceof ModuleLifecycleError) return 'install'
+  return 'unknown'
+}
+
+function isInstallFailureRetryable(stage, code) {
+  if (stage === 'validation') return false
+  if (code === 'DEPENDENCY_NOT_FOUND') return false
+  return true
+}
+
+function gatherInstallDiagnostics(err) {
+  const affectedTables = uniqueStrings([err?.tableName, err?.cause?.tableName])
+  const affectedMigrations = uniqueStrings([err?.filename, err?.cause?.filename])
+  return { affectedTables, affectedMigrations }
+}
+
+function toModuleTableName(tableName) {
+  if (typeof tableName !== 'string' || !tableName.trim()) return null
+  const trimmed = tableName.trim()
+  if (!TABLE_NAME_PATTERN.test(trimmed)) return null
+  return trimmed
 }
 
 export function createModuleLifecycleService({ prisma }) {
@@ -115,6 +158,244 @@ export function createModuleLifecycleService({ prisma }) {
   }
 
   // ── Manifest upsert helpers ───────────────────────────────────────────────
+
+  async function resolveRecoverableOwnedTables(moduleKey, lifecycleConfig) {
+    const moduleModels = await prisma.atlasModel.findMany({
+      where: { moduleKey },
+      select: { tableName: true },
+    })
+    const modelTables = new Set(
+      moduleModels
+        .map((model) => toModuleTableName(model.tableName))
+        .filter(Boolean)
+    )
+    const configuredTables = uniqueStrings(toPlainObject(lifecycleConfig).ownedTables)
+      .map(toModuleTableName)
+      .filter(Boolean)
+    return configuredTables.filter((tableName) => modelTables.has(tableName))
+  }
+
+  async function getTableRowCount(tableName) {
+    const safeTable = toModuleTableName(tableName)
+    if (!safeTable) {
+      throw new ModuleLifecycleError(`Nombre de tabla invalido: ${tableName ?? ''}.`, 400)
+    }
+
+    const existsRows = await prisma.$queryRaw`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = ${safeTable}
+      LIMIT 1
+    `
+    const exists = existsRows.length > 0
+    if (!exists) return { tableName: safeTable, exists: false, rowCount: 0, hasData: false }
+
+    const countRows = await prisma.$queryRawUnsafe(`SELECT COUNT(*)::bigint AS count FROM "${safeTable}"`)
+    const rowCount = Number(countRows?.[0]?.count ?? 0)
+    return { tableName: safeTable, exists: true, rowCount, hasData: rowCount > 0 }
+  }
+
+  async function dryRunFailedInstallCleanup({ key }) {
+    const mod = await prisma.atlasModule.findUnique({ where: { key } })
+    if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
+
+    const ownedTables = await resolveRecoverableOwnedTables(mod.key, mod.lifecycleConfig)
+    const tableChecks = []
+    for (const tableName of ownedTables) {
+      tableChecks.push(await getTableRowCount(tableName))
+    }
+
+    const dropCandidates = tableChecks.filter((entry) => entry.exists && !entry.hasData)
+    const blockedByData = tableChecks.filter((entry) => entry.exists && entry.hasData)
+
+    return {
+      moduleKey: mod.key,
+      status: mod.status,
+      supported: ownedTables.length > 0,
+      mode: 'purge-empty-tables',
+      ownedTables,
+      tableChecks,
+      dropCandidates: dropCandidates.map((entry) => entry.tableName),
+      blockedByData: blockedByData.map((entry) => ({ tableName: entry.tableName, rowCount: entry.rowCount })),
+      requiresConfirmation: dropCandidates.length > 0,
+    }
+  }
+
+  async function clearModuleInstallError({
+    key,
+    actorId,
+    mode = 'preserve-data',
+    confirmation = null,
+  }) {
+    if (!FAILED_INSTALL_CLEAR_MODES.has(mode)) {
+      throw new ModuleLifecycleError('Modo de recuperacion invalido.', 400)
+    }
+
+    const mod = await prisma.atlasModule.findUnique({ where: { key } })
+    if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
+    if (mod.core) {
+      throw new ModuleLifecycleError('Los modulos base no pueden limpiarse por este flujo.', 409)
+    }
+    if (mod.status !== 'ERROR') {
+      throw new ModuleLifecycleError('Solo se puede limpiar una instalacion fallida en estado ERROR.', 409)
+    }
+
+    const lifecycleConfig = toPlainObject(mod.lifecycleConfig)
+    const priorError = toPlainObject(lifecycleConfig.lastError)
+    const recoveredAt = new Date().toISOString()
+
+    let droppedTables = []
+    let removedMigrations = []
+
+    if (mode === 'purge-empty-tables') {
+      const dryRun = await dryRunFailedInstallCleanup({ key })
+      if (!dryRun.supported) {
+        throw new ModuleLifecycleError('Este modulo no soporta limpieza fisica segura.', 409)
+      }
+      if (confirmation !== 'ACEPTO') {
+        throw new ModuleLifecycleError('Debes escribir "ACEPTO" para confirmar la limpieza.', 400)
+      }
+
+      for (const candidate of dryRun.dropCandidates) {
+        await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "${candidate}"`)
+        droppedTables.push(candidate)
+      }
+
+      if (droppedTables.length > 0) {
+        const migrationRows = await prisma.moduleMigration.findMany({
+          where: { moduleKey: key },
+          select: { id: true, filename: true },
+        })
+        const toDeleteIds = migrationRows
+          .filter((row) => droppedTables.some((tableName) => row.filename.startsWith(`${tableName}__`)))
+          .map((row) => row.id)
+
+        if (toDeleteIds.length > 0) {
+          await prisma.moduleMigration.deleteMany({ where: { id: { in: toDeleteIds } } })
+          removedMigrations = migrationRows
+            .filter((row) => toDeleteIds.includes(row.id))
+            .map((row) => row.filename)
+        }
+      }
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      await deactivateModulePermissions(tx, mod.id)
+      const nextLifecycleConfig = {
+        ...lifecycleConfig,
+        lastRecovery: {
+          mode,
+          recoveredAt,
+          actorId: actorId ?? null,
+          previousStatus: mod.status,
+          previousEnabled: mod.enabled,
+          droppedTables,
+          removedMigrations,
+        },
+        lastError: priorError,
+      }
+      const result = await tx.atlasModule.update({
+        where: { key },
+        data: { status: 'UNINSTALLED', enabled: false, lifecycleConfig: nextLifecycleConfig },
+      })
+      await writeAuditLog(tx, {
+        action: mode === 'purge-empty-tables' ? 'core.module.failed_install.cleanup' : 'core.module.failed_install.clear',
+        moduleKey: key,
+        entityId: mod.id,
+        actorId,
+        before: { status: mod.status, enabled: mod.enabled },
+        after: {
+          status: result.status,
+          enabled: result.enabled,
+          mode,
+          droppedTables,
+          removedMigrations,
+        },
+      })
+      return result
+    })
+
+    return {
+      module: updated,
+      recovery: {
+        mode,
+        droppedTables,
+        removedMigrations,
+      },
+    }
+  }
+
+  async function persistInstallFailure({
+    moduleKey,
+    actorId,
+    requestId = null,
+    err,
+  }) {
+    if (!moduleKey) return
+    const mod = await prisma.atlasModule.findUnique({ where: { key: moduleKey } })
+    if (!mod) return
+
+    const stage = classifyInstallFailureStage(err)
+    const code = err?.code ?? (err instanceof ModuleLifecycleError ? 'LIFECYCLE_ERROR' : 'INTERNAL_ERROR')
+    const diagnostics = gatherInstallDiagnostics(err)
+    const retryable = isInstallFailureRetryable(stage, code)
+    const lifecycleConfig = toPlainObject(mod.lifecycleConfig)
+    const lastError = {
+      code,
+      stage,
+      message: err?.message ?? 'No se pudo instalar el modulo.',
+      cause: err?.cause?.message ?? null,
+      requestId: requestId ?? null,
+      failedAt: new Date().toISOString(),
+      retryable,
+      affectedTables: diagnostics.affectedTables,
+      affectedMigrations: diagnostics.affectedMigrations,
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await deactivateModulePermissions(tx, mod.id)
+      await tx.atlasModule.update({
+        where: { key: moduleKey },
+        data: {
+          status: 'ERROR',
+          enabled: false,
+          lifecycleConfig: {
+            ...lifecycleConfig,
+            lastError,
+          },
+        },
+      })
+      await writeAuditLog(tx, {
+        action: 'core.module.install.error',
+        moduleKey,
+        entityId: mod.id,
+        actorId,
+        before: { status: mod.status, enabled: mod.enabled },
+        after: {
+          status: 'ERROR',
+          enabled: false,
+          lastError,
+        },
+      })
+    })
+  }
+
+  async function clearLastInstallError(moduleKey) {
+    if (!moduleKey) return
+    const mod = await prisma.atlasModule.findUnique({ where: { key: moduleKey } })
+    if (!mod) return
+    const lifecycleConfig = toPlainObject(mod.lifecycleConfig)
+    if (!Object.prototype.hasOwnProperty.call(lifecycleConfig, 'lastError')) {
+      return
+    }
+    const nextLifecycleConfig = { ...lifecycleConfig }
+    delete nextLifecycleConfig.lastError
+    await prisma.atlasModule.update({
+      where: { key: moduleKey },
+      data: { lifecycleConfig: nextLifecycleConfig },
+    })
+  }
 
   async function upsertManifestPermissions(tx, moduleId, moduleKey, permissions = [], activate) {
     if (!permissions.length) return
@@ -225,79 +506,123 @@ export function createModuleLifecycleService({ prisma }) {
 
   // ── Public operations ─────────────────────────────────────────────────────
 
-  async function installModule({ manifest, actorId }) {
+  async function installModule({ manifest, actorId, requestId = null }) {
     const isCore = CORE_KEYS.has(manifest.key)
     const lifecycleConfig = manifest.lifecycle ?? null
-
-    const result = await prisma.$transaction(async (tx) => {
-      const upserted = await tx.atlasModule.upsert({
-        where: { key: manifest.key },
-        update: {
-          name: manifest.name,
-          description: manifest.description ?? null,
-          version: manifest.version,
-          kind: manifest.kind ?? (isCore ? 'CORE' : 'FEATURE'),
-          core: isCore,
-          uninstallable: isCore ? false : (manifest.uninstallable ?? true),
-          status: 'INSTALLED',
-          enabled: true,
-          manifest,
-          lifecycleConfig,
-        },
-        create: {
-          key: manifest.key,
-          name: manifest.name,
-          description: manifest.description ?? null,
-          version: manifest.version,
-          kind: manifest.kind ?? (isCore ? 'CORE' : 'FEATURE'),
-          core: isCore,
-          uninstallable: isCore ? false : (manifest.uninstallable ?? true),
-          status: 'INSTALLED',
-          enabled: true,
-          manifest,
-          lifecycleConfig,
-        },
-      })
-
-      await syncDependencies(tx, upserted.id, manifest.dependencies ?? [])
-      await upsertManifestPermissions(tx, upserted.id, manifest.key, manifest.permissions ?? [], true)
-      await upsertManifestBlueprints(tx, upserted.id, manifest.blueprints ?? [])
-
-      await writeAuditLog(tx, {
-        action: 'core.module.install',
-        moduleKey: manifest.key,
-        entityId: upserted.id,
-        actorId,
-        after: { key: manifest.key, name: manifest.name, version: manifest.version, status: 'INSTALLED' },
-      })
-
-      return upserted
-    })
+    let result = null
 
     try {
-      await syncAdminPermissions(prisma)
-    } catch (err) {
-      console.error('[lifecycle] syncAdminPermissions failed after install:', err)
-    }
+      result = await prisma.$transaction(async (tx) => {
+        const existing = await tx.atlasModule.findUnique({
+          where: { key: manifest.key },
+          select: { lifecycleConfig: true },
+        })
+        const mergedLifecycleConfig = {
+          ...toPlainObject(existing?.lifecycleConfig),
+          ...toPlainObject(lifecycleConfig),
+        }
+        delete mergedLifecycleConfig.lastError
 
-    try {
+        const upserted = await tx.atlasModule.upsert({
+          where: { key: manifest.key },
+          update: {
+            name: manifest.name,
+            description: manifest.description ?? null,
+            version: manifest.version,
+            kind: manifest.kind ?? (isCore ? 'CORE' : 'FEATURE'),
+            core: isCore,
+            uninstallable: isCore ? false : (manifest.uninstallable ?? true),
+            status: 'INSTALLED',
+            enabled: true,
+            manifest,
+            lifecycleConfig: mergedLifecycleConfig,
+          },
+          create: {
+            key: manifest.key,
+            name: manifest.name,
+            description: manifest.description ?? null,
+            version: manifest.version,
+            kind: manifest.kind ?? (isCore ? 'CORE' : 'FEATURE'),
+            core: isCore,
+            uninstallable: isCore ? false : (manifest.uninstallable ?? true),
+            status: 'INSTALLED',
+            enabled: true,
+            manifest,
+            lifecycleConfig: mergedLifecycleConfig,
+          },
+        })
+
+        await syncDependencies(tx, upserted.id, manifest.dependencies ?? [])
+        await upsertManifestPermissions(tx, upserted.id, manifest.key, manifest.permissions ?? [], true)
+        await upsertManifestBlueprints(tx, upserted.id, manifest.blueprints ?? [])
+
+        await writeAuditLog(tx, {
+          action: 'core.module.install',
+          moduleKey: manifest.key,
+          entityId: upserted.id,
+          actorId,
+          after: { key: manifest.key, name: manifest.name, version: manifest.version, status: 'INSTALLED' },
+        })
+
+        return upserted
+      })
+
+      try {
+        await syncAdminPermissions(prisma)
+      } catch (err) {
+        console.error('[lifecycle] syncAdminPermissions failed after install:', err)
+      }
+
       await applyModuleOrmMigrations({ moduleKey: manifest.key, actorId })
+      await clearLastInstallError(manifest.key)
+      return result
     } catch (err) {
-      await prisma.atlasModule.update({
-        where: { key: manifest.key },
-        data: { status: 'ERROR' },
-      })
-      await writeAuditLog(prisma, {
-        action: 'core.module.orm.error',
-        moduleKey: manifest.key,
-        entityId: result.id,
+      await persistInstallFailure({
+        moduleKey: manifest?.key ?? null,
         actorId,
-        after: { error: err.message },
+        requestId,
+        err,
       })
       throw err
     }
+  }
 
-    return result
+  async function getModuleInstallError({ key }) {
+    const mod = await prisma.atlasModule.findUnique({ where: { key } })
+    if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
+    return {
+      key: mod.key,
+      status: mod.status,
+      enabled: mod.enabled,
+      lastError: toPlainObject(mod.lifecycleConfig).lastError ?? null,
+      lifecycleConfig: mod.lifecycleConfig ?? null,
+    }
+  }
+
+  async function retryInstallModule({ key, actorId, requestId = null }) {
+    const mod = await prisma.atlasModule.findUnique({ where: { key } })
+    if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
+    if (!mod.manifest || typeof mod.manifest !== 'object') {
+      throw new ModuleLifecycleError('El modulo no tiene manifiesto persistido para reintentar.', 409)
+    }
+
+    const manifest = mod.manifest
+    if (manifest.key !== key) {
+      throw new ModuleLifecycleError('El manifiesto persistido no coincide con la clave del modulo.', 409)
+    }
+
+    return installModule({ manifest, actorId, requestId })
+  }
+
+  async function clearFailedInstall({ key, actorId, mode = 'preserve-data', confirmation = null }) {
+    const normalizedMode = typeof mode === 'string' ? mode.trim() : ''
+    if (normalizedMode === 'purge-empty-tables') {
+      return clearModuleInstallError({ key, actorId, mode: normalizedMode, confirmation })
+    }
+    if (!FAILED_INSTALL_CLEAR_MODES.has(normalizedMode)) {
+      throw new ModuleLifecycleError('Modo de recuperacion invalido.', 400)
+    }
+    return clearModuleInstallError({ key, actorId, mode: normalizedMode })
   }
 
   async function disableModule({ key, actorId }) {
@@ -610,6 +935,10 @@ export function createModuleLifecycleService({ prisma }) {
 
   return {
     installModule,
+    retryInstallModule,
+    getModuleInstallError,
+    clearFailedInstall,
+    dryRunFailedInstallCleanup,
     disableModule,
     enableModule,
     uninstallModule,

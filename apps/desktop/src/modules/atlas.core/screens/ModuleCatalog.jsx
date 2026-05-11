@@ -151,6 +151,7 @@ function statusLabel(module) {
   if (module.status === "INSTALLED" && module.enabled) return "Instalado";
   if (module.status === "DISABLED") return "Deshabilitado";
   if (module.status === "UNINSTALLED") return "Sin instalar";
+  if (module.status === "ERROR") return "Error";
   return module.status;
 }
 
@@ -240,6 +241,8 @@ function CardAction({
     module.compatibilityStatus !== "BLOCKED";
   const canEnable =
     module.status === "DISABLED" && !isLocked(module) && canDisableModules;
+  const canRetryInstall =
+    module.status === "ERROR" && !isLocked(module) && canInstallModules;
 
   if (canOpen) {
     return (
@@ -282,6 +285,21 @@ function CardAction({
         }}
       >
         Instalar
+      </Button>
+    );
+  }
+  if (canRetryInstall) {
+    return (
+      <Button
+        size="sm"
+        className="shrink-0 h-7 px-2.5 text-xs gap-1"
+        variant="destructive"
+        onClick={(e) => {
+          e.stopPropagation();
+          onAction("retry-install", module);
+        }}
+      >
+        Reintentar
       </Button>
     );
   }
@@ -348,15 +366,27 @@ export default function ModuleCatalog() {
   const [selectedModule, setSelectedModule] = useState(null);
   const [confirmUninstall, setConfirmUninstall] = useState(null);
   const [purgeOnUninstall, setPurgeOnUninstall] = useState(false);
+  const [confirmCleanup, setConfirmCleanup] = useState(null);
+  const [cleanupConfirmation, setCleanupConfirmation] = useState("");
 
   const lifecycleMutation = useMutation({
-    mutationFn: async ({ action, module, purge = false }) => {
+    mutationFn: async ({ action, module, purge = false, mode }) => {
       const key = module.key;
       if (action === "install") {
         const manifest = module.manifest ?? MANIFEST_BY_KEY.get(key);
         if (!manifest) throw new Error("Manifiesto no disponible.");
         return atlas.modules.install(manifest, token);
       }
+      if (action === "retry-install") return atlas.modules.retryInstall(key, token);
+      if (action === "clear-error")
+        return atlas.modules.clearError(key, mode ?? "preserve-data", token);
+      if (action === "cleanup")
+        return atlas.modules.cleanup(
+          key,
+          "purge-empty-tables",
+          cleanupConfirmation,
+          token,
+        );
       if (action === "disable") return atlas.modules.disable(key, token);
       if (action === "enable") return atlas.modules.enable(key, token);
       if (action === "uninstall") {
@@ -371,8 +401,13 @@ export default function ModuleCatalog() {
       await queryClient.invalidateQueries({ queryKey: ["blueprints"] });
       setConfirmUninstall(null);
       setPurgeOnUninstall(false);
+      setConfirmCleanup(null);
+      setCleanupConfirmation("");
       const labels = {
         install: "instalado",
+        "retry-install": "reinstalado",
+        "clear-error": "restaurado a sin instalar",
+        cleanup: "limpiado",
         disable: "deshabilitado",
         enable: "habilitado",
         uninstall: "desinstalado",
@@ -426,8 +461,28 @@ export default function ModuleCatalog() {
     },
   });
 
-  function handleAction(action, module) {
-    lifecycleMutation.mutate({ action, module });
+  async function handleViewError(module) {
+    try {
+      const response = await atlas.modules.getError(module.key, token);
+      const err = response?.data?.lastError;
+      if (!err) {
+        toast.info("No hay diagnostico de error disponible para este módulo.");
+        return;
+      }
+      const parts = [
+        err?.message,
+        err?.stage ? `Etapa: ${err.stage}` : null,
+        err?.code ? `Código: ${err.code}` : null,
+        err?.requestId ? `RequestId: ${err.requestId}` : null,
+      ].filter(Boolean);
+      toast.error(parts.join(" | "));
+    } catch {
+      toast.error("No se pudo cargar el detalle del error.");
+    }
+  }
+
+  function handleAction(action, module, options = {}) {
+    lifecycleMutation.mutate({ action, module, ...options });
   }
 
   const sortedModules = useMemo(
@@ -519,6 +574,14 @@ export default function ModuleCatalog() {
     const canDisable =
       module.status === "INSTALLED" && module.enabled && !locked;
     const canEnable = module.status === "DISABLED" && !locked;
+    const canRetryInstall = module.status === "ERROR" && !locked;
+    const canClearError = module.status === "ERROR" && !locked;
+    const canCleanupFailedInstall =
+      module.status === "ERROR" &&
+      !locked &&
+      canUninstallModules &&
+      Array.isArray(module?.lifecycleConfig?.ownedTables) &&
+      module.lifecycleConfig.ownedTables.length > 0;
     const canUninstall =
       (module.status === "INSTALLED" || module.status === "DISABLED") &&
       !locked;
@@ -546,6 +609,58 @@ export default function ModuleCatalog() {
             }
           >
             {inFlight ? "Instalando..." : "Instalar módulo"}
+          </Button>
+        )}
+        {canRetryInstall && (
+          <Button
+            className="w-full"
+            variant="destructive"
+            disabled={!canInstallModules || inFlight}
+            onClick={() =>
+              lifecycleMutation.mutate({ action: "retry-install", module })
+            }
+          >
+            <RefreshCw className="h-4 w-4" />
+            {inFlight ? "Reintentando..." : "Reintentar instalación"}
+          </Button>
+        )}
+        {canClearError && (
+          <Button
+            className="w-full"
+            variant="outline"
+            disabled={!canDisableModules || inFlight}
+            onClick={() =>
+              lifecycleMutation.mutate({
+                action: "clear-error",
+                module,
+                mode: "preserve-data",
+              })
+            }
+          >
+            Restaurar a sin instalar
+          </Button>
+        )}
+        {canCleanupFailedInstall && (
+          <Button
+            className="w-full"
+            variant="outline"
+            disabled={inFlight}
+            onClick={() => {
+              setConfirmCleanup(module);
+              setSelectedModule(null);
+            }}
+          >
+            Limpiar intento fallido
+          </Button>
+        )}
+        {module.status === "ERROR" && (
+          <Button
+            className="w-full"
+            variant="outline"
+            disabled={inFlight}
+            onClick={() => handleViewError(module)}
+          >
+            Ver error
           </Button>
         )}
         {canEnable && (
@@ -1194,6 +1309,42 @@ export default function ModuleCatalog() {
             </span>
           </label>
         )}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={Boolean(confirmCleanup)}
+        onOpenChange={(v) => {
+          if (!v) {
+            setConfirmCleanup(null);
+            setCleanupConfirmation("");
+          }
+        }}
+        title="¿Limpiar intento fallido?"
+        description='Esta limpieza puede eliminar tablas vacías del módulo. Escribe "ACEPTO" para confirmar.'
+        detail={confirmCleanup?.name}
+        confirmLabel="Limpiar"
+        onConfirm={() => {
+          if (cleanupConfirmation.trim() !== "ACEPTO") {
+            toast.error('Debes escribir "ACEPTO" para continuar.');
+            return;
+          }
+          lifecycleMutation.mutate({
+            action: "cleanup",
+            module: confirmCleanup,
+          });
+        }}
+        loading={lifecycleMutation.isPending}
+      >
+        <label className="block text-sm text-[hsl(var(--muted-foreground))]">
+          Confirmación
+          <input
+            type="text"
+            value={cleanupConfirmation}
+            onChange={(e) => setCleanupConfirmation(e.target.value)}
+            placeholder='Escribe "ACEPTO"'
+            className="mt-1 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-red-500/50"
+          />
+        </label>
       </ConfirmDialog>
     </div>
   );

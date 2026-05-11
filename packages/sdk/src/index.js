@@ -155,6 +155,37 @@ export function createAtlasClient({ baseUrl }) {
         request(`/modules/${encodeURIComponent(key)}/lifecycle`, {
           headers: withAuthHeaders(token),
         }),
+      getError: (key, token) =>
+        request(`/modules/${encodeURIComponent(key)}/error`, {
+          headers: withAuthHeaders(token),
+        }),
+      retryInstall: (key, token) =>
+        request(`/modules/${encodeURIComponent(key)}/retry-install`, {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+        }),
+      clearError: (key, mode = 'preserve-data', token) =>
+        request(`/modules/${encodeURIComponent(key)}/clear-error`, {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ mode }),
+        }),
+      cleanupDryRun: (key, mode = 'purge-empty-tables', token) =>
+        request(`/modules/${encodeURIComponent(key)}/cleanup-dry-run`, {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ mode }),
+        }),
+      cleanup: (key, mode = 'purge-empty-tables', confirmation, token) =>
+        request(`/modules/${encodeURIComponent(key)}/cleanup`, {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ mode, confirmation }),
+        }),
+      listMigrations: (key, token) =>
+        request(`/modules/${encodeURIComponent(key)}/migrations`, {
+          headers: withAuthHeaders(token),
+        }),
       disable: (key, token) =>
         request(`/modules/${encodeURIComponent(key)}/disable`, {
           method: 'POST',
