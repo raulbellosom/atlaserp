@@ -375,7 +375,7 @@ Task 3b required a minimal Route Loader Node compatibility patch because `c.exec
 
 The existing `GET /blueprints` handler queries only the `Blueprint` table. It must be extended to also query `AtlasView` for installed+enabled modules. Both result sets are normalized to the same response shape. A `source` discriminator field is added: `"blueprint"` for legacy rows, `"atlas-view"` for AME3 rows. On key collision, the `AtlasView` row wins. Both sets are filtered by `userCanAccessModule`.
 
-- [ ] 4.1 In the `GET /blueprints` handler, after fetching `blueprints`, query installed modules:
+- [x] 4.1 In the `GET /blueprints` handler, after fetching `blueprints`, query installed modules:
   ```js
   const installedModuleKeys = new Set(
     (await prisma.atlasModule.findMany({
@@ -392,8 +392,8 @@ The existing `GET /blueprints` handler queries only the `Blueprint` table. It mu
     where: { enabled: true, moduleKey: { in: [...installedModuleKeys] } },
   })
   ```
-- [ ] 4.2 Normalize each existing Blueprint row: add `source: "blueprint"` field (the existing rows already have `module` attached via `include`)
-- [ ] 4.3 Normalize each AtlasView row to the response shape:
+- [x] 4.2 Normalize each existing Blueprint row: add `source: "blueprint"` field (the existing rows already have `module` attached via `include`)
+- [x] 4.3 Normalize each AtlasView row to the response shape:
   ```js
   const moduleRow = moduleRowsByKey.get(view.moduleKey)
   return {
@@ -413,8 +413,8 @@ The existing `GET /blueprints` handler queries only the `Blueprint` table. It mu
     },
   }
   ```
-- [ ] 4.4 Merge: start with a `Map` keyed by blueprint `key`. Insert all Blueprint-normalized rows first, then insert all AtlasView-normalized rows (overwriting on key collision — AtlasView wins). Apply `userCanAccessModule` filter to the merged array values.
-- [ ] 4.5 Return `c.json({ data: [...mergedMap.values()] })`
+- [x] 4.4 Merge: start with a `Map` keyed by blueprint `key`. Insert all Blueprint-normalized rows first, then insert all AtlasView-normalized rows (overwriting on key collision — AtlasView wins). Apply `userCanAccessModule` filter to the merged array values.
+- [x] 4.5 Return `c.json({ data: [...mergedMap.values()] })`
 
 **Validation:**
 
@@ -436,6 +436,19 @@ curl -s http://localhost:4010/blueprints \
   | jq '[.data[] | select(.source=="atlas-view") | .schema.apiPath] | all(. != null and . != "")'
 # Expected: true
 ```
+
+**Runtime evidence — 2026-05-12:**
+
+| Check | Result |
+|---|---|
+| `node --check apps/api/src/index.js` | PASS |
+| `pnpm dev:api` boot | PASS — API running on `http://localhost:4010` |
+| `curl -f http://localhost:4010/health` | PASS — `{"ok":true,...}` |
+| `/blueprints` merged payload | PASS — response contains both `source="blueprint"` and `source="atlas-view"` rows |
+| `custom.fleet` rows in `/blueprints` | PASS — 4 rows: `fleet.vehicle.table`, `fleet.vehicle.form`, `fleet.vehicle.detail`, `fleet.vehicle.page` |
+| `custom.fleet` TABLE/FORM/DETAIL `schema.apiPath` | PASS — all are `"/fleet/vehicles"` |
+| atlas-view TABLE/FORM/DETAIL `schema.apiPath` presence check | PASS — `true` |
+| Forbidden file scope | PASS — only `apps/api/src/index.js` modified for implementation (plan file updated for evidence) |
 
 ---
 

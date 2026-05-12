@@ -1916,14 +1916,67 @@ app.get("/blueprints", authMiddleware, async (c) => {
       401,
     );
   }
-  const blueprints = await prisma.blueprint.findMany({
-    where: { enabled: true },
-    include: { module: true },
+
+  const [blueprints, installedModuleRows] = await Promise.all([
+    prisma.blueprint.findMany({
+      where: { enabled: true },
+      include: { module: true },
+    }),
+    prisma.atlasModule.findMany({
+      where: { status: "INSTALLED", enabled: true },
+      select: {
+        key: true,
+        name: true,
+        status: true,
+        enabled: true,
+        version: true,
+        manifest: true,
+      },
+    }),
+  ]);
+
+  const moduleRowsByKey = new Map(installedModuleRows.map((row) => [row.key, row]));
+  const atlasViews = await prisma.atlasView.findMany({
+    where: {
+      enabled: true,
+      moduleKey: { in: installedModuleRows.map((row) => row.key) },
+    },
   });
-  const filtered = blueprints.filter((blueprint) =>
-    userCanAccessModule(context, blueprint.module),
-  );
-  return c.json({ data: filtered });
+
+  const mergedByKey = new Map();
+
+  for (const blueprint of blueprints) {
+    if (!userCanAccessModule(context, blueprint.module)) continue;
+    mergedByKey.set(blueprint.key, {
+      ...blueprint,
+      source: "blueprint",
+    });
+  }
+
+  for (const view of atlasViews) {
+    const moduleRow = moduleRowsByKey.get(view.moduleKey);
+    if (!moduleRow) continue;
+    if (!userCanAccessModule(context, moduleRow)) continue;
+
+    mergedByKey.set(view.key, {
+      id: view.id,
+      key: view.key,
+      moduleKey: view.moduleKey,
+      kind: view.type,
+      version: moduleRow.version ?? "0.1.0",
+      schema: view.schema,
+      enabled: view.enabled,
+      source: "atlas-view",
+      module: {
+        key: moduleRow.key,
+        name: moduleRow.name,
+        status: moduleRow.status,
+        enabled: moduleRow.enabled,
+      },
+    });
+  }
+
+  return c.json({ data: [...mergedByKey.values()] });
 });
 
 app.get(
