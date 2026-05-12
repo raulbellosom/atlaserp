@@ -461,7 +461,7 @@ curl -s http://localhost:4010/blueprints \
 
 Add `listMigrations(moduleKey, token)` to the `modules` domain in `createAtlasClient`.
 
-- [ ] 5.1 In the `modules` domain object in `createAtlasClient`, add:
+- [x] 5.1 In the `modules` domain object in `createAtlasClient`, add:
   ```js
   listMigrations: (moduleKey, token) =>
     request(`/modules/${encodeURIComponent(moduleKey)}/migrations`, {
@@ -475,6 +475,14 @@ Add `listMigrations(moduleKey, token)` to the `modules` domain in `createAtlasCl
 node --check packages/sdk/src/index.js
 # Expected: exits 0
 ```
+
+**Runtime evidence — 2026-05-12:**
+
+| Check | Result |
+|---|---|
+| `node --check packages/sdk/src/index.js` | PASS |
+| `atlas.modules.listMigrations("custom.fleet", token)` | PASS — response `data` contains 2 migration rows |
+| Migration filenames | `fleet_maintenance__36d3cc40b4a5.sql`, `fleet_vehicle__02ac7853c0d6.sql` |
 
 ---
 
