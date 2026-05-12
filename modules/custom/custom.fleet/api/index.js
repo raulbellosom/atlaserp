@@ -1,5 +1,5 @@
-import { Hono } from '../../../../apps/api/node_modules/hono/dist/index.js'
-import { z } from '../../../../apps/api/node_modules/zod/index.js'
+import { Hono } from 'hono'
+import { z } from 'zod'
 import {
   createVehicleSchema,
   updateVehicleSchema,
