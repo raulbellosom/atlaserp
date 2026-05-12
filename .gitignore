@@ -40,3 +40,13 @@ pnpm-debug.log*
 *.ntvs*
 *.njsproj
 *.sln
+
+# Local task/runtime artifacts
+.tmp/
+*.tmp
+*.pid
+task*-*.json
+task*-*.headers
+task*-*.log
+task*-*.pid
+task*.tokens.json

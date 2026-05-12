@@ -283,12 +283,12 @@ Fleet validators use Zod (module-local, not from `@atlas/validators`). The fleet
 
 The `api/index.js` must not import from `@atlas/module-engine` or any Atlas platform package unavailable in the module runtime context. It imports from `../validators/index.js` and `./fleet-service.js` only.
 
-- [ ] 3b.1 Create `modules/custom/custom.fleet/validators/index.js`:
+- [x] 3b.1 Create `modules/custom/custom.fleet/validators/index.js`:
   - `createVehicleSchema`: plate (string 1–20), brand (string 1–100), model_name (string 1–100), year (integer 1900–2100), status (enum active|maintenance|inactive|retired, default `'active'`), color (string optional, hex pattern `^#[0-9a-fA-F]{3,8}$`), driver_id (UUID string optional), notes (string max 5000 optional)
   - `updateVehicleSchema`: all fields optional, same constraints
   - `createMaintenanceSchema`: vehicle_id (UUID required), type (enum preventive|corrective|inspection), description (string 1–5000), scheduled_date (ISO date string), completed_date (ISO date string optional), cost (number >= 0 optional), notes (string optional)
   - `updateMaintenanceSchema`: all fields optional, same constraints
-- [ ] 3b.2 Create `modules/custom/custom.fleet/api/fleet-service.js`:
+- [x] 3b.2 Create `modules/custom/custom.fleet/api/fleet-service.js`:
   - Export `createFleetService({ prisma })` — prisma is injected, never imported as a singleton
   - `listVehicles({ companyId, page, pageSize, status, search })` — SELECT with pagination, `WHERE enabled = true AND company_id = $1`, optional status and ILIKE search on plate/brand/model_name
   - `getVehicle({ companyId, id })` — SELECT by id and company_id; throw `FleetServiceError` 404 if not found
@@ -303,7 +303,7 @@ The `api/index.js` must not import from `@atlas/module-engine` or any Atlas plat
   - All page/pageSize: clamp page to min 1, pageSize to range 1–100
   - Company guard: if `companyId` is null/undefined, throw `FleetServiceError` 400 "companyId es requerido."
   - Table-not-exists catch: if `$queryRaw` throws a Postgres error code `42P01`, throw `FleetServiceError` 503 "Las tablas del modulo no estan disponibles aun."
-- [ ] 3b.3 Create `modules/custom/custom.fleet/api/index.js`:
+- [x] 3b.3 Create `modules/custom/custom.fleet/api/index.js`:
   - `export default function createFleetRouter({ prisma, requirePermission, moduleContext })` — factory receives injected prisma; creates `createFleetService({ prisma })`; creates a Hono app; mounts all vehicle and maintenance endpoints
   - Each route: extracts `companyId` from `c.get('userContext')?.memberships?.[0]?.companyId`, `actorId` from `c.get('userContext')?.profile?.id`
   - Validates request body with Zod; returns 400 on failure
@@ -341,6 +341,28 @@ curl -s -X PATCH http://localhost:4010/fleet/vehicles/<id> \
   -d '{"brand":"Mitsubishi"}' | jq '.data.updated_at'
 # Expected: recent ISO datetime (not the original created_at value)
 ```
+
+**Runtime evidence — 2026-05-11:**
+
+| Check | Result |
+|---|---|
+| `node --check modules/custom/custom.fleet/validators/index.js` | PASS |
+| `node --check modules/custom/custom.fleet/api/fleet-service.js` | PASS |
+| `node --check modules/custom/custom.fleet/api/index.js` | PASS |
+| `node --check apps/api/src/services/route-loader-service.js` | PASS |
+| API boot (`pnpm dev:api`) | PASS — API started on `http://localhost:4010` |
+| `curl -f http://localhost:4010/health` | PASS — `{"ok":true,...}` |
+| `GET /fleet/vehicles` | PASS — `200` with `{ data: [], pagination: { page: 1, pageSize: 20, total: 0 } }` |
+| `POST /fleet/vehicles` | PASS — `201` with created record (`plate: "ABC-123"`) |
+| `PATCH /fleet/vehicles/:id` | PASS — `200`, brand updated to `"Mitsubishi"` |
+| `updated_at` on vehicle update | PASS — changed from create timestamp |
+| `PATCH /fleet/vehicles/:id/enabled` | PASS — `200`, `enabled: false` |
+| Soft-disable list behavior | PASS — disabled vehicle no longer returned by `GET /fleet/vehicles` |
+| Validation failure (`POST /fleet/vehicles` missing required fields) | PASS — `400` with Spanish validation message |
+| Permission failure (limited token) | PASS — `403` (`fleet.vehicles.read`) |
+| Route Loader state for `custom.fleet` | PASS — module router serves fleet routes and `lifecycleConfig.routeLoader = null` after sync refresh |
+
+Task 3b required a minimal Route Loader Node compatibility patch because `c.executionCtx` is not available in the Node runtime.
 
 ---
 

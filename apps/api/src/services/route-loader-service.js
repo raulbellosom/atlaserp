@@ -265,7 +265,18 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
         const hasMatch = Array.isArray(matches?.[0]) && matches[0].length > 0
         if (!hasMatch) continue
 
-        return entry.securedRouter.fetch(c.req.raw, c.env, c.executionCtx)
+        let executionCtx
+        try {
+          executionCtx = c.executionCtx
+        } catch {
+          executionCtx = undefined
+        }
+
+        if (typeof executionCtx === 'undefined') {
+          return entry.securedRouter.fetch(c.req.raw, c.env)
+        }
+
+        return entry.securedRouter.fetch(c.req.raw, c.env, executionCtx)
       }
 
       await next()
