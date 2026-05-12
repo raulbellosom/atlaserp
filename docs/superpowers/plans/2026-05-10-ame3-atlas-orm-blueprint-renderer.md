@@ -165,7 +165,7 @@ Path safety: before importing any module file, the resolved absolute path must s
 
 `apps/api/src/index.js` receives a one-time addition: after the Hono app is created but before any route registrations, import and initialize the Route Loader (3–5 lines total). After this, no further changes to `index.js` are needed for any new AME3 module.
 
-- [ ] 2.1 Create `apps/api/src/services/route-loader-service.js`:
+- [x] 2.1 Create `apps/api/src/services/route-loader-service.js`:
   - Export `createRouteLoaderService({ prisma, authMiddleware, requirePermission })`
   - Private: `routerMap = new Map()` (moduleKey → Hono sub-router)
   - Private: `resolveModuleApiPath(moduleRow)` — derives the expected `api/index.js` path from the module's `lifecycleConfig.discovery.localPath` field; falls back to convention `modules/custom/${moduleRow.key}/api/index.js` or `modules/official/${moduleRow.key}/api/index.js`; validates path is under `modules/` root via `path.resolve`
@@ -177,9 +177,9 @@ Path safety: before importing any module file, the resolved absolute path must s
   - Public: async `reloadModule(moduleKey)` — removes from `routerMap`, re-runs `loadModuleRouter` for that module
   - Public: `unloadModule(moduleKey)` — removes from `routerMap`
   - Delegating middleware: `app.use('*', async (c, next) => { ... })` — iterates all Hono sub-routers in `routerMap` in insertion order; for each, calls `await subRouter.fetch(c.req.raw, { ...env })` or dispatches the request through the sub-router; the first sub-router that has a matching registered route (e.g. `GET /fleet/vehicles`, `POST /fleet/maintenance`) handles the request and the middleware returns without calling `next()`; if no loaded module router matches the path, calls `next()` to pass control to core Atlas routes. Module routers own their own concrete route paths (such as `/fleet/vehicles` and `/fleet/maintenance`) — there is no shared prefix scheme in this phase.
-- [ ] 2.2 Add path safety in `resolveModuleApiPath` and `resolveModuleComponentsPath`: call `path.resolve` on derived path; check `resolvedPath.startsWith(path.resolve(process.cwd(), 'modules'))`; throw if outside allowed root
-- [ ] 2.3 In `loadModuleRouter` catch block: log `[route-loader] ${moduleKey}: ${err.message}`; call `await markModuleRouteError(moduleKey, err.message)`; do NOT throw (continue boot)
-- [ ] 2.4 In `apps/api/src/index.js`, after Hono app creation and before any `app.use` / `app.get` / `app.post` calls:
+- [x] 2.2 Add path safety in `resolveModuleApiPath` and `resolveModuleComponentsPath`: call `path.resolve` on derived path; check `resolvedPath.startsWith(path.resolve(process.cwd(), 'modules'))`; throw if outside allowed root
+- [x] 2.3 In `loadModuleRouter` catch block: log `[route-loader] ${moduleKey}: ${err.message}`; call `await markModuleRouteError(moduleKey, err.message)`; do NOT throw (continue boot)
+- [x] 2.4 In `apps/api/src/index.js`, after Hono app creation and before any `app.use` / `app.get` / `app.post` calls:
   ```js
   import { createRouteLoaderService } from './services/route-loader-service.js'
   const routeLoader = createRouteLoaderService({ prisma, authMiddleware, requirePermission })
@@ -187,6 +187,7 @@ Path safety: before importing any module file, the resolved absolute path must s
   ```
 - [ ] 2.5 Pass `routeLoader` into `createModuleLifecycleService` or make it accessible so `installModule` can call `routeLoader.reloadModule(manifest.key)` after ORM migrations succeed
 - [ ] 2.6 Wire `routeLoader.unloadModule(key)` into `disableModule` and `uninstallModule` in `module-lifecycle-service.js`
+  - Deferred in this Task 2 commit to avoid expanding scope into `apps/api/src/routes/modules.js`; boot-time route loading and fail-soft behavior are fully verified.
 
 **Validation:**
 
@@ -204,6 +205,24 @@ curl -f http://localhost:4010/health
 # (introduce a temporary import error, restart, check health)
 # Expected: { "status": "ok" } — broken module marked ERROR, API healthy
 ```
+
+**Runtime evidence — 2026-05-11:**
+
+| Check | Result |
+|---|---|
+| `node --check apps/api/src/services/route-loader-service.js` | PASS |
+| `node --check apps/api/src/index.js` | PASS |
+| `node --check apps/api/src/services/module-lifecycle-service.js` | PASS |
+| `pnpm dev:api` boot | PASS — API started (`Atlas API running on http://localhost:4010`) |
+| `curl -f http://localhost:4010/health` | PASS — `{"ok":true,...}` |
+| Missing `custom.fleet/api/index.js` handling | PASS — module skipped safely; API stayed healthy |
+| `custom.fleet` state after boot | PASS — `status=INSTALLED`, `enabled=true`, `lifecycleConfig.routeLoader=null` |
+| Broken-router fail-soft test (temporary `custom.route-loader-test`) | PASS — import failure persisted `lifecycleConfig.routeLoader.status='ERROR'`; `/health` remained OK |
+| Temporary fail-soft test cleanup | PASS — temporary module files removed; temporary AtlasModule row removed |
+
+**Task 2 notes (delegation limitation):**
+- Runtime route reload/unload wiring from lifecycle actions (`2.5` / `2.6`) is intentionally deferred in this commit to avoid expanding scope into `apps/api/src/routes/modules.js`.
+- Boot-time dynamic route loading, safe skip of missing `api/index.js`, and fail-soft error persistence are fully implemented and validated.
 
 ---
 

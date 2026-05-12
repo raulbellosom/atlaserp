@@ -66,6 +66,7 @@ import { createFinanceDocumentsService } from "./services/finance-documents-serv
 import { createHrService, HrServiceError } from "./services/hr-service.js";
 import { createLedgerRouter } from "./routes/ledger.js";
 import { createModulesRouter } from "./routes/modules.js";
+import { createRouteLoaderService } from "./services/route-loader-service.js";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 loadEnv({
@@ -453,6 +454,13 @@ function serializeModulesForResponse(modules, context, options = {}) {
       };
     });
 }
+
+const routeLoader = createRouteLoaderService({
+  prisma,
+  authMiddleware,
+  requirePermission,
+});
+await routeLoader.initialize(app);
 
 ensureBuckets();
 
