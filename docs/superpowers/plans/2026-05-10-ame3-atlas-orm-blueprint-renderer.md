@@ -237,9 +237,9 @@ curl -f http://localhost:4010/health
 
 All three data-fetching view schemas must include `apiPath: '/fleet/vehicles'`. The renderer uses this field exclusively; no path derivation is allowed. Additionally, `vehicle.form.js` currently uses the key `groups` for field groupings; rename it to `sections` to match the spec's AtlasForm schema contract (`schema.sections`).
 
-- [ ] 3a.1 In `vehicle.table.js`: add `apiPath: '/fleet/vehicles'` to the `schema` object (top-level field alongside `entity`, `component`, `columns`, etc.)
-- [ ] 3a.2 In `vehicle.form.js`: add `apiPath: '/fleet/vehicles'` to the `schema` object; rename the `groups` key to `sections`
-- [ ] 3a.3 In `vehicle.detail.js`: add `apiPath: '/fleet/vehicles'` to the `schema` object
+- [x] 3a.1 In `vehicle.table.js`: add `apiPath: '/fleet/vehicles'` to the `schema` object (top-level field alongside `entity`, `component`, `columns`, etc.)
+- [x] 3a.2 In `vehicle.form.js`: add `apiPath: '/fleet/vehicles'` to the `schema` object; rename the `groups` key to `sections`
+- [x] 3a.3 In `vehicle.detail.js`: add `apiPath: '/fleet/vehicles'` to the `schema` object
 
 **Validation:**
 
@@ -255,6 +255,18 @@ curl -s http://localhost:4010/blueprints \
   | jq '[.data[] | select(.source=="atlas-view" and .moduleKey=="custom.fleet") | .schema.apiPath] | unique'
 # Expected: ["/fleet/vehicles"]
 ```
+
+**Runtime evidence — 2026-05-11:**
+
+| Check | Result |
+|---|---|
+| `node --check modules/custom/custom.fleet/views/vehicle.table.js` | PASS |
+| `node --check modules/custom/custom.fleet/views/vehicle.form.js` | PASS |
+| `node --check modules/custom/custom.fleet/views/vehicle.detail.js` | PASS |
+| Sync tooling execution (`discoverModules` + `syncModules` + `syncModuleMetadata`) | PASS — `discovered=1`, `valid=1`, `metadataSynced=1` |
+| AtlasView `fleet.vehicle.table` `schema.apiPath` | PASS — `/fleet/vehicles` |
+| AtlasView `fleet.vehicle.form` `schema.apiPath` | PASS — `/fleet/vehicles` |
+| AtlasView `fleet.vehicle.detail` `schema.apiPath` | PASS — `/fleet/vehicles` |
 
 ---
 

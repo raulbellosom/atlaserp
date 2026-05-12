@@ -7,6 +7,7 @@ export default defineView({
   schema: {
     entity: 'vehicle',
     component: 'AtlasTable',
+    apiPath: '/fleet/vehicles',
     columns: [
       { field: 'plate', label: 'Matricula', sortable: true },
       { field: 'brand', label: 'Marca', sortable: true },

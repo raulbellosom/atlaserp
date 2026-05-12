@@ -7,7 +7,8 @@ export default defineView({
   schema: {
     entity: 'vehicle',
     component: 'AtlasForm',
-    groups: [
+    apiPath: '/fleet/vehicles',
+    sections: [
       {
         label: 'Informacion general',
         fields: [

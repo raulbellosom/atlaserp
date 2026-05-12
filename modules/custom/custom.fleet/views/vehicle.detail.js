@@ -7,6 +7,7 @@ export default defineView({
   schema: {
     entity: 'vehicle',
     component: 'AtlasDetail',
+    apiPath: '/fleet/vehicles',
     sections: [
       {
         label: 'Informacion general',
