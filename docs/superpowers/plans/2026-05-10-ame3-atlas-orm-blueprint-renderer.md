@@ -538,6 +538,8 @@ pnpm --filter @atlas/desktop build:web
 
 Task 6 is **complete** under the corrected validation gate.
 
+> **Design-system alignment follow-up (2026-05-13):** Task 6 delivered a functional MVP renderer. Visual production-readiness requires a follow-up phase to replace basic HTML primitives with existing `@atlas/ui` components (`DynamicTable`, `DynamicForm`, `ListLayout`, `FormFields`, `ViewModeSwitch`, `EmptyState`, `ErrorState`, `ActionMenu`, `PageHeader`, `ConfirmDialog`). See the full audit and phased roadmap: `docs/superpowers/decisions/2026-05-13-ame3-renderer-ui-reuse-and-glassic-design.md`
+
 ---
 ## Task 7 — Shell Routing for AME3 Custom Modules
 
@@ -551,30 +553,27 @@ Task 6 is **complete** under the corrected validation gate.
 
 `ModuleOutlet.jsx`'s `resolveScreen()` function adds a fallback: if no match is found in `SCREEN_MAP` AND the `moduleKey` is not a known core module key, return `BlueprintCrudScreen`. Custom modules like `custom.fleet` fall through to this fallback without any `SCREEN_MAP` entry.
 
-- [ ] 7.1 Create `apps/desktop/src/shell/BlueprintCrudScreen.jsx`:
-  - Imports: `useParams`, `useNavigate` from react-router-dom; `useQuery` from @tanstack/react-query; `AtlasCrudView` from `@atlas/ui`; `useAuth` from `../auth/AuthProvider`; `atlas` from `../lib/atlas`
-  - Reads `moduleKey` and `*` (wildcard sub-path) from `useParams`
-  - Fetches blueprints: `useQuery({ queryKey: ['blueprints'], queryFn: () => atlas.blueprints.list(token) })`
-  - Derives `entitySegment` from the first segment of the wildcard sub-path (e.g., `vehicles` from `/vehicles` or `/vehicles/new`)
-  - Finds TABLE, FORM, DETAIL blueprints for this module: filter by `moduleKey` and `schema.apiPath` containing `entitySegment`
-  - If TABLE blueprint not found: render "Vista no disponible para este modulo."
-  - If module not installed or not enabled: redirect to `/app/m/atlas.core/modules`
-  - Renders `<AtlasCrudView tableBlueprint={...} formBlueprint={...} detailBlueprint={...} fields={...} token={token} apiBaseUrl={apiBaseUrl} />`
-- [ ] 7.2 Verify `atlas.blueprints.list` exists in `packages/sdk/src/index.js`; add it if absent
-- [ ] 7.3 Modify `apps/desktop/src/app/ModuleOutlet.jsx`:
-  - Add at the top: `import { BlueprintCrudScreen } from '../shell/BlueprintCrudScreen.jsx'`
-  - Define: `const CORE_MODULE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company', 'atlas.contacts', 'atlas.finance', 'atlas.hr', 'atlas.ledger'])`
-  - In `resolveScreen(moduleKey, subPath)`, at the end of the function after all existing resolution logic, replace the final `return null` with:
-    ```js
-    if (!CORE_MODULE_KEYS.has(moduleKey)) return BlueprintCrudScreen
-    return null
-    ```
-- [ ] 7.4 `BlueprintCrudScreen` should use `useRuntimeModules` to get the module object (for module name in page title, and for availability check)
+- [x] 7.1 Create `apps/desktop/src/shell/BlueprintCrudScreen.jsx`:
+  - Reads `moduleKey` and wildcard route from `useParams`.
+  - Loads blueprints with `useQuery({ queryKey: ['blueprints', moduleKey, token], queryFn: () => atlas.blueprints.list(token) })`.
+  - Selects TABLE/FORM/DETAIL using `source = "atlas-view"` + `moduleKey`, preferring PAGE `schema.path` match and falling back to `schema.apiPath` + `schema.entity`.
+  - Renders Spanish loading/error/empty states and uses `"No se encontró una vista para este módulo."` when no TABLE blueprint exists.
+  - Passes `tableBlueprint`, `formBlueprint`, `detailBlueprint`, `token`, and `apiBaseUrl` into `AtlasCrudView`.
+- [x] 7.2 Verify `atlas.blueprints.list` exists in `packages/sdk/src/index.js` (already existed; no SDK changes needed)
+- [x] 7.3 Modify `apps/desktop/src/app/ModuleOutlet.jsx`:
+  - Added `BlueprintCrudScreen` import.
+  - Added `SCREEN_MODULE_KEYS` derived from `SCREEN_MAP`.
+  - `resolveScreen()` now falls back to `BlueprintCrudScreen` only when module key is not represented in `SCREEN_MAP`.
+- [x] 7.4 `BlueprintCrudScreen` uses `useRuntimeModules` and `isModuleAvailable` for module availability context
 
 **Validation:**
 
 ```bash
-pnpm --filter ./apps/desktop build:web
+node --check apps/desktop/src/shell/BlueprintCrudScreen.jsx
+node --check apps/desktop/src/app/ModuleOutlet.jsx
+# Expected in this runtime: both fail with ERR_UNKNOWN_FILE_EXTENSION (.jsx)
+
+pnpm --filter @atlas/desktop build:web
 # Expected: exits 0
 
 # Browser test (requires dev server + custom.fleet installed):
@@ -583,6 +582,84 @@ pnpm --filter ./apps/desktop build:web
 # Expected: table fetches from /fleet/vehicles (schema.apiPath)
 # Expected: no hardcoded fleet paths in BlueprintCrudScreen or AtlasCrudView
 ```
+
+**Runtime evidence â€” 2026-05-12:**
+
+| Check | Result |
+|---|---|
+| `node --check apps/desktop/src/shell/BlueprintCrudScreen.jsx` | FAIL â€” Node runtime rejects `.jsx` (`ERR_UNKNOWN_FILE_EXTENSION`) |
+| `node --check apps/desktop/src/app/ModuleOutlet.jsx` | FAIL â€” same `.jsx` limitation |
+| `pnpm.cmd --filter @atlas/desktop build:web` | PASS |
+| `http://localhost:4010/health` | PASS (`200`) |
+| `http://localhost:5173/app/m/custom.fleet/vehicles` | PASS (`200`, no frontend 404) |
+| `GET /blueprints` (`moduleKey=custom.fleet`, `source=atlas-view`) | PASS â€” returned `fleet.vehicle.table`, `fleet.vehicle.form`, `fleet.vehicle.detail`, `fleet.vehicle.page`; TABLE/FORM/DETAIL include `schema.apiPath = "/fleet/vehicles"` |
+| `GET /fleet/vehicles?page=1&pageSize=20` | PASS â€” returned empty list with pagination `{ page: 1, pageSize: 20, total: 0 }` |
+| `POST /fleet/vehicles` (runtime audit token) | FAIL â€” returned `500` (`"No se pudo crear el vehiculo de custom.fleet."`) |
+| Forbidden file scope | PASS â€” only Task 7 files + plan updated |
+
+Task 7 is **not marked complete yet** because runtime create-flow validation did not pass in this run (`POST /fleet/vehicles` returned `500` with the current runtime audit token).
+
+**Debug follow-up evidence â€” 2026-05-12 (Task 7 create-flow):**
+
+| Check | Result |
+|---|---|
+| `node --check modules/custom/custom.fleet/api/fleet-service.js` | PASS |
+| `node --check modules/custom/custom.fleet/api/index.js` | PASS |
+| `pnpm.cmd --filter @atlas/desktop build:web` | PASS |
+| `curl -f http://localhost:4010/health` | PASS (`200`) |
+| `GET /blueprints` (`custom.fleet`, `atlas-view`) | PASS |
+| `GET /fleet/vehicles` | PASS (`200`) |
+| `POST /fleet/vehicles` duplicate plate | PASS â€” now returns `409` with `{"error":"Ya existe un vehiculo con esa matricula."}` |
+| `POST /fleet/vehicles` unique plate | PASS â€” now returns `201` with created row |
+| `PATCH /fleet/vehicles/:id` | PASS (`200`) |
+| `PATCH /fleet/vehicles/:id/enabled` | PASS (`200`) |
+| List after soft-disable | PASS â€” created vehicle no longer appears in enabled list |
+| Dev error observability (`custom.fleet` route) | PASS â€” development log now includes `route`, `moduleKey`, `operation`, `error.name`, `error.message`, `error.code`, `error.meta`, and `error.stack` without exposing stack traces to API clients |
+
+Task 7 remains **not marked complete** in this evidence update because full interactive browser create from `/app/m/custom.fleet/vehicles` was not executed in this terminal-only verification run.
+
+**Debug follow-up evidence â€” 2026-05-12 (Task 7 route parsing):**
+
+| Check | Result |
+|---|---|
+| Root cause hypothesis | CONFIRMED â€” custom module navigation path was absolute (`/app/m/custom.fleet/vehicles`) while shell launch/sidebar logic also prepended `/app/m/${moduleKey}`, producing duplicated routes (`/app/m/custom.fleet/app/m/custom.fleet/vehicles`) |
+| Duplicated wildcard parsing impact | CONFIRMED â€” wildcard `app/m/custom.fleet/vehicles` yielded segment index `1 = "m"` in route-mode parsing, incorrectly inferring detail mode with `recordId = "m"` |
+| Fix scope | `apps/desktop/src/lib/runtimeModules.js`, `apps/desktop/src/shell/BlueprintCrudScreen.jsx` |
+| Navigation normalization | PASS â€” absolute module navigation paths are normalized to module-relative (`/vehicles`, `/`) before use by launchers/sidebar/palette |
+| Route parser hardening | PASS â€” parser now collapses duplicated `app/m/${moduleKey}/` prefix in wildcard before deriving mode/recordId |
+| Scripted route checks | PASS â€” `/vehicles` => `list`, `/vehicles/new` => `create`, `/vehicles/:id` => `detail`, `/vehicles/:id/edit` => `edit`, duplicated wildcard => `list` with `recordId = null` |
+| `node --check apps/desktop/src/lib/runtimeModules.js` | PASS |
+| `pnpm.cmd --filter @atlas/desktop build:web` | PASS |
+| Regression check (backend) | PASS â€” `POST /fleet/vehicles` still returns `201` for unique plate after frontend route fix |
+| SCREEN_MAP hardcoding | PASS â€” no `custom.fleet` entry added |
+
+Task 7 remains **not marked complete** in this update until interactive browser verification confirms:
+1) `/app/m/custom.fleet/vehicles` loads list mode,
+2) no `GET /fleet/vehicles/m` request occurs,
+3) UI create flow succeeds end-to-end.
+
+**Debug follow-up evidence â€” 2026-05-12 (Task 7 CORS on dynamic routes):**
+
+| Check | Result |
+|---|---|
+| Root cause hypothesis | CONFIRMED â€” `routeLoader.initialize(app)` registered delegation middleware before global `cors()` middleware, so delegated module responses could return before CORS headers were applied |
+| Fix scope | `apps/api/src/index.js` |
+| Exact fix | Moved global `app.use('*', cors(...))` registration before `await routeLoader.initialize(app)` so CORS runs first for all routes, including delegated module routes and OPTIONS preflight |
+| `node --check apps/api/src/index.js` | PASS |
+| `node --check apps/api/src/services/route-loader-service.js` | PASS |
+| `curl -i -X OPTIONS /fleet/vehicles` with Origin and ACRM headers | PASS â€” `204` with `access-control-allow-origin`, `access-control-allow-methods`, `access-control-allow-headers` |
+| `curl -i GET /fleet/vehicles?page=1&pageSize=20` with Origin + Authorization | PASS â€” `200` and `access-control-allow-origin` present |
+| `curl -i GET /blueprints` with Origin + Authorization | PASS â€” `200` and `access-control-allow-origin` present |
+| `curl -i /health` | PASS â€” `200` and CORS header present |
+| `POST /fleet/vehicles` unique with Origin | PASS â€” `201` with CORS header |
+| `POST /fleet/vehicles` duplicate with Origin | PASS â€” `409` with Spanish conflict message and CORS header |
+| API log scan for `22P02` / `/fleet/vehicles/m` during this verification run | PASS â€” no matches in current run logs |
+
+Task 7 remains **not marked complete** in this evidence update because interactive browser/runtime verification of:
+- `/app/m/custom.fleet/vehicles` list-mode rendering,
+- absence of `GET /fleet/vehicles/m` in browser-driven navigation,
+- and UI create/edit/disable clicks
+was not executed in this terminal-only run.
 
 ---
 
@@ -694,4 +771,3 @@ Before marking Phase 3 tasks complete in `docs/TASKS.md`:
 - [ ] `pnpm --filter ./apps/desktop build:web` exits 0.
 - [ ] `git diff HEAD` shows no uncommitted changes.
 - [ ] `docs/TASKS.md` updated with `Verified: 2026-05-10 (all 15 verification commands executed)`.
-

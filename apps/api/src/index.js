@@ -460,9 +460,6 @@ const routeLoader = createRouteLoaderService({
   authMiddleware,
   requirePermission,
 });
-await routeLoader.initialize(app);
-
-ensureBuckets();
 
 app.use(
   "*",
@@ -472,6 +469,10 @@ app.use(
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   }),
 );
+
+await routeLoader.initialize(app);
+
+ensureBuckets();
 
 app.get("/health", (c) => {
   const now = new Date();

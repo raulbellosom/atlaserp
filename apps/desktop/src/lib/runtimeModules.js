@@ -33,6 +33,36 @@ function normalizeLayoutMode(value) {
   return "default";
 }
 
+function normalizeModuleNavigationPath(moduleKey, path) {
+  const rawPath = String(path ?? "").trim();
+  if (!rawPath) return "/";
+  if (rawPath === "/") return "/";
+
+  const withSlash = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
+  const modulePrefix = `/app/m/${moduleKey}`;
+
+  if (withSlash === modulePrefix) return "/";
+  if (withSlash.startsWith(`${modulePrefix}/`)) {
+    const relative = withSlash.slice(modulePrefix.length);
+    return relative.startsWith("/") ? relative : `/${relative}`;
+  }
+
+  return withSlash;
+}
+
+function normalizeModuleNavigation(moduleKey, navigation) {
+  const rows = Array.isArray(navigation) ? navigation : [];
+  return rows
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      return {
+        ...item,
+        path: normalizeModuleNavigationPath(moduleKey, item.path),
+      };
+    })
+    .filter(Boolean);
+}
+
 export function mergeRuntimeModules(rawApiModules, options = {}) {
   const { includeManifestFallback = true } = options;
   const manifestsByKey = getManifestsByKey();
@@ -54,8 +84,9 @@ export function mergeRuntimeModules(rawApiModules, options = {}) {
       typeof apiRow?.enabled === "boolean" ? apiRow.enabled : core;
 
     const manifestFallback = apiRow?.manifest ?? {};
-    const navigation =
+    const navigationSource =
       manifest?.navigation ?? manifestFallback.navigation ?? [];
+    const navigation = normalizeModuleNavigation(key, navigationSource);
 
     const layoutMode = normalizeLayoutMode(
       manifest?.layoutMode ?? manifestFallback.layoutMode,
@@ -120,9 +151,7 @@ export function groupModulesByCategory(modules) {
 export function getModuleLaunchPath(module) {
   const firstNav = module?.navigation?.[0];
   if (!module) return "/app/home";
-  if (firstNav && firstNav.path !== "/") {
-    return `/app/m/${module.key}${firstNav.path}`;
-  }
+  if (firstNav && firstNav.path !== "/") return `/app/m/${module.key}${firstNav.path}`;
   return `/app/m/${module.key}`;
 }
 
