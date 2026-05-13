@@ -192,3 +192,11 @@ export {
 } from "./components/ViewModeSwitch.jsx";
 export { MobileFiltersSheet } from "./components/MobileFiltersSheet.jsx";
 export { ListLayout } from "./components/ListLayout.jsx";
+
+// Atlas blueprint renderer
+export {
+  AtlasTable,
+  AtlasForm,
+  AtlasDetail,
+  AtlasCrudView,
+} from "./atlas-renderer/index.js";
