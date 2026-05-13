@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Badge, Skeleton } from "@atlas/ui";
 import { Layers } from "lucide-react";
+import { BlueprintCrudScreen } from "../shell/BlueprintCrudScreen.jsx";
 import { useRuntimeModules } from "./useRuntimeModules";
 import { isModuleAvailable } from "../lib/runtimeModules";
 
@@ -125,6 +126,9 @@ const SCREEN_MAP = {
     () => import("../modules/atlas.identity/screens/IdentityOverview.jsx"),
   ),
 };
+const SCREEN_MODULE_KEYS = new Set(
+  Object.keys(SCREEN_MAP).map((entry) => entry.split(":")[0]),
+);
 
 function LoadingFallback() {
   return (
@@ -230,6 +234,7 @@ function resolveScreen(moduleKey, subPath) {
     return SCREEN_MAP["atlas.ledger:/ledger/accounts/:id"] ?? null;
   }
   if (subPath === "/") return SCREEN_MAP[`${moduleKey}:/`] ?? null;
+  if (!SCREEN_MODULE_KEYS.has(moduleKey)) return BlueprintCrudScreen;
   return null;
 }
 
@@ -237,10 +242,6 @@ export function ModuleOutlet() {
   const { moduleKey, "*": wildcard } = useParams();
   const navigate = useNavigate();
   const { moduleMap, isLoading } = useRuntimeModules();
-  const knownModuleKeys = useMemo(
-    () => new Set(Object.keys(SCREEN_MAP).map((entry) => entry.split(":")[0])),
-    [],
-  );
 
   const module = moduleMap.get(moduleKey) ?? null;
   const subPath = useMemo(() => {
@@ -286,7 +287,7 @@ export function ModuleOutlet() {
   if (isLoading) return <LoadingFallback />;
 
   if (!module) {
-    if (knownModuleKeys.has(moduleKey)) {
+    if (SCREEN_MODULE_KEYS.has(moduleKey)) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[60dvh] gap-4 text-center px-6">
           <p className="text-lg font-semibold text-[hsl(var(--foreground))]">
