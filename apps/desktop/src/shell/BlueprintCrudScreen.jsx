@@ -1,6 +1,18 @@
 import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AtlasCrudView, Card, CardContent, CardHeader, CardTitle } from "@atlas/ui";
+import { toast } from "sonner";
+import { Package } from "lucide-react";
+import {
+  AtlasCrudView,
+  Card,
+  CardHeader,
+  CardTitle,
+  EmptyState,
+  ErrorState,
+  PageHeader,
+  Skeleton,
+  normalizeSpanishLabel,
+} from "@atlas/ui";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useRuntimeModules } from "../app/useRuntimeModules";
@@ -62,12 +74,7 @@ function parseRouteInfo(moduleKey, wildcard) {
     recordId = segments[1];
   }
 
-  return {
-    entitySegment,
-    moduleRoutePath,
-    initialMode,
-    recordId,
-  };
+  return { entitySegment, moduleRoutePath, initialMode, recordId };
 }
 
 function matchesEntity(blueprint, entitySegment) {
@@ -76,12 +83,9 @@ function matchesEntity(blueprint, entitySegment) {
   const apiPath = normalizePath(schema.apiPath);
   const apiLastSegment = getLastSegment(apiPath);
   const entity = String(schema.entity ?? "").trim().toLowerCase();
-
   if (apiLastSegment && apiLastSegment === entitySegment) return true;
   if (apiPath && apiPath.includes(`/${entitySegment}`)) return true;
-  if (entity && (entity === entitySegment || `${entity}s` === entitySegment)) {
-    return true;
-  }
+  if (entity && (entity === entitySegment || `${entity}s` === entitySegment)) return true;
   return false;
 }
 
@@ -96,22 +100,16 @@ function selectBlueprints({ rows, moduleKey, moduleRoutePath, entitySegment }) {
 
   const normalizedRoutePath = normalizePath(moduleRoutePath);
   const pagePathOf = (row) => normalizePath(row?.schema?.path ?? row?.schema?.page?.path);
-  const pageMatch = pageRows.find(
-    (row) => pagePathOf(row) === normalizedRoutePath,
-  );
+  const pageMatch = pageRows.find((row) => pagePathOf(row) === normalizedRoutePath);
 
   const findByKey = (key) =>
     moduleRows.find((row) => String(row?.key ?? "").trim() === String(key ?? "").trim()) ?? null;
 
   let tableBlueprint = null;
   const pageViewKey = pageMatch?.schema?.view ?? pageMatch?.schema?.page?.view;
-  if (pageViewKey) {
-    tableBlueprint = findByKey(pageViewKey);
-  }
+  if (pageViewKey) tableBlueprint = findByKey(pageViewKey);
   const pageTableKey = pageMatch?.schema?.table ?? pageMatch?.schema?.page?.table;
-  if (!tableBlueprint && pageTableKey) {
-    tableBlueprint = findByKey(pageTableKey);
-  }
+  if (!tableBlueprint && pageTableKey) tableBlueprint = findByKey(pageTableKey);
   if (!tableBlueprint) {
     tableBlueprint = tableRows.find((row) => matchesEntity(row, entitySegment)) ?? null;
   }
@@ -145,14 +143,46 @@ function selectBlueprints({ rows, moduleKey, moduleRoutePath, entitySegment }) {
 function extractFields(tableBlueprint, formBlueprint, detailBlueprint) {
   const candidates = [tableBlueprint, formBlueprint, detailBlueprint];
   for (const blueprint of candidates) {
-    if (Array.isArray(blueprint?.fields) && blueprint.fields.length > 0) {
-      return blueprint.fields;
-    }
-    if (Array.isArray(blueprint?.schema?.fields) && blueprint.schema.fields.length > 0) {
+    if (Array.isArray(blueprint?.fields) && blueprint.fields.length > 0) return blueprint.fields;
+    if (Array.isArray(blueprint?.schema?.fields) && blueprint.schema.fields.length > 0)
       return blueprint.schema.fields;
-    }
   }
   return undefined;
+}
+
+function resolveNavItem(module, moduleRoutePath, entitySegment) {
+  const nav = module?.navigation ?? module?.manifest?.navigation ?? [];
+  if (!Array.isArray(nav) || nav.length === 0) return null;
+  const normalizedRoute = normalizePath(moduleRoutePath);
+  const exact = nav.find((item) => normalizePath(item?.path ?? "") === normalizedRoute);
+  if (exact) return exact;
+  if (entitySegment) {
+    const partial = nav.find((item) =>
+      normalizePath(item?.path ?? "").split("/").includes(entitySegment),
+    );
+    if (partial) return partial;
+  }
+  return null;
+}
+
+function resolvePageTitle(tableBlueprint, navItem) {
+  const blueprintTitle =
+    tableBlueprint?.schema?.title ?? tableBlueprint?.title ?? null;
+  if (blueprintTitle) return blueprintTitle;
+  if (navItem?.label) return navItem.label;
+  return "Registros";
+}
+
+function resolveEmptyLabel(entitySegment, navItem) {
+  if (navItem?.label) return navItem.label;
+  if (entitySegment) return entitySegment.charAt(0).toUpperCase() + entitySegment.slice(1);
+  return null;
+}
+
+function resolvePageDescription(tableBlueprint, module) {
+  const blueprintDesc = tableBlueprint?.schema?.description ?? tableBlueprint?.description ?? null;
+  if (blueprintDesc) return blueprintDesc;
+  return module?.description ?? module?.manifest?.description ?? null;
 }
 
 export function BlueprintCrudScreen() {
@@ -163,6 +193,7 @@ export function BlueprintCrudScreen() {
   const token = session?.access_token ?? null;
   const { moduleMap } = useRuntimeModules();
   const module = moduleMap.get(moduleKey) ?? null;
+  const moduleName = module?.name ?? module?.manifest?.name ?? moduleKey ?? "";
 
   const routeInfo = useMemo(
     () => parseRouteInfo(moduleKey, wildcard),
@@ -186,21 +217,16 @@ export function BlueprintCrudScreen() {
       moduleRoutePath: routeInfo.moduleRoutePath,
       entitySegment: routeInfo.entitySegment,
     });
-  }, [
-    blueprintsQuery.data,
-    moduleKey,
-    routeInfo.entitySegment,
-    routeInfo.moduleRoutePath,
-  ]);
+  }, [blueprintsQuery.data, moduleKey, routeInfo.entitySegment, routeInfo.moduleRoutePath]);
 
   const fields = useMemo(
-    () =>
-      extractFields(
-        selection.tableBlueprint,
-        selection.formBlueprint,
-        selection.detailBlueprint,
-      ),
+    () => extractFields(selection.tableBlueprint, selection.formBlueprint, selection.detailBlueprint),
     [selection.detailBlueprint, selection.formBlueprint, selection.tableBlueprint],
+  );
+
+  const navItem = useMemo(
+    () => resolveNavItem(module, routeInfo.moduleRoutePath, routeInfo.entitySegment),
+    [module, routeInfo.entitySegment, routeInfo.moduleRoutePath],
   );
 
   const handleNavigate = useCallback(
@@ -216,23 +242,27 @@ export function BlueprintCrudScreen() {
         targetPath = `${basePath}/new`;
       } else if ((mode === "detail" || mode === "edit") && recordId) {
         targetPath = `${basePath}/${encodeURIComponent(String(recordId))}`;
-        if (mode === "edit") {
-          targetPath = `${targetPath}/edit`;
-        }
+        if (mode === "edit") targetPath = `${targetPath}/edit`;
       }
 
       if (targetPath !== location.pathname) {
         navigate(targetPath, { replace: true });
       }
     },
-    [
-      location.pathname,
-      moduleKey,
-      navigate,
-      routeInfo.entitySegment,
-      selection.tableBlueprint?.schema?.apiPath,
-    ],
+    [location.pathname, moduleKey, navigate, routeInfo.entitySegment, selection.tableBlueprint?.schema?.apiPath],
   );
+
+  const handleCreateSuccess = useCallback(() => {
+    toast.success("Registro creado correctamente.");
+  }, []);
+
+  const handleEditSuccess = useCallback(() => {
+    toast.success("Cambios guardados correctamente.");
+  }, []);
+
+  const handleDeleteSuccess = useCallback(() => {
+    toast.success("Registro eliminado.");
+  }, []);
 
   if (!token) {
     return (
@@ -246,64 +276,118 @@ export function BlueprintCrudScreen() {
 
   if (module && !isModuleAvailable(module)) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Módulo no disponible</CardTitle>
-        </CardHeader>
-      </Card>
+      <div className="p-6">
+        <EmptyState
+          icon={Package}
+          title="Módulo no disponible"
+          description="Este módulo no está habilitado en la instancia actual."
+        />
+      </div>
     );
   }
 
   if (blueprintsQuery.isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Cargando vistas del módulo...</CardTitle>
-        </CardHeader>
-      </Card>
+      <div className="flex flex-col min-h-full">
+        <div className="flex-1 p-4 md:p-6 space-y-6">
+          <div className="flex flex-col gap-4 pb-6 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-8 w-56" />
+              <Skeleton className="h-4 w-72" />
+            </div>
+            <Skeleton className="h-9 w-28 shrink-0 sm:mt-1" />
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-9 flex-1 rounded-xl" />
+              <Skeleton className="h-9 w-9 rounded-xl" />
+              <Skeleton className="h-9 w-24 rounded-xl" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-8 w-28 rounded-full" />
+              <Skeleton className="h-8 w-24 rounded-full" />
+              <Skeleton className="ml-auto h-8 w-24 rounded-xl" />
+            </div>
+          </div>
+          <div className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden">
+            <div className="bg-[hsl(var(--muted))]/40 px-4 py-3 flex gap-4 border-b border-[hsl(var(--border))]">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className={`h-4 ${i === 4 ? "w-8 shrink-0" : "flex-1"}`} />
+              ))}
+            </div>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="px-4 py-3 border-b border-[hsl(var(--border))] last:border-0 flex gap-4"
+              >
+                {Array.from({ length: 5 }).map((_, j) => (
+                  <Skeleton key={j} className={`h-4 ${j === 4 ? "w-8 shrink-0" : "flex-1"}`} />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     );
   }
 
   if (blueprintsQuery.isError) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>No se pudieron cargar las vistas del módulo.</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <button
-            type="button"
-            className="text-sm underline"
-            onClick={() => blueprintsQuery.refetch()}
-          >
-            Reintentar
-          </button>
-        </CardContent>
-      </Card>
+      <div className="p-6">
+        <ErrorState
+          title="No se pudieron cargar las vistas del módulo"
+          description="Verifica tu conexión e intenta de nuevo."
+          onRetry={() => blueprintsQuery.refetch()}
+        />
+      </div>
     );
   }
 
   if (!selection.tableBlueprint) {
+    const emptyLabel = normalizeSpanishLabel(resolveEmptyLabel(routeInfo.entitySegment, navItem));
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>No se encontró una vista para este módulo.</CardTitle>
-        </CardHeader>
-      </Card>
+      <div className="p-6">
+        <EmptyState
+          icon={Package}
+          title="Vista no encontrada"
+          description={
+            emptyLabel
+              ? `No se encontró una vista para "${emptyLabel}". Verifica que el módulo tenga blueprints configurados.`
+              : "Esta ruta no tiene blueprints configurados."
+          }
+        />
+      </div>
     );
   }
 
+  const pageTitle = normalizeSpanishLabel(resolvePageTitle(selection.tableBlueprint, navItem));
+  const pageDescription = normalizeSpanishLabel(resolvePageDescription(selection.tableBlueprint, module));
+
   return (
-    <AtlasCrudView
-      tableBlueprint={selection.tableBlueprint}
-      formBlueprint={selection.formBlueprint}
-      detailBlueprint={selection.detailBlueprint}
-      fields={fields}
-      token={token}
-      apiBaseUrl={API_BASE_URL}
-      initialMode={routeInfo.initialMode}
-      recordId={routeInfo.recordId}
-      onNavigate={handleNavigate}
-    />
+    <div className="flex flex-col min-h-full">
+      <div className="flex-1 p-4 md:p-6 space-y-6">
+        <PageHeader
+          eyebrow={moduleName || undefined}
+          title={pageTitle}
+          description={pageDescription || undefined}
+        />
+
+        <AtlasCrudView
+          tableBlueprint={selection.tableBlueprint}
+          formBlueprint={selection.formBlueprint}
+          detailBlueprint={selection.detailBlueprint}
+          fields={fields}
+          token={token}
+          apiBaseUrl={API_BASE_URL}
+          initialMode={routeInfo.initialMode}
+          recordId={routeInfo.recordId}
+          onNavigate={handleNavigate}
+          onCreateSuccess={handleCreateSuccess}
+          onEditSuccess={handleEditSuccess}
+          onDeleteSuccess={handleDeleteSuccess}
+        />
+      </div>
+    </div>
   );
 }

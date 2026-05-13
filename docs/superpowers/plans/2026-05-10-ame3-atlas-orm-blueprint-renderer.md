@@ -541,6 +541,139 @@ Task 6 is **complete** under the corrected validation gate.
 > **Design-system alignment follow-up (2026-05-13):** Task 6 delivered a functional MVP renderer. Visual production-readiness requires a follow-up phase to replace basic HTML primitives with existing `@atlas/ui` components (`DynamicTable`, `DynamicForm`, `ListLayout`, `FormFields`, `ViewModeSwitch`, `EmptyState`, `ErrorState`, `ActionMenu`, `PageHeader`, `ConfirmDialog`). See the full audit and phased roadmap: `docs/superpowers/decisions/2026-05-13-ame3-renderer-ui-reuse-and-glassic-design.md`
 
 ---
+
+## Task 6 Follow-up — Renderer Glassic UI Reuse Phase A [COMPLETED]
+
+**Date:** 2026-05-13
+**Decision:** `docs/superpowers/decisions/2026-05-13-ame3-renderer-ui-reuse-and-glassic-design.md`
+
+**Files created:**
+- `packages/ui/src/atlas-renderer/renderer-adapters.js` — utility functions (`shouldUsePageMode`, `normalizeToFilterBarFilters`)
+- `packages/ui/src/atlas-renderer/AtlasCardView.jsx` — glassic card grid view for AtlasTable
+
+**Files modified:**
+- `packages/ui/src/atlas-renderer/AtlasTable.jsx` — wrapped in `ListLayout`; uses `FilterBar` + `MobileFiltersSheet` for filters; `ActionMenu` for row actions; `EmptyState` / `ErrorState` for data states; cards view via `AtlasCardView`; view mode switcher (table/cards) via `ListLayout`
+- `packages/ui/src/atlas-renderer/AtlasForm.jsx` — replaced all bare HTML inputs with `TextField`, `TextareaField`, `MarkdownField`, `SelectField`, `PhoneField`, `SwitchField` from `FormFields`; sections use glassic `rounded-2xl border bg-[hsl(var(--card))] p-5` cards with uppercase eyebrow titles
+- `packages/ui/src/atlas-renderer/AtlasDetail.jsx` — sections use same glassic card pattern as AtlasForm; cleaner field label/value layout
+- `packages/ui/src/atlas-renderer/AtlasCrudView.jsx` — added `shouldUsePageMode` heuristic (>6 fields or >2 sections → page mode instead of Sheet); added `ConfirmDialog` for delete with `DELETE` fetch; added `onCreateSuccess`, `onEditSuccess`, `onDeleteSuccess` callbacks; added `resolveRowLabel` for readable confirm dialog detail
+- `apps/desktop/src/shell/BlueprintCrudScreen.jsx` — added `PageHeader` with module eyebrow + blueprint title; replaced bare `Card` loading/error states with `Skeleton` placeholder layout, `ErrorState` with retry, `EmptyState` with `Package` icon; added `toast.success()` for create/edit/delete via `sonner`
+- `packages/ui/src/atlas-renderer/index.js` — added `AtlasCardView` export
+- `packages/ui/src/index.js` — added `AtlasCardView` to named re-exports
+
+**Form presentation heuristic:**
+- `shouldUsePageMode(schema, fields)`: returns `true` if `sections.length > 2` OR visible fields `> 6`
+- Page mode: create/edit renders as a full-page panel (no Sheet overlay), with "Volver al listado" back button
+- Sheet mode: create/edit/detail render in right-side Sheet (existing behavior for small forms)
+
+**Toast deferred note:** `toast.success()` is wired in `BlueprintCrudScreen` (desktop, uses `sonner`). The `@atlas/ui` renderer components themselves do not import `sonner` — they call `onCreateSuccess` / `onEditSuccess` / `onDeleteSuccess` props instead.
+
+**Validation results:**
+
+| Check | Result |
+|---|---|
+| `node --check packages/ui/src/atlas-renderer/renderer-adapters.js` | PASS |
+| `node --check packages/ui/src/atlas-renderer/index.js` | PASS |
+| `pnpm --filter @atlas/desktop build:web` | PASS |
+| Forbidden file scope | PASS — no Prisma, API routes, custom.fleet, packages/maps, packages/validators modified |
+| New dependencies | PASS — none added; sonner was already in desktop |
+
+**Acceptance criteria met:**
+- [x] AtlasTable uses glassic `rounded-2xl border overflow-hidden` container with `bg-[hsl(var(--muted))]/40` table header
+- [x] AtlasTable has ViewModeSwitch (table + cards) with localStorage persistence via `ListLayout`
+- [x] AtlasTable has `SearchInput` (via `ListLayout`) and `FilterBar` (desktop) + `MobileFiltersSheet` (mobile, via `ListLayout`)
+- [x] AtlasTable uses `EmptyState` and `ErrorState` components
+- [x] AtlasTable uses `ActionMenu` for row actions (Ver / Editar / Eliminar)
+- [x] AtlasForm uses `TextField`, `TextareaField`, `MarkdownField`, `SelectField`, `PhoneField`, `SwitchField` from `FormFields`
+- [x] AtlasForm sections use glassic `rounded-2xl border bg-card p-5` cards with uppercase eyebrow
+- [x] AtlasDetail sections use same glassic section card pattern
+- [x] `BlueprintCrudScreen` renders `PageHeader` with module eyebrow, blueprint title, and description
+- [x] `AtlasCrudView` includes `ConfirmDialog` for delete
+- [x] CRUD operations propagate `onCreateSuccess` / `onEditSuccess` / `onDeleteSuccess` → `toast.success()` in `BlueprintCrudScreen`
+- [x] All user-facing text in Spanish
+- [x] Desktop build passes
+
+---
+## Task 6 Follow-up — Renderer UI Refinement Pass (Implementation Refinement) [COMPLETED]
+
+**Date:** 2026-05-13
+**Trigger:** Manual browser validation after Phase A revealed visual gaps versus Files/HR modules.
+
+**Issues addressed:**
+1. Page title showed English entity key ("Vehicles") — resolved via nav item label lookup
+2. Loading skeleton did not match actual page layout — replaced with 3-part skeleton (PageHeader + toolbar + table)
+3. Missing-view EmptyState used raw entity key — now uses nav item label ("Mantenimiento")
+4. View modes: only table+cards existed — added three modes (table / list / cards/grid) mapping to ListLayout's table/cards/grid slots with correct ViewModeSwitch icons
+5. Stacked list view added: initials circle + primary text + subtitle text + badge column + hover + ActionMenu
+6. Sort controls added: select for sortable columns + toggle direction button (ArrowUp/ArrowDown), wired to `?sortBy=&sortDir=` API params
+7. Toolbar polish: icon-only RefreshCw reload button, Plus icon on Agregar, count as small muted text
+8. AtlasCardView enhanced: initials circle, hover effect + transition, primary text as subtitle, up to 4 secondary columns
+
+**Files modified:**
+- `apps/desktop/src/shell/BlueprintCrudScreen.jsx`
+  - Added `resolveNavItem(module, routePath, entitySegment)` — matches module navigation array by exact path then entity segment; returns nav item with label/icon
+  - Added `resolveEmptyLabel(entitySegment, navItem)` — uses nav label before raw entity key
+  - Updated `resolvePageTitle` — blueprint title → nav item label → "Registros"
+  - Removed unused `CardContent` import
+  - Loading skeleton: 3-part (PageHeader skeleton + toolbar skeleton + table skeleton with header row + 8 body rows)
+  - Missing-view EmptyState: description uses resolved nav label ("Mantenimiento" instead of "maintenance")
+- `packages/ui/src/atlas-renderer/AtlasTable.jsx`
+  - `normalizeColumns` preserves `sortable` boolean from schema column definitions
+  - Added `sortBy` / `sortDir` state; included in fetch `useEffect` deps; appended to API `URLSearchParams`
+  - `renderListView` (slot: `renderCards`, icon: LayoutList) — stacked horizontal rows inside `rounded-2xl border overflow-hidden` container; initials circle; primary + subtitle + badge col; hover transition; loading skeleton; EmptyState; ErrorState
+  - `renderCardGridView` (slot: `renderGrid`, icon: Grid3X3) — moved from former `renderCardsView`; renders `AtlasCardView`
+  - `enabledViews` changed from `["table","cards"]` to `["table","cards","grid"]`
+  - Added `sortExtras` JSX (styled native select + ArrowUp/ArrowDown toggle) passed as `toolbarExtras`
+  - Toolbar actions: `RefreshCw` icon-only button (h-9 w-9 p-0), `Plus` icon + text on Agregar, count as `text-xs` muted span
+- `packages/ui/src/atlas-renderer/AtlasCardView.jsx`
+  - Initials circle (h-10 w-10 rounded-xl) with first char of primary column value
+  - Secondary columns: first shown as subtitle inside header; remaining (up to 3) in detail section below divider
+  - Hover: `transition-all duration-150 hover:border-[hsl(var(--border))]/60 hover:bg-[hsl(var(--muted))]/20`
+  - `secondaryColumns = columns.slice(1, 5)` — up to 4 secondary columns
+
+**Validation results:**
+
+| Check | Result |
+|---|---|
+| `node --check packages/ui/src/atlas-renderer/renderer-adapters.js` | PASS |
+| `node --check packages/ui/src/atlas-renderer/index.js` | PASS |
+| `node --check packages/ui/src/index.js` | PASS |
+| `pnpm --filter @atlas/desktop build:web` | PASS (`✓ built in 1.56s`) |
+| Forbidden file scope | PASS — no Prisma, API routes, custom.fleet backend, packages/maps, packages/validators modified |
+
+---
+## Task 6 Follow-up — Renderer UI Refinement Pass 2 (Second Visual Polish) [COMPLETED]
+
+**Date:** 2026-05-12
+**Trigger:** Second manual review showed lingering visual gaps: missing Spanish accents in labels ("Vehiculos" → "Vehículos"), hardcoded row action labels ignoring `schema.rowActions`, no status badge in list/card views, and no module description in PageHeader.
+
+**Issues addressed:**
+1. **Accent normalization** — Added `normalizeSpanishLabel(text)` in `renderer-adapters.js`. Generic word-by-word lookup over a curated ERP accent map (vehiculo→vehículo, matricula→matrícula, anio→año, gestion→gestión, etc.). Case-preserving: "Vehiculos"→"Vehículos", "VEHICULOS"→"VEHÍCULOS".
+2. **Row action labels from blueprint** — `rowMenuItems` now reads `schema.rowActions[0].label` (view), `schema.rowActions[1].label` (edit), `schema.rowActions[last].label` (delete/disable) instead of hardcoded "Ver / Editar / Eliminar". Falls back to hardcoded defaults if `schema.rowActions` is absent.
+3. **Column and filter label normalization** — `normalizeColumns` and `normalizeFilters` apply `normalizeSpanishLabel` to all labels at parse time (e.g., "Matricula"→"Matrícula", "Anio"→"Año").
+4. **Status badge in list view** — `renderListView` detects a column with `field` matching `/^(status|estado)$/i`, shows its value as a muted rounded-full pill on the right side of list rows.
+5. **Status badge in card grid** — `AtlasCardView` detects the same status column pattern, renders a small muted chip below the card title. Status column is excluded from the secondary columns detail section.
+6. **Module description in PageHeader** — `BlueprintCrudScreen` adds `resolvePageDescription(tableBlueprint, module)` → blueprint `schema.description` → `module.description` → `null`. Passed to `PageHeader description` prop. `normalizeSpanishLabel` applied to both title and description.
+7. **Empty label normalization** — `normalizeSpanishLabel` applied to the resolved nav label in the missing-view EmptyState description.
+
+**Files modified:**
+- `packages/ui/src/atlas-renderer/renderer-adapters.js` — added `ACCENT_MAP` + `normalizeSpanishLabel`
+- `packages/ui/src/atlas-renderer/index.js` — added `normalizeSpanishLabel` to exports
+- `packages/ui/src/index.js` — added `normalizeSpanishLabel` to atlas-renderer re-exports
+- `packages/ui/src/atlas-renderer/AtlasTable.jsx` — import `normalizeSpanishLabel`; apply in `normalizeColumns` and `normalizeFilters`; parse `schema.rowActions` for action labels; detect status column in `renderListView` for chip display
+- `packages/ui/src/atlas-renderer/AtlasCardView.jsx` — detect status column; render muted chip below card title; exclude status from secondary columns
+- `apps/desktop/src/shell/BlueprintCrudScreen.jsx` — import `normalizeSpanishLabel`; add `resolvePageDescription`; apply normalization to page title, description, and empty label
+
+**Validation results:**
+
+| Check | Result |
+|---|---|
+| `node --check packages/ui/src/atlas-renderer/renderer-adapters.js` | PASS |
+| `node --check packages/ui/src/atlas-renderer/index.js` | PASS |
+| `node --check packages/ui/src/index.js` | PASS |
+| `pnpm --filter @atlas/desktop build:web` | PASS (`✓ built in 1.47s`) |
+| Forbidden file scope | PASS — no Prisma, API routes, custom.fleet backend, packages/maps, packages/validators modified |
+
+---
 ## Task 7 — Shell Routing for AME3 Custom Modules
 
 **Files:**

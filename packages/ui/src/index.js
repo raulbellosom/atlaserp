@@ -199,4 +199,6 @@ export {
   AtlasForm,
   AtlasDetail,
   AtlasCrudView,
+  AtlasCardView,
+  normalizeSpanishLabel,
 } from "./atlas-renderer/index.js";

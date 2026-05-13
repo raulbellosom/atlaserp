@@ -16,22 +16,11 @@ function normalizeSectionField(item) {
   if (typeof item === "string") {
     const key = String(item).trim();
     if (!key) return null;
-    return {
-      name: key,
-      field: {
-        name: key,
-        label: key,
-        type: "text",
-      },
-    };
+    return { name: key, field: { name: key, label: key, type: "text" } };
   }
-
   const normalized = normalizeField(item);
   if (!normalized) return null;
-  return {
-    name: normalized.name,
-    field: normalized,
-  };
+  return { name: normalized.name, field: normalized };
 }
 
 function normalizeFieldMap(fields) {
@@ -114,7 +103,7 @@ export function AtlasDetail({ blueprint, fields, data, onEdit, onBack }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-end gap-2">
         <Button type="button" variant="outline" onClick={() => onBack?.()}>
           Volver
@@ -136,24 +125,31 @@ export function AtlasDetail({ blueprint, fields, data, onEdit, onBack }) {
       )}
 
       {sections.map((section) => (
-        <section key={section.id} className="space-y-4 rounded-xl border border-[hsl(var(--border))] p-4">
-          <h4 className="text-sm font-semibold text-[hsl(var(--foreground))]">{section.title}</h4>
+        <div
+          key={section.id}
+          className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-4"
+        >
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+            {section.title}
+          </h4>
           <dl className={section.columns === 2 ? "grid gap-4 md:grid-cols-2" : "grid gap-4"}>
             {section.fields.map((fieldName) => {
               const field = fieldMap.get(fieldName);
               if (!field) return null;
               const value = data[field.name];
               return (
-                <div key={field.name} className="space-y-1 rounded-lg bg-[hsl(var(--muted))]/30 p-3">
+                <div key={field.name} className="space-y-1">
                   <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
                     {field.label}
                   </dt>
-                  <dd className="text-sm text-[hsl(var(--foreground))]">{renderValue(field, value)}</dd>
+                  <dd className="text-sm text-[hsl(var(--foreground))]">
+                    {renderValue(field, value)}
+                  </dd>
                 </div>
               );
             })}
           </dl>
-        </section>
+        </div>
       ))}
     </div>
   );

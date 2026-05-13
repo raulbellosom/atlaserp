@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
-import { Checkbox } from "../components/Checkbox.jsx";
-import { Input } from "../components/Input.jsx";
-import { Textarea } from "../components/Textarea.jsx";
+import {
+  TextField,
+  TextareaField,
+  MarkdownField,
+  SelectField,
+  PhoneField,
+  SwitchField,
+} from "../components/FormFields.jsx";
 
 function joinUrl(baseUrl, apiPath) {
   const base = String(baseUrl ?? "").trim().replace(/\/+$/, "");
@@ -32,26 +37,12 @@ function normalizeSectionField(item) {
     if (!key) return null;
     return {
       name: key,
-      field: {
-        name: key,
-        label: key,
-        type: "text",
-        required: false,
-        readonly: false,
-        options: [],
-      },
+      field: { name: key, label: key, type: "text", required: false, readonly: false, options: [] },
     };
   }
-
   const normalized = normalizeField(item);
   if (!normalized) return null;
-  return {
-    name: normalized.name,
-    field: {
-      ...normalized,
-      options: normalized.options ?? [],
-    },
-  };
+  return { name: normalized.name, field: { ...normalized, options: normalized.options ?? [] } };
 }
 
 function normalizeSections(schema, fieldMap) {
@@ -59,8 +50,7 @@ function normalizeSections(schema, fieldMap) {
   return rawSections
     .map((entry, sectionIndex) => {
       if (!entry || typeof entry !== "object") return null;
-      const sectionFieldsRaw = Array.isArray(entry.fields) ? entry.fields : [];
-      const sectionFields = sectionFieldsRaw
+      const sectionFields = (Array.isArray(entry.fields) ? entry.fields : [])
         .map((item) => normalizeSectionField(item))
         .filter(Boolean);
 
@@ -103,15 +93,9 @@ function normalizeOptions(rawOptions) {
       if (entry && typeof entry === "object") {
         const value = entry.value ?? entry.key ?? entry.id ?? entry.code;
         if (value === undefined || value === null) return null;
-        return {
-          value: String(value),
-          label: String(entry.label ?? entry.name ?? value),
-        };
+        return { value: String(value), label: String(entry.label ?? entry.name ?? value) };
       }
-      return {
-        value: String(entry),
-        label: String(entry),
-      };
+      return { value: String(entry), label: String(entry) };
     })
     .filter(Boolean);
 }
@@ -131,36 +115,20 @@ function buildInitialValues(fieldMap, initialData) {
 
 function castValueByType(value, type) {
   if (type === "boolean") return Boolean(value);
-
   if (value === "" || value === null || value === undefined) return null;
-
   if (type === "number") {
     const parsed = Number.parseInt(String(value), 10);
     return Number.isFinite(parsed) ? parsed : value;
   }
-
   if (type === "decimal") {
     const parsed = Number.parseFloat(String(value));
     return Number.isFinite(parsed) ? parsed : value;
   }
-
   return value;
 }
 
-function resolveSubmitLabel(schema) {
-  const label = String(schema?.submitLabel ?? "").trim();
-  if (label) return label;
-  return "Guardar";
-}
-
 function resolveRecordId(initialData) {
-  return (
-    initialData?.id ??
-    initialData?.recordId ??
-    initialData?.uuid ??
-    initialData?.ID ??
-    null
-  );
+  return initialData?.id ?? initialData?.recordId ?? initialData?.uuid ?? initialData?.ID ?? null;
 }
 
 export function AtlasForm({
@@ -175,11 +143,11 @@ export function AtlasForm({
 }) {
   const schema = blueprint?.schema ?? {};
   const apiPath = typeof schema.apiPath === "string" ? schema.apiPath.trim() : "";
+  const submitLabel = String(schema?.submitLabel ?? "").trim() || "Guardar";
 
   const fieldMap = useMemo(() => {
     const map = new Map();
-    const declaredFields = Array.isArray(fields) ? fields : [];
-    for (const entry of declaredFields) {
+    for (const entry of Array.isArray(fields) ? fields : []) {
       const normalized = normalizeField(entry);
       if (!normalized) continue;
       map.set(normalized.name, normalized);
@@ -193,7 +161,6 @@ export function AtlasForm({
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const submitLabel = resolveSubmitLabel(schema);
 
   useEffect(() => {
     setFormValues(buildInitialValues(fieldMap, initialData));
@@ -216,14 +183,8 @@ export function AtlasForm({
   const isEditMode = mode === "edit";
 
   const handleChange = (name, value) => {
-    setFormValues((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    setFieldErrors((prev) => ({
-      ...prev,
-      [name]: "",
-    }));
+    setFormValues((prev) => ({ ...prev, [name]: value }));
+    setFieldErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const validate = () => {
@@ -232,8 +193,8 @@ export function AtlasForm({
       for (const fieldName of section.fields) {
         const field = fieldMap.get(fieldName);
         if (!field || !field.required || field.readonly) continue;
-        const value = formValues[fieldName];
         if (field.type === "boolean") continue;
+        const value = formValues[fieldName];
         if (value === undefined || value === null || String(value).trim() === "") {
           nextErrors[fieldName] = "Campo requerido";
         }
@@ -246,14 +207,11 @@ export function AtlasForm({
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitError("");
-
     if (!validate()) return;
-
     if (isEditMode && !recordId) {
       setSubmitError("No se pudo guardar la información.");
       return;
     }
-
     const payload = {};
     for (const [name, field] of fieldMap.entries()) {
       if (field.readonly) continue;
@@ -265,7 +223,6 @@ export function AtlasForm({
       }
       payload[name] = casted;
     }
-
     setSubmitting(true);
     try {
       const endpoint = isEditMode
@@ -279,7 +236,6 @@ export function AtlasForm({
         },
         body: JSON.stringify(payload),
       });
-
       if (!response.ok) {
         const text = await response.text();
         let message = "No se pudo guardar la información.";
@@ -291,7 +247,6 @@ export function AtlasForm({
         }
         throw new Error(message);
       }
-
       const result = await response.json();
       onSuccess?.(result);
     } catch (err) {
@@ -303,165 +258,158 @@ export function AtlasForm({
 
   const renderFieldControl = (field) => {
     const value = formValues[field.name];
-    const commonProps = {
-      id: field.name,
-      name: field.name,
-      disabled: submitting || field.readonly,
+    const sharedProps = {
+      label: field.label,
+      required: field.required,
+      error: fieldErrors[field.name],
     };
 
     if (field.readonly) {
       return (
-        <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-sm">
-          {value === undefined || value === null || value === "" ? "—" : String(value)}
+        <div className="space-y-1.5">
+          <p className="text-sm font-medium text-[hsl(var(--foreground))]">{field.label}</p>
+          <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-sm">
+            {value === undefined || value === null || value === "" ? "—" : String(value)}
+          </div>
         </div>
       );
     }
 
     switch (field.type) {
       case "textarea":
+        return (
+          <TextareaField
+            {...sharedProps}
+            value={value ?? ""}
+            onChange={(e) => handleChange(field.name, e.target.value)}
+          />
+        );
+
       case "markdown":
         return (
-          <Textarea
-            {...commonProps}
+          <MarkdownField
+            {...sharedProps}
             value={value ?? ""}
-            onChange={(event) => handleChange(field.name, event.target.value)}
-            rows={4}
-            placeholder={field.label}
+            onChange={(val) => handleChange(field.name, val)}
           />
         );
 
       case "select": {
         const options = normalizeOptions(field.options);
         return (
-          <select
-            {...commonProps}
+          <SelectField
+            {...sharedProps}
             value={value ?? ""}
-            onChange={(event) => handleChange(field.name, event.target.value)}
-            className="h-10 w-full rounded-lg border border-[hsl(var(--border))] bg-transparent px-3 text-sm"
-          >
-            <option value="">Seleccionar...</option>
-            {options.map((option) => (
-              <option key={`${field.name}-${option.value}`} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            options={options}
+            onValueChange={(val) => handleChange(field.name, val)}
+          />
         );
       }
 
       case "boolean":
         return (
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox
-              checked={Boolean(value)}
-              onCheckedChange={(checked) => handleChange(field.name, Boolean(checked))}
-              disabled={submitting}
-            />
-            <span>{Boolean(value) ? "Sí" : "No"}</span>
-          </label>
-        );
-
-      case "number":
-        return (
-          <Input
-            {...commonProps}
-            type="number"
-            value={value ?? ""}
-            onChange={(event) => handleChange(field.name, event.target.value)}
-            placeholder={field.label}
-          />
-        );
-
-      case "decimal":
-        return (
-          <Input
-            {...commonProps}
-            type="number"
-            step="0.0001"
-            value={value ?? ""}
-            onChange={(event) => handleChange(field.name, event.target.value)}
-            placeholder={field.label}
-          />
-        );
-
-      case "date":
-        return (
-          <Input
-            {...commonProps}
-            type="date"
-            value={value ?? ""}
-            onChange={(event) => handleChange(field.name, event.target.value)}
-          />
-        );
-
-      case "datetime":
-        return (
-          <Input
-            {...commonProps}
-            type="datetime-local"
-            value={value ?? ""}
-            onChange={(event) => handleChange(field.name, event.target.value)}
-          />
-        );
-
-      case "email":
-        return (
-          <Input
-            {...commonProps}
-            type="email"
-            value={value ?? ""}
-            onChange={(event) => handleChange(field.name, event.target.value)}
-            placeholder={field.label}
+          <SwitchField
+            {...sharedProps}
+            checked={Boolean(value)}
+            onChange={(checked) => handleChange(field.name, Boolean(checked))}
           />
         );
 
       case "phone":
         return (
-          <Input
-            {...commonProps}
-            type="tel"
+          <PhoneField
+            {...sharedProps}
             value={value ?? ""}
-            onChange={(event) => handleChange(field.name, event.target.value)}
-            placeholder={field.label}
+            onChange={(e) => handleChange(field.name, e.target.value)}
+          />
+        );
+
+      case "number":
+        return (
+          <TextField
+            {...sharedProps}
+            type="number"
+            value={value ?? ""}
+            onChange={(e) => handleChange(field.name, e.target.value)}
+          />
+        );
+
+      case "decimal":
+        return (
+          <TextField
+            {...sharedProps}
+            type="number"
+            step="0.0001"
+            value={value ?? ""}
+            onChange={(e) => handleChange(field.name, e.target.value)}
+          />
+        );
+
+      case "date":
+        return (
+          <TextField
+            {...sharedProps}
+            type="date"
+            value={value ?? ""}
+            onChange={(e) => handleChange(field.name, e.target.value)}
+          />
+        );
+
+      case "datetime":
+        return (
+          <TextField
+            {...sharedProps}
+            type="datetime-local"
+            value={value ?? ""}
+            onChange={(e) => handleChange(field.name, e.target.value)}
+          />
+        );
+
+      case "email":
+        return (
+          <TextField
+            {...sharedProps}
+            type="email"
+            value={value ?? ""}
+            onChange={(e) => handleChange(field.name, e.target.value)}
           />
         );
 
       case "color":
         return (
-          <Input
-            {...commonProps}
+          <TextField
+            {...sharedProps}
             type="color"
             value={value || "#000000"}
-            onChange={(event) => handleChange(field.name, event.target.value)}
+            onChange={(e) => handleChange(field.name, e.target.value)}
           />
         );
 
       case "relation":
         return (
-          <Input
-            {...commonProps}
+          <TextField
+            {...sharedProps}
             type="text"
             value={value ?? ""}
-            onChange={(event) => handleChange(field.name, event.target.value)}
-            placeholder="ID relacionado"
+            onChange={(e) => handleChange(field.name, e.target.value)}
+            hint="ID del registro relacionado"
           />
         );
 
       default:
         return (
-          <Input
-            {...commonProps}
+          <TextField
+            {...sharedProps}
             type="text"
             value={value ?? ""}
-            onChange={(event) => handleChange(field.name, event.target.value)}
-            placeholder={field.label}
+            onChange={(e) => handleChange(field.name, e.target.value)}
           />
         );
     }
   };
 
   return (
-    <form className="space-y-6" onSubmit={handleSubmit}>
+    <form className="space-y-4" onSubmit={handleSubmit}>
       {sections.length === 0 && (
         <Alert variant="warning">
           <AlertTitle>Formulario sin secciones</AlertTitle>
@@ -472,45 +420,41 @@ export function AtlasForm({
       )}
 
       {sections.map((section) => (
-        <section key={section.id} className="space-y-4 rounded-xl border border-[hsl(var(--border))] p-4">
-          <h4 className="text-sm font-semibold text-[hsl(var(--foreground))]">{section.title}</h4>
+        <div
+          key={section.id}
+          className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-4"
+        >
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+            {section.title}
+          </h4>
           <div className={section.columns === 2 ? "grid gap-4 md:grid-cols-2" : "grid gap-4"}>
             {section.fields.map((fieldName) => {
               const field = fieldMap.get(fieldName);
               if (!field) return null;
               return (
-                <div key={field.name} className="space-y-1.5">
-                  <label htmlFor={field.name} className="text-sm font-medium">
-                    {field.label}
-                    {field.required && <span className="ml-1 text-red-500">*</span>}
-                  </label>
+                <div key={field.name}>
                   {renderFieldControl(field)}
-                  {fieldErrors[field.name] && (
-                    <p className="text-xs text-red-600">{fieldErrors[field.name]}</p>
-                  )}
                 </div>
               );
             })}
           </div>
-        </section>
+        </div>
       ))}
 
       {submitError && (
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{submitError || "No se pudo guardar la información."}</AlertDescription>
+          <AlertDescription>{submitError}</AlertDescription>
         </Alert>
       )}
 
-      <div className="sticky bottom-0 z-10 -mx-1 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-1 pb-1 pt-3 backdrop-blur supports-[backdrop-filter]:bg-[hsl(var(--background))]/80">
-        <div className="flex items-center justify-end gap-2">
+      <div className="sticky bottom-0 z-10 -mx-1 flex items-center justify-end gap-2 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-1 pb-1 pt-3 backdrop-blur supports-backdrop-filter:bg-[hsl(var(--background))]/80">
         <Button type="button" variant="outline" onClick={() => onCancel?.()} disabled={submitting}>
           Cancelar
         </Button>
         <Button type="submit" loading={submitting}>
           {submitLabel}
         </Button>
-        </div>
       </div>
     </form>
   );
