@@ -31,10 +31,18 @@ function getLastSegment(path) {
 function parseRouteInfo(moduleKey, wildcard) {
   const raw = String(wildcard ?? "").trim();
   const normalized = raw.replace(/^\/+/, "");
-  const duplicatedPrefix = `app/m/${moduleKey}/`;
-  const collapsed = normalized.startsWith(duplicatedPrefix)
-    ? normalized.slice(duplicatedPrefix.length)
-    : normalized;
+  const duplicatedPrefixes = [
+    `app/m/${moduleKey}/`,
+    `m/${moduleKey}/`,
+    `${moduleKey}/`,
+  ];
+  let collapsed = normalized;
+  for (const prefix of duplicatedPrefixes) {
+    if (collapsed.startsWith(prefix)) {
+      collapsed = collapsed.slice(prefix.length);
+      break;
+    }
+  }
   const cleanPath = collapsed.replace(/^\/+/, "");
   const segments = cleanPath.split("/").filter(Boolean);
   const entitySegment = String(segments[0] ?? "").toLowerCase();
@@ -87,26 +95,33 @@ function selectBlueprints({ rows, moduleKey, moduleRoutePath, entitySegment }) {
   const pageRows = moduleRows.filter((row) => normalizeKind(row?.kind) === "PAGE");
 
   const normalizedRoutePath = normalizePath(moduleRoutePath);
+  const pagePathOf = (row) => normalizePath(row?.schema?.path ?? row?.schema?.page?.path);
   const pageMatch = pageRows.find(
-    (row) => normalizePath(row?.schema?.path) === normalizedRoutePath,
+    (row) => pagePathOf(row) === normalizedRoutePath,
   );
 
   const findByKey = (key) =>
     moduleRows.find((row) => String(row?.key ?? "").trim() === String(key ?? "").trim()) ?? null;
 
   let tableBlueprint = null;
-  if (pageMatch?.schema?.view) {
-    tableBlueprint = findByKey(pageMatch.schema.view);
+  const pageViewKey = pageMatch?.schema?.view ?? pageMatch?.schema?.page?.view;
+  if (pageViewKey) {
+    tableBlueprint = findByKey(pageViewKey);
   }
-  if (!tableBlueprint && pageMatch?.schema?.table) {
-    tableBlueprint = findByKey(pageMatch.schema.table);
+  const pageTableKey = pageMatch?.schema?.table ?? pageMatch?.schema?.page?.table;
+  if (!tableBlueprint && pageTableKey) {
+    tableBlueprint = findByKey(pageTableKey);
   }
   if (!tableBlueprint) {
-    tableBlueprint = tableRows.find((row) => matchesEntity(row, entitySegment)) ?? tableRows[0] ?? null;
+    tableBlueprint = tableRows.find((row) => matchesEntity(row, entitySegment)) ?? null;
   }
 
-  const tableApiPath = normalizePath(tableBlueprint?.schema?.apiPath);
-  const tableEntity = String(tableBlueprint?.schema?.entity ?? "").trim().toLowerCase();
+  if (!tableBlueprint) {
+    return { tableBlueprint: null, formBlueprint: null, detailBlueprint: null };
+  }
+
+  const tableApiPath = normalizePath(tableBlueprint.schema?.apiPath);
+  const tableEntity = String(tableBlueprint.schema?.entity ?? "").trim().toLowerCase();
   const matchesTable = (row) => {
     const candidateApiPath = normalizePath(row?.schema?.apiPath);
     const candidateEntity = String(row?.schema?.entity ?? "").trim().toLowerCase();
@@ -118,12 +133,10 @@ function selectBlueprints({ rows, moduleKey, moduleRoutePath, entitySegment }) {
   const formBlueprint =
     formRows.find(matchesTable) ??
     formRows.find((row) => matchesEntity(row, entitySegment)) ??
-    formRows[0] ??
     null;
   const detailBlueprint =
     detailRows.find(matchesTable) ??
     detailRows.find((row) => matchesEntity(row, entitySegment)) ??
-    detailRows[0] ??
     null;
 
   return { tableBlueprint, formBlueprint, detailBlueprint };

@@ -12,6 +12,28 @@ function normalizeField(fieldLike) {
   };
 }
 
+function normalizeSectionField(item) {
+  if (typeof item === "string") {
+    const key = String(item).trim();
+    if (!key) return null;
+    return {
+      name: key,
+      field: {
+        name: key,
+        label: key,
+        type: "text",
+      },
+    };
+  }
+
+  const normalized = normalizeField(item);
+  if (!normalized) return null;
+  return {
+    name: normalized.name,
+    field: normalized,
+  };
+}
+
 function normalizeFieldMap(fields) {
   const map = new Map();
   for (const entry of Array.isArray(fields) ? fields : []) {
@@ -27,25 +49,24 @@ function normalizeSections(schema, fieldMap) {
   return rawSections
     .map((entry, sectionIndex) => {
       if (!entry || typeof entry !== "object") return null;
-      const fieldNames = (Array.isArray(entry.fields) ? entry.fields : [])
-        .map((item) => {
-          if (typeof item === "string") return item;
-          if (item && typeof item === "object") {
-            return item.name ?? item.key ?? item.field ?? null;
-          }
-          return null;
-        })
-        .filter(Boolean)
-        .map((name) => String(name));
+      const fieldDefs = (Array.isArray(entry.fields) ? entry.fields : [])
+        .map((item) => normalizeSectionField(item))
+        .filter(Boolean);
 
-      for (const name of fieldNames) {
+      const fieldNames = [];
+      for (const fieldDef of fieldDefs) {
+        const name = fieldDef.name;
         if (!fieldMap.has(name)) {
+          fieldMap.set(name, fieldDef.field);
+        } else {
+          const existing = fieldMap.get(name);
           fieldMap.set(name, {
-            name,
-            label: name,
-            type: "text",
+            ...existing,
+            label: fieldDef.field.label ?? existing?.label ?? name,
+            type: fieldDef.field.type ?? existing?.type ?? "text",
           });
         }
+        if (!fieldNames.includes(name)) fieldNames.push(name);
       }
 
       return {

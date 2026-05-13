@@ -661,6 +661,50 @@ Task 7 remains **not marked complete** in this evidence update because interacti
 - and UI create/edit/disable clicks
 was not executed in this terminal-only run.
 
+**Debug follow-up evidence - 2026-05-13 (Task 7 runtime UX/parsing hardening):**
+
+| Check | Result |
+|---|---|
+| `/maintenance` showing vehicle table root cause | CONFIRMED - generic selector previously fell back to first TABLE/FORM/DETAIL when no PAGE/entity match, so unrelated routes could render vehicle blueprints |
+| `/maintenance` behavior fix | PASS - removed first-item TABLE/FORM/DETAIL fallback; when no matching PAGE/entity exists, selection resolves to null and screen shows `"No se encontró una vista para este módulo."` |
+| Route parser hardening (`GET /fleet/vehicles/m` class bug) | PASS - wildcard prefix collapse now handles `app/m/<moduleKey>/`, `m/<moduleKey>/`, and `<moduleKey>/` before mode/id inference |
+| PAGE path compatibility | PASS - selector now matches `PAGE` by `schema.path` or `schema.page.path`, and resolves table key from `schema.view|schema.page.view` / `schema.table|schema.page.table` |
+| Scripted route validation | PASS - `vehicles` => list/table, `vehicles/new` => create, `vehicles/:id/edit` => edit, `maintenance` => no table, `m/custom.fleet/vehicles` => list with `recordId=null` |
+| Form label root cause | CONFIRMED - section field objects (`{ field, label, type }`) were not fully normalized into field metadata when `fields` list was sparse, so key names leaked as labels |
+| Form/detail label fix | PASS - `AtlasForm` and `AtlasDetail` now normalize section field objects using `field` as name and `label` as label |
+| Create payload type root cause | CONFIRMED - numeric inputs were submitted as strings when field type metadata was not propagated from sections |
+| Create payload type fix | PASS - normalized field type now preserved; submit casts `type='number'` to number; empty select values are omitted (prevents `status: null`) |
+| Save button visibility | PASS - `AtlasForm` footer is sticky and `AtlasCrudView` sheet bodies are scrollable with max height |
+| Build gate | PASS - `pnpm.cmd --filter @atlas/desktop build:web` |
+| CORS preflight for dynamic module route | PASS - `OPTIONS /fleet/vehicles` includes `access-control-allow-origin`, `allow-methods`, `allow-headers` |
+
+**Browser validation evidence - 2026-05-13 (manual):**
+
+| Check | Result |
+|---|---|
+| `/app/m/custom.fleet/vehicles` list rendering | PASS - renders list mode with real records |
+| Browser CORS errors | PASS - no CORS error observed |
+| `GET /fleet/vehicles/m` regression | PASS - request did not occur |
+| `GET /blueprints` | PASS |
+| `GET /fleet/vehicles?page=1&pageSize=20` | PASS |
+| Form labels | PASS - Spanish labels rendered (`Matricula`, `Marca`, `Modelo`, `Anio`, etc.) |
+| Save button visibility | PASS - submit action is visible and reachable |
+| UI create flow | PASS - unique plate create succeeded |
+| Create response | PASS - `POST /fleet/vehicles` returned `201` |
+| `year` submit type | PASS - submitted as number (not string) |
+| `color` submit format | PASS - submitted as valid hex color |
+| `status` submit behavior | PASS - submitted correctly as `active` |
+| List refresh after create | PASS - created vehicle appears in list |
+| View/Edit actions | PASS - both actions work from UI |
+| Soft-disable from UI | Not validated in this pass - current renderer exposes `Ver` and `Editar`; soft-disable remains covered by Task 3b API validation |
+| `/app/m/custom.fleet/maintenance` behavior | PASS - does not render vehicle views; shows missing-view state `"No se encontró una vista para este módulo."` |
+
+Task 7 is now **marked complete** based on this browser validation run on **May 13, 2026**.
+
+**Follow-up notes:**
+1. Maintenance navigation exists, but maintenance `TABLE`/`FORM`/`DETAIL`/`PAGE` atlas views are not implemented yet.
+2. As renderer UX follow-up, large CRUD forms should support page-based create/edit routes (not only modal/sheet flows).
+
 ---
 
 ## Task 8 — End-to-End Verification

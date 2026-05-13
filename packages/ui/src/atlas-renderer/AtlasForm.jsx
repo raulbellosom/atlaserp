@@ -26,6 +26,34 @@ function normalizeField(fieldLike) {
   };
 }
 
+function normalizeSectionField(item) {
+  if (typeof item === "string") {
+    const key = String(item).trim();
+    if (!key) return null;
+    return {
+      name: key,
+      field: {
+        name: key,
+        label: key,
+        type: "text",
+        required: false,
+        readonly: false,
+        options: [],
+      },
+    };
+  }
+
+  const normalized = normalizeField(item);
+  if (!normalized) return null;
+  return {
+    name: normalized.name,
+    field: {
+      ...normalized,
+      options: normalized.options ?? [],
+    },
+  };
+}
+
 function normalizeSections(schema, fieldMap) {
   const rawSections = Array.isArray(schema?.sections) ? schema.sections : [];
   return rawSections
@@ -33,26 +61,26 @@ function normalizeSections(schema, fieldMap) {
       if (!entry || typeof entry !== "object") return null;
       const sectionFieldsRaw = Array.isArray(entry.fields) ? entry.fields : [];
       const sectionFields = sectionFieldsRaw
-        .map((item) => {
-          if (typeof item === "string") return item;
-          if (item && typeof item === "object") {
-            return item.name ?? item.key ?? item.field ?? null;
-          }
-          return null;
-        })
-        .filter(Boolean)
-        .map((name) => String(name));
+        .map((item) => normalizeSectionField(item))
+        .filter(Boolean);
 
       const uniqueFields = [];
-      for (const name of sectionFields) {
+      for (const fieldDef of sectionFields) {
+        const name = fieldDef.name;
         if (!fieldMap.has(name)) {
+          fieldMap.set(name, fieldDef.field);
+        } else {
+          const existing = fieldMap.get(name);
           fieldMap.set(name, {
-            name,
-            label: name,
-            type: "text",
-            required: false,
-            readonly: false,
-            options: [],
+            ...existing,
+            label: fieldDef.field.label ?? existing?.label ?? name,
+            type: fieldDef.field.type ?? existing?.type ?? "text",
+            required: fieldDef.field.required ?? existing?.required ?? false,
+            readonly: fieldDef.field.readonly ?? existing?.readonly ?? false,
+            options:
+              Array.isArray(fieldDef.field.options) && fieldDef.field.options.length > 0
+                ? fieldDef.field.options
+                : existing?.options ?? [],
           });
         }
         if (!uniqueFields.includes(name)) uniqueFields.push(name);
@@ -119,6 +147,12 @@ function castValueByType(value, type) {
   return value;
 }
 
+function resolveSubmitLabel(schema) {
+  const label = String(schema?.submitLabel ?? "").trim();
+  if (label) return label;
+  return "Guardar";
+}
+
 function resolveRecordId(initialData) {
   return (
     initialData?.id ??
@@ -159,6 +193,7 @@ export function AtlasForm({
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const submitLabel = resolveSubmitLabel(schema);
 
   useEffect(() => {
     setFormValues(buildInitialValues(fieldMap, initialData));
@@ -222,7 +257,13 @@ export function AtlasForm({
     const payload = {};
     for (const [name, field] of fieldMap.entries()) {
       if (field.readonly) continue;
-      payload[name] = castValueByType(formValues[name], field.type);
+      const casted = castValueByType(formValues[name], field.type);
+      if (casted === null) {
+        if (field.type === "select") continue;
+        payload[name] = null;
+        continue;
+      }
+      payload[name] = casted;
     }
 
     setSubmitting(true);
@@ -461,13 +502,15 @@ export function AtlasForm({
         </Alert>
       )}
 
-      <div className="flex items-center justify-end gap-2">
+      <div className="sticky bottom-0 z-10 -mx-1 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-1 pb-1 pt-3 backdrop-blur supports-[backdrop-filter]:bg-[hsl(var(--background))]/80">
+        <div className="flex items-center justify-end gap-2">
         <Button type="button" variant="outline" onClick={() => onCancel?.()} disabled={submitting}>
           Cancelar
         </Button>
         <Button type="submit" loading={submitting}>
-          Guardar
+          {submitLabel}
         </Button>
+        </div>
       </div>
     </form>
   );

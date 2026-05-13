@@ -181,7 +181,7 @@ export function AtlasCrudView({
                 <SheetTitle>{currentFormBlueprint?.title ?? "Nuevo registro"}</SheetTitle>
                 <SheetDescription>Completa la información y guarda los cambios.</SheetDescription>
               </SheetHeader>
-              <div className="mt-4">
+              <div className="mt-4 max-h-[calc(100dvh-11rem)] overflow-y-auto pr-1">
                 <AtlasForm
                   blueprint={currentFormBlueprint}
                   fields={fields}
@@ -202,7 +202,7 @@ export function AtlasCrudView({
                 <SheetTitle>{currentDetailBlueprint?.title ?? "Detalle"}</SheetTitle>
                 <SheetDescription>Información del registro seleccionado.</SheetDescription>
               </SheetHeader>
-              <div className="mt-4">
+              <div className="mt-4 max-h-[calc(100dvh-11rem)] overflow-y-auto pr-1">
                 {loadingRecord && (
                   <div className="space-y-3">
                     <Skeleton className="h-6 w-1/3" />
@@ -235,7 +235,7 @@ export function AtlasCrudView({
                 <SheetTitle>{currentFormBlueprint?.title ?? "Editar registro"}</SheetTitle>
                 <SheetDescription>Actualiza la información del registro.</SheetDescription>
               </SheetHeader>
-              <div className="mt-4">
+              <div className="mt-4 max-h-[calc(100dvh-11rem)] overflow-y-auto pr-1">
                 {loadingRecord && (
                   <div className="space-y-3">
                     <Skeleton className="h-6 w-1/3" />
