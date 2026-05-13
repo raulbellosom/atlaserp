@@ -6,6 +6,8 @@ Status: Approved
 
 Decision log update (2026-05-11): `docs/superpowers/decisions/2026-05-11-ame3-failed-module-install-recovery.md` documents Task 1 recovery requirements discovered during failed-install validation. Task 2 remains blocked until this remediation is implemented and validated.
 
+Implementation note (2026-05-13): Frontend module component registry now uses generic Vite `import.meta.glob` discovery for `modules/custom/*/components/index.js`. Generic renderer and shell do not import `custom.fleet` directly.
+
 > **For agentic workers:** Declare `Mode: IMPLEMENTATION` before starting. Do not begin coding until the spec is approved and this plan is approved. Use checkbox syntax (`- [ ]`) to track progress. Mark each task completed only after its validation commands pass.
 
 ## Goal
@@ -671,6 +673,39 @@ Task 6 is **complete** under the corrected validation gate.
 | `node --check packages/ui/src/atlas-renderer/index.js` | PASS |
 | `node --check packages/ui/src/index.js` | PASS |
 | `pnpm --filter @atlas/desktop build:web` | PASS (`✓ built in 1.47s`) |
+| Forbidden file scope | PASS — no Prisma, API routes, custom.fleet backend, packages/maps, packages/validators modified |
+
+---
+## Task 6 Follow-up — Renderer UI Refinement Pass 3 (Toolbar, Selection, Form PageHeader) [COMPLETED]
+
+**Date:** 2026-05-13
+**Trigger:** Third visual review identified: native `<select>` for sort, missing row selection foundation, and bare h3/back-button in page mode forms instead of PageHeader.
+
+**Issues addressed:**
+1. **Native select removal** — Extracted `AtlasSortMenu.jsx` (DropdownMenu-based column picker + direction toggle button with ArrowUp/ArrowDown). Extracted `AtlasTableToolbar.jsx` (2-row toolbar: Row 1 = SearchInput + FilterBar(desktop) + MobileFiltersSheet(mobile) + AtlasSortMenu + ViewModeSwitch; Row 2 = selection count left, Reload + Agregar right). `ListLayout` removed as the table container; replaced with a plain flex-col wrapper wiring `AtlasTableToolbar` + view content + pagination.
+2. **Row selection foundation** — `selectedIds: Set<string>` state in `AtlasTable`. `getRowId(row, index)` helper. Header checkbox (all/indeterminate/none) in table mode. Per-row checkbox in table view and list (stacked) view. Per-card checkbox with indigo border highlight in card grid view. `selectedIds` cleared automatically when `rows` change. Toolbar Row 2 shows "N seleccionados" + "Limpiar selección" button when any rows are selected. No destructive bulk API calls — UI-only foundation.
+3. **Form page mode PageHeader** — `AtlasCrudView` page mode create/edit now uses `PageHeader` with `eyebrow` ("Nuevo registro" / "Editar registro" / "Detalle"), `title` from `blueprint.schema.title`, and `actions` containing a Volver `<Button variant="outline">` with ArrowLeft icon. Bare `<h3>` + "Volver al listado" ghost button removed.
+4. **AtlasCardView action labels** — Accepts `viewActionLabel`, `editActionLabel`, `deleteActionLabel` props passed from `AtlasTable`; falls back to "Ver / Editar / Eliminar".
+5. **ViewModeSwitch persistence** — `AtlasTableToolbar` forwards `storageKey` to `ViewModeSwitch`; `AtlasTable` initializes `view` state via `getStoredViewMode(storageKey, "table")`.
+
+**Files created:**
+- `packages/ui/src/atlas-renderer/AtlasSortMenu.jsx` — DropdownMenu column picker with active indigo styling + direction toggle button
+- `packages/ui/src/atlas-renderer/AtlasTableToolbar.jsx` — 2-row toolbar (controls row + actions row)
+
+**Files modified:**
+- `packages/ui/src/atlas-renderer/AtlasTable.jsx` — removed `ListLayout` + `FilterBar` + native sort controls; added `Checkbox`, `getStoredViewMode`, `AtlasTableToolbar`, `ChevronLeft/Right`; added `getRowId`, `view`, `selectedIds` state; added `handleSortChange`, `handleToggleRow`, `handleToggleAll`; checkboxes in table header + rows + list rows; selection props passed to `AtlasCardView`; inline pagination replacing `ListLayout` pagination
+- `packages/ui/src/atlas-renderer/AtlasCardView.jsx` — added `Checkbox` import; accepts `selectedIds`, `onToggleSelect`, `getRowId`, action label props; checkbox before initials; selected card gets `border-indigo-500/60 bg-indigo-500/5`
+- `packages/ui/src/atlas-renderer/AtlasCrudView.jsx` — added `PageHeader` import; page mode create/edit/detail use `PageHeader` with eyebrow + title + Volver button as actions; bare `<h3>` + ghost back-button div removed
+- `packages/ui/src/atlas-renderer/AtlasTableToolbar.jsx` — added `storageKey` prop forwarded to `ViewModeSwitch`
+
+**Validation results:**
+
+| Check | Result |
+|---|---|
+| `node --check packages/ui/src/atlas-renderer/renderer-adapters.js` | PASS |
+| `node --check packages/ui/src/atlas-renderer/index.js` | PASS |
+| `node --check packages/ui/src/index.js` | PASS |
+| `pnpm --filter @atlas/desktop build:web` | PASS (`✓ built in 1.61s`) |
 | Forbidden file scope | PASS — no Prisma, API routes, custom.fleet backend, packages/maps, packages/validators modified |
 
 ---

@@ -1,4 +1,5 @@
 import { Eye, Pencil, Trash2 } from "lucide-react";
+import { Checkbox } from "../components/Checkbox.jsx";
 import { ActionMenu } from "../components/ActionMenu.jsx";
 
 function renderValue(value) {
@@ -8,7 +9,19 @@ function renderValue(value) {
   return String(value);
 }
 
-export function AtlasCardView({ columns = [], rows = [], onView, onEdit, onDelete }) {
+export function AtlasCardView({
+  columns = [],
+  rows = [],
+  selectedIds = new Set(),
+  onToggleSelect,
+  getRowId,
+  viewActionLabel = "Ver",
+  editActionLabel = "Editar",
+  deleteActionLabel = "Eliminar",
+  onView,
+  onEdit,
+  onDelete,
+}) {
   const primaryColumn = columns[0] ?? null;
   const statusColumn = columns.find((c) => /^(status|estado)$/i.test(c.field)) ?? null;
   const secondaryColumns = columns
@@ -18,6 +31,9 @@ export function AtlasCardView({ columns = [], rows = [], onView, onEdit, onDelet
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {rows.map((row, rowIndex) => {
+        const id = getRowId ? getRowId(row, rowIndex) : (row?.id != null ? String(row.id) : `card-${rowIndex}`);
+        const isSelected = selectedIds.has(id);
+
         const titleVal = primaryColumn
           ? renderValue(row[primaryColumn.field])
           : `Registro ${rowIndex + 1}`;
@@ -25,17 +41,29 @@ export function AtlasCardView({ columns = [], rows = [], onView, onEdit, onDelet
           titleVal !== "—" && titleVal.length > 0 ? titleVal.charAt(0).toUpperCase() : "#";
 
         const menuItems = [
-          onView && { label: "Ver", icon: Eye, onClick: () => onView(row) },
-          onEdit && { label: "Editar", icon: Pencil, onClick: () => onEdit(row) },
-          onDelete && { label: "Eliminar", icon: Trash2, variant: "destructive", onClick: () => onDelete(row) },
+          onView && { label: viewActionLabel, icon: Eye, onClick: () => onView(row) },
+          onEdit && { label: editActionLabel, icon: Pencil, onClick: () => onEdit(row) },
+          onDelete && { label: deleteActionLabel, icon: Trash2, variant: "destructive", onClick: () => onDelete(row) },
         ].filter(Boolean);
 
         return (
           <div
-            key={row?.id ?? `card-${rowIndex}`}
-            className="glass group flex flex-col gap-3 rounded-2xl border border-[hsl(var(--border))] p-4 transition-all duration-150 hover:border-[hsl(var(--border))]/60 hover:bg-[hsl(var(--muted))]/20"
+            key={id}
+            className={`glass group flex flex-col gap-3 rounded-2xl border p-4 transition-all duration-150 hover:bg-[hsl(var(--muted))]/20${
+              isSelected
+                ? " border-indigo-500/60 bg-indigo-500/5"
+                : " border-[hsl(var(--border))] hover:border-[hsl(var(--border))]/60"
+            }`}
           >
             <div className="flex items-start gap-3">
+              {onToggleSelect && (
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={() => onToggleSelect(id)}
+                  aria-label="Seleccionar"
+                  className="mt-0.5 shrink-0"
+                />
+              )}
               <div className="h-10 w-10 rounded-xl bg-[hsl(var(--muted))] flex items-center justify-center shrink-0">
                 <span className="text-sm font-semibold text-[hsl(var(--muted-foreground))]">
                   {initials}

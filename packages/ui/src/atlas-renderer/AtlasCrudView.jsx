@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
+import { PageHeader } from "../components/PageHeader.jsx";
 import { Skeleton } from "../components/Skeleton.jsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.jsx";
 import {
@@ -19,7 +20,9 @@ import { shouldUsePageMode } from "./renderer-adapters.js";
 const MODES = new Set(["list", "create", "detail", "edit"]);
 
 function joinUrl(baseUrl, apiPath) {
-  const base = String(baseUrl ?? "").trim().replace(/\/+$/, "");
+  const base = String(baseUrl ?? "")
+    .trim()
+    .replace(/\/+$/, "");
   const path = String(apiPath ?? "").trim();
   if (!path.startsWith("/")) return `${base}/${path}`;
   return `${base}${path}`;
@@ -38,8 +41,15 @@ function resolveIdFromRow(row) {
 function resolveRowLabel(row) {
   if (!row || typeof row !== "object") return null;
   return (
-    row.name ?? row.nombre ?? row.title ?? row.titulo ?? row.description ??
-    row.plate ?? row.placa ?? row.code ?? row.codigo ??
+    row.name ??
+    row.nombre ??
+    row.title ??
+    row.titulo ??
+    row.description ??
+    row.plate ??
+    row.placa ??
+    row.code ??
+    row.codigo ??
     String(row.id ?? "este registro")
   );
 }
@@ -51,6 +61,8 @@ export function AtlasCrudView({
   fields,
   token,
   apiBaseUrl,
+  componentRegistry = null,
+  suppressToolbarCreate = false,
   initialMode = "list",
   recordId = null,
   onNavigate,
@@ -82,7 +94,8 @@ export function AtlasCrudView({
 
   const shouldOpenSheet =
     !pageMode && (mode === "create" || mode === "detail" || mode === "edit");
-  const showPageContent = mode === "create" || mode === "detail" || mode === "edit";
+  const showPageContent =
+    mode === "create" || mode === "detail" || mode === "edit";
 
   useEffect(() => {
     setMode(resolvedInitialMode);
@@ -122,7 +135,9 @@ export function AtlasCrudView({
         setRecordData(payload?.data ?? null);
       } catch (err) {
         setRecordData(null);
-        setRecordError(err instanceof Error ? err.message : "No se pudo cargar el registro.");
+        setRecordError(
+          err instanceof Error ? err.message : "No se pudo cargar el registro.",
+        );
       } finally {
         setLoadingRecord(false);
       }
@@ -196,7 +211,9 @@ export function AtlasCrudView({
       setRefreshSignal((c) => c + 1);
       onDeleteSuccess?.();
     } catch (err) {
-      setRecordError(err instanceof Error ? err.message : "No se pudo eliminar el registro.");
+      setRecordError(
+        err instanceof Error ? err.message : "No se pudo eliminar el registro.",
+      );
       setDeleteConfirmOpen(false);
     } finally {
       setDeleting(false);
@@ -238,7 +255,8 @@ export function AtlasCrudView({
       <Alert variant="warning">
         <AlertTitle>Vista sin configuración</AlertTitle>
         <AlertDescription>
-          La vista de tabla no tiene <code>schema.apiPath</code>. No se puede renderizar el CRUD.
+          La vista de tabla no tiene <code>schema.apiPath</code>. No se puede
+          renderizar el CRUD.
         </AlertDescription>
       </Alert>
     );
@@ -251,67 +269,100 @@ export function AtlasCrudView({
       {/* Page mode: show form/detail directly in page, hide table */}
       {pageMode && showPageContent ? (
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={goToList}>
-              <ArrowLeft className="mr-1.5 h-4 w-4" />
-              Volver al listado
-            </Button>
-          </div>
-
           {mode === "create" && currentFormBlueprint && (
-            <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
-              <h3 className="mb-4 text-sm font-semibold text-[hsl(var(--foreground))]">
-                {currentFormBlueprint?.title ?? "Nuevo registro"}
-              </h3>
-              <AtlasForm
-                blueprint={currentFormBlueprint}
-                fields={fields}
-                initialData={{}}
-                mode="create"
-                token={token}
-                apiBaseUrl={apiBaseUrl}
-                onSuccess={handleFormSuccess}
-                onCancel={goToList}
+            <>
+              <PageHeader
+                eyebrow="Nuevo registro"
+                title={
+                  currentFormBlueprint?.schema?.title ??
+                  currentFormBlueprint?.title ??
+                  "Nuevo registro"
+                }
+                actions={
+                  <Button variant="outline" size="sm" onClick={goToList}>
+                    <ArrowLeft className="mr-1.5 h-4 w-4" />
+                    Volver
+                  </Button>
+                }
               />
-            </div>
+              <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
+                <AtlasForm
+                  blueprint={currentFormBlueprint}
+                  fields={fields}
+                  initialData={{}}
+                  mode="create"
+                  token={token}
+                  apiBaseUrl={apiBaseUrl}
+                  onSuccess={handleFormSuccess}
+                  onCancel={goToList}
+                />
+              </div>
+            </>
           )}
 
           {mode === "detail" && currentDetailBlueprint && (
             <>
-              {renderRecordLoadingOrError() ?? (
-                recordData && (
+              <PageHeader
+                eyebrow="Detalle"
+                title={
+                  currentDetailBlueprint?.schema?.title ??
+                  currentDetailBlueprint?.title ??
+                  "Detalle"
+                }
+                actions={
+                  <Button variant="outline" size="sm" onClick={goToList}>
+                    <ArrowLeft className="mr-1.5 h-4 w-4" />
+                    Volver
+                  </Button>
+                }
+              />
+              {renderRecordLoadingOrError() ??
+                (recordData && (
                   <AtlasDetail
                     blueprint={currentDetailBlueprint}
                     fields={fields}
                     data={recordData}
                     onBack={goToList}
-                    onEdit={currentFormBlueprint ? () => setMode("edit") : undefined}
+                    onEdit={
+                      currentFormBlueprint ? () => setMode("edit") : undefined
+                    }
                   />
-                )
-              )}
+                ))}
             </>
           )}
 
           {mode === "edit" && currentFormBlueprint && (
-            <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
-              <h3 className="mb-4 text-sm font-semibold text-[hsl(var(--foreground))]">
-                {currentFormBlueprint?.title ?? "Editar registro"}
-              </h3>
-              {renderRecordLoadingOrError() ?? (
-                recordData && (
-                  <AtlasForm
-                    blueprint={currentFormBlueprint}
-                    fields={fields}
-                    initialData={recordData}
-                    mode="edit"
-                    token={token}
-                    apiBaseUrl={apiBaseUrl}
-                    onSuccess={handleFormSuccess}
-                    onCancel={goToList}
-                  />
-                )
-              )}
-            </div>
+            <>
+              <PageHeader
+                eyebrow="Editar registro"
+                title={
+                  currentFormBlueprint?.schema?.title ??
+                  currentFormBlueprint?.title ??
+                  "Editar registro"
+                }
+                actions={
+                  <Button variant="outline" size="sm" onClick={goToList}>
+                    <ArrowLeft className="mr-1.5 h-4 w-4" />
+                    Volver
+                  </Button>
+                }
+              />
+              <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
+                {renderRecordLoadingOrError() ??
+                  (recordData && (
+                    <AtlasForm
+                      blueprint={currentFormBlueprint}
+                      fields={fields}
+                      initialData={recordData}
+                      mode="edit"
+                      token={token}
+                      apiBaseUrl={apiBaseUrl}
+                      onSuccess={handleFormSuccess}
+                      onCancel={goToList}
+                    />
+                  ))}
+              </div>
+            </>
           )}
         </div>
       ) : (
@@ -321,7 +372,12 @@ export function AtlasCrudView({
             blueprint={tableBlueprint}
             token={token}
             apiBaseUrl={apiBaseUrl}
-            onCreate={currentFormBlueprint ? openCreate : undefined}
+            componentRegistry={componentRegistry}
+            onCreate={
+              !suppressToolbarCreate && currentFormBlueprint
+                ? openCreate
+                : undefined
+            }
             onView={currentDetailBlueprint ? openDetail : undefined}
             onEdit={currentFormBlueprint ? openEdit : undefined}
             onDelete={requestDelete}
@@ -338,8 +394,12 @@ export function AtlasCrudView({
               {mode === "create" && currentFormBlueprint && (
                 <>
                   <SheetHeader>
-                    <SheetTitle>{currentFormBlueprint?.title ?? "Nuevo registro"}</SheetTitle>
-                    <SheetDescription>Completa la información y guarda los cambios.</SheetDescription>
+                    <SheetTitle>
+                      {currentFormBlueprint?.title ?? "Nuevo registro"}
+                    </SheetTitle>
+                    <SheetDescription>
+                      Completa la información y guarda los cambios.
+                    </SheetDescription>
                   </SheetHeader>
                   <div className="mt-4 max-h-[calc(100dvh-11rem)] overflow-y-auto pr-1">
                     <AtlasForm
@@ -359,21 +419,28 @@ export function AtlasCrudView({
               {mode === "detail" && currentDetailBlueprint && (
                 <>
                   <SheetHeader>
-                    <SheetTitle>{currentDetailBlueprint?.title ?? "Detalle"}</SheetTitle>
-                    <SheetDescription>Información del registro seleccionado.</SheetDescription>
+                    <SheetTitle>
+                      {currentDetailBlueprint?.title ?? "Detalle"}
+                    </SheetTitle>
+                    <SheetDescription>
+                      Información del registro seleccionado.
+                    </SheetDescription>
                   </SheetHeader>
                   <div className="mt-4 max-h-[calc(100dvh-11rem)] overflow-y-auto pr-1">
-                    {renderRecordLoadingOrError() ?? (
-                      recordData && (
+                    {renderRecordLoadingOrError() ??
+                      (recordData && (
                         <AtlasDetail
                           blueprint={currentDetailBlueprint}
                           fields={fields}
                           data={recordData}
                           onBack={goToList}
-                          onEdit={currentFormBlueprint ? () => setMode("edit") : undefined}
+                          onEdit={
+                            currentFormBlueprint
+                              ? () => setMode("edit")
+                              : undefined
+                          }
                         />
-                      )
-                    )}
+                      ))}
                   </div>
                 </>
               )}
@@ -381,12 +448,16 @@ export function AtlasCrudView({
               {mode === "edit" && currentFormBlueprint && (
                 <>
                   <SheetHeader>
-                    <SheetTitle>{currentFormBlueprint?.title ?? "Editar registro"}</SheetTitle>
-                    <SheetDescription>Actualiza la información del registro.</SheetDescription>
+                    <SheetTitle>
+                      {currentFormBlueprint?.title ?? "Editar registro"}
+                    </SheetTitle>
+                    <SheetDescription>
+                      Actualiza la información del registro.
+                    </SheetDescription>
                   </SheetHeader>
                   <div className="mt-4 max-h-[calc(100dvh-11rem)] overflow-y-auto pr-1">
-                    {renderRecordLoadingOrError() ?? (
-                      recordData && (
+                    {renderRecordLoadingOrError() ??
+                      (recordData && (
                         <AtlasForm
                           blueprint={currentFormBlueprint}
                           fields={fields}
@@ -397,8 +468,7 @@ export function AtlasCrudView({
                           onSuccess={handleFormSuccess}
                           onCancel={goToList}
                         />
-                      )
-                    )}
+                      ))}
                   </div>
                 </>
               )}

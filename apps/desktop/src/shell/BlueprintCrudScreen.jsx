@@ -1,9 +1,10 @@
 import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Package } from "lucide-react";
+import { Package, Plus } from "lucide-react";
 import {
   AtlasCrudView,
+  Button,
   Card,
   CardHeader,
   CardTitle,
@@ -18,8 +19,10 @@ import { useAuth } from "../auth/AuthProvider";
 import { useRuntimeModules } from "../app/useRuntimeModules";
 import { atlas } from "../lib/atlas";
 import { isModuleAvailable } from "../lib/runtimeModules";
+import { componentRegistry } from "../lib/moduleComponentRegistry";
 
-const API_BASE_URL = import.meta.env.VITE_ATLAS_API_URL || "http://localhost:4010";
+const API_BASE_URL =
+  import.meta.env.VITE_ATLAS_API_URL || "http://localhost:4010";
 
 function normalizePath(value) {
   const text = String(value ?? "").trim();
@@ -30,7 +33,9 @@ function normalizePath(value) {
 }
 
 function normalizeKind(value) {
-  return String(value ?? "").trim().toUpperCase();
+  return String(value ?? "")
+    .trim()
+    .toUpperCase();
 }
 
 function getLastSegment(path) {
@@ -82,10 +87,13 @@ function matchesEntity(blueprint, entitySegment) {
   const schema = blueprint?.schema ?? {};
   const apiPath = normalizePath(schema.apiPath);
   const apiLastSegment = getLastSegment(apiPath);
-  const entity = String(schema.entity ?? "").trim().toLowerCase();
+  const entity = String(schema.entity ?? "")
+    .trim()
+    .toLowerCase();
   if (apiLastSegment && apiLastSegment === entitySegment) return true;
   if (apiPath && apiPath.includes(`/${entitySegment}`)) return true;
-  if (entity && (entity === entitySegment || `${entity}s` === entitySegment)) return true;
+  if (entity && (entity === entitySegment || `${entity}s` === entitySegment))
+    return true;
   return false;
 }
 
@@ -93,25 +101,40 @@ function selectBlueprints({ rows, moduleKey, moduleRoutePath, entitySegment }) {
   const moduleRows = rows.filter(
     (row) => row?.source === "atlas-view" && row?.moduleKey === moduleKey,
   );
-  const tableRows = moduleRows.filter((row) => normalizeKind(row?.kind) === "TABLE");
-  const formRows = moduleRows.filter((row) => normalizeKind(row?.kind) === "FORM");
-  const detailRows = moduleRows.filter((row) => normalizeKind(row?.kind) === "DETAIL");
-  const pageRows = moduleRows.filter((row) => normalizeKind(row?.kind) === "PAGE");
+  const tableRows = moduleRows.filter(
+    (row) => normalizeKind(row?.kind) === "TABLE",
+  );
+  const formRows = moduleRows.filter(
+    (row) => normalizeKind(row?.kind) === "FORM",
+  );
+  const detailRows = moduleRows.filter(
+    (row) => normalizeKind(row?.kind) === "DETAIL",
+  );
+  const pageRows = moduleRows.filter(
+    (row) => normalizeKind(row?.kind) === "PAGE",
+  );
 
   const normalizedRoutePath = normalizePath(moduleRoutePath);
-  const pagePathOf = (row) => normalizePath(row?.schema?.path ?? row?.schema?.page?.path);
-  const pageMatch = pageRows.find((row) => pagePathOf(row) === normalizedRoutePath);
+  const pagePathOf = (row) =>
+    normalizePath(row?.schema?.path ?? row?.schema?.page?.path);
+  const pageMatch = pageRows.find(
+    (row) => pagePathOf(row) === normalizedRoutePath,
+  );
 
   const findByKey = (key) =>
-    moduleRows.find((row) => String(row?.key ?? "").trim() === String(key ?? "").trim()) ?? null;
+    moduleRows.find(
+      (row) => String(row?.key ?? "").trim() === String(key ?? "").trim(),
+    ) ?? null;
 
   let tableBlueprint = null;
   const pageViewKey = pageMatch?.schema?.view ?? pageMatch?.schema?.page?.view;
   if (pageViewKey) tableBlueprint = findByKey(pageViewKey);
-  const pageTableKey = pageMatch?.schema?.table ?? pageMatch?.schema?.page?.table;
+  const pageTableKey =
+    pageMatch?.schema?.table ?? pageMatch?.schema?.page?.table;
   if (!tableBlueprint && pageTableKey) tableBlueprint = findByKey(pageTableKey);
   if (!tableBlueprint) {
-    tableBlueprint = tableRows.find((row) => matchesEntity(row, entitySegment)) ?? null;
+    tableBlueprint =
+      tableRows.find((row) => matchesEntity(row, entitySegment)) ?? null;
   }
 
   if (!tableBlueprint) {
@@ -119,12 +142,18 @@ function selectBlueprints({ rows, moduleKey, moduleRoutePath, entitySegment }) {
   }
 
   const tableApiPath = normalizePath(tableBlueprint.schema?.apiPath);
-  const tableEntity = String(tableBlueprint.schema?.entity ?? "").trim().toLowerCase();
+  const tableEntity = String(tableBlueprint.schema?.entity ?? "")
+    .trim()
+    .toLowerCase();
   const matchesTable = (row) => {
     const candidateApiPath = normalizePath(row?.schema?.apiPath);
-    const candidateEntity = String(row?.schema?.entity ?? "").trim().toLowerCase();
-    if (tableApiPath && candidateApiPath && tableApiPath === candidateApiPath) return true;
-    if (tableEntity && candidateEntity && tableEntity === candidateEntity) return true;
+    const candidateEntity = String(row?.schema?.entity ?? "")
+      .trim()
+      .toLowerCase();
+    if (tableApiPath && candidateApiPath && tableApiPath === candidateApiPath)
+      return true;
+    if (tableEntity && candidateEntity && tableEntity === candidateEntity)
+      return true;
     return false;
   };
 
@@ -143,8 +172,12 @@ function selectBlueprints({ rows, moduleKey, moduleRoutePath, entitySegment }) {
 function extractFields(tableBlueprint, formBlueprint, detailBlueprint) {
   const candidates = [tableBlueprint, formBlueprint, detailBlueprint];
   for (const blueprint of candidates) {
-    if (Array.isArray(blueprint?.fields) && blueprint.fields.length > 0) return blueprint.fields;
-    if (Array.isArray(blueprint?.schema?.fields) && blueprint.schema.fields.length > 0)
+    if (Array.isArray(blueprint?.fields) && blueprint.fields.length > 0)
+      return blueprint.fields;
+    if (
+      Array.isArray(blueprint?.schema?.fields) &&
+      blueprint.schema.fields.length > 0
+    )
       return blueprint.schema.fields;
   }
   return undefined;
@@ -154,11 +187,15 @@ function resolveNavItem(module, moduleRoutePath, entitySegment) {
   const nav = module?.navigation ?? module?.manifest?.navigation ?? [];
   if (!Array.isArray(nav) || nav.length === 0) return null;
   const normalizedRoute = normalizePath(moduleRoutePath);
-  const exact = nav.find((item) => normalizePath(item?.path ?? "") === normalizedRoute);
+  const exact = nav.find(
+    (item) => normalizePath(item?.path ?? "") === normalizedRoute,
+  );
   if (exact) return exact;
   if (entitySegment) {
     const partial = nav.find((item) =>
-      normalizePath(item?.path ?? "").split("/").includes(entitySegment),
+      normalizePath(item?.path ?? "")
+        .split("/")
+        .includes(entitySegment),
     );
     if (partial) return partial;
   }
@@ -175,12 +212,14 @@ function resolvePageTitle(tableBlueprint, navItem) {
 
 function resolveEmptyLabel(entitySegment, navItem) {
   if (navItem?.label) return navItem.label;
-  if (entitySegment) return entitySegment.charAt(0).toUpperCase() + entitySegment.slice(1);
+  if (entitySegment)
+    return entitySegment.charAt(0).toUpperCase() + entitySegment.slice(1);
   return null;
 }
 
 function resolvePageDescription(tableBlueprint, module) {
-  const blueprintDesc = tableBlueprint?.schema?.description ?? tableBlueprint?.description ?? null;
+  const blueprintDesc =
+    tableBlueprint?.schema?.description ?? tableBlueprint?.description ?? null;
   if (blueprintDesc) return blueprintDesc;
   return module?.description ?? module?.manifest?.description ?? null;
 }
@@ -217,15 +256,34 @@ export function BlueprintCrudScreen() {
       moduleRoutePath: routeInfo.moduleRoutePath,
       entitySegment: routeInfo.entitySegment,
     });
-  }, [blueprintsQuery.data, moduleKey, routeInfo.entitySegment, routeInfo.moduleRoutePath]);
+  }, [
+    blueprintsQuery.data,
+    moduleKey,
+    routeInfo.entitySegment,
+    routeInfo.moduleRoutePath,
+  ]);
 
   const fields = useMemo(
-    () => extractFields(selection.tableBlueprint, selection.formBlueprint, selection.detailBlueprint),
-    [selection.detailBlueprint, selection.formBlueprint, selection.tableBlueprint],
+    () =>
+      extractFields(
+        selection.tableBlueprint,
+        selection.formBlueprint,
+        selection.detailBlueprint,
+      ),
+    [
+      selection.detailBlueprint,
+      selection.formBlueprint,
+      selection.tableBlueprint,
+    ],
   );
 
   const navItem = useMemo(
-    () => resolveNavItem(module, routeInfo.moduleRoutePath, routeInfo.entitySegment),
+    () =>
+      resolveNavItem(
+        module,
+        routeInfo.moduleRoutePath,
+        routeInfo.entitySegment,
+      ),
     [module, routeInfo.entitySegment, routeInfo.moduleRoutePath],
   );
 
@@ -249,7 +307,13 @@ export function BlueprintCrudScreen() {
         navigate(targetPath, { replace: true });
       }
     },
-    [location.pathname, moduleKey, navigate, routeInfo.entitySegment, selection.tableBlueprint?.schema?.apiPath],
+    [
+      location.pathname,
+      moduleKey,
+      navigate,
+      routeInfo.entitySegment,
+      selection.tableBlueprint?.schema?.apiPath,
+    ],
   );
 
   const handleCreateSuccess = useCallback(() => {
@@ -313,7 +377,10 @@ export function BlueprintCrudScreen() {
           <div className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden">
             <div className="bg-[hsl(var(--muted))]/40 px-4 py-3 flex gap-4 border-b border-[hsl(var(--border))]">
               {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className={`h-4 ${i === 4 ? "w-8 shrink-0" : "flex-1"}`} />
+                <Skeleton
+                  key={i}
+                  className={`h-4 ${i === 4 ? "w-8 shrink-0" : "flex-1"}`}
+                />
               ))}
             </div>
             {Array.from({ length: 8 }).map((_, i) => (
@@ -322,7 +389,10 @@ export function BlueprintCrudScreen() {
                 className="px-4 py-3 border-b border-[hsl(var(--border))] last:border-0 flex gap-4"
               >
                 {Array.from({ length: 5 }).map((_, j) => (
-                  <Skeleton key={j} className={`h-4 ${j === 4 ? "w-8 shrink-0" : "flex-1"}`} />
+                  <Skeleton
+                    key={j}
+                    className={`h-4 ${j === 4 ? "w-8 shrink-0" : "flex-1"}`}
+                  />
                 ))}
               </div>
             ))}
@@ -345,7 +415,9 @@ export function BlueprintCrudScreen() {
   }
 
   if (!selection.tableBlueprint) {
-    const emptyLabel = normalizeSpanishLabel(resolveEmptyLabel(routeInfo.entitySegment, navItem));
+    const emptyLabel = normalizeSpanishLabel(
+      resolveEmptyLabel(routeInfo.entitySegment, navItem),
+    );
     return (
       <div className="p-6">
         <EmptyState
@@ -361,8 +433,24 @@ export function BlueprintCrudScreen() {
     );
   }
 
-  const pageTitle = normalizeSpanishLabel(resolvePageTitle(selection.tableBlueprint, navItem));
-  const pageDescription = normalizeSpanishLabel(resolvePageDescription(selection.tableBlueprint, module));
+  const pageTitle = normalizeSpanishLabel(
+    resolvePageTitle(selection.tableBlueprint, navItem),
+  );
+  const pageDescription = normalizeSpanishLabel(
+    resolvePageDescription(selection.tableBlueprint, module),
+  );
+
+  const entitySegment =
+    routeInfo.entitySegment ||
+    getLastSegment(selection.tableBlueprint?.schema?.apiPath);
+  const canCreate =
+    Boolean(selection.formBlueprint) && routeInfo.initialMode === "list";
+  const createLabel = normalizeSpanishLabel(
+    selection.tableBlueprint?.schema?.actions?.[0]?.label ?? "Agregar",
+  );
+  const createPath = entitySegment
+    ? `/app/m/${moduleKey}/${entitySegment}/new`
+    : null;
 
   return (
     <div className="flex flex-col min-h-full">
@@ -371,6 +459,14 @@ export function BlueprintCrudScreen() {
           eyebrow={moduleName || undefined}
           title={pageTitle}
           description={pageDescription || undefined}
+          actions={
+            canCreate && createPath ? (
+              <Button onClick={() => navigate(createPath)}>
+                <Plus className="mr-2 h-4 w-4" />
+                {createLabel}
+              </Button>
+            ) : undefined
+          }
         />
 
         <AtlasCrudView
@@ -380,6 +476,8 @@ export function BlueprintCrudScreen() {
           fields={fields}
           token={token}
           apiBaseUrl={API_BASE_URL}
+          componentRegistry={componentRegistry}
+          suppressToolbarCreate
           initialMode={routeInfo.initialMode}
           recordId={routeInfo.recordId}
           onNavigate={handleNavigate}

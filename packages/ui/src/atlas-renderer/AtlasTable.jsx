@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Eye, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Pencil, Trash2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
+import { Checkbox } from "../components/Checkbox.jsx";
 import { Skeleton } from "../components/Skeleton.jsx";
-import { ListLayout } from "../components/ListLayout.jsx";
-import { FilterBar } from "../components/FilterBar.jsx";
 import { ActionMenu } from "../components/ActionMenu.jsx";
 import { EmptyState } from "../components/EmptyState.jsx";
 import { ErrorState } from "../components/ErrorState.jsx";
+import { getStoredViewMode } from "../components/ViewModeSwitch.jsx";
 import {
   Table,
   TableBody,
@@ -17,12 +17,22 @@ import {
   TableRow,
 } from "../components/Table.jsx";
 import { AtlasCardView } from "./AtlasCardView.jsx";
-import { normalizeToFilterBarFilters, normalizeSpanishLabel } from "./renderer-adapters.js";
+import { AtlasTableToolbar } from "./AtlasTableToolbar.jsx";
+import {
+  normalizeToFilterBarFilters,
+  normalizeSpanishLabel,
+} from "./renderer-adapters.js";
 
 const DEFAULT_PAGE_SIZE = 20;
 
+function getRowId(row, index) {
+  return row?.id != null ? String(row.id) : `row-${index}`;
+}
+
 function joinUrl(baseUrl, apiPath) {
-  const base = String(baseUrl ?? "").trim().replace(/\/+$/, "");
+  const base = String(baseUrl ?? "")
+    .trim()
+    .replace(/\/+$/, "");
   const path = String(apiPath ?? "").trim();
   if (!path.startsWith("/")) return `${base}/${path}`;
   return `${base}${path}`;
@@ -45,7 +55,13 @@ function normalizeColumns(schema) {
   return rawColumns
     .map((entry) => {
       if (typeof entry === "string") {
-        return { key: entry, field: entry, label: entry, component: null, sortable: false };
+        return {
+          key: entry,
+          field: entry,
+          label: entry,
+          component: null,
+          sortable: false,
+        };
       }
       if (!entry || typeof entry !== "object") return null;
       const field = entry.field ?? entry.key ?? entry.name ?? null;
@@ -53,7 +69,9 @@ function normalizeColumns(schema) {
       return {
         key: String(field),
         field: String(field),
-        label: normalizeSpanishLabel(entry.label ?? entry.title ?? String(field)),
+        label: normalizeSpanishLabel(
+          entry.label ?? entry.title ?? String(field),
+        ),
         component: entry.component ?? null,
         sortable: Boolean(entry.sortable),
       };
@@ -71,7 +89,9 @@ function normalizeFilters(schema) {
         if (!key) return null;
         return {
           key: String(key),
-          label: normalizeSpanishLabel(entry.label ?? entry.title ?? String(key)),
+          label: normalizeSpanishLabel(
+            entry.label ?? entry.title ?? String(key),
+          ),
           type: entry.type === "select" ? "select" : "text",
           options: Array.isArray(entry.options) ? entry.options : [],
         };
@@ -125,6 +145,7 @@ export function AtlasTable({
   blueprint,
   token,
   apiBaseUrl,
+  componentRegistry = null,
   onCreate,
   onView,
   onEdit,
@@ -132,13 +153,22 @@ export function AtlasTable({
   refreshSignal = 0,
 }) {
   const schema = blueprint?.schema ?? {};
-  const apiPath = typeof schema.apiPath === "string" ? schema.apiPath.trim() : "";
+  const apiPath =
+    typeof schema.apiPath === "string" ? schema.apiPath.trim() : "";
   const columns = useMemo(() => normalizeColumns(schema), [schema]);
   const filters = useMemo(() => normalizeFilters(schema), [schema]);
-  const filterBarFilters = useMemo(() => normalizeToFilterBarFilters(filters), [filters]);
-  const sortableColumns = useMemo(() => columns.filter((c) => c.sortable), [columns]);
+  const filterBarFilters = useMemo(
+    () => normalizeToFilterBarFilters(filters),
+    [filters],
+  );
+  const sortableColumns = useMemo(
+    () => columns.filter((c) => c.sortable),
+    [columns],
+  );
   const searchable = schema.searchable === true;
-  const defaultPageSize = Number.isFinite(Number(schema?.pagination?.defaultPageSize))
+  const defaultPageSize = Number.isFinite(
+    Number(schema?.pagination?.defaultPageSize),
+  )
     ? Math.max(1, Number(schema.pagination.defaultPageSize))
     : DEFAULT_PAGE_SIZE;
 
@@ -149,10 +179,19 @@ export function AtlasTable({
   const [sortBy, setSortBy] = useState("");
   const [sortDir, setSortDir] = useState("asc");
   const [rows, setRows] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, pageSize: defaultPageSize, total: 0 });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: defaultPageSize,
+    total: 0,
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [reloadTick, setReloadTick] = useState(0);
+  const storageKey = `atlas.renderer.${apiPath.replace(/\//g, ".")}`;
+  const [view, setView] = useState(() =>
+    getStoredViewMode(storageKey, "table"),
+  );
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   useEffect(() => {
     if (!apiPath) return;
@@ -164,7 +203,8 @@ export function AtlasTable({
         const params = new URLSearchParams();
         params.set("page", String(page));
         params.set("pageSize", String(pageSize));
-        if (searchable && !isBlank(search)) params.set("search", String(search).trim());
+        if (searchable && !isBlank(search))
+          params.set("search", String(search).trim());
         for (const [key, value] of Object.entries(filterValues)) {
           if (isBlank(value)) continue;
           params.set(key, String(value).trim());
@@ -185,21 +225,47 @@ export function AtlasTable({
         }
         const payload = await response.json();
         const nextRows = Array.isArray(payload?.data) ? payload.data : [];
-        const nextPagination = readPagination(payload, page, pageSize, nextRows.length);
+        const nextPagination = readPagination(
+          payload,
+          page,
+          pageSize,
+          nextRows.length,
+        );
         setRows(nextRows);
         setPagination(nextPagination);
       } catch (err) {
         if (controller.signal.aborted) return;
         setRows([]);
         setPagination((prev) => ({ ...prev, total: 0 }));
-        setError(err instanceof Error ? err.message : "No se pudo cargar la información.");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "No se pudo cargar la información.",
+        );
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
     };
     run();
     return () => controller.abort();
-  }, [apiBaseUrl, apiPath, filterValues, page, pageSize, reloadTick, refreshSignal, search, searchable, sortBy, sortDir, token]);
+  }, [
+    apiBaseUrl,
+    apiPath,
+    filterValues,
+    page,
+    pageSize,
+    reloadTick,
+    refreshSignal,
+    search,
+    searchable,
+    sortBy,
+    sortDir,
+    token,
+  ]);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [rows]);
 
   const filtersActiveCount = Object.values(filterValues).filter(Boolean).length;
 
@@ -208,7 +274,8 @@ export function AtlasTable({
       <Alert variant="warning">
         <AlertTitle>Vista sin configuración</AlertTitle>
         <AlertDescription>
-          Esta vista no tiene <code>schema.apiPath</code>. No se puede cargar la información.
+          Esta vista no tiene <code>schema.apiPath</code>. No se puede cargar la
+          información.
         </AlertDescription>
       </Alert>
     );
@@ -216,27 +283,69 @@ export function AtlasTable({
 
   const rowActions = Array.isArray(schema.rowActions) ? schema.rowActions : [];
   const viewActionLabel = rowActions[0]?.label ?? "Ver";
-  const editActionLabel = rowActions.length >= 2 ? (rowActions[1]?.label ?? "Editar") : "Editar";
-  const deleteActionLabel = rowActions.length >= 2
-    ? (rowActions[rowActions.length - 1]?.label ?? "Eliminar")
-    : "Eliminar";
+  const editActionLabel =
+    rowActions.length >= 2 ? (rowActions[1]?.label ?? "Editar") : "Editar";
+  const deleteActionLabel =
+    rowActions.length >= 2
+      ? (rowActions[rowActions.length - 1]?.label ?? "Eliminar")
+      : "Eliminar";
 
   const rowMenuItems = (row) =>
     [
-      onView && { label: viewActionLabel, icon: Eye, onClick: () => onView(row) },
-      onEdit && { label: editActionLabel, icon: Pencil, onClick: () => onEdit(row) },
-      onDelete && { label: deleteActionLabel, icon: Trash2, variant: "destructive", onClick: () => onDelete(row) },
+      onView && {
+        label: viewActionLabel,
+        icon: Eye,
+        onClick: () => onView(row),
+      },
+      onEdit && {
+        label: editActionLabel,
+        icon: Pencil,
+        onClick: () => onEdit(row),
+      },
+      onDelete && {
+        label: deleteActionLabel,
+        icon: Trash2,
+        variant: "destructive",
+        onClick: () => onDelete(row),
+      },
     ].filter(Boolean);
+
+  const handleSortChange = ({ sortBy: nextField, sortDir: nextDir }) => {
+    setPage(1);
+    setSortBy(nextField);
+    setSortDir(nextDir);
+  };
+
+  const handleToggleRow = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleToggleAll = () => {
+    if (selectedIds.size === rows.length && rows.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(rows.map((row, i) => getRowId(row, i))));
+    }
+  };
 
   // ── Table view ────────────────────────────────────────────────────────────
 
   const renderTableView = () => {
+    const allSelected = rows.length > 0 && selectedIds.size === rows.length;
+    const someSelected = selectedIds.size > 0 && selectedIds.size < rows.length;
+
     if (loading) {
       return (
         <div className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="bg-[hsl(var(--muted))]/40 hover:bg-[hsl(var(--muted))]/40">
+                <TableHead className="w-10" />
                 {columns.map((col) => (
                   <TableHead key={col.key}>{col.label}</TableHead>
                 ))}
@@ -246,6 +355,9 @@ export function AtlasTable({
             <TableBody>
               {Array.from({ length: 7 }).map((_, i) => (
                 <TableRow key={`sk-${i}`}>
+                  <TableCell>
+                    <Skeleton className="h-4 w-4 rounded" />
+                  </TableCell>
                   {columns.map((col) => (
                     <TableCell key={`sk-${col.key}-${i}`}>
                       <Skeleton className="h-4 w-full" />
@@ -275,8 +387,12 @@ export function AtlasTable({
       return (
         <EmptyState
           title="Sin registros"
-          description={schema?.emptyState?.message ?? "No hay registros para mostrar."}
-          action={onCreate ? { label: "Agregar", onClick: onCreate } : undefined}
+          description={
+            schema?.emptyState?.message ?? "No hay registros para mostrar."
+          }
+          action={
+            onCreate ? { label: "Agregar", onClick: onCreate } : undefined
+          }
         />
       );
     }
@@ -286,6 +402,15 @@ export function AtlasTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-[hsl(var(--muted))]/40 hover:bg-[hsl(var(--muted))]/40">
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={
+                    allSelected ? true : someSelected ? "indeterminate" : false
+                  }
+                  onCheckedChange={handleToggleAll}
+                  aria-label="Seleccionar todos"
+                />
+              </TableHead>
               {columns.map((col) => (
                 <TableHead key={col.key}>{col.label}</TableHead>
               ))}
@@ -293,18 +418,54 @@ export function AtlasTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row, rowIndex) => (
-              <TableRow key={row?.id ?? `row-${rowIndex}`}>
-                {columns.map((col) => (
-                  <TableCell key={`${col.key}-${rowIndex}`}>
-                    {renderValue(getByPath(row, col.field))}
+            {rows.map((row, rowIndex) => {
+              const id = getRowId(row, rowIndex);
+              const isSelected = selectedIds.has(id);
+              const zebraClass =
+                !isSelected && rowIndex % 2 === 1
+                  ? "bg-[hsl(var(--muted))]/20"
+                  : undefined;
+              return (
+                <TableRow
+                  key={id}
+                  data-selected={isSelected || undefined}
+                  className={zebraClass}
+                >
+                  <TableCell>
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => handleToggleRow(id)}
+                      aria-label="Seleccionar fila"
+                    />
                   </TableCell>
-                ))}
-                <TableCell>
-                  <ActionMenu items={rowMenuItems(row)} label="Acciones del registro" />
-                </TableCell>
-              </TableRow>
-            ))}
+                  {columns.map((col) => {
+                    const value = getByPath(row, col.field);
+                    let cellContent;
+                    if (col.component && componentRegistry) {
+                      const Comp = componentRegistry.resolve(col.component);
+                      cellContent = Comp ? (
+                        <Comp {...{ [col.field]: value, value, row }} />
+                      ) : (
+                        renderValue(value)
+                      );
+                    } else {
+                      cellContent = renderValue(value);
+                    }
+                    return (
+                      <TableCell key={`${col.key}-${rowIndex}`}>
+                        {cellContent}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell>
+                    <ActionMenu
+                      items={rowMenuItems(row)}
+                      label="Acciones del registro"
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
@@ -315,11 +476,12 @@ export function AtlasTable({
 
   const renderListView = () => {
     const primaryCol = columns[0] ?? null;
-    const statusCol = columns.find((c) => /^(status|estado)$/i.test(c.field)) ?? null;
+    const statusCol =
+      columns.find((c) => /^(status|estado)$/i.test(c.field)) ?? null;
     const subtitleCols = columns
       .filter((c) => c !== primaryCol && c !== statusCol)
       .slice(0, 2);
-    const badgeCol = statusCol ?? (columns[3] ?? null);
+    const badgeCol = statusCol ?? columns[3] ?? null;
 
     if (loading) {
       return (
@@ -329,6 +491,7 @@ export function AtlasTable({
               key={`sk-list-${i}`}
               className="flex items-center gap-3 px-4 py-3 border-b border-[hsl(var(--border))] last:border-0"
             >
+              <Skeleton className="h-4 w-4 rounded shrink-0" />
               <Skeleton className="h-9 w-9 rounded-xl shrink-0" />
               <div className="flex-1 space-y-1.5">
                 <Skeleton className="h-4 w-44" />
@@ -354,8 +517,12 @@ export function AtlasTable({
       return (
         <EmptyState
           title="Sin registros"
-          description={schema?.emptyState?.message ?? "No hay registros para mostrar."}
-          action={onCreate ? { label: "Agregar", onClick: onCreate } : undefined}
+          description={
+            schema?.emptyState?.message ?? "No hay registros para mostrar."
+          }
+          action={
+            onCreate ? { label: "Agregar", onClick: onCreate } : undefined
+          }
         />
       );
     }
@@ -363,18 +530,28 @@ export function AtlasTable({
     return (
       <div className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden">
         {rows.map((row, rowIndex) => {
+          const id = getRowId(row, rowIndex);
+          const isSelected = selectedIds.has(id);
           const titleVal = primaryCol
             ? renderValue(getByPath(row, primaryCol.field))
             : `Registro ${rowIndex + 1}`;
           const initials =
-            titleVal !== "—" && titleVal.length > 0 ? titleVal.charAt(0).toUpperCase() : "#";
+            titleVal !== "—" && titleVal.length > 0
+              ? titleVal.charAt(0).toUpperCase()
+              : "#";
           const menuItems = rowMenuItems(row);
 
           return (
             <div
-              key={row?.id ?? `list-${rowIndex}`}
-              className="flex items-center gap-3 px-4 py-3 border-b border-[hsl(var(--border))] last:border-0 hover:bg-[hsl(var(--muted))]/30 transition-colors"
+              key={id}
+              className={`flex items-center gap-3 px-4 py-3 border-b border-[hsl(var(--border))] last:border-0 hover:bg-[hsl(var(--muted))]/30 transition-colors${isSelected ? " bg-indigo-500/5" : ""}`}
             >
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={() => handleToggleRow(id)}
+                aria-label="Seleccionar"
+                className="shrink-0"
+              />
               <div className="h-9 w-9 rounded-xl bg-[hsl(var(--muted))] flex items-center justify-center shrink-0">
                 <span className="text-sm font-semibold text-[hsl(var(--muted-foreground))]">
                   {initials}
@@ -457,8 +634,12 @@ export function AtlasTable({
       return (
         <EmptyState
           title="Sin registros"
-          description={schema?.emptyState?.message ?? "No hay registros para mostrar."}
-          action={onCreate ? { label: "Agregar", onClick: onCreate } : undefined}
+          description={
+            schema?.emptyState?.message ?? "No hay registros para mostrar."
+          }
+          action={
+            onCreate ? { label: "Agregar", onClick: onCreate } : undefined
+          }
         />
       );
     }
@@ -467,6 +648,12 @@ export function AtlasTable({
       <AtlasCardView
         columns={columns}
         rows={rows}
+        selectedIds={selectedIds}
+        onToggleSelect={handleToggleRow}
+        getRowId={getRowId}
+        viewActionLabel={viewActionLabel}
+        editActionLabel={editActionLabel}
+        deleteActionLabel={deleteActionLabel}
         onView={onView}
         onEdit={onEdit}
         onDelete={onDelete}
@@ -474,113 +661,94 @@ export function AtlasTable({
     );
   };
 
-  // ── Toolbar parts ─────────────────────────────────────────────────────────
+  // ── Pagination ─────────────────────────────────────────────────────────────
 
-  const filtersJsx =
-    filterBarFilters.length > 0 ? (
-      <FilterBar
-        filters={filterBarFilters}
-        value={filterValues}
-        onChange={(next) => {
+  const hasPagination = pagination.total > pagination.pageSize;
+  const totalPages = Math.ceil(pagination.total / pagination.pageSize);
+
+  const renderPagination = () => {
+    if (!hasPagination) return null;
+    return (
+      <div className="flex items-center justify-between text-xs text-[hsl(var(--muted-foreground))]">
+        <span className="tabular-nums">
+          {(page - 1) * pagination.pageSize + 1}–
+          {Math.min(page * pagination.pageSize, pagination.total)} de{" "}
+          {pagination.total}
+        </span>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            aria-label="Página anterior"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </Button>
+          <span className="tabular-nums px-1">
+            {page} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            aria-label="Página siguiente"
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <AtlasTableToolbar
+        storageKey={storageKey}
+        search={searchable ? search : ""}
+        onSearchChange={
+          searchable
+            ? (val) => {
+                setPage(1);
+                setSearch(val);
+              }
+            : undefined
+        }
+        searchPlaceholder={schema?.searchPlaceholder ?? "Buscar..."}
+        filterBarFilters={filterBarFilters}
+        filterValues={filterValues}
+        onFilterChange={(next) => {
           setPage(1);
           setFilterValues(next);
         }}
+        filtersActiveCount={filtersActiveCount}
+        onFiltersClear={() => {
+          setPage(1);
+          setFilterValues({});
+        }}
+        sortableColumns={sortableColumns}
+        sortBy={sortBy}
+        sortDir={sortDir}
+        onSortChange={handleSortChange}
+        views={["table", "cards", "grid"]}
+        view={view}
+        onViewChange={setView}
+        selectedCount={selectedIds.size}
+        onClearSelection={() => setSelectedIds(new Set())}
+        totalCount={pagination.total}
+        loading={loading}
+        onCreate={onCreate}
+        onReload={() => setReloadTick((c) => c + 1)}
       />
-    ) : null;
-
-  const sortExtras =
-    sortableColumns.length > 0 ? (
-      <div className="flex items-center gap-1">
-        <select
-          className="h-8 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2.5 text-xs text-[hsl(var(--foreground))] focus:outline-none cursor-pointer"
-          value={sortBy}
-          onChange={(e) => {
-            setPage(1);
-            setSortBy(e.target.value);
-          }}
-        >
-          <option value="">Sin ordenar</option>
-          {sortableColumns.map((col) => (
-            <option key={col.key} value={col.field}>
-              {col.label}
-            </option>
-          ))}
-        </select>
-        {sortBy && (
-          <button
-            type="button"
-            onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
-            className="h-8 w-8 flex items-center justify-center rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
-            title={sortDir === "asc" ? "Ascendente" : "Descendente"}
-          >
-            {sortDir === "asc" ? (
-              <ArrowUp className="h-3.5 w-3.5" />
-            ) : (
-              <ArrowDown className="h-3.5 w-3.5" />
-            )}
-          </button>
-        )}
-      </div>
-    ) : null;
-
-  const toolbarActions = (
-    <div className="flex items-center gap-2">
-      {!loading && pagination.total > 0 && (
-        <span className="text-xs tabular-nums text-[hsl(var(--muted-foreground))]">
-          {pagination.total} registros
-        </span>
-      )}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-9 w-9 p-0"
-        onClick={() => setReloadTick((c) => c + 1)}
-        title="Recargar"
-      >
-        <RefreshCw className="h-4 w-4" />
-      </Button>
-      {onCreate && (
-        <Button size="sm" onClick={onCreate}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          Agregar
-        </Button>
-      )}
+      {view === "cards"
+        ? renderListView()
+        : view === "grid"
+          ? renderCardGridView()
+          : renderTableView()}
+      {renderPagination()}
     </div>
-  );
-
-  return (
-    <ListLayout
-      storageKey={`atlas.renderer.${apiPath.replace(/\//g, ".")}`}
-      loading={false}
-      error={null}
-      empty={false}
-      search={searchable ? search : undefined}
-      onSearchChange={
-        searchable
-          ? (val) => {
-              setPage(1);
-              setSearch(val);
-            }
-          : undefined
-      }
-      searchPlaceholder={schema?.searchPlaceholder ?? "Buscar..."}
-      views={["table", "cards", "grid"]}
-      defaultView="table"
-      renderTable={renderTableView}
-      renderCards={renderListView}
-      renderGrid={renderCardGridView}
-      filters={filtersJsx}
-      filtersActiveCount={filtersActiveCount}
-      onFiltersClear={() => {
-        setPage(1);
-        setFilterValues({});
-      }}
-      toolbarExtras={sortExtras}
-      actions={toolbarActions}
-      page={page}
-      pageSize={pagination.pageSize}
-      total={pagination.total}
-      onPageChange={(nextPage) => setPage(nextPage)}
-    />
   );
 }
