@@ -38,11 +38,27 @@ function getActorIdFromContext(c) {
   return null
 }
 
-function handleRouteError(c, err, fallbackError) {
+function logRouteError({ route, moduleKey, operation, err }) {
+  if (process.env.NODE_ENV === 'production') return
+  console.error('[custom.fleet] route error', {
+    route,
+    moduleKey,
+    operation,
+    error: {
+      name: err?.name ?? null,
+      message: err?.message ?? null,
+      code: err?.code ?? err?.meta?.code ?? null,
+      meta: err?.meta ?? null,
+      stack: err?.stack ?? null,
+    },
+  })
+}
+
+function handleRouteError(c, err, { fallbackError, route, moduleKey, operation }) {
   if (err instanceof FleetServiceError) {
     return c.json({ error: err.message }, err.status)
   }
-  console.error('[custom.fleet] route error:', err)
+  logRouteError({ route, moduleKey, operation, err })
   return c.json({ error: fallbackError }, 500)
 }
 
@@ -76,7 +92,12 @@ export default function createFleetRouter({ prisma, requirePermission, moduleCon
       })
       return c.json(result)
     } catch (err) {
-      return handleRouteError(c, err, `No se pudieron listar los vehiculos de ${moduleKey}.`)
+      return handleRouteError(c, err, {
+        fallbackError: `No se pudieron listar los vehiculos de ${moduleKey}.`,
+        route: '/fleet/vehicles',
+        moduleKey,
+        operation: 'listVehicles',
+      })
     }
   })
 
@@ -97,7 +118,12 @@ export default function createFleetRouter({ prisma, requirePermission, moduleCon
       })
       return c.json({ data: created }, 201)
     } catch (err) {
-      return handleRouteError(c, err, `No se pudo crear el vehiculo de ${moduleKey}.`)
+      return handleRouteError(c, err, {
+        fallbackError: `No se pudo crear el vehiculo de ${moduleKey}.`,
+        route: '/fleet/vehicles',
+        moduleKey,
+        operation: 'createVehicle',
+      })
     }
   })
 
@@ -108,7 +134,12 @@ export default function createFleetRouter({ prisma, requirePermission, moduleCon
       const row = await service.getVehicle({ companyId, id })
       return c.json({ data: row })
     } catch (err) {
-      return handleRouteError(c, err, `No se pudo obtener el vehiculo de ${moduleKey}.`)
+      return handleRouteError(c, err, {
+        fallbackError: `No se pudo obtener el vehiculo de ${moduleKey}.`,
+        route: '/fleet/vehicles/:id',
+        moduleKey,
+        operation: 'getVehicle',
+      })
     }
   })
 
@@ -131,7 +162,12 @@ export default function createFleetRouter({ prisma, requirePermission, moduleCon
       })
       return c.json({ data: updated })
     } catch (err) {
-      return handleRouteError(c, err, `No se pudo actualizar el vehiculo de ${moduleKey}.`)
+      return handleRouteError(c, err, {
+        fallbackError: `No se pudo actualizar el vehiculo de ${moduleKey}.`,
+        route: '/fleet/vehicles/:id',
+        moduleKey,
+        operation: 'updateVehicle',
+      })
     }
   })
 
@@ -154,7 +190,12 @@ export default function createFleetRouter({ prisma, requirePermission, moduleCon
       })
       return c.json({ data: updated })
     } catch (err) {
-      return handleRouteError(c, err, `No se pudo actualizar el estado del vehiculo de ${moduleKey}.`)
+      return handleRouteError(c, err, {
+        fallbackError: `No se pudo actualizar el estado del vehiculo de ${moduleKey}.`,
+        route: '/fleet/vehicles/:id/enabled',
+        moduleKey,
+        operation: 'setVehicleEnabled',
+      })
     }
   })
 
@@ -173,7 +214,12 @@ export default function createFleetRouter({ prisma, requirePermission, moduleCon
       })
       return c.json(result)
     } catch (err) {
-      return handleRouteError(c, err, `No se pudo listar el mantenimiento de ${moduleKey}.`)
+      return handleRouteError(c, err, {
+        fallbackError: `No se pudo listar el mantenimiento de ${moduleKey}.`,
+        route: '/fleet/maintenance',
+        moduleKey,
+        operation: 'listMaintenance',
+      })
     }
   })
 
@@ -194,7 +240,12 @@ export default function createFleetRouter({ prisma, requirePermission, moduleCon
       })
       return c.json({ data: created }, 201)
     } catch (err) {
-      return handleRouteError(c, err, `No se pudo crear el mantenimiento de ${moduleKey}.`)
+      return handleRouteError(c, err, {
+        fallbackError: `No se pudo crear el mantenimiento de ${moduleKey}.`,
+        route: '/fleet/maintenance',
+        moduleKey,
+        operation: 'createMaintenance',
+      })
     }
   })
 
@@ -205,7 +256,12 @@ export default function createFleetRouter({ prisma, requirePermission, moduleCon
       const row = await service.getMaintenance({ companyId, id })
       return c.json({ data: row })
     } catch (err) {
-      return handleRouteError(c, err, `No se pudo obtener el mantenimiento de ${moduleKey}.`)
+      return handleRouteError(c, err, {
+        fallbackError: `No se pudo obtener el mantenimiento de ${moduleKey}.`,
+        route: '/fleet/maintenance/:id',
+        moduleKey,
+        operation: 'getMaintenance',
+      })
     }
   })
 
@@ -228,7 +284,12 @@ export default function createFleetRouter({ prisma, requirePermission, moduleCon
       })
       return c.json({ data: updated })
     } catch (err) {
-      return handleRouteError(c, err, `No se pudo actualizar el mantenimiento de ${moduleKey}.`)
+      return handleRouteError(c, err, {
+        fallbackError: `No se pudo actualizar el mantenimiento de ${moduleKey}.`,
+        route: '/fleet/maintenance/:id',
+        moduleKey,
+        operation: 'updateMaintenance',
+      })
     }
   })
 
@@ -251,7 +312,12 @@ export default function createFleetRouter({ prisma, requirePermission, moduleCon
       })
       return c.json({ data: updated })
     } catch (err) {
-      return handleRouteError(c, err, `No se pudo actualizar el estado del mantenimiento de ${moduleKey}.`)
+      return handleRouteError(c, err, {
+        fallbackError: `No se pudo actualizar el estado del mantenimiento de ${moduleKey}.`,
+        route: '/fleet/maintenance/:id/enabled',
+        moduleKey,
+        operation: 'setMaintenanceEnabled',
+      })
     }
   })
 

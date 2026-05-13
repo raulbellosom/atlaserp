@@ -79,6 +79,14 @@ function toScopedCompanyUuid(companyId) {
   return `${p1}-${p2}-${p3}-${p4}-${p5}`
 }
 
+function normalizeRecordId(id, notFoundMessage) {
+  const value = String(id ?? '').trim()
+  if (!UUID_REGEX.test(value)) {
+    throw new FleetServiceError(notFoundMessage, 404)
+  }
+  return value.toLowerCase()
+}
+
 function isTableNotFoundError(error) {
   const codes = [
     error?.code,
@@ -101,9 +109,20 @@ function isUniqueViolation(error) {
     error?.code,
     error?.meta?.code,
     error?.cause?.code,
+    error?.cause?.originalCode,
     error?.originalError?.code,
+    error?.meta?.driverAdapterError?.cause?.code,
+    error?.meta?.driverAdapterError?.cause?.originalCode,
   ]
-  return codes.includes('23505')
+    .map((value) => (value === undefined || value === null ? null : String(value)))
+    .filter(Boolean)
+
+  if (codes.includes('23505')) return true
+
+  const message = String(error?.message ?? '').toLowerCase()
+  if (message.includes('duplicate key value violates unique constraint')) return true
+
+  return false
 }
 
 function toCount(value) {
@@ -229,11 +248,12 @@ export function createFleetService({ prisma }) {
 
   async function getVehicle({ companyId, id }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
+    const safeId = normalizeRecordId(id, 'Vehiculo no encontrado.')
     const row = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
         SELECT *
         FROM fleet_vehicle
-        WHERE id = ${id}
+        WHERE id = ${safeId}
           AND company_id = ${safeCompanyId}
         LIMIT 1
       `
@@ -298,6 +318,7 @@ export function createFleetService({ prisma }) {
 
   async function updateVehicle({ companyId, id, data, actorId }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
+    const safeId = normalizeRecordId(id, 'Vehiculo no encontrado.')
     const payload = normalizeVehiclePayload(data)
 
     const hasPlate = hasOwn(payload, 'plate') && payload.plate !== undefined
@@ -323,7 +344,7 @@ export function createFleetService({ prisma }) {
       throw new FleetServiceError('No hay campos validos para actualizar.', 400)
     }
 
-    const before = await getVehicle({ companyId: safeCompanyId, id })
+    const before = await getVehicle({ companyId: safeCompanyId, id: safeId })
 
     try {
       const updated = await withDbErrorMapping(async () => {
@@ -338,7 +359,7 @@ export function createFleetService({ prisma }) {
               driver_id = CASE WHEN ${hasDriverId} THEN ${payload.driver_id ?? null} ELSE driver_id END,
               notes = CASE WHEN ${hasNotes} THEN ${payload.notes ?? null} ELSE notes END,
               updated_at = now()
-          WHERE id = ${id}
+          WHERE id = ${safeId}
             AND company_id = ${safeCompanyId}
           RETURNING *
         `
@@ -367,14 +388,15 @@ export function createFleetService({ prisma }) {
 
   async function setVehicleEnabled({ companyId, id, enabled, actorId }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
-    const before = await getVehicle({ companyId: safeCompanyId, id })
+    const safeId = normalizeRecordId(id, 'Vehiculo no encontrado.')
+    const before = await getVehicle({ companyId: safeCompanyId, id: safeId })
 
     const updated = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
         UPDATE fleet_vehicle
         SET enabled = ${Boolean(enabled)},
             updated_at = now()
-        WHERE id = ${id}
+        WHERE id = ${safeId}
           AND company_id = ${safeCompanyId}
         RETURNING *
       `
@@ -432,11 +454,12 @@ export function createFleetService({ prisma }) {
 
   async function getMaintenance({ companyId, id }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
+    const safeId = normalizeRecordId(id, 'Mantenimiento no encontrado.')
     const row = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
         SELECT *
         FROM fleet_maintenance
-        WHERE id = ${id}
+        WHERE id = ${safeId}
           AND company_id = ${safeCompanyId}
         LIMIT 1
       `
@@ -492,6 +515,7 @@ export function createFleetService({ prisma }) {
 
   async function updateMaintenance({ companyId, id, data, actorId }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
+    const safeId = normalizeRecordId(id, 'Mantenimiento no encontrado.')
     const payload = normalizeMaintenancePayload(data)
 
     const hasVehicleId = hasOwn(payload, 'vehicle_id') && payload.vehicle_id !== undefined
@@ -515,7 +539,7 @@ export function createFleetService({ prisma }) {
       throw new FleetServiceError('No hay campos validos para actualizar.', 400)
     }
 
-    const before = await getMaintenance({ companyId: safeCompanyId, id })
+    const before = await getMaintenance({ companyId: safeCompanyId, id: safeId })
 
     const updated = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
@@ -528,7 +552,7 @@ export function createFleetService({ prisma }) {
             cost = CASE WHEN ${hasCost} THEN ${payload.cost ?? null} ELSE cost END,
             notes = CASE WHEN ${hasNotes} THEN ${payload.notes ?? null} ELSE notes END,
             updated_at = now()
-        WHERE id = ${id}
+        WHERE id = ${safeId}
           AND company_id = ${safeCompanyId}
         RETURNING *
       `
@@ -551,6 +575,7 @@ export function createFleetService({ prisma }) {
 
   async function setMaintenanceEnabled({ companyId, id, enabled, actorId }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
+    const safeId = normalizeRecordId(id, 'Mantenimiento no encontrado.')
     const supportsEnabled = await getMaintenanceEnabledColumnSupport()
 
     if (!supportsEnabled) {
@@ -560,14 +585,14 @@ export function createFleetService({ prisma }) {
       )
     }
 
-    const before = await getMaintenance({ companyId: safeCompanyId, id })
+    const before = await getMaintenance({ companyId: safeCompanyId, id: safeId })
 
     const updated = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
         UPDATE fleet_maintenance
         SET enabled = ${Boolean(enabled)},
             updated_at = now()
-        WHERE id = ${id}
+        WHERE id = ${safeId}
           AND company_id = ${safeCompanyId}
         RETURNING *
       `
