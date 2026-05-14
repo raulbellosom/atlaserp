@@ -305,16 +305,16 @@ Verified: 2026-05-09 (node --check 13 source files — all pass; node --test 4 t
 - [ ] *Spec approved* → Module-local validators auto-discovered from `validators/index.js` (no `packages/validators/` edit required)
 - [ ] *Spec approved* → `@atlas/module-engine` ships with `defineAtlasModule`, `defineModel`, `defineView`, `definePage`
 
-### AME3 Phase 3 — Atlas ORM and Blueprint Renderer
+### AME3 Phase 3 — Atlas ORM and Blueprint Renderer [COMPLETE]
 
-**Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-atlas-orm-blueprint-renderer.md`  
-**Required plan:** `docs/superpowers/plans/YYYY-MM-DD-ame3-atlas-orm-blueprint-renderer.md`
+**Spec:** `docs/superpowers/specs/2026-05-10-ame3-atlas-orm-blueprint-renderer-design.md`  
+**Plan:** `docs/superpowers/plans/2026-05-10-ame3-atlas-orm-blueprint-renderer.md`
 
-- [ ] *Spec approved* → Add `AtlasModel`, `AtlasField`, `AtlasView`, `ModuleMigration` to `prisma/schema.prisma`
-- [ ] *Spec approved* → Atlas ORM: provisions `atlas_*` tables from `defineModel` declarations, forward-only
-- [ ] *Spec approved* → Blueprint renderer: `AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`
-- [ ] *Spec approved* → Component Registry: `registry.register(key, component)` from module `components/index.js`
-- [ ] *Spec approved* → First full AME3 module end-to-end: zero Prisma edits, zero manual route mounting, zero manual screen registration
+- [x] Add `AtlasModel`, `AtlasField`, `AtlasView`, `ModuleMigration` to `prisma/schema.prisma` — Verified: 2026-05-13 (migration applied, tables confirmed)
+- [x] Atlas ORM: provisions `atlas_*` tables from `defineModel` declarations, forward-only — Verified: 2026-05-13 (`fleet_vehicle`, `fleet_maintenance` provisioned by ORM hook)
+- [x] Blueprint renderer: `AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`, `AtlasCardView`, `AtlasTableToolbar`, `AtlasSortMenu` — Verified: 2026-05-13 (build passes, browser renders list/detail/form)
+- [x] Component Registry: `registry.register(key, component)` from module `components/index.js` — Verified: 2026-05-13 (route-loader-service loads components on boot)
+- [x] First full AME3 module end-to-end: zero Prisma edits, zero manual route mounting, zero manual screen registration — Verified: 2026-05-13 (`custom.fleet` installs, provisions tables, mounts routes, and renders via `BlueprintCrudScreen` fallback with no hardcoded SCREEN_MAP entry)
 
 ### AME3 Phase 4 — Discovery as Primary Source
 

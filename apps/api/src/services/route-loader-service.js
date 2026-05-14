@@ -170,6 +170,30 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     })
   }
 
+  async function markModuleRouteLoaded(moduleKey, apiPath) {
+    const mod = await prisma.atlasModule.findUnique({
+      where: { key: moduleKey },
+      select: { lifecycleConfig: true },
+    })
+    if (!mod) return
+    const lifecycleConfig = toPlainObject(mod.lifecycleConfig)
+    const existing = toPlainObject(lifecycleConfig.routeLoader)
+    if (existing.status === 'LOADED') return
+    await prisma.atlasModule.update({
+      where: { key: moduleKey },
+      data: {
+        lifecycleConfig: {
+          ...lifecycleConfig,
+          routeLoader: {
+            status: 'LOADED',
+            apiPath,
+            loadedAt: new Date().toISOString(),
+          },
+        },
+      },
+    })
+  }
+
   function wrapWithAuth(moduleRouter) {
     const securedRouter = new Hono()
     securedRouter.use('*', authMiddleware)
@@ -221,6 +245,9 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     })
 
     setModuleRouteStatus(moduleKey, 'LOADED', { apiPath })
+    markModuleRouteLoaded(moduleKey, apiPath).catch((err) => {
+      console.error(`[route-loader] failed to persist LOADED status for ${moduleKey}:`, err.message)
+    })
     return { loaded: true, reason: 'ok' }
   }
 
