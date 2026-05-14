@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
@@ -15,7 +15,7 @@ import {
 import { AtlasDetail } from "./AtlasDetail.jsx";
 import { AtlasForm } from "./AtlasForm.jsx";
 import { AtlasTable } from "./AtlasTable.jsx";
-import { shouldUsePageMode } from "./renderer-adapters.js";
+import { shouldUsePageMode, resolveAccentColor } from "./renderer-adapters.js";
 
 const MODES = new Set(["list", "create", "detail", "edit"]);
 
@@ -65,6 +65,7 @@ export function AtlasCrudView({
   suppressToolbarCreate = false,
   initialMode = "list",
   recordId = null,
+  module = null,
   onNavigate,
   onCreateSuccess,
   onEditSuccess,
@@ -72,6 +73,7 @@ export function AtlasCrudView({
 }) {
   const tableApiPath = getApiPath(tableBlueprint);
   const resolvedInitialMode = MODES.has(initialMode) ? initialMode : "list";
+  const accentColor = resolveAccentColor(module, tableBlueprint);
 
   const currentFormBlueprint = formBlueprint ?? tableBlueprint;
   const currentDetailBlueprint = detailBlueprint ?? tableBlueprint;
@@ -105,9 +107,14 @@ export function AtlasCrudView({
     setActiveRecordId(recordId ?? null);
   }, [recordId]);
 
+  const onNavigateRef = useRef(onNavigate);
   useEffect(() => {
-    onNavigate?.({ mode, recordId: activeRecordId ?? null });
-  }, [activeRecordId, mode, onNavigate]);
+    onNavigateRef.current = onNavigate;
+  });
+
+  useEffect(() => {
+    onNavigateRef.current?.({ mode, recordId: activeRecordId ?? null });
+  }, [activeRecordId, mode]);
 
   const fetchRecord = useCallback(
     async (nextRecordId) => {
@@ -310,10 +317,17 @@ export function AtlasCrudView({
                   "Detalle"
                 }
                 actions={
-                  <Button variant="outline" size="sm" onClick={goToList}>
-                    <ArrowLeft className="mr-1.5 h-4 w-4" />
-                    Volver
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={goToList}>
+                      <ArrowLeft className="mr-1.5 h-4 w-4" />
+                      Volver
+                    </Button>
+                    {currentFormBlueprint && (
+                      <Button size="sm" onClick={() => setMode("edit")}>
+                        Editar
+                      </Button>
+                    )}
+                  </div>
                 }
               />
               {renderRecordLoadingOrError() ??
@@ -322,10 +336,7 @@ export function AtlasCrudView({
                     blueprint={currentDetailBlueprint}
                     fields={fields}
                     data={recordData}
-                    onBack={goToList}
-                    onEdit={
-                      currentFormBlueprint ? () => setMode("edit") : undefined
-                    }
+                    accentColor={accentColor}
                   />
                 ))}
             </>
@@ -373,6 +384,7 @@ export function AtlasCrudView({
             token={token}
             apiBaseUrl={apiBaseUrl}
             componentRegistry={componentRegistry}
+            accentColor={accentColor}
             onCreate={
               !suppressToolbarCreate && currentFormBlueprint
                 ? openCreate
@@ -387,7 +399,7 @@ export function AtlasCrudView({
           <Sheet
             open={shouldOpenSheet}
             onOpenChange={(open) => {
-              if (!open) goToList();
+              if (!open && !pageMode) goToList();
             }}
           >
             <SheetContent side="right" className="w-full sm:max-w-2xl">
@@ -433,7 +445,7 @@ export function AtlasCrudView({
                           blueprint={currentDetailBlueprint}
                           fields={fields}
                           data={recordData}
-                          onBack={goToList}
+                          accentColor={accentColor}
                           onEdit={
                             currentFormBlueprint
                               ? () => setMode("edit")

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Package, Plus } from "lucide-react";
@@ -287,6 +287,9 @@ export function BlueprintCrudScreen() {
     [module, routeInfo.entitySegment, routeInfo.moduleRoutePath],
   );
 
+  const locationPathnameRef = useRef(location.pathname);
+  locationPathnameRef.current = location.pathname;
+
   const handleNavigate = useCallback(
     ({ mode, recordId }) => {
       const entity =
@@ -303,12 +306,11 @@ export function BlueprintCrudScreen() {
         if (mode === "edit") targetPath = `${targetPath}/edit`;
       }
 
-      if (targetPath !== location.pathname) {
+      if (targetPath !== locationPathnameRef.current) {
         navigate(targetPath, { replace: true });
       }
     },
     [
-      location.pathname,
       moduleKey,
       navigate,
       routeInfo.entitySegment,
@@ -477,6 +479,7 @@ export function BlueprintCrudScreen() {
           token={token}
           apiBaseUrl={API_BASE_URL}
           componentRegistry={componentRegistry}
+          module={module}
           suppressToolbarCreate
           initialMode={routeInfo.initialMode}
           recordId={routeInfo.recordId}

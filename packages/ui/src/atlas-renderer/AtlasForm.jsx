@@ -9,6 +9,28 @@ import {
   PhoneField,
   SwitchField,
 } from "../components/FormFields.jsx";
+import { normalizeSpanishLabel } from "./renderer-adapters.js";
+
+const STATUS_LABELS = {
+  active: "Activo",
+  inactive: "Inactivo",
+  maintenance: "En mantenimiento",
+  retired: "Retirado",
+  pending: "Pendiente",
+  disabled: "Desactivado",
+};
+
+const PRESET_COLORS = [
+  { label: "Azul", value: "#2563eb" },
+  { label: "Rojo", value: "#dc2626" },
+  { label: "Verde", value: "#16a34a" },
+  { label: "Amarillo", value: "#ca8a04" },
+  { label: "Gris", value: "#6b7280" },
+  { label: "Negro", value: "#111827" },
+  { label: "Blanco", value: "#f9fafb" },
+];
+
+const TEXT_TYPES = new Set(["text", "email", "phone", "textarea", "markdown"]);
 
 function joinUrl(baseUrl, apiPath) {
   const base = String(baseUrl ?? "").trim().replace(/\/+$/, "");
@@ -23,7 +45,7 @@ function normalizeField(fieldLike) {
   if (!name) return null;
   return {
     name: String(name),
-    label: fieldLike.label ?? String(name),
+    label: normalizeSpanishLabel(fieldLike.label ?? String(name)),
     type: fieldLike.type ?? "text",
     required: Boolean(fieldLike.required),
     readonly: Boolean(fieldLike.readonly),
@@ -78,12 +100,16 @@ function normalizeSections(schema, fieldMap) {
 
       return {
         id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
-        title: entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`,
-        columns: Number(entry.columns) === 2 ? 2 : 1,
+        title: normalizeSpanishLabel(entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`),
+        columns: entry.columns === 1 ? 1 : (Number(entry.columns) === 2 ? 2 : "auto"),
         fields: uniqueFields,
       };
     })
     .filter(Boolean);
+}
+
+function resolveOptionLabel(rawLabel) {
+  return STATUS_LABELS[String(rawLabel).toLowerCase()] ?? normalizeSpanishLabel(String(rawLabel));
 }
 
 function normalizeOptions(rawOptions) {
@@ -93,9 +119,9 @@ function normalizeOptions(rawOptions) {
       if (entry && typeof entry === "object") {
         const value = entry.value ?? entry.key ?? entry.id ?? entry.code;
         if (value === undefined || value === null) return null;
-        return { value: String(value), label: String(entry.label ?? entry.name ?? value) };
+        return { value: String(value), label: resolveOptionLabel(entry.label ?? entry.name ?? value) };
       }
-      return { value: String(entry), label: String(entry) };
+      return { value: String(entry), label: resolveOptionLabel(entry) };
     })
     .filter(Boolean);
 }
@@ -115,14 +141,16 @@ function buildInitialValues(fieldMap, initialData) {
 
 function castValueByType(value, type) {
   if (type === "boolean") return Boolean(value);
-  if (value === "" || value === null || value === undefined) return null;
+  if (value === "" || value === null || value === undefined) {
+    return TEXT_TYPES.has(type) ? "" : null;
+  }
   if (type === "number") {
     const parsed = Number.parseInt(String(value), 10);
-    return Number.isFinite(parsed) ? parsed : value;
+    return Number.isFinite(parsed) ? parsed : null;
   }
   if (type === "decimal") {
     const parsed = Number.parseFloat(String(value));
-    return Number.isFinite(parsed) ? parsed : value;
+    return Number.isFinite(parsed) ? parsed : null;
   }
   return value;
 }
@@ -143,7 +171,7 @@ export function AtlasForm({
 }) {
   const schema = blueprint?.schema ?? {};
   const apiPath = typeof schema.apiPath === "string" ? schema.apiPath.trim() : "";
-  const submitLabel = String(schema?.submitLabel ?? "").trim() || "Guardar";
+  const submitLabel = normalizeSpanishLabel(String(schema?.submitLabel ?? "").trim() || "Guardar");
 
   const fieldMap = useMemo(() => {
     const map = new Map();
@@ -216,11 +244,15 @@ export function AtlasForm({
     for (const [name, field] of fieldMap.entries()) {
       if (field.readonly) continue;
       const casted = castValueByType(formValues[name], field.type);
-      if (casted === null) {
-        if (field.type === "select") continue;
-        payload[name] = null;
+      if (field.type === "boolean") {
+        payload[name] = Boolean(casted);
         continue;
       }
+      if (field.type === "relation") {
+        payload[name] = casted === "" ? null : casted;
+        continue;
+      }
+      if (casted === null || casted === "") continue;
       payload[name] = casted;
     }
     setSubmitting(true);
@@ -375,15 +407,59 @@ export function AtlasForm({
           />
         );
 
-      case "color":
+      case "color": {
+        const current = (value && String(value).startsWith("#")) ? String(value) : "#111827";
         return (
-          <TextField
-            {...sharedProps}
-            type="color"
-            value={value || "#000000"}
-            onChange={(e) => handleChange(field.name, e.target.value)}
-          />
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium text-[hsl(var(--foreground))]">
+              {field.label}{field.required ? " *" : ""}
+            </p>
+            <div className="flex flex-wrap gap-2 items-center">
+              {PRESET_COLORS.map((preset) => {
+                const isActive = current.toLowerCase() === preset.value.toLowerCase();
+                return (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    title={preset.label}
+                    onClick={() => handleChange(field.name, preset.value)}
+                    style={{ backgroundColor: preset.value }}
+                    className={[
+                      "h-8 w-8 rounded-full border-2 transition-all",
+                      isActive
+                        ? "border-[hsl(var(--primary))] ring-2 ring-[hsl(var(--primary))]/30 scale-110"
+                        : "border-[hsl(var(--border))] hover:scale-105",
+                    ].join(" ")}
+                    aria-label={preset.label}
+                  />
+                );
+              })}
+              <label className="relative cursor-pointer" title="Personalizado">
+                <div
+                  style={{ backgroundColor: current }}
+                  className="h-8 w-8 rounded-full border-2 border-dashed border-[hsl(var(--border))] flex items-center justify-center overflow-hidden"
+                >
+                  <span
+                    className="text-[8px] font-bold select-none"
+                    style={{ color: current === "#f9fafb" ? "#333" : "#fff" }}
+                  >
+                    P
+                  </span>
+                </div>
+                <input
+                  type="color"
+                  value={current}
+                  onChange={(e) => handleChange(field.name, e.target.value)}
+                  className="sr-only"
+                />
+              </label>
+            </div>
+            {fieldErrors[field.name] && (
+              <p className="text-xs text-[hsl(var(--destructive))]">{fieldErrors[field.name]}</p>
+            )}
+          </div>
         );
+      }
 
       case "relation":
         return (
@@ -427,12 +503,21 @@ export function AtlasForm({
           <h4 className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
             {section.title}
           </h4>
-          <div className={section.columns === 2 ? "grid gap-4 md:grid-cols-2" : "grid gap-4"}>
+          <div
+            className={
+              section.columns === 1
+                ? "grid gap-4"
+                : section.columns === 2
+                ? "grid gap-4 md:grid-cols-2"
+                : "grid gap-4 lg:grid-cols-2"
+            }
+          >
             {section.fields.map((fieldName) => {
               const field = fieldMap.get(fieldName);
               if (!field) return null;
+              const isFullWidth = ["textarea", "markdown", "relation"].includes(field.type);
               return (
-                <div key={field.name}>
+                <div key={field.name} className={isFullWidth ? "col-span-full" : ""}>
                   {renderFieldControl(field)}
                 </div>
               );

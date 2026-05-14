@@ -1,5 +1,24 @@
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
+import { normalizeSpanishLabel } from "./renderer-adapters.js";
+
+const STATUS_LABELS = {
+  active: "Activo",
+  inactive: "Inactivo",
+  maintenance: "En mantenimiento",
+  retired: "Retirado",
+  pending: "Pendiente",
+  disabled: "Desactivado",
+};
+
+const STATUS_COLORS = {
+  active: "bg-green-500/15 text-green-700 dark:text-green-400",
+  inactive: "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]",
+  maintenance: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400",
+  retired: "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]",
+  pending: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
+  disabled: "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]",
+};
 
 function normalizeField(fieldLike) {
   if (!fieldLike || typeof fieldLike !== "object") return null;
@@ -7,7 +26,7 @@ function normalizeField(fieldLike) {
   if (!name) return null;
   return {
     name: String(name),
-    label: fieldLike.label ?? String(name),
+    label: normalizeSpanishLabel(fieldLike.label ?? String(name)),
     type: fieldLike.type ?? "text",
   };
 }
@@ -58,10 +77,13 @@ function normalizeSections(schema, fieldMap) {
         if (!fieldNames.includes(name)) fieldNames.push(name);
       }
 
+      const cols = Number(entry.columns);
+      const columns = cols === 1 ? 1 : cols === 2 ? 2 : "auto";
+
       return {
         id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
-        title: entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`,
-        columns: Number(entry.columns) === 2 ? 2 : 1,
+        title: normalizeSpanishLabel(entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`),
+        columns,
         fields: fieldNames,
       };
     })
@@ -85,7 +107,24 @@ function renderValue(field, value) {
   }
 
   if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+  const str = String(value);
+  const lower = str.toLowerCase();
+  const label = STATUS_LABELS[lower];
+  if (label) {
+    const chipClass = STATUS_COLORS[lower] ?? "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]";
+    return (
+      <span className={`inline-block text-xs font-medium rounded-full px-2.5 py-0.5 ${chipClass}`}>
+        {label}
+      </span>
+    );
+  }
+  return str;
+}
+
+function gridClass(columns) {
+  if (columns === 1) return "grid gap-4";
+  if (columns === 2) return "grid gap-4 md:grid-cols-2";
+  return "grid gap-4 lg:grid-cols-2";
 }
 
 export function AtlasDetail({ blueprint, fields, data, onEdit, onBack }) {
@@ -104,16 +143,20 @@ export function AtlasDetail({ blueprint, fields, data, onEdit, onBack }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end gap-2">
-        <Button type="button" variant="outline" onClick={() => onBack?.()}>
-          Volver
-        </Button>
-        {onEdit && (
-          <Button type="button" onClick={() => onEdit?.(data)}>
-            Editar
-          </Button>
-        )}
-      </div>
+      {(onBack || onEdit) && (
+        <div className="flex items-center justify-end gap-2">
+          {onBack && (
+            <Button type="button" variant="outline" onClick={() => onBack?.()}>
+              Volver
+            </Button>
+          )}
+          {onEdit && (
+            <Button type="button" onClick={() => onEdit?.(data)}>
+              Editar
+            </Button>
+          )}
+        </div>
+      )}
 
       {sections.length === 0 && (
         <Alert variant="warning">
@@ -132,7 +175,7 @@ export function AtlasDetail({ blueprint, fields, data, onEdit, onBack }) {
           <h4 className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
             {section.title}
           </h4>
-          <dl className={section.columns === 2 ? "grid gap-4 md:grid-cols-2" : "grid gap-4"}>
+          <dl className={gridClass(section.columns)}>
             {section.fields.map((fieldName) => {
               const field = fieldMap.get(fieldName);
               if (!field) return null;

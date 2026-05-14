@@ -2,11 +2,21 @@ import { Eye, Pencil, Trash2 } from "lucide-react";
 import { Checkbox } from "../components/Checkbox.jsx";
 import { ActionMenu } from "../components/ActionMenu.jsx";
 
+const STATUS_LABELS = {
+  active: "Activo",
+  inactive: "Inactivo",
+  maintenance: "En mantenimiento",
+  retired: "Retirado",
+  pending: "Pendiente",
+  disabled: "Desactivado",
+};
+
 function renderValue(value) {
   if (value === undefined || value === null || value === "") return "—";
   if (typeof value === "boolean") return value ? "Sí" : "No";
   if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+  const str = String(value);
+  return STATUS_LABELS[str.toLowerCase()] ?? str;
 }
 
 export function AtlasCardView({
@@ -18,6 +28,7 @@ export function AtlasCardView({
   viewActionLabel = "Ver",
   editActionLabel = "Editar",
   deleteActionLabel = "Eliminar",
+  accentColor = null,
   onView,
   onEdit,
   onDelete,
@@ -64,8 +75,16 @@ export function AtlasCardView({
                   className="mt-0.5 shrink-0"
                 />
               )}
-              <div className="h-10 w-10 rounded-xl bg-[hsl(var(--muted))] flex items-center justify-center shrink-0">
-                <span className="text-sm font-semibold text-[hsl(var(--muted-foreground))]">
+              <div
+                className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{
+                  backgroundColor: accentColor ? `${accentColor}26` : "hsl(var(--muted))",
+                }}
+              >
+                <span
+                  className="text-sm font-semibold"
+                  style={{ color: accentColor ?? "hsl(var(--muted-foreground))" }}
+                >
                   {initials}
                 </span>
               </div>

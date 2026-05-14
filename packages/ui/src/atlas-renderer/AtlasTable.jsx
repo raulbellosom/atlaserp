@@ -52,7 +52,9 @@ function getByPath(input, path) {
 
 function normalizeColumns(schema) {
   const rawColumns = Array.isArray(schema?.columns) ? schema.columns : [];
-  return rawColumns
+  const primaryFieldName = schema?.primaryField ?? schema?.recordTitleField ?? null;
+
+  const cols = rawColumns
     .map((entry) => {
       if (typeof entry === "string") {
         return {
@@ -61,22 +63,35 @@ function normalizeColumns(schema) {
           label: entry,
           component: null,
           sortable: false,
+          isLink: primaryFieldName === entry,
         };
       }
       if (!entry || typeof entry !== "object") return null;
       const field = entry.field ?? entry.key ?? entry.name ?? null;
       if (!field) return null;
+      const fieldStr = String(field);
+      const isLink =
+        Boolean(entry.primary) ||
+        Boolean(entry.link) ||
+        (primaryFieldName !== null && fieldStr === primaryFieldName);
       return {
-        key: String(field),
-        field: String(field),
+        key: fieldStr,
+        field: fieldStr,
         label: normalizeSpanishLabel(
-          entry.label ?? entry.title ?? String(field),
+          entry.label ?? entry.title ?? fieldStr,
         ),
         component: entry.component ?? null,
         sortable: Boolean(entry.sortable),
+        isLink,
       };
     })
     .filter(Boolean);
+
+  if (cols.length > 0 && !cols.some((c) => c.isLink)) {
+    cols[0] = { ...cols[0], isLink: true };
+  }
+
+  return cols;
 }
 
 function normalizeFilters(schema) {
@@ -134,11 +149,21 @@ function readPagination(payload, fallbackPage, fallbackPageSize, dataLength) {
   };
 }
 
+const STATUS_LABELS = {
+  active: "Activo",
+  inactive: "Inactivo",
+  maintenance: "En mantenimiento",
+  retired: "Retirado",
+  pending: "Pendiente",
+  disabled: "Desactivado",
+};
+
 function renderValue(value) {
   if (value === undefined || value === null || value === "") return "—";
   if (typeof value === "boolean") return value ? "Sí" : "No";
   if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+  const str = String(value);
+  return STATUS_LABELS[str.toLowerCase()] ?? str;
 }
 
 export function AtlasTable({
@@ -146,6 +171,7 @@ export function AtlasTable({
   token,
   apiBaseUrl,
   componentRegistry = null,
+  accentColor = null,
   onCreate,
   onView,
   onEdit,
@@ -165,7 +191,7 @@ export function AtlasTable({
     () => columns.filter((c) => c.sortable),
     [columns],
   );
-  const searchable = schema.searchable === true;
+  const searchable = schema.searchable !== false && columns.length > 0;
   const defaultPageSize = Number.isFinite(
     Number(schema?.pagination?.defaultPageSize),
   )
@@ -388,7 +414,7 @@ export function AtlasTable({
         <EmptyState
           title="Sin registros"
           description={
-            schema?.emptyState?.message ?? "No hay registros para mostrar."
+            normalizeSpanishLabel(schema?.emptyState?.message ?? "No hay registros para mostrar.")
           }
           action={
             onCreate ? { label: "Agregar", onClick: onCreate } : undefined
@@ -447,6 +473,16 @@ export function AtlasTable({
                         <Comp {...{ [col.field]: value, value, row }} />
                       ) : (
                         renderValue(value)
+                      );
+                    } else if (col.isLink && onView && !col.component) {
+                      cellContent = (
+                        <button
+                          type="button"
+                          onClick={() => onView(row)}
+                          className="text-left font-medium hover:underline focus:outline-none focus-visible:underline"
+                        >
+                          {renderValue(value)}
+                        </button>
                       );
                     } else {
                       cellContent = renderValue(value);
@@ -518,7 +554,7 @@ export function AtlasTable({
         <EmptyState
           title="Sin registros"
           description={
-            schema?.emptyState?.message ?? "No hay registros para mostrar."
+            normalizeSpanishLabel(schema?.emptyState?.message ?? "No hay registros para mostrar.")
           }
           action={
             onCreate ? { label: "Agregar", onClick: onCreate } : undefined
@@ -552,8 +588,16 @@ export function AtlasTable({
                 aria-label="Seleccionar"
                 className="shrink-0"
               />
-              <div className="h-9 w-9 rounded-xl bg-[hsl(var(--muted))] flex items-center justify-center shrink-0">
-                <span className="text-sm font-semibold text-[hsl(var(--muted-foreground))]">
+              <div
+                className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
+                style={{
+                  backgroundColor: accentColor ? `${accentColor}26` : "hsl(var(--muted))",
+                }}
+              >
+                <span
+                  className="text-sm font-semibold"
+                  style={{ color: accentColor ?? "hsl(var(--muted-foreground))" }}
+                >
                   {initials}
                 </span>
               </div>
@@ -635,7 +679,7 @@ export function AtlasTable({
         <EmptyState
           title="Sin registros"
           description={
-            schema?.emptyState?.message ?? "No hay registros para mostrar."
+            normalizeSpanishLabel(schema?.emptyState?.message ?? "No hay registros para mostrar.")
           }
           action={
             onCreate ? { label: "Agregar", onClick: onCreate } : undefined
@@ -654,6 +698,7 @@ export function AtlasTable({
         viewActionLabel={viewActionLabel}
         editActionLabel={editActionLabel}
         deleteActionLabel={deleteActionLabel}
+        accentColor={accentColor}
         onView={onView}
         onEdit={onEdit}
         onDelete={onDelete}
@@ -740,7 +785,6 @@ export function AtlasTable({
         onClearSelection={() => setSelectedIds(new Set())}
         totalCount={pagination.total}
         loading={loading}
-        onCreate={onCreate}
         onReload={() => setReloadTick((c) => c + 1)}
       />
       {view === "cards"

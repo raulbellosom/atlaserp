@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Plus, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 import { Button } from "../components/Button.jsx";
 import { SearchInput } from "../components/SearchInput.jsx";
 import { FilterBar } from "../components/FilterBar.jsx";
@@ -27,7 +27,6 @@ export function AtlasTableToolbar({
   onClearSelection,
   totalCount = 0,
   loading = false,
-  onCreate,
   onReload,
 }) {
   return (
@@ -149,12 +148,6 @@ export function AtlasTableToolbar({
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
-          {onCreate && (
-            <Button size="sm" onClick={onCreate}>
-              <Plus className="mr-1.5 h-4 w-4" />
-              Agregar
-            </Button>
-          )}
         </div>
       </div>
     </div>

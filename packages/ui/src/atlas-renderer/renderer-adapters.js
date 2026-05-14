@@ -63,6 +63,15 @@ export function shouldUsePageMode(schema, fields) {
   return false;
 }
 
+export function resolveAccentColor(module, blueprint) {
+  return (
+    module?.accentColor ??
+    module?.color ??
+    blueprint?.schema?.accentColor ??
+    null
+  );
+}
+
 /**
  * Converts the normalized filter array used by AtlasTable to the FilterBar-compatible
  * format. Only select-type filters with at least one option are included.

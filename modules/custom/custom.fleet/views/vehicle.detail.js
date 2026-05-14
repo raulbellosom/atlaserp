@@ -11,17 +11,14 @@ export default defineView({
     sections: [
       {
         label: 'Informacion general',
+        columns: 2,
         fields: [
           { field: 'plate', label: 'Matricula' },
           { field: 'brand', label: 'Marca' },
           { field: 'model_name', label: 'Modelo' },
           { field: 'year', label: 'Anio' },
           { field: 'color', label: 'Color', type: 'color' },
-          {
-            field: 'status',
-            label: 'Estado',
-            component: 'custom.fleet:VehicleStatusBadge',
-          },
+          { field: 'status', label: 'Estado' },
         ],
       },
       {

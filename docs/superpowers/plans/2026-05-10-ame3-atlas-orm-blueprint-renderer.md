@@ -542,6 +542,8 @@ Task 6 is **complete** under the corrected validation gate.
 
 > **Design-system alignment follow-up (2026-05-13):** Task 6 delivered a functional MVP renderer. Visual production-readiness requires a follow-up phase to replace basic HTML primitives with existing `@atlas/ui` components (`DynamicTable`, `DynamicForm`, `ListLayout`, `FormFields`, `ViewModeSwitch`, `EmptyState`, `ErrorState`, `ActionMenu`, `PageHeader`, `ConfirmDialog`). See the full audit and phased roadmap: `docs/superpowers/decisions/2026-05-13-ame3-renderer-ui-reuse-and-glassic-design.md`
 
+> **Refinement pass (2026-05-13):** Applied a controlled polish pass without replacing renderer internals. (1) `AtlasDetail` — action bar now conditional on `onBack`/`onEdit` props; responsive grid (`lg:grid-cols-2` auto, `md:grid-cols-2` for `columns:2`); status values render as colored chips. (2) `AtlasCrudView` — added `module` prop; detail page-mode `PageHeader` now includes Editar alongside Volver, eliminating the duplicate action bar; accent color threaded via `resolveAccentColor`. (3) `AtlasTable` — primary field link from `schema.primaryField`, `column.link`, or `column.primary`; link cell is a clickable button calling `onView`; list avatars tinted with accent color. (4) `AtlasCardView` — card avatars tinted with accent color. (5) `renderer-adapters.js` — exported `resolveAccentColor(module, blueprint)`. (6) `vehicle.table.js` — added `primaryField: "plate"` and `link: true`. (7) `vehicle.detail.js` — added `columns: 2` to first section. Build: `✓ 1.39s`.
+
 ---
 
 ## Task 6 Follow-up — Renderer Glassic UI Reuse Phase A [COMPLETED]

@@ -8,10 +8,11 @@ export default defineView({
     entity: "vehicle",
     component: "AtlasTable",
     apiPath: "/fleet/vehicles",
+    primaryField: "plate",
     searchable: true,
     searchPlaceholder: "Buscar vehículo...",
     columns: [
-      { field: "plate", label: "Matricula", sortable: true },
+      { field: "plate", label: "Matricula", sortable: true, link: true },
       { field: "brand", label: "Marca", sortable: true },
       { field: "model_name", label: "Modelo", sortable: true },
       { field: "year", label: "Anio", sortable: true },
