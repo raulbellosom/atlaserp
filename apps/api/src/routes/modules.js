@@ -312,9 +312,24 @@ async function syncDiscoveredModuleDependencies({ prisma, moduleKey, dependencie
   }
 }
 
-export function createModulesRouter({ prisma, authMiddleware, requirePermission }) {
+export function createModulesRouter({ prisma, authMiddleware, requirePermission, routeLoader = null }) {
   const app = new Hono()
   const svc = createModuleLifecycleService({ prisma })
+
+  async function safeRouteReload(moduleKey) {
+    if (!routeLoader) return null
+    try {
+      return await routeLoader.reloadModule(moduleKey)
+    } catch (err) {
+      console.error(`[modules] routeLoader.reloadModule(${moduleKey}) failed:`, err.message)
+      return { loaded: false, reason: 'error', error: err.message }
+    }
+  }
+
+  function safeRouteUnload(moduleKey) {
+    if (!routeLoader) return null
+    return routeLoader.unloadModule(moduleKey)
+  }
   const metadataSvc = createModuleMetadataService({ prisma })
   const migrationSvc = createModuleMigrationService({ prisma })
 
@@ -376,7 +391,8 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
       validateManifestAcl(parsed.manifest)
       const actorId = c.get('userContext')?.profile?.id ?? null
       const result = await svc.installModule({ manifest: parsed.manifest, actorId, requestId })
-      return c.json({ data: result }, 201)
+      const rlStatus = await safeRouteReload(moduleKey)
+      return c.json({ data: result, routeLoader: rlStatus }, 201)
     } catch (err) {
       const stage = classifyInstallStage(err)
       const code = err?.code ?? (err instanceof ModuleLifecycleError ? 'LIFECYCLE_ERROR' : 'INTERNAL_ERROR')
@@ -661,7 +677,8 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
     try {
       const actorId = c.get('userContext')?.profile?.id ?? null
       const result = await svc.retryInstallModule({ key, actorId, requestId })
-      return c.json({ data: result })
+      const rlStatus = await safeRouteReload(key)
+      return c.json({ data: result, routeLoader: rlStatus })
     } catch (err) {
       const stage = classifyInstallStage(err)
       const code = err?.code ?? (err instanceof ModuleLifecycleError ? 'LIFECYCLE_ERROR' : 'INTERNAL_ERROR')
@@ -689,6 +706,7 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
         actorId,
         mode: parsed.data.mode,
       })
+      safeRouteUnload(key)
       return c.json({ data: result })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo restaurar el modulo.')
@@ -725,6 +743,7 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
         mode: parsed.data.mode,
         confirmation: parsed.data.confirmation,
       })
+      safeRouteUnload(key)
       return c.json({ data: result })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo limpiar el intento fallido del modulo.')
@@ -736,7 +755,8 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
       const key = c.req.param('key')
       const actorId = c.get('userContext')?.profile?.id ?? null
       const result = await svc.disableModule({ key, actorId })
-      return c.json({ data: result })
+      const rlUnloaded = safeRouteUnload(key)
+      return c.json({ data: result, routeLoader: { unloaded: rlUnloaded ?? false } })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo deshabilitar el modulo.')
     }
@@ -749,7 +769,8 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
       const key = c.req.param('key')
       const actorId = c.get('userContext')?.profile?.id ?? null
       const result = await svc.enableModule({ key, actorId })
-      return c.json({ data: result })
+      const rlStatus = await safeRouteReload(key)
+      return c.json({ data: result, routeLoader: rlStatus })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo habilitar el modulo.')
     }
@@ -764,7 +785,8 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
       const context = c.get('userContext')
       const companyId = context?.memberships?.[0]?.companyId ?? null
       const result = await svc.uninstallModule({ key, mode: 'preserve-data', companyId, actorId })
-      return c.json({ data: result })
+      const rlUnloaded = safeRouteUnload(key)
+      return c.json({ data: result, routeLoader: { unloaded: rlUnloaded ?? false } })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo desinstalar el modulo.')
     }
@@ -806,7 +828,8 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission 
         companyId,
         actorId,
       })
-      return c.json({ data: result })
+      const rlUnloaded = safeRouteUnload(key)
+      return c.json({ data: result, routeLoader: { unloaded: rlUnloaded ?? false } })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo desinstalar el modulo.')
     }

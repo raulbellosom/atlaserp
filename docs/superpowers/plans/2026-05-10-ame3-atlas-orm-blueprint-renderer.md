@@ -187,9 +187,8 @@ Path safety: before importing any module file, the resolved absolute path must s
   const routeLoader = createRouteLoaderService({ prisma, authMiddleware, requirePermission })
   await routeLoader.initialize(app)
   ```
-- [ ] 2.5 Pass `routeLoader` into `createModuleLifecycleService` or make it accessible so `installModule` can call `routeLoader.reloadModule(manifest.key)` after ORM migrations succeed
-- [ ] 2.6 Wire `routeLoader.unloadModule(key)` into `disableModule` and `uninstallModule` in `module-lifecycle-service.js`
-  - Deferred in this Task 2 commit to avoid expanding scope into `apps/api/src/routes/modules.js`; boot-time route loading and fail-soft behavior are fully verified.
+- [x] 2.5 Pass `routeLoader` into `createModulesRouter` (route layer, not lifecycle service) so install/retry-install/enable can call `routeLoader.reloadModule(moduleKey)` after the lifecycle action succeeds — **Completed 2026-05-14**
+- [x] 2.6 Wire `routeLoader.unloadModule(key)` into disable/uninstall/clear-error/cleanup routes so the module is removed from the in-memory router map immediately when the lifecycle action succeeds — **Completed 2026-05-14**
 
 **Validation:**
 
@@ -225,6 +224,102 @@ curl -f http://localhost:4010/health
 **Task 2 notes (delegation limitation):**
 - Runtime route reload/unload wiring from lifecycle actions (`2.5` / `2.6`) is intentionally deferred in this commit to avoid expanding scope into `apps/api/src/routes/modules.js`.
 - Boot-time dynamic route loading, safe skip of missing `api/index.js`, and fail-soft error persistence are fully implemented and validated.
+
+---
+
+## Task 2.5 + 2.6 — Route Loader Lifecycle Wiring [COMPLETED]
+
+**Date:** 2026-05-14
+
+**Goal:** When a module is installed/retried/enabled/disabled/uninstalled/cleared from error, the in-memory Route Loader state must match the database state without requiring API restart.
+
+### DI / Wiring Approach
+
+`routeLoader` is created once in `apps/api/src/index.js` (line 458) before any routes are mounted. It is passed to `createModulesRouter` via the factory parameter bag — **not** into `createModuleLifecycleService` — keeping the dependency direction clean:
+
+```
+index.js
+  └── createRouteLoaderService → routeLoader (created + initialized)
+  └── createModulesRouter({ ..., routeLoader })
+        └── safeRouteReload / safeRouteUnload (local helpers)
+        └── lifecycle service calls (db only)
+        └── route loader calls (in-memory sync)
+```
+
+`module-lifecycle-service.js` remains unchanged — it has no knowledge of the route loader. The route layer orchestrates: DB first, then in-memory sync.
+
+### Helper Functions (inside `createModulesRouter`)
+
+```js
+async function safeRouteReload(moduleKey) {
+  if (!routeLoader) return null
+  try {
+    return await routeLoader.reloadModule(moduleKey)
+  } catch (err) {
+    console.error(`[modules] routeLoader.reloadModule(${moduleKey}) failed:`, err.message)
+    return { loaded: false, reason: 'error', error: err.message }
+  }
+}
+
+function safeRouteUnload(moduleKey) {
+  if (!routeLoader) return null
+  return routeLoader.unloadModule(moduleKey)
+}
+```
+
+`reloadModule` failures do not crash the route handler — they are returned as `routeLoader: { loaded: false, reason: 'error', error: '...' }` in the response. `unloadModule` is synchronous with no throw risk.
+
+### Routes Wired
+
+| Route | Action | Call |
+|---|---|---|
+| `POST /install` | install succeeds | `await safeRouteReload(moduleKey)` → `routeLoader` field in response |
+| `POST /:key/retry-install` | retry succeeds | `await safeRouteReload(key)` → `routeLoader` field in response |
+| `POST /:key/enable` | enable succeeds | `await safeRouteReload(key)` → `routeLoader` field in response |
+| `POST /:key/disable` | disable succeeds | `safeRouteUnload(key)` → `routeLoader: { unloaded: bool }` in response |
+| `DELETE /:key` | uninstall shorthand succeeds | `safeRouteUnload(key)` → `routeLoader: { unloaded: bool }` in response |
+| `POST /:key/uninstall` | uninstall succeeds | `safeRouteUnload(key)` → `routeLoader: { unloaded: bool }` in response |
+| `POST /:key/clear-error` | clear succeeds | `safeRouteUnload(key)` (fire-and-forget, no extra field) |
+| `POST /:key/cleanup` | cleanup succeeds | `safeRouteUnload(key)` (fire-and-forget, no extra field) |
+
+### Files Changed
+
+| File | Change |
+|---|---|
+| `apps/api/src/routes/modules.js` | Added `routeLoader = null` param to `createModulesRouter`; added `safeRouteReload` and `safeRouteUnload` helpers; wired 8 routes |
+| `apps/api/src/index.js` | Passed `routeLoader` into `createModulesRouter` on line 3468 |
+| `apps/api/src/services/module-lifecycle-service.js` | Not touched |
+| `apps/api/src/services/route-loader-service.js` | Not touched |
+
+### Static Validation — 2026-05-14
+
+| Check | Result |
+|---|---|
+| `node --check apps/api/src/routes/modules.js` | PASS |
+| `node --check apps/api/src/services/module-lifecycle-service.js` | PASS |
+| `node --check apps/api/src/services/route-loader-service.js` | PASS |
+| `node --check apps/api/src/index.js` | PASS |
+| `pnpm --filter @atlas/desktop build:web` | PASS (`✓ built in 1.65s`) |
+| Circular import check | PASS — `route-loader-service.js` does not import `routes/modules.js`; `module-lifecycle-service.js` does not import `index.js` |
+| Forbidden files changed | PASS — no Prisma schema, migrations, packages/maps, packages/validators, custom.fleet views/components touched |
+
+### Runtime Validation
+
+API was running on port 4010 with the **old** code when this was implemented. Per constraints, the running process was not killed. Runtime validation must be performed by the developer after restarting the API (`pnpm dev:api`).
+
+**Expected runtime behavior after restart:**
+
+| Scenario | Expected |
+|---|---|
+| `POST /modules/install` (new module) | Module mounts in-memory; API routes respond without restart; `routeLoader: { loaded: true, reason: 'ok' }` in response |
+| `POST /modules/:key/retry-install` | Same as install |
+| `POST /modules/:key/enable` (disabled → enabled) | Router reloads; `routeLoader: { loaded: true, reason: 'ok' }` in response |
+| `POST /modules/:key/disable` | `routerMap.delete(key)` called; `GET /fleet/vehicles` returns 404 from core fallback, not from module router; `routeLoader: { unloaded: true }` in response |
+| `DELETE /modules/:key` (uninstall shorthand) | Same as disable |
+| `POST /modules/:key/uninstall` | Same as disable |
+| `POST /modules/:key/clear-error` | Router unloaded silently (module returns to UNINSTALLED/disabled) |
+| `POST /modules/:key/cleanup` | Router unloaded silently |
+| `reloadModule` fails (bad api/index.js) | `routeLoader: { loaded: false, reason: 'error', error: '...' }` returned in response; lifecycle action itself reports 201/200; `lifecycleConfig.routeLoader.status = 'ERROR'` persisted in DB by `markModuleRouteError` inside `loadModuleRouter` |
 
 ---
 

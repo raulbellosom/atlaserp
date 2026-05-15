@@ -3465,7 +3465,7 @@ app.get(
 const ledgerRouter = createLedgerRouter({ prisma, authMiddleware, requirePermission });
 app.route("/ledger", ledgerRouter);
 
-const modulesRouter = createModulesRouter({ prisma, authMiddleware, requirePermission });
+const modulesRouter = createModulesRouter({ prisma, authMiddleware, requirePermission, routeLoader });
 app.route("/modules", modulesRouter);
 
 const server = serve({ fetch: app.fetch, port });
