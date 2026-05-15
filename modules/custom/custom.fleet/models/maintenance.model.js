@@ -6,7 +6,7 @@ export default defineModel({
   label: 'Mantenimiento',
   tableName: 'fleet_maintenance',
   companyScoped: true,
-  softDelete: false,
+  softDelete: true,
   fields: [
     {
       name: 'vehicle_id',
