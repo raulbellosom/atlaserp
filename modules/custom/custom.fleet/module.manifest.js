@@ -34,6 +34,10 @@ export default defineAtlasModule({
     "./views/driver.form.js",
     "./views/driver.detail.js",
     "./views/driver.page.js",
+    "./views/maintenance.table.js",
+    "./views/maintenance.form.js",
+    "./views/maintenance.detail.js",
+    "./views/maintenance.page.js",
   ],
   lifecycle: {
     installable: true,

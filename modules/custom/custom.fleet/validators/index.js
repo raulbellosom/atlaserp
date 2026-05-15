@@ -39,6 +39,12 @@ export const updateVehicleSchema = z.object({
   notes: z.string().max(5000).optional(),
 })
 
+const maintenanceStatusSchema = z.enum(['scheduled', 'in_progress', 'completed', 'cancelled'])
+const isoDateTimeSchema = z.string().refine(
+  (v) => !Number.isNaN(new Date(v).getTime()),
+  { message: 'Debe ser una fecha y hora ISO valida.' }
+)
+
 export const createMaintenanceSchema = z.object({
   vehicle_id: z.string().uuid(),
   type: maintenanceTypeSchema,
@@ -47,6 +53,15 @@ export const createMaintenanceSchema = z.object({
   completed_date: isoDateSchema.nullable().optional(),
   cost: z.number().min(0).nullable().optional(),
   notes: z.string().optional(),
+  // V003 expansion fields (all optional for backward compat)
+  maintenance_type_id: z.string().uuid().nullable().optional(),
+  title: z.string().max(255).nullable().optional(),
+  status: maintenanceStatusSchema.default('scheduled'),
+  driver_id: z.string().uuid().nullable().optional(),
+  started_at: isoDateTimeSchema.nullable().optional(),
+  odometer_km: z.number().int().min(0).nullable().optional(),
+  provider: z.string().max(200).nullable().optional(),
+  currency: z.string().max(10).optional(),
 })
 
 export const updateMaintenanceSchema = z.object({
@@ -57,6 +72,15 @@ export const updateMaintenanceSchema = z.object({
   completed_date: isoDateSchema.nullable().optional(),
   cost: z.number().min(0).nullable().optional(),
   notes: z.string().optional(),
+  // V003 expansion fields
+  maintenance_type_id: z.string().uuid().nullable().optional(),
+  title: z.string().max(255).nullable().optional(),
+  status: maintenanceStatusSchema.optional(),
+  driver_id: z.string().uuid().nullable().optional(),
+  started_at: isoDateTimeSchema.nullable().optional(),
+  odometer_km: z.number().int().min(0).nullable().optional(),
+  provider: z.string().max(200).nullable().optional(),
+  currency: z.string().max(10).optional(),
 })
 
 const driverStatusSchema = z.enum(['active', 'inactive', 'suspended'])

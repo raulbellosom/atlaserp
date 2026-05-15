@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 
 const MODULE_KEY = 'custom.fleet'
-const TABLE_NOT_READY_MESSAGE = 'Las tablas del modulo no estan disponibles aun.'
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -48,15 +47,6 @@ function normalizeVehiclePayload(data = {}) {
     brand: data.brand === undefined ? undefined : String(data.brand).trim(),
     model_name: data.model_name === undefined ? undefined : String(data.model_name).trim(),
     color: normalizeOptionalString(data.color),
-    notes: normalizeOptionalString(data.notes),
-  }
-}
-
-function normalizeMaintenancePayload(data = {}) {
-  return {
-    ...data,
-    description:
-      data.description === undefined ? undefined : String(data.description).trim(),
     notes: normalizeOptionalString(data.notes),
   }
 }
@@ -135,7 +125,7 @@ async function withDbErrorMapping(fn) {
     return await fn()
   } catch (error) {
     if (isTableNotFoundError(error)) {
-      throw new FleetServiceError(TABLE_NOT_READY_MESSAGE, 503)
+      throw new FleetServiceError('Las tablas del modulo no estan disponibles aun.', 503)
     }
     throw error
   }
@@ -151,8 +141,6 @@ function hasOwn(data, key) {
 }
 
 export function createFleetService({ prisma }) {
-  let maintenanceHasEnabledColumn = null
-
   async function logAudit({
     actorId,
     entityType,
@@ -174,25 +162,6 @@ export function createFleetService({ prisma }) {
         metadata,
       },
     })
-  }
-
-  async function getMaintenanceEnabledColumnSupport() {
-    if (typeof maintenanceHasEnabledColumn === 'boolean') {
-      return maintenanceHasEnabledColumn
-    }
-
-    const rows = await withDbErrorMapping(() =>
-      prisma.$queryRaw`
-        SELECT column_name
-        FROM information_schema.columns
-        WHERE table_schema = 'public'
-          AND table_name = 'fleet_maintenance'
-          AND column_name = 'enabled'
-        LIMIT 1
-      `
-    )
-    maintenanceHasEnabledColumn = rows.length > 0
-    return maintenanceHasEnabledColumn
   }
 
   async function listVehicles({ companyId, page, pageSize, status, search }) {
@@ -331,14 +300,7 @@ export function createFleetService({ prisma }) {
     const hasNotes = hasOwn(payload, 'notes') && payload.notes !== undefined
 
     const hasAnyUpdate =
-      hasPlate ||
-      hasBrand ||
-      hasModelName ||
-      hasYear ||
-      hasStatus ||
-      hasColor ||
-      hasDriverId ||
-      hasNotes
+      hasPlate || hasBrand || hasModelName || hasYear || hasStatus || hasColor || hasDriverId || hasNotes
 
     if (!hasAnyUpdate) {
       throw new FleetServiceError('No hay campos validos para actualizar.', 400)
@@ -418,212 +380,11 @@ export function createFleetService({ prisma }) {
     return updated
   }
 
-  async function listMaintenance({ companyId, vehicleId, page, pageSize }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const pagination = normalizePagination({ page, pageSize })
-    const normalizedVehicleId = normalizeOptionalString(vehicleId)
-
-    const [rows, totalRows] = await withDbErrorMapping(async () => {
-      const dataRows = await prisma.$queryRaw`
-        SELECT *
-        FROM fleet_maintenance
-        WHERE company_id = ${safeCompanyId}
-          AND (${normalizedVehicleId}::text IS NULL OR vehicle_id::text = ${normalizedVehicleId})
-        ORDER BY created_at DESC
-        LIMIT ${pagination.pageSize}
-        OFFSET ${pagination.offset}
-      `
-      const countRows = await prisma.$queryRaw`
-        SELECT COUNT(*)::bigint AS total
-        FROM fleet_maintenance
-        WHERE company_id = ${safeCompanyId}
-          AND (${normalizedVehicleId}::text IS NULL OR vehicle_id::text = ${normalizedVehicleId})
-      `
-      return [dataRows, countRows]
-    })
-
-    return {
-      data: rows,
-      pagination: {
-        page: pagination.page,
-        pageSize: pagination.pageSize,
-        total: toCount(firstRow(totalRows)?.total),
-      },
-    }
-  }
-
-  async function getMaintenance({ companyId, id }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeId = normalizeRecordId(id, 'Mantenimiento no encontrado.')
-    const row = await withDbErrorMapping(async () => {
-      const rows = await prisma.$queryRaw`
-        SELECT *
-        FROM fleet_maintenance
-        WHERE id = ${safeId}
-          AND company_id = ${safeCompanyId}
-        LIMIT 1
-      `
-      return firstRow(rows)
-    })
-
-    if (!row) throw new FleetServiceError('Mantenimiento no encontrado.', 404)
-    return row
-  }
-
-  async function createMaintenance({ companyId, data, actorId }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const payload = normalizeMaintenancePayload(data)
-
-    const row = await withDbErrorMapping(async () => {
-      const rows = await prisma.$queryRaw`
-        INSERT INTO fleet_maintenance (
-          company_id,
-          vehicle_id,
-          type,
-          description,
-          scheduled_date,
-          completed_date,
-          cost,
-          notes
-        )
-        VALUES (
-          ${safeCompanyId},
-          ${payload.vehicle_id},
-          ${payload.type},
-          ${payload.description},
-          ${payload.scheduled_date},
-          ${payload.completed_date ?? null},
-          ${payload.cost ?? null},
-          ${payload.notes ?? null}
-        )
-        RETURNING *
-      `
-      return firstRow(rows)
-    })
-
-    await logAudit({
-      actorId,
-      entityType: 'Maintenance',
-      entityId: row?.id ?? null,
-      action: 'fleet.maintenance.create',
-      before: null,
-      after: row,
-    })
-
-    return row
-  }
-
-  async function updateMaintenance({ companyId, id, data, actorId }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeId = normalizeRecordId(id, 'Mantenimiento no encontrado.')
-    const payload = normalizeMaintenancePayload(data)
-
-    const hasVehicleId = hasOwn(payload, 'vehicle_id') && payload.vehicle_id !== undefined
-    const hasType = hasOwn(payload, 'type') && payload.type !== undefined
-    const hasDescription = hasOwn(payload, 'description') && payload.description !== undefined
-    const hasScheduledDate = hasOwn(payload, 'scheduled_date') && payload.scheduled_date !== undefined
-    const hasCompletedDate = hasOwn(payload, 'completed_date') && payload.completed_date !== undefined
-    const hasCost = hasOwn(payload, 'cost') && payload.cost !== undefined
-    const hasNotes = hasOwn(payload, 'notes') && payload.notes !== undefined
-
-    const hasAnyUpdate =
-      hasVehicleId ||
-      hasType ||
-      hasDescription ||
-      hasScheduledDate ||
-      hasCompletedDate ||
-      hasCost ||
-      hasNotes
-
-    if (!hasAnyUpdate) {
-      throw new FleetServiceError('No hay campos validos para actualizar.', 400)
-    }
-
-    const before = await getMaintenance({ companyId: safeCompanyId, id: safeId })
-
-    const updated = await withDbErrorMapping(async () => {
-      const rows = await prisma.$queryRaw`
-        UPDATE fleet_maintenance
-        SET vehicle_id = CASE WHEN ${hasVehicleId} THEN ${payload.vehicle_id ?? null} ELSE vehicle_id END,
-            type = CASE WHEN ${hasType} THEN ${payload.type ?? null} ELSE type END,
-            description = CASE WHEN ${hasDescription} THEN ${payload.description ?? null} ELSE description END,
-            scheduled_date = CASE WHEN ${hasScheduledDate} THEN ${payload.scheduled_date ?? null} ELSE scheduled_date END,
-            completed_date = CASE WHEN ${hasCompletedDate} THEN ${payload.completed_date ?? null} ELSE completed_date END,
-            cost = CASE WHEN ${hasCost} THEN ${payload.cost ?? null} ELSE cost END,
-            notes = CASE WHEN ${hasNotes} THEN ${payload.notes ?? null} ELSE notes END,
-            updated_at = now()
-        WHERE id = ${safeId}
-          AND company_id = ${safeCompanyId}
-        RETURNING *
-      `
-      return firstRow(rows)
-    })
-
-    if (!updated) throw new FleetServiceError('Mantenimiento no encontrado.', 404)
-
-    await logAudit({
-      actorId,
-      entityType: 'Maintenance',
-      entityId: updated.id,
-      action: 'fleet.maintenance.update',
-      before,
-      after: updated,
-    })
-
-    return updated
-  }
-
-  async function setMaintenanceEnabled({ companyId, id, enabled, actorId }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeId = normalizeRecordId(id, 'Mantenimiento no encontrado.')
-    const supportsEnabled = await getMaintenanceEnabledColumnSupport()
-
-    if (!supportsEnabled) {
-      throw new FleetServiceError(
-        'La tabla de mantenimiento no soporta habilitar o deshabilitar registros.',
-        409
-      )
-    }
-
-    const before = await getMaintenance({ companyId: safeCompanyId, id: safeId })
-
-    const updated = await withDbErrorMapping(async () => {
-      const rows = await prisma.$queryRaw`
-        UPDATE fleet_maintenance
-        SET enabled = ${Boolean(enabled)},
-            updated_at = now()
-        WHERE id = ${safeId}
-          AND company_id = ${safeCompanyId}
-        RETURNING *
-      `
-      return firstRow(rows)
-    })
-
-    if (!updated) throw new FleetServiceError('Mantenimiento no encontrado.', 404)
-
-    await logAudit({
-      actorId,
-      entityType: 'Maintenance',
-      entityId: updated.id,
-      action: 'fleet.maintenance.disable',
-      before,
-      after: updated,
-      metadata: { enabled: Boolean(enabled) },
-    })
-
-    return updated
-  }
-
   return {
     listVehicles,
     getVehicle,
     createVehicle,
     updateVehicle,
     setVehicleEnabled,
-    listMaintenance,
-    getMaintenance,
-    createMaintenance,
-    updateMaintenance,
-    setMaintenanceEnabled,
   }
 }

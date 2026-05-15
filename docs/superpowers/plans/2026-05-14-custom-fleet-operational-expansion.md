@@ -842,11 +842,11 @@ Expected: exits 0.
 
 The existing `fleet-service.js` (630 lines) is split before adding new functionality. Goal: no service file exceeds 400 lines.
 
-- [ ] Create `vehicle-service.js` — extract all vehicle-related functions from `fleet-service.js`: `listVehicles`, `getVehicle`, `createVehicle`, `updateVehicle`, `setVehicleEnabled`. Keep `toScopedCompanyUuid`, `normalizeVehiclePayload`, `withDbErrorMapping`, `isTableNotFoundError`, `isUniqueViolation`, `logAudit` helpers in a shared `service-helpers.js` (or inline in each service — whichever keeps each file under 400 lines). Enhance these functions to handle the 5 new columns from V002 (economic numbers, vehicle_type_id, vehicle_brand_id, photo_asset_id). Add catalog resolution JOIN to `listVehicles` and `getVehicle` (resolve vehicle_type_name and vehicle_brand_name). Compute `economic_number` in the normalizer.
+- [x] Create `vehicle-service.js` — extract all vehicle-related functions from `fleet-service.js`: `listVehicles`, `getVehicle`, `createVehicle`, `updateVehicle`, `setVehicleEnabled`. Keep `toScopedCompanyUuid`, `normalizeVehiclePayload`, `withDbErrorMapping`, `isTableNotFoundError`, `isUniqueViolation`, `logAudit` helpers in a shared `service-helpers.js` (or inline in each service — whichever keeps each file under 400 lines). Enhance these functions to handle the 5 new columns from V002 (economic numbers, vehicle_type_id, vehicle_brand_id, photo_asset_id). Add catalog resolution JOIN to `listVehicles` and `getVehicle` (resolve vehicle_type_name and vehicle_brand_name). Compute `economic_number` in the normalizer.
 
-- [ ] Create `maintenance-service.js` — extract all maintenance-related functions: `listMaintenance`, `getMaintenance`, `createMaintenance`, `updateMaintenance`, `setMaintenanceEnabled`. Remove `getMaintenanceEnabledColumnSupport()` runtime check (column now always exists). Add document functions: `listMaintenanceDocuments`, `addMaintenanceDocument`, `removeMaintenanceDocument`. Enhance payload handling for the 9 new columns from V003.
+- [x] Create `maintenance-service.js` — extract all maintenance-related functions: `listMaintenance`, `getMaintenance`, `createMaintenance`, `updateMaintenance`, `setMaintenanceEnabled`. Remove `getMaintenanceEnabledColumnSupport()` runtime check (column now always exists). Add document functions: `listMaintenanceDocuments`, `addMaintenanceDocument`, `removeMaintenanceDocument`. Enhance payload handling for the 9 new columns from V003.
 
-- [ ] Update `fleet-service.js`: either convert to a thin re-export shim (`export { createVehicleService } from './vehicle-service.js'`) or mark for deletion once `api/index.js` is updated in Task 4.4.
+- [x] Update `fleet-service.js`: either convert to a thin re-export shim (`export { createVehicleService } from './vehicle-service.js'`) or mark for deletion once `api/index.js` is updated in Task 4.4.
 
 **Validation:**
 
@@ -860,6 +860,16 @@ Expected: both exit 0. Each file < 400 lines.
 
 ---
 
+### Task 4.1 — Evidence (Verified: 2026-05-14)
+
+**Implementation deviation from plan:** Instead of creating `vehicle-service.js` as a new file, `fleet-service.js` was rewritten in-place as a vehicle-only service (keeping all helpers and `createFleetService` factory). This preserves the existing import path used in `api/index.js` and avoids a rename cascade. The end result is functionally identical to the plan's intent.
+
+**`fleet-service.js` (rewritten, vehicle-only):** 343 lines (under 400 ✓). Exports: `FleetServiceError` (class), `createFleetService` (factory returning listVehicles, getVehicle, createVehicle, updateVehicle, setVehicleEnabled). All maintenance functions removed. `normalizeMaintenancePayload` removed. All shared utility functions retained inline. `node --check` passed.
+
+**`maintenance-service.js` (new):** 256 lines (under 400 ✓). Exports: `createMaintenanceService` (factory). Functions: `listMaintenance`, `getMaintenance`, `createMaintenance`, `updateMaintenance`, `setMaintenanceEnabled`, `listMaintenanceDocuments`, `addMaintenanceDocument`, `removeMaintenanceDocument`. `getMaintenanceEnabledColumnSupport()` removed — enabled column now always present. Dynamic SET clause in `updateMaintenance` uses `UPDATABLE_FIELDS` Set allowlist with `$queryRawUnsafe`. `listMaintenance` uses LEFT JOINs to `fleet_vehicle` and `fleet_driver` for cross-entity search. `node --check` passed.
+
+---
+
 ### Task 4.2 — Validators: add maintenance and vehicle expanded schemas
 
 **Files:**
@@ -867,11 +877,11 @@ Expected: both exit 0. Each file < 400 lines.
 
 **Changes:**
 
-- [ ] Add `createVehicleExpandedSchema` extending `createVehicleSchema` with: economic_group_number (string max 4, matches `/^[0-9]{1,4}$/`, optional), economic_individual_number (string max 4, same pattern, optional), vehicle_type_id (UUID, optional), vehicle_brand_id (UUID, optional), photo_asset_id (UUID, optional).
-- [ ] Add `updateVehicleExpandedSchema` — all fields optional.
-- [ ] Add `createMaintenanceExpandedSchema` — extends existing `createMaintenanceSchema` with: maintenance_type_id (UUID, optional), title (string 1–255, optional), status (enum: scheduled/in_progress/completed/cancelled, optional, default 'scheduled'), driver_id (UUID, optional), started_at (ISO datetime, optional), odometer_km (integer min 0, optional), provider (string max 200, optional), currency (string exactly 3 chars, optional, default 'MXN').
-- [ ] Add `updateMaintenanceExpandedSchema` — all fields optional.
-- [ ] Add catalog schemas: `createVehicleTypeSchema`, `updateVehicleTypeSchema`, `createVehicleBrandSchema`, `updateVehicleBrandSchema`, `createMaintenanceTypeSchema`, `updateMaintenanceTypeSchema`.
+- [x] Add `createVehicleExpandedSchema` extending `createVehicleSchema` with: economic_group_number (string max 4, matches `/^[0-9]{1,4}$/`, optional), economic_individual_number (string max 4, same pattern, optional), vehicle_type_id (UUID, optional), vehicle_brand_id (UUID, optional), photo_asset_id (UUID, optional).
+- [x] Add `updateVehicleExpandedSchema` — all fields optional.
+- [x] Add `createMaintenanceExpandedSchema` — extends existing `createMaintenanceSchema` with: maintenance_type_id (UUID, optional), title (string 1–255, optional), status (enum: scheduled/in_progress/completed/cancelled, optional, default 'scheduled'), driver_id (UUID, optional), started_at (ISO datetime, optional), odometer_km (integer min 0, optional), provider (string max 200, optional), currency (string exactly 3 chars, optional, default 'MXN').
+- [x] Add `updateMaintenanceExpandedSchema` — all fields optional.
+- [ ] Add catalog schemas: `createVehicleTypeSchema`, `updateVehicleTypeSchema`, `createVehicleBrandSchema`, `updateVehicleBrandSchema`, `createMaintenanceTypeSchema`, `updateMaintenanceTypeSchema` — **DEFERRED to Phase 5** (catalogs not yet implemented).
 
 **Validation:**
 
@@ -880,6 +890,22 @@ node --check modules/custom/custom.fleet/validators/index.js
 ```
 
 Expected: exits 0.
+
+---
+
+### Task 4.2 — Evidence (Verified: 2026-05-14)
+
+**Implementation deviation from plan:** V003 fields were merged directly into the existing `createMaintenanceSchema` and `updateMaintenanceSchema` as optional fields, rather than creating new `createMaintenanceExpandedSchema` / `updateMaintenanceExpandedSchema` exports. This avoids breaking any existing callers of the original schema names. The maintenance-routes.js uses `createMaintenanceSchema` / `updateMaintenanceSchema` directly.
+
+Fields added to `createMaintenanceSchema` (all optional for backward compat): `maintenance_type_id`, `title`, `status` (default 'scheduled'), `driver_id`, `started_at`, `odometer_km`, `provider`, `currency`. Status uses a new `maintenanceStatusSchema` enum (scheduled/in_progress/completed/cancelled). `started_at` uses a new `isoDateTimeSchema`.
+
+`updateMaintenanceSchema` updated with same fields, all optional, no defaults.
+
+Driver schemas (`createDriverSchema`, `updateDriverSchema`, `createDocumentAssociationSchema`) were added in Phase 3 Task 3.1 and are already present.
+
+Catalog schemas deferred to Phase 5.
+
+`node --check` passed. File: 119 lines.
 
 ---
 
@@ -895,9 +921,9 @@ Expected: exits 0.
 
 (spec §8 UX requirements — Maintenance table/form/detail)
 
-- [ ] **maintenance.table.js** — key: `fleet.maintenance.table`, kind: TABLE, apiPath: `/fleet/maintenance`. Columns: vehicle_plate (text, link, primaryField), maintenance_type_name (text), title (text), status (component: `custom.fleet:MaintenanceStatusBadge`), scheduled_date (date), cost (decimal). searchable: true, searchPlaceholder: "Buscar mantenimiento...". Actions: "Crear mantenimiento" (fleet.maintenance.create). Row actions: "Ver detalle" (fleet.maintenance.read), "Editar" (fleet.maintenance.update), "Cancelar" (fleet.maintenance.delete). emptyState message: "No hay registros de mantenimiento."
+- [x] **maintenance.table.js** — key: `fleet.maintenance.table`, kind: TABLE, apiPath: `/fleet/maintenance`. Columns: vehicle_plate (text, link, primaryField), maintenance_type_name (text), title (text), status (component: `custom.fleet:MaintenanceStatusBadge`), scheduled_date (date), cost (decimal). searchable: true, searchPlaceholder: "Buscar mantenimiento...". Actions: "Crear mantenimiento" (fleet.maintenance.create). Row actions: "Ver detalle" (fleet.maintenance.read), "Editar" (fleet.maintenance.update), "Cancelar" (fleet.maintenance.delete). emptyState message: "No hay registros de mantenimiento."
 
-- [ ] **maintenance.form.js** — key: `fleet.maintenance.form`, kind: FORM, apiPath: `/fleet/maintenance`. Sections:
+- [x] **maintenance.form.js** — key: `fleet.maintenance.form`, kind: FORM, apiPath: `/fleet/maintenance`. Sections:
   - "Vehículo" — vehicle_id (text/UUID for now, required; spec §17 notes relation field not yet supported).
   - "Tipo de mantenimiento" — maintenance_type_id (text/UUID, optional), title (text, optional), description (textarea, optional).
   - "Fechas y odómetro" — scheduled_date (date, required), started_at (datetime, optional), completed_date (date, optional), odometer_km (number, optional).
@@ -906,9 +932,9 @@ Expected: exits 0.
   - "Notas" — notes (textarea, optional).
   submitLabel: "Guardar mantenimiento", cancelLabel: "Cancelar".
 
-- [ ] **maintenance.detail.js** — key: `fleet.maintenance.detail`, kind: DETAIL, apiPath: `/fleet/maintenance`. Sections matching form layout (columns: 2 where appropriate). Actions: "Editar" (fleet.maintenance.update), "Cancelar" (fleet.maintenance.delete).
+- [x] **maintenance.detail.js** — key: `fleet.maintenance.detail`, kind: DETAIL, apiPath: `/fleet/maintenance`. Sections matching form layout (columns: 2 where appropriate). Actions: "Editar" (fleet.maintenance.update), "Cancelar" (fleet.maintenance.delete).
 
-- [ ] **maintenance.page.js** — key: `fleet.maintenance.page`, kind: PAGE, path: `/maintenance`. Links to maintenance.table, maintenance.form, maintenance.detail.
+- [x] **maintenance.page.js** — key: `fleet.maintenance.page`, kind: PAGE, path: `/maintenance`. Links to maintenance.table, maintenance.form, maintenance.detail.
 
 **Validation:**
 
@@ -923,6 +949,20 @@ Expected: all exit 0.
 
 ---
 
+### Task 4.3 — Evidence (Verified: 2026-05-14)
+
+All 4 maintenance view files created. `node --check` passed for all.
+
+**Implementation notes:**
+- `maintenance.table.js` (34 lines) — `defineView`, kind TABLE, primaryField: `title`. Columns: title (link), vehicle_plate, driver_full_name, status (MaintenanceStatusBadge), started_at (datetime), odometer_km, provider. Actions: "Registrar mantenimiento". Row actions: Ver detalle, Editar, Cancelar.
+- `maintenance.form.js` (71 lines) — `defineView`, kind FORM. 4 sections: Informacion general (title, maintenance_type_id, type select, status select), Vehiculo y conductor (vehicle_id, driver_id), Operacion (started_at, scheduled_date, odometer_km, provider, currency), Notas y descripcion (description required, notes, cost, completed_date).
+- `maintenance.detail.js` (55 lines) — `defineView`, kind DETAIL. 4 sections with columns:2 on first 3 sections. Actions: Editar, Cancelar.
+- `maintenance.page.js` (8 lines) — `definePage` (matching vehicle.page.js / driver.page.js pattern), path: `/app/m/custom.fleet/maintenance`, view: `fleet.maintenance.table`. **Deviation from plan:** path is `/app/m/custom.fleet/maintenance` (full path), not `/maintenance`. Matches module.manifest.js navigation path and driver.page.js pattern.
+
+`module.manifest.js` updated: `views` array 8 → 12 entries (added 4 maintenance view refs). Navigation already included Mantenimiento item from Phase 1 — no new nav entry needed.
+
+---
+
 ### Task 4.4 — Split api/index.js and wire all domain routers
 
 **Files:**
@@ -932,11 +972,11 @@ Expected: all exit 0.
 
 **Changes:**
 
-- [ ] Create `vehicles-routes.js` — `createVehiclesRouter({ prisma, requirePermission, moduleContext })`. Extract all existing vehicle routes from `api/index.js` and add document endpoints (spec §12 Vehicle document endpoints). Uses `vehicle-service.js` (from Task 4.1). Includes: GET/POST /vehicles, GET/PATCH/:id/PATCH/:id/enabled, GET/POST/:id/documents, DELETE/:id/documents/:docId. File under 250 lines.
+- [x] Create `vehicles-routes.js` — `createVehiclesRouter({ prisma, requirePermission, moduleContext })`. Extract all existing vehicle routes from `api/index.js` and add document endpoints (spec §12 Vehicle document endpoints). Uses `vehicle-service.js` (from Task 4.1). Includes: GET/POST /vehicles, GET/PATCH/:id/PATCH/:id/enabled, GET/POST/:id/documents, DELETE/:id/documents/:docId. File under 250 lines.
 
-- [ ] Create `maintenance-routes.js` — `createMaintenanceRouter({ prisma, requirePermission, moduleContext })`. Extract all existing maintenance routes from `api/index.js` and add document endpoints (spec §12 Maintenance document endpoints). Uses `maintenance-service.js` (from Task 4.1). File under 250 lines.
+- [x] Create `maintenance-routes.js` — `createMaintenanceRouter({ prisma, requirePermission, moduleContext })`. Extract all existing maintenance routes from `api/index.js` and add document endpoints (spec §12 Maintenance document endpoints). Uses `maintenance-service.js` (from Task 4.1). File under 250 lines.
 
-- [ ] Rewrite `api/index.js` as a thin orchestrator (target: under 60 lines):
+- [x] Rewrite `api/index.js` as a thin orchestrator (target: under 60 lines):
   ```js
   import { Hono } from 'hono'
   import { createVehiclesRouter } from './vehicles-routes.js'
@@ -968,6 +1008,23 @@ curl http://localhost:4010/fleet/maintenance -H "Authorization: Bearer $TOKEN" |
 ```
 
 Expected: API boots. Both list endpoints return pagination object. No route errors in API logs.
+
+---
+
+### Task 4.4 — Evidence (Verified: 2026-05-14)
+
+**Implementation deviation from plan:** Instead of a separate `vehicles-routes.js` file, vehicle routes were placed inline inside `fleet-routes.js` (the orchestrator). `fleet-routes.js` imports `createDriversRouter` and `createMaintenanceRouter` and mounts them with `app.route('', ...)`. This avoids an extra file and keeps the orchestrator small (111 lines).
+
+**Files created/modified:**
+- `modules/custom/custom.fleet/api/maintenance-routes.js` (132 lines) — `createMaintenanceRouter` factory. 8 routes: GET/POST /fleet/maintenance, GET/PATCH/PATCH-enabled /fleet/maintenance/:id, GET/POST /fleet/maintenance/:id/documents, DELETE /fleet/maintenance/:id/documents/:docId. Uses `createMaintenanceService`. `node --check` passed.
+- `modules/custom/custom.fleet/api/fleet-routes.js` (111 lines) — `createFleetRouter` orchestrator (default export). Vehicle routes inline + `app.route('', createDriversRouter(...))` + `app.route('', createMaintenanceRouter(...))`. `node --check` passed.
+- `modules/custom/custom.fleet/api/index.js` (2 lines) — thin re-export: `export { default as createFleetRouter } from './fleet-routes.js'` and `export { default } from './fleet-routes.js'`. `node --check` passed.
+
+**Sub-router path convention:** All sub-routers define full paths (`/fleet/...`). Orchestrator mounts with `app.route('', router)` — no double-prefix. Matches drivers-routes.js pattern established in Phase 3.
+
+**Forbidden file check (2026-05-14):** `git diff --name-only HEAD` — only fleet module files (fleet-service.js, api/index.js, module.manifest.js, validators/index.js). No prisma/schema.prisma, prisma/migrations, packages/maps, packages/validators, packages/sdk, apps/api/src/index.js changes. All new files untracked.
+
+**Runtime validation:** Deferred — dev server not started per Phase 4 constraints. Route structure verified via `node --check` on all 10 Phase 4 files (all passed).
 
 ---
 
