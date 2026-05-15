@@ -19,6 +19,9 @@ export default defineView({
           { field: 'year', label: 'Anio' },
           { field: 'color', label: 'Color', type: 'color' },
           { field: 'status', label: 'Estado' },
+          { field: 'vehicle_type_name', label: 'Tipo de Vehiculo' },
+          { field: 'vehicle_brand_name', label: 'Marca Catalogo' },
+          { field: 'economic_number', label: 'No. Economico' },
         ],
       },
       {

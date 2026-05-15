@@ -17,6 +17,8 @@ const isoDateSchema = z.string().refine(isValidIsoDate, {
   message: 'Debe ser una fecha ISO valida (YYYY-MM-DD).',
 })
 
+const ECON_NUM_REGEX = /^[0-9]{1,4}$/
+
 export const createVehicleSchema = z.object({
   plate: z.string().min(1).max(20),
   brand: z.string().min(1).max(100),
@@ -26,6 +28,10 @@ export const createVehicleSchema = z.object({
   color: z.string().regex(HEX_COLOR_REGEX, 'Color hexadecimal invalido.').optional(),
   driver_id: z.string().uuid().nullable().optional(),
   notes: z.string().max(5000).optional(),
+  economic_group_number: z.string().regex(ECON_NUM_REGEX, 'Maximo 4 digitos numericos.').nullable().optional(),
+  economic_individual_number: z.string().regex(ECON_NUM_REGEX, 'Maximo 4 digitos numericos.').nullable().optional(),
+  vehicle_type_id: z.string().uuid().nullable().optional(),
+  vehicle_brand_id: z.string().uuid().nullable().optional(),
 })
 
 export const updateVehicleSchema = z.object({
@@ -37,6 +43,10 @@ export const updateVehicleSchema = z.object({
   color: z.string().regex(HEX_COLOR_REGEX, 'Color hexadecimal invalido.').optional(),
   driver_id: z.string().uuid().nullable().optional(),
   notes: z.string().max(5000).optional(),
+  economic_group_number: z.string().regex(ECON_NUM_REGEX, 'Maximo 4 digitos numericos.').nullable().optional(),
+  economic_individual_number: z.string().regex(ECON_NUM_REGEX, 'Maximo 4 digitos numericos.').nullable().optional(),
+  vehicle_type_id: z.string().uuid().nullable().optional(),
+  vehicle_brand_id: z.string().uuid().nullable().optional(),
 })
 
 const maintenanceStatusSchema = z.enum(['scheduled', 'in_progress', 'completed', 'cancelled'])
@@ -115,4 +125,32 @@ export const createDocumentAssociationSchema = z.object({
   file_asset_id: z.string().uuid('UUID de archivo invalido.'),
   document_type: z.string().max(50).optional(),
   label: z.string().max(200).nullable().optional(),
+})
+
+export const createVehicleTypeSchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
+})
+
+export const updateVehicleTypeSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  description: z.string().max(500).optional(),
+})
+
+export const createVehicleBrandSchema = z.object({
+  name: z.string().min(1).max(100),
+})
+
+export const updateVehicleBrandSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+})
+
+export const createMaintenanceTypeSchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
+})
+
+export const updateMaintenanceTypeSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  description: z.string().max(500).optional(),
 })

@@ -22,6 +22,9 @@ export default defineView({
         sortable: false,
         component: "custom.fleet:VehicleStatusBadge",
       },
+      { field: "vehicle_type_name", label: "Tipo", sortable: false },
+      { field: "vehicle_brand_name", label: "Marca Catalogo", sortable: false },
+      { field: "economic_number", label: "No. Economico", sortable: false },
     ],
     actions: [
       {

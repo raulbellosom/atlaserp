@@ -4,6 +4,7 @@ import { createVehicleSchema, updateVehicleSchema } from '../validators/index.js
 import { createFleetService, FleetServiceError } from './fleet-service.js'
 import { createDriversRouter } from './drivers-routes.js'
 import { createMaintenanceRouter } from './maintenance-routes.js'
+import { createCatalogsRouter } from './catalogs-routes.js'
 
 const vehicleEnabledSchema = z.object({ enabled: z.boolean() })
 const vehicleStatusFilterSchema = z.enum(['active', 'maintenance', 'inactive', 'retired'])
@@ -120,6 +121,7 @@ export default function createFleetRouter({ prisma, requirePermission, moduleCon
 
   app.route('', createDriversRouter({ prisma, requirePermission, moduleContext }))
   app.route('', createMaintenanceRouter({ prisma, requirePermission, moduleContext }))
+  app.route('', createCatalogsRouter({ prisma, requirePermission, moduleContext }))
 
   return app
 }

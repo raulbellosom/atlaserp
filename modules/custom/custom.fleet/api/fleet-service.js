@@ -1,4 +1,14 @@
 import { createHash } from 'node:crypto'
+import {
+  normalizePagination,
+  normalizeSearch,
+  normalizeOptionalString,
+  isTableNotFoundError,
+  isUniqueViolation,
+  toCount,
+  firstRow,
+  hasOwn,
+} from './service-helpers.js'
 
 const MODULE_KEY = 'custom.fleet'
 const UUID_REGEX =
@@ -10,34 +20,6 @@ export class FleetServiceError extends Error {
     this.name = 'FleetServiceError'
     this.status = status
   }
-}
-
-function toNumber(value, fallback) {
-  const parsed = Number.parseInt(String(value ?? ''), 10)
-  if (!Number.isFinite(parsed)) return fallback
-  return parsed
-}
-
-function normalizePagination({ page, pageSize }) {
-  const safePage = Math.max(1, toNumber(page, 1))
-  const safePageSize = Math.min(100, Math.max(1, toNumber(pageSize, 20)))
-  return {
-    page: safePage,
-    pageSize: safePageSize,
-    offset: (safePage - 1) * safePageSize,
-  }
-}
-
-function normalizeSearch(search) {
-  const value = String(search ?? '').trim()
-  return value.length > 0 ? value : null
-}
-
-function normalizeOptionalString(value) {
-  if (value === undefined) return undefined
-  if (value === null) return null
-  const normalized = String(value).trim()
-  return normalized.length > 0 ? normalized : null
 }
 
 function normalizeVehiclePayload(data = {}) {
@@ -77,49 +59,6 @@ function normalizeRecordId(id, notFoundMessage) {
   return value.toLowerCase()
 }
 
-function isTableNotFoundError(error) {
-  const codes = [
-    error?.code,
-    error?.meta?.code,
-    error?.cause?.code,
-    error?.originalError?.code,
-  ]
-  if (codes.includes('42P01')) return true
-
-  const message = String(error?.message ?? '')
-  if (message.includes('42P01')) return true
-  if (message.toLowerCase().includes('relation') && message.toLowerCase().includes('does not exist')) {
-    return true
-  }
-  return false
-}
-
-function isUniqueViolation(error) {
-  const codes = [
-    error?.code,
-    error?.meta?.code,
-    error?.cause?.code,
-    error?.cause?.originalCode,
-    error?.originalError?.code,
-    error?.meta?.driverAdapterError?.cause?.code,
-    error?.meta?.driverAdapterError?.cause?.originalCode,
-  ]
-    .map((value) => (value === undefined || value === null ? null : String(value)))
-    .filter(Boolean)
-
-  if (codes.includes('23505')) return true
-
-  const message = String(error?.message ?? '').toLowerCase()
-  if (message.includes('duplicate key value violates unique constraint')) return true
-
-  return false
-}
-
-function toCount(value) {
-  const parsed = Number(value ?? 0)
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
 async function withDbErrorMapping(fn) {
   try {
     return await fn()
@@ -129,15 +68,6 @@ async function withDbErrorMapping(fn) {
     }
     throw error
   }
-}
-
-function firstRow(rows) {
-  if (!Array.isArray(rows) || rows.length === 0) return null
-  return rows[0]
-}
-
-function hasOwn(data, key) {
-  return Object.prototype.hasOwnProperty.call(data, key)
 }
 
 export function createFleetService({ prisma }) {
@@ -173,33 +103,45 @@ export function createFleetService({ prisma }) {
 
     const [rows, totalRows] = await withDbErrorMapping(async () => {
       const dataRows = await prisma.$queryRaw`
-        SELECT *
-        FROM fleet_vehicle
-        WHERE company_id = ${safeCompanyId}
-          AND enabled = true
-          AND (${normalizedStatus}::text IS NULL OR status = ${normalizedStatus})
+        SELECT
+          fv.*,
+          vt.name AS vehicle_type_name,
+          vb.name AS vehicle_brand_name,
+          CASE
+            WHEN fv.economic_group_number IS NOT NULL AND fv.economic_individual_number IS NOT NULL
+              THEN fv.economic_group_number || '-' || fv.economic_individual_number
+            WHEN fv.economic_individual_number IS NOT NULL THEN fv.economic_individual_number
+            WHEN fv.economic_group_number IS NOT NULL THEN fv.economic_group_number
+            ELSE NULL
+          END AS economic_number
+        FROM fleet_vehicle fv
+        LEFT JOIN fleet_vehicle_type vt ON vt.id = fv.vehicle_type_id AND vt.enabled = true
+        LEFT JOIN fleet_vehicle_brand vb ON vb.id = fv.vehicle_brand_id AND vb.enabled = true
+        WHERE fv.company_id = ${safeCompanyId}
+          AND fv.enabled = true
+          AND (${normalizedStatus}::text IS NULL OR fv.status = ${normalizedStatus})
           AND (
             ${likeValue}::text IS NULL
-            OR plate ILIKE ${likeValue}
-            OR brand ILIKE ${likeValue}
-            OR model_name ILIKE ${likeValue}
+            OR fv.plate ILIKE ${likeValue}
+            OR fv.brand ILIKE ${likeValue}
+            OR fv.model_name ILIKE ${likeValue}
           )
-        ORDER BY created_at DESC
+        ORDER BY fv.created_at DESC
         LIMIT ${pagination.pageSize}
         OFFSET ${pagination.offset}
       `
 
       const countRows = await prisma.$queryRaw`
         SELECT COUNT(*)::bigint AS total
-        FROM fleet_vehicle
-        WHERE company_id = ${safeCompanyId}
-          AND enabled = true
-          AND (${normalizedStatus}::text IS NULL OR status = ${normalizedStatus})
+        FROM fleet_vehicle fv
+        WHERE fv.company_id = ${safeCompanyId}
+          AND fv.enabled = true
+          AND (${normalizedStatus}::text IS NULL OR fv.status = ${normalizedStatus})
           AND (
             ${likeValue}::text IS NULL
-            OR plate ILIKE ${likeValue}
-            OR brand ILIKE ${likeValue}
-            OR model_name ILIKE ${likeValue}
+            OR fv.plate ILIKE ${likeValue}
+            OR fv.brand ILIKE ${likeValue}
+            OR fv.model_name ILIKE ${likeValue}
           )
       `
       return [dataRows, countRows]
@@ -220,10 +162,22 @@ export function createFleetService({ prisma }) {
     const safeId = normalizeRecordId(id, 'Vehiculo no encontrado.')
     const row = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
-        SELECT *
-        FROM fleet_vehicle
-        WHERE id = ${safeId}
-          AND company_id = ${safeCompanyId}
+        SELECT
+          fv.*,
+          vt.name AS vehicle_type_name,
+          vb.name AS vehicle_brand_name,
+          CASE
+            WHEN fv.economic_group_number IS NOT NULL AND fv.economic_individual_number IS NOT NULL
+              THEN fv.economic_group_number || '-' || fv.economic_individual_number
+            WHEN fv.economic_individual_number IS NOT NULL THEN fv.economic_individual_number
+            WHEN fv.economic_group_number IS NOT NULL THEN fv.economic_group_number
+            ELSE NULL
+          END AS economic_number
+        FROM fleet_vehicle fv
+        LEFT JOIN fleet_vehicle_type vt ON vt.id = fv.vehicle_type_id AND vt.enabled = true
+        LEFT JOIN fleet_vehicle_brand vb ON vb.id = fv.vehicle_brand_id AND vb.enabled = true
+        WHERE fv.id = ${safeId}
+          AND fv.company_id = ${safeCompanyId}
         LIMIT 1
       `
       return firstRow(rows)
@@ -249,7 +203,11 @@ export function createFleetService({ prisma }) {
             color,
             status,
             driver_id,
-            notes
+            notes,
+            economic_group_number,
+            economic_individual_number,
+            vehicle_type_id,
+            vehicle_brand_id
           )
           VALUES (
             ${safeCompanyId},
@@ -260,7 +218,11 @@ export function createFleetService({ prisma }) {
             ${payload.color ?? null},
             ${payload.status ?? 'active'},
             ${payload.driver_id ?? null},
-            ${payload.notes ?? null}
+            ${payload.notes ?? null},
+            ${payload.economic_group_number ?? null},
+            ${payload.economic_individual_number ?? null},
+            ${payload.vehicle_type_id ?? null},
+            ${payload.vehicle_brand_id ?? null}
           )
           RETURNING *
         `
@@ -298,9 +260,14 @@ export function createFleetService({ prisma }) {
     const hasColor = hasOwn(payload, 'color') && payload.color !== undefined
     const hasDriverId = hasOwn(payload, 'driver_id') && payload.driver_id !== undefined
     const hasNotes = hasOwn(payload, 'notes') && payload.notes !== undefined
+    const hasEconomicGroupNumber = hasOwn(payload, 'economic_group_number') && payload.economic_group_number !== undefined
+    const hasEconomicIndividualNumber = hasOwn(payload, 'economic_individual_number') && payload.economic_individual_number !== undefined
+    const hasVehicleTypeId = hasOwn(payload, 'vehicle_type_id') && payload.vehicle_type_id !== undefined
+    const hasVehicleBrandId = hasOwn(payload, 'vehicle_brand_id') && payload.vehicle_brand_id !== undefined
 
     const hasAnyUpdate =
-      hasPlate || hasBrand || hasModelName || hasYear || hasStatus || hasColor || hasDriverId || hasNotes
+      hasPlate || hasBrand || hasModelName || hasYear || hasStatus || hasColor || hasDriverId || hasNotes ||
+      hasEconomicGroupNumber || hasEconomicIndividualNumber || hasVehicleTypeId || hasVehicleBrandId
 
     if (!hasAnyUpdate) {
       throw new FleetServiceError('No hay campos validos para actualizar.', 400)
@@ -320,6 +287,10 @@ export function createFleetService({ prisma }) {
               color = CASE WHEN ${hasColor} THEN ${payload.color ?? null} ELSE color END,
               driver_id = CASE WHEN ${hasDriverId} THEN ${payload.driver_id ?? null} ELSE driver_id END,
               notes = CASE WHEN ${hasNotes} THEN ${payload.notes ?? null} ELSE notes END,
+              economic_group_number = CASE WHEN ${hasEconomicGroupNumber} THEN ${payload.economic_group_number ?? null} ELSE economic_group_number END,
+              economic_individual_number = CASE WHEN ${hasEconomicIndividualNumber} THEN ${payload.economic_individual_number ?? null} ELSE economic_individual_number END,
+              vehicle_type_id = CASE WHEN ${hasVehicleTypeId} THEN ${payload.vehicle_type_id ?? null} ELSE vehicle_type_id END,
+              vehicle_brand_id = CASE WHEN ${hasVehicleBrandId} THEN ${payload.vehicle_brand_id ?? null} ELSE vehicle_brand_id END,
               updated_at = now()
           WHERE id = ${safeId}
             AND company_id = ${safeCompanyId}

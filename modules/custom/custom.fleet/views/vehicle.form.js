@@ -23,6 +23,10 @@ export default defineView({
             type: 'select',
             options: ['active', 'maintenance', 'inactive', 'retired'],
           },
+          { field: 'economic_group_number', label: 'No. Economico Grupo', type: 'text' },
+          { field: 'economic_individual_number', label: 'No. Economico Individual', type: 'text' },
+          { field: 'vehicle_type_id', label: 'Tipo de Vehiculo (UUID)', type: 'text' },
+          { field: 'vehicle_brand_id', label: 'Marca Catalogo (UUID)', type: 'text' },
         ],
       },
       {
