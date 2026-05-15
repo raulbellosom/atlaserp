@@ -664,9 +664,9 @@ Two additions made:
 
 Add the following schemas (spec §14):
 
-- [ ] `createDriverSchema` — fields: first_name (string 1–100), last_name (string 1–100), phone (string 5–30), email (email format, optional), photo_asset_id (UUID optional), license_number (string 1–50), license_type (string 1–50), license_expiry_date (ISO date string), status (enum: active/inactive/suspended, optional, default 'active'), notes (max 5000, optional).
-- [ ] `updateDriverSchema` — same fields, all optional via `.partial()`.
-- [ ] `createDocumentAssociationSchema` — fields: file_asset_id (UUID, required), document_type (string max 50, optional, default 'document'), label (string max 200, optional).
+- [x] `createDriverSchema` — fields: first_name (string 1–100), last_name (string 1–100), phone (string 5–30), email (email format, optional), photo_asset_id (UUID optional), license_number (string 1–50), license_type (string 1–50), license_expiry_date (ISO date string), status (enum: active/inactive/suspended, optional, default 'active'), notes (max 5000, optional).
+- [x] `updateDriverSchema` — same fields, all optional (defined explicitly, not via `.partial()`, to avoid `.default('active')` side-effect on PATCH operations).
+- [x] `createDocumentAssociationSchema` — fields: file_asset_id (UUID, required), document_type (string max 50, optional, default 'document'), label (string max 200, optional).
 
 **Validation:**
 
@@ -675,6 +675,16 @@ node --check modules/custom/custom.fleet/validators/index.js
 ```
 
 Expected: exits 0.
+
+---
+
+### Task 3.1 — Evidence (Verified: 2026-05-14)
+
+Three new exports added to `modules/custom/custom.fleet/validators/index.js`:
+- `createDriverSchema` — 10 fields, Spanish error messages, status default 'active'
+- `updateDriverSchema` — 10 fields all optional, no defaults (separate definition, not .partial())
+- `createDocumentAssociationSchema` — file_asset_id (UUID required), document_type (max 50), label (max 200 nullable)
+`node --check` passed.
 
 ---
 
@@ -687,14 +697,14 @@ Expected: exits 0.
 
 Create `createDriverService({ prisma })` factory (spec §12 Driver endpoints). Pattern mirrors existing service factories in the fleet module. Key functions:
 
-- [ ] `listDrivers({ companyId, page, pageSize, search, status, sortBy, sortDir })` — SELECT from `fleet_driver` with company_id filter, enabled = true, full_name computed as `first_name || ' ' || last_name`. Searchable on first_name, last_name, license_number.
-- [ ] `getDriver({ companyId, id })` — SELECT by id + company_id. Throws 404 if not found.
-- [ ] `createDriver({ companyId, actorId, payload })` — INSERT into `fleet_driver`. Audit log with action `fleet.driver.create`. Throws 409 on unique license number violation.
-- [ ] `updateDriver({ companyId, actorId, id, payload })` — PATCH (SELECT for before, UPDATE, audit log `fleet.driver.update`).
-- [ ] `setDriverEnabled({ companyId, actorId, id, enabled })` — UPDATE enabled. Audit log `fleet.driver.disable` when disabling.
-- [ ] `listDriverDocuments({ companyId, driverId })` — SELECT from `fleet_driver_document` with enabled = true, resolve FileAsset metadata via `prisma.fileAsset.findMany({ where: { id: { in: fileAssetIds } } })`.
-- [ ] `addDriverDocument({ companyId, actorId, driverId, payload })` — INSERT into `fleet_driver_document`. Audit log `fleet.driver.document.add`.
-- [ ] `removeDriverDocument({ companyId, actorId, driverId, docId })` — UPDATE enabled = false. Audit log `fleet.driver.document.remove`.
+- [x] `listDrivers({ companyId, page, pageSize, search, status, sortBy, sortDir })` — SELECT from `fleet_driver` with company_id filter, enabled = true, full_name computed as `first_name || ' ' || last_name`. Searchable on first_name, last_name, license_number.
+- [x] `getDriver({ companyId, id })` — SELECT by id + company_id. Throws 404 if not found.
+- [x] `createDriver({ companyId, actorId, payload })` — INSERT into `fleet_driver`. Audit log with action `fleet.driver.create`. Throws 409 on unique license number violation.
+- [x] `updateDriver({ companyId, actorId, id, payload })` — PATCH (SELECT for before, UPDATE, audit log `fleet.driver.update`).
+- [x] `setDriverEnabled({ companyId, actorId, id, enabled })` — UPDATE enabled. Audit log `fleet.driver.disable` when disabling.
+- [x] `listDriverDocuments({ companyId, driverId })` — SELECT from `fleet_driver_document` with enabled = true, resolve FileAsset metadata via `prisma.fileAsset.findMany({ where: { id: { in: fileAssetIds } } })`.
+- [x] `addDriverDocument({ companyId, actorId, driverId, payload })` — INSERT into `fleet_driver_document`. Audit log `fleet.driver.document.add`.
+- [x] `removeDriverDocument({ companyId, actorId, driverId, docId })` — UPDATE enabled = false. Audit log `fleet.driver.document.remove`.
 
 All raw SQL queries use `prisma.$queryRaw` tagged template literals with `$safeCompanyId` pattern for company scoping. File must stay under 400 lines.
 
@@ -705,6 +715,20 @@ node --check modules/custom/custom.fleet/api/driver-service.js
 ```
 
 Expected: exits 0. Line count < 400.
+
+---
+
+### Task 3.2 — Evidence (Verified: 2026-05-14)
+
+`modules/custom/custom.fleet/api/driver-service.js` created. 329 lines (under 400 ✓).
+
+Key design decisions:
+- `FleetServiceError` imported from `./fleet-service.js` (already exported) for consistent instanceof checks across the module.
+- All utility helpers (toScopedCompanyUuid, normalizeRecordId, normalizePagination, etc.) duplicated locally; Phase 4 service split will extract them to a shared file.
+- `listDrivers` uses `$queryRawUnsafe` for dynamic ORDER BY with sortBy mapped through `SORT_FIELD_MAP` allowlist — never raw user input in the SQL string. All value params are positional (`$1`, `$2`, ...). Comment in source explains why this is safe.
+- Search covers: first_name, last_name, license_number, phone (per spec §12).
+- All other functions use `$queryRaw` tagged templates.
+- `node --check` passed.
 
 ---
 
@@ -720,18 +744,18 @@ Expected: exits 0. Line count < 400.
 
 Use `defineView` from `@atlas/module-engine`. Spec §8 (UX requirements — Driver table/form).
 
-- [ ] **driver.table.js** — key: `fleet.driver.table`, kind: TABLE, apiPath: `/fleet/drivers`. Columns: full_name (link, primaryField), phone, license_number, license_type, license_expiry_date (date), status (component: `custom.fleet:DriverStatusBadge`). searchable: true, searchPlaceholder: "Buscar chofer...". Actions: "Crear chofer" (permission: fleet.drivers.create). Row actions: "Ver detalle" (fleet.drivers.read), "Editar" (fleet.drivers.update), "Desactivar" (fleet.drivers.delete). emptyState message: "No hay choferes registrados."
+- [x] **driver.table.js** — key: `fleet.driver.table`, kind: TABLE, apiPath: `/fleet/drivers`. Columns: full_name (link, primaryField), phone, license_number, license_type, license_expiry_date (date), status (component: `custom.fleet:DriverStatusBadge`). searchable: true, searchPlaceholder: "Buscar chofer...". Actions: "Crear chofer" (permission: fleet.drivers.create). Row actions: "Ver detalle" (fleet.drivers.read), "Editar" (fleet.drivers.update), "Desactivar" (fleet.drivers.delete). emptyState message: "No hay choferes registrados."
 
-- [ ] **driver.form.js** — key: `fleet.driver.form`, kind: FORM, apiPath: `/fleet/drivers`. Sections:
+- [x] **driver.form.js** — key: `fleet.driver.form`, kind: FORM, apiPath: `/fleet/drivers`. Sections:
   - "Datos personales" — first_name (text, required), last_name (text, required), phone (phone, required), email (email, optional).
   - "Licencia" — license_number (text, required), license_type (text, required), license_expiry_date (date, required).
-  - "Estado" — status (select: active/inactive/suspended, default active).
+  - "Estado" — status (select with Spanish labels Activo/Inactivo/Suspendido, submitted values raw, default active).
   - "Notas" — notes (textarea).
   submitLabel: "Guardar chofer", cancelLabel: "Cancelar".
 
-- [ ] **driver.detail.js** — key: `fleet.driver.detail`, kind: DETAIL, apiPath: `/fleet/drivers`. Sections: "Datos personales" (columns: 2 — first_name, last_name, phone, email), "Licencia" (license_number, license_type, license_expiry_date), "Estado" (status). Actions: "Editar" (fleet.drivers.update), "Desactivar" (fleet.drivers.delete).
+- [x] **driver.detail.js** — key: `fleet.driver.detail`, kind: DETAIL, apiPath: `/fleet/drivers`. Sections: "Datos personales" (columns: 2 — first_name, last_name, phone, email), "Licencia" (license_number, license_type, license_expiry_date), "Estado" (status), "Notas" (notes). Actions: "Editar" (fleet.drivers.update), "Desactivar" (fleet.drivers.delete).
 
-- [ ] **driver.page.js** — key: `fleet.driver.page`, kind: PAGE, path: `/drivers`. Links to driver.table, driver.form, driver.detail views.
+- [x] **driver.page.js** — key: `fleet.driver.page`, kind: PAGE, path: `/app/m/custom.fleet/drivers`. Uses `definePage` (not `defineView`), view: `fleet.driver.table`.
 
 **Validation:**
 
@@ -746,6 +770,17 @@ Expected: all exit 0.
 
 ---
 
+### Task 3.3 — Evidence (Verified: 2026-05-14)
+
+All 4 driver view files created. `node --check` passed for all.
+
+- `driver.table.js` — `defineView`, kind TABLE, 6 columns, `DriverStatusBadge` component ref (renderer will fallback gracefully if component not yet implemented)
+- `driver.form.js` — `defineView`, kind FORM, 4 sections, status options as `{label, value}` objects with Spanish labels
+- `driver.detail.js` — `defineView`, kind DETAIL, 4 sections (Datos personales columns:2, Licencia, Estado, Notas)
+- `driver.page.js` — `definePage` (matching vehicle.page.js pattern), path `/app/m/custom.fleet/drivers`, view `fleet.driver.table`
+
+---
+
 ### Task 3.4 — Create drivers-routes.js
 
 **Files:**
@@ -755,14 +790,14 @@ Expected: all exit 0.
 
 Create `createDriversRouter({ prisma, requirePermission, moduleContext })` factory returning a Hono router (spec §12 Driver endpoints). Routes:
 
-- [ ] `GET /drivers` — requirePermission('fleet.drivers.read'), call `listDrivers`.
-- [ ] `POST /drivers` — requirePermission('fleet.drivers.create'), validate with `createDriverSchema`, call `createDriver`.
-- [ ] `GET /drivers/:id` — requirePermission('fleet.drivers.read'), call `getDriver`.
-- [ ] `PATCH /drivers/:id` — requirePermission('fleet.drivers.update'), validate with `updateDriverSchema`, call `updateDriver`.
-- [ ] `PATCH /drivers/:id/enabled` — requirePermission('fleet.drivers.delete'), call `setDriverEnabled`.
-- [ ] `GET /drivers/:id/documents` — requirePermission('fleet.drivers.read'), call `listDriverDocuments`.
-- [ ] `POST /drivers/:id/documents` — requirePermission('fleet.drivers.update'), validate with `createDocumentAssociationSchema`, call `addDriverDocument`.
-- [ ] `DELETE /drivers/:id/documents/:docId` — requirePermission('fleet.drivers.update'), call `removeDriverDocument`.
+- [x] `GET /fleet/drivers` — requirePermission('fleet.drivers.read'), call `listDrivers`.
+- [x] `POST /fleet/drivers` — requirePermission('fleet.drivers.create'), validate with `createDriverSchema`, call `createDriver`.
+- [x] `GET /fleet/drivers/:id` — requirePermission('fleet.drivers.read'), call `getDriver`.
+- [x] `PATCH /fleet/drivers/:id` — requirePermission('fleet.drivers.update'), validate with `updateDriverSchema`, call `updateDriver`.
+- [x] `PATCH /fleet/drivers/:id/enabled` — requirePermission('fleet.drivers.delete'), call `setDriverEnabled`.
+- [x] `GET /fleet/drivers/:id/documents` — requirePermission('fleet.drivers.read'), call `listDriverDocuments`.
+- [x] `POST /fleet/drivers/:id/documents` — requirePermission('fleet.drivers.update'), validate with `createDocumentAssociationSchema`, call `addDriverDocument`.
+- [x] `DELETE /fleet/drivers/:id/documents/:docId` — requirePermission('fleet.drivers.update'), call `removeDriverDocument`.
 
 File must stay under 200 lines.
 
@@ -773,6 +808,24 @@ node --check modules/custom/custom.fleet/api/drivers-routes.js
 ```
 
 Expected: exits 0.
+
+---
+
+### Task 3.4 — Evidence (Verified: 2026-05-14)
+
+`modules/custom/custom.fleet/api/drivers-routes.js` created. 145 lines (under 200 ✓). `node --check` passed.
+
+**Route wiring decision:** `drivers-routes.js` is NOT wired into `modules/custom/custom.fleet/api/index.js` in Phase 3. The plan reserves the api/index.js refactoring for Phase 4.4 (orchestrator split). Routes defined with full paths (`/fleet/drivers/...`) so Phase 4.4 can mount with `app.route('', createDriversRouter(...))` without any path adjustment.
+
+**Runtime validation:** Deferred to Phase 4.4. When wired, `GET /fleet/drivers` should return 200 with pagination; `POST /fleet/drivers` should return 201; duplicate license_number should return 409; invalid UUID id should return 404.
+
+**Manifest update (Verified: 2026-05-14):**
+- `views` array: 4 → 8 entries (added driver.table.js, driver.form.js, driver.detail.js, driver.page.js)
+- `navigation` array: 2 → 3 items (added Choferes, `/app/m/custom.fleet/drivers`, icon UserCheck, permission fleet.drivers.read)
+- Catalog navigation deferred to Phase 5 (no catalog views yet)
+- `node --check` passed.
+
+**Forbidden file check:** `git diff --name-only HEAD | grep -E ...` — empty output. Only `module.manifest.js` and `validators/index.js` modified; all new files are untracked.
 
 ---
 

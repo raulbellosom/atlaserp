@@ -30,6 +30,10 @@ export default defineAtlasModule({
     "./views/vehicle.form.js",
     "./views/vehicle.detail.js",
     "./views/vehicle.page.js",
+    "./views/driver.table.js",
+    "./views/driver.form.js",
+    "./views/driver.detail.js",
+    "./views/driver.page.js",
   ],
   lifecycle: {
     installable: true,
@@ -176,6 +180,13 @@ export default defineAtlasModule({
       icon: "Wrench",
       layout: "main",
       permissionKey: "fleet.maintenance.read",
+    },
+    {
+      label: "Choferes",
+      path: "/app/m/custom.fleet/drivers",
+      icon: "UserCheck",
+      layout: "main",
+      permissionKey: "fleet.drivers.read",
     },
   ],
 });

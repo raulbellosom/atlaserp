@@ -58,3 +58,37 @@ export const updateMaintenanceSchema = z.object({
   cost: z.number().min(0).nullable().optional(),
   notes: z.string().optional(),
 })
+
+const driverStatusSchema = z.enum(['active', 'inactive', 'suspended'])
+
+export const createDriverSchema = z.object({
+  first_name: z.string().min(1, 'El nombre es requerido.').max(100),
+  last_name: z.string().min(1, 'El apellido es requerido.').max(100),
+  phone: z.string().min(5, 'El telefono debe tener al menos 5 caracteres.').max(30),
+  email: z.string().email('Correo electronico invalido.').nullable().optional(),
+  photo_asset_id: z.string().uuid('UUID de foto invalido.').nullable().optional(),
+  license_number: z.string().min(1, 'El numero de licencia es requerido.').max(50),
+  license_type: z.string().min(1, 'El tipo de licencia es requerido.').max(50),
+  license_expiry_date: isoDateSchema,
+  status: driverStatusSchema.default('active'),
+  notes: z.string().max(5000).nullable().optional(),
+})
+
+export const updateDriverSchema = z.object({
+  first_name: z.string().min(1).max(100).optional(),
+  last_name: z.string().min(1).max(100).optional(),
+  phone: z.string().min(5).max(30).optional(),
+  email: z.string().email().nullable().optional(),
+  photo_asset_id: z.string().uuid().nullable().optional(),
+  license_number: z.string().min(1).max(50).optional(),
+  license_type: z.string().min(1).max(50).optional(),
+  license_expiry_date: isoDateSchema.optional(),
+  status: driverStatusSchema.optional(),
+  notes: z.string().max(5000).nullable().optional(),
+})
+
+export const createDocumentAssociationSchema = z.object({
+  file_asset_id: z.string().uuid('UUID de archivo invalido.'),
+  document_type: z.string().max(50).optional(),
+  label: z.string().max(200).nullable().optional(),
+})
