@@ -141,6 +141,158 @@ The implementation follows the AME3 pattern established in the previous phase. N
 
 ---
 
+### Task 1.1 — Evidence (Verified: 2026-05-14)
+
+**MCP database tool:** No PostgreSQL/Supabase MCP tool is available in this environment. Available MCP servers: context7, exa, github, memory, playwright, sequential-thinking. Fallback used: temporary Node.js script (`_phase1_inspect.mjs`, deleted after use) using `@prisma/client` + `@prisma/adapter-pg` with `DIRECT_URL` from `.env`. This matches the project's own API initialization pattern (`apps/api/src/index.js` lines 8, 79-81).
+
+**Note on Prisma version:** CLAUDE.md states Prisma is pinned to `^6`. Actual installed version is `7.8.0` (both `prisma` and `@prisma/client`). This is an out-of-scope discrepancy — not addressed in Phase 1. Flagged for team awareness.
+
+**Note on AtlasView schema:** The plan and spec reference column `kind` in `AtlasView`. The actual column name is `type`. The inspection queries were corrected accordingly. The plan verification commands in Phase 8 that reference `kind` must use `type` instead.
+
+---
+
+**Check 1 result — fleet_ tables (2026-05-14)**
+
+Query executed:
+```sql
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'public' AND table_name LIKE 'fleet_%'
+ORDER BY table_name;
+```
+
+Result:
+```
+fleet_maintenance
+fleet_vehicle
+```
+
+Status: **PASS** — both expected base tables present. No expansion tables (fleet_driver, fleet_vehicle_type, etc.) exist yet. Phase 2 will create them via Atlas ORM.
+
+---
+
+**Check 2 result — fleet_vehicle expansion columns (2026-05-14)**
+
+Query executed:
+```sql
+SELECT column_name, data_type FROM information_schema.columns
+WHERE table_schema = 'public' AND table_name = 'fleet_vehicle'
+  AND column_name IN ('economic_group_number','economic_individual_number',
+    'vehicle_type_id','vehicle_brand_id','photo_asset_id')
+ORDER BY column_name;
+```
+
+Result: **empty** — zero rows.
+
+Status: **PASS (pre-migration)** — no expansion columns exist yet. V002 migration must be applied in Phase 2 Task 2.2.
+
+---
+
+**Check 3 result — fleet_maintenance expansion columns (2026-05-14)**
+
+Query executed:
+```sql
+SELECT column_name, data_type FROM information_schema.columns
+WHERE table_schema = 'public' AND table_name = 'fleet_maintenance'
+  AND column_name IN ('maintenance_type_id','title','status','driver_id',
+    'started_at','odometer_km','provider','currency','enabled')
+ORDER BY column_name;
+```
+
+Result: **empty** — zero rows. Notably, `enabled` does NOT exist on `fleet_maintenance` yet (the `getMaintenanceEnabledColumnSupport()` runtime check in `fleet-service.js` is therefore currently returning false).
+
+Status: **PASS (pre-migration)** — no expansion columns exist. V003 migration must be applied in Phase 2 Task 2.2 before any maintenance service code changes.
+
+---
+
+**Check 4 result — AtlasView rows for custom.fleet (2026-05-14)**
+
+Query executed (column corrected from `kind` to `type`):
+```sql
+SELECT "moduleKey", key, type, enabled FROM "AtlasView"
+WHERE "moduleKey" = 'custom.fleet' ORDER BY key;
+```
+
+Result:
+```json
+[
+  { "moduleKey": "custom.fleet", "key": "fleet.vehicle.detail", "type": "DETAIL", "enabled": true },
+  { "moduleKey": "custom.fleet", "key": "fleet.vehicle.form",   "type": "FORM",   "enabled": true },
+  { "moduleKey": "custom.fleet", "key": "fleet.vehicle.page",   "type": "PAGE",   "enabled": true },
+  { "moduleKey": "custom.fleet", "key": "fleet.vehicle.table",  "type": "TABLE",  "enabled": true }
+]
+```
+
+Status: **PASS** — 4 vehicle views present, all enabled. No maintenance views, no driver views, no catalog views. This matches expected pre-Phase-2 state.
+
+---
+
+**Check 5 result — AtlasModel rows for custom.fleet (2026-05-14)**
+
+Query executed:
+```sql
+SELECT "moduleKey", name, "tableName", enabled FROM "AtlasModel"
+WHERE "moduleKey" = 'custom.fleet' ORDER BY name;
+```
+
+Result:
+```json
+[
+  { "moduleKey": "custom.fleet", "name": "fleet.maintenance", "tableName": "fleet_maintenance", "enabled": true },
+  { "moduleKey": "custom.fleet", "name": "fleet.vehicle",     "tableName": "fleet_vehicle",     "enabled": true }
+]
+```
+
+Status: **PASS** — 2 models registered. No driver, catalog, or document models yet. Phase 2 will register 7 new models.
+
+---
+
+**Check 6 result — file line counts (2026-05-14)**
+
+```
+fleet-service.js:  629 lines  (service split required — approaching 800-line soft warning)
+api/index.js:      325 lines  (split required before adding catalog/driver routes)
+validators/index.js: 60 lines (manageable — no split needed now)
+```
+
+Status: **PASS** — confirms service split is necessary before new functionality is layered in. Task 4.1 (split fleet-service.js) and Task 4.4 (split api/index.js) must run before Phase 3 code is added.
+
+---
+
+**Check 7 result — files-service.js ALLOWED_FILE_ENTITY_TYPES (2026-05-14)**
+
+`ALLOWED_FILE_ENTITY_TYPES` in `apps/api/src/services/files-service.js` (lines 9-15):
+```js
+const ALLOWED_FILE_ENTITY_TYPES = [
+  "AtlasFile",
+  "BrandingConfig",
+  "Company",
+  "HrEmployee",
+  "Contact",
+];
+```
+
+FleetVehicle, FleetDriver, FleetMaintenance: **ABSENT**.
+
+Status: **PASS (pre-update)** — fleet entity types are not yet allowlisted. Phase 6 Task 6.1 must add them before document upload tests can pass.
+
+---
+
+**Check 8 result — module.manifest.js current state (2026-05-14)**
+
+- Version: `0.1.0`
+- Models: 2 (`./models/vehicle.model.js`, `./models/maintenance.model.js`)
+- Views: 4 (`vehicle.table`, `vehicle.form`, `vehicle.detail`, `vehicle.page`)
+- Navigation items: 2 (Vehiculos, Mantenimiento)
+- Permissions: 9 (`fleet.access` + 4 vehicle + 4 maintenance)
+- Drivers: absent
+- Catalogs: absent
+
+Status: **PASS** — manifest matches expected pre-Phase-2 state. Must be bumped to `0.2.0` in Task 2.5.
+
+- [ ] **Task 1.1 complete** — all 8 checks executed with evidence. Database is clean (no expansion columns, no new tables). Ready to proceed to Phase 2.
+
+---
+
 ## Phase 2 — Model definitions and safe migration strategy
 
 ### Task 2.1 — Create additive column migration files
