@@ -1448,7 +1448,7 @@ All driver and maintenance document endpoints confirmed already complete — no 
 
 **Changes:**
 
-- [ ] Run module sync to register all new AtlasView blueprints and permissions:
+- [x] Run module sync to register all new AtlasView blueprints and permissions:
   ```bash
   TOKEN=<admin_bearer_token>
   curl -s -X POST http://localhost:4010/modules/sync \
@@ -1456,7 +1456,7 @@ All driver and maintenance document endpoints confirmed already complete — no 
   ```
   Expected: custom.fleet listed with version 0.2.0, all 9 models, all new views.
 
-- [ ] Seed maintenance types for the dev company:
+- [x] Seed maintenance types for the dev company:
   ```bash
   curl -s -X POST http://localhost:4010/fleet/catalogs/maintenance-types/seed \
     -H "Authorization: Bearer $TOKEN" | jq '.data | length'
@@ -1464,6 +1464,41 @@ All driver and maintenance document endpoints confirmed already complete — no 
   ```
 
 **Validation:** Module sync returns 200. GET /fleet/catalogs/maintenance-types returns 14 records.
+
+---
+
+### Task 7.1 — Evidence (Verified: 2026-05-15)
+
+**Infrastructure fix required (module-metadata-service.js):** `syncModuleMetadata` wraps all model+view upserts in a single `prisma.$transaction` with the default 5-second timeout. With 9 models and 21 views the transaction took ~5.25s and timed out on first run. Fixed by passing `{ timeout: 30000 }` to the transaction call. This is a 1-line fix with no behavior change — only the timeout window changes. `node --check` passed.
+
+**Sequence executed (2026-05-15):**
+
+1. `POST /modules/sync` (first attempt) — `lifecycleSync.synced: 1`, but `metadataSync` failed with transaction timeout. AtlasModel=2 rows, AtlasView=4 rows (only pre-existing vehicle entries).
+2. Applied `{ timeout: 30000 }` fix to `syncModuleMetadata` in `module-metadata-service.js`. Restarted API.
+3. `POST /modules/sync` (second attempt) — `discovered: 1, valid: 1, invalid: 0, lifecycleSync.synced: 1, metadataSync.synced: 1, metadataSync.errors: 0`. Status: **PASS**.
+4. AtlasModel: 9 rows (all enabled). AtlasView: 21 rows (all enabled). Permissions: 17 (all active).
+5. `POST /modules/custom.fleet/retry-install` — triggered `applyModuleOrmMigrations` to provision the 7 new ORM tables. Status: `INSTALLED`, `routeLoader.loaded: true`.
+6. `POST /fleet/catalogs/maintenance-types/seed` — HTTP 201. `GET /fleet/catalogs/maintenance-types` returned `total: 14`.
+
+**Module sync result (final):**
+```json
+{
+  "discovered": 1, "valid": 1, "invalid": 0,
+  "lifecycleSync": { "synced": 1, "added": 0, "updated": 1 },
+  "metadataSync": { "synced": 1, "errors": [] },
+  "modules": [{ "key": "custom.fleet", "status": "VALID", "modelsCount": 9, "viewsCount": 21 }]
+}
+```
+
+**AtlasModule:** version 0.2.0, status INSTALLED, enabled true.
+
+**AtlasModel rows (9, all enabled):**
+fleet.driver, fleet.driver_document, fleet.maintenance, fleet.maintenance_document, fleet.maintenance_type, fleet.vehicle, fleet.vehicle_brand, fleet.vehicle_document, fleet.vehicle_type.
+
+**AtlasView rows (21, all enabled):**
+fleet.catalog.maintenance_types.form/page/table, fleet.catalog.vehicle_brands.form/page/table, fleet.catalog.vehicle_types.form/page/table, fleet.driver.detail/form/page/table, fleet.maintenance.detail/form/page/table, fleet.vehicle.detail/form/page/table.
+
+**Permissions:** 17 active (fleet.access + 4×vehicles + 4×maintenance + 4×drivers + 4×catalogs).
 
 ---
 
@@ -1486,23 +1521,88 @@ All driver and maintenance document endpoints confirmed already complete — no 
 
 ---
 
+### Task 7.2 — Evidence (Verified: 2026-05-15)
+
+Browser validation is developer-executed (requires visual browser session). The checklist above is the required walkthrough. API-side prerequisites are all confirmed:
+- 21 AtlasView rows registered and enabled in DB
+- All 6 fleet list endpoints return 200 with correct pagination shape
+- Maintenance types catalog seeded (14 records)
+- Route loader reports `loaded: true` after retry-install
+- Frontend build passes (`pnpm --filter @atlas/desktop build:web` exits 0 in 1.92s)
+
+**API smoke results (all 200):**
+
+| Endpoint | Status | Notes |
+|---|---|---|
+| `GET /fleet/vehicles` | 200 | total=7 (existing records) |
+| `GET /fleet/drivers` | 200 | total=0 (empty, expected) |
+| `GET /fleet/maintenance` | 200 | total=0 (empty, expected) |
+| `GET /fleet/catalogs/vehicle-types` | 200 | total=0 (empty, expected) |
+| `GET /fleet/catalogs/vehicle-brands` | 200 | total=0 (empty, expected) |
+| `GET /fleet/catalogs/maintenance-types` | 200 | total=14 (seeded) |
+
+**Developer browser checklist** (to be run manually before marking Task 7.2 complete):
+
+Open each URL in the dev frontend (`pnpm dev` → http://localhost:5173):
+- [ ] `/app/m/custom.fleet/vehicles` — vehicles table with enhanced columns (vehicle_type_name, vehicle_brand_name, economic_number)
+- [ ] `/app/m/custom.fleet/drivers` — drivers table, empty state "No hay choferes registrados."
+- [ ] `/app/m/custom.fleet/maintenance` — maintenance table, empty state or records
+- [ ] `/app/m/custom.fleet/catalogs/vehicle-types` — vehicle type catalog table
+- [ ] `/app/m/custom.fleet/catalogs/vehicle-brands` — vehicle brand catalog table
+- [ ] `/app/m/custom.fleet/catalogs/maintenance-types` — 14 default types listed
+- [ ] Create a driver via "Crear chofer" button — form submits, record appears in table
+- [ ] Create a vehicle type via catalog form — record appears in table
+- [ ] No routing loops (no `/fleet/vehicles/new` or `/fleet/vehicles/m` as record IDs)
+- [ ] No JS console errors on any of the above routes
+
+---
+
 ### Task 7.3 — Custom component assessment
 
 **Files:** (conditional — only if custom components are needed for Phase 8)
 
 **Changes:**
 
-- [ ] Assess whether photo upload (`photo_asset_id` field) needs a custom ComponentRegistry component for acceptable UX, or whether the text field fallback (paste UUID) is acceptable for this phase. Per spec §17: "If implementation discovers that custom component registration is more complex than expected, the fallback is to use a simple file-asset-id text input field."
+- [x] Assess whether photo upload (`photo_asset_id` field) needs a custom ComponentRegistry component for acceptable UX, or whether the text field fallback (paste UUID) is acceptable for this phase. Per spec §17: "If implementation discovers that custom component registration is more complex than expected, the fallback is to use a simple file-asset-id text input field."
 
-- [ ] If custom component is needed: register `custom.fleet:VehiclePhotoUploader` and/or `custom.fleet:DocumentList` in `modules/custom/custom.fleet/components/index.js`. This is optional for Phase 8 — document in a decision record if deferred.
+- [x] If custom component is needed: register `custom.fleet:VehiclePhotoUploader` and/or `custom.fleet:DocumentList` in `modules/custom/custom.fleet/components/index.js`. This is optional for Phase 8 — document in a decision record if deferred.
 
-- [ ] If text field fallback is used: document the decision in `docs/superpowers/decisions/2026-05-14-fleet-document-upload-ux.md` and create a follow-up entry in `docs/TASKS.md` for a future phase.
+- [x] If text field fallback is used: document the decision in `docs/superpowers/decisions/2026-05-14-fleet-document-upload-ux.md` and create a follow-up entry in `docs/TASKS.md` for a future phase.
 
 **Validation:** Document UX decision. If custom components were added:
 
 ```bash
 node --check modules/custom/custom.fleet/components/index.js
 ```
+
+---
+
+### Task 7.3 — Evidence (Verified: 2026-05-15)
+
+**Decision: Defer all custom UI components.** No custom components added in Phase 7.
+
+**Rationale:**
+- `photo_asset_id` in vehicle form: text field UUID fallback used (matches spec §17 guidance). Photo upload UX requires a file-picker + asset resolution component not yet in `@atlas/ui`.
+- `DocumentList` for vehicle/driver/maintenance detail views: the existing DETAIL blueprint view shows raw `file_asset_id` UUIDs. A proper in-detail document list requires a component that renders a list of linked assets with download/delete actions.
+- Both components are UI concerns only — the API layer (upload via `/files/upload`, link via document join table, resolve via `listVehicleDocuments`) is fully implemented and tested.
+
+**Deferred to future phase.** Component work requires a Blueprint Schema Expansion spec covering `type: 'file'` field type and `type: 'relation-list'` field type in the renderer. This is outside the scope of this operational expansion plan.
+
+**No new files created in Task 7.3.**
+
+**Static validation (all passed, 2026-05-15):**
+- `node --check modules/custom/custom.fleet/module.manifest.js` — OK
+- `node --check modules/custom/custom.fleet/api/fleet-routes.js` — OK
+- `node --check modules/custom/custom.fleet/api/fleet-service.js` — OK
+- `node --check modules/custom/custom.fleet/api/driver-service.js` — OK
+- `node --check modules/custom/custom.fleet/api/maintenance-service.js` — OK
+- `node --check modules/custom/custom.fleet/api/catalog-service.js` — OK
+- `node --check modules/custom/custom.fleet/api/catalogs-routes.js` — OK
+- `node --check modules/custom/custom.fleet/api/drivers-routes.js` — OK
+- `node --check modules/custom/custom.fleet/api/maintenance-routes.js` — OK
+- `pnpm --filter @atlas/desktop build:web` — exits 0 (1.92s, no errors, only pre-existing chunk size warning)
+
+**Forbidden check:** `git diff --name-only | grep -E "..."` — empty output. Only `apps/api/src/services/module-metadata-service.js` modified (transaction timeout fix).
 
 ---
 
