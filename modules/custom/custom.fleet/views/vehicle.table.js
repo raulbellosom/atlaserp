@@ -13,17 +13,15 @@ export default defineView({
     searchPlaceholder: "Buscar vehículo...",
     columns: [
       { field: "plate", label: "Matricula", sortable: true, link: true },
-      { field: "brand", label: "Marca", sortable: true },
-      { field: "model_name", label: "Modelo", sortable: true },
-      { field: "year", label: "Anio", sortable: true },
+      { field: "vehicle_model_name", label: "Modelo", sortable: false },
+      { field: "vehicle_brand_name", label: "Marca", sortable: false },
+      { field: "vehicle_type_name", label: "Tipo", sortable: false },
       {
         field: "status",
         label: "Estado",
         sortable: false,
         component: "custom.fleet:VehicleStatusBadge",
       },
-      { field: "vehicle_type_name", label: "Tipo", sortable: false },
-      { field: "vehicle_brand_name", label: "Marca Catalogo", sortable: false },
       { field: "economic_number", label: "No. Economico", sortable: false },
     ],
     actions: [

@@ -21,9 +21,9 @@ const ECON_NUM_REGEX = /^[0-9]{1,4}$/
 
 export const createVehicleSchema = z.object({
   plate: z.string().min(1).max(20),
-  brand: z.string().min(1).max(100),
-  model_name: z.string().min(1).max(100),
-  year: z.number().int().min(1900).max(2100),
+  brand: z.string().min(1).max(100).optional(),
+  model_name: z.string().min(1).max(100).optional(),
+  year: z.number().int().min(1900).max(2100).optional(),
   status: vehicleStatusSchema.default('active'),
   color: z.string().regex(HEX_COLOR_REGEX, 'Color hexadecimal invalido.').optional(),
   driver_id: z.string().uuid().nullable().optional(),
@@ -32,6 +32,7 @@ export const createVehicleSchema = z.object({
   economic_individual_number: z.string().regex(ECON_NUM_REGEX, 'Maximo 4 digitos numericos.').nullable().optional(),
   vehicle_type_id: z.string().uuid().nullable().optional(),
   vehicle_brand_id: z.string().uuid().nullable().optional(),
+  vehicle_model_id: z.string().uuid().nullable().optional(),
 })
 
 export const updateVehicleSchema = z.object({
@@ -47,6 +48,7 @@ export const updateVehicleSchema = z.object({
   economic_individual_number: z.string().regex(ECON_NUM_REGEX, 'Maximo 4 digitos numericos.').nullable().optional(),
   vehicle_type_id: z.string().uuid().nullable().optional(),
   vehicle_brand_id: z.string().uuid().nullable().optional(),
+  vehicle_model_id: z.string().uuid().nullable().optional(),
 })
 
 const maintenanceStatusSchema = z.enum(['scheduled', 'in_progress', 'completed', 'cancelled'])
@@ -130,11 +132,27 @@ export const createDocumentAssociationSchema = z.object({
 export const createVehicleTypeSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
+  economic_group_number: z.string().regex(ECON_NUM_REGEX, 'Maximo 4 digitos numericos.').nullable().optional(),
 })
 
 export const updateVehicleTypeSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(500).optional(),
+  economic_group_number: z.string().regex(ECON_NUM_REGEX, 'Maximo 4 digitos numericos.').nullable().optional(),
+})
+
+export const createVehicleModelSchema = z.object({
+  brand_id: z.string().uuid(),
+  type_id: z.string().uuid(),
+  name: z.string().min(1).max(150),
+  year: z.number().int().min(1900).max(2100),
+})
+
+export const updateVehicleModelSchema = z.object({
+  brand_id: z.string().uuid().optional(),
+  type_id: z.string().uuid().optional(),
+  name: z.string().min(1).max(150).optional(),
+  year: z.number().int().min(1900).max(2100).optional(),
 })
 
 export const createVehicleBrandSchema = z.object({

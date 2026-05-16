@@ -30,6 +30,7 @@ function normalizeVehiclePayload(data = {}) {
     model_name: data.model_name === undefined ? undefined : String(data.model_name).trim(),
     color: normalizeOptionalString(data.color),
     notes: normalizeOptionalString(data.notes),
+    vehicle_model_id: normalizeOptionalString(data.vehicle_model_id),
   }
 }
 
@@ -105,18 +106,23 @@ export function createFleetService({ prisma }) {
       const dataRows = await prisma.$queryRaw`
         SELECT
           fv.*,
-          vt.name AS vehicle_type_name,
-          vb.name AS vehicle_brand_name,
+          vm.name AS vehicle_model_name,
+          vm.year AS vehicle_model_year,
+          COALESCE(vb_m.name, vb.name) AS vehicle_brand_name,
+          COALESCE(vt_m.name, vt.name) AS vehicle_type_name,
+          COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) AS economic_group_number_resolved,
           CASE
-            WHEN fv.economic_group_number IS NOT NULL AND fv.economic_individual_number IS NOT NULL
-              THEN fv.economic_group_number || '-' || fv.economic_individual_number
-            WHEN fv.economic_individual_number IS NOT NULL THEN fv.economic_individual_number
-            WHEN fv.economic_group_number IS NOT NULL THEN fv.economic_group_number
+            WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) IS NOT NULL
+              AND fv.economic_individual_number IS NOT NULL
+              THEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) || '-' || fv.economic_individual_number
             ELSE NULL
           END AS economic_number
         FROM fleet_vehicle fv
-        LEFT JOIN fleet_vehicle_type vt ON vt.id = fv.vehicle_type_id AND vt.enabled = true
-        LEFT JOIN fleet_vehicle_brand vb ON vb.id = fv.vehicle_brand_id AND vb.enabled = true
+        LEFT JOIN fleet_vehicle_model vm ON vm.id = fv.vehicle_model_id
+        LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id
+        LEFT JOIN fleet_vehicle_type vt_m ON vt_m.id = vm.type_id
+        LEFT JOIN fleet_vehicle_type vt ON vt.id = fv.vehicle_type_id
+        LEFT JOIN fleet_vehicle_brand vb ON vb.id = fv.vehicle_brand_id
         WHERE fv.company_id = ${safeCompanyId}
           AND fv.enabled = true
           AND (${normalizedStatus}::text IS NULL OR fv.status = ${normalizedStatus})
@@ -125,6 +131,8 @@ export function createFleetService({ prisma }) {
             OR fv.plate ILIKE ${likeValue}
             OR fv.brand ILIKE ${likeValue}
             OR fv.model_name ILIKE ${likeValue}
+            OR vm.name ILIKE ${likeValue}
+            OR vb_m.name ILIKE ${likeValue}
           )
         ORDER BY fv.created_at DESC
         LIMIT ${pagination.pageSize}
@@ -134,6 +142,8 @@ export function createFleetService({ prisma }) {
       const countRows = await prisma.$queryRaw`
         SELECT COUNT(*)::bigint AS total
         FROM fleet_vehicle fv
+        LEFT JOIN fleet_vehicle_model vm ON vm.id = fv.vehicle_model_id
+        LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id
         WHERE fv.company_id = ${safeCompanyId}
           AND fv.enabled = true
           AND (${normalizedStatus}::text IS NULL OR fv.status = ${normalizedStatus})
@@ -142,6 +152,8 @@ export function createFleetService({ prisma }) {
             OR fv.plate ILIKE ${likeValue}
             OR fv.brand ILIKE ${likeValue}
             OR fv.model_name ILIKE ${likeValue}
+            OR vm.name ILIKE ${likeValue}
+            OR vb_m.name ILIKE ${likeValue}
           )
       `
       return [dataRows, countRows]
@@ -164,18 +176,23 @@ export function createFleetService({ prisma }) {
       const rows = await prisma.$queryRaw`
         SELECT
           fv.*,
-          vt.name AS vehicle_type_name,
-          vb.name AS vehicle_brand_name,
+          vm.name AS vehicle_model_name,
+          vm.year AS vehicle_model_year,
+          COALESCE(vb_m.name, vb.name) AS vehicle_brand_name,
+          COALESCE(vt_m.name, vt.name) AS vehicle_type_name,
+          COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) AS economic_group_number_resolved,
           CASE
-            WHEN fv.economic_group_number IS NOT NULL AND fv.economic_individual_number IS NOT NULL
-              THEN fv.economic_group_number || '-' || fv.economic_individual_number
-            WHEN fv.economic_individual_number IS NOT NULL THEN fv.economic_individual_number
-            WHEN fv.economic_group_number IS NOT NULL THEN fv.economic_group_number
+            WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) IS NOT NULL
+              AND fv.economic_individual_number IS NOT NULL
+              THEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) || '-' || fv.economic_individual_number
             ELSE NULL
           END AS economic_number
         FROM fleet_vehicle fv
-        LEFT JOIN fleet_vehicle_type vt ON vt.id = fv.vehicle_type_id AND vt.enabled = true
-        LEFT JOIN fleet_vehicle_brand vb ON vb.id = fv.vehicle_brand_id AND vb.enabled = true
+        LEFT JOIN fleet_vehicle_model vm ON vm.id = fv.vehicle_model_id
+        LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id
+        LEFT JOIN fleet_vehicle_type vt_m ON vt_m.id = vm.type_id
+        LEFT JOIN fleet_vehicle_type vt ON vt.id = fv.vehicle_type_id
+        LEFT JOIN fleet_vehicle_brand vb ON vb.id = fv.vehicle_brand_id
         WHERE fv.id = ${safeId}
           AND fv.company_id = ${safeCompanyId}
         LIMIT 1
@@ -207,14 +224,15 @@ export function createFleetService({ prisma }) {
             economic_group_number,
             economic_individual_number,
             vehicle_type_id,
-            vehicle_brand_id
+            vehicle_brand_id,
+            vehicle_model_id
           )
           VALUES (
             ${safeCompanyId},
             ${payload.plate},
-            ${payload.brand},
-            ${payload.model_name},
-            ${payload.year},
+            ${payload.brand ?? null},
+            ${payload.model_name ?? null},
+            ${payload.year ?? null},
             ${payload.color ?? null},
             ${payload.status ?? 'active'},
             ${payload.driver_id ?? null},
@@ -222,7 +240,8 @@ export function createFleetService({ prisma }) {
             ${payload.economic_group_number ?? null},
             ${payload.economic_individual_number ?? null},
             ${payload.vehicle_type_id ?? null},
-            ${payload.vehicle_brand_id ?? null}
+            ${payload.vehicle_brand_id ?? null},
+            ${payload.vehicle_model_id ?? null}
           )
           RETURNING *
         `
@@ -264,10 +283,11 @@ export function createFleetService({ prisma }) {
     const hasEconomicIndividualNumber = hasOwn(payload, 'economic_individual_number') && payload.economic_individual_number !== undefined
     const hasVehicleTypeId = hasOwn(payload, 'vehicle_type_id') && payload.vehicle_type_id !== undefined
     const hasVehicleBrandId = hasOwn(payload, 'vehicle_brand_id') && payload.vehicle_brand_id !== undefined
+    const hasVehicleModelId = hasOwn(payload, 'vehicle_model_id') && payload.vehicle_model_id !== undefined
 
     const hasAnyUpdate =
       hasPlate || hasBrand || hasModelName || hasYear || hasStatus || hasColor || hasDriverId || hasNotes ||
-      hasEconomicGroupNumber || hasEconomicIndividualNumber || hasVehicleTypeId || hasVehicleBrandId
+      hasEconomicGroupNumber || hasEconomicIndividualNumber || hasVehicleTypeId || hasVehicleBrandId || hasVehicleModelId
 
     if (!hasAnyUpdate) {
       throw new FleetServiceError('No hay campos validos para actualizar.', 400)
@@ -291,6 +311,7 @@ export function createFleetService({ prisma }) {
               economic_individual_number = CASE WHEN ${hasEconomicIndividualNumber} THEN ${payload.economic_individual_number ?? null} ELSE economic_individual_number END,
               vehicle_type_id = CASE WHEN ${hasVehicleTypeId} THEN ${payload.vehicle_type_id ?? null} ELSE vehicle_type_id END,
               vehicle_brand_id = CASE WHEN ${hasVehicleBrandId} THEN ${payload.vehicle_brand_id ?? null} ELSE vehicle_brand_id END,
+              vehicle_model_id = CASE WHEN ${hasVehicleModelId} THEN ${payload.vehicle_model_id ?? null} ELSE vehicle_model_id END,
               updated_at = now()
           WHERE id = ${safeId}
             AND company_id = ${safeCompanyId}

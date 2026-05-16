@@ -15,6 +15,7 @@ export default defineView({
         fields: [
           { key: 'name', label: 'Nombre', type: 'text', required: true },
           { key: 'description', label: 'Descripcion', type: 'textarea' },
+          { key: 'economic_group_number', label: 'Numero de grupo economico', type: 'text' },
         ],
       },
     ],

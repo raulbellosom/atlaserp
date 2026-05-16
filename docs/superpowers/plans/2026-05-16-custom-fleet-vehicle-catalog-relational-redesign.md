@@ -141,11 +141,11 @@ The implementation follows the AME3 additive pattern established in Phase 5 (Ope
   wc -l modules/custom/custom.fleet/api/catalog-service.js
   wc -l modules/custom/custom.fleet/api/catalogs-routes.js
   wc -l modules/custom/custom.fleet/api/fleet-service.js
-  wc -l modules/custom/custom.fleet/api/fleet-routes.js
+  wc -l modules/custom/custom.fleet/api/vehicles-routes.js
   wc -l modules/custom/custom.fleet/validators/index.js
   wc -l modules/custom/custom.fleet/module.manifest.js
   ```
-  Expected baseline (as of 2026-05-16): catalog-service.js ~387, catalogs-routes.js ~241, fleet-service.js ~405, fleet-routes.js unknown, validators/index.js ~156, module.manifest.js ~212. If any file exceeds 800 lines, pause and split before adding new functionality.
+  Expected baseline (as of 2026-05-16): catalog-service.js ~387, catalogs-routes.js ~241, fleet-service.js ~405, vehicles-routes.js (renamed from fleet-routes.js) unknown, validators/index.js ~156, module.manifest.js ~212. If any file exceeds 800 lines, pause and split before adding new functionality.
 
 - [ ] Count existing vehicle records to plan backfill scope:
   ```sql

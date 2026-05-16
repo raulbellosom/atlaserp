@@ -7,6 +7,8 @@ import {
   updateVehicleBrandSchema,
   createMaintenanceTypeSchema,
   updateMaintenanceTypeSchema,
+  createVehicleModelSchema,
+  updateVehicleModelSchema,
 } from '../validators/index.js'
 import { createCatalogService } from './catalog-service.js'
 import { FleetServiceError } from './fleet-service.js'
@@ -234,6 +236,69 @@ export function createCatalogsRouter({ prisma, requirePermission, moduleContext 
       return c.json({ data: updated })
     } catch (err) {
       return handleRouteError(c, err, { fallbackError: 'No se pudo actualizar el estado del tipo de mantenimiento.', route: '/fleet/catalogs/maintenance-types/:id/enabled', moduleKey, operation: 'setMaintenanceTypeEnabled' })
+    }
+  })
+
+  // ── Vehicle Models ────────────────────────────────────────────────────────
+
+  app.get('/fleet/catalogs/vehicle-models', requirePermission('fleet.catalogs.read'), async (c) => {
+    try {
+      const companyId = getCompanyIdFromContext(c)
+      const result = await service.listVehicleModels({
+        companyId,
+        page: c.req.query('page'),
+        pageSize: c.req.query('pageSize'),
+        search: c.req.query('search'),
+        brand_id: c.req.query('brand_id'),
+        type_id: c.req.query('type_id'),
+        sortBy: c.req.query('sortBy'),
+        sortDir: c.req.query('sortDir'),
+      })
+      return c.json(result)
+    } catch (err) {
+      return handleRouteError(c, err, { fallbackError: 'No se pudieron listar los modelos de vehiculo.', route: '/fleet/catalogs/vehicle-models', moduleKey, operation: 'listVehicleModels' })
+    }
+  })
+
+  app.post('/fleet/catalogs/vehicle-models', requirePermission('fleet.catalogs.create'), async (c) => {
+    try {
+      const companyId = getCompanyIdFromContext(c)
+      const actorId = getActorIdFromContext(c)
+      const body = await c.req.json()
+      const parsed = createVehicleModelSchema.safeParse(body)
+      if (!parsed.success) return c.json({ error: getValidationErrorMessage(parsed.error) }, 400)
+      const created = await service.createVehicleModel({ companyId, actorId, payload: parsed.data })
+      return c.json({ data: created }, 201)
+    } catch (err) {
+      return handleRouteError(c, err, { fallbackError: 'No se pudo crear el modelo de vehiculo.', route: '/fleet/catalogs/vehicle-models', moduleKey, operation: 'createVehicleModel' })
+    }
+  })
+
+  app.patch('/fleet/catalogs/vehicle-models/:id', requirePermission('fleet.catalogs.update'), async (c) => {
+    try {
+      const companyId = getCompanyIdFromContext(c)
+      const actorId = getActorIdFromContext(c)
+      const body = await c.req.json()
+      const parsed = updateVehicleModelSchema.safeParse(body)
+      if (!parsed.success) return c.json({ error: getValidationErrorMessage(parsed.error) }, 400)
+      const updated = await service.updateVehicleModel({ companyId, actorId, id: c.req.param('id'), payload: parsed.data })
+      return c.json({ data: updated })
+    } catch (err) {
+      return handleRouteError(c, err, { fallbackError: 'No se pudo actualizar el modelo de vehiculo.', route: '/fleet/catalogs/vehicle-models/:id', moduleKey, operation: 'updateVehicleModel' })
+    }
+  })
+
+  app.patch('/fleet/catalogs/vehicle-models/:id/enabled', requirePermission('fleet.catalogs.delete'), async (c) => {
+    try {
+      const companyId = getCompanyIdFromContext(c)
+      const actorId = getActorIdFromContext(c)
+      const body = await c.req.json()
+      const parsed = catalogEnabledSchema.safeParse(body)
+      if (!parsed.success) return c.json({ error: getValidationErrorMessage(parsed.error) }, 400)
+      const updated = await service.setVehicleModelEnabled({ companyId, actorId, id: c.req.param('id'), enabled: parsed.data.enabled })
+      return c.json({ data: updated })
+    } catch (err) {
+      return handleRouteError(c, err, { fallbackError: 'No se pudo actualizar el estado del modelo de vehiculo.', route: '/fleet/catalogs/vehicle-models/:id/enabled', moduleKey, operation: 'setVehicleModelEnabled' })
     }
   })
 

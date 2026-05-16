@@ -3,7 +3,7 @@ import { defineAtlasModule } from "@atlas/module-engine";
 export default defineAtlasModule({
   key: "custom.fleet",
   name: "Flota",
-  version: "0.2.0",
+  version: "0.3.0",
   kind: "FEATURE",
   description:
     "Gestion de flota vehicular: vehiculos, mantenimiento y asignacion de conductores.",
@@ -24,6 +24,7 @@ export default defineAtlasModule({
     "./models/vehicle-document.model.js",
     "./models/driver-document.model.js",
     "./models/maintenance-document.model.js",
+    "./models/vehicle-model.model.js",
   ],
   views: [
     "./views/vehicle.table.js",
@@ -47,6 +48,9 @@ export default defineAtlasModule({
     "./views/catalog.maintenance-types.table.js",
     "./views/catalog.maintenance-types.form.js",
     "./views/catalog.maintenance-types.page.js",
+    "./views/catalog.vehicle-models.table.js",
+    "./views/catalog.vehicle-models.form.js",
+    "./views/catalog.vehicle-models.page.js",
   ],
   lifecycle: {
     installable: true,
@@ -64,6 +68,7 @@ export default defineAtlasModule({
       "fleet.vehicle_document",
       "fleet.driver_document",
       "fleet.maintenance_document",
+      "fleet.vehicle_model",
     ],
     ownedTables: [
       "fleet_vehicle",
@@ -75,6 +80,7 @@ export default defineAtlasModule({
       "fleet_vehicle_document",
       "fleet_driver_document",
       "fleet_maintenance_document",
+      "fleet_vehicle_model",
     ],
     // Legacy compatibility for existing lifecycle handlers.
     ownedEntities: ["Vehicle", "Maintenance"],
@@ -177,6 +183,12 @@ export default defineAtlasModule({
         update: "fleet.maintenance.update",
         delete: "fleet.maintenance.delete",
       },
+      VehicleModel: {
+        read: "fleet.catalogs.read",
+        create: "fleet.catalogs.create",
+        update: "fleet.catalogs.update",
+        delete: "fleet.catalogs.delete",
+      },
     },
   },
   navigation: [
@@ -205,6 +217,13 @@ export default defineAtlasModule({
       label: "Catalogos",
       path: "/app/m/custom.fleet/catalogs/vehicle-types",
       icon: "BookOpen",
+      layout: "main",
+      permissionKey: "fleet.catalogs.read",
+    },
+    {
+      label: "Modelos de vehículo",
+      path: "/app/m/custom.fleet/catalogs/vehicle-models",
+      icon: "Layers",
       layout: "main",
       permissionKey: "fleet.catalogs.read",
     },

@@ -125,10 +125,13 @@ export function createCatalogService({ prisma }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
     const name = String(payload.name ?? '').trim()
     const description = normalizeOptionalString(payload.description)
+    const economicGroupNumber = normalizeOptionalString(payload.economic_group_number)
     try {
       const row = await withDbErrorMapping(async () => {
         const rows = await prisma.$queryRaw`
-          INSERT INTO fleet_vehicle_type (company_id, name, description) VALUES (${safeCompanyId}, ${name}, ${description ?? null}) RETURNING *
+          INSERT INTO fleet_vehicle_type (company_id, name, description, economic_group_number)
+          VALUES (${safeCompanyId}, ${name}, ${description ?? null}, ${economicGroupNumber ?? null})
+          RETURNING *
         `
         return firstRow(rows)
       })
@@ -145,7 +148,8 @@ export function createCatalogService({ prisma }) {
     const safeId = normalizeRecordId(id, 'Tipo de vehiculo no encontrado.')
     const hasName = payload.name !== undefined
     const hasDesc = payload.description !== undefined
-    if (!hasName && !hasDesc) throw new FleetServiceError('No hay campos validos para actualizar.', 400)
+    const hasEconomicGroupNumber = payload.economic_group_number !== undefined
+    if (!hasName && !hasDesc && !hasEconomicGroupNumber) throw new FleetServiceError('No hay campos validos para actualizar.', 400)
     const before = await getVehicleType(safeCompanyId, safeId)
     try {
       const updated = await withDbErrorMapping(async () => {
@@ -153,6 +157,7 @@ export function createCatalogService({ prisma }) {
           UPDATE fleet_vehicle_type
           SET name = CASE WHEN ${hasName} THEN ${payload.name ?? null} ELSE name END,
               description = CASE WHEN ${hasDesc} THEN ${normalizeOptionalString(payload.description)} ELSE description END,
+              economic_group_number = CASE WHEN ${hasEconomicGroupNumber} THEN ${normalizeOptionalString(payload.economic_group_number)} ELSE economic_group_number END,
               updated_at = now()
           WHERE id = ${safeId} AND company_id = ${safeCompanyId} AND enabled = true RETURNING *
         `
@@ -379,9 +384,155 @@ export function createCatalogService({ prisma }) {
     return { seeded: names.length }
   }
 
+  // ── Vehicle Model ────────────────────────────────────────────────────────────
+
+  async function getVehicleModel(safeCompanyId, safeId) {
+    const rows = await withDbErrorMapping(() => prisma.$queryRaw`
+      SELECT vm.*, vb.name AS brand_name, vt.name AS type_name
+      FROM fleet_vehicle_model vm
+      LEFT JOIN fleet_vehicle_brand vb ON vb.id = vm.brand_id
+      LEFT JOIN fleet_vehicle_type vt ON vt.id = vm.type_id
+      WHERE vm.id = ${safeId} AND vm.company_id = ${safeCompanyId}
+      LIMIT 1
+    `)
+    const row = firstRow(rows)
+    if (!row) throw new FleetServiceError('Modelo de vehiculo no encontrado.', 404)
+    return row
+  }
+
+  async function listVehicleModels({ companyId, page, pageSize, search, brand_id, type_id, sortBy, sortDir }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId)
+    const pagination = normalizePagination({ page, pageSize })
+    const normalizedSearch = normalizeSearch(search)
+    const likeValue = normalizedSearch ? `%${normalizedSearch}%` : null
+    const safeBrandId = brand_id && UUID_REGEX.test(String(brand_id)) ? String(brand_id).toLowerCase() : null
+    const safeTypeId = type_id && UUID_REGEX.test(String(type_id)) ? String(type_id).toLowerCase() : null
+
+    const [rows, totalRows] = await withDbErrorMapping(async () => {
+      const data = await prisma.$queryRaw`
+        SELECT vm.id, vm.company_id, vm.brand_id, vb.name AS brand_name,
+               vm.type_id, vt.name AS type_name, vm.name, vm.year,
+               vm.enabled, vm.created_at, vm.updated_at
+        FROM fleet_vehicle_model vm
+        LEFT JOIN fleet_vehicle_brand vb ON vb.id = vm.brand_id
+        LEFT JOIN fleet_vehicle_type vt ON vt.id = vm.type_id
+        WHERE vm.company_id = ${safeCompanyId}
+          AND vm.enabled = true
+          AND (${safeBrandId}::uuid IS NULL OR vm.brand_id = ${safeBrandId}::uuid)
+          AND (${safeTypeId}::uuid IS NULL OR vm.type_id = ${safeTypeId}::uuid)
+          AND (
+            ${likeValue}::text IS NULL
+            OR vm.name ILIKE ${likeValue}
+            OR vb.name ILIKE ${likeValue}
+            OR vt.name ILIKE ${likeValue}
+          )
+        ORDER BY vb.name ASC, vm.name ASC, vm.year DESC
+        LIMIT ${pagination.pageSize} OFFSET ${pagination.offset}
+      `
+      const count = await prisma.$queryRaw`
+        SELECT COUNT(*)::bigint AS total
+        FROM fleet_vehicle_model vm
+        LEFT JOIN fleet_vehicle_brand vb ON vb.id = vm.brand_id
+        LEFT JOIN fleet_vehicle_type vt ON vt.id = vm.type_id
+        WHERE vm.company_id = ${safeCompanyId}
+          AND vm.enabled = true
+          AND (${safeBrandId}::uuid IS NULL OR vm.brand_id = ${safeBrandId}::uuid)
+          AND (${safeTypeId}::uuid IS NULL OR vm.type_id = ${safeTypeId}::uuid)
+          AND (
+            ${likeValue}::text IS NULL
+            OR vm.name ILIKE ${likeValue}
+            OR vb.name ILIKE ${likeValue}
+            OR vt.name ILIKE ${likeValue}
+          )
+      `
+      return [data, count]
+    })
+    return { data: rows, pagination: { page: pagination.page, pageSize: pagination.pageSize, total: toCount(firstRow(totalRows)?.total) } }
+  }
+
+  async function createVehicleModel({ companyId, actorId, payload }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId)
+    const brandId = normalizeRecordId(payload.brand_id, 'Marca no encontrada.')
+    const typeId = normalizeRecordId(payload.type_id, 'Tipo de vehiculo no encontrado.')
+    const name = String(payload.name ?? '').trim()
+    const year = Number.parseInt(String(payload.year ?? ''), 10)
+    if (!name) throw new FleetServiceError('El nombre del modelo es requerido.', 400)
+    if (!Number.isFinite(year)) throw new FleetServiceError('El año del modelo es invalido.', 400)
+    try {
+      const row = await withDbErrorMapping(async () => {
+        const rows = await prisma.$queryRaw`
+          INSERT INTO fleet_vehicle_model (company_id, brand_id, type_id, name, year)
+          VALUES (${safeCompanyId}, ${brandId}::uuid, ${typeId}::uuid, ${name}, ${year})
+          RETURNING id, company_id, brand_id, type_id, name, year, enabled, created_at, updated_at
+        `
+        return firstRow(rows)
+      })
+      const enriched = await getVehicleModel(safeCompanyId, row.id)
+      await logAudit({ actorId, entityType: 'VehicleModel', entityId: row?.id ?? null, action: 'fleet.catalog.vehicle_model.create', before: null, after: enriched })
+      return enriched
+    } catch (error) {
+      if (isUniqueViolation(error)) throw new FleetServiceError('Ya existe un modelo con esa combinacion de marca, tipo, nombre y año.', 409)
+      throw error
+    }
+  }
+
+  async function updateVehicleModel({ companyId, actorId, id, payload }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId)
+    const safeId = normalizeRecordId(id, 'Modelo de vehiculo no encontrado.')
+    const hasBrandId = payload.brand_id !== undefined
+    const hasTypeId = payload.type_id !== undefined
+    const hasName = payload.name !== undefined
+    const hasYear = payload.year !== undefined
+    if (!hasBrandId && !hasTypeId && !hasName && !hasYear) throw new FleetServiceError('No hay campos validos para actualizar.', 400)
+    const before = await getVehicleModel(safeCompanyId, safeId)
+    const brandId = hasBrandId ? normalizeRecordId(payload.brand_id, 'Marca no encontrada.') : null
+    const typeId = hasTypeId ? normalizeRecordId(payload.type_id, 'Tipo de vehiculo no encontrado.') : null
+    const name = hasName ? String(payload.name ?? '').trim() : null
+    const year = hasYear ? Number.parseInt(String(payload.year ?? ''), 10) : null
+    try {
+      const updated = await withDbErrorMapping(async () => {
+        const rows = await prisma.$queryRaw`
+          UPDATE fleet_vehicle_model
+          SET brand_id = CASE WHEN ${hasBrandId} THEN ${brandId}::uuid ELSE brand_id END,
+              type_id = CASE WHEN ${hasTypeId} THEN ${typeId}::uuid ELSE type_id END,
+              name = CASE WHEN ${hasName} THEN ${name} ELSE name END,
+              year = CASE WHEN ${hasYear} THEN ${year} ELSE year END,
+              updated_at = now()
+          WHERE id = ${safeId} AND company_id = ${safeCompanyId}
+          RETURNING id
+        `
+        return firstRow(rows)
+      })
+      if (!updated) throw new FleetServiceError('Modelo de vehiculo no encontrado.', 404)
+      const enriched = await getVehicleModel(safeCompanyId, safeId)
+      await logAudit({ actorId, entityType: 'VehicleModel', entityId: safeId, action: 'fleet.catalog.vehicle_model.update', before, after: enriched })
+      return enriched
+    } catch (error) {
+      if (isUniqueViolation(error)) throw new FleetServiceError('Ya existe un modelo con esa combinacion de marca, tipo, nombre y año.', 409)
+      throw error
+    }
+  }
+
+  async function setVehicleModelEnabled({ companyId, actorId, id, enabled }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId)
+    const safeId = normalizeRecordId(id, 'Modelo de vehiculo no encontrado.')
+    const before = await getVehicleModel(safeCompanyId, safeId)
+    const updated = await withDbErrorMapping(async () => {
+      const rows = await prisma.$queryRaw`
+        UPDATE fleet_vehicle_model SET enabled = ${Boolean(enabled)}, updated_at = now()
+        WHERE id = ${safeId} AND company_id = ${safeCompanyId} RETURNING id, enabled
+      `
+      return firstRow(rows)
+    })
+    if (!updated) throw new FleetServiceError('Modelo de vehiculo no encontrado.', 404)
+    await logAudit({ actorId, entityType: 'VehicleModel', entityId: updated.id, action: 'fleet.catalog.vehicle_model.disable', before, after: updated, metadata: { enabled: Boolean(enabled) } })
+    return updated
+  }
+
   return {
     listVehicleTypes, createVehicleType, updateVehicleType, setVehicleTypeEnabled,
     listVehicleBrands, createVehicleBrand, updateVehicleBrand, setVehicleBrandEnabled,
     listMaintenanceTypes, createMaintenanceType, updateMaintenanceType, setMaintenanceTypeEnabled, seedMaintenanceTypes,
+    listVehicleModels, createVehicleModel, updateVehicleModel, setVehicleModelEnabled,
   }
 }

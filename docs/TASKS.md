@@ -376,6 +376,30 @@ Runtime checks: Not verified in this session (no browser access). Required manua
 - Existing text/select/date/number/boolean fields unaffected
 - No custom.fleet hardcoding in core renderer files
 
+### custom.fleet Vehicle Catalog Relational Redesign [COMPLETE]
+
+**Spec:** `docs/superpowers/specs/2026-05-16-custom-fleet-vehicle-catalog-relational-redesign-design.md`
+**Plan:** `docs/superpowers/plans/2026-05-16-custom-fleet-vehicle-catalog-relational-redesign.md`
+
+- [x] `fleet_vehicle_model` table created (V004): brand_id FK, type_id FK, name, year, company-scoped, soft-delete, 4 indexes including unique (company, brand, type, name, year) — Verified: 2026-05-16 (DB column check + direct INSERT via smoke test HTTP 201)
+- [x] `vehicle_model_id` FK column added to `fleet_vehicle` (V004 ALTER TABLE) — Verified: 2026-05-16 (information_schema column check: nullable=YES)
+- [x] `economic_group_number` column added to `fleet_vehicle_type` (V005 ALTER TABLE) — Verified: 2026-05-16 (PATCH /fleet/catalogs/vehicle-types/:id returns updated field)
+- [x] `brand`, `model_name`, `year` columns made nullable in `fleet_vehicle` (V004b) — Verified: 2026-05-16 (information_schema column check: nullable=YES; vehicle INSERT with only vehicle_model_id returns HTTP 201)
+- [x] `vehicle-model.model.js` added to module manifest and AtlasModel table — Verified: 2026-05-16 (AtlasModel query: `fleet.vehicle_model -> fleet_vehicle_model`, modelsCount=10 in sync response)
+- [x] Catalog service updated: vehicle type supports `economic_group_number` on create/update; full vehicle model CRUD (`listVehicleModels`, `createVehicleModel`, `updateVehicleModel`, `setVehicleModelEnabled`) with brand_name/type_name enrichment — Verified: 2026-05-16 (GET /fleet/catalogs/vehicle-models returns `brand_name: Kenworth`, `type_name: Camion`)
+- [x] Catalogs routes: 4 new `/fleet/catalogs/vehicle-models` endpoints (GET, POST, PATCH /:id, PATCH /:id/enabled) — Verified: 2026-05-16 (smoke tests HTTP 200/201/409 as expected)
+- [x] Fleet service updated: `listVehicles`/`getVehicle` JOIN `fleet_vehicle_model` + COALESCE fallback for `vehicle_brand_name`, `vehicle_type_name`, `economic_group_number_resolved`; `createVehicle`/`updateVehicle` accept `vehicle_model_id` — Verified: 2026-05-16 (GET /fleet/vehicles/:id returns `vehicle_model_name: T680`, `vehicle_brand_name: Kenworth`, `economic_number: 0002-0042`)
+- [x] Blueprint views: `catalog.vehicle-models.table.js`, `.form.js` (brand_id + type_id relation fields), `.page.js` created — Verified: 2026-05-16 (AtlasView query: 3 new views present, type=TABLE/FORM/PAGE; `node --check` all pass)
+- [x] `vehicle.form.js` updated: removed legacy brand/model_name/year/vehicle_type_id/vehicle_brand_id/economic_group_number fields; added `vehicle_model_id` relation selector — Verified: 2026-05-16 (`node --check` → OK; build pass)
+- [x] `vehicle.table.js` updated: removed brand/model_name/year columns; added vehicle_model_name, vehicle_brand_name, vehicle_type_name — Verified: 2026-05-16 (`node --check` → OK)
+- [x] `vehicle.detail.js` updated: shows vehicle_model_name, vehicle_model_year, vehicle_brand_name, vehicle_type_name, economic_number — Verified: 2026-05-16 (`node --check` → OK)
+- [x] `catalog.vehicle-types.form.js` updated: added `economic_group_number` field — Verified: 2026-05-16 (`node --check` → OK)
+- [x] Module manifest updated to v0.3.0: 10 models, 24 views, VehicleModel ACL, new navigation entry — Verified: 2026-05-16 (POST /modules/sync → modelsCount=10, viewsCount=24)
+- [x] Desktop build passes — Verified: 2026-05-16 (`pnpm.cmd --filter @atlas/desktop build:web` → ✓ built in 2.61s, 0 errors)
+- [x] API smoke tests: vehicle type with economic_group_number (201), vehicle brand (201), vehicle model (201), duplicate model (409), vehicle with vehicle_model_id (201), enriched GET/list with correct economic_number (0002-0042) — Verified: 2026-05-16
+
+Verified: 2026-05-16 (full stack: DB migrations applied, module synced, all smoke tests pass)
+
 ### AME3 Phase 4 — Discovery as Primary Source
 
 **Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-module-discovery-primary.md`  
