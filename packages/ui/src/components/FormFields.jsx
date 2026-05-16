@@ -2152,6 +2152,209 @@ export function ComboboxField({
   );
 }
 
+// ─── RelationSelectField ──────────────────────────────────────────────────────
+// Combobox for relation fields loaded from a remote API or static list.
+// Supports loading/error/clear states and remote search via onSearchChange.
+
+export function RelationSelectField({
+  label,
+  id,
+  required,
+  error: externalError,
+  hint,
+  icon,
+  options = [],
+  value,
+  onChange,
+  loading = false,
+  loadError = null,
+  onRetry,
+  onSearchChange,
+  clearable = false,
+  placeholder = "Seleccionar...",
+  className,
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef(null);
+  const searchRef = useRef(null);
+
+  const selected = (value != null && value !== "")
+    ? options.find((o) => String(o.value) === String(value))
+    : undefined;
+
+  useEffect(() => {
+    function handleOutside(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+        setSearch("");
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
+
+  function handleOpen() {
+    setOpen((o) => !o);
+    setTimeout(() => searchRef.current?.focus(), 50);
+  }
+
+  function handleSearchChange(e) {
+    const term = e.target.value;
+    setSearch(term);
+    onSearchChange?.(term);
+  }
+
+  function handleSelect(opt) {
+    if (opt.disabled) return;
+    onChange?.(opt.value);
+    setOpen(false);
+    setSearch("");
+  }
+
+  const displayLabel =
+    value != null && value !== ""
+      ? selected
+        ? selected.label
+        : !loading
+        ? "Registro no disponible"
+        : null
+      : null;
+
+  const filtered = search
+    ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
+    : options;
+
+  return (
+    <FieldWrapper label={label} labelFor={id} error={externalError} hint={hint} required={required}>
+      <div ref={containerRef} className={cn("relative", className)}>
+        <button
+          type="button"
+          id={id}
+          onClick={handleOpen}
+          className={cn(
+            fieldCls(
+              externalError,
+              cn("flex items-center justify-between text-left cursor-pointer gap-2", icon && "pl-9"),
+            ),
+          )}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+        >
+          <InputIcon icon={icon} />
+          <span
+            className={cn(
+              "flex-1 truncate text-sm",
+              !displayLabel && !loading && "text-muted-foreground",
+              displayLabel === "Registro no disponible" && "text-muted-foreground italic",
+            )}
+          >
+            {loading && value != null && value !== ""
+              ? "Cargando opciones..."
+              : displayLabel ?? placeholder}
+          </span>
+          <span className="flex items-center gap-0.5 shrink-0">
+            {clearable && value != null && value !== "" && !loading && (
+              <span
+                role="button"
+                tabIndex={-1}
+                aria-label="Limpiar selección"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onChange?.(null);
+                }}
+                className="text-muted-foreground/60 hover:text-foreground transition-colors p-0.5 rounded"
+              >
+                <X size={12} />
+              </span>
+            )}
+            <ChevronDown
+              size={14}
+              strokeWidth={1.75}
+              className={cn(
+                "text-muted-foreground/60 transition-transform duration-150",
+                open && "rotate-180",
+              )}
+            />
+          </span>
+        </button>
+
+        {open && (
+          <div className="absolute z-50 w-full mt-1 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+              <input
+                ref={searchRef}
+                type="text"
+                value={search}
+                onChange={handleSearchChange}
+                placeholder="Buscar..."
+                className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    onSearchChange?.("");
+                  }}
+                  className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            <div className="max-h-52 overflow-y-auto" role="listbox">
+              {loading ? (
+                <p className="px-3 py-4 text-sm text-muted-foreground text-center">
+                  Cargando opciones...
+                </p>
+              ) : loadError ? (
+                <div className="px-3 py-4 text-center space-y-2">
+                  <p className="text-xs text-destructive">No se pudieron cargar las opciones</p>
+                  {onRetry && (
+                    <button
+                      type="button"
+                      onClick={onRetry}
+                      className="text-xs text-primary underline underline-offset-2 hover:opacity-80"
+                    >
+                      Reintentar
+                    </button>
+                  )}
+                </div>
+              ) : filtered.length === 0 ? (
+                <p className="px-3 py-4 text-sm text-muted-foreground text-center">
+                  {options.length === 0 ? "Sin opciones disponibles" : "Sin resultados"}
+                </p>
+              ) : (
+                filtered.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="option"
+                    aria-selected={String(opt.value) === String(value)}
+                    onClick={() => handleSelect(opt)}
+                    disabled={opt.disabled}
+                    className={cn(
+                      "w-full text-left px-3 py-2 text-sm transition-colors duration-100",
+                      String(opt.value) === String(value)
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-foreground hover:bg-muted/50",
+                      opt.disabled && "opacity-50 cursor-not-allowed pointer-events-none",
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </FieldWrapper>
+  );
+}
+
 // ─── CreatableComboboxField ───────────────────────────────────────────────────
 // Same as ComboboxField but shows a "+ Crear «X»" option when the search term
 // does not match any existing entry. Calls `onCreate(name)` when chosen.

@@ -25,8 +25,28 @@ export default defineView({
           },
           { field: 'economic_group_number', label: 'No. Economico Grupo', type: 'text' },
           { field: 'economic_individual_number', label: 'No. Economico Individual', type: 'text' },
-          { field: 'vehicle_type_id', label: 'Tipo de Vehiculo (UUID)', type: 'text' },
-          { field: 'vehicle_brand_id', label: 'Marca Catalogo (UUID)', type: 'text' },
+          {
+            field: 'vehicle_type_id',
+            label: 'Tipo de vehículo',
+            type: 'relation',
+            relation: {
+              apiPath: '/fleet/catalogs/vehicle-types',
+              labelField: 'name',
+              clearable: true,
+              disabledField: 'enabled',
+            },
+          },
+          {
+            field: 'vehicle_brand_id',
+            label: 'Marca del vehículo',
+            type: 'relation',
+            relation: {
+              apiPath: '/fleet/catalogs/vehicle-brands',
+              labelField: 'name',
+              clearable: true,
+              disabledField: 'enabled',
+            },
+          },
         ],
       },
       {
@@ -34,9 +54,15 @@ export default defineView({
         fields: [
           {
             field: 'driver_id',
-            label: 'Conductor',
+            label: 'Chofer',
             type: 'relation',
-            relatedModel: 'Employee',
+            relation: {
+              apiPath: '/fleet/drivers',
+              labelField: ['first_name', 'last_name'],
+              labelSeparator: ' ',
+              clearable: true,
+              disabledField: 'enabled',
+            },
           },
         ],
       },

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
 import {
@@ -8,8 +8,9 @@ import {
   SelectField,
   PhoneField,
   SwitchField,
+  RelationSelectField,
 } from "../components/FormFields.jsx";
-import { normalizeSpanishLabel } from "./renderer-adapters.js";
+import { normalizeSpanishLabel, normalizeRelationDescriptor } from "./renderer-adapters.js";
 
 const STATUS_LABELS = {
   active: "Activo",
@@ -39,6 +40,15 @@ function joinUrl(baseUrl, apiPath) {
   return `${base}${path}`;
 }
 
+function resolveRelationLabel(row, descriptor) {
+  const { labelField, labelSeparator, valueField } = descriptor;
+  if (Array.isArray(labelField)) {
+    const parts = labelField.map((f) => (row[f] != null ? String(row[f]) : "")).filter(Boolean);
+    return parts.length > 0 ? parts.join(labelSeparator) : String(row[valueField] ?? "");
+  }
+  return row[labelField] != null ? String(row[labelField]) : String(row[valueField] ?? "");
+}
+
 function normalizeField(fieldLike) {
   if (!fieldLike || typeof fieldLike !== "object") return null;
   const name = fieldLike.name ?? fieldLike.key ?? fieldLike.field ?? null;
@@ -50,6 +60,7 @@ function normalizeField(fieldLike) {
     required: Boolean(fieldLike.required),
     readonly: Boolean(fieldLike.readonly),
     options: fieldLike.options,
+    relation: fieldLike.relation,
   };
 }
 
@@ -93,6 +104,7 @@ function normalizeSections(schema, fieldMap) {
               Array.isArray(fieldDef.field.options) && fieldDef.field.options.length > 0
                 ? fieldDef.field.options
                 : existing?.options ?? [],
+            relation: fieldDef.field.relation ?? existing?.relation ?? undefined,
           });
         }
         if (!uniqueFields.includes(name)) uniqueFields.push(name);
@@ -189,12 +201,62 @@ export function AtlasForm({
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [relationState, setRelationState] = useState({});
+  const relationDebounceRef = useRef({});
+
+  const loadRelationOptions = useCallback(
+    async (fieldName, descriptor, search) => {
+      setRelationState((prev) => ({
+        ...prev,
+        [fieldName]: { options: prev[fieldName]?.options ?? [], loading: true, error: null },
+      }));
+      try {
+        const url = new URL(joinUrl(apiBaseUrl, descriptor.apiPath));
+        url.searchParams.set(descriptor.pageParam, "1");
+        url.searchParams.set(descriptor.pageSizeParam, String(descriptor.pageSize));
+        if (search) url.searchParams.set(descriptor.searchParam, search);
+        const res = await fetch(url.toString(), {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const rows = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
+        const options = rows
+          .map((row) => ({
+            value: String(row[descriptor.valueField] ?? ""),
+            label: resolveRelationLabel(row, descriptor),
+            disabled: descriptor.disabledField ? row[descriptor.disabledField] === false : false,
+          }))
+          .filter((o) => o.value);
+        setRelationState((prev) => ({
+          ...prev,
+          [fieldName]: { options, loading: false, error: null },
+        }));
+      } catch {
+        setRelationState((prev) => ({
+          ...prev,
+          [fieldName]: { options: prev[fieldName]?.options ?? [], loading: false, error: true },
+        }));
+      }
+    },
+    [apiBaseUrl, token],
+  );
 
   useEffect(() => {
     setFormValues(buildInitialValues(fieldMap, initialData));
     setFieldErrors({});
     setSubmitError("");
   }, [fieldMap, initialData]);
+
+  useEffect(() => {
+    for (const [, field] of fieldMap.entries()) {
+      if (field.type !== "relation") continue;
+      const descriptor = normalizeRelationDescriptor(field);
+      if (descriptor?.source === "remote" && descriptor.preload) {
+        loadRelationOptions(field.name, descriptor, "");
+      }
+    }
+  }, [fieldMap, loadRelationOptions]);
 
   if (!apiPath) {
     return (
@@ -213,6 +275,14 @@ export function AtlasForm({
   const handleChange = (name, value) => {
     setFormValues((prev) => ({ ...prev, [name]: value }));
     setFieldErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  const handleRelationSearch = (fieldName, descriptor, search) => {
+    if (descriptor.source !== "remote") return;
+    clearTimeout(relationDebounceRef.current[fieldName]);
+    relationDebounceRef.current[fieldName] = setTimeout(() => {
+      loadRelationOptions(fieldName, descriptor, search);
+    }, 300);
   };
 
   const validate = () => {
@@ -461,16 +531,39 @@ export function AtlasForm({
         );
       }
 
-      case "relation":
+      case "relation": {
+        const descriptor = normalizeRelationDescriptor(field);
+        if (!descriptor) {
+          return (
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-[hsl(var(--foreground))]">
+                {field.label}{field.required ? " *" : ""}
+              </p>
+              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">
+                Relación no configurada
+              </div>
+              {fieldErrors[field.name] && (
+                <p className="text-xs text-[hsl(var(--destructive))]">{fieldErrors[field.name]}</p>
+              )}
+            </div>
+          );
+        }
+        const rs = relationState[field.name] ?? { options: [], loading: false, error: null };
+        const staticOpts = descriptor.source === "static" ? descriptor.options : rs.options;
         return (
-          <TextField
+          <RelationSelectField
             {...sharedProps}
-            type="text"
-            value={value ?? ""}
-            onChange={(e) => handleChange(field.name, e.target.value)}
-            hint="ID del registro relacionado"
+            value={value ?? null}
+            options={staticOpts}
+            loading={descriptor.source === "remote" ? rs.loading : false}
+            loadError={descriptor.source === "remote" ? rs.error : null}
+            clearable={descriptor.clearable}
+            onRetry={() => loadRelationOptions(field.name, descriptor, "")}
+            onSearchChange={(search) => handleRelationSearch(field.name, descriptor, search)}
+            onChange={(val) => handleChange(field.name, val)}
           />
         );
+      }
 
       default:
         return (
@@ -515,7 +608,7 @@ export function AtlasForm({
             {section.fields.map((fieldName) => {
               const field = fieldMap.get(fieldName);
               if (!field) return null;
-              const isFullWidth = ["textarea", "markdown", "relation"].includes(field.type);
+              const isFullWidth = ["textarea", "markdown"].includes(field.type);
               return (
                 <div key={field.name} className={isFullWidth ? "col-span-full" : ""}>
                   {renderFieldControl(field)}

@@ -353,6 +353,29 @@ Known follow-ups: relation field picker UX, DocumentsPanel UI component, fleet d
 
 Verified: 2026-05-16 (`node --check packages/ui/src/atlas-renderer/renderer-adapters.js`; `node --check modules/custom/custom.fleet/views/maintenance.form.js`; `node --check apps/desktop/src/shell/BlueprintCrudScreen.jsx` and `node --check packages/ui/src/atlas-renderer/AtlasCrudView.jsx` executed but this Node runtime reports `ERR_UNKNOWN_FILE_EXTENSION` for `.jsx`; `pnpm.cmd --filter @atlas/desktop build:web`; frontend route HTTP checks; API CORS preflight checks; runtime route harness output `RUNTIME_ROUTE_VALIDATION_OK`)
 
+### Blueprint Schema Expansion — Relation Fields [COMPLETE]
+
+**Spec:** `docs/superpowers/specs/2026-05-16-blueprint-schema-relation-fields-design.md`  
+**Plan:** `docs/superpowers/plans/2026-05-16-blueprint-schema-relation-fields.md`
+
+- [x] `normalizeRelationDescriptor(fieldLike)` added to `packages/ui/src/atlas-renderer/renderer-adapters.js` — normalizes `source`, `apiPath`, `valueField`, `labelField` (string or array), `labelSeparator`, search/page params, `pageSize`, `preload`, `clearable`, `disabledField` with safe defaults; returns `null` for invalid config — Verified: 2026-05-16 (`node --check packages/ui/src/atlas-renderer/renderer-adapters.js` → OK)
+- [x] `RelationSelectField` component added to `packages/ui/src/components/FormFields.jsx` — combobox control with Spanish loading/error/empty/search/clear states and `onSearchChange` callback — Verified: 2026-05-16 (included in build; `ERR_UNKNOWN_FILE_EXTENSION` from `node --check` on `.jsx` is expected)
+- [x] `AtlasForm` updated: imports, `normalizeField`/`normalizeSections` preserve `relation` metadata; `loadRelationOptions` async loader (preload + debounced remote search); `resolveRelationLabel` for string and array `labelField`; `case "relation"` renders `RelationSelectField` with per-field relation state; invalid config degrades to labeled placeholder — Verified: 2026-05-16 (build pass)
+- [x] `vehicle.form.js`: `vehicle_type_id` → relation `/fleet/catalogs/vehicle-types`; `vehicle_brand_id` → relation `/fleet/catalogs/vehicle-brands`; `driver_id` → relation `/fleet/drivers` (composed `first_name last_name`) — Verified: 2026-05-16 (`node --check` → OK)
+- [x] `maintenance.form.js`: `maintenance_type_id` → relation `/fleet/catalogs/maintenance-types`; `vehicle_id` → required relation `/fleet/vehicles` (composed `plate · model_name`); `driver_id` → relation `/fleet/drivers` (composed `first_name last_name`) — Verified: 2026-05-16 (`node --check` → OK)
+- [x] Desktop build passes — Verified: 2026-05-16 (`pnpm.cmd --filter @atlas/desktop build:web` → ✓ built in 2.78s, 0 errors, 4404 modules transformed)
+
+Runtime checks: Not verified in this session (no browser access). Required manual follow-up:
+- Vehicle form relation selectors (vehicle_type_id, vehicle_brand_id, driver_id) load options from API
+- Maintenance form relation selectors load options (maintenance_type_id, vehicle_id, driver_id)
+- Search triggers debounced re-fetch from remote endpoints
+- Required relation fields block submit when empty
+- Optional relation fields clear to null and submit null
+- Edit mode shows readable labels for persisted IDs
+- Payload inspection confirms only scalar IDs submitted (no label text)
+- Existing text/select/date/number/boolean fields unaffected
+- No custom.fleet hardcoding in core renderer files
+
 ### AME3 Phase 4 — Discovery as Primary Source
 
 **Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-module-discovery-primary.md`  

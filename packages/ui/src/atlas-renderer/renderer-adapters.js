@@ -88,6 +88,56 @@ export function resolveAccentColor(module, blueprint) {
 }
 
 /**
+ * Normalizes the `relation` metadata from a blueprint field descriptor into a
+ * canonical shape with all defaults applied.  Returns null when the config is
+ * invalid (e.g. source="remote" with no apiPath) so callers can degrade safely.
+ */
+export function normalizeRelationDescriptor(fieldLike) {
+  if (!fieldLike || typeof fieldLike !== 'object') return null;
+  const raw = fieldLike.relation;
+  if (!raw || typeof raw !== 'object') return null;
+
+  const apiPath = typeof raw.apiPath === 'string' && raw.apiPath.trim() ? raw.apiPath.trim() : null;
+  const rawOptions = Array.isArray(raw.options) ? raw.options : [];
+
+  let source = raw.source;
+  if (source !== 'static' && source !== 'remote') {
+    source = apiPath ? 'remote' : rawOptions.length > 0 ? 'static' : 'remote';
+  }
+
+  if (source === 'remote' && !apiPath) return null;
+
+  const required = Boolean(fieldLike.required);
+
+  const staticOptions = rawOptions
+    .filter((o) => o && typeof o === 'object' && o.value != null)
+    .map((o) => ({ value: String(o.value), label: String(o.label ?? o.value) }));
+
+  const rawLabelField = raw.labelField;
+  const labelField = Array.isArray(rawLabelField)
+    ? rawLabelField
+    : typeof rawLabelField === 'string' && rawLabelField
+    ? rawLabelField
+    : 'name';
+
+  return {
+    source,
+    apiPath,
+    options: staticOptions,
+    valueField: typeof raw.valueField === 'string' && raw.valueField ? raw.valueField : 'id',
+    labelField,
+    labelSeparator: typeof raw.labelSeparator === 'string' ? raw.labelSeparator : ' ',
+    searchParam: typeof raw.searchParam === 'string' && raw.searchParam ? raw.searchParam : 'search',
+    pageParam: typeof raw.pageParam === 'string' && raw.pageParam ? raw.pageParam : 'page',
+    pageSizeParam: typeof raw.pageSizeParam === 'string' && raw.pageSizeParam ? raw.pageSizeParam : 'pageSize',
+    pageSize: typeof raw.pageSize === 'number' && raw.pageSize > 0 ? raw.pageSize : 20,
+    preload: raw.preload !== false,
+    clearable: typeof raw.clearable === 'boolean' ? raw.clearable : !required,
+    disabledField: typeof raw.disabledField === 'string' && raw.disabledField ? raw.disabledField : null,
+  };
+}
+
+/**
  * Converts the normalized filter array used by AtlasTable to the FilterBar-compatible
  * format. Only select-type filters with at least one option are included.
  */

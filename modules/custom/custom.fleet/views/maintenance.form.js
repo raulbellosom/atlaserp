@@ -14,7 +14,17 @@ export default defineView({
         label: 'Informacion general',
         fields: [
           { field: 'title', label: 'Titulo', type: 'text' },
-          { field: 'maintenance_type_id', label: 'Tipo de mantenimiento', type: 'uuid' },
+          {
+            field: 'maintenance_type_id',
+            label: 'Tipo de mantenimiento',
+            type: 'relation',
+            relation: {
+              apiPath: '/fleet/catalogs/maintenance-types',
+              labelField: 'name',
+              clearable: true,
+              disabledField: 'enabled',
+            },
+          },
           {
             field: 'type',
             label: 'Categoria',
@@ -43,8 +53,31 @@ export default defineView({
       {
         label: 'Vehiculo y conductor',
         fields: [
-          { field: 'vehicle_id', label: 'Vehiculo', type: 'uuid', required: true },
-          { field: 'driver_id', label: 'Chofer', type: 'uuid' },
+          {
+            field: 'vehicle_id',
+            label: 'Vehículo',
+            type: 'relation',
+            required: true,
+            relation: {
+              apiPath: '/fleet/vehicles',
+              labelField: ['plate', 'model_name'],
+              labelSeparator: ' · ',
+              clearable: false,
+              disabledField: 'enabled',
+            },
+          },
+          {
+            field: 'driver_id',
+            label: 'Chofer',
+            type: 'relation',
+            relation: {
+              apiPath: '/fleet/drivers',
+              labelField: ['first_name', 'last_name'],
+              labelSeparator: ' ',
+              clearable: true,
+              disabledField: 'enabled',
+            },
+          },
         ],
       },
       {
