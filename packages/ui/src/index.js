@@ -180,6 +180,7 @@ export { ContactPicker } from "./components/ContactPicker.jsx";
 export { FileCard } from "./components/FileCard.jsx";
 export { FileUploader } from "./components/FileUploader.jsx";
 export { FileViewer } from "./components/FileViewer.jsx";
+export { DocumentsPanel } from "./components/DocumentsPanel.jsx";
 export { ImageViewer } from "./components/ImageViewer.jsx";
 export { ImageUploader } from "./components/ImageUploader.jsx";
 export { PageFooter } from "./components/PageFooter.jsx";

@@ -27,6 +27,43 @@ export default defineView({
         label: 'Conductor asignado',
         fields: [{ field: 'driver_id', label: 'Conductor', type: 'relation' }],
       },
+      {
+        id: 'documents',
+        type: 'documents',
+        label: 'Documentos',
+        documents: {
+          listPath: '/fleet/vehicles/:id/documents',
+          addPath: '/fleet/vehicles/:id/documents',
+          removePath: '/fleet/vehicles/:id/documents/:docId',
+          upload: {
+            endpoint: '/files/upload',
+            moduleKey: 'custom.fleet',
+            entityType: 'FleetVehicle',
+          },
+          fields: {
+            associationId: 'id',
+            fileAssetId: 'file_asset_id',
+            documentType: 'document_type',
+            label: 'label',
+            createdAt: 'created_at',
+            enabled: 'enabled',
+            fileAsset: 'file_asset',
+            fileName: 'originalName',
+            mimeType: 'mimeType',
+            sizeBytes: 'sizeBytes',
+          },
+          signedUrl: {
+            endpointTemplate: '/files/:fileId/signed-url',
+          },
+          permissions: {
+            read: 'fleet.vehicles.read',
+            create: 'fleet.vehicles.update',
+            remove: 'fleet.vehicles.update',
+            fileUpload: 'files.assets.create',
+            fileRead: 'files.assets.read',
+          },
+        },
+      },
     ],
     actions: [
       { label: 'Editar', permission: 'fleet.vehicles.update' },

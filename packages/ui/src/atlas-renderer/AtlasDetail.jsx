@@ -1,5 +1,6 @@
-import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
+﻿import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
+import { DocumentsPanel } from "../components/DocumentsPanel.jsx";
 import { normalizeSpanishLabel } from "./renderer-adapters.js";
 
 const STATUS_LABELS = {
@@ -57,6 +58,22 @@ function normalizeSections(schema, fieldMap) {
   return rawSections
     .map((entry, sectionIndex) => {
       if (!entry || typeof entry !== "object") return null;
+      const sectionType =
+        typeof entry.type === "string" && entry.type.trim()
+          ? entry.type.trim().toLowerCase()
+          : "fields";
+
+      if (sectionType === "documents") {
+        return {
+          id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
+          title: normalizeSpanishLabel(
+            entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`,
+          ),
+          type: "documents",
+          documents: entry.documents ?? null,
+        };
+      }
+
       const fieldDefs = (Array.isArray(entry.fields) ? entry.fields : [])
         .map((item) => normalizeSectionField(item))
         .filter(Boolean);
@@ -82,7 +99,10 @@ function normalizeSections(schema, fieldMap) {
 
       return {
         id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
-        title: normalizeSpanishLabel(entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`),
+        title: normalizeSpanishLabel(
+          entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`,
+        ),
+        type: "fields",
         columns,
         fields: fieldNames,
       };
@@ -111,9 +131,13 @@ function renderValue(field, value) {
   const lower = str.toLowerCase();
   const label = STATUS_LABELS[lower];
   if (label) {
-    const chipClass = STATUS_COLORS[lower] ?? "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]";
+    const chipClass =
+      STATUS_COLORS[lower] ??
+      "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]";
     return (
-      <span className={`inline-block text-xs font-medium rounded-full px-2.5 py-0.5 ${chipClass}`}>
+      <span
+        className={`inline-block text-xs font-medium rounded-full px-2.5 py-0.5 ${chipClass}`}
+      >
         {label}
       </span>
     );
@@ -127,7 +151,15 @@ function gridClass(columns) {
   return "grid gap-4 lg:grid-cols-2";
 }
 
-export function AtlasDetail({ blueprint, fields, data, onEdit, onBack }) {
+export function AtlasDetail({
+  blueprint,
+  fields,
+  data,
+  onEdit,
+  onBack,
+  token,
+  apiBaseUrl,
+}) {
   const schema = blueprint?.schema ?? {};
   const fieldMap = normalizeFieldMap(fields);
   const sections = normalizeSections(schema, fieldMap);
@@ -175,23 +207,33 @@ export function AtlasDetail({ blueprint, fields, data, onEdit, onBack }) {
           <h4 className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
             {section.title}
           </h4>
-          <dl className={gridClass(section.columns)}>
-            {section.fields.map((fieldName) => {
-              const field = fieldMap.get(fieldName);
-              if (!field) return null;
-              const value = data[field.name];
-              return (
-                <div key={field.name} className="space-y-1">
-                  <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-                    {field.label}
-                  </dt>
-                  <dd className="text-sm text-[hsl(var(--foreground))]">
-                    {renderValue(field, value)}
-                  </dd>
-                </div>
-              );
-            })}
-          </dl>
+
+          {section.type === "documents" ? (
+            <DocumentsPanel
+              apiBaseUrl={apiBaseUrl}
+              token={token}
+              recordId={data?.id ?? null}
+              config={section.documents ?? {}}
+            />
+          ) : (
+            <dl className={gridClass(section.columns)}>
+              {section.fields.map((fieldName) => {
+                const field = fieldMap.get(fieldName);
+                if (!field) return null;
+                const value = data[field.name];
+                return (
+                  <div key={field.name} className="space-y-1">
+                    <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+                      {field.label}
+                    </dt>
+                    <dd className="text-sm text-[hsl(var(--foreground))]">
+                      {renderValue(field, value)}
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
+          )}
         </div>
       ))}
     </div>

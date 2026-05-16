@@ -47,6 +47,43 @@ export default defineView({
           { field: 'completed_date', label: 'Fecha de completado', type: 'date' },
         ],
       },
+      {
+        id: 'documents',
+        type: 'documents',
+        label: 'Documentos',
+        documents: {
+          listPath: '/fleet/maintenance/:id/documents',
+          addPath: '/fleet/maintenance/:id/documents',
+          removePath: '/fleet/maintenance/:id/documents/:docId',
+          upload: {
+            endpoint: '/files/upload',
+            moduleKey: 'custom.fleet',
+            entityType: 'FleetMaintenance',
+          },
+          fields: {
+            associationId: 'id',
+            fileAssetId: 'file_asset_id',
+            documentType: 'document_type',
+            label: 'label',
+            createdAt: 'created_at',
+            enabled: 'enabled',
+            fileAsset: 'file_asset',
+            fileName: 'originalName',
+            mimeType: 'mimeType',
+            sizeBytes: 'sizeBytes',
+          },
+          signedUrl: {
+            endpointTemplate: '/files/:fileId/signed-url',
+          },
+          permissions: {
+            read: 'fleet.maintenance.read',
+            create: 'fleet.maintenance.update',
+            remove: 'fleet.maintenance.update',
+            fileUpload: 'files.assets.create',
+            fileRead: 'files.assets.read',
+          },
+        },
+      },
     ],
     actions: [
       { label: 'Editar', permission: 'fleet.maintenance.update' },
