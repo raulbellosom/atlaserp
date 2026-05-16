@@ -15,7 +15,11 @@ import {
 import { AtlasDetail } from "./AtlasDetail.jsx";
 import { AtlasForm } from "./AtlasForm.jsx";
 import { AtlasTable } from "./AtlasTable.jsx";
-import { shouldUsePageMode, resolveAccentColor } from "./renderer-adapters.js";
+import {
+  shouldUsePageMode,
+  resolveAccentColor,
+  resolveFormMode,
+} from "./renderer-adapters.js";
 
 const MODES = new Set(["list", "create", "detail", "edit"]);
 
@@ -77,10 +81,19 @@ export function AtlasCrudView({
 
   const currentFormBlueprint = formBlueprint ?? tableBlueprint;
   const currentDetailBlueprint = detailBlueprint ?? tableBlueprint;
+  const formMode = useMemo(
+    () => resolveFormMode(currentFormBlueprint?.schema),
+    [currentFormBlueprint],
+  );
 
   const pageMode = useMemo(
-    () => shouldUsePageMode(currentFormBlueprint?.schema, fields),
-    [currentFormBlueprint, fields],
+    () =>
+      formMode === "page"
+        ? true
+        : formMode === "sheet"
+          ? false
+          : shouldUsePageMode(currentFormBlueprint?.schema, fields),
+    [currentFormBlueprint, fields, formMode],
   );
 
   const [mode, setMode] = useState(resolvedInitialMode);

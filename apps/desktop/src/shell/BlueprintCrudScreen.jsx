@@ -38,6 +38,10 @@ function normalizeKind(value) {
     .toUpperCase();
 }
 
+function getBlueprintKind(row) {
+  return normalizeKind(row?.kind ?? row?.type);
+}
+
 function getLastSegment(path) {
   const normalized = normalizePath(path);
   if (!normalized || normalized === "/") return "";
@@ -45,7 +49,7 @@ function getLastSegment(path) {
   return String(parts.at(-1) ?? "").toLowerCase();
 }
 
-function parseRouteInfo(moduleKey, wildcard) {
+function collapseWildcardPath(moduleKey, wildcard) {
   const raw = String(wildcard ?? "").trim();
   const normalized = raw.replace(/^\/+/, "");
   const duplicatedPrefixes = [
@@ -60,26 +64,88 @@ function parseRouteInfo(moduleKey, wildcard) {
       break;
     }
   }
-  const cleanPath = collapsed.replace(/^\/+/, "");
-  const segments = cleanPath.split("/").filter(Boolean);
-  const entitySegment = String(segments[0] ?? "").toLowerCase();
-  const moduleRoutePath = entitySegment
-    ? `/app/m/${moduleKey}/${cleanPath}`
-    : `/app/m/${moduleKey}`;
+  return collapsed.replace(/^\/+/, "");
+}
 
+function parseModeFromSegments(segments) {
   let initialMode = "list";
   let recordId = null;
-  if (segments[1] === "new") {
+
+  if (segments[0] === "new") {
     initialMode = "create";
-  } else if (segments[1] && segments[2] === "edit") {
+  } else if (segments[0] && segments[1] === "edit") {
     initialMode = "edit";
-    recordId = segments[1];
-  } else if (segments[1]) {
+    recordId = segments[0];
+  } else if (segments[0]) {
     initialMode = "detail";
-    recordId = segments[1];
+    recordId = segments[0];
   }
 
-  return { entitySegment, moduleRoutePath, initialMode, recordId };
+  return { initialMode, recordId };
+}
+
+function parseFallbackRouteInfo(moduleKey, wildcard) {
+  const cleanPath = collapseWildcardPath(moduleKey, wildcard);
+  const segments = cleanPath.split("/").filter(Boolean);
+  const collectionPath = String(segments[0] ?? "").toLowerCase();
+  const { initialMode, recordId } = parseModeFromSegments(segments.slice(1));
+  const moduleRoutePath = collectionPath
+    ? `/app/m/${moduleKey}/${collectionPath}`
+    : `/app/m/${moduleKey}`;
+
+  return {
+    entitySegment: getLastSegment(collectionPath),
+    collectionPath,
+    moduleRoutePath,
+    initialMode,
+    recordId,
+    pageMatch: null,
+  };
+}
+
+function getPagePath(row) {
+  return normalizePath(row?.schema?.path ?? row?.schema?.page?.path);
+}
+
+function resolveRouteInfo({ moduleKey, wildcard, pathname, moduleRows }) {
+  const fallback = parseFallbackRouteInfo(moduleKey, wildcard);
+  const normalizedPathname = normalizePath(pathname);
+  if (!normalizedPathname || !moduleKey) return fallback;
+
+  const pageMatches = moduleRows
+    .filter((row) => getBlueprintKind(row) === "PAGE")
+    .map((row) => ({ row, path: getPagePath(row) }))
+    .filter(({ path }) => path)
+    .filter(
+      ({ path }) =>
+        normalizedPathname === path || normalizedPathname.startsWith(`${path}/`),
+    )
+    .sort((a, b) => b.path.length - a.path.length);
+
+  const bestMatch = pageMatches[0];
+  if (!bestMatch) return fallback;
+
+  const moduleRoot = normalizePath(`/app/m/${moduleKey}`);
+  const collectionPath = bestMatch.path
+    .slice(moduleRoot.length)
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "")
+    .toLowerCase();
+  const suffix = normalizedPathname
+    .slice(bestMatch.path.length)
+    .replace(/^\/+/, "");
+  const { initialMode, recordId } = parseModeFromSegments(
+    suffix.split("/").filter(Boolean),
+  );
+
+  return {
+    entitySegment: getLastSegment(collectionPath),
+    collectionPath,
+    moduleRoutePath: bestMatch.path,
+    initialMode,
+    recordId,
+    pageMatch: bestMatch.row,
+  };
 }
 
 function matchesEntity(blueprint, entitySegment) {
@@ -97,29 +163,27 @@ function matchesEntity(blueprint, entitySegment) {
   return false;
 }
 
-function selectBlueprints({ rows, moduleKey, moduleRoutePath, entitySegment }) {
-  const moduleRows = rows.filter(
-    (row) => row?.source === "atlas-view" && row?.moduleKey === moduleKey,
-  );
+function matchesCollectionPath(blueprint, collectionPath) {
+  if (!collectionPath) return false;
+  const normalizedCollection = String(collectionPath).trim().toLowerCase();
+  const schema = blueprint?.schema ?? {};
+  const apiPath = normalizePath(schema.apiPath).toLowerCase();
+  if (apiPath.endsWith(`/${normalizedCollection}`)) return true;
+  if (apiPath.includes(`/${normalizedCollection}/`)) return true;
+  return false;
+}
+
+function selectBlueprints({ moduleRows, routeInfo }) {
   const tableRows = moduleRows.filter(
-    (row) => normalizeKind(row?.kind) === "TABLE",
+    (row) => getBlueprintKind(row) === "TABLE",
   );
   const formRows = moduleRows.filter(
-    (row) => normalizeKind(row?.kind) === "FORM",
+    (row) => getBlueprintKind(row) === "FORM",
   );
   const detailRows = moduleRows.filter(
-    (row) => normalizeKind(row?.kind) === "DETAIL",
+    (row) => getBlueprintKind(row) === "DETAIL",
   );
-  const pageRows = moduleRows.filter(
-    (row) => normalizeKind(row?.kind) === "PAGE",
-  );
-
-  const normalizedRoutePath = normalizePath(moduleRoutePath);
-  const pagePathOf = (row) =>
-    normalizePath(row?.schema?.path ?? row?.schema?.page?.path);
-  const pageMatch = pageRows.find(
-    (row) => pagePathOf(row) === normalizedRoutePath,
-  );
+  const pageMatch = routeInfo.pageMatch;
 
   const findByKey = (key) =>
     moduleRows.find(
@@ -134,7 +198,14 @@ function selectBlueprints({ rows, moduleKey, moduleRoutePath, entitySegment }) {
   if (!tableBlueprint && pageTableKey) tableBlueprint = findByKey(pageTableKey);
   if (!tableBlueprint) {
     tableBlueprint =
-      tableRows.find((row) => matchesEntity(row, entitySegment)) ?? null;
+      tableRows.find((row) =>
+        matchesCollectionPath(row, routeInfo.collectionPath),
+      ) ?? null;
+  }
+  if (!tableBlueprint) {
+    tableBlueprint =
+      tableRows.find((row) => matchesEntity(row, routeInfo.entitySegment)) ??
+      null;
   }
 
   if (!tableBlueprint) {
@@ -159,11 +230,17 @@ function selectBlueprints({ rows, moduleKey, moduleRoutePath, entitySegment }) {
 
   const formBlueprint =
     formRows.find(matchesTable) ??
-    formRows.find((row) => matchesEntity(row, entitySegment)) ??
+    formRows.find((row) =>
+      matchesCollectionPath(row, routeInfo.collectionPath),
+    ) ??
+    formRows.find((row) => matchesEntity(row, routeInfo.entitySegment)) ??
     null;
   const detailBlueprint =
     detailRows.find(matchesTable) ??
-    detailRows.find((row) => matchesEntity(row, entitySegment)) ??
+    detailRows.find((row) =>
+      matchesCollectionPath(row, routeInfo.collectionPath),
+    ) ??
+    detailRows.find((row) => matchesEntity(row, routeInfo.entitySegment)) ??
     null;
 
   return { tableBlueprint, formBlueprint, detailBlueprint };
@@ -183,7 +260,7 @@ function extractFields(tableBlueprint, formBlueprint, detailBlueprint) {
   return undefined;
 }
 
-function resolveNavItem(module, moduleRoutePath, entitySegment) {
+function resolveNavItem(module, moduleRoutePath, collectionPath, entitySegment) {
   const nav = module?.navigation ?? module?.manifest?.navigation ?? [];
   if (!Array.isArray(nav) || nav.length === 0) return null;
   const normalizedRoute = normalizePath(moduleRoutePath);
@@ -191,6 +268,13 @@ function resolveNavItem(module, moduleRoutePath, entitySegment) {
     (item) => normalizePath(item?.path ?? "") === normalizedRoute,
   );
   if (exact) return exact;
+  if (collectionPath) {
+    const normalizedCollection = normalizePath(`/${collectionPath}`);
+    const byCollection = nav.find((item) =>
+      normalizePath(item?.path ?? "").endsWith(normalizedCollection),
+    );
+    if (byCollection) return byCollection;
+  }
   if (entitySegment) {
     const partial = nav.find((item) =>
       normalizePath(item?.path ?? "")
@@ -234,11 +318,6 @@ export function BlueprintCrudScreen() {
   const module = moduleMap.get(moduleKey) ?? null;
   const moduleName = module?.name ?? module?.manifest?.name ?? moduleKey ?? "";
 
-  const routeInfo = useMemo(
-    () => parseRouteInfo(moduleKey, wildcard),
-    [moduleKey, wildcard],
-  );
-
   const blueprintsQuery = useQuery({
     queryKey: ["blueprints", moduleKey, token],
     queryFn: () => atlas.blueprints.list(token),
@@ -246,22 +325,30 @@ export function BlueprintCrudScreen() {
     staleTime: 30000,
   });
 
-  const selection = useMemo(() => {
+  const moduleRows = useMemo(() => {
     const rows = Array.isArray(blueprintsQuery.data?.data)
       ? blueprintsQuery.data.data
       : [];
-    return selectBlueprints({
-      rows,
-      moduleKey,
-      moduleRoutePath: routeInfo.moduleRoutePath,
-      entitySegment: routeInfo.entitySegment,
-    });
-  }, [
-    blueprintsQuery.data,
-    moduleKey,
-    routeInfo.entitySegment,
-    routeInfo.moduleRoutePath,
-  ]);
+    return rows.filter(
+      (row) => row?.source === "atlas-view" && row?.moduleKey === moduleKey,
+    );
+  }, [blueprintsQuery.data, moduleKey]);
+
+  const routeInfo = useMemo(
+    () =>
+      resolveRouteInfo({
+        moduleKey,
+        wildcard,
+        pathname: location.pathname,
+        moduleRows,
+      }),
+    [location.pathname, moduleKey, moduleRows, wildcard],
+  );
+
+  const selection = useMemo(
+    () => selectBlueprints({ moduleRows, routeInfo }),
+    [moduleRows, routeInfo],
+  );
 
   const fields = useMemo(
     () =>
@@ -282,9 +369,15 @@ export function BlueprintCrudScreen() {
       resolveNavItem(
         module,
         routeInfo.moduleRoutePath,
+        routeInfo.collectionPath,
         routeInfo.entitySegment,
       ),
-    [module, routeInfo.entitySegment, routeInfo.moduleRoutePath],
+    [
+      module,
+      routeInfo.collectionPath,
+      routeInfo.entitySegment,
+      routeInfo.moduleRoutePath,
+    ],
   );
 
   const locationPathnameRef = useRef(location.pathname);
@@ -292,12 +385,13 @@ export function BlueprintCrudScreen() {
 
   const handleNavigate = useCallback(
     ({ mode, recordId }) => {
-      const entity =
-        routeInfo.entitySegment ||
-        getLastSegment(selection.tableBlueprint?.schema?.apiPath);
-      if (!entity) return;
+      const basePath =
+        routeInfo.moduleRoutePath ||
+        (routeInfo.collectionPath
+          ? `/app/m/${moduleKey}/${routeInfo.collectionPath}`
+          : null);
+      if (!basePath) return;
 
-      const basePath = `/app/m/${moduleKey}/${entity}`;
       let targetPath = basePath;
       if (mode === "create") {
         targetPath = `${basePath}/new`;
@@ -313,8 +407,8 @@ export function BlueprintCrudScreen() {
     [
       moduleKey,
       navigate,
-      routeInfo.entitySegment,
-      selection.tableBlueprint?.schema?.apiPath,
+      routeInfo.collectionPath,
+      routeInfo.moduleRoutePath,
     ],
   );
 
@@ -442,16 +536,13 @@ export function BlueprintCrudScreen() {
     resolvePageDescription(selection.tableBlueprint, module),
   );
 
-  const entitySegment =
-    routeInfo.entitySegment ||
-    getLastSegment(selection.tableBlueprint?.schema?.apiPath);
   const canCreate =
     Boolean(selection.formBlueprint) && routeInfo.initialMode === "list";
   const createLabel = normalizeSpanishLabel(
     selection.tableBlueprint?.schema?.actions?.[0]?.label ?? "Agregar",
   );
-  const createPath = entitySegment
-    ? `/app/m/${moduleKey}/${entitySegment}/new`
+  const createPath = routeInfo.moduleRoutePath
+    ? `${routeInfo.moduleRoutePath}/new`
     : null;
 
   return (

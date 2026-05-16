@@ -50,9 +50,24 @@ export function normalizeSpanishLabel(text) {
 
 /**
  * Detects whether a form should render as a full page instead of a Sheet overlay.
- * Heuristic: > 6 visible (non-readonly) fields, or > 2 sections.
+ * `page` and `sheet` are explicit overrides. `auto` (or invalid values)
+ * falls back to the heuristic: > 6 visible fields, or > 2 sections.
  */
+export function resolveFormMode(schema) {
+  const mode = String(schema?.formMode ?? "")
+    .trim()
+    .toLowerCase();
+  if (mode === "page") return "page";
+  if (mode === "sheet") return "sheet";
+  if (mode === "auto") return "auto";
+  return "auto";
+}
+
 export function shouldUsePageMode(schema, fields) {
+  const formMode = resolveFormMode(schema);
+  if (formMode === "page") return true;
+  if (formMode === "sheet") return false;
+
   const sections = Array.isArray(schema?.sections) ? schema.sections : [];
   if (sections.length > 2) return true;
 

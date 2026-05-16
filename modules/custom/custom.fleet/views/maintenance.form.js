@@ -8,6 +8,7 @@ export default defineView({
     entity: 'maintenance',
     component: 'AtlasForm',
     apiPath: '/fleet/maintenance',
+    formMode: 'page',
     sections: [
       {
         label: 'Informacion general',
