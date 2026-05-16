@@ -350,6 +350,8 @@ export function AtlasCrudView({
                     fields={fields}
                     data={recordData}
                     accentColor={accentColor}
+                    token={token}
+                    apiBaseUrl={apiBaseUrl}
                   />
                 ))}
             </>
@@ -459,6 +461,8 @@ export function AtlasCrudView({
                           fields={fields}
                           data={recordData}
                           accentColor={accentColor}
+                          token={token}
+                          apiBaseUrl={apiBaseUrl}
                           onEdit={
                             currentFormBlueprint
                               ? () => setMode("edit")
