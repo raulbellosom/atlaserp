@@ -2171,6 +2171,11 @@ export function RelationSelectField({
   onRetry,
   onSearchChange,
   clearable = false,
+  createActionLabel = "Crear nuevo",
+  createActionMode = "always",
+  createFromSearch = false,
+  createDisabled = false,
+  onCreate,
   placeholder = "Seleccionar...",
   className,
 }) {
@@ -2212,6 +2217,14 @@ export function RelationSelectField({
     setSearch("");
   }
 
+  function handleCreate() {
+    if (createDisabled || typeof onCreate !== "function") return;
+    const searchText = search.trim();
+    onCreate(searchText);
+    setOpen(false);
+    setSearch("");
+  }
+
   const displayLabel =
     value != null && value !== ""
       ? selected
@@ -2224,6 +2237,17 @@ export function RelationSelectField({
   const filtered = search
     ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
     : options;
+
+  const trimmedSearch = search.trim();
+  const canShowCreate =
+    typeof onCreate === "function" &&
+    (createActionMode === "always" ||
+      (createActionMode === "empty-search" && trimmedSearch.length === 0) ||
+      (createActionMode === "has-search" && trimmedSearch.length > 0));
+  const createLabel = (() => {
+    if (createFromSearch && trimmedSearch.length > 0) return `Crear "${trimmedSearch}"`;
+    return createActionLabel || "Crear nuevo";
+  })();
 
   return (
     <FieldWrapper label={label} labelFor={id} error={externalError} hint={hint} required={required}>
@@ -2346,6 +2370,25 @@ export function RelationSelectField({
                     {opt.label}
                   </button>
                 ))
+              )}
+              {canShowCreate && (
+                <>
+                  <div className="mx-3 my-1 border-t border-border" />
+                  <button
+                    type="button"
+                    role="option"
+                    onClick={handleCreate}
+                    disabled={createDisabled}
+                    className={cn(
+                      "w-full text-left px-3 py-2 text-sm transition-colors duration-100 flex items-center gap-2",
+                      "text-primary hover:bg-primary/5",
+                      createDisabled && "opacity-50 cursor-not-allowed",
+                    )}
+                  >
+                    <span className="text-base leading-none">+</span>
+                    <span className="font-medium">{createLabel}</span>
+                  </button>
+                </>
               )}
             </div>
           </div>

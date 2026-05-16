@@ -120,6 +120,54 @@ export function normalizeRelationDescriptor(fieldLike) {
     ? rawLabelField
     : 'name';
 
+  let create = null;
+  const rawCreate = raw.create;
+  if (rawCreate && typeof rawCreate === 'object' && rawCreate.enabled === true) {
+    const mode = typeof rawCreate.mode === 'string' && rawCreate.mode.trim()
+      ? rawCreate.mode.trim().toLowerCase()
+      : 'modal';
+    const viewKey = typeof rawCreate.viewKey === 'string' && rawCreate.viewKey.trim()
+      ? rawCreate.viewKey.trim()
+      : null;
+    const createApiPath =
+      typeof rawCreate.apiPath === 'string' && rawCreate.apiPath.trim()
+        ? rawCreate.apiPath.trim()
+        : apiPath;
+    const allowedWhen =
+      typeof rawCreate.allowedWhen === 'string' && rawCreate.allowedWhen.trim()
+        ? rawCreate.allowedWhen.trim().toLowerCase()
+        : 'always';
+    const allowedWhenNormalized =
+      allowedWhen === 'empty-search' || allowedWhen === 'has-search' || allowedWhen === 'always'
+        ? allowedWhen
+        : 'always';
+
+    if (mode === 'modal' && viewKey && createApiPath) {
+      create = {
+        enabled: true,
+        label:
+          typeof rawCreate.label === 'string' && rawCreate.label.trim()
+            ? rawCreate.label.trim()
+            : null,
+        mode,
+        title:
+          typeof rawCreate.title === 'string' && rawCreate.title.trim()
+            ? rawCreate.title.trim()
+            : null,
+        apiPath: createApiPath,
+        viewKey,
+        selectCreated: rawCreate.selectCreated !== false,
+        refreshOptions: rawCreate.refreshOptions !== false,
+        prefillFromSearch: rawCreate.prefillFromSearch === true,
+        allowedWhen: allowedWhenNormalized,
+        permissionKey:
+          typeof rawCreate.permissionKey === 'string' && rawCreate.permissionKey.trim()
+            ? rawCreate.permissionKey.trim()
+            : null,
+      };
+    }
+  }
+
   return {
     source,
     apiPath,
@@ -134,6 +182,7 @@ export function normalizeRelationDescriptor(fieldLike) {
     preload: raw.preload !== false,
     clearable: typeof raw.clearable === 'boolean' ? raw.clearable : !required,
     disabledField: typeof raw.disabledField === 'string' && raw.disabledField ? raw.disabledField : null,
+    create,
   };
 }
 

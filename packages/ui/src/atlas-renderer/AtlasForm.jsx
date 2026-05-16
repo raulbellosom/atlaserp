@@ -2,6 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../components/Dialog.jsx";
+import {
   TextField,
   TextareaField,
   MarkdownField,
@@ -171,6 +178,64 @@ function resolveRecordId(initialData) {
   return initialData?.id ?? initialData?.recordId ?? initialData?.uuid ?? initialData?.ID ?? null;
 }
 
+function extractBlueprintRows(payload) {
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload)) return payload;
+  return [];
+}
+
+function extractFieldsFromBlueprint(blueprint) {
+  if (Array.isArray(blueprint?.fields) && blueprint.fields.length > 0) return blueprint.fields;
+  if (Array.isArray(blueprint?.schema?.fields) && blueprint.schema.fields.length > 0) {
+    return blueprint.schema.fields;
+  }
+  return [];
+}
+
+function extractCreatedRecord(result) {
+  if (result && typeof result === "object" && result.data && typeof result.data === "object") {
+    return result.data;
+  }
+  if (result && typeof result === "object") return result;
+  return null;
+}
+
+function collectFieldDefinitionsFromSchema(schema) {
+  const fields = [];
+  const sections = Array.isArray(schema?.sections) ? schema.sections : [];
+  for (const section of sections) {
+    const sectionFields = Array.isArray(section?.fields) ? section.fields : [];
+    for (const entry of sectionFields) {
+      if (!entry || typeof entry !== "object") continue;
+      const name = entry.name ?? entry.key ?? entry.field ?? null;
+      if (!name) continue;
+      fields.push({
+        name: String(name),
+        type: String(entry.type ?? "text").toLowerCase(),
+      });
+    }
+  }
+  return fields;
+}
+
+function buildInlineCreatePrefill({ nestedBlueprint, searchText, descriptor }) {
+  const trimmed = String(searchText ?? "").trim();
+  if (!descriptor?.create?.prefillFromSearch || !trimmed) return {};
+
+  const defs = collectFieldDefinitionsFromSchema(nestedBlueprint?.schema);
+  if (defs.length === 0) return {};
+
+  const preferredKeys = ["name", "title", "nombre", "titulo"];
+  const preferred = defs.find(
+    (field) => preferredKeys.includes(field.name.toLowerCase()) && field.type === "text",
+  );
+  if (preferred) return { [preferred.name]: trimmed };
+
+  const firstCompatible = defs.find((field) => field.type === "text" || field.type === "textarea");
+  if (!firstCompatible) return {};
+  return { [firstCompatible.name]: trimmed };
+}
+
 export function AtlasForm({
   blueprint,
   fields,
@@ -180,6 +245,10 @@ export function AtlasForm({
   apiBaseUrl,
   onSuccess,
   onCancel,
+  blueprints = null,
+  resolveBlueprintByKey = null,
+  allowInlineCreate = true,
+  inlineCreateDepth = 0,
 }) {
   const schema = blueprint?.schema ?? {};
   const apiPath = typeof schema.apiPath === "string" ? schema.apiPath.trim() : "";
@@ -202,6 +271,16 @@ export function AtlasForm({
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [relationState, setRelationState] = useState({});
+  const [relationInlineErrors, setRelationInlineErrors] = useState({});
+  const [inlineCreateState, setInlineCreateState] = useState({
+    open: false,
+    fieldName: null,
+    descriptor: null,
+    blueprint: null,
+    prefillData: {},
+    searchText: "",
+  });
+  const [nestedBlueprintRows, setNestedBlueprintRows] = useState(null);
   const relationDebounceRef = useRef({});
 
   const loadRelationOptions = useCallback(
@@ -232,11 +311,13 @@ export function AtlasForm({
           ...prev,
           [fieldName]: { options, loading: false, error: null },
         }));
+        return true;
       } catch {
         setRelationState((prev) => ({
           ...prev,
           [fieldName]: { options: prev[fieldName]?.options ?? [], loading: false, error: true },
         }));
+        return false;
       }
     },
     [apiBaseUrl, token],
@@ -245,6 +326,7 @@ export function AtlasForm({
   useEffect(() => {
     setFormValues(buildInitialValues(fieldMap, initialData));
     setFieldErrors({});
+    setRelationInlineErrors({});
     setSubmitError("");
   }, [fieldMap, initialData]);
 
@@ -275,6 +357,7 @@ export function AtlasForm({
   const handleChange = (name, value) => {
     setFormValues((prev) => ({ ...prev, [name]: value }));
     setFieldErrors((prev) => ({ ...prev, [name]: "" }));
+    setRelationInlineErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const handleRelationSearch = (fieldName, descriptor, search) => {
@@ -284,6 +367,171 @@ export function AtlasForm({
       loadRelationOptions(fieldName, descriptor, search);
     }, 300);
   };
+
+  const closeInlineCreate = useCallback(() => {
+    setInlineCreateState({
+      open: false,
+      fieldName: null,
+      descriptor: null,
+      blueprint: null,
+      prefillData: {},
+      searchText: "",
+    });
+  }, []);
+
+  const resolveInlineCreateBlueprint = useCallback(
+    async (viewKey) => {
+      if (typeof resolveBlueprintByKey === "function") {
+        const resolved = await resolveBlueprintByKey(viewKey);
+        if (resolved) return resolved;
+      }
+
+      const localRows = Array.isArray(blueprints) ? blueprints : nestedBlueprintRows;
+      if (Array.isArray(localRows) && localRows.length > 0) {
+        const found = localRows.find((row) => String(row?.key ?? "").trim() === viewKey);
+        if (found) return found;
+      }
+
+      const response = await fetch(joinUrl(apiBaseUrl, "/blueprints"), {
+        method: "GET",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error("No se pudieron cargar las vistas relacionadas.");
+      const payload = await response.json();
+      const rows = extractBlueprintRows(payload);
+      setNestedBlueprintRows(rows);
+      const moduleKey = String(blueprint?.moduleKey ?? "").trim();
+      const found = rows.find((row) => {
+        if (String(row?.key ?? "").trim() !== viewKey) return false;
+        if (!moduleKey) return true;
+        return String(row?.moduleKey ?? "").trim() === moduleKey;
+      });
+      return found ?? null;
+    },
+    [apiBaseUrl, blueprint?.moduleKey, blueprints, nestedBlueprintRows, resolveBlueprintByKey, token],
+  );
+
+  const openInlineCreate = useCallback(
+    async (fieldName, descriptor, searchText) => {
+      if (!allowInlineCreate || inlineCreateDepth > 0) return;
+      if (!descriptor?.create?.enabled) return;
+
+      const viewKey = String(descriptor.create.viewKey ?? "").trim();
+      if (!viewKey) return;
+
+      setRelationInlineErrors((prev) => ({ ...prev, [fieldName]: "" }));
+
+      try {
+        const nestedBlueprint = await resolveInlineCreateBlueprint(viewKey);
+        if (!nestedBlueprint) {
+          throw new Error("No se encontró la vista de creación relacionada.");
+        }
+        const nestedApiPath = descriptor.create.apiPath;
+        const blueprintForCreate =
+          nestedApiPath &&
+          nestedBlueprint?.schema &&
+          nestedBlueprint.schema.apiPath !== nestedApiPath
+            ? {
+                ...nestedBlueprint,
+                schema: {
+                  ...nestedBlueprint.schema,
+                  apiPath: nestedApiPath,
+                },
+              }
+            : nestedBlueprint;
+        const prefillData = buildInlineCreatePrefill({
+          nestedBlueprint: blueprintForCreate,
+          searchText,
+          descriptor,
+        });
+        setInlineCreateState({
+          open: true,
+          fieldName,
+          descriptor,
+          blueprint: blueprintForCreate,
+          prefillData,
+          searchText: String(searchText ?? ""),
+        });
+      } catch (err) {
+        setRelationInlineErrors((prev) => ({
+          ...prev,
+          [fieldName]:
+            err instanceof Error && err.message
+              ? err.message
+              : "No se pudo abrir el formulario relacionado.",
+        }));
+      }
+    },
+    [allowInlineCreate, inlineCreateDepth, resolveInlineCreateBlueprint],
+  );
+
+  const handleInlineCreateSuccess = useCallback(
+    async (result) => {
+      const fieldName = inlineCreateState.fieldName;
+      const descriptor = inlineCreateState.descriptor;
+      if (!fieldName || !descriptor) {
+        closeInlineCreate();
+        return;
+      }
+
+      const createdRecord = extractCreatedRecord(result);
+      const createdIdRaw =
+        createdRecord && descriptor.valueField in createdRecord
+          ? createdRecord[descriptor.valueField]
+          : null;
+      const createdId =
+        createdIdRaw === undefined || createdIdRaw === null || createdIdRaw === ""
+          ? null
+          : String(createdIdRaw);
+
+      if (createdRecord && createdId) {
+        const option = {
+          value: createdId,
+          label: resolveRelationLabel(createdRecord, descriptor),
+          disabled: false,
+        };
+        setRelationState((prev) => {
+          const current = prev[fieldName]?.options ?? [];
+          const next = current.filter((item) => String(item.value) !== createdId);
+          return {
+            ...prev,
+            [fieldName]: {
+              ...prev[fieldName],
+              options: [option, ...next],
+              loading: false,
+              error: null,
+            },
+          };
+        });
+      }
+
+      if (descriptor.create?.selectCreated !== false && createdId) {
+        handleChange(fieldName, createdId);
+      }
+
+      let refreshOk = true;
+      if (descriptor.create?.refreshOptions !== false) {
+        refreshOk = await loadRelationOptions(fieldName, descriptor, "");
+      }
+
+      if (!createdId) {
+        setRelationInlineErrors((prev) => ({
+          ...prev,
+          [fieldName]: "Se creó el registro, pero no se pudo obtener su identificador.",
+        }));
+      } else if (!refreshOk) {
+        setRelationInlineErrors((prev) => ({
+          ...prev,
+          [fieldName]: "Se creó el registro, pero no se pudieron actualizar las opciones.",
+        }));
+      } else {
+        setRelationInlineErrors((prev) => ({ ...prev, [fieldName]: "" }));
+      }
+
+      closeInlineCreate();
+    },
+    [closeInlineCreate, inlineCreateState.descriptor, inlineCreateState.fieldName, loadRelationOptions],
+  );
 
   const validate = () => {
     const nextErrors = {};
@@ -533,6 +781,7 @@ export function AtlasForm({
 
       case "relation": {
         const descriptor = normalizeRelationDescriptor(field);
+        const relationError = fieldErrors[field.name] || relationInlineErrors[field.name] || "";
         if (!descriptor) {
           return (
             <div className="space-y-1.5">
@@ -542,17 +791,21 @@ export function AtlasForm({
               <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">
                 Relación no configurada
               </div>
-              {fieldErrors[field.name] && (
-                <p className="text-xs text-[hsl(var(--destructive))]">{fieldErrors[field.name]}</p>
+              {relationError && (
+                <p className="text-xs text-[hsl(var(--destructive))]">{relationError}</p>
               )}
             </div>
           );
         }
         const rs = relationState[field.name] ?? { options: [], loading: false, error: null };
         const staticOpts = descriptor.source === "static" ? descriptor.options : rs.options;
+        const createActionLabel = descriptor.create?.label ?? normalizeSpanishLabel("Crear nuevo");
+        const canInlineCreate =
+          Boolean(descriptor.create?.enabled) && allowInlineCreate && inlineCreateDepth === 0;
         return (
           <RelationSelectField
             {...sharedProps}
+            error={relationError}
             value={value ?? null}
             options={staticOpts}
             loading={descriptor.source === "remote" ? rs.loading : false}
@@ -561,6 +814,18 @@ export function AtlasForm({
             onRetry={() => loadRelationOptions(field.name, descriptor, "")}
             onSearchChange={(search) => handleRelationSearch(field.name, descriptor, search)}
             onChange={(val) => handleChange(field.name, val)}
+            createActionLabel={createActionLabel}
+            createActionMode={descriptor.create?.allowedWhen ?? "always"}
+            createFromSearch={descriptor.create?.prefillFromSearch === true}
+            createDisabled={
+              !canInlineCreate ||
+              (inlineCreateState.open && inlineCreateState.fieldName === field.name)
+            }
+            onCreate={
+              canInlineCreate
+                ? (searchText) => openInlineCreate(field.name, descriptor, searchText)
+                : undefined
+            }
           />
         );
       }
@@ -625,6 +890,55 @@ export function AtlasForm({
           <AlertDescription>{submitError}</AlertDescription>
         </Alert>
       )}
+
+      <Dialog
+        open={inlineCreateState.open}
+        onOpenChange={(open) => {
+          if (!open) closeInlineCreate();
+        }}
+      >
+        <DialogContent className="md:max-w-3xl">
+          {inlineCreateState.blueprint ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  {normalizeSpanishLabel(
+                    inlineCreateState.descriptor?.create?.title ??
+                      inlineCreateState.descriptor?.create?.label ??
+                      "Crear nuevo",
+                  )}
+                </DialogTitle>
+                <DialogDescription>
+                  Completa la información y guarda para continuar.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="max-h-[70dvh] overflow-y-auto pr-1">
+                <AtlasForm
+                  blueprint={inlineCreateState.blueprint}
+                  fields={extractFieldsFromBlueprint(inlineCreateState.blueprint)}
+                  initialData={inlineCreateState.prefillData}
+                  mode="create"
+                  token={token}
+                  apiBaseUrl={apiBaseUrl}
+                  onSuccess={handleInlineCreateSuccess}
+                  onCancel={closeInlineCreate}
+                  blueprints={Array.isArray(blueprints) ? blueprints : nestedBlueprintRows}
+                  resolveBlueprintByKey={resolveBlueprintByKey}
+                  allowInlineCreate={false}
+                  inlineCreateDepth={inlineCreateDepth + 1}
+                />
+              </div>
+            </>
+          ) : (
+            <Alert variant="warning">
+              <AlertTitle>No se pudo cargar el formulario</AlertTitle>
+              <AlertDescription>
+                No se encontró la vista de creación relacionada.
+              </AlertDescription>
+            </Alert>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="sticky bottom-0 z-10 -mx-1 flex items-center justify-end gap-2 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-1 pb-1 pt-3 backdrop-blur supports-backdrop-filter:bg-[hsl(var(--background))]/80">
         <Button type="button" variant="outline" onClick={() => onCancel?.()} disabled={submitting}>
