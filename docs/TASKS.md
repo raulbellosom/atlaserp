@@ -401,14 +401,14 @@ Runtime checks: Not verified in this session (no browser access). Required manua
 Verified: 2026-05-16 (full stack: DB migrations applied, module synced, all smoke tests pass)
 Note: 2026-05-16 manual authenticated regression helper added at `scripts/smoke-fleet-relational.mjs` (requires `ATLAS_TOKEN`; runtime endpoint verification remains manual, not browser-automated).
 
-### custom.fleet Catalog Hub Tabs [PARTIAL VERIFICATION]
+### custom.fleet Catalog Hub Tabs [VERIFIED]
 
 Spec: `docs/superpowers/specs/2026-05-16-custom-fleet-catalog-hub-tabs-design.md`  
 Plan: `docs/superpowers/plans/2026-05-16-custom-fleet-catalog-hub-tabs.md`
 
 - [x] Fleet sidebar catalog navigation simplified to one `Catálogos` entry pointing to `/app/m/custom.fleet/catalogs` and redundant `Modelos de vehículo` entry removed — Verified: 2026-05-16 (`node --check modules/custom/custom.fleet/module.manifest.js`)
 - [x] Blueprint shell route-group catalog tabs added for grouped PAGE routes (including base-route redirect from `/catalogs` to default tab route) without duplicating CRUD rendering — Verified: 2026-05-16 (`pnpm.cmd --filter @atlas/desktop build:web`)
-- [ ] Runtime/browser validation pending in this session (sidebar item visibility, tab switching, deep-link refresh, CRUD flows per catalog).
+- [x] Runtime metadata sync and browser UX verification completed — Verified: 2026-05-16 (authenticated `POST /modules/sync` 200; sidebar shows one `Catálogos` entry; separate `Modelos de vehículo` removed; tabs visible for Tipos/Marcas/Modelos/Mantenimiento; each tab navigates to its route and renders existing CRUD table; direct catalog routes work; `Número económico de grupo` remains visible in vehicle type form; relation inline-create metadata remains present).
 
 ### AME3 Phase 4 — Discovery as Primary Source
 
