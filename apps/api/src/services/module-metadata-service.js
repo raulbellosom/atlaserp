@@ -281,7 +281,7 @@ export function createModuleMetadataService({ prisma }) {
         models: persistedModels,
         views: persistedViews,
       }
-    })
+    }, { timeout: 30000 })
   }
 
   async function listModels({ moduleKey }) {
