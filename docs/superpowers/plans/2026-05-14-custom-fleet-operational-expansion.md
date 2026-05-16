@@ -1274,7 +1274,7 @@ Expected: exits 0.
 
 **Changes:**
 
-- [ ] Locate `ALLOWED_FILE_ENTITY_TYPES` constant in `files-service.js`. Add three new entity types:
+- [x] Locate `ALLOWED_FILE_ENTITY_TYPES` constant in `files-service.js`. Add three new entity types:
   ```js
   "FleetVehicle",
   "FleetDriver",
@@ -1299,6 +1299,28 @@ Expected: `node --check` exits 0. Upload returns a non-null UUID (not a 400 erro
 
 ---
 
+### Task 6.1 — Evidence (Verified: 2026-05-15)
+
+`apps/api/src/services/files-service.js` modified. `node --check` passed.
+
+`ALLOWED_FILE_ENTITY_TYPES` updated from 5 to 8 entries:
+```js
+const ALLOWED_FILE_ENTITY_TYPES = [
+  "AtlasFile",
+  "BrandingConfig",
+  "Company",
+  "HrEmployee",
+  "Contact",
+  "FleetVehicle",
+  "FleetDriver",
+  "FleetMaintenance",
+]
+```
+
+Runtime smoke test deferred — API not running. Deferred to Phase 8 Task 8.1.
+
+---
+
 ### Task 6.2 — Add vehicle document endpoints to vehicles-routes.js
 
 This step is part of Task 4.4 (vehicles-routes.js already includes document endpoints per the spec). Verify document endpoints function after vehicle-service.js has `listVehicleDocuments`, `addVehicleDocument`, `removeVehicleDocument` implemented.
@@ -1308,8 +1330,8 @@ This step is part of Task 4.4 (vehicles-routes.js already includes document endp
 
 **Changes:**
 
-- [ ] Ensure `vehicle-service.js` includes: `listVehicleDocuments({ companyId, vehicleId })`, `addVehicleDocument({ companyId, actorId, vehicleId, payload })`, `removeVehicleDocument({ companyId, actorId, vehicleId, docId })`. These query `fleet_vehicle_document` and resolve FileAsset metadata via `prisma.fileAsset.findMany`.
-- [ ] Ensure `vehicles-routes.js` mounts: `GET /vehicles/:id/documents`, `POST /vehicles/:id/documents`, `DELETE /vehicles/:id/documents/:docId`.
+- [x] Ensure `vehicle-service.js` includes: `listVehicleDocuments({ companyId, vehicleId })`, `addVehicleDocument({ companyId, actorId, vehicleId, payload })`, `removeVehicleDocument({ companyId, actorId, vehicleId, docId })`. These query `fleet_vehicle_document` and resolve FileAsset metadata via `prisma.fileAsset.findMany`.
+- [x] Ensure `vehicles-routes.js` mounts: `GET /vehicles/:id/documents`, `POST /vehicles/:id/documents`, `DELETE /vehicles/:id/documents/:docId`.
 
 **Validation:**
 
@@ -1331,6 +1353,32 @@ curl -s "http://localhost:4010/fleet/vehicles/$VEHICLE_ID/documents" \
   -H "Authorization: Bearer $TOKEN" | jq '.data | length'
 # Expected: >= 1
 ```
+
+---
+
+### Task 6.2 — Evidence (Verified: 2026-05-15)
+
+**Implementation deviation from plan:** Task 4.4 placed vehicle routes inline in `fleet-routes.js` rather than in a separate `vehicles-routes.js`. Document functions were added directly to `fleet-service.js` (the vehicle-only service, following the Task 4.1 pattern) and to `fleet-routes.js`.
+
+**`fleet-service.js`** updated with 3 document functions. 405 lines (5 over soft limit; functions cannot be reduced further without sacrificing readability — acceptable, well under 1500 hard limit). `node --check` passed.
+
+Functions added:
+- `listVehicleDocuments` — queries `fleet_vehicle_document WHERE enabled = true`, resolves FileAsset metadata via `prisma.fileAsset.findMany({ where: { id: { in: ids } } })`.
+- `addVehicleDocument` — INSERT into `fleet_vehicle_document`, audit log `fleet.vehicle.document.add`.
+- `removeVehicleDocument` — UPDATE `enabled = false`, throws 404 if not found, audit log `fleet.vehicle.document.remove`.
+
+`return` object updated to include all 8 functions: `listVehicles, getVehicle, createVehicle, updateVehicle, setVehicleEnabled, listVehicleDocuments, addVehicleDocument, removeVehicleDocument`.
+
+**`fleet-routes.js`** updated with 3 document routes. 162 lines. `node --check` passed.
+
+Routes added:
+- `GET /fleet/vehicles/:id/documents` — requirePermission('fleet.vehicles.read'), calls `service.listVehicleDocuments`.
+- `POST /fleet/vehicles/:id/documents` — requirePermission('fleet.vehicles.update'), validates `createDocumentAssociationSchema`, calls `service.addVehicleDocument`.
+- `DELETE /fleet/vehicles/:id/documents/:docId` — requirePermission('fleet.vehicles.update'), calls `service.removeVehicleDocument`.
+
+`createDocumentAssociationSchema` imported from `../validators/index.js` (already present from Phase 3 Task 3.1).
+
+Runtime smoke tests deferred — API not running. Deferred to Phase 8 Task 8.1.
 
 ---
 
@@ -1357,6 +1405,38 @@ curl -s -X POST "http://localhost:4010/fleet/maintenance/$MAINTENANCE_ID/documen
   -d "{\"file_asset_id\":\"$FILE_ID\",\"document_type\":\"receipt\"}" | jq '.data.id'
 # Expected: non-null UUID
 ```
+
+---
+
+### Task 6.3 — Evidence (Verified: 2026-05-15)
+
+All driver and maintenance document endpoints confirmed already complete — no changes needed.
+
+**`driver-service.js`** (329 lines, `node --check` passed): `listDriverDocuments`, `addDriverDocument`, `removeDriverDocument` fully implemented. Queries `fleet_driver_document`, resolves FileAsset via `prisma.fileAsset.findMany`. Audit logs: `fleet.driver.document.add`, `fleet.driver.document.remove`.
+
+**`drivers-routes.js`** (145 lines, `node --check` passed): `GET /fleet/drivers/:id/documents`, `POST /fleet/drivers/:id/documents`, `DELETE /fleet/drivers/:id/documents/:docId` all present. Validates `createDocumentAssociationSchema` on POST.
+
+**`maintenance-service.js`** (294 lines, `node --check` passed): `listMaintenanceDocuments`, `addMaintenanceDocument`, `removeMaintenanceDocument` fully implemented. Queries `fleet_maintenance_document`. Audit logs: `fleet.maintenance.document.add`, `fleet.maintenance.document.remove`.
+
+**`maintenance-routes.js`** (147 lines, `node --check` passed): `GET /fleet/maintenance/:id/documents`, `POST /fleet/maintenance/:id/documents`, `DELETE /fleet/maintenance/:id/documents/:docId` all present.
+
+**`createDocumentAssociationSchema`** confirmed present in `modules/custom/custom.fleet/validators/index.js` from Phase 3 Task 3.1 — no changes needed.
+
+**FileAsset resolution pattern:** Consistent across all three services — `prisma.fileAsset.findMany({ where: { id: { in: fileAssetIds } } })`, then `assetMap[doc.file_asset_id] ?? null` in the response shape.
+
+**Validation results (all `node --check` passed):**
+- `apps/api/src/services/files-service.js` — OK
+- `modules/custom/custom.fleet/api/fleet-service.js` — OK (405 lines)
+- `modules/custom/custom.fleet/api/fleet-routes.js` — OK (162 lines)
+- `modules/custom/custom.fleet/api/driver-service.js` — OK (329 lines)
+- `modules/custom/custom.fleet/api/drivers-routes.js` — OK (145 lines)
+- `modules/custom/custom.fleet/api/maintenance-service.js` — OK (294 lines)
+- `modules/custom/custom.fleet/api/maintenance-routes.js` — OK (147 lines)
+- `modules/custom/custom.fleet/validators/index.js` — OK
+
+**Forbidden file check:** `git diff --name-only` — only `apps/api/src/services/files-service.js` and `modules/custom/custom.fleet/api/fleet-service.js` and `fleet-routes.js` modified. No prisma/schema.prisma, prisma/migrations, packages/maps, packages/validators, packages/sdk, apps/api/src/index.js changes.
+
+**Runtime smoke tests:** Deferred to Phase 8 Task 8.1 — API server not running in this environment.
 
 ---
 

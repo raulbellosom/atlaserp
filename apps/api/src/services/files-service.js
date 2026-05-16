@@ -12,6 +12,9 @@ const ALLOWED_FILE_ENTITY_TYPES = [
   "Company",
   "HrEmployee",
   "Contact",
+  "FleetVehicle",
+  "FleetDriver",
+  "FleetMaintenance",
 ];
 const ALLOWED_EXACT_MIME_TYPES = new Set([
   "application/pdf",

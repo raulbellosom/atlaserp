@@ -351,11 +351,55 @@ export function createFleetService({ prisma }) {
     return updated
   }
 
+  async function listVehicleDocuments({ companyId, vehicleId }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId)
+    const safeVehicleId = normalizeRecordId(vehicleId, 'Vehiculo no encontrado.')
+    const docs = await withDbErrorMapping(() => prisma.$queryRaw`
+      SELECT * FROM fleet_vehicle_document
+      WHERE vehicle_id = ${safeVehicleId} AND company_id = ${safeCompanyId} AND enabled = true
+      ORDER BY created_at DESC
+    `)
+    if (!docs.length) return { data: [] }
+    const ids = docs.map((d) => d.file_asset_id).filter(Boolean)
+    const assets = ids.length ? await prisma.fileAsset.findMany({ where: { id: { in: ids } } }) : []
+    const assetMap = Object.fromEntries(assets.map((a) => [a.id, a]))
+    return { data: docs.map((d) => ({ ...d, file_asset: assetMap[d.file_asset_id] ?? null })) }
+  }
+
+  async function addVehicleDocument({ companyId, actorId, vehicleId, payload }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId)
+    const safeVehicleId = normalizeRecordId(vehicleId, 'Vehiculo no encontrado.')
+    const doc = await withDbErrorMapping(async () => firstRow(await prisma.$queryRaw`
+      INSERT INTO fleet_vehicle_document (company_id, vehicle_id, file_asset_id, document_type, label)
+      VALUES (${safeCompanyId}, ${safeVehicleId}, ${payload.file_asset_id}, ${payload.document_type ?? 'document'}, ${payload.label ?? null})
+      RETURNING *
+    `))
+    await logAudit({ actorId, entityType: 'Vehicle', entityId: safeVehicleId, action: 'fleet.vehicle.document.add', before: null, after: doc })
+    return doc
+  }
+
+  async function removeVehicleDocument({ companyId, actorId, vehicleId, docId }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId)
+    const safeVehicleId = normalizeRecordId(vehicleId, 'Vehiculo no encontrado.')
+    const safeDocId = normalizeRecordId(docId, 'Documento no encontrado.')
+    const updated = await withDbErrorMapping(async () => firstRow(await prisma.$queryRaw`
+      UPDATE fleet_vehicle_document SET enabled = false
+      WHERE id = ${safeDocId} AND vehicle_id = ${safeVehicleId} AND company_id = ${safeCompanyId}
+      RETURNING *
+    `))
+    if (!updated) throw new FleetServiceError('Documento no encontrado.', 404)
+    await logAudit({ actorId, entityType: 'Vehicle', entityId: safeVehicleId, action: 'fleet.vehicle.document.remove', before: updated, after: { ...updated, enabled: false } })
+    return updated
+  }
+
   return {
     listVehicles,
     getVehicle,
     createVehicle,
     updateVehicle,
     setVehicleEnabled,
+    listVehicleDocuments,
+    addVehicleDocument,
+    removeVehicleDocument,
   }
 }

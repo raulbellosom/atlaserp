@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { createVehicleSchema, updateVehicleSchema } from '../validators/index.js'
+import { createVehicleSchema, updateVehicleSchema, createDocumentAssociationSchema } from '../validators/index.js'
 import { createFleetService, FleetServiceError } from './fleet-service.js'
 import { createDriversRouter } from './drivers-routes.js'
 import { createMaintenanceRouter } from './maintenance-routes.js'
@@ -116,6 +116,41 @@ export default function createFleetRouter({ prisma, requirePermission, moduleCon
       return c.json({ data: updated })
     } catch (err) {
       return handleRouteError(c, err, { fallbackError: `No se pudo actualizar el estado del vehiculo de ${moduleKey}.`, route: '/fleet/vehicles/:id/enabled', moduleKey, operation: 'setVehicleEnabled' })
+    }
+  })
+
+  app.get('/fleet/vehicles/:id/documents', requirePermission('fleet.vehicles.read'), async (c) => {
+    try {
+      const companyId = getCompanyIdFromContext(c)
+      const result = await service.listVehicleDocuments({ companyId, vehicleId: c.req.param('id') })
+      return c.json(result)
+    } catch (err) {
+      return handleRouteError(c, err, { fallbackError: 'No se pudieron listar los documentos del vehiculo.', route: '/fleet/vehicles/:id/documents', moduleKey, operation: 'listVehicleDocuments' })
+    }
+  })
+
+  app.post('/fleet/vehicles/:id/documents', requirePermission('fleet.vehicles.update'), async (c) => {
+    try {
+      const companyId = getCompanyIdFromContext(c)
+      const actorId = getActorIdFromContext(c)
+      const body = await c.req.json()
+      const parsed = createDocumentAssociationSchema.safeParse(body)
+      if (!parsed.success) return c.json({ error: getValidationErrorMessage(parsed.error) }, 400)
+      const doc = await service.addVehicleDocument({ companyId, actorId, vehicleId: c.req.param('id'), payload: parsed.data })
+      return c.json({ data: doc }, 201)
+    } catch (err) {
+      return handleRouteError(c, err, { fallbackError: 'No se pudo agregar el documento al vehiculo.', route: '/fleet/vehicles/:id/documents', moduleKey, operation: 'addVehicleDocument' })
+    }
+  })
+
+  app.delete('/fleet/vehicles/:id/documents/:docId', requirePermission('fleet.vehicles.update'), async (c) => {
+    try {
+      const companyId = getCompanyIdFromContext(c)
+      const actorId = getActorIdFromContext(c)
+      const result = await service.removeVehicleDocument({ companyId, actorId, vehicleId: c.req.param('id'), docId: c.req.param('docId') })
+      return c.json({ data: result })
+    } catch (err) {
+      return handleRouteError(c, err, { fallbackError: 'No se pudo eliminar el documento del vehiculo.', route: '/fleet/vehicles/:id/documents/:docId', moduleKey, operation: 'removeVehicleDocument' })
     }
   })
 
