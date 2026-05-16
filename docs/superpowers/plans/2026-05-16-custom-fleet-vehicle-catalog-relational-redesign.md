@@ -43,7 +43,7 @@ The implementation follows the AME3 additive pattern established in Phase 5 (Ope
 - `modules/custom/custom.fleet/api/catalog-service.js` — add `listVehicleModels`, `createVehicleModel`, `updateVehicleModel`, `toggleVehicleModelEnabled`; update `listVehicleTypes`, `createVehicleType`, `updateVehicleType` to handle `economic_group_number`
 - `modules/custom/custom.fleet/api/catalogs-routes.js` — add four vehicle model routes; update vehicle type routes to pass `economic_group_number`
 - `modules/custom/custom.fleet/api/fleet-service.js` — update `listVehicles`, `getVehicle`, `createVehicle`, `updateVehicle` to handle `vehicle_model_id` and compute `economic_number`
-- `modules/custom/custom.fleet/api/fleet-routes.js` — update vehicle routes to pass `vehicle_model_id` from request body
+- `modules/custom/custom.fleet/api/vehicles-routes.js` — *(rename from `fleet-routes.js` during implementation; update `api/index.js` import accordingly)* update vehicle routes to pass `vehicle_model_id` from request body
 - `modules/custom/custom.fleet/validators/index.js` — add `createVehicleModelSchema`, `updateVehicleModelSchema`; extend `createVehicleTypeSchema`, `updateVehicleTypeSchema` with `economic_group_number`; extend `createVehicleSchema`, `updateVehicleSchema` with `vehicle_model_id`
 - `modules/custom/custom.fleet/views/vehicle.form.js` — replace five legacy fields with `vehicle_model_id` relation selector; retain `plate`, `color`, `status`, `economic_individual_number`, `driver_id`, `notes`
 - `modules/custom/custom.fleet/views/vehicle.table.js` — replace `brand`, `model_name`, `year` columns with `vehicle_model_name`, `vehicle_type_name`, `vehicle_brand_name`, `economic_number`
@@ -69,7 +69,39 @@ The implementation follows the AME3 additive pattern established in Phase 5 (Ope
 
 > **Database tooling note:** All SQL inspection queries in this phase should be executed through the configured MCP database tooling (e.g., the project's MCP PostgreSQL tool) whenever it is available in the agent environment. Direct SQL shown here is reference only. If MCP tooling is unavailable, use a temporary Node.js script with `@prisma/adapter-pg` + `DIRECT_URL` from `.env` (the pattern from prior phases) and delete the script after use.
 
-### Task 1.1 — Validate database state
+### Task 1.1 — Validate migration application mechanism
+
+**Files:** none (read-only inspection)
+
+**Purpose:** Confirm exactly how module-local SQL migrations are applied so Phase 3 is accurate.
+
+**Changes:**
+
+- [ ] Read `apps/api/src/services/module-migration-service.js` and confirm:
+  - `planModelMigrations` generates `CREATE TABLE IF NOT EXISTS` SQL from stored `AtlasModel` schemas using `generateCreateTableSql`. This is driven by the model schema stored in the `AtlasModel` table after sync, NOT from filesystem SQL files.
+  - `applySqlMigration` applies a SQL string passed in-memory; it does NOT read files from disk.
+
+- [ ] Read `apps/api/src/services/module-lifecycle-service.js` function `applyModuleOrmMigrations` and confirm:
+  - It reads from `prisma.atlasModel.findMany({ where: { moduleKey } })`, maps to model schemas, calls `planModelMigrations`, then `applySqlMigration` for each plan.
+  - This path handles **CREATE TABLE** for new entities only. It does NOT handle `ALTER TABLE` for additive columns.
+
+- [ ] Inspect `modules/custom/custom.fleet/module.manifest.js` and confirm:
+  - There is NO `migrations` array field in the manifest.
+  - The `lifecycle` object contains only `ownedModels`, `ownedTables`, `ownedEntities`, `sharedEntities`. No file-based migration declaration.
+
+- [ ] Inspect `modules/custom/custom.fleet/migrations/` and `modules/custom/custom.fleet/api/index.js` and confirm:
+  - The V002/V003 SQL files are NOT referenced from `api/index.js` or from the lifecycle service. They are not auto-applied.
+  - V002/V003 were applied via an explicit one-time script using `applySqlMigration`.
+
+**Conclusion (pre-verified during plan authoring):**
+- `fleet_vehicle_model` **CREATE TABLE**: Auto-handled by Atlas ORM during `POST /modules/sync`. Adding the model file to the manifest and syncing is sufficient.
+- `ALTER TABLE fleet_vehicle ADD COLUMN vehicle_model_id` and `ALTER TABLE fleet_vehicle_type ADD COLUMN economic_group_number`: **NOT auto-applied**. Must be applied via an explicit one-time script following the V002/V003 pattern (write script → run via `applySqlMigration` → delete script). See Phase 3, Task 3.3.
+
+**Validation:** Inspection confirms conclusions above. Document any deviation from expected findings before proceeding.
+
+---
+
+### Task 1.2 — Validate database state
 
 **Files:** none (read-only checks)
 
@@ -124,6 +156,8 @@ The implementation follows the AME3 additive pattern established in Phase 5 (Ope
   Expected: counts recorded for backfill planning.
 
 **Validation:** All schema checks match expected results. Line counts recorded. Proceed only if `fleet_vehicle_model` does not yet exist.
+
+---
 
 ---
 
@@ -199,8 +233,9 @@ The implementation follows the AME3 additive pattern established in Phase 5 (Ope
 - [ ] Create `V004_vehicle_model_rollback.sql` with:
   ```sql
   ALTER TABLE fleet_vehicle DROP COLUMN IF EXISTS vehicle_model_id;
-  DROP TABLE IF EXISTS fleet_vehicle_model;
+  DROP TABLE IF EXISTS fleet_vehicle_model CASCADE;
   ```
+  > `CASCADE` ensures any dependent indexes and constraints are dropped with the table, making rollback unconditionally safe.
 
 **Validation:**
 ```bash
@@ -231,15 +266,33 @@ node --check modules/custom/custom.fleet/migrations/V004_vehicle_model.sql
 
 ---
 
-### Task 3.3 — Apply migration via module sync
+### Task 3.3 — Apply additive column migrations via explicit script
 
-> Migration SQL files are applied automatically by the Atlas ORM provisioning step during `POST /modules/sync`. The module manifest's `migrations` array must reference both new files. Confirm this is wired in the manifest update in Phase 7.
+> **Migration mechanism (confirmed in Task 1.1):**
+> - `fleet_vehicle_model` CREATE TABLE → auto-generated by Atlas ORM from `defineModel` during `POST /modules/sync`. No manual step needed for this table.
+> - `ALTER TABLE fleet_vehicle ADD COLUMN vehicle_model_id` → NOT auto-applied. Must be run explicitly.
+> - `ALTER TABLE fleet_vehicle_type ADD COLUMN economic_group_number` → NOT auto-applied. Must be run explicitly.
+> - The manifest has NO `migrations` array. SQL files in `migrations/` are not scanned automatically.
+> - Pattern to follow: V002/V003 from the Operational Expansion phase — write a temporary script that reads the SQL and calls `applySqlMigration`, then delete the script.
 
-**Files:** none (wired in manifest — see Phase 7)
+**Files:** `scripts/_apply_fleet_v004_v005.mjs` (created and deleted in this task)
 
 **Changes:**
 
-- [ ] After API restart and module sync (Phase 8), verify the new columns and table exist:
+- [ ] Write `scripts/_apply_fleet_v004_v005.mjs` using the same `@prisma/adapter-pg` + `DIRECT_URL` pattern established in prior phases:
+  ```js
+  // Read V004 and V005 SQL content, then for each:
+  // await migrationSvc.applySqlMigration({ moduleKey: 'custom.fleet', filename, sql })
+  // where migrationSvc is createModuleMigrationService({ prisma })
+  ```
+  The script reads `V004_vehicle_model.sql` and `V005_vehicle_type_economic_group_number.sql` from `modules/custom/custom.fleet/migrations/` using `fs.readFile`, then applies each via `applySqlMigration`. Apply V004 first (creates table and adds `vehicle_model_id` to fleet_vehicle), then V005 (adds `economic_group_number` to fleet_vehicle_type).
+
+- [ ] Run the script:
+  ```bash
+  node scripts/_apply_fleet_v004_v005.mjs
+  ```
+
+- [ ] Verify columns and table exist:
   ```sql
   SELECT column_name FROM information_schema.columns
   WHERE table_name = 'fleet_vehicle_type' AND column_name = 'economic_group_number';
@@ -250,9 +303,14 @@ node --check modules/custom/custom.fleet/migrations/V004_vehicle_model.sql
   SELECT table_name FROM information_schema.tables
   WHERE table_name = 'fleet_vehicle_model';
   ```
-  Expected: all three checks return one row each.
+  Expected: all three checks return one row each. (`fleet_vehicle_model` is created by Atlas ORM sync in Task 8.3; the `vehicle_model_id` FK column and `economic_group_number` are created by this script.)
 
-**Validation:** SQL checks pass after sync.
+- [ ] Delete the script after successful verification:
+  ```bash
+  rm scripts/_apply_fleet_v004_v005.mjs
+  ```
+
+**Validation:** All three SQL checks pass. Script deleted. No migration-related errors in `ModuleMigration` table (check with `SELECT * FROM "ModuleMigration" WHERE "moduleKey" = 'custom.fleet' ORDER BY "appliedAt" DESC LIMIT 5`).
 
 ---
 
@@ -409,16 +467,21 @@ wc -l modules/custom/custom.fleet/api/fleet-service.js
 
 ### Task 4.5 — Vehicle routes: pass vehicle_model_id
 
-**Files:** `modules/custom/custom.fleet/api/fleet-routes.js`
+**Files:** `modules/custom/custom.fleet/api/vehicles-routes.js`
+
+> **Note:** The current file on disk is `fleet-routes.js`. This task includes renaming it to `vehicles-routes.js` for naming consistency with `catalogs-routes.js`, `drivers-routes.js`, and `maintenance-routes.js`. After renaming, update `modules/custom/custom.fleet/api/index.js` to import from `./vehicles-routes.js`.
 
 **Changes:**
 
+- [ ] Rename `fleet-routes.js` to `vehicles-routes.js`
+- [ ] Update `api/index.js`: change `import ... from './fleet-routes.js'` to `./vehicles-routes.js'`
 - [ ] In `POST /fleet/vehicles` body destructuring: include `vehicle_model_id`
 - [ ] In `PATCH /fleet/vehicles/:id` body destructuring: include `vehicle_model_id`
 
 **Validation:**
 ```bash
-node --check modules/custom/custom.fleet/api/fleet-routes.js
+node --check modules/custom/custom.fleet/api/vehicles-routes.js
+node --check modules/custom/custom.fleet/api/index.js
 ```
 
 ---
@@ -431,25 +494,32 @@ node --check modules/custom/custom.fleet/api/fleet-routes.js
 
 **Changes:**
 
-- [ ] Create `vehicle-model.model.js` following the `defineModel` pattern from existing model files:
+- [ ] Create `vehicle-model.model.js` following the `defineModel` pattern from existing model files (e.g., `vehicle.model.js`, `vehicle-type.model.js`):
   ```js
   import { defineModel } from '@atlas/module-engine'
 
   export default defineModel({
-    key: 'fleet.vehicle_model',
+    key: 'vehicle_model',
+    name: 'fleet.vehicle_model',
     label: 'Modelo de vehículo',
-    table: 'fleet_vehicle_model',
-    softDelete: true,
-    timestamps: true,
+    tableName: 'fleet_vehicle_model',
     companyScoped: true,
+    softDelete: true,
     fields: [
-      { key: 'brand_id', type: 'uuid', label: 'Marca', required: true, relatedModel: 'VehicleBrand' },
-      { key: 'type_id', type: 'uuid', label: 'Tipo', required: true, relatedModel: 'VehicleType' },
-      { key: 'name', type: 'text', label: 'Nombre del modelo', required: true, maxLength: 150 },
-      { key: 'year', type: 'integer', label: 'Año', required: true },
+      { name: 'brand_id', type: 'relation', label: 'Marca', required: true },
+      { name: 'type_id', type: 'relation', label: 'Tipo de vehículo', required: true },
+      { name: 'name', type: 'text', label: 'Nombre del modelo', required: true, maxLength: 150 },
+      { name: 'year', type: 'number', label: 'Año', required: true },
+    ],
+    indexes: [
+      { fields: ['company_id', 'brand_id'] },
+      { fields: ['company_id', 'type_id'] },
+      { fields: ['company_id', 'enabled'] },
+      { fields: ['company_id', 'brand_id', 'type_id', 'name', 'year'], unique: true },
     ],
   })
   ```
+  > Actual property names confirmed from `vehicle.model.js` and `vehicle-type.model.js`: use `name` (not `key`) for fields, `tableName` (not `table`), and `name: 'fleet.vehicle_model'` for the namespaced identifier. Use `type: 'relation'` for FK fields — this is the pattern used for `driver_id` in `vehicle.model.js`.
 
 **Validation:**
 ```bash
@@ -598,7 +668,8 @@ node --check modules/custom/custom.fleet/views/catalog.vehicle-models.page.js
     },
   },
   ```
-- [ ] Retain all other fields: `plate`, `color`, `status`, `economic_group_number` (vehicle-level, retained for legacy), `economic_individual_number`, `driver_id`, `notes`.
+- [ ] Retain the following fields: `plate`, `color`, `status`, `economic_individual_number`, `driver_id`, `notes`.
+- [ ] Do NOT include `economic_group_number` in the new vehicle form. That field moves to the vehicle type form only (Task 5.6). It remains in the DB and API for legacy data compatibility but is excluded from the new UI.
 - [ ] Keep the "Asignacion" section with `driver_id` relation unchanged.
 
 **Validation:**
@@ -702,8 +773,6 @@ node --check modules/custom/custom.fleet/views/catalog.vehicle-types.form.js
 
 - [ ] Add to `lifecycle.ownedTables`: `'fleet_vehicle_model'`
 
-- [ ] Add to `lifecycle.migrations` (if the manifest references migrations): `'./migrations/V004_vehicle_model.sql'`, `'./migrations/V005_vehicle_type_economic_group_number.sql'`
-
 - [ ] Add navigation entry under the catalogs group:
   ```js
   {
@@ -747,7 +816,7 @@ node --check modules/custom/custom.fleet/module.manifest.js
   node --check modules/custom/custom.fleet/api/catalog-service.js
   node --check modules/custom/custom.fleet/api/catalogs-routes.js
   node --check modules/custom/custom.fleet/api/fleet-service.js
-  node --check modules/custom/custom.fleet/api/fleet-routes.js
+  node --check modules/custom/custom.fleet/api/vehicles-routes.js
   node --check modules/custom/custom.fleet/validators/index.js
   node --check modules/custom/custom.fleet/module.manifest.js
   ```
@@ -799,7 +868,10 @@ node --check modules/custom/custom.fleet/module.manifest.js
 
 - [ ] Verify `fleet.vehicle_model` AtlasModel row exists:
   ```sql
-  SELECT key, "table", enabled FROM "AtlasModel" WHERE key = 'fleet.vehicle_model';
+  SELECT "moduleKey", name, "tableName", enabled
+  FROM "AtlasModel"
+  WHERE "moduleKey" = 'custom.fleet'
+    AND name = 'fleet.vehicle_model';
   ```
 
 - [ ] Verify `fleet_vehicle_model` table was created by sync:
@@ -810,19 +882,22 @@ node --check modules/custom/custom.fleet/module.manifest.js
 
 - [ ] Verify new AtlasView rows exist:
   ```sql
-  SELECT key, type FROM "AtlasView"
-  WHERE key IN (
-    'fleet.catalog.vehicle_models.table',
-    'fleet.catalog.vehicle_models.form',
-    'fleet.catalog.vehicle_models.page',
-    'fleet.vehicle.form'
-  );
+  SELECT "moduleKey", key, type, enabled
+  FROM "AtlasView"
+  WHERE "moduleKey" = 'custom.fleet'
+    AND key IN (
+      'fleet.catalog.vehicle_models.table',
+      'fleet.catalog.vehicle_models.form',
+      'fleet.catalog.vehicle_models.page',
+      'fleet.vehicle.form'
+    );
   ```
   Expected: 4 rows returned.
 
 - [ ] Verify `fleet.vehicle.form` schema contains `vehicle_model_id` relation field and does NOT contain `brand` or `model_name` fields:
   ```sql
-  SELECT schema FROM "AtlasView" WHERE key = 'fleet.vehicle.form';
+  SELECT key, schema FROM "AtlasView"
+  WHERE "moduleKey" = 'custom.fleet' AND key = 'fleet.vehicle.form';
   ```
   Inspect JSON: must include `"field":"vehicle_model_id"` with `"type":"relation"`. Must NOT include `"field":"brand"` or `"field":"model_name"`.
 
@@ -911,7 +986,7 @@ node --check modules/custom/custom.fleet/module.manifest.js
 
 - [ ] Create commit:
   ```bash
-  git commit -m "feat(fleet): vehicle catalog relational redesign — vehicle model entity, economic_group_number, vehicle_model_id FK"
+  git commit -m "feat(fleet): add relational vehicle model catalog"
   ```
 
 - [ ] Verify clean git status:

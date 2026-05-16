@@ -189,7 +189,9 @@ Three model JS files must be created or updated:
 
 None. This feature uses Atlas ORM exclusively. No edits to `prisma/schema.prisma`. No Prisma migrations.
 
-All table changes are applied via module-local SQL migration files in `modules/custom/custom.fleet/migrations/`, using `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for additive changes and `CREATE TABLE IF NOT EXISTS` for the new vehicle model table.
+**Table creation (`fleet_vehicle_model`):** Handled automatically by Atlas ORM during `POST /modules/sync`. When the module manifest is synced, Atlas ORM reads the stored `AtlasModel` schema for `fleet.vehicle_model`, generates a `CREATE TABLE IF NOT EXISTS` statement via `generateCreateTableSql`, and applies it through `applySqlMigration`. No manual step is required for the new table.
+
+**Additive column migrations (`ALTER TABLE`):** The module manifest does NOT support a `migrations` array. SQL files in `modules/custom/custom.fleet/migrations/` are NOT automatically applied by the sync mechanism. The `ALTER TABLE fleet_vehicle ADD COLUMN IF NOT EXISTS vehicle_model_id` and `ALTER TABLE fleet_vehicle_type ADD COLUMN IF NOT EXISTS economic_group_number` statements must be applied explicitly via a temporary one-time script following the same pattern established for V002 and V003 in the Operational Expansion phase (script reads SQL file → calls `applySqlMigration` → script is deleted after use).
 
 ---
 
@@ -560,7 +562,7 @@ pnpm --filter @atlas/desktop build:web
 No Prisma migrations are involved. Rollback consists of:
 
 1. **Module-local migration rollback**: Apply the corresponding rollback SQL files committed at `modules/custom/custom.fleet/migrations/`:
-   - `V004_vehicle_model_create_rollback.sql` — drops `fleet_vehicle_model` and removes `vehicle_model_id` from `fleet_vehicle`
+   - `V004_vehicle_model_rollback.sql` — removes `vehicle_model_id` from `fleet_vehicle`, then drops `fleet_vehicle_model CASCADE` (CASCADE ensures dependent indexes and constraints are removed)
    - `V005_vehicle_type_economic_group_number_rollback.sql` — removes `economic_group_number` from `fleet_vehicle_type`
 
 2. **Module sync**: After rollback SQL is applied, call `POST /modules/sync` to update AtlasModel and AtlasView to the pre-redesign state.
