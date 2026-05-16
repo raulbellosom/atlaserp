@@ -220,3 +220,38 @@ See `docs/TASKS.md` for the full phased roadmap.
 - AME3 Phase 2 (Route Loader + custom module): complete — `route-loader-service.js`, `custom.fleet` module operational
 - AME3 Phase 3 (Atlas ORM + Blueprint Renderer): complete — Atlas ORM provisions tables from `defineModel`; blueprint renderer (`AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`) in `@atlas/ui`
 - AME3 Phase 4+ (Discovery as primary source, migrate official modules): planned
+
+## Local command permissions and secret safety
+
+When working in this repository, prefer executing required local verification commands directly instead of asking for permission for every safe command.
+
+Safe commands include:
+
+- git status, git diff, git add, git commit, git push
+- pnpm, pnpm.cmd, npm, npx
+- node scripts used for local verification
+- build, lint, test, node --check
+- local curl requests against localhost
+- process inspection and restart commands for local dev servers
+
+Never print secrets, access tokens, service role keys, JWTs, database URLs, or .env contents in the chat.
+
+Never include raw Authorization bearer tokens in the response.
+
+When a token is required for a curl command:
+
+- use an environment variable placeholder
+- or ask the user to run the command locally
+- or use the already configured app/session flow
+
+Do not create scripts that log full environment variables.
+
+Temporary scripts are allowed for local diagnostics, but they must:
+
+- avoid printing secrets
+- be deleted after use
+- not be committed unless explicitly requested
+
+Never modify or delete production data unless the user explicitly asks for it and the action is documented.
+
+Never paste real tokens into curl examples. Use placeholders like $ATLAS_TOKEN or <TOKEN>. Never echo .env values. Never print DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY, JWT_SECRET, access tokens, refresh tokens, or cookies.
