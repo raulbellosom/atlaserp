@@ -214,16 +214,9 @@ export default defineAtlasModule({
       permissionKey: "fleet.drivers.read",
     },
     {
-      label: "Catalogos",
-      path: "/app/m/custom.fleet/catalogs/vehicle-types",
+      label: "Catálogos",
+      path: "/app/m/custom.fleet/catalogs",
       icon: "BookOpen",
-      layout: "main",
-      permissionKey: "fleet.catalogs.read",
-    },
-    {
-      label: "Modelos de vehículo",
-      path: "/app/m/custom.fleet/catalogs/vehicle-models",
-      icon: "Layers",
       layout: "main",
       permissionKey: "fleet.catalogs.read",
     },

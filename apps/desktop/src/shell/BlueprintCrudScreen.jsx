@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Package, Plus } from "lucide-react";
@@ -308,6 +308,94 @@ function resolvePageDescription(tableBlueprint, module) {
   return module?.description ?? module?.manifest?.description ?? null;
 }
 
+function getModuleRootPath(moduleKey) {
+  return normalizePath(`/app/m/${moduleKey}`);
+}
+
+function resolveGroupSegment(collectionPath) {
+  const normalized = String(collectionPath ?? "")
+    .trim()
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "")
+    .toLowerCase();
+  if (!normalized) return null;
+  return normalized.split("/").filter(Boolean)[0] ?? null;
+}
+
+function resolveCollectionPathFromPagePath(moduleKey, pagePath) {
+  const normalizedPagePath = normalizePath(pagePath);
+  const moduleRoot = getModuleRootPath(moduleKey);
+  if (!normalizedPagePath || !moduleRoot) return "";
+  if (!normalizedPagePath.startsWith(moduleRoot)) return "";
+  return normalizedPagePath
+    .slice(moduleRoot.length)
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "")
+    .toLowerCase();
+}
+
+function resolveGroupedTabs({ moduleRows, moduleKey, routeInfo, pathname }) {
+  const groupSegment = resolveGroupSegment(routeInfo.collectionPath);
+  if (!groupSegment) return null;
+
+  const pageEntries = moduleRows
+    .filter((row) => getBlueprintKind(row) === "PAGE")
+    .map((row, index) => {
+      const path = getPagePath(row);
+      const collectionPath = resolveCollectionPathFromPagePath(moduleKey, path);
+      const tabOrderRaw = row?.schema?.tabOrder;
+      const tabOrder =
+        Number.isFinite(tabOrderRaw) || typeof tabOrderRaw === "number"
+          ? Number(tabOrderRaw)
+          : Number.POSITIVE_INFINITY;
+      const label =
+        row?.schema?.tabLabel ??
+        row?.schema?.title ??
+        row?.title ??
+        row?.name ??
+        collectionPath;
+      return {
+        index,
+        path,
+        collectionPath,
+        groupSegment: resolveGroupSegment(collectionPath),
+        tabOrder,
+        label: normalizeSpanishLabel(String(label ?? "").trim()),
+      };
+    })
+    .filter((entry) => entry.path && entry.collectionPath);
+
+  const tabs = pageEntries
+    .filter(
+      (entry) =>
+        entry.groupSegment === groupSegment && entry.collectionPath !== groupSegment,
+    )
+    .sort((a, b) => {
+      if (a.tabOrder !== b.tabOrder) return a.tabOrder - b.tabOrder;
+      return a.index - b.index;
+    });
+
+  if (tabs.length <= 1) return null;
+
+  const moduleRoot = getModuleRootPath(moduleKey);
+  const basePath = normalizePath(`${moduleRoot}/${groupSegment}`);
+  const normalizedPathname = normalizePath(pathname);
+  const activeTab =
+    tabs.find(
+      (tab) =>
+        normalizedPathname === tab.path ||
+        normalizedPathname.startsWith(`${tab.path}/`),
+    ) ?? tabs[0];
+
+  return {
+    basePath,
+    defaultPath: tabs[0].path,
+    shouldRedirect: normalizedPathname === basePath,
+    activePath: activeTab.path,
+    tabs: tabs.map((tab) => ({ path: tab.path, label: tab.label })),
+  };
+}
+
 export function BlueprintCrudScreen() {
   const { moduleKey, "*": wildcard } = useParams();
   const navigate = useNavigate();
@@ -379,6 +467,22 @@ export function BlueprintCrudScreen() {
       routeInfo.moduleRoutePath,
     ],
   );
+
+  const groupedTabs = useMemo(
+    () =>
+      resolveGroupedTabs({
+        moduleRows,
+        moduleKey,
+        routeInfo,
+        pathname: location.pathname,
+      }),
+    [location.pathname, moduleKey, moduleRows, routeInfo],
+  );
+
+  useEffect(() => {
+    if (!groupedTabs?.shouldRedirect || !groupedTabs.defaultPath) return;
+    navigate(groupedTabs.defaultPath, { replace: true });
+  }, [groupedTabs?.defaultPath, groupedTabs?.shouldRedirect, navigate]);
 
   const locationPathnameRef = useRef(location.pathname);
   locationPathnameRef.current = location.pathname;
@@ -510,6 +614,10 @@ export function BlueprintCrudScreen() {
     );
   }
 
+  if (groupedTabs?.shouldRedirect && groupedTabs.defaultPath) {
+    return null;
+  }
+
   if (!selection.tableBlueprint) {
     const emptyLabel = normalizeSpanishLabel(
       resolveEmptyLabel(routeInfo.entitySegment, navItem),
@@ -548,6 +656,28 @@ export function BlueprintCrudScreen() {
   return (
     <div className="flex flex-col min-h-full">
       <div className="flex-1 p-4 md:p-6 space-y-6">
+        {groupedTabs?.tabs?.length ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {groupedTabs.tabs.map((tab) => {
+              const isActive = tab.path === groupedTabs.activePath;
+              return (
+                <button
+                  key={tab.path}
+                  type="button"
+                  onClick={() => navigate(tab.path)}
+                  className={`inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
+                      : "border-[hsl(var(--border))] bg-[hsl(var(--background))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+
         <PageHeader
           eyebrow={moduleName || undefined}
           title={pageTitle}
