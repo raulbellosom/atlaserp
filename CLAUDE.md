@@ -30,9 +30,17 @@ pnpm db:generate      # regenerate Prisma client after schema changes
 pnpm db:seed          # seed core modules, permissions, roles
 pnpm db:studio        # open Prisma Studio GUI (http://localhost:5555)
 pnpm db:fresh         # migrate + generate + seed (non-destructive)
+pnpm db:reset         # migrate reset --force + seed (destructive - wipes data)
 
-# Build
+# Build and lint
 pnpm build            # build all packages/apps
+pnpm lint             # lint all packages/apps
+
+# Tests (Node.js built-in test runner — no Vitest/Jest)
+node --test packages/module-engine/src/__tests__/          # module-engine unit tests
+node --test apps/api/src/services/__tests__/               # API service tests
+node --test <path/to/file.test.js>                         # single test file
+node --check <path/to/file.js>                             # syntax/static check only
 ```
 
 There is no `pnpm infra:up` or local database stack. All development connects to the self-hosted Supabase instance. Postgres is available directly on port `5433` of the Supabase VPS (port `5432` is the Supavisor pooler — not suitable for Prisma). Your IP must be allowlisted in the Supabase VPS firewall.
@@ -57,13 +65,17 @@ apps/
   api/         Node.js + Hono (business logic + API)
   worker/      Node.js background job handler (stub)
 packages/
-  core/        Module registry, event bus, manifest contract
-  maps/        Module manifests: core-modules.js + feature-modules.js
-  ui/          Shared React components (AppShell, Button, Card, etc.)
-  sdk/         Atlas API client (createAtlasClient factory)
-  validators/  Zod schemas shared between API and frontend
+  core/           Module registry, event bus, manifest contract
+  maps/           Legacy module manifests (being migrated to modules/) — do not extend
+  module-engine/  @atlas/module-engine — AME3 primitives: defineAtlasModule, defineModel, defineView, definePage
+  ui/             Shared React components (AppShell, Button, AtlasTable, AtlasForm, etc.)
+  sdk/            Atlas API client (createAtlasClient factory)
+  validators/     Zod schemas shared between API and frontend
+modules/
+  custom/      Custom AME3 modules (e.g. custom.fleet) — self-contained, no core edits needed
+  official/    Future home for migrated official modules (currently empty)
 prisma/
-  schema.prisma   Single source of truth for data models
+  schema.prisma   Single source of truth for Prisma-managed models (core + legacy feature models)
   seed.js         Seeds core modules, blueprints, permissions
 ```
 
@@ -107,25 +119,32 @@ Blueprint kinds: `ENTITY`, `FORM`, `TABLE`, `DASHBOARD`, `ACTION`, `RELATION`, `
 
 See `docs/08_blueprints.md` for field type reference and rendering rules.
 
-### API structure (apps/api/src/index.js)
-
-Current pattern: routes in `apps/api/src/index.js` with service-layer extraction in progress.
+### API structure (apps/api/src/)
 
 ```
-routes (Hono handlers)
-  -> services (business logic)
-  -> Prisma (database)
+apps/api/src/
+  index.js                  entry point — bootstraps Hono, loads services, registers middleware
+  routes/
+    modules.js              12-endpoint module lifecycle router (install/enable/disable/uninstall/reset/sync...)
+    ledger.js               atlas.ledger routes
+  services/
+    route-loader-service.js AME3 Route Loader — dynamically mounts api/index.js from modules/custom/* at boot
+    module-lifecycle-service.js
+    finance-service.js, finance-documents-service.js, finance-posting-service.js, ...
+    hr-service.js, contacts-service.js, files-service.js, company-service.js, ledger-service.js, ...
+  permission-catalog.js     granular RBAC permission definitions
 ```
 
-Service-based domains already active: modules lifecycle guards, contacts, files, and profile-related flows.
+Route Loader behavior: on API boot, `route-loader-service.js` reads all `INSTALLED` + `enabled` modules from DB, looks for `modules/custom/<moduleKey>/api/index.js` (or `modules/official/`), imports it as a Hono router factory, and delegates matching requests at runtime. No `index.js` edits needed when adding a new AME3 module.
 
 Key endpoints:
 
 - `GET /health` - liveness check
-- `GET /modules` / `POST /modules/install` / `POST /modules/:key/disable` / `POST /modules/:key/enable` / `DELETE /modules/:key` - module lifecycle
+- `GET|POST /modules`, `POST /modules/:key/install|disable|enable|uninstall|reset|sync` - module lifecycle
 - `GET /blueprints` - all enabled blueprints with module metadata
 - `GET|POST|PUT|PATCH /contacts...` - contacts CRUD + picker
 - `POST|GET|PATCH /files...` - files upload/list/detail/signed-url/rename/bulk-download/lifecycle
+- `GET|POST|PATCH /finance/...` - accounts, entries, documents (AR/AP), applications, tax-rates, FX rates
 
 ### Shared validators (packages/validators)
 
@@ -165,20 +184,24 @@ Tailwind scans both `src/**` and `../../packages/ui/src/**` (configured in `apps
 - Business logic stays in `apps/api`, not in React components
 - **Atomic file size limit** — No source file may exceed **1000 lines**. Hard ceiling is **1500 lines** (treat as a build-blocking violation). Files approaching 800 lines should be proactively split. Strategies: extract sub-components, split routes by domain, separate sheets/dialogs from list screens, move helpers into `lib/` or `utils/`. Known violators that must be decomposed: `FinanceScreen.jsx` (4462), `apps/api/src/index.js` (3583), `FormFields.jsx` (2153), `HrEmployeeDetail.jsx` (1704), `finance-documents-service.js` (1118), `finance-service.js` (1076), `ModuleCatalog.jsx` (1033).
 - Soft-delete pattern: use `enabled: false` instead of hard-deleting records
-- Every new module needs: manifest in `packages/maps`, Prisma model(s), API routes, service, Zod schema in `packages/validators`, and a `docs/TASKS.md` update
+- Every **new AME3 module** lives in `modules/custom/<moduleKey>/` — requires only `module.manifest.js`, `models/`, `views/`, `api/index.js`, `validators/index.js`. No edits to `prisma/schema.prisma`, `apps/api/src/index.js`, `packages/maps/`, or `packages/validators/`. See `docs/03_custom_modules.md`.
+- **Legacy modules** (contacts, files, finance, hr, ledger, identity, company) still live in `packages/maps/` + `apps/api/src/` + `apps/desktop/src/modules/`. They follow the old checklist: manifest in `packages/maps`, Prisma model(s), API routes, service, Zod schema in `packages/validators`. Do not extend this pattern for new modules.
 - In docs checklists, mark `[x]` only with explicit verification evidence and `Verified: YYYY-MM-DD (...)`
-- Prisma is pinned to `^6` - do not upgrade to v7
+- Prisma is at `^7` - root `package.json` overrides all workspace packages to `^7.8.0`
 - Applied Prisma migrations are immutable: never edit existing `prisma/migrations/**/migration.sql`
 - Never "fix" migration history by rewriting old SQL; always create a new forward migration
+- AME3 module tables are managed by Atlas ORM (`AtlasModel`/`AtlasField` in Prisma + `defineModel` in module). Do not create Prisma models for AME3 module tables.
 
 ## Architecture documentation
 
 Before adding a new feature, read:
 
 - `docs/01_erp_architecture.md` - full system architecture
-- `docs/02_module_system.md` - module system
+- `docs/02_module_system.md` - module system (AME3-first)
 - `docs/03_core_modules.md` - core module definitions
+- `docs/03_custom_modules.md` - how to build an AME3 custom module (13-step workflow)
 - `docs/08_blueprints.md` - blueprint field types and rendering rules
+- `docs/architecture/atlas-module-engine-v3.md` - AME3 full architecture, roadmap, and required spec sections
 - `docs/TASKS.md` - current phase status and roadmap
 
 ## Spec-Driven Development
@@ -189,12 +212,11 @@ All new features and modules follow the spec -> plan -> implementation -> verifi
 
 See `docs/TASKS.md` for the full phased roadmap.
 
-- Phase 0: complete
-- Phase 1: complete
-- Phase 2: complete
-- Phase 3: complete
-- Phase 4: complete
-- Phase 5: complete
-- Phase 6: complete
-- Phase 7/7.1/7.1.1: complete
-- Phase 8: planned, implementation pending
+- Phase 0–7.1.1: complete (repo setup, auth, shell, contacts, files)
+- Phase 8 (Finance): complete — double-entry accounting, AR/AP, FX, taxes, aging, applications, reversal (phases 8.1–8.6)
+- Phase 9 (HR): in progress — employee detail redesign
+- Phase 9.5 (Module Lifecycle v2): complete — Permission.active, dry-run uninstall/reset, cleanup registry
+- AME3 Phase 1 (Module Engine foundation): complete — `packages/module-engine` with `defineAtlasModule`, `defineModel`, `defineView`, `definePage`, SQL generator, checksum
+- AME3 Phase 2 (Route Loader + custom module): complete — `route-loader-service.js`, `custom.fleet` module operational
+- AME3 Phase 3 (Atlas ORM + Blueprint Renderer): complete — Atlas ORM provisions tables from `defineModel`; blueprint renderer (`AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`) in `@atlas/ui`
+- AME3 Phase 4+ (Discovery as primary source, migrate official modules): planned
