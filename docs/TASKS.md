@@ -399,6 +399,7 @@ Runtime checks: Not verified in this session (no browser access). Required manua
 - [x] API smoke tests: vehicle type with economic_group_number (201), vehicle brand (201), vehicle model (201), duplicate model (409), vehicle with vehicle_model_id (201), enriched GET/list with correct economic_number (0002-0042) — Verified: 2026-05-16
 
 Verified: 2026-05-16 (full stack: DB migrations applied, module synced, all smoke tests pass)
+Note: 2026-05-16 manual authenticated regression helper added at `scripts/smoke-fleet-relational.mjs` (requires `ATLAS_TOKEN`; runtime endpoint verification remains manual, not browser-automated).
 
 ### AME3 Phase 4 — Discovery as Primary Source
 
