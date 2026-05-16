@@ -14,57 +14,58 @@ Draft
 
 ## 3. Context
 
-The `custom.fleet` module already has four catalog PAGE blueprints and working CRUD flows:
+`custom.fleet` already provides CRUD blueprints and routes for four catalogs:
 
-1. Vehicle types
-2. Vehicle brands
-3. Vehicle models
-4. Maintenance types
+1. Tipos de vehículo
+2. Marcas de vehículo
+3. Modelos de vehículo
+4. Tipos de mantenimiento
 
-After relation inline create rollout and module sync, runtime metadata is up-to-date. However, catalog discoverability in sidebar/navigation is inconsistent.
+The runtime module metadata is now synced and relation inline create metadata is expected to be available. The remaining issue is discoverability and navigation consistency.
 
 ## 4. Problem
 
-Current Fleet navigation makes catalogs look incomplete:
+Fleet sidebar/navigation is currently inconsistent for catalogs:
 
-1. Sidebar exposes `Catálogos` pointing to vehicle types only.
-2. Sidebar exposes a separate `Modelos de vehículo` entry.
-3. Vehicle brands and maintenance types exist but are not discoverable from sidebar.
-4. Users infer that only one or two catalogs exist, even though four are available.
+1. `Catálogos` points to `/app/m/custom.fleet/catalogs/vehicle-types`.
+2. `Modelos de vehículo` exists as a separate sidebar item.
+3. Vehicle brands and maintenance types are reachable by URL but not discoverable from primary navigation.
+4. The current UX suggests there is no unified catalog management area.
 
 ## 5. Goals
 
-1. Provide a single Fleet `Catálogos` entry in sidebar.
-2. Make all four catalogs discoverable from one hub experience.
-3. Reuse existing blueprint CRUD pages and routes.
-4. Avoid duplicate CRUD logic and avoid new backend/API contracts.
-5. Keep direct deep-link routes to each catalog working.
+1. Provide one clear sidebar entry: `Catálogos`.
+2. Turn `Catálogos` into a hub with tabs/segmented navigation for all four catalog domains.
+3. Reuse existing PAGE/TABLE/FORM blueprints and existing CRUD flow.
+4. Keep direct deep-link routes functional.
+5. Avoid backend, DB, and Prisma changes.
 
 ## 6. Non-goals
 
-1. Database schema or migration changes.
-2. New API endpoints for catalogs.
-3. DocumentsPanel, dashboards, or reports.
-4. AME3 Phase 4 work.
-5. Replacing Blueprint CRUD internals with module-specific CRUD code.
+1. No Prisma schema or migration changes.
+2. No API endpoint changes.
+3. No new module outside `custom.fleet`.
+4. No DocumentsPanel, dashboards, reports, or AME3 Phase 4 work.
+5. No rewrite of generic CRUD rendering behavior.
 
 ## 7. User stories
 
-1. As a Fleet operator, I want to open `Catálogos` and quickly switch between all catalogs so I can manage reference data without hunting routes.
-2. As a Fleet admin, I want brands and maintenance types to be discoverable from navigation so onboarding and data hygiene are clearer.
-3. As a support user, I want existing direct catalog URLs to continue working so bookmarks and shared links remain valid.
+1. As a Fleet operator, I want one Catalogs area where all catalog domains are visible, so I can manage reference data quickly.
+2. As a Fleet admin, I want consistent navigation that matches available routes, so onboarding and support are easier.
+3. As an existing user, I want direct links to each catalog route to continue working.
 
 ## 8. UX requirements
 
-1. `Flota → Catálogos` opens a catalog hub with tabs/segmented controls:
+1. Sidebar must show one Fleet item for catalogs: `Catálogos`.
+2. Entering `Catálogos` must present tabs/segmented controls:
    - `Tipos de vehículo`
    - `Marcas de vehículo`
    - `Modelos de vehículo`
    - `Tipos de mantenimiento`
-2. Tab labels must be Spanish UTF-8 with accents.
-3. Tab switch must navigate to existing catalog routes (URL changes), not fake client-only state.
-4. Active tab must match the current route.
-5. CRUD behavior inside each tab remains exactly the existing blueprint CRUD behavior.
+3. Active tab must be route-driven.
+4. Clicking a tab must navigate to the corresponding route.
+5. Refresh on a deep route must preserve active tab.
+6. UI copy remains Spanish UTF-8 with accents.
 
 ## 9. Routes/screens
 
@@ -76,14 +77,14 @@ Target routes:
 4. `/app/m/custom.fleet/catalogs/vehicle-models`
 5. `/app/m/custom.fleet/catalogs/maintenance-types`
 
-Routing behavior:
+Base route behavior:
 
-1. Hub base route should resolve to default tab (`vehicle-types`) while preserving hub UI.
-2. All tab routes render current `BlueprintCrudScreen` flow for their selected catalog.
+1. Preferred: resolve hub base to default catalog route (`vehicle-types`) with replace navigation.
+2. Hub tabs remain visible for all catalog subroutes.
 
 ## 10. Data model
 
-N/A. No new entities or field changes.
+N/A (no entity or schema changes).
 
 ## 11. Prisma impact
 
@@ -91,7 +92,7 @@ None.
 
 ## 12. API contract
 
-None. Existing catalog APIs are reused unchanged.
+None.
 
 ## 13. SDK contract
 
@@ -103,40 +104,48 @@ None.
 
 ## 15. Module manifest impact
 
-`custom.fleet` manifest navigation is adjusted:
+`modules/custom/custom.fleet/module.manifest.js` navigation changes:
 
-1. Keep a single catalog sidebar entry:
+1. Keep one catalog sidebar entry:
    - label: `Catálogos`
    - path: `/app/m/custom.fleet/catalogs`
-2. Remove redundant sidebar entry `Modelos de vehículo` once hub is active.
+   - permissionKey: `fleet.catalogs.read`
+2. Remove redundant `Modelos de vehículo` sidebar entry.
 
-Views/PAGE blueprints for individual catalogs remain and continue to be registered.
+All catalog view/page registrations remain unchanged.
 
 ## 16. Navigation impact
 
-Sidebar becomes cleaner:
-
-1. One `Catálogos` item replaces multiple catalog-specific side entries.
-2. Catalog selection moves into hub tabs at page-level.
+1. Sidebar is simplified to one catalog entry.
+2. Catalog discoverability moves into the hub tab layer.
+3. Existing direct route entry points remain valid.
 
 ## 17. Blueprint impact
 
-Preferred strategy:
+Existing PAGE blueprints are reused:
 
-1. Keep existing catalog PAGE blueprints as-is.
-2. Add a lightweight hub PAGE blueprint for `/app/m/custom.fleet/catalogs` if needed for clean route resolution.
-3. Do not duplicate table/form/detail blueprint definitions.
+1. `fleet.catalog.vehicle_types.page`
+2. `fleet.catalog.vehicle_brands.page`
+3. `fleet.catalog.vehicle_models.page`
+4. `fleet.catalog.maintenance_types.page`
+
+Optional metadata enhancement (if needed for generic grouping):
+
+1. `schema.group = "catalogs"`
+2. `schema.groupLabel = "Catálogos"`
+3. `schema.tabLabel = "<Spanish tab label>"`
+4. `schema.tabOrder = <number>`
 
 ## 18. RBAC/permissions
 
-No new permissions.
+No new permission keys.
 
 1. Hub entry uses `fleet.catalogs.read`.
-2. Individual catalog CRUD remains guarded by existing `fleet.catalogs.*` permissions.
+2. Existing CRUD permissions (`fleet.catalogs.create/update/delete`) remain unchanged.
 
 ## 19. Multi-company behavior
 
-Unchanged. Existing company-scoped APIs and blueprint runtime behavior remain in effect.
+Unchanged; all existing company-scoped catalog APIs and blueprint flows remain as-is.
 
 ## 20. Files/storage impact
 
@@ -148,101 +157,98 @@ None.
 
 ## 22. Audit log requirements
 
-Unchanged. Existing catalog create/update/enable audit behavior remains.
+Unchanged; no new audit events required for navigation-only improvements.
 
 ## 23. Edge cases
 
-1. User lands directly on `/catalogs/vehicle-brands`: brands tab should appear active.
-2. User lands on `/catalogs`: default tab should be selected predictably (vehicle types).
-3. Missing PAGE blueprint for one catalog: hub should degrade gracefully and not break other tabs.
-4. Lack of permission for create/update: tab remains visible for read, actions continue to respect RBAC.
-5. Browser refresh on a tab route should preserve the selected tab.
+1. User opens `/catalogs` directly: default to `vehicle-types` route while preserving hub context.
+2. User opens deep route (`/catalogs/vehicle-brands`): correct tab must be active.
+3. Unknown subroute under `/catalogs/*`: keep current not-found behavior.
+4. Missing permission to create/update/delete: tab still visible for read-only access.
+5. Existing links/bookmarks to catalog routes remain valid.
 
 ## 24. Risks
 
-1. Risk: Hardcoding Fleet tab logic in renderer core.
-   Mitigation: Implement tab grouping using generic route-prefix/page metadata patterns, not module-specific conditionals.
-2. Risk: Route ambiguity for `/catalogs` base path.
-   Mitigation: Add explicit hub PAGE or explicit fallback/redirect behavior in routing logic.
-3. Risk: Duplicate navigation concepts between sidebar and hub tabs.
-   Mitigation: Consolidate sidebar to a single `Catálogos` entry.
+1. Risk: Route grouping logic could become Fleet-specific.
+   Mitigation: Use generic route-prefix/page metadata grouping logic in shell.
+2. Risk: Duplicate rendering logic for CRUD.
+   Mitigation: Keep `BlueprintCrudScreen` + `AtlasCrudView` as the only CRUD path.
+3. Risk: Base route `/catalogs` may not resolve cleanly.
+   Mitigation: Explicit default route handling and replace navigation.
 
 ## 25. Acceptance criteria
 
-1. Sidebar shows one `Catálogos` entry for Fleet.
-2. Opening `Catálogos` shows tabs for all four catalogs.
-3. `Tipos de vehículo` tab shows existing vehicle types CRUD.
-4. `Marcas de vehículo` tab shows existing brands CRUD.
-5. `Modelos de vehículo` tab shows existing models CRUD.
-6. `Tipos de mantenimiento` tab shows existing maintenance types CRUD.
-7. Direct routes to each catalog continue working.
-8. Create/edit/detail flows keep working in each catalog.
-9. `Número económico de grupo` remains visible in vehicle type form.
-10. `relation.create` metadata remains intact after sync.
-11. Desktop build passes.
+1. Sidebar shows one `Catálogos` Fleet entry.
+2. Separate sidebar entry `Modelos de vehículo` is removed.
+3. Opening `Catálogos` shows tabs for all four catalogs.
+4. `Tipos de vehículo` tab renders existing vehicle types CRUD.
+5. `Marcas de vehículo` tab renders existing brands CRUD.
+6. `Modelos de vehículo` tab renders existing models CRUD.
+7. `Tipos de mantenimiento` tab renders existing maintenance types CRUD.
+8. Direct routes remain functional.
+9. Create/edit/detail flows remain functional for each catalog.
+10. `Número económico de grupo` remains visible in vehicle type form.
+11. Relation inline-create metadata remains intact after module sync.
+12. Desktop build passes.
 
 ## 26. Verification plan
 
 Future implementation verification:
 
-1. Static checks for modified files (`node --check` where applicable).
-2. `pnpm.cmd --filter @atlas/desktop build:web`.
-3. Authenticated `POST /modules/sync` (with `$ATLAS_TOKEN` placeholder only in documentation).
-4. Runtime AtlasView checks:
-   - catalog PAGE keys enabled
-   - vehicle type form still includes `economic_group_number`
-   - relation create metadata still present
-5. Manual UI checks:
-   - tab visibility and active-state by route
-   - CRUD behavior per tab
-   - direct route deep-linking
+1. `node --check modules/custom/custom.fleet/module.manifest.js`
+2. `node --check apps/desktop/src/shell/BlueprintCrudScreen.jsx` (or note `.jsx` runtime limitation)
+3. `pnpm.cmd --filter @atlas/desktop build:web`
+4. Authenticated `POST /modules/sync` using `$ATLAS_TOKEN` placeholder only.
+5. Runtime metadata checks:
+   - Catalog PAGEs enabled
+   - `economic_group_number` in vehicle types form schema
+   - `relation.create` metadata still present
+6. Manual/browser checks for tab UX and CRUD behavior.
 
 ## 27. Rollback plan
 
-1. Revert hub/tab route/navigation changes in Fleet manifest and UI shell files.
-2. Restore previous sidebar entries.
-3. Run module sync to republish previous metadata.
-4. Validate direct catalog routes still work.
-
-No DB rollback is required.
+1. Revert manifest navigation changes to previous paths/entries.
+2. Revert hub/tab logic changes in desktop shell.
+3. Run module sync to restore previous runtime navigation metadata.
+4. Rebuild desktop app and validate legacy routes still work.
 
 ## 28. Future enhancements
 
-1. Generic multi-catalog hub pattern reusable across modules beyond Fleet.
-2. Optional tab badges/counters per catalog.
-3. Optional saved last-active tab preference by user.
+1. Generic grouped-tab hub support reusable across modules beyond Fleet.
+2. Optional tab counters/status badges.
+3. Optional persisted “last selected catalog tab” per user.
 
 ---
 
-## Architecture options considered
+## Implementation approach options
 
 ### Option A: Module-local hub component
 
 Pros:
-1. Isolated module customization.
-2. Minimal risk to global shell behavior.
+1. Module isolation.
+2. Minimal impact on generic shell.
 
 Cons:
-1. Requires custom UI wiring that may duplicate shell patterns.
-2. Harder to standardize for other modules.
+1. Extra module-specific UI surface.
+2. Harder to reuse and maintain consistency.
 
-### Option B: Enhanced `BlueprintCrudScreen` with generic catalog-group tabs (Recommended)
+### Option B: Enhanced BlueprintCrudScreen grouped-route tabs (Recommended)
 
 Pros:
-1. Reuses existing blueprint CRUD logic directly.
-2. Avoids module-specific CRUD duplication.
-3. Can be implemented generically by route prefix/page discovery.
+1. Reuses existing generic CRUD path.
+2. No CRUD duplication.
+3. Can be implemented with route-prefix/page metadata discovery.
 
 Cons:
-1. Requires careful generic design in shell route selection.
+1. Needs careful generic grouping logic.
 
-### Option C: Navigation-only approach (add more sidebar items)
+### Option C: Navigation-only (add more sidebar entries)
 
 Pros:
-1. Smallest change.
+1. Smallest code change.
 
 Cons:
-1. Does not satisfy desired single `Catálogos` hub UX.
-2. Keeps sidebar clutter and discoverability fragmentation.
+1. Fails desired UX of single `Catálogos` hub.
+2. Keeps navigation clutter and weak discoverability.
 
-**Recommendation:** Option B (generic `BlueprintCrudScreen` enhancement) plus Fleet manifest cleanup to one catalog sidebar entry.
+Recommendation: **Option B** with manifest cleanup to one catalog sidebar entry.
