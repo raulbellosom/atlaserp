@@ -121,11 +121,29 @@ export function createMaintenanceService({ prisma }) {
              OR COALESCE(d.first_name || ' ' || d.last_name, '') ILIKE $5)`
     const baseJoins = `
       LEFT JOIN fleet_vehicle v ON v.id = m.vehicle_id AND v.company_id = m.company_id
-      LEFT JOIN fleet_driver d ON d.id = m.driver_id AND d.company_id = m.company_id`
+      LEFT JOIN fleet_driver d ON d.id = m.driver_id AND d.company_id = m.company_id
+      LEFT JOIN fleet_vehicle_model vm ON vm.id = v.vehicle_model_id
+      LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id
+      LEFT JOIN fleet_vehicle_type vt_m ON vt_m.id = vm.type_id
+      LEFT JOIN fleet_vehicle_type vt ON vt.id = v.vehicle_type_id
+      LEFT JOIN fleet_maintenance_type mt ON mt.id = m.maintenance_type_id AND mt.company_id = m.company_id`
 
     const [rows, totalRows] = await withDbErrorMapping(async () => {
       const dataRows = await prisma.$queryRawUnsafe(
-        `SELECT m.*, v.plate AS vehicle_plate, COALESCE(d.first_name || ' ' || d.last_name, '') AS driver_full_name
+        `SELECT
+            m.*,
+            v.plate AS vehicle_plate,
+            vm.name AS vehicle_model_name,
+            COALESCE(vb_m.name, v.brand) AS vehicle_brand_name,
+            COALESCE(vt_m.name, vt.name) AS vehicle_type_name,
+            CASE
+              WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number) IS NOT NULL
+                AND v.economic_individual_number IS NOT NULL
+                THEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number) || '-' || v.economic_individual_number
+              ELSE NULL
+            END AS economic_number,
+            mt.name AS maintenance_type_name,
+            NULLIF(TRIM(COALESCE(d.first_name, '') || ' ' || COALESCE(d.last_name, '')), '') AS driver_full_name
          FROM fleet_maintenance m ${baseJoins} ${baseWhere}
          ORDER BY ${sortCol} ${sortDirection} LIMIT $6 OFFSET $7`,
         safeCompanyId, normalizedStatus, safeVehicleId, safeDriverId, likeValue, pagination.pageSize, pagination.offset
@@ -148,10 +166,28 @@ export function createMaintenanceService({ prisma }) {
     const safeId = normalizeRecordId(id, 'Mantenimiento no encontrado.')
     const row = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
-        SELECT m.*, v.plate AS vehicle_plate, COALESCE(d.first_name || ' ' || d.last_name, '') AS driver_full_name
+        SELECT
+          m.*,
+          v.plate AS vehicle_plate,
+          vm.name AS vehicle_model_name,
+          COALESCE(vb_m.name, v.brand) AS vehicle_brand_name,
+          COALESCE(vt_m.name, vt.name) AS vehicle_type_name,
+          CASE
+            WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number) IS NOT NULL
+              AND v.economic_individual_number IS NOT NULL
+              THEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number) || '-' || v.economic_individual_number
+            ELSE NULL
+          END AS economic_number,
+          mt.name AS maintenance_type_name,
+          NULLIF(TRIM(COALESCE(d.first_name, '') || ' ' || COALESCE(d.last_name, '')), '') AS driver_full_name
         FROM fleet_maintenance m
         LEFT JOIN fleet_vehicle v ON v.id = m.vehicle_id AND v.company_id = m.company_id
         LEFT JOIN fleet_driver d ON d.id = m.driver_id AND d.company_id = m.company_id
+        LEFT JOIN fleet_vehicle_model vm ON vm.id = v.vehicle_model_id
+        LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id
+        LEFT JOIN fleet_vehicle_type vt_m ON vt_m.id = vm.type_id
+        LEFT JOIN fleet_vehicle_type vt ON vt.id = v.vehicle_type_id
+        LEFT JOIN fleet_maintenance_type mt ON mt.id = m.maintenance_type_id AND mt.company_id = m.company_id
         WHERE m.id = ${safeId} AND m.company_id = ${safeCompanyId}
         LIMIT 1
       `

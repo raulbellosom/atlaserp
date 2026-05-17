@@ -289,6 +289,40 @@ export function createDriverService({ prisma }) {
     return { data: docs.map((d) => ({ ...d, file_asset: assetMap[d.file_asset_id] ?? null })) }
   }
 
+  async function listDriverVehicles({ companyId, driverId }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId)
+    const safeDriverId = normalizeRecordId(driverId, 'Chofer no encontrado.')
+
+    const rows = await withDbErrorMapping(() =>
+      prisma.$queryRaw`
+        SELECT
+          v.id,
+          v.plate,
+          vm.name AS vehicle_model_name,
+          COALESCE(vb_m.name, v.brand) AS vehicle_brand_name,
+          COALESCE(vt_m.name, vt.name) AS vehicle_type_name,
+          CASE
+            WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number) IS NOT NULL
+              AND v.economic_individual_number IS NOT NULL
+              THEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number) || '-' || v.economic_individual_number
+            ELSE NULL
+          END AS economic_number,
+          v.status
+        FROM fleet_vehicle v
+        LEFT JOIN fleet_vehicle_model vm ON vm.id = v.vehicle_model_id
+        LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id
+        LEFT JOIN fleet_vehicle_type vt_m ON vt_m.id = vm.type_id
+        LEFT JOIN fleet_vehicle_type vt ON vt.id = v.vehicle_type_id
+        WHERE v.company_id = ${safeCompanyId}
+          AND v.driver_id = ${safeDriverId}
+          AND v.enabled = true
+        ORDER BY v.updated_at DESC, v.created_at DESC
+      `
+    )
+
+    return { data: rows }
+  }
+
   async function addDriverDocument({ companyId, actorId, driverId, payload }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
     const safeDriverId = normalizeRecordId(driverId, 'Chofer no encontrado.')
@@ -325,5 +359,15 @@ export function createDriverService({ prisma }) {
     return updated
   }
 
-  return { listDrivers, getDriver, createDriver, updateDriver, setDriverEnabled, listDriverDocuments, addDriverDocument, removeDriverDocument }
+  return {
+    listDrivers,
+    getDriver,
+    createDriver,
+    updateDriver,
+    setDriverEnabled,
+    listDriverDocuments,
+    listDriverVehicles,
+    addDriverDocument,
+    removeDriverDocument,
+  }
 }
