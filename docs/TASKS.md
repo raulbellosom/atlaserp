@@ -423,6 +423,20 @@ Plan: `docs/superpowers/plans/2026-05-16-custom-fleet-detail-ux-relationship-car
 - [x] Runtime metadata synced via safe local tokenless metadata service script (no manual token flow) and AtlasView detail schemas updated — Verified: 2026-05-16 (sync result: `moduleKey=custom.fleet`, `syncedModels=10`, `syncedViews=24`; detail schemas include `relation-card`/`relation-list` + `documents` sections)
 - [ ] Authenticated API smoke and browser UX verification pending — Blocked: local `ATLAS_TOKEN` not available in environment during this pass (safe smoke script reported `{\"skipped\":true,\"reason\":\"ATLAS_TOKEN missing\"}`).
 
+### Blueprint Attachments UI System + Fleet Form Opt-in [PARTIAL VERIFIED]
+
+Spec: `docs/superpowers/specs/2026-05-16-blueprint-attachments-ui-system-design.md`  
+Plan: `docs/superpowers/plans/2026-05-16-blueprint-attachments-ui-system.md`
+
+- [x] Reusable attachments system implemented in `packages/ui` with shared controller/component flow (`useAttachmentsController`, `AttachmentsPanel`) and metadata-driven renderer integration — Verified: 2026-05-17 (static review + build pass)
+- [x] `AtlasForm` supports attachments sections with create/edit lifecycle handling while remaining module-agnostic — Verified: 2026-05-17 (`pnpm.cmd --filter @atlas/desktop build:web`)
+- [x] Fleet forms opt in via blueprint metadata only (`vehicle.form`, `driver.form`, `maintenance.form`) with no renderer hardcoding for `custom.fleet` — Verified: 2026-05-17 (runtime AtlasView schema check after safe local tokenless sync)
+- [x] Create mode supports staged files before parent record exists and flushes upload/association after successful record creation — Verified: 2026-05-17 (implementation evidence in shared controller + form submit flow)
+- [x] Edit mode supports existing attachment loading and immediate upload behavior — Verified: 2026-05-17 (implementation evidence + build pass)
+- [x] `DocumentsPanel` remains compatible as wrapper over shared attachments logic for detail screens — Verified: 2026-05-17 (code review + build pass)
+- [x] Attachments aside UX polished: no visible free-text document type input by default, no visible label input by default, inferred `document_type` from MIME/extension, filename as default label, and clear `Archivos pendientes`/`Archivos asociados` sections — Verified: 2026-05-17 (`node --check packages/ui/src/hooks/useAttachmentsController.js`; `pnpm.cmd --filter @atlas/desktop build:web`)
+- [ ] Browser/manual verification pending — Pending: confirm in-app create/edit UX flow (pending list, staged upload on create, associated list refresh) without overclaiming.
+
 ### AME3 Phase 4 — Discovery as Primary Source
 
 **Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-module-discovery-primary.md`  
