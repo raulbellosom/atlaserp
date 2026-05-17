@@ -94,6 +94,52 @@ function resolveUploadedFileAssetId(payload) {
   return null;
 }
 
+function getFileExtension(fileName) {
+  const safeName = String(fileName ?? "").trim().toLowerCase();
+  const lastDot = safeName.lastIndexOf(".");
+  if (lastDot < 0 || lastDot === safeName.length - 1) return "";
+  return safeName.slice(lastDot + 1);
+}
+
+function inferDocumentTypeFromFile(file) {
+  const mimeType = String(file?.type ?? "").trim().toLowerCase();
+  const extension = getFileExtension(file?.name);
+
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType === "application/pdf" || extension === "pdf") return "pdf";
+  if (
+    mimeType.includes("msword") ||
+    mimeType.includes("wordprocessingml") ||
+    extension === "doc" ||
+    extension === "docx"
+  ) {
+    return "word";
+  }
+  if (
+    mimeType.includes("spreadsheetml") ||
+    mimeType.includes("excel") ||
+    extension === "xls" ||
+    extension === "xlsx" ||
+    extension === "csv"
+  ) {
+    return "spreadsheet";
+  }
+  if (mimeType.startsWith("text/") || extension === "txt" || extension === "md") {
+    return "text";
+  }
+  if (
+    mimeType.includes("zip") ||
+    mimeType.includes("rar") ||
+    mimeType.includes("7z") ||
+    extension === "zip" ||
+    extension === "rar" ||
+    extension === "7z"
+  ) {
+    return "archive";
+  }
+  return "file";
+}
+
 function toHeaders(token) {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -140,6 +186,8 @@ function normalizeAssociatedItem(rawItem, fields) {
 
 function createPendingItem(file, metadata = {}) {
   const previewUrl = file.type.startsWith("image/") ? URL.createObjectURL(file) : null;
+  const defaultDocumentType = inferDocumentTypeFromFile(file);
+  const defaultLabel = String(file?.name ?? "").trim();
   return {
     kind: "pending",
     id: `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -153,8 +201,13 @@ function createPendingItem(file, metadata = {}) {
     fileAssetId: null,
     associationId: null,
     documentType:
-      typeof metadata.documentType === "string" ? metadata.documentType.trim() : "",
-    label: typeof metadata.label === "string" ? metadata.label.trim() : "",
+      typeof metadata.documentType === "string" && metadata.documentType.trim()
+        ? metadata.documentType.trim()
+        : defaultDocumentType,
+    label:
+      typeof metadata.label === "string" && metadata.label.trim()
+        ? metadata.label.trim()
+        : defaultLabel,
     previewUrl,
   };
 }

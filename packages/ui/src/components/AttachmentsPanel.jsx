@@ -144,6 +144,9 @@ export function AttachmentsPanel({
     () => String(config?.label ?? "Documentos"),
     [config?.label],
   );
+  const showTypeInput = Boolean(config?.metadataInputs?.showDocumentTypeInput);
+  const showLabelInput = Boolean(config?.metadataInputs?.showLabelInput);
+  const showMetadataInputs = showTypeInput || showLabelInput;
 
   const hasRecord = Boolean(recordId);
   const canChooseFiles =
@@ -209,25 +212,31 @@ export function AttachmentsPanel({
 
       {canChooseFiles ? (
         <div className="space-y-2">
-          <div className="grid gap-2 md:grid-cols-2">
-            <Input
-              type="text"
-              value={documentType}
-              onChange={(event) => setDocumentType(event.target.value)}
-              placeholder="Tipo de documento (opcional)"
-              disabled={disabled || readOnly}
-            />
-            <Input
-              type="text"
-              value={documentLabel}
-              onChange={(event) => setDocumentLabel(event.target.value)}
-              placeholder="Etiqueta (opcional)"
-              disabled={disabled || readOnly}
-            />
-          </div>
+          {showMetadataInputs ? (
+            <div className="grid gap-2 md:grid-cols-2">
+              {showTypeInput ? (
+                <Input
+                  type="text"
+                  value={documentType}
+                  onChange={(event) => setDocumentType(event.target.value)}
+                  placeholder="Tipo de documento"
+                  disabled={disabled || readOnly}
+                />
+              ) : null}
+              {showLabelInput ? (
+                <Input
+                  type="text"
+                  value={documentLabel}
+                  onChange={(event) => setDocumentLabel(event.target.value)}
+                  placeholder="Etiqueta"
+                  disabled={disabled || readOnly}
+                />
+              ) : null}
+            </div>
+          ) : null}
 
           <div
-            className="rounded-xl border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--muted))]/35 p-4 transition-colors hover:border-[hsl(var(--ring))]"
+            className="w-full rounded-xl border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--muted))]/35 p-5 transition-colors hover:border-[hsl(var(--ring))]"
             onDrop={handleDrop}
             onDragOver={(event) => event.preventDefault()}
           >
@@ -238,7 +247,7 @@ export function AttachmentsPanel({
               className="sr-only"
               onChange={(event) => handleFilesPicked(event.target.files)}
             />
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-col items-start gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -270,12 +279,16 @@ export function AttachmentsPanel({
         </Alert>
       ) : null}
 
-      {controller.pendingItems.length > 0 ? (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-            Pendientes
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+          Archivos pendientes
+        </p>
+        {controller.pendingItems.length === 0 ? (
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            No hay archivos pendientes.
           </p>
-          {controller.pendingItems.map((item) => (
+        ) : (
+          controller.pendingItems.map((item) => (
             <ItemCard key={item.id} item={item}>
               <div className="flex items-center gap-1">
                 <span className="rounded-full bg-[hsl(var(--muted))] px-2 py-0.5 text-[10px] font-medium text-[hsl(var(--muted-foreground))]">
@@ -308,9 +321,9 @@ export function AttachmentsPanel({
                 </Button>
               </div>
             </ItemCard>
-          ))}
-        </div>
-      ) : null}
+          ))
+        )}
+      </div>
 
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
