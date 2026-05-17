@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
-import { DocumentsPanel } from "../components/DocumentsPanel.jsx";
+import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
 import { normalizeSpanishLabel } from "./renderer-adapters.js";
 
 const STATUS_LABELS = {
@@ -194,12 +194,16 @@ function normalizeSections(schema, fieldMap) {
         entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`,
       );
 
-      if (sectionType === "documents") {
+      if (sectionType === "documents" || sectionType === "attachments") {
+        const attachmentsConfig =
+          sectionType === "attachments"
+            ? entry.attachments ?? null
+            : entry.documents ?? null;
         return {
           id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
           title: sectionTitle,
-          type: "documents",
-          documents: entry.documents ?? null,
+          type: "attachments",
+          attachments: attachmentsConfig,
         };
       }
 
@@ -645,12 +649,13 @@ export function AtlasDetail({
             {section.title}
           </h4>
 
-          {section.type === "documents" ? (
-            <DocumentsPanel
+          {section.type === "attachments" ? (
+            <AttachmentsPanel
               apiBaseUrl={apiBaseUrl}
               token={token}
               recordId={data?.id ?? null}
-              config={section.documents ?? {}}
+              config={section.attachments ?? {}}
+              context="detail"
             />
           ) : null}
 

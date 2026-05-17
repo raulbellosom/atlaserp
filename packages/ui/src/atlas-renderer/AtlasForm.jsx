@@ -17,7 +17,9 @@ import {
   SwitchField,
   RelationSelectField,
 } from "../components/FormFields.jsx";
+import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
 import { normalizeSpanishLabel, normalizeRelationDescriptor } from "./renderer-adapters.js";
+import { normalizeField, normalizeSections } from "./atlas-form-schema.js";
 
 const STATUS_LABELS = {
   active: "Activo",
@@ -54,77 +56,6 @@ function resolveRelationLabel(row, descriptor) {
     return parts.length > 0 ? parts.join(labelSeparator) : String(row[valueField] ?? "");
   }
   return row[labelField] != null ? String(row[labelField]) : String(row[valueField] ?? "");
-}
-
-function normalizeField(fieldLike) {
-  if (!fieldLike || typeof fieldLike !== "object") return null;
-  const name = fieldLike.name ?? fieldLike.key ?? fieldLike.field ?? null;
-  if (!name) return null;
-  return {
-    name: String(name),
-    label: normalizeSpanishLabel(fieldLike.label ?? String(name)),
-    type: fieldLike.type ?? "text",
-    required: Boolean(fieldLike.required),
-    readonly: Boolean(fieldLike.readonly),
-    options: fieldLike.options,
-    relation: fieldLike.relation,
-  };
-}
-
-function normalizeSectionField(item) {
-  if (typeof item === "string") {
-    const key = String(item).trim();
-    if (!key) return null;
-    return {
-      name: key,
-      field: { name: key, label: key, type: "text", required: false, readonly: false, options: [] },
-    };
-  }
-  const normalized = normalizeField(item);
-  if (!normalized) return null;
-  return { name: normalized.name, field: { ...normalized, options: normalized.options ?? [] } };
-}
-
-function normalizeSections(schema, fieldMap) {
-  const rawSections = Array.isArray(schema?.sections) ? schema.sections : [];
-  return rawSections
-    .map((entry, sectionIndex) => {
-      if (!entry || typeof entry !== "object") return null;
-      const sectionFields = (Array.isArray(entry.fields) ? entry.fields : [])
-        .map((item) => normalizeSectionField(item))
-        .filter(Boolean);
-
-      const uniqueFields = [];
-      for (const fieldDef of sectionFields) {
-        const name = fieldDef.name;
-        if (!fieldMap.has(name)) {
-          fieldMap.set(name, fieldDef.field);
-        } else {
-          const existing = fieldMap.get(name);
-          fieldMap.set(name, {
-            ...existing,
-            label: fieldDef.field.label ?? existing?.label ?? name,
-            type: fieldDef.field.type ?? existing?.type ?? "text",
-            required: fieldDef.field.required ?? existing?.required ?? false,
-            readonly: fieldDef.field.readonly ?? existing?.readonly ?? false,
-            options:
-              Array.isArray(fieldDef.field.options) && fieldDef.field.options.length > 0
-                ? fieldDef.field.options
-                : existing?.options ?? [],
-            relation: fieldDef.field.relation ?? existing?.relation ?? undefined,
-          });
-        }
-        if (!uniqueFields.includes(name)) uniqueFields.push(name);
-      }
-
-      return {
-        id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
-        title: normalizeSpanishLabel(entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`),
-        columns: entry.columns === 1 ? 1 : (Number(entry.columns) === 2 ? 2 : "auto"),
-        fields: uniqueFields,
-      };
-    })
-    .filter(Boolean);
 }
 
 function resolveOptionLabel(rawLabel) {
@@ -270,6 +201,7 @@ export function AtlasForm({
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [resolvedRecordId, setResolvedRecordId] = useState(() => resolveRecordId(initialData));
   const [relationState, setRelationState] = useState({});
   const [relationInlineErrors, setRelationInlineErrors] = useState({});
   const [inlineCreateState, setInlineCreateState] = useState({
@@ -281,6 +213,7 @@ export function AtlasForm({
     searchText: "",
   });
   const [nestedBlueprintRows, setNestedBlueprintRows] = useState(null);
+  const attachmentsControllersRef = useRef(new Map());
   const relationDebounceRef = useRef({});
 
   const loadRelationOptions = useCallback(
@@ -328,6 +261,7 @@ export function AtlasForm({
     setFieldErrors({});
     setRelationInlineErrors({});
     setSubmitError("");
+    setResolvedRecordId(resolveRecordId(initialData));
   }, [fieldMap, initialData]);
 
   useEffect(() => {
@@ -351,8 +285,40 @@ export function AtlasForm({
     );
   }
 
-  const recordId = resolveRecordId(initialData);
+  const recordId = resolvedRecordId;
   const isEditMode = mode === "edit";
+
+  const registerAttachmentsController = useCallback((sectionId, controller) => {
+    if (!sectionId) return;
+    if (!controller) {
+      attachmentsControllersRef.current.delete(sectionId);
+      return;
+    }
+    attachmentsControllersRef.current.set(sectionId, controller);
+  }, []);
+
+  const flushPendingAttachments = useCallback(async (effectiveRecordId) => {
+    const controllers = Array.from(attachmentsControllersRef.current.values()).filter(Boolean);
+    if (!effectiveRecordId || controllers.length === 0) {
+      return { attempted: 0, success: 0, failed: 0, details: [] };
+    }
+
+    const results = [];
+    for (const controller of controllers) {
+      if (typeof controller.flushPending !== "function") continue;
+      const result = await controller.flushPending(effectiveRecordId);
+      results.push(result);
+    }
+
+    const attempted = results.reduce(
+      (sum, item) => sum + ((item?.failed?.length ?? 0) + (item?.success?.length ?? 0)),
+      0,
+    );
+    const success = results.reduce((sum, item) => sum + (item?.success?.length ?? 0), 0);
+    const failed = results.reduce((sum, item) => sum + (item?.failed?.length ?? 0), 0);
+    const details = results.flatMap((item) => item?.failed ?? []);
+    return { attempted, success, failed, details };
+  }, []);
 
   const handleChange = (name, value) => {
     setFormValues((prev) => ({ ...prev, [name]: value }));
@@ -536,6 +502,7 @@ export function AtlasForm({
   const validate = () => {
     const nextErrors = {};
     for (const section of sections) {
+      if (section.type !== "fields") continue;
       for (const fieldName of section.fields) {
         const field = fieldMap.get(fieldName);
         if (!field || !field.required || field.readonly) continue;
@@ -598,7 +565,22 @@ export function AtlasForm({
         throw new Error(message);
       }
       const result = await response.json();
-      onSuccess?.(result);
+      const createdRecord = extractCreatedRecord(result);
+      const createdRecordId = resolveRecordId(createdRecord);
+      const effectiveRecordId = isEditMode ? recordId : createdRecordId ?? null;
+
+      if (!isEditMode && effectiveRecordId) {
+        setResolvedRecordId(effectiveRecordId);
+      }
+
+      const attachmentSync = await flushPendingAttachments(effectiveRecordId);
+
+      const nextResult =
+        result && typeof result === "object"
+          ? { ...result, attachments: attachmentSync }
+          : { data: result, attachments: attachmentSync };
+
+      onSuccess?.(nextResult);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "No se pudo guardar la información.");
     } finally {
@@ -842,6 +824,70 @@ export function AtlasForm({
     }
   };
 
+  const mainSections = sections.filter(
+    (section) => section.type === "fields" || section.placement !== "aside",
+  );
+  const asideSections = sections.filter(
+    (section) => section.type === "attachments" && section.placement === "aside",
+  );
+
+  const renderSection = (section) => {
+    if (section.type === "attachments") {
+      return (
+        <div
+          key={section.id}
+          className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4"
+        >
+          <AttachmentsPanel
+            apiBaseUrl={apiBaseUrl}
+            token={token}
+            recordId={recordId}
+            config={{
+              ...(section.attachments ?? {}),
+              label: section.title,
+              placement: section.placement ?? "embedded",
+            }}
+            context="form"
+            onControllerReady={(controller) =>
+              registerAttachmentsController(section.id, controller)
+            }
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div
+        key={section.id}
+        className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-4"
+      >
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+          {section.title}
+        </h4>
+        <div
+          className={
+            section.columns === 1
+              ? "grid gap-4"
+              : section.columns === 2
+                ? "grid gap-4 md:grid-cols-2"
+                : "grid gap-4 lg:grid-cols-2"
+          }
+        >
+          {section.fields.map((fieldName) => {
+            const field = fieldMap.get(fieldName);
+            if (!field) return null;
+            const isFullWidth = ["textarea", "markdown"].includes(field.type);
+            return (
+              <div key={field.name} className={isFullWidth ? "col-span-full" : ""}>
+                {renderFieldControl(field)}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
       {sections.length === 0 && (
@@ -853,36 +899,20 @@ export function AtlasForm({
         </Alert>
       )}
 
-      {sections.map((section) => (
-        <div
-          key={section.id}
-          className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-4"
-        >
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-            {section.title}
-          </h4>
-          <div
-            className={
-              section.columns === 1
-                ? "grid gap-4"
-                : section.columns === 2
-                ? "grid gap-4 md:grid-cols-2"
-                : "grid gap-4 lg:grid-cols-2"
-            }
-          >
-            {section.fields.map((fieldName) => {
-              const field = fieldMap.get(fieldName);
-              if (!field) return null;
-              const isFullWidth = ["textarea", "markdown"].includes(field.type);
-              return (
-                <div key={field.name} className={isFullWidth ? "col-span-full" : ""}>
-                  {renderFieldControl(field)}
-                </div>
-              );
-            })}
+      <div
+        className={
+          asideSections.length > 0
+            ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]"
+            : "space-y-4"
+        }
+      >
+        <div className="space-y-4">{mainSections.map((section) => renderSection(section))}</div>
+        {asideSections.length > 0 ? (
+          <div className="space-y-4 xl:sticky xl:top-4 xl:self-start">
+            {asideSections.map((section) => renderSection(section))}
           </div>
-        </div>
-      ))}
+        ) : null}
+      </div>
 
       {submitError && (
         <Alert variant="destructive">
