@@ -78,6 +78,16 @@ export function createDriversRouter({ prisma, requirePermission, moduleContext }
     }
   })
 
+  app.get('/fleet/drivers/:id/vehicles', requirePermission('fleet.drivers.read'), async (c) => {
+    try {
+      const companyId = getCompanyIdFromContext(c)
+      const result = await service.listDriverVehicles({ companyId, driverId: c.req.param('id') })
+      return c.json(result)
+    } catch (err) {
+      return handleRouteError(c, err, { fallbackError: 'No se pudieron listar los vehiculos del chofer.', route: '/fleet/drivers/:id/vehicles', moduleKey, operation: 'listDriverVehicles' })
+    }
+  })
+
   app.patch('/fleet/drivers/:id', requirePermission('fleet.drivers.update'), async (c) => {
     try {
       const companyId = getCompanyIdFromContext(c)

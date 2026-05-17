@@ -10,29 +10,42 @@ export default defineView({
     apiPath: '/fleet/drivers',
     sections: [
       {
-        label: 'Datos personales',
+        label: 'Perfil del chofer',
         columns: 2,
         fields: [
-          { field: 'first_name', label: 'Nombre' },
-          { field: 'last_name', label: 'Apellido' },
-          { field: 'phone', label: 'Telefono' },
-          { field: 'email', label: 'Correo electronico' },
+          { field: 'first_name', label: 'Nombre', icon: 'UserCheck' },
+          { field: 'last_name', label: 'Apellido', icon: 'UserCheck' },
+          { field: 'phone', label: 'Teléfono', icon: 'Phone' },
+          { field: 'email', label: 'Correo electrónico', icon: 'Mail' },
         ],
       },
       {
         label: 'Licencia',
         columns: 2,
         fields: [
-          { field: 'license_number', label: 'Numero de licencia' },
-          { field: 'license_type', label: 'Tipo de licencia' },
-          { field: 'license_expiry_date', label: 'Fecha de vencimiento', type: 'date' },
+          { field: 'license_number', label: 'Número de licencia', icon: 'IdCard' },
+          { field: 'license_type', label: 'Tipo de licencia', icon: 'ClipboardList' },
+          { field: 'license_expiry_date', label: 'Fecha de vencimiento', type: 'date', icon: 'CalendarDays' },
         ],
       },
       {
         label: 'Estado',
         fields: [
-          { field: 'status', label: 'Estado' },
+          { field: 'status', label: 'Estado', icon: 'Activity' },
         ],
+      },
+      {
+        id: 'assigned_vehicles',
+        type: 'relation-list',
+        label: 'Vehículos asignados',
+        relationList: {
+          apiPath: '/fleet/drivers/:id/vehicles',
+          titleField: 'plate',
+          subtitleFields: ['vehicle_model_name', 'economic_number'],
+          hrefTemplate: '/app/m/custom.fleet/vehicles/:id',
+          icon: 'Truck',
+          emptyMessage: 'No hay vehículos asignados.',
+        },
       },
       {
         label: 'Notas',

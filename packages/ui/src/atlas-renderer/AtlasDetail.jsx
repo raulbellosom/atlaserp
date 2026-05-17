@@ -1,4 +1,26 @@
-﻿import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
+﻿import { useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  AlertCircle,
+  BookOpen,
+  CalendarDays,
+  Car,
+  ClipboardList,
+  FileText,
+  Hash,
+  IdCard,
+  Layers,
+  Library,
+  Link2,
+  Loader2,
+  Mail,
+  Phone,
+  Tag,
+  Truck,
+  UserCheck,
+  Wrench,
+} from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
 import { DocumentsPanel } from "../components/DocumentsPanel.jsx";
 import { normalizeSpanishLabel } from "./renderer-adapters.js";
@@ -21,6 +43,34 @@ const STATUS_COLORS = {
   disabled: "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]",
 };
 
+const ICON_MAP = {
+  Activity,
+  BookOpen,
+  CalendarDays,
+  Car,
+  ClipboardList,
+  FileText,
+  Hash,
+  IdCard,
+  Layers,
+  Library,
+  Link2,
+  Mail,
+  Phone,
+  Tag,
+  Truck,
+  UserCheck,
+  Wrench,
+};
+
+const ICON_ALIAS_MAP = {
+  badge: Hash,
+  bookopen: BookOpen,
+  clipboardlist: ClipboardList,
+  library: Library,
+  usercheck: UserCheck,
+};
+
 function normalizeField(fieldLike) {
   if (!fieldLike || typeof fieldLike !== "object") return null;
   const name = fieldLike.name ?? fieldLike.key ?? fieldLike.field ?? null;
@@ -29,6 +79,10 @@ function normalizeField(fieldLike) {
     name: String(name),
     label: normalizeSpanishLabel(fieldLike.label ?? String(name)),
     type: fieldLike.type ?? "text",
+    icon:
+      typeof fieldLike.icon === "string" && fieldLike.icon.trim()
+        ? fieldLike.icon.trim()
+        : null,
   };
 }
 
@@ -36,7 +90,10 @@ function normalizeSectionField(item) {
   if (typeof item === "string") {
     const key = String(item).trim();
     if (!key) return null;
-    return { name: key, field: { name: key, label: key, type: "text" } };
+    return {
+      name: key,
+      field: { name: key, label: key, type: "text", icon: null },
+    };
   }
   const normalized = normalizeField(item);
   if (!normalized) return null;
@@ -53,6 +110,76 @@ function normalizeFieldMap(fields) {
   return map;
 }
 
+function normalizeRelationCardConfig(config, sectionTitle) {
+  if (!config || typeof config !== "object") return null;
+  const subtitleFields = (Array.isArray(config.subtitleFields)
+    ? config.subtitleFields
+    : []
+  )
+    .map((field) => (typeof field === "string" ? field.trim() : ""))
+    .filter(Boolean);
+
+  return {
+    idField:
+      typeof config.idField === "string" && config.idField.trim()
+        ? config.idField.trim()
+        : null,
+    titleField:
+      typeof config.titleField === "string" && config.titleField.trim()
+        ? config.titleField.trim()
+        : null,
+    subtitleFields,
+    fallbackTitle: normalizeSpanishLabel(
+      config.fallbackTitle ?? `No hay ${sectionTitle?.toLowerCase() ?? "relación"}.`,
+    ),
+    hrefTemplate:
+      typeof config.hrefTemplate === "string" && config.hrefTemplate.trim()
+        ? config.hrefTemplate.trim()
+        : null,
+    icon:
+      typeof config.icon === "string" && config.icon.trim()
+        ? config.icon.trim()
+        : null,
+  };
+}
+
+function normalizeRelationListConfig(config) {
+  if (!config || typeof config !== "object") return null;
+  const subtitleFields = (Array.isArray(config.subtitleFields)
+    ? config.subtitleFields
+    : []
+  )
+    .map((field) => (typeof field === "string" ? field.trim() : ""))
+    .filter(Boolean);
+
+  return {
+    apiPath:
+      typeof config.apiPath === "string" && config.apiPath.trim()
+        ? config.apiPath.trim()
+        : null,
+    idField:
+      typeof config.idField === "string" && config.idField.trim()
+        ? config.idField.trim()
+        : "id",
+    titleField:
+      typeof config.titleField === "string" && config.titleField.trim()
+        ? config.titleField.trim()
+        : null,
+    subtitleFields,
+    hrefTemplate:
+      typeof config.hrefTemplate === "string" && config.hrefTemplate.trim()
+        ? config.hrefTemplate.trim()
+        : null,
+    icon:
+      typeof config.icon === "string" && config.icon.trim()
+        ? config.icon.trim()
+        : null,
+    emptyMessage: normalizeSpanishLabel(
+      config.emptyMessage ?? "No hay registros relacionados.",
+    ),
+  };
+}
+
 function normalizeSections(schema, fieldMap) {
   const rawSections = Array.isArray(schema?.sections) ? schema.sections : [];
   return rawSections
@@ -63,14 +190,34 @@ function normalizeSections(schema, fieldMap) {
           ? entry.type.trim().toLowerCase()
           : "fields";
 
+      const sectionTitle = normalizeSpanishLabel(
+        entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`,
+      );
+
       if (sectionType === "documents") {
         return {
           id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
-          title: normalizeSpanishLabel(
-            entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`,
-          ),
+          title: sectionTitle,
           type: "documents",
           documents: entry.documents ?? null,
+        };
+      }
+
+      if (sectionType === "relation-card") {
+        return {
+          id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
+          title: sectionTitle,
+          type: "relation-card",
+          relationCard: normalizeRelationCardConfig(entry.relationCard, sectionTitle),
+        };
+      }
+
+      if (sectionType === "relation-list") {
+        return {
+          id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
+          title: sectionTitle,
+          type: "relation-list",
+          relationList: normalizeRelationListConfig(entry.relationList),
         };
       }
 
@@ -89,6 +236,7 @@ function normalizeSections(schema, fieldMap) {
             ...existing,
             label: fieldDef.field.label ?? existing?.label ?? name,
             type: fieldDef.field.type ?? existing?.type ?? "text",
+            icon: fieldDef.field.icon ?? existing?.icon ?? null,
           });
         }
         if (!fieldNames.includes(name)) fieldNames.push(name);
@@ -99,9 +247,7 @@ function normalizeSections(schema, fieldMap) {
 
       return {
         id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
-        title: normalizeSpanishLabel(
-          entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`,
-        ),
+        title: sectionTitle,
         type: "fields",
         columns,
         fields: fieldNames,
@@ -151,6 +297,294 @@ function gridClass(columns) {
   return "grid gap-4 lg:grid-cols-2";
 }
 
+function joinUrl(baseUrl, apiPath) {
+  const base = String(baseUrl ?? "").trim().replace(/\/+$/, "");
+  const path = String(apiPath ?? "").trim();
+  if (!path) return base;
+  if (!path.startsWith("/")) return `${base}/${path}`;
+  return `${base}${path}`;
+}
+
+function replacePathTokens(pathTemplate, tokenMap) {
+  let path = String(pathTemplate ?? "");
+  for (const [key, rawValue] of Object.entries(tokenMap ?? {})) {
+    const safeValue = encodeURIComponent(String(rawValue ?? "").trim());
+    path = path.replace(new RegExp(`:${key}\\b`, "g"), safeValue);
+  }
+  return path;
+}
+
+function parseJsonSafe(text) {
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function extractArrayPayload(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object") return [];
+  if (Array.isArray(payload.data)) return payload.data;
+  if (payload.data && typeof payload.data === "object") {
+    return extractArrayPayload(payload.data);
+  }
+  return [];
+}
+
+function getByPath(value, path) {
+  if (!path || typeof path !== "string") return undefined;
+  return path
+    .split(".")
+    .reduce((cursor, segment) =>
+      cursor && typeof cursor === "object" ? cursor[segment] : undefined,
+    value);
+}
+
+function normalizeIconName(name) {
+  if (typeof name !== "string" || !name.trim()) return null;
+  const raw = name.trim();
+  if (ICON_MAP[raw]) return raw;
+  const normalized = raw.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+  if (ICON_ALIAS_MAP[normalized]) return normalized;
+  const pascal = raw
+    .split(/[^a-zA-Z0-9]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join("");
+  if (ICON_MAP[pascal]) return pascal;
+  return null;
+}
+
+function resolveIcon(name) {
+  const normalized = normalizeIconName(name);
+  if (!normalized) return null;
+  return ICON_MAP[normalized] ?? ICON_ALIAS_MAP[normalized] ?? null;
+}
+
+function normalizeTextValue(value) {
+  if (value === undefined || value === null) return "";
+  return String(value).trim();
+}
+
+function RelationCardSection({ section, data }) {
+  const relationCard = section.relationCard;
+  if (!relationCard?.idField) {
+    return (
+      <div className="rounded-xl border border-dashed border-[hsl(var(--border))] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
+        Configuración de relación no disponible.
+      </div>
+    );
+  }
+
+  const relatedId = getByPath(data, relationCard.idField);
+  const hasRelatedId = Boolean(normalizeTextValue(relatedId));
+  const rawTitle = relationCard.titleField
+    ? getByPath(data, relationCard.titleField)
+    : null;
+  const cleanTitle = normalizeTextValue(rawTitle);
+
+  const title = hasRelatedId
+    ? cleanTitle || "Registro relacionado"
+    : relationCard.fallbackTitle;
+
+  const subtitles = relationCard.subtitleFields
+    .map((fieldKey) => normalizeTextValue(getByPath(data, fieldKey)))
+    .filter(Boolean);
+
+  const href =
+    hasRelatedId && relationCard.hrefTemplate
+      ? replacePathTokens(relationCard.hrefTemplate, { id: relatedId })
+      : null;
+
+  const Icon = resolveIcon(relationCard.icon) ?? Link2;
+
+  const content = (
+    <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-4 py-3 transition-colors hover:border-[hsl(var(--ring))]">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">
+          <Icon size={16} />
+        </span>
+        <div className="min-w-0 space-y-1">
+          <p className="text-sm font-semibold text-[hsl(var(--foreground))] truncate">
+            {title}
+          </p>
+          {subtitles.length > 0 ? (
+            <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">
+              {subtitles.join(" · ")}
+            </p>
+          ) : null}
+          {href ? (
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              Ir al detalle relacionado
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (!href) return content;
+
+  return (
+    <a href={href} className="block">
+      {content}
+    </a>
+  );
+}
+
+function RelationListSection({ section, data, apiBaseUrl, token }) {
+  const relationList = section.relationList;
+  const recordId = data?.id ?? null;
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function fetchItems() {
+      if (!recordId || !relationList?.apiPath) {
+        setItems([]);
+        setLoading(false);
+        setError("");
+        return;
+      }
+
+      setLoading(true);
+      setError("");
+      try {
+        const endpointPath = replacePathTokens(relationList.apiPath, { id: recordId });
+        const response = await fetch(joinUrl(apiBaseUrl, endpointPath), {
+          method: "GET",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const text = await response.text();
+        const payload = parseJsonSafe(text);
+
+        if (!response.ok) {
+          throw new Error("No se pudieron cargar los registros relacionados.");
+        }
+
+        const rows = extractArrayPayload(payload);
+        if (!isCancelled) setItems(rows);
+      } catch {
+        if (!isCancelled) {
+          setItems([]);
+          setError("No se pudieron cargar los registros relacionados.");
+        }
+      } finally {
+        if (!isCancelled) setLoading(false);
+      }
+    }
+
+    fetchItems();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [apiBaseUrl, token, recordId, relationList?.apiPath]);
+
+  const Icon = resolveIcon(relationList?.icon) ?? Link2;
+
+  if (!relationList?.apiPath) {
+    return (
+      <div className="rounded-xl border border-dashed border-[hsl(var(--border))] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
+        Configuración de lista relacionada no disponible.
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="inline-flex items-center gap-2 text-sm text-[hsl(var(--muted-foreground))]">
+        <Loader2 size={16} className="animate-spin" />
+        Cargando relaciones...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="inline-flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+        <AlertCircle size={16} />
+        {error}
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <p className="text-sm text-[hsl(var(--muted-foreground))]">
+        {relationList.emptyMessage || "No hay registros relacionados."}
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {items.map((item, index) => {
+        const itemId = getByPath(item, relationList.idField);
+        const rawTitle = relationList.titleField
+          ? getByPath(item, relationList.titleField)
+          : null;
+        const title = normalizeTextValue(rawTitle) || "Registro relacionado";
+        const subtitles = relationList.subtitleFields
+          .map((fieldKey) => normalizeTextValue(getByPath(item, fieldKey)))
+          .filter(Boolean);
+        const href =
+          relationList.hrefTemplate && normalizeTextValue(itemId)
+            ? replacePathTokens(relationList.hrefTemplate, { id: itemId })
+            : null;
+
+        const content = (
+          <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-4 py-3 transition-colors hover:border-[hsl(var(--ring))]">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">
+                <Icon size={16} />
+              </span>
+              <div className="min-w-0 space-y-1">
+                <p className="text-sm font-semibold text-[hsl(var(--foreground))] truncate">
+                  {title}
+                </p>
+                {subtitles.length > 0 ? (
+                  <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">
+                    {subtitles.join(" · ")}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        );
+
+        if (!href) return <div key={`${section.id}-${index}`}>{content}</div>;
+
+        return (
+          <a key={`${section.id}-${index}`} href={href} className="block">
+            {content}
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
+function FieldLabel({ field }) {
+  const Icon = resolveIcon(field?.icon) ?? null;
+
+  if (!Icon) {
+    return <>{field.label}</>;
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <Icon size={13} />
+      {field.label}
+    </span>
+  );
+}
+
 export function AtlasDetail({
   blueprint,
   fields,
@@ -161,8 +595,11 @@ export function AtlasDetail({
   apiBaseUrl,
 }) {
   const schema = blueprint?.schema ?? {};
-  const fieldMap = normalizeFieldMap(fields);
-  const sections = normalizeSections(schema, fieldMap);
+  const fieldMap = useMemo(() => normalizeFieldMap(fields), [fields]);
+  const sections = useMemo(
+    () => normalizeSections(schema, fieldMap),
+    [schema, fieldMap],
+  );
 
   if (!data || typeof data !== "object") {
     return (
@@ -215,7 +652,22 @@ export function AtlasDetail({
               recordId={data?.id ?? null}
               config={section.documents ?? {}}
             />
-          ) : (
+          ) : null}
+
+          {section.type === "relation-card" ? (
+            <RelationCardSection section={section} data={data} />
+          ) : null}
+
+          {section.type === "relation-list" ? (
+            <RelationListSection
+              section={section}
+              data={data}
+              apiBaseUrl={apiBaseUrl}
+              token={token}
+            />
+          ) : null}
+
+          {section.type === "fields" ? (
             <dl className={gridClass(section.columns)}>
               {section.fields.map((fieldName) => {
                 const field = fieldMap.get(fieldName);
@@ -224,7 +676,7 @@ export function AtlasDetail({
                 return (
                   <div key={field.name} className="space-y-1">
                     <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-                      {field.label}
+                      <FieldLabel field={field} />
                     </dt>
                     <dd className="text-sm text-[hsl(var(--foreground))]">
                       {renderValue(field, value)}
@@ -233,7 +685,7 @@ export function AtlasDetail({
                 );
               })}
             </dl>
-          )}
+          ) : null}
         </div>
       ))}
     </div>

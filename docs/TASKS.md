@@ -410,6 +410,19 @@ Plan: `docs/superpowers/plans/2026-05-16-custom-fleet-catalog-hub-tabs.md`
 - [x] Blueprint shell route-group catalog tabs added for grouped PAGE routes (including base-route redirect from `/catalogs` to default tab route) without duplicating CRUD rendering — Verified: 2026-05-16 (`pnpm.cmd --filter @atlas/desktop build:web`)
 - [x] Runtime metadata sync and browser UX verification completed — Verified: 2026-05-16 (authenticated `POST /modules/sync` 200; sidebar shows one `Catálogos` entry; separate `Modelos de vehículo` removed; tabs visible for Tipos/Marcas/Modelos/Mantenimiento; each tab navigates to its route and renders existing CRUD table; direct catalog routes work; `Número económico de grupo` remains visible in vehicle type form; relation inline-create metadata remains present).
 
+### custom.fleet Detail UX & Relationship Cards [PARTIAL VERIFIED]
+
+Spec: `docs/superpowers/specs/2026-05-16-custom-fleet-detail-ux-relationship-cards-design.md`  
+Plan: `docs/superpowers/plans/2026-05-16-custom-fleet-detail-ux-relationship-cards.md`
+
+- [x] Fleet API enrichment for detail UX: vehicle detail now includes `driver_name`, `driver_phone`, `driver_license_number`; maintenance detail/list now include readable relation fields including `maintenance_type_name` and vehicle context — Verified: 2026-05-16 (`node --check modules/custom/custom.fleet/api/fleet-service.js`, `node --check modules/custom/custom.fleet/api/maintenance-service.js`)
+- [x] New company-scoped endpoint `GET /fleet/drivers/:id/vehicles` added for relation-list cards in driver detail — Verified: 2026-05-16 (`node --check modules/custom/custom.fleet/api/driver-service.js`, `node --check modules/custom/custom.fleet/api/drivers-routes.js`)
+- [x] Generic `AtlasDetail` renderer support added for `relation-card` and `relation-list` section types plus metadata-driven field icons (no custom.fleet hardcoding) — Verified: 2026-05-16 (`pnpm.cmd --filter @atlas/desktop build:web`; `node --check` for `.jsx` not available in this Node runtime due `ERR_UNKNOWN_FILE_EXTENSION`)
+- [x] Sidebar icon resolver updated to correctly map Fleet icon names (`Truck`, `Wrench`, `ClipboardList`, `UserCheck`, `BookOpen`, `Library`, `Layers`) with safe fallback — Verified: 2026-05-16 (`pnpm.cmd --filter @atlas/desktop build:web`)
+- [x] Fleet detail blueprints updated: vehicle driver relation card, driver assigned-vehicles relation list, maintenance vehicle/driver relation cards, and Spanish icon metadata while keeping DocumentsPanel sections — Verified: 2026-05-16 (`node --check modules/custom/custom.fleet/views/vehicle.detail.js`, `node --check modules/custom/custom.fleet/views/driver.detail.js`, `node --check modules/custom/custom.fleet/views/maintenance.detail.js`)
+- [x] Runtime metadata synced via safe local tokenless metadata service script (no manual token flow) and AtlasView detail schemas updated — Verified: 2026-05-16 (sync result: `moduleKey=custom.fleet`, `syncedModels=10`, `syncedViews=24`; detail schemas include `relation-card`/`relation-list` + `documents` sections)
+- [ ] Authenticated API smoke and browser UX verification pending — Blocked: local `ATLAS_TOKEN` not available in environment during this pass (safe smoke script reported `{\"skipped\":true,\"reason\":\"ATLAS_TOKEN missing\"}`).
+
 ### AME3 Phase 4 — Discovery as Primary Source
 
 **Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-module-discovery-primary.md`  

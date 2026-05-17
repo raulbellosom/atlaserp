@@ -106,6 +106,9 @@ export function createFleetService({ prisma }) {
       const dataRows = await prisma.$queryRaw`
         SELECT
           fv.*,
+          NULLIF(TRIM(COALESCE(fd.first_name, '') || ' ' || COALESCE(fd.last_name, '')), '') AS driver_name,
+          fd.phone AS driver_phone,
+          fd.license_number AS driver_license_number,
           vm.name AS vehicle_model_name,
           vm.year AS vehicle_model_year,
           COALESCE(vb_m.name, vb.name) AS vehicle_brand_name,
@@ -123,6 +126,7 @@ export function createFleetService({ prisma }) {
         LEFT JOIN fleet_vehicle_type vt_m ON vt_m.id = vm.type_id
         LEFT JOIN fleet_vehicle_type vt ON vt.id = fv.vehicle_type_id
         LEFT JOIN fleet_vehicle_brand vb ON vb.id = fv.vehicle_brand_id
+        LEFT JOIN fleet_driver fd ON fd.id = fv.driver_id AND fd.company_id = fv.company_id
         WHERE fv.company_id = ${safeCompanyId}
           AND fv.enabled = true
           AND (${normalizedStatus}::text IS NULL OR fv.status = ${normalizedStatus})
@@ -133,6 +137,7 @@ export function createFleetService({ prisma }) {
             OR fv.model_name ILIKE ${likeValue}
             OR vm.name ILIKE ${likeValue}
             OR vb_m.name ILIKE ${likeValue}
+            OR (COALESCE(fd.first_name, '') || ' ' || COALESCE(fd.last_name, '')) ILIKE ${likeValue}
           )
         ORDER BY fv.created_at DESC
         LIMIT ${pagination.pageSize}
@@ -144,6 +149,7 @@ export function createFleetService({ prisma }) {
         FROM fleet_vehicle fv
         LEFT JOIN fleet_vehicle_model vm ON vm.id = fv.vehicle_model_id
         LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id
+        LEFT JOIN fleet_driver fd ON fd.id = fv.driver_id AND fd.company_id = fv.company_id
         WHERE fv.company_id = ${safeCompanyId}
           AND fv.enabled = true
           AND (${normalizedStatus}::text IS NULL OR fv.status = ${normalizedStatus})
@@ -154,6 +160,7 @@ export function createFleetService({ prisma }) {
             OR fv.model_name ILIKE ${likeValue}
             OR vm.name ILIKE ${likeValue}
             OR vb_m.name ILIKE ${likeValue}
+            OR (COALESCE(fd.first_name, '') || ' ' || COALESCE(fd.last_name, '')) ILIKE ${likeValue}
           )
       `
       return [dataRows, countRows]
@@ -176,6 +183,9 @@ export function createFleetService({ prisma }) {
       const rows = await prisma.$queryRaw`
         SELECT
           fv.*,
+          NULLIF(TRIM(COALESCE(fd.first_name, '') || ' ' || COALESCE(fd.last_name, '')), '') AS driver_name,
+          fd.phone AS driver_phone,
+          fd.license_number AS driver_license_number,
           vm.name AS vehicle_model_name,
           vm.year AS vehicle_model_year,
           COALESCE(vb_m.name, vb.name) AS vehicle_brand_name,
@@ -193,6 +203,7 @@ export function createFleetService({ prisma }) {
         LEFT JOIN fleet_vehicle_type vt_m ON vt_m.id = vm.type_id
         LEFT JOIN fleet_vehicle_type vt ON vt.id = fv.vehicle_type_id
         LEFT JOIN fleet_vehicle_brand vb ON vb.id = fv.vehicle_brand_id
+        LEFT JOIN fleet_driver fd ON fd.id = fv.driver_id AND fd.company_id = fv.company_id
         WHERE fv.id = ${safeId}
           AND fv.company_id = ${safeCompanyId}
         LIMIT 1

@@ -30,6 +30,11 @@ import {
   X,
   Network,
   BookOpen,
+  Truck,
+  Wrench,
+  ClipboardList,
+  UserCheck,
+  Library,
 } from "lucide-react";
 import { cn } from "../lib/utils.js";
 
@@ -64,10 +69,33 @@ const ICON_MAP = {
   ChevronRight,
   Network,
   BookOpen,
+  Truck,
+  Wrench,
+  ClipboardList,
+  UserCheck,
+  Library,
+};
+
+const ICON_ALIAS_MAP = {
+  truck: "Truck",
+  wrench: "Wrench",
+  clipboardlist: "ClipboardList",
+  usercheck: "UserCheck",
+  bookopen: "BookOpen",
+  library: "Library",
+  layers: "Layers",
 };
 
 function NavIcon({ name, size = 15, ...props }) {
-  const Icon = ICON_MAP[name] ?? Box;
+  const raw = typeof name === "string" ? name.trim() : "";
+  const normalizedKey = raw.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+  const aliasName = ICON_ALIAS_MAP[normalizedKey] ?? raw;
+  const pascalName = raw
+    .split(/[^a-zA-Z0-9]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join("");
+  const Icon = ICON_MAP[raw] ?? ICON_MAP[aliasName] ?? ICON_MAP[pascalName] ?? Box;
   return <Icon size={size} {...props} />;
 }
 
