@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const DEFAULT_FIELDS = {
   id: "id",
@@ -101,43 +101,75 @@ function getFileExtension(fileName) {
   return safeName.slice(lastDot + 1);
 }
 
-function inferDocumentTypeFromFile(file) {
-  const mimeType = String(file?.type ?? "").trim().toLowerCase();
-  const extension = getFileExtension(file?.name);
+const WORD_EXTENSIONS = new Set(["doc", "docx", "dot", "dotx", "rtf", "odt"]);
+const SPREADSHEET_EXTENSIONS = new Set(["xls", "xlsx", "csv", "ods", "tsv"]);
+const TEXT_EXTENSIONS = new Set(["txt", "md", "markdown", "log", "json", "xml", "yaml", "yml"]);
+const ARCHIVE_EXTENSIONS = new Set(["zip", "rar", "7z", "tar", "gz", "bz2", "xz"]);
 
-  if (mimeType.startsWith("image/")) return "image";
-  if (mimeType === "application/pdf" || extension === "pdf") return "pdf";
+const FILE_TYPE_LABELS = {
+  image: "Imagen",
+  pdf: "PDF",
+  word: "Word",
+  spreadsheet: "Excel",
+  text: "Texto",
+  archive: "Comprimido",
+  file: "Archivo",
+};
+
+function resolveFileTypeKind(mimeType, extension) {
+  const normalizedMime = String(mimeType ?? "").trim().toLowerCase();
+  const normalizedExt = String(extension ?? "").trim().toLowerCase();
+
+  if (normalizedMime.startsWith("image/")) return "image";
+  if (normalizedMime === "application/pdf" || normalizedExt === "pdf") return "pdf";
   if (
-    mimeType.includes("msword") ||
-    mimeType.includes("wordprocessingml") ||
-    extension === "doc" ||
-    extension === "docx"
+    normalizedMime.includes("msword") ||
+    normalizedMime.includes("wordprocessingml") ||
+    normalizedMime.includes("opendocument.text") ||
+    WORD_EXTENSIONS.has(normalizedExt)
   ) {
     return "word";
   }
   if (
-    mimeType.includes("spreadsheetml") ||
-    mimeType.includes("excel") ||
-    extension === "xls" ||
-    extension === "xlsx" ||
-    extension === "csv"
+    normalizedMime.includes("spreadsheetml") ||
+    normalizedMime.includes("excel") ||
+    normalizedMime.includes("spreadsheet") ||
+    normalizedMime.includes("comma-separated-values") ||
+    normalizedMime.includes("opendocument.spreadsheet") ||
+    SPREADSHEET_EXTENSIONS.has(normalizedExt)
   ) {
     return "spreadsheet";
   }
-  if (mimeType.startsWith("text/") || extension === "txt" || extension === "md") {
+  if (normalizedMime.startsWith("text/") || TEXT_EXTENSIONS.has(normalizedExt)) {
     return "text";
   }
   if (
-    mimeType.includes("zip") ||
-    mimeType.includes("rar") ||
-    mimeType.includes("7z") ||
-    extension === "zip" ||
-    extension === "rar" ||
-    extension === "7z"
+    normalizedMime.includes("zip") ||
+    normalizedMime.includes("rar") ||
+    normalizedMime.includes("7z") ||
+    normalizedMime.includes("compressed") ||
+    ARCHIVE_EXTENSIONS.has(normalizedExt)
   ) {
     return "archive";
   }
   return "file";
+}
+
+export function resolveAttachmentFileType({ mimeType, fileName } = {}) {
+  const extension = getFileExtension(fileName);
+  const kind = resolveFileTypeKind(mimeType, extension);
+  return {
+    kind,
+    extension,
+    label: FILE_TYPE_LABELS[kind] ?? FILE_TYPE_LABELS.file,
+  };
+}
+
+function inferDocumentTypeFromFile(file) {
+  return resolveAttachmentFileType({
+    mimeType: file?.type,
+    fileName: file?.name,
+  }).kind;
 }
 
 function toHeaders(token) {
@@ -321,14 +353,23 @@ export function useAttachmentsController({
     loadAssociated();
   }, [loadAssociated]);
 
-  const removePending = useCallback((pendingId) => {
-    setPendingItems((prev) => {
-      const target = prev.find((item) => item.id === pendingId);
-      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
-      const next = prev.filter((item) => item.id !== pendingId);
-      return next;
-    });
-  }, []);
+  const removePending = useCallback(
+    (pendingId) => {
+      if (viewerItem?.kind === "pending" && viewerItem?.id === pendingId) {
+        if (viewerItem?.__revokeOnClose && viewerItem?.url) {
+          URL.revokeObjectURL(viewerItem.url);
+        }
+        setViewerItem(null);
+      }
+      setPendingItems((prev) => {
+        const target = prev.find((item) => item.id === pendingId);
+        if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+        const next = prev.filter((item) => item.id !== pendingId);
+        return next;
+      });
+    },
+    [viewerItem],
+  );
 
   const uploadAndAssociateOne = useCallback(
     async (pending, effectiveRecordId) => {
@@ -629,6 +670,50 @@ export function useAttachmentsController({
     [resolveSignedUrl, setGlobalError],
   );
 
+  const openPending = useCallback(
+    async (item) => {
+      if (!item?.file) {
+        setGlobalError("Archivo pendiente no disponible.");
+        return { ok: false };
+      }
+
+      const resolvedType = resolveAttachmentFileType({
+        mimeType: item.mimeType,
+        fileName: item.fileName,
+      });
+
+      if (resolvedType.kind === "image" || resolvedType.kind === "pdf") {
+        let localUrl = item.previewUrl ?? null;
+        let shouldRevokeOnClose = false;
+
+        if (!localUrl) {
+          localUrl = URL.createObjectURL(item.file);
+          shouldRevokeOnClose = true;
+        }
+
+        setViewerItem({
+          ...item,
+          originalName: item.fileName,
+          url: localUrl,
+          signedUrl: localUrl,
+          __revokeOnClose: shouldRevokeOnClose,
+        });
+        return { ok: true };
+      }
+
+      const fallbackUrl = URL.createObjectURL(item.file);
+      try {
+        window.open(fallbackUrl, "_blank", "noopener,noreferrer");
+        window.setTimeout(() => URL.revokeObjectURL(fallbackUrl), 120000);
+        return { ok: true };
+      } catch {
+        URL.revokeObjectURL(fallbackUrl);
+        throw new Error("No se pudo abrir el archivo.");
+      }
+    },
+    [setGlobalError],
+  );
+
   const downloadAssociated = useCallback(
     async (item) => {
       try {
@@ -691,7 +776,12 @@ export function useAttachmentsController({
   );
 
   const closeViewer = useCallback(() => {
-    setViewerItem(null);
+    setViewerItem((current) => {
+      if (current?.__revokeOnClose && current?.url) {
+        URL.revokeObjectURL(current.url);
+      }
+      return null;
+    });
   }, []);
 
   useEffect(() => {
@@ -701,6 +791,14 @@ export function useAttachmentsController({
       }
     };
   }, [pendingItems]);
+
+  useEffect(() => {
+    return () => {
+      if (viewerItem?.__revokeOnClose && viewerItem?.url) {
+        URL.revokeObjectURL(viewerItem.url);
+      }
+    };
+  }, [viewerItem]);
 
   return {
     associatedItems,
@@ -722,6 +820,7 @@ export function useAttachmentsController({
     retryPending,
     removePending,
     removeAssociated,
+    openPending,
     openAssociated,
     downloadAssociated,
     closeViewer,
