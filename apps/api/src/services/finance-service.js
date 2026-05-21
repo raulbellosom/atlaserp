@@ -779,30 +779,31 @@ export function createFinanceService({ prisma }) {
         );
       }
 
-      const convertedLines = [];
-      for (const line of lines) {
-        const signedOriginalCents = line.debitCents - line.creditCents;
-        const fxResolution = await resolveFxRateForDate({
-          companyId,
-          fromCurrency: line.currency,
-          toCurrency: baseCurrency,
-          occurredAt,
-        });
-        const signedBaseCents = Math.round((signedOriginalCents / 100) * fxResolution.rate * 100);
-        convertedLines.push({
-          ...line,
-          fxRate: fxResolution.rate,
-          baseAmount: decimalStringFromCents(signedBaseCents),
-          fxTrace: {
-            fxRateId: fxResolution.fxRateId,
-            sourceCurrency: fxResolution.sourceCurrency,
-            targetCurrency: fxResolution.targetCurrency,
-            inverted: fxResolution.inverted,
-            rateDate: fxResolution.rateDate,
-            baseCurrency,
-          },
-        });
-      }
+      const convertedLines = await Promise.all(
+        lines.map(async (line) => {
+          const signedOriginalCents = line.debitCents - line.creditCents;
+          const fxResolution = await resolveFxRateForDate({
+            companyId,
+            fromCurrency: line.currency,
+            toCurrency: baseCurrency,
+            occurredAt,
+          });
+          const signedBaseCents = Math.round((signedOriginalCents / 100) * fxResolution.rate * 100);
+          return {
+            ...line,
+            fxRate: fxResolution.rate,
+            baseAmount: decimalStringFromCents(signedBaseCents),
+            fxTrace: {
+              fxRateId: fxResolution.fxRateId,
+              sourceCurrency: fxResolution.sourceCurrency,
+              targetCurrency: fxResolution.targetCurrency,
+              inverted: fxResolution.inverted,
+              rateDate: fxResolution.rateDate,
+              baseCurrency,
+            },
+          };
+        }),
+      );
 
       return prisma.financeJournalEntry.create({
         data: {

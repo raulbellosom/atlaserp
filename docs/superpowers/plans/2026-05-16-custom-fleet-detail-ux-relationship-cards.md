@@ -1,7 +1,7 @@
 ﻿# custom.fleet Detail UX & Relationship Cards - Implementation Plan
 
 Date: 2026-05-16  
-Status: Draft  
+Status: Complete  
 Mode: SPEC + PLAN ONLY  
 Spec: `docs/superpowers/specs/2026-05-16-custom-fleet-detail-ux-relationship-cards-design.md`
 

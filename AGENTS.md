@@ -8,7 +8,7 @@ This file guides Codex and other coding agents working in this repository.
 
 - React + Vite + Tauri for the desktop shell
 - Node.js + Hono for the Atlas API
-- Prisma ORM (pinned to `^6`) with PostgreSQL via self-hosted Supabase
+- Prisma ORM (workspace baseline `^7`) with PostgreSQL via self-hosted Supabase
 - pnpm workspaces
 - TailwindCSS and shared React UI components
 - **Supabase** for Auth, Storage, and PostgreSQL (self-hosted at https://supabase.racoondevs.com)
@@ -80,7 +80,7 @@ Use `pnpm.cmd` from PowerShell if `pnpm` is blocked by Windows execution policy.
 # First time
 pnpm.cmd install --frozen-lockfile
 
-# Database (SSH tunnel required)
+# Database
 pnpm.cmd db:generate   # regenerate Prisma client after schema changes
 pnpm.cmd db:migrate    # apply pending migrations
 pnpm.cmd db:seed       # seed core modules, roles, permissions
@@ -116,7 +116,7 @@ Invoke-WebRequest -UseBasicParsing http://localhost:5173
 - **Never use native browser dialogs** (`window.confirm`, `window.alert`, `window.prompt`, `prompt`). Always use the shared `<ConfirmDialog>` component from `@atlas/ui` for confirmations.
 - Update [docs/TASKS.md](docs/TASKS.md) when completing meaningful project phases.
 - In docs checklists, mark `[x]` only with explicit verification evidence and a concrete `Verified: YYYY-MM-DD (...)` note.
-- Prisma is pinned to `^6` - do not upgrade to v7.
+- Prisma baseline is `^7` in root workspace overrides. Keep Prisma versions aligned across workspace packages.
 - Never expose `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `JWT_SECRET`, or `DATABASE_URL` to the frontend via `VITE_` prefixes.
 
 ## Prisma Migration Safety (Hard Rule)
@@ -128,7 +128,8 @@ Invoke-WebRequest -UseBasicParsing http://localhost:5173
 
 ## Module System
 
-ERP modules are "maps". Manifests live in `packages/maps`.
+AME3 modules are filesystem modules. New module work lives in `modules/custom/` or `modules/official/`.
+`packages/maps` remains transitional fallback only until AME3 Phase 5-7 migration is complete.
 
 **Core modules** (`core: true`, `uninstallable: false`):
 
@@ -142,9 +143,9 @@ ERP modules are "maps". Manifests live in `packages/maps`.
 - `atlas.contacts`
 - `atlas.finance`
 
-Each new module needs: manifest in `packages/maps`, Prisma model(s), API routes/service, Zod schema in `@atlas/validators`, UI screens, and a `docs/TASKS.md` update. See [docs/02_module_system.md](docs/02_module_system.md).
+Each new module needs: `module.manifest.js`, `models/`, `views/`, optional `api/` + `components/`, lifecycle sync, and `docs/TASKS.md` evidence updates. Prefer Atlas ORM (`defineModel`) over new Prisma feature tables. See [docs/02_module_system.md](docs/02_module_system.md).
 
-## Current Phase Status (2026-05-04)
+## Current Phase Status (2026-05-20)
 
 | Phase                             | Status      | Notes                                             |
 | --------------------------------- | ----------- | ------------------------------------------------- |
@@ -156,12 +157,16 @@ Each new module needs: manifest in `packages/maps`, Prisma model(s), API routes/
 | 5 - Shell and module lifecycle UI | Complete    | Runtime registry + catalog + lifecycle guards     |
 | 6 - Contacts module               | Complete    | Full CRUD UI/API + contact picker                 |
 | 7 - Files module                  | Complete    | Files v1 + v1.1 UX + storage unification          |
-| 8 - Finance module                | Not started | Spec/plan prepared, implementation pending        |
+| 8 - Finance module                | Complete    | Implemented and verified                          |
+| AME3 Phase 1                      | Complete    | `@atlas/module-engine` foundation                 |
+| AME3 Phase 2                      | Complete    | Route loader + `custom.fleet` sample module       |
+| AME3 Phase 3                      | Complete    | Atlas ORM + Blueprint renderer                    |
+| AME3 Phase 4                      | Complete    | Discovery+sync primary, route/component lifecycle |
 
 See [docs/TASKS.md](docs/TASKS.md) for the full task checklist.
 
 ## Known Gaps
 
-- Finance module implementation (Phase 8) is pending.
+- AME3 Phase 5+ official module migration is pending (`packages/maps` removal path).
 - Automated contract/regression coverage is still limited for module lifecycle, contacts, and files.
 - Legacy planning docs may include historical unchecked task markers; use `docs/TASKS.md` as status source of truth.

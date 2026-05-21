@@ -22,6 +22,7 @@ import {
   BarChart3,
   FileText,
   Home,
+  Truck,
 } from "lucide-react";
 import { useLauncherStore } from "../stores/launcher";
 import {
@@ -49,11 +50,28 @@ const ICON_MAP = {
   BarChart3,
   FileText,
   Home,
+  Truck,
   Box,
 };
 
-function ModIcon({ name, size = 22, color }) {
-  const Icon = ICON_MAP[name] ?? Box;
+function ModIcon({ name, size = 22, color, logoUrl }) {
+  if (typeof logoUrl === "string" && logoUrl.trim()) {
+    return (
+      <img
+        src={logoUrl}
+        alt=""
+        className="object-contain"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+  const raw = typeof name === "string" ? name.trim() : "";
+  const pascalName = raw
+    .split(/[^a-zA-Z0-9]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join("");
+  const Icon = ICON_MAP[raw] ?? ICON_MAP[pascalName] ?? Box;
   return <Icon size={size} style={{ color }} />;
 }
 
@@ -181,13 +199,18 @@ export function AppLauncher() {
                             className="h-12 w-12 rounded-xl flex items-center justify-center"
                             style={{ backgroundColor: `${module.color}26` }}
                           >
-                            <ModIcon name={module.icon} size={22} color={module.color} />
+                            <ModIcon
+                              name={module.icon}
+                              size={22}
+                              color={module.color}
+                              logoUrl={module.logoUrl}
+                            />
                           </div>
                           <p className="text-xs font-semibold text-[hsl(var(--foreground))] leading-tight">
                             {module.name}
                           </p>
                           <p className="text-[10px] text-[hsl(var(--muted-foreground))] line-clamp-2 leading-snug w-full">
-                            {module.summary}
+                            {module.summary || module.description}
                           </p>
                         </button>
                       ))}

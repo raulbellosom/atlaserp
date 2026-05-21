@@ -675,26 +675,31 @@ export function createFinanceDocumentsService({ prisma }) {
         applyDate,
       });
 
-      const fxByTarget = {};
-      for (const target of targetRows) {
-        try {
-          const fx = await resolveFxRate({
-            companyId,
-            sourceCurrency: source.currency,
-            targetCurrency: target.currency,
-            applyDate,
-          });
-          fxByTarget[target.id] = {
-            effectiveFxRate: rounded(fx.rate),
-            sourceCurrency: source.currency,
-            targetCurrency: target.currency,
-            fxRateId: fx.fxRateId ?? null,
-            fxRateDate: fx.rateDate ?? applyDate,
-          };
-        } catch {
-          fxByTarget[target.id] = null;
-        }
-      }
+      const fxResults = await Promise.all(
+        targetRows.map(async (target) => {
+          try {
+            const fx = await resolveFxRate({
+              companyId,
+              sourceCurrency: source.currency,
+              targetCurrency: target.currency,
+              applyDate,
+            });
+            return {
+              id: target.id,
+              fx: {
+                effectiveFxRate: rounded(fx.rate),
+                sourceCurrency: source.currency,
+                targetCurrency: target.currency,
+                fxRateId: fx.fxRateId ?? null,
+                fxRateDate: fx.rateDate ?? applyDate,
+              },
+            };
+          } catch {
+            return { id: target.id, fx: null };
+          }
+        }),
+      );
+      const fxByTarget = Object.fromEntries(fxResults.map((r) => [r.id, r.fx]));
 
       return {
         source,

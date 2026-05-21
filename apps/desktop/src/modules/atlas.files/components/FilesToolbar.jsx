@@ -137,7 +137,7 @@ export function FilesToolbar({
           onClick={onClearSelection}
           disabled={selectedCount === 0 || bulkLoading}
         >
-          <span className="hidden sm:inline">Limpiar selecci\u00f3n</span>
+          <span className="hidden sm:inline">Limpiar selección</span>
           <span className="sm:hidden">Limpiar</span>
         </Button>
         <div className="sm:ml-auto inline-flex items-center gap-1.5 rounded-xl border border-[hsl(var(--border))] px-1.5 py-1">
@@ -187,7 +187,7 @@ export function FilesToolbar({
               })
             }
           >
-            Tama\u00f1o
+            Tamaño
           </Button>
         </div>
       </div>

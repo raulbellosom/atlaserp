@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Badge,
@@ -43,6 +43,7 @@ export function FinanceEntries({ token }) {
 
   const accounts = accountsQuery.data?.data ?? [];
   const activeAccounts = accounts.filter((a) => a.enabled);
+  const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
   const entries = entriesQuery.data?.data ?? [];
   const pageMeta = SECTION_META.entries;
 
@@ -218,9 +219,7 @@ export function FinanceEntries({ token }) {
                     </thead>
                     <tbody>
                       {ledgerLines.map((line, idx) => {
-                        const account = accounts.find(
-                          (a) => a.id === line.accountId,
-                        );
+                        const account = accountById.get(line.accountId);
                         return (
                           <tr
                             key={line.id || idx}

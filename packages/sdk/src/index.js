@@ -683,6 +683,12 @@ export function createAtlasClient({ baseUrl }) {
         request(`/files/${encodeURIComponent(id)}/signed-url`, {
           headers: withAuthHeaders(token),
         }),
+      batchSignedUrls: (fileIds, token) =>
+        request("/files/batch-signed-urls", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ fileIds }),
+        }),
       rename: (id, data, token) =>
         request(`/files/${encodeURIComponent(id)}`, {
           method: "PATCH",

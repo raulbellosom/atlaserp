@@ -46,11 +46,13 @@ async function inspectProjectRoot(candidateDir) {
   const packageJsonPath = path.join(normalizedDir, 'package.json')
   const modulesPath = path.join(normalizedDir, 'modules')
   const customModulesPath = path.join(modulesPath, SOURCE_CUSTOM)
+  const officialModulesPath = path.join(modulesPath, SOURCE_OFFICIAL)
 
   const pnpmWorkspaceExists = await pathExists(pnpmWorkspacePath)
   const packageJsonExists = await pathExists(packageJsonPath)
   const modulesDirExists = await isDirectory(modulesPath)
   const customModulesDirExists = await isDirectory(customModulesPath)
+  const officialModulesDirExists = await isDirectory(officialModulesPath)
   const valid = pnpmWorkspaceExists && packageJsonExists && modulesDirExists
 
   return {
@@ -59,6 +61,7 @@ async function inspectProjectRoot(candidateDir) {
     packageJsonExists,
     modulesDirExists,
     customModulesDirExists,
+    officialModulesDirExists,
     valid,
   }
 }
@@ -93,6 +96,7 @@ export async function getDiscoveryRootInfo(options = {}) {
         resolution: 'env',
         modulesDirExists: envInspection.modulesDirExists,
         customModulesDirExists: envInspection.customModulesDirExists,
+        officialModulesDirExists: envInspection.officialModulesDirExists,
       }
     }
   }
@@ -105,6 +109,7 @@ export async function getDiscoveryRootInfo(options = {}) {
       resolution: 'cwd-upward',
       modulesDirExists: fromCwd.modulesDirExists,
       customModulesDirExists: fromCwd.customModulesDirExists,
+      officialModulesDirExists: fromCwd.officialModulesDirExists,
     }
   }
 
@@ -116,6 +121,7 @@ export async function getDiscoveryRootInfo(options = {}) {
       resolution: 'api-source-upward',
       modulesDirExists: fromSourceDir.modulesDirExists,
       customModulesDirExists: fromSourceDir.customModulesDirExists,
+      officialModulesDirExists: fromSourceDir.officialModulesDirExists,
     }
   }
 
@@ -457,6 +463,44 @@ export async function loadModuleViews({ moduleDir, manifest }) {
   return views
 }
 
+export async function loadModuleMigrations({ moduleDir, manifest }) {
+  const safeModuleDir = path.resolve(moduleDir)
+  const migrationEntries = Array.isArray(manifest?.migrations) ? manifest.migrations : []
+  if (!migrationEntries.length) return []
+
+  const migrations = []
+  for (let i = 0; i < migrationEntries.length; i += 1) {
+    const entry = migrationEntries[i]
+    if (!isPlainObject(entry)) {
+      throw new Error(`manifest.migrations[${i}] must be an object`)
+    }
+
+    const declaredPath = toRequiredString(entry.path, `manifest.migrations[${i}].path`)
+    const filePath = await resolveDeclaredModuleFile({
+      moduleDir: safeModuleDir,
+      declaredPath,
+      label: `manifest.migrations path "${declaredPath}"`,
+    })
+    const filename = path.basename(filePath)
+    const checksum = toRequiredString(entry.checksum, `manifest.migrations[${i}].checksum`).toLowerCase()
+    const sql = await fs.readFile(filePath, 'utf8')
+    if (!sql.trim()) {
+      throw new Error(`Migration file is empty: ${declaredPath}`)
+    }
+
+    migrations.push({
+      path: declaredPath,
+      localPath: relativePath(safeModuleDir, filePath),
+      absolutePath: filePath,
+      filename,
+      checksum,
+      sql,
+    })
+  }
+
+  return migrations
+}
+
 async function discoverModulesBySource({ rootDir, source }) {
   const safeRootDir = normalizeRootDir(rootDir)
   const sourceRoot = path.resolve(safeRootDir, 'modules', source)
@@ -500,6 +544,7 @@ async function discoverModulesBySource({ rootDir, source }) {
         error: loadedManifest.error,
         models: [],
         views: [],
+        migrations: [],
       }
 
       if (loadedManifest.status === 'ERROR') {
@@ -513,6 +558,10 @@ async function discoverModulesBySource({ rootDir, source }) {
           manifest: loadedManifest.manifest,
         })
         baseRecord.views = await loadModuleViews({
+          moduleDir: moduleDirReal,
+          manifest: loadedManifest.manifest,
+        })
+        baseRecord.migrations = await loadModuleMigrations({
           moduleDir: moduleDirReal,
           manifest: loadedManifest.manifest,
         })
@@ -541,6 +590,7 @@ async function discoverModulesBySource({ rootDir, source }) {
         error: toRecordError('DISCOVERY_IO_ERROR', error),
         models: [],
         views: [],
+        migrations: [],
       })
     }
   }

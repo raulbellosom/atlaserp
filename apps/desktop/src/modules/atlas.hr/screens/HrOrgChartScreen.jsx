@@ -62,23 +62,9 @@ function buildEmployeeOptions(employees = []) {
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 
-function OrgAvatar({ node, token }) {
+function OrgAvatar({ node }) {
   const colors = STATUS_COLORS[node.status] ?? STATUS_COLORS.inactive;
   const initials = getInitials(node.name);
-
-  const imageQuery = useQuery({
-    queryKey: ["org-avatar", node.profileImageFileId],
-    queryFn: async () => {
-      const res = await atlas.files.getSignedUrl(
-        node.profileImageFileId,
-        token,
-      );
-      return res?.data?.signedUrl ?? null;
-    },
-    enabled: Boolean(token && node.profileImageFileId),
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
 
   return (
     <div
@@ -89,9 +75,9 @@ function OrgAvatar({ node, token }) {
         colors.text,
       )}
     >
-      {imageQuery.data ? (
+      {node.profileImageUrl ? (
         <img
-          src={imageQuery.data}
+          src={node.profileImageUrl}
           alt={node.name}
           className="h-full w-full object-cover"
         />
@@ -169,7 +155,7 @@ function OrgCard({ node, token, onOpen, onOpenUser }) {
       {/* Header row */}
       <div className="flex items-start gap-3">
         {/* Avatar */}
-        <OrgAvatar node={node} token={token} />
+        <OrgAvatar node={node} />
 
         {/* Name + code */}
         <div className="flex-1 min-w-0">

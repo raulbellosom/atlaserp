@@ -45,7 +45,7 @@ function handleRouteError(c, err, { fallbackError, route, moduleKey, operation }
   return c.json({ error: fallbackError }, 500)
 }
 
-export default function createFleetRouter({ prisma, requirePermission, moduleContext }) {
+export default function createFleetRouter({ prisma, requirePermission, moduleContext, cache = null }) {
   const app = new Hono()
   const service = createFleetService({ prisma })
   const moduleKey = moduleContext?.moduleKey ?? 'custom.fleet'
@@ -156,7 +156,7 @@ export default function createFleetRouter({ prisma, requirePermission, moduleCon
 
   app.route('', createDriversRouter({ prisma, requirePermission, moduleContext }))
   app.route('', createMaintenanceRouter({ prisma, requirePermission, moduleContext }))
-  app.route('', createCatalogsRouter({ prisma, requirePermission, moduleContext }))
+  app.route('', createCatalogsRouter({ prisma, requirePermission, moduleContext, cache }))
 
   return app
 }

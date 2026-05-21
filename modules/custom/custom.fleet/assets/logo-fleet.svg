@@ -1,0 +1,34 @@
+﻿<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="96" y1="96" x2="928" y2="928" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#14B8A6"/>
+      <stop offset="1" stop-color="#0F766E"/>
+    </linearGradient>
+    <linearGradient id="cab" x1="240" y1="320" x2="820" y2="680" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ECFEFF"/>
+      <stop offset="1" stop-color="#CCFBF1"/>
+    </linearGradient>
+    <filter id="shadow" x="190" y="250" width="660" height="520" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#0B5B55" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <rect x="96" y="96" width="832" height="832" rx="220" fill="url(#bg)"/>
+
+  <g filter="url(#shadow)">
+    <path d="M276 556C276 522.86 302.86 496 336 496H604C637.14 496 664 522.86 664 556V612H276V556Z" fill="url(#cab)"/>
+    <path d="M664 612H748C771.2 612 790 630.8 790 654V670H664V612Z" fill="url(#cab)"/>
+    <path d="M366 442C366 423.22 381.22 408 400 408H568C586.78 408 602 423.22 602 442V496H366V442Z" fill="url(#cab)"/>
+    <rect x="392" y="434" width="94" height="46" rx="12" fill="#99F6E4"/>
+    <rect x="500" y="434" width="76" height="46" rx="12" fill="#99F6E4"/>
+    <rect x="288" y="626" width="500" height="34" rx="17" fill="#CCFBF1"/>
+  </g>
+
+  <circle cx="402" cy="682" r="62" fill="#0B5B55"/>
+  <circle cx="402" cy="682" r="31" fill="#99F6E4"/>
+  <circle cx="664" cy="682" r="62" fill="#0B5B55"/>
+  <circle cx="664" cy="682" r="31" fill="#99F6E4"/>
+
+  <path d="M732 302L754 324L676 402L654 380L732 302Z" fill="#99F6E4"/>
+  <path d="M782 352L804 374L726 452L704 430L782 352Z" fill="#99F6E4" opacity="0.9"/>
+</svg>

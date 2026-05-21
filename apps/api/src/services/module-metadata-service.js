@@ -66,6 +66,15 @@ function deriveRelationPayload(field) {
   return null
 }
 
+function normalizeFieldNameSet(fields = []) {
+  const names = new Set()
+  for (const field of Array.isArray(fields) ? fields : []) {
+    if (typeof field?.name !== 'string' || !field.name.trim()) continue
+    names.add(field.name.trim())
+  }
+  return names
+}
+
 export function createModuleMetadataService({ prisma }) {
   if (!prisma) {
     throw new Error('createModuleMetadataService: prisma is required')
@@ -171,16 +180,37 @@ export function createModuleMetadataService({ prisma }) {
           views: true,
         },
       })
-      if (Array.isArray(safeModel.fields)) {
-        for (let i = 0; i < safeModel.fields.length; i += 1) {
-          await upsertField({
-            modelId: remapped.id,
-            field: safeModel.fields[i],
-            order: i,
-            tx,
-          })
-        }
+    if (Array.isArray(safeModel.fields)) {
+      for (let i = 0; i < safeModel.fields.length; i += 1) {
+        await upsertField({
+          modelId: remapped.id,
+          field: safeModel.fields[i],
+          order: i,
+          tx,
+        })
       }
+      const activeFieldNames = normalizeFieldNameSet(safeModel.fields)
+      const staleFields = await tx.atlasField.findMany({
+        where: { modelId: remapped.id },
+        select: { id: true, name: true },
+      })
+      const staleFieldIds = staleFields
+        .filter((row) => !activeFieldNames.has(row.name))
+        .map((row) => row.id)
+      if (staleFieldIds.length > 0) {
+        await tx.atlasField.updateMany({
+          where: { id: { in: staleFieldIds } },
+          data: {
+            readonly: true,
+            required: false,
+            validation: {
+              disabled: true,
+              reason: 'removed_from_manifest',
+            },
+          },
+        })
+      }
+    }
       return tx.atlasModel.findUnique({
         where: { id: remapped.id },
         include: { fields: true, views: true },
@@ -208,6 +238,27 @@ export function createModuleMetadataService({ prisma }) {
           field: safeModel.fields[i],
           order: i,
           tx,
+        })
+      }
+      const activeFieldNames = normalizeFieldNameSet(safeModel.fields)
+      const staleFields = await tx.atlasField.findMany({
+        where: { modelId: upserted.id },
+        select: { id: true, name: true },
+      })
+      const staleFieldIds = staleFields
+        .filter((row) => !activeFieldNames.has(row.name))
+        .map((row) => row.id)
+      if (staleFieldIds.length > 0) {
+        await tx.atlasField.updateMany({
+          where: { id: { in: staleFieldIds } },
+          data: {
+            readonly: true,
+            required: false,
+            validation: {
+              disabled: true,
+              reason: 'removed_from_manifest',
+            },
+          },
         })
       }
     }
@@ -274,6 +325,54 @@ export function createModuleMetadataService({ prisma }) {
       for (const view of safeViews) {
         const persisted = await upsertView({ moduleKey, view, modelAliases, tx })
         persistedViews.push(persisted)
+      }
+
+      const activeModelNames = new Set(
+        safeModels.map((model) => {
+          try {
+            return toModelName(model)
+          } catch {
+            return null
+          }
+        }).filter(Boolean)
+      )
+      if (activeModelNames.size > 0) {
+        await tx.atlasModel.updateMany({
+          where: {
+            moduleKey,
+            name: { notIn: [...activeModelNames.values()] },
+            enabled: true,
+          },
+          data: { enabled: false },
+        })
+      } else {
+        await tx.atlasModel.updateMany({
+          where: { moduleKey, enabled: true },
+          data: { enabled: false },
+        })
+      }
+
+      const activeViewKeys = new Set(
+        safeViews
+          .map((view) =>
+            typeof view?.key === 'string' && view.key.trim() ? view.key.trim() : null
+          )
+          .filter(Boolean)
+      )
+      if (activeViewKeys.size > 0) {
+        await tx.atlasView.updateMany({
+          where: {
+            moduleKey,
+            key: { notIn: [...activeViewKeys.values()] },
+            enabled: true,
+          },
+          data: { enabled: false },
+        })
+      } else {
+        await tx.atlasView.updateMany({
+          where: { moduleKey, enabled: true },
+          data: { enabled: false },
+        })
       }
 
       return {

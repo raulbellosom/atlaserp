@@ -20,6 +20,7 @@ import {
   BarChart3,
   FileText,
   Home,
+  Truck,
   Wifi,
   WifiOff,
 } from "lucide-react";
@@ -36,11 +37,27 @@ import { useRuntimeModules } from "./useRuntimeModules";
 const ICON_MAP = {
   LayoutDashboard, Puzzle, Settings, Contact, Wallet, Users, Shield,
   Palette, FolderOpen, Building2, Layers, ContactRound, Landmark,
-  CreditCard, BarChart3, FileText, Home, Box,
+  CreditCard, BarChart3, FileText, Home, Truck, Box,
 };
 
-function ModIcon({ name, size = 24, color }) {
-  const Icon = ICON_MAP[name] ?? Box;
+function ModIcon({ name, size = 24, color, logoUrl }) {
+  if (typeof logoUrl === "string" && logoUrl.trim()) {
+    return (
+      <img
+        src={logoUrl}
+        alt=""
+        className="object-contain"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+  const raw = typeof name === "string" ? name.trim() : "";
+  const pascalName = raw
+    .split(/[^a-zA-Z0-9]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join("");
+  const Icon = ICON_MAP[raw] ?? ICON_MAP[pascalName] ?? Box;
   return <Icon size={size} style={{ color }} />;
 }
 
@@ -196,14 +213,19 @@ export function HomeScreen() {
                         className="rounded-xl flex items-center justify-center"
                         style={{ height: 48, width: 48, backgroundColor: `${module.color}22` }}
                       >
-                        <ModIcon name={module.icon} size={22} color={module.color} />
+                        <ModIcon
+                          name={module.icon}
+                          size={22}
+                          color={module.color}
+                          logoUrl={module.logoUrl}
+                        />
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-[hsl(var(--foreground))] leading-tight">
                           {module.name}
                         </p>
                         <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1 line-clamp-2 leading-snug">
-                          {module.summary}
+                          {module.summary || module.description}
                         </p>
                       </div>
                     </button>

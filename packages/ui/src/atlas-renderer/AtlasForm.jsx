@@ -19,6 +19,7 @@ import {
 } from "../components/FormFields.jsx";
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
 import { normalizeSpanishLabel, normalizeRelationDescriptor } from "./renderer-adapters.js";
+import { cn } from "../lib/utils.js";
 import { normalizeField, normalizeSections } from "./atlas-form-schema.js";
 
 const STATUS_LABELS = {
@@ -41,6 +42,11 @@ const PRESET_COLORS = [
 ];
 
 const TEXT_TYPES = new Set(["text", "email", "phone", "textarea", "markdown"]);
+
+// Module-level cache for relation field options — persists across modal open/close cycles.
+// Key: full URL string. Avoids re-fetching reference data (brands, types, models) on every modal mount.
+const _relationOptionsCache = new Map(); // url → { options, ts }
+const _RELATION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 function joinUrl(baseUrl, apiPath) {
   const base = String(baseUrl ?? "").trim().replace(/\/+$/, "");
@@ -218,16 +224,30 @@ export function AtlasForm({
 
   const loadRelationOptions = useCallback(
     async (fieldName, descriptor, search) => {
+      const url = new URL(joinUrl(apiBaseUrl, descriptor.apiPath));
+      url.searchParams.set(descriptor.pageParam, "1");
+      url.searchParams.set(descriptor.pageSizeParam, String(descriptor.pageSize));
+      if (search) url.searchParams.set(descriptor.searchParam, search);
+      const cacheKey = url.toString();
+
+      // Serve from module-level cache if fresh and it's not a search query
+      if (!search) {
+        const cached = _relationOptionsCache.get(cacheKey);
+        if (cached && Date.now() - cached.ts < _RELATION_CACHE_TTL) {
+          setRelationState((prev) => ({
+            ...prev,
+            [fieldName]: { options: cached.options, loading: false, error: null },
+          }));
+          return true;
+        }
+      }
+
       setRelationState((prev) => ({
         ...prev,
         [fieldName]: { options: prev[fieldName]?.options ?? [], loading: true, error: null },
       }));
       try {
-        const url = new URL(joinUrl(apiBaseUrl, descriptor.apiPath));
-        url.searchParams.set(descriptor.pageParam, "1");
-        url.searchParams.set(descriptor.pageSizeParam, String(descriptor.pageSize));
-        if (search) url.searchParams.set(descriptor.searchParam, search);
-        const res = await fetch(url.toString(), {
+        const res = await fetch(cacheKey, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -240,6 +260,9 @@ export function AtlasForm({
             disabled: descriptor.disabledField ? row[descriptor.disabledField] === false : false,
           }))
           .filter((o) => o.value);
+        if (!search) {
+          _relationOptionsCache.set(cacheKey, { options, ts: Date.now() });
+        }
         setRelationState((prev) => ({
           ...prev,
           [fieldName]: { options, loading: false, error: null },
@@ -329,6 +352,10 @@ export function AtlasForm({
   const handleRelationSearch = (fieldName, descriptor, search) => {
     if (descriptor.source !== "remote") return;
     clearTimeout(relationDebounceRef.current[fieldName]);
+    if (!search) {
+      loadRelationOptions(fieldName, descriptor, "");
+      return;
+    }
     relationDebounceRef.current[fieldName] = setTimeout(() => {
       loadRelationOptions(fieldName, descriptor, search);
     }, 300);
@@ -379,11 +406,15 @@ export function AtlasForm({
 
   const openInlineCreate = useCallback(
     async (fieldName, descriptor, searchText) => {
-      if (!allowInlineCreate || inlineCreateDepth > 0) return;
+      if (!allowInlineCreate || inlineCreateDepth > 1) return;
       if (!descriptor?.create?.enabled) return;
 
       const viewKey = String(descriptor.create.viewKey ?? "").trim();
       if (!viewKey) return;
+
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
 
       setRelationInlineErrors((prev) => ({ ...prev, [fieldName]: "" }));
 
@@ -783,7 +814,7 @@ export function AtlasForm({
         const staticOpts = descriptor.source === "static" ? descriptor.options : rs.options;
         const createActionLabel = descriptor.create?.label ?? normalizeSpanishLabel("Crear nuevo");
         const canInlineCreate =
-          Boolean(descriptor.create?.enabled) && allowInlineCreate && inlineCreateDepth === 0;
+          Boolean(descriptor.create?.enabled) && allowInlineCreate && inlineCreateDepth < 2;
         return (
           <RelationSelectField
             {...sharedProps}
@@ -922,6 +953,7 @@ export function AtlasForm({
       )}
 
       <Dialog
+        modal={inlineCreateDepth === 0}
         open={inlineCreateState.open}
         onOpenChange={(open) => {
           if (!open) closeInlineCreate();
@@ -954,7 +986,7 @@ export function AtlasForm({
                   onCancel={closeInlineCreate}
                   blueprints={Array.isArray(blueprints) ? blueprints : nestedBlueprintRows}
                   resolveBlueprintByKey={resolveBlueprintByKey}
-                  allowInlineCreate={false}
+                  allowInlineCreate={inlineCreateDepth < 1}
                   inlineCreateDepth={inlineCreateDepth + 1}
                 />
               </div>
@@ -970,7 +1002,7 @@ export function AtlasForm({
         </DialogContent>
       </Dialog>
 
-      <div className="sticky bottom-0 z-10 -mx-1 flex items-center justify-end gap-2 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-1 pb-1 pt-3 backdrop-blur supports-backdrop-filter:bg-[hsl(var(--background))]/80">
+      <div className={cn("sticky bottom-0 z-10 -mx-1 flex items-center justify-end gap-2 border-t border-[hsl(var(--border))] px-1 pb-1 pt-3", inlineCreateDepth === 0 && "bg-[hsl(var(--background))]/95 backdrop-blur supports-backdrop-filter:bg-[hsl(var(--background))]/80")}>
         <Button type="button" variant="outline" onClick={() => onCancel?.()} disabled={submitting}>
           Cancelar
         </Button>

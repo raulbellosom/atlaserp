@@ -1,0 +1,24 @@
+﻿<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="fleetGlow" x1="48" y1="40" x2="214" y2="214" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2DD4BF"/>
+      <stop offset="1" stop-color="#0F766E"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="18" y="28" width="154" height="92" rx="22" fill="url(#fleetGlow)"/>
+  <path d="M172 64H198C205.2 64 211.8 67.9 215.2 74.2L229 100.2C230.3 102.7 231 105.5 231 108.3V129H172V64Z" fill="#14B8A6"/>
+
+  <rect x="36" y="49" width="62" height="39" rx="10" fill="#ECFEFF" fill-opacity="0.88"/>
+  <rect x="108" y="49" width="48" height="39" rx="10" fill="#CCFBF1" fill-opacity="0.9"/>
+
+  <rect x="30" y="120" width="206" height="22" rx="11" fill="#0F766E"/>
+
+  <circle cx="78" cy="165" r="29" fill="#0F766E"/>
+  <circle cx="78" cy="165" r="13" fill="#99F6E4"/>
+  <circle cx="189" cy="165" r="29" fill="#0F766E"/>
+  <circle cx="189" cy="165" r="13" fill="#99F6E4"/>
+
+  <path d="M160 34L178 52L143 87L125 69L160 34Z" fill="#14B8A6"/>
+  <path d="M190 41L202 53L167 88L155 76L190 41Z" fill="#2DD4BF"/>
+</svg>

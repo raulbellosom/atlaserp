@@ -67,6 +67,7 @@ import { createHrService, HrServiceError } from "./services/hr-service.js";
 import { createLedgerRouter } from "./routes/ledger.js";
 import { createModulesRouter } from "./routes/modules.js";
 import { createRouteLoaderService } from "./services/route-loader-service.js";
+import { get as cacheGet, set as cacheSet, del as cacheDel, delByPrefix as cacheDelByPrefix, TTL } from "./lib/cache.js";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 loadEnv({
@@ -175,6 +176,10 @@ const ADMIN_ROLE_KEYS = new Set(["atlas.admin", "system.admin"]);
 const BASE_PERMISSION_KEYS = new Set(["profile.self.read"]);
 
 async function getUserContextByAuthId(authUserId) {
+  const cacheKey = `user_ctx:${authUserId}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
   const profile = await prisma.userProfile.findUnique({
     where: { authUserId },
   });
@@ -182,7 +187,7 @@ async function getUserContextByAuthId(authUserId) {
   const memberships = await prisma.membership.findMany({
     where: { userId: profile.id, enabled: true },
     include: {
-      company: true,
+      company: { select: { id: true, name: true, slug: true } },
       role: {
         include: {
           permissions: {
@@ -218,13 +223,14 @@ async function getUserContextByAuthId(authUserId) {
     const allPermissions = await prisma.permission.findMany({
       where: { active: true },
       select: { key: true },
+      take: 1000,
     });
     for (const permission of allPermissions) {
       permissionSet.add(permission.key);
     }
   }
 
-  return {
+  const context = {
     profile,
     memberships: activeMemberships,
     roleKey,
@@ -232,6 +238,8 @@ async function getUserContextByAuthId(authUserId) {
     permissions: [...permissionSet].sort(),
     permissionSet,
   };
+  cacheSet(cacheKey, context, TTL.USER_CONTEXT);
+  return context;
 }
 
 async function getOrLoadUserContext(c) {
@@ -459,6 +467,7 @@ const routeLoader = createRouteLoaderService({
   prisma,
   authMiddleware,
   requirePermission,
+  cache: { get: cacheGet, set: cacheSet, del: cacheDel, delByPrefix: cacheDelByPrefix, TTL },
 });
 
 app.use(
@@ -995,35 +1004,50 @@ app.get("/memberships/me", authMiddleware, async (c) => {
       },
     });
 
-    // Resolve logo signed URLs for each company
-    const data = await Promise.all(
-      memberships.map(async (m) => {
-        let logoUrl = null;
-        const logoFileId = m.company?.brandingConfig?.logoFileId;
-        if (logoFileId) {
-          const fileAsset = await prisma.fileAsset.findUnique({
-            where: { id: logoFileId },
-          });
-          if (fileAsset) {
-            const { data: signedData } = await supabaseAdmin.storage
-              .from(fileAsset.bucket)
-              .createSignedUrl(fileAsset.objectKey, 3600);
-            logoUrl = signedData?.signedUrl ?? null;
+    // Batch-load all logo file assets in a single query, then batch signed URLs per bucket.
+    const logoFileIds = memberships
+      .map((m) => m.company?.brandingConfig?.logoFileId)
+      .filter(Boolean);
+    const logoUrlMap = new Map();
+    if (logoFileIds.length > 0) {
+      const logoAssets = await prisma.fileAsset.findMany({
+        where: { id: { in: logoFileIds } },
+        select: { id: true, bucket: true, objectKey: true },
+      });
+      const byBucket = new Map();
+      for (const asset of logoAssets) {
+        if (!byBucket.has(asset.bucket)) byBucket.set(asset.bucket, []);
+        byBucket.get(asset.bucket).push(asset);
+      }
+      await Promise.all(
+        [...byBucket.entries()].map(async ([bucket, assets]) => {
+          const paths = assets.map((a) => a.objectKey);
+          const { data: signedList } = await supabaseAdmin.storage
+            .from(bucket)
+            .createSignedUrls(paths, 3600);
+          if (Array.isArray(signedList)) {
+            for (let i = 0; i < assets.length; i++) {
+              logoUrlMap.set(assets[i].id, signedList[i]?.signedUrl ?? null);
+            }
           }
-        }
-        return {
-          ...m,
-          company: m.company
-            ? {
-                id: m.company.id,
-                name: m.company.name,
-                logoUrl,
-                primaryColor: m.company.brandingConfig?.primaryColor ?? null,
-              }
-            : null,
-        };
-      }),
-    );
+        }),
+      );
+    }
+
+    const data = memberships.map((m) => {
+      const logoFileId = m.company?.brandingConfig?.logoFileId;
+      return {
+        ...m,
+        company: m.company
+          ? {
+              id: m.company.id,
+              name: m.company.name,
+              logoUrl: logoFileId ? (logoUrlMap.get(logoFileId) ?? null) : null,
+              primaryColor: m.company.brandingConfig?.primaryColor ?? null,
+            }
+          : null,
+      };
+    });
 
     return c.json({ data });
   } catch (e) {
@@ -1048,6 +1072,7 @@ app.get(
               "instance_name",
               "instance_time_zone",
               "instance_currency",
+              "instance_description",
             ],
           },
         },
@@ -1061,6 +1086,7 @@ app.get(
           instanceName: values.instance_name ?? "Atlas ERP",
           timeZone: values.instance_time_zone ?? "America/Mexico_City",
           currency: values.instance_currency ?? "MXN",
+          description: values.instance_description ?? "",
         },
       });
     } catch {
@@ -1081,9 +1107,16 @@ app.put(
       const currency = String(body.currency ?? "")
         .trim()
         .toUpperCase();
+      const description = String(body.description ?? "").trim();
       if (!instanceName || !timeZone || !currency) {
         return c.json(
           { error: "instanceName, timeZone y currency son obligatorios." },
+          400,
+        );
+      }
+      if (description.length > 500) {
+        return c.json(
+          { error: "La descripcion no puede exceder 500 caracteres." },
           400,
         );
       }
@@ -1091,6 +1124,7 @@ app.put(
         ["instance_name", instanceName],
         ["instance_time_zone", timeZone],
         ["instance_currency", currency],
+        ["instance_description", description],
       ];
       await prisma.$transaction(
         pairs.map(([key, value]) =>
@@ -1101,7 +1135,7 @@ app.put(
           }),
         ),
       );
-      return c.json({ data: { instanceName, timeZone, currency } });
+      return c.json({ data: { instanceName, timeZone, currency, description } });
     } catch {
       return c.json({ error: "No se pudo guardar la configuracion." }, 500);
     }
@@ -1485,6 +1519,48 @@ app.get(
   },
 );
 
+app.post(
+  "/files/batch-signed-urls",
+  authMiddleware,
+  requirePermission("files.assets.read"),
+  async (c) => {
+    try {
+      const body = await c.req.json();
+      const fileIds = Array.isArray(body?.fileIds) ? body.fileIds.slice(0, 50) : [];
+      if (fileIds.length === 0) return c.json({ data: {} });
+
+      const assets = await prisma.fileAsset.findMany({
+        where: { id: { in: fileIds }, enabled: true },
+        select: { id: true, bucket: true, objectKey: true },
+      });
+
+      const byBucket = new Map();
+      for (const asset of assets) {
+        if (!byBucket.has(asset.bucket)) byBucket.set(asset.bucket, []);
+        byBucket.get(asset.bucket).push(asset);
+      }
+
+      const urlMap = {};
+      await Promise.all(
+        [...byBucket.entries()].map(async ([bucket, bucketAssets]) => {
+          const { data: signedList } = await supabaseAdmin.storage
+            .from(bucket)
+            .createSignedUrls(bucketAssets.map((a) => a.objectKey), 3600);
+          if (Array.isArray(signedList)) {
+            for (let i = 0; i < bucketAssets.length; i++) {
+              urlMap[bucketAssets[i].id] = signedList[i]?.signedUrl ?? null;
+            }
+          }
+        }),
+      );
+
+      return c.json({ data: urlMap });
+    } catch (err) {
+      return c.json({ error: "No se pudieron generar los enlaces de archivos." }, 500);
+    }
+  },
+);
+
 app.patch(
   "/files/:id/enabled",
   authMiddleware,
@@ -1574,7 +1650,7 @@ app.get(
     try {
       const roles = await prisma.role.findMany({
         include: {
-          permissions: { include: { permission: true } },
+          permissions: { select: { permission: { select: { id: true, key: true, name: true, moduleId: true } } } },
         },
         orderBy: { name: "asc" },
       });
@@ -1715,21 +1791,49 @@ app.get(
         },
         orderBy: { createdAt: "desc" },
       });
-      const usersWithAvatars = await Promise.all(
-        users.map(async (user) => ({
-          ...user,
-          avatarUrl: await getSignedUrlByFileId(user.avatarFileId),
-          memberships: user.memberships.map((m) => ({
-            id: m.id,
-            companyId: m.companyId,
-            companyName: m.company?.name ?? null,
-            roleId: m.roleId,
-            roleKey: m.role?.key ?? null,
-            roleName: m.role?.name ?? null,
-            enabled: m.enabled,
-          })),
+
+      // Batch-load all avatar file assets in a single query, then batch signed URLs per bucket.
+      const avatarFileIds = users.map((u) => u.avatarFileId).filter(Boolean);
+      const avatarUrlMap = new Map();
+      if (avatarFileIds.length > 0) {
+        const fileAssets = await prisma.fileAsset.findMany({
+          where: { id: { in: avatarFileIds } },
+          select: { id: true, bucket: true, objectKey: true },
+        });
+        // Group by bucket so we call createSignedUrls once per bucket
+        const byBucket = new Map();
+        for (const asset of fileAssets) {
+          if (!byBucket.has(asset.bucket)) byBucket.set(asset.bucket, []);
+          byBucket.get(asset.bucket).push(asset);
+        }
+        await Promise.all(
+          [...byBucket.entries()].map(async ([bucket, assets]) => {
+            const paths = assets.map((a) => a.objectKey);
+            const { data: signedList } = await supabaseAdmin.storage
+              .from(bucket)
+              .createSignedUrls(paths, 3600);
+            if (Array.isArray(signedList)) {
+              for (let i = 0; i < assets.length; i++) {
+                avatarUrlMap.set(assets[i].id, signedList[i]?.signedUrl ?? null);
+              }
+            }
+          }),
+        );
+      }
+
+      const usersWithAvatars = users.map((user) => ({
+        ...user,
+        avatarUrl: user.avatarFileId ? (avatarUrlMap.get(user.avatarFileId) ?? null) : null,
+        memberships: user.memberships.map((m) => ({
+          id: m.id,
+          companyId: m.companyId,
+          companyName: m.company?.name ?? null,
+          roleId: m.roleId,
+          roleKey: m.role?.key ?? null,
+          roleName: m.role?.name ?? null,
+          enabled: m.enabled,
         })),
-      );
+      }));
       return c.json({ data: usersWithAvatars });
     } catch {
       return c.json({ error: "No se pudieron cargar los usuarios." }, 500);
@@ -1880,28 +1984,34 @@ app.get("/runtime/modules", authMiddleware, async (c) => {
     );
   }
 
-  const modules = await prisma.atlasModule.findMany({
-    orderBy: [{ core: "desc" }, { name: "asc" }],
-    include: {
-      dependencies: {
-        include: {
-          dependency: {
-            select: {
-              id: true,
-              key: true,
-              name: true,
-              status: true,
-              enabled: true,
-              version: true,
+  // Cache raw DB data — the per-user access filter is applied below on each request.
+  // Invalidated by module lifecycle events (same points as blueprints:raw).
+  let modulesRaw = cacheGet("runtime:modules:raw");
+  if (!modulesRaw) {
+    modulesRaw = await prisma.atlasModule.findMany({
+      orderBy: [{ core: "desc" }, { name: "asc" }],
+      include: {
+        dependencies: {
+          include: {
+            dependency: {
+              select: {
+                id: true,
+                key: true,
+                name: true,
+                status: true,
+                enabled: true,
+                version: true,
+              },
             },
           },
         },
       },
-    },
-  });
+    });
+    cacheSet("runtime:modules:raw", modulesRaw, TTL.BLUEPRINTS);
+  }
 
   return c.json({
-    data: serializeModulesForResponse(modules, context, {
+    data: serializeModulesForResponse(modulesRaw, context, {
       filterByPermission: true,
       filterNavigation: true,
     }),
@@ -1918,32 +2028,39 @@ app.get("/blueprints", authMiddleware, async (c) => {
     );
   }
 
-  const [blueprints, installedModuleRows] = await Promise.all([
-    prisma.blueprint.findMany({
-      where: { enabled: true },
-      include: { module: true },
-    }),
-    prisma.atlasModule.findMany({
-      where: { status: "INSTALLED", enabled: true },
-      select: {
-        key: true,
-        name: true,
-        status: true,
+  // Cache raw DB data — the per-user access filter is applied below on each request.
+  // Invalidated by module lifecycle events (install/enable/disable/uninstall/sync/reset).
+  let blueprintRaw = cacheGet("blueprints:raw");
+  if (!blueprintRaw) {
+    const [blueprints, installedModuleRows] = await Promise.all([
+      prisma.blueprint.findMany({
+        where: { enabled: true },
+        include: { module: true },
+      }),
+      prisma.atlasModule.findMany({
+        where: { status: "INSTALLED", enabled: true },
+        select: {
+          key: true,
+          name: true,
+          status: true,
+          enabled: true,
+          version: true,
+          manifest: true,
+        },
+      }),
+    ]);
+    const atlasViews = await prisma.atlasView.findMany({
+      where: {
         enabled: true,
-        version: true,
-        manifest: true,
+        moduleKey: { in: installedModuleRows.map((row) => row.key) },
       },
-    }),
-  ]);
+    });
+    blueprintRaw = { blueprints, installedModuleRows, atlasViews };
+    cacheSet("blueprints:raw", blueprintRaw, TTL.BLUEPRINTS);
+  }
 
+  const { blueprints, installedModuleRows, atlasViews } = blueprintRaw;
   const moduleRowsByKey = new Map(installedModuleRows.map((row) => [row.key, row]));
-  const atlasViews = await prisma.atlasView.findMany({
-    where: {
-      enabled: true,
-      moduleKey: { in: installedModuleRows.map((row) => row.key) },
-    },
-  });
-
   const mergedByKey = new Map();
 
   for (const blueprint of blueprints) {
@@ -2530,18 +2647,77 @@ app.get(
         enabled,
       });
 
-      // Resolve avatar signed URLs for linkedUser on each node
-      async function resolveNodeAvatars(node) {
-        if (node.linkedUser?.avatarFileId) {
-          node.linkedUser.avatarUrl = await getSignedUrlByFileId(
-            node.linkedUser.avatarFileId,
-          );
+      // Batch-collect all avatarFileIds from the tree, load in one query, then assign.
+      function collectNodes(node, out = []) {
+        out.push(node);
+        if (Array.isArray(node.children)) node.children.forEach((c) => collectNodes(c, out));
+        return out;
+      }
+      const allNodes = (chart.roots ?? []).flatMap((r) => collectNodes(r));
+      const orgAvatarFileIds = allNodes
+        .map((n) => n.linkedUser?.avatarFileId)
+        .filter(Boolean);
+      const orgAvatarUrlMap = new Map();
+      if (orgAvatarFileIds.length > 0) {
+        const orgAssets = await prisma.fileAsset.findMany({
+          where: { id: { in: orgAvatarFileIds } },
+          select: { id: true, bucket: true, objectKey: true },
+        });
+        const byBucket = new Map();
+        for (const asset of orgAssets) {
+          if (!byBucket.has(asset.bucket)) byBucket.set(asset.bucket, []);
+          byBucket.get(asset.bucket).push(asset);
         }
-        if (Array.isArray(node.children)) {
-          await Promise.all(node.children.map(resolveNodeAvatars));
+        await Promise.all(
+          [...byBucket.entries()].map(async ([bucket, assets]) => {
+            const { data: signedList } = await supabaseAdmin.storage
+              .from(bucket)
+              .createSignedUrls(assets.map((a) => a.objectKey), 3600);
+            if (Array.isArray(signedList)) {
+              for (let i = 0; i < assets.length; i++) {
+                orgAvatarUrlMap.set(assets[i].id, signedList[i]?.signedUrl ?? null);
+              }
+            }
+          }),
+        );
+      }
+      for (const node of allNodes) {
+        if (node.linkedUser?.avatarFileId) {
+          node.linkedUser.avatarUrl = orgAvatarUrlMap.get(node.linkedUser.avatarFileId) ?? null;
         }
       }
-      await Promise.all((chart.roots ?? []).map(resolveNodeAvatars));
+
+      // Batch-load profileImageFileId signed URLs — avoids N per-node frontend requests.
+      const orgProfileFileIds = allNodes.map((n) => n.profileImageFileId).filter(Boolean);
+      const orgProfileUrlMap = new Map();
+      if (orgProfileFileIds.length > 0) {
+        const profileAssets = await prisma.fileAsset.findMany({
+          where: { id: { in: orgProfileFileIds } },
+          select: { id: true, bucket: true, objectKey: true },
+        });
+        const profileByBucket = new Map();
+        for (const asset of profileAssets) {
+          if (!profileByBucket.has(asset.bucket)) profileByBucket.set(asset.bucket, []);
+          profileByBucket.get(asset.bucket).push(asset);
+        }
+        await Promise.all(
+          [...profileByBucket.entries()].map(async ([bucket, assets]) => {
+            const { data: signedList } = await supabaseAdmin.storage
+              .from(bucket)
+              .createSignedUrls(assets.map((a) => a.objectKey), 3600);
+            if (Array.isArray(signedList)) {
+              for (let i = 0; i < assets.length; i++) {
+                orgProfileUrlMap.set(assets[i].id, signedList[i]?.signedUrl ?? null);
+              }
+            }
+          }),
+        );
+      }
+      for (const node of allNodes) {
+        if (node.profileImageFileId) {
+          node.profileImageUrl = orgProfileUrlMap.get(node.profileImageFileId) ?? null;
+        }
+      }
 
       return c.json({ data: chart });
     } catch (err) {

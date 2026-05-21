@@ -150,11 +150,19 @@ export function ModuleSidebar({
           className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
           style={{ backgroundColor: `${module.color}20` }}
         >
-          <NavIcon
-            name={module.icon}
-            size={16}
-            style={{ color: module.color }}
-          />
+          {typeof module.logoUrl === "string" && module.logoUrl.trim() ? (
+            <img
+              src={module.logoUrl}
+              alt=""
+              className="h-4 w-4 object-contain"
+            />
+          ) : (
+            <NavIcon
+              name={module.icon}
+              size={16}
+              style={{ color: module.color }}
+            />
+          )}
         </div>
         {/* Text fades + clips, icon never moves */}
         <div

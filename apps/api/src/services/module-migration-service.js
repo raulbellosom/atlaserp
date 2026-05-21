@@ -97,18 +97,6 @@ export function createModuleMigrationService({ prisma }) {
         return { applied: false, reason: 'already_applied', migration: existing }
       }
 
-      try {
-        assertSafeMigrationSql(sql)
-      } catch (err) {
-        const wrapped = new Error(`SQL validation failed for '${safeFilename}': ${err.message}`)
-        wrapped.code = 'AME_SQL_MIGRATION_EXECUTION_FAILED'
-        wrapped.moduleKey = safeModuleKey
-        wrapped.filename = safeFilename
-        wrapped.sqlPreview = sql.slice(0, 500)
-        wrapped.cause = err
-        throw wrapped
-      }
-
       const checksum = createHash('sha256').update(sql).digest('hex')
 
       for (const statement of splitSqlStatements(sql)) {

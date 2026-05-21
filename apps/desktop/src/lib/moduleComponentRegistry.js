@@ -5,6 +5,7 @@
 
 const _store = new Map();
 const _isDev = Boolean(import.meta.env?.DEV);
+const _activeModuleKeys = new Set();
 
 function warnDev(message) {
   if (_isDev) {
@@ -30,6 +31,12 @@ export const componentRegistry = {
     _store.set(key, component);
   },
   resolve(key) {
+    if (typeof key === "string" && key.includes(":")) {
+      const [moduleKey] = key.split(":");
+      if (_activeModuleKeys.size > 0 && !_activeModuleKeys.has(moduleKey)) {
+        return null;
+      }
+    }
     return _store.get(key) ?? null;
   },
   has(key) {
@@ -38,13 +45,22 @@ export const componentRegistry = {
   list() {
     return Array.from(_store.keys());
   },
+  setActiveModules(moduleKeys) {
+    _activeModuleKeys.clear();
+    if (!Array.isArray(moduleKeys)) return;
+    for (const key of moduleKeys) {
+      if (typeof key !== "string" || key.trim().length === 0) continue;
+      _activeModuleKeys.add(key.trim());
+    }
+  },
 };
 
 const componentModules = import.meta.glob(
-  "../../../../modules/custom/*/components/index.js",
-  {
-    eager: true,
-  },
+  [
+    "../../../../modules/custom/*/components/index.js",
+    "../../../../modules/official/*/components/index.js",
+  ],
+  { eager: true },
 );
 
 for (const [modulePath, mod] of Object.entries(componentModules)) {

@@ -30,6 +30,7 @@ export default function InstanceSettings() {
 
   const [form, setForm] = useState({
     instanceName: "",
+    description: "",
     timeZone: "America/Mexico_City",
     currency: "MXN",
   });
@@ -39,6 +40,7 @@ export default function InstanceSettings() {
     if (!data) return;
     setForm({
       instanceName: data.instanceName ?? "",
+      description: data.description ?? "",
       timeZone: data.timeZone ?? "America/Mexico_City",
       currency: data.currency ?? "MXN",
     });
@@ -61,12 +63,12 @@ export default function InstanceSettings() {
         <PageHeader
           eyebrow="Atlas Core"
           title="Configuración de instancia"
-          description="Ajusta el nombre, zona horaria y moneda predeterminada de tu instancia."
+          description="Ajusta nombre, descripción, zona horaria y moneda predeterminada de tu instancia."
         />
 
         {!canManage && (
           <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 text-sm px-4 py-3 text-[hsl(var(--muted-foreground))]">
-            Necesitas permiso core.manage para modificar la configuracion de la instancia.
+            Necesitas permiso core.manage para modificar la configuración de la instancia.
           </div>
         )}
 
@@ -80,6 +82,10 @@ export default function InstanceSettings() {
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-44" />
                   <Skeleton className="h-11 w-full rounded-lg" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-20 w-full rounded-lg" />
                 </div>
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-32" />
@@ -103,6 +109,30 @@ export default function InstanceSettings() {
                   disabled={!canManage}
                   placeholder="Mi Empresa ERP"
                 />
+
+                <div className="space-y-2">
+                  <label
+                    htmlFor="instance-description"
+                    className="text-sm font-medium text-[hsl(var(--foreground))]"
+                  >
+                    Descripción
+                  </label>
+                  <textarea
+                    id="instance-description"
+                    value={form.description}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, description: e.target.value.slice(0, 500) }))
+                    }
+                    disabled={!canManage}
+                    placeholder="Describe brevemente tu operación o alcance de la instancia."
+                    rows={3}
+                    className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] disabled:opacity-60 disabled:cursor-not-allowed"
+                  />
+                  <p className="text-xs text-[hsl(var(--muted-foreground))] text-right">
+                    {form.description.length}/500
+                  </p>
+                </div>
+
                 <ComboboxField
                   label="Zona horaria"
                   icon={Clock3}

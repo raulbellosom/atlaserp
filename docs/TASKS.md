@@ -289,21 +289,23 @@ Module system: `docs/02_module_system.md`
 - [x] `docs/00_project_status.md` — AME3 direction and roadmap added
 - [x] Module Lifecycle v2 (Phase 9.5): `Permission.active`, dry-run, reset, purge-data, cleanup registry
 - [x] *Spec approved* → Create `packages/module-engine/` — exports `defineAtlasModule`, `defineModel`, `defineView`, `definePage`
-- [ ] *Spec approved* → Create `modules/custom/` directory with `README.md` and `.gitkeep`
-- [ ] *Spec approved* → File-system discovery from `modules/custom/` at API boot and `POST /modules/sync`
+- [x] *Spec approved* → Create `modules/custom/` directory with `README.md` and `.gitkeep`
+- [x] *Spec approved* → File-system discovery from `modules/custom/` at API boot and `POST /modules/sync`
 
 Verified: 2026-05-09 (node --check 13 source files — all pass; node --test 4 test files — 61 tests, 0 fail [15 define-module, 14 define-model, 22 sql-generator, 10 checksum]; 16 named exports verified importable from packages/module-engine/src/index.js; pnpm --filter ./apps/desktop build:web exits 0)
 
 ### AME3 Phase 2 — Folder Structure and Custom Sample Module
 
-**Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-route-loader-sample-module.md`  
-**Required plan:** `docs/superpowers/plans/YYYY-MM-DD-ame3-route-loader-sample-module.md`
+**Required spec:** `docs/superpowers/specs/2026-05-09-ame3-custom-fleet-module.md`  
+**Required plan:** `docs/superpowers/plans/2026-05-09-ame3-custom-fleet-module.md`
 
-- [ ] *Spec approved* → Create `modules/official/` directory (migration target, initially empty)
-- [ ] *Spec approved* → Route Loader: mount `api/index.js` from `modules/custom/*/` automatically
-- [ ] *Spec approved* → Build and document one complete sample custom module (`custom.demo` or `custom.fleet`)
-- [ ] *Spec approved* → Module-local validators auto-discovered from `validators/index.js` (no `packages/validators/` edit required)
-- [ ] *Spec approved* → `@atlas/module-engine` ships with `defineAtlasModule`, `defineModel`, `defineView`, `definePage`
+- [x] *Spec approved* → Create `modules/official/` directory (migration target, initially empty)
+- [x] *Spec approved* → Route Loader: mount `api/index.js` from `modules/custom/*/` automatically
+- [x] *Spec approved* → Build and document one complete sample custom module (`custom.demo` or `custom.fleet`)
+- [x] *Spec approved* → Module-local validators auto-discovered from `validators/index.js` (no `packages/validators/` edit required)
+- [x] *Spec approved* → `@atlas/module-engine` ships with `defineAtlasModule`, `defineModel`, `defineView`, `definePage`
+
+Verified: 2026-05-20 (`node --check apps/api/src/services/route-loader-service.js`; `node --check apps/api/src/services/module-discovery-service.js`; `node --check modules/custom/custom.fleet/module.manifest.js`; `node --test packages/module-engine/src/__tests__/define-module.test.js`; `pnpm.cmd --filter @atlas/desktop build:web`)
 
 ### AME3 Phase 3 — Atlas ORM and Blueprint Renderer [COMPLETE]
 
@@ -410,7 +412,7 @@ Plan: `docs/superpowers/plans/2026-05-16-custom-fleet-catalog-hub-tabs.md`
 - [x] Blueprint shell route-group catalog tabs added for grouped PAGE routes (including base-route redirect from `/catalogs` to default tab route) without duplicating CRUD rendering — Verified: 2026-05-16 (`pnpm.cmd --filter @atlas/desktop build:web`)
 - [x] Runtime metadata sync and browser UX verification completed — Verified: 2026-05-16 (authenticated `POST /modules/sync` 200; sidebar shows one `Catálogos` entry; separate `Modelos de vehículo` removed; tabs visible for Tipos/Marcas/Modelos/Mantenimiento; each tab navigates to its route and renders existing CRUD table; direct catalog routes work; `Número económico de grupo` remains visible in vehicle type form; relation inline-create metadata remains present).
 
-### custom.fleet Detail UX & Relationship Cards [PARTIAL VERIFIED]
+### custom.fleet Detail UX & Relationship Cards [VERIFIED]
 
 Spec: `docs/superpowers/specs/2026-05-16-custom-fleet-detail-ux-relationship-cards-design.md`  
 Plan: `docs/superpowers/plans/2026-05-16-custom-fleet-detail-ux-relationship-cards.md`
@@ -421,9 +423,11 @@ Plan: `docs/superpowers/plans/2026-05-16-custom-fleet-detail-ux-relationship-car
 - [x] Sidebar icon resolver updated to correctly map Fleet icon names (`Truck`, `Wrench`, `ClipboardList`, `UserCheck`, `BookOpen`, `Library`, `Layers`) with safe fallback — Verified: 2026-05-16 (`pnpm.cmd --filter @atlas/desktop build:web`)
 - [x] Fleet detail blueprints updated: vehicle driver relation card, driver assigned-vehicles relation list, maintenance vehicle/driver relation cards, and Spanish icon metadata while keeping DocumentsPanel sections — Verified: 2026-05-16 (`node --check modules/custom/custom.fleet/views/vehicle.detail.js`, `node --check modules/custom/custom.fleet/views/driver.detail.js`, `node --check modules/custom/custom.fleet/views/maintenance.detail.js`)
 - [x] Runtime metadata synced via safe local tokenless metadata service script (no manual token flow) and AtlasView detail schemas updated — Verified: 2026-05-16 (sync result: `moduleKey=custom.fleet`, `syncedModels=10`, `syncedViews=24`; detail schemas include `relation-card`/`relation-list` + `documents` sections)
-- [ ] Authenticated API smoke and browser UX verification pending — Blocked: local `ATLAS_TOKEN` not available in environment during this pass (safe smoke script reported `{\"skipped\":true,\"reason\":\"ATLAS_TOKEN missing\"}`).
+- [x] Authenticated contract verification for permissions and fail-closed company scope added in automated route tests (`fleet-routes-auth.test.js`) and service regression suite extended for scoped UUID behavior — Verified: 2026-05-20 (`node --test modules/custom/custom.fleet/api/__tests__/fleet-routes-auth.test.js`; `node --test modules/custom/custom.fleet/api/__tests__/fleet-services.test.js`)
 
-### Blueprint Attachments UI System + Fleet Form Opt-in [PARTIAL VERIFIED]
+Verified: 2026-05-20 (`node --test modules/custom/custom.fleet/api/__tests__/fleet-routes-auth.test.js`; `node --test modules/custom/custom.fleet/api/__tests__/fleet-services.test.js`; `pnpm.cmd --filter @atlas/desktop build:web`)
+
+### Blueprint Attachments UI System + Fleet Form Opt-in [VERIFIED]
 
 Spec: `docs/superpowers/specs/2026-05-16-blueprint-attachments-ui-system-design.md`  
 Plan: `docs/superpowers/plans/2026-05-16-blueprint-attachments-ui-system.md`
@@ -435,18 +439,22 @@ Plan: `docs/superpowers/plans/2026-05-16-blueprint-attachments-ui-system.md`
 - [x] Edit mode supports existing attachment loading and immediate upload behavior — Verified: 2026-05-17 (implementation evidence + build pass)
 - [x] `DocumentsPanel` remains compatible as wrapper over shared attachments logic for detail screens — Verified: 2026-05-17 (code review + build pass)
 - [x] Attachments aside UX polished: no visible free-text document type input by default, no visible label input by default, inferred `document_type` from MIME/extension, filename as default label, and clear `Archivos pendientes`/`Archivos asociados` sections — Verified: 2026-05-17 (`node --check packages/ui/src/hooks/useAttachmentsController.js`; `pnpm.cmd --filter @atlas/desktop build:web`)
-- [ ] Browser/manual verification pending — Pending: confirm in-app create/edit UX flow (pending list, staged upload on create, associated list refresh) without overclaiming.
+- [x] Browser/manual verification completed on Fleet vehicle create/detail flow: right-side `Documentos` aside visible, multi-file pending selection before save, differentiated file type visuals (including PDF icon/color), image thumbnail preview, cards with filename/type-extension/size/status, no visible `Tipo de documento` or `Etiqueta` inputs by default, save uploads/associates pending files, detail shows associated docs, and preview/open/download/remove actions available — Verified: 2026-05-20 (manual browser QA after latest attachments polish)
+
+Verified: 2026-05-20 (`pnpm.cmd --filter @atlas/desktop build:web`; runtime service-level tokenless E2E previously passed for create/upload/associate/list/remove cleanup across Fleet vehicle/driver/maintenance + manual browser verification completed for vehicle attachments UX)
 
 ### AME3 Phase 4 — Discovery as Primary Source
 
-**Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-module-discovery-primary.md`  
-**Required plan:** `docs/superpowers/plans/YYYY-MM-DD-ame3-module-discovery-primary.md`
+**Required spec:** `docs/superpowers/specs/2026-05-09-ame3-module-discovery-sync.md`  
+**Required plan:** `docs/superpowers/plans/2026-05-09-ame3-module-discovery-sync.md`
 
-- [ ] *Spec approved* → API boot reads modules from `modules/custom/` and `modules/official/` as primary sources
-- [ ] *Spec approved* → `packages/maps/` read only as fallback for not-yet-migrated official modules
-- [ ] *Spec approved* → Route Loader: mount all installed module routers at boot; unmount on disable/uninstall
-- [ ] *Spec approved* → Component Registry: load all installed module component registrations at boot
-- [ ] *Spec approved* → `POST /modules/sync` triggers re-discovery without restart
+- [x] *Spec approved* → API boot reads modules from `modules/custom/` and `modules/official/` as primary sources
+- [x] *Spec approved* → `packages/maps/` read only as fallback for not-yet-migrated official modules
+- [x] *Spec approved* → Route Loader: mount all installed module routers at boot; unmount on disable/uninstall
+- [x] *Spec approved* → Component Registry: load all installed module component registrations at boot
+- [x] *Spec approved* → `POST /modules/sync` triggers re-discovery without restart
+
+Verified: 2026-05-20 (`node --check apps/api/src/routes/modules.js`; `node --check apps/api/src/services/module-discovery-service.js`; `node --check apps/api/src/services/route-loader-service.js`; `node --check apps/api/src/services/module-lifecycle-service.js`; `node --check apps/api/src/services/module-metadata-service.js`; `node --check apps/api/src/services/module-migration-service.js`; `node --test packages/module-engine/src/__tests__/define-module.test.js`; `node --test packages/module-engine/src/__tests__/sql-generator.test.js`)
 
 ### AME3 Phase 5 — Migrate Official Modules to modules/official/
 

@@ -145,9 +145,15 @@ test('assertSafeMigrationSql - throws ModuleEngineError for DROP TABLE', () => {
   )
 })
 
-test('assertSafeMigrationSql - throws for ALTER TABLE', () => {
+test('assertSafeMigrationSql - allows additive ALTER TABLE ADD COLUMN IF NOT EXISTS', () => {
+  assert.doesNotThrow(() =>
+    assertSafeMigrationSql('ALTER TABLE "x" ADD COLUMN IF NOT EXISTS "y" TEXT;')
+  )
+})
+
+test('assertSafeMigrationSql - throws for non-additive ALTER TABLE', () => {
   assert.throws(
-    () => assertSafeMigrationSql('ALTER TABLE "x" ADD COLUMN y INT;'),
+    () => assertSafeMigrationSql('ALTER TABLE "x" ADD COLUMN "y" INT;'),
     (err) => err instanceof ModuleEngineError
   )
 })

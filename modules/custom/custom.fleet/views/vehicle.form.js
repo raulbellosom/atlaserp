@@ -25,9 +25,9 @@ export default defineView({
               disabledField: 'enabled',
               create: {
                 enabled: true,
-                label: 'Crear modelo de vehÃ­culo',
+                label: 'Crear modelo de vehículo',
                 mode: 'modal',
-                title: 'Crear modelo de vehÃ­culo',
+                title: 'Crear modelo de vehículo',
                 apiPath: '/fleet/catalogs/vehicle-models',
                 viewKey: 'fleet.catalog.vehicle_models.form',
                 selectCreated: true,

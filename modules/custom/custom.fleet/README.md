@@ -1,31 +1,58 @@
 # custom.fleet - Fleet Management Module
 
-Atlas Module Engine v3 sample custom module.
+Atlas Module Engine v3 custom module used as the full end-to-end reference for external local modules.
 
 Module key: `custom.fleet`  
-Kind: FEATURE  
-Version: 0.1.0
+Kind: `FEATURE`  
+Status: `GA` (functional + verified)  
+Manifest version: `0.3.0`
 
-## Entities
+## Scope
 
-- **Vehicle** (`fleet_vehicle`) - company vehicles with plate, brand, model, year, status.
-- **Maintenance** (`fleet_maintenance`) - maintenance records linked to vehicles.
+- Fleet vehicles, drivers, maintenance records, and operational catalogs.
+- Blueprint-driven CRUD pages (table/form/detail/page) with metadata-first rendering.
+- Attachments integration for vehicles, drivers, and maintenance.
+- Company-scoped data isolation and fail-closed RBAC permissions.
+
+## Domain models (Atlas ORM)
+
+- `fleet_vehicle`
+- `fleet_driver`
+- `fleet_maintenance`
+- `fleet_vehicle_type`
+- `fleet_vehicle_brand`
+- `fleet_vehicle_model`
+- `fleet_maintenance_type`
+- `fleet_vehicle_document`
+- `fleet_driver_document`
+- `fleet_maintenance_document`
 
 ## Permissions
 
-- `fleet.access` - module access gate
-- `fleet.vehicles.{read,create,update,delete}` - vehicle CRUD
-- `fleet.maintenance.{read,create,update,delete}` - maintenance CRUD
+- Module gate: `fleet.access`
+- Vehicles: `fleet.vehicles.{read,create,update,delete}`
+- Drivers: `fleet.drivers.{read,create,update,delete}`
+- Maintenance: `fleet.maintenance.{read,create,update,delete}`
+- Catalogs: `fleet.catalogs.{read,create,update,delete}`
 
-## Phase status
+## Manifest migrations
 
-- [x] Phase 1: Manifest, models, views, page, component declared
-- [ ] Phase 2: API routes, module discovery
-- [ ] Phase 3: Atlas ORM table provisioning
-- [ ] Phase 4: ComponentRegistry population
-- [ ] Phase 6: Blueprint rendering
+The module declares additive SQL migrations under `manifest.migrations` with SHA-256 checksums:
 
-## Table naming
+- `./migrations/V004_vehicle_model.sql`
+- `./migrations/V005_vehicle_type_economic_group_number.sql`
 
-`fleet_vehicle`, `fleet_maintenance` - custom module convention: `<feature>_<entity>`.
-No `atlas_` prefix (reserved for official Atlas modules).
+These are applied through AME3 module migration ledger (`ModuleMigration`) and are checksum-validated before execution.
+
+## Completion status
+
+- [x] Filesystem discovery via `modules/custom/` and runtime sync via `POST /modules/sync`
+- [x] Route loader lifecycle reload/unload integration without API restart
+- [x] Component registry lifecycle integration with active-module filtering
+- [x] Atlas metadata sync with soft-disable for removed models/views/fields
+- [x] Fleet service regression tests (happy path, validation errors, company scope)
+- [x] Desktop build verification
+
+## Operational note
+
+This module follows the custom naming convention `<feature>_<entity>` (for example `fleet_vehicle`) and intentionally does not use the reserved `atlas_` prefix.

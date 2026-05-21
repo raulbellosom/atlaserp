@@ -91,14 +91,25 @@ export function mergeRuntimeModules(rawApiModules, options = {}) {
     const layoutMode = normalizeLayoutMode(
       manifest?.layoutMode ?? manifestFallback.layoutMode,
     );
+    const description =
+      apiRow?.description ??
+      manifest?.description ??
+      manifestFallback.description ??
+      null;
+    const summary =
+      manifest?.summary ??
+      manifestFallback.summary ??
+      description ??
+      "";
 
     return {
       id: apiRow?.id ?? null,
       key,
       name: apiRow?.name ?? manifest?.name ?? key,
-      description: apiRow?.description ?? manifest?.description ?? null,
-      summary: manifest?.summary ?? manifestFallback.summary ?? "",
+      description,
+      summary,
       icon: manifest?.icon ?? manifestFallback.icon ?? "Box",
+      logoUrl: manifest?.logoUrl ?? manifestFallback.logoUrl ?? null,
       color:
         manifest?.color ?? manifestFallback.color ?? "var(--brand-primary)",
       category: manifest?.category ?? manifestFallback.category ?? "general",

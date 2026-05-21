@@ -219,7 +219,8 @@ See `docs/TASKS.md` for the full phased roadmap.
 - AME3 Phase 1 (Module Engine foundation): complete — `packages/module-engine` with `defineAtlasModule`, `defineModel`, `defineView`, `definePage`, SQL generator, checksum
 - AME3 Phase 2 (Route Loader + custom module): complete — `route-loader-service.js`, `custom.fleet` module operational
 - AME3 Phase 3 (Atlas ORM + Blueprint Renderer): complete — Atlas ORM provisions tables from `defineModel`; blueprint renderer (`AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`) in `@atlas/ui`
-- AME3 Phase 4+ (Discovery as primary source, migrate official modules): planned
+- AME3 Phase 4 (Discovery as primary source + route/component lifecycle sync): complete
+- AME3 Phase 5+ (official module migration and `packages/maps` removal): planned
 
 ## Local command permissions and secret safety
 

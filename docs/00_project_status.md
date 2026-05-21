@@ -1,7 +1,7 @@
 # Atlas ERP - Project Status
 
-**Last verified:** 2026-05-09  
-**Current phase:** Phase 9.5 complete / AME3 documentation complete / AME3 package foundation next
+**Last verified:** 2026-05-20  
+**Current phase:** AME3 Phase 4 complete / `custom.fleet` GA / AME3 official-module migration next
 
 ## What is implemented
 
@@ -42,7 +42,7 @@
 
 Atlas ERP is transitioning to Atlas Module Engine v3 (AME3). The AME3 architecture replaces the legacy system entirely — not as a parallel track, but as the target.
 
-Key decisions in force as of 2026-05-09:
+Key decisions in force as of 2026-05-20:
 
 - New modules must use `defineAtlasModule` from `@atlas/module-engine`, not `createModuleManifest`.
 - New modules live in `modules/official/` or `modules/custom/`, not `packages/maps/`.
@@ -54,11 +54,11 @@ See `docs/architecture/atlas-module-engine-v3.md` for the full specification and
 
 ## Remaining roadmap highlights
 
-### AME3 phases (in progress)
-- AME3 Phase 1: `@atlas/module-engine` package, module lifecycle v2, `modules/custom/` discovery
-- AME3 Phase 2: module folder structure, sample custom module, Route Loader, `modules/official/` foundation
-- AME3 Phase 3: Atlas ORM metadata tables and services, Blueprint renderer
-- AME3 Phase 4: module discovery as primary source, Component Registry
+### AME3 phases (status)
+- AME3 Phase 1: complete (`@atlas/module-engine` package, module lifecycle v2)
+- AME3 Phase 2: complete (module folder structure, sample custom module, Route Loader, `modules/official/` foundation)
+- AME3 Phase 3: complete (Atlas ORM metadata tables/services + Blueprint renderer)
+- AME3 Phase 4: complete (filesystem discovery primary source, hot sync/reload, component lifecycle registration by active module)
 - AME3 Phase 5: migrate official modules from old locations into `modules/official/`
 - AME3 Phase 6: generic CRUD Blueprint renderer (AtlasTable, AtlasForm, AtlasCrudView)
 - AME3 Phase 7: remove `packages/maps/` entirely
@@ -80,5 +80,5 @@ See `docs/architecture/atlas-module-engine-v3.md` for the full specification and
 ## Known constraints still in force
 - JavaScript-only codebase.
 - UI text in Spanish; code/docs/comments in English.
-- Prisma pinned to `^6`.
+- Prisma baseline pinned to `^7` in root workspace overrides.
 - Frontend must consume ERP data only via `@atlas/sdk`.

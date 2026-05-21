@@ -21,6 +21,31 @@ test('defineAtlasModule - applies empty permissions and navigation by default', 
   const r = defineAtlasModule(VALID)
   assert.deepEqual(r.permissions, [])
   assert.deepEqual(r.navigation, [])
+  assert.deepEqual(r.migrations, [])
+})
+
+test('defineAtlasModule - accepts manifest migrations with checksum', () => {
+  const r = defineAtlasModule({
+    ...VALID,
+    migrations: [
+      {
+        path: './migrations/V001.sql',
+        checksum: '6fb977adcf2206dc43f6d8a3ec4ce6e9de8ef20db1917cacc39cbf403a8f4f16',
+      },
+    ],
+  })
+  assert.equal(r.migrations.length, 1)
+})
+
+test('defineAtlasModule - throws for invalid migrations checksum', () => {
+  assert.throws(
+    () =>
+      defineAtlasModule({
+        ...VALID,
+        migrations: [{ path: './migrations/V001.sql', checksum: 'abc' }],
+      }),
+    (err) => err instanceof ModuleEngineError && err.message.includes('checksum')
+  )
 })
 
 test('defineAtlasModule - throws ModuleEngineError (not plain Error) when key is missing', () => {

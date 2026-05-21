@@ -47,12 +47,14 @@ export function DocumentSheet({ open, onOpenChange, direction, token }) {
     queryKey: ["finance-tax-rates"],
     queryFn: () => atlas.finance.listTaxRates(token, { limit: 200 }),
     enabled: Boolean(token) && open,
+    staleTime: 5 * 60 * 1000,
   });
 
   const contactsQuery = useQuery({
     queryKey: ["finance-contacts-options"],
     queryFn: () => atlas.contacts.list(token, { limit: 200 }),
     enabled: Boolean(token) && open,
+    staleTime: 5 * 60 * 1000,
   });
 
   const taxRates = taxRatesQuery.data?.data ?? [];

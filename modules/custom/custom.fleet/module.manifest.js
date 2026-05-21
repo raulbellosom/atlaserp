@@ -7,13 +7,26 @@ export default defineAtlasModule({
   kind: "FEATURE",
   description:
     "Gestion de flota vehicular: vehiculos, mantenimiento y asignacion de conductores.",
-  icon: "truck",
+  summary: "Vehiculos, conductores, mantenimiento y control operativo.",
+  icon: "Truck",
   color: "#14B8A6",
   accentColor: "#0F766E",
   initials: "FL",
-  logoUrl: null,
+  logoUrl: "/module-logos/custom-fleet.svg",
   cover: null,
   dependencies: [{ key: "atlas.core" }],
+  migrations: [
+    {
+      path: "./migrations/V004_vehicle_model.sql",
+      checksum:
+        "ecdca2a21165c46157db060e98ff6a7d63e20eeb3190f8f877d145266e275378",
+    },
+    {
+      path: "./migrations/V005_vehicle_type_economic_group_number.sql",
+      checksum:
+        "35c78041208289827642c4ecc68cf9e42572e6a1f27bf95f2aeceede2575353d",
+    },
+  ],
   models: [
     "./models/vehicle.model.js",
     "./models/maintenance.model.js",

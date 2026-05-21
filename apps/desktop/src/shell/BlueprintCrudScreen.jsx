@@ -406,6 +406,16 @@ export function BlueprintCrudScreen() {
   const module = moduleMap.get(moduleKey) ?? null;
   const moduleName = module?.name ?? module?.manifest?.name ?? moduleKey ?? "";
 
+  useEffect(() => {
+    const activeKeys = [];
+    for (const row of moduleMap.values()) {
+      if (isModuleAvailable(row)) {
+        activeKeys.push(row.key);
+      }
+    }
+    componentRegistry.setActiveModules(activeKeys);
+  }, [moduleMap]);
+
   const blueprintsQuery = useQuery({
     queryKey: ["blueprints", moduleKey, token],
     queryFn: () => atlas.blueprints.list(token),

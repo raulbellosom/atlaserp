@@ -12,7 +12,6 @@ const FORBIDDEN_SQL_PATTERNS = [
   /\bDROP\s+COLUMN\b/i,
   /\bDROP\s+INDEX\b/i,
   /\bALTER\s+SYSTEM\b/i,
-  /\bALTER\s+TABLE\b/i,
   /\bCREATE\s+EXTENSION\b/i,
   /\bCOPY\b/i,
   /\bTRUNCATE\b/i,
@@ -21,6 +20,12 @@ const FORBIDDEN_SQL_PATTERNS = [
   /\bUPDATE\s+(?:"[^"]+"|\w+)/i,
   /(^|\s)\\(?:c|i|!)(?:\s|$)/im,
 ]
+
+const SAFE_ADDITIVE_ALTER_TABLE_RE =
+  /^\s*ALTER\s+TABLE\s+(?:"[^"]+"|\w+)\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+/im
+
+const UNSAFE_ALTER_TABLE_PARTS_RE =
+  /\b(DROP\s+COLUMN|ALTER\s+COLUMN|RENAME\s+COLUMN|RENAME\s+TO|SET\s+DATA\s+TYPE|ADD\s+CONSTRAINT|DROP\s+CONSTRAINT)\b/i
 
 function requireSafeIdentifier(name, context) {
   if (!IDENTIFIER_RE.test(name)) {
@@ -114,6 +119,15 @@ export function assertSafeMigrationSql(sql) {
   if (typeof sql !== 'string') {
     throw new ModuleEngineError('assertSafeMigrationSql: sql must be a string', 'AME_INVALID_SQL')
   }
+  if (/\bALTER\s+TABLE\b/i.test(sql)) {
+    if (!SAFE_ADDITIVE_ALTER_TABLE_RE.test(sql) || UNSAFE_ALTER_TABLE_PARTS_RE.test(sql)) {
+      throw new ModuleEngineError(
+        'assertSafeMigrationSql: ALTER TABLE is allowed only for additive ADD COLUMN IF NOT EXISTS statements.',
+        'AME_UNSAFE_SQL'
+      )
+    }
+  }
+
   for (const pattern of FORBIDDEN_SQL_PATTERNS) {
     if (pattern.test(sql)) {
       throw new ModuleEngineError(

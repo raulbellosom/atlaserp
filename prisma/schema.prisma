@@ -104,6 +104,8 @@ model AtlasModule {
   requiredBy     ModuleDependency[] @relation("RequiredByModules")
   blueprints     Blueprint[]
   permissions    Permission[]
+
+  @@index([status, enabled])
 }
 
 model ModuleDependency {
@@ -131,6 +133,9 @@ model Blueprint {
   updatedAt   DateTime @updatedAt
 
   module      AtlasModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@index([moduleId])
+  @@index([enabled])
 }
 
 model AtlasModel {
@@ -285,6 +290,8 @@ model Membership {
   role        Role? @relation(fields: [roleId], references: [id], onDelete: SetNull)
 
   @@unique([companyId, userId])
+  @@index([userId, enabled])
+  @@index([companyId])
 }
 
 model Role {
@@ -313,6 +320,9 @@ model Permission {
 
   module      AtlasModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   roles       RolePermission[]
+
+  @@index([moduleId])
+  @@index([active])
 }
 
 model RolePermission {
@@ -386,6 +396,7 @@ model Contact {
 
   @@index([type])
   @@index([name])
+  @@index([companyId, enabled])
 }
 
 model HrEmployee {

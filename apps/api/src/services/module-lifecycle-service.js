@@ -1,6 +1,10 @@
 import { getPermissionPresentation } from '../permission-catalog.js'
 import { getModuleHandler } from './module-cleanup-registry.js'
 import { createModuleMigrationService } from './module-migration-service.js'
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import { createHash } from 'node:crypto'
+import { resolveProjectRoot } from './module-discovery-service.js'
 
 const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company'])
 const FAILED_INSTALL_CLEAR_MODES = new Set(['metadata-only', 'preserve-data', 'purge-empty-tables'])
@@ -53,6 +57,11 @@ function toModuleTableName(tableName) {
   const trimmed = tableName.trim()
   if (!TABLE_NAME_PATTERN.test(trimmed)) return null
   return trimmed
+}
+
+function isWithinPath(parentPath, childPath) {
+  const rel = path.relative(parentPath, childPath)
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))
 }
 
 export function createModuleLifecycleService({ prisma }) {
@@ -450,6 +459,106 @@ export function createModuleLifecycleService({ prisma }) {
     }
   }
 
+  async function resolveModuleDirectory({ moduleKey, lifecycleConfig }) {
+    const projectRoot = await resolveProjectRoot()
+    const modulesRoot = path.resolve(projectRoot, 'modules')
+    const discovery = toPlainObject(lifecycleConfig).discovery
+    const localPath = typeof discovery?.localPath === 'string' ? discovery.localPath.trim() : ''
+    const candidates = []
+    if (localPath) {
+      candidates.push(path.resolve(projectRoot, localPath))
+    }
+    candidates.push(path.resolve(modulesRoot, 'custom', moduleKey))
+    candidates.push(path.resolve(modulesRoot, 'official', moduleKey))
+
+    for (const candidate of candidates) {
+      if (!candidate || !isWithinPath(modulesRoot, candidate)) continue
+      try {
+        const stat = await fs.stat(candidate)
+        if (stat.isDirectory()) return candidate
+      } catch {
+        continue
+      }
+    }
+    return null
+  }
+
+  async function applyModuleManifestMigrations({ moduleKey, manifest, lifecycleConfig, actorId }) {
+    const migrations = Array.isArray(manifest?.migrations) ? manifest.migrations : []
+    if (!migrations.length) return []
+
+    const moduleDir = await resolveModuleDirectory({ moduleKey, lifecycleConfig })
+    if (!moduleDir) {
+      throw new Error(`Manifest migrations require module directory for "${moduleKey}", but none was found.`)
+    }
+
+    const results = []
+    for (let i = 0; i < migrations.length; i += 1) {
+      const migration = migrations[i]
+      if (!migration || typeof migration !== 'object' || Array.isArray(migration)) {
+        throw new Error(`manifest.migrations[${i}] must be an object`)
+      }
+      const declaredPath =
+        typeof migration.path === 'string' && migration.path.trim() ? migration.path.trim() : null
+      if (!declaredPath) {
+        throw new Error(`manifest.migrations[${i}].path is required`)
+      }
+      const declaredChecksum =
+        typeof migration.checksum === 'string' && migration.checksum.trim()
+          ? migration.checksum.trim().toLowerCase()
+          : null
+      if (!declaredChecksum) {
+        throw new Error(`manifest.migrations[${i}].checksum is required`)
+      }
+
+      const migrationPath = path.resolve(moduleDir, declaredPath)
+      if (!isWithinPath(moduleDir, migrationPath)) {
+        throw new Error(`manifest.migrations[${i}] path resolves outside module directory`)
+      }
+      const sql = await fs.readFile(migrationPath, 'utf8')
+      const computedChecksum = createHash('sha256').update(sql).digest('hex')
+      if (computedChecksum !== declaredChecksum) {
+        throw new Error(
+          `Checksum mismatch for ${declaredPath}: expected ${declaredChecksum}, got ${computedChecksum}`
+        )
+      }
+
+      const filename = `manifest__${declaredPath.replaceAll('\\', '/').replaceAll('/', '__')}`
+      const applyResult = await migrationSvc.applySqlMigration({
+        moduleKey,
+        filename,
+        sql,
+      })
+
+      if (applyResult.applied && applyResult.migration?.id) {
+        await prisma.auditLog.create({
+          data: {
+            actorId: actorId ?? null,
+            moduleKey: 'atlas.core',
+            entityType: 'ModuleMigration',
+            entityId: applyResult.migration.id,
+            action: 'atlas.orm.migrate.manifest',
+            before: null,
+            after: {
+              moduleKey,
+              filename,
+              sourcePath: declaredPath,
+              checksum: computedChecksum,
+            },
+          },
+        })
+      }
+
+      results.push({
+        filename,
+        path: declaredPath,
+        applied: applyResult.applied,
+      })
+    }
+
+    return results
+  }
+
   // ── ORM migration helpers ─────────────────────────────────────────────────
 
   async function applyModuleOrmMigrations({ moduleKey, actorId }) {
@@ -574,6 +683,12 @@ export function createModuleLifecycleService({ prisma }) {
       }
 
       await applyModuleOrmMigrations({ moduleKey: manifest.key, actorId })
+      await applyModuleManifestMigrations({
+        moduleKey: manifest.key,
+        manifest,
+        lifecycleConfig: result?.lifecycleConfig ?? manifest.lifecycle ?? null,
+        actorId,
+      })
       await clearLastInstallError(manifest.key)
       return result
     } catch (err) {

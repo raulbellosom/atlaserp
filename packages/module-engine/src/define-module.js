@@ -10,6 +10,7 @@ const MANIFEST_DEFAULTS = {
   color:       null,
   category:    'general',
   dependencies: [],
+  migrations:   [],
   permissions:  [],
   navigation:   [],
   acl: {
@@ -26,6 +27,33 @@ const MANIFEST_DEFAULTS = {
     ownedEntities:          [],
     sharedEntities:         [],
   },
+}
+
+function validateMigrations(migrations, errors) {
+  if (migrations === undefined) return
+  if (!Array.isArray(migrations)) {
+    errors.push('migrations must be an array')
+    return
+  }
+
+  for (let i = 0; i < migrations.length; i += 1) {
+    const entry = migrations[i]
+    const label = `migrations[${i}]`
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      errors.push(`${label} must be an object`)
+      continue
+    }
+
+    if (!entry.path || typeof entry.path !== 'string' || !entry.path.trim()) {
+      errors.push(`${label}.path is required`)
+    }
+
+    if (!entry.checksum || typeof entry.checksum !== 'string' || !entry.checksum.trim()) {
+      errors.push(`${label}.checksum is required`)
+    } else if (!/^[a-fA-F0-9]{64}$/.test(entry.checksum.trim())) {
+      errors.push(`${label}.checksum must be a SHA-256 hex string`)
+    }
+  }
 }
 
 // Returns { valid: boolean, errors: string[] }. Never throws.
@@ -79,6 +107,8 @@ export function validateManifest(manifest) {
       })
     }
   }
+
+  validateMigrations(manifest.migrations, errors)
 
   if (manifest.navigation !== undefined) {
     if (!Array.isArray(manifest.navigation)) {

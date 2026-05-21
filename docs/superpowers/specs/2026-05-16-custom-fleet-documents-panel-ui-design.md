@@ -1,7 +1,7 @@
 # custom.fleet DocumentsPanel UI
 
 Date: 2026-05-16  
-Status: Draft  
+Status: Complete  
 Mode: SPEC + PLAN ONLY
 
 ## 1. Feature title
@@ -10,7 +10,7 @@ custom.fleet DocumentsPanel UI
 
 ## 2. Status
 
-Draft
+Complete
 
 ## 3. Context
 

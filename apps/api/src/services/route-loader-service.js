@@ -23,11 +23,12 @@ function toPlainObject(value) {
   return value
 }
 
-export function createRouteLoaderService({ prisma, authMiddleware, requirePermission }) {
+export function createRouteLoaderService({ prisma, authMiddleware, requirePermission, cache = null }) {
   let modulesRoot = null
   const routerMap = new Map()
   const routeStatusMap = new Map()
   const componentRegistryStore = new Map()
+  const activeModuleKeySet = new Set()
   let middlewareRegistered = false
 
   const ComponentRegistry = {
@@ -80,6 +81,18 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
       updatedAt: new Date().toISOString(),
       ...details,
     })
+  }
+
+  function normalizeModuleKey(value) {
+    if (typeof value !== 'string' || !value.trim()) return null
+    return value.trim()
+  }
+
+  function unloadModuleComponents(moduleKey) {
+    const key = normalizeModuleKey(moduleKey)
+    if (!key) return false
+    activeModuleKeySet.delete(key)
+    return componentRegistryStore.delete(key)
   }
 
   function ensurePathInsideModules(resolvedPath, label) {
@@ -225,6 +238,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     const moduleRouter = await factory({
       prisma,
       requirePermission,
+      cache,
       moduleContext: {
         moduleKey,
         manifest: moduleRow.manifest ?? null,
@@ -243,6 +257,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
       securedRouter,
       loadedAt: new Date().toISOString(),
     })
+    activeModuleKeySet.add(moduleKey)
 
     setModuleRouteStatus(moduleKey, 'LOADED', { apiPath })
     markModuleRouteLoaded(moduleKey, apiPath).catch((err) => {
@@ -253,6 +268,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
 
   async function loadModuleComponents(moduleRow) {
     const moduleKey = moduleRow.key
+    unloadModuleComponents(moduleKey)
     const componentsPath = await resolveModuleComponentsPath(moduleRow)
 
     if (!(await pathExists(componentsPath))) {
@@ -316,33 +332,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
       modulesRoot = path.resolve(projectRoot, 'modules')
     }
 
-    const installedModules = await prisma.atlasModule.findMany({
-      where: { status: 'INSTALLED', enabled: true },
-      orderBy: [{ core: 'desc' }, { key: 'asc' }],
-      select: {
-        key: true,
-        manifest: true,
-        lifecycleConfig: true,
-      },
-    })
-
-    for (const moduleRow of installedModules) {
-      try {
-        await loadModuleRouter(moduleRow)
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err)
-        console.error(`[route-loader] ${moduleRow.key}: ${message}`)
-        setModuleRouteStatus(moduleRow.key, 'ERROR', { error: message })
-        await markModuleRouteError(moduleRow.key, message)
-      }
-
-      try {
-        await loadModuleComponents(moduleRow)
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err)
-        console.error(`[route-loader] components ${moduleRow.key}: ${message}`)
-      }
-    }
+    await syncInstalledModules()
 
     if (!middlewareRegistered) {
       app.use('*', buildDelegationMiddleware())
@@ -355,6 +345,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     if (!key) return { loaded: false, reason: 'invalid_module_key' }
 
     routerMap.delete(key)
+    unloadModuleComponents(key)
     const moduleRow = await prisma.atlasModule.findUnique({
       where: { key },
       select: { key: true, status: true, enabled: true, manifest: true, lifecycleConfig: true },
@@ -386,8 +377,55 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     const key = typeof moduleKey === 'string' ? moduleKey.trim() : ''
     if (!key) return false
     const removed = routerMap.delete(key)
+    unloadModuleComponents(key)
     setModuleRouteStatus(key, 'UNLOADED', { reason: 'manual_unload' })
     return removed
+  }
+
+  async function syncInstalledModules({ limitToModuleKeys = null } = {}) {
+    const normalizedFilter = Array.isArray(limitToModuleKeys)
+      ? [...new Set(limitToModuleKeys.map((key) => normalizeModuleKey(key)).filter(Boolean))]
+      : null
+
+    const whereClause = {
+      status: 'INSTALLED',
+      enabled: true,
+      ...(normalizedFilter ? { key: { in: normalizedFilter } } : {}),
+    }
+    const installedModules = await prisma.atlasModule.findMany({
+      where: whereClause,
+      orderBy: [{ core: 'desc' }, { key: 'asc' }],
+      select: {
+        key: true,
+        manifest: true,
+        lifecycleConfig: true,
+      },
+    })
+
+    const installedKeySet = new Set(installedModules.map((row) => row.key))
+    const unloadCandidates = []
+    for (const loadedKey of routerMap.keys()) {
+      const inScope = !normalizedFilter || normalizedFilter.includes(loadedKey)
+      if (inScope && !installedKeySet.has(loadedKey)) {
+        unloadCandidates.push(loadedKey)
+      }
+    }
+    for (const moduleKey of unloadCandidates) {
+      unloadModule(moduleKey)
+    }
+
+    const reloaded = []
+    for (const moduleRow of installedModules) {
+      const status = await reloadModule(moduleRow.key)
+      reloaded.push({ moduleKey: moduleRow.key, ...status })
+    }
+
+    return {
+      loaded: getLoadedModules(),
+      reloaded,
+      unloaded: unloadCandidates,
+      activeComponents: [...activeModuleKeySet.values()],
+    }
   }
 
   function getLoadedModules() {
@@ -409,6 +447,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     initialize,
     reloadModule,
     unloadModule,
+    syncInstalledModules,
     getLoadedModules,
     getModuleRouteStatus,
   }

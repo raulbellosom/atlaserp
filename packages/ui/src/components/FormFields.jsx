@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, forwardRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Eye,
   EyeOff,
@@ -27,6 +28,8 @@ import {
   Link2Off,
   Minus,
   Type,
+  Search,
+  Plus,
 } from "lucide-react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -2014,7 +2017,9 @@ export function ComboboxField({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [dropdownStyle, setDropdownStyle] = useState({});
   const containerRef = useRef(null);
+  const dropdownRef = useRef(null);
   const searchRef = useRef(null);
 
   const selected = options.find((o) => o.value === value);
@@ -2030,7 +2035,7 @@ export function ComboboxField({
 
   useEffect(() => {
     function handleOutside(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+      if (!containerRef.current?.contains(e.target) && !dropdownRef.current?.contains(e.target)) {
         setOpen(false);
         setSearch("");
       }
@@ -2040,8 +2045,11 @@ export function ComboboxField({
   }, []);
 
   function handleOpen() {
+    if (!open && containerRef.current) {
+      const r = containerRef.current.getBoundingClientRect();
+      setDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+    }
     setOpen((o) => !o);
-    // focus search after open
     setTimeout(() => searchRef.current?.focus(), 50);
   }
 
@@ -2095,9 +2103,14 @@ export function ComboboxField({
           />
         </button>
 
-        {open && (
-          <div className="absolute z-50 w-full mt-1 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
+        {open && createPortal(
+          <div
+            ref={dropdownRef}
+            style={{ position: "fixed", top: dropdownStyle.top, left: dropdownStyle.left, width: dropdownStyle.width, zIndex: 9999, pointerEvents: "auto" }}
+            className="rounded-xl border border-border/80 bg-card shadow-xl overflow-hidden"
+          >
             <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+              <Search size={13} className="text-muted-foreground/50 shrink-0" />
               <input
                 ref={searchRef}
                 type="text"
@@ -2110,9 +2123,9 @@ export function ComboboxField({
                 <button
                   type="button"
                   onClick={() => setSearch("")}
-                  className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  className="flex items-center justify-center h-4 w-4 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors shrink-0"
                 >
-                  <X size={12} />
+                  <X size={10} />
                 </button>
               )}
             </div>
@@ -2134,18 +2147,22 @@ export function ComboboxField({
                     aria-selected={opt.value === value}
                     onClick={() => handleSelect(opt)}
                     className={cn(
-                      "w-full text-left px-3 py-2 text-sm transition-colors duration-100",
+                      "w-full text-left px-3 py-2 text-sm transition-colors duration-100 flex items-center gap-2",
                       opt.value === value
                         ? "bg-primary/10 text-primary font-medium"
                         : "text-foreground hover:bg-muted/50",
                     )}
                   >
-                    {opt.label}
+                    <span className="flex-1 truncate">{opt.label}</span>
+                    {opt.value === value && (
+                      <Check size={13} className="shrink-0 text-primary" />
+                    )}
                   </button>
                 ))
               )}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </FieldWrapper>
@@ -2181,7 +2198,9 @@ export function RelationSelectField({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [dropdownStyle, setDropdownStyle] = useState({});
   const containerRef = useRef(null);
+  const dropdownRef = useRef(null);
   const searchRef = useRef(null);
 
   const selected = (value != null && value !== "")
@@ -2190,16 +2209,23 @@ export function RelationSelectField({
 
   useEffect(() => {
     function handleOutside(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+      const inContainer = containerRef.current?.contains(e.target);
+      const inDropdown = dropdownRef.current?.contains(e.target);
+      if (!inContainer && !inDropdown) {
+        if (search) onSearchChange?.("");
         setOpen(false);
         setSearch("");
       }
     }
     document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
-  }, []);
+  }, [search, onSearchChange]);
 
   function handleOpen() {
+    if (!open && containerRef.current) {
+      const r = containerRef.current.getBoundingClientRect();
+      setDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+    }
     setOpen((o) => !o);
     setTimeout(() => searchRef.current?.focus(), 50);
   }
@@ -2288,9 +2314,9 @@ export function RelationSelectField({
                   e.preventDefault();
                   onChange?.(null);
                 }}
-                className="text-muted-foreground/60 hover:text-foreground transition-colors p-0.5 rounded"
+                className="flex items-center justify-center h-4 w-4 rounded-full bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
-                <X size={12} />
+                <X size={10} />
               </span>
             )}
             <ChevronDown
@@ -2304,9 +2330,14 @@ export function RelationSelectField({
           </span>
         </button>
 
-        {open && (
-          <div className="absolute z-50 w-full mt-1 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
+        {open && createPortal(
+          <div
+            ref={dropdownRef}
+            style={{ position: "fixed", top: dropdownStyle.top, left: dropdownStyle.left, width: dropdownStyle.width, zIndex: 9999, pointerEvents: "auto" }}
+            className="rounded-xl border border-border/80 bg-card shadow-xl overflow-hidden"
+          >
             <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+              <Search size={13} className="text-muted-foreground/50 shrink-0" />
               <input
                 ref={searchRef}
                 type="text"
@@ -2322,9 +2353,9 @@ export function RelationSelectField({
                     setSearch("");
                     onSearchChange?.("");
                   }}
-                  className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  className="flex items-center justify-center h-4 w-4 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors shrink-0"
                 >
-                  <X size={12} />
+                  <X size={10} />
                 </button>
               )}
             </div>
@@ -2360,14 +2391,17 @@ export function RelationSelectField({
                     onClick={() => handleSelect(opt)}
                     disabled={opt.disabled}
                     className={cn(
-                      "w-full text-left px-3 py-2 text-sm transition-colors duration-100",
+                      "w-full text-left px-3 py-2 text-sm transition-colors duration-100 flex items-center gap-2",
                       String(opt.value) === String(value)
                         ? "bg-primary/10 text-primary font-medium"
                         : "text-foreground hover:bg-muted/50",
                       opt.disabled && "opacity-50 cursor-not-allowed pointer-events-none",
                     )}
                   >
-                    {opt.label}
+                    <span className="flex-1 truncate">{opt.label}</span>
+                    {String(opt.value) === String(value) && (
+                      <Check size={13} className="shrink-0 text-primary" />
+                    )}
                   </button>
                 ))
               )}
@@ -2385,13 +2419,14 @@ export function RelationSelectField({
                       createDisabled && "opacity-50 cursor-not-allowed",
                     )}
                   >
-                    <span className="text-base leading-none">+</span>
+                    <Plus size={14} className="shrink-0" />
                     <span className="font-medium">{createLabel}</span>
                   </button>
                 </>
               )}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </FieldWrapper>

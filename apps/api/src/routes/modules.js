@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { createHash } from 'node:crypto'
 import {
   moduleInstallSchema,
   moduleDryRunSchema,
@@ -8,11 +9,13 @@ import {
   moduleUninstallSchema,
   moduleResetSchema,
 } from '@atlas/validators'
+import { coreModules, featureModules } from '@atlas/maps'
 import { getPermissionPresentation, groupPermissionsForUi } from '../permission-catalog.js'
 import { createModuleLifecycleService, ModuleLifecycleError } from '../services/module-lifecycle-service.js'
 import { createModuleMetadataService } from '../services/module-metadata-service.js'
 import { createModuleMigrationService } from '../services/module-migration-service.js'
 import { discoverModules, getDiscoveryRootInfo } from '../services/module-discovery-service.js'
+import { del as cacheDel } from '../lib/cache.js'
 
 const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company'])
 
@@ -132,7 +135,49 @@ function serializeDiscoveredModule(record) {
     error: record?.error ?? null,
     modelsCount: Array.isArray(record?.models) ? record.models.length : 0,
     viewsCount: Array.isArray(record?.views) ? record.views.length : 0,
+    migrationsCount: Array.isArray(record?.migrations) ? record.migrations.length : 0,
   }
+}
+
+function mergeDiscoveryIntoManifest(record) {
+  const manifest = record?.manifest && typeof record.manifest === 'object' ? record.manifest : null
+  if (!manifest) return null
+  const existingLifecycle =
+    manifest.lifecycle && typeof manifest.lifecycle === 'object' && !Array.isArray(manifest.lifecycle)
+      ? manifest.lifecycle
+      : {}
+  return {
+    ...manifest,
+    lifecycle: {
+      ...existingLifecycle,
+      discovery: {
+        source: record?.source ?? null,
+        localPath: record?.localPath ?? null,
+      },
+    },
+  }
+}
+
+function buildLegacyFallbackManifests({ discoveredKeys }) {
+  const fallback = []
+  const legacyMaps = [...coreModules, ...featureModules]
+
+  for (const manifest of legacyMaps) {
+    const key = typeof manifest?.key === 'string' ? manifest.key.trim() : ''
+    if (!key || discoveredKeys.has(key)) continue
+    fallback.push({
+      ...manifest,
+      lifecycle: {
+        ...(manifest?.lifecycle && typeof manifest.lifecycle === 'object' ? manifest.lifecycle : {}),
+        discovery: {
+          source: 'maps_fallback',
+          localPath: 'packages/maps',
+        },
+      },
+    })
+  }
+
+  return fallback
 }
 
 async function upsertDiscoveredModuleError({ prisma, record }) {
@@ -333,6 +378,74 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
   const metadataSvc = createModuleMetadataService({ prisma })
   const migrationSvc = createModuleMigrationService({ prisma })
 
+  async function applyManifestMigrationsForRecord({ record }) {
+    const moduleKey = record?.manifest?.key ?? null
+    if (!moduleKey) {
+      return { moduleKey: null, status: 'skipped', reason: 'missing_module_key', entries: [] }
+    }
+
+    const moduleRow = await prisma.atlasModule.findUnique({
+      where: { key: moduleKey },
+      select: { key: true, status: true, enabled: true },
+    })
+    if (!moduleRow || moduleRow.status !== 'INSTALLED' || !moduleRow.enabled) {
+      return { moduleKey, status: 'skipped', reason: 'module_not_active', entries: [] }
+    }
+
+    const migrations = Array.isArray(record?.migrations) ? record.migrations : []
+    if (!migrations.length) {
+      return { moduleKey, status: 'skipped', reason: 'no_manifest_migrations', entries: [] }
+    }
+
+    const entries = []
+    for (const migration of migrations) {
+      const sql = typeof migration?.sql === 'string' ? migration.sql : ''
+      const checksum = typeof migration?.checksum === 'string' ? migration.checksum.trim().toLowerCase() : ''
+      const computed = createHash('sha256').update(sql).digest('hex')
+      const localPath = typeof migration?.path === 'string' ? migration.path : migration?.filename ?? 'unknown.sql'
+      const filename = `manifest__${localPath.replaceAll('\\', '/').replaceAll('/', '__')}`
+      if (checksum && checksum !== computed) {
+        entries.push({
+          filename,
+          path: localPath,
+          status: 'error',
+          code: 'CHECKSUM_MISMATCH',
+          expected: checksum,
+          computed,
+        })
+        continue
+      }
+
+      try {
+        const result = await migrationSvc.applySqlMigration({
+          moduleKey,
+          filename,
+          sql,
+        })
+        entries.push({
+          filename,
+          path: localPath,
+          status: result.applied ? 'applied' : 'already_applied',
+        })
+      } catch (error) {
+        entries.push({
+          filename,
+          path: localPath,
+          status: 'error',
+          code: error?.code ?? 'MIGRATION_EXECUTION_FAILED',
+          message: toErrorMessage(error),
+        })
+      }
+    }
+
+    const hasErrors = entries.some((entry) => entry.status === 'error')
+    return {
+      moduleKey,
+      status: hasErrors ? 'partial_error' : 'ok',
+      entries,
+    }
+  }
+
   // ── GET /modules ──────────────────────────────────────────────────────────
 
   app.get('/', authMiddleware, requirePermission('core.modules.read'), async (c) => {
@@ -392,6 +505,8 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
       const actorId = c.get('userContext')?.profile?.id ?? null
       const result = await svc.installModule({ manifest: parsed.manifest, actorId, requestId })
       const rlStatus = await safeRouteReload(moduleKey)
+      cacheDel("blueprints:raw")
+      cacheDel("runtime:modules:raw")
       return c.json({ data: result, routeLoader: rlStatus }, 201)
     } catch (err) {
       const stage = classifyInstallStage(err)
@@ -466,9 +581,23 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
       const invalidModules = discovered.filter((record) => record.status !== 'VALID')
 
       let lifecycleSync = { synced: 0, added: 0, updated: 0 }
+      const discoveredKeys = new Set(validModules.map((record) => record.manifest.key))
+      const legacyFallbackManifests = buildLegacyFallbackManifests({ discoveredKeys })
+      const dependencySourceRecords = [...validModules]
       if (validModules.length > 0) {
+        const syncManifests = validModules
+          .map((record) => mergeDiscoveryIntoManifest(record))
+          .filter(Boolean)
+        syncManifests.push(...legacyFallbackManifests)
+        dependencySourceRecords.push(...legacyFallbackManifests.map((manifest) => ({ manifest })))
         lifecycleSync = await svc.syncModules({
-          manifests: validModules.map((record) => record.manifest),
+          manifests: syncManifests,
+          actorId,
+        })
+      } else if (legacyFallbackManifests.length > 0) {
+        dependencySourceRecords.push(...legacyFallbackManifests.map((manifest) => ({ manifest })))
+        lifecycleSync = await svc.syncModules({
+          manifests: legacyFallbackManifests,
           actorId,
         })
       }
@@ -480,7 +609,7 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
         warnings: [],
         modules: [],
       }
-      for (const record of validModules) {
+      for (const record of dependencySourceRecords) {
         try {
           const moduleResult = await syncDiscoveredModuleDependencies({
             prisma,
@@ -549,6 +678,38 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
         }
       }
 
+      const manifestMigrationsSync = {
+        modules: [],
+        applied: 0,
+        alreadyApplied: 0,
+        errors: [],
+        skipped: [],
+      }
+      for (const record of validModules) {
+        const result = await applyManifestMigrationsForRecord({ record })
+        manifestMigrationsSync.modules.push(result)
+        if (result.status === 'skipped') {
+          manifestMigrationsSync.skipped.push({
+            moduleKey: result.moduleKey,
+            reason: result.reason,
+          })
+          continue
+        }
+        for (const entry of result.entries) {
+          if (entry.status === 'applied') manifestMigrationsSync.applied += 1
+          if (entry.status === 'already_applied') manifestMigrationsSync.alreadyApplied += 1
+          if (entry.status === 'error') {
+            manifestMigrationsSync.errors.push({
+              moduleKey: result.moduleKey,
+              filename: entry.filename,
+              path: entry.path,
+              code: entry.code,
+              message: entry.message ?? 'Migration failed',
+            })
+          }
+        }
+      }
+
       const invalidUpserts = []
       for (const record of invalidModules) {
         if (!record.key) continue
@@ -566,10 +727,26 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
         valid: validModules.length,
         invalid: invalidModules.length,
         lifecycleSync,
+        legacyFallbackSync: {
+          used: legacyFallbackManifests.length > 0,
+          modulesCount: legacyFallbackManifests.length,
+          moduleKeys: legacyFallbackManifests.map((manifest) => manifest.key),
+        },
         dependencySync,
         metadataSync,
+        manifestMigrationsSync,
         invalidUpserts,
         modules: discovered.map(serializeDiscoveredModule),
+      }
+
+      if (routeLoader) {
+        const touchedModuleKeys = validModules
+          .map((record) => record?.manifest?.key)
+          .filter((value) => typeof value === 'string' && value.trim())
+          .map((value) => value.trim())
+        payload.routeLoaderSync = await routeLoader.syncInstalledModules({
+          limitToModuleKeys: touchedModuleKeys,
+        })
       }
 
       if (process.env.NODE_ENV !== 'production') {
@@ -578,9 +755,12 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
           projectRoot: discoveryRootInfo.projectRoot,
           modulesDirExists: discoveryRootInfo.modulesDirExists,
           customModulesDirExists: discoveryRootInfo.customModulesDirExists,
+          officialModulesDirExists: discoveryRootInfo.officialModulesDirExists,
         }
       }
 
+      cacheDel("blueprints:raw")
+      cacheDel("runtime:modules:raw")
       return c.json({ data: payload })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo sincronizar los modulos.')
@@ -678,6 +858,8 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
       const actorId = c.get('userContext')?.profile?.id ?? null
       const result = await svc.retryInstallModule({ key, actorId, requestId })
       const rlStatus = await safeRouteReload(key)
+      cacheDel("blueprints:raw")
+      cacheDel("runtime:modules:raw")
       return c.json({ data: result, routeLoader: rlStatus })
     } catch (err) {
       const stage = classifyInstallStage(err)
@@ -707,6 +889,8 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
         mode: parsed.data.mode,
       })
       safeRouteUnload(key)
+      cacheDel("blueprints:raw")
+      cacheDel("runtime:modules:raw")
       return c.json({ data: result })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo restaurar el modulo.')
@@ -744,6 +928,8 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
         confirmation: parsed.data.confirmation,
       })
       safeRouteUnload(key)
+      cacheDel("blueprints:raw")
+      cacheDel("runtime:modules:raw")
       return c.json({ data: result })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo limpiar el intento fallido del modulo.')
@@ -756,6 +942,8 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
       const actorId = c.get('userContext')?.profile?.id ?? null
       const result = await svc.disableModule({ key, actorId })
       const rlUnloaded = safeRouteUnload(key)
+      cacheDel("blueprints:raw")
+      cacheDel("runtime:modules:raw")
       return c.json({ data: result, routeLoader: { unloaded: rlUnloaded ?? false } })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo deshabilitar el modulo.')
@@ -770,6 +958,8 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
       const actorId = c.get('userContext')?.profile?.id ?? null
       const result = await svc.enableModule({ key, actorId })
       const rlStatus = await safeRouteReload(key)
+      cacheDel("blueprints:raw")
+      cacheDel("runtime:modules:raw")
       return c.json({ data: result, routeLoader: rlStatus })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo habilitar el modulo.')
@@ -786,6 +976,8 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
       const companyId = context?.memberships?.[0]?.companyId ?? null
       const result = await svc.uninstallModule({ key, mode: 'preserve-data', companyId, actorId })
       const rlUnloaded = safeRouteUnload(key)
+      cacheDel("blueprints:raw")
+      cacheDel("runtime:modules:raw")
       return c.json({ data: result, routeLoader: { unloaded: rlUnloaded ?? false } })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo desinstalar el modulo.')
@@ -829,6 +1021,8 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
         actorId,
       })
       const rlUnloaded = safeRouteUnload(key)
+      cacheDel("blueprints:raw")
+      cacheDel("runtime:modules:raw")
       return c.json({ data: result, routeLoader: { unloaded: rlUnloaded ?? false } })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo desinstalar el modulo.')
@@ -863,6 +1057,8 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
       const context = c.get('userContext')
       const companyId = context?.memberships?.[0]?.companyId ?? null
       const result = await svc.resetModule({ key, companyId, actorId })
+      cacheDel("blueprints:raw")
+      cacheDel("runtime:modules:raw")
       return c.json({ data: result })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo reiniciar el modulo.')

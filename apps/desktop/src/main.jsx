@@ -30,7 +30,16 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useBrandingStore } from "./stores/branding";
 import "./styles.css";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 function InitGuard() {
   const navigate = useNavigate();
@@ -39,8 +48,8 @@ function InitGuard() {
     queryKey: ["instance-status"],
     queryFn: atlas.instance.status,
     retry: 1,
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 30_000,
+    gcTime: 60_000,
   });
 
   useEffect(() => {

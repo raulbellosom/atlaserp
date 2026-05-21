@@ -149,7 +149,7 @@ export function LoginScreen() {
               <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                 {branding?.companyName
                   ? branding.companyName
-                  : 'Atlas ERP \u00b7 Meridian Edition'}
+                  : 'Atlas ERP · Meridian Edition'}
               </p>
               <h1 className="text-2xl font-semibold tracking-tight">Bienvenido de nuevo</h1>
               <p className="text-sm text-muted-foreground leading-relaxed">

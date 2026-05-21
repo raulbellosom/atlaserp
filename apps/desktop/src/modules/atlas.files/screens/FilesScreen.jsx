@@ -248,40 +248,49 @@ export default function FilesScreen() {
       .filter((file) => getFileKind(file.mimeType) === "image")
       .slice(0, 24);
 
-    imageFiles.forEach((file) => {
-      if (!file?.id) return;
-      if (signedUrlCacheRef.current.has(file.id)) {
+    // Apply cached URLs immediately without a network request.
+    for (const file of imageFiles) {
+      if (!file?.id) continue;
+      const cached = signedUrlCacheRef.current.get(file.id);
+      if (cached) {
         setPreviewMap((prev) => {
-          if (prev.get(file.id) === signedUrlCacheRef.current.get(file.id))
-            return prev;
+          if (prev.get(file.id) === cached) return prev;
           const next = new Map(prev);
-          next.set(file.id, signedUrlCacheRef.current.get(file.id));
+          next.set(file.id, cached);
           return next;
         });
-        return;
       }
-      if (previewFetchPendingRef.current.has(file.id)) return;
+    }
 
-      previewFetchPendingRef.current.add(file.id);
-      atlas.files
-        .getSignedUrl(file.id, token)
-        .then((response) => {
-          const url = response?.data?.signedUrl;
-          if (!url) return;
-          signedUrlCacheRef.current.set(file.id, url);
-          setPreviewMap((prev) => {
-            const next = new Map(prev);
-            next.set(file.id, url);
-            return next;
-          });
-        })
-        .catch(() => {
-          // Ignore thumbnail prefetch failures.
-        })
-        .finally(() => {
-          previewFetchPendingRef.current.delete(file.id);
+    const uncachedIds = imageFiles
+      .filter((f) => f?.id && !signedUrlCacheRef.current.has(f.id) && !previewFetchPendingRef.current.has(f.id))
+      .map((f) => f.id);
+
+    if (uncachedIds.length === 0) return;
+
+    for (const id of uncachedIds) previewFetchPendingRef.current.add(id);
+
+    atlas.files
+      .batchSignedUrls(uncachedIds, token)
+      .then((response) => {
+        const urlMap = response?.data ?? {};
+        setPreviewMap((prev) => {
+          const next = new Map(prev);
+          for (const [id, url] of Object.entries(urlMap)) {
+            if (url) {
+              signedUrlCacheRef.current.set(id, url);
+              next.set(id, url);
+            }
+          }
+          return next;
         });
-    });
+      })
+      .catch(() => {
+        // Ignore thumbnail prefetch failures.
+      })
+      .finally(() => {
+        for (const id of uncachedIds) previewFetchPendingRef.current.delete(id);
+      });
   }, [explorer.filteredFiles, token]);
 
   useEffect(() => {

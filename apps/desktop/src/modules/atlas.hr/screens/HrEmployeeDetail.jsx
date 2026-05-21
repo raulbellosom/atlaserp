@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -580,22 +580,27 @@ function FilesPanel({ employeeId, token, isNew, isEditing }) {
     };
   }, [token, isNew, uploadMutation]);
 
-  // load signed URL previews for images
+  // load signed URL previews for images — one batch request instead of N individual ones
   useEffect(() => {
     if (!token) return;
     const files = filesQuery.data?.data ?? [];
-    for (const file of files) {
-      const kind = getFileKind(file.mimeType);
-      if (kind !== "image") continue;
-      if (previewMap.has(file.id) || signedUrlCache.current.has(file.id))
-        continue;
-      atlas.files.getSignedUrl(file.id, token).then((res) => {
-        const url = res?.data?.signedUrl;
-        if (!url) return;
-        signedUrlCache.current.set(file.id, url);
-        setPreviewMap((prev) => new Map(prev).set(file.id, url));
+    const uncachedIds = files
+      .filter((f) => getFileKind(f.mimeType) === "image" && !previewMap.has(f.id) && !signedUrlCache.current.has(f.id))
+      .map((f) => f.id);
+    if (uncachedIds.length === 0) return;
+    atlas.files.batchSignedUrls(uncachedIds, token).then((res) => {
+      const urlMap = res?.data ?? {};
+      setPreviewMap((prev) => {
+        const next = new Map(prev);
+        for (const [id, url] of Object.entries(urlMap)) {
+          if (url) {
+            signedUrlCache.current.set(id, url);
+            next.set(id, url);
+          }
+        }
+        return next;
       });
-    }
+    });
   }, [filesQuery.data, token]);
 
   const files = filesQuery.data?.data ?? [];
@@ -1184,22 +1189,26 @@ export default function HrEmployeeDetail({ employeeId }) {
     queryKey: ["hr-user-options"],
     queryFn: () => atlas.hr.listUserOptions(token, { limit: 100 }),
     enabled: Boolean(token),
+    staleTime: 5 * 60 * 1000,
   });
   const employeesQuery = useQuery({
     queryKey: ["hr-employees-all"],
     queryFn: () => atlas.hr.listEmployees(token, { limit: 500, enabled: true }),
     enabled: Boolean(token),
+    staleTime: 5 * 60 * 1000,
   });
   const departmentsQuery = useQuery({
     queryKey: ["hr-departments"],
     queryFn: () =>
       atlas.hr.listDepartments(token, { limit: 200, enabled: true }),
     enabled: Boolean(token),
+    staleTime: 5 * 60 * 1000,
   });
   const jobTitlesQuery = useQuery({
     queryKey: ["hr-job-titles"],
     queryFn: () => atlas.hr.listJobTitles(token, { limit: 200, enabled: true }),
     enabled: Boolean(token),
+    staleTime: 5 * 60 * 1000,
   });
   const profileImageQuery = useQuery({
     queryKey: ["hr-profile-image-url", selected?.profileImageFileId],
@@ -1214,24 +1223,40 @@ export default function HrEmployeeDetail({ employeeId }) {
     staleTime: 2 * 60 * 1000,
   });
 
-  const userOptions = (userOptionsQuery.data?.data ?? []).map((r) => ({
-    value: r.id,
-    label: `${r.label} (${r.email})`,
-  }));
-  const departmentOptions = (departmentsQuery.data?.data ?? []).map((row) => ({
-    value: row.id,
-    label: row.name,
-  }));
-  const jobTitleOptions = (jobTitlesQuery.data?.data ?? []).map((row) => ({
-    value: row.id,
-    label: row.name,
-  }));
-  const supervisorOptions = (employeesQuery.data?.data ?? [])
-    .filter((row) => row.id !== selected?.id)
-    .map((row) => ({
-      value: row.id,
-      label: nameOfEmployee(row),
-    }));
+  const userOptions = useMemo(
+    () =>
+      (userOptionsQuery.data?.data ?? []).map((r) => ({
+        value: r.id,
+        label: `${r.label} (${r.email})`,
+      })),
+    [userOptionsQuery.data],
+  );
+  const departmentOptions = useMemo(
+    () =>
+      (departmentsQuery.data?.data ?? []).map((row) => ({
+        value: row.id,
+        label: row.name,
+      })),
+    [departmentsQuery.data],
+  );
+  const jobTitleOptions = useMemo(
+    () =>
+      (jobTitlesQuery.data?.data ?? []).map((row) => ({
+        value: row.id,
+        label: row.name,
+      })),
+    [jobTitlesQuery.data],
+  );
+  const supervisorOptions = useMemo(
+    () =>
+      (employeesQuery.data?.data ?? [])
+        .filter((row) => row.id !== selected?.id)
+        .map((row) => ({
+          value: row.id,
+          label: nameOfEmployee(row),
+        })),
+    [employeesQuery.data, selected?.id],
+  );
 
   // sync form when employee first loads
   useEffect(() => {

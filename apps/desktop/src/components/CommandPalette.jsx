@@ -23,6 +23,7 @@ import {
   FileText,
   Home,
   User,
+  Truck,
 } from "lucide-react";
 import { useCommandStore } from "../stores/command";
 import { getModuleLaunchPath } from "../lib/runtimeModules";
@@ -48,10 +49,17 @@ const ICON_MAP = {
   Home,
   Box,
   User,
+  Truck,
 };
 
 function CmdIcon({ name, size = 14, color }) {
-  const Icon = ICON_MAP[name] ?? Box;
+  const raw = typeof name === "string" ? name.trim() : "";
+  const pascalName = raw
+    .split(/[^a-zA-Z0-9]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join("");
+  const Icon = ICON_MAP[raw] ?? ICON_MAP[pascalName] ?? Box;
   return <Icon size={size} style={{ color }} />;
 }
 
@@ -115,7 +123,7 @@ export function CommandPalette({ activeModule }) {
       .map((m) => ({
         key: `mod-${m.key}`,
         label: m.name,
-        description: m.summary,
+        description: m.summary ?? m.description,
         icon: m.icon,
         color: m.color,
         section: "Módulos",
