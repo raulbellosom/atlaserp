@@ -987,6 +987,38 @@ app.post(
   },
 );
 
+app.get("/profile/me/preferences/:key", authMiddleware, async (c) => {
+  try {
+    const context = await getOrLoadUserContext(c);
+    if (!context?.profile) return c.json({ error: "Perfil no encontrado." }, 404);
+    const key = c.req.param("key");
+    const pref = await prisma.userPreference.findUnique({
+      where: { userId_key: { userId: context.profile.id, key } },
+    });
+    if (!pref) return c.json({ error: "not_found" }, 404);
+    return c.json({ value: pref.value });
+  } catch {
+    return c.json({ error: "No se pudo obtener la preferencia." }, 500);
+  }
+});
+
+app.put("/profile/me/preferences/:key", authMiddleware, async (c) => {
+  try {
+    const context = await getOrLoadUserContext(c);
+    if (!context?.profile) return c.json({ error: "Perfil no encontrado." }, 404);
+    const key = c.req.param("key");
+    const { value } = await c.req.json();
+    const pref = await prisma.userPreference.upsert({
+      where: { userId_key: { userId: context.profile.id, key } },
+      update: { value },
+      create: { userId: context.profile.id, key, value },
+    });
+    return c.json({ value: pref.value });
+  } catch {
+    return c.json({ error: "No se pudo guardar la preferencia." }, 500);
+  }
+});
+
 app.get("/memberships/me", authMiddleware, async (c) => {
   const authUserId = c.get("authUserId");
   try {
