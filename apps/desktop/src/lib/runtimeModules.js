@@ -9,12 +9,7 @@ const STATUS_ORDER = {
   ERROR: 3,
 };
 
-export const CATEGORY_LABELS = {
-  sistema: "Sistema",
-  operaciones: "Operaciones",
-  contabilidad: "Contabilidad",
-  general: "General",
-};
+export { CATEGORY_LABELS, getSortedDisplay } from './sortModules.js';
 
 function getManifestsByKey() {
   return new Map(MANIFESTS.map((manifest) => [manifest.key, manifest]));
