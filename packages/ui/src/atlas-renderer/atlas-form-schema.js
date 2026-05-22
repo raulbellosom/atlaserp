@@ -71,6 +71,7 @@ export function normalizeSections(schema, fieldMap) {
           placement: normalizeAttachmentsPlacement(
             entry.placement ?? attachmentsConfig?.placement,
           ),
+          icon: typeof entry.icon === "string" && entry.icon.trim() ? entry.icon.trim() : null,
           ...toSectionMeta(entry),
           attachments: attachmentsConfig,
         };
@@ -84,6 +85,7 @@ export function normalizeSections(schema, fieldMap) {
           minItems: Number.isFinite(Number(entry.minItems))
             ? Math.max(0, Number(entry.minItems))
             : 0,
+          icon: typeof entry.icon === "string" && entry.icon.trim() ? entry.icon.trim() : null,
           ...toSectionMeta(entry),
         };
       }
