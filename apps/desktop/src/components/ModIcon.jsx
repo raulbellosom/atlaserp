@@ -4,7 +4,7 @@ import {
   Building2, CreditCard, BarChart3, FileText, Home, Truck,
 } from 'lucide-react';
 
-const ICON_MAP = {
+export const ICON_MAP = {
   LayoutDashboard, Puzzle, Settings, Contact, Wallet, Users, Shield,
   Palette, FolderOpen, Building2, Layers, ContactRound, Landmark,
   CreditCard, BarChart3, FileText, Home, Truck, Box,
