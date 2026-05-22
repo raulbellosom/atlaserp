@@ -274,6 +274,22 @@ model UserProfile {
   notifications Notification[]
   reversedFinanceApplications FinanceDocumentApplication[] @relation("FinanceDocumentApplicationReversedBy")
   hrEmployee HrEmployee?
+  tablePreferences UserTablePreference[]
+  preferences  UserPreference[]
+}
+
+model UserTablePreference {
+  id        String      @id @default(cuid())
+  userId    String
+  tableKey  String
+  config    Json
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tableKey])
+  @@index([userId])
 }
 
 model Membership {
@@ -730,6 +746,19 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([createdAt])
+}
+
+model UserPreference {
+  id        String      @id @default(cuid())
+  userId    String
+  key       String
+  value     Json
+  updatedAt DateTime    @updatedAt
+
+  user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId])
 }
 
 model LedgerAccount {
