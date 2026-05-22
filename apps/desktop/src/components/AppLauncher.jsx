@@ -1,85 +1,22 @@
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "motion/react";
-import {
-  Search,
-  X,
-  Box,
-  Layers,
-  ContactRound,
-  Landmark,
-  LayoutDashboard,
-  Puzzle,
-  Settings,
-  Contact,
-  Wallet,
-  Users,
-  Shield,
-  Palette,
-  FolderOpen,
-  Building2,
-  CreditCard,
-  BarChart3,
-  FileText,
-  Home,
-  Truck,
-} from "lucide-react";
-import { useLauncherStore } from "../stores/launcher";
-import {
-  CATEGORY_LABELS,
-  getModuleLaunchPath,
-  groupModulesByCategory,
-} from "../lib/runtimeModules";
-import { useRuntimeModules } from "../app/useRuntimeModules";
-
-const ICON_MAP = {
-  LayoutDashboard,
-  Puzzle,
-  Settings,
-  Contact,
-  Wallet,
-  Users,
-  Shield,
-  Palette,
-  FolderOpen,
-  Building2,
-  Layers,
-  ContactRound,
-  Landmark,
-  CreditCard,
-  BarChart3,
-  FileText,
-  Home,
-  Truck,
-  Box,
-};
-
-function ModIcon({ name, size = 22, color, logoUrl }) {
-  if (typeof logoUrl === "string" && logoUrl.trim()) {
-    return (
-      <img
-        src={logoUrl}
-        alt=""
-        className="object-contain"
-        style={{ width: size, height: size }}
-      />
-    );
-  }
-  const raw = typeof name === "string" ? name.trim() : "";
-  const pascalName = raw
-    .split(/[^a-zA-Z0-9]/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join("");
-  const Icon = ICON_MAP[raw] ?? ICON_MAP[pascalName] ?? Box;
-  return <Icon size={size} style={{ color }} />;
-}
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
+import { Search, X, Home, Star } from 'lucide-react';
+import { useLauncherStore } from '../stores/launcher';
+import { getModuleLaunchPath, getSortedDisplay } from '../lib/runtimeModules';
+import { useRuntimeModules } from '../app/useRuntimeModules';
+import { useAppViewPrefs } from '../hooks/useAppViewPrefs';
+import { AppViewControls } from './AppViewControls';
+import { AppContextMenu } from './AppContextMenu';
+import { ModIcon } from './ModIcon';
 
 export function AppLauncher() {
   const { isOpen, closeLauncher, toggleLauncher } = useLauncherStore();
   const navigate = useNavigate();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
+  const [contextMenu, setContextMenu] = useState(null);
   const { availableModules } = useRuntimeModules();
+  const { sortMode, viewMode, favorites, favoritesFirst, isFavorite } = useAppViewPrefs();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -87,38 +24,47 @@ export function AppLauncher() {
     return availableModules.filter(
       (m) =>
         m.name.toLowerCase().includes(q) ||
-        (m.summary ?? "").toLowerCase().includes(q) ||
+        (m.summary ?? '').toLowerCase().includes(q) ||
         m.key.toLowerCase().includes(q),
     );
   }, [query, availableModules]);
 
-  const grouped = useMemo(() => groupModulesByCategory(filtered), [filtered]);
+  const sections = useMemo(() => {
+    if (query.trim()) return [{ label: null, modules: filtered }];
+    return getSortedDisplay(filtered, { sortMode, favorites, favoritesFirst });
+  }, [filtered, query, sortMode, favorites, favoritesFirst]);
 
   useEffect(() => {
     function handleKey(e) {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
+        if (contextMenu) { setContextMenu(null); return; }
         closeLauncher();
-        setQuery("");
+        setQuery('');
       }
-      if (e.ctrlKey && e.key === ".") {
+      if (e.ctrlKey && e.key === '.') {
         e.preventDefault();
         toggleLauncher();
       }
     }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [closeLauncher, toggleLauncher]);
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [closeLauncher, toggleLauncher, contextMenu]);
 
   function handleModuleClick(module) {
     navigate(getModuleLaunchPath(module));
     closeLauncher();
-    setQuery("");
+    setQuery('');
   }
 
   function handleGoHome() {
-    navigate("/app/home");
+    navigate('/app/home');
     closeLauncher();
-    setQuery("");
+    setQuery('');
+  }
+
+  function handleContextMenu(e, moduleKey) {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, moduleKey });
   }
 
   return (
@@ -133,10 +79,7 @@ export function AppLauncher() {
         >
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => {
-              closeLauncher();
-              setQuery("");
-            }}
+            onClick={() => { closeLauncher(); setQuery(''); }}
           />
 
           <motion.div
@@ -146,11 +89,9 @@ export function AppLauncher() {
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
           >
+            {/* Search header */}
             <div className="flex items-center gap-3 px-4 py-3 border-b border-[hsl(var(--border))] shrink-0">
-              <Search
-                size={15}
-                className="text-[hsl(var(--muted-foreground))] shrink-0"
-              />
+              <Search size={15} className="text-[hsl(var(--muted-foreground))] shrink-0" />
               <input
                 autoFocus
                 type="text"
@@ -167,59 +108,103 @@ export function AppLauncher() {
                 Inicio
               </button>
               <button
-                onClick={() => {
-                  closeLauncher();
-                  setQuery("");
-                }}
+                onClick={() => { closeLauncher(); setQuery(''); }}
                 className="h-7 w-7 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors cursor-pointer"
               >
                 <X size={14} />
               </button>
             </div>
 
-            <div className="overflow-y-auto flex-1 px-4 py-4 space-y-6">
-              {Object.keys(grouped).length === 0 ? (
+            {/* Controls bar (hidden during search) */}
+            {!query.trim() && (
+              <AppViewControls className="px-4 py-2 border-b border-[hsl(var(--border))] shrink-0" />
+            )}
+
+            {/* Module list */}
+            <div className="overflow-y-auto flex-1 px-4 py-4 space-y-5">
+              {sections.length === 0 ? (
                 <p className="text-sm text-center text-[hsl(var(--muted-foreground))] py-8">
                   Sin resultados para "{query}"
                 </p>
               ) : (
-                Object.entries(grouped).map(([category, modules]) => (
-                  <div key={category}>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))] mb-3">
-                      {CATEGORY_LABELS[category] ?? category}
-                    </p>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                      {modules.map((module) => (
-                        <button
-                          key={module.key}
-                          onClick={() => handleModuleClick(module)}
-                          className="flex flex-col items-center gap-2 rounded-xl p-4 hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer text-center"
-                        >
-                          <div
-                            className="h-12 w-12 rounded-xl flex items-center justify-center"
-                            style={{ backgroundColor: `${module.color}26` }}
+                sections.map((section, si) => (
+                  <div key={section.label ?? `section-${si}`}>
+                    {section.label && (
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))] mb-3">
+                        {section.label}
+                      </p>
+                    )}
+                    {viewMode === 'list' ? (
+                      <div className="flex flex-col gap-0.5">
+                        {section.modules.map((module) => (
+                          <button
+                            key={module.key}
+                            onClick={() => handleModuleClick(module)}
+                            onContextMenu={(e) => handleContextMenu(e, module.key)}
+                            className="flex items-center gap-3 w-full rounded-lg px-3 py-2 hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer text-left"
                           >
-                            <ModIcon
-                              name={module.icon}
-                              size={22}
-                              color={module.color}
-                              logoUrl={module.logoUrl}
-                            />
-                          </div>
-                          <p className="text-xs font-semibold text-[hsl(var(--foreground))] leading-tight">
-                            {module.name}
-                          </p>
-                          <p className="text-[10px] text-[hsl(var(--muted-foreground))] line-clamp-2 leading-snug w-full">
-                            {module.summary || module.description}
-                          </p>
-                        </button>
-                      ))}
-                    </div>
+                            <div
+                              className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: `${module.color}26` }}
+                            >
+                              <ModIcon name={module.icon} size={16} color={module.color} logoUrl={module.logoUrl} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-[hsl(var(--foreground))] leading-tight truncate">
+                                {module.name}
+                              </p>
+                              <p className="text-[10px] text-[hsl(var(--muted-foreground))] truncate">
+                                {module.summary || module.description}
+                              </p>
+                            </div>
+                            {isFavorite(module.key) && (
+                              <Star size={11} className="text-amber-400 fill-amber-400 shrink-0" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {section.modules.map((module) => (
+                          <button
+                            key={module.key}
+                            onClick={() => handleModuleClick(module)}
+                            onContextMenu={(e) => handleContextMenu(e, module.key)}
+                            className="flex flex-col items-center gap-2 rounded-xl p-4 hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer text-center relative"
+                          >
+                            {isFavorite(module.key) && (
+                              <Star size={9} className="absolute top-2 right-2 text-amber-400 fill-amber-400" />
+                            )}
+                            <div
+                              className="h-12 w-12 rounded-xl flex items-center justify-center"
+                              style={{ backgroundColor: `${module.color}26` }}
+                            >
+                              <ModIcon name={module.icon} size={22} color={module.color} logoUrl={module.logoUrl} />
+                            </div>
+                            <p className="text-xs font-semibold text-[hsl(var(--foreground))] leading-tight">
+                              {module.name}
+                            </p>
+                            <p className="text-[10px] text-[hsl(var(--muted-foreground))] line-clamp-2 leading-snug w-full">
+                              {module.summary || module.description}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))
               )}
             </div>
           </motion.div>
+
+          {contextMenu && (
+            <AppContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              moduleKey={contextMenu.moduleKey}
+              onClose={() => setContextMenu(null)}
+            />
+          )}
         </motion.div>
       )}
     </AnimatePresence>
