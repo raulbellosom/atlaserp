@@ -50,3 +50,6 @@ task*-*.headers
 task*-*.log
 task*-*.pid
 task*.tokens.json
+
+# Git worktrees
+.worktrees/
