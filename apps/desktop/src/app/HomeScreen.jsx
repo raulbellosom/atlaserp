@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Box, Layers, Puzzle, Wifi, WifiOff, Star,
+  Layers, Puzzle, Wifi, WifiOff, Star,
 } from 'lucide-react';
 import { Skeleton, StatCard, Separator } from '@atlas/ui';
 import { useAuth } from '../auth/AuthProvider';
