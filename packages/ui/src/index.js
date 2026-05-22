@@ -203,5 +203,6 @@ export {
   AtlasDetail,
   AtlasCrudView,
   AtlasCardView,
+  BulkActionBar,
   normalizeSpanishLabel,
 } from "./atlas-renderer/index.js";

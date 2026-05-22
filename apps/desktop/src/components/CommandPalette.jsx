@@ -86,6 +86,7 @@ export function CommandPalette({ activeModule }) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef(null);
+  const listRef = useRef(null);
   const { availableModules } = useRuntimeModules();
 
   const results = useMemo(() => {
@@ -195,6 +196,12 @@ export function CommandPalette({ activeModule }) {
   }, [isOpen, openCommand, closeCommand, results, selectedIndex]);
 
   useEffect(() => {
+    if (!listRef.current) return;
+    const el = listRef.current.querySelector(`[data-cmd-idx="${selectedIndex}"]`);
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [selectedIndex]);
+
+  useEffect(() => {
     if (isOpen) {
       const t = setTimeout(() => inputRef.current?.focus(), 50);
       return () => clearTimeout(t);
@@ -252,7 +259,7 @@ export function CommandPalette({ activeModule }) {
               </button>
             </div>
 
-            <div className="overflow-y-auto max-h-[50dvh] p-2">
+            <div ref={listRef} className="overflow-y-auto max-h-[50dvh] p-2">
               {results.length === 0 ? (
                 <p className="text-sm text-center text-[hsl(var(--muted-foreground))] py-8">
                   Sin resultados
@@ -269,6 +276,7 @@ export function CommandPalette({ activeModule }) {
                       return (
                         <button
                           key={item.key}
+                          data-cmd-idx={idx}
                           onClick={item.action}
                           onMouseEnter={() => setSelectedIndex(idx)}
                           className={`w-full flex items-center gap-3 py-2.5 px-3 rounded-lg transition-colors duration-100 cursor-pointer text-left ${

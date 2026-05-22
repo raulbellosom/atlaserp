@@ -15,6 +15,11 @@ import { createModuleLifecycleService, ModuleLifecycleError } from '../services/
 import { createModuleMetadataService } from '../services/module-metadata-service.js'
 import { createModuleMigrationService } from '../services/module-migration-service.js'
 import { discoverModules, getDiscoveryRootInfo } from '../services/module-discovery-service.js'
+import {
+  detectRequiredDependencyCycle,
+  formatDependencyCycle,
+  normalizeManifestDependencies,
+} from '../services/module-dependency-utils.js'
 import { del as cacheDel } from '../lib/cache.js'
 
 const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company'])
@@ -228,38 +233,6 @@ async function upsertDiscoveredModuleError({ prisma, record }) {
   })
 }
 
-function normalizeManifestDependencies(dependencies = []) {
-  const records = new Map()
-  const safeDependencies = Array.isArray(dependencies) ? dependencies : []
-
-  for (const dep of safeDependencies) {
-    const rawKey = typeof dep === 'string' ? dep : dep?.key
-    if (typeof rawKey !== 'string' || !rawKey.trim()) continue
-
-    const key = rawKey.trim()
-    const versionRange =
-      typeof dep?.versionRange === 'string' && dep.versionRange.trim()
-        ? dep.versionRange.trim()
-        : null
-    const optional = Boolean(dep?.optional)
-
-    const current = records.get(key)
-    if (!current) {
-      records.set(key, { key, optional, versionRange })
-      continue
-    }
-
-    records.set(key, {
-      key,
-      // If any declaration marks this dependency as required, keep required.
-      optional: current.optional && optional,
-      versionRange: versionRange ?? current.versionRange,
-    })
-  }
-
-  return [...records.values()].sort((a, b) => a.key.localeCompare(b.key))
-}
-
 async function syncDiscoveredModuleDependencies({ prisma, moduleKey, dependencies = [] }) {
   const moduleRow = await prisma.atlasModule.findUnique({
     where: { key: moduleKey },
@@ -299,6 +272,45 @@ async function syncDiscoveredModuleDependencies({ prisma, moduleKey, dependencie
     .filter((dep) => dep.optional && !dependencyByKey.has(dep.key))
     .map((dep) => dep.key)
   const resolvable = normalizedDependencies.filter((dep) => dependencyByKey.has(dep.key))
+  const requiredDependencyIds = resolvable
+    .filter((dep) => !dep.optional)
+    .map((dep) => dependencyByKey.get(dep.key))
+    .filter(Boolean)
+
+  if (requiredDependencyIds.length > 0) {
+    const existingRequiredEdges = await prisma.moduleDependency.findMany({
+      where: { optional: false },
+      select: { moduleId: true, dependencyId: true },
+    })
+    const cycleIds = detectRequiredDependencyCycle({
+      moduleId: moduleRow.id,
+      requiredDependencyIds,
+      existingRequiredEdges,
+    })
+    if (cycleIds) {
+      const involvedIds = [...new Set(cycleIds)]
+      const moduleRows = await prisma.atlasModule.findMany({
+        where: { id: { in: involvedIds } },
+        select: { id: true, key: true },
+      })
+      const idToKey = new Map(moduleRows.map((row) => [row.id, row.key]))
+      const cyclePath = formatDependencyCycle({ cycle: cycleIds, idToKey })
+      return {
+        key: moduleRow.key,
+        declared: normalizedDependencies.length,
+        synced: 0,
+        removed: 0,
+        missingRequired,
+        missingOptional,
+        error: {
+          code: 'DEPENDENCY_CYCLE_DETECTED',
+          message: `Dependencia circular detectada: ${cyclePath}.`,
+          cyclePath,
+        },
+      }
+    }
+  }
+
   const desiredDependencyIds = new Set(resolvable.map((dep) => dependencyByKey.get(dep.key)))
 
   const txResult = await prisma.$transaction(async (tx) => {
@@ -1019,6 +1031,7 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
         mode: parsed.data.mode,
         companyId,
         actorId,
+        confirmation: parsed.data.confirmation ?? null,
       })
       const rlUnloaded = safeRouteUnload(key)
       cacheDel("blueprints:raw")

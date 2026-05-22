@@ -660,18 +660,29 @@ export function createFinanceService({ prisma }) {
   }
 
   return {
-    async listAccounts({ authUserId, search, limit }) {
+    async listAccounts({ authUserId, search, page, pageSize, sortBy, sortDir }) {
       const { companyId } = await getCompanyContext(authUserId);
-      const take = normalizeLimit(limit, 100, 200);
-      const rows = await prisma.financeAccount.findMany({
-        where: {
-          companyId,
-          ...buildSearchWhere(search),
-        },
-        orderBy: [{ code: "asc" }, { name: "asc" }],
-        take,
-      });
-      return rows;
+      const parsedPage = Math.max(1, Number.parseInt(String(page ?? 1), 10) || 1);
+      const parsedPageSize = Math.min(200, Math.max(1, Number.parseInt(String(pageSize ?? 20), 10) || 20));
+      const where = {
+        companyId,
+        ...buildSearchWhere(search),
+      };
+      const SORT_FIELDS = { code: "code", name: "name", accountType: "accountType", currency: "currency" };
+      const dir = sortDir === "desc" ? "desc" : "asc";
+      const orderBy = sortBy && SORT_FIELDS[sortBy]
+        ? [{ [SORT_FIELDS[sortBy]]: dir }]
+        : [{ code: "asc" }, { name: "asc" }];
+      const [rows, total] = await Promise.all([
+        prisma.financeAccount.findMany({
+          where,
+          orderBy,
+          take: parsedPageSize,
+          skip: (parsedPage - 1) * parsedPageSize,
+        }),
+        prisma.financeAccount.count({ where }),
+      ]);
+      return { rows, total, page: parsedPage, pageSize: parsedPageSize };
     },
 
     async createAccount({ authUserId, payload }) {

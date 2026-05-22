@@ -1,12 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import {
-  Layers, Puzzle, Wifi, WifiOff, Star,
-} from 'lucide-react';
-import { Skeleton, StatCard, Separator } from '@atlas/ui';
+import { Star, WifiOff, Zap } from 'lucide-react';
+import { Skeleton, Separator } from '@atlas/ui';
 import { useAuth } from '../auth/AuthProvider';
-import { atlas } from '../lib/atlas';
 import { getModuleLaunchPath, getSortedDisplay } from '../lib/runtimeModules';
 import { useRuntimeModules } from './useRuntimeModules';
 import { useAppViewPrefs } from '../hooks/useAppViewPrefs';
@@ -22,6 +18,13 @@ function trackModuleVisit(moduleKey) {
   } catch {}
 }
 
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Buenos días';
+  if (h < 19) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
 function getSpanishDate() {
   try {
     const str = new Date().toLocaleDateString('es-MX', {
@@ -34,32 +37,28 @@ function getSpanishDate() {
 }
 
 export function HomeScreen() {
-  const { userProfile, session } = useAuth();
-  const token = session?.access_token;
+  const { userProfile } = useAuth();
   const navigate = useNavigate();
   const [contextMenu, setContextMenu] = useState(null);
-  const { runtimeModules, availableModules, isLoading: modulesLoading, isError: modulesError } =
-    useRuntimeModules();
+  const { availableModules, isLoading: modulesLoading, isError: modulesError } = useRuntimeModules();
   const { sortMode, viewMode, favorites, favoritesFirst, isFavorite } = useAppViewPrefs();
 
-  const blueprintsQuery = useQuery({
-    queryKey: ['blueprints', token],
-    queryFn: () => atlas.blueprints.list(token),
-    enabled: Boolean(token),
-    staleTime: 60000,
-  });
+  const favoriteModules = useMemo(
+    () => availableModules.filter((m) => favorites.includes(m.key)),
+    [availableModules, favorites],
+  );
 
   const recentModules = useMemo(() => {
     try {
       const visits = JSON.parse(localStorage.getItem('atlas-module-visits') || '{}');
       return availableModules
-        .filter((m) => visits[m.key])
+        .filter((m) => visits[m.key] && !favorites.includes(m.key))
         .sort((a, b) => visits[b.key] - visits[a.key])
-        .slice(0, 4);
+        .slice(0, 5);
     } catch {
       return [];
     }
-  }, [availableModules]);
+  }, [availableModules, favorites]);
 
   const sections = useMemo(
     () => getSortedDisplay(availableModules, { sortMode, favorites, favoritesFirst }),
@@ -76,54 +75,94 @@ export function HomeScreen() {
     setContextMenu({ x: e.clientX, y: e.clientY, moduleKey });
   }
 
-  const firstName = userProfile?.firstName ?? userProfile?.displayName ?? 'Usuario';
-  const installedCount = runtimeModules.filter((m) => m.status === 'INSTALLED' && m.enabled).length;
-  const blueprintCount = blueprintsQuery.data?.data?.length ?? blueprintsQuery.data?.length;
+  const firstName = userProfile?.firstName ?? userProfile?.displayName ?? 'tú';
+  const hasQuickAccess = favoriteModules.length > 0 || recentModules.length > 0;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-10 md:px-6">
-      {/* Welcome header */}
-      <div className="space-y-3">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[hsl(var(--foreground))]">
-            Bienvenido, {firstName}.
-          </h1>
-          <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">{getSpanishDate()}</p>
-        </div>
+    <div className="max-w-5xl mx-auto px-4 py-10 md:px-6 space-y-10">
 
-        {recentModules.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <span className="text-xs font-medium text-[hsl(var(--muted-foreground))]">Recientes:</span>
-            {recentModules.map((m) => (
-              <button
-                key={m.key}
-                onClick={() => handleModuleClick(m)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:bg-(--brand-soft) hover:border-(--brand-primary) text-xs font-medium text-[hsl(var(--foreground))] transition-all duration-150 cursor-pointer"
-              >
-                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: m.color }} />
-                {m.name}
-              </button>
-            ))}
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm text-[hsl(var(--muted-foreground))] mb-1">{getSpanishDate()}</p>
+          <h1 className="text-3xl font-bold tracking-tight text-[hsl(var(--foreground))]">
+            {getGreeting()}, {firstName}.
+          </h1>
+        </div>
+        {modulesError && (
+          <div className="flex items-center gap-1.5 text-xs text-amber-500 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mt-1 shrink-0">
+            <WifiOff size={11} />
+            Sin conexión al servidor
           </div>
         )}
       </div>
 
-      {/* KPI stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Módulos instalados" value={installedCount} icon={Puzzle} loading={modulesLoading} />
-        <StatCard label="Blueprints activos" value={blueprintCount ?? '—'} icon={Layers} loading={blueprintsQuery.isLoading} />
-        <StatCard
-          label="Estado API"
-          value={modulesError ? 'Sin conexión' : 'Conectada'}
-          icon={modulesError ? WifiOff : Wifi}
-          loading={modulesLoading}
-        />
-      </div>
+      {/* Acceso rápido */}
+      {hasQuickAccess && (
+        <div className="space-y-4">
+          {favoriteModules.length > 0 && (
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2">
+                <Star size={12} className="text-amber-400 fill-amber-400" />
+                <span className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
+                  Favoritos
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+                {favoriteModules.map((module) => (
+                  <button
+                    key={module.key}
+                    onClick={() => handleModuleClick(module)}
+                    onContextMenu={(e) => handleContextMenu(e, module.key)}
+                    className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all duration-150 cursor-pointer px-3 py-2.5 text-left active:scale-[0.98]"
+                  >
+                    <div
+                      className="rounded-lg flex items-center justify-center shrink-0"
+                      style={{ height: 32, width: 32, backgroundColor: `${module.color}22` }}
+                    >
+                      <ModIcon name={module.icon} size={16} color={module.color} logoUrl={module.logoUrl} />
+                    </div>
+                    <p className="text-xs font-semibold text-[hsl(var(--foreground))] leading-tight truncate">
+                      {module.name}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-      {/* Module grid */}
+          {recentModules.length > 0 && (
+            <div className="space-y-2.5">
+              {favoriteModules.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Zap size={12} className="text-[hsl(var(--muted-foreground))]" />
+                  <span className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
+                    Recientes
+                  </span>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {recentModules.map((m) => (
+                  <button
+                    key={m.key}
+                    onClick={() => handleModuleClick(m)}
+                    onContextMenu={(e) => handleContextMenu(e, m.key)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:bg-[hsl(var(--muted))] text-xs font-medium text-[hsl(var(--foreground))] transition-all duration-150 cursor-pointer"
+                  >
+                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: m.color }} />
+                    {m.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Aplicaciones */}
       <div className="space-y-4">
         <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-lg font-semibold text-[hsl(var(--foreground))] shrink-0">Aplicaciones</h2>
+          <h2 className="text-base font-semibold text-[hsl(var(--foreground))] shrink-0">Aplicaciones</h2>
           <Separator className="flex-1 min-w-8" />
           <AppViewControls />
         </div>
@@ -204,7 +243,7 @@ export function HomeScreen() {
 
           {!modulesLoading && availableModules.length === 0 && (
             <p className="text-sm text-[hsl(var(--muted-foreground))]">
-              No hay módulos habilitados para mostrar.
+              No hay aplicaciones disponibles.
             </p>
           )}
         </div>

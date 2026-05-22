@@ -1,13 +1,13 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { createHash } from 'node:crypto'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-// TODO(AME3): switch to '@atlas/module-engine' once the package is linked for API runtime resolution.
 import {
   validateManifest,
   validateModel,
   validatePage,
   validateView,
-} from '../../../../packages/module-engine/src/index.js'
+} from '@atlas/module-engine'
 
 const SOURCE_OFFICIAL = 'official'
 const SOURCE_CUSTOM = 'custom'
@@ -487,6 +487,17 @@ export async function loadModuleMigrations({ moduleDir, manifest }) {
     if (!sql.trim()) {
       throw new Error(`Migration file is empty: ${declaredPath}`)
     }
+    const computedChecksum = createHash('sha256').update(sql).digest('hex')
+    if (computedChecksum !== checksum) {
+      const checksumError = new Error(
+        `Checksum mismatch for migration "${declaredPath}": expected ${checksum}, got ${computedChecksum}`
+      )
+      checksumError.code = 'MANIFEST_MIGRATION_CHECKSUM_MISMATCH'
+      checksumError.expectedChecksum = checksum
+      checksumError.computedChecksum = computedChecksum
+      checksumError.path = declaredPath
+      throw checksumError
+    }
 
     migrations.push({
       path: declaredPath,
@@ -567,7 +578,11 @@ async function discoverModulesBySource({ rootDir, source }) {
         })
       } catch (error) {
         baseRecord.status = 'ERROR'
-        baseRecord.error = toRecordError('DECLARATION_LOAD_FAILED', error)
+        const errorCode =
+          typeof error?.code === 'string' && error.code.trim()
+            ? error.code.trim()
+            : 'DECLARATION_LOAD_FAILED'
+        baseRecord.error = toRecordError(errorCode, error)
         records.push(baseRecord)
         continue
       }

@@ -23,9 +23,62 @@ function toPlainObject(value) {
   return value
 }
 
+const ROUTE_METHOD_SET = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'])
+
+function normalizeRouteMethod(value) {
+  const method = typeof value === 'string' ? value.trim().toUpperCase() : ''
+  return method
+}
+
+function normalizeRoutePath(value) {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (trimmed === '/') return '/'
+  const withSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+  return withSlash.replace(/\/+$/, '')
+}
+
+function toRouteSignature(method, routePath) {
+  return `${method} ${routePath}`
+}
+
+export function collectRouteSignatures(moduleRouter) {
+  if (!moduleRouter || !Array.isArray(moduleRouter.routes)) return []
+  const signatures = []
+  for (const route of moduleRouter.routes) {
+    const method = normalizeRouteMethod(route?.method)
+    if (!ROUTE_METHOD_SET.has(method)) continue
+    const routePath = normalizeRoutePath(route?.path)
+    if (!routePath) continue
+    signatures.push({
+      method,
+      path: routePath,
+      signature: toRouteSignature(method, routePath),
+    })
+  }
+  return signatures
+}
+
+class RouteCollisionError extends Error {
+  constructor({ moduleKey, method, path: routePath, conflictingModuleKey }) {
+    super(
+      `Conflicto de ruta detectado (${method} ${routePath}) entre modulos ${conflictingModuleKey} y ${moduleKey}.`
+    )
+    this.name = 'RouteCollisionError'
+    this.code = 'ROUTE_COLLISION'
+    this.moduleKey = moduleKey
+    this.method = method
+    this.path = routePath
+    this.conflictingModuleKey = conflictingModuleKey
+  }
+}
+
 export function createRouteLoaderService({ prisma, authMiddleware, requirePermission, cache = null }) {
   let modulesRoot = null
   const routerMap = new Map()
+  const routeOwnerMap = new Map()
+  const routeSignaturesByModule = new Map()
   const routeStatusMap = new Map()
   const componentRegistryStore = new Map()
   const activeModuleKeySet = new Set()
@@ -95,6 +148,19 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     return componentRegistryStore.delete(key)
   }
 
+  function unloadModuleRoutes(moduleKey) {
+    const key = normalizeModuleKey(moduleKey)
+    if (!key) return
+    const signatures = routeSignaturesByModule.get(key) ?? []
+    for (const signature of signatures) {
+      const owner = routeOwnerMap.get(signature)
+      if (owner?.moduleKey === key) {
+        routeOwnerMap.delete(signature)
+      }
+    }
+    routeSignaturesByModule.delete(key)
+  }
+
   function ensurePathInsideModules(resolvedPath, label) {
     if (!modulesRoot) {
       throw new Error('Route loader modules root is not initialized.')
@@ -160,7 +226,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     )
   }
 
-  async function markModuleRouteError(moduleKey, errorMessage) {
+  async function markModuleRouteError(moduleKey, errorMessage, details = null) {
     const mod = await prisma.atlasModule.findUnique({
       where: { key: moduleKey },
       select: { lifecycleConfig: true },
@@ -171,6 +237,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
       status: 'ERROR',
       error: typeof errorMessage === 'string' ? errorMessage : 'Unknown route loader error',
       updatedAt: new Date().toISOString(),
+      ...(details && typeof details === 'object' ? details : {}),
     }
     await prisma.atlasModule.update({
       where: { key: moduleKey },
@@ -249,12 +316,37 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
       throw new Error(`Router factory for ${moduleKey} did not return a valid Hono app.`)
     }
 
+    const routeSignatures = collectRouteSignatures(moduleRouter)
+    const collision = routeSignatures.find((routeInfo) => {
+      const owner = routeOwnerMap.get(routeInfo.signature)
+      return owner && owner.moduleKey !== moduleKey
+    })
+    if (collision) {
+      const owner = routeOwnerMap.get(collision.signature)
+      throw new RouteCollisionError({
+        moduleKey,
+        method: collision.method,
+        path: collision.path,
+        conflictingModuleKey: owner?.moduleKey ?? 'unknown',
+      })
+    }
+
+    routeSignaturesByModule.set(moduleKey, routeSignatures.map((routeInfo) => routeInfo.signature))
+    for (const routeInfo of routeSignatures) {
+      routeOwnerMap.set(routeInfo.signature, {
+        moduleKey,
+        method: routeInfo.method,
+        path: routeInfo.path,
+      })
+    }
+
     const securedRouter = wrapWithAuth(moduleRouter)
     routerMap.set(moduleKey, {
       moduleKey,
       apiPath,
       router: moduleRouter,
       securedRouter,
+      routeSignatures,
       loadedAt: new Date().toISOString(),
     })
     activeModuleKeySet.add(moduleKey)
@@ -345,6 +437,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     if (!key) return { loaded: false, reason: 'invalid_module_key' }
 
     routerMap.delete(key)
+    unloadModuleRoutes(key)
     unloadModuleComponents(key)
     const moduleRow = await prisma.atlasModule.findUnique({
       where: { key },
@@ -367,6 +460,19 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       console.error(`[route-loader] ${key}: ${message}`)
+      if (err instanceof RouteCollisionError) {
+        const collision = {
+          code: err.code,
+          moduleKey: key,
+          conflictingModuleKey: err.conflictingModuleKey,
+          method: err.method,
+          path: err.path,
+          signature: toRouteSignature(err.method, err.path),
+        }
+        setModuleRouteStatus(key, 'ERROR', { error: message, collision })
+        await markModuleRouteError(key, message, { collision })
+        return { loaded: false, reason: 'route_collision', error: message, collision }
+      }
       setModuleRouteStatus(key, 'ERROR', { error: message })
       await markModuleRouteError(key, message)
       return { loaded: false, reason: 'error', error: message }
@@ -377,6 +483,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     const key = typeof moduleKey === 'string' ? moduleKey.trim() : ''
     if (!key) return false
     const removed = routerMap.delete(key)
+    unloadModuleRoutes(key)
     unloadModuleComponents(key)
     setModuleRouteStatus(key, 'UNLOADED', { reason: 'manual_unload' })
     return removed
@@ -432,6 +539,12 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     return [...routerMap.values()].map((entry) => ({
       moduleKey: entry.moduleKey,
       apiPath: entry.apiPath,
+      routes: Array.isArray(entry.routeSignatures)
+        ? entry.routeSignatures.map((routeInfo) => ({
+            method: routeInfo.method,
+            path: routeInfo.path,
+          }))
+        : [],
       loadedAt: entry.loadedAt,
     }))
   }

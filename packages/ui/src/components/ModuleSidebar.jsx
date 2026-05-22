@@ -154,7 +154,7 @@ export function ModuleSidebar({
             <img
               src={module.logoUrl}
               alt=""
-              className="h-4 w-4 object-contain"
+              className="h-full w-full object-contain p-0.5"
             />
           ) : (
             <NavIcon

@@ -1,10 +1,9 @@
-// TODO(AME3): switch to '@atlas/module-engine' once the package is linked for API runtime resolution.
 import { createHash } from 'node:crypto'
 import {
   assertSafeMigrationSql,
   createChecksum,
   generateCreateTableSql,
-} from '../../../../packages/module-engine/src/index.js'
+} from '@atlas/module-engine'
 
 function toObject(value, label) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {

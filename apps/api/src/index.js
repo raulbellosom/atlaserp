@@ -1002,6 +1002,20 @@ app.get("/profile/me/preferences/:key", authMiddleware, async (c) => {
   }
 });
 
+app.get("/profile/me/table-preferences/:tableKey", authMiddleware, async (c) => {
+  try {
+    const context = await getOrLoadUserContext(c);
+    if (!context?.profile) return c.json({ error: "Perfil no encontrado." }, 404);
+    const tableKey = c.req.param("tableKey");
+    const pref = await prisma.userTablePreference.findUnique({
+      where: { userId_tableKey: { userId: context.profile.id, tableKey } },
+    });
+    return c.json({ data: pref?.config ?? null });
+  } catch {
+    return c.json({ error: "No se pudo obtener la preferencia." }, 500);
+  }
+});
+
 app.put("/profile/me/preferences/:key", authMiddleware, async (c) => {
   try {
     const context = await getOrLoadUserContext(c);
@@ -1022,6 +1036,38 @@ app.put("/profile/me/preferences/:key", authMiddleware, async (c) => {
     return c.json({ error: "No se pudo guardar la preferencia." }, 500);
   }
 });
+
+app.put("/profile/me/table-preferences/:tableKey", authMiddleware, async (c) => {
+  try {
+    const context = await getOrLoadUserContext(c);
+    if (!context?.profile) return c.json({ error: "Perfil no encontrado." }, 404);
+    const tableKey = c.req.param("tableKey");
+    const config = await c.req.json();
+    const pref = await prisma.userTablePreference.upsert({
+      where: { userId_tableKey: { userId: context.profile.id, tableKey } },
+      update: { config },
+      create: { userId: context.profile.id, tableKey, config },
+    });
+    return c.json({ data: pref.config });
+  } catch {
+    return c.json({ error: "No se pudo guardar la preferencia." }, 500);
+  }
+});
+
+app.delete("/profile/me/table-preferences/:tableKey", authMiddleware, async (c) => {
+  try {
+    const context = await getOrLoadUserContext(c);
+    if (!context?.profile) return c.json({ error: "Perfil no encontrado." }, 404);
+    const tableKey = c.req.param("tableKey");
+    await prisma.userTablePreference.deleteMany({
+      where: { userId: context.profile.id, tableKey },
+    });
+    return c.json({ data: { ok: true } });
+  } catch {
+    return c.json({ error: "No se pudo eliminar la preferencia." }, 500);
+  }
+});
+
 
 app.get("/memberships/me", authMiddleware, async (c) => {
   const authUserId = c.get("authUserId");
@@ -2140,14 +2186,27 @@ app.get(
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
-      const search = c.req.query("q") ?? "";
-      const limit = c.req.query("limit");
-      const contacts = await contactsService.list({
+      const search = c.req.query("search") ?? c.req.query("q") ?? "";
+      const page = c.req.query("page") ?? "1";
+      const pageSize = c.req.query("pageSize") ?? c.req.query("limit") ?? "20";
+      const sortBy = c.req.query("sortBy") ?? "";
+      const sortDir = c.req.query("sortDir") ?? "asc";
+      const result = await contactsService.list({
         authUserId,
         search,
-        limit,
+        page,
+        pageSize,
+        sortBy,
+        sortDir,
       });
-      return c.json({ data: contacts });
+      return c.json({
+        data: result.rows,
+        pagination: {
+          page: result.page,
+          pageSize: result.pageSize,
+          total: result.total,
+        },
+      });
     } catch (err) {
       if (err instanceof ContactsServiceError) {
         return c.json({ error: err.message }, err.status);
@@ -2288,20 +2347,30 @@ app.get(
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
-      const search = c.req.query("q") ?? "";
+      const search = c.req.query("search") ?? c.req.query("q") ?? "";
       const status = c.req.query("status");
       const enabledRaw = c.req.query("enabled");
       const enabled =
         enabledRaw === undefined ? undefined : enabledRaw === "true";
       const limit = c.req.query("limit");
-      const rows = await hrService.listEmployees({
-        authUserId,
-        search,
-        status,
-        enabled,
-        limit,
+      const page = c.req.query("page");
+      const pageSize = c.req.query("pageSize");
+      const sortBy = c.req.query("sortBy");
+      const sortDir = c.req.query("sortDir") === "desc" ? "desc" : "asc";
+
+      const result = await hrService.listEmployees({
+        authUserId, search, status, enabled, limit, page, pageSize, sortBy, sortDir,
       });
-      return c.json({ data: rows });
+
+      if (page !== undefined || pageSize !== undefined) {
+        const take = Math.min(Math.max(1, Number(pageSize) || 20), 200);
+        const currentPage = Math.max(1, Number(page) || 1);
+        return c.json({
+          data: result.rows,
+          pagination: { page: currentPage, pageSize: take, total: result.total },
+        });
+      }
+      return c.json({ data: result });
     } catch (err) {
       if (err instanceof HrServiceError) {
         return c.json({ error: err.message }, err.status);
@@ -2799,14 +2868,27 @@ app.get(
   async (c) => {
     try {
       const authUserId = c.get("authUserId");
-      const search = c.req.query("q") ?? "";
-      const limit = c.req.query("limit");
-      const rows = await financeService.listAccounts({
+      const search = c.req.query("search") ?? c.req.query("q") ?? "";
+      const page = c.req.query("page") ?? "1";
+      const pageSize = c.req.query("pageSize") ?? c.req.query("limit") ?? "20";
+      const sortBy = c.req.query("sortBy") ?? "";
+      const sortDir = c.req.query("sortDir") ?? "asc";
+      const result = await financeService.listAccounts({
         authUserId,
         search,
-        limit,
+        page,
+        pageSize,
+        sortBy,
+        sortDir,
       });
-      return c.json({ data: rows });
+      return c.json({
+        data: result.rows,
+        pagination: {
+          page: result.page,
+          pageSize: result.pageSize,
+          total: result.total,
+        },
+      });
     } catch (err) {
       if (err instanceof FinanceServiceError) {
         return c.json({ error: err.message }, err.status);

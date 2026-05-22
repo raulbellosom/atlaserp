@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Eye, Pencil, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Eye, Pencil, Trash2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
-import { Button } from "../components/Button.jsx";
 import { Checkbox } from "../components/Checkbox.jsx";
 import { Skeleton } from "../components/Skeleton.jsx";
 import { ActionMenu } from "../components/ActionMenu.jsx";
@@ -18,6 +17,11 @@ import {
 } from "../components/Table.jsx";
 import { AtlasCardView } from "./AtlasCardView.jsx";
 import { AtlasTableToolbar } from "./AtlasTableToolbar.jsx";
+import { BulkActionBar } from "./BulkActionBar.jsx";
+import { ColumnConfigPanel } from "./ColumnConfigPanel.jsx";
+import { ColumnHeaderMenu } from "./ColumnHeaderMenu.jsx";
+import { TablePaginationFooter } from "./TablePaginationFooter.jsx";
+import { useColumnConfig } from "./useColumnConfig.js";
 import {
   normalizeToFilterBarFilters,
   normalizeSpanishLabel,
@@ -81,6 +85,7 @@ function normalizeColumns(schema) {
           entry.label ?? entry.title ?? fieldStr,
         ),
         component: entry.component ?? null,
+        type: entry.type ?? null,
         sortable: Boolean(entry.sortable),
         isLink,
       };
@@ -166,6 +171,19 @@ function renderValue(value) {
   return STATUS_LABELS[str.toLowerCase()] ?? str;
 }
 
+function ColorCell({ value }) {
+  if (!value || value === "—") return <span className="text-muted-foreground">—</span>;
+  return (
+    <span className="flex items-center gap-1.5">
+      <span
+        className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border border-border"
+        style={{ backgroundColor: value }}
+      />
+      <span>{value}</span>
+    </span>
+  );
+}
+
 export function AtlasTable({
   blueprint,
   token,
@@ -177,29 +195,113 @@ export function AtlasTable({
   onEdit,
   onDelete,
   refreshSignal = 0,
+  bulkActions = [],
 }) {
   const schema = blueprint?.schema ?? {};
   const apiPath =
     typeof schema.apiPath === "string" ? schema.apiPath.trim() : "";
-  const columns = useMemo(() => normalizeColumns(schema), [schema]);
+  const tableKey = blueprint?.key ?? apiPath;
+  const blueprintColumns = useMemo(() => normalizeColumns(schema), [schema]);
   const filters = useMemo(() => normalizeFilters(schema), [schema]);
   const filterBarFilters = useMemo(
     () => normalizeToFilterBarFilters(filters),
     [filters],
   );
-  const sortableColumns = useMemo(
-    () => columns.filter((c) => c.sortable),
-    [columns],
-  );
-  const searchable = schema.searchable !== false && columns.length > 0;
+  const searchable = schema.searchable !== false && blueprintColumns.length > 0;
   const defaultPageSize = Number.isFinite(
     Number(schema?.pagination?.defaultPageSize),
   )
     ? Math.max(1, Number(schema.pagination.defaultPageSize))
     : DEFAULT_PAGE_SIZE;
 
+  const colConfig = useColumnConfig({
+    columns: blueprintColumns,
+    savedPreference: null,
+    defaultPageSize,
+  });
+  const {
+    allColumns,
+    visibleColumns,
+    hiddenCount,
+    reorderColumns,
+    moveColumn,
+    toggleColumn,
+    pageSize,
+    setPageSize,
+    resetToDefaults,
+    setFromConfig,
+    toConfig,
+  } = colConfig;
+
+  // Ref kept in sync on every render so async callbacks always read the latest toConfig
+  const toConfigRef = useRef(toConfig);
+  toConfigRef.current = toConfig;
+
+  const sortableColumns = useMemo(
+    () => visibleColumns.filter((c) => c.sortable),
+    [visibleColumns],
+  );
+
+  const [columnPanelOpen, setColumnPanelOpen] = useState(false);
+
+  // ── Preference load ────────────────────────────────────────────────────────
+  const preferenceLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!tableKey || !token || !apiBaseUrl || preferenceLoadedRef.current) return;
+    preferenceLoadedRef.current = true;
+    const prefUrl = `${apiBaseUrl.replace(/\/+$/, "")}/profile/me/table-preferences/${encodeURIComponent(tableKey)}`;
+    fetch(prefUrl, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.ok ? r.json() : null)
+      .then((json) => { if (json?.data) setFromConfig(json.data); })
+      .catch(() => {});
+  }, [apiBaseUrl, tableKey, token, setFromConfig]);
+
+  // ── Preference save (debounced 800ms) ─────────────────────────────────────
+  const saveTimerRef = useRef(null);
+  const pendingSaveRef = useRef(false);
+
+  const schedulePreferenceSave = useCallback(() => {
+    if (!tableKey || !token || !apiBaseUrl || !preferenceLoadedRef.current) return;
+    pendingSaveRef.current = true;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      if (!pendingSaveRef.current) return;
+      pendingSaveRef.current = false;
+      const config = toConfigRef.current();
+      const prefUrl = `${apiBaseUrl.replace(/\/+$/, "")}/profile/me/table-preferences/${encodeURIComponent(tableKey)}`;
+      fetch(prefUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(config),
+      }).catch(() => {});
+    }, 800);
+  }, [apiBaseUrl, tableKey, token]);
+
+  const handleReorderColumns = useCallback((activeKey, overKey) => {
+    reorderColumns(activeKey, overKey);
+    schedulePreferenceSave();
+  }, [reorderColumns, schedulePreferenceSave]);
+
+  const handleToggleColumn = useCallback((key) => {
+    toggleColumn(key);
+    schedulePreferenceSave();
+  }, [toggleColumn, schedulePreferenceSave]);
+
+  const handleResetToDefaults = useCallback(async () => {
+    resetToDefaults();
+    if (tableKey && token && apiBaseUrl) {
+      const prefUrl = `${apiBaseUrl.replace(/\/+$/, "")}/profile/me/table-preferences/${encodeURIComponent(tableKey)}`;
+      fetch(prefUrl, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+    }
+  }, [resetToDefaults, apiBaseUrl, tableKey, token]);
+
+  const handlePageSizeChange = useCallback((size) => {
+    setPageSize(size);
+    setPage(1);
+    schedulePreferenceSave();
+  }, [setPageSize, schedulePreferenceSave]);
+
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(defaultPageSize);
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState({});
   const [sortBy, setSortBy] = useState("");
@@ -218,6 +320,11 @@ export function AtlasTable({
     getStoredViewMode(storageKey, "table"),
   );
   const [selectedIds, setSelectedIds] = useState(new Set());
+
+  const selectedRows = useMemo(
+    () => rows.filter((row, i) => selectedIds.has(getRowId(row, i))),
+    [rows, selectedIds],
+  );
 
   useEffect(() => {
     if (!apiPath) return;
@@ -372,7 +479,7 @@ export function AtlasTable({
             <TableHeader>
               <TableRow className="bg-[hsl(var(--muted))]/40 hover:bg-[hsl(var(--muted))]/40">
                 <TableHead className="w-10" />
-                {columns.map((col) => (
+                {visibleColumns.map((col) => (
                   <TableHead key={col.key}>{col.label}</TableHead>
                 ))}
                 <TableHead className="w-12" />
@@ -384,7 +491,7 @@ export function AtlasTable({
                   <TableCell>
                     <Skeleton className="h-4 w-4 rounded" />
                   </TableCell>
-                  {columns.map((col) => (
+                  {visibleColumns.map((col) => (
                     <TableCell key={`sk-${col.key}-${i}`}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
@@ -437,8 +544,19 @@ export function AtlasTable({
                   aria-label="Seleccionar todos"
                 />
               </TableHead>
-              {columns.map((col) => (
-                <TableHead key={col.key}>{col.label}</TableHead>
+              {visibleColumns.map((col, colIdx) => (
+                <TableHead key={col.key}>
+                  <ColumnHeaderMenu
+                    column={col}
+                    canMoveLeft={!col.pinned && colIdx > 0}
+                    canMoveRight={!col.pinned && colIdx < visibleColumns.length - 1}
+                    onHide={handleToggleColumn}
+                    onMoveLeft={(key) => { moveColumn(key, "left"); schedulePreferenceSave(); }}
+                    onMoveRight={(key) => { moveColumn(key, "right"); schedulePreferenceSave(); }}
+                  >
+                    {col.label}
+                  </ColumnHeaderMenu>
+                </TableHead>
               ))}
               <TableHead className="w-12" />
             </TableRow>
@@ -464,7 +582,7 @@ export function AtlasTable({
                       aria-label="Seleccionar fila"
                     />
                   </TableCell>
-                  {columns.map((col) => {
+                  {visibleColumns.map((col) => {
                     const value = getByPath(row, col.field);
                     let cellContent;
                     if (col.component && componentRegistry) {
@@ -474,6 +592,8 @@ export function AtlasTable({
                       ) : (
                         renderValue(value)
                       );
+                    } else if (col.type === "color") {
+                      cellContent = <ColorCell value={value} />;
                     } else if (col.isLink && onView && !col.component) {
                       cellContent = (
                         <button
@@ -511,13 +631,13 @@ export function AtlasTable({
   // ── List view (stacked rows) ───────────────────────────────────────────────
 
   const renderListView = () => {
-    const primaryCol = columns[0] ?? null;
+    const primaryCol = visibleColumns[0] ?? null;
     const statusCol =
-      columns.find((c) => /^(status|estado)$/i.test(c.field)) ?? null;
-    const subtitleCols = columns
+      visibleColumns.find((c) => /^(status|estado)$/i.test(c.field)) ?? null;
+    const subtitleCols = visibleColumns
       .filter((c) => c !== primaryCol && c !== statusCol)
       .slice(0, 2);
-    const badgeCol = statusCol ?? columns[3] ?? null;
+    const badgeCol = statusCol ?? visibleColumns[3] ?? null;
 
     if (loading) {
       return (
@@ -690,7 +810,7 @@ export function AtlasTable({
 
     return (
       <AtlasCardView
-        columns={columns}
+        columns={visibleColumns}
         rows={rows}
         selectedIds={selectedIds}
         onToggleSelect={handleToggleRow}
@@ -706,93 +826,78 @@ export function AtlasTable({
     );
   };
 
-  // ── Pagination ─────────────────────────────────────────────────────────────
-
-  const hasPagination = pagination.total > pagination.pageSize;
-  const totalPages = Math.ceil(pagination.total / pagination.pageSize);
-
-  const renderPagination = () => {
-    if (!hasPagination) return null;
-    return (
-      <div className="flex items-center justify-between text-xs text-[hsl(var(--muted-foreground))]">
-        <span className="tabular-nums">
-          {(page - 1) * pagination.pageSize + 1}–
-          {Math.min(page * pagination.pageSize, pagination.total)} de{" "}
-          {pagination.total}
-        </span>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page <= 1}
-            aria-label="Página anterior"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </Button>
-          <span className="tabular-nums px-1">
-            {page} / {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page >= totalPages}
-            aria-label="Página siguiente"
-          >
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="flex flex-col gap-4">
-      <AtlasTableToolbar
-        storageKey={storageKey}
-        search={searchable ? search : ""}
-        onSearchChange={
-          searchable
-            ? (val) => {
-                setPage(1);
-                setSearch(val);
-              }
-            : undefined
-        }
-        searchPlaceholder={schema?.searchPlaceholder ?? "Buscar..."}
-        filterBarFilters={filterBarFilters}
-        filterValues={filterValues}
-        onFilterChange={(next) => {
-          setPage(1);
-          setFilterValues(next);
-        }}
-        filtersActiveCount={filtersActiveCount}
-        onFiltersClear={() => {
-          setPage(1);
-          setFilterValues({});
-        }}
-        sortableColumns={sortableColumns}
-        sortBy={sortBy}
-        sortDir={sortDir}
-        onSortChange={handleSortChange}
-        views={["table", "cards", "grid"]}
-        view={view}
-        onViewChange={setView}
-        selectedCount={selectedIds.size}
-        onClearSelection={() => setSelectedIds(new Set())}
-        totalCount={pagination.total}
-        loading={loading}
-        onReload={() => setReloadTick((c) => c + 1)}
+    <>
+      <div className="flex flex-col gap-4">
+        <AtlasTableToolbar
+          storageKey={storageKey}
+          search={searchable ? search : ""}
+          onSearchChange={
+            searchable
+              ? (val) => {
+                  setPage(1);
+                  setSearch(val);
+                }
+              : undefined
+          }
+          searchPlaceholder={schema?.searchPlaceholder ?? "Buscar..."}
+          filterBarFilters={filterBarFilters}
+          filterValues={filterValues}
+          onFilterChange={(next) => {
+            setPage(1);
+            setFilterValues(next);
+          }}
+          filtersActiveCount={filtersActiveCount}
+          onFiltersClear={() => {
+            setPage(1);
+            setFilterValues({});
+          }}
+          sortableColumns={sortableColumns}
+          sortBy={sortBy}
+          sortDir={sortDir}
+          onSortChange={handleSortChange}
+          views={["table", "cards", "grid"]}
+          view={view}
+          onViewChange={setView}
+          selectedCount={selectedIds.size}
+          onClearSelection={() => setSelectedIds(new Set())}
+          totalCount={pagination.total}
+          loading={loading}
+          onReload={() => setReloadTick((c) => c + 1)}
+          hiddenColumnCount={hiddenCount}
+          onOpenColumnConfig={() => setColumnPanelOpen(true)}
+        />
+        {view === "cards"
+          ? renderListView()
+          : view === "grid"
+            ? renderCardGridView()
+            : renderTableView()}
+        <TablePaginationFooter
+          page={page}
+          pageSize={pageSize}
+          total={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={handlePageSizeChange}
+        />
+      </div>
+
+      <ColumnConfigPanel
+        open={columnPanelOpen}
+        onOpenChange={setColumnPanelOpen}
+        allColumns={allColumns}
+        columnVisibility={colConfig.columnVisibility}
+        onReorder={handleReorderColumns}
+        onToggle={handleToggleColumn}
+        onReset={handleResetToDefaults}
       />
-      {view === "cards"
-        ? renderListView()
-        : view === "grid"
-          ? renderCardGridView()
-          : renderTableView()}
-      {renderPagination()}
-    </div>
+
+      <BulkActionBar
+        selectedCount={selectedIds.size}
+        selectedRows={selectedRows}
+        visibleColumns={visibleColumns}
+        onClear={() => setSelectedIds(new Set())}
+        bulkActions={bulkActions}
+      />
+    </>
   );
 }

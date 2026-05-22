@@ -85,20 +85,30 @@ export function createContactsService({ prisma }) {
   }
 
   return {
-    async list({ authUserId, search, limit }) {
+    async list({ authUserId, search, page, pageSize, sortBy, sortDir }) {
       const companyId = await getCompanyContext(authUserId);
-      const take = normalizeLimit(limit, 100, 200);
+      const parsedPage = Math.max(1, Number.parseInt(String(page ?? 1), 10) || 1);
+      const parsedPageSize = Math.min(200, Math.max(1, Number.parseInt(String(pageSize ?? 20), 10) || 20));
       const where = {
         companyId,
         enabled: true,
         ...buildSearchWhere(search),
       };
-      const contacts = await prisma.contact.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        take,
-      });
-      return contacts;
+      const SORT_FIELDS = { name: "name", type: "type", email: "email", phone: "phone", taxId: "taxId" };
+      const dir = sortDir === "desc" ? "desc" : "asc";
+      const orderBy = sortBy && SORT_FIELDS[sortBy]
+        ? { [SORT_FIELDS[sortBy]]: dir }
+        : { createdAt: "desc" };
+      const [contacts, total] = await Promise.all([
+        prisma.contact.findMany({
+          where,
+          orderBy,
+          take: parsedPageSize,
+          skip: (parsedPage - 1) * parsedPageSize,
+        }),
+        prisma.contact.count({ where }),
+      ]);
+      return { rows: contacts, total, page: parsedPage, pageSize: parsedPageSize };
     },
 
     async create({ authUserId, payload }) {

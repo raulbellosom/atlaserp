@@ -15,6 +15,7 @@ const ALLOWED_FILE_ENTITY_TYPES = [
   "FleetVehicle",
   "FleetDriver",
   "FleetMaintenance",
+  "FleetReport",
 ];
 const ALLOWED_EXACT_MIME_TYPES = new Set([
   "application/pdf",

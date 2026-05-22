@@ -102,6 +102,21 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
           body: JSON.stringify({ value }),
         }),
+      getTablePreference: (tableKey, token) =>
+        request(`/profile/me/table-preferences/${encodeURIComponent(tableKey)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      setTablePreference: (tableKey, config, token) =>
+        request(`/profile/me/table-preferences/${encodeURIComponent(tableKey)}`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(config),
+        }),
+      deleteTablePreference: (tableKey, token) =>
+        request(`/profile/me/table-preferences/${encodeURIComponent(tableKey)}`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
     },
     instanceConfig: {
       get: (token) =>

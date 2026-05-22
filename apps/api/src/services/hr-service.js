@@ -298,8 +298,46 @@ export function createHrService({ prisma }) {
   }
 
   return {
-    async listEmployees({ authUserId, search, status, enabled, limit }) {
+    async listEmployees({ authUserId, search, status, enabled, limit, page, pageSize, sortBy, sortDir }) {
       const { companyId } = await getUserContext(authUserId);
+
+      // Paginated path (used by AtlasTable)
+      if (page !== undefined || pageSize !== undefined) {
+        const take = Math.min(Math.max(1, Number(pageSize) || 20), 200);
+        const skip = (Math.max(1, Number(page) || 1) - 1) * take;
+        const SORT_MAP = {
+          full_name: [{ lastName: sortDir || "asc" }, { firstName: sortDir || "asc" }],
+          hire_date: [{ hireDate: sortDir || "asc" }],
+          status: [{ status: sortDir || "asc" }],
+          department: [{ department: sortDir || "asc" }],
+        };
+        const orderBy = SORT_MAP[sortBy] ?? [{ updatedAt: "desc" }];
+        const where = {
+          companyId,
+          ...(enabled === undefined ? {} : { enabled: Boolean(enabled) }),
+          ...(status ? { status } : {}),
+          ...buildSearchWhere(search),
+        };
+        const [rows, total] = await Promise.all([
+          prisma.hrEmployee.findMany({ where, orderBy, take, skip }),
+          prisma.hrEmployee.count({ where }),
+        ]);
+        return {
+          rows: rows.map((r) => ({
+            id: r.id,
+            full_name: `${r.firstName} ${r.lastName}`.trim(),
+            employee_code: r.employeeCode ?? "",
+            job_title: r.jobTitle ?? "",
+            department: r.department ?? "",
+            status: r.status,
+            employment_type: r.employmentType ?? "",
+            hire_date: r.hireDate ? r.hireDate.toISOString().slice(0, 10) : "",
+          })),
+          total,
+        };
+      }
+
+      // Legacy path: returns full employee objects for org chart / explorer / detail
       const take = normalizeLimit(limit);
       return prisma.hrEmployee.findMany({
         where: {

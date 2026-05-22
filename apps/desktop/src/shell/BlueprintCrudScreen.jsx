@@ -396,6 +396,55 @@ function resolveGroupedTabs({ moduleRows, moduleKey, routeInfo, pathname }) {
   };
 }
 
+function isNamespacedComponentKey(value) {
+  if (typeof value !== "string") return false;
+  return /^[a-z0-9_.-]+:[A-Za-z0-9_.-]+$/.test(value.trim());
+}
+
+function collectNamespacedComponentKeys(input, found = new Set()) {
+  if (Array.isArray(input)) {
+    for (const value of input) collectNamespacedComponentKeys(value, found);
+    return found;
+  }
+  if (!input || typeof input !== "object") {
+    if (isNamespacedComponentKey(input)) found.add(String(input).trim());
+    return found;
+  }
+
+  for (const value of Object.values(input)) {
+    if (isNamespacedComponentKey(value)) {
+      found.add(String(value).trim());
+      continue;
+    }
+    if (value && typeof value === "object") {
+      collectNamespacedComponentKeys(value, found);
+    }
+  }
+
+  return found;
+}
+
+function collectMissingComponentReferences({ blueprints, registry }) {
+  const missing = new Map();
+  if (!registry || !Array.isArray(blueprints)) return [];
+
+  for (const blueprint of blueprints) {
+    const componentKeys = collectNamespacedComponentKeys(blueprint?.schema ?? {});
+    for (const componentKey of componentKeys) {
+      if (registry.resolve(componentKey)) continue;
+      if (!missing.has(componentKey)) {
+        missing.set(componentKey, new Set());
+      }
+      missing.get(componentKey).add(blueprint?.key ?? "unknown");
+    }
+  }
+
+  return [...missing.entries()].map(([componentKey, blueprintKeys]) => ({
+    componentKey,
+    blueprintKeys: [...blueprintKeys],
+  }));
+}
+
 export function BlueprintCrudScreen() {
   const { moduleKey, "*": wildcard } = useParams();
   const navigate = useNavigate();
@@ -455,6 +504,23 @@ export function BlueprintCrudScreen() {
         selection.formBlueprint,
         selection.detailBlueprint,
       ),
+    [
+      selection.detailBlueprint,
+      selection.formBlueprint,
+      selection.tableBlueprint,
+    ],
+  );
+
+  const missingComponentRefs = useMemo(
+    () =>
+      collectMissingComponentReferences({
+        blueprints: [
+          selection.tableBlueprint,
+          selection.formBlueprint,
+          selection.detailBlueprint,
+        ].filter(Boolean),
+        registry: componentRegistry,
+      }),
     [
       selection.detailBlueprint,
       selection.formBlueprint,
@@ -701,6 +767,27 @@ export function BlueprintCrudScreen() {
             ) : undefined
           }
         />
+
+        {missingComponentRefs.length > 0 ? (
+          <Card className="border-amber-400/40 bg-amber-50/60">
+            <CardHeader>
+              <CardTitle>
+                Componentes de m&oacute;dulo no disponibles (requiere rebuild)
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Se detectaron componentes referenciados por blueprints que no est&aacute;n en el bundle actual. Reinstala o reconstruye la app para incluirlos.
+              </p>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                {missingComponentRefs.map((entry) => (
+                  <p key={entry.componentKey}>
+                    <strong>{entry.componentKey}</strong> · vistas:{" "}
+                    {entry.blueprintKeys.join(", ")}
+                  </p>
+                ))}
+              </div>
+            </CardHeader>
+          </Card>
+        ) : null}
 
         <AtlasCrudView
           tableBlueprint={selection.tableBlueprint}

@@ -326,7 +326,7 @@ export const hrMap = createModuleManifest({
   icon: "UsersRound",
   color: "#2563eb",
   category: "operaciones",
-  summary: "GestiÃ³n de personal y expediente",
+  summary: "Gestión de personal y expediente",
   dependencies: [{ key: "atlas.core" }, { key: "atlas.files", optional: true }],
   lifecycle: {
     installable: true,
@@ -444,7 +444,7 @@ export const hrMap = createModuleManifest({
           },
           { name: "workEmail", label: "Correo laboral", type: "email" },
           { name: "personalEmail", label: "Correo personal", type: "email" },
-          { name: "phone", label: "TelÃ©fono", type: "phone" },
+          { name: "phone", label: "Teléfono", type: "phone" },
           {
             name: "emergencyContactName",
             label: "Contacto de emergencia",

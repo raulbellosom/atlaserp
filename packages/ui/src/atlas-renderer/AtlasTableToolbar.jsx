@@ -1,5 +1,6 @@
-import { ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { Columns3, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 import { Button } from "../components/Button.jsx";
+import { Badge } from "../components/Badge.jsx";
 import { SearchInput } from "../components/SearchInput.jsx";
 import { FilterBar } from "../components/FilterBar.jsx";
 import { MobileFiltersSheet } from "../components/MobileFiltersSheet.jsx";
@@ -28,6 +29,8 @@ export function AtlasTableToolbar({
   totalCount = 0,
   loading = false,
   onReload,
+  hiddenColumnCount = 0,
+  onOpenColumnConfig,
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -110,6 +113,27 @@ export function AtlasTableToolbar({
             onChange={onViewChange}
             storageKey={storageKey}
           />
+        )}
+
+        {onOpenColumnConfig && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="relative h-9 gap-1.5 px-3 text-xs"
+            onClick={onOpenColumnConfig}
+            title="Configurar columnas"
+          >
+            <Columns3 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Columnas</span>
+            {hiddenColumnCount > 0 && (
+              <Badge
+                variant="secondary"
+                className="absolute -right-1.5 -top-1.5 h-4 min-w-4 px-1 text-[10px] leading-none"
+              >
+                {hiddenColumnCount}
+              </Badge>
+            )}
+          </Button>
         )}
       </div>
 

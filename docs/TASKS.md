@@ -443,6 +443,19 @@ Plan: `docs/superpowers/plans/2026-05-16-blueprint-attachments-ui-system.md`
 
 Verified: 2026-05-20 (`pnpm.cmd --filter @atlas/desktop build:web`; runtime service-level tokenless E2E previously passed for create/upload/associate/list/remove cleanup across Fleet vehicle/driver/maintenance + manual browser verification completed for vehicle attachments UX)
 
+### custom.fleet Reportes V2 Rework [VERIFIED]
+
+Plan: Fleet reportes V2 (maintenance/service/repair/other, strict typed flows)
+
+- [x] New report domain models added and synced in manifest: `fleet.report`, `fleet.report_part`, `fleet.report_document` with company-scoped folio strategy by type (`MNT|SRV|REP|OTR`) and report status (`draft|finalized`) support.
+- [x] New API router/service for reportes v2 with typed endpoints (`/fleet/reports/maintenance|service|repair|other`), common lifecycle endpoints (`/:id`, `/:id/enabled`, `/:id/finalize`, `/:id/reopen`), documents endpoints, parts list endpoint, and PDF generation endpoint (`GET /fleet/reports/:id/pdf`).
+- [x] Strict business validation matrix enforced for report types (maintenance reminder requirement, service subtype + invoice/ticket, repair priority/damage/start-date/date coherence, other custom category).
+- [x] Legacy maintenance flow removed from primary routing (`createMaintenanceRouter` no longer mounted in fleet router) and replaced by reports-first navigation/blueprints under `/app/m/custom.fleet/reports/*` with grouped tabs.
+- [x] Reportes UI blueprints completed for 4 flows (`maintenance`, `service`, `repair`, `other`) including table/form/detail/page, status badge usage, attachments with `entityType: FleetReport`, relation-card vehicle context, parts relation-list in detail, and metadata-driven detail header actions (`Descargar PDF`, `Regenerar PDF`, `Finalizar`, `Reabrir`).
+- [x] Files whitelist updated to allow report uploads (`FleetReport`) and report permissions aligned to `fleet.reports.read|create|update|delete` in module manifest ACL/navigation.
+
+Verified: 2026-05-22 (`node --check modules/custom/custom.fleet/api/reports-service.js`; `node --check modules/custom/custom.fleet/api/reports-routes.js`; `node --check modules/custom/custom.fleet/api/vehicles-routes.js`; `node --check modules/custom/custom.fleet/validators/index.js`; `node --check modules/custom/custom.fleet/module.manifest.js`; `Get-ChildItem modules/custom/custom.fleet/views/reports*.js | ForEach-Object { node --check $_.FullName }`; `pnpm.cmd --filter @atlas/desktop build:web`)
+
 ### AME3 Phase 4 — Discovery as Primary Source
 
 **Required spec:** `docs/superpowers/specs/2026-05-09-ame3-module-discovery-sync.md`  
@@ -455,6 +468,19 @@ Verified: 2026-05-20 (`pnpm.cmd --filter @atlas/desktop build:web`; runtime serv
 - [x] *Spec approved* → `POST /modules/sync` triggers re-discovery without restart
 
 Verified: 2026-05-20 (`node --check apps/api/src/routes/modules.js`; `node --check apps/api/src/services/module-discovery-service.js`; `node --check apps/api/src/services/route-loader-service.js`; `node --check apps/api/src/services/module-lifecycle-service.js`; `node --check apps/api/src/services/module-metadata-service.js`; `node --check apps/api/src/services/module-migration-service.js`; `node --test packages/module-engine/src/__tests__/define-module.test.js`; `node --test packages/module-engine/src/__tests__/sql-generator.test.js`)
+
+### AME3 Hardening — Discovery/Lifecycle/Route Loader
+
+- [x] G1 package import hardening: API AME3 services now resolve `@atlas/module-engine` through workspace dependency (`@atlas/api` direct dependency added)
+- [x] G2 discovery checksum enforcement: manifest migration checksums are validated during discovery (`MANIFEST_MIGRATION_CHECKSUM_MISMATCH` fail-fast)
+- [x] G3 dependency cycle guard: required dependency cycle detection added for lifecycle install/sync and `/modules/sync` dependency reconciliation (`DEPENDENCY_CYCLE_DETECTED`)
+- [x] G4 route collision visibility: route loader now detects `METHOD + PATH` collisions, keeps first owner, and marks conflicting module route loader state as `ERROR` with collision metadata
+- [x] G5 `validateView` structural contracts: minimum schema validation added for TABLE/FORM/DETAIL kinds
+- [x] G7 safe runtime signaling: desktop blueprint screen warns when namespaced component keys are missing from active runtime bundle and indicates rebuild requirement
+- [x] G8 destructive uninstall mode: `purge-owned-tables` flow added with dry-run summary, `ACEPTO` confirmation, transactional table drop, migration ledger cleanup, and audit details
+- [x] Regression/unit coverage added for new hardening behavior (`define-view`, dependency graph cycle detection, discovery checksum mismatch, route collision handling, lifecycle schema modes)
+
+Verified: 2026-05-20 (`node --check apps/api/src/services/module-dependency-utils.js`; `node --check apps/api/src/services/module-discovery-service.js`; `node --check apps/api/src/services/module-migration-service.js`; `node --check apps/api/src/services/module-lifecycle-service.js`; `node --check apps/api/src/services/route-loader-service.js`; `node --check apps/api/src/routes/modules.js`; `node --check packages/module-engine/src/define-view.js`; `node --check packages/validators/src/index.js`; `node --test packages/module-engine/src/__tests__/define-view.test.js packages/validators/src/__tests__/module-lifecycle-schemas.test.js apps/api/src/services/__tests__/module-dependency-utils.test.js apps/api/src/services/__tests__/module-discovery-service.test.js apps/api/src/services/__tests__/route-loader-service.test.js`; `pnpm.cmd --filter @atlas/desktop build:web`)
 
 ### AME3 Phase 5 — Migrate Official Modules to modules/official/
 

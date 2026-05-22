@@ -5,9 +5,15 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { resolveProjectRoot } from './module-discovery-service.js'
+import {
+  detectRequiredDependencyCycle,
+  formatDependencyCycle,
+  normalizeManifestDependencies,
+} from './module-dependency-utils.js'
 
 const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company'])
 const FAILED_INSTALL_CLEAR_MODES = new Set(['metadata-only', 'preserve-data', 'purge-empty-tables'])
+const UNINSTALL_MODES = new Set(['preserve-data', 'purge-data', 'purge-owned-tables'])
 const TABLE_NAME_PATTERN = /^[a-z][a-z0-9_]*$/
 
 export class ModuleLifecycleError extends Error {
@@ -98,16 +104,17 @@ export function createModuleLifecycleService({ prisma }) {
 
   async function syncDependencies(tx, moduleId, dependencies = []) {
     await tx.moduleDependency.deleteMany({ where: { moduleId } })
-    if (!dependencies.length) return
+    const normalizedDependencies = normalizeManifestDependencies(dependencies)
+    if (!normalizedDependencies.length) return
 
-    const keys = [...new Set(dependencies.map((d) => d.key))]
+    const keys = [...new Set(normalizedDependencies.map((d) => d.key))]
     const rows = await tx.atlasModule.findMany({
       where: { key: { in: keys } },
       select: { id: true, key: true },
     })
     const byKey = new Map(rows.map((r) => [r.key, r.id]))
 
-    const missing = dependencies
+    const missing = normalizedDependencies
       .filter((d) => !d.optional)
       .map((d) => d.key)
       .filter((k) => !byKey.has(k))
@@ -118,8 +125,42 @@ export function createModuleLifecycleService({ prisma }) {
       )
     }
 
+    const requiredDependencyIds = normalizedDependencies
+      .filter((d) => !d.optional && byKey.has(d.key))
+      .map((d) => byKey.get(d.key))
+      .filter(Boolean)
+
+    if (requiredDependencyIds.length > 0) {
+      const existingRequiredEdges = await tx.moduleDependency.findMany({
+        where: { optional: false },
+        select: { moduleId: true, dependencyId: true },
+      })
+      const cycleIds = detectRequiredDependencyCycle({
+        moduleId,
+        requiredDependencyIds,
+        existingRequiredEdges,
+      })
+
+      if (cycleIds) {
+        const involvedIds = [...new Set(cycleIds)]
+        const moduleRows = await tx.atlasModule.findMany({
+          where: { id: { in: involvedIds } },
+          select: { id: true, key: true },
+        })
+        const idToKey = new Map(moduleRows.map((row) => [row.id, row.key]))
+        const cyclePath = formatDependencyCycle({ cycle: cycleIds, idToKey })
+        const error = new ModuleLifecycleError(
+          `Dependencia circular detectada: ${cyclePath}.`,
+          409
+        )
+        error.code = 'DEPENDENCY_CYCLE_DETECTED'
+        error.cyclePath = cyclePath
+        throw error
+      }
+    }
+
     await tx.moduleDependency.createMany({
-      data: dependencies
+      data: normalizedDependencies
         .filter((d) => d.key && byKey.has(d.key))
         .map((d) => ({
           moduleId,
@@ -228,6 +269,30 @@ export function createModuleLifecycleService({ prisma }) {
       dropCandidates: dropCandidates.map((entry) => entry.tableName),
       blockedByData: blockedByData.map((entry) => ({ tableName: entry.tableName, rowCount: entry.rowCount })),
       requiresConfirmation: dropCandidates.length > 0,
+    }
+  }
+
+  async function dryRunOwnedTablePurge({ key }) {
+    const mod = await prisma.atlasModule.findUnique({ where: { key } })
+    if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
+
+    const ownedTables = await resolveRecoverableOwnedTables(mod.key, mod.lifecycleConfig)
+    const tableChecks = []
+    for (const tableName of ownedTables) {
+      tableChecks.push(await getTableRowCount(tableName))
+    }
+
+    const totalRows = tableChecks.reduce((sum, entry) => sum + Number(entry.rowCount ?? 0), 0)
+    return {
+      moduleKey: mod.key,
+      status: mod.status,
+      enabled: mod.enabled,
+      supported: ownedTables.length > 0,
+      mode: 'purge-owned-tables',
+      ownedTables,
+      tableChecks,
+      totalRows,
+      requiresConfirmation: ownedTables.length > 0,
     }
   }
 
@@ -824,7 +889,11 @@ export function createModuleLifecycleService({ prisma }) {
     })
   }
 
-  async function uninstallModule({ key, mode = 'preserve-data', companyId, actorId }) {
+  async function uninstallModule({ key, mode = 'preserve-data', companyId, actorId, confirmation = null }) {
+    if (!UNINSTALL_MODES.has(mode)) {
+      throw new ModuleLifecycleError('Modo de desinstalacion invalido.', 400)
+    }
+
     const mod = await prisma.atlasModule.findUnique({ where: { key } })
     if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
     if (mod.core || !mod.uninstallable) {
@@ -852,19 +921,72 @@ export function createModuleLifecycleService({ prisma }) {
         }
       }
     }
+    if (mode === 'purge-owned-tables') {
+      const dryRun = await dryRunOwnedTablePurge({ key })
+      if (!dryRun.supported) {
+        throw new ModuleLifecycleError(
+          'Este modulo no soporta purga destructiva de tablas propias.',
+          409
+        )
+      }
+      if (confirmation !== 'ACEPTO') {
+        throw new ModuleLifecycleError(
+          'Debes escribir "ACEPTO" para confirmar la purga destructiva.',
+          400
+        )
+      }
+    }
 
-    if (mod.status === 'UNINSTALLED' && !mod.enabled && mode !== 'purge-data') {
+    if (mod.status === 'UNINSTALLED' && !mod.enabled && mode !== 'purge-data' && mode !== 'purge-owned-tables') {
       return mod
+    }
+
+    let ownedTableDryRun = null
+    if (mode === 'purge-owned-tables') {
+      ownedTableDryRun = await dryRunOwnedTablePurge({ key })
     }
 
     return prisma.$transaction(async (tx) => {
       await deactivateModulePermissions(tx, mod.id)
 
       let rowsDeleted = 0
+      let droppedTables = []
+      let removedMigrations = []
+      let tableRowCounts = []
       if (mode === 'purge-data') {
         const handler = getModuleHandler(key)
         if (handler) {
           rowsDeleted = await handler.purge({ tx, companyId })
+        }
+      }
+      if (mode === 'purge-owned-tables') {
+        const checks = ownedTableDryRun?.tableChecks ?? []
+        tableRowCounts = checks.map((entry) => ({
+          tableName: entry.tableName,
+          rowCount: entry.rowCount,
+        }))
+        rowsDeleted = checks.reduce((sum, entry) => sum + Number(entry.rowCount ?? 0), 0)
+
+        for (const entry of checks) {
+          if (!entry.exists) continue
+          await tx.$executeRawUnsafe(`DROP TABLE IF EXISTS "${entry.tableName}"`)
+          droppedTables.push(entry.tableName)
+        }
+
+        if (droppedTables.length > 0) {
+          const migrationRows = await tx.moduleMigration.findMany({
+            where: { moduleKey: key },
+            select: { id: true, filename: true },
+          })
+          const toDeleteIds = migrationRows
+            .filter((row) => droppedTables.some((tableName) => row.filename.startsWith(`${tableName}__`)))
+            .map((row) => row.id)
+          if (toDeleteIds.length > 0) {
+            await tx.moduleMigration.deleteMany({ where: { id: { in: toDeleteIds } } })
+            removedMigrations = migrationRows
+              .filter((row) => toDeleteIds.includes(row.id))
+              .map((row) => row.filename)
+          }
         }
       }
 
@@ -879,7 +1001,14 @@ export function createModuleLifecycleService({ prisma }) {
         entityId: mod.id,
         actorId,
         before: { status: mod.status },
-        after: { status: 'UNINSTALLED', mode, rowsDeleted },
+        after: {
+          status: 'UNINSTALLED',
+          mode,
+          rowsDeleted,
+          droppedTables,
+          removedMigrations,
+          tableRowCounts,
+        },
       })
 
       return updated
@@ -926,7 +1055,7 @@ export function createModuleLifecycleService({ prisma }) {
     if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
 
     const dependents = await getRequiredDependents(prisma, mod.id)
-    const allowed = !mod.core && !!mod.uninstallable && dependents.length === 0
+    const allowedBase = !mod.core && !!mod.uninstallable && dependents.length === 0
 
     const handler = getModuleHandler(key)
     let ownedEntities = []
@@ -938,6 +1067,11 @@ export function createModuleLifecycleService({ prisma }) {
         : counts.map((e) => ({ ...e, note: 'datos preservados — no se eliminan' }))
     }
 
+    let ownedTablePurge = null
+    if (mode === 'purge-owned-tables') {
+      ownedTablePurge = await dryRunOwnedTablePurge({ key })
+    }
+
     const permissionsAffected = await prisma.permission.count({ where: { moduleId: mod.id } })
     const roleAssignmentsAffected = await prisma.rolePermission.count({
       where: { permission: { moduleId: mod.id } },
@@ -947,9 +1081,17 @@ export function createModuleLifecycleService({ prisma }) {
       name: d.module.name,
     }))
 
-    const recommendation = allowed
-      ? `Proceder. No hay modulos dependientes afectados.`
-      : `Bloqueado por modulos dependientes: ${blockingDependents.map((d) => d.key).join(', ')}.`
+    const allowed =
+      mode === 'purge-owned-tables'
+        ? allowedBase && Boolean(ownedTablePurge?.supported)
+        : allowedBase
+
+    let recommendation = 'Proceder. No hay modulos dependientes afectados.'
+    if (!allowedBase) {
+      recommendation = `Bloqueado por modulos dependientes: ${blockingDependents.map((d) => d.key).join(', ')}.`
+    } else if (mode === 'purge-owned-tables' && !ownedTablePurge?.supported) {
+      recommendation = 'Bloqueado: el modulo no declara tablas propias aptas para purga destructiva.'
+    }
 
     return {
       moduleKey: key,
@@ -958,6 +1100,7 @@ export function createModuleLifecycleService({ prisma }) {
       allowed,
       blockingDependents,
       ownedEntities,
+      ownedTablePurge,
       permissionsAffected,
       roleAssignmentsAffected,
       recommendation,
@@ -1054,6 +1197,7 @@ export function createModuleLifecycleService({ prisma }) {
     getModuleInstallError,
     clearFailedInstall,
     dryRunFailedInstallCleanup,
+    dryRunOwnedTablePurge,
     disableModule,
     enableModule,
     uninstallModule,

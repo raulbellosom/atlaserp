@@ -58,6 +58,33 @@ function resolveRowLabel(row) {
   );
 }
 
+function replacePathTokens(pathTemplate, tokenMap) {
+  let path = String(pathTemplate ?? "");
+  for (const [key, value] of Object.entries(tokenMap ?? {})) {
+    const safeValue = encodeURIComponent(String(value ?? ""));
+    path = path.replace(new RegExp(`:${key}\\b`, "g"), safeValue);
+  }
+  return path;
+}
+
+function isActionVisible(action, record) {
+  const rule = action?.visibleWhen;
+  if (!rule || !record || typeof record !== "object") return true;
+  const fieldName = String(rule.field ?? "").trim();
+  if (!fieldName) return true;
+  const value = record[fieldName];
+  if (Object.prototype.hasOwnProperty.call(rule, "equals")) {
+    return value === rule.equals;
+  }
+  if (Object.prototype.hasOwnProperty.call(rule, "notEquals")) {
+    return value !== rule.notEquals;
+  }
+  if (Array.isArray(rule.in)) {
+    return rule.in.includes(value);
+  }
+  return true;
+}
+
 export function AtlasCrudView({
   tableBlueprint,
   formBlueprint,
@@ -101,6 +128,7 @@ export function AtlasCrudView({
   const [recordData, setRecordData] = useState(null);
   const [loadingRecord, setLoadingRecord] = useState(false);
   const [recordError, setRecordError] = useState("");
+  const [headerActionLoadingKey, setHeaderActionLoadingKey] = useState("");
   const [refreshSignal, setRefreshSignal] = useState(0);
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -249,6 +277,67 @@ export function AtlasCrudView({
     else onEditSuccess?.(result);
   };
 
+  const detailHeaderActions = useMemo(() => {
+    const actions = currentDetailBlueprint?.schema?.headerActions;
+    return Array.isArray(actions) ? actions : [];
+  }, [currentDetailBlueprint]);
+
+  const executeHeaderAction = useCallback(
+    async (action) => {
+      if (!action || !recordData) return;
+      const recordId = resolveIdFromRow(recordData);
+      if (!recordId) return;
+      const actionKey = String(action.key ?? action.label ?? "action");
+      const method = String(action.method ?? "POST").toUpperCase();
+      const endpointPath = replacePathTokens(action.pathTemplate ?? "", { id: recordId });
+      if (!endpointPath) return;
+
+      setHeaderActionLoadingKey(actionKey);
+      setRecordError("");
+      try {
+        const response = await fetch(joinUrl(apiBaseUrl, endpointPath), {
+          method,
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          let message = "No se pudo ejecutar la accion.";
+          try {
+            const parsed = text ? JSON.parse(text) : null;
+            if (parsed?.error) message = parsed.error;
+          } catch {
+            if (text) message = text;
+          }
+          throw new Error(message);
+        }
+
+        if (action.download === true) {
+          const blob = await response.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = objectUrl;
+          link.download = String(action.downloadFileName ?? `${recordId}.pdf`);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(objectUrl);
+        }
+
+        if (action.refreshAfter !== false) {
+          await fetchRecord(recordId);
+          setRefreshSignal((count) => count + 1);
+        }
+      } catch (error) {
+        setRecordError(
+          error instanceof Error ? error.message : "No se pudo ejecutar la accion.",
+        );
+      } finally {
+        setHeaderActionLoadingKey("");
+      }
+    },
+    [apiBaseUrl, fetchRecord, recordData, token],
+  );
+
   const renderRecordLoadingOrError = () => {
     if (loadingRecord) {
       return (
@@ -335,6 +424,24 @@ export function AtlasCrudView({
                       <ArrowLeft className="mr-1.5 h-4 w-4" />
                       Volver
                     </Button>
+                    {detailHeaderActions
+                      .filter((action) => isActionVisible(action, recordData))
+                      .map((action) => {
+                        const actionKey = String(action.key ?? action.label ?? "action");
+                        const variant = action.variant ?? "outline";
+                        return (
+                          <Button
+                            key={actionKey}
+                            type="button"
+                            size="sm"
+                            variant={variant}
+                            loading={headerActionLoadingKey === actionKey}
+                            onClick={() => executeHeaderAction(action)}
+                          >
+                            {action.label ?? "Accion"}
+                          </Button>
+                        );
+                      })}
                     {currentFormBlueprint && (
                       <Button size="sm" onClick={() => setMode("edit")}>
                         Editar

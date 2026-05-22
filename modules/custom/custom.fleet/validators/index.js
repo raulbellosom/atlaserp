@@ -172,3 +172,108 @@ export const updateMaintenanceTypeSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(500).optional(),
 })
+
+const reportTypeSchema = z.enum(['maintenance', 'service', 'repair', 'other'])
+const reportStatusSchema = z.enum(['draft', 'finalized'])
+const maintenanceSubtypeSchema = z.enum(['preventive', 'corrective', 'inspection', 'alignment', 'oil_change', 'tire_service', 'other'])
+const serviceSubtypeSchema = z.enum(['general', 'diagnostic', 'cleaning', 'electrical', 'other'])
+const repairPrioritySchema = z.enum(['low', 'normal', 'high', 'urgent'])
+const repairDamageTypeSchema = z.enum(['mechanical', 'electrical', 'body', 'interior', 'other'])
+
+const reportPartSchema = z.object({
+  name: z.string().min(1).max(200),
+  quantity: z.number().int().min(1),
+  unit_cost: z.number().min(0),
+  notes: z.string().max(500).nullable().optional(),
+})
+
+export const createReportSchema = z.object({
+  report_type: reportTypeSchema,
+  vehicle_id: z.string().uuid(),
+  title: z.string().min(1).max(255),
+  report_date: isoDateSchema,
+  status: reportStatusSchema.default('draft'),
+  odometer_km: z.number().int().min(0).nullable().optional(),
+  workshop_name: z.string().max(200).nullable().optional(),
+  workshop_phone: z.string().max(50).nullable().optional(),
+  workshop_address: z.string().max(300).nullable().optional(),
+  invoice_number: z.string().max(80).nullable().optional(),
+  labor_cost: z.number().min(0).nullable().optional(),
+  notes: z.string().max(5000).nullable().optional(),
+  parts: z.array(reportPartSchema).optional(),
+  maintenance_subtype: maintenanceSubtypeSchema.nullable().optional(),
+  next_service_date: isoDateSchema.nullable().optional(),
+  next_service_odometer: z.number().int().min(0).nullable().optional(),
+  service_subtype: serviceSubtypeSchema.nullable().optional(),
+  repair_priority: repairPrioritySchema.nullable().optional(),
+  repair_damage_type: repairDamageTypeSchema.nullable().optional(),
+  repair_start_date: isoDateSchema.nullable().optional(),
+  repair_completion_date: isoDateSchema.nullable().optional(),
+  repair_estimated_cost: z.number().min(0).nullable().optional(),
+  warranty_days: z.number().int().min(0).nullable().optional(),
+  warranty_notes: z.string().max(1000).nullable().optional(),
+  other_category_label: z.string().max(120).nullable().optional(),
+}).superRefine((value, ctx) => {
+  if (value.report_type === 'maintenance') {
+    if (!value.maintenance_subtype) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['maintenance_subtype'], message: 'Subtipo requerido para mantenimiento.' })
+    }
+    if (!value.next_service_date && !value.next_service_odometer) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['next_service_date'], message: 'Indica fecha o kilometraje para proximo servicio.' })
+    }
+  }
+
+  if (value.report_type === 'service') {
+    if (!value.service_subtype) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['service_subtype'], message: 'Subtipo requerido para servicio.' })
+    }
+    if (!value.invoice_number) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['invoice_number'], message: 'Factura/ticket requerido para servicio.' })
+    }
+  }
+
+  if (value.report_type === 'repair') {
+    if (!value.repair_priority) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['repair_priority'], message: 'Prioridad requerida para reparacion.' })
+    }
+    if (!value.repair_damage_type) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['repair_damage_type'], message: 'Tipo de dano requerido para reparacion.' })
+    }
+    if (!value.repair_start_date) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['repair_start_date'], message: 'Fecha de inicio requerida para reparacion.' })
+    }
+    if (value.repair_start_date && value.repair_completion_date && value.repair_completion_date < value.repair_start_date) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['repair_completion_date'], message: 'La fecha de fin no puede ser menor a la fecha de inicio.' })
+    }
+  }
+
+  if (value.report_type === 'other' && !value.other_category_label) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['other_category_label'], message: 'Categoria personalizada requerida.' })
+  }
+})
+
+export const updateReportSchema = z.object({
+  title: z.string().min(1).max(255).optional(),
+  report_date: isoDateSchema.optional(),
+  status: reportStatusSchema.optional(),
+  odometer_km: z.number().int().min(0).nullable().optional(),
+  workshop_name: z.string().max(200).nullable().optional(),
+  workshop_phone: z.string().max(50).nullable().optional(),
+  workshop_address: z.string().max(300).nullable().optional(),
+  invoice_number: z.string().max(80).nullable().optional(),
+  labor_cost: z.number().min(0).nullable().optional(),
+  notes: z.string().max(5000).nullable().optional(),
+  parts: z.array(reportPartSchema).optional(),
+  maintenance_subtype: maintenanceSubtypeSchema.nullable().optional(),
+  next_service_date: isoDateSchema.nullable().optional(),
+  next_service_odometer: z.number().int().min(0).nullable().optional(),
+  service_subtype: serviceSubtypeSchema.nullable().optional(),
+  repair_priority: repairPrioritySchema.nullable().optional(),
+  repair_damage_type: repairDamageTypeSchema.nullable().optional(),
+  repair_start_date: isoDateSchema.nullable().optional(),
+  repair_completion_date: isoDateSchema.nullable().optional(),
+  repair_estimated_cost: z.number().min(0).nullable().optional(),
+  warranty_days: z.number().int().min(0).nullable().optional(),
+  warranty_notes: z.string().max(1000).nullable().optional(),
+  other_category_label: z.string().max(120).nullable().optional(),
+})

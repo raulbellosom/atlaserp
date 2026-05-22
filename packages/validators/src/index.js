@@ -517,7 +517,7 @@ export const ledgerMovementQuerySchema = z.object({
 });
 
 export const moduleDryRunSchema = z.object({
-  mode: z.enum(['preserve-data', 'purge-data']).default('preserve-data'),
+  mode: z.enum(['preserve-data', 'purge-data', 'purge-owned-tables']).default('preserve-data'),
 });
 
 export const moduleClearErrorSchema = z.object({
@@ -540,11 +540,13 @@ export const moduleCleanupSchema = z
 
 export const moduleUninstallSchema = z
   .object({
-    mode: z.enum(['preserve-data', 'purge-data']).default('preserve-data'),
+    mode: z.enum(['preserve-data', 'purge-data', 'purge-owned-tables']).default('preserve-data'),
     confirmation: z.string().trim().optional(),
   })
   .refine(
-    (data) => data.mode !== 'purge-data' || data.confirmation === 'ACEPTO',
+    (data) =>
+      (data.mode !== 'purge-data' && data.mode !== 'purge-owned-tables') ||
+      data.confirmation === 'ACEPTO',
     {
       message: 'Para purgar datos debes escribir "ACEPTO" en el campo de confirmación.',
       path: ['confirmation'],

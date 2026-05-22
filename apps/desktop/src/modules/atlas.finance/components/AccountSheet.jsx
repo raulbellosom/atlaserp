@@ -11,7 +11,7 @@ import {
   SheetTitle,
   TextField,
 } from "@atlas/ui";
-import { Coins, Component, Hash, Scale, Wallet } from "lucide-react";
+import { Coins, Component, Hash, Power, PowerOff, Scale, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { atlas } from "../../../lib/atlas";
 import {
@@ -26,6 +26,19 @@ import {
 export function AccountSheet({ open, onOpenChange, editingAccount, token }) {
   const queryClient = useQueryClient();
   const [accountForm, setAccountForm] = useState(defaultAccountForm);
+
+  const toggleAccountMutation = useMutation({
+    mutationFn: ({ id, enabled }) =>
+      atlas.finance.setAccountEnabled(id, enabled, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["finance-accounts"] });
+      onOpenChange(false);
+      toast.success("Estado de cuenta actualizado");
+    },
+    onError: (error) => {
+      toast.error(parseApiError(error, "No se pudo actualizar el estado."));
+    },
+  });
 
   const createAccountMutation = useMutation({
     mutationFn: (payload) => atlas.finance.createAccount(payload, token),
@@ -60,9 +73,9 @@ export function AccountSheet({ open, onOpenChange, editingAccount, token }) {
       setAccountForm({
         code: editingAccount.code ?? "",
         name: editingAccount.name ?? "",
-        type: editingAccount.type ?? ACCOUNT_TYPE_OPTIONS[0],
+        type: editingAccount.accountType ?? editingAccount.type ?? ACCOUNT_TYPE_OPTIONS[0],
         currency: editingAccount.currency ?? "MXN",
-        initialBalance: String(editingAccount.initialBalance ?? "0"),
+        initialBalance: String(editingAccount.openingBalance ?? editingAccount.initialBalance ?? "0"),
       });
     } else if (!isOpen) {
       setAccountForm(defaultAccountForm());
@@ -91,7 +104,9 @@ export function AccountSheet({ open, onOpenChange, editingAccount, token }) {
   }
 
   const isPending =
-    createAccountMutation.isPending || updateAccountMutation.isPending;
+    createAccountMutation.isPending ||
+    updateAccountMutation.isPending ||
+    toggleAccountMutation.isPending;
 
   return (
     <Sheet open={open} onOpenChange={handleOpen}>
@@ -164,6 +179,31 @@ export function AccountSheet({ open, onOpenChange, editingAccount, token }) {
           </div>
         </form>
         <SheetFooter className="gap-2">
+          {editingAccount && (
+            <Button
+              variant="outline"
+              className="mr-auto"
+              disabled={isPending}
+              onClick={() =>
+                toggleAccountMutation.mutate({
+                  id: editingAccount.id,
+                  enabled: !editingAccount.enabled,
+                })
+              }
+            >
+              {editingAccount.enabled ? (
+                <>
+                  <PowerOff className="h-4 w-4 mr-2" />
+                  Deshabilitar
+                </>
+              ) : (
+                <>
+                  <Power className="h-4 w-4 mr-2" />
+                  Habilitar
+                </>
+              )}
+            </Button>
+          )}
           <Button variant="outline" onClick={() => handleOpen(false)}>
             Cancelar
           </Button>
