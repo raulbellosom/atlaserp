@@ -36,8 +36,14 @@ export function getSortedDisplay(modules, { sortMode, favorites, favoritesFirst 
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(m);
     }
-    for (const [cat, mods] of Object.entries(groups)) {
-      sections.push({ label: CATEGORY_LABELS[cat] ?? cat, modules: mods });
+    const categoryOrder = Object.keys(CATEGORY_LABELS);
+    const orderedCats = Object.keys(groups).sort(
+      (a, b) =>
+        (categoryOrder.indexOf(a) === -1 ? 99 : categoryOrder.indexOf(a)) -
+        (categoryOrder.indexOf(b) === -1 ? 99 : categoryOrder.indexOf(b)),
+    );
+    for (const cat of orderedCats) {
+      sections.push({ label: CATEGORY_LABELS[cat] ?? cat, modules: groups[cat] });
     }
   } else {
     if (remaining.length > 0) {

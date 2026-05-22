@@ -20,12 +20,13 @@ test('A-Z mode returns one section sorted alphabetically', () => {
   );
 });
 
-test('Groups mode returns one section per category', () => {
+test('Groups mode returns one section per category in canonical order', () => {
   const result = getSortedDisplay(modules, { sortMode: 'groups', favorites: [], favoritesFirst: false });
-  assert.ok(result.length >= 4);
-  const labels = result.map((s) => s.label);
-  assert.ok(labels.includes('Sistema'));
-  assert.ok(labels.includes('Contabilidad'));
+  assert.equal(result.length, 4);
+  assert.deepEqual(
+    result.map((s) => s.label),
+    ['Sistema', 'Operaciones', 'Contabilidad', 'General'],
+  );
 });
 
 test('favoritesFirst=true puts Favoritos section first', () => {
