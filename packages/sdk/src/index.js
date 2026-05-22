@@ -98,7 +98,7 @@ export function createAtlasClient({ baseUrl }) {
         }),
       setPreference: (key, value, token) =>
         request(`/profile/me/preferences/${encodeURIComponent(key)}`, {
-          method: 'PUT',
+          method: "PUT",
           headers: withAuthHeaders(token),
           body: JSON.stringify({ value }),
         }),
