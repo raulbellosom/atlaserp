@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
 import {
@@ -18,160 +20,30 @@ import {
   RelationSelectField,
 } from "../components/FormFields.jsx";
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
+import { ReportPartsEditor } from "./ReportPartsEditor.jsx";
 import { normalizeSpanishLabel, normalizeRelationDescriptor } from "./renderer-adapters.js";
 import { cn } from "../lib/utils.js";
 import { normalizeField, normalizeSections } from "./atlas-form-schema.js";
+import {
+  PRESET_COLORS,
+  joinUrl,
+  resolveRelationLabel,
+  normalizeOptions,
+  buildInitialValues,
+  castValueByType,
+  resolveRecordId,
+  extractBlueprintRows,
+  extractFieldsFromBlueprint,
+  extractCreatedRecord,
+  buildInlineCreatePrefill,
+  toMoney,
+  normalizeReportParts,
+  computePartsCost,
+} from "./atlas-form-utils.js";
 
-const STATUS_LABELS = {
-  active: "Activo",
-  inactive: "Inactivo",
-  maintenance: "En mantenimiento",
-  retired: "Retirado",
-  pending: "Pendiente",
-  disabled: "Desactivado",
-};
-
-const PRESET_COLORS = [
-  { label: "Azul", value: "#2563eb" },
-  { label: "Rojo", value: "#dc2626" },
-  { label: "Verde", value: "#16a34a" },
-  { label: "Amarillo", value: "#ca8a04" },
-  { label: "Gris", value: "#6b7280" },
-  { label: "Negro", value: "#111827" },
-  { label: "Blanco", value: "#f9fafb" },
-];
-
-const TEXT_TYPES = new Set(["text", "email", "phone", "textarea", "markdown"]);
-
-// Module-level cache for relation field options — persists across modal open/close cycles.
-// Key: full URL string. Avoids re-fetching reference data (brands, types, models) on every modal mount.
-const _relationOptionsCache = new Map(); // url → { options, ts }
-const _RELATION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-function joinUrl(baseUrl, apiPath) {
-  const base = String(baseUrl ?? "").trim().replace(/\/+$/, "");
-  const path = String(apiPath ?? "").trim();
-  if (!path.startsWith("/")) return `${base}/${path}`;
-  return `${base}${path}`;
-}
-
-function resolveRelationLabel(row, descriptor) {
-  const { labelField, labelSeparator, valueField } = descriptor;
-  if (Array.isArray(labelField)) {
-    const parts = labelField.map((f) => (row[f] != null ? String(row[f]) : "")).filter(Boolean);
-    return parts.length > 0 ? parts.join(labelSeparator) : String(row[valueField] ?? "");
-  }
-  return row[labelField] != null ? String(row[labelField]) : String(row[valueField] ?? "");
-}
-
-function resolveOptionLabel(rawLabel) {
-  return STATUS_LABELS[String(rawLabel).toLowerCase()] ?? normalizeSpanishLabel(String(rawLabel));
-}
-
-function normalizeOptions(rawOptions) {
-  if (!Array.isArray(rawOptions)) return [];
-  return rawOptions
-    .map((entry) => {
-      if (entry && typeof entry === "object") {
-        const value = entry.value ?? entry.key ?? entry.id ?? entry.code;
-        if (value === undefined || value === null) return null;
-        return { value: String(value), label: resolveOptionLabel(entry.label ?? entry.name ?? value) };
-      }
-      return { value: String(entry), label: resolveOptionLabel(entry) };
-    })
-    .filter(Boolean);
-}
-
-function buildInitialValues(fieldMap, initialData) {
-  const values = {};
-  for (const field of fieldMap.values()) {
-    const currentValue = initialData?.[field.name];
-    if (currentValue === undefined || currentValue === null) {
-      values[field.name] = field.type === "boolean" ? false : "";
-    } else {
-      values[field.name] = currentValue;
-    }
-  }
-  return values;
-}
-
-function castValueByType(value, type) {
-  if (type === "boolean") return Boolean(value);
-  if (value === "" || value === null || value === undefined) {
-    return TEXT_TYPES.has(type) ? "" : null;
-  }
-  if (type === "number") {
-    const parsed = Number.parseInt(String(value), 10);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  if (type === "decimal") {
-    const parsed = Number.parseFloat(String(value));
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return value;
-}
-
-function resolveRecordId(initialData) {
-  return initialData?.id ?? initialData?.recordId ?? initialData?.uuid ?? initialData?.ID ?? null;
-}
-
-function extractBlueprintRows(payload) {
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload)) return payload;
-  return [];
-}
-
-function extractFieldsFromBlueprint(blueprint) {
-  if (Array.isArray(blueprint?.fields) && blueprint.fields.length > 0) return blueprint.fields;
-  if (Array.isArray(blueprint?.schema?.fields) && blueprint.schema.fields.length > 0) {
-    return blueprint.schema.fields;
-  }
-  return [];
-}
-
-function extractCreatedRecord(result) {
-  if (result && typeof result === "object" && result.data && typeof result.data === "object") {
-    return result.data;
-  }
-  if (result && typeof result === "object") return result;
-  return null;
-}
-
-function collectFieldDefinitionsFromSchema(schema) {
-  const fields = [];
-  const sections = Array.isArray(schema?.sections) ? schema.sections : [];
-  for (const section of sections) {
-    const sectionFields = Array.isArray(section?.fields) ? section.fields : [];
-    for (const entry of sectionFields) {
-      if (!entry || typeof entry !== "object") continue;
-      const name = entry.name ?? entry.key ?? entry.field ?? null;
-      if (!name) continue;
-      fields.push({
-        name: String(name),
-        type: String(entry.type ?? "text").toLowerCase(),
-      });
-    }
-  }
-  return fields;
-}
-
-function buildInlineCreatePrefill({ nestedBlueprint, searchText, descriptor }) {
-  const trimmed = String(searchText ?? "").trim();
-  if (!descriptor?.create?.prefillFromSearch || !trimmed) return {};
-
-  const defs = collectFieldDefinitionsFromSchema(nestedBlueprint?.schema);
-  if (defs.length === 0) return {};
-
-  const preferredKeys = ["name", "title", "nombre", "titulo"];
-  const preferred = defs.find(
-    (field) => preferredKeys.includes(field.name.toLowerCase()) && field.type === "text",
-  );
-  if (preferred) return { [preferred.name]: trimmed };
-
-  const firstCompatible = defs.find((field) => field.type === "text" || field.type === "textarea");
-  if (!firstCompatible) return {};
-  return { [firstCompatible.name]: trimmed };
-}
+// Module-level cache for relation field options. Persists across modal open/close cycles.
+const _relationOptionsCache = new Map();
+const _RELATION_CACHE_TTL = 5 * 60 * 1000;
 
 export function AtlasForm({
   blueprint,
@@ -204,6 +76,9 @@ export function AtlasForm({
   const sections = useMemo(() => normalizeSections(schema, fieldMap), [fieldMap, schema]);
 
   const [formValues, setFormValues] = useState(() => buildInitialValues(fieldMap, initialData));
+  const [reportParts, setReportParts] = useState(() =>
+    normalizeReportParts(initialData?.parts),
+  );
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -219,6 +94,14 @@ export function AtlasForm({
     searchText: "",
   });
   const [nestedBlueprintRows, setNestedBlueprintRows] = useState(null);
+  const [collapsedSections, setCollapsedSections] = useState(() => {
+    const next = {};
+    for (const section of sections) {
+      if (!section?.collapsible) continue;
+      next[section.id] = Boolean(section.defaultCollapsed);
+    }
+    return next;
+  });
   const attachmentsControllersRef = useRef(new Map());
   const relationDebounceRef = useRef({});
 
@@ -281,11 +164,31 @@ export function AtlasForm({
 
   useEffect(() => {
     setFormValues(buildInitialValues(fieldMap, initialData));
+    setReportParts(normalizeReportParts(initialData?.parts));
     setFieldErrors({});
     setRelationInlineErrors({});
     setSubmitError("");
     setResolvedRecordId(resolveRecordId(initialData));
-  }, [fieldMap, initialData]);
+    setCollapsedSections(() => {
+      const next = {};
+      for (const section of sections) {
+        if (!section?.collapsible) continue;
+        next[section.id] = Boolean(section.defaultCollapsed);
+      }
+      return next;
+    });
+  }, [fieldMap, initialData, sections]);
+
+  useEffect(() => {
+    const partsCost = computePartsCost(reportParts);
+    const laborCost = Math.max(0, toMoney(formValues.labor_cost, 0));
+    const totalCost = Number((partsCost + laborCost).toFixed(2));
+    setFormValues((prev) => ({
+      ...prev,
+      parts_cost: partsCost,
+      total_cost: totalCost,
+    }));
+  }, [formValues.labor_cost, reportParts]);
 
   useEffect(() => {
     for (const [, field] of fieldMap.entries()) {
@@ -300,9 +203,9 @@ export function AtlasForm({
   if (!apiPath) {
     return (
       <Alert variant="warning">
-        <AlertTitle>Vista sin configuración</AlertTitle>
+        <AlertTitle>Vista sin configuraciÃ³n</AlertTitle>
         <AlertDescription>
-          Esta vista no tiene <code>schema.apiPath</code>. No se puede guardar la información.
+          Esta vista no tiene <code>schema.apiPath</code>. No se puede guardar la informaciÃ³n.
         </AlertDescription>
       </Alert>
     );
@@ -348,6 +251,15 @@ export function AtlasForm({
     setFieldErrors((prev) => ({ ...prev, [name]: "" }));
     setRelationInlineErrors((prev) => ({ ...prev, [name]: "" }));
   };
+
+  const handlePartsChange = useCallback((nextParts) => {
+    setReportParts(normalizeReportParts(nextParts));
+    setFieldErrors((prev) => ({ ...prev, parts: "" }));
+  }, []);
+
+  const toggleSection = useCallback((sectionId) => {
+    setCollapsedSections((prev) => ({ ...prev, [sectionId]: !Boolean(prev[sectionId]) }));
+  }, []);
 
   const handleRelationSearch = (fieldName, descriptor, search) => {
     if (descriptor.source !== "remote") return;
@@ -421,7 +333,7 @@ export function AtlasForm({
       try {
         const nestedBlueprint = await resolveInlineCreateBlueprint(viewKey);
         if (!nestedBlueprint) {
-          throw new Error("No se encontró la vista de creación relacionada.");
+          throw new Error("No se encontrÃ³ la vista de creaciÃ³n relacionada.");
         }
         const nestedApiPath = descriptor.create.apiPath;
         const blueprintForCreate =
@@ -514,12 +426,12 @@ export function AtlasForm({
       if (!createdId) {
         setRelationInlineErrors((prev) => ({
           ...prev,
-          [fieldName]: "Se creó el registro, pero no se pudo obtener su identificador.",
+          [fieldName]: "Se creÃ³ el registro, pero no se pudo obtener su identificador.",
         }));
       } else if (!refreshOk) {
         setRelationInlineErrors((prev) => ({
           ...prev,
-          [fieldName]: "Se creó el registro, pero no se pudieron actualizar las opciones.",
+          [fieldName]: "Se creÃ³ el registro, pero no se pudieron actualizar las opciones.",
         }));
       } else {
         setRelationInlineErrors((prev) => ({ ...prev, [fieldName]: "" }));
@@ -533,6 +445,13 @@ export function AtlasForm({
   const validate = () => {
     const nextErrors = {};
     for (const section of sections) {
+      if (section.type === "parts") {
+        const minItems = Number(section.minItems ?? 0);
+        if (minItems > 0 && reportParts.length < minItems) {
+          nextErrors.parts = `Agrega al menos ${minItems} refaccion(es).`;
+        }
+        continue;
+      }
       if (section.type !== "fields") continue;
       for (const fieldName of section.fields) {
         const field = fieldMap.get(fieldName);
@@ -553,7 +472,7 @@ export function AtlasForm({
     setSubmitError("");
     if (!validate()) return;
     if (isEditMode && !recordId) {
-      setSubmitError("No se pudo guardar la información.");
+      setSubmitError("No se pudo guardar la informaciÃ³n.");
       return;
     }
     const payload = {};
@@ -571,6 +490,9 @@ export function AtlasForm({
       if (casted === null || casted === "") continue;
       payload[name] = casted;
     }
+    if (sections.some((section) => section.type === "parts")) {
+      payload.parts = reportParts;
+    }
     setSubmitting(true);
     try {
       const endpoint = isEditMode
@@ -586,7 +508,7 @@ export function AtlasForm({
       });
       if (!response.ok) {
         const text = await response.text();
-        let message = "No se pudo guardar la información.";
+        let message = "No se pudo guardar la informaciÃ³n.";
         try {
           const parsed = text ? JSON.parse(text) : null;
           if (parsed?.error) message = parsed.error;
@@ -613,7 +535,7 @@ export function AtlasForm({
 
       onSuccess?.(nextResult);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "No se pudo guardar la información.");
+      setSubmitError(err instanceof Error ? err.message : "No se pudo guardar la informaciÃ³n.");
     } finally {
       setSubmitting(false);
     }
@@ -632,7 +554,7 @@ export function AtlasForm({
         <div className="space-y-1.5">
           <p className="text-sm font-medium text-[hsl(var(--foreground))]">{field.label}</p>
           <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-sm">
-            {value === undefined || value === null || value === "" ? "—" : String(value)}
+            {value === undefined || value === null || value === "" ? "â€”" : String(value)}
           </div>
         </div>
       );
@@ -802,7 +724,7 @@ export function AtlasForm({
                 {field.label}{field.required ? " *" : ""}
               </p>
               <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">
-                Relación no configurada
+                RelaciÃ³n no configurada
               </div>
               {relationError && (
                 <p className="text-xs text-[hsl(var(--destructive))]">{relationError}</p>
@@ -863,12 +785,41 @@ export function AtlasForm({
   );
 
   const renderSection = (section) => {
-    if (section.type === "attachments") {
+    const isCollapsed = Boolean(collapsedSections[section.id]);
+    const isCollapsible = Boolean(section.collapsible);
+
+    const renderSectionHeader = () => {
+      if (!section.title && !isCollapsible) return null;
+      const SectionIcon = section.icon ? LucideIcons[section.icon] : null;
       return (
-        <div
-          key={section.id}
-          className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4"
-        >
+        <div className="pb-3 border-b border-[hsl(var(--border))] flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            {SectionIcon ? (
+              <SectionIcon className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
+            ) : null}
+            <div className="space-y-0.5">
+              {section.title ? (
+                <h4 className="text-sm font-semibold text-[hsl(var(--foreground))]">
+                  {section.title}
+                </h4>
+              ) : null}
+              {section.description ? (
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">{section.description}</p>
+              ) : null}
+            </div>
+          </div>
+          {isCollapsible ? (
+            <Button type="button" variant="ghost" size="sm" onClick={() => toggleSection(section.id)}>
+              {isCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            </Button>
+          ) : null}
+        </div>
+      );
+    };
+
+    const renderSectionBody = () => {
+      if (section.type === "attachments") {
+        return (
           <AttachmentsPanel
             apiBaseUrl={apiBaseUrl}
             token={token}
@@ -883,18 +834,25 @@ export function AtlasForm({
               registerAttachmentsController(section.id, controller)
             }
           />
-        </div>
-      );
-    }
+        );
+      }
 
-    return (
-      <div
-        key={section.id}
-        className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-4"
-      >
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-          {section.title}
-        </h4>
+      if (section.type === "parts") {
+        return (
+          <div className="space-y-2">
+            <ReportPartsEditor
+              parts={reportParts}
+              onChange={handlePartsChange}
+              readonly={Boolean(submitting)}
+            />
+            {fieldErrors.parts ? (
+              <p className="text-xs text-[hsl(var(--destructive))]">{fieldErrors.parts}</p>
+            ) : null}
+          </div>
+        );
+      }
+
+      return (
         <div
           className={
             section.columns === 1
@@ -915,12 +873,20 @@ export function AtlasForm({
             );
           })}
         </div>
+      );
+    };
+
+    const header = renderSectionHeader();
+    return (
+      <div key={section.id} className={cn("space-y-4", header && isCollapsible && "pb-1")}>
+        {header}
+        {!isCollapsed ? renderSectionBody() : null}
       </div>
     );
   };
 
   return (
-    <form className="space-y-4" onSubmit={handleSubmit}>
+    <form className="space-y-6" onSubmit={handleSubmit}>
       {sections.length === 0 && (
         <Alert variant="warning">
           <AlertTitle>Formulario sin secciones</AlertTitle>
@@ -971,7 +937,7 @@ export function AtlasForm({
                   )}
                 </DialogTitle>
                 <DialogDescription>
-                  Completa la información y guarda para continuar.
+                  Completa la informaciÃ³n y guarda para continuar.
                 </DialogDescription>
               </DialogHeader>
               <div className="max-h-[70dvh] overflow-y-auto pr-1">
@@ -995,7 +961,7 @@ export function AtlasForm({
             <Alert variant="warning">
               <AlertTitle>No se pudo cargar el formulario</AlertTitle>
               <AlertDescription>
-                No se encontró la vista de creación relacionada.
+                No se encontrÃ³ la vista de creaciÃ³n relacionada.
               </AlertDescription>
             </Alert>
           )}
@@ -1013,3 +979,5 @@ export function AtlasForm({
     </form>
   );
 }
+
+

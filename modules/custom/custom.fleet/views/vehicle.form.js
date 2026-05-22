@@ -11,6 +11,7 @@ export default defineView({
     sections: [
       {
         label: 'Informacion general',
+        icon: 'Wrench',
         fields: [
           { field: 'plate', label: 'Matricula', type: 'text', required: true },
           {

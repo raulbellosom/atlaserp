@@ -20,6 +20,7 @@ import {
   UserCheck,
   Wrench,
 } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
@@ -194,6 +195,9 @@ function normalizeSections(schema, fieldMap) {
         entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`,
       );
 
+      const sectionIcon =
+        typeof entry.icon === "string" && entry.icon.trim() ? entry.icon.trim() : null;
+
       if (sectionType === "documents" || sectionType === "attachments") {
         const attachmentsConfig =
           sectionType === "attachments"
@@ -203,6 +207,7 @@ function normalizeSections(schema, fieldMap) {
           id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
           title: sectionTitle,
           type: "attachments",
+          icon: sectionIcon,
           attachments: attachmentsConfig,
         };
       }
@@ -212,6 +217,7 @@ function normalizeSections(schema, fieldMap) {
           id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
           title: sectionTitle,
           type: "relation-card",
+          icon: sectionIcon,
           relationCard: normalizeRelationCardConfig(entry.relationCard, sectionTitle),
         };
       }
@@ -221,6 +227,7 @@ function normalizeSections(schema, fieldMap) {
           id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
           title: sectionTitle,
           type: "relation-list",
+          icon: sectionIcon,
           relationList: normalizeRelationListConfig(entry.relationList),
         };
       }
@@ -254,6 +261,7 @@ function normalizeSections(schema, fieldMap) {
         title: sectionTitle,
         type: "fields",
         columns,
+        icon: sectionIcon,
         fields: fieldNames,
       };
     })
@@ -615,7 +623,7 @@ export function AtlasDetail({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {(onBack || onEdit) && (
         <div className="flex items-center justify-end gap-2">
           {onBack && (
@@ -643,11 +651,21 @@ export function AtlasDetail({
       {sections.map((section) => (
         <div
           key={section.id}
-          className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-4"
+          className="space-y-4"
         >
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-            {section.title}
-          </h4>
+          {section.title ? (
+            <div className="pb-3 border-b border-[hsl(var(--border))] flex items-center gap-2">
+              {(() => {
+                const SectionIcon = section.icon ? LucideIcons[section.icon] : null;
+                return SectionIcon ? (
+                  <SectionIcon className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
+                ) : null;
+              })()}
+              <h4 className="text-sm font-semibold text-[hsl(var(--foreground))]">
+                {section.title}
+              </h4>
+            </div>
+          ) : null}
 
           {section.type === "attachments" ? (
             <AttachmentsPanel

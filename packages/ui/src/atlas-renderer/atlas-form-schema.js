@@ -34,15 +34,30 @@ function normalizeAttachmentsPlacement(value) {
   return placement === "aside" ? "aside" : "embedded";
 }
 
+function toSectionMeta(entry) {
+  return {
+    description:
+      typeof entry?.description === "string" && entry.description.trim().length > 0
+        ? entry.description.trim()
+        : null,
+    collapsible: Boolean(entry?.collapsible),
+    defaultCollapsed: Boolean(entry?.defaultCollapsed),
+  };
+}
+
+function normalizeSectionType(entry) {
+  if (typeof entry?.type === "string" && entry.type.trim()) {
+    return entry.type.trim().toLowerCase();
+  }
+  return "fields";
+}
+
 export function normalizeSections(schema, fieldMap) {
   const rawSections = Array.isArray(schema?.sections) ? schema.sections : [];
   return rawSections
     .map((entry, sectionIndex) => {
       if (!entry || typeof entry !== "object") return null;
-      const sectionType =
-        typeof entry.type === "string" && entry.type.trim()
-          ? entry.type.trim().toLowerCase()
-          : "fields";
+      const sectionType = normalizeSectionType(entry);
 
       if (sectionType === "attachments" || sectionType === "documents") {
         const attachmentsConfig =
@@ -56,7 +71,20 @@ export function normalizeSections(schema, fieldMap) {
           placement: normalizeAttachmentsPlacement(
             entry.placement ?? attachmentsConfig?.placement,
           ),
+          ...toSectionMeta(entry),
           attachments: attachmentsConfig,
+        };
+      }
+
+      if (sectionType === "parts" || sectionType === "parts-editor") {
+        return {
+          id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
+          title: normalizeSpanishLabel(entry.title ?? entry.label ?? "Refacciones / Partes"),
+          type: "parts",
+          minItems: Number.isFinite(Number(entry.minItems))
+            ? Math.max(0, Number(entry.minItems))
+            : 0,
+          ...toSectionMeta(entry),
         };
       }
 
@@ -89,12 +117,14 @@ export function normalizeSections(schema, fieldMap) {
 
       return {
         id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
-        title: normalizeSpanishLabel(entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`),
+        title: normalizeSpanishLabel(entry.title ?? entry.label ?? `Seccion ${sectionIndex + 1}`),
         type: "fields",
-        columns: entry.columns === 1 ? 1 : (Number(entry.columns) === 2 ? 2 : "auto"),
+        columns: entry.columns === 1 ? 1 : Number(entry.columns) === 2 ? 2 : "auto",
+        icon:
+          typeof entry.icon === "string" && entry.icon.trim() ? entry.icon.trim() : null,
+        ...toSectionMeta(entry),
         fields: uniqueFields,
       };
     })
     .filter(Boolean);
 }
-
