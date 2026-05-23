@@ -20,6 +20,7 @@ import {
   RelationSelectField,
 } from "../components/FormFields.jsx";
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
+import { DatePickerField } from "../components/DatePickerField.jsx";
 import { ReportPartsEditor } from "./ReportPartsEditor.jsx";
 import { normalizeSpanishLabel, normalizeRelationDescriptor } from "./renderer-adapters.js";
 import { cn } from "../lib/utils.js";
@@ -632,11 +633,12 @@ export function AtlasForm({
 
       case "date":
         return (
-          <TextField
-            {...sharedProps}
-            type="date"
+          <DatePickerField
+            label={field.label}
+            required={field.required}
+            error={fieldErrors[field.name]}
             value={value ?? ""}
-            onChange={(e) => handleChange(field.name, e.target.value)}
+            onChange={(val) => handleChange(field.name, val ?? "")}
           />
         );
 

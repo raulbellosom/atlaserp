@@ -1,5 +1,7 @@
 import { useState, useId, useCallback } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { Popover, PopoverTrigger, PopoverContent } from "./Popover.jsx";
 import { FieldWrapper } from "./FormFields.jsx";
 import { cn } from "../lib/utils.js";
@@ -24,7 +26,7 @@ function toISO(year, month, day) {
 function formatDisplay(value) {
   const d = parseDate(value);
   if (!d) return "";
-  return d.toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return format(d, "d 'de' MMMM, yyyy", { locale: es });
 }
 
 function buildCalendarGrid(year, month) {
