@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
-import { Skeleton } from "../components/Skeleton.jsx";
+import { FormSkeleton } from "../components/Skeleton.jsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.jsx";
 import {
   Sheet,
@@ -340,13 +340,7 @@ export function AtlasCrudView({
 
   const renderRecordLoadingOrError = () => {
     if (loadingRecord) {
-      return (
-        <div className="space-y-3">
-          <Skeleton className="h-6 w-1/3" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </div>
-      );
+      return <FormSkeleton />;
     }
     if (recordError) {
       return (
@@ -394,18 +388,16 @@ export function AtlasCrudView({
                   </Button>
                 }
               />
-              <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
-                <AtlasForm
-                  blueprint={currentFormBlueprint}
-                  fields={fields}
-                  initialData={{}}
-                  mode="create"
-                  token={token}
-                  apiBaseUrl={apiBaseUrl}
-                  onSuccess={handleFormSuccess}
-                  onCancel={goToList}
-                />
-              </div>
+              <AtlasForm
+                blueprint={currentFormBlueprint}
+                fields={fields}
+                initialData={{}}
+                mode="create"
+                token={token}
+                apiBaseUrl={apiBaseUrl}
+                onSuccess={handleFormSuccess}
+                onCancel={goToList}
+              />
             </>
           )}
 
@@ -480,21 +472,19 @@ export function AtlasCrudView({
                   </Button>
                 }
               />
-              <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
-                {renderRecordLoadingOrError() ??
-                  (recordData && (
-                    <AtlasForm
-                      blueprint={currentFormBlueprint}
-                      fields={fields}
-                      initialData={recordData}
-                      mode="edit"
-                      token={token}
-                      apiBaseUrl={apiBaseUrl}
-                      onSuccess={handleFormSuccess}
-                      onCancel={goToList}
-                    />
-                  ))}
-              </div>
+              {renderRecordLoadingOrError() ??
+                (recordData && (
+                  <AtlasForm
+                    blueprint={currentFormBlueprint}
+                    fields={fields}
+                    initialData={recordData}
+                    mode="edit"
+                    token={token}
+                    apiBaseUrl={apiBaseUrl}
+                    onSuccess={handleFormSuccess}
+                    onCancel={goToList}
+                  />
+                ))}
             </>
           )}
         </div>
