@@ -14,6 +14,7 @@ import {
   Link2,
   Loader2,
   Mail,
+  Palette,
   Phone,
   Tag,
   Truck,
@@ -25,6 +26,7 @@ import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
 import { normalizeSpanishLabel } from "./renderer-adapters.js";
+import { resolveColorHex } from "./atlas-form-utils.js";
 
 const STATUS_LABELS = {
   active: "Activo",
@@ -33,6 +35,8 @@ const STATUS_LABELS = {
   retired: "Retirado",
   pending: "Pendiente",
   disabled: "Desactivado",
+  draft: "Borrador",
+  finalized: "Finalizado",
 };
 
 const STATUS_COLORS = {
@@ -42,7 +46,24 @@ const STATUS_COLORS = {
   retired: "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]",
   pending: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
   disabled: "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]",
+  draft: "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]",
+  finalized: "bg-green-500/15 text-green-700 dark:text-green-400",
 };
+
+function formatDetailDate(value) {
+  if (!value) return "—";
+  const str = String(value);
+  const datePart = str.includes("T") ? str.slice(0, 10) : str;
+  const [year, month, day] = datePart.split("-");
+  if (!year || !month || !day) return str;
+  return `${day}/${month}/${year}`;
+}
+
+function formatDetailCurrency(value) {
+  const amount = Number(value ?? 0);
+  if (!Number.isFinite(amount)) return "—";
+  return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(amount);
+}
 
 const ICON_MAP = {
   Activity,
@@ -57,6 +78,7 @@ const ICON_MAP = {
   Library,
   Link2,
   Mail,
+  Palette,
   Phone,
   Tag,
   Truck,
@@ -272,14 +294,33 @@ function renderValue(field, value) {
   if (value === undefined || value === null || value === "") return "—";
   if (field?.type === "boolean") return value ? "Sí" : "No";
 
+  if (field?.type === "date" || field?.type === "datetime") {
+    return formatDetailDate(value);
+  }
+
+  if (field?.type === "currency" || field?.type === "decimal") {
+    return formatDetailCurrency(value);
+  }
+
+  if (field?.type === "select" && Array.isArray(field?.options)) {
+    const str = String(value);
+    const opt = field.options.find((o) => String(o.value) === str);
+    if (opt?.label) return opt.label;
+  }
+
   if (field?.type === "color") {
+    const colorStr = String(value);
+    const hex = resolveColorHex(colorStr);
+    const displayName = colorStr.startsWith("#") ? (colorStr) : colorStr;
     return (
       <span className="inline-flex items-center gap-2">
-        <span
-          className="inline-block h-4 w-4 rounded border border-[hsl(var(--border))]"
-          style={{ backgroundColor: String(value) }}
-        />
-        <span>{String(value)}</span>
+        {hex && (
+          <span
+            className="inline-block h-4 w-4 rounded-full border border-[hsl(var(--border))] shadow-sm shrink-0"
+            style={{ backgroundColor: hex }}
+          />
+        )}
+        <span>{displayName}</span>
       </span>
     );
   }

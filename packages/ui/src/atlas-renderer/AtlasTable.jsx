@@ -26,6 +26,7 @@ import {
   normalizeToFilterBarFilters,
   normalizeSpanishLabel,
 } from "./renderer-adapters.js";
+import { resolveColorHex } from "./atlas-form-utils.js";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -120,6 +121,7 @@ function normalizeColumns(schema) {
         ),
         component: entry.component ?? null,
         type: entry.type ?? null,
+        options: Array.isArray(entry.options) ? entry.options : null,
         sortable: Boolean(entry.sortable),
         isLink,
       };
@@ -195,7 +197,24 @@ const STATUS_LABELS = {
   retired: "Retirado",
   pending: "Pendiente",
   disabled: "Desactivado",
+  draft: "Borrador",
+  finalized: "Finalizado",
 };
+
+function formatTableDate(value) {
+  if (!value) return "—";
+  const str = String(value);
+  const datePart = str.includes("T") ? str.slice(0, 10) : str;
+  const [year, month, day] = datePart.split("-");
+  if (!year || !month || !day) return str;
+  return `${day}/${month}/${year}`;
+}
+
+function formatTableCurrency(value) {
+  const amount = Number(value ?? 0);
+  if (!Number.isFinite(amount)) return "—";
+  return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(amount);
+}
 
 function renderValue(value) {
   if (value === undefined || value === null || value === "") return "—";
@@ -207,13 +226,17 @@ function renderValue(value) {
 
 function ColorCell({ value }) {
   if (!value || value === "—") return <span className="text-muted-foreground">—</span>;
+  const hex = resolveColorHex(value);
+  const displayName = value.startsWith("#") ? value : value;
   return (
     <span className="flex items-center gap-1.5">
-      <span
-        className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border border-border"
-        style={{ backgroundColor: value }}
-      />
-      <span>{value}</span>
+      {hex && (
+        <span
+          className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border border-border shadow-sm"
+          style={{ backgroundColor: hex }}
+        />
+      )}
+      <span>{displayName}</span>
     </span>
   );
 }
@@ -450,6 +473,10 @@ export function AtlasTable({
 
   const rowActions = Array.isArray(schema.rowActions) ? schema.rowActions : [];
 
+  const viewActionLabel = rowActions.find((a) => inferRowActionKind(a?.label) === "view")?.label ?? "Ver detalle";
+  const editActionLabel = rowActions.find((a) => inferRowActionKind(a?.label) === "edit")?.label ?? "Editar";
+  const deleteActionLabel = rowActions.find((a) => inferRowActionKind(a?.label) === "delete")?.label ?? "Eliminar";
+
   const rowMenuItems = (row) => {
     if (rowActions.length === 0) {
       return [
@@ -673,6 +700,14 @@ export function AtlasTable({
                           {renderValue(value)}
                         </button>
                       );
+                    } else if (col.type === "select" && col.options) {
+                      const str = String(value ?? "");
+                      const opt = col.options.find((o) => String(o.value) === str);
+                      cellContent = opt?.label ?? renderValue(value);
+                    } else if (col.type === "date" || col.type === "datetime") {
+                      cellContent = formatTableDate(value);
+                    } else if (col.type === "currency" || col.type === "decimal") {
+                      cellContent = formatTableCurrency(value);
                     } else {
                       cellContent = renderValue(value);
                     }
