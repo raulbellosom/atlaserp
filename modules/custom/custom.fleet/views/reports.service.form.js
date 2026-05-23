@@ -3,7 +3,7 @@
 export default defineView({
   key: "fleet.reports.service.form",
   kind: "FORM",
-  version: "0.2.0",
+  version: "0.2.1",
   schema: {
     entity: "report",
     component: "AtlasForm",
@@ -16,6 +16,7 @@ export default defineView({
       {
         id: "vehicle",
         label: "Vehiculo",
+        icon: "Wrench",
         collapsible: true,
         defaultCollapsed: false,
         columns: 1,
@@ -33,7 +34,7 @@ export default defineView({
               disabledField: "enabled",
               searchParam: "search",
               displayFields: {
-                badge: "economic_number",
+                badge: "full_economic_number",
                 title: "vehicle_model_name",
                 subtitle: ["plate", "vehicle_type_name", "vehicle_brand_name"],
               },
@@ -44,6 +45,7 @@ export default defineView({
       {
         id: "service_data",
         label: "Datos del Servicio",
+        icon: "CalendarDays",
         collapsible: true,
         defaultCollapsed: false,
         columns: 2,
@@ -69,6 +71,7 @@ export default defineView({
       {
         id: "workshop",
         label: "Informacion del Taller",
+        icon: "Building2",
         collapsible: true,
         defaultCollapsed: false,
         columns: 2,
@@ -88,12 +91,14 @@ export default defineView({
         id: "parts",
         type: "parts-editor",
         label: "Refacciones / Partes",
+        icon: "Package",
         collapsible: true,
         defaultCollapsed: false,
       },
       {
         id: "costs",
         label: "Resumen de Costos",
+        icon: "BadgeDollarSign",
         collapsible: true,
         defaultCollapsed: false,
         columns: 3,
@@ -106,6 +111,7 @@ export default defineView({
       {
         id: "notes",
         label: "Observaciones",
+        icon: "FileText",
         collapsible: true,
         defaultCollapsed: false,
         columns: 1,
@@ -115,6 +121,7 @@ export default defineView({
         id: "attachments",
         type: "attachments",
         label: "Archivos Adjuntos",
+        icon: "Paperclip",
         collapsible: true,
         defaultCollapsed: false,
         attachments: {

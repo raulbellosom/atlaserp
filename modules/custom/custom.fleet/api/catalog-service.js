@@ -34,6 +34,14 @@ function normalizeOptionalString(value) {
   return normalized.length > 0 ? normalized : null
 }
 
+function normalizeEconomicNumberPart(value) {
+  const normalized = normalizeOptionalString(value)
+  if (normalized === undefined || normalized === null) return normalized
+  if (!/^\d+$/.test(normalized)) return normalized
+  const withoutLeadingZeros = normalized.replace(/^0+/, '')
+  return withoutLeadingZeros.length > 0 ? withoutLeadingZeros : '0'
+}
+
 function toScopedCompanyUuid(companyId) {
   const normalized = (typeof companyId === 'string' && companyId.trim()) ? companyId.trim() : null
   if (!normalized) throw new FleetServiceError('companyId es requerido.', 400)
@@ -125,7 +133,7 @@ export function createCatalogService({ prisma }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
     const name = String(payload.name ?? '').trim()
     const description = normalizeOptionalString(payload.description)
-    const economicGroupNumber = normalizeOptionalString(payload.economic_group_number)
+    const economicGroupNumber = normalizeEconomicNumberPart(payload.economic_group_number)
     try {
       const row = await withDbErrorMapping(async () => {
         const rows = await prisma.$queryRaw`
@@ -157,7 +165,7 @@ export function createCatalogService({ prisma }) {
           UPDATE fleet_vehicle_type
           SET name = CASE WHEN ${hasName} THEN ${payload.name ?? null} ELSE name END,
               description = CASE WHEN ${hasDesc} THEN ${normalizeOptionalString(payload.description)} ELSE description END,
-              economic_group_number = CASE WHEN ${hasEconomicGroupNumber} THEN ${normalizeOptionalString(payload.economic_group_number)} ELSE economic_group_number END,
+              economic_group_number = CASE WHEN ${hasEconomicGroupNumber} THEN ${normalizeEconomicNumberPart(payload.economic_group_number)} ELSE economic_group_number END,
               updated_at = now()
           WHERE id = ${safeId} AND company_id = ${safeCompanyId} AND enabled = true RETURNING *
         `
@@ -388,7 +396,14 @@ export function createCatalogService({ prisma }) {
 
   async function getVehicleModel(safeCompanyId, safeId) {
     const rows = await withDbErrorMapping(() => prisma.$queryRaw`
-      SELECT vm.*, vb.name AS brand_name, vt.name AS type_name
+      SELECT
+        vm.*,
+        vb.name AS brand_name,
+        vt.name AS type_name,
+        CASE
+          WHEN vt.economic_group_number IS NULL THEN NULL
+          ELSE COALESCE(NULLIF(REGEXP_REPLACE(vt.economic_group_number, '^0+', ''), ''), '0')
+        END AS economic_group_number
       FROM fleet_vehicle_model vm
       LEFT JOIN fleet_vehicle_brand vb ON vb.id = vm.brand_id
       LEFT JOIN fleet_vehicle_type vt ON vt.id = vm.type_id
@@ -411,7 +426,12 @@ export function createCatalogService({ prisma }) {
     const [rows, totalRows] = await withDbErrorMapping(async () => {
       const data = await prisma.$queryRaw`
         SELECT vm.id, vm.company_id, vm.brand_id, vb.name AS brand_name,
-               vm.type_id, vt.name AS type_name, vm.name, vm.year,
+               vm.type_id, vt.name AS type_name,
+               CASE
+                 WHEN vt.economic_group_number IS NULL THEN NULL
+                 ELSE COALESCE(NULLIF(REGEXP_REPLACE(vt.economic_group_number, '^0+', ''), ''), '0')
+               END AS economic_group_number,
+               vm.name, vm.year,
                vm.enabled, vm.created_at, vm.updated_at
         FROM fleet_vehicle_model vm
         LEFT JOIN fleet_vehicle_brand vb ON vb.id = vm.brand_id
@@ -529,10 +549,34 @@ export function createCatalogService({ prisma }) {
     return updated
   }
 
+  async function getVehicleTypeById({ companyId, id }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId)
+    const safeId = normalizeRecordId(id, 'Tipo de vehiculo no encontrado.')
+    return getVehicleType(safeCompanyId, safeId)
+  }
+
+  async function getVehicleBrandById({ companyId, id }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId)
+    const safeId = normalizeRecordId(id, 'Marca no encontrada.')
+    return getVehicleBrand(safeCompanyId, safeId)
+  }
+
+  async function getMaintenanceTypeById({ companyId, id }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId)
+    const safeId = normalizeRecordId(id, 'Tipo de mantenimiento no encontrado.')
+    return getMaintenanceType(safeCompanyId, safeId)
+  }
+
+  async function getVehicleModelById({ companyId, id }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId)
+    const safeId = normalizeRecordId(id, 'Modelo de vehiculo no encontrado.')
+    return getVehicleModel(safeCompanyId, safeId)
+  }
+
   return {
-    listVehicleTypes, createVehicleType, updateVehicleType, setVehicleTypeEnabled,
-    listVehicleBrands, createVehicleBrand, updateVehicleBrand, setVehicleBrandEnabled,
-    listMaintenanceTypes, createMaintenanceType, updateMaintenanceType, setMaintenanceTypeEnabled, seedMaintenanceTypes,
-    listVehicleModels, createVehicleModel, updateVehicleModel, setVehicleModelEnabled,
+    listVehicleTypes, getVehicleTypeById, createVehicleType, updateVehicleType, setVehicleTypeEnabled,
+    listVehicleBrands, getVehicleBrandById, createVehicleBrand, updateVehicleBrand, setVehicleBrandEnabled,
+    listMaintenanceTypes, getMaintenanceTypeById, createMaintenanceType, updateMaintenanceType, setMaintenanceTypeEnabled, seedMaintenanceTypes,
+    listVehicleModels, getVehicleModelById, createVehicleModel, updateVehicleModel, setVehicleModelEnabled,
   }
 }

@@ -200,7 +200,7 @@ html {
 html,
 body,
 #root {
-  min-height: 100%;
+  height: 100%;
 }
 
 /* ── Badge variant overrides (light mode: solid; dark mode: glass) ──────────
@@ -355,7 +355,7 @@ select {
 /* ── Mobile / Responsive globals ─────────────────────────────────── */
 html,
 body {
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 body {

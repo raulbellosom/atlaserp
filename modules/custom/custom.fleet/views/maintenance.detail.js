@@ -26,7 +26,7 @@ export default defineView({
         relationCard: {
           idField: 'vehicle_id',
           titleField: 'vehicle_plate',
-          subtitleFields: ['vehicle_model_name', 'economic_number'],
+          subtitleFields: ['vehicle_model_name', 'full_economic_number'],
           fallbackTitle: 'Vehículo no disponible',
           hrefTemplate: '/app/m/custom.fleet/vehicles/:id',
           icon: 'Truck',

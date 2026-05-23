@@ -3,7 +3,7 @@ import { defineView } from '@atlas/module-engine'
 export default defineView({
   key: 'fleet.vehicle.form',
   kind: 'FORM',
-  version: '0.1.0',
+  version: '0.1.1',
   schema: {
     entity: 'vehicle',
     component: 'AtlasForm',
@@ -21,9 +21,15 @@ export default defineView({
             relation: {
               apiPath: '/fleet/catalogs/vehicle-models',
               labelField: ['brand_name', 'name', 'year'],
-              labelSeparator: ' ',
+              labelSeparator: ' · ',
+              pageSize: 200,
               clearable: true,
               disabledField: 'enabled',
+              displayFields: {
+                badge: 'economic_group_number',
+                title: 'name',
+                subtitle: ['brand_name', 'type_name', 'year'],
+              },
               create: {
                 enabled: true,
                 label: 'Crear modelo de vehículo',

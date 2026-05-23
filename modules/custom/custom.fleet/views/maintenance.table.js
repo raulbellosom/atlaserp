@@ -15,7 +15,7 @@ export default defineView({
       { field: 'title', label: 'Titulo', sortable: true, link: true },
       { field: 'vehicle_plate', label: 'Vehiculo', sortable: false },
       { field: 'driver_full_name', label: 'Chofer', sortable: false },
-      { field: 'status', label: 'Estado', sortable: true, component: 'custom.fleet:MaintenanceStatusBadge' },
+      { field: 'status', label: 'Estado', sortable: true },
       { field: 'started_at', label: 'Inicio', type: 'datetime', sortable: true },
       { field: 'odometer_km', label: 'Odometro (km)', type: 'number', sortable: true },
       { field: 'provider', label: 'Proveedor', sortable: false },

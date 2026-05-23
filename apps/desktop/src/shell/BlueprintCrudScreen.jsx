@@ -87,8 +87,18 @@ function parseModeFromSegments(segments) {
 function parseFallbackRouteInfo(moduleKey, wildcard) {
   const cleanPath = collapseWildcardPath(moduleKey, wildcard);
   const segments = cleanPath.split("/").filter(Boolean);
-  const collectionPath = String(segments[0] ?? "").toLowerCase();
-  const { initialMode, recordId } = parseModeFromSegments(segments.slice(1));
+  const second = String(segments[1] ?? "").toLowerCase();
+  const isCrudToken = second === "new" || second === "edit";
+  const isUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      second,
+    );
+  const hasNestedCollection = segments.length >= 2 && !isCrudToken && !isUuid;
+  const collectionPath = hasNestedCollection
+    ? `${String(segments[0] ?? "").toLowerCase()}/${String(segments[1] ?? "").toLowerCase()}`
+    : String(segments[0] ?? "").toLowerCase();
+  const modeSegments = hasNestedCollection ? segments.slice(2) : segments.slice(1);
+  const { initialMode, recordId } = parseModeFromSegments(modeSegments);
   const moduleRoutePath = collectionPath
     ? `/app/m/${moduleKey}/${collectionPath}`
     : `/app/m/${moduleKey}`;
@@ -190,6 +200,15 @@ function selectBlueprints({ moduleRows, routeInfo }) {
       (row) => String(row?.key ?? "").trim() === String(key ?? "").trim(),
     ) ?? null;
 
+  const findSiblingBySuffix = (baseBlueprint, suffix) => {
+    const baseKey = String(baseBlueprint?.key ?? "").trim();
+    if (!baseKey || !baseKey.includes(".")) return null;
+    const normalizedSuffix = String(suffix ?? "").trim();
+    if (!normalizedSuffix) return null;
+    const siblingKey = baseKey.replace(/\.[^.]+$/, `.${normalizedSuffix}`);
+    return findByKey(siblingKey);
+  };
+
   let tableBlueprint = null;
   const pageViewKey = pageMatch?.schema?.view ?? pageMatch?.schema?.page?.view;
   if (pageViewKey) tableBlueprint = findByKey(pageViewKey);
@@ -229,6 +248,7 @@ function selectBlueprints({ moduleRows, routeInfo }) {
   };
 
   const formBlueprint =
+    findSiblingBySuffix(tableBlueprint, "form") ??
     formRows.find(matchesTable) ??
     formRows.find((row) =>
       matchesCollectionPath(row, routeInfo.collectionPath),
@@ -236,6 +256,7 @@ function selectBlueprints({ moduleRows, routeInfo }) {
     formRows.find((row) => matchesEntity(row, routeInfo.entitySegment)) ??
     null;
   const detailBlueprint =
+    findSiblingBySuffix(tableBlueprint, "detail") ??
     detailRows.find(matchesTable) ??
     detailRows.find((row) =>
       matchesCollectionPath(row, routeInfo.collectionPath),
@@ -730,8 +751,8 @@ export function BlueprintCrudScreen() {
     : null;
 
   return (
-    <div className="flex flex-col min-h-full">
-      <div className="flex-1 p-4 md:p-6 space-y-6">
+    <div className="flex flex-col">
+      <div className="p-4 md:p-6 space-y-6">
         {groupedTabs?.tabs?.length ? (
           <div className="flex flex-wrap items-center gap-2">
             {groupedTabs.tabs.map((tab) => {

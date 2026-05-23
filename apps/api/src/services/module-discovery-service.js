@@ -263,7 +263,9 @@ function toPageAsView(pageDeclaration) {
 }
 
 async function importLocalModule(filePath) {
-  return import(pathToFileURL(filePath).href)
+  const url = new URL(pathToFileURL(filePath).href)
+  url.searchParams.set('t', Date.now())
+  return import(url.href)
 }
 
 function looksLikePageDeclaration(value) {

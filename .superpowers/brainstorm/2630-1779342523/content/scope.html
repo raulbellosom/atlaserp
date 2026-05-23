@@ -1,0 +1,86 @@
+<h2>Tabla de alcance: donde aplicar la feature</h2>
+<p class="subtitle">El sistema actual tiene dos tipos de implementacion de tablas. La configuracion de vistas afecta a cual implementacion?</p>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">Arquitectura actual de tablas en Atlas ERP</div>
+    <div class="mockup-body" style="font-size:13px;line-height:1.8">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:#f0f0f0">
+            <th style="padding:8px 12px;text-align:left;border:1px solid #ddd">Modulo</th>
+            <th style="padding:8px 12px;text-align:left;border:1px solid #ddd">Tipo</th>
+            <th style="padding:8px 12px;text-align:left;border:1px solid #ddd">Usa AtlasTable</th>
+            <th style="padding:8px 12px;text-align:left;border:1px solid #ddd">Implementacion</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:8px 12px;border:1px solid #ddd">custom.fleet (Flota)</td>
+            <td style="padding:8px 12px;border:1px solid #ddd"><span style="background:#d1fae5;padding:2px 8px;border-radius:12px;font-size:11px">AME3 Custom</span></td>
+            <td style="padding:8px 12px;border:1px solid #ddd;color:#16a34a;font-weight:600">SI — AtlasCrudView &rarr; AtlasTable</td>
+            <td style="padding:8px 12px;border:1px solid #ddd">Blueprint-driven, declarativo</td>
+          </tr>
+          <tr style="background:#fafafa">
+            <td style="padding:8px 12px;border:1px solid #ddd">Futuros modulos community</td>
+            <td style="padding:8px 12px;border:1px solid #ddd"><span style="background:#d1fae5;padding:2px 8px;border-radius:12px;font-size:11px">AME3 Custom</span></td>
+            <td style="padding:8px 12px;border:1px solid #ddd;color:#16a34a;font-weight:600">SI — misma arquitectura</td>
+            <td style="padding:8px 12px;border:1px solid #ddd">Blueprint-driven, declarativo</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;border:1px solid #ddd">atlas.contacts (Contactos)</td>
+            <td style="padding:8px 12px;border:1px solid #ddd"><span style="background:#fef3c7;padding:2px 8px;border-radius:12px;font-size:11px">Core Legacy</span></td>
+            <td style="padding:8px 12px;border:1px solid #ddd;color:#dc2626">NO — ContactsTableView custom</td>
+            <td style="padding:8px 12px;border:1px solid #ddd">Componente propio con explorer hook</td>
+          </tr>
+          <tr style="background:#fafafa">
+            <td style="padding:8px 12px;border:1px solid #ddd">atlas.files (Archivos)</td>
+            <td style="padding:8px 12px;border:1px solid #ddd"><span style="background:#fef3c7;padding:2px 8px;border-radius:12px;font-size:11px">Core Legacy</span></td>
+            <td style="padding:8px 12px;border:1px solid #ddd;color:#dc2626">NO — FilesTableView custom</td>
+            <td style="padding:8px 12px;border:1px solid #ddd">Componente propio con explorer hook</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;border:1px solid #ddd">atlas.finance (Finanzas)</td>
+            <td style="padding:8px 12px;border:1px solid #ddd"><span style="background:#fef3c7;padding:2px 8px;border-radius:12px;font-size:11px">Core Legacy</span></td>
+            <td style="padding:8px 12px;border:1px solid #ddd;color:#dc2626">NO — HTML table hardcoded</td>
+            <td style="padding:8px 12px;border:1px solid #ddd">TanStack Query + table HTML puro</td>
+          </tr>
+          <tr style="background:#fafafa">
+            <td style="padding:8px 12px;border:1px solid #ddd">atlas.hr (RRHH)</td>
+            <td style="padding:8px 12px;border:1px solid #ddd"><span style="background:#fef3c7;padding:2px 8px;border-radius:12px;font-size:11px">Core Legacy</span></td>
+            <td style="padding:8px 12px;border:1px solid #ddd;color:#dc2626">NO — tabla propia en HrScreen</td>
+            <td style="padding:8px 12px;border:1px solid #ddd">Componente propio</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="margin-top:12px;color:#6b7280;font-size:12px">AtlasTable.jsx tiene 799 lineas. Si la feature va en AtlasTable, los modulos legacy necesitarian ser migrados separadamente para beneficiarse.</p>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:24px">Cual es el alcance inicial?</h3>
+<p class="subtitle">Elegir bien aqui define cuanto trabajo implica la primera iteracion.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Solo AtlasTable (AME3)</h3>
+      <p>Implementar en AtlasTable unicamente. Cubre custom.fleet y todos los modulos nuevos de la community. Los modulos legacy (contacts, files, finance, HR) quedan fuera por ahora. Menor alcance, implementacion mas limpia y rapida.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>AtlasTable + adaptar modulos legacy</h3>
+      <p>Implementar en AtlasTable Y migrar los modulos legacy para usar un hook compartido de configuracion de vistas. Mas trabajo, pero consistencia total en toda la app. Probablemente require 2-3x mas tiempo.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Hook compartido desde el inicio</h3>
+      <p>Diseniar un hook <code>useTableViewConfig</code> reutilizable que funcione en AtlasTable Y pueda adoptarse progresivamente en modulos legacy sin migrarlos todos ahora. Los legacy adoptan el hook a su ritmo.</p>
+    </div>
+  </div>
+</div>

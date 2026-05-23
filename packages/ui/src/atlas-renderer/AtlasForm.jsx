@@ -22,7 +22,10 @@ import {
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
 import { DatePickerField } from "../components/DatePickerField.jsx";
 import { ReportPartsEditor } from "./ReportPartsEditor.jsx";
-import { normalizeSpanishLabel, normalizeRelationDescriptor } from "./renderer-adapters.js";
+import {
+  normalizeSpanishLabel,
+  normalizeRelationDescriptor,
+} from "./renderer-adapters.js";
 import { cn } from "../lib/utils.js";
 import { normalizeField, normalizeSections } from "./atlas-form-schema.js";
 import {
@@ -63,8 +66,11 @@ export function AtlasForm({
   inlineCreateDepth = 0,
 }) {
   const schema = blueprint?.schema ?? {};
-  const apiPath = typeof schema.apiPath === "string" ? schema.apiPath.trim() : "";
-  const submitLabel = normalizeSpanishLabel(String(schema?.submitLabel ?? "").trim() || "Guardar");
+  const apiPath =
+    typeof schema.apiPath === "string" ? schema.apiPath.trim() : "";
+  const submitLabel = normalizeSpanishLabel(
+    String(schema?.submitLabel ?? "").trim() || "Guardar",
+  );
 
   const fieldMap = useMemo(() => {
     const map = new Map();
@@ -76,16 +82,23 @@ export function AtlasForm({
     return map;
   }, [fields]);
 
-  const sections = useMemo(() => normalizeSections(schema, fieldMap), [fieldMap, schema]);
+  const sections = useMemo(
+    () => normalizeSections(schema, fieldMap),
+    [fieldMap, schema],
+  );
 
-  const [formValues, setFormValues] = useState(() => buildInitialValues(fieldMap, initialData));
+  const [formValues, setFormValues] = useState(() =>
+    buildInitialValues(fieldMap, initialData),
+  );
   const [reportParts, setReportParts] = useState(() =>
     normalizeReportParts(initialData?.parts),
   );
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [resolvedRecordId, setResolvedRecordId] = useState(() => resolveRecordId(initialData));
+  const [resolvedRecordId, setResolvedRecordId] = useState(() =>
+    resolveRecordId(initialData),
+  );
   const [relationState, setRelationState] = useState({});
   const [relationInlineErrors, setRelationInlineErrors] = useState({});
   const [inlineCreateState, setInlineCreateState] = useState({
@@ -112,7 +125,10 @@ export function AtlasForm({
     async (fieldName, descriptor, search) => {
       const url = new URL(joinUrl(apiBaseUrl, descriptor.apiPath));
       url.searchParams.set(descriptor.pageParam, "1");
-      url.searchParams.set(descriptor.pageSizeParam, String(descriptor.pageSize));
+      url.searchParams.set(
+        descriptor.pageSizeParam,
+        String(descriptor.pageSize),
+      );
       if (search) url.searchParams.set(descriptor.searchParam, search);
       const cacheKey = url.toString();
 
@@ -122,7 +138,11 @@ export function AtlasForm({
         if (cached && Date.now() - cached.ts < _RELATION_CACHE_TTL) {
           setRelationState((prev) => ({
             ...prev,
-            [fieldName]: { options: cached.options, loading: false, error: null },
+            [fieldName]: {
+              options: cached.options,
+              loading: false,
+              error: null,
+            },
           }));
           return true;
         }
@@ -130,7 +150,11 @@ export function AtlasForm({
 
       setRelationState((prev) => ({
         ...prev,
-        [fieldName]: { options: prev[fieldName]?.options ?? [], loading: true, error: null },
+        [fieldName]: {
+          options: prev[fieldName]?.options ?? [],
+          loading: true,
+          error: null,
+        },
       }));
       try {
         const res = await fetch(cacheKey, {
@@ -138,7 +162,11 @@ export function AtlasForm({
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
-        const rows = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
+        const rows = Array.isArray(json.data)
+          ? json.data
+          : Array.isArray(json)
+            ? json
+            : [];
         const options = rows
           .map((row) => {
             const df = descriptor.displayFields;
@@ -149,16 +177,24 @@ export function AtlasForm({
                 title: df.title ? String(row[df.title] ?? "").trim() : null,
                 subtitle: df.subtitle
                   ? Array.isArray(df.subtitle)
-                    ? df.subtitle.map((f) => row[f]).filter(Boolean).join(" • ")
+                    ? df.subtitle
+                        .map((f) => row[f])
+                        .filter(Boolean)
+                        .join(" • ")
                     : String(row[df.subtitle] ?? "").trim()
                   : null,
               };
-              meta = rawMeta.badge || rawMeta.title || rawMeta.subtitle ? rawMeta : null;
+              meta =
+                rawMeta.badge || rawMeta.title || rawMeta.subtitle
+                  ? rawMeta
+                  : null;
             }
             return {
               value: String(row[descriptor.valueField] ?? ""),
               label: resolveRelationLabel(row, descriptor),
-              disabled: descriptor.disabledField ? row[descriptor.disabledField] === false : false,
+              disabled: descriptor.disabledField
+                ? row[descriptor.disabledField] === false
+                : false,
               meta,
             };
           })
@@ -174,7 +210,11 @@ export function AtlasForm({
       } catch {
         setRelationState((prev) => ({
           ...prev,
-          [fieldName]: { options: prev[fieldName]?.options ?? [], loading: false, error: true },
+          [fieldName]: {
+            options: prev[fieldName]?.options ?? [],
+            loading: false,
+            error: true,
+          },
         }));
         return false;
       }
@@ -225,7 +265,8 @@ export function AtlasForm({
       <Alert variant="warning">
         <AlertTitle>Vista sin configuración</AlertTitle>
         <AlertDescription>
-          Esta vista no tiene <code>schema.apiPath</code>. No se puede guardar la información.
+          Esta vista no tiene <code>schema.apiPath</code>. No se puede guardar
+          la información.
         </AlertDescription>
       </Alert>
     );
@@ -244,7 +285,9 @@ export function AtlasForm({
   }, []);
 
   const flushPendingAttachments = useCallback(async (effectiveRecordId) => {
-    const controllers = Array.from(attachmentsControllersRef.current.values()).filter(Boolean);
+    const controllers = Array.from(
+      attachmentsControllersRef.current.values(),
+    ).filter(Boolean);
     if (!effectiveRecordId || controllers.length === 0) {
       return { attempted: 0, success: 0, failed: 0, details: [] };
     }
@@ -257,11 +300,18 @@ export function AtlasForm({
     }
 
     const attempted = results.reduce(
-      (sum, item) => sum + ((item?.failed?.length ?? 0) + (item?.success?.length ?? 0)),
+      (sum, item) =>
+        sum + ((item?.failed?.length ?? 0) + (item?.success?.length ?? 0)),
       0,
     );
-    const success = results.reduce((sum, item) => sum + (item?.success?.length ?? 0), 0);
-    const failed = results.reduce((sum, item) => sum + (item?.failed?.length ?? 0), 0);
+    const success = results.reduce(
+      (sum, item) => sum + (item?.success?.length ?? 0),
+      0,
+    );
+    const failed = results.reduce(
+      (sum, item) => sum + (item?.failed?.length ?? 0),
+      0,
+    );
     const details = results.flatMap((item) => item?.failed ?? []);
     return { attempted, success, failed, details };
   }, []);
@@ -278,7 +328,10 @@ export function AtlasForm({
   }, []);
 
   const toggleSection = useCallback((sectionId) => {
-    setCollapsedSections((prev) => ({ ...prev, [sectionId]: !Boolean(prev[sectionId]) }));
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [sectionId]: !Boolean(prev[sectionId]),
+    }));
   }, []);
 
   const handleRelationSearch = (fieldName, descriptor, search) => {
@@ -311,9 +364,13 @@ export function AtlasForm({
         if (resolved) return resolved;
       }
 
-      const localRows = Array.isArray(blueprints) ? blueprints : nestedBlueprintRows;
+      const localRows = Array.isArray(blueprints)
+        ? blueprints
+        : nestedBlueprintRows;
       if (Array.isArray(localRows) && localRows.length > 0) {
-        const found = localRows.find((row) => String(row?.key ?? "").trim() === viewKey);
+        const found = localRows.find(
+          (row) => String(row?.key ?? "").trim() === viewKey,
+        );
         if (found) return found;
       }
 
@@ -321,7 +378,8 @@ export function AtlasForm({
         method: "GET",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (!response.ok) throw new Error("No se pudieron cargar las vistas relacionadas.");
+      if (!response.ok)
+        throw new Error("No se pudieron cargar las vistas relacionadas.");
       const payload = await response.json();
       const rows = extractBlueprintRows(payload);
       setNestedBlueprintRows(rows);
@@ -333,7 +391,14 @@ export function AtlasForm({
       });
       return found ?? null;
     },
-    [apiBaseUrl, blueprint?.moduleKey, blueprints, nestedBlueprintRows, resolveBlueprintByKey, token],
+    [
+      apiBaseUrl,
+      blueprint?.moduleKey,
+      blueprints,
+      nestedBlueprintRows,
+      resolveBlueprintByKey,
+      token,
+    ],
   );
 
   const openInlineCreate = useCallback(
@@ -409,7 +474,9 @@ export function AtlasForm({
           ? createdRecord[descriptor.valueField]
           : null;
       const createdId =
-        createdIdRaw === undefined || createdIdRaw === null || createdIdRaw === ""
+        createdIdRaw === undefined ||
+        createdIdRaw === null ||
+        createdIdRaw === ""
           ? null
           : String(createdIdRaw);
 
@@ -421,7 +488,9 @@ export function AtlasForm({
         };
         setRelationState((prev) => {
           const current = prev[fieldName]?.options ?? [];
-          const next = current.filter((item) => String(item.value) !== createdId);
+          const next = current.filter(
+            (item) => String(item.value) !== createdId,
+          );
           return {
             ...prev,
             [fieldName]: {
@@ -446,12 +515,14 @@ export function AtlasForm({
       if (!createdId) {
         setRelationInlineErrors((prev) => ({
           ...prev,
-          [fieldName]: "Se creó el registro, pero no se pudo obtener su identificador.",
+          [fieldName]:
+            "Se creó el registro, pero no se pudo obtener su identificador.",
         }));
       } else if (!refreshOk) {
         setRelationInlineErrors((prev) => ({
           ...prev,
-          [fieldName]: "Se creó el registro, pero no se pudieron actualizar las opciones.",
+          [fieldName]:
+            "Se creó el registro, pero no se pudieron actualizar las opciones.",
         }));
       } else {
         setRelationInlineErrors((prev) => ({ ...prev, [fieldName]: "" }));
@@ -459,7 +530,12 @@ export function AtlasForm({
 
       closeInlineCreate();
     },
-    [closeInlineCreate, inlineCreateState.descriptor, inlineCreateState.fieldName, loadRelationOptions],
+    [
+      closeInlineCreate,
+      inlineCreateState.descriptor,
+      inlineCreateState.fieldName,
+      loadRelationOptions,
+    ],
   );
 
   const validate = () => {
@@ -484,7 +560,11 @@ export function AtlasForm({
           }
           continue;
         }
-        if (value === undefined || value === null || String(value).trim() === "") {
+        if (
+          value === undefined ||
+          value === null ||
+          String(value).trim() === ""
+        ) {
           nextErrors[fieldName] = "Campo requerido";
         }
       }
@@ -546,7 +626,9 @@ export function AtlasForm({
       const result = await response.json();
       const createdRecord = extractCreatedRecord(result);
       const createdRecordId = resolveRecordId(createdRecord);
-      const effectiveRecordId = isEditMode ? recordId : createdRecordId ?? null;
+      const effectiveRecordId = isEditMode
+        ? recordId
+        : (createdRecordId ?? null);
 
       if (!isEditMode && effectiveRecordId) {
         setResolvedRecordId(effectiveRecordId);
@@ -561,7 +643,11 @@ export function AtlasForm({
 
       onSuccess?.(nextResult);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "No se pudo guardar la información.");
+      setSubmitError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo guardar la información.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -578,9 +664,13 @@ export function AtlasForm({
     if (field.readonly) {
       return (
         <div className="space-y-1.5">
-          <p className="text-sm font-medium text-[hsl(var(--foreground))]">{field.label}</p>
+          <p className="text-sm font-medium text-[hsl(var(--foreground))]">
+            {field.label}
+          </p>
           <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-sm">
-            {value === undefined || value === null || value === "" ? "—" : String(value)}
+            {value === undefined || value === null || value === ""
+              ? "—"
+              : String(value)}
           </div>
         </div>
       );
@@ -698,15 +788,18 @@ export function AtlasForm({
         );
 
       case "color": {
-        const current = (value && String(value).startsWith("#")) ? String(value) : "#111827";
+        const current =
+          value && String(value).startsWith("#") ? String(value) : "#111827";
         return (
           <div className="space-y-1.5">
             <p className="text-sm font-medium text-[hsl(var(--foreground))]">
-              {field.label}{field.required ? " *" : ""}
+              {field.label}
+              {field.required ? " *" : ""}
             </p>
             <div className="flex flex-wrap gap-2 items-center">
               {PRESET_COLORS.map((preset) => {
-                const isActive = current.toLowerCase() === preset.value.toLowerCase();
+                const isActive =
+                  current.toLowerCase() === preset.value.toLowerCase();
                 return (
                   <button
                     key={preset.value}
@@ -745,7 +838,9 @@ export function AtlasForm({
               </label>
             </div>
             {fieldErrors[field.name] && (
-              <p className="text-xs text-[hsl(var(--destructive))]">{fieldErrors[field.name]}</p>
+              <p className="text-xs text-[hsl(var(--destructive))]">
+                {fieldErrors[field.name]}
+              </p>
             )}
           </div>
         );
@@ -753,27 +848,39 @@ export function AtlasForm({
 
       case "relation": {
         const descriptor = normalizeRelationDescriptor(field);
-        const relationError = fieldErrors[field.name] || relationInlineErrors[field.name] || "";
+        const relationError =
+          fieldErrors[field.name] || relationInlineErrors[field.name] || "";
         if (!descriptor) {
           return (
             <div className="space-y-1.5">
               <p className="text-sm font-medium text-[hsl(var(--foreground))]">
-                {field.label}{field.required ? " *" : ""}
+                {field.label}
+                {field.required ? " *" : ""}
               </p>
               <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">
                 Relación no configurada
               </div>
               {relationError && (
-                <p className="text-xs text-[hsl(var(--destructive))]">{relationError}</p>
+                <p className="text-xs text-[hsl(var(--destructive))]">
+                  {relationError}
+                </p>
               )}
             </div>
           );
         }
-        const rs = relationState[field.name] ?? { options: [], loading: false, error: null };
-        const staticOpts = descriptor.source === "static" ? descriptor.options : rs.options;
-        const createActionLabel = descriptor.create?.label ?? normalizeSpanishLabel("Crear nuevo");
+        const rs = relationState[field.name] ?? {
+          options: [],
+          loading: false,
+          error: null,
+        };
+        const staticOpts =
+          descriptor.source === "static" ? descriptor.options : rs.options;
+        const createActionLabel =
+          descriptor.create?.label ?? normalizeSpanishLabel("Crear nuevo");
         const canInlineCreate =
-          Boolean(descriptor.create?.enabled) && allowInlineCreate && inlineCreateDepth < 2;
+          Boolean(descriptor.create?.enabled) &&
+          allowInlineCreate &&
+          inlineCreateDepth < 2;
         return (
           <RelationSelectField
             {...sharedProps}
@@ -784,18 +891,22 @@ export function AtlasForm({
             loadError={descriptor.source === "remote" ? rs.error : null}
             clearable={descriptor.clearable}
             onRetry={() => loadRelationOptions(field.name, descriptor, "")}
-            onSearchChange={(search) => handleRelationSearch(field.name, descriptor, search)}
+            onSearchChange={(search) =>
+              handleRelationSearch(field.name, descriptor, search)
+            }
             onChange={(val) => handleChange(field.name, val)}
             createActionLabel={createActionLabel}
             createActionMode={descriptor.create?.allowedWhen ?? "always"}
             createFromSearch={descriptor.create?.prefillFromSearch === true}
             createDisabled={
               !canInlineCreate ||
-              (inlineCreateState.open && inlineCreateState.fieldName === field.name)
+              (inlineCreateState.open &&
+                inlineCreateState.fieldName === field.name)
             }
             onCreate={
               canInlineCreate
-                ? (searchText) => openInlineCreate(field.name, descriptor, searchText)
+                ? (searchText) =>
+                    openInlineCreate(field.name, descriptor, searchText)
                 : undefined
             }
           />
@@ -815,10 +926,12 @@ export function AtlasForm({
   };
 
   const mainSections = sections.filter(
-    (section) => MAIN_SECTION_TYPES.has(section.type) && section.placement !== "aside",
+    (section) =>
+      MAIN_SECTION_TYPES.has(section.type) && section.placement !== "aside",
   );
   const asideSections = sections.filter(
-    (section) => section.type === "attachments" && section.placement === "aside",
+    (section) =>
+      section.type === "attachments" && section.placement === "aside",
   );
 
   const renderSection = (section) => {
@@ -841,13 +954,24 @@ export function AtlasForm({
                 </h4>
               ) : null}
               {section.description ? (
-                <p className="text-xs text-[hsl(var(--muted-foreground))]">{section.description}</p>
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                  {section.description}
+                </p>
               ) : null}
             </div>
           </div>
           {isCollapsible ? (
-            <Button type="button" variant="ghost" size="sm" onClick={() => toggleSection(section.id)}>
-              {isCollapsed ? <LucideIcons.ChevronDown className="h-4 w-4" /> : <LucideIcons.ChevronUp className="h-4 w-4" />}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleSection(section.id)}
+            >
+              {isCollapsed ? (
+                <LucideIcons.ChevronDown className="h-4 w-4" />
+              ) : (
+                <LucideIcons.ChevronUp className="h-4 w-4" />
+              )}
             </Button>
           ) : null}
         </div>
@@ -883,7 +1007,9 @@ export function AtlasForm({
               readonly={Boolean(submitting)}
             />
             {fieldErrors.parts ? (
-              <p className="text-xs text-[hsl(var(--destructive))]">{fieldErrors.parts}</p>
+              <p className="text-xs text-[hsl(var(--destructive))]">
+                {fieldErrors.parts}
+              </p>
             ) : null}
           </div>
         );
@@ -904,7 +1030,10 @@ export function AtlasForm({
             if (!field) return null;
             const isFullWidth = ["textarea", "markdown"].includes(field.type);
             return (
-              <div key={field.name} className={isFullWidth ? "col-span-full" : ""}>
+              <div
+                key={field.name}
+                className={isFullWidth ? "col-span-full" : ""}
+              >
                 {renderFieldControl(field)}
               </div>
             );
@@ -946,7 +1075,9 @@ export function AtlasForm({
             : "space-y-3"
         }
       >
-        <div className="space-y-3">{mainSections.map((section) => renderSection(section))}</div>
+        <div className="space-y-3">
+          {mainSections.map((section) => renderSection(section))}
+        </div>
         {asideSections.length > 0 ? (
           <div className="space-y-3 xl:sticky xl:top-4 xl:self-start">
             {asideSections.map((section) => renderSection(section))}
@@ -986,14 +1117,18 @@ export function AtlasForm({
               <div className="max-h-[70dvh] overflow-y-auto pr-1">
                 <AtlasForm
                   blueprint={inlineCreateState.blueprint}
-                  fields={extractFieldsFromBlueprint(inlineCreateState.blueprint)}
+                  fields={extractFieldsFromBlueprint(
+                    inlineCreateState.blueprint,
+                  )}
                   initialData={inlineCreateState.prefillData}
                   mode="create"
                   token={token}
                   apiBaseUrl={apiBaseUrl}
                   onSuccess={handleInlineCreateSuccess}
                   onCancel={closeInlineCreate}
-                  blueprints={Array.isArray(blueprints) ? blueprints : nestedBlueprintRows}
+                  blueprints={
+                    Array.isArray(blueprints) ? blueprints : nestedBlueprintRows
+                  }
                   resolveBlueprintByKey={resolveBlueprintByKey}
                   allowInlineCreate={inlineCreateDepth < 1}
                   inlineCreateDepth={inlineCreateDepth + 1}
@@ -1011,8 +1146,19 @@ export function AtlasForm({
         </DialogContent>
       </Dialog>
 
-      <div className={cn("sticky bottom-0 z-10 -mx-1 flex items-center justify-end gap-2 border-t border-[hsl(var(--border))] px-1 pb-1 pt-3", inlineCreateDepth === 0 && "bg-[hsl(var(--background))]/95 backdrop-blur supports-backdrop-filter:bg-[hsl(var(--background))]/80")}>
-        <Button type="button" variant="outline" onClick={() => onCancel?.()} disabled={submitting}>
+      <div
+        className={cn(
+          "sticky bottom-0 z-10 flex items-center justify-end gap-2 border-t border-[hsl(var(--border))] pb-1 pt-3",
+          inlineCreateDepth === 0 &&
+            "bg-[hsl(var(--background))]/95 backdrop-blur supports-backdrop-filter:bg-[hsl(var(--background))]/80",
+        )}
+      >
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onCancel?.()}
+          disabled={submitting}
+        >
           Cancelar
         </Button>
         <Button type="submit" loading={submitting}>
@@ -1022,5 +1168,3 @@ export function AtlasForm({
     </form>
   );
 }
-
-

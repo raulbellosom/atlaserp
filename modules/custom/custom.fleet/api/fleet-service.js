@@ -22,6 +22,14 @@ export class FleetServiceError extends Error {
   }
 }
 
+function normalizeEconomicNumberPart(value) {
+  const normalized = normalizeOptionalString(value)
+  if (normalized === undefined || normalized === null) return normalized
+  if (!/^\d+$/.test(normalized)) return normalized
+  const withoutLeadingZeros = normalized.replace(/^0+/, '')
+  return withoutLeadingZeros.length > 0 ? withoutLeadingZeros : '0'
+}
+
 function normalizeVehiclePayload(data = {}) {
   return {
     ...data,
@@ -30,6 +38,8 @@ function normalizeVehiclePayload(data = {}) {
     model_name: data.model_name === undefined ? undefined : String(data.model_name).trim(),
     color: normalizeOptionalString(data.color),
     notes: normalizeOptionalString(data.notes),
+    economic_group_number: normalizeEconomicNumberPart(data.economic_group_number),
+    economic_individual_number: normalizeEconomicNumberPart(data.economic_individual_number),
     vehicle_model_id: normalizeOptionalString(data.vehicle_model_id),
   }
 }
@@ -113,13 +123,35 @@ export function createFleetService({ prisma }) {
           vm.year AS vehicle_model_year,
           COALESCE(vb_m.name, vb.name) AS vehicle_brand_name,
           COALESCE(vt_m.name, vt.name) AS vehicle_type_name,
-          COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) AS economic_group_number_resolved,
+          CASE
+            WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) IS NULL THEN NULL
+            ELSE COALESCE(
+              NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number), '^0+', ''), ''),
+              '0'
+            )
+          END AS economic_group_number_resolved,
           CASE
             WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) IS NOT NULL
               AND fv.economic_individual_number IS NOT NULL
-              THEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) || '-' || fv.economic_individual_number
+              THEN
+                COALESCE(
+                  NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number), '^0+', ''), ''),
+                  '0'
+                ) ||
+                COALESCE(NULLIF(REGEXP_REPLACE(fv.economic_individual_number, '^0+', ''), ''), '0')
             ELSE NULL
-          END AS economic_number
+          END AS economic_number,
+          CASE
+            WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) IS NOT NULL
+              AND fv.economic_individual_number IS NOT NULL
+              THEN
+                COALESCE(
+                  NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number), '^0+', ''), ''),
+                  '0'
+                ) ||
+                COALESCE(NULLIF(REGEXP_REPLACE(fv.economic_individual_number, '^0+', ''), ''), '0')
+            ELSE NULL
+          END AS full_economic_number
         FROM fleet_vehicle fv
         LEFT JOIN fleet_vehicle_model vm ON vm.id = fv.vehicle_model_id
         LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id
@@ -138,7 +170,32 @@ export function createFleetService({ prisma }) {
             OR vm.name ILIKE ${likeValue}
             OR vb_m.name ILIKE ${likeValue}
             OR fv.economic_individual_number ILIKE ${likeValue}
-            OR (fv.economic_group_number || '-' || fv.economic_individual_number) ILIKE ${likeValue}
+            OR (
+              CASE
+                WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) IS NOT NULL
+                  AND fv.economic_individual_number IS NOT NULL
+                  THEN
+                    COALESCE(
+                      NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number), '^0+', ''), ''),
+                      '0'
+                    ) || '-' ||
+                    COALESCE(NULLIF(REGEXP_REPLACE(fv.economic_individual_number, '^0+', ''), ''), '0')
+                ELSE NULL
+              END
+            ) ILIKE ${likeValue}
+            OR (
+              CASE
+                WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) IS NOT NULL
+                  AND fv.economic_individual_number IS NOT NULL
+                  THEN
+                    COALESCE(
+                      NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number), '^0+', ''), ''),
+                      '0'
+                    ) ||
+                    COALESCE(NULLIF(REGEXP_REPLACE(fv.economic_individual_number, '^0+', ''), ''), '0')
+                ELSE NULL
+              END
+            ) ILIKE ${likeValue}
             OR (COALESCE(fd.first_name, '') || ' ' || COALESCE(fd.last_name, '')) ILIKE ${likeValue}
           )
         ORDER BY fv.created_at DESC
@@ -151,6 +208,8 @@ export function createFleetService({ prisma }) {
         FROM fleet_vehicle fv
         LEFT JOIN fleet_vehicle_model vm ON vm.id = fv.vehicle_model_id
         LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id
+        LEFT JOIN fleet_vehicle_type vt_m ON vt_m.id = vm.type_id
+        LEFT JOIN fleet_vehicle_type vt ON vt.id = fv.vehicle_type_id
         LEFT JOIN fleet_driver fd ON fd.id = fv.driver_id AND fd.company_id = fv.company_id
         WHERE fv.company_id = ${safeCompanyId}
           AND fv.enabled = true
@@ -163,7 +222,32 @@ export function createFleetService({ prisma }) {
             OR vm.name ILIKE ${likeValue}
             OR vb_m.name ILIKE ${likeValue}
             OR fv.economic_individual_number ILIKE ${likeValue}
-            OR (fv.economic_group_number || '-' || fv.economic_individual_number) ILIKE ${likeValue}
+            OR (
+              CASE
+                WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) IS NOT NULL
+                  AND fv.economic_individual_number IS NOT NULL
+                  THEN
+                    COALESCE(
+                      NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number), '^0+', ''), ''),
+                      '0'
+                    ) || '-' ||
+                    COALESCE(NULLIF(REGEXP_REPLACE(fv.economic_individual_number, '^0+', ''), ''), '0')
+                ELSE NULL
+              END
+            ) ILIKE ${likeValue}
+            OR (
+              CASE
+                WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) IS NOT NULL
+                  AND fv.economic_individual_number IS NOT NULL
+                  THEN
+                    COALESCE(
+                      NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number), '^0+', ''), ''),
+                      '0'
+                    ) ||
+                    COALESCE(NULLIF(REGEXP_REPLACE(fv.economic_individual_number, '^0+', ''), ''), '0')
+                ELSE NULL
+              END
+            ) ILIKE ${likeValue}
             OR (COALESCE(fd.first_name, '') || ' ' || COALESCE(fd.last_name, '')) ILIKE ${likeValue}
           )
       `
@@ -194,13 +278,35 @@ export function createFleetService({ prisma }) {
           vm.year AS vehicle_model_year,
           COALESCE(vb_m.name, vb.name) AS vehicle_brand_name,
           COALESCE(vt_m.name, vt.name) AS vehicle_type_name,
-          COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) AS economic_group_number_resolved,
+          CASE
+            WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) IS NULL THEN NULL
+            ELSE COALESCE(
+              NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number), '^0+', ''), ''),
+              '0'
+            )
+          END AS economic_group_number_resolved,
           CASE
             WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) IS NOT NULL
               AND fv.economic_individual_number IS NOT NULL
-              THEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) || '-' || fv.economic_individual_number
+              THEN
+                COALESCE(
+                  NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number), '^0+', ''), ''),
+                  '0'
+                ) ||
+                COALESCE(NULLIF(REGEXP_REPLACE(fv.economic_individual_number, '^0+', ''), ''), '0')
             ELSE NULL
-          END AS economic_number
+          END AS economic_number,
+          CASE
+            WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) IS NOT NULL
+              AND fv.economic_individual_number IS NOT NULL
+              THEN
+                COALESCE(
+                  NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number), '^0+', ''), ''),
+                  '0'
+                ) ||
+                COALESCE(NULLIF(REGEXP_REPLACE(fv.economic_individual_number, '^0+', ''), ''), '0')
+            ELSE NULL
+          END AS full_economic_number
         FROM fleet_vehicle fv
         LEFT JOIN fleet_vehicle_model vm ON vm.id = fv.vehicle_model_id
         LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id

@@ -79,6 +79,16 @@ export function createCatalogsRouter({ prisma, requirePermission, moduleContext,
     }
   })
 
+  app.get('/fleet/catalogs/vehicle-types/:id', requirePermission('fleet.catalogs.read'), async (c) => {
+    try {
+      const companyId = getCompanyIdFromContext(c)
+      const data = await service.getVehicleTypeById({ companyId, id: c.req.param('id') })
+      return c.json({ data })
+    } catch (err) {
+      return handleRouteError(c, err, { fallbackError: 'No se pudo obtener el tipo de vehiculo.', route: '/fleet/catalogs/vehicle-types/:id', moduleKey, operation: 'getVehicleTypeById' })
+    }
+  })
+
   app.post('/fleet/catalogs/vehicle-types', requirePermission('fleet.catalogs.create'), async (c) => {
     try {
       const companyId = getCompanyIdFromContext(c)
@@ -142,6 +152,16 @@ export function createCatalogsRouter({ prisma, requirePermission, moduleContext,
     }
   })
 
+  app.get('/fleet/catalogs/vehicle-brands/:id', requirePermission('fleet.catalogs.read'), async (c) => {
+    try {
+      const companyId = getCompanyIdFromContext(c)
+      const data = await service.getVehicleBrandById({ companyId, id: c.req.param('id') })
+      return c.json({ data })
+    } catch (err) {
+      return handleRouteError(c, err, { fallbackError: 'No se pudo obtener la marca de vehiculo.', route: '/fleet/catalogs/vehicle-brands/:id', moduleKey, operation: 'getVehicleBrandById' })
+    }
+  })
+
   app.post('/fleet/catalogs/vehicle-brands', requirePermission('fleet.catalogs.create'), async (c) => {
     try {
       const companyId = getCompanyIdFromContext(c)
@@ -202,6 +222,16 @@ export function createCatalogsRouter({ prisma, requirePermission, moduleContext,
       return c.json(result)
     } catch (err) {
       return handleRouteError(c, err, { fallbackError: 'No se pudieron listar los tipos de mantenimiento.', route: '/fleet/catalogs/maintenance-types', moduleKey, operation: 'listMaintenanceTypes' })
+    }
+  })
+
+  app.get('/fleet/catalogs/maintenance-types/:id', requirePermission('fleet.catalogs.read'), async (c) => {
+    try {
+      const companyId = getCompanyIdFromContext(c)
+      const data = await service.getMaintenanceTypeById({ companyId, id: c.req.param('id') })
+      return c.json({ data })
+    } catch (err) {
+      return handleRouteError(c, err, { fallbackError: 'No se pudo obtener el tipo de mantenimiento.', route: '/fleet/catalogs/maintenance-types/:id', moduleKey, operation: 'getMaintenanceTypeById' })
     }
   })
 
@@ -278,6 +308,16 @@ export function createCatalogsRouter({ prisma, requirePermission, moduleContext,
       return c.json(result)
     } catch (err) {
       return handleRouteError(c, err, { fallbackError: 'No se pudieron listar los modelos de vehiculo.', route: '/fleet/catalogs/vehicle-models', moduleKey, operation: 'listVehicleModels' })
+    }
+  })
+
+  app.get('/fleet/catalogs/vehicle-models/:id', requirePermission('fleet.catalogs.read'), async (c) => {
+    try {
+      const companyId = getCompanyIdFromContext(c)
+      const data = await service.getVehicleModelById({ companyId, id: c.req.param('id') })
+      return c.json({ data })
+    } catch (err) {
+      return handleRouteError(c, err, { fallbackError: 'No se pudo obtener el modelo de vehiculo.', route: '/fleet/catalogs/vehicle-models/:id', moduleKey, operation: 'getVehicleModelById' })
     }
   })
 

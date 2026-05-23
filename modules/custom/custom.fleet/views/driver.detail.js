@@ -41,7 +41,7 @@ export default defineView({
         relationList: {
           apiPath: '/fleet/drivers/:id/vehicles',
           titleField: 'plate',
-          subtitleFields: ['vehicle_model_name', 'economic_number'],
+          subtitleFields: ['vehicle_model_name', 'full_economic_number'],
           hrefTemplate: '/app/m/custom.fleet/vehicles/:id',
           icon: 'Truck',
           emptyMessage: 'No hay vehículos asignados.',

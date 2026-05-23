@@ -17,7 +17,7 @@ export default defineView({
       { field: 'license_number', label: 'N° Licencia', sortable: true },
       { field: 'license_type', label: 'Tipo de licencia' },
       { field: 'license_expiry_date', label: 'Vencimiento', type: 'date', sortable: true },
-      { field: 'status', label: 'Estado', component: 'custom.fleet:DriverStatusBadge' },
+      { field: 'status', label: 'Estado', sortable: true },
     ],
     actions: [
       { label: 'Crear chofer', permission: 'fleet.drivers.create', variant: 'primary' },

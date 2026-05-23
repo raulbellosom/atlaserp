@@ -304,9 +304,25 @@ export function createDriverService({ prisma }) {
           CASE
             WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number) IS NOT NULL
               AND v.economic_individual_number IS NOT NULL
-              THEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number) || '-' || v.economic_individual_number
+              THEN
+                COALESCE(
+                  NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number), '^0+', ''), ''),
+                  '0'
+                ) ||
+                COALESCE(NULLIF(REGEXP_REPLACE(v.economic_individual_number, '^0+', ''), ''), '0')
             ELSE NULL
           END AS economic_number,
+          CASE
+            WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number) IS NOT NULL
+              AND v.economic_individual_number IS NOT NULL
+              THEN
+                COALESCE(
+                  NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number), '^0+', ''), ''),
+                  '0'
+                ) ||
+                COALESCE(NULLIF(REGEXP_REPLACE(v.economic_individual_number, '^0+', ''), ''), '0')
+            ELSE NULL
+          END AS full_economic_number,
           v.status
         FROM fleet_vehicle v
         LEFT JOIN fleet_vehicle_model vm ON vm.id = v.vehicle_model_id

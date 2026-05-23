@@ -23,7 +23,7 @@ export default defineView({
         sortable: true,
         component: "custom.fleet:VehicleStatusBadge",
       },
-      { field: "economic_number",    label: "No. Economico", sortable: false },
+      { field: "full_economic_number", label: "No. Economico", sortable: false },
       { field: "vehicle_type_name",  label: "Tipo",          sortable: false },
       { field: "driver_name",        label: "Conductor",     sortable: false },
     ],

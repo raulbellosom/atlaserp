@@ -1,0 +1,156 @@
+<h2>Controles de vista: ¿cómo colocamos las opciones?</h2>
+<p class="subtitle">Selecciona el enfoque que más te gusta para los controles de vista, agrupación y favoritos.</p>
+
+<div class="cards">
+
+  <!-- Option A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0f172a;border-radius:12px;padding:12px;font-family:sans-serif;">
+        <!-- Launcher header -->
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #334155;margin-bottom:8px;">
+          <span style="color:#64748b;font-size:12px;">🔍</span>
+          <span style="color:#64748b;font-size:12px;flex:1;">Buscar aplicación...</span>
+          <span style="color:#64748b;font-size:10px;background:#1e293b;padding:2px 6px;border-radius:4px;">Inicio</span>
+          <span style="color:#64748b;font-size:10px;">✕</span>
+        </div>
+        <!-- Controls toolbar (second row) -->
+        <div style="display:flex;align-items:center;gap:6px;padding:4px 12px 8px;border-bottom:1px solid #1e293b;margin-bottom:10px;">
+          <!-- Group toggle -->
+          <div style="display:flex;background:#1e293b;border-radius:6px;padding:2px;">
+            <span style="background:#3b82f6;color:#fff;font-size:9px;padding:3px 7px;border-radius:4px;font-weight:600;">A-Z</span>
+            <span style="color:#64748b;font-size:9px;padding:3px 7px;">Grupos</span>
+          </div>
+          <!-- View mode -->
+          <div style="display:flex;background:#1e293b;border-radius:6px;padding:2px;margin-left:4px;">
+            <span style="background:#3b82f6;color:#fff;font-size:9px;padding:3px 7px;border-radius:4px;font-weight:600;">⊞ Cards</span>
+            <span style="color:#64748b;font-size:9px;padding:3px 7px;">≡ Lista</span>
+          </div>
+          <!-- Favorites -->
+          <span style="color:#f59e0b;font-size:11px;margin-left:auto;cursor:pointer;">☆ Favoritos</span>
+        </div>
+        <!-- Module grid preview -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 12px;">
+          <div style="background:#1e293b;border-radius:8px;padding:8px;text-align:center;">
+            <div style="width:24px;height:24px;background:#f59e0b22;border-radius:6px;margin:0 auto 4px;display:flex;align-items:center;justify-content:center;"><span style="font-size:10px;">★</span></div>
+            <p style="color:#e2e8f0;font-size:8px;margin:0;">Archivos</p>
+          </div>
+          <div style="background:#1e293b;border-radius:8px;padding:8px;text-align:center;">
+            <div style="width:24px;height:24px;background:#3b82f622;border-radius:6px;margin:0 auto 4px;display:flex;align-items:center;justify-content:center;"><span style="font-size:10px;">☆</span></div>
+            <p style="color:#e2e8f0;font-size:8px;margin:0;">Atlas Core</p>
+          </div>
+          <div style="background:#1e293b;border-radius:8px;padding:8px;text-align:center;">
+            <div style="width:24px;height:24px;background:#8b5cf622;border-radius:6px;margin:0 auto 4px;"></div>
+            <p style="color:#e2e8f0;font-size:8px;margin:0;">Contactos</p>
+          </div>
+          <div style="background:#1e293b;border-radius:8px;padding:8px;text-align:center;">
+            <div style="width:24px;height:24px;background:#10b98122;border-radius:6px;margin:0 auto 4px;"></div>
+            <p style="color:#e2e8f0;font-size:8px;margin:0;">Empresa</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Barra de controles</h3>
+      <p>Una segunda fila debajo del buscador con toggles de píldora: [A-Z | Grupos] [Cards | Lista] y un botón de favoritos. Siempre visible, sin clics extra.</p>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0f172a;border-radius:12px;padding:12px;font-family:sans-serif;">
+        <!-- Launcher header -->
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #334155;margin-bottom:10px;">
+          <span style="color:#64748b;font-size:12px;">🔍</span>
+          <span style="color:#64748b;font-size:12px;flex:1;">Buscar aplicación...</span>
+          <!-- Compact icons in header -->
+          <div style="display:flex;gap:4px;align-items:center;">
+            <span style="color:#f59e0b;font-size:12px;background:#1e293b;padding:3px 5px;border-radius:5px;" title="Favoritos">★</span>
+            <span style="color:#3b82f6;font-size:10px;background:#1e293b;padding:3px 5px;border-radius:5px;font-weight:600;" title="A-Z / Grupos">A-Z</span>
+            <span style="color:#3b82f6;font-size:10px;background:#1e293b;padding:3px 5px;border-radius:5px;" title="Cards / Lista">⊞</span>
+          </div>
+          <span style="color:#64748b;font-size:10px;background:#1e293b;padding:2px 6px;border-radius:4px;margin-left:4px;">Inicio</span>
+          <span style="color:#64748b;font-size:10px;">✕</span>
+        </div>
+        <!-- Module grid preview -->
+        <div style="padding:0 12px;">
+          <p style="color:#f59e0b;font-size:8px;font-weight:700;letter-spacing:1px;margin:0 0 6px;text-transform:uppercase;">Favoritos</p>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;">
+            <div style="background:#1e293b;border-radius:8px;padding:8px;text-align:center;border:1px solid #f59e0b33;">
+              <div style="width:24px;height:24px;background:#f59e0b22;border-radius:6px;margin:0 auto 4px;"></div>
+              <p style="color:#e2e8f0;font-size:8px;margin:0;">Archivos</p>
+            </div>
+            <div style="background:#1e293b;border-radius:8px;padding:8px;text-align:center;border:1px solid #f59e0b33;">
+              <div style="width:24px;height:24px;background:#10b98122;border-radius:6px;margin:0 auto 4px;"></div>
+              <p style="color:#e2e8f0;font-size:8px;margin:0;">Flota</p>
+            </div>
+          </div>
+          <p style="color:#64748b;font-size:8px;font-weight:700;letter-spacing:1px;margin:0 0 6px;text-transform:uppercase;">Todos — A-Z</p>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+            <div style="background:#1e293b;border-radius:8px;padding:8px;text-align:center;">
+              <div style="width:24px;height:24px;background:#3b82f622;border-radius:6px;margin:0 auto 4px;"></div>
+              <p style="color:#e2e8f0;font-size:8px;margin:0;">Atlas Core</p>
+            </div>
+            <div style="background:#1e293b;border-radius:8px;padding:8px;text-align:center;">
+              <div style="width:24px;height:24px;background:#8b5cf622;border-radius:6px;margin:0 auto 4px;"></div>
+              <p style="color:#e2e8f0;font-size:8px;margin:0;">Contactos</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Iconos compactos + sección Favoritos</h3>
+      <p>Controles como iconos pequeños dentro del header. Favoritos pintados siempre arriba en su propia sección, el resto A-Z abajo. Sin segunda fila.</p>
+    </div>
+  </div>
+
+  <!-- Option C -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0f172a;border-radius:12px;padding:12px;font-family:sans-serif;">
+        <!-- Launcher header -->
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #334155;margin-bottom:8px;">
+          <span style="color:#64748b;font-size:12px;">🔍</span>
+          <span style="color:#64748b;font-size:12px;flex:1;">Buscar aplicación...</span>
+          <span style="color:#64748b;font-size:10px;background:#1e293b;padding:2px 6px;border-radius:4px;">Inicio</span>
+          <span style="color:#64748b;font-size:10px;">⚙</span>
+          <span style="color:#64748b;font-size:10px;">✕</span>
+        </div>
+        <!-- Section header with inline pills -->
+        <div style="display:flex;align-items:center;gap:6px;padding:0 12px 8px;">
+          <span style="color:#94a3b8;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Aplicaciones</span>
+          <span style="flex:1;height:1px;background:#334155;"></span>
+          <span style="color:#3b82f6;font-size:8px;background:#1e293b;padding:2px 6px;border-radius:4px;font-weight:600;">A-Z</span>
+          <span style="color:#64748b;font-size:8px;background:#1e293b;padding:2px 6px;border-radius:4px;">Grupos</span>
+          <span style="color:#3b82f6;font-size:9px;background:#1e293b;padding:2px 5px;border-radius:4px;">⊞</span>
+          <span style="color:#64748b;font-size:9px;background:#1e293b;padding:2px 5px;border-radius:4px;">≡</span>
+        </div>
+        <!-- Module list preview (list mode) -->
+        <div style="padding:0 12px;display:flex;flex-direction:column;gap:4px;">
+          <div style="display:flex;align-items:center;gap:8px;background:#1e293b;border-radius:7px;padding:6px 8px;">
+            <div style="width:20px;height:20px;background:#f59e0b22;border-radius:5px;flex-shrink:0;"></div>
+            <div style="flex:1;"><p style="color:#e2e8f0;font-size:9px;margin:0;font-weight:600;">Archivos</p><p style="color:#64748b;font-size:8px;margin:0;">Gestión de archivos</p></div>
+            <span style="color:#f59e0b;font-size:10px;">★</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;background:#1e293b;border-radius:7px;padding:6px 8px;">
+            <div style="width:20px;height:20px;background:#3b82f622;border-radius:5px;flex-shrink:0;"></div>
+            <div style="flex:1;"><p style="color:#e2e8f0;font-size:9px;margin:0;font-weight:600;">Atlas Core</p><p style="color:#64748b;font-size:8px;margin:0;">Módulos, permisos</p></div>
+            <span style="color:#334155;font-size:10px;">☆</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;background:#1e293b;border-radius:7px;padding:6px 8px;">
+            <div style="width:20px;height:20px;background:#8b5cf622;border-radius:5px;flex-shrink:0;"></div>
+            <div style="flex:1;"><p style="color:#e2e8f0;font-size:9px;margin:0;font-weight:600;">Contactos</p><p style="color:#64748b;font-size:8px;margin:0;">Clientes, proveedores</p></div>
+            <span style="color:#334155;font-size:10px;">☆</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Controles inline al lado del título</h3>
+      <p>Los toggles van junto al encabezado "Aplicaciones" (como en el Home). Lista completa A-Z por defecto. Favoritos marcados con ★ en cada fila. Vista lista visible aquí.</p>
+    </div>
+  </div>
+
+</div>

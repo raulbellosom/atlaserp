@@ -3,7 +3,7 @@ import { defineView } from '@atlas/module-engine'
 export default defineView({
   key: 'fleet.vehicle.detail',
   kind: 'DETAIL',
-  version: '0.1.0',
+  version: '0.1.2',
   schema: {
     entity: 'vehicle',
     component: 'AtlasDetail',
@@ -20,7 +20,7 @@ export default defineView({
           { field: 'vehicle_type_name', label: 'Tipo de vehículo', icon: 'Layers' },
           { field: 'color', label: 'Color', type: 'color' },
           { field: 'status', label: 'Estado', icon: 'Activity' },
-          { field: 'economic_number', label: 'Número económico', icon: 'Hash' },
+          { field: 'full_economic_number', label: 'Número económico', icon: 'Hash' },
         ],
       },
       {

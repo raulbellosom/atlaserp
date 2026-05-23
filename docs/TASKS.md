@@ -592,3 +592,12 @@ Plan: `docs/superpowers/plans/2026-05-08-spec-driven-development.md`
 - [x] Add principle #12 to `codex/00_MASTER_PROMPT.md`
 
 Verified: 2026-05-08 (git commit 8249aac — 9 files changed, 1125 insertions; `grep "Spec-Driven" CLAUDE.md` returns section; `grep "spec aprobado" codex/00_MASTER_PROMPT.md` returns principle #12; all 4 template files present in `docs/superpowers/templates/`)
+
+## custom.fleet Reportes V2 UX Rework
+
+- [x] AtlasForm upgraded for report flows: collapsible sections + dedicated `parts-editor` section type with automatic `parts_cost` and `total_cost` recalculation.
+- [x] New renderer helpers extracted to keep `AtlasForm.jsx` under project file-size limit (`<=1000` lines).
+- [x] Report forms reworked for `maintenance`, `service`, `repair`, `other` with structured sections (vehiculo, datos, taller, refacciones, costos, observaciones, adjuntos) and labels in Spanish.
+- [x] Removed unresolved custom badge dependencies in fleet table blueprints that caused “componentes no disponibles (requiere rebuild)” failures.
+
+Verified: 2026-05-21 (`pnpm.cmd --filter @atlas/desktop build:web`; line-count check for `packages/ui/src/atlas-renderer/AtlasForm.jsx` = 978)

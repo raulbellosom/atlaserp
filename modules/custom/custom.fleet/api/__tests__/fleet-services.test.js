@@ -76,6 +76,32 @@ test('fleet-service createVehicle: maps unique violation to 409', async () => {
   )
 })
 
+test('fleet-service createVehicle: strips leading zeros from economic numbers before insert', async () => {
+  const { prisma, rawCalls } = createPrismaMock({
+    rawResponses: [[{ id: 'veh-1', plate: 'ABC123' }]],
+  })
+  const service = createFleetService({ prisma })
+
+  await service.createVehicle({
+    companyId: 'empresa-demo',
+    actorId: 'actor-1',
+    data: {
+      plate: 'ABC123',
+      brand: 'Marca',
+      model_name: 'Modelo',
+      year: 2024,
+      economic_group_number: '0012',
+      economic_individual_number: '0042',
+    },
+  })
+
+  const insertValues = rawCalls[0].slice(1)
+  assert.ok(insertValues.includes('12'))
+  assert.ok(insertValues.includes('42'))
+  assert.ok(!insertValues.includes('0012'))
+  assert.ok(!insertValues.includes('0042'))
+})
+
 test('fleet-service updateVehicle: rejects empty payload with 400', async () => {
   const { prisma } = createPrismaMock()
   const service = createFleetService({ prisma })
@@ -90,6 +116,33 @@ test('fleet-service updateVehicle: rejects empty payload with 400', async () => 
       }),
     (error) => error instanceof FleetServiceError && error.status === 400
   )
+})
+
+test('fleet-service updateVehicle: strips leading zeros from economic numbers before update', async () => {
+  const vehicleId = 'b2f8f6c0-30dd-4f1f-9832-cf0f2d8f2d5e'
+  const { prisma, rawCalls } = createPrismaMock({
+    rawResponses: [
+      [{ id: vehicleId, plate: 'ABC123' }],
+      [{ id: vehicleId, plate: 'ABC123' }],
+    ],
+  })
+  const service = createFleetService({ prisma })
+
+  await service.updateVehicle({
+    companyId: 'empresa-demo',
+    id: vehicleId,
+    actorId: 'actor-1',
+    data: {
+      economic_group_number: '0007',
+      economic_individual_number: '0089',
+    },
+  })
+
+  const updateValues = rawCalls[1].slice(1)
+  assert.ok(updateValues.includes('7'))
+  assert.ok(updateValues.includes('89'))
+  assert.ok(!updateValues.includes('0007'))
+  assert.ok(!updateValues.includes('0089'))
 })
 
 test('driver-service listDrivers: uses company-scoped UUID in unsafe query', async () => {
@@ -108,6 +161,18 @@ test('driver-service listDrivers: uses company-scoped UUID in unsafe query', asy
   assert.equal(firstUnsafeCall[1], scoped)
 })
 
+test('fleet-service listVehicles: query projects full_economic_number field', async () => {
+  const { prisma, rawCalls } = createPrismaMock({
+    rawResponses: [[], [{ total: '0' }]],
+  })
+  const service = createFleetService({ prisma })
+
+  await service.listVehicles({ companyId: 'empresa-demo', page: 1, pageSize: 10 })
+
+  const sqlText = rawCalls[0][0].join(' ')
+  assert.match(sqlText, /AS full_economic_number/)
+})
+
 test('catalog-service updateVehicleType: rejects payload without updatable fields', async () => {
   const { prisma } = createPrismaMock()
   const service = createCatalogService({ prisma })
@@ -122,4 +187,24 @@ test('catalog-service updateVehicleType: rejects payload without updatable field
       }),
     (error) => error instanceof FleetServiceError && error.status === 400
   )
+})
+
+test('catalog-service createVehicleType: strips leading zeros from economic group number', async () => {
+  const { prisma, rawCalls } = createPrismaMock({
+    rawResponses: [[{ id: 'vt-1', name: 'Pickup', economic_group_number: '9' }]],
+  })
+  const service = createCatalogService({ prisma })
+
+  await service.createVehicleType({
+    companyId: 'empresa-demo',
+    actorId: 'actor-1',
+    payload: {
+      name: 'Pickup',
+      economic_group_number: '0009',
+    },
+  })
+
+  const insertValues = rawCalls[0].slice(1)
+  assert.ok(insertValues.includes('9'))
+  assert.ok(!insertValues.includes('0009'))
 })

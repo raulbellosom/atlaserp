@@ -3,7 +3,7 @@ import { defineView } from "@atlas/module-engine";
 export default defineView({
   key: "fleet.reports.repair.form",
   kind: "FORM",
-  version: "0.3.0",
+  version: "0.3.1",
   schema: {
     entity: "report",
     component: "AtlasForm",
@@ -16,6 +16,7 @@ export default defineView({
       {
         id: "vehicle",
         label: "Vehiculo",
+        icon: "Wrench",
         collapsible: true,
         defaultCollapsed: false,
         columns: 1,
@@ -33,7 +34,7 @@ export default defineView({
               disabledField: "enabled",
               searchParam: "search",
               displayFields: {
-                badge: "economic_number",
+                badge: "full_economic_number",
                 title: "vehicle_model_name",
                 subtitle: ["plate", "vehicle_type_name", "vehicle_brand_name"],
               },
@@ -44,6 +45,7 @@ export default defineView({
       {
         id: "repair_data",
         label: "Datos de la Reparacion",
+        icon: "ShieldAlert",
         description: "Datos tecnicos del incidente y del proceso de reparacion.",
         collapsible: true,
         defaultCollapsed: false,
@@ -89,6 +91,7 @@ export default defineView({
       {
         id: "workshop",
         label: "Informacion del Taller",
+        icon: "Building2",
         description: "Opcional",
         collapsible: true,
         defaultCollapsed: false,
@@ -104,6 +107,7 @@ export default defineView({
         id: "parts",
         type: "parts-editor",
         label: "Partes Reparadas / Reemplazadas",
+        icon: "Package",
         description: "Captura piezas usadas con cantidad, costo unitario y observaciones.",
         collapsible: true,
         defaultCollapsed: false,
@@ -111,6 +115,7 @@ export default defineView({
       {
         id: "costs",
         label: "Costos",
+        icon: "BadgeDollarSign",
         collapsible: true,
         defaultCollapsed: false,
         columns: 2,
@@ -134,6 +139,7 @@ export default defineView({
       {
         id: "notes",
         label: "Descripcion Detallada",
+        icon: "FileText",
         description: "Opcional",
         collapsible: true,
         defaultCollapsed: false,
@@ -143,6 +149,7 @@ export default defineView({
       {
         id: "warranty",
         label: "Garantia",
+        icon: "ShieldCheck",
         description: "Opcional",
         collapsible: true,
         defaultCollapsed: false,
@@ -156,6 +163,7 @@ export default defineView({
         id: "attachments",
         type: "attachments",
         label: "Archivos Adjuntos",
+        icon: "Paperclip",
         description: "Opcional",
         collapsible: true,
         defaultCollapsed: false,

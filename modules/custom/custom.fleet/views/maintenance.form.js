@@ -76,7 +76,7 @@ export default defineView({
               clearable: false,
               disabledField: 'enabled',
               displayFields: {
-                badge: 'economic_number',
+                badge: 'full_economic_number',
                 title: 'vehicle_model_name',
                 subtitle: ['plate', 'vehicle_type_name', 'vehicle_brand_name'],
               },

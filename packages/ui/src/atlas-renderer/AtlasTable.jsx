@@ -29,6 +29,40 @@ import {
 
 const DEFAULT_PAGE_SIZE = 20;
 
+function inferRowActionKind(label) {
+  const normalized = String(label ?? "").trim().toLowerCase();
+  if (!normalized) return "unknown";
+  if (
+    normalized.includes("desactivar") ||
+    normalized.includes("eliminar") ||
+    normalized.includes("borrar") ||
+    normalized.includes("inactivar") ||
+    normalized.includes("disable") ||
+    normalized.includes("delete") ||
+    normalized.includes("remove")
+  ) {
+    return "delete";
+  }
+  if (
+    normalized.includes("editar") ||
+    normalized.includes("modificar") ||
+    normalized.includes("actualizar") ||
+    normalized.includes("edit") ||
+    normalized.includes("update")
+  ) {
+    return "edit";
+  }
+  if (
+    normalized.includes("ver") ||
+    normalized.includes("detalle") ||
+    normalized.includes("view") ||
+    normalized.includes("detail")
+  ) {
+    return "view";
+  }
+  return "unknown";
+}
+
 function getRowId(row, index) {
   return row?.id != null ? String(row.id) : `row-${index}`;
 }
@@ -415,33 +449,68 @@ export function AtlasTable({
   }
 
   const rowActions = Array.isArray(schema.rowActions) ? schema.rowActions : [];
-  const viewActionLabel = rowActions[0]?.label ?? "Ver";
-  const editActionLabel =
-    rowActions.length >= 2 ? (rowActions[1]?.label ?? "Editar") : "Editar";
-  const deleteActionLabel =
-    rowActions.length >= 2
-      ? (rowActions[rowActions.length - 1]?.label ?? "Eliminar")
-      : "Eliminar";
 
-  const rowMenuItems = (row) =>
-    [
-      onView && {
-        label: viewActionLabel,
-        icon: Eye,
-        onClick: () => onView(row),
-      },
-      onEdit && {
-        label: editActionLabel,
-        icon: Pencil,
-        onClick: () => onEdit(row),
-      },
-      onDelete && {
-        label: deleteActionLabel,
-        icon: Trash2,
-        variant: "destructive",
-        onClick: () => onDelete(row),
-      },
+  const rowMenuItems = (row) => {
+    if (rowActions.length === 0) {
+      return [
+        onView && {
+          label: "Ver",
+          icon: Eye,
+          onClick: () => onView(row),
+        },
+        onEdit && {
+          label: "Editar",
+          icon: Pencil,
+          onClick: () => onEdit(row),
+        },
+        onDelete && {
+          label: "Eliminar",
+          icon: Trash2,
+          variant: "destructive",
+          onClick: () => onDelete(row),
+        },
+      ].filter(Boolean);
+    }
+
+    const fallbackQueue = [
+      onView ? { kind: "view", icon: Eye, run: () => onView(row) } : null,
+      onEdit ? { kind: "edit", icon: Pencil, run: () => onEdit(row) } : null,
+      onDelete
+        ? {
+            kind: "delete",
+            icon: Trash2,
+            variant: "destructive",
+            run: () => onDelete(row),
+          }
+        : null,
     ].filter(Boolean);
+    const usedKinds = new Set();
+
+    return rowActions
+      .map((action) => {
+        const label = normalizeSpanishLabel(action?.label ?? "");
+        const kind = inferRowActionKind(label);
+        let chosen = null;
+
+        if (kind === "view" && onView) chosen = fallbackQueue.find((item) => item.kind === "view");
+        else if (kind === "edit" && onEdit) chosen = fallbackQueue.find((item) => item.kind === "edit");
+        else if (kind === "delete" && onDelete) chosen = fallbackQueue.find((item) => item.kind === "delete");
+
+        if (!chosen) {
+          chosen = fallbackQueue.find((item) => !usedKinds.has(item.kind)) ?? null;
+        }
+        if (!chosen) return null;
+
+        usedKinds.add(chosen.kind);
+        return {
+          label: label || "Accion",
+          icon: chosen.icon,
+          variant: chosen.variant,
+          onClick: chosen.run,
+        };
+      })
+      .filter(Boolean);
+  };
 
   const handleSortChange = ({ sortBy: nextField, sortDir: nextDir }) => {
     setPage(1);

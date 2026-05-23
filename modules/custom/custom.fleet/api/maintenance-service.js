@@ -139,9 +139,25 @@ export function createMaintenanceService({ prisma }) {
             CASE
               WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number) IS NOT NULL
                 AND v.economic_individual_number IS NOT NULL
-                THEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number) || '-' || v.economic_individual_number
+                THEN
+                  COALESCE(
+                    NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number), '^0+', ''), ''),
+                    '0'
+                  ) ||
+                  COALESCE(NULLIF(REGEXP_REPLACE(v.economic_individual_number, '^0+', ''), ''), '0')
               ELSE NULL
             END AS economic_number,
+            CASE
+              WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number) IS NOT NULL
+                AND v.economic_individual_number IS NOT NULL
+                THEN
+                  COALESCE(
+                    NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number), '^0+', ''), ''),
+                    '0'
+                  ) ||
+                  COALESCE(NULLIF(REGEXP_REPLACE(v.economic_individual_number, '^0+', ''), ''), '0')
+              ELSE NULL
+            END AS full_economic_number,
             mt.name AS maintenance_type_name,
             NULLIF(TRIM(COALESCE(d.first_name, '') || ' ' || COALESCE(d.last_name, '')), '') AS driver_full_name
          FROM fleet_maintenance m ${baseJoins} ${baseWhere}
@@ -175,9 +191,25 @@ export function createMaintenanceService({ prisma }) {
           CASE
             WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number) IS NOT NULL
               AND v.economic_individual_number IS NOT NULL
-              THEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number) || '-' || v.economic_individual_number
+              THEN
+                COALESCE(
+                  NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number), '^0+', ''), ''),
+                  '0'
+                ) ||
+                COALESCE(NULLIF(REGEXP_REPLACE(v.economic_individual_number, '^0+', ''), ''), '0')
             ELSE NULL
           END AS economic_number,
+          CASE
+            WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number) IS NOT NULL
+              AND v.economic_individual_number IS NOT NULL
+              THEN
+                COALESCE(
+                  NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, v.economic_group_number), '^0+', ''), ''),
+                  '0'
+                ) ||
+                COALESCE(NULLIF(REGEXP_REPLACE(v.economic_individual_number, '^0+', ''), ''), '0')
+            ELSE NULL
+          END AS full_economic_number,
           mt.name AS maintenance_type_name,
           NULLIF(TRIM(COALESCE(d.first_name, '') || ' ' || COALESCE(d.last_name, '')), '') AS driver_full_name
         FROM fleet_maintenance m

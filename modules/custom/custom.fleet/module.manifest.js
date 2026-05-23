@@ -29,7 +29,7 @@ export default defineAtlasModule({
     {
       path: "./migrations/V006_report_tables.sql",
       checksum:
-        "128405d10c0680e4ca8feddc411212869285ef2aa4f8e2408dd8c8115fbc776d",
+        "38ade2acaee2b61280ff17c46e238f8f9cfe4bb0c3b07f4f3d067851d5eec709",
     },
   ],
   models: [

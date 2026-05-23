@@ -13,7 +13,7 @@
     "dev:tauri": "concurrently --kill-others-on-fail -n api,tauri,worker -c cyan,magenta,yellow \"pnpm dev:api\" \"pnpm --filter @atlas/desktop dev\" \"pnpm dev:worker\"",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
-    "db:migrate": "prisma migrate dev",
+    "db:migrate": "prisma migrate deploy && prisma generate",
     "db:generate": "prisma generate",
     "db:seed": "node prisma/seed.js",
     "db:studio": "prisma studio --port 5555 --browser none",

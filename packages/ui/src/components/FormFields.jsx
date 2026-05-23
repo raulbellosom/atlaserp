@@ -2173,6 +2173,7 @@ export function RelationSelectField({
         ? "Registro no disponible"
         : null
       : null;
+  const selectedMeta = selected?.meta ?? null;
 
   const filtered = search
     ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
@@ -2243,6 +2244,27 @@ export function RelationSelectField({
             />
           </span>
         </button>
+        {selectedMeta ? (
+          <div className="mt-2 rounded-lg border border-border bg-muted/25 px-3 py-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {selectedMeta.badge ? (
+                <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary shrink-0">
+                  {selectedMeta.badge}
+                </span>
+              ) : null}
+              {selectedMeta.title ? (
+                <span className="text-sm font-medium text-foreground truncate">
+                  {selectedMeta.title}
+                </span>
+              ) : null}
+            </div>
+            {selectedMeta.subtitle ? (
+              <p className="mt-0.5 text-xs text-muted-foreground truncate">
+                {selectedMeta.subtitle}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {open && createPortal(
           <div

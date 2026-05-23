@@ -67,7 +67,13 @@ import { createHrService, HrServiceError } from "./services/hr-service.js";
 import { createLedgerRouter } from "./routes/ledger.js";
 import { createModulesRouter } from "./routes/modules.js";
 import { createRouteLoaderService } from "./services/route-loader-service.js";
-import { get as cacheGet, set as cacheSet, del as cacheDel, delByPrefix as cacheDelByPrefix, TTL } from "./lib/cache.js";
+import {
+  get as cacheGet,
+  set as cacheSet,
+  del as cacheDel,
+  delByPrefix as cacheDelByPrefix,
+  TTL,
+} from "./lib/cache.js";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 loadEnv({
@@ -77,8 +83,11 @@ loadEnv({
   ],
 });
 
-const prismaConnectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
-const prismaAdapter = new PrismaPg({ connectionString: prismaConnectionString });
+const prismaConnectionString =
+  process.env.DATABASE_URL ?? process.env.DIRECT_URL;
+const prismaAdapter = new PrismaPg({
+  connectionString: prismaConnectionString,
+});
 const prisma = new PrismaClient({ adapter: prismaAdapter });
 const app = new Hono();
 const port = Number(process.env.ATLAS_API_PORT ?? 4010);
@@ -407,7 +416,6 @@ async function ensureSetupAdminRole(db) {
   });
 }
 
-
 async function getSignedUrlByFileId(fileId) {
   if (!fileId) return null;
   const fileAsset = await prisma.fileAsset.findUnique({
@@ -467,7 +475,13 @@ const routeLoader = createRouteLoaderService({
   prisma,
   authMiddleware,
   requirePermission,
-  cache: { get: cacheGet, set: cacheSet, del: cacheDel, delByPrefix: cacheDelByPrefix, TTL },
+  cache: {
+    get: cacheGet,
+    set: cacheSet,
+    del: cacheDel,
+    delByPrefix: cacheDelByPrefix,
+    TTL,
+  },
 });
 
 app.use(
@@ -990,36 +1004,42 @@ app.post(
 app.get("/profile/me/preferences/:key", authMiddleware, async (c) => {
   try {
     const context = await getOrLoadUserContext(c);
-    if (!context?.profile) return c.json({ error: "Perfil no encontrado." }, 404);
+    if (!context?.profile)
+      return c.json({ error: "Perfil no encontrado." }, 404);
     const key = c.req.param("key");
     const pref = await prisma.userPreference.findUnique({
       where: { userId_key: { userId: context.profile.id, key } },
     });
-    if (!pref) return c.json({ error: "Preferencia no encontrada." }, 404);
-    return c.json({ value: pref.value });
+    return c.json({ value: pref?.value ?? null });
   } catch {
     return c.json({ error: "No se pudo obtener la preferencia." }, 500);
   }
 });
 
-app.get("/profile/me/table-preferences/:tableKey", authMiddleware, async (c) => {
-  try {
-    const context = await getOrLoadUserContext(c);
-    if (!context?.profile) return c.json({ error: "Perfil no encontrado." }, 404);
-    const tableKey = c.req.param("tableKey");
-    const pref = await prisma.userTablePreference.findUnique({
-      where: { userId_tableKey: { userId: context.profile.id, tableKey } },
-    });
-    return c.json({ data: pref?.config ?? null });
-  } catch {
-    return c.json({ error: "No se pudo obtener la preferencia." }, 500);
-  }
-});
+app.get(
+  "/profile/me/table-preferences/:tableKey",
+  authMiddleware,
+  async (c) => {
+    try {
+      const context = await getOrLoadUserContext(c);
+      if (!context?.profile)
+        return c.json({ error: "Perfil no encontrado." }, 404);
+      const tableKey = c.req.param("tableKey");
+      const pref = await prisma.userTablePreference.findUnique({
+        where: { userId_tableKey: { userId: context.profile.id, tableKey } },
+      });
+      return c.json({ data: pref?.config ?? null });
+    } catch {
+      return c.json({ error: "No se pudo obtener la preferencia." }, 500);
+    }
+  },
+);
 
 app.put("/profile/me/preferences/:key", authMiddleware, async (c) => {
   try {
     const context = await getOrLoadUserContext(c);
-    if (!context?.profile) return c.json({ error: "Perfil no encontrado." }, 404);
+    if (!context?.profile)
+      return c.json({ error: "Perfil no encontrado." }, 404);
     const key = c.req.param("key");
     const body = await c.req.json();
     if (body.value === undefined) {
@@ -1037,37 +1057,46 @@ app.put("/profile/me/preferences/:key", authMiddleware, async (c) => {
   }
 });
 
-app.put("/profile/me/table-preferences/:tableKey", authMiddleware, async (c) => {
-  try {
-    const context = await getOrLoadUserContext(c);
-    if (!context?.profile) return c.json({ error: "Perfil no encontrado." }, 404);
-    const tableKey = c.req.param("tableKey");
-    const config = await c.req.json();
-    const pref = await prisma.userTablePreference.upsert({
-      where: { userId_tableKey: { userId: context.profile.id, tableKey } },
-      update: { config },
-      create: { userId: context.profile.id, tableKey, config },
-    });
-    return c.json({ data: pref.config });
-  } catch {
-    return c.json({ error: "No se pudo guardar la preferencia." }, 500);
-  }
-});
+app.put(
+  "/profile/me/table-preferences/:tableKey",
+  authMiddleware,
+  async (c) => {
+    try {
+      const context = await getOrLoadUserContext(c);
+      if (!context?.profile)
+        return c.json({ error: "Perfil no encontrado." }, 404);
+      const tableKey = c.req.param("tableKey");
+      const config = await c.req.json();
+      const pref = await prisma.userTablePreference.upsert({
+        where: { userId_tableKey: { userId: context.profile.id, tableKey } },
+        update: { config },
+        create: { userId: context.profile.id, tableKey, config },
+      });
+      return c.json({ data: pref.config });
+    } catch {
+      return c.json({ error: "No se pudo guardar la preferencia." }, 500);
+    }
+  },
+);
 
-app.delete("/profile/me/table-preferences/:tableKey", authMiddleware, async (c) => {
-  try {
-    const context = await getOrLoadUserContext(c);
-    if (!context?.profile) return c.json({ error: "Perfil no encontrado." }, 404);
-    const tableKey = c.req.param("tableKey");
-    await prisma.userTablePreference.deleteMany({
-      where: { userId: context.profile.id, tableKey },
-    });
-    return c.json({ data: { ok: true } });
-  } catch {
-    return c.json({ error: "No se pudo eliminar la preferencia." }, 500);
-  }
-});
-
+app.delete(
+  "/profile/me/table-preferences/:tableKey",
+  authMiddleware,
+  async (c) => {
+    try {
+      const context = await getOrLoadUserContext(c);
+      if (!context?.profile)
+        return c.json({ error: "Perfil no encontrado." }, 404);
+      const tableKey = c.req.param("tableKey");
+      await prisma.userTablePreference.deleteMany({
+        where: { userId: context.profile.id, tableKey },
+      });
+      return c.json({ data: { ok: true } });
+    } catch {
+      return c.json({ error: "No se pudo eliminar la preferencia." }, 500);
+    }
+  },
+);
 
 app.get("/memberships/me", authMiddleware, async (c) => {
   const authUserId = c.get("authUserId");
@@ -1217,7 +1246,9 @@ app.put(
           }),
         ),
       );
-      return c.json({ data: { instanceName, timeZone, currency, description } });
+      return c.json({
+        data: { instanceName, timeZone, currency, description },
+      });
     } catch {
       return c.json({ error: "No se pudo guardar la configuracion." }, 500);
     }
@@ -1608,7 +1639,9 @@ app.post(
   async (c) => {
     try {
       const body = await c.req.json();
-      const fileIds = Array.isArray(body?.fileIds) ? body.fileIds.slice(0, 50) : [];
+      const fileIds = Array.isArray(body?.fileIds)
+        ? body.fileIds.slice(0, 50)
+        : [];
       if (fileIds.length === 0) return c.json({ data: {} });
 
       const assets = await prisma.fileAsset.findMany({
@@ -1627,7 +1660,10 @@ app.post(
         [...byBucket.entries()].map(async ([bucket, bucketAssets]) => {
           const { data: signedList } = await supabaseAdmin.storage
             .from(bucket)
-            .createSignedUrls(bucketAssets.map((a) => a.objectKey), 3600);
+            .createSignedUrls(
+              bucketAssets.map((a) => a.objectKey),
+              3600,
+            );
           if (Array.isArray(signedList)) {
             for (let i = 0; i < bucketAssets.length; i++) {
               urlMap[bucketAssets[i].id] = signedList[i]?.signedUrl ?? null;
@@ -1638,7 +1674,10 @@ app.post(
 
       return c.json({ data: urlMap });
     } catch (err) {
-      return c.json({ error: "No se pudieron generar los enlaces de archivos." }, 500);
+      return c.json(
+        { error: "No se pudieron generar los enlaces de archivos." },
+        500,
+      );
     }
   },
 );
@@ -1695,7 +1734,7 @@ app.get(
   requirePermission("identity.permissions.read"),
   async (c) => {
     try {
-      const includeInactive = c.req.query('includeInactive') === 'true'
+      const includeInactive = c.req.query("includeInactive") === "true";
       const permissions = await prisma.permission.findMany({
         where: includeInactive ? {} : { active: true },
         orderBy: [{ moduleId: "asc" }, { key: "asc" }],
@@ -1732,7 +1771,13 @@ app.get(
     try {
       const roles = await prisma.role.findMany({
         include: {
-          permissions: { select: { permission: { select: { id: true, key: true, name: true, moduleId: true } } } },
+          permissions: {
+            select: {
+              permission: {
+                select: { id: true, key: true, name: true, moduleId: true },
+              },
+            },
+          },
         },
         orderBy: { name: "asc" },
       });
@@ -1896,7 +1941,10 @@ app.get(
               .createSignedUrls(paths, 3600);
             if (Array.isArray(signedList)) {
               for (let i = 0; i < assets.length; i++) {
-                avatarUrlMap.set(assets[i].id, signedList[i]?.signedUrl ?? null);
+                avatarUrlMap.set(
+                  assets[i].id,
+                  signedList[i]?.signedUrl ?? null,
+                );
               }
             }
           }),
@@ -1905,7 +1953,9 @@ app.get(
 
       const usersWithAvatars = users.map((user) => ({
         ...user,
-        avatarUrl: user.avatarFileId ? (avatarUrlMap.get(user.avatarFileId) ?? null) : null,
+        avatarUrl: user.avatarFileId
+          ? (avatarUrlMap.get(user.avatarFileId) ?? null)
+          : null,
         memberships: user.memberships.map((m) => ({
           id: m.id,
           companyId: m.companyId,
@@ -2100,7 +2150,6 @@ app.get("/runtime/modules", authMiddleware, async (c) => {
   });
 });
 
-
 app.get("/blueprints", authMiddleware, async (c) => {
   const context = await getOrLoadUserContext(c);
   if (!context?.profile) {
@@ -2142,7 +2191,9 @@ app.get("/blueprints", authMiddleware, async (c) => {
   }
 
   const { blueprints, installedModuleRows, atlasViews } = blueprintRaw;
-  const moduleRowsByKey = new Map(installedModuleRows.map((row) => [row.key, row]));
+  const moduleRowsByKey = new Map(
+    installedModuleRows.map((row) => [row.key, row]),
+  );
   const mergedByKey = new Map();
 
   for (const blueprint of blueprints) {
@@ -2359,7 +2410,15 @@ app.get(
       const sortDir = c.req.query("sortDir") === "desc" ? "desc" : "asc";
 
       const result = await hrService.listEmployees({
-        authUserId, search, status, enabled, limit, page, pageSize, sortBy, sortDir,
+        authUserId,
+        search,
+        status,
+        enabled,
+        limit,
+        page,
+        pageSize,
+        sortBy,
+        sortDir,
       });
 
       if (page !== undefined || pageSize !== undefined) {
@@ -2367,7 +2426,11 @@ app.get(
         const currentPage = Math.max(1, Number(page) || 1);
         return c.json({
           data: result.rows,
-          pagination: { page: currentPage, pageSize: take, total: result.total },
+          pagination: {
+            page: currentPage,
+            pageSize: take,
+            total: result.total,
+          },
         });
       }
       return c.json({ data: result });
@@ -2755,7 +2818,8 @@ app.get(
       // Batch-collect all avatarFileIds from the tree, load in one query, then assign.
       function collectNodes(node, out = []) {
         out.push(node);
-        if (Array.isArray(node.children)) node.children.forEach((c) => collectNodes(c, out));
+        if (Array.isArray(node.children))
+          node.children.forEach((c) => collectNodes(c, out));
         return out;
       }
       const allNodes = (chart.roots ?? []).flatMap((r) => collectNodes(r));
@@ -2777,10 +2841,16 @@ app.get(
           [...byBucket.entries()].map(async ([bucket, assets]) => {
             const { data: signedList } = await supabaseAdmin.storage
               .from(bucket)
-              .createSignedUrls(assets.map((a) => a.objectKey), 3600);
+              .createSignedUrls(
+                assets.map((a) => a.objectKey),
+                3600,
+              );
             if (Array.isArray(signedList)) {
               for (let i = 0; i < assets.length; i++) {
-                orgAvatarUrlMap.set(assets[i].id, signedList[i]?.signedUrl ?? null);
+                orgAvatarUrlMap.set(
+                  assets[i].id,
+                  signedList[i]?.signedUrl ?? null,
+                );
               }
             }
           }),
@@ -2788,12 +2858,15 @@ app.get(
       }
       for (const node of allNodes) {
         if (node.linkedUser?.avatarFileId) {
-          node.linkedUser.avatarUrl = orgAvatarUrlMap.get(node.linkedUser.avatarFileId) ?? null;
+          node.linkedUser.avatarUrl =
+            orgAvatarUrlMap.get(node.linkedUser.avatarFileId) ?? null;
         }
       }
 
       // Batch-load profileImageFileId signed URLs — avoids N per-node frontend requests.
-      const orgProfileFileIds = allNodes.map((n) => n.profileImageFileId).filter(Boolean);
+      const orgProfileFileIds = allNodes
+        .map((n) => n.profileImageFileId)
+        .filter(Boolean);
       const orgProfileUrlMap = new Map();
       if (orgProfileFileIds.length > 0) {
         const profileAssets = await prisma.fileAsset.findMany({
@@ -2802,17 +2875,24 @@ app.get(
         });
         const profileByBucket = new Map();
         for (const asset of profileAssets) {
-          if (!profileByBucket.has(asset.bucket)) profileByBucket.set(asset.bucket, []);
+          if (!profileByBucket.has(asset.bucket))
+            profileByBucket.set(asset.bucket, []);
           profileByBucket.get(asset.bucket).push(asset);
         }
         await Promise.all(
           [...profileByBucket.entries()].map(async ([bucket, assets]) => {
             const { data: signedList } = await supabaseAdmin.storage
               .from(bucket)
-              .createSignedUrls(assets.map((a) => a.objectKey), 3600);
+              .createSignedUrls(
+                assets.map((a) => a.objectKey),
+                3600,
+              );
             if (Array.isArray(signedList)) {
               for (let i = 0; i < assets.length; i++) {
-                orgProfileUrlMap.set(assets[i].id, signedList[i]?.signedUrl ?? null);
+                orgProfileUrlMap.set(
+                  assets[i].id,
+                  signedList[i]?.signedUrl ?? null,
+                );
               }
             }
           }),
@@ -2820,7 +2900,8 @@ app.get(
       }
       for (const node of allNodes) {
         if (node.profileImageFileId) {
-          node.profileImageUrl = orgProfileUrlMap.get(node.profileImageFileId) ?? null;
+          node.profileImageUrl =
+            orgProfileUrlMap.get(node.profileImageFileId) ?? null;
         }
       }
 
@@ -3756,10 +3837,19 @@ app.get(
   },
 );
 
-const ledgerRouter = createLedgerRouter({ prisma, authMiddleware, requirePermission });
+const ledgerRouter = createLedgerRouter({
+  prisma,
+  authMiddleware,
+  requirePermission,
+});
 app.route("/ledger", ledgerRouter);
 
-const modulesRouter = createModulesRouter({ prisma, authMiddleware, requirePermission, routeLoader });
+const modulesRouter = createModulesRouter({
+  prisma,
+  authMiddleware,
+  requirePermission,
+  routeLoader,
+});
 app.route("/modules", modulesRouter);
 
 const server = serve({ fetch: app.fetch, port });

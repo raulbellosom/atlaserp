@@ -23,9 +23,6 @@ import {
 } from "@atlas/ui";
 import {
   Home,
-  Package,
-  Box,
-  Truck,
   Power,
   PowerOff,
   Trash2,
@@ -42,6 +39,11 @@ import {
   CheckCircle2,
   RefreshCw,
 } from "lucide-react";
+import {
+  ModuleIcon,
+  resolveModuleVisuals,
+  toAlphaHexColor,
+} from "../../../components/ModuleCard";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
@@ -55,6 +57,8 @@ import {
 const MANIFEST_BY_KEY = new Map(
   [...coreModules, ...featureModules].map((m) => [m.key, m]),
 );
+
+// ModuleIcon, resolveModuleVisuals, toAlphaHexColor imported from @/components/ModuleCard
 
 const STATUS_DOT = {
   INSTALLED: "#22c55e",
@@ -76,67 +80,6 @@ const KIND_LABEL = {
   INTEGRATION: "Integración",
   WEBSITE: "Sitio web",
 };
-
-const DEFAULT_MODULE_COLOR = "#6366f1";
-const DEFAULT_MODULE_ACCENT = "#4f46e5";
-
-const MODULE_ICON_REGISTRY = {
-  Box,
-  Package,
-  Truck,
-};
-
-function toAlphaHexColor(color, alphaHex) {
-  if (typeof color !== "string") return color;
-  const trimmed = color.trim();
-  if (!trimmed) return color;
-  if (trimmed.startsWith("#")) {
-    if (trimmed.length === 4 || trimmed.length === 7) {
-      return `${trimmed}${alphaHex}`;
-    }
-  }
-  return color;
-}
-
-function getGeneratedInitials(name) {
-  if (typeof name !== "string" || !name.trim()) return "";
-  const words = name
-    .trim()
-    .split(/\s+/)
-    .map((word) => word[0]?.toUpperCase())
-    .filter(Boolean);
-  if (words.length >= 2) return `${words[0]}${words[1]}`;
-  return words[0] ?? "";
-}
-
-function resolveModuleVisuals(module) {
-  const manifest = module?.manifest ?? {};
-  const name = module?.name ?? module?.key ?? "Módulo";
-  const color = module?.color ?? manifest?.color ?? DEFAULT_MODULE_COLOR;
-  const accentColor =
-    manifest?.accentColor ??
-    module?.color ??
-    manifest?.color ??
-    DEFAULT_MODULE_ACCENT;
-  const logoUrl = manifest?.logoUrl ?? module?.logoUrl ?? null;
-  const requestedIcon = manifest?.icon ?? module?.icon ?? null;
-  const iconComponent =
-    requestedIcon && MODULE_ICON_REGISTRY[requestedIcon]
-      ? MODULE_ICON_REGISTRY[requestedIcon]
-      : null;
-  const generatedInitials = getGeneratedInitials(name);
-  const fallbackInitial = name.trim().charAt(0).toUpperCase();
-  const initials =
-    manifest?.initials ?? generatedInitials ?? fallbackInitial ?? "M";
-
-  return {
-    color,
-    accentColor,
-    logoUrl,
-    iconComponent,
-    initials,
-  };
-}
 
 function getFirstFiniteNumber(...values) {
   for (const value of values) {
@@ -168,44 +111,7 @@ function isLocked(module) {
   return module.core || module.uninstallable === false;
 }
 
-// ---- Module icon: supports future logoUrl ----
-function ModuleIcon({ module, size = "md" }) {
-  const visuals = resolveModuleVisuals(module);
-  const color = visuals.color;
-  const accentColor = visuals.accentColor;
-  const IconComponent = visuals.iconComponent;
-  const cls =
-    {
-      sm: "h-8 w-8 rounded-lg text-sm",
-      md: "h-11 w-11 rounded-xl text-base",
-      lg: "h-14 w-14 rounded-2xl text-2xl",
-    }[size] ?? "h-11 w-11 rounded-xl text-base";
-
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-center font-black text-white select-none shrink-0",
-        cls,
-      )}
-      style={{
-        background: `linear-gradient(135deg, ${color} 0%, ${accentColor} 100%)`,
-      }}
-    >
-      {visuals.logoUrl ? (
-        <img
-          src={visuals.logoUrl}
-          alt={module.name}
-          className="h-full w-full object-contain rounded-[inherit]"
-          draggable={false}
-        />
-      ) : IconComponent ? (
-        <IconComponent className="h-1/2 w-1/2" />
-      ) : (
-        <span>{visuals.initials}</span>
-      )}
-    </div>
-  );
-}
+// ---- ModuleIcon is imported from ../../../components/ModuleCard ----
 
 // ---- Status pill ----
 function StatusPill({ module, className }) {
@@ -377,7 +283,8 @@ export default function ModuleCatalog() {
         if (!manifest) throw new Error("Manifiesto no disponible.");
         return atlas.modules.install(manifest, token);
       }
-      if (action === "retry-install") return atlas.modules.retryInstall(key, token);
+      if (action === "retry-install")
+        return atlas.modules.retryInstall(key, token);
       if (action === "clear-error")
         return atlas.modules.clearError(key, mode ?? "preserve-data", token);
       if (action === "cleanup")
@@ -391,7 +298,12 @@ export default function ModuleCatalog() {
       if (action === "enable") return atlas.modules.enable(key, token);
       if (action === "uninstall") {
         if (purge)
-          return atlas.modules.uninstallExplicit(key, "purge-data", "ACEPTO", token);
+          return atlas.modules.uninstallExplicit(
+            key,
+            "purge-data",
+            "ACEPTO",
+            token,
+          );
         return atlas.modules.uninstall(key, token);
       }
     },
@@ -454,7 +366,9 @@ export default function ModuleCatalog() {
     },
     onError: (error) => {
       if (error?.status === 403) {
-        toast.error("No tienes permisos para sincronizar el catálogo de módulos.");
+        toast.error(
+          "No tienes permisos para sincronizar el catálogo de módulos.",
+        );
         return;
       }
       toast.error("No se pudo sincronizar el catálogo de módulos.");
@@ -904,7 +818,7 @@ export default function ModuleCatalog() {
                 >
                   {/* Gradient header */}
                   <div
-                    className="relative h-[72px] overflow-hidden shrink-0"
+                    className="relative h-18 overflow-hidden shrink-0"
                     style={{
                       background: `linear-gradient(135deg, ${toAlphaHexColor(color, "22")} 0%, ${toAlphaHexColor(accentColor, "08")} 70%, transparent 100%)`,
                     }}
@@ -1349,4 +1263,3 @@ export default function ModuleCatalog() {
     </div>
   );
 }
-
