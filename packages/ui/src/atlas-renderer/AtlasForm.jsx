@@ -203,9 +203,9 @@ export function AtlasForm({
   if (!apiPath) {
     return (
       <Alert variant="warning">
-        <AlertTitle>Vista sin configuraciÃ³n</AlertTitle>
+        <AlertTitle>Vista sin configuración</AlertTitle>
         <AlertDescription>
-          Esta vista no tiene <code>schema.apiPath</code>. No se puede guardar la informaciÃ³n.
+          Esta vista no tiene <code>schema.apiPath</code>. No se puede guardar la información.
         </AlertDescription>
       </Alert>
     );
@@ -333,7 +333,7 @@ export function AtlasForm({
       try {
         const nestedBlueprint = await resolveInlineCreateBlueprint(viewKey);
         if (!nestedBlueprint) {
-          throw new Error("No se encontrÃ³ la vista de creaciÃ³n relacionada.");
+          throw new Error("No se encontró la vista de creación relacionada.");
         }
         const nestedApiPath = descriptor.create.apiPath;
         const blueprintForCreate =
@@ -426,12 +426,12 @@ export function AtlasForm({
       if (!createdId) {
         setRelationInlineErrors((prev) => ({
           ...prev,
-          [fieldName]: "Se creÃ³ el registro, pero no se pudo obtener su identificador.",
+          [fieldName]: "Se creó el registro, pero no se pudo obtener su identificador.",
         }));
       } else if (!refreshOk) {
         setRelationInlineErrors((prev) => ({
           ...prev,
-          [fieldName]: "Se creÃ³ el registro, pero no se pudieron actualizar las opciones.",
+          [fieldName]: "Se creó el registro, pero no se pudieron actualizar las opciones.",
         }));
       } else {
         setRelationInlineErrors((prev) => ({ ...prev, [fieldName]: "" }));
@@ -448,7 +448,7 @@ export function AtlasForm({
       if (section.type === "parts") {
         const minItems = Number(section.minItems ?? 0);
         if (minItems > 0 && reportParts.length < minItems) {
-          nextErrors.parts = `Agrega al menos ${minItems} refaccion(es).`;
+          nextErrors.parts = `Agrega al menos ${minItems} refacción(es).`;
         }
         continue;
       }
@@ -472,7 +472,7 @@ export function AtlasForm({
     setSubmitError("");
     if (!validate()) return;
     if (isEditMode && !recordId) {
-      setSubmitError("No se pudo guardar la informaciÃ³n.");
+      setSubmitError("No se pudo guardar la información.");
       return;
     }
     const payload = {};
@@ -508,7 +508,7 @@ export function AtlasForm({
       });
       if (!response.ok) {
         const text = await response.text();
-        let message = "No se pudo guardar la informaciÃ³n.";
+        let message = "No se pudo guardar la información.";
         try {
           const parsed = text ? JSON.parse(text) : null;
           if (parsed?.error) message = parsed.error;
@@ -535,7 +535,7 @@ export function AtlasForm({
 
       onSuccess?.(nextResult);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "No se pudo guardar la informaciÃ³n.");
+      setSubmitError(err instanceof Error ? err.message : "No se pudo guardar la información.");
     } finally {
       setSubmitting(false);
     }
@@ -554,7 +554,7 @@ export function AtlasForm({
         <div className="space-y-1.5">
           <p className="text-sm font-medium text-[hsl(var(--foreground))]">{field.label}</p>
           <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-sm">
-            {value === undefined || value === null || value === "" ? "â€”" : String(value)}
+            {value === undefined || value === null || value === “” ? “—“ : String(value)}
           </div>
         </div>
       );
@@ -724,7 +724,7 @@ export function AtlasForm({
                 {field.label}{field.required ? " *" : ""}
               </p>
               <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">
-                RelaciÃ³n no configurada
+                Relación no configurada
               </div>
               {relationError && (
                 <p className="text-xs text-[hsl(var(--destructive))]">{relationError}</p>
@@ -937,7 +937,7 @@ export function AtlasForm({
                   )}
                 </DialogTitle>
                 <DialogDescription>
-                  Completa la informaciÃ³n y guarda para continuar.
+                  Completa la información y guarda para continuar.
                 </DialogDescription>
               </DialogHeader>
               <div className="max-h-[70dvh] overflow-y-auto pr-1">
@@ -961,7 +961,7 @@ export function AtlasForm({
             <Alert variant="warning">
               <AlertTitle>No se pudo cargar el formulario</AlertTitle>
               <AlertDescription>
-                No se encontrÃ³ la vista de creaciÃ³n relacionada.
+                No se encontró la vista de creación relacionada.
               </AlertDescription>
             </Alert>
           )}

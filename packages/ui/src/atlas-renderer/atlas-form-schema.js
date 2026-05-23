@@ -119,7 +119,7 @@ export function normalizeSections(schema, fieldMap) {
 
       return {
         id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
-        title: normalizeSpanishLabel(entry.title ?? entry.label ?? `Seccion ${sectionIndex + 1}`),
+        title: normalizeSpanishLabel(entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`),
         type: "fields",
         columns: entry.columns === 1 ? 1 : Number(entry.columns) === 2 ? 2 : "auto",
         icon:
