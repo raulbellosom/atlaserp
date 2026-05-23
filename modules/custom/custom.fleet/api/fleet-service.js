@@ -137,6 +137,8 @@ export function createFleetService({ prisma }) {
             OR fv.model_name ILIKE ${likeValue}
             OR vm.name ILIKE ${likeValue}
             OR vb_m.name ILIKE ${likeValue}
+            OR fv.economic_individual_number ILIKE ${likeValue}
+            OR (fv.economic_group_number || '-' || fv.economic_individual_number) ILIKE ${likeValue}
             OR (COALESCE(fd.first_name, '') || ' ' || COALESCE(fd.last_name, '')) ILIKE ${likeValue}
           )
         ORDER BY fv.created_at DESC
@@ -160,6 +162,8 @@ export function createFleetService({ prisma }) {
             OR fv.model_name ILIKE ${likeValue}
             OR vm.name ILIKE ${likeValue}
             OR vb_m.name ILIKE ${likeValue}
+            OR fv.economic_individual_number ILIKE ${likeValue}
+            OR (fv.economic_group_number || '-' || fv.economic_individual_number) ILIKE ${likeValue}
             OR (COALESCE(fd.first_name, '') || ' ' || COALESCE(fd.last_name, '')) ILIKE ${likeValue}
           )
       `
