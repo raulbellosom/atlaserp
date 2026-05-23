@@ -18,6 +18,7 @@ import {
   PhoneField,
   SwitchField,
   RelationSelectField,
+  CurrencyField,
 } from "../components/FormFields.jsx";
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
 import { DatePickerField } from "../components/DatePickerField.jsx";
@@ -628,6 +629,17 @@ export function AtlasForm({
             step="0.0001"
             value={value ?? ""}
             onChange={(e) => handleChange(field.name, e.target.value)}
+          />
+        );
+
+      case "currency":
+        return (
+          <CurrencyField
+            {...sharedProps}
+            value={value ?? 0}
+            onChange={(val) => handleChange(field.name, val)}
+            currency={field.currency ?? "MXN"}
+            locale={field.locale ?? "es-MX"}
           />
         );
 

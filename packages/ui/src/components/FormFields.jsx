@@ -1024,11 +1024,10 @@ function formatCurrency(value, locale, currency, fractionDigits = 2) {
 export const CurrencyField = forwardRef(function CurrencyField(
   {
     label,
-    error: externalError,
+    error,
     hint,
     required,
     id,
-    onBlur,
     icon,
     value,
     onChange,
@@ -1036,93 +1035,64 @@ export const CurrencyField = forwardRef(function CurrencyField(
     currency = "MXN",
     symbol = "$",
     className,
-    allowNegative = true,
-    allowDecimal = true,
-    fractionDigits = 2,
     min,
     max,
-    invalidMessage = "Monto invalido.",
     ...props
   },
   ref,
 ) {
-  const [localError, setLocalError] = useState("");
-  const [display, setDisplay] = useState(() =>
-    formatCurrency(value, locale, currency, allowDecimal ? fractionDigits : 0),
-  );
-  const [focused, setFocused] = useState(false);
-  const error = externalError || localError;
+  function toCents(decimalValue) {
+    if (decimalValue == null || decimalValue === "") return 0;
+    return Math.round(Number(decimalValue) * 100);
+  }
+
+  function toDecimal(cents) {
+    return cents / 100;
+  }
+
+  function formatCents(cents) {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(toDecimal(cents));
+  }
+
+  const [cents, setCents] = useState(() => toCents(value));
 
   useEffect(() => {
-    if (!focused) {
-      setDisplay(
-        formatCurrency(
-          value,
-          locale,
-          currency,
-          allowDecimal ? fractionDigits : 0,
-        ),
-      );
-    }
-  }, [value, focused, locale, currency, allowDecimal, fractionDigits]);
+    setCents(toCents(value));
+  }, [value]);
 
-  function handleFocus() {
-    setFocused(true);
-    setLocalError("");
-    setDisplay(value != null && value !== "" ? String(value) : "");
+  function handleKeyDown(e) {
+    const allowed = ["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab", "Enter"];
+    if (allowed.includes(e.key)) return;
+    if (!/^\d$/.test(e.key)) e.preventDefault();
   }
 
   function handleChange(e) {
-    const raw = normalizeMoneyInput(e.target.value, {
-      allowNegative,
-      allowDecimal,
-    });
-    setDisplay(raw);
-    const parsed = parseMoneyValue(raw, { allowDecimal, min, max });
-    if (parsed.kind === "valid") onChange?.(parsed.value);
-    if (parsed.kind === "empty") onChange?.("");
+    const digits = e.target.value.replace(/\D/g, "");
+    const newCents = parseInt(digits, 10) || 0;
+    const clamped =
+      min != null || max != null
+        ? Math.min(
+            max != null ? toCents(max) : Infinity,
+            Math.max(min != null ? toCents(min) : 0, newCents),
+          )
+        : newCents;
+    setCents(clamped);
+    onChange?.(toDecimal(clamped));
   }
 
-  function handleBlur(e) {
-    const parsed = parseMoneyValue(display, { allowDecimal, min, max });
-    setFocused(false);
-    if (parsed.kind === "valid") {
-      setLocalError("");
-      onChange?.(parsed.value);
-      setDisplay(
-        formatCurrency(
-          parsed.value,
-          locale,
-          currency,
-          allowDecimal ? fractionDigits : 0,
-        ),
-      );
-    } else if (parsed.kind === "empty") {
-      setLocalError(required ? "Este campo es obligatorio." : "");
-      onChange?.("");
-      setDisplay("");
-    } else {
-      setLocalError(invalidMessage);
-      setDisplay(
-        formatCurrency(
-          value,
-          locale,
-          currency,
-          allowDecimal ? fractionDigits : 0,
-        ),
-      );
-    }
-    onBlur?.(e);
+  function handleFocus(e) {
+    e.target.select();
   }
+
+  const displayValue = formatCents(cents);
 
   return (
-    <FieldWrapper
-      label={label}
-      labelFor={id}
-      error={error}
-      hint={hint}
-      required={required}
-    >
+    <FieldWrapper label={label} labelFor={id} error={error} hint={hint} required={required}>
       <div className="relative flex items-center">
         {icon ? (
           <InputIcon icon={icon} />
@@ -1135,23 +1105,13 @@ export const CurrencyField = forwardRef(function CurrencyField(
           ref={ref}
           id={id}
           type="text"
-          inputMode="decimal"
-          value={
-            focused
-              ? display
-              : display ||
-                formatCurrency(
-                  value,
-                  locale,
-                  currency,
-                  allowDecimal ? fractionDigits : 0,
-                )
-          }
+          inputMode="numeric"
+          value={displayValue}
+          onKeyDown={handleKeyDown}
           onChange={handleChange}
           onFocus={handleFocus}
-          onBlur={handleBlur}
           className={fieldCls(error, cn("pl-9", className))}
-          placeholder="0.00"
+          placeholder={formatCents(0)}
           {...props}
         />
       </div>
