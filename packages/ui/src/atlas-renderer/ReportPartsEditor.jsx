@@ -1,5 +1,5 @@
 import { Button } from "../components/Button.jsx";
-import { TextField } from "../components/FormFields.jsx";
+import { TextField, TextareaField } from "../components/FormFields.jsx";
 
 function toPositiveInteger(value, fallback = 1) {
   const parsed = Number.parseInt(String(value ?? ""), 10);
@@ -13,19 +13,23 @@ function toMoney(value, fallback = 0) {
   return Number(parsed.toFixed(2));
 }
 
+// Used only on blur — trims and validates strictly
 function normalizePart(item) {
   const name = String(item?.name ?? "").trim();
   const quantity = toPositiveInteger(item?.quantity, 1);
   const unitCost = toMoney(item?.unit_cost, 0);
   const notes = String(item?.notes ?? "").trim();
   const subtotal = Number((quantity * unitCost).toFixed(2));
-  return {
-    name,
-    quantity,
-    unit_cost: unitCost,
-    notes,
-    subtotal,
-  };
+  return { name, quantity, unit_cost: unitCost, notes, subtotal };
+}
+
+// Used during live editing — does NOT trim, allows empty quantity string
+function patchPart(existing, patch) {
+  const merged = { ...existing, ...patch };
+  const q = Number.parseFloat(String(merged.quantity ?? ""));
+  const u = toMoney(merged.unit_cost, 0);
+  const subtotal = Number.isFinite(q) && q > 0 ? Number((q * u).toFixed(2)) : 0;
+  return { ...merged, subtotal };
 }
 
 function formatMoney(value) {
@@ -41,10 +45,23 @@ export function ReportPartsEditor({
   readonly = false,
   label = null,
 }) {
-  const safeParts = Array.isArray(parts) ? parts.map(normalizePart) : [];
+  const safeParts = Array.isArray(parts)
+    ? parts.map((item) => ({
+        name: String(item?.name ?? ""),
+        quantity: item?.quantity ?? 1,
+        unit_cost: item?.unit_cost ?? 0,
+        notes: String(item?.notes ?? ""),
+        subtotal: item?.subtotal ?? 0,
+      }))
+    : [];
 
   const updatePart = (index, patch) => {
-    const next = safeParts.map((item, i) => (i === index ? normalizePart({ ...item, ...patch }) : item));
+    const next = safeParts.map((item, i) => (i === index ? patchPart(item, patch) : item));
+    onChange?.(next);
+  };
+
+  const finalizePart = (index) => {
+    const next = safeParts.map((item, i) => (i === index ? normalizePart(item) : item));
     onChange?.(next);
   };
 
@@ -93,7 +110,7 @@ export function ReportPartsEditor({
           {safeParts.map((item, index) => (
             <div
               key={`part-${index}`}
-              className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-3"
+              className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-3 space-y-3"
             >
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_8rem_10rem_auto]">
                 <TextField
@@ -101,14 +118,17 @@ export function ReportPartsEditor({
                   value={item.name}
                   disabled={readonly}
                   onChange={(event) => updatePart(index, { name: event.target.value })}
+                  onBlur={() => finalizePart(index)}
                 />
                 <TextField
                   label="Cant."
                   type="number"
                   min={1}
+                  step={1}
                   value={String(item.quantity)}
                   disabled={readonly}
                   onChange={(event) => updatePart(index, { quantity: event.target.value })}
+                  onBlur={() => finalizePart(index)}
                 />
                 <TextField
                   label="P. unit."
@@ -118,9 +138,11 @@ export function ReportPartsEditor({
                   value={String(item.unit_cost)}
                   disabled={readonly}
                   onChange={(event) => updatePart(index, { unit_cost: event.target.value })}
+                  onBlur={() => finalizePart(index)}
                 />
-                <div className="flex flex-col justify-end gap-2">
-                  <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/30 px-3 py-2 text-sm font-semibold">
+                <div className="flex flex-col justify-end gap-1">
+                  <p className="text-xs text-[hsl(var(--muted-foreground))] font-medium">Subtotal</p>
+                  <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/30 px-3 py-2 text-sm font-semibold text-right">
                     {formatMoney(item.subtotal)}
                   </div>
                   {!readonly ? (
@@ -130,11 +152,13 @@ export function ReportPartsEditor({
                   ) : null}
                 </div>
               </div>
-              <TextField
+              <TextareaField
                 label="Notas"
                 value={item.notes ?? ""}
+                rows={2}
                 disabled={readonly}
                 onChange={(event) => updatePart(index, { notes: event.target.value })}
+                onBlur={() => finalizePart(index)}
               />
             </div>
           ))}
