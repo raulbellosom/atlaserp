@@ -91,9 +91,9 @@ export default defineView({
         defaultCollapsed: false,
         columns: 3,
         fields: [
-          { field: "labor_cost", label: "Mano de obra", type: "decimal" },
-          { field: "parts_cost", label: "Costo de refacciones (calculado automaticamente)", type: "decimal", readonly: true },
-          { field: "total_cost", label: "Costo final total (mano de obra + partes)", type: "decimal", readonly: true },
+          { field: "labor_cost", label: "Mano de obra", type: "currency" },
+          { field: "parts_cost", label: "Costo de refacciones (calculado automaticamente)", type: "currency", readonly: true },
+          { field: "total_cost", label: "Costo final total (mano de obra + partes)", type: "currency", readonly: true },
         ],
       },
       {

@@ -120,18 +120,18 @@ export default defineView({
         defaultCollapsed: false,
         columns: 2,
         fields: [
-          { field: "repair_estimated_cost", label: "Costo estimado", type: "decimal" },
-          { field: "labor_cost", label: "Mano de obra", type: "decimal" },
+          { field: "repair_estimated_cost", label: "Costo estimado", type: "currency" },
+          { field: "labor_cost", label: "Mano de obra", type: "currency" },
           {
             field: "parts_cost",
             label: "Costo de partes (calculado automaticamente)",
-            type: "decimal",
+            type: "currency",
             readonly: true,
           },
           {
             field: "total_cost",
             label: "Costo final total (mano de obra + partes)",
-            type: "decimal",
+            type: "currency",
             readonly: true,
           },
         ],
