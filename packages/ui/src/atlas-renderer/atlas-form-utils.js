@@ -19,6 +19,79 @@ export const PRESET_COLORS = [
   { label: "Blanco", value: "#f9fafb" },
 ];
 
+export const CAR_COLORS = [
+  // Blancos
+  { name: "Blanco Puro",      hex: "#ffffff", group: "Blancos" },
+  { name: "Blanco Perla",     hex: "#f1f5f9", group: "Blancos" },
+  { name: "Marfil",           hex: "#fef9c3", group: "Blancos" },
+  { name: "Crema",            hex: "#fef3c7", group: "Blancos" },
+  // Platas y Grises
+  { name: "Plata Metalico",   hex: "#cbd5e1", group: "Platas" },
+  { name: "Gris Plata",       hex: "#94a3b8", group: "Platas" },
+  { name: "Gris Titanio",     hex: "#64748b", group: "Platas" },
+  { name: "Gris Acero",       hex: "#475569", group: "Platas" },
+  { name: "Grafito",          hex: "#334155", group: "Platas" },
+  // Negros
+  { name: "Gris Oscuro",      hex: "#1e293b", group: "Negros" },
+  { name: "Negro Carbon",     hex: "#0f172a", group: "Negros" },
+  { name: "Negro Intenso",    hex: "#020617", group: "Negros" },
+  // Rojos
+  { name: "Rojo Vivo",        hex: "#ef4444", group: "Rojos" },
+  { name: "Rojo Escarlata",   hex: "#dc2626", group: "Rojos" },
+  { name: "Rojo Cereza",      hex: "#b91c1c", group: "Rojos" },
+  { name: "Rojo Granate",     hex: "#991b1b", group: "Rojos" },
+  { name: "Borgona",          hex: "#7f1d1d", group: "Rojos" },
+  // Naranjas
+  { name: "Naranja Fuego",    hex: "#f97316", group: "Naranjas" },
+  { name: "Naranja Oxidado",  hex: "#ea580c", group: "Naranjas" },
+  // Dorados y Amarillos
+  { name: "Amarillo Solar",   hex: "#facc15", group: "Dorados" },
+  { name: "Dorado Metalico",  hex: "#d97706", group: "Dorados" },
+  { name: "Champagne",        hex: "#b45309", group: "Dorados" },
+  // Marrones
+  { name: "Cafe Tostado",     hex: "#92400e", group: "Marrones" },
+  { name: "Marron Tierra",    hex: "#78350f", group: "Marrones" },
+  { name: "Chocolate",        hex: "#451a03", group: "Marrones" },
+  // Verdes
+  { name: "Verde Esmeralda",  hex: "#22c55e", group: "Verdes" },
+  { name: "Verde Bosque",     hex: "#16a34a", group: "Verdes" },
+  { name: "Verde Oliva",      hex: "#166534", group: "Verdes" },
+  { name: "Verde Cazador",    hex: "#14532d", group: "Verdes" },
+  // Azules
+  { name: "Azul Cielo",       hex: "#38bdf8", group: "Azules" },
+  { name: "Azul Pacifico",    hex: "#0ea5e9", group: "Azules" },
+  { name: "Azul Zafiro",      hex: "#3b82f6", group: "Azules" },
+  { name: "Azul Real",        hex: "#2563eb", group: "Azules" },
+  { name: "Azul Marino",      hex: "#1d4ed8", group: "Azules" },
+  { name: "Azul Noche",       hex: "#1e40af", group: "Azules" },
+  { name: "Azul Profundo",    hex: "#1e3a8a", group: "Azules" },
+  // Morados
+  { name: "Violeta",          hex: "#8b5cf6", group: "Morados" },
+  { name: "Morado",           hex: "#7c3aed", group: "Morados" },
+  { name: "Ciruela",          hex: "#6d28d9", group: "Morados" },
+  { name: "Uva",              hex: "#5b21b6", group: "Morados" },
+  // Rosas
+  { name: "Rosa",             hex: "#f472b6", group: "Rosas" },
+  { name: "Rosa Fucsia",      hex: "#ec4899", group: "Rosas" },
+];
+
+export const CAR_COLORS_HEX_MAP = Object.fromEntries(
+  CAR_COLORS.map((c) => [c.name.toLowerCase(), c.hex])
+);
+
+export function resolveColorHex(value) {
+  if (!value) return null;
+  if (String(value).startsWith("#")) return String(value);
+  return CAR_COLORS_HEX_MAP[String(value).toLowerCase()] ?? null;
+}
+
+export function resolveColorName(value) {
+  if (!value) return null;
+  if (!String(value).startsWith("#")) return String(value);
+  const lower = String(value).toLowerCase();
+  return CAR_COLORS.find((c) => c.hex.toLowerCase() === lower)?.name ?? null;
+}
+
 export const TEXT_TYPES = new Set(["text", "email", "phone", "textarea", "markdown"]);
 
 export function joinUrl(baseUrl, apiPath) {
@@ -61,6 +134,8 @@ export function buildInitialValues(fieldMap, initialData) {
     const currentValue = initialData?.[field.name];
     if (currentValue === undefined || currentValue === null) {
       values[field.name] = field.type === "boolean" ? false : "";
+    } else if (field.type === "date" && typeof currentValue === "string" && currentValue.includes("T")) {
+      values[field.name] = currentValue.slice(0, 10);
     } else {
       values[field.name] = currentValue;
     }

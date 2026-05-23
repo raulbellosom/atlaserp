@@ -15,7 +15,9 @@ const DAYS_HEADER = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"];
 
 function parseDate(value) {
   if (!value) return null;
-  const d = new Date(`${value}T12:00:00`);
+  const str = String(value);
+  const datePart = str.includes("T") ? str.slice(0, 10) : str;
+  const d = new Date(`${datePart}T12:00:00`);
   return isNaN(d.getTime()) ? null : d;
 }
 
@@ -130,7 +132,7 @@ function Calendar({ value, onChange, onClose }) {
                 !day && "invisible",
                 day && !sel && !tod && "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
                 tod && !sel && "font-semibold text-[hsl(var(--primary))]",
-                sel && "bg-[hsl(var(--primary))] text-white font-semibold hover:bg-[hsl(var(--primary))]/90",
+                sel && "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold hover:bg-[hsl(var(--primary))]/90",
               )}
             >
               {day}
