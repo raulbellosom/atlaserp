@@ -18,7 +18,7 @@ export default defineView({
           { field: "status", label: "Estado", icon: "Activity" },
           { field: "other_category_label", label: "Categoria", icon: "Layers" },
           { field: "report_date", label: "Fecha", type: "date", icon: "CalendarDays" },
-          { field: "odometer_km", label: "Kilometraje", icon: "Hash" },
+          { field: "odometer_km", label: "Kilometraje", icon: "Hash", type: "number" },
         ],
       },
       {
@@ -56,6 +56,8 @@ export default defineView({
           idField: "id",
           titleField: "name",
           subtitleFields: ["quantity", "unit_cost", "subtotal"],
+          subtitleLabels: ["Cant.", "P.U.", "Subtotal"],
+          subtitleTypes: ["integer", "currency", "currency"],
           icon: "Wrench",
           emptyMessage: "No hay refacciones registradas.",
         },
@@ -103,8 +105,8 @@ export default defineView({
       },
     ],
     headerActions: [
-      { key: "download_pdf", label: "Descargar PDF", method: "GET", pathTemplate: "/fleet/reports/:id/pdf", download: true, downloadFileName: "reporte-flota.pdf", refreshAfter: false, variant: "outline" },
-      { key: "regenerate_pdf", label: "Regenerar PDF", method: "GET", pathTemplate: "/fleet/reports/:id/pdf", refreshAfter: false, variant: "outline" },
+      { key: "download_pdf", label: "Descargar PDF", method: "GET", pathTemplate: "/fleet/reports/:id/pdf", download: true, downloadFileName: "reporte-flota.pdf", refreshAfter: false, variant: "outline", visibleWhen: { field: "status", equals: "finalized" } },
+      { key: "regenerate_pdf", label: "Regenerar PDF", method: "GET", pathTemplate: "/fleet/reports/:id/pdf", refreshAfter: false, variant: "outline", visibleWhen: { field: "status", equals: "finalized" } },
       { key: "finalize", label: "Finalizar", method: "POST", pathTemplate: "/fleet/reports/:id/finalize", visibleWhen: { field: "status", equals: "draft" }, variant: "default" },
       { key: "reopen", label: "Reabrir", method: "POST", pathTemplate: "/fleet/reports/:id/reopen", visibleWhen: { field: "status", equals: "finalized" }, variant: "outline" },
     ],

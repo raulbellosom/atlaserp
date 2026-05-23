@@ -107,6 +107,7 @@ function normalizeField(fieldLike) {
       typeof fieldLike.icon === "string" && fieldLike.icon.trim()
         ? fieldLike.icon.trim()
         : null,
+    options: Array.isArray(fieldLike.options) ? fieldLike.options : null,
   };
 }
 
@@ -176,6 +177,14 @@ function normalizeRelationListConfig(config) {
     .map((field) => (typeof field === "string" ? field.trim() : ""))
     .filter(Boolean);
 
+  const subtitleLabels = Array.isArray(config.subtitleLabels)
+    ? config.subtitleLabels.map((l) => (typeof l === "string" ? l.trim() : ""))
+    : [];
+
+  const subtitleTypes = Array.isArray(config.subtitleTypes)
+    ? config.subtitleTypes.map((t) => (typeof t === "string" ? t.trim() : ""))
+    : [];
+
   return {
     apiPath:
       typeof config.apiPath === "string" && config.apiPath.trim()
@@ -190,6 +199,8 @@ function normalizeRelationListConfig(config) {
         ? config.titleField.trim()
         : null,
     subtitleFields,
+    subtitleLabels,
+    subtitleTypes,
     hrefTemplate:
       typeof config.hrefTemplate === "string" && config.hrefTemplate.trim()
         ? config.hrefTemplate.trim()
@@ -271,6 +282,7 @@ function normalizeSections(schema, fieldMap) {
             label: fieldDef.field.label ?? existing?.label ?? name,
             type: fieldDef.field.type ?? existing?.type ?? "text",
             icon: fieldDef.field.icon ?? existing?.icon ?? null,
+            options: fieldDef.field.options ?? existing?.options ?? null,
           });
         }
         if (!fieldNames.includes(name)) fieldNames.push(name);
@@ -301,6 +313,12 @@ function renderValue(field, value) {
 
   if (field?.type === "currency" || field?.type === "decimal") {
     return formatDetailCurrency(value);
+  }
+
+  if (field?.type === "number" || field?.type === "integer") {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return String(value);
+    return new Intl.NumberFormat("es-MX").format(n);
   }
 
   if (field?.type === "select" && Array.isArray(field?.options)) {
@@ -585,7 +603,29 @@ function RelationListSection({ section, data, apiBaseUrl, token }) {
           : null;
         const title = normalizeTextValue(rawTitle) || "Registro relacionado";
         const subtitles = relationList.subtitleFields
-          .map((fieldKey) => normalizeTextValue(getByPath(item, fieldKey)))
+          .map((fieldKey, idx) => {
+            const raw = getByPath(item, fieldKey);
+            const label = relationList.subtitleLabels?.[idx] ?? null;
+            const type = relationList.subtitleTypes?.[idx] ?? null;
+            let formatted;
+            if (raw === undefined || raw === null || raw === "") {
+              formatted = "—";
+            } else if (type === "currency") {
+              const n = Number(raw);
+              formatted = Number.isFinite(n)
+                ? new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n)
+                : String(raw);
+            } else if (type === "integer" || type === "number") {
+              const n = Number(raw);
+              formatted = Number.isFinite(n)
+                ? new Intl.NumberFormat("es-MX").format(n)
+                : String(raw);
+            } else {
+              formatted = normalizeTextValue(raw);
+            }
+            if (!formatted || formatted === "—") return null;
+            return label ? `${label} ${formatted}` : formatted;
+          })
           .filter(Boolean);
         const href =
           relationList.hrefTemplate && normalizeTextValue(itemId)
@@ -716,6 +756,7 @@ export function AtlasDetail({
               recordId={data?.id ?? null}
               config={section.attachments ?? {}}
               context="detail"
+              readOnly
             />
           ) : null}
 

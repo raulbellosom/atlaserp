@@ -18,7 +18,7 @@ export default defineView({
           { field: "status", label: "Estado", icon: "Activity" },
           { field: "report_type_label", label: "Tipo", icon: "Layers" },
           { field: "report_date", label: "Fecha", type: "date", icon: "CalendarDays" },
-          { field: "odometer_km", label: "Kilometraje", icon: "Hash" },
+          { field: "odometer_km", label: "Kilometraje", icon: "Hash", type: "number" },
           { field: "maintenance_subtype", label: "Subtipo", icon: "Wrench", type: "select", options: [
             { label: "Preventivo", value: "preventive" },
             { label: "Correctivo", value: "corrective" },
@@ -65,6 +65,8 @@ export default defineView({
           idField: "id",
           titleField: "name",
           subtitleFields: ["quantity", "unit_cost", "subtotal"],
+          subtitleLabels: ["Cant.", "P.U.", "Subtotal"],
+          subtitleTypes: ["integer", "currency", "currency"],
           icon: "Wrench",
           emptyMessage: "No hay refacciones registradas.",
         },
@@ -74,7 +76,7 @@ export default defineView({
         columns: 2,
         fields: [
           { field: "next_service_date", label: "Fecha sugerida", type: "date", icon: "CalendarDays" },
-          { field: "next_service_odometer", label: "Kilometraje sugerido", icon: "Hash" },
+          { field: "next_service_odometer", label: "Kilometraje sugerido", icon: "Hash", type: "number" },
         ],
       },
       {
@@ -120,8 +122,8 @@ export default defineView({
       },
     ],
     headerActions: [
-      { key: "download_pdf", label: "Descargar PDF", method: "GET", pathTemplate: "/fleet/reports/:id/pdf", download: true, downloadFileName: "reporte-flota.pdf", refreshAfter: false, variant: "outline" },
-      { key: "regenerate_pdf", label: "Regenerar PDF", method: "GET", pathTemplate: "/fleet/reports/:id/pdf", refreshAfter: false, variant: "outline" },
+      { key: "download_pdf", label: "Descargar PDF", method: "GET", pathTemplate: "/fleet/reports/:id/pdf", download: true, downloadFileName: "reporte-flota.pdf", refreshAfter: false, variant: "outline", visibleWhen: { field: "status", equals: "finalized" } },
+      { key: "regenerate_pdf", label: "Regenerar PDF", method: "GET", pathTemplate: "/fleet/reports/:id/pdf", refreshAfter: false, variant: "outline", visibleWhen: { field: "status", equals: "finalized" } },
       { key: "finalize", label: "Finalizar", method: "POST", pathTemplate: "/fleet/reports/:id/finalize", visibleWhen: { field: "status", equals: "draft" }, variant: "default" },
       { key: "reopen", label: "Reabrir", method: "POST", pathTemplate: "/fleet/reports/:id/reopen", visibleWhen: { field: "status", equals: "finalized" }, variant: "outline" },
     ],
