@@ -2309,7 +2309,7 @@ export function RelationSelectField({
                         "w-full text-left px-3 transition-colors duration-100 flex items-center gap-2",
                         opt.meta ? "py-2.5" : "py-2",
                         isSelected
-                          ? "bg-primary/10 text-primary"
+                          ? "bg-primary/10 text-primary font-medium"
                           : "text-foreground hover:bg-muted/50",
                         opt.disabled && "opacity-50 cursor-not-allowed pointer-events-none",
                       )}
@@ -2318,7 +2318,7 @@ export function RelationSelectField({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {opt.meta.badge ? (
-                              <span className="inline-flex items-center rounded bg-[hsl(var(--primary))]/10 px-1.5 py-0.5 text-xs font-semibold text-[hsl(var(--primary))] shrink-0">
+                              <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary shrink-0">
                                 {opt.meta.badge}
                               </span>
                             ) : null}
