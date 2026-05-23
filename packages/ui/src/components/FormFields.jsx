@@ -1017,8 +1017,9 @@ export const CurrencyField = forwardRef(function CurrencyField(
     if (allowed.includes(e.key)) return;
     if (allowNegative && e.key === "-") {
       e.preventDefault();
-      setNegative((n) => !n);
-      onChange?.(toDecimal(negative ? cents : -cents));
+      const nextNegative = !negative;
+      setNegative(nextNegative);
+      onChange?.(nextNegative ? -toDecimal(cents) : toDecimal(cents));
       return;
     }
     if (!/^\d$/.test(e.key)) e.preventDefault();

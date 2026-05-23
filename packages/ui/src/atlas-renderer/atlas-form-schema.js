@@ -12,6 +12,9 @@ export function normalizeField(fieldLike) {
     readonly: Boolean(fieldLike.readonly),
     options: fieldLike.options,
     relation: fieldLike.relation,
+    currency: fieldLike.currency ?? null,
+    locale: fieldLike.locale ?? null,
+    allowNegative: fieldLike.allowNegative ?? null,
   };
 }
 

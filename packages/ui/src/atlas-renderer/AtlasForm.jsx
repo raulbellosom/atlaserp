@@ -1,5 +1,4 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
@@ -45,6 +44,8 @@ import {
 
 // Module-level cache for relation field options. Persists across modal open/close cycles.
 const _relationOptionsCache = new Map();
+
+const MAIN_SECTION_TYPES = new Set(["fields", "parts", "attachments"]);
 const _RELATION_CACHE_TTL = 5 * 60 * 1000;
 
 export function AtlasForm({
@@ -474,6 +475,12 @@ export function AtlasForm({
         if (!field || !field.required || field.readonly) continue;
         if (field.type === "boolean") continue;
         const value = formValues[fieldName];
+        if (field.type === "currency") {
+          if (value === undefined || value === null || value === "") {
+            nextErrors[fieldName] = "Campo requerido";
+          }
+          continue;
+        }
         if (value === undefined || value === null || String(value).trim() === "") {
           nextErrors[fieldName] = "Campo requerido";
         }
@@ -805,7 +812,7 @@ export function AtlasForm({
   };
 
   const mainSections = sections.filter(
-    (section) => section.type === "fields" || section.placement !== "aside",
+    (section) => MAIN_SECTION_TYPES.has(section.type) && section.placement !== "aside",
   );
   const asideSections = sections.filter(
     (section) => section.type === "attachments" && section.placement === "aside",
@@ -837,7 +844,7 @@ export function AtlasForm({
           </div>
           {isCollapsible ? (
             <Button type="button" variant="ghost" size="sm" onClick={() => toggleSection(section.id)}>
-              {isCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+              {isCollapsed ? <LucideIcons.ChevronDown className="h-4 w-4" /> : <LucideIcons.ChevronUp className="h-4 w-4" />}
             </Button>
           ) : null}
         </div>
