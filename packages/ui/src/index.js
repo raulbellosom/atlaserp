@@ -40,6 +40,7 @@ export {
   TagsField,
   ComboboxField,
   CreatableComboboxField,
+  CarColorPickerField,
 } from "./components/FormFields.jsx";
 export { Checkbox } from "./components/Checkbox.jsx";
 export { Switch } from "./components/Switch.jsx";
@@ -205,4 +206,5 @@ export {
   AtlasCardView,
   BulkActionBar,
   normalizeSpanishLabel,
+  CostsSummaryPanel,
 } from "./atlas-renderer/index.js";

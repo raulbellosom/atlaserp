@@ -23,6 +23,7 @@ import {
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
 import { DatePickerField } from "../components/DatePickerField.jsx";
 import { ReportPartsEditor } from "./ReportPartsEditor.jsx";
+import { CostsSummaryPanel } from "./CostsSummaryPanel.jsx";
 import {
   normalizeSpanishLabel,
   normalizeRelationDescriptor,
@@ -997,7 +998,7 @@ export function AtlasForm({
         );
       }
 
-      return (
+      const fieldsGrid = (
         <div
           className={
             section.columns === 1
@@ -1022,6 +1023,21 @@ export function AtlasForm({
           })}
         </div>
       );
+
+      if (section.id === "costs") {
+        return (
+          <div className="space-y-4">
+            {fieldsGrid}
+            <CostsSummaryPanel
+              laborCost={formValues.labor_cost ?? 0}
+              partsCost={formValues.parts_cost ?? 0}
+              totalCost={formValues.total_cost ?? 0}
+            />
+          </div>
+        );
+      }
+
+      return fieldsGrid;
     };
 
     const header = renderSectionHeader();

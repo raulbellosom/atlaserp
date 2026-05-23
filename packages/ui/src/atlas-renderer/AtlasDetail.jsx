@@ -27,6 +27,7 @@ import { Button } from "../components/Button.jsx";
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
 import { normalizeSpanishLabel } from "./renderer-adapters.js";
 import { resolveColorHex } from "./atlas-form-utils.js";
+import { CostsSummaryPanel } from "./CostsSummaryPanel.jsx";
 
 const STATUS_LABELS = {
   active: "Activo",
@@ -732,23 +733,34 @@ export function AtlasDetail({
           ) : null}
 
           {section.type === "fields" ? (
-            <dl className={gridClass(section.columns)}>
-              {section.fields.map((fieldName) => {
-                const field = fieldMap.get(fieldName);
-                if (!field) return null;
-                const value = data[field.name];
-                return (
-                  <div key={field.name} className="space-y-1">
-                    <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-                      <FieldLabel field={field} />
-                    </dt>
-                    <dd className="text-sm text-[hsl(var(--foreground))]">
-                      {renderValue(field, value)}
-                    </dd>
-                  </div>
-                );
-              })}
-            </dl>
+            <div className="space-y-4">
+              <dl className={gridClass(section.columns)}>
+                {section.fields.map((fieldName) => {
+                  const field = fieldMap.get(fieldName);
+                  if (!field) return null;
+                  const value = data[field.name];
+                  return (
+                    <div key={field.name} className="space-y-1">
+                      <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+                        <FieldLabel field={field} />
+                      </dt>
+                      <dd className="text-sm text-[hsl(var(--foreground))]">
+                        {renderValue(field, value)}
+                      </dd>
+                    </div>
+                  );
+                })}
+              </dl>
+              {section.fields.includes("labor_cost") &&
+                section.fields.includes("parts_cost") &&
+                section.fields.includes("total_cost") ? (
+                <CostsSummaryPanel
+                  laborCost={data.labor_cost ?? 0}
+                  partsCost={data.parts_cost ?? 0}
+                  totalCost={data.total_cost ?? 0}
+                />
+              ) : null}
+            </div>
           ) : null}
         </div>
       ))}

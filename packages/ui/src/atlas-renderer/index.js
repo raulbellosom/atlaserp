@@ -5,3 +5,4 @@ export { AtlasCrudView } from "./AtlasCrudView.jsx";
 export { AtlasCardView } from "./AtlasCardView.jsx";
 export { BulkActionBar } from "./BulkActionBar.jsx";
 export { shouldUsePageMode, normalizeToFilterBarFilters, normalizeSpanishLabel } from "./renderer-adapters.js";
+export { CostsSummaryPanel } from "./CostsSummaryPanel.jsx";
