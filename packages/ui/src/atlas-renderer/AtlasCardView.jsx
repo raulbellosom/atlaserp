@@ -19,6 +19,20 @@ function renderValue(value) {
   return STATUS_LABELS[str.toLowerCase()] ?? str;
 }
 
+function formatCardDate(value) {
+  if (!value) return "—";
+  const str = String(value);
+  const datePart = str.includes("T") ? str.slice(0, 10) : str;
+  const [year, month, day] = datePart.split("-");
+  if (!year || !month || !day) return str;
+  return `${day}/${month}/${year}`;
+}
+
+function renderColValue(col, value) {
+  if (col.type === "date" || col.type === "datetime") return formatCardDate(value);
+  return renderValue(value);
+}
+
 export function AtlasCardView({
   columns = [],
   rows = [],
@@ -127,7 +141,7 @@ export function AtlasCardView({
               {secondaryColumns.length > 0 && (
                 <div className="space-y-1.5 border-t border-[hsl(var(--border))]/50 pt-2.5">
                   {secondaryColumns.map((col) => {
-                    const val = renderValue(row[col.field]);
+                    const val = renderColValue(col, row[col.field]);
                     if (val === "—") return null;
                     return (
                       <div

@@ -793,24 +793,31 @@ export function AtlasTable({
     const statusCol =
       visibleColumns.find((c) => /^(status|estado)$/i.test(c.field)) ?? null;
     const colorCol = visibleColumns.find((c) => c.type === "color") ?? null;
-    const subtitleCols = visibleColumns
-      .filter((c) => c !== primaryCol && c !== statusCol && c !== colorCol)
-      .slice(0, 3);
-    const badgeCol = statusCol ?? visibleColumns[3] ?? null;
+    const detailCols = visibleColumns.filter(
+      (c) => c !== primaryCol && c !== statusCol && c !== colorCol,
+    );
 
     if (loading) {
       return (
         <div className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden">
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={`sk-list-${i}`}
-              className="flex items-center gap-3 px-4 py-3 border-b border-[hsl(var(--border))] last:border-0"
+              className="flex items-center gap-3 px-4 py-4 border-b border-[hsl(var(--border))] last:border-0"
             >
               <Skeleton className="h-4 w-4 rounded shrink-0" />
               <Skeleton className="h-9 w-9 rounded-xl shrink-0" />
-              <div className="flex-1 space-y-1.5">
-                <Skeleton className="h-4 w-44" />
-                <Skeleton className="h-3 w-64" />
+              <div className="shrink-0 w-36 space-y-1.5">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+              <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-6 gap-y-2 flex-1">
+                {Array.from({ length: 5 }).map((__, j) => (
+                  <div key={j} className="space-y-1">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-3.5 w-24" />
+                  </div>
+                ))}
               </div>
               <Skeleton className="h-7 w-7 rounded-md shrink-0" />
             </div>
@@ -864,11 +871,14 @@ export function AtlasTable({
               ? `${accentColor}26`
               : "hsl(var(--muted))";
           const avatarText = itemColorHex ?? accentColor ?? "hsl(var(--muted-foreground))";
+          const statusVal = statusCol
+            ? renderValue(getByPath(row, statusCol.field))
+            : null;
 
           return (
             <div
               key={id}
-              className={`flex items-center gap-3 px-4 py-3 border-b border-[hsl(var(--border))] last:border-0 hover:bg-[hsl(var(--muted))]/30 transition-colors${isSelected ? " bg-indigo-500/5" : ""}`}
+              className={`flex items-center gap-3 px-4 py-3.5 border-b border-[hsl(var(--border))] last:border-0 hover:bg-[hsl(var(--muted))]/30 transition-colors${isSelected ? " bg-indigo-500/5" : ""}`}
             >
               <Checkbox
                 checked={isSelected}
@@ -887,32 +897,47 @@ export function AtlasTable({
                   {initials}
                 </span>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-[hsl(var(--foreground))]">
+
+              {/* Title + status — fixed width column */}
+              <div className="shrink-0 w-36 min-w-0">
+                <button
+                  type="button"
+                  onClick={onView ? () => onView(row) : undefined}
+                  className="truncate text-sm font-semibold text-[hsl(var(--foreground))] hover:underline focus:outline-none focus-visible:underline text-left w-full"
+                >
                   {titleVal}
-                </p>
-                {subtitleCols.length > 0 && (
-                  <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">
-                    {subtitleCols.map((col, idx) => (
-                      <span key={col.key}>
-                        {idx > 0 && <span className="mx-1 opacity-40">·</span>}
-                        {col.label}: {renderValue(getByPath(row, col.field))}
-                      </span>
-                    ))}
-                  </p>
+                </button>
+                {statusVal && statusVal !== "—" && (
+                  <span className="mt-1 inline-block text-xs font-medium text-[hsl(var(--foreground))] bg-[hsl(var(--muted))] rounded-full px-2.5 py-0.5">
+                    {statusVal}
+                  </span>
                 )}
               </div>
-              {badgeCol && (
-                <span
-                  className={
-                    statusCol && badgeCol === statusCol
-                      ? "hidden shrink-0 text-xs font-medium text-[hsl(var(--foreground))] bg-[hsl(var(--muted))] rounded-full px-2.5 py-0.5 sm:inline-block"
-                      : "hidden shrink-0 text-xs text-[hsl(var(--muted-foreground))] sm:block"
-                  }
-                >
-                  {renderValue(getByPath(row, badgeCol.field))}
-                </span>
+
+              {/* Detail columns grid — fills remaining space */}
+              {detailCols.length > 0 && (
+                <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-6 gap-y-1.5 flex-1 min-w-0">
+                  {detailCols.map((col) => {
+                    const rawVal = getByPath(row, col.field);
+                    const formatted =
+                      col.type === "date" || col.type === "datetime"
+                        ? formatTableDate(rawVal)
+                        : renderValue(rawVal);
+                    if (formatted === "—") return null;
+                    return (
+                      <div key={col.key} className="min-w-0">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]/70 truncate">
+                          {col.label}
+                        </p>
+                        <p className="text-xs text-[hsl(var(--foreground))] truncate">
+                          {formatted}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
+
               {menuItems.length > 0 && (
                 <ActionMenu items={menuItems} label="Acciones del registro" />
               )}
