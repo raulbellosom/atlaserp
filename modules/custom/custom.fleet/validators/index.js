@@ -124,7 +124,7 @@ export const updateDriverSchema = z.object({
 })
 
 export const createDocumentAssociationSchema = z.object({
-  file_asset_id: z.string().uuid('UUID de archivo invalido.'),
+  file_asset_id: z.string().min(1, 'ID de archivo invalido.'),
   document_type: z.string().max(50).optional(),
   label: z.string().max(200).nullable().optional(),
 })
