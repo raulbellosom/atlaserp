@@ -577,7 +577,7 @@ export function AtlasForm({
         <div className="space-y-1.5">
           <p className="text-sm font-medium text-[hsl(var(--foreground))]">{field.label}</p>
           <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-sm">
-            {value === undefined || value === null || value === “” ? “—“ : String(value)}
+            {value === undefined || value === null || value === "" ? "—" : String(value)}
           </div>
         </div>
       );
