@@ -143,28 +143,28 @@ export function AtlasApp() {
       )}
 
       {/* Body: sidebar + scrollable main, fills viewport below the topbar */}
-      <div className="flex h-full pt-topbar">
-        {showSidebar &&
-          (sidebarLoading ? (
-            <SidebarSkeleton collapsed={collapsed} />
-          ) : (
-            <ModuleSidebar
-              module={activeModule}
-              currentPath={location.pathname}
-              onNavigate={(path) => navigate(path)}
-              collapsed={collapsed}
-              onCollapse={toggleCollapsed}
-              mobileOpen={mobileOpen}
-              onMobileClose={() => setMobileOpen(false)}
-            />
-          ))}
+      <div className="flex flex-col h-full pt-topbar">
+        <div className="flex flex-1 min-h-0">
+          {showSidebar &&
+            (sidebarLoading ? (
+              <SidebarSkeleton collapsed={collapsed} />
+            ) : (
+              <ModuleSidebar
+                module={activeModule}
+                currentPath={location.pathname}
+                onNavigate={(path) => navigate(path)}
+                collapsed={collapsed}
+                onCollapse={toggleCollapsed}
+                mobileOpen={mobileOpen}
+                onMobileClose={() => setMobileOpen(false)}
+              />
+            ))}
 
-        <main className="flex-1 min-w-0 overflow-y-auto overflow-x-clip flex flex-col min-h-0 [scrollbar-gutter:stable]">
-          <div className="flex-1 min-h-0">
+          <main className="flex-1 min-w-0 overflow-y-auto overflow-x-clip scrollbar-gutter-stable">
             <Outlet />
-          </div>
-          <BrandFooter />
-        </main>
+          </main>
+        </div>
+        <BrandFooter />
       </div>
 
       <AppLauncher />
