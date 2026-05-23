@@ -47,6 +47,8 @@ function resolveRowLabel(row) {
   return (
     row.name ??
     row.nombre ??
+    row.full_name ??
+    row.fullName ??
     row.title ??
     row.titulo ??
     row.description ??
@@ -375,20 +377,25 @@ export function AtlasCrudView({
           {mode === "create" && currentFormBlueprint && (
             <>
               <PageHeader
-                eyebrow="Nuevo registro"
+                compact
                 title={
                   currentFormBlueprint?.schema?.title ??
                   currentFormBlueprint?.title ??
                   "Nuevo registro"
                 }
                 actions={
-                  <Button variant="outline" size="sm" onClick={goToList}>
-                    <ArrowLeft className="mr-1.5 h-4 w-4" />
-                    Volver
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={goToList}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit" form="atlas-crud-form" size="sm">
+                      Guardar
+                    </Button>
+                  </div>
                 }
               />
               <AtlasForm
+                id="atlas-crud-form"
                 blueprint={currentFormBlueprint}
                 fields={fields}
                 initialData={{}}
@@ -404,11 +411,18 @@ export function AtlasCrudView({
           {mode === "detail" && currentDetailBlueprint && (
             <>
               <PageHeader
-                eyebrow="Detalle"
-                title={
+                compact
+                eyebrow={
                   currentDetailBlueprint?.schema?.title ??
                   currentDetailBlueprint?.title ??
-                  "Detalle"
+                  null
+                }
+                title={
+                  recordData
+                    ? resolveRowLabel(recordData)
+                    : (currentDetailBlueprint?.schema?.title ??
+                      currentDetailBlueprint?.title ??
+                      "Detalle")
                 }
                 actions={
                   <div className="flex items-center gap-2">
@@ -459,22 +473,28 @@ export function AtlasCrudView({
           {mode === "edit" && currentFormBlueprint && (
             <>
               <PageHeader
-                eyebrow="Editar registro"
-                title={
+                compact
+                eyebrow={
                   currentFormBlueprint?.schema?.title ??
                   currentFormBlueprint?.title ??
-                  "Editar registro"
+                  null
                 }
+                title={recordData ? resolveRowLabel(recordData) : "Editar registro"}
                 actions={
-                  <Button variant="outline" size="sm" onClick={goToList}>
-                    <ArrowLeft className="mr-1.5 h-4 w-4" />
-                    Volver
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={goToList}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit" form="atlas-crud-form" size="sm">
+                      Guardar cambios
+                    </Button>
+                  </div>
                 }
               />
               {renderRecordLoadingOrError() ??
                 (recordData && (
                   <AtlasForm
+                    id="atlas-crud-form"
                     blueprint={currentFormBlueprint}
                     fields={fields}
                     initialData={recordData}
@@ -492,6 +512,7 @@ export function AtlasCrudView({
         /* Normal mode: table always visible, sheet for create/detail/edit */
         <>
           <AtlasTable
+            key={tableBlueprint?.key ?? tableApiPath}
             blueprint={tableBlueprint}
             token={token}
             apiBaseUrl={apiBaseUrl}

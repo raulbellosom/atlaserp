@@ -1,6 +1,17 @@
 import { coreModules, featureModules } from "@atlas/maps";
 
-const MANIFESTS = [...coreModules, ...featureModules];
+// Auto-import all AME3 custom module manifests bundled with the desktop app.
+// This ensures navigation (including children) is always read from the source file,
+// not from the stale DB-cached manifest. Takes priority over apiRow?.manifest.
+const _ame3ModuleFiles = import.meta.glob(
+  "../../../../modules/custom/*/module.manifest.js",
+  { eager: true },
+);
+const _ame3Manifests = Object.values(_ame3ModuleFiles)
+  .map((mod) => mod?.default ?? null)
+  .filter((m) => m && typeof m === "object" && m.key);
+
+const MANIFESTS = [...coreModules, ...featureModules, ..._ame3Manifests];
 
 const STATUS_ORDER = {
   INSTALLED: 0,

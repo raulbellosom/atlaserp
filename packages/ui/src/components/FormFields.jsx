@@ -1051,7 +1051,7 @@ export const CurrencyField = forwardRef(function CurrencyField(
         {icon ? (
           <InputIcon icon={icon} />
         ) : (
-          <span className="absolute left-3.5 text-sm text-muted-foreground/60 select-none pointer-events-none">
+          <span className="absolute left-3.5 text-sm text-[hsl(var(--foreground))]/70 select-none pointer-events-none">
             {symbol}
           </span>
         )}
@@ -2244,27 +2244,6 @@ export function RelationSelectField({
             />
           </span>
         </button>
-        {selectedMeta ? (
-          <div className="mt-2 rounded-lg border border-border bg-muted/25 px-3 py-2">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {selectedMeta.badge ? (
-                <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary shrink-0">
-                  {selectedMeta.badge}
-                </span>
-              ) : null}
-              {selectedMeta.title ? (
-                <span className="text-sm font-medium text-foreground truncate">
-                  {selectedMeta.title}
-                </span>
-              ) : null}
-            </div>
-            {selectedMeta.subtitle ? (
-              <p className="mt-0.5 text-xs text-muted-foreground truncate">
-                {selectedMeta.subtitle}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
 
         {open && createPortal(
           <div
@@ -2588,4 +2567,234 @@ export function CreatableComboboxField({
       </div>
     </FieldWrapper>
   );
+}
+
+// ─── CarColorPickerField ──────────────────────────────────────────────────────
+// Searchable color picker for vehicle colors.
+// `colors` prop: [{ name, hex, group }]  — passed from the renderer.
+// Stores the color NAME as value, not hex.
+
+export function CarColorPickerField({
+  label,
+  id,
+  required,
+  error: externalError,
+  hint,
+  value,
+  onChange,
+  colors = [],
+  clearable = true,
+  placeholder = "Seleccionar color...",
+  className,
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [dropdownStyle, setDropdownStyle] = useState({});
+  const containerRef = useRef(null);
+  const dropdownRef = useRef(null);
+  const searchRef = useRef(null);
+
+  const selected = colors.find((c) => c.name === value) ?? null;
+
+  // resolve hex for any stored value (name or legacy #hex)
+  function resolveHex(v) {
+    if (!v) return null;
+    if (String(v).startsWith("#")) return String(v);
+    return colors.find((c) => c.name === v)?.hex ?? null;
+  }
+  const selectedHex = resolveHex(value);
+
+  const groups = [...new Set(colors.map((c) => c.group))];
+  const term = search.trim().toLowerCase();
+  const filtered = term
+    ? colors.filter((c) => c.name.toLowerCase().includes(term) || c.group.toLowerCase().includes(term))
+    : null;
+
+  useEffect(() => {
+    function handleOutside(e) {
+      if (!containerRef.current?.contains(e.target) && !dropdownRef.current?.contains(e.target)) {
+        setOpen(false);
+        setSearch("");
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
+
+  function handleOpen() {
+    if (!open && containerRef.current) {
+      const r = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - r.bottom;
+      const dropH = 320;
+      const top = spaceBelow >= dropH ? r.bottom + 4 : r.top - dropH - 4;
+      setDropdownStyle({ top, left: r.left, width: Math.max(r.width, 260) });
+    }
+    setOpen((o) => !o);
+    setTimeout(() => searchRef.current?.focus(), 50);
+  }
+
+  function handleSelect(color) {
+    onChange(color.name);
+    setOpen(false);
+    setSearch("");
+  }
+
+  function handleClear(e) {
+    e.stopPropagation();
+    onChange(null);
+  }
+
+  function isSelected(color) {
+    return color.name === value || color.hex === value;
+  }
+
+  return (
+    <FieldWrapper label={label} labelFor={id} error={externalError} hint={hint} required={required}>
+      <div ref={containerRef} className={cn("relative", className)}>
+        <button
+          type="button"
+          id={id}
+          onClick={handleOpen}
+          className={cn(
+            fieldCls(externalError, "flex items-center gap-2.5 text-left cursor-pointer pr-3"),
+          )}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+        >
+          {selectedHex ? (
+            <span
+              className="h-5 w-5 shrink-0 rounded-full border border-border/60 shadow-sm"
+              style={{ backgroundColor: selectedHex }}
+            />
+          ) : (
+            <span className="h-5 w-5 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/30" />
+          )}
+          <span className={cn("flex-1 truncate text-sm", selected || value ? "text-foreground" : "text-muted-foreground")}>
+            {selected ? selected.name : value && !value.startsWith("#") ? value : placeholder}
+          </span>
+          <span className="ml-auto flex items-center gap-1">
+            {clearable && value && (
+              <span
+                role="button"
+                tabIndex={-1}
+                onClick={handleClear}
+                className="flex items-center justify-center h-4 w-4 rounded-full bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Limpiar color"
+              >
+                <X size={10} />
+              </span>
+            )}
+            <ChevronDown
+              size={14}
+              strokeWidth={1.75}
+              className={cn("text-muted-foreground/60 transition-transform duration-150", open && "rotate-180")}
+            />
+          </span>
+        </button>
+
+        {open && createPortal(
+          <div
+            ref={dropdownRef}
+            style={{ position: "fixed", top: dropdownStyle.top, left: dropdownStyle.left, width: dropdownStyle.width, zIndex: 9999 }}
+            className="rounded-xl border border-border/80 bg-card shadow-xl overflow-hidden"
+          >
+            {/* Search */}
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+              <Search size={13} className="text-muted-foreground/50 shrink-0" />
+              <input
+                ref={searchRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar color..."
+                className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="flex items-center justify-center h-4 w-4 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                >
+                  <X size={10} />
+                </button>
+              )}
+            </div>
+
+            <div className="max-h-72 overflow-y-auto" role="listbox">
+              {/* Clear option */}
+              {clearable && value && !term && (
+                <button
+                  type="button"
+                  role="option"
+                  onClick={() => { onChange(null); setOpen(false); setSearch(""); }}
+                  className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:bg-muted/50 transition-colors flex items-center gap-2 border-b border-border/50"
+                >
+                  <X size={11} />
+                  Sin color
+                </button>
+              )}
+
+              {/* Filtered flat list */}
+              {term ? (
+                filtered.length === 0 ? (
+                  <p className="px-3 py-4 text-sm text-muted-foreground text-center">Sin resultados</p>
+                ) : (
+                  filtered.map((color) => (
+                    <ColorOption key={color.name} color={color} selected={isSelected(color)} onSelect={handleSelect} />
+                  ))
+                )
+              ) : (
+                /* Grouped list */
+                groups.map((group) => (
+                  <div key={group}>
+                    <p className="px-3 pt-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 select-none">
+                      {group}
+                    </p>
+                    {colors.filter((c) => c.group === group).map((color) => (
+                      <ColorOption key={color.name} color={color} selected={isSelected(color)} onSelect={handleSelect} />
+                    ))}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
+      </div>
+    </FieldWrapper>
+  );
+}
+
+function ColorOption({ color, selected, onSelect }) {
+  const isLight = isLightColor(color.hex);
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={selected}
+      onClick={() => onSelect(color)}
+      className={cn(
+        "w-full text-left px-3 py-1.5 text-sm transition-colors duration-100 flex items-center gap-2.5",
+        selected ? "bg-primary/10 text-primary font-medium" : "text-foreground hover:bg-muted/50",
+      )}
+    >
+      <span
+        className={cn(
+          "h-5 w-5 shrink-0 rounded-full border shadow-sm",
+          isLight ? "border-border/80" : "border-transparent",
+        )}
+        style={{ backgroundColor: color.hex }}
+      />
+      <span className="flex-1 truncate">{color.name}</span>
+      {selected && <Check size={13} className="shrink-0 text-primary" />}
+    </button>
+  );
+}
+
+function isLightColor(hex) {
+  if (!hex || !hex.startsWith("#")) return true;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 180;
 }

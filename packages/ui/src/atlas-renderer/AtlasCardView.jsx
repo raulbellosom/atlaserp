@@ -1,4 +1,4 @@
-import { Eye, Pencil, Trash2 } from "lucide-react";
+import { Eye, ImageIcon, FileText, Pencil, Trash2 } from "lucide-react";
 import { Checkbox } from "../components/Checkbox.jsx";
 import { ActionMenu } from "../components/ActionMenu.jsx";
 
@@ -29,15 +29,17 @@ export function AtlasCardView({
   editActionLabel = "Editar",
   deleteActionLabel = "Eliminar",
   accentColor = null,
+  resolveItemColor = null,
   onView,
   onEdit,
   onDelete,
 }) {
   const primaryColumn = columns[0] ?? null;
   const statusColumn = columns.find((c) => /^(status|estado)$/i.test(c.field)) ?? null;
+  const colorColumn = columns.find((c) => c.type === "color") ?? null;
   const secondaryColumns = columns
-    .filter((c) => c !== primaryColumn && c !== statusColumn)
-    .slice(0, 4);
+    .filter((c) => c !== primaryColumn && c !== statusColumn && c !== colorColumn)
+    .slice(0, 5);
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -51,6 +53,14 @@ export function AtlasCardView({
         const initials =
           titleVal !== "—" && titleVal.length > 0 ? titleVal.charAt(0).toUpperCase() : "#";
 
+        const itemColor = resolveItemColor ? resolveItemColor(row) : null;
+        const effectiveColor = itemColor || accentColor;
+
+        const imageCount = Number(row.image_count ?? 0);
+        const docCount = Number(row.doc_count ?? 0);
+        const otherCount = Math.max(0, docCount - imageCount);
+        const hasFiles = docCount > 0;
+
         const menuItems = [
           onView && { label: viewActionLabel, icon: Eye, onClick: () => onView(row) },
           onEdit && { label: editActionLabel, icon: Pencil, onClick: () => onEdit(row) },
@@ -60,69 +70,95 @@ export function AtlasCardView({
         return (
           <div
             key={id}
-            className={`glass group flex flex-col gap-3 rounded-2xl border p-4 transition-all duration-150 hover:bg-[hsl(var(--muted))]/20${
+            className={`glass group flex flex-col rounded-2xl border overflow-hidden transition-all duration-150 hover:bg-[hsl(var(--muted))]/20${
               isSelected
                 ? " border-indigo-500/60 bg-indigo-500/5"
                 : " border-[hsl(var(--border))] hover:border-[hsl(var(--border))]/60"
             }`}
           >
-            <div className="flex items-start gap-3">
-              {onToggleSelect && (
-                <Checkbox
-                  checked={isSelected}
-                  onCheckedChange={() => onToggleSelect(id)}
-                  aria-label="Seleccionar"
-                  className="mt-0.5 shrink-0"
-                />
-              )}
-              <div
-                className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{
-                  backgroundColor: accentColor ? `${accentColor}26` : "hsl(var(--muted))",
-                }}
-              >
-                <span
-                  className="text-sm font-semibold"
-                  style={{ color: accentColor ?? "hsl(var(--muted-foreground))" }}
+            {effectiveColor && (
+              <div className="h-1.5 w-full shrink-0" style={{ backgroundColor: effectiveColor }} />
+            )}
+
+            <div className="flex flex-col gap-3 p-4">
+              <div className="flex items-start gap-3">
+                {onToggleSelect && (
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => onToggleSelect(id)}
+                    aria-label="Seleccionar"
+                    className="mt-0.5 shrink-0"
+                  />
+                )}
+                <div
+                  className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
+                  style={{
+                    backgroundColor: effectiveColor ? `${effectiveColor}26` : "hsl(var(--muted))",
+                  }}
                 >
-                  {initials}
-                </span>
+                  <span
+                    className="text-sm font-semibold"
+                    style={{ color: effectiveColor ?? "hsl(var(--muted-foreground))" }}
+                  >
+                    {initials}
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={onView ? () => onView(row) : undefined}
+                    className="truncate text-sm font-semibold text-[hsl(var(--foreground))] hover:underline focus:outline-none focus-visible:underline text-left w-full"
+                  >
+                    {titleVal}
+                  </button>
+                  {statusColumn && renderValue(row[statusColumn.field]) !== "—" && (
+                    <div className="mt-1">
+                      <span className="inline-block text-xs font-medium text-[hsl(var(--foreground))] bg-[hsl(var(--muted))] rounded-full px-2.5 py-0.5">
+                        {renderValue(row[statusColumn.field])}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {menuItems.length > 0 && (
+                  <ActionMenu items={menuItems} label="Acciones del registro" />
+                )}
               </div>
-              <div className="min-w-0 flex-1 pt-0.5">
-                <p className="truncate text-sm font-semibold text-[hsl(var(--foreground))]">
-                  {titleVal}
-                </p>
-                {statusColumn && !renderValue(row[statusColumn.field]).startsWith("—") && (
-                  <div className="mt-1">
-                    <span className="inline-block text-xs font-medium text-[hsl(var(--foreground))] bg-[hsl(var(--muted))] rounded-full px-2.5 py-0.5">
-                      {renderValue(row[statusColumn.field])}
+
+              {secondaryColumns.length > 0 && (
+                <div className="space-y-1.5 border-t border-[hsl(var(--border))]/50 pt-2.5">
+                  {secondaryColumns.map((col) => {
+                    const val = renderValue(row[col.field]);
+                    if (val === "—") return null;
+                    return (
+                      <div
+                        key={col.key}
+                        className="flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]"
+                      >
+                        <span className="shrink-0 font-medium text-[hsl(var(--foreground))]/70">{col.label}:</span>
+                        <span className="truncate">{val}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {hasFiles && (
+                <div className="flex items-center gap-3 border-t border-[hsl(var(--border))]/50 pt-2.5">
+                  {imageCount > 0 && (
+                    <span className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))]">
+                      <ImageIcon className="h-3.5 w-3.5 shrink-0" />
+                      {imageCount}
                     </span>
-                  </div>
-                )}
-                {secondaryColumns[0] && (
-                  <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">
-                    {renderValue(row[secondaryColumns[0].field])}
-                  </p>
-                )}
-              </div>
-              {menuItems.length > 0 && (
-                <ActionMenu items={menuItems} label="Acciones del registro" />
+                  )}
+                  {otherCount > 0 && (
+                    <span className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))]">
+                      <FileText className="h-3.5 w-3.5 shrink-0" />
+                      {otherCount}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
-
-            {secondaryColumns.length > 1 && (
-              <div className="space-y-1.5 border-t border-[hsl(var(--border))]/50 pt-2.5">
-                {secondaryColumns.slice(1).map((col) => (
-                  <div
-                    key={col.key}
-                    className="flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]"
-                  >
-                    <span className="shrink-0 font-medium">{col.label}:</span>
-                    <span className="truncate">{renderValue(row[col.field])}</span>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         );
       })}

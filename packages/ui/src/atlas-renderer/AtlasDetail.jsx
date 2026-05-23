@@ -632,17 +632,45 @@ function RelationListSection({ section, data, apiBaseUrl, token }) {
             ? replacePathTokens(relationList.hrefTemplate, { id: itemId })
             : null;
 
+        const hasLabeledGrid = Array.isArray(relationList.subtitleLabels) && relationList.subtitleLabels.length > 0;
+        const labeledPairs = hasLabeledGrid
+          ? relationList.subtitleFields.map((fieldKey, idx) => {
+              const raw = getByPath(item, fieldKey);
+              const label = relationList.subtitleLabels?.[idx] ?? null;
+              const type = relationList.subtitleTypes?.[idx] ?? null;
+              let formatted;
+              if (raw === undefined || raw === null || raw === "") {
+                formatted = null;
+              } else if (type === "currency") {
+                const n = Number(raw);
+                formatted = Number.isFinite(n) ? new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n) : String(raw);
+              } else {
+                formatted = normalizeTextValue(raw) || null;
+              }
+              return formatted ? { label, value: formatted } : null;
+            }).filter(Boolean)
+          : [];
+
         const content = (
           <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-4 py-3 transition-colors hover:border-[hsl(var(--ring))]">
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">
+              <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">
                 <Icon size={16} />
               </span>
-              <div className="min-w-0 space-y-1">
+              <div className="min-w-0 flex-1 space-y-1.5">
                 <p className="text-sm font-semibold text-[hsl(var(--foreground))] truncate">
                   {title}
                 </p>
-                {subtitles.length > 0 ? (
+                {hasLabeledGrid && labeledPairs.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                    {labeledPairs.map((pair, i) => (
+                      <div key={i} className="flex items-baseline gap-1 text-xs">
+                        {pair.label && <span className="shrink-0 font-medium text-[hsl(var(--foreground))]/60">{pair.label}</span>}
+                        <span className="truncate text-[hsl(var(--muted-foreground))]">{pair.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : subtitles.length > 0 ? (
                   <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">
                     {subtitles.join(" · ")}
                   </p>

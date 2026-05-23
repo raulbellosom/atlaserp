@@ -10,6 +10,7 @@ export function normalizeField(fieldLike) {
     type: fieldLike.type ?? "text",
     required: Boolean(fieldLike.required),
     readonly: Boolean(fieldLike.readonly),
+    hint: typeof fieldLike.hint === "string" && fieldLike.hint.trim() ? fieldLike.hint.trim() : null,
     options: fieldLike.options,
     relation: fieldLike.relation,
     currency: fieldLike.currency ?? null,

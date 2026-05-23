@@ -119,6 +119,18 @@ export default function createFleetRouter({ prisma, requirePermission, moduleCon
     }
   })
 
+  app.get('/fleet/vehicles/:id/pdf', requirePermission('fleet.vehicles.read'), async (c) => {
+    try {
+      const companyId = getCompanyIdFromContext(c)
+      const { vehicle, pdf } = await service.generateVehiclePdf({ companyId, id: c.req.param('id') })
+      c.header('Content-Type', 'application/pdf')
+      c.header('Content-Disposition', `inline; filename="vehiculo-${vehicle.plate}.pdf"`)
+      return new Response(pdf, { status: 200, headers: c.res.headers })
+    } catch (err) {
+      return handleRouteError(c, err, { fallbackError: 'No se pudo generar el PDF del vehiculo.', route: '/fleet/vehicles/:id/pdf', moduleKey, operation: 'generateVehiclePdf' })
+    }
+  })
+
   app.get('/fleet/vehicles/:id/documents', requirePermission('fleet.vehicles.read'), async (c) => {
     try {
       const companyId = getCompanyIdFromContext(c)

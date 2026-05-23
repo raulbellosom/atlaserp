@@ -1,6 +1,5 @@
 import { z } from '../../../../apps/api/node_modules/zod/index.js'
 
-const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{3,8}$/
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
 
 const vehicleStatusSchema = z.enum(['active', 'maintenance', 'inactive', 'retired'])
@@ -25,7 +24,7 @@ export const createVehicleSchema = z.object({
   model_name: z.string().min(1).max(100).optional(),
   year: z.number().int().min(1900).max(2100).optional(),
   status: vehicleStatusSchema.default('active'),
-  color: z.string().regex(HEX_COLOR_REGEX, 'Color hexadecimal invalido.').optional(),
+  color: z.string().min(1).max(100).optional(),
   driver_id: z.string().uuid().nullable().optional(),
   notes: z.string().max(5000).optional(),
   economic_group_number: z.string().regex(ECON_NUM_REGEX, 'Maximo 4 digitos numericos.').nullable().optional(),
@@ -41,7 +40,7 @@ export const updateVehicleSchema = z.object({
   model_name: z.string().min(1).max(100).optional(),
   year: z.number().int().min(1900).max(2100).optional(),
   status: vehicleStatusSchema.optional(),
-  color: z.string().regex(HEX_COLOR_REGEX, 'Color hexadecimal invalido.').optional(),
+  color: z.string().min(1).max(100).optional(),
   driver_id: z.string().uuid().nullable().optional(),
   notes: z.string().max(5000).optional(),
   economic_group_number: z.string().regex(ECON_NUM_REGEX, 'Maximo 4 digitos numericos.').nullable().optional(),

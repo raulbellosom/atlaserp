@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { buildVehiclePdfBuffer } from './vehicle-pdf.js'
 import {
   normalizePagination,
   normalizeSearch,
@@ -151,7 +152,13 @@ export function createFleetService({ prisma }) {
                 ) ||
                 COALESCE(NULLIF(REGEXP_REPLACE(fv.economic_individual_number, '^0+', ''), ''), '0')
             ELSE NULL
-          END AS full_economic_number
+          END AS full_economic_number,
+          (SELECT COUNT(*)::int FROM fleet_vehicle_document fvd
+           WHERE fvd.vehicle_id::text = fv.id::text AND fvd.company_id::text = fv.company_id::text AND fvd.enabled = true) AS doc_count,
+          (SELECT COUNT(*)::int FROM fleet_vehicle_document fvd2
+           JOIN "FileAsset" fa ON fa.id::text = fvd2.file_asset_id::text
+           WHERE fvd2.vehicle_id::text = fv.id::text AND fvd2.company_id::text = fv.company_id::text AND fvd2.enabled = true
+           AND fa."mimeType" ILIKE 'image/%') AS image_count
         FROM fleet_vehicle fv
         LEFT JOIN fleet_vehicle_model vm ON vm.id = fv.vehicle_model_id
         LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id
@@ -534,6 +541,13 @@ export function createFleetService({ prisma }) {
     return updated
   }
 
+  async function generateVehiclePdf({ companyId, id }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId)
+    const vehicle = await getVehicle({ companyId: safeCompanyId, id })
+    const pdf = await buildVehiclePdfBuffer({ prisma, companyId, vehicle })
+    return { vehicle, pdf }
+  }
+
   return {
     listVehicles,
     getVehicle,
@@ -543,5 +557,6 @@ export function createFleetService({ prisma }) {
     listVehicleDocuments,
     addVehicleDocument,
     removeVehicleDocument,
+    generateVehiclePdf,
   }
 }

@@ -5,8 +5,36 @@ export function PageHeader({
   title,
   description,
   actions,
+  compact,
   className,
 }) {
+  if (compact) {
+    return (
+      <div
+        className={cn(
+          "flex items-center justify-between gap-4 pb-4",
+          className,
+        )}
+      >
+        <div className="min-w-0">
+          {eyebrow && (
+            <p className="text-xs text-[hsl(var(--muted-foreground))] mb-0.5 truncate">
+              {eyebrow}
+            </p>
+          )}
+          <h1 className="text-xl font-semibold tracking-tight text-[hsl(var(--foreground))] truncate">
+            {title}
+          </h1>
+        </div>
+        {actions && (
+          <div className="flex shrink-0 items-center gap-2">
+            {actions}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(

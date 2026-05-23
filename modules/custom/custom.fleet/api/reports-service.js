@@ -1,5 +1,6 @@
-﻿import { createHash } from "node:crypto";
+import { createHash } from "node:crypto";
 import { FleetServiceError } from "./fleet-service.js";
+import { buildReportPdfBuffer } from "./report-pdf.js";
 
 const MODULE_KEY = "custom.fleet";
 const UUID_REGEX =
@@ -16,17 +17,27 @@ const MAINTENANCE_SUBTYPES = [
   "tire_service",
   "other",
 ];
-const SERVICE_SUBTYPES = ["general", "diagnostic", "cleaning", "electrical", "other"];
+const SERVICE_SUBTYPES = [
+  "general",
+  "diagnostic",
+  "cleaning",
+  "electrical",
+  "other",
+];
 const REPAIR_PRIORITIES = ["low", "normal", "high", "urgent"];
-const REPAIR_DAMAGE_TYPES = ["mechanical", "electrical", "body", "interior", "other"];
+const REPAIR_DAMAGE_TYPES = [
+  "mechanical",
+  "electrical",
+  "body",
+  "interior",
+  "other",
+];
 const TYPE_PREFIX = {
   maintenance: "MNT",
   service: "SRV",
   repair: "REP",
   other: "OTR",
 };
-
-let pdfDocumentCtorPromise = null;
 
 const UPDATABLE_FIELDS = new Set([
   "title",
@@ -73,7 +84,8 @@ function toScopedCompanyUuid(companyId) {
 
 function normalizeRecordId(id, notFoundMessage) {
   const value = String(id ?? "").trim();
-  if (!UUID_REGEX.test(value)) throw new FleetServiceError(notFoundMessage, 404);
+  if (!UUID_REGEX.test(value))
+    throw new FleetServiceError(notFoundMessage, 404);
   return value.toLowerCase();
 }
 
@@ -85,7 +97,11 @@ function toNumber(value, fallback) {
 function normalizePagination({ page, pageSize }) {
   const safePage = Math.max(1, toNumber(page, 1));
   const safePageSize = Math.min(100, Math.max(1, toNumber(pageSize, 20)));
-  return { page: safePage, pageSize: safePageSize, offset: (safePage - 1) * safePageSize };
+  return {
+    page: safePage,
+    pageSize: safePageSize,
+    offset: (safePage - 1) * safePageSize,
+  };
 }
 
 function normalizeSearch(search) {
@@ -110,7 +126,9 @@ function toCount(value) {
 }
 
 function normalizeType(value) {
-  const type = String(value ?? "").trim().toLowerCase();
+  const type = String(value ?? "")
+    .trim()
+    .toLowerCase();
   if (!REPORT_TYPES.includes(type)) {
     throw new FleetServiceError("Tipo de reporte invalido.", 400);
   }
@@ -119,7 +137,9 @@ function normalizeType(value) {
 
 function normalizeStatus(value) {
   if (value === undefined) return undefined;
-  const status = String(value ?? "").trim().toLowerCase();
+  const status = String(value ?? "")
+    .trim()
+    .toLowerCase();
   if (!REPORT_STATUS.includes(status)) {
     throw new FleetServiceError("Estado de reporte invalido.", 400);
   }
@@ -135,9 +155,15 @@ function normalizeParts(parts) {
       unit_cost: Number(item?.unit_cost ?? 0),
       notes: normalizeOptionalString(item?.notes),
     }))
-    .filter((item) => item.name && Number.isFinite(item.quantity) && item.quantity > 0)
+    .filter(
+      (item) =>
+        item.name && Number.isFinite(item.quantity) && item.quantity > 0,
+    )
     .map((item) => {
-      const unitCost = Number.isFinite(item.unit_cost) && item.unit_cost >= 0 ? item.unit_cost : 0;
+      const unitCost =
+        Number.isFinite(item.unit_cost) && item.unit_cost >= 0
+          ? item.unit_cost
+          : 0;
       const subtotal = Number((item.quantity * unitCost).toFixed(2));
       return { ...item, unit_cost: unitCost, subtotal };
     });
@@ -147,7 +173,9 @@ function normalizeReportPayload(data = {}, defaultType = null) {
   const reportType = normalizeType(data.report_type ?? defaultType);
   const status = normalizeStatus(data.status);
   const parts = normalizeParts(data.parts);
-  const partsCost = Number(parts.reduce((acc, part) => acc + part.subtotal, 0).toFixed(2));
+  const partsCost = Number(
+    parts.reduce((acc, part) => acc + part.subtotal, 0).toFixed(2),
+  );
   const laborCost = Number(data.labor_cost ?? 0);
 
   const normalized = {
@@ -170,20 +198,30 @@ function normalizeReportPayload(data = {}, defaultType = null) {
     parts_cost: partsCost,
     labor_cost: Number.isFinite(laborCost) && laborCost >= 0 ? laborCost : 0,
   };
-  normalized.total_cost = Number((normalized.parts_cost + normalized.labor_cost).toFixed(2));
+  normalized.total_cost = Number(
+    (normalized.parts_cost + normalized.labor_cost).toFixed(2),
+  );
   return normalized;
 }
 
 function validateTypeBusinessRules(payload) {
   const reportDate = payload.report_date ? new Date(payload.report_date) : null;
-  const repairStartDate = payload.repair_start_date ? new Date(payload.repair_start_date) : null;
+  const repairStartDate = payload.repair_start_date
+    ? new Date(payload.repair_start_date)
+    : null;
   const repairCompletionDate = payload.repair_completion_date
     ? new Date(payload.repair_completion_date)
     : null;
 
   if (payload.report_type === "maintenance") {
-    if (!payload.maintenance_subtype || !MAINTENANCE_SUBTYPES.includes(payload.maintenance_subtype)) {
-      throw new FleetServiceError("Mantenimiento requiere subtipo valido.", 400);
+    if (
+      !payload.maintenance_subtype ||
+      !MAINTENANCE_SUBTYPES.includes(payload.maintenance_subtype)
+    ) {
+      throw new FleetServiceError(
+        "Mantenimiento requiere subtipo valido.",
+        400,
+      );
     }
     if (!payload.next_service_date && !payload.next_service_odometer) {
       throw new FleetServiceError(
@@ -193,40 +231,76 @@ function validateTypeBusinessRules(payload) {
     }
   }
   if (payload.report_type === "service") {
-    if (!payload.service_subtype || !SERVICE_SUBTYPES.includes(payload.service_subtype)) {
+    if (
+      !payload.service_subtype ||
+      !SERVICE_SUBTYPES.includes(payload.service_subtype)
+    ) {
       throw new FleetServiceError("Servicio requiere subtipo valido.", 400);
     }
     if (!payload.invoice_number) {
-      throw new FleetServiceError("Servicio requiere numero de factura o ticket.", 400);
+      throw new FleetServiceError(
+        "Servicio requiere numero de factura o ticket.",
+        400,
+      );
     }
   }
   if (payload.report_type === "repair") {
-    if (!payload.repair_priority || !REPAIR_PRIORITIES.includes(payload.repair_priority)) {
+    if (
+      !payload.repair_priority ||
+      !REPAIR_PRIORITIES.includes(payload.repair_priority)
+    ) {
       throw new FleetServiceError("Reparacion requiere prioridad valida.", 400);
     }
-    if (!payload.repair_damage_type || !REPAIR_DAMAGE_TYPES.includes(payload.repair_damage_type)) {
-      throw new FleetServiceError("Reparacion requiere tipo de dano valido.", 400);
+    if (
+      !payload.repair_damage_type ||
+      !REPAIR_DAMAGE_TYPES.includes(payload.repair_damage_type)
+    ) {
+      throw new FleetServiceError(
+        "Reparacion requiere tipo de dano valido.",
+        400,
+      );
     }
     if (!payload.repair_start_date) {
       throw new FleetServiceError("Reparacion requiere fecha de inicio.", 400);
     }
     if (repairStartDate && reportDate && repairStartDate < reportDate) {
-      throw new FleetServiceError("La fecha de inicio no puede ser menor a la fecha del reporte.", 400);
+      throw new FleetServiceError(
+        "La fecha de inicio no puede ser menor a la fecha del reporte.",
+        400,
+      );
     }
-    if (repairStartDate && repairCompletionDate && repairCompletionDate < repairStartDate) {
-      throw new FleetServiceError("La fecha de fin no puede ser menor a la fecha de inicio.", 400);
+    if (
+      repairStartDate &&
+      repairCompletionDate &&
+      repairCompletionDate < repairStartDate
+    ) {
+      throw new FleetServiceError(
+        "La fecha de fin no puede ser menor a la fecha de inicio.",
+        400,
+      );
     }
   }
   if (payload.report_type === "other" && !payload.other_category_label) {
-    throw new FleetServiceError("Tipo otro requiere categoria personalizada.", 400);
+    throw new FleetServiceError(
+      "Tipo otro requiere categoria personalizada.",
+      400,
+    );
   }
 }
 
 function isTableNotFoundError(error) {
-  const codes = [error?.code, error?.meta?.code, error?.cause?.code, error?.originalError?.code];
+  const codes = [
+    error?.code,
+    error?.meta?.code,
+    error?.cause?.code,
+    error?.originalError?.code,
+  ];
   if (codes.includes("42P01")) return true;
   const msg = String(error?.message ?? "").toLowerCase();
-  return msg.includes("42p01") || (msg.includes("relation") && msg.includes("does not exist"));
+  return (
+    msg.includes("42p01") ||
+    (msg.includes("relation") && msg.includes("does not exist"))
+  );
 }
 
 async function withDbErrorMapping(fn, onTableMissing = null) {
@@ -240,12 +314,18 @@ async function withDbErrorMapping(fn, onTableMissing = null) {
           return await fn();
         } catch (retryError) {
           if (isTableNotFoundError(retryError)) {
-            throw new FleetServiceError("Las tablas de reportes no estan disponibles aun.", 503);
+            throw new FleetServiceError(
+              "Las tablas de reportes no estan disponibles aun.",
+              503,
+            );
           }
           throw retryError;
         }
       }
-      throw new FleetServiceError("Las tablas de reportes no estan disponibles aun.", 503);
+      throw new FleetServiceError(
+        "Las tablas de reportes no estan disponibles aun.",
+        503,
+      );
     }
     throw error;
   }
@@ -264,80 +344,6 @@ function mapRowForUi(row) {
             ? "Reparacion"
             : "Otro",
   };
-}
-
-function formatDateEs(value) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("es-MX");
-}
-
-function formatCurrency(value) {
-  const amount = Number(value ?? 0);
-  return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(
-    Number.isFinite(amount) ? amount : 0,
-  );
-}
-
-async function toPdfBuffer(report, parts = []) {
-  if (!pdfDocumentCtorPromise) {
-    pdfDocumentCtorPromise = import("pdfkit")
-      .then((moduleNs) => moduleNs?.default ?? moduleNs?.PDFDocument ?? null)
-      .catch(() => null);
-  }
-  const PDFDocument = await pdfDocumentCtorPromise;
-  if (typeof PDFDocument !== "function") {
-    throw new FleetServiceError(
-      "La generacion de PDF no esta disponible. Falta dependencia de pdf en API.",
-      503,
-    );
-  }
-
-  const doc = new PDFDocument({ margin: 36, size: "A4" });
-  const chunks = [];
-  const done = new Promise((resolve, reject) => {
-    doc.on("data", (chunk) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", reject);
-  });
-
-  doc.fontSize(20).text("Reporte de Flota", { align: "left" });
-  doc.moveDown(0.5);
-  doc.fontSize(11).text(`Folio: ${report.folio}`);
-  doc.text(`Tipo: ${report.report_type_label ?? report.report_type}`);
-  doc.text(`Estado: ${report.status === "finalized" ? "Finalizado" : "Borrador"}`);
-  doc.text(`Fecha: ${formatDateEs(report.report_date)}`);
-  doc.moveDown();
-  doc.fontSize(14).text(report.title ?? "Sin titulo");
-  doc.moveDown(0.5);
-  doc.fontSize(10).text(`Vehiculo: ${report.vehicle_plate ?? "-"}`);
-  doc.text(`Kilometraje: ${report.odometer_km ?? "-"}`);
-  doc.text(`Taller: ${report.workshop_name ?? "-"}`);
-  doc.text(`Factura/Ticket: ${report.invoice_number ?? "-"}`);
-  doc.moveDown();
-  doc.fontSize(11).text("Resumen de costos", { underline: true });
-  doc.text(`Mano de obra: ${formatCurrency(report.labor_cost)}`);
-  doc.text(`Refacciones: ${formatCurrency(report.parts_cost)}`);
-  doc.text(`Total: ${formatCurrency(report.total_cost)}`);
-  doc.moveDown();
-  if (parts.length > 0) {
-    doc.fontSize(11).text("Refacciones / Partes", { underline: true });
-    parts.forEach((part, index) => {
-      doc.text(
-        `${index + 1}. ${part.name} - Cant: ${part.quantity} - Unit: ${formatCurrency(
-          part.unit_cost,
-        )} - Subtotal: ${formatCurrency(part.subtotal)}`,
-      );
-    });
-    doc.moveDown();
-  }
-  if (report.notes) {
-    doc.fontSize(11).text("Observaciones", { underline: true });
-    doc.fontSize(10).text(report.notes);
-  }
-  doc.end();
-  return done;
 }
 
 export function createReportsService({ prisma }) {
@@ -429,7 +435,7 @@ export function createReportsService({ prisma }) {
           id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
           company_id uuid NOT NULL,
           report_id uuid NOT NULL,
-          file_asset_id uuid NOT NULL,
+          file_asset_id text NOT NULL,
           document_type varchar(50) NOT NULL DEFAULT 'document',
           label varchar(200),
           enabled boolean NOT NULL DEFAULT true,
@@ -460,7 +466,14 @@ export function createReportsService({ prisma }) {
 
   const withDb = (fn) => withDbErrorMapping(fn, ensureReportTables);
 
-  async function listReports({ companyId, reportType, page, pageSize, search, status }) {
+  async function listReports({
+    companyId,
+    reportType,
+    page,
+    pageSize,
+    search,
+    status,
+  }) {
     const safeCompanyId = toScopedCompanyUuid(companyId);
     const safeType = normalizeType(reportType);
     const pagination = normalizePagination({ page, pageSize });
@@ -523,7 +536,13 @@ export function createReportsService({ prisma }) {
     };
   }
 
-  async function listReportsAnyType({ companyId, page, pageSize, search, status }) {
+  async function listReportsAnyType({
+    companyId,
+    page,
+    pageSize,
+    search,
+    status,
+  }) {
     const safeCompanyId = toScopedCompanyUuid(companyId);
     const pagination = normalizePagination({ page, pageSize });
     const normalizedStatus = status ? normalizeStatus(status) : null;
@@ -610,8 +629,9 @@ export function createReportsService({ prisma }) {
       return firstRow(rows);
     });
     if (!row) throw new FleetServiceError("Reporte no encontrado.", 404);
-    const partsRows = await withDb(() =>
-      prisma.$queryRaw`
+    const partsRows = await withDb(
+      () =>
+        prisma.$queryRaw`
         SELECT * FROM fleet_report_part
         WHERE report_id = ${safeId} AND company_id = ${safeCompanyId} AND enabled = true
         ORDER BY created_at ASC
@@ -644,10 +664,16 @@ export function createReportsService({ prisma }) {
     const safeCompanyId = toScopedCompanyUuid(companyId);
     const data = normalizeReportPayload(payload, reportType);
     if (data.status && data.status !== "draft") {
-      throw new FleetServiceError("Los reportes nuevos deben crearse en borrador.", 400);
+      throw new FleetServiceError(
+        "Los reportes nuevos deben crearse en borrador.",
+        400,
+      );
     }
     validateTypeBusinessRules(data);
-    const folio = await reserveFolio({ companyId: safeCompanyId, reportType: data.report_type });
+    const folio = await reserveFolio({
+      companyId: safeCompanyId,
+      reportType: data.report_type,
+    });
 
     const row = await withDb(async () => {
       const rows = await prisma.$queryRaw`
@@ -677,8 +703,9 @@ export function createReportsService({ prisma }) {
 
     if (data.parts.length > 0) {
       for (const part of data.parts) {
-        await withDb(() =>
-          prisma.$queryRaw`
+        await withDb(
+          () =>
+            prisma.$queryRaw`
             INSERT INTO fleet_report_part (company_id, report_id, name, quantity, unit_cost, subtotal, notes, enabled)
             VALUES (${safeCompanyId}, ${row.id}, ${part.name}, ${part.quantity}, ${part.unit_cost}, ${part.subtotal}, ${part.notes ?? null}, true)
           `,
@@ -694,20 +721,43 @@ export function createReportsService({ prisma }) {
       before: null,
       after: { ...row, parts: data.parts },
     });
-    return getReport({ companyId: safeCompanyId, id: row.id, reportType: data.report_type });
+    return getReport({
+      companyId: safeCompanyId,
+      id: row.id,
+      reportType: data.report_type,
+    });
   }
 
-  async function updateReport({ companyId, actorId, id, payload, reportType = null }) {
+  async function updateReport({
+    companyId,
+    actorId,
+    id,
+    payload,
+    reportType = null,
+  }) {
     const safeCompanyId = toScopedCompanyUuid(companyId);
     const safeId = normalizeRecordId(id, "Reporte no encontrado.");
-    const before = await getReport({ companyId: safeCompanyId, id: safeId, reportType });
+    const before = await getReport({
+      companyId: safeCompanyId,
+      id: safeId,
+      reportType,
+    });
     if (before.status === "finalized") {
-      throw new FleetServiceError("El reporte esta finalizado. Reabrelo para editarlo.", 409);
+      throw new FleetServiceError(
+        "El reporte esta finalizado. Reabrelo para editarlo.",
+        409,
+      );
     }
     if (payload.status && payload.status !== before.status) {
-      throw new FleetServiceError("Usa finalizar o reabrir para cambiar estado.", 400);
+      throw new FleetServiceError(
+        "Usa finalizar o reabrir para cambiar estado.",
+        400,
+      );
     }
-    const data = normalizeReportPayload({ ...before, ...payload }, before.report_type);
+    const data = normalizeReportPayload(
+      { ...before, ...payload },
+      before.report_type,
+    );
     validateTypeBusinessRules(data);
 
     const updates = Object.entries({
@@ -715,14 +765,21 @@ export function createReportsService({ prisma }) {
       parts_cost: data.parts_cost,
       total_cost: data.total_cost,
       labor_cost: data.labor_cost,
-    }).filter(([key, value]) => UPDATABLE_FIELDS.has(key) && value !== undefined);
+    }).filter(
+      ([key, value]) => UPDATABLE_FIELDS.has(key) && value !== undefined,
+    );
     if (updates.length === 0 && payload.parts === undefined) {
-      throw new FleetServiceError("No hay campos validos para actualizar.", 400);
+      throw new FleetServiceError(
+        "No hay campos validos para actualizar.",
+        400,
+      );
     }
 
     let updated = before;
     if (updates.length > 0) {
-      const setClauses = updates.map(([key], i) => `"${key}" = $${i + 3}`).join(", ");
+      const setClauses = updates
+        .map(([key], i) => `"${key}" = $${i + 3}`)
+        .join(", ");
       const values = updates.map(([, value]) => value);
       updated = await withDb(async () => {
         const rows = await prisma.$queryRawUnsafe(
@@ -740,8 +797,9 @@ export function createReportsService({ prisma }) {
     }
 
     if (payload.parts !== undefined) {
-      await withDb(() =>
-        prisma.$queryRaw`
+      await withDb(
+        () =>
+          prisma.$queryRaw`
           UPDATE fleet_report_part
           SET enabled = false
           WHERE report_id = ${safeId} AND company_id = ${safeCompanyId}
@@ -749,8 +807,9 @@ export function createReportsService({ prisma }) {
       );
       const parts = normalizeParts(payload.parts);
       for (const part of parts) {
-        await withDb(() =>
-          prisma.$queryRaw`
+        await withDb(
+          () =>
+            prisma.$queryRaw`
             INSERT INTO fleet_report_part (company_id, report_id, name, quantity, unit_cost, subtotal, notes, enabled)
             VALUES (${safeCompanyId}, ${safeId}, ${part.name}, ${part.quantity}, ${part.unit_cost}, ${part.subtotal}, ${part.notes ?? null}, true)
           `,
@@ -774,10 +833,20 @@ export function createReportsService({ prisma }) {
     return result;
   }
 
-  async function setReportEnabled({ companyId, actorId, id, enabled, reportType = null }) {
+  async function setReportEnabled({
+    companyId,
+    actorId,
+    id,
+    enabled,
+    reportType = null,
+  }) {
     const safeCompanyId = toScopedCompanyUuid(companyId);
     const safeId = normalizeRecordId(id, "Reporte no encontrado.");
-    const before = await getReport({ companyId: safeCompanyId, id: safeId, reportType });
+    const before = await getReport({
+      companyId: safeCompanyId,
+      id: safeId,
+      reportType,
+    });
     const updated = await withDb(async () => {
       const rows = await prisma.$queryRaw`
         UPDATE fleet_report
@@ -803,7 +872,11 @@ export function createReportsService({ prisma }) {
   async function finalizeReport({ companyId, actorId, id, reportType = null }) {
     const safeCompanyId = toScopedCompanyUuid(companyId);
     const safeId = normalizeRecordId(id, "Reporte no encontrado.");
-    const before = await getReport({ companyId: safeCompanyId, id: safeId, reportType });
+    const before = await getReport({
+      companyId: safeCompanyId,
+      id: safeId,
+      reportType,
+    });
     if (before.status === "finalized") return before;
     validateTypeBusinessRules(before);
     const updated = await withDb(async () => {
@@ -819,7 +892,11 @@ export function createReportsService({ prisma }) {
       return firstRow(rows);
     });
     if (!updated) throw new FleetServiceError("Reporte no encontrado.", 404);
-    const result = await getReport({ companyId: safeCompanyId, id: safeId, reportType });
+    const result = await getReport({
+      companyId: safeCompanyId,
+      id: safeId,
+      reportType,
+    });
     await logAudit({
       actorId,
       entityType: "Report",
@@ -834,7 +911,11 @@ export function createReportsService({ prisma }) {
   async function reopenReport({ companyId, actorId, id, reportType = null }) {
     const safeCompanyId = toScopedCompanyUuid(companyId);
     const safeId = normalizeRecordId(id, "Reporte no encontrado.");
-    const before = await getReport({ companyId: safeCompanyId, id: safeId, reportType });
+    const before = await getReport({
+      companyId: safeCompanyId,
+      id: safeId,
+      reportType,
+    });
     const updated = await withDb(async () => {
       const rows = await prisma.$queryRaw`
         UPDATE fleet_report
@@ -848,7 +929,11 @@ export function createReportsService({ prisma }) {
       return firstRow(rows);
     });
     if (!updated) throw new FleetServiceError("Reporte no encontrado.", 404);
-    const result = await getReport({ companyId: safeCompanyId, id: safeId, reportType });
+    const result = await getReport({
+      companyId: safeCompanyId,
+      id: safeId,
+      reportType,
+    });
     await logAudit({
       actorId,
       entityType: "Report",
@@ -863,8 +948,9 @@ export function createReportsService({ prisma }) {
   async function listReportDocuments({ companyId, reportId }) {
     const safeCompanyId = toScopedCompanyUuid(companyId);
     const safeReportId = normalizeRecordId(reportId, "Reporte no encontrado.");
-    const docs = await withDb(() =>
-      prisma.$queryRaw`
+    const docs = await withDb(
+      () =>
+        prisma.$queryRaw`
         SELECT * FROM fleet_report_document
         WHERE report_id = ${safeReportId} AND company_id = ${safeCompanyId} AND enabled = true
         ORDER BY created_at DESC
@@ -874,19 +960,27 @@ export function createReportsService({ prisma }) {
     const fileAssetIds = docs.map((d) => d.file_asset_id).filter(Boolean);
     const assets =
       fileAssetIds.length > 0
-        ? await prisma.fileAsset.findMany({ where: { id: { in: fileAssetIds } } })
+        ? await prisma.fileAsset.findMany({
+            where: { id: { in: fileAssetIds } },
+          })
         : [];
-    const assetMap = Object.fromEntries(assets.map((asset) => [asset.id, asset]));
+    const assetMap = Object.fromEntries(
+      assets.map((asset) => [asset.id, asset]),
+    );
     return {
-      data: docs.map((doc) => ({ ...doc, file_asset: assetMap[doc.file_asset_id] ?? null })),
+      data: docs.map((doc) => ({
+        ...doc,
+        file_asset: assetMap[doc.file_asset_id] ?? null,
+      })),
     };
   }
 
   async function listReportParts({ companyId, reportId }) {
     const safeCompanyId = toScopedCompanyUuid(companyId);
     const safeReportId = normalizeRecordId(reportId, "Reporte no encontrado.");
-    const rows = await withDb(() =>
-      prisma.$queryRaw`
+    const rows = await withDb(
+      () =>
+        prisma.$queryRaw`
         SELECT *
         FROM fleet_report_part
         WHERE report_id = ${safeReportId}
@@ -946,22 +1040,31 @@ export function createReportsService({ prisma }) {
   }
 
   async function generateReportPdf({ companyId, id, reportType = null }) {
-    const report = await getReport({ companyId, id, reportType });
-    const pdf = await toPdfBuffer(report, Array.isArray(report.parts) ? report.parts : []);
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const report = await getReport({
+      companyId: safeCompanyId,
+      id,
+      reportType,
+    });
+    // Pass the original companyId (CUID) for branding — fleet tables use the derived UUID
+    // but prisma.company uses the raw CUID from the membership context.
+    const pdf = await buildReportPdfBuffer({ prisma, companyId, report });
     return { report, pdf };
   }
 
   async function purgeLegacyMaintenanceData({ companyId, actorId }) {
     const safeCompanyId = toScopedCompanyUuid(companyId);
-    const maintenance = await withDb(() =>
-      prisma.$executeRaw`
+    const maintenance = await withDb(
+      () =>
+        prisma.$executeRaw`
         UPDATE fleet_maintenance
         SET enabled = false, updated_at = now()
         WHERE company_id = ${safeCompanyId} AND enabled = true
       `,
     );
-    const maintenanceDocs = await withDb(() =>
-      prisma.$executeRaw`
+    const maintenanceDocs = await withDb(
+      () =>
+        prisma.$executeRaw`
         UPDATE fleet_maintenance_document
         SET enabled = false
         WHERE company_id = ${safeCompanyId} AND enabled = true
@@ -996,4 +1099,3 @@ export function createReportsService({ prisma }) {
     purgeLegacyMaintenanceData,
   };
 }
-

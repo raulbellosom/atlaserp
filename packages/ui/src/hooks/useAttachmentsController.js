@@ -823,6 +823,7 @@ export function useAttachmentsController({
     openPending,
     openAssociated,
     downloadAssociated,
+    resolveSignedUrl,
     closeViewer,
     setError: setGlobalError,
     setNotice,

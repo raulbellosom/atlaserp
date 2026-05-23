@@ -285,18 +285,47 @@ function resolveNavItem(module, moduleRoutePath, collectionPath, entitySegment) 
   const nav = module?.navigation ?? module?.manifest?.navigation ?? [];
   if (!Array.isArray(nav) || nav.length === 0) return null;
   const normalizedRoute = normalizePath(moduleRoutePath);
+
+  // Check children first (absolute paths from manifest, most specific match)
+  for (const item of nav) {
+    if (!Array.isArray(item.children)) continue;
+    const childMatch = item.children.find(
+      (child) => normalizePath(child?.path ?? "") === normalizedRoute,
+    );
+    if (childMatch) return childMatch;
+  }
+
+  // Top-level exact match (relative paths after normalizeModuleNavigation)
   const exact = nav.find(
     (item) => normalizePath(item?.path ?? "") === normalizedRoute,
   );
   if (exact) return exact;
+
   if (collectionPath) {
     const normalizedCollection = normalizePath(`/${collectionPath}`);
+    for (const item of nav) {
+      if (!Array.isArray(item.children)) continue;
+      const childMatch = item.children.find((child) =>
+        normalizePath(child?.path ?? "").endsWith(normalizedCollection),
+      );
+      if (childMatch) return childMatch;
+    }
     const byCollection = nav.find((item) =>
       normalizePath(item?.path ?? "").endsWith(normalizedCollection),
     );
     if (byCollection) return byCollection;
   }
+
   if (entitySegment) {
+    for (const item of nav) {
+      if (!Array.isArray(item.children)) continue;
+      const childMatch = item.children.find((child) =>
+        normalizePath(child?.path ?? "")
+          .split("/")
+          .includes(entitySegment),
+      );
+      if (childMatch) return childMatch;
+    }
     const partial = nav.find((item) =>
       normalizePath(item?.path ?? "")
         .split("/")
@@ -304,6 +333,7 @@ function resolveNavItem(module, moduleRoutePath, collectionPath, entitySegment) 
     );
     if (partial) return partial;
   }
+
   return null;
 }
 
@@ -322,10 +352,13 @@ function resolveEmptyLabel(entitySegment, navItem) {
   return null;
 }
 
-function resolvePageDescription(tableBlueprint, module) {
+function resolvePageDescription(tableBlueprint, module, navItem) {
   const blueprintDesc =
     tableBlueprint?.schema?.description ?? tableBlueprint?.description ?? null;
   if (blueprintDesc) return blueprintDesc;
+  // When a specific navItem was resolved (especially a child), the module
+  // description is too generic — omit it so the title stands on its own.
+  if (navItem) return null;
   return module?.description ?? module?.manifest?.description ?? null;
 }
 
@@ -576,6 +609,25 @@ export function BlueprintCrudScreen() {
     [location.pathname, moduleKey, moduleRows, routeInfo],
   );
 
+  // True when a sidebar nav group's children handle sub-navigation for this path.
+  // In that case, the in-page tab bar is suppressed (sidebar IS the navigation).
+  const navItemHasChildren = useMemo(() => {
+    const nav = module?.navigation ?? module?.manifest?.navigation ?? [];
+    const pathname = normalizePath(location.pathname);
+    return nav.some((item) => {
+      if (!item.children?.length) return false;
+      return item.children.some((child) => {
+        const childPath = normalizePath(child.path ?? "");
+        if (!childPath) return false;
+        return (
+          pathname === childPath || pathname.startsWith(childPath + "/")
+        );
+      });
+    });
+  }, [module, location.pathname]);
+
+  const showTabBar = Boolean(groupedTabs?.tabs?.length) && !navItemHasChildren;
+
   useEffect(() => {
     if (!groupedTabs?.shouldRedirect || !groupedTabs.defaultPath) return;
     navigate(groupedTabs.defaultPath, { replace: true });
@@ -738,7 +790,7 @@ export function BlueprintCrudScreen() {
     resolvePageTitle(selection.tableBlueprint, navItem),
   );
   const pageDescription = normalizeSpanishLabel(
-    resolvePageDescription(selection.tableBlueprint, module),
+    resolvePageDescription(selection.tableBlueprint, module, navItem),
   );
 
   const canCreate =
@@ -752,9 +804,31 @@ export function BlueprintCrudScreen() {
 
   return (
     <div className="flex flex-col">
-      <div className="p-4 md:p-6 space-y-6">
-        {groupedTabs?.tabs?.length ? (
-          <div className="flex flex-wrap items-center gap-2">
+      {/* List-mode header: only shown for the main listing view, not form/detail/edit.
+          AtlasCrudView renders its own compact header for create/detail/edit modes. */}
+      {routeInfo.initialMode === "list" && (
+        <div className="p-4 md:p-6 pb-0 space-y-4">
+          <PageHeader
+            eyebrow={moduleName || undefined}
+            title={pageTitle}
+            description={pageDescription || undefined}
+            className="pb-2"
+            actions={
+              canCreate && createPath ? (
+                <Button onClick={() => navigate(createPath)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  {createLabel}
+                </Button>
+              ) : undefined
+            }
+          />
+        </div>
+      )}
+
+      {/* Underline tab bar — only when sidebar children do NOT handle navigation */}
+      {showTabBar ? (
+        <div className="px-4 md:px-6 mt-2 border-b border-[hsl(var(--border))]">
+          <div className="flex items-end gap-0 -mb-px">
             {groupedTabs.tabs.map((tab) => {
               const isActive = tab.path === groupedTabs.activePath;
               return (
@@ -762,33 +836,26 @@ export function BlueprintCrudScreen() {
                   key={tab.path}
                   type="button"
                   onClick={() => navigate(tab.path)}
-                  className={`inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                  className={`px-4 py-2.5 text-sm font-medium transition-colors duration-150 border-b-2 whitespace-nowrap cursor-pointer ${
                     isActive
-                      ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
-                      : "border-[hsl(var(--border))] bg-[hsl(var(--background))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]"
+                      ? "text-[hsl(var(--foreground))]"
+                      : "border-b-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
                   }`}
+                  style={
+                    isActive
+                      ? { borderBottomColor: module?.color ?? "hsl(var(--primary))" }
+                      : {}
+                  }
                 >
                   {tab.label}
                 </button>
               );
             })}
           </div>
-        ) : null}
+        </div>
+      ) : null}
 
-        <PageHeader
-          eyebrow={moduleName || undefined}
-          title={pageTitle}
-          description={pageDescription || undefined}
-          actions={
-            canCreate && createPath ? (
-              <Button onClick={() => navigate(createPath)}>
-                <Plus className="mr-2 h-4 w-4" />
-                {createLabel}
-              </Button>
-            ) : undefined
-          }
-        />
-
+      <div className="p-4 md:p-6 space-y-6 pt-4">
         {missingComponentRefs.length > 0 ? (
           <Card className="border-amber-400/40 bg-amber-50/60">
             <CardHeader>

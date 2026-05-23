@@ -4,6 +4,7 @@
 
 import VehicleStatusBadge from "./VehicleStatusBadge.jsx";
 import ReportStatusBadge from "./ReportStatusBadge.jsx";
+import DriverStatusBadge from "./DriverStatusBadge.jsx";
 
 /**
  * @param {{ register: (key: string, component: unknown) => void }} registry
@@ -11,4 +12,5 @@ import ReportStatusBadge from "./ReportStatusBadge.jsx";
 export function register(registry) {
   registry.register("custom.fleet:VehicleStatusBadge", VehicleStatusBadge);
   registry.register("custom.fleet:ReportStatusBadge", ReportStatusBadge);
+  registry.register("custom.fleet:DriverStatusBadge", DriverStatusBadge);
 }

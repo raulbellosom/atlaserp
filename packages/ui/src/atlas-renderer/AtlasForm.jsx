@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as LucideIcons from "lucide-react";
+import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
 import {
@@ -649,11 +650,9 @@ export function AtlasForm({
 
       onSuccess?.(nextResult);
     } catch (err) {
-      setSubmitError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo guardar la información.",
-      );
+      const message = err instanceof Error ? err.message : "No se pudo guardar la información.";
+      setSubmitError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -970,10 +969,10 @@ export function AtlasForm({
             recordId={recordId}
             config={{
               ...(section.attachments ?? {}),
-              label: section.title,
-              placement: section.placement ?? "embedded",
+              placement: "embedded",
             }}
             context="form"
+            showHeading={false}
             onControllerReady={(controller) =>
               registerAttachmentsController(section.id, controller)
             }
@@ -1082,13 +1081,6 @@ export function AtlasForm({
           </div>
         ) : null}
       </div>
-
-      {submitError && (
-        <Alert variant="destructive">
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{submitError}</AlertDescription>
-        </Alert>
-      )}
 
       <Dialog
         modal={inlineCreateDepth === 0}

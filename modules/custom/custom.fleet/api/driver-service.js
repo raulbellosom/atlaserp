@@ -124,12 +124,14 @@ export function createDriverService({ prisma }) {
 
     const [rows, totalRows] = await withDbErrorMapping(async () => {
       const dataRows = await prisma.$queryRawUnsafe(
-        `SELECT *, first_name || ' ' || last_name AS full_name
-         FROM fleet_driver
-         WHERE company_id = $1
-           AND enabled = true
-           AND ($2::text IS NULL OR status = $2)
-           AND ($3::text IS NULL OR first_name ILIKE $3 OR last_name ILIKE $3 OR license_number ILIKE $3 OR phone ILIKE $3)
+        `SELECT fd.*, fd.first_name || ' ' || fd.last_name AS full_name,
+                v.plate AS assigned_plate
+         FROM fleet_driver fd
+         LEFT JOIN fleet_vehicle v ON v.driver_id = fd.id AND v.company_id = fd.company_id AND v.enabled = true
+         WHERE fd.company_id = $1
+           AND fd.enabled = true
+           AND ($2::text IS NULL OR fd.status = $2)
+           AND ($3::text IS NULL OR fd.first_name ILIKE $3 OR fd.last_name ILIKE $3 OR fd.license_number ILIKE $3 OR fd.phone ILIKE $3)
          ORDER BY ${sortCol} ${sortDirection}
          LIMIT $4 OFFSET $5`,
         safeCompanyId, normalizedStatus, likeValue, pagination.pageSize, pagination.offset

@@ -31,6 +31,11 @@ export default defineAtlasModule({
       checksum:
         "38ade2acaee2b61280ff17c46e238f8f9cfe4bb0c3b07f4f3d067851d5eec709",
     },
+    {
+      path: "./migrations/V007_report_document_file_asset_id_text.sql",
+      checksum:
+        "01bad3ccced4ef07cbfa35bc2bd257465f1552c2ef65625e4212a58b2c378770",
+    },
   ],
   models: [
     "./models/vehicle.model.js",
@@ -260,6 +265,11 @@ export default defineAtlasModule({
       icon: "ClipboardList",
       layout: "main",
       permissionKey: "fleet.reports.read",
+      children: [
+        { label: "Mantenimiento", path: "/app/m/custom.fleet/reports/maintenance", permissionKey: "fleet.reports.read" },
+        { label: "Servicio",      path: "/app/m/custom.fleet/reports/service",      permissionKey: "fleet.reports.read" },
+        { label: "Reparacion",    path: "/app/m/custom.fleet/reports/repair",       permissionKey: "fleet.reports.read" },
+      ],
     },
     {
       label: "Choferes",
@@ -271,9 +281,15 @@ export default defineAtlasModule({
     {
       label: "Catalogos",
       path: "/app/m/custom.fleet/catalogs",
-      icon: "BookOpen",
+      icon: "Layers",
       layout: "main",
       permissionKey: "fleet.catalogs.read",
+      children: [
+        { label: "Tipos de vehiculo",       path: "/app/m/custom.fleet/catalogs/vehicle-types",      permissionKey: "fleet.catalogs.read" },
+        { label: "Marcas",                  path: "/app/m/custom.fleet/catalogs/vehicle-brands",     permissionKey: "fleet.catalogs.read" },
+        { label: "Modelos",                 path: "/app/m/custom.fleet/catalogs/vehicle-models",     permissionKey: "fleet.catalogs.read" },
+        { label: "Tipos de mantenimiento",  path: "/app/m/custom.fleet/catalogs/maintenance-types",  permissionKey: "fleet.catalogs.read" },
+      ],
     },
   ],
 });

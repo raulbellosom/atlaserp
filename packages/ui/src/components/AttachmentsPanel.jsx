@@ -202,14 +202,36 @@ function PendingCard({ item, hasRecord, onOpen, onRetry, onRemove, busy }) {
   );
 }
 
-function AssociatedCard({ item, onOpen, onDownload, onRemove, opening, downloading, removing, canWrite }) {
+function AssociatedCard({
+  item,
+  previewUrl = null,
+  onOpen,
+  onDownload,
+  onRemove,
+  opening,
+  downloading,
+  removing,
+  canWrite,
+}) {
   const typeStyle = getTypeStyle(item);
   const sizeText = item?.sizeBytes != null ? formatBytes(item.sizeBytes) : null;
   const dateText = item?.createdAt ? formatDate(item.createdAt) : null;
 
   return (
     <article className="group flex items-center gap-2.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2.5 py-2 transition-colors hover:bg-[hsl(var(--muted))]/30">
-      <FileVisual item={item} typeStyle={typeStyle} />
+      {previewUrl ? (
+        <button
+          type="button"
+          onClick={() => onOpen(item)}
+          className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          title="Abrir vista previa"
+          aria-label={`Abrir vista previa de ${item.fileName ?? "archivo"}`}
+        >
+          <FileVisual item={{ ...item, previewUrl }} typeStyle={typeStyle} />
+        </button>
+      ) : (
+        <FileVisual item={item} typeStyle={typeStyle} />
+      )}
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-[hsl(var(--foreground))]" title={item.fileName}>
@@ -251,6 +273,7 @@ export function AttachmentsPanel({
   context = "detail",
   disabled = false,
   readOnly = false,
+  showHeading = true,
   className = "",
   onError,
   onChange,
@@ -275,6 +298,8 @@ export function AttachmentsPanel({
   const [downloadingId, setDownloadingId] = useState(null);
   const [openingPendingId, setOpeningPendingId] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [thumbUrlsByAssetId, setThumbUrlsByAssetId] = useState({});
+  const [viewerIndex, setViewerIndex] = useState(0);
   const fileInputRef = useRef(null);
   const dropzonePlacement = normalizePlacement(config?.placement);
 
@@ -293,6 +318,49 @@ export function AttachmentsPanel({
   const canChooseFiles =
     controller.canUpload && !disabled && !readOnly && (context !== "detail" || hasRecord);
   const canManageAssociations = hasRecord && Boolean(config?.addPath && config?.removePath);
+
+  const viewerFiles = useMemo(
+    () =>
+      controller.associatedItems.map((item) => ({
+        ...item,
+        id: item.fileAssetId ?? item.id,
+        originalName: item.fileName ?? "Archivo",
+        signedUrl:
+          item.signedUrl ??
+          (item.fileAssetId ? thumbUrlsByAssetId[item.fileAssetId] ?? null : null),
+      })),
+    [controller.associatedItems, thumbUrlsByAssetId],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const imageItems = controller.associatedItems.filter((item) =>
+      String(item?.mimeType ?? "").startsWith("image/"),
+    );
+    if (imageItems.length === 0) return () => {};
+
+    async function loadThumbs() {
+      for (const item of imageItems) {
+        const assetId = item.fileAssetId;
+        if (!assetId) continue;
+        if (thumbUrlsByAssetId[assetId]) continue;
+        try {
+          const url = await controller.resolveSignedUrl(assetId);
+          if (cancelled || !url) continue;
+          setThumbUrlsByAssetId((prev) =>
+            prev[assetId] ? prev : { ...prev, [assetId]: url },
+          );
+        } catch {
+          // Ignore thumbnail resolution failures.
+        }
+      }
+    }
+
+    loadThumbs();
+    return () => {
+      cancelled = true;
+    };
+  }, [controller.associatedItems, controller.resolveSignedUrl, thumbUrlsByAssetId]);
 
   const handleFilesPicked = async (filesLike) => {
     await controller.queueFiles(filesLike, {
@@ -349,7 +417,14 @@ export function AttachmentsPanel({
 
   const handleOpenAssociated = async (item) => {
     setOpeningId(item.id);
-    await controller.openAssociated(item);
+    const index = controller.associatedItems.findIndex((entry) => entry.id === item.id);
+    if (index >= 0) setViewerIndex(index);
+    const preloadedUrl = item.fileAssetId
+      ? thumbUrlsByAssetId[item.fileAssetId] ?? null
+      : null;
+    await controller.openAssociated(
+      preloadedUrl ? { ...item, signedUrl: preloadedUrl } : item,
+    );
     setOpeningId(null);
   };
 
@@ -387,7 +462,7 @@ export function AttachmentsPanel({
 
       <div className="space-y-4">
         <div className="space-y-0.5">
-          <h4 className="text-sm font-semibold text-[hsl(var(--foreground))]">{heading}</h4>
+          {showHeading && <h4 className="text-sm font-semibold text-[hsl(var(--foreground))]">{heading}</h4>}
           {!hasRecord && context !== "detail" && (
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
               Los archivos se guardarán después de crear el registro.
@@ -513,6 +588,9 @@ export function AttachmentsPanel({
                 <AssociatedCard
                   key={item.id}
                   item={item}
+                  previewUrl={
+                    item.fileAssetId ? thumbUrlsByAssetId[item.fileAssetId] ?? null : null
+                  }
                   onOpen={handleOpenAssociated}
                   onDownload={handleDownloadAssociated}
                   onRemove={handleRemoveAssociated}
@@ -531,6 +609,18 @@ export function AttachmentsPanel({
         open={Boolean(controller.viewerItem)}
         onClose={controller.closeViewer}
         file={controller.viewerItem}
+        files={viewerFiles}
+        activeIndex={viewerIndex}
+        onActiveIndexChange={(nextIndex) => {
+          const target = controller.associatedItems[nextIndex];
+          if (!target) return;
+          handleOpenAssociated(target);
+        }}
+        onResolveFile={async (item) => {
+          if (item?.signedUrl) return item.signedUrl;
+          if (!item?.fileAssetId) return null;
+          return controller.resolveSignedUrl(item.fileAssetId);
+        }}
         title="Documento"
       />
     </div>

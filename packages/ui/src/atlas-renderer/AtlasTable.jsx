@@ -77,6 +77,19 @@ function joinUrl(baseUrl, apiPath) {
   return `${base}${path}`;
 }
 
+function replacePathTokens(pathTemplate, tokenMap) {
+  let path = String(pathTemplate ?? "");
+  for (const [key, rawValue] of Object.entries(tokenMap ?? {})) {
+    const safeValue = encodeURIComponent(String(rawValue ?? "").trim());
+    path = path.replace(new RegExp(`:${key}\\b`, "g"), safeValue);
+  }
+  return path;
+}
+
+function hasUnresolvedPathToken(path) {
+  return /:[a-zA-Z0-9_.-]+\b/.test(String(path ?? ""));
+}
+
 function isBlank(value) {
   return value === undefined || value === null || String(value).trim() === "";
 }
@@ -122,6 +135,10 @@ function normalizeColumns(schema) {
         component: entry.component ?? null,
         type: entry.type ?? null,
         options: Array.isArray(entry.options) ? entry.options : null,
+        hrefTemplate:
+          typeof entry.hrefTemplate === "string" && entry.hrefTemplate.trim()
+            ? entry.hrefTemplate.trim()
+            : null,
         sortable: Boolean(entry.sortable),
         isLink,
       };
@@ -302,23 +319,40 @@ export function AtlasTable({
   const [columnPanelOpen, setColumnPanelOpen] = useState(false);
 
   // ── Preference load ────────────────────────────────────────────────────────
-  const preferenceLoadedRef = useRef(false);
+  const preferenceScopeRef = useRef("");
+  const preferenceScope = `${apiBaseUrl ?? ""}::${token ?? ""}::${tableKey ?? ""}`;
   useEffect(() => {
-    if (!tableKey || !token || !apiBaseUrl || preferenceLoadedRef.current) return;
-    preferenceLoadedRef.current = true;
+    if (!tableKey || !token || !apiBaseUrl) return;
+    if (preferenceScopeRef.current === preferenceScope) return;
+    preferenceScopeRef.current = preferenceScope;
+    let cancelled = false;
     const prefUrl = `${apiBaseUrl.replace(/\/+$/, "")}/profile/me/table-preferences/${encodeURIComponent(tableKey)}`;
     fetch(prefUrl, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.ok ? r.json() : null)
-      .then((json) => { if (json?.data) setFromConfig(json.data); })
-      .catch(() => {});
-  }, [apiBaseUrl, tableKey, token, setFromConfig]);
+      .then((json) => {
+        if (cancelled) return;
+        if (json?.data) {
+          setFromConfig(json.data);
+          return;
+        }
+        resetToDefaults();
+      })
+      .catch(() => {
+        if (cancelled) return;
+        resetToDefaults();
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBaseUrl, tableKey, token, setFromConfig, resetToDefaults, preferenceScope]);
 
   // ── Preference save (debounced 800ms) ─────────────────────────────────────
   const saveTimerRef = useRef(null);
   const pendingSaveRef = useRef(false);
 
   const schedulePreferenceSave = useCallback(() => {
-    if (!tableKey || !token || !apiBaseUrl || !preferenceLoadedRef.current) return;
+    if (!tableKey || !token || !apiBaseUrl) return;
+    if (preferenceScopeRef.current !== preferenceScope) return;
     pendingSaveRef.current = true;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
@@ -332,7 +366,7 @@ export function AtlasTable({
         body: JSON.stringify(config),
       }).catch(() => {});
     }, 800);
-  }, [apiBaseUrl, tableKey, token]);
+  }, [apiBaseUrl, tableKey, token, preferenceScope]);
 
   const handleReorderColumns = useCallback((activeKey, overKey) => {
     reorderColumns(activeKey, overKey);
@@ -680,6 +714,12 @@ export function AtlasTable({
                   </TableCell>
                   {visibleColumns.map((col) => {
                     const value = getByPath(row, col.field);
+                    const colHref =
+                      col.hrefTemplate
+                        ? replacePathTokens(col.hrefTemplate, row)
+                        : null;
+                    const hasColumnHref =
+                      Boolean(colHref) && !hasUnresolvedPathToken(colHref);
                     let cellContent;
                     if (col.component && componentRegistry) {
                       const Comp = componentRegistry.resolve(col.component);
@@ -690,6 +730,15 @@ export function AtlasTable({
                       );
                     } else if (col.type === "color") {
                       cellContent = <ColorCell value={value} />;
+                    } else if (hasColumnHref && !col.component) {
+                      cellContent = (
+                        <a
+                          href={colHref}
+                          className="text-left font-medium hover:underline focus:outline-none focus-visible:underline"
+                        >
+                          {renderValue(value)}
+                        </a>
+                      );
                     } else if (col.isLink && onView && !col.component) {
                       cellContent = (
                         <button
@@ -711,9 +760,14 @@ export function AtlasTable({
                     } else {
                       cellContent = renderValue(value);
                     }
+                    const truncateCell = !col.component && col.type !== "color";
                     return (
-                      <TableCell key={`${col.key}-${rowIndex}`}>
-                        {cellContent}
+                      <TableCell key={`${col.key}-${rowIndex}`} className={truncateCell ? "max-w-50" : undefined}>
+                        {truncateCell ? (
+                          <div className="truncate" title={typeof cellContent === "string" ? cellContent : undefined}>
+                            {cellContent}
+                          </div>
+                        ) : cellContent}
                       </TableCell>
                     );
                   })}
@@ -738,9 +792,10 @@ export function AtlasTable({
     const primaryCol = visibleColumns[0] ?? null;
     const statusCol =
       visibleColumns.find((c) => /^(status|estado)$/i.test(c.field)) ?? null;
+    const colorCol = visibleColumns.find((c) => c.type === "color") ?? null;
     const subtitleCols = visibleColumns
-      .filter((c) => c !== primaryCol && c !== statusCol)
-      .slice(0, 2);
+      .filter((c) => c !== primaryCol && c !== statusCol && c !== colorCol)
+      .slice(0, 3);
     const badgeCol = statusCol ?? visibleColumns[3] ?? null;
 
     if (loading) {
@@ -800,6 +855,15 @@ export function AtlasTable({
               ? titleVal.charAt(0).toUpperCase()
               : "#";
           const menuItems = rowMenuItems(row);
+          const itemColorHex = colorCol
+            ? (resolveColorHex(getByPath(row, colorCol.field)) || null)
+            : null;
+          const avatarBg = itemColorHex
+            ? `${itemColorHex}33`
+            : accentColor
+              ? `${accentColor}26`
+              : "hsl(var(--muted))";
+          const avatarText = itemColorHex ?? accentColor ?? "hsl(var(--muted-foreground))";
 
           return (
             <div
@@ -814,13 +878,11 @@ export function AtlasTable({
               />
               <div
                 className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
-                style={{
-                  backgroundColor: accentColor ? `${accentColor}26` : "hsl(var(--muted))",
-                }}
+                style={{ backgroundColor: avatarBg }}
               >
                 <span
                   className="text-sm font-semibold"
-                  style={{ color: accentColor ?? "hsl(var(--muted-foreground))" }}
+                  style={{ color: avatarText }}
                 >
                   {initials}
                 </span>
@@ -912,6 +974,11 @@ export function AtlasTable({
       );
     }
 
+    const cardColorCol = visibleColumns.find((c) => c.type === "color") ?? null;
+    const resolveItemColor = cardColorCol
+      ? (row) => resolveColorHex(getByPath(row, cardColorCol.field)) || null
+      : null;
+
     return (
       <AtlasCardView
         columns={visibleColumns}
@@ -923,6 +990,7 @@ export function AtlasTable({
         editActionLabel={editActionLabel}
         deleteActionLabel={deleteActionLabel}
         accentColor={accentColor}
+        resolveItemColor={resolveItemColor}
         onView={onView}
         onEdit={onEdit}
         onDelete={onDelete}

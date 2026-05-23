@@ -12,6 +12,7 @@ export default defineView({
       {
         label: 'Identificacion del vehiculo',
         icon: 'Truck',
+        collapsible: true,
         fields: [
           {
             field: 'plate',
@@ -33,11 +34,6 @@ export default defineView({
               pageSize: 200,
               clearable: true,
               disabledField: 'enabled',
-              displayFields: {
-                badge: 'economic_group_number',
-                title: 'name',
-                subtitle: ['brand_name', 'type_name', 'year'],
-              },
               create: {
                 enabled: true,
                 label: 'Crear modelo de vehiculo',
@@ -76,6 +72,7 @@ export default defineView({
       {
         label: 'Asignacion de conductor',
         icon: 'UserCheck',
+        collapsible: true,
         fields: [
           {
             field: 'driver_id',
@@ -95,6 +92,7 @@ export default defineView({
       {
         label: 'Notas',
         icon: 'FileText',
+        collapsible: true,
         fields: [
           {
             field: 'notes',
@@ -109,6 +107,7 @@ export default defineView({
         type: 'attachments',
         label: 'Documentos del vehiculo',
         placement: 'aside',
+        collapsible: true,
         attachments: {
           createMode: 'stage-until-parent-create',
           editMode: 'upload-immediately',

@@ -86,6 +86,9 @@ export default defineView({
         },
       },
     ],
+    headerActions: [
+      { key: 'download_pdf', label: 'Exportar PDF', method: 'GET', pathTemplate: '/fleet/vehicles/:id/pdf', download: true, downloadFileName: 'vehiculo.pdf', refreshAfter: false, variant: 'outline' },
+    ],
     actions: [
       { label: 'Editar',     permission: 'fleet.vehicles.update' },
       { label: 'Desactivar', permission: 'fleet.vehicles.delete' },
