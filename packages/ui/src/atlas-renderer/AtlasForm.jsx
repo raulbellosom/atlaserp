@@ -634,9 +634,7 @@ export function AtlasForm({
       case "date":
         return (
           <DatePickerField
-            label={field.label}
-            required={field.required}
-            error={fieldErrors[field.name]}
+            {...sharedProps}
             value={value ?? ""}
             onChange={(val) => handleChange(field.name, val ?? "")}
           />
