@@ -241,7 +241,7 @@ function resolveScreen(moduleKey, subPath) {
 export function ModuleOutlet() {
   const { moduleKey, "*": wildcard } = useParams();
   const navigate = useNavigate();
-  const { moduleMap, isLoading } = useRuntimeModules();
+  const { moduleMap, isLoading, isPending, isError, error } = useRuntimeModules();
 
   const module = moduleMap.get(moduleKey) ?? null;
   const subPath = useMemo(() => {
@@ -284,7 +284,29 @@ export function ModuleOutlet() {
     navigate(`/app/m/${module.key}${fallbackPath}`, { replace: true });
   }, [isLoading, module, subPath, navigate]);
 
-  if (isLoading) return <LoadingFallback />;
+  if (isLoading || isPending) return <LoadingFallback />;
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60dvh] gap-4 text-center px-6">
+        <p className="text-lg font-semibold text-[hsl(var(--foreground))]">
+          No se pudo cargar el módulo
+        </p>
+        <p className="text-sm text-[hsl(var(--muted-foreground))]">
+          {error instanceof Error && error.message
+            ? error.message
+            : "Hubo un problema consultando los módulos en runtime."}
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="text-sm hover:underline cursor-pointer"
+          style={{ color: "var(--brand-primary)" }}
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   if (!module) {
     if (SCREEN_MODULE_KEYS.has(moduleKey)) {

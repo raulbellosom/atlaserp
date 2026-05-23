@@ -41,6 +41,11 @@ export default defineModel({
       label: 'Foto (ID de archivo)',
     },
     {
+      name: 'hr_employee_id',
+      type: 'text',
+      label: 'Colaborador RH',
+    },
+    {
       name: 'license_number',
       type: 'text',
       label: 'Numero de licencia',

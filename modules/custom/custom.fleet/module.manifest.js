@@ -36,6 +36,11 @@ export default defineAtlasModule({
       checksum:
         "01bad3ccced4ef07cbfa35bc2bd257465f1552c2ef65625e4212a58b2c378770",
     },
+    {
+      path: "./migrations/V008_driver_photo_hr_link.sql",
+      checksum:
+        "14c2063d9083e6d7b4315df7505b532e49c6d0d02ffa2d581b658f08adc76614",
+    },
   ],
   models: [
     "./models/vehicle.model.js",

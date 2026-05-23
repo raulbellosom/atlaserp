@@ -21,6 +21,19 @@ export default defineView({
         ],
       },
       {
+        id: 'linked_hr_employee',
+        type: 'relation-card',
+        label: 'Vinculo de RH',
+        relationCard: {
+          idField: 'hr_employee_id',
+          titleField: 'hr_employee_name',
+          subtitleFields: ['hr_employee_code'],
+          fallbackTitle: 'Sin colaborador de RH vinculado',
+          hrefTemplate: '/app/m/atlas.hr/hr/employees/:id',
+          icon: 'UserCheck',
+        },
+      },
+      {
         label: 'Licencia de conducir',
         columns: 2,
         fields: [

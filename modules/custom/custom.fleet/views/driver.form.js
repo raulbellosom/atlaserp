@@ -29,6 +29,18 @@ export default defineView({
               { label: 'Suspendido', value: 'suspended' },
             ],
           },
+          {
+            field: 'hr_employee_id',
+            label: 'Vincular con colaborador RH',
+            type: 'relation',
+            relation: {
+              apiPath: '/fleet/drivers/hr-employee-options',
+              labelField: ['full_name', 'employee_code'],
+              labelSeparator: ' · ',
+              clearable: true,
+              pageSize: 50,
+            },
+          },
         ],
       },
       {
@@ -52,7 +64,7 @@ export default defineView({
       {
         id: 'attachments',
         type: 'attachments',
-        label: 'Documentos',
+        label: 'Documentos y foto',
         collapsible: true,
         defaultCollapsed: true,
         attachments: {

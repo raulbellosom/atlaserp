@@ -12,12 +12,19 @@ export default defineView({
     searchable: true,
     searchPlaceholder: 'Buscar chofer...',
     columns: [
+      {
+        field: 'photo_asset_id_resolved',
+        label: 'Foto',
+        sortable: false,
+        component: 'custom.fleet:DriverAvatarCell',
+      },
       { field: 'full_name',           label: 'Nombre completo',  sortable: true,  link: true },
       { field: 'phone',               label: 'Telefono',         sortable: false },
       { field: 'license_number',      label: 'No. Licencia',     sortable: true },
       { field: 'license_type',        label: 'Tipo licencia',    sortable: false },
       { field: 'license_expiry_date', label: 'Vencimiento',      sortable: true, type: 'date' },
       { field: 'assigned_plate',      label: 'Vehiculo',         sortable: false },
+      { field: 'hr_employee_name',    label: 'Colaborador RH',   sortable: false },
       {
         field: 'status',
         label: 'Estado',

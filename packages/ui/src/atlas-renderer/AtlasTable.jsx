@@ -724,7 +724,15 @@ export function AtlasTable({
                     if (col.component && componentRegistry) {
                       const Comp = componentRegistry.resolve(col.component);
                       cellContent = Comp ? (
-                        <Comp {...{ [col.field]: value, value, row }} />
+                        <Comp
+                          {...{
+                            [col.field]: value,
+                            value,
+                            row,
+                            token,
+                            apiBaseUrl,
+                          }}
+                        />
                       ) : (
                         renderValue(value)
                       );

@@ -23,6 +23,12 @@ function getActorIdFromContext(c) {
   return typeof actorId === 'string' && actorId.trim() ? actorId.trim() : null
 }
 
+function normalizeLimit(value, fallback = 30, max = 100) {
+  const parsed = Number.parseInt(String(value ?? fallback), 10)
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback
+  return Math.min(parsed, max)
+}
+
 function handleRouteError(c, err, { fallbackError, route, moduleKey, operation }) {
   if (err instanceof FleetServiceError) return c.json({ error: err.message }, err.status)
   if (process.env.NODE_ENV !== 'production') {
@@ -51,6 +57,59 @@ export function createDriversRouter({ prisma, requirePermission, moduleContext }
       return c.json(result)
     } catch (err) {
       return handleRouteError(c, err, { fallbackError: 'No se pudieron listar los choferes.', route: '/fleet/drivers', moduleKey, operation: 'listDrivers' })
+    }
+  })
+
+  app.get('/fleet/drivers/hr-employee-options', requirePermission('fleet.drivers.read'), async (c) => {
+    try {
+      const companyId = getCompanyIdFromContext(c)
+      if (!companyId) return c.json({ data: [] })
+      const search = String(c.req.query('search') ?? '').trim()
+      const limit = normalizeLimit(c.req.query('pageSize'))
+
+      const rows = await prisma.hrEmployee.findMany({
+        where: {
+          companyId,
+          enabled: true,
+          ...(search
+            ? {
+                OR: [
+                  { firstName: { contains: search, mode: 'insensitive' } },
+                  { lastName: { contains: search, mode: 'insensitive' } },
+                  { employeeCode: { contains: search, mode: 'insensitive' } },
+                  { workEmail: { contains: search, mode: 'insensitive' } },
+                ],
+              }
+            : {}),
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          employeeCode: true,
+          workEmail: true,
+          userProfileId: true,
+        },
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+        take: limit,
+      })
+
+      return c.json({
+        data: rows.map((row) => ({
+          id: row.id,
+          full_name: `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim(),
+          employee_code: row.employeeCode ?? null,
+          work_email: row.workEmail ?? null,
+          user_profile_id: row.userProfileId ?? null,
+        })),
+      })
+    } catch (err) {
+      return handleRouteError(c, err, {
+        fallbackError: 'No se pudieron cargar los colaboradores de RH.',
+        route: '/fleet/drivers/hr-employee-options',
+        moduleKey,
+        operation: 'listHrEmployeeOptions',
+      })
     }
   })
 

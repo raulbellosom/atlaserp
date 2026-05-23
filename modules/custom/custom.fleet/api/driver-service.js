@@ -39,6 +39,12 @@ function normalizeOptionalString(value) {
   return normalized.length > 0 ? normalized : null
 }
 
+function ensureCompanyId(companyId) {
+  const normalized = (typeof companyId === 'string' && companyId.trim()) ? companyId.trim() : null
+  if (!normalized) throw new FleetServiceError('companyId es requerido.', 400)
+  return normalized
+}
+
 function normalizeDriverPayload(data = {}) {
   return {
     ...data,
@@ -48,13 +54,14 @@ function normalizeDriverPayload(data = {}) {
     license_number: data.license_number === undefined ? undefined : String(data.license_number).trim(),
     license_type: data.license_type === undefined ? undefined : String(data.license_type).trim(),
     email: normalizeOptionalString(data.email),
+    photo_asset_id: normalizeOptionalString(data.photo_asset_id),
+    hr_employee_id: normalizeOptionalString(data.hr_employee_id),
     notes: normalizeOptionalString(data.notes),
   }
 }
 
 function toScopedCompanyUuid(companyId) {
-  const normalized = (typeof companyId === 'string' && companyId.trim()) ? companyId.trim() : null
-  if (!normalized) throw new FleetServiceError('companyId es requerido.', 400)
+  const normalized = ensureCompanyId(companyId)
   if (UUID_REGEX.test(normalized)) return normalized.toLowerCase()
   const hash = createHash('sha256').update(`${MODULE_KEY}:${normalized}`).digest('hex')
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`
@@ -106,6 +113,87 @@ function hasOwn(data, key) {
 }
 
 export function createDriverService({ prisma }) {
+  async function enrichDriversWithHrData(rows, rawCompanyId) {
+    if (!Array.isArray(rows) || rows.length === 0) return rows ?? []
+
+    const ids = [...new Set(rows.map((row) => normalizeOptionalString(row?.hr_employee_id)).filter(Boolean))]
+    if (ids.length === 0) return rows
+
+    let hrRows = []
+    try {
+      hrRows = await prisma.hrEmployee.findMany({
+        where: {
+          id: { in: ids },
+          companyId: rawCompanyId,
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          employeeCode: true,
+          userProfileId: true,
+        },
+      })
+    } catch {
+      return rows
+    }
+    const hrMap = new Map(
+      hrRows.map((entry) => [
+        entry.id,
+        {
+          hr_employee_name: `${entry.firstName ?? ''} ${entry.lastName ?? ''}`.trim() || null,
+          hr_employee_code: entry.employeeCode ?? null,
+          linked_user_profile_id: entry.userProfileId ?? null,
+        },
+      ]),
+    )
+
+    return rows.map((row) => {
+      const hrEmployeeId = normalizeOptionalString(row.hr_employee_id)
+      if (!hrEmployeeId) return row
+      const match = hrMap.get(hrEmployeeId)
+      if (!match) return row
+      return { ...row, ...match }
+    })
+  }
+
+  async function validateHrEmployeeLink({ rawCompanyId, hrEmployeeId, currentDriverId = null }) {
+    if (!hrEmployeeId) return
+
+    let employee = null
+    try {
+      employee = await prisma.hrEmployee.findFirst({
+        where: {
+          id: hrEmployeeId,
+          companyId: rawCompanyId,
+        },
+        select: { id: true, enabled: true },
+      })
+    } catch {
+      throw new FleetServiceError('No se pudo validar el colaborador de RH. Revisa que el modulo RH este disponible.', 503)
+    }
+    if (!employee) {
+      throw new FleetServiceError('El colaborador de RH seleccionado no existe en la empresa activa.', 400)
+    }
+    if (!employee.enabled) {
+      throw new FleetServiceError('El colaborador de RH seleccionado esta deshabilitado.', 400)
+    }
+
+    const safeCurrentDriverId = normalizeOptionalString(currentDriverId)
+    const linkedRows = await prisma.$queryRaw`
+      SELECT id
+      FROM fleet_driver
+      WHERE company_id = ${toScopedCompanyUuid(rawCompanyId)}
+        AND enabled = true
+        AND hr_employee_id = ${hrEmployeeId}
+        AND (${safeCurrentDriverId}::text IS NULL OR id <> ${safeCurrentDriverId}::uuid)
+      LIMIT 1
+    `
+    if (Array.isArray(linkedRows) && linkedRows.length > 0) {
+      throw new FleetServiceError('Este colaborador de RH ya esta vinculado a otro chofer.', 409)
+    }
+  }
+
   async function logAudit({ actorId, entityType, entityId, action, before = null, after = null, metadata = null }) {
     await prisma.auditLog.create({
       data: { actorId: actorId ?? null, moduleKey: MODULE_KEY, entityType, entityId: entityId ?? null, action, before, after, metadata },
@@ -114,6 +202,7 @@ export function createDriverService({ prisma }) {
 
   async function listDrivers({ companyId, page, pageSize, search, status, sortBy, sortDir }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
+    const rawCompanyId = ensureCompanyId(companyId)
     const pagination = normalizePagination({ page, pageSize })
     const normalizedStatus = normalizeOptionalString(status)
     const normalizedSearch = normalizeSearch(search)
@@ -125,6 +214,20 @@ export function createDriverService({ prisma }) {
     const [rows, totalRows] = await withDbErrorMapping(async () => {
       const dataRows = await prisma.$queryRawUnsafe(
         `SELECT fd.*, fd.first_name || ' ' || fd.last_name AS full_name,
+                COALESCE(
+                  fd.photo_asset_id,
+                  (
+                    SELECT fdd.file_asset_id
+                    FROM fleet_driver_document fdd
+                    JOIN "FileAsset" fa ON fa.id::text = fdd.file_asset_id::text
+                    WHERE fdd.driver_id::text = fd.id::text
+                      AND fdd.company_id::text = fd.company_id::text
+                      AND fdd.enabled = true
+                      AND fa."mimeType" ILIKE 'image/%'
+                    ORDER BY fdd.created_at DESC
+                    LIMIT 1
+                  )
+                ) AS photo_asset_id_resolved,
                 v.plate AS assigned_plate
          FROM fleet_driver fd
          LEFT JOIN fleet_vehicle v ON v.driver_id = fd.id AND v.company_id = fd.company_id AND v.enabled = true
@@ -147,19 +250,36 @@ export function createDriverService({ prisma }) {
       )
       return [dataRows, countRows]
     })
+    const enrichedRows = await enrichDriversWithHrData(rows, rawCompanyId)
 
     return {
-      data: rows,
+      data: enrichedRows,
       pagination: { page: pagination.page, pageSize: pagination.pageSize, total: toCount(firstRow(totalRows)?.total) },
     }
   }
 
   async function getDriver({ companyId, id }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
+    const rawCompanyId = ensureCompanyId(companyId)
     const safeId = normalizeRecordId(id, 'Chofer no encontrado.')
     const row = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
-        SELECT *, first_name || ' ' || last_name AS full_name
+        SELECT *,
+               first_name || ' ' || last_name AS full_name,
+               COALESCE(
+                 photo_asset_id,
+                 (
+                   SELECT fdd.file_asset_id
+                   FROM fleet_driver_document fdd
+                   JOIN "FileAsset" fa ON fa.id::text = fdd.file_asset_id::text
+                   WHERE fdd.driver_id::text = fleet_driver.id::text
+                     AND fdd.company_id::text = fleet_driver.company_id::text
+                     AND fdd.enabled = true
+                     AND fa."mimeType" ILIKE 'image/%'
+                   ORDER BY fdd.created_at DESC
+                   LIMIT 1
+                 )
+               ) AS photo_asset_id_resolved
         FROM fleet_driver
         WHERE id = ${safeId} AND company_id = ${safeCompanyId}
         LIMIT 1
@@ -167,24 +287,27 @@ export function createDriverService({ prisma }) {
       return firstRow(rows)
     })
     if (!row) throw new FleetServiceError('Chofer no encontrado.', 404)
-    return row
+    const [enriched] = await enrichDriversWithHrData([row], rawCompanyId)
+    return enriched ?? row
   }
 
   async function createDriver({ companyId, actorId, payload }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
+    const rawCompanyId = ensureCompanyId(companyId)
     const data = normalizeDriverPayload(payload)
+    await validateHrEmployeeLink({ rawCompanyId, hrEmployeeId: data.hr_employee_id ?? null })
     try {
       const row = await withDbErrorMapping(async () => {
         const rows = await prisma.$queryRaw`
           INSERT INTO fleet_driver (
             company_id, first_name, last_name, phone, email, photo_asset_id,
-            license_number, license_type, license_expiry_date, status, notes
+            license_number, license_type, license_expiry_date, status, notes, hr_employee_id
           )
           VALUES (
             ${safeCompanyId}, ${data.first_name}, ${data.last_name}, ${data.phone},
             ${data.email ?? null}, ${data.photo_asset_id ?? null},
             ${data.license_number}, ${data.license_type}, ${data.license_expiry_date},
-            ${data.status ?? 'active'}, ${data.notes ?? null}
+            ${data.status ?? 'active'}, ${data.notes ?? null}, ${data.hr_employee_id ?? null}
           )
           RETURNING *, first_name || ' ' || last_name AS full_name
         `
@@ -200,6 +323,7 @@ export function createDriverService({ prisma }) {
 
   async function updateDriver({ companyId, actorId, id, payload }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
+    const rawCompanyId = ensureCompanyId(companyId)
     const safeId = normalizeRecordId(id, 'Chofer no encontrado.')
     const data = normalizeDriverPayload(payload)
 
@@ -213,12 +337,21 @@ export function createDriverService({ prisma }) {
     const hasLicenseExpiryDate = hasOwn(data, 'license_expiry_date') && data.license_expiry_date !== undefined
     const hasStatus = hasOwn(data, 'status') && data.status !== undefined
     const hasNotes = hasOwn(data, 'notes') && data.notes !== undefined
+    const hasHrEmployeeId = hasOwn(data, 'hr_employee_id') && data.hr_employee_id !== undefined
 
-    if (![hasFirstName, hasLastName, hasPhone, hasEmail, hasPhotoAssetId, hasLicenseNumber, hasLicenseType, hasLicenseExpiryDate, hasStatus, hasNotes].some(Boolean)) {
+    if (![hasFirstName, hasLastName, hasPhone, hasEmail, hasPhotoAssetId, hasLicenseNumber, hasLicenseType, hasLicenseExpiryDate, hasStatus, hasNotes, hasHrEmployeeId].some(Boolean)) {
       throw new FleetServiceError('No hay campos validos para actualizar.', 400)
     }
 
-    const before = await getDriver({ companyId: safeCompanyId, id: safeId })
+    if (hasHrEmployeeId) {
+      await validateHrEmployeeLink({
+        rawCompanyId,
+        hrEmployeeId: data.hr_employee_id ?? null,
+        currentDriverId: safeId,
+      })
+    }
+
+    const before = await getDriver({ companyId, id: safeId })
 
     try {
       const updated = await withDbErrorMapping(async () => {
@@ -234,6 +367,7 @@ export function createDriverService({ prisma }) {
               license_expiry_date = CASE WHEN ${hasLicenseExpiryDate} THEN ${data.license_expiry_date ?? null} ELSE license_expiry_date END,
               status = CASE WHEN ${hasStatus} THEN ${data.status ?? null} ELSE status END,
               notes = CASE WHEN ${hasNotes} THEN ${data.notes ?? null} ELSE notes END,
+              hr_employee_id = CASE WHEN ${hasHrEmployeeId} THEN ${data.hr_employee_id ?? null} ELSE hr_employee_id END,
               updated_at = now()
           WHERE id = ${safeId} AND company_id = ${safeCompanyId}
           RETURNING *, first_name || ' ' || last_name AS full_name
@@ -252,7 +386,7 @@ export function createDriverService({ prisma }) {
   async function setDriverEnabled({ companyId, actorId, id, enabled }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
     const safeId = normalizeRecordId(id, 'Chofer no encontrado.')
-    const before = await getDriver({ companyId: safeCompanyId, id: safeId })
+    const before = await getDriver({ companyId, id: safeId })
 
     const updated = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
@@ -275,7 +409,9 @@ export function createDriverService({ prisma }) {
     const docs = await withDbErrorMapping(() =>
       prisma.$queryRaw`
         SELECT * FROM fleet_driver_document
-        WHERE driver_id = ${safeDriverId} AND company_id = ${safeCompanyId} AND enabled = true
+        WHERE driver_id::text = ${safeDriverId}::text
+          AND company_id::text = ${safeCompanyId}::text
+          AND enabled = true
         ORDER BY created_at DESC
       `
     )
@@ -345,14 +481,37 @@ export function createDriverService({ prisma }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
     const safeDriverId = normalizeRecordId(driverId, 'Chofer no encontrado.')
 
+    const fileAssetId = normalizeOptionalString(payload.file_asset_id)
+    if (!fileAssetId) throw new FleetServiceError('Archivo invalido.', 400)
+
     const doc = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
         INSERT INTO fleet_driver_document (company_id, driver_id, file_asset_id, document_type, label)
-        VALUES (${safeCompanyId}, ${safeDriverId}, ${payload.file_asset_id}, ${payload.document_type ?? 'document'}, ${payload.label ?? null})
+        VALUES (${safeCompanyId}, ${safeDriverId}, ${fileAssetId}, ${payload.document_type ?? 'document'}, ${payload.label ?? null})
         RETURNING *
       `
       return firstRow(rows)
     })
+
+    const asset = await prisma.fileAsset.findUnique({
+      where: { id: fileAssetId },
+      select: { id: true, mimeType: true },
+    })
+    if (asset?.mimeType?.startsWith('image/')) {
+      await withDbErrorMapping(() =>
+        prisma.$queryRaw`
+          UPDATE fleet_driver
+          SET photo_asset_id = CASE
+            WHEN photo_asset_id IS NULL OR TRIM(photo_asset_id) = ''
+              THEN ${fileAssetId}
+            ELSE photo_asset_id
+          END,
+          updated_at = now()
+          WHERE id = ${safeDriverId}
+            AND company_id = ${safeCompanyId}
+        `,
+      )
+    }
 
     await logAudit({ actorId, entityType: 'Driver', entityId: safeDriverId, action: 'fleet.driver.document.add', before: null, after: doc })
     return doc
@@ -367,7 +526,9 @@ export function createDriverService({ prisma }) {
       const rows = await prisma.$queryRaw`
         UPDATE fleet_driver_document
         SET enabled = false
-        WHERE id = ${safeDocId} AND driver_id = ${safeDriverId} AND company_id = ${safeCompanyId}
+        WHERE id = ${safeDocId}
+          AND driver_id::text = ${safeDriverId}::text
+          AND company_id::text = ${safeCompanyId}::text
         RETURNING *
       `
       return firstRow(rows)

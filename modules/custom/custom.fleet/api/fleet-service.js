@@ -158,7 +158,16 @@ export function createFleetService({ prisma }) {
           (SELECT COUNT(*)::int FROM fleet_vehicle_document fvd2
            JOIN "FileAsset" fa ON fa.id::text = fvd2.file_asset_id::text
            WHERE fvd2.vehicle_id::text = fv.id::text AND fvd2.company_id::text = fv.company_id::text AND fvd2.enabled = true
-           AND fa."mimeType" ILIKE 'image/%') AS image_count
+           AND fa."mimeType" ILIKE 'image/%') AS image_count,
+          (SELECT fvd3.file_asset_id
+           FROM fleet_vehicle_document fvd3
+           JOIN "FileAsset" fa3 ON fa3.id::text = fvd3.file_asset_id::text
+           WHERE fvd3.vehicle_id::text = fv.id::text
+             AND fvd3.company_id::text = fv.company_id::text
+             AND fvd3.enabled = true
+             AND fa3."mimeType" ILIKE 'image/%'
+           ORDER BY fvd3.created_at DESC
+           LIMIT 1) AS cover_image_file_asset_id
         FROM fleet_vehicle fv
         LEFT JOIN fleet_vehicle_model vm ON vm.id = fv.vehicle_model_id
         LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id
