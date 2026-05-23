@@ -142,21 +142,24 @@ export function AtlasForm({
         const options = rows
           .map((row) => {
             const df = descriptor.displayFields;
+            let meta = null;
+            if (df) {
+              const rawMeta = {
+                badge: df.badge ? String(row[df.badge] ?? "").trim() : null,
+                title: df.title ? String(row[df.title] ?? "").trim() : null,
+                subtitle: df.subtitle
+                  ? Array.isArray(df.subtitle)
+                    ? df.subtitle.map((f) => row[f]).filter(Boolean).join(" • ")
+                    : String(row[df.subtitle] ?? "").trim()
+                  : null,
+              };
+              meta = rawMeta.badge || rawMeta.title || rawMeta.subtitle ? rawMeta : null;
+            }
             return {
               value: String(row[descriptor.valueField] ?? ""),
               label: resolveRelationLabel(row, descriptor),
               disabled: descriptor.disabledField ? row[descriptor.disabledField] === false : false,
-              meta: df
-                ? {
-                    badge: df.badge ? String(row[df.badge] ?? "") : null,
-                    title: df.title ? String(row[df.title] ?? "") : null,
-                    subtitle: df.subtitle
-                      ? Array.isArray(df.subtitle)
-                        ? df.subtitle.map((f) => row[f]).filter(Boolean).join(" • ")
-                        : String(row[df.subtitle] ?? "")
-                      : null,
-                  }
-                : null,
+              meta,
             };
           })
           .filter((o) => o.value);
@@ -912,7 +915,13 @@ export function AtlasForm({
 
     const header = renderSectionHeader();
     return (
-      <div key={section.id} className={cn("space-y-4", header && isCollapsible && "pb-1")}>
+      <div
+        key={section.id}
+        className={cn(
+          "rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-5 py-4 space-y-4",
+          header && isCollapsible && !isCollapsed && "pb-5",
+        )}
+      >
         {header}
         {!isCollapsed ? renderSectionBody() : null}
       </div>
@@ -933,13 +942,13 @@ export function AtlasForm({
       <div
         className={
           asideSections.length > 0
-            ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]"
-            : "space-y-4"
+            ? "grid gap-3 xl:grid-cols-[minmax(0,1fr)_20rem]"
+            : "space-y-3"
         }
       >
-        <div className="space-y-4">{mainSections.map((section) => renderSection(section))}</div>
+        <div className="space-y-3">{mainSections.map((section) => renderSection(section))}</div>
         {asideSections.length > 0 ? (
-          <div className="space-y-4 xl:sticky xl:top-4 xl:self-start">
+          <div className="space-y-3 xl:sticky xl:top-4 xl:self-start">
             {asideSections.map((section) => renderSection(section))}
           </div>
         ) : null}
