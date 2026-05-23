@@ -1037,13 +1037,14 @@ export const CurrencyField = forwardRef(function CurrencyField(
     className,
     min,
     max,
+    allowNegative = false,
     ...props
   },
   ref,
 ) {
   function toCents(decimalValue) {
     if (decimalValue == null || decimalValue === "") return 0;
-    return Math.round(Number(decimalValue) * 100);
+    return Math.round(Math.abs(Number(decimalValue)) * 100);
   }
 
   function toDecimal(cents) {
@@ -1060,14 +1061,22 @@ export const CurrencyField = forwardRef(function CurrencyField(
   }
 
   const [cents, setCents] = useState(() => toCents(value));
+  const [negative, setNegative] = useState(() => Number(value) < 0);
 
   useEffect(() => {
     setCents(toCents(value));
+    setNegative(Number(value) < 0);
   }, [value]);
 
   function handleKeyDown(e) {
     const allowed = ["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab", "Enter"];
     if (allowed.includes(e.key)) return;
+    if (allowNegative && e.key === "-") {
+      e.preventDefault();
+      setNegative((n) => !n);
+      onChange?.(toDecimal(negative ? cents : -cents));
+      return;
+    }
     if (!/^\d$/.test(e.key)) e.preventDefault();
   }
 
@@ -1082,14 +1091,14 @@ export const CurrencyField = forwardRef(function CurrencyField(
           )
         : newCents;
     setCents(clamped);
-    onChange?.(toDecimal(clamped));
+    onChange?.(negative ? -toDecimal(clamped) : toDecimal(clamped));
   }
 
   function handleFocus(e) {
     e.target.select();
   }
 
-  const displayValue = formatCents(cents);
+  const displayValue = (negative && cents > 0 ? "-" : "") + formatCents(cents);
 
   return (
     <FieldWrapper label={label} labelFor={id} error={error} hint={hint} required={required}>
