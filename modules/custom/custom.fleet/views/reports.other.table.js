@@ -18,7 +18,7 @@ export default defineView({
       { field: "vehicle_plate", label: "Vehiculo" },
       { field: "status", label: "Estado", sortable: true },
       { field: "report_date", label: "Fecha", type: "date", sortable: true },
-      { field: "total_cost", label: "Total", type: "number", sortable: true },
+      { field: "total_cost", label: "Total", type: "currency", sortable: true },
     ],
     actions: [{ label: "Nuevo reporte", permission: "fleet.reports.create", variant: "primary" }],
     rowActions: [

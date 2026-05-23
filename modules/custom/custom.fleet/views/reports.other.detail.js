@@ -42,9 +42,9 @@ export default defineView({
           { field: "invoice_number", label: "Factura/Ticket", icon: "FileText" },
           { field: "workshop_phone", label: "Telefono", icon: "Phone" },
           { field: "workshop_address", label: "Direccion", icon: "Link2" },
-          { field: "labor_cost", label: "Mano de obra", type: "number", icon: "Tag" },
-          { field: "parts_cost", label: "Refacciones", type: "number", icon: "Tag" },
-          { field: "total_cost", label: "Total", type: "number", icon: "Tag" },
+          { field: "labor_cost", label: "Mano de obra", type: "currency", icon: "Tag" },
+          { field: "parts_cost", label: "Refacciones", type: "currency", icon: "Tag" },
+          { field: "total_cost", label: "Total", type: "currency", icon: "Tag" },
         ],
       },
       {

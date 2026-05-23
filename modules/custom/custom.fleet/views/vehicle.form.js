@@ -3,21 +3,29 @@ import { defineView } from '@atlas/module-engine'
 export default defineView({
   key: 'fleet.vehicle.form',
   kind: 'FORM',
-  version: '0.1.1',
+  version: '0.2.0',
   schema: {
     entity: 'vehicle',
     component: 'AtlasForm',
     apiPath: '/fleet/vehicles',
     sections: [
       {
-        label: 'Informacion general',
-        icon: 'Wrench',
+        label: 'Identificacion del vehiculo',
+        icon: 'Truck',
         fields: [
-          { field: 'plate', label: 'Matricula', type: 'text', required: true },
+          {
+            field: 'plate',
+            label: 'Matricula',
+            type: 'text',
+            required: true,
+            hint: 'Placa oficial de circulacion (ej. ABC-1234)',
+          },
           {
             field: 'vehicle_model_id',
-            label: 'Modelo de vehículo',
+            label: 'Modelo de vehiculo',
             type: 'relation',
+            required: true,
+            hint: 'Selecciona la marca, modelo y año del vehiculo',
             relation: {
               apiPath: '/fleet/catalogs/vehicle-models',
               labelField: ['brand_name', 'name', 'year'],
@@ -32,9 +40,9 @@ export default defineView({
               },
               create: {
                 enabled: true,
-                label: 'Crear modelo de vehículo',
+                label: 'Crear modelo de vehiculo',
                 mode: 'modal',
-                title: 'Crear modelo de vehículo',
+                title: 'Crear modelo de vehiculo',
                 apiPath: '/fleet/catalogs/vehicle-models',
                 viewKey: 'fleet.catalog.vehicle_models.form',
                 selectCreated: true,
@@ -43,23 +51,37 @@ export default defineView({
               },
             },
           },
-          { field: 'color', label: 'Color', type: 'color' },
+          {
+            field: 'color',
+            label: 'Color del vehiculo',
+            type: 'color',
+            hint: 'Color exterior principal del vehiculo',
+          },
           {
             field: 'status',
-            label: 'Estado',
+            label: 'Estado operativo',
             type: 'select',
+            required: true,
+            hint: 'Estado actual del vehiculo dentro de la flota',
             options: ['active', 'maintenance', 'inactive', 'retired'],
           },
-          { field: 'economic_individual_number', label: 'No. Economico Individual', type: 'text' },
+          {
+            field: 'economic_individual_number',
+            label: 'No. Economico individual',
+            type: 'text',
+            hint: 'Numero de unidad asignado internamente (ej. 042)',
+          },
         ],
       },
       {
-        label: 'Asignacion',
+        label: 'Asignacion de conductor',
+        icon: 'UserCheck',
         fields: [
           {
             field: 'driver_id',
-            label: 'Chofer',
+            label: 'Conductor asignado',
             type: 'relation',
+            hint: 'Conductor principal responsable de esta unidad',
             relation: {
               apiPath: '/fleet/drivers',
               labelField: ['first_name', 'last_name'],
@@ -72,12 +94,20 @@ export default defineView({
       },
       {
         label: 'Notas',
-        fields: [{ field: 'notes', label: 'Notas adicionales', type: 'textarea' }],
+        icon: 'FileText',
+        fields: [
+          {
+            field: 'notes',
+            label: 'Observaciones adicionales',
+            type: 'textarea',
+            hint: 'Informacion relevante sobre el vehiculo: condiciones especiales, historial, etc.',
+          },
+        ],
       },
       {
         id: 'attachments',
         type: 'attachments',
-        label: 'Documentos',
+        label: 'Documentos del vehiculo',
         placement: 'aside',
         attachments: {
           createMode: 'stage-until-parent-create',

@@ -19,7 +19,13 @@ export default defineView({
           { field: "report_type_label", label: "Tipo", icon: "Layers" },
           { field: "report_date", label: "Fecha", type: "date", icon: "CalendarDays" },
           { field: "odometer_km", label: "Kilometraje", icon: "Hash" },
-          { field: "service_subtype", label: "Subtipo", icon: "Wrench" },
+          { field: "service_subtype", label: "Subtipo", icon: "Wrench", type: "select", options: [
+            { label: "General", value: "general" },
+            { label: "Diagnostico", value: "diagnostic" },
+            { label: "Limpieza", value: "cleaning" },
+            { label: "Electrico", value: "electrical" },
+            { label: "Otro", value: "other" },
+          ] },
         ],
       },
       {
@@ -43,9 +49,9 @@ export default defineView({
           { field: "invoice_number", label: "Factura/Ticket", icon: "FileText" },
           { field: "workshop_phone", label: "Telefono", icon: "Phone" },
           { field: "workshop_address", label: "Direccion", icon: "Link2" },
-          { field: "labor_cost", label: "Mano de obra", type: "number", icon: "Tag" },
-          { field: "parts_cost", label: "Refacciones", type: "number", icon: "Tag" },
-          { field: "total_cost", label: "Total", type: "number", icon: "Tag" },
+          { field: "labor_cost", label: "Mano de obra", type: "currency", icon: "Tag" },
+          { field: "parts_cost", label: "Refacciones", type: "currency", icon: "Tag" },
+          { field: "total_cost", label: "Total", type: "currency", icon: "Tag" },
         ],
       },
       {
