@@ -18,6 +18,7 @@ import {
   SwitchField,
   RelationSelectField,
   CurrencyField,
+  CarColorPickerField,
 } from "../components/FormFields.jsx";
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
 import { DatePickerField } from "../components/DatePickerField.jsx";
@@ -30,6 +31,8 @@ import { cn } from "../lib/utils.js";
 import { normalizeField, normalizeSections } from "./atlas-form-schema.js";
 import {
   PRESET_COLORS,
+  CAR_COLORS,
+  resolveColorName,
   joinUrl,
   resolveRelationLabel,
   normalizeOptions,
@@ -64,6 +67,8 @@ export function AtlasForm({
   resolveBlueprintByKey = null,
   allowInlineCreate = true,
   inlineCreateDepth = 0,
+  id,
+  showFooter = true,
 }) {
   const schema = blueprint?.schema ?? {};
   const apiPath =
@@ -658,19 +663,34 @@ export function AtlasForm({
     const sharedProps = {
       label: field.label,
       required: field.required,
+      hint: field.hint ?? undefined,
       error: fieldErrors[field.name],
     };
 
     if (field.readonly) {
+      let displayValue;
+      if (value === undefined || value === null || value === "") {
+        displayValue = "—";
+      } else if (field.type === "currency" || field.type === "decimal") {
+        const amount = Number(value ?? 0);
+        displayValue = Number.isFinite(amount)
+          ? new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(amount)
+          : "—";
+      } else if (field.type === "date") {
+        const str = String(value);
+        const datePart = str.includes("T") ? str.slice(0, 10) : str;
+        const [year, month, day] = datePart.split("-");
+        displayValue = year && month && day ? `${day}/${month}/${year}` : str;
+      } else {
+        displayValue = String(value);
+      }
       return (
         <div className="space-y-1.5">
           <p className="text-sm font-medium text-[hsl(var(--foreground))]">
             {field.label}
           </p>
           <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-sm">
-            {value === undefined || value === null || value === ""
-              ? "—"
-              : String(value)}
+            {displayValue}
           </div>
         </div>
       );
@@ -788,61 +808,23 @@ export function AtlasForm({
         );
 
       case "color": {
-        const current =
-          value && String(value).startsWith("#") ? String(value) : "#111827";
+        // Normalize legacy hex values to color names on first render
+        const colorValue = value && String(value).startsWith("#")
+          ? (resolveColorName(String(value)) ?? value)
+          : value;
         return (
-          <div className="space-y-1.5">
-            <p className="text-sm font-medium text-[hsl(var(--foreground))]">
-              {field.label}
-              {field.required ? " *" : ""}
-            </p>
-            <div className="flex flex-wrap gap-2 items-center">
-              {PRESET_COLORS.map((preset) => {
-                const isActive =
-                  current.toLowerCase() === preset.value.toLowerCase();
-                return (
-                  <button
-                    key={preset.value}
-                    type="button"
-                    title={preset.label}
-                    onClick={() => handleChange(field.name, preset.value)}
-                    style={{ backgroundColor: preset.value }}
-                    className={[
-                      "h-8 w-8 rounded-full border-2 transition-all",
-                      isActive
-                        ? "border-[hsl(var(--primary))] ring-2 ring-[hsl(var(--primary))]/30 scale-110"
-                        : "border-[hsl(var(--border))] hover:scale-105",
-                    ].join(" ")}
-                    aria-label={preset.label}
-                  />
-                );
-              })}
-              <label className="relative cursor-pointer" title="Personalizado">
-                <div
-                  style={{ backgroundColor: current }}
-                  className="h-8 w-8 rounded-full border-2 border-dashed border-[hsl(var(--border))] flex items-center justify-center overflow-hidden"
-                >
-                  <span
-                    className="text-[8px] font-bold select-none"
-                    style={{ color: current === "#f9fafb" ? "#333" : "#fff" }}
-                  >
-                    P
-                  </span>
-                </div>
-                <input
-                  type="color"
-                  value={current}
-                  onChange={(e) => handleChange(field.name, e.target.value)}
-                  className="sr-only"
-                />
-              </label>
-            </div>
-            {fieldErrors[field.name] && (
-              <p className="text-xs text-[hsl(var(--destructive))]">
-                {fieldErrors[field.name]}
-              </p>
-            )}
-          </div>
+          <CarColorPickerField
+            key={field.name}
+            id={field.name}
+            label={field.label}
+            required={field.required}
+            hint={field.hint ?? undefined}
+            value={colorValue || ""}
+            onChange={(name) => handleChange(field.name, name || "")}
+            colors={CAR_COLORS}
+            clearable
+            error={fieldErrors[field.name]}
+          />
         );
       }
 
@@ -1058,7 +1040,7 @@ export function AtlasForm({
   };
 
   return (
-    <form className="space-y-6" onSubmit={handleSubmit}>
+    <form id={id} className="space-y-6" onSubmit={handleSubmit}>
       {sections.length === 0 && (
         <Alert variant="warning">
           <AlertTitle>Formulario sin secciones</AlertTitle>
@@ -1146,25 +1128,33 @@ export function AtlasForm({
         </DialogContent>
       </Dialog>
 
-      <div
-        className={cn(
-          "sticky bottom-0 z-10 flex items-center justify-end gap-2 border-t border-[hsl(var(--border))] pb-1 pt-3",
-          inlineCreateDepth === 0 &&
-            "bg-[hsl(var(--background))]/95 backdrop-blur supports-backdrop-filter:bg-[hsl(var(--background))]/80",
-        )}
-      >
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => onCancel?.()}
-          disabled={submitting}
+      {showFooter && (
+        <div
+          className={cn(
+            "sticky bottom-0 z-10 border-t border-[hsl(var(--border))] px-4 py-3 flex items-center justify-between gap-2",
+            inlineCreateDepth === 0
+              ? "bg-[hsl(var(--background))]/95 backdrop-blur supports-backdrop-filter:bg-[hsl(var(--background))]/80"
+              : "bg-[hsl(var(--background))]",
+          )}
         >
-          Cancelar
-        </Button>
-        <Button type="submit" loading={submitting}>
-          {submitLabel}
-        </Button>
-      </div>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            {submitting ? "Guardando..." : ""}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onCancel?.()}
+              disabled={submitting}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" loading={submitting} disabled={submitting}>
+              {submitting ? "Guardando..." : submitLabel}
+            </Button>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
