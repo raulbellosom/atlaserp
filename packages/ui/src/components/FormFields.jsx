@@ -2295,28 +2295,54 @@ export function RelationSelectField({
                   {options.length === 0 ? "Sin opciones disponibles" : "Sin resultados"}
                 </p>
               ) : (
-                filtered.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    role="option"
-                    aria-selected={String(opt.value) === String(value)}
-                    onClick={() => handleSelect(opt)}
-                    disabled={opt.disabled}
-                    className={cn(
-                      "w-full text-left px-3 py-2 text-sm transition-colors duration-100 flex items-center gap-2",
-                      String(opt.value) === String(value)
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-foreground hover:bg-muted/50",
-                      opt.disabled && "opacity-50 cursor-not-allowed pointer-events-none",
-                    )}
-                  >
-                    <span className="flex-1 truncate">{opt.label}</span>
-                    {String(opt.value) === String(value) && (
-                      <Check size={13} className="shrink-0 text-primary" />
-                    )}
-                  </button>
-                ))
+                filtered.map((opt) => {
+                  const isSelected = String(opt.value) === String(value);
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => handleSelect(opt)}
+                      disabled={opt.disabled}
+                      className={cn(
+                        "w-full text-left px-3 transition-colors duration-100 flex items-center gap-2",
+                        opt.meta ? "py-2.5" : "py-2",
+                        isSelected
+                          ? "bg-primary/10 text-primary"
+                          : "text-foreground hover:bg-muted/50",
+                        opt.disabled && "opacity-50 cursor-not-allowed pointer-events-none",
+                      )}
+                    >
+                      {opt.meta ? (
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {opt.meta.badge ? (
+                              <span className="inline-flex items-center rounded bg-[hsl(var(--primary))]/10 px-1.5 py-0.5 text-xs font-semibold text-[hsl(var(--primary))] shrink-0">
+                                {opt.meta.badge}
+                              </span>
+                            ) : null}
+                            {opt.meta.title ? (
+                              <span className={cn("text-sm font-medium truncate", isSelected ? "text-primary" : "text-foreground")}>
+                                {opt.meta.title}
+                              </span>
+                            ) : null}
+                          </div>
+                          {opt.meta.subtitle ? (
+                            <p className="text-xs text-[hsl(var(--muted-foreground))] truncate mt-0.5">
+                              {opt.meta.subtitle}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="flex-1 truncate text-sm">{opt.label}</span>
+                      )}
+                      {isSelected && (
+                        <Check size={13} className="shrink-0 text-primary" />
+                      )}
+                    </button>
+                  );
+                })
               )}
               {canShowCreate && (
                 <>

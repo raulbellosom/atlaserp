@@ -182,6 +182,9 @@ export function normalizeRelationDescriptor(fieldLike) {
     preload: raw.preload !== false,
     clearable: typeof raw.clearable === 'boolean' ? raw.clearable : !required,
     disabledField: typeof raw.disabledField === 'string' && raw.disabledField ? raw.disabledField : null,
+    displayFields: raw.displayFields != null && typeof raw.displayFields === 'object'
+      ? raw.displayFields
+      : null,
     create,
   };
 }

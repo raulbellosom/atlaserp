@@ -75,6 +75,11 @@ export default defineView({
               labelSeparator: ' · ',
               clearable: false,
               disabledField: 'enabled',
+              displayFields: {
+                badge: 'economic_number',
+                title: 'model_name',
+                subtitle: ['plate', 'vehicle_type_name', 'color'],
+              },
             },
           },
           {

@@ -139,11 +139,25 @@ export function AtlasForm({
         const json = await res.json();
         const rows = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
         const options = rows
-          .map((row) => ({
-            value: String(row[descriptor.valueField] ?? ""),
-            label: resolveRelationLabel(row, descriptor),
-            disabled: descriptor.disabledField ? row[descriptor.disabledField] === false : false,
-          }))
+          .map((row) => {
+            const df = descriptor.displayFields;
+            return {
+              value: String(row[descriptor.valueField] ?? ""),
+              label: resolveRelationLabel(row, descriptor),
+              disabled: descriptor.disabledField ? row[descriptor.disabledField] === false : false,
+              meta: df
+                ? {
+                    badge: df.badge ? String(row[df.badge] ?? "") : null,
+                    title: df.title ? String(row[df.title] ?? "") : null,
+                    subtitle: df.subtitle
+                      ? Array.isArray(df.subtitle)
+                        ? df.subtitle.map((f) => row[f]).filter(Boolean).join(" • ")
+                        : String(row[df.subtitle] ?? "")
+                      : null,
+                  }
+                : null,
+            };
+          })
           .filter((o) => o.value);
         if (!search) {
           _relationOptionsCache.set(cacheKey, { options, ts: Date.now() });
