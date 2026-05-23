@@ -121,7 +121,7 @@ export function AppShell({
       {/* Main content */}
       <main
         className={cn(
-          "transition-all duration-300 min-h-dvh",
+          "transition-all duration-300 min-h-dvh overflow-x-hidden",
           collapsed ? "ml-16" : "ml-64",
         )}
       >
