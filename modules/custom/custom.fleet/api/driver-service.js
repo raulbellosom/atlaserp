@@ -228,9 +228,20 @@ export function createDriverService({ prisma }) {
                     LIMIT 1
                   )
                 ) AS photo_asset_id_resolved,
-                v.plate AS assigned_plate
+                vehicle_stats.assigned_plate AS assigned_plate,
+                COALESCE(vehicle_stats.assigned_vehicle_count, 0) AS assigned_vehicle_count,
+                COALESCE(vehicle_stats.assigned_vehicle_extra_count, 0) AS assigned_vehicle_extra_count
          FROM fleet_driver fd
-         LEFT JOIN fleet_vehicle v ON v.driver_id = fd.id AND v.company_id = fd.company_id AND v.enabled = true
+         LEFT JOIN LATERAL (
+           SELECT
+             COUNT(*)::int AS assigned_vehicle_count,
+             GREATEST(COUNT(*)::int - 1, 0) AS assigned_vehicle_extra_count,
+             (ARRAY_AGG(v.plate ORDER BY v.updated_at DESC NULLS LAST, v.created_at DESC NULLS LAST, v.id DESC))[1] AS assigned_plate
+           FROM fleet_vehicle v
+           WHERE v.driver_id = fd.id
+             AND v.company_id = fd.company_id
+             AND v.enabled = true
+         ) vehicle_stats ON true
          WHERE fd.company_id = $1
            AND fd.enabled = true
            AND ($2::text IS NULL OR fd.status = $2)

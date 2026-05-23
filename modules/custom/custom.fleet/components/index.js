@@ -6,6 +6,7 @@ import VehicleStatusBadge from "./VehicleStatusBadge.jsx";
 import ReportStatusBadge from "./ReportStatusBadge.jsx";
 import DriverStatusBadge from "./DriverStatusBadge.jsx";
 import DriverAvatarCell from "./DriverAvatarCell.jsx";
+import DriverAssignedVehicleCell from "./DriverAssignedVehicleCell.jsx";
 import VehicleImageCell from "./VehicleImageCell.jsx";
 
 /**
@@ -16,5 +17,9 @@ export function register(registry) {
   registry.register("custom.fleet:ReportStatusBadge", ReportStatusBadge);
   registry.register("custom.fleet:DriverStatusBadge", DriverStatusBadge);
   registry.register("custom.fleet:DriverAvatarCell", DriverAvatarCell);
+  registry.register(
+    "custom.fleet:DriverAssignedVehicleCell",
+    DriverAssignedVehicleCell,
+  );
   registry.register("custom.fleet:VehicleImageCell", VehicleImageCell);
 }

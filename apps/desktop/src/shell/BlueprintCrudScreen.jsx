@@ -505,6 +505,7 @@ export function BlueprintCrudScreen() {
   const location = useLocation();
   const { session } = useAuth();
   const token = session?.access_token ?? null;
+  const authUserId = session?.user?.id ?? "anonymous";
   const { moduleMap } = useRuntimeModules();
   const module = moduleMap.get(moduleKey) ?? null;
   const moduleName = module?.name ?? module?.manifest?.name ?? moduleKey ?? "";
@@ -520,7 +521,7 @@ export function BlueprintCrudScreen() {
   }, [moduleMap]);
 
   const blueprintsQuery = useQuery({
-    queryKey: ["blueprints", moduleKey, token],
+    queryKey: ["blueprints", moduleKey, authUserId],
     queryFn: () => atlas.blueprints.list(token),
     enabled: Boolean(token),
     staleTime: 30000,

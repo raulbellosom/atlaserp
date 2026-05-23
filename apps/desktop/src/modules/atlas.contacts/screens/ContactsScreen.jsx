@@ -33,6 +33,7 @@ const CONTACTS_BLUEPRINT = {
 export default function ContactsScreen() {
   const { session } = useAuth();
   const token = session?.access_token;
+  const authUserId = session?.user?.id ?? "anonymous";
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingContact, setEditingContact] = useState(null);
@@ -40,7 +41,7 @@ export default function ContactsScreen() {
   const [refreshSignal, setRefreshSignal] = useState(0);
 
   const blueprintsQuery = useQuery({
-    queryKey: ["blueprints", token],
+    queryKey: ["blueprints", "contacts", authUserId],
     queryFn: () => atlas.blueprints.list(token),
     enabled: Boolean(token),
   });

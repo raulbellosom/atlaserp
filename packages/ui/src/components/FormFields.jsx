@@ -1959,11 +1959,16 @@ export function ComboboxField({
   }, []);
 
   function handleOpen() {
-    if (!open && containerRef.current) {
+    const willOpen = !open;
+    if (willOpen && containerRef.current) {
       const r = containerRef.current.getBoundingClientRect();
       setDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
     }
     setOpen((o) => !o);
+    if (willOpen && options.length === 0 && !loading) {
+      // Lazy-load remote options when the dropdown opens for the first time.
+      onSearchChange?.("");
+    }
     setTimeout(() => searchRef.current?.focus(), 50);
   }
 

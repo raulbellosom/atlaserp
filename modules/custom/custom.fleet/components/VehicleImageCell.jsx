@@ -13,7 +13,7 @@ async function resolveSignedUrl({ apiBaseUrl, token, fileAssetId }) {
   });
   if (!response.ok) return null;
   const payload = await response.json();
-  return payload?.data?.url ?? null;
+  return payload?.data?.signedUrl ?? payload?.data?.url ?? null;
 }
 
 function mapViewerFiles(items) {
@@ -43,7 +43,9 @@ export default function VehicleImageCell({ value, row, token, apiBaseUrl }) {
   const vehicleId = String(row?.id ?? "").trim() || null;
   const coverImageAssetId = String(value ?? row?.cover_image_file_asset_id ?? "").trim() || null;
   const imageCount = Number(row?.image_count ?? 0);
+  const docCount = Number(row?.doc_count ?? 0);
   const hasAnyImage = imageCount > 0 || Boolean(coverImageAssetId);
+  const extraFilesCount = Math.max(0, docCount - 1);
 
   const getSignedUrl = useCallback(
     async (fileAssetId) => {
@@ -100,7 +102,19 @@ export default function VehicleImageCell({ value, row, token, apiBaseUrl }) {
       let nextIndex = 0;
       if (coverImageAssetId) {
         const indexFromCover = effectiveFiles.findIndex((file) => file.fileAssetId === coverImageAssetId);
-        if (indexFromCover >= 0) nextIndex = indexFromCover;
+        if (indexFromCover >= 0) {
+          nextIndex = indexFromCover;
+        } else {
+          const fallbackImageIndex = effectiveFiles.findIndex((file) =>
+            String(file?.mimeType ?? "").toLowerCase().startsWith("image/"),
+          );
+          if (fallbackImageIndex >= 0) nextIndex = fallbackImageIndex;
+        }
+      } else {
+        const firstImageIndex = effectiveFiles.findIndex((file) =>
+          String(file?.mimeType ?? "").toLowerCase().startsWith("image/"),
+        );
+        if (firstImageIndex >= 0) nextIndex = firstImageIndex;
       }
 
       setViewerFiles(effectiveFiles);
@@ -126,7 +140,7 @@ export default function VehicleImageCell({ value, row, token, apiBaseUrl }) {
         type="button"
         onClick={openVehicleViewer}
         disabled={viewerLoading}
-        className="inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--ring))] hover:text-[hsl(var(--foreground))]"
+        className="relative inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--ring))] hover:text-[hsl(var(--foreground))]"
         title="Abrir imagenes del vehiculo"
         aria-label="Abrir imagenes del vehiculo"
       >
@@ -137,6 +151,11 @@ export default function VehicleImageCell({ value, row, token, apiBaseUrl }) {
         ) : (
           <span className="text-xs font-semibold">IMG</span>
         )}
+        {extraFilesCount > 0 ? (
+          <span className="absolute -right-1 -top-1 rounded-full bg-black/75 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+            +{extraFilesCount}
+          </span>
+        ) : null}
       </button>
 
       <FileViewer

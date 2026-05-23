@@ -196,11 +196,13 @@ export function ModuleSidebar({
           style={{ backgroundColor: `${module.color}20` }}
         >
           {typeof module.logoUrl === "string" && module.logoUrl.trim() ? (
-            <img
-              src={module.logoUrl}
-              alt=""
-              className="h-full w-full object-contain p-0.5"
-            />
+            <span className="h-6 w-6 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))]/85 flex items-center justify-center overflow-hidden shadow-sm">
+              <img
+                src={module.logoUrl}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            </span>
           ) : (
             <NavIcon
               name={module.icon}

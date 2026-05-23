@@ -159,6 +159,11 @@ test('driver-service listDrivers: uses company-scoped UUID in unsafe query', asy
   const scoped = toScopedCompanyUuid('empresa-demo')
   const firstUnsafeCall = rawUnsafeCalls[0]
   assert.equal(firstUnsafeCall[1], scoped)
+  const sqlText = firstUnsafeCall[0]
+  assert.match(sqlText, /LEFT JOIN LATERAL/i)
+  assert.match(sqlText, /assigned_vehicle_count/i)
+  assert.match(sqlText, /assigned_vehicle_extra_count/i)
+  assert.doesNotMatch(sqlText, /LEFT JOIN fleet_vehicle v ON/i)
 })
 
 test('fleet-service listVehicles: query projects full_economic_number field', async () => {

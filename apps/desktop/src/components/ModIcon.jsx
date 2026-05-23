@@ -12,13 +12,23 @@ export const ICON_MAP = {
 
 export function ModIcon({ name, size = 22, color, logoUrl }) {
   if (typeof logoUrl === 'string' && logoUrl.trim()) {
+    const frameSize = Math.max(12, Math.round(size));
     return (
-      <img
-        src={logoUrl}
-        alt=""
-        className="object-contain"
-        style={{ width: size, height: size }}
-      />
+      <span
+        className="inline-flex items-center justify-center overflow-hidden border border-[hsl(var(--border))] bg-[hsl(var(--background))]/85 shadow-sm"
+        style={{
+          width: frameSize,
+          height: frameSize,
+          borderRadius: Math.max(4, Math.round(frameSize * 0.26)),
+        }}
+      >
+        <img
+          src={logoUrl}
+          alt=""
+          className="h-full w-full object-cover"
+          style={{ width: frameSize, height: frameSize }}
+        />
+      </span>
     );
   }
   const raw = typeof name === 'string' ? name.trim() : '';

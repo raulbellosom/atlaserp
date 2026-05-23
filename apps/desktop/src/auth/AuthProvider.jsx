@@ -11,6 +11,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let mounted = true
+    let profileLoadedForAuthUserId = null
 
     async function forceLogout() {
       try {
@@ -19,6 +20,7 @@ export function AuthProvider({ children }) {
       if (!mounted) return
       setSession(null)
       setUserProfile(null)
+      profileLoadedForAuthUserId = null
     }
 
     function shouldForceLogout(error) {
@@ -44,7 +46,11 @@ export function AuthProvider({ children }) {
         setSession(currentSession)
         if (currentSession) {
           atlas.auth.me(currentSession.access_token)
-            .then(profile => { if (mounted) setUserProfile(profile) })
+            .then(profile => {
+              if (!mounted) return
+              setUserProfile(profile)
+              profileLoadedForAuthUserId = currentSession?.user?.id ?? null
+            })
             .catch(async (error) => {
               if (shouldForceLogout(error)) {
                 await forceLogout()
@@ -68,8 +74,19 @@ export function AuthProvider({ children }) {
       setSession(session)
       setLoading(false)
       if (session) {
+        const eventName = String(event ?? '').toUpperCase()
+        const authUserId = session?.user?.id ?? null
+        // On token rotation we keep current profile to avoid noisy /me requests
+        // and prevent view churn while users are editing forms.
+        if (eventName === 'TOKEN_REFRESHED' && authUserId && profileLoadedForAuthUserId === authUserId) {
+          return
+        }
         atlas.auth.me(session.access_token)
-          .then(profile => { if (mounted) setUserProfile(profile) })
+          .then(profile => {
+            if (!mounted) return
+            setUserProfile(profile)
+            profileLoadedForAuthUserId = authUserId
+          })
           .catch(async (error) => {
             if (shouldForceLogout(error)) {
               await forceLogout()
@@ -77,6 +94,7 @@ export function AuthProvider({ children }) {
           })
       } else {
         setUserProfile(null)
+        profileLoadedForAuthUserId = null
       }
     })
 

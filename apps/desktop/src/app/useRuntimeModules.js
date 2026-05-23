@@ -7,9 +7,10 @@ import { useAuth } from "../auth/AuthProvider";
 export function useRuntimeModules() {
   const { session } = useAuth();
   const token = session?.access_token;
+  const authUserId = session?.user?.id ?? "anonymous";
 
   const modulesQuery = useQuery({
-    queryKey: ["runtime-modules", token],
+    queryKey: ["runtime-modules", authUserId],
     queryFn: () => atlas.runtime.modules(token),
     enabled: Boolean(token),
     staleTime: 60000,

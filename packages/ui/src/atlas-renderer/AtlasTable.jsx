@@ -65,7 +65,21 @@ function inferRowActionKind(label) {
 }
 
 function getRowId(row, index) {
+  if (row?.__atlasRowKey != null) return String(row.__atlasRowKey);
   return row?.id != null ? String(row.id) : `row-${index}`;
+}
+
+function withUniqueRowKeys(rows) {
+  const seen = new Map();
+  return rows.map((row, index) => {
+    const baseId = row?.id != null ? String(row.id) : `row-${index}`;
+    const nextCount = (seen.get(baseId) ?? 0) + 1;
+    seen.set(baseId, nextCount);
+    if (nextCount === 1) {
+      return { ...row, __atlasRowKey: baseId };
+    }
+    return { ...row, __atlasRowKey: `${baseId}__dup${nextCount - 1}` };
+  });
 }
 
 function joinUrl(baseUrl, apiPath) {
@@ -448,7 +462,8 @@ export function AtlasTable({
           throw new Error(body || "No se pudo cargar la información.");
         }
         const payload = await response.json();
-        const nextRows = Array.isArray(payload?.data) ? payload.data : [];
+        const nextRowsRaw = Array.isArray(payload?.data) ? payload.data : [];
+        const nextRows = withUniqueRowKeys(nextRowsRaw);
         const nextPagination = readPagination(
           payload,
           page,

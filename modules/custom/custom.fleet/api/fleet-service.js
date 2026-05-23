@@ -166,7 +166,7 @@ export function createFleetService({ prisma }) {
              AND fvd3.company_id::text = fv.company_id::text
              AND fvd3.enabled = true
              AND fa3."mimeType" ILIKE 'image/%'
-           ORDER BY fvd3.created_at DESC
+           ORDER BY fvd3.created_at ASC
            LIMIT 1) AS cover_image_file_asset_id
         FROM fleet_vehicle fv
         LEFT JOIN fleet_vehicle_model vm ON vm.id = fv.vehicle_model_id

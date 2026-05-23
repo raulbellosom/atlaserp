@@ -31,7 +31,8 @@ export default defineView({
               apiPath: '/fleet/catalogs/vehicle-models',
               labelField: ['brand_name', 'name', 'year'],
               labelSeparator: ' · ',
-              pageSize: 200,
+              pageSize: 50,
+              preload: false,
               clearable: true,
               disabledField: 'enabled',
               create: {
@@ -83,6 +84,7 @@ export default defineView({
               apiPath: '/fleet/drivers',
               labelField: ['first_name', 'last_name'],
               labelSeparator: ' ',
+              preload: false,
               clearable: true,
               disabledField: 'enabled',
             },

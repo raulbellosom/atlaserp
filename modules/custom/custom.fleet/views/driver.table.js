@@ -23,7 +23,12 @@ export default defineView({
       { field: 'license_number',      label: 'No. Licencia',     sortable: true },
       { field: 'license_type',        label: 'Tipo licencia',    sortable: false },
       { field: 'license_expiry_date', label: 'Vencimiento',      sortable: true, type: 'date' },
-      { field: 'assigned_plate',      label: 'Vehiculo',         sortable: false },
+      {
+        field: 'assigned_plate',
+        label: 'Vehiculo',
+        sortable: false,
+        component: 'custom.fleet:DriverAssignedVehicleCell',
+      },
       { field: 'hr_employee_name',    label: 'Colaborador RH',   sortable: false },
       {
         field: 'status',

@@ -56,6 +56,34 @@ const _relationOptionsCache = new Map();
 const MAIN_SECTION_TYPES = new Set(["fields", "parts", "attachments"]);
 const _RELATION_CACHE_TTL = 5 * 60 * 1000;
 
+function buildResetInitialDataToken(initialData, mode) {
+  const safeData =
+    initialData && typeof initialData === "object" ? initialData : {};
+  const recordId = resolveRecordId(safeData);
+  if (mode === "edit" || mode === "detail") {
+    const revision =
+      safeData.updated_at ??
+      safeData.updatedAt ??
+      safeData.version ??
+      safeData.revision ??
+      "";
+    return `record:${recordId ?? "none"}:${String(revision)}`;
+  }
+
+  const keys = Object.keys(safeData);
+  if (keys.length === 0) return "create:empty";
+
+  const sorted = {};
+  for (const key of keys.sort()) {
+    sorted[key] = safeData[key];
+  }
+  try {
+    return `create:${JSON.stringify(sorted)}`;
+  } catch {
+    return "create:non-serializable";
+  }
+}
+
 export function AtlasForm({
   blueprint,
   fields,
@@ -93,6 +121,17 @@ export function AtlasForm({
     () => normalizeSections(schema, fieldMap),
     [fieldMap, schema],
   );
+  const formStructureToken = useMemo(() => {
+    const fieldNames = [...fieldMap.keys()].sort().join("|");
+    const sectionKeys = sections
+      .map((section) => `${section.id}:${section.type}`)
+      .join("|");
+    return `${String(blueprint?.key ?? "")}::${fieldNames}::${sectionKeys}`;
+  }, [blueprint?.key, fieldMap, sections]);
+  const resetInitialDataToken = useMemo(
+    () => buildResetInitialDataToken(initialData, mode),
+    [initialData, mode],
+  );
 
   const [formValues, setFormValues] = useState(() =>
     buildInitialValues(fieldMap, initialData),
@@ -127,6 +166,11 @@ export function AtlasForm({
   });
   const attachmentsControllersRef = useRef(new Map());
   const relationDebounceRef = useRef({});
+  const formValuesRef = useRef(formValues);
+
+  useEffect(() => {
+    formValuesRef.current = formValues;
+  }, [formValues]);
 
   const loadRelationOptions = useCallback(
     async (fieldName, descriptor, search) => {
@@ -209,10 +253,39 @@ export function AtlasForm({
         if (!search) {
           _relationOptionsCache.set(cacheKey, { options, ts: Date.now() });
         }
-        setRelationState((prev) => ({
-          ...prev,
-          [fieldName]: { options, loading: false, error: null },
-        }));
+        setRelationState((prev) => {
+          const currentOptions = prev[fieldName]?.options ?? [];
+          const selectedValue = formValuesRef.current?.[fieldName];
+          const normalizedSelectedValue =
+            selectedValue === undefined ||
+            selectedValue === null ||
+            selectedValue === ""
+              ? null
+              : String(selectedValue);
+          const hasSelectedInFetched =
+            normalizedSelectedValue != null &&
+            options.some(
+              (item) => String(item?.value ?? "") === normalizedSelectedValue,
+            );
+          const selectedFallback =
+            normalizedSelectedValue != null && !hasSelectedInFetched
+              ? currentOptions.find(
+                  (item) =>
+                    String(item?.value ?? "") === normalizedSelectedValue,
+                )
+              : null;
+          const mergedOptions = selectedFallback
+            ? [selectedFallback, ...options]
+            : options;
+          return {
+            ...prev,
+            [fieldName]: {
+              options: mergedOptions,
+              loading: false,
+              error: null,
+            },
+          };
+        });
         return true;
       } catch {
         setRelationState((prev) => ({
@@ -244,7 +317,7 @@ export function AtlasForm({
       }
       return next;
     });
-  }, [fieldMap, initialData, sections]);
+  }, [fieldMap, initialData, sections, formStructureToken, resetInitialDataToken]);
 
   useEffect(() => {
     const partsCost = computePartsCost(reportParts);
@@ -517,6 +590,29 @@ export function AtlasForm({
       let refreshOk = true;
       if (descriptor.create?.refreshOptions !== false) {
         refreshOk = await loadRelationOptions(fieldName, descriptor, "");
+        if (createdRecord && createdId) {
+          const createdOption = {
+            value: createdId,
+            label: resolveRelationLabel(createdRecord, descriptor),
+            disabled: false,
+          };
+          setRelationState((prev) => {
+            const current = prev[fieldName]?.options ?? [];
+            const exists = current.some(
+              (item) => String(item?.value ?? "") === createdId,
+            );
+            if (exists) return prev;
+            return {
+              ...prev,
+              [fieldName]: {
+                ...prev[fieldName],
+                options: [createdOption, ...current],
+                loading: false,
+                error: null,
+              },
+            };
+          });
+        }
       }
 
       if (!createdId) {
@@ -1139,10 +1235,10 @@ export function AtlasForm({
       {showFooter && (
         <div
           className={cn(
-            "sticky bottom-0 z-10 border-t border-[hsl(var(--border))] px-4 py-3 flex items-center justify-between gap-2",
+            "sticky bottom-0 z-10 border-t border-white/15 px-4 py-3 flex items-center justify-between gap-2 backdrop-blur-md",
             inlineCreateDepth === 0
-              ? "bg-[hsl(var(--background))]/95 backdrop-blur supports-backdrop-filter:bg-[hsl(var(--background))]/80"
-              : "bg-[hsl(var(--background))]",
+              ? "bg-transparent"
+              : "bg-transparent",
           )}
         >
           <p className="text-xs text-[hsl(var(--muted-foreground))]">

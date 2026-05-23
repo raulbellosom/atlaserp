@@ -22,7 +22,7 @@ async function resolveSignedUrl({ apiBaseUrl, token, fileAssetId }) {
   });
   if (!response.ok) return null;
   const payload = await response.json();
-  return payload?.data?.url ?? null;
+  return payload?.data?.signedUrl ?? payload?.data?.url ?? null;
 }
 
 export default function DriverAvatarCell({ value, row, token, apiBaseUrl }) {
