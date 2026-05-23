@@ -965,62 +965,6 @@ export const NumberField = forwardRef(function NumberField(
 
 // ─── CurrencyField ────────────────────────────────────────────────────────────
 
-function normalizeMoneyInput(raw, { allowNegative, allowDecimal }) {
-  let next = String(raw ?? "")
-    .replaceAll(" ", "")
-    .replaceAll(",", ".")
-    .replace(/[^0-9.-]/g, "");
-
-  if (allowNegative) {
-    const negative = next.startsWith("-");
-    next = next.replace(/-/g, "");
-    if (negative) next = `-${next}`;
-  } else {
-    next = next.replace(/-/g, "");
-  }
-
-  if (!allowDecimal) {
-    next = next.replace(/\./g, "");
-  } else {
-    const firstDot = next.indexOf(".");
-    if (firstDot !== -1) {
-      next =
-        next.slice(0, firstDot + 1) +
-        next.slice(firstDot + 1).replace(/\./g, "");
-    }
-  }
-
-  if (next.startsWith(".")) next = `0${next}`;
-  if (next.startsWith("-.")) next = next.replace("-.", "-0.");
-  return next;
-}
-
-function parseMoneyValue(raw, { allowDecimal, min, max }) {
-  if (raw === "" || raw === "-" || raw === "." || raw === "-.") {
-    return { kind: "empty", value: "" };
-  }
-  const parsed = allowDecimal ? Number(raw) : Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed)) return { kind: "invalid", value: "" };
-  if (Number.isFinite(min) && parsed < min)
-    return { kind: "invalid", value: "" };
-  if (Number.isFinite(max) && parsed > max)
-    return { kind: "invalid", value: "" };
-  return { kind: "valid", value: parsed };
-}
-
-function formatCurrency(value, locale, currency, fractionDigits = 2) {
-  if (value === "" || value === null || value === undefined) return "";
-  const n = parseFloat(value);
-  if (isNaN(n)) return "";
-  const digits = Number.isFinite(fractionDigits) ? fractionDigits : 2;
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  }).format(n);
-}
-
 export const CurrencyField = forwardRef(function CurrencyField(
   {
     label,
@@ -1038,6 +982,8 @@ export const CurrencyField = forwardRef(function CurrencyField(
     min,
     max,
     allowNegative = false,
+    allowDecimal: _allowDecimal,
+    fractionDigits: _fractionDigits,
     ...props
   },
   ref,
@@ -1053,8 +999,6 @@ export const CurrencyField = forwardRef(function CurrencyField(
 
   function formatCents(cents) {
     return new Intl.NumberFormat(locale, {
-      style: "currency",
-      currency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(toDecimal(cents));

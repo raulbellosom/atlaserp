@@ -640,6 +640,7 @@ export function AtlasForm({
             onChange={(val) => handleChange(field.name, val)}
             currency={field.currency ?? "MXN"}
             locale={field.locale ?? "es-MX"}
+            allowNegative={field.allowNegative ?? false}
           />
         );
 
