@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Avatar,
@@ -6,6 +6,7 @@ import {
   AvatarImage,
   Button,
   Card,
+  ComboboxField,
   DateField,
   ImageViewer,
   PageHeader,
@@ -16,10 +17,10 @@ import {
   TextField,
   TextareaField,
 } from "@atlas/ui";
+import { Country, State, City } from "country-state-city";
 import {
   CalendarDays,
   Camera,
-  Landmark,
   LockKeyhole,
   Mail,
   MapPin,
@@ -48,6 +49,7 @@ const EMPTY_FORM = {
   country: "",
   state: "",
   city: "",
+  colony: "",
   street: "",
   extNumber: "",
   intNumber: "",
@@ -70,6 +72,35 @@ export function ProfileScreen() {
 
   const [form, setForm] = useState(EMPTY_FORM);
 
+  const countryOptions = useMemo(
+    () => Country.getAllCountries().map((c) => ({ value: c.isoCode, label: c.name })),
+    []
+  );
+
+  const stateOptions = useMemo(
+    () =>
+      form.country
+        ? State.getStatesOfCountry(form.country).map((s) => ({ value: s.isoCode, label: s.name }))
+        : [],
+    [form.country]
+  );
+
+  const cityOptions = useMemo(
+    () =>
+      form.country && form.state
+        ? City.getCitiesOfState(form.country, form.state).map((c) => ({ value: c.name, label: c.name }))
+        : [],
+    [form.country, form.state]
+  );
+
+  function handleCountryChange(val) {
+    setForm((f) => ({ ...f, country: val, state: "", city: "", colony: "" }));
+  }
+
+  function handleStateChange(val) {
+    setForm((f) => ({ ...f, state: val, city: "", colony: "" }));
+  }
+
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -88,6 +119,7 @@ export function ProfileScreen() {
       country: data.country ?? "",
       state: data.state ?? "",
       city: data.city ?? "",
+      colony: data.colony ?? "",
       street: data.street ?? "",
       extNumber: data.extNumber ?? "",
       intNumber: data.intNumber ?? "",
@@ -312,23 +344,54 @@ export function ProfileScreen() {
                     Dirección
                   </p>
                   <div className="grid md:grid-cols-2 gap-4">
-                    <TextField
+                    <ComboboxField
                       label="País"
-                      icon={Landmark}
+                      options={countryOptions}
                       value={form.country}
-                      onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
+                      onChange={handleCountryChange}
+                      placeholder="Seleccionar país..."
+                      searchPlaceholder="Buscar país..."
                     />
+                    {stateOptions.length > 0 ? (
+                      <ComboboxField
+                        label="Estado / Provincia"
+                        options={stateOptions}
+                        value={form.state}
+                        onChange={handleStateChange}
+                        placeholder="Seleccionar estado..."
+                        searchPlaceholder="Buscar estado..."
+                      />
+                    ) : (
+                      <TextField
+                        label="Estado / Provincia"
+                        icon={MapPin}
+                        value={form.state}
+                        onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
+                      />
+                    )}
+                    {form.country && cityOptions.length > 0 ? (
+                      <ComboboxField
+                        label="Ciudad / Municipio"
+                        options={cityOptions}
+                        value={form.city}
+                        onChange={(val) => setForm((f) => ({ ...f, city: val }))}
+                        placeholder="Seleccionar ciudad..."
+                        searchPlaceholder="Buscar ciudad..."
+                        minSearchLength={2}
+                      />
+                    ) : (
+                      <TextField
+                        label="Ciudad / Municipio"
+                        icon={MapPin}
+                        value={form.city}
+                        onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                      />
+                    )}
                     <TextField
-                      label="Estado"
+                      label="Colonia / Fraccionamiento"
                       icon={MapPin}
-                      value={form.state}
-                      onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
-                    />
-                    <TextField
-                      label="Ciudad"
-                      icon={MapPin}
-                      value={form.city}
-                      onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                      value={form.colony}
+                      onChange={(e) => setForm((f) => ({ ...f, colony: e.target.value }))}
                     />
                     <TextField
                       label="Calle"
