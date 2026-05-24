@@ -2087,26 +2087,78 @@ app.patch(
       const id = c.req.param("id");
       const body = await c.req.json();
       const patch = {};
+
       if (typeof body.enabled === "boolean") patch.enabled = body.enabled;
-      if (typeof body.firstName === "string")
-        patch.firstName = body.firstName.trim();
-      if (typeof body.lastName === "string")
-        patch.lastName = body.lastName.trim();
-      if (patch.firstName || patch.lastName) {
-        patch.displayName =
-          `${patch.firstName ?? ""} ${patch.lastName ?? ""}`.trim();
+      if (typeof body.firstName === "string") patch.firstName = body.firstName.trim();
+      if (typeof body.lastName === "string") patch.lastName = body.lastName.trim();
+      if (patch.firstName !== undefined || patch.lastName !== undefined) {
+        patch.displayName = `${patch.firstName ?? ""} ${patch.lastName ?? ""}`.trim();
       }
+
+      // Extended personal fields
+      if (typeof body.phone === "string") patch.phone = body.phone.trim() || null;
+      if (body.phone === null) patch.phone = null;
+      if (typeof body.bio === "string") patch.bio = body.bio.trim() || null;
+      if (body.bio === null) patch.bio = null;
+      if (typeof body.gender === "string") patch.gender = body.gender.trim() || null;
+      if (body.gender === null) patch.gender = null;
+      if (typeof body.birthDate === "string") {
+        const d = body.birthDate ? new Date(body.birthDate) : null;
+        patch.birthDate = d && !Number.isNaN(d.getTime()) ? d : null;
+      }
+      if (body.birthDate === null) patch.birthDate = null;
+
+      // Address fields
+      if (typeof body.country === "string") patch.country = body.country.trim() || null;
+      if (body.country === null) patch.country = null;
+      if (typeof body.state === "string") patch.state = body.state.trim() || null;
+      if (body.state === null) patch.state = null;
+      if (typeof body.city === "string") patch.city = body.city.trim() || null;
+      if (body.city === null) patch.city = null;
+      if (typeof body.colony === "string") patch.colony = body.colony.trim() || null;
+      if (body.colony === null) patch.colony = null;
+      if (typeof body.street === "string") patch.street = body.street.trim() || null;
+      if (body.street === null) patch.street = null;
+      if (typeof body.extNumber === "string") patch.extNumber = body.extNumber.trim() || null;
+      if (body.extNumber === null) patch.extNumber = null;
+      if (typeof body.intNumber === "string") patch.intNumber = body.intNumber.trim() || null;
+      if (body.intNumber === null) patch.intNumber = null;
+      if (typeof body.postalCode === "string") patch.postalCode = body.postalCode.trim() || null;
+      if (body.postalCode === null) patch.postalCode = null;
+
       const user = await prisma.userProfile.update({
         where: { id },
         data: patch,
       });
 
+      // Email update — requires both DB and Supabase auth update
+      if (typeof body.email === "string" && body.email.trim()) {
+        const newEmail = body.email.trim().toLowerCase();
+        const { error: authEmailError } = await supabaseAdmin.auth.admin.updateUserById(
+          user.authUserId,
+          { email: newEmail }
+        );
+        if (authEmailError) {
+          return c.json({ error: "No se pudo actualizar el correo del usuario." }, 500);
+        }
+        await prisma.userProfile.update({
+          where: { id },
+          data: { email: newEmail },
+        });
+        user.email = newEmail;
+      }
+
+      // Membership / role update
       if (body.membershipId && body.roleId) {
         await prisma.membership.update({
           where: { id: body.membershipId },
           data: { roleId: body.roleId },
         });
       }
+
+      // Bust user context cache so the next GET /user/me reflects changes
+      cacheDel(`user_ctx:${user.authUserId}`);
+
       return c.json({ data: user });
     } catch {
       return c.json({ error: "No se pudo actualizar el usuario." }, 500);
