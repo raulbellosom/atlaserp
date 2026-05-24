@@ -91,11 +91,11 @@ function SectionCard({
   empty,
 }) {
   return (
-    <div className="group relative flex flex-col rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden transition-shadow duration-200 hover:shadow-md">
+    <div className="group relative flex flex-col rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden transition-shadow duration-200 hover:shadow-md min-h-[420px]">
       {/* Color accent line */}
       <div className="h-0.5 w-full" style={{ background: color }} />
 
-      <div className="flex flex-col flex-1 p-5 gap-4">
+      <div className="flex flex-col flex-1 p-6 gap-5">
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -129,7 +129,7 @@ function SectionCard({
               </p>
             </div>
           ) : (
-            <div className="space-y-3">{children}</div>
+            <div className="space-y-3.5">{children}</div>
           )}
         </div>
 
@@ -205,7 +205,7 @@ export default function CompanyOverview() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <div className="flex-1 p-4 md:p-6 lg:p-8 space-y-8 w-full max-w-6xl">
+      <div className="flex-1 p-4 md:p-6 lg:p-8 space-y-8 w-full max-w-[1380px]">
         {/* ── Hero identity card ──────────────────────────────────────────── */}
         <div
           className="relative rounded-2xl overflow-hidden border border-[hsl(var(--border))]"
@@ -295,28 +295,11 @@ export default function CompanyOverview() {
               )}
             </div>
 
-            {/* Color swatch */}
-            {!isLoading && (
-              <div className="hidden md:flex items-center gap-2 shrink-0">
-                <div
-                  className="h-8 w-8 rounded-xl border-2 border-white shadow-sm"
-                  style={{ background: primaryColor }}
-                />
-                <div>
-                  <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
-                    Color
-                  </p>
-                  <p className="text-xs font-mono font-semibold text-[hsl(var(--foreground))]">
-                    {primaryColor.toUpperCase()}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
         {/* ── Section cards grid ──────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Profile card */}
           <SectionCard
             icon={Building2}
