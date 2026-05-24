@@ -204,19 +204,21 @@ export default function UserEditorScreen() {
           </p>
           <h1 className="text-2xl font-semibold mt-1">Editar usuario</h1>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => navigate("/app/m/atlas.identity/identity/users")}
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Volver a usuarios
-        </Button>
-        {canManageUsers && user && !isSelf && (
-          <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="h-4 w-4" />
-            Eliminar usuario
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => navigate("/app/m/atlas.identity/identity/users")}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver a usuarios
           </Button>
-        )}
+          {canManageUsers && user && !isSelf && (
+            <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4" />
+              Eliminar usuario
+            </Button>
+          )}
+        </div>
       </div>
 
       {!canReadUsers && (
