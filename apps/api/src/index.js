@@ -850,6 +850,7 @@ app.put(
         },
       });
       const avatarUrl = await getSignedUrlByFileId(updated.avatarFileId);
+      cacheDel(`user_ctx:${authUserId}`);
       return c.json({
         data: {
           id: updated.id,
@@ -2091,10 +2092,6 @@ app.patch(
       if (typeof body.enabled === "boolean") patch.enabled = body.enabled;
       if (typeof body.firstName === "string") patch.firstName = body.firstName.trim();
       if (typeof body.lastName === "string") patch.lastName = body.lastName.trim();
-      if (patch.firstName !== undefined || patch.lastName !== undefined) {
-        patch.displayName = `${patch.firstName ?? ""} ${patch.lastName ?? ""}`.trim();
-      }
-
       // Extended personal fields
       if (typeof body.phone === "string") patch.phone = body.phone.trim() || null;
       if (body.phone === null) patch.phone = null;
@@ -2131,6 +2128,14 @@ app.patch(
         data: patch,
       });
 
+      if (patch.firstName !== undefined || patch.lastName !== undefined) {
+        const newDisplay = `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim();
+        if (newDisplay !== user.displayName) {
+          await prisma.userProfile.update({ where: { id }, data: { displayName: newDisplay } });
+          user.displayName = newDisplay;
+        }
+      }
+
       // Email update — requires both DB and Supabase auth update
       if (typeof body.email === "string" && body.email.trim()) {
         const newEmail = body.email.trim().toLowerCase();
@@ -2141,11 +2146,13 @@ app.patch(
         if (authEmailError) {
           return c.json({ error: "No se pudo actualizar el correo del usuario." }, 500);
         }
-        await prisma.userProfile.update({
-          where: { id },
-          data: { email: newEmail },
-        });
-        user.email = newEmail;
+        try {
+          await prisma.userProfile.update({ where: { id }, data: { email: newEmail } });
+          user.email = newEmail;
+        } catch {
+          await supabaseAdmin.auth.admin.updateUserById(user.authUserId, { email: user.email });
+          return c.json({ error: "No se pudo sincronizar el correo. Intenta de nuevo." }, 500);
+        }
       }
 
       // Membership / role update
