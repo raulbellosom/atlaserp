@@ -3,11 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { atlas } from "../lib/atlas";
 import { getAvailableModules, mergeRuntimeModules } from "../lib/runtimeModules";
 import { useAuth } from "../auth/AuthProvider";
+import { useBrandingStore } from "../stores/branding.js";
 
 export function useRuntimeModules() {
   const { session } = useAuth();
   const token = session?.access_token;
   const authUserId = session?.user?.id ?? "anonymous";
+  const companyPrimaryColor = useBrandingStore((s) => s.branding?.primaryColor);
 
   const modulesQuery = useQuery({
     queryKey: ["runtime-modules", authUserId],
@@ -24,19 +26,28 @@ export function useRuntimeModules() {
     [modulesQuery.data],
   );
 
+  // atlas.company's color is always the live company primary color so every
+  // consumer (cards, sidebar, home screen, module outlet) stays in sync.
+  const runtimeModulesResolved = useMemo(() => {
+    if (!companyPrimaryColor) return runtimeModules;
+    return runtimeModules.map((m) =>
+      m.key === "atlas.company" ? { ...m, color: companyPrimaryColor } : m,
+    );
+  }, [runtimeModules, companyPrimaryColor]);
+
   const availableModules = useMemo(
-    () => getAvailableModules(runtimeModules),
-    [runtimeModules],
+    () => getAvailableModules(runtimeModulesResolved),
+    [runtimeModulesResolved],
   );
 
   const moduleMap = useMemo(
-    () => new Map(runtimeModules.map((module) => [module.key, module])),
-    [runtimeModules],
+    () => new Map(runtimeModulesResolved.map((module) => [module.key, module])),
+    [runtimeModulesResolved],
   );
 
   return {
     ...modulesQuery,
-    runtimeModules,
+    runtimeModules: runtimeModulesResolved,
     availableModules,
     moduleMap,
   };

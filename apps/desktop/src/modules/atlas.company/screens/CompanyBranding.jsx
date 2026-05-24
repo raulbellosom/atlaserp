@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 import { applyBrandTheme } from "../../../lib/brandTheme";
+import { useBrandingStore } from "../../../stores/branding.js";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -405,6 +406,8 @@ export default function CompanyBranding() {
       userProfile?.permissions?.includes("company.branding.update"),
   );
   const queryClient = useQueryClient();
+  const setBranding = useBrandingStore((s) => s.setBranding);
+  const currentBranding = useBrandingStore((s) => s.branding);
 
   const brandingQuery = useQuery({
     queryKey: ["company-branding"],
@@ -498,6 +501,7 @@ export default function CompanyBranding() {
       await queryClient.invalidateQueries({ queryKey: ["company-branding"] });
       await queryClient.invalidateQueries({ queryKey: ["instance-status"] });
       applyBrandTheme(form.primaryColor);
+      setBranding({ ...currentBranding, primaryColor: form.primaryColor });
       toast.success("Marca visual actualizada");
     },
     onError: () => toast.error("No se pudo guardar la configuracion de marca"),

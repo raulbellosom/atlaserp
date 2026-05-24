@@ -5,6 +5,8 @@ import { Layers } from "lucide-react";
 import { BlueprintCrudScreen } from "../shell/BlueprintCrudScreen.jsx";
 import { useRuntimeModules } from "./useRuntimeModules";
 import { isModuleAvailable } from "../lib/runtimeModules";
+import { applyBrandTheme } from "../lib/brandTheme.js";
+import { useBrandingStore } from "../stores/branding.js";
 
 const SCREEN_MAP = {
   "atlas.core:/": lazy(
@@ -244,6 +246,7 @@ export function ModuleOutlet() {
   const { moduleMap, isLoading, isPending, isError, error } = useRuntimeModules();
 
   const module = moduleMap.get(moduleKey) ?? null;
+  const companyPrimaryColor = useBrandingStore((s) => s.branding?.primaryColor);
   const subPath = useMemo(() => {
     if (!wildcard) return "/";
     return `/${wildcard}`;
@@ -254,10 +257,16 @@ export function ModuleOutlet() {
 
     const color = module?.color ?? "var(--brand-primary)";
     document.documentElement.style.setProperty("--module-accent", color);
+
+    if (module?.color?.startsWith("#")) {
+      applyBrandTheme(module.color);
+    }
+
     return () => {
       document.documentElement.style.removeProperty("--module-accent");
+      applyBrandTheme(companyPrimaryColor);
     };
-  }, [isLoading, module]);
+  }, [isLoading, module, companyPrimaryColor]);
 
   useEffect(() => {
     if (isLoading || !module) return;

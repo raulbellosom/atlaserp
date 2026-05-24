@@ -51,9 +51,38 @@ function hslToCss(hsl) {
   return `hsl(${hsl.h} ${hsl.s}% ${hsl.l}%)`;
 }
 
+function srgbLinearize(channel) {
+  const c = channel / 255;
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+
+function relativeLuminance({ r, g, b }) {
+  return (
+    0.2126 * srgbLinearize(r) +
+    0.7152 * srgbLinearize(g) +
+    0.0722 * srgbLinearize(b)
+  );
+}
+
+// Picks white or dark text based on the perceived darkness of the color.
+//
+// Two-path decision:
+//   Saturated colors (S ≥ 30): use HSL lightness with a 65% threshold.
+//     Vibrant mid-tones like cyan, emerald, blue feel visually darker than
+//     their WCAG luminance suggests, so the HSL axis is more accurate here.
+//     L < 65  → white text  (covers all Atlas module colors)
+//     L ≥ 65  → dark text   (pale tints like sky-200, rose-100, etc.)
+//
+//   Neutral / low-saturation (S < 30): use WCAG relative luminance.
+//     Grays and near-grays have no hue bias, so luminance is the right axis.
+//     Crossover at ≈ 0.179 (equal contrast point between white and black).
 function pickForeground({ r, g, b }) {
-  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-  return luminance > 0.6 ? "#111827" : "#ffffff";
+  const { s, l } = rgbToHsl({ r, g, b });
+  if (s >= 30) {
+    return l < 65 ? "#ffffff" : "#111827";
+  }
+  const L = relativeLuminance({ r, g, b });
+  return L <= 0.179 ? "#ffffff" : "#111827";
 }
 
 export function applyBrandTheme(primaryColor) {

@@ -42,6 +42,13 @@ const STATUS_DOT = {
   ERROR: "#ef4444",
 };
 
+const STATUS_LABEL = {
+  INSTALLED: "Instalado",
+  DISABLED: "Deshabilitado",
+  UNINSTALLED: "Sin instalar",
+  ERROR: "Error",
+};
+
 export default function Overview() {
   const { userProfile, session } = useAuth();
   const token = session?.access_token;
@@ -190,7 +197,7 @@ export default function Overview() {
                 style={{ backgroundColor: STATUS_DOT[mod.status] ?? "#94a3b8" }}
               />
               <span className="text-xs font-medium">
-                {isInstalled ? "Instalado" : mod.status}
+                {STATUS_LABEL[mod.status] ?? mod.status}
               </span>
             </div>
           );
