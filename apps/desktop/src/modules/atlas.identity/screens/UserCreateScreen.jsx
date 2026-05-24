@@ -7,6 +7,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  PasswordField,
   SelectField,
   TextField,
 } from "@atlas/ui";
@@ -39,6 +40,7 @@ export default function UserCreateScreen() {
     lastName: "",
     email: "",
     password: "",
+    confirmPassword: "",
     roleId: NO_ROLE_VALUE,
   });
 
@@ -87,7 +89,9 @@ export default function UserCreateScreen() {
     form.firstName.trim().length > 0 &&
     form.lastName.trim().length > 0 &&
     form.email.trim().length > 0 &&
-    form.password.length >= 8;
+    form.password.length >= 8 &&
+    form.confirmPassword.length > 0 &&
+    form.password === form.confirmPassword;
 
   return (
     <div className="p-6 space-y-6">
@@ -152,16 +156,6 @@ export default function UserCreateScreen() {
                 }
                 placeholder="usuario@empresa.com"
               />
-              <TextField
-                icon={KeyRound}
-                label="Contraseña"
-                type="password"
-                value={form.password}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, password: e.target.value }))
-                }
-                placeholder="Mínimo 8 caracteres"
-              />
               <SelectField
                 icon={Shield}
                 label="Rol"
@@ -172,6 +166,30 @@ export default function UserCreateScreen() {
                   setForm((prev) => ({ ...prev, roleId: value }))
                 }
                 disabled={!canReadRoles}
+              />
+              <PasswordField
+                icon={KeyRound}
+                label="Contraseña"
+                showStrength
+                value={form.password}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, password: e.target.value }))
+                }
+                placeholder="Mínimo 8 caracteres"
+              />
+              <PasswordField
+                icon={KeyRound}
+                label="Confirmar contraseña"
+                value={form.confirmPassword}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))
+                }
+                placeholder="Repite la contraseña"
+                error={
+                  form.confirmPassword.length > 0 && form.password !== form.confirmPassword
+                    ? "Las contraseñas no coinciden"
+                    : undefined
+                }
               />
             </div>
 
