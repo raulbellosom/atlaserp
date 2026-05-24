@@ -35,6 +35,7 @@ export default function CompanyAddress() {
     country: "",
     state: "",
     city: "",
+    colony: "",
     street: "",
     extNumber: "",
     intNumber: "",
@@ -47,6 +48,7 @@ export default function CompanyAddress() {
         country: data.data.country ?? "",
         state: data.data.state ?? "",
         city: data.data.city ?? "",
+        colony: data.data.colony ?? "",
         street: data.data.street ?? "",
         extNumber: data.data.extNumber ?? "",
         intNumber: data.data.intNumber ?? "",
@@ -214,6 +216,16 @@ export default function CompanyAddress() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <TextField
+                        label="Colonia / Fraccionamiento"
+                        value={form.colony}
+                        onChange={(v) => handleChange("colony", v)}
+                        disabled={disabled}
+                        placeholder="Ej. Col. Doctores"
+                        icon={MapPin}
+                      />
+                    </div>
                     <div className="sm:col-span-2">
                       <TextField
                         label="Calle"
