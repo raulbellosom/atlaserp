@@ -8,13 +8,28 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  ComboboxField,
   ConfirmDialog,
+  DateField,
+  PhoneField,
   SelectField,
   Skeleton,
   SwitchField,
   TextField,
+  TextareaField,
 } from "@atlas/ui";
-import { ArrowLeft, Mail, Shield, Trash2, UserRound } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarDays,
+  Mail,
+  MapPin,
+  Phone,
+  Shield,
+  Trash2,
+  UserRound,
+  VenusAndMars,
+} from "lucide-react";
+import { Country, State, City } from "country-state-city";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
@@ -101,9 +116,53 @@ export default function UserEditorScreen() {
   const effective = {
     firstName: draft?.firstName ?? user?.firstName ?? "",
     lastName: draft?.lastName ?? user?.lastName ?? "",
+    email: draft?.email ?? user?.email ?? "",
     enabled: draft?.enabled ?? user?.enabled ?? false,
     roleId: draft?.roleId ?? membership?.roleId ?? NO_ROLE_VALUE,
+    phone: draft?.phone ?? user?.phone ?? "",
+    birthDate:
+      draft?.birthDate ??
+      (user?.birthDate
+        ? new Date(user.birthDate).toISOString().slice(0, 10)
+        : ""),
+    gender: draft?.gender ?? user?.gender ?? "",
+    bio: draft?.bio ?? user?.bio ?? "",
+    country: draft?.country ?? user?.country ?? "",
+    state: draft?.state ?? user?.state ?? "",
+    city: draft?.city ?? user?.city ?? "",
+    colony: draft?.colony ?? user?.colony ?? "",
+    street: draft?.street ?? user?.street ?? "",
+    extNumber: draft?.extNumber ?? user?.extNumber ?? "",
+    intNumber: draft?.intNumber ?? user?.intNumber ?? "",
+    postalCode: draft?.postalCode ?? user?.postalCode ?? "",
   };
+
+  const countryOptions = useMemo(
+    () =>
+      Country.getAllCountries().map((c) => ({ value: c.isoCode, label: c.name })),
+    [],
+  );
+
+  const stateOptions = useMemo(
+    () =>
+      effective.country
+        ? State.getStatesOfCountry(effective.country).map((s) => ({
+            value: s.isoCode,
+            label: s.name,
+          }))
+        : [],
+    [effective.country],
+  );
+
+  const cityOptions = useMemo(
+    () =>
+      effective.country && effective.state
+        ? City.getCitiesOfState(effective.country, effective.state).map(
+            (c) => ({ value: c.name, label: c.name }),
+          )
+        : [],
+    [effective.country, effective.state],
+  );
 
   function saveChanges() {
     if (!user) return;
@@ -111,13 +170,29 @@ export default function UserEditorScreen() {
       firstName: effective.firstName,
       lastName: effective.lastName,
       enabled: effective.enabled,
+      email: effective.email,
+      phone: effective.phone || null,
+      birthDate: effective.birthDate || null,
+      gender: effective.gender || null,
+      bio: effective.bio || null,
+      country: effective.country || null,
+      state: effective.state || null,
+      city: effective.city || null,
+      colony: effective.colony || null,
+      street: effective.street || null,
+      extNumber: effective.extNumber || null,
+      intNumber: effective.intNumber || null,
+      postalCode: effective.postalCode || null,
     };
     if (membership) {
       payload.membershipId = membership.id;
       payload.roleId =
         effective.roleId === NO_ROLE_VALUE ? null : effective.roleId;
     }
-    updateUserMutation.mutate(payload);
+    updateUserMutation.mutate(payload, {
+      onSuccess: () => toast.success("Usuario actualizado"),
+      onError: () => toast.error("No se pudo actualizar el usuario"),
+    });
   }
 
   return (
@@ -230,8 +305,14 @@ export default function UserEditorScreen() {
               <TextField
                 icon={Mail}
                 label="Correo"
-                value={user.email ?? ""}
-                disabled
+                value={effective.email}
+                disabled={!canManageUsers}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...(prev ?? {}),
+                    email: e.target.value,
+                  }))
+                }
               />
               <SelectField
                 icon={Shield}
@@ -272,6 +353,210 @@ export default function UserEditorScreen() {
                 </Button>
               </div>
             ) : (
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                Modo lectura: necesitas permiso identity.users.update para editar.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {canReadUsers && user && !rolesQuery.isLoading && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Datos personales</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <PhoneField
+                label="Teléfono"
+                icon={Phone}
+                value={effective.phone}
+                disabled={!canManageUsers}
+                onChange={(e) =>
+                  setDraft((prev) => ({ ...(prev ?? {}), phone: e.target.value }))
+                }
+              />
+              <DateField
+                label="Fecha de nacimiento"
+                icon={CalendarDays}
+                value={effective.birthDate}
+                disabled={!canManageUsers}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...(prev ?? {}),
+                    birthDate: e.target.value,
+                  }))
+                }
+              />
+              <SelectField
+                icon={VenusAndMars}
+                label="Sexo"
+                value={effective.gender}
+                placeholder="Seleccionar"
+                disabled={!canManageUsers}
+                options={[
+                  { value: "masculino", label: "Masculino" },
+                  { value: "femenino", label: "Femenino" },
+                  { value: "no_binario", label: "No binario" },
+                  { value: "prefiero_no_decir", label: "Prefiero no decir" },
+                ]}
+                onValueChange={(value) =>
+                  setDraft((prev) => ({ ...(prev ?? {}), gender: value }))
+                }
+              />
+            </div>
+
+            <TextareaField
+              label="Biografía"
+              value={effective.bio}
+              maxLength={500}
+              disabled={!canManageUsers}
+              onChange={(e) =>
+                setDraft((prev) => ({ ...(prev ?? {}), bio: e.target.value }))
+              }
+            />
+
+            <p className="text-[13px] font-medium text-[hsl(var(--foreground))]/80 flex items-center gap-1.5 pt-2">
+              <MapPin className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
+              Dirección
+            </p>
+            <div className="grid md:grid-cols-2 gap-4">
+              <ComboboxField
+                label="País"
+                options={countryOptions}
+                value={effective.country}
+                disabled={!canManageUsers}
+                onChange={(val) =>
+                  setDraft((prev) => ({
+                    ...(prev ?? {}),
+                    country: val,
+                    state: "",
+                    city: "",
+                    colony: "",
+                  }))
+                }
+                placeholder="Seleccionar país..."
+                searchPlaceholder="Buscar país..."
+              />
+              {stateOptions.length > 0 ? (
+                <ComboboxField
+                  label="Estado / Provincia"
+                  options={stateOptions}
+                  value={effective.state}
+                  disabled={!canManageUsers}
+                  onChange={(val) =>
+                    setDraft((prev) => ({
+                      ...(prev ?? {}),
+                      state: val,
+                      city: "",
+                      colony: "",
+                    }))
+                  }
+                  placeholder="Seleccionar estado..."
+                  searchPlaceholder="Buscar estado..."
+                />
+              ) : (
+                <TextField
+                  label="Estado / Provincia"
+                  icon={MapPin}
+                  value={effective.state}
+                  disabled={!canManageUsers}
+                  onChange={(e) =>
+                    setDraft((prev) => ({
+                      ...(prev ?? {}),
+                      state: e.target.value,
+                    }))
+                  }
+                />
+              )}
+              {effective.country && cityOptions.length > 0 ? (
+                <ComboboxField
+                  label="Ciudad / Municipio"
+                  options={cityOptions}
+                  value={effective.city}
+                  disabled={!canManageUsers}
+                  onChange={(val) =>
+                    setDraft((prev) => ({ ...(prev ?? {}), city: val }))
+                  }
+                  placeholder="Seleccionar ciudad..."
+                  searchPlaceholder="Buscar ciudad..."
+                  minSearchLength={2}
+                />
+              ) : (
+                <TextField
+                  label="Ciudad / Municipio"
+                  icon={MapPin}
+                  value={effective.city}
+                  disabled={!canManageUsers}
+                  onChange={(e) =>
+                    setDraft((prev) => ({
+                      ...(prev ?? {}),
+                      city: e.target.value,
+                    }))
+                  }
+                />
+              )}
+              <TextField
+                label="Colonia / Fraccionamiento"
+                icon={MapPin}
+                value={effective.colony}
+                disabled={!canManageUsers}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...(prev ?? {}),
+                    colony: e.target.value,
+                  }))
+                }
+              />
+              <TextField
+                label="Calle"
+                icon={MapPin}
+                value={effective.street}
+                disabled={!canManageUsers}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...(prev ?? {}),
+                    street: e.target.value,
+                  }))
+                }
+              />
+              <TextField
+                label="Número exterior"
+                value={effective.extNumber}
+                disabled={!canManageUsers}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...(prev ?? {}),
+                    extNumber: e.target.value,
+                  }))
+                }
+              />
+              <TextField
+                label="Número interior"
+                value={effective.intNumber}
+                disabled={!canManageUsers}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...(prev ?? {}),
+                    intNumber: e.target.value,
+                  }))
+                }
+              />
+              <TextField
+                label="Código postal"
+                value={effective.postalCode}
+                disabled={!canManageUsers}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...(prev ?? {}),
+                    postalCode: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            {!canManageUsers && (
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
                 Modo lectura: necesitas permiso identity.users.update para editar.
               </p>
