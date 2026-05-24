@@ -73,11 +73,11 @@ export const contactCreateSchema = z.object({
 
 const hrEmployeeBaseSchema = z.object({
   employeeCode: z.string().trim().max(40).optional().or(z.literal("")),
-  userProfileId: z.string().cuid().optional().nullable(),
-  supervisorEmployeeId: z.string().cuid().optional().nullable(),
-  departmentId: z.string().cuid().optional().nullable(),
-  jobTitleId: z.string().cuid().optional().nullable(),
-  profileImageFileId: z.string().cuid().optional().nullable(),
+  userProfileId: z.string().uuid().optional().nullable(),
+  supervisorEmployeeId: z.string().uuid().optional().nullable(),
+  departmentId: z.string().uuid().optional().nullable(),
+  jobTitleId: z.string().uuid().optional().nullable(),
+  profileImageFileId: z.string().uuid().optional().nullable(),
   firstName: z.string().trim().min(1, "El nombre es obligatorio."),
   lastName: z.string().trim().min(1, "Los apellidos son obligatorios."),
   workEmail: z.string().email().optional().or(z.literal("")),
@@ -174,6 +174,7 @@ export const setupInitializeSchema = z.object({
   country: z.string().optional(),
   state: z.string().optional(),
   city: z.string().optional(),
+  colony: z.string().optional(),
   street: z.string().optional(),
   extNumber: z.string().optional(),
   intNumber: z.string().optional(),
@@ -198,6 +199,7 @@ export const companyAddressSchema = z.object({
   country: z.string().optional(),
   state: z.string().optional(),
   city: z.string().optional(),
+  colony: z.string().optional(),
   street: z.string().optional(),
   extNumber: z.string().optional(),
   intNumber: z.string().optional(),
@@ -206,12 +208,12 @@ export const companyAddressSchema = z.object({
 
 export const companyBrandingSchema = z.object({
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  logoFileId: z.string().nullable().optional(),
+  logoFileId: z.string().uuid().nullable().optional(),
 });
 
 export const notificationCreateSchema = z.object({
-  userId: z.string().min(1),
-  companyId: z.string().optional(),
+  userId: z.string().uuid(),
+  companyId: z.string().uuid().optional(),
   kind: z.enum(["info", "warning", "error", "success"]).default("info"),
   title: z.string().min(1),
   body: z.string().optional(),
@@ -239,8 +241,8 @@ export const financeAccountCreateSchema = z.object({
 export const financeAccountUpdateSchema = financeAccountCreateSchema.partial();
 
 export const financeEntryLineSchema = z.object({
-  accountId: z.string().trim().min(1, "La cuenta es obligatoria."),
-  contactId: z.string().trim().min(1).optional(),
+  accountId: z.string().uuid("La cuenta debe ser UUID valido."),
+  contactId: z.string().uuid().optional(),
   debit: z.coerce.number().finite().min(0).default(0),
   credit: z.coerce.number().finite().min(0).default(0),
   currency: currencySchema.optional(),
@@ -310,7 +312,7 @@ const dateLikeSchema = z.union([
 export const financeDocumentCreateSchema = z.object({
   direction: financeDirectionSchema,
   docType: financeDocTypeSchema,
-  contactId: z.string().cuid().optional().nullable(),
+  contactId: z.string().uuid().optional().nullable(),
   currency: currencySchema.default("MXN"),
   issueDate: dateLikeSchema,
   dueDate: dateLikeSchema.optional().nullable(),
@@ -321,7 +323,7 @@ export const financeDocumentCreateSchema = z.object({
   taxLines: z
     .array(
       z.object({
-        taxRateId: z.string().cuid(),
+        taxRateId: z.string().uuid(),
         baseAmount: z.coerce.number().finite().positive().optional(),
       }),
     )
@@ -347,17 +349,17 @@ export const financeDocumentReminderSchema = z.object({
 });
 
 export const financeDocumentBulkReminderSchema = z.object({
-  documentIds: z.array(z.string().cuid()).min(1).max(200),
+  documentIds: z.array(z.string().uuid()).min(1).max(200),
   message: z.string().trim().max(280).optional().nullable(),
 });
 
 export const financeApplicationLineSchema = z.object({
-  targetDocumentId: z.string().cuid(),
+  targetDocumentId: z.string().uuid(),
   amount: z.coerce.number().finite().positive(),
 });
 
 export const financeApplicationPreviewSchema = z.object({
-  targetDocumentIds: z.array(z.string().cuid()).min(1).max(300).optional(),
+  targetDocumentIds: z.array(z.string().uuid()).min(1).max(300).optional(),
   lines: z.array(financeApplicationLineSchema).min(1).max(300).optional(),
   allocationMode: z.enum(["fifo", "manual"]).default("fifo"),
   applyDate: dateLikeSchema.optional(),
@@ -372,9 +374,9 @@ export const financeApplicationApplySchema = z.object({
 export const financeApplicationListQuerySchema = z.object({
   direction: financeDirectionSchema.optional(),
   status: financeApplicationStatusSchema.optional(),
-  sourceDocumentId: z.string().cuid().optional(),
-  targetDocumentId: z.string().cuid().optional(),
-  contactId: z.string().cuid().optional(),
+  sourceDocumentId: z.string().uuid().optional(),
+  targetDocumentId: z.string().uuid().optional(),
+  contactId: z.string().uuid().optional(),
   from: dateLikeSchema.optional(),
   to: dateLikeSchema.optional(),
   limit: z.coerce.number().int().min(1).max(300).optional(),
@@ -388,14 +390,14 @@ export const financeDocumentListQuerySchema = z.object({
   direction: financeDirectionSchema.optional(),
   docType: financeDocTypeSchema.optional(),
   status: financeDocStatusSchema.optional(),
-  contactId: z.string().cuid().optional(),
+  contactId: z.string().uuid().optional(),
   q: z.string().trim().max(120).optional(),
   limit: z.coerce.number().int().min(1).max(300).optional(),
 });
 
 export const financeAgingQuerySchema = z.object({
   direction: financeDirectionSchema.optional(),
-  contactId: z.string().cuid().optional(),
+  contactId: z.string().uuid().optional(),
   asOf: dateLikeSchema.optional(),
   currency: currencySchema.optional(),
 });
@@ -453,13 +455,13 @@ export const createUserSchema = z.object({
   password: z
     .string()
     .min(8, "La contraseña debe tener al menos 8 caracteres."),
-  roleId: z.string().cuid().optional(),
+  roleId: z.string().uuid().optional(),
 });
 
 export const fileBulkDownloadSchema = z.object({
   fileIds: z
     .array(
-      z.string().trim().min(1, "Cada identificador de archivo es obligatorio."),
+      z.string().uuid("Cada identificador de archivo debe ser UUID valido."),
     )
     .min(1, "Debes seleccionar al menos un archivo.")
     .max(50, "No puedes seleccionar más de 50 archivos."),
@@ -509,7 +511,7 @@ export const ledgerMovementQuerySchema = z.object({
   concept: z.string().optional(),
   amountMin: z.coerce.number().min(0).optional(),
   amountMax: z.coerce.number().min(0).optional(),
-  accountId: z.string().cuid().optional(),
+  accountId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(500).default(50),
   orderBy: z.enum(["occurredAt", "sequenceNumber"]).default("occurredAt"),
@@ -561,3 +563,4 @@ export const moduleResetSchema = z
     message: 'Debes escribir "ACEPTO" para confirmar el reinicio.',
     path: ['confirmation'],
   });
+
