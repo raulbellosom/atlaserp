@@ -85,7 +85,7 @@ enum LedgerMovementStatus {
 }
 
 model AtlasModule {
-  id             String   @id @default(cuid())
+  id String @id @default(uuid(7)) @db.Uuid
   key            String   @unique
   name           String
   description    String?
@@ -109,9 +109,9 @@ model AtlasModule {
 }
 
 model ModuleDependency {
-  id             String @id @default(cuid())
-  moduleId       String
-  dependencyId   String
+  id String @id @default(uuid(7)) @db.Uuid
+  moduleId String @db.Uuid
+  dependencyId String @db.Uuid
   versionRange   String?
   optional       Boolean @default(false)
 
@@ -122,9 +122,9 @@ model ModuleDependency {
 }
 
 model Blueprint {
-  id          String @id @default(cuid())
+  id String @id @default(uuid(7)) @db.Uuid
   key         String @unique
-  moduleId    String
+  moduleId String @db.Uuid
   kind        BlueprintKind
   version     String
   schema      Json
@@ -139,7 +139,7 @@ model Blueprint {
 }
 
 model AtlasModel {
-  id            String @id @default(cuid())
+  id String @id @default(uuid(7)) @db.Uuid
   moduleKey     String
   name          String @unique
   tableName     String @unique
@@ -158,8 +158,8 @@ model AtlasModel {
 }
 
 model AtlasField {
-  id           String @id @default(cuid())
-  modelId      String
+  id String @id @default(uuid(7)) @db.Uuid
+  modelId String @db.Uuid
   name         String
   label        String
   type         String
@@ -177,7 +177,7 @@ model AtlasField {
 }
 
 model AtlasView {
-  id         String @id @default(cuid())
+  id String @id @default(uuid(7)) @db.Uuid
   moduleKey  String
   key        String @unique
   modelName  String?
@@ -195,7 +195,7 @@ model AtlasView {
 }
 
 model ModuleMigration {
-  id        String @id @default(cuid())
+  id String @id @default(uuid(7)) @db.Uuid
   moduleKey String
   filename  String
   checksum  String
@@ -205,7 +205,7 @@ model ModuleMigration {
 }
 
 model Company {
-  id             String          @id @default(cuid())
+  id String @id @default(uuid(7)) @db.Uuid
   name           String
   slug           String          @unique
   legalName      String?
@@ -221,6 +221,7 @@ model Company {
   country        String?
   state          String?
   city           String?
+  colony         String?
   street         String?
   extNumber      String?
   intNumber      String?
@@ -247,19 +248,20 @@ model Company {
 }
 
 model UserProfile {
-  id           String   @id @default(cuid())
-  authUserId   String   @unique
+  id String @id @default(uuid(7)) @db.Uuid
+  authUserId String @unique @db.Uuid
   displayName  String
   firstName    String   @default("")
   lastName     String   @default("")
   email        String   @unique
-  avatarFileId String?
+  avatarFileId String? @db.Uuid
   birthDate    DateTime?
   gender       String?
   phone        String?
   country      String?
   state        String?
   city         String?
+  colony       String?
   street       String?
   extNumber    String?
   intNumber    String?
@@ -279,8 +281,8 @@ model UserProfile {
 }
 
 model UserTablePreference {
-  id        String      @id @default(cuid())
-  userId    String
+  id String @id @default(uuid(7)) @db.Uuid
+  userId String @db.Uuid
   tableKey  String
   config    Json
   createdAt DateTime    @default(now())
@@ -293,10 +295,10 @@ model UserTablePreference {
 }
 
 model Membership {
-  id          String @id @default(cuid())
-  companyId   String
-  userId      String
-  roleId      String?
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
+  userId String @db.Uuid
+  roleId String? @db.Uuid
   enabled     Boolean @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -311,7 +313,7 @@ model Membership {
 }
 
 model Role {
-  id          String @id @default(cuid())
+  id String @id @default(uuid(7)) @db.Uuid
   key         String @unique
   name        String
   description String?
@@ -325,10 +327,10 @@ model Role {
 }
 
 model Permission {
-  id          String @id @default(cuid())
+  id String @id @default(uuid(7)) @db.Uuid
   key         String @unique
   name        String
-  moduleId    String?
+  moduleId String? @db.Uuid
   moduleKey   String?
   description String?
   active      Boolean @default(true)
@@ -342,9 +344,9 @@ model Permission {
 }
 
 model RolePermission {
-  id            String @id @default(cuid())
-  roleId        String
-  permissionId  String
+  id String @id @default(uuid(7)) @db.Uuid
+  roleId String @db.Uuid
+  permissionId String @db.Uuid
 
   role          Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission    Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
@@ -353,7 +355,7 @@ model RolePermission {
 }
 
 model FileAsset {
-  id            String @id @default(cuid())
+  id String @id @default(uuid(7)) @db.Uuid
   bucket        String
   objectKey     String
   originalName  String
@@ -363,8 +365,8 @@ model FileAsset {
   visibility    FileVisibility @default(PRIVATE)
   moduleKey     String?
   entityType    String?
-  entityId      String?
-  uploadedById  String?
+  entityId String? @db.Uuid
+  uploadedById String? @db.Uuid
   metadata      Json?
   enabled       Boolean @default(true)
   createdAt     DateTime @default(now())
@@ -375,11 +377,11 @@ model FileAsset {
 }
 
 model AuditLog {
-  id          String @id @default(cuid())
-  actorId     String?
+  id String @id @default(uuid(7)) @db.Uuid
+  actorId String? @db.Uuid
   moduleKey   String?
   entityType  String?
-  entityId    String?
+  entityId String? @db.Uuid
   action      String
   before      Json?
   after       Json?
@@ -393,8 +395,8 @@ model AuditLog {
 }
 
 model Contact {
-  id          String @id @default(cuid())
-  companyId   String?
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String? @db.Uuid
   type        String
   name        String
   legalName   String?
@@ -416,13 +418,13 @@ model Contact {
 }
 
 model HrEmployee {
-  id             String   @id @default(cuid())
-  companyId      String
-  userProfileId  String? @unique
-  supervisorEmployeeId String?
-  departmentId   String?
-  jobTitleId     String?
-  profileImageFileId String?
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
+  userProfileId String? @unique @db.Uuid
+  supervisorEmployeeId String? @db.Uuid
+  departmentId String? @db.Uuid
+  jobTitleId String? @db.Uuid
+  profileImageFileId String? @db.Uuid
   employeeCode   String?
   firstName      String
   lastName       String
@@ -460,8 +462,8 @@ model HrEmployee {
 }
 
 model HrDepartment {
-  id          String @id @default(cuid())
-  companyId   String
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
   name        String
   description String?
   enabled     Boolean @default(true)
@@ -476,8 +478,8 @@ model HrDepartment {
 }
 
 model HrJobTitle {
-  id          String @id @default(cuid())
-  companyId   String
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
   name        String
   description String?
   enabled     Boolean @default(true)
@@ -492,9 +494,9 @@ model HrJobTitle {
 }
 
 model FinanceAccount {
-  id             String @id @default(cuid())
-  companyId      String
-  parentAccountId String?
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
+  parentAccountId String? @db.Uuid
   code           String
   name           String
   type           String
@@ -516,9 +518,9 @@ model FinanceAccount {
 }
 
 model FinanceJournalEntry {
-  id          String @id @default(cuid())
-  companyId   String
-  createdById String?
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
+  createdById String? @db.Uuid
   entryNumber String
   occurredAt  DateTime
   concept     String
@@ -540,10 +542,10 @@ model FinanceJournalEntry {
 }
 
 model FinanceJournalLine {
-  id          String @id @default(cuid())
-  entryId     String
-  accountId   String
-  contactId   String?
+  id String @id @default(uuid(7)) @db.Uuid
+  entryId String @db.Uuid
+  accountId String @db.Uuid
+  contactId String? @db.Uuid
   debit       Decimal @default(0)
   credit      Decimal @default(0)
   currency    String @default("MXN")
@@ -565,8 +567,8 @@ model FinanceJournalLine {
 }
 
 model FinanceFxRate {
-  id           String @id @default(cuid())
-  companyId    String
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
   baseCurrency String
   quoteCurrency String
   rateDate     DateTime
@@ -585,12 +587,12 @@ model FinanceFxRate {
 }
 
 model FinanceDocument {
-  id            String                   @id @default(cuid())
-  companyId     String
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
   direction     FinanceDocumentDirection
   docType       FinanceDocumentType
   status        FinanceDocumentStatus    @default(OPEN)
-  contactId     String?
+  contactId String? @db.Uuid
   currency      String                   @default("MXN")
   issueDate     DateTime
   dueDate       DateTime?
@@ -617,8 +619,8 @@ model FinanceDocument {
 }
 
 model FinanceTaxRate {
-  id         String    @id @default(cuid())
-  companyId  String
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
   key        String
   name       String
   kind       FinanceTaxKind
@@ -638,10 +640,10 @@ model FinanceTaxRate {
 }
 
 model FinanceDocumentTaxLine {
-  id          String         @id @default(cuid())
-  companyId   String
-  documentId  String
-  taxRateId   String?
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
+  documentId String @db.Uuid
+  taxRateId String? @db.Uuid
   taxKey      String
   taxName     String
   kind        FinanceTaxKind
@@ -663,10 +665,10 @@ model FinanceDocumentTaxLine {
 }
 
 model FinanceDocumentApplication {
-  id               String          @id @default(cuid())
-  companyId        String
-  sourceDocumentId String
-  targetDocumentId String
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
+  sourceDocumentId String @db.Uuid
+  targetDocumentId String @db.Uuid
   appliedAmount    Decimal
   status           FinanceApplicationStatus @default(APPLIED)
   effectiveFxRate  Decimal?
@@ -674,7 +676,7 @@ model FinanceDocumentApplication {
   targetAmount     Decimal?
   appliedAt        DateTime        @default(now())
   reversedAt       DateTime?
-  reversedById     String?
+  reversedById String? @db.Uuid
   reversalReason   String?
   metadata         Json?
   enabled          Boolean         @default(true)
@@ -693,10 +695,10 @@ model FinanceDocumentApplication {
 }
 
 model FinanceDocumentAccountingLink {
-  id             String                   @id @default(cuid())
-  companyId      String
-  documentId     String
-  journalEntryId String
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
+  documentId String @db.Uuid
+  journalEntryId String @db.Uuid
   eventType      FinanceDocumentEventType
   metadata       Json?
   enabled        Boolean                  @default(true)
@@ -713,7 +715,7 @@ model FinanceDocumentAccountingLink {
 }
 
 model InstanceConfig {
-  id        String   @id @default(cuid())
+  id String @id @default(uuid(7)) @db.Uuid
   key       String   @unique
   value     String
   createdAt DateTime @default(now())
@@ -721,10 +723,10 @@ model InstanceConfig {
 }
 
 model BrandingConfig {
-  id           String   @id @default(cuid())
-  companyId    String   @unique
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String @unique @db.Uuid
   primaryColor String
-  logoFileId   String?
+  logoFileId String? @db.Uuid
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -732,9 +734,9 @@ model BrandingConfig {
 }
 
 model Notification {
-  id        String    @id @default(cuid())
-  userId    String
-  companyId String?
+  id String @id @default(uuid(7)) @db.Uuid
+  userId String @db.Uuid
+  companyId String? @db.Uuid
   kind      String    @default("info")
   title     String
   body      String?
@@ -749,8 +751,8 @@ model Notification {
 }
 
 model UserPreference {
-  id        String      @id @default(cuid())
-  userId    String
+  id String @id @default(uuid(7)) @db.Uuid
+  userId String @db.Uuid
   key       String
   value     Json
   updatedAt DateTime    @updatedAt
@@ -762,15 +764,15 @@ model UserPreference {
 }
 
 model LedgerAccount {
-  id             String   @id @default(cuid())
-  companyId      String
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
   name           String
   type           String   @default("otro")
   currency       String   @default("MXN")
   initialBalance Decimal  @default(0)
   currentBalance Decimal  @default(0)
   description    String?
-  createdById    String?
+  createdById String? @db.Uuid
   enabled        Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -783,9 +785,9 @@ model LedgerAccount {
 }
 
 model LedgerMovement {
-  id                 String                  @id @default(cuid())
-  companyId          String
-  accountId          String
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
+  accountId String @db.Uuid
   sequenceNumber     Int
   occurredAt         DateTime
   direction          LedgerMovementDirection
@@ -799,8 +801,8 @@ model LedgerMovement {
   status             LedgerMovementStatus    @default(ACTIVE)
   cancellationReason String?
   cancelledAt        DateTime?
-  cancelledById      String?
-  createdById        String?
+  cancelledById String? @db.Uuid
+  createdById String? @db.Uuid
   metadata           Json?
   enabled            Boolean                 @default(true)
   createdAt          DateTime                @default(now())
