@@ -754,6 +754,7 @@ app.get("/user/me", authMiddleware, async (c) => {
       role: context.roleKey,
       isAdmin: context.isAdmin,
       permissions: context.permissions,
+      colony: context.profile.colony,
     });
   } catch {
     return c.json({ error: "Internal server error" }, 500);
@@ -787,6 +788,7 @@ app.get(
           country: context.profile.country,
           state: context.profile.state,
           city: context.profile.city,
+          colony: context.profile.colony,
           street: context.profile.street,
           extNumber: context.profile.extNumber,
           intNumber: context.profile.intNumber,
@@ -837,6 +839,7 @@ app.put(
           country: body.country ? String(body.country).trim() : null,
           state: body.state ? String(body.state).trim() : null,
           city: body.city ? String(body.city).trim() : null,
+          colony: body.colony ? String(body.colony).trim() : null,
           street: body.street ? String(body.street).trim() : null,
           extNumber: body.extNumber ? String(body.extNumber).trim() : null,
           intNumber: body.intNumber ? String(body.intNumber).trim() : null,
@@ -859,6 +862,7 @@ app.put(
           country: updated.country,
           state: updated.state,
           city: updated.city,
+          colony: updated.colony,
           street: updated.street,
           extNumber: updated.extNumber,
           intNumber: updated.intNumber,
@@ -927,6 +931,7 @@ app.post(
         where: { id: context.profile.id },
         data: { avatarFileId: asset.id },
       });
+      cacheDel(`user_ctx:${authUserId}`);
       const avatarUrl = await getSignedUrlByFileId(asset.id);
       return c.json({ data: { avatarUrl } });
     } catch {
