@@ -117,6 +117,11 @@ export default function CompanyAddress() {
   }
 
   const disabled = !canManage || saveMutation.isPending;
+  const locationLine = [form.state, form.country].filter(Boolean).join(", ");
+  const streetLine = [form.street, form.extNumber ? `#${form.extNumber}` : ""]
+    .filter(Boolean)
+    .join(" ");
+  const interiorLine = form.intNumber ? `Int. ${form.intNumber}` : null;
 
   return (
     <div className="flex flex-col min-h-full">
@@ -220,7 +225,7 @@ export default function CompanyAddress() {
                       <TextField
                         label="Colonia / Fraccionamiento"
                         value={form.colony}
-                        onChange={(v) => handleChange("colony", v)}
+                        onChange={(e) => handleChange("colony", e.target.value)}
                         disabled={disabled}
                         placeholder="Ej. Col. Doctores"
                         icon={MapPin}
@@ -230,7 +235,7 @@ export default function CompanyAddress() {
                       <TextField
                         label="Calle"
                         value={form.street}
-                        onChange={(v) => handleChange("street", v)}
+                        onChange={(e) => handleChange("street", e.target.value)}
                         disabled={disabled}
                         placeholder="Ej. Av. Insurgentes Sur"
                         icon={MapPin}
@@ -239,7 +244,7 @@ export default function CompanyAddress() {
                     <TextField
                       label="Numero exterior"
                       value={form.extNumber}
-                      onChange={(v) => handleChange("extNumber", v)}
+                      onChange={(e) => handleChange("extNumber", e.target.value)}
                       disabled={disabled}
                       placeholder="Ej. 123"
                       icon={Hash}
@@ -247,7 +252,7 @@ export default function CompanyAddress() {
                     <TextField
                       label="Numero interior"
                       value={form.intNumber}
-                      onChange={(v) => handleChange("intNumber", v)}
+                      onChange={(e) => handleChange("intNumber", e.target.value)}
                       disabled={disabled}
                       placeholder="Ej. Piso 4, Of. 401"
                       icon={Hash}
@@ -255,7 +260,7 @@ export default function CompanyAddress() {
                     <TextField
                       label="Codigo postal"
                       value={form.postalCode}
-                      onChange={(v) => handleChange("postalCode", v)}
+                      onChange={(e) => handleChange("postalCode", e.target.value)}
                       disabled={disabled}
                       placeholder="Ej. 06600"
                       icon={Hash}
@@ -284,17 +289,16 @@ export default function CompanyAddress() {
                   Vista previa
                 </p>
 
-                {/* Location visual */}
-                <div className="flex flex-col items-center py-4 gap-2">
-                  <div className="h-14 w-14 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 flex items-center justify-center">
+                <div className="flex flex-col items-center py-3 gap-2.5">
+                  <div className="h-14 w-14 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/35 flex items-center justify-center">
                     <MapPin
                       size={24}
                       className="text-[hsl(var(--muted-foreground))]"
                     />
                   </div>
-                  <div className="text-center space-y-0.5">
+                  <div className="text-center space-y-0.5 min-w-0">
                     {form.city ? (
-                      <p className="text-sm font-semibold text-[hsl(var(--foreground))]">
+                      <p className="text-base font-semibold text-[hsl(var(--foreground))] truncate">
                         {form.city}
                       </p>
                     ) : (
@@ -302,32 +306,68 @@ export default function CompanyAddress() {
                         Ciudad no configurada
                       </p>
                     )}
-                    {(form.state || form.country) && (
+                    {locationLine && (
                       <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                        {[form.state, form.country].filter(Boolean).join(", ")}
+                        {locationLine}
                       </p>
                     )}
                   </div>
+                  {form.colony && (
+                    <div className="inline-flex items-center rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/45 px-2.5 py-1 text-[11px] font-medium text-[hsl(var(--foreground))]">
+                      Colonia: {form.colony}
+                    </div>
+                  )}
                 </div>
 
-                {/* Street address */}
-                {(form.street || form.postalCode) && (
+                {(form.street || form.postalCode || form.colony) && (
                   <>
                     <div className="border-t border-[hsl(var(--border))]" />
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
-                        Domicilio
+                        Resumen fiscal
                       </p>
-                      <p className="text-xs font-medium text-[hsl(var(--foreground))] leading-relaxed">
-                        {form.street}
-                        {form.extNumber ? ` #${form.extNumber}` : ""}
-                        {form.intNumber ? `, ${form.intNumber}` : ""}
-                      </p>
-                      {form.postalCode && (
-                        <p className="text-[11px] text-[hsl(var(--muted-foreground))]">
-                          CP {form.postalCode}
-                        </p>
-                      )}
+                      <div className="space-y-1.5 text-xs">
+                        {form.colony && (
+                          <div className="flex items-start justify-between gap-3">
+                            <span className="text-[hsl(var(--muted-foreground))]">
+                              Colonia
+                            </span>
+                            <span className="font-medium text-[hsl(var(--foreground))] text-right">
+                              {form.colony}
+                            </span>
+                          </div>
+                        )}
+                        {streetLine && (
+                          <div className="flex items-start justify-between gap-3">
+                            <span className="text-[hsl(var(--muted-foreground))]">
+                              Calle
+                            </span>
+                            <span className="font-medium text-[hsl(var(--foreground))] text-right">
+                              {streetLine}
+                            </span>
+                          </div>
+                        )}
+                        {interiorLine && (
+                          <div className="flex items-start justify-between gap-3">
+                            <span className="text-[hsl(var(--muted-foreground))]">
+                              Interior
+                            </span>
+                            <span className="font-medium text-[hsl(var(--foreground))] text-right">
+                              {interiorLine}
+                            </span>
+                          </div>
+                        )}
+                        {form.postalCode && (
+                          <div className="flex items-start justify-between gap-3">
+                            <span className="text-[hsl(var(--muted-foreground))]">
+                              Codigo postal
+                            </span>
+                            <span className="font-medium text-[hsl(var(--foreground))] text-right">
+                              {form.postalCode}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </>
                 )}

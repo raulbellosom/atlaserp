@@ -1354,6 +1354,7 @@ app.put(
         country: String(body.country ?? "").trim(),
         state: String(body.state ?? "").trim(),
         city: String(body.city ?? "").trim(),
+        colony: String(body.colony ?? "").trim(),
         street: String(body.street ?? "").trim(),
         extNumber: String(body.extNumber ?? "").trim(),
         intNumber: String(body.intNumber ?? "").trim(),

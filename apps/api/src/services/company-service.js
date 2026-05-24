@@ -10,6 +10,89 @@ export class CompanyServiceError extends Error {
   }
 }
 
+const COMPANY_TYPE_VALUES = [
+  "sa_de_cv",
+  "srl_de_cv",
+  "sa",
+  "srl",
+  "sc",
+  "ac",
+  "sapi_de_cv",
+  "otro",
+];
+
+const COMPANY_SIZE_VALUES = ["micro", "small", "medium", "large", "corporate"];
+
+const INDUSTRY_VALUES = [
+  "tecnologia",
+  "software",
+  "manufactura",
+  "retail",
+  "salud",
+  "educacion",
+  "logistica",
+  "construccion",
+  "servicios_profesionales",
+  "contabilidad",
+  "financiero",
+  "agroindustria",
+  "hospitalidad",
+  "marketing",
+  "inmobiliario",
+  "mineria",
+  "ong",
+  "otro",
+];
+
+const COMPANY_TYPE_ALIASES = {
+  "sa de cv": "sa_de_cv",
+  "sociedad anonima de capital variable": "sa_de_cv",
+  "srl de cv": "srl_de_cv",
+  "sociedad de responsabilidad limitada de capital variable": "srl_de_cv",
+  "sociedad anonima": "sa",
+  "sociedad de responsabilidad limitada": "srl",
+  "sociedad cooperativa": "sc",
+  "asociacion civil": "ac",
+  "sapi de cv": "sapi_de_cv",
+};
+
+const COMPANY_SIZE_ALIASES = {
+  "micro 1 a 10 empleados": "micro",
+  "micro 1 10": "micro",
+  "pequena 11 a 50 empleados": "small",
+  "small 11 a 50 empleados": "small",
+  "mediana 51 a 200 empleados": "medium",
+  "medium 51 a 200 empleados": "medium",
+  "grande 201 a 500 empleados": "large",
+  "large 201 a 500 empleados": "large",
+  "corporativo mas de 500 empleados": "corporate",
+  "corporativo 500": "corporate",
+};
+
+function normalizeText(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeEnumValue(value, validValues, aliases = {}) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (validValues.includes(raw)) return raw;
+  const normalized = normalizeText(raw);
+  if (!normalized) return "";
+  if (Object.prototype.hasOwnProperty.call(aliases, normalized)) {
+    return aliases[normalized];
+  }
+  const exact = validValues.find((v) => normalizeText(v) === normalized);
+  return exact ?? raw;
+}
+
 export function createCompanyService({ prisma, supabaseAdmin }) {
   async function getCompanyId() {
     const record = await prisma.instanceConfig.findUnique({
@@ -46,11 +129,22 @@ export function createCompanyService({ prisma, supabaseAdmin }) {
         name: company?.name ?? "",
         legalName: company?.legalName ?? "",
         rfc: company?.rfc ?? "",
-        companyType: company?.companyType ?? "",
+        companyType: normalizeEnumValue(
+          company?.companyType,
+          COMPANY_TYPE_VALUES,
+          COMPANY_TYPE_ALIASES,
+        ),
         companyTypeName: company?.companyTypeName ?? "",
-        industryKey: company?.industryKey ?? "",
+        industryKey: normalizeEnumValue(
+          company?.industryKey,
+          INDUSTRY_VALUES,
+        ),
         industryName: company?.industryName ?? "",
-        companySize: company?.companySize ?? "",
+        companySize: normalizeEnumValue(
+          company?.companySize,
+          COMPANY_SIZE_VALUES,
+          COMPANY_SIZE_ALIASES,
+        ),
         contactEmail: company?.contactEmail ?? "",
         phone: company?.phone ?? "",
         website: company?.website ?? "",
@@ -59,23 +153,43 @@ export function createCompanyService({ prisma, supabaseAdmin }) {
 
     async updateProfile(fields) {
       const companyId = await getCompanyId();
+      const companyType = normalizeEnumValue(
+        fields.companyType,
+        COMPANY_TYPE_VALUES,
+        COMPANY_TYPE_ALIASES,
+      );
+      const industryKey = normalizeEnumValue(
+        fields.industryKey,
+        INDUSTRY_VALUES,
+      );
+      const companySize = normalizeEnumValue(
+        fields.companySize,
+        COMPANY_SIZE_VALUES,
+        COMPANY_SIZE_ALIASES,
+      );
       await prisma.company.update({
         where: { id: companyId },
         data: {
           name: fields.name,
           legalName: fields.legalName || null,
           rfc: fields.rfc || null,
-          companyType: fields.companyType || null,
+          companyType: companyType || null,
           companyTypeName: fields.companyTypeName || null,
-          industryKey: fields.industryKey || null,
+          industryKey: industryKey || null,
           industryName: fields.industryName || null,
-          companySize: fields.companySize || null,
+          companySize: companySize || null,
           contactEmail: fields.contactEmail || null,
           phone: fields.phone || null,
           website: fields.website || null,
         },
       });
-      return { companyId, ...fields };
+      return {
+        companyId,
+        ...fields,
+        companyType,
+        industryKey,
+        companySize,
+      };
     },
 
     // ── Address ──────────────────────────────────────────────────────────────

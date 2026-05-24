@@ -19,6 +19,46 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 
+const COMPANY_TYPE_LABELS = {
+  sa_de_cv: "SA de CV",
+  srl_de_cv: "SRL de CV",
+  sa: "SA",
+  srl: "SRL",
+  sc: "SC - Sociedad Cooperativa",
+  ac: "AC - Asociacion Civil",
+  sapi_de_cv: "SAPI de CV",
+  otro: "Otro",
+};
+
+const COMPANY_SIZE_LABELS = {
+  micro: "Micro",
+  small: "Pequena",
+  medium: "Mediana",
+  large: "Grande",
+  corporate: "Corporativo",
+};
+
+const INDUSTRY_LABELS = {
+  tecnologia: "Tecnologia",
+  software: "Software",
+  manufactura: "Manufactura",
+  retail: "Retail",
+  salud: "Salud",
+  educacion: "Educacion",
+  logistica: "Logistica",
+  construccion: "Construccion",
+  servicios_profesionales: "Servicios profesionales",
+  contabilidad: "Contabilidad",
+  financiero: "Financiero",
+  agroindustria: "Agroindustria",
+  hospitalidad: "Hospitalidad",
+  marketing: "Marketing",
+  inmobiliario: "Inmobiliario",
+  mineria: "Mineria",
+  ong: "ONG",
+  otro: "Otro",
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function InfoRow({ icon: Icon, label, value }) {
@@ -145,9 +185,21 @@ export default function CompanyOverview() {
   const companyName = profile?.name || "Empresa sin nombre";
   const primaryColor = branding?.primaryColor ?? MODULE_COLOR;
   const logoUrl = branding?.logoUrl ?? null;
+  const companyTypeLabel =
+    COMPANY_TYPE_LABELS[profile?.companyType] ||
+    profile?.companyTypeName ||
+    profile?.companyType ||
+    null;
+  const companySizeLabel =
+    COMPANY_SIZE_LABELS[profile?.companySize] || profile?.companySize || null;
+  const industryLabel =
+    INDUSTRY_LABELS[profile?.industryKey] ||
+    profile?.industryName ||
+    profile?.industryKey ||
+    null;
 
   // Address one-liner
-  const addressLine = [address?.city, address?.state, address?.country]
+  const addressLine = [address?.colony, address?.city, address?.state, address?.country]
     .filter(Boolean)
     .join(", ");
 
@@ -223,12 +275,12 @@ export default function CompanyOverview() {
                         }}
                       >
                         <Factory size={9} />{" "}
-                        {profile.industryName || profile.industryKey}
+                        {industryLabel}
                       </span>
                     )}
                     {profile?.companySize && (
                       <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] bg-[hsl(var(--muted))]/40">
-                        <Users size={9} /> {profile.companySize}
+                        <Users size={9} /> {companySizeLabel}
                       </span>
                     )}
                     {!profile?.rfc &&
@@ -290,7 +342,7 @@ export default function CompanyOverview() {
                 <InfoRow
                   icon={Building2}
                   label="Tipo"
-                  value={profile?.companyType}
+                  value={companyTypeLabel}
                 />
                 <InfoRow
                   icon={Mail}
@@ -328,6 +380,11 @@ export default function CompanyOverview() {
                   icon={MapPin}
                   label="Ubicacion"
                   value={addressLine || null}
+                />
+                <InfoRow
+                  icon={MapPin}
+                  label="Colonia"
+                  value={address?.colony}
                 />
                 <InfoRow
                   icon={FileText}

@@ -80,7 +80,12 @@ async function resolveCompanyBranding({ prisma, companyId }) {
     company?.extNumber ? `No. ${company.extNumber}` : "",
     company?.intNumber ? `Int. ${company.intNumber}` : "",
   ]).join(", ");
-  const cityLine = compact([company?.city, company?.state, company?.country]).join(", ");
+  const cityLine = compact([
+    company?.colony ? `Col. ${company.colony}` : "",
+    company?.city,
+    company?.state,
+    company?.country,
+  ]).join(", ");
   const postalLine = company?.postalCode ? `CP ${String(company.postalCode).trim()}` : "";
   const addressLines = compact([streetLine, compact([cityLine, postalLine]).join(" ")]);
 

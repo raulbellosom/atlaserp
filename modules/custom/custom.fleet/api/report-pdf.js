@@ -235,7 +235,8 @@ async function resolveCompanyBranding({ prisma, companyId }) {
     company?.intNumber ? `Int. ${company.intNumber}` : "",
   ]).join(", ");
 
-  const cityLine = compact([
+  const localityLine = compact([
+    company?.colony ? `Col. ${company.colony}` : "",
     company?.city,
     company?.state,
     company?.country,
@@ -252,7 +253,7 @@ async function resolveCompanyBranding({ prisma, companyId }) {
     phone: toSafeText(company?.phone, ""),
     website: toSafeText(company?.website, ""),
     address1: streetLine,
-    address2: compact([cityLine, postalLine]).join(" | "),
+    address2: compact([localityLine, postalLine]).join(" | "),
     primaryColor: normalizeHexColor(
       brandingConfig?.primaryColor ?? "#0F766E",
       "#0F766E",

@@ -68,6 +68,64 @@ const INDUSTRY_OPTIONS = [
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
+function normalizeText(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeOptionValue(value, options, aliases = {}) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const exact = options.find((option) => option.value === raw);
+  if (exact) return exact.value;
+
+  const normalizedRaw = normalizeText(raw);
+  if (!normalizedRaw) return "";
+  if (Object.prototype.hasOwnProperty.call(aliases, normalizedRaw)) {
+    return aliases[normalizedRaw];
+  }
+
+  const normalizedMatch = options.find((option) => {
+    if (normalizeText(option.value) === normalizedRaw) return true;
+    const label = normalizeText(option.label);
+    if (label === normalizedRaw) return true;
+    const shortLabel = normalizeText(option.label.split("-")[0] ?? "");
+    return shortLabel === normalizedRaw;
+  });
+  return normalizedMatch?.value ?? raw;
+}
+
+const COMPANY_TYPE_ALIASES = {
+  "sa de cv": "sa_de_cv",
+  "sociedad anonima de capital variable": "sa_de_cv",
+  "srl de cv": "srl_de_cv",
+  "sociedad de responsabilidad limitada de capital variable": "srl_de_cv",
+  "sociedad anonima": "sa",
+  "sociedad de responsabilidad limitada": "srl",
+  "sociedad cooperativa": "sc",
+  "asociacion civil": "ac",
+  "sapi de cv": "sapi_de_cv",
+};
+
+const COMPANY_SIZE_ALIASES = {
+  "micro 1 a 10 empleados": "micro",
+  "micro 1 10": "micro",
+  "pequena 11 a 50 empleados": "small",
+  "small 11 a 50 empleados": "small",
+  "mediana 51 a 200 empleados": "medium",
+  "medium 51 a 200 empleados": "medium",
+  "grande 201 a 500 empleados": "large",
+  "large 201 a 500 empleados": "large",
+  "corporativo mas de 500 empleados": "corporate",
+  "corporativo 500": "corporate",
+};
+
 export default function CompanyProfile() {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
@@ -99,15 +157,29 @@ export default function CompanyProfile() {
 
   useEffect(() => {
     if (data?.data) {
+      const nextCompanyType = normalizeOptionValue(
+        data.data.companyType,
+        COMPANY_TYPES,
+        COMPANY_TYPE_ALIASES,
+      );
+      const nextCompanySize = normalizeOptionValue(
+        data.data.companySize,
+        COMPANY_SIZES,
+        COMPANY_SIZE_ALIASES,
+      );
+      const nextIndustryKey = normalizeOptionValue(
+        data.data.industryKey,
+        INDUSTRY_OPTIONS,
+      );
       setForm({
         name: data.data.name ?? "",
         legalName: data.data.legalName ?? "",
         rfc: data.data.rfc ?? "",
-        companyType: data.data.companyType ?? "",
+        companyType: nextCompanyType,
         companyTypeName: data.data.companyTypeName ?? "",
-        industryKey: data.data.industryKey ?? "",
+        industryKey: nextIndustryKey,
         industryName: data.data.industryName ?? "",
-        companySize: data.data.companySize ?? "",
+        companySize: nextCompanySize,
         contactEmail: data.data.contactEmail ?? "",
         phone: data.data.phone ?? "",
         website: data.data.website ?? "",
@@ -136,7 +208,20 @@ export default function CompanyProfile() {
       toast.error("El nombre de la empresa es obligatorio.");
       return;
     }
-    saveMutation.mutate(form);
+    saveMutation.mutate({
+      ...form,
+      companyType: normalizeOptionValue(
+        form.companyType,
+        COMPANY_TYPES,
+        COMPANY_TYPE_ALIASES,
+      ),
+      companySize: normalizeOptionValue(
+        form.companySize,
+        COMPANY_SIZES,
+        COMPANY_SIZE_ALIASES,
+      ),
+      industryKey: normalizeOptionValue(form.industryKey, INDUSTRY_OPTIONS),
+    });
   }
 
   const disabled = !canManage || saveMutation.isPending;
@@ -186,7 +271,7 @@ export default function CompanyProfile() {
                       <TextField
                         label="Nombre comercial"
                         value={form.name}
-                        onChange={(v) => handleChange("name", v)}
+                        onChange={(e) => handleChange("name", e.target.value)}
                         disabled={disabled}
                         required
                         placeholder="Ej. Atlas ERP"
@@ -196,7 +281,9 @@ export default function CompanyProfile() {
                     <TextField
                       label="Razon social"
                       value={form.legalName}
-                      onChange={(v) => handleChange("legalName", v)}
+                      onChange={(e) =>
+                        handleChange("legalName", e.target.value)
+                      }
                       disabled={disabled}
                       placeholder="Ej. Mi Empresa SA de CV"
                       icon={FileText}
@@ -204,7 +291,7 @@ export default function CompanyProfile() {
                     <TextField
                       label="RFC"
                       value={form.rfc}
-                      onChange={(v) => handleChange("rfc", v)}
+                      onChange={(e) => handleChange("rfc", e.target.value)}
                       disabled={disabled}
                       placeholder="Ej. ABCD123456EFG"
                       icon={Hash}
@@ -212,7 +299,7 @@ export default function CompanyProfile() {
                     <SelectField
                       label="Tipo de empresa"
                       value={form.companyType}
-                      onChange={(v) => handleChange("companyType", v)}
+                      onValueChange={(v) => handleChange("companyType", v)}
                       options={COMPANY_TYPES}
                       disabled={disabled}
                       placeholder="Selecciona un tipo"
@@ -222,7 +309,9 @@ export default function CompanyProfile() {
                       <TextField
                         label="Especificar tipo de empresa"
                         value={form.companyTypeName}
-                        onChange={(v) => handleChange("companyTypeName", v)}
+                        onChange={(e) =>
+                          handleChange("companyTypeName", e.target.value)
+                        }
                         disabled={disabled}
                         placeholder="Describe el tipo"
                         icon={Briefcase}
@@ -241,7 +330,9 @@ export default function CompanyProfile() {
                       <TextField
                         label="Especificar industria"
                         value={form.industryName}
-                        onChange={(v) => handleChange("industryName", v)}
+                        onChange={(e) =>
+                          handleChange("industryName", e.target.value)
+                        }
                         disabled={disabled}
                         placeholder="Describe tu industria"
                         icon={Factory}
@@ -250,7 +341,7 @@ export default function CompanyProfile() {
                     <SelectField
                       label="Tamano de empresa"
                       value={form.companySize}
-                      onChange={(v) => handleChange("companySize", v)}
+                      onValueChange={(v) => handleChange("companySize", v)}
                       options={COMPANY_SIZES}
                       disabled={disabled}
                       placeholder="Selecciona un tamano"
@@ -283,7 +374,9 @@ export default function CompanyProfile() {
                       label="Correo de contacto"
                       type="email"
                       value={form.contactEmail}
-                      onChange={(v) => handleChange("contactEmail", v)}
+                      onChange={(e) =>
+                        handleChange("contactEmail", e.target.value)
+                      }
                       disabled={disabled}
                       placeholder="contacto@miempresa.com"
                       icon={Mail}
@@ -292,7 +385,7 @@ export default function CompanyProfile() {
                       label="Telefono"
                       type="tel"
                       value={form.phone}
-                      onChange={(v) => handleChange("phone", v)}
+                      onChange={(e) => handleChange("phone", e.target.value)}
                       disabled={disabled}
                       placeholder="+52 55 1234 5678"
                       icon={Phone}
@@ -302,7 +395,7 @@ export default function CompanyProfile() {
                         label="Sitio web"
                         type="url"
                         value={form.website}
-                        onChange={(v) => handleChange("website", v)}
+                        onChange={(e) => handleChange("website", e.target.value)}
                         disabled={disabled}
                         placeholder="https://miempresa.com"
                         icon={Globe}
