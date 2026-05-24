@@ -196,7 +196,7 @@ export default function UserEditorScreen() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className={`p-6 space-y-6${draft ? " pb-24" : ""}`}>
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-[hsl(var(--muted-foreground))]">
@@ -339,22 +339,7 @@ export default function UserEditorScreen() {
               }
             />
 
-            {canManageUsers ? (
-              <div className="flex justify-end">
-                <Button
-                  disabled={
-                    updateUserMutation.isPending ||
-                    !effective.firstName ||
-                    !effective.lastName
-                  }
-                  onClick={saveChanges}
-                >
-                  {updateUserMutation.isPending
-                    ? "Guardando..."
-                    : "Guardar cambios"}
-                </Button>
-              </div>
-            ) : (
+            {!canManageUsers && (
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
                 Modo lectura: necesitas permiso identity.users.update para editar.
               </p>
@@ -565,6 +550,37 @@ export default function UserEditorScreen() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {canManageUsers && draft && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))] shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
+          <div className="px-6 py-3 flex items-center justify-between gap-4">
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">
+              Cambios sin guardar
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDraft(null)}
+                disabled={updateUserMutation.isPending}
+              >
+                Descartar
+              </Button>
+              <Button
+                size="sm"
+                onClick={saveChanges}
+                disabled={
+                  updateUserMutation.isPending ||
+                  !effective.firstName ||
+                  !effective.lastName
+                }
+              >
+                {updateUserMutation.isPending ? "Guardando..." : "Guardar cambios"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       <ConfirmDialog
