@@ -271,6 +271,13 @@ export const StepCompany = forwardRef(function StepCompany(
               placeholder="Nombre de la ciudad"
             />
           )}
+          <TextField
+            id="colony"
+            label="Colonia / Fraccionamiento"
+            value={data.colony || ""}
+            onChange={(e) => onChange({ colony: e.target.value })}
+            placeholder="Col. Centro"
+          />
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
               <TextField

@@ -109,6 +109,7 @@ export function SetupWizard() {
     country: "",
     state: "",
     city: "",
+    colony: "",
     street: "",
     extNumber: "",
     intNumber: "",
@@ -142,6 +143,7 @@ export function SetupWizard() {
       fd.append("country", formData.country);
       fd.append("state", formData.state);
       fd.append("city", formData.city);
+      fd.append("colony", formData.colony);
       fd.append("street", formData.street);
       fd.append("extNumber", formData.extNumber);
       fd.append("intNumber", formData.intNumber);
