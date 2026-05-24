@@ -85,7 +85,7 @@ No route loader/discovery lifecycle is added in this phase.
 
 ### AtlasModel
 
-- `id String @id @default(cuid())`
+- `id String @id @default(uuid(7))`
 - `moduleKey String`
 - `name String @unique`
 - `tableName String @unique`
@@ -102,7 +102,7 @@ No route loader/discovery lifecycle is added in this phase.
 
 ### AtlasField
 
-- `id String @id @default(cuid())`
+- `id String @id @default(uuid(7))`
 - `modelId String`
 - `name String`
 - `label String`
@@ -119,7 +119,7 @@ No route loader/discovery lifecycle is added in this phase.
 
 ### AtlasView
 
-- `id String @id @default(cuid())`
+- `id String @id @default(uuid(7))`
 - `moduleKey String`
 - `key String @unique`
 - `modelName String?`
@@ -136,13 +136,13 @@ Canonical relation shape in Prisma (valid and safe):
 
 ```prisma
 model AtlasModel {
-  id    String     @id @default(cuid())
+  id    String     @id @default(uuid(7))
   name  String     @unique
   views AtlasView[]
 }
 
 model AtlasView {
-  id        String      @id @default(cuid())
+  id        String      @id @default(uuid(7))
   modelName String?
   model     AtlasModel? @relation(fields: [modelName], references: [name], onDelete: SetNull, onUpdate: Cascade)
 }
@@ -154,7 +154,7 @@ Safety note:
 
 ### ModuleMigration
 
-- `id String @id @default(cuid())`
+- `id String @id @default(uuid(7))`
 - `moduleKey String`
 - `filename String`
 - `checksum String`

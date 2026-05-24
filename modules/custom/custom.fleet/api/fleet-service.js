@@ -1,5 +1,4 @@
-import { createHash } from 'node:crypto'
-import { buildVehiclePdfBuffer } from './vehicle-pdf.js'
+﻿import { buildVehiclePdfBuffer } from './vehicle-pdf.js'
 import {
   normalizePagination,
   normalizeSearch,
@@ -51,16 +50,10 @@ function ensureCompanyId(companyId) {
 }
 
 function toScopedCompanyUuid(companyId) {
-  const normalized = ensureCompanyId(companyId)
-  if (UUID_REGEX.test(normalized)) return normalized.toLowerCase()
-
-  const hash = createHash('sha256').update(`${MODULE_KEY}:${normalized}`).digest('hex')
-  const p1 = hash.slice(0, 8)
-  const p2 = hash.slice(8, 12)
-  const p3 = `5${hash.slice(13, 16)}`
-  const p4 = `a${hash.slice(17, 20)}`
-  const p5 = hash.slice(20, 32)
-  return `${p1}-${p2}-${p3}-${p4}-${p5}`
+  const normalized = (typeof companyId === 'string' && companyId.trim()) ? companyId.trim() : null
+  if (!normalized) throw new FleetServiceError('companyId es requerido.', 400)
+  if (!UUID_REGEX.test(normalized)) throw new FleetServiceError('companyId debe ser UUID valido.', 400)
+  return normalized.toLowerCase()
 }
 
 function normalizeRecordId(id, notFoundMessage) {
@@ -569,3 +562,5 @@ export function createFleetService({ prisma }) {
     generateVehiclePdf,
   }
 }
+
+

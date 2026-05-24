@@ -6,6 +6,7 @@ import {
   Route,
   Navigate,
   useNavigate,
+  Outlet,
 } from "react-router-dom";
 import {
   QueryClient,
@@ -15,7 +16,6 @@ import {
 import { Toaster, TooltipProvider } from "@atlas/ui";
 import { SetupWizard } from "./setup/SetupWizard";
 import { AuthProvider } from "./auth/AuthProvider";
-import { AuthGuard } from "./auth/AuthGuard";
 import { LoginScreen } from "./auth/LoginScreen";
 import { useAuth } from "./auth/AuthProvider";
 import { AtlasApp } from "./app/AtlasApp";
@@ -41,22 +41,29 @@ const queryClient = new QueryClient({
   },
 });
 
-function InitGuard() {
-  const navigate = useNavigate();
-  const { session, loading: authLoading } = useAuth();
-  const { data, isPending, isError, error, refetch } = useQuery({
+function useInstanceStatus() {
+  return useQuery({
     queryKey: ["instance-status"],
     queryFn: atlas.instance.status,
     retry: 1,
     staleTime: 30_000,
     gcTime: 60_000,
   });
+}
+
+function resolveNextPath({ initialized, session }) {
+  if (!initialized) return "/setup";
+  return session ? "/app" : "/login";
+}
+
+function InitGuard() {
+  const navigate = useNavigate();
+  const { session, loading: authLoading } = useAuth();
+  const { data, isPending, isError, error, refetch } = useInstanceStatus();
 
   useEffect(() => {
     if (isPending || authLoading || !data) return;
-    const nextPath = data.initialized
-      ? (session ? "/app" : "/login")
-      : "/setup";
+    const nextPath = resolveNextPath({ initialized: data.initialized, session });
     navigate(nextPath, {
       replace: true,
       state: nextPath === "/login" ? { branding: data.branding } : undefined,
@@ -74,6 +81,98 @@ function InitGuard() {
   }
 
   return <AppLoader message="Verificando instancia..." />;
+}
+
+function SetupRouteGuard() {
+  const { session, loading: authLoading } = useAuth();
+  const { data, isPending, isError, error, refetch } = useInstanceStatus();
+
+  if (isPending || authLoading) {
+    return <AppLoader message="Verificando instancia..." />;
+  }
+
+  if (isError) {
+    return (
+      <ApiErrorScreen
+        error={error}
+        onRetry={() => refetch()}
+        context="Verificacion de instancia"
+      />
+    );
+  }
+
+  if (data?.initialized) {
+    const nextPath = session ? "/app" : "/login";
+    return (
+      <Navigate
+        to={nextPath}
+        replace
+        state={nextPath === "/login" ? { branding: data.branding } : undefined}
+      />
+    );
+  }
+
+  return <SetupWizard />;
+}
+
+function LoginRouteGuard() {
+  const { session, loading: authLoading } = useAuth();
+  const { data, isPending, isError, error, refetch } = useInstanceStatus();
+
+  if (isPending || authLoading) {
+    return <AppLoader message="Verificando instancia..." />;
+  }
+
+  if (isError) {
+    return (
+      <ApiErrorScreen
+        error={error}
+        onRetry={() => refetch()}
+        context="Verificacion de instancia"
+      />
+    );
+  }
+
+  if (!data?.initialized) {
+    return <Navigate to="/setup" replace />;
+  }
+
+  if (session) {
+    return <Navigate to="/app" replace />;
+  }
+
+  return <LoginScreen />;
+}
+
+function AppAccessGuard() {
+  const { session, loading: authLoading } = useAuth();
+  const { data, isPending, isError, error, refetch } = useInstanceStatus();
+
+  if (isPending || authLoading) {
+    return <AppLoader message="Verificando instancia..." />;
+  }
+
+  if (isError) {
+    return (
+      <ApiErrorScreen
+        error={error}
+        onRetry={() => refetch()}
+        context="Verificacion de instancia"
+      />
+    );
+  }
+
+  if (!data?.initialized) {
+    return <Navigate to="/setup" replace />;
+  }
+
+  if (!session) {
+    return (
+      <Navigate to="/login" replace state={{ branding: data.branding }} />
+    );
+  }
+
+  return <Outlet />;
 }
 
 function App() {
@@ -108,9 +207,9 @@ function App() {
           <AuthProvider>
             <Routes>
               <Route path="/" element={<InitGuard />} />
-              <Route path="/setup" element={<SetupWizard />} />
-              <Route path="/login" element={<LoginScreen />} />
-              <Route element={<AuthGuard />}>
+              <Route path="/setup" element={<SetupRouteGuard />} />
+              <Route path="/login" element={<LoginRouteGuard />} />
+              <Route element={<AppAccessGuard />}>
                 <Route path="/app" element={<AtlasApp />}>
                   <Route index element={<Navigate to="home" replace />} />
                   <Route path="home" element={<HomeScreen />} />

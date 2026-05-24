@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS fleet_report (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  id uuid PRIMARY KEY DEFAULT uuidv7(),
   company_id uuid NOT NULL,
   report_type varchar(40) NOT NULL,
   folio varchar(32) NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS fleet_report (
 );
 
 CREATE TABLE IF NOT EXISTS fleet_report_part (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  id uuid PRIMARY KEY DEFAULT uuidv7(),
   company_id uuid NOT NULL,
   report_id uuid NOT NULL,
   name varchar(200) NOT NULL,
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS fleet_report_part (
 );
 
 CREATE TABLE IF NOT EXISTS fleet_report_document (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  id uuid PRIMARY KEY DEFAULT uuidv7(),
   company_id uuid NOT NULL,
   report_id uuid NOT NULL,
   file_asset_id uuid NOT NULL,
@@ -84,3 +84,4 @@ CREATE INDEX IF NOT EXISTS fleet_report_document_company_report_idx
 
 CREATE INDEX IF NOT EXISTS fleet_report_document_company_file_idx
   ON fleet_report_document(company_id, file_asset_id);
+

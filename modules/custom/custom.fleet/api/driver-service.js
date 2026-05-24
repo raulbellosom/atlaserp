@@ -1,5 +1,4 @@
-import { createHash } from 'node:crypto'
-import { FleetServiceError } from './fleet-service.js'
+﻿import { FleetServiceError } from './fleet-service.js'
 
 const MODULE_KEY = 'custom.fleet'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -61,10 +60,10 @@ function normalizeDriverPayload(data = {}) {
 }
 
 function toScopedCompanyUuid(companyId) {
-  const normalized = ensureCompanyId(companyId)
-  if (UUID_REGEX.test(normalized)) return normalized.toLowerCase()
-  const hash = createHash('sha256').update(`${MODULE_KEY}:${normalized}`).digest('hex')
-  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`
+  const normalized = (typeof companyId === 'string' && companyId.trim()) ? companyId.trim() : null
+  if (!normalized) throw new FleetServiceError('companyId es requerido.', 400)
+  if (!UUID_REGEX.test(normalized)) throw new FleetServiceError('companyId debe ser UUID valido.', 400)
+  return normalized.toLowerCase()
 }
 
 function normalizeRecordId(id, notFoundMessage) {
@@ -207,7 +206,7 @@ export function createDriverService({ prisma }) {
     const normalizedStatus = normalizeOptionalString(status)
     const normalizedSearch = normalizeSearch(search)
     const likeValue = normalizedSearch ? `%${normalizedSearch}%` : null
-    // sortCol from allowlist only — never raw user input
+    // sortCol from allowlist only â€” never raw user input
     const sortCol = SORT_FIELD_MAP[sortBy] ?? 'created_at'
     const sortDirection = sortDir === 'asc' ? 'ASC' : 'DESC'
 
@@ -561,3 +560,5 @@ export function createDriverService({ prisma }) {
     removeDriverDocument,
   }
 }
+
+

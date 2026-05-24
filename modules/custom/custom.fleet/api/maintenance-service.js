@@ -1,5 +1,4 @@
-import { createHash } from 'node:crypto'
-import { FleetServiceError } from './fleet-service.js'
+﻿import { FleetServiceError } from './fleet-service.js'
 
 const MODULE_KEY = 'custom.fleet'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -14,7 +13,7 @@ const SORT_FIELD_MAP = {
   title: 'm.title',
 }
 
-// Fields allowed in dynamic SET clause — never from raw user input
+// Fields allowed in dynamic SET clause â€” never from raw user input
 const UPDATABLE_FIELDS = new Set([
   'vehicle_id', 'type', 'description', 'scheduled_date', 'completed_date', 'cost', 'notes',
   'maintenance_type_id', 'title', 'status', 'driver_id', 'started_at', 'odometer_km', 'provider', 'currency',
@@ -56,9 +55,8 @@ function normalizeMaintenancePayload(data = {}) {
 function toScopedCompanyUuid(companyId) {
   const normalized = (typeof companyId === 'string' && companyId.trim()) ? companyId.trim() : null
   if (!normalized) throw new FleetServiceError('companyId es requerido.', 400)
-  if (UUID_REGEX.test(normalized)) return normalized.toLowerCase()
-  const hash = createHash('sha256').update(`${MODULE_KEY}:${normalized}`).digest('hex')
-  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`
+  if (!UUID_REGEX.test(normalized)) throw new FleetServiceError('companyId debe ser UUID valido.', 400)
+  return normalized.toLowerCase()
 }
 
 function normalizeRecordId(id, notFoundMessage) {
@@ -267,7 +265,7 @@ export function createMaintenanceService({ prisma }) {
 
     const before = await getMaintenance({ companyId: safeCompanyId, id: safeId })
 
-    // Params: $1=id, $2=companyId, $3..N=field values — sortCol from allowlist only
+    // Params: $1=id, $2=companyId, $3..N=field values â€” sortCol from allowlist only
     const setClauses = updates.map(([key], i) => `"${key}" = $${i + 3}`).join(', ')
     const fieldValues = updates.map(([, val]) => val)
 
@@ -360,3 +358,5 @@ export function createMaintenanceService({ prisma }) {
 
   return { listMaintenance, getMaintenance, createMaintenance, updateMaintenance, setMaintenanceEnabled, listMaintenanceDocuments, addMaintenanceDocument, removeMaintenanceDocument }
 }
+
+

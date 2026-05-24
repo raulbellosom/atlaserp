@@ -101,8 +101,8 @@ export const createDriverSchema = z.object({
   last_name: z.string().min(1, 'El apellido es requerido.').max(100),
   phone: z.string().min(5, 'El telefono debe tener al menos 5 caracteres.').max(30),
   email: z.string().email('Correo electronico invalido.').nullable().optional(),
-  photo_asset_id: z.string().cuid('ID de foto invalido.').nullable().optional(),
-  hr_employee_id: z.string().cuid('ID de colaborador RH invalido.').nullable().optional(),
+  photo_asset_id: z.string().uuid('ID de foto invalido.').nullable().optional(),
+  hr_employee_id: z.string().uuid('ID de colaborador RH invalido.').nullable().optional(),
   license_number: z.string().min(1, 'El numero de licencia es requerido.').max(50),
   license_type: z.string().min(1, 'El tipo de licencia es requerido.').max(50),
   license_expiry_date: isoDateSchema,
@@ -115,8 +115,8 @@ export const updateDriverSchema = z.object({
   last_name: z.string().min(1).max(100).optional(),
   phone: z.string().min(5).max(30).optional(),
   email: z.string().email().nullable().optional(),
-  photo_asset_id: z.string().cuid().nullable().optional(),
-  hr_employee_id: z.string().cuid().nullable().optional(),
+  photo_asset_id: z.string().uuid().nullable().optional(),
+  hr_employee_id: z.string().uuid().nullable().optional(),
   license_number: z.string().min(1).max(50).optional(),
   license_type: z.string().min(1).max(50).optional(),
   license_expiry_date: isoDateSchema.optional(),
@@ -125,7 +125,7 @@ export const updateDriverSchema = z.object({
 })
 
 export const createDocumentAssociationSchema = z.object({
-  file_asset_id: z.string().min(1, 'ID de archivo invalido.'),
+  file_asset_id: z.string().uuid('ID de archivo invalido.'),
   document_type: z.string().max(50).optional(),
   label: z.string().max(200).nullable().optional(),
 })
@@ -278,3 +278,4 @@ export const updateReportSchema = z.object({
   warranty_notes: z.string().max(1000).nullable().optional(),
   other_category_label: z.string().max(120).nullable().optional(),
 })
+

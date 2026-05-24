@@ -24,7 +24,7 @@ export default defineModel({
     { name: "total_cost", type: "decimal", label: "Total", default: 0 },
     { name: "notes", type: "textarea", label: "Observaciones", maxLength: 5000 },
     { name: "finalized_at", type: "datetime", label: "Fecha finalizado" },
-    { name: "finalized_by_profile_id", type: "text", label: "Finalizado por", maxLength: 64 },
+    { name: "finalized_by_profile_id", type: "relation", label: "Finalizado por" },
     { name: "maintenance_subtype", type: "select", label: "Subtipo mantenimiento", options: ["preventive", "corrective", "inspection", "alignment", "oil_change", "tire_service", "other"] },
     { name: "next_service_date", type: "date", label: "Proximo servicio fecha" },
     { name: "next_service_odometer", type: "number", label: "Proximo servicio km" },
@@ -46,4 +46,3 @@ export default defineModel({
     { fields: ["company_id", "folio"], unique: true },
   ],
 });
-

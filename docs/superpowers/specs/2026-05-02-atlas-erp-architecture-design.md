@@ -188,7 +188,7 @@ VITE_ATLAS_API_URL=http://localhost:4010
 
 ```prisma
 model InstanceConfig {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid(7))
   key       String   @unique
   value     String
   createdAt DateTime @default(now())
@@ -203,7 +203,7 @@ model InstanceConfig {
 | key | value |
 |---|---|
 | `instance.initialized` | `"true"` |
-| `instance.company_id` | company cuid |
+| `instance.company_id` | company UUID |
 | `instance.setup_completed_at` | ISO timestamp |
 
 **All other models remain unchanged.** The existing 14-model schema is correct and complete for the current phase.

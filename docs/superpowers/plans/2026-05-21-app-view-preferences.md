@@ -40,7 +40,7 @@ Open `prisma/schema.prisma`. After the `UserTablePreference` model (around line 
 
 ```prisma
 model UserPreference {
-  id        String      @id @default(cuid())
+  id        String      @id @default(uuid(7))
   userId    String
   key       String
   value     Json

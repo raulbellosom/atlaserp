@@ -15,7 +15,7 @@ Add persistent view preferences to the App Launcher (modal) and Home Screen's ap
 
 ```prisma
 model UserPreference {
-  id        String      @id @default(cuid())
+  id        String      @id @default(uuid(7))
   userId    String
   key       String
   value     Json

@@ -1,5 +1,4 @@
-import { createHash } from "node:crypto";
-import { FleetServiceError } from "./fleet-service.js";
+﻿import { FleetServiceError } from "./fleet-service.js";
 import { buildReportPdfBuffer } from "./report-pdf.js";
 
 const MODULE_KEY = "custom.fleet";
@@ -69,17 +68,10 @@ const UPDATABLE_FIELDS = new Set([
 ]);
 
 function toScopedCompanyUuid(companyId) {
-  const normalized =
-    typeof companyId === "string" && companyId.trim() ? companyId.trim() : null;
-  if (!normalized) throw new FleetServiceError("companyId es requerido.", 400);
-  if (UUID_REGEX.test(normalized)) return normalized.toLowerCase();
-  const hash = createHash("sha256")
-    .update(`${MODULE_KEY}:${normalized}`)
-    .digest("hex");
-  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(
-    13,
-    16,
-  )}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
+  const normalized = (typeof companyId === 'string' && companyId.trim()) ? companyId.trim() : null
+  if (!normalized) throw new FleetServiceError('companyId es requerido.', 400)
+  if (!UUID_REGEX.test(normalized)) throw new FleetServiceError('companyId debe ser UUID valido.', 400)
+  return normalized.toLowerCase()
 }
 
 function normalizeRecordId(id, notFoundMessage) {
@@ -383,7 +375,7 @@ export function createReportsService({ prisma }) {
     reportTablesBootstrapPromise = (async () => {
       const ddlStatements = [
         `CREATE TABLE IF NOT EXISTS fleet_report (
-          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          id uuid PRIMARY KEY DEFAULT uuidv7(),
           company_id uuid NOT NULL,
           report_type varchar(40) NOT NULL,
           folio varchar(32) NOT NULL,
@@ -401,7 +393,7 @@ export function createReportsService({ prisma }) {
           total_cost numeric(12,2) NOT NULL DEFAULT 0,
           notes text,
           finalized_at timestamptz,
-          finalized_by_profile_id text,
+          finalized_by_profile_id uuid,
           maintenance_subtype varchar(50),
           next_service_date date,
           next_service_odometer integer,
@@ -419,7 +411,7 @@ export function createReportsService({ prisma }) {
           updated_at timestamptz NOT NULL DEFAULT now()
         )`,
         `CREATE TABLE IF NOT EXISTS fleet_report_part (
-          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          id uuid PRIMARY KEY DEFAULT uuidv7(),
           company_id uuid NOT NULL,
           report_id uuid NOT NULL,
           name varchar(200) NOT NULL,
@@ -432,10 +424,10 @@ export function createReportsService({ prisma }) {
           updated_at timestamptz NOT NULL DEFAULT now()
         )`,
         `CREATE TABLE IF NOT EXISTS fleet_report_document (
-          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          id uuid PRIMARY KEY DEFAULT uuidv7(),
           company_id uuid NOT NULL,
           report_id uuid NOT NULL,
-          file_asset_id text NOT NULL,
+          file_asset_id uuid NOT NULL,
           document_type varchar(50) NOT NULL DEFAULT 'document',
           label varchar(200),
           enabled boolean NOT NULL DEFAULT true,
@@ -1046,7 +1038,7 @@ export function createReportsService({ prisma }) {
       id,
       reportType,
     });
-    // Pass the original companyId (CUID) for branding — fleet tables use the derived UUID
+    // Pass the original companyId (CUID) for branding â€” fleet tables use the derived UUID
     // but prisma.company uses the raw CUID from the membership context.
     const pdf = await buildReportPdfBuffer({ prisma, companyId, report });
     return { report, pdf };
@@ -1099,3 +1091,7 @@ export function createReportsService({ prisma }) {
     purgeLegacyMaintenanceData,
   };
 }
+
+
+
+

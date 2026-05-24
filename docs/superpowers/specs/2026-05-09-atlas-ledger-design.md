@@ -626,7 +626,7 @@ z.object({
   concept: z.string().optional(),
   amountMin: z.coerce.number().min(0).optional(),
   amountMax: z.coerce.number().min(0).optional(),
-  accountId: z.string().cuid().optional(),
+  accountId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(500).default(50),
   orderBy: z.enum(["occurredAt", "sequenceNumber"]).default("occurredAt"),

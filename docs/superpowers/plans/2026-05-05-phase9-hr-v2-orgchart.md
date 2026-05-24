@@ -36,7 +36,7 @@
 
 ```prisma
 model HrDepartment {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid(7))
   companyId String
   name      String
   code      String?
@@ -52,7 +52,7 @@ model HrDepartment {
 }
 
 model HrJobTitle {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid(7))
   companyId String
   name      String
   code      String?
@@ -124,10 +124,10 @@ export const hrJobTitleCreateSchema = z.object({
 - [ ] **Step 2: Extend employee create/update schemas with relation fields**
 
 ```js
-supervisorEmployeeId: z.string().cuid().nullable().optional(),
-departmentId: z.string().cuid().nullable().optional(),
-jobTitleId: z.string().cuid().nullable().optional(),
-profileImageFileId: z.string().cuid().nullable().optional(),
+supervisorEmployeeId: z.string().uuid().nullable().optional(),
+departmentId: z.string().uuid().nullable().optional(),
+jobTitleId: z.string().uuid().nullable().optional(),
+profileImageFileId: z.string().uuid().nullable().optional(),
 userProfileId: z.string().uuid().nullable().optional()
 ```
 

@@ -10,13 +10,13 @@ export default defineModel({
   fields: [
     {
       name: 'vehicle_id',
-      type: 'text',
+      type: 'relation',
       label: 'Vehiculo (ID)',
       required: true,
     },
     {
       name: 'file_asset_id',
-      type: 'text',
+      type: 'file',
       label: 'Archivo (ID)',
       required: true,
     },

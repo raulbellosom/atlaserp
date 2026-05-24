@@ -84,7 +84,7 @@ export function generateCreateTableSql(modelDef) {
 
   const table   = requireSafeIdentifier(tableName, 'generateCreateTableSql')
   const columns = []
-  columns.push(`  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid()`)
+  columns.push(`  "id" UUID PRIMARY KEY DEFAULT uuidv7()`)
   if (companyScoped) {
     columns.push(`  "company_id" UUID NOT NULL`)
   }
@@ -137,3 +137,4 @@ export function assertSafeMigrationSql(sql) {
     }
   }
 }
+

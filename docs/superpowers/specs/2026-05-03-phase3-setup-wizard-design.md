@@ -28,7 +28,7 @@ New Prisma model `BrandingConfig`:
 
 ```prisma
 model BrandingConfig {
-  id           String   @id @default(cuid())
+  id           String   @id @default(uuid(7))
   companyId    String   @unique
   primaryColor String
   logoFileId   String?
@@ -43,7 +43,7 @@ model BrandingConfig {
 
 `InstanceConfig` keys written on completion:
 - `initialized = "true"`
-- `company_id = <company cuid>`
+- `company_id = <company uuid>`
 - `completed_at = <ISO timestamp>`
 
 ## API

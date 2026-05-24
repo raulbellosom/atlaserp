@@ -45,7 +45,7 @@ Open `prisma/schema.prisma`. After the `Company` model (line 98), insert the bac
 Replace the `Company` model:
 ```prisma
 model Company {
-  id             String          @id @default(cuid())
+  id             String          @id @default(uuid(7))
   name           String
   slug           String          @unique
   enabled        Boolean         @default(true)
@@ -60,7 +60,7 @@ model Company {
 Then append the `BrandingConfig` model at the end of `prisma/schema.prisma` (after `InstanceConfig`):
 ```prisma
 model BrandingConfig {
-  id           String   @id @default(cuid())
+  id           String   @id @default(uuid(7))
   companyId    String   @unique
   primaryColor String
   logoFileId   String?

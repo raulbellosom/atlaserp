@@ -102,7 +102,7 @@ enum FinanceDocumentStatus {
 }
 
 model FinanceDocument {
-  id          String @id @default(cuid())
+  id          String @id @default(uuid(7))
   companyId   String
   direction   FinanceDocumentDirection
   docType     FinanceDocumentType
@@ -168,7 +168,7 @@ Expected failure before implementation: export not found.
 export const financeDocumentCreateSchema = z.object({
   direction: z.enum(["AR", "AP"]),
   docType: z.enum(["INVOICE", "CREDIT_NOTE", "DEBIT_NOTE", "ADVANCE", "PAYMENT"]),
-  contactId: z.string().cuid().optional().nullable(),
+  contactId: z.string().uuid().optional().nullable(),
   currency: z.string().min(3).max(3),
   issueDate: z.string().datetime(),
   dueDate: z.string().datetime().optional().nullable(),

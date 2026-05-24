@@ -46,7 +46,7 @@ In `prisma/schema.prisma`, update the `Permission` model and `AtlasModule` model
 
 ```prisma
 model AtlasModule {
-  id             String   @id @default(cuid())
+  id             String   @id @default(uuid(7))
   key            String   @unique
   name           String
   description    String?
@@ -68,7 +68,7 @@ model AtlasModule {
 }
 
 model Permission {
-  id          String @id @default(cuid())
+  id          String @id @default(uuid(7))
   key         String @unique
   name        String
   moduleId    String?

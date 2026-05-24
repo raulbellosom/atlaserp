@@ -8,8 +8,8 @@ export default defineModel({
   companyScoped: true,
   softDelete: false,
   fields: [
-    { name: "report_id", type: "text", label: "Reporte (ID)", required: true },
-    { name: "file_asset_id", type: "text", label: "Archivo (ID)", required: true },
+    { name: "report_id", type: "relation", label: "Reporte (ID)", required: true },
+    { name: "file_asset_id", type: "file", label: "Archivo (ID)", required: true },
     { name: "document_type", type: "text", label: "Tipo documento", default: "document", maxLength: 50 },
     { name: "label", type: "text", label: "Etiqueta", maxLength: 200 },
     { name: "enabled", type: "boolean", label: "Activo", default: true },
@@ -19,4 +19,3 @@ export default defineModel({
     { fields: ["company_id", "file_asset_id"] },
   ],
 });
-

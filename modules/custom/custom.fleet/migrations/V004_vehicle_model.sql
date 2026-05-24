@@ -2,7 +2,7 @@
 -- Rollback: V004_vehicle_model_rollback.sql
 
 CREATE TABLE IF NOT EXISTS fleet_vehicle_model (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id UUID PRIMARY KEY DEFAULT uuidv7(),
   company_id UUID NOT NULL,
   brand_id UUID NOT NULL REFERENCES fleet_vehicle_brand(id) ON DELETE RESTRICT,
   type_id UUID NOT NULL REFERENCES fleet_vehicle_type(id) ON DELETE RESTRICT,
@@ -32,3 +32,4 @@ ALTER TABLE fleet_vehicle
 
 CREATE INDEX IF NOT EXISTS fleet_vehicle_model_id_idx
   ON fleet_vehicle (company_id, vehicle_model_id);
+

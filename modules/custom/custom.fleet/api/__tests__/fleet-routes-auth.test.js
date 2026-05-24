@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { Hono } from 'hono'
 import createFleetRouter from '../vehicles-routes.js'
 
+const COMPANY_ID = '11111111-1111-7111-a111-111111111111'
+
 function buildPrismaStub() {
   let rawCalls = 0
   return {
@@ -49,7 +51,7 @@ test('fleet-routes auth: denies access without fleet permission (403)', async ()
   const app = createApp({
     userContext: {
       profile: { id: 'actor-1' },
-      memberships: [{ companyId: 'company-a' }],
+      memberships: [{ companyId: COMPANY_ID }],
     },
     allowedPermissions: [],
   })
@@ -77,7 +79,7 @@ test('fleet-routes auth: allows scoped read when permission and company context 
   const app = createApp({
     userContext: {
       profile: { id: 'actor-1' },
-      memberships: [{ companyId: 'company-a' }],
+      memberships: [{ companyId: COMPANY_ID }],
     },
     allowedPermissions: ['fleet.vehicles.read'],
   })
@@ -87,4 +89,19 @@ test('fleet-routes auth: allows scoped read when permission and company context 
   const payload = await response.json()
   assert.ok(Array.isArray(payload.data))
   assert.equal(payload.pagination.total, 0)
+})
+
+test('fleet-routes auth: rejects legacy non-uuid companyId values', async () => {
+  const app = createApp({
+    userContext: {
+      profile: { id: 'actor-1' },
+      memberships: [{ companyId: 'clx4w0abx000008l45m0z9r2a' }],
+    },
+    allowedPermissions: ['fleet.vehicles.read'],
+  })
+
+  const response = await app.request('/fleet/vehicles')
+  assert.equal(response.status, 400)
+  const payload = await response.json()
+  assert.match(payload.error, /companyId debe ser UUID valido/i)
 })

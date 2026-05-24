@@ -8,6 +8,19 @@
 - If a task is implemented but not verified yet, keep it unchecked until validation is done.
 - Prisma migration safety: never edit existing `prisma/migrations/**/migration.sql` after apply; always add a new forward migration.
 
+## UUID v7 Global Cutover (Reset Total)
+
+- [x] Replace Prisma ID defaults from `cuid()` to UUID v7 (`@default(uuid(7)) @db.Uuid`) across domain models.
+- [x] Align shared validators and module validators to UUID-based ID contracts.
+- [x] Remove `custom.fleet` company hash bridge and require real UUID company scope.
+- [x] Normalize AME3 SQL generation and fleet dynamic DDL to UUID v7 defaults (`uuidv7()`).
+- [x] Add destructive baseline migration for full reset strategy (`20260524000000_uuid_v7_global_cutover`).
+- [x] Add forward fleet migration to normalize legacy text reference columns to UUID (`V009_uuid_reference_columns.sql`).
+- [x] Add CI guardrail to block `cuid(` and `.cuid(` reintroduction in source code.
+- [x] Document global UUID v7 policy in team-facing architecture and agent docs.
+
+Verified: 2026-05-24 (`pnpm.cmd exec prisma validate`, `pnpm.cmd db:generate`, `pnpm.cmd check:uuid-policy`, `node --test packages/module-engine/src/__tests__/sql-generator.test.js`, `node --test modules/custom/custom.fleet/api/__tests__/fleet-services.test.js modules/custom/custom.fleet/api/__tests__/fleet-routes-auth.test.js`)
+
 ## Phase 0 - Repository and environment cleanup
 
 - [x] Remove docker-compose.local-lite.yml

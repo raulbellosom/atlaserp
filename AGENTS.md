@@ -112,6 +112,7 @@ Invoke-WebRequest -UseBasicParsing http://localhost:5173
 - Prefer `enabled: false` (soft-disable) over hard deletes.
 - Core modules must not be uninstallable.
 - Keep API route handlers thin; push business logic into service functions.
+- **Global ID policy (hard rule)**: use **UUID v7 only** for all entity identifiers (Prisma IDs, relation IDs, validator ID contracts, module IDs). Do not introduce `cuid` in new or modified code. `z.string().uuid()` is the validator baseline for ID inputs.
 - **Atomic file size limit** — No source file may exceed **1000 lines**. Hard ceiling is **1500 lines** (treat as a build-blocking violation). Files approaching 800 lines should be proactively split. Strategies: extract sub-components into their own files, split route files by domain, separate form sheets from list screens, move helpers into `lib/` or `utils/` files. Current known violators that must be decomposed: `FinanceScreen.jsx` (4462), `apps/api/src/index.js` (3583), `FormFields.jsx` (2153), `HrEmployeeDetail.jsx` (1704), `finance-documents-service.js` (1118), `finance-service.js` (1076), `ModuleCatalog.jsx` (1033).
 - **Never use native browser dialogs** (`window.confirm`, `window.alert`, `window.prompt`, `prompt`). Always use the shared `<ConfirmDialog>` component from `@atlas/ui` for confirmations.
 - Update [docs/TASKS.md](docs/TASKS.md) when completing meaningful project phases.

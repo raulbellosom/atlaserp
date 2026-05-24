@@ -32,7 +32,7 @@ test('generateCreateTableSql - atlas_ prefix also accepted', () => {
 })
 
 test('generateCreateTableSql - includes id UUID column', () => {
-  assert.ok(generateCreateTableSql(VEHICLE_MODEL).includes('"id" UUID PRIMARY KEY DEFAULT gen_random_uuid()'))
+  assert.ok(generateCreateTableSql(VEHICLE_MODEL).includes('"id" UUID PRIMARY KEY DEFAULT uuidv7()'))
 })
 
 test('generateCreateTableSql - includes company_id when companyScoped', () => {
@@ -128,7 +128,7 @@ test('generateCreateTableSql - all 17 field types produce output', () => {
 
 test('assertSafeMigrationSql - passes for CREATE TABLE', () => {
   assert.doesNotThrow(() =>
-    assertSafeMigrationSql('CREATE TABLE IF NOT EXISTS "x" ("id" UUID PRIMARY KEY DEFAULT gen_random_uuid());')
+    assertSafeMigrationSql('CREATE TABLE IF NOT EXISTS "x" ("id" UUID PRIMARY KEY DEFAULT uuidv7());')
   )
 })
 
@@ -241,3 +241,4 @@ test('assertSafeMigrationSql - throws for psql backslash \\! command', () => {
     (err) => err instanceof ModuleEngineError && err.code === 'AME_UNSAFE_SQL'
   )
 })
+

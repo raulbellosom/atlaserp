@@ -10,13 +10,13 @@ export default defineModel({
   fields: [
     {
       name: 'driver_id',
-      type: 'text',
+      type: 'relation',
       label: 'Chofer (ID)',
       required: true,
     },
     {
       name: 'file_asset_id',
-      type: 'text',
+      type: 'file',
       label: 'Archivo (ID)',
       required: true,
     },

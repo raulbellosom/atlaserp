@@ -1,16 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createFleetService, FleetServiceError } from '../fleet-service.js'
 import { createDriverService } from '../driver-service.js'
 import { createCatalogService } from '../catalog-service.js'
 
-const MODULE_KEY = 'custom.fleet'
-
-function toScopedCompanyUuid(companyId) {
-  const hash = createHash('sha256').update(`${MODULE_KEY}:${companyId}`).digest('hex')
-  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`
-}
+const COMPANY_ID = '11111111-1111-7111-a111-111111111111'
 
 function createPrismaMock({ rawResponses = [], rawUnsafeResponses = [] } = {}) {
   const rawCalls = []
@@ -48,13 +42,12 @@ test('fleet-service listVehicles: returns rows and uses company-scoped UUID', as
     ],
   })
   const service = createFleetService({ prisma })
-  const result = await service.listVehicles({ companyId: 'empresa-demo', page: 1, pageSize: 10 })
+  const result = await service.listVehicles({ companyId: COMPANY_ID, page: 1, pageSize: 10 })
 
   assert.equal(result.data.length, 1)
   assert.equal(result.pagination.total, 1)
-  const scoped = toScopedCompanyUuid('empresa-demo')
   const firstValues = rawCalls[0].slice(1)
-  assert.ok(firstValues.includes(scoped))
+  assert.ok(firstValues.includes(COMPANY_ID))
 })
 
 test('fleet-service createVehicle: maps unique violation to 409', async () => {
@@ -68,7 +61,7 @@ test('fleet-service createVehicle: maps unique violation to 409', async () => {
   await assert.rejects(
     () =>
       service.createVehicle({
-        companyId: 'empresa-demo',
+        companyId: COMPANY_ID,
         actorId: 'actor-1',
         data: { plate: 'ABC123', brand: 'Marca', model_name: 'Modelo', year: 2024 },
       }),
@@ -83,7 +76,7 @@ test('fleet-service createVehicle: strips leading zeros from economic numbers be
   const service = createFleetService({ prisma })
 
   await service.createVehicle({
-    companyId: 'empresa-demo',
+    companyId: COMPANY_ID,
     actorId: 'actor-1',
     data: {
       plate: 'ABC123',
@@ -109,8 +102,8 @@ test('fleet-service updateVehicle: rejects empty payload with 400', async () => 
   await assert.rejects(
     () =>
       service.updateVehicle({
-        companyId: 'empresa-demo',
-        id: 'b2f8f6c0-30dd-4f1f-9832-cf0f2d8f2d5e',
+        companyId: COMPANY_ID,
+        id: 'b2f8f6c0-30dd-7f1f-9832-cf0f2d8f2d5e',
         data: {},
         actorId: 'actor-1',
       }),
@@ -119,7 +112,7 @@ test('fleet-service updateVehicle: rejects empty payload with 400', async () => 
 })
 
 test('fleet-service updateVehicle: strips leading zeros from economic numbers before update', async () => {
-  const vehicleId = 'b2f8f6c0-30dd-4f1f-9832-cf0f2d8f2d5e'
+  const vehicleId = 'b2f8f6c0-30dd-7f1f-9832-cf0f2d8f2d5e'
   const { prisma, rawCalls } = createPrismaMock({
     rawResponses: [
       [{ id: vehicleId, plate: 'ABC123' }],
@@ -129,7 +122,7 @@ test('fleet-service updateVehicle: strips leading zeros from economic numbers be
   const service = createFleetService({ prisma })
 
   await service.updateVehicle({
-    companyId: 'empresa-demo',
+    companyId: COMPANY_ID,
     id: vehicleId,
     actorId: 'actor-1',
     data: {
@@ -153,12 +146,11 @@ test('driver-service listDrivers: uses company-scoped UUID in unsafe query', asy
     ],
   })
   const service = createDriverService({ prisma })
-  const result = await service.listDrivers({ companyId: 'empresa-demo', page: 1, pageSize: 10 })
+  const result = await service.listDrivers({ companyId: COMPANY_ID, page: 1, pageSize: 10 })
 
   assert.equal(result.data.length, 1)
-  const scoped = toScopedCompanyUuid('empresa-demo')
   const firstUnsafeCall = rawUnsafeCalls[0]
-  assert.equal(firstUnsafeCall[1], scoped)
+  assert.equal(firstUnsafeCall[1], COMPANY_ID)
   const sqlText = firstUnsafeCall[0]
   assert.match(sqlText, /LEFT JOIN LATERAL/i)
   assert.match(sqlText, /assigned_vehicle_count/i)
@@ -172,7 +164,7 @@ test('fleet-service listVehicles: query projects full_economic_number field', as
   })
   const service = createFleetService({ prisma })
 
-  await service.listVehicles({ companyId: 'empresa-demo', page: 1, pageSize: 10 })
+  await service.listVehicles({ companyId: COMPANY_ID, page: 1, pageSize: 10 })
 
   const sqlText = rawCalls[0][0].join(' ')
   assert.match(sqlText, /AS full_economic_number/)
@@ -185,9 +177,9 @@ test('catalog-service updateVehicleType: rejects payload without updatable field
   await assert.rejects(
     () =>
       service.updateVehicleType({
-        companyId: 'empresa-demo',
+        companyId: COMPANY_ID,
         actorId: 'actor-1',
-        id: 'b2f8f6c0-30dd-4f1f-9832-cf0f2d8f2d5e',
+        id: 'b2f8f6c0-30dd-7f1f-9832-cf0f2d8f2d5e',
         payload: {},
       }),
     (error) => error instanceof FleetServiceError && error.status === 400
@@ -201,7 +193,7 @@ test('catalog-service createVehicleType: strips leading zeros from economic grou
   const service = createCatalogService({ prisma })
 
   await service.createVehicleType({
-    companyId: 'empresa-demo',
+    companyId: COMPANY_ID,
     actorId: 'actor-1',
     payload: {
       name: 'Pickup',

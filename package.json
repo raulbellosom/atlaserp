@@ -27,7 +27,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio --port 5555 --browser none",
-    "modules:seed": "node scripts/seed-core-modules.js"
+    "modules:seed": "node scripts/seed-core-modules.js",
+    "check:uuid-policy": "node scripts/enforce-uuid-policy.mjs"
   },
   "dependencies": {
     "@atlas/module-engine": "workspace:*",

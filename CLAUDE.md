@@ -182,6 +182,7 @@ Tailwind scans both `src/**` and `../../packages/ui/src/**` (configured in `apps
 - **TanStack Query** for server state; Zustand for client-only UI state when needed
 - **Hono** for API routes - keep route files thin, push logic to services
 - Business logic stays in `apps/api`, not in React components
+- **Global ID policy**: UUID v7 only. New or modified entity identifiers must use UUID v7 semantics; `cuid` is deprecated and must not be reintroduced in source code.
 - **Atomic file size limit** — No source file may exceed **1000 lines**. Hard ceiling is **1500 lines** (treat as a build-blocking violation). Files approaching 800 lines should be proactively split. Strategies: extract sub-components, split routes by domain, separate sheets/dialogs from list screens, move helpers into `lib/` or `utils/`. Known violators that must be decomposed: `FinanceScreen.jsx` (4462), `apps/api/src/index.js` (3583), `FormFields.jsx` (2153), `HrEmployeeDetail.jsx` (1704), `finance-documents-service.js` (1118), `finance-service.js` (1076), `ModuleCatalog.jsx` (1033).
 - Soft-delete pattern: use `enabled: false` instead of hard-deleting records
 - Every **new AME3 module** lives in `modules/custom/<moduleKey>/` — requires only `module.manifest.js`, `models/`, `views/`, `api/index.js`, `validators/index.js`. No edits to `prisma/schema.prisma`, `apps/api/src/index.js`, `packages/maps/`, or `packages/validators/`. See `docs/03_custom_modules.md`.

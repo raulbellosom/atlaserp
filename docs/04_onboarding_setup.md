@@ -19,7 +19,7 @@ Initialization state lives in `InstanceConfig`:
 | key | value | written when |
 |---|---|---|
 | `initialized` | `"true"` | Setup wizard completes |
-| `company_id` | company cuid | Company created |
+| `company_id` | company UUID | Company created |
 | `completed_at` | ISO timestamp | Setup wizard completes |
 
 ## Setup wizard steps

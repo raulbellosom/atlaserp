@@ -1,14 +1,13 @@
-import { createHash } from 'node:crypto'
-import { FleetServiceError } from './fleet-service.js'
+﻿import { FleetServiceError } from './fleet-service.js'
 
 const MODULE_KEY = 'custom.fleet'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const DEFAULT_MAINTENANCE_TYPES = [
-  'preventivo', 'correctivo', 'inspección', 'cambio de aceite',
-  'servicio de neumáticos', 'servicio de batería', 'servicio de frenos',
-  'carrocería/colisión', 'eléctrico', 'mecánico', 'servicio programado',
-  'emergencia', 'garantía', 'otro',
+  'preventivo', 'correctivo', 'inspecciÃ³n', 'cambio de aceite',
+  'servicio de neumÃ¡ticos', 'servicio de baterÃ­a', 'servicio de frenos',
+  'carrocerÃ­a/colisiÃ³n', 'elÃ©ctrico', 'mecÃ¡nico', 'servicio programado',
+  'emergencia', 'garantÃ­a', 'otro',
 ]
 
 function toNumber(value, fallback) {
@@ -45,9 +44,8 @@ function normalizeEconomicNumberPart(value) {
 function toScopedCompanyUuid(companyId) {
   const normalized = (typeof companyId === 'string' && companyId.trim()) ? companyId.trim() : null
   if (!normalized) throw new FleetServiceError('companyId es requerido.', 400)
-  if (UUID_REGEX.test(normalized)) return normalized.toLowerCase()
-  const hash = createHash('sha256').update(`${MODULE_KEY}:${normalized}`).digest('hex')
-  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`
+  if (!UUID_REGEX.test(normalized)) throw new FleetServiceError('companyId debe ser UUID valido.', 400)
+  return normalized.toLowerCase()
 }
 
 function normalizeRecordId(id, notFoundMessage) {
@@ -98,7 +96,7 @@ export function createCatalogService({ prisma }) {
     })
   }
 
-  // ── Vehicle Type ────────────────────────────────────────────────────────────
+  // â”€â”€ Vehicle Type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   async function getVehicleType(safeCompanyId, safeId) {
     const rows = await withDbErrorMapping(() => prisma.$queryRaw`
@@ -196,7 +194,7 @@ export function createCatalogService({ prisma }) {
     return updated
   }
 
-  // ── Vehicle Brand ────────────────────────────────────────────────────────────
+  // â”€â”€ Vehicle Brand â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   async function getVehicleBrand(safeCompanyId, safeId) {
     const rows = await withDbErrorMapping(() => prisma.$queryRaw`
@@ -283,7 +281,7 @@ export function createCatalogService({ prisma }) {
     return updated
   }
 
-  // ── Maintenance Type ─────────────────────────────────────────────────────────
+  // â”€â”€ Maintenance Type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   async function getMaintenanceType(safeCompanyId, safeId) {
     const rows = await withDbErrorMapping(() => prisma.$queryRaw`
@@ -392,7 +390,7 @@ export function createCatalogService({ prisma }) {
     return { seeded: names.length }
   }
 
-  // ── Vehicle Model ────────────────────────────────────────────────────────────
+  // â”€â”€ Vehicle Model â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   async function getVehicleModel(safeCompanyId, safeId) {
     const rows = await withDbErrorMapping(() => prisma.$queryRaw`
@@ -477,7 +475,7 @@ export function createCatalogService({ prisma }) {
     const name = String(payload.name ?? '').trim()
     const year = Number.parseInt(String(payload.year ?? ''), 10)
     if (!name) throw new FleetServiceError('El nombre del modelo es requerido.', 400)
-    if (!Number.isFinite(year)) throw new FleetServiceError('El año del modelo es invalido.', 400)
+    if (!Number.isFinite(year)) throw new FleetServiceError('El aÃ±o del modelo es invalido.', 400)
     try {
       const row = await withDbErrorMapping(async () => {
         const rows = await prisma.$queryRaw`
@@ -491,7 +489,7 @@ export function createCatalogService({ prisma }) {
       await logAudit({ actorId, entityType: 'VehicleModel', entityId: row?.id ?? null, action: 'fleet.catalog.vehicle_model.create', before: null, after: enriched })
       return enriched
     } catch (error) {
-      if (isUniqueViolation(error)) throw new FleetServiceError('Ya existe un modelo con esa combinacion de marca, tipo, nombre y año.', 409)
+      if (isUniqueViolation(error)) throw new FleetServiceError('Ya existe un modelo con esa combinacion de marca, tipo, nombre y aÃ±o.', 409)
       throw error
     }
   }
@@ -528,7 +526,7 @@ export function createCatalogService({ prisma }) {
       await logAudit({ actorId, entityType: 'VehicleModel', entityId: safeId, action: 'fleet.catalog.vehicle_model.update', before, after: enriched })
       return enriched
     } catch (error) {
-      if (isUniqueViolation(error)) throw new FleetServiceError('Ya existe un modelo con esa combinacion de marca, tipo, nombre y año.', 409)
+      if (isUniqueViolation(error)) throw new FleetServiceError('Ya existe un modelo con esa combinacion de marca, tipo, nombre y aÃ±o.', 409)
       throw error
     }
   }
@@ -580,3 +578,5 @@ export function createCatalogService({ prisma }) {
     listVehicleModels, getVehicleModelById, createVehicleModel, updateVehicleModel, setVehicleModelEnabled,
   }
 }
+
+

@@ -8,7 +8,7 @@ export default defineModel({
   companyScoped: true,
   softDelete: false,
   fields: [
-    { name: "report_id", type: "text", label: "Reporte (ID)", required: true },
+    { name: "report_id", type: "relation", label: "Reporte (ID)", required: true },
     { name: "name", type: "text", label: "Nombre", required: true, maxLength: 200 },
     { name: "quantity", type: "number", label: "Cantidad", required: true },
     { name: "unit_cost", type: "decimal", label: "Costo unitario", required: true },
@@ -18,4 +18,3 @@ export default defineModel({
   ],
   indexes: [{ fields: ["company_id", "report_id"] }],
 });
-

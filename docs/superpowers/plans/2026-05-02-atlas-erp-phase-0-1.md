@@ -152,7 +152,7 @@ Open `prisma/schema.prisma`. After the last model (FinanceTransaction), append:
 
 ```prisma
 model InstanceConfig {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid(7))
   key       String   @unique
   value     String
   createdAt DateTime @default(now())
@@ -741,7 +741,7 @@ Initialization state lives in the `InstanceConfig` table (key-value store added 
 | key | value | written when |
 |---|---|---|
 | `instance.initialized` | `"true"` | Setup wizard completes |
-| `instance.company_id` | company cuid | Company created |
+| `instance.company_id` | company UUID | Company created |
 | `instance.setup_completed_at` | ISO timestamp | Setup wizard completes |
 
 ## Setup wizard steps

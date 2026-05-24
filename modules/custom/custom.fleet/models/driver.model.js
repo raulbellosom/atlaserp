@@ -37,12 +37,12 @@ export default defineModel({
     },
     {
       name: 'photo_asset_id',
-      type: 'text',
+      type: 'file',
       label: 'Foto (ID de archivo)',
     },
     {
       name: 'hr_employee_id',
-      type: 'text',
+      type: 'relation',
       label: 'Colaborador RH',
     },
     {

@@ -250,6 +250,13 @@ The following Prisma models exist today for feature modules. They are transition
 
 No new feature module tables should be added to `prisma/schema.prisma`. Wait for Atlas ORM (Phase 3) or declare data structures in the module's `migrations/` directory.
 
+### Identifier policy (hard rule)
+
+- Atlas identifier strategy is **UUID v7 only**.
+- Primary keys and relationship identifiers must use UUID-compatible schema types and UUID validation contracts.
+- `cuid` is considered legacy and must not be introduced in new or modified source files.
+- For AME3 dynamic tables and module SQL, prefer DB-side `uuidv7()` defaults when the table owns ID generation.
+
 ---
 
 ## 8. Atlas ORM — Metadata-Driven Entity Layer
