@@ -88,9 +88,15 @@ function getUniformStatusMode(rows) {
 }
 
 export default function ContactsScreen() {
-  const { session } = useAuth();
+  const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const authUserId = session?.user?.id ?? "anonymous";
+  const permissions = userProfile?.permissions ?? [];
+  const hasPermission = (key) => Boolean(userProfile?.isAdmin || permissions.includes(key));
+  const canReadContacts = hasPermission("contacts.contacts.read");
+  const canCreateContacts = hasPermission("contacts.contacts.create");
+  const canUpdateContacts = hasPermission("contacts.contacts.update");
+  const canDeleteContacts = hasPermission("contacts.contacts.delete");
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingContact, setEditingContact] = useState(null);
@@ -196,7 +202,7 @@ export default function ContactsScreen() {
         }
       },
     },
-    (selectedRows) => {
+    canUpdateContacts && ((selectedRows) => {
       const mode = getUniformStatusMode(selectedRows);
       if (mode === "mixed") {
         return {
@@ -214,14 +220,14 @@ export default function ContactsScreen() {
         onClick: () =>
           setBulkState({ type: "enable", rows: selectedRows, enabled: enabling }),
       };
-    },
-    (selectedRows) => ({
+    }),
+    canDeleteContacts && ((selectedRows) => ({
       label: "Eliminar",
       icon: Trash2,
       variant: "destructive",
       onClick: () => setBulkState({ type: "delete", rows: selectedRows }),
-    }),
-  ], [token]);
+    })),
+  ].filter(Boolean), [token, canUpdateContacts, canDeleteContacts]);
 
   function handleFormSubmit(data) {
     const payload = { ...data, email: data.email || undefined };
@@ -234,6 +240,19 @@ export default function ContactsScreen() {
 
   const isMutating = createMutation.isPending || updateMutation.isPending;
 
+  if (!canReadContacts) {
+    return (
+      <div className="p-4 md:p-6 space-y-6 min-h-dvh">
+        <PageHeader
+          eyebrow="Atlas Contacts"
+          title="Contactos"
+          description="Clientes, proveedores y personas vinculadas a tu empresa."
+        />
+        <p className="text-sm text-muted-foreground">No tienes permisos para ver los contactos.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6 min-h-dvh">
       <PageHeader
@@ -241,10 +260,12 @@ export default function ContactsScreen() {
         title="Contactos"
         description="Clientes, proveedores y personas vinculadas a tu empresa."
         actions={
-          <Button onClick={openCreate}>
-            <UserPlus className="mr-2 h-4 w-4" />
-            Nuevo contacto
-          </Button>
+          canCreateContacts && (
+            <Button onClick={openCreate}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Nuevo contacto
+            </Button>
+          )
         }
       />
 
@@ -252,12 +273,11 @@ export default function ContactsScreen() {
         blueprint={CONTACTS_BLUEPRINT}
         token={token}
         apiBaseUrl={API_BASE_URL}
-        onCreate={openCreate}
-        onEdit={openEdit}
-        onToggleEnabled={(row) =>
-          toggleEnabledMutation.mutate({ id: row.id, enabled: !row.enabled })
-        }
-        onDelete={(row) => setConfirmDelete(row)}
+        onCreate={canCreateContacts ? openCreate : undefined}
+        onEdit={canUpdateContacts ? openEdit : undefined}
+        onToggleEnabled={canUpdateContacts ? (row) =>
+          toggleEnabledMutation.mutate({ id: row.id, enabled: !row.enabled }) : undefined}
+        onDelete={canDeleteContacts ? (row) => setConfirmDelete(row) : undefined}
         refreshSignal={refreshSignal}
         bulkActions={bulkActions}
       />

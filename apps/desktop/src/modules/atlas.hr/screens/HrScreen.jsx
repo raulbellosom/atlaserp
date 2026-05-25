@@ -44,8 +44,12 @@ const HR_EMPLOYEES_BLUEPRINT = {
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function HrScreen() {
-  const { session } = useAuth();
+  const { session, userProfile } = useAuth();
   const token = session?.access_token;
+  const permissions = userProfile?.permissions ?? [];
+  const hasPermission = (key) => Boolean(userProfile?.isAdmin || permissions.includes(key));
+  const canReadEmployees = hasPermission("hr.employee.read");
+  const canCreateEmployees = hasPermission("hr.employee.create");
   const { "*": wildcard } = useParams();
   const navigate = useNavigate();
 
@@ -66,6 +70,19 @@ export default function HrScreen() {
     );
   }
 
+  if (!canReadEmployees) {
+    return (
+      <div className="p-4 md:p-6 space-y-6 min-h-dvh">
+        <PageHeader
+          eyebrow="Atlas HR"
+          title="Colaboradores"
+          description="Directorio y expedientes del equipo."
+        />
+        <p className="text-sm text-muted-foreground">No tienes permisos para ver los colaboradores.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6 min-h-dvh">
       <PageHeader
@@ -80,10 +97,12 @@ export default function HrScreen() {
             >
               Organigrama
             </Button>
-            <Button onClick={() => navigate("/app/m/atlas.hr/hr/employees/new")}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo colaborador
-            </Button>
+            {canCreateEmployees && (
+              <Button onClick={() => navigate("/app/m/atlas.hr/hr/employees/new")}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nuevo colaborador
+              </Button>
+            )}
           </div>
         }
       />

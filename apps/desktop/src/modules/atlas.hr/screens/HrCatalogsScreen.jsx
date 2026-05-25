@@ -31,7 +31,7 @@ function RowSkeleton() {
 
 // ── Catalog row ───────────────────────────────────────────────────────────────
 
-function CatalogRow({ item, onUpdate, onToggleEnabled, isToggling }) {
+function CatalogRow({ item, onUpdate, onToggleEnabled, isToggling, canManage }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(item.name);
   const [confirmDisable, setConfirmDisable] = useState(false);
@@ -124,33 +124,35 @@ function CatalogRow({ item, onUpdate, onToggleEnabled, isToggling }) {
             </Badge>
 
             {/* action buttons — always visible for touch compatibility */}
-            <div className="flex items-center gap-0.5">
-              {/* edit */}
-              <button
-                type="button"
-                onClick={handleStartEdit}
-                aria-label="Editar"
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]"
-              >
-                <Edit2 size={13} />
-              </button>
+            {canManage && (
+              <div className="flex items-center gap-0.5">
+                {/* edit */}
+                <button
+                  type="button"
+                  onClick={handleStartEdit}
+                  aria-label="Editar"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]"
+                >
+                  <Edit2 size={13} />
+                </button>
 
-              {/* toggle — PowerOff when active, Power when inactive */}
-              <button
-                type="button"
-                onClick={handleToggle}
-                disabled={isToggling}
-                aria-label={item.enabled ? "Deshabilitar" : "Habilitar"}
-                className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-lg transition-colors disabled:cursor-wait",
-                  item.enabled
-                    ? "text-[hsl(var(--muted-foreground))] hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-400"
-                    : "text-[hsl(var(--muted-foreground))] hover:bg-emerald-100 hover:text-emerald-600 dark:hover:bg-emerald-900/40 dark:hover:text-emerald-400",
-                )}
-              >
-                {item.enabled ? <PowerOff size={13} /> : <Power size={13} />}
-              </button>
-            </div>
+                {/* toggle — PowerOff when active, Power when inactive */}
+                <button
+                  type="button"
+                  onClick={handleToggle}
+                  disabled={isToggling}
+                  aria-label={item.enabled ? "Deshabilitar" : "Habilitar"}
+                  className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-lg transition-colors disabled:cursor-wait",
+                    item.enabled
+                      ? "text-[hsl(var(--muted-foreground))] hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-400"
+                      : "text-[hsl(var(--muted-foreground))] hover:bg-emerald-100 hover:text-emerald-600 dark:hover:bg-emerald-900/40 dark:hover:text-emerald-400",
+                  )}
+                >
+                  {item.enabled ? <PowerOff size={13} /> : <Power size={13} />}
+                </button>
+              </div>
+            )}
           </>
         )}
       </motion.div>
@@ -224,7 +226,7 @@ function CreateRow({ onAdd, isCreating }) {
 
 // ── Catalog panel ─────────────────────────────────────────────────────────────
 
-function CatalogPanel({ queryKey, fetcher, creator, updater, toggler }) {
+function CatalogPanel({ queryKey, fetcher, creator, updater, toggler, canCreate, canUpdate }) {
   const { session } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
@@ -277,20 +279,24 @@ function CatalogPanel({ queryKey, fetcher, creator, updater, toggler }) {
 
   return (
     <div className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden">
-      <CreateRow
-        onAdd={(name, onDone) =>
-          createMutation.mutate(name, { onSuccess: onDone })
-        }
-        isCreating={createMutation.isPending}
-      />
+      {canCreate && (
+        <CreateRow
+          onAdd={(name, onDone) =>
+            createMutation.mutate(name, { onSuccess: onDone })
+          }
+          isCreating={createMutation.isPending}
+        />
+      )}
       {items.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-12 text-center">
           <p className="text-sm text-[hsl(var(--muted-foreground))]">
             Sin registros.
           </p>
-          <p className="text-xs text-[hsl(var(--muted-foreground))]/70">
-            Agrega el primero usando el campo de arriba.
-          </p>
+          {canCreate && (
+            <p className="text-xs text-[hsl(var(--muted-foreground))]/70">
+              Agrega el primero usando el campo de arriba.
+            </p>
+          )}
         </div>
       ) : (
         <AnimatePresence initial={false}>
@@ -308,6 +314,7 @@ function CatalogPanel({ queryKey, fetcher, creator, updater, toggler }) {
                 toggleMutation.isPending &&
                 toggleMutation.variables?.id === item.id
               }
+              canManage={canUpdate}
             />
           ))}
         </AnimatePresence>
@@ -329,6 +336,9 @@ const TABS = [
     updater: (id, data, token) => atlas.hr.updateDepartment(id, data, token),
     toggler: (id, enabled, token) =>
       atlas.hr.setDepartmentEnabled(id, enabled, token),
+    createPermission: "hr.department.create",
+    updatePermission: "hr.department.update",
+    readPermission: "hr.department.read",
   },
   {
     key: "job-titles",
@@ -340,13 +350,21 @@ const TABS = [
     updater: (id, data, token) => atlas.hr.updateJobTitle(id, data, token),
     toggler: (id, enabled, token) =>
       atlas.hr.setJobTitleEnabled(id, enabled, token),
+    createPermission: "hr.job_title.create",
+    updatePermission: "hr.job_title.update",
+    readPermission: "hr.job_title.read",
   },
 ];
 
 export default function HrCatalogsScreen() {
+  const { userProfile } = useAuth();
+  const permissions = userProfile?.permissions ?? [];
+  const hasPermission = (key) => Boolean(userProfile?.isAdmin || permissions.includes(key));
   const [activeTab, setActiveTab] = useState("departments");
 
   const tab = TABS.find((t) => t.key === activeTab) ?? TABS[0];
+  const canCreate = hasPermission(tab.createPermission);
+  const canUpdate = hasPermission(tab.updatePermission);
 
   return (
     <div className="p-4 md:p-6 space-y-6 min-h-dvh">
@@ -402,6 +420,8 @@ export default function HrCatalogsScreen() {
             creator={tab.creator}
             updater={tab.updater}
             toggler={tab.toggler}
+            canCreate={canCreate}
+            canUpdate={canUpdate}
           />
         </motion.div>
       </AnimatePresence>

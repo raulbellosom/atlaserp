@@ -58,6 +58,7 @@ export default function FilesScreen() {
   const permissions = userProfile?.permissions ?? [];
   const hasPermission = (key) =>
     Boolean(userProfile?.isAdmin || permissions.includes(key));
+  const canReadFiles = hasPermission("files.assets.read");
   const canUploadFiles = hasPermission("files.assets.create");
 
   const isAdmin = Boolean(
@@ -401,6 +402,21 @@ export default function FilesScreen() {
     } catch {
       // handled by toast.promise
     }
+  }
+
+  if (!canReadFiles) {
+    return (
+      <div className="flex flex-col min-h-full">
+        <div className="flex-1 p-4 md:p-6 space-y-6">
+          <PageHeader
+            eyebrow="Atlas Files"
+            title="Explorador de archivos"
+            description="Visualiza, organiza, renombra y descarga archivos por lote o individualmente."
+          />
+          <p className="text-sm text-muted-foreground">No tienes permisos para ver los archivos.</p>
+        </div>
+      </div>
+    );
   }
 
   return (

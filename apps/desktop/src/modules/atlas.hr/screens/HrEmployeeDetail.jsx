@@ -291,6 +291,8 @@ function HeroSection({
   disableMutation,
   onEdit,
   onCancel,
+  canCreate,
+  canUpdate,
 }) {
   const initials =
     `${employee?.firstName?.[0] ?? ""}${employee?.lastName?.[0] ?? ""}`.toUpperCase();
@@ -390,15 +392,17 @@ function HeroSection({
         <div className="flex items-center gap-2 shrink-0">
           {!isEditing ? (
             <>
-              <Button
-                variant="outline"
-                onClick={onEdit}
-                disabled={isNew && !employee}
-              >
-                <Edit3 className="mr-2 h-4 w-4" />
-                Editar
-              </Button>
-              {employee && (
+              {canUpdate && (
+                <Button
+                  variant="outline"
+                  onClick={onEdit}
+                  disabled={isNew && !employee}
+                >
+                  <Edit3 className="mr-2 h-4 w-4" />
+                  Editar
+                </Button>
+              )}
+              {employee && canUpdate && (
                 <Button
                   variant="outline"
                   disabled={!employee?.enabled || disableMutation.isPending}
@@ -419,13 +423,15 @@ function HeroSection({
                 <X className="mr-2 h-4 w-4" />
                 Cancelar
               </Button>
-              <Button
-                onClick={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending}
-              >
-                <Save className="mr-2 h-4 w-4" />
-                {saveMutation.isPending ? "Guardando..." : "Guardar"}
-              </Button>
+              {(isNew ? canCreate : canUpdate) && (
+                <Button
+                  onClick={() => saveMutation.mutate()}
+                  disabled={saveMutation.isPending}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {saveMutation.isPending ? "Guardando..." : "Guardar"}
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -1167,10 +1173,14 @@ function AuditPanel({ employeeId, token, isNew }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function HrEmployeeDetail({ employeeId }) {
-  const { session } = useAuth();
+  const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const permissions = userProfile?.permissions ?? [];
+  const hasPermission = (key) => Boolean(userProfile?.isAdmin || permissions.includes(key));
+  const canCreateEmployees = hasPermission("hr.employee.create");
+  const canUpdateEmployees = hasPermission("hr.employee.update");
 
   const isNew = employeeId === "new";
   const [isEditing, setIsEditing] = useState(isNew);
@@ -1437,6 +1447,8 @@ export default function HrEmployeeDetail({ employeeId }) {
         disableMutation={disableMutation}
         onEdit={startEdit}
         onCancel={cancelEdit}
+        canCreate={canCreateEmployees}
+        canUpdate={canUpdateEmployees}
       />
 
       {/* two-column body */}

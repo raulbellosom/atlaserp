@@ -68,8 +68,7 @@ export default function UserEditorScreen() {
   const queryClient = useQueryClient();
   const isSelf = userId === userProfile?.id;
   const canEditForm = canManageUsers && isEditRoute;
-  const canUpdateOwnAvatar = hasPermission("profile.avatar.update") && isSelf;
-  const canChangeAvatar = canManageUsers || canUpdateOwnAvatar;
+  const canChangeAvatar = canManageUsers;
   const fileInputRef = useRef(null);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -120,12 +119,7 @@ export default function UserEditorScreen() {
   });
 
   const avatarMutation = useMutation({
-    mutationFn: (file) => {
-      if (canManageUsers) {
-        return atlas.identity.uploadUserAvatar(userId, file, token);
-      }
-      return atlas.profile.uploadAvatar(file, token);
-    },
+    mutationFn: (file) => atlas.identity.uploadUserAvatar(userId, file, token),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["identity-users"] });
       if (isSelf) {
@@ -340,13 +334,8 @@ export default function UserEditorScreen() {
               >
                 <Avatar className="h-20 w-20">
                   <AvatarImage src={user?.avatarUrl ?? ""} alt={user?.displayName || "Usuario"} />
-                  <AvatarFallback className="text-lg font-semibold">
-                    {(user?.displayName || user?.email || "U")
-                      .split(" ")
-                      .filter(Boolean)
-                      .slice(0, 2)
-                      .map((word) => word[0]?.toUpperCase() ?? "")
-                      .join("") || "U"}
+                  <AvatarFallback className="bg-[hsl(var(--muted))]">
+                    <UserRound className="h-9 w-9 text-[hsl(var(--muted-foreground))]" />
                   </AvatarFallback>
                 </Avatar>
                 {user?.avatarUrl ? (

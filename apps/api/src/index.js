@@ -239,7 +239,8 @@ async function getOrLoadUserContext(c) {
 
 function forbiddenMessage(permissionKey) {
   if (!permissionKey) return "No tienes permisos para realizar esta accion.";
-  return `No tienes permisos para realizar esta accion (${permissionKey}).`;
+  const label = getPermissionPresentation(permissionKey).name.toLowerCase();
+  return `No tienes permisos para ${label}.`;
 }
 
 function requirePermission(permissionKey) {

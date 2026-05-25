@@ -1518,6 +1518,7 @@ export function SwitchField({
   onChange,
   className,
   description,
+  disabled = false,
 }) {
   return (
     <div className={cn("flex flex-col gap-1", className)}>
@@ -1526,7 +1527,10 @@ export function SwitchField({
           {label && (
             <label
               htmlFor={id}
-              className="text-sm font-medium text-foreground/80 cursor-pointer select-none"
+              className={cn(
+                "text-sm font-medium select-none",
+                disabled ? "text-muted-foreground cursor-not-allowed" : "text-foreground/80 cursor-pointer",
+              )}
             >
               {label}
               {required && (
@@ -1543,10 +1547,12 @@ export function SwitchField({
           role="switch"
           id={id}
           aria-checked={checked}
-          onClick={() => onChange?.(!checked)}
+          disabled={disabled}
+          onClick={() => !disabled && onChange?.(!checked)}
           className={cn(
             "relative w-10 h-6 rounded-full transition-all duration-200 shrink-0",
             "focus:outline-none focus:ring-2 focus:ring-primary/30",
+            disabled ? "opacity-50 cursor-not-allowed" : "",
             checked ? "bg-primary" : "bg-muted border border-border",
           )}
         >
@@ -1962,7 +1968,7 @@ export function ComboboxField({
     const willOpen = !open;
     if (willOpen && containerRef.current) {
       const r = containerRef.current.getBoundingClientRect();
-      setDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+      setDropdownStyle({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 220) });
     }
     setOpen((o) => !o);
     if (willOpen && options.length === 0 && !loading) {
@@ -2143,7 +2149,7 @@ export function RelationSelectField({
   function handleOpen() {
     if (!open && containerRef.current) {
       const r = containerRef.current.getBoundingClientRect();
-      setDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+      setDropdownStyle({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 220) });
       // If there are no options yet and we're not already loading, request a fresh load.
       // Covers the case where the form was just reset/remounted before the preload effect ran.
       if (options.length === 0 && !loading) {
