@@ -66,7 +66,9 @@ export function useColumnConfig({ columns, savedPreference, defaultPageSize = DE
 
   const resetToDefaults = useCallback(() => {
     setColumnOrder(columns.map((c) => c.key));
-    setColumnVisibility(Object.fromEntries(columns.map((c) => [c.key, true])));
+    setColumnVisibility(
+      Object.fromEntries(columns.map((c) => [c.key, c.defaultVisible !== false])),
+    );
     setPageSizeState(defaultPageSize);
   }, [columns, defaultPageSize]);
 
@@ -124,7 +126,9 @@ function buildInitialOrder(columns, savedPreference) {
 }
 
 function buildInitialVisibility(columns, savedPreference) {
-  const defaults = Object.fromEntries(columns.map((c) => [c.key, true]));
+  const defaults = Object.fromEntries(
+    columns.map((c) => [c.key, c.defaultVisible !== false]),
+  );
   if (!savedPreference?.columns?.length) return defaults;
   const overrides = Object.fromEntries(
     savedPreference.columns.map((c) => [c.key, c.visible !== false]),

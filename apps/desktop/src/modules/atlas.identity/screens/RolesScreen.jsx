@@ -6,6 +6,7 @@ import {
   ActionMenu,
   Badge,
   Button,
+  ConfirmDialog,
   EmptyState,
   ErrorState,
   FilterBar,
@@ -21,7 +22,7 @@ import {
   TextField,
   ViewModeSwitch,
 } from "@atlas/ui";
-import { KeyRound, Pencil, Power, PowerOff, Shield } from "lucide-react";
+import { KeyRound, Pencil, Power, PowerOff, Shield, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
@@ -39,7 +40,7 @@ const FILTER_DEFS = [
 
 // ── Table view ─────────────────────────────────────────────────────────────────
 
-function RolesTableView({ roles, onNavigate, onToggle, onEdit, canManage }) {
+function RolesTableView({ roles, onNavigate, onToggle, onEdit, onDelete, canManage }) {
   return (
     <div className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden">
       <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_60px_80px_48px] gap-3 px-4 py-2.5 bg-[hsl(var(--muted))]/40 border-b border-[hsl(var(--border))] text-xs font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
@@ -124,6 +125,12 @@ function RolesTableView({ roles, onNavigate, onToggle, onEdit, canManage }) {
                               icon: Power,
                               onClick: () => onToggle(role.id, true),
                             },
+                        {
+                          label: "Eliminar",
+                          icon: Trash2,
+                          variant: "destructive",
+                          onClick: () => onDelete(role),
+                        },
                       ]
                     : []),
                 ]}
@@ -138,7 +145,7 @@ function RolesTableView({ roles, onNavigate, onToggle, onEdit, canManage }) {
 
 // ── Card view ──────────────────────────────────────────────────────────────────
 
-function RolesCardView({ roles, onNavigate, onToggle, onEdit, canManage }) {
+function RolesCardView({ roles, onNavigate, onToggle, onEdit, onDelete, canManage }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {roles.map((role) => (
@@ -183,6 +190,12 @@ function RolesCardView({ roles, onNavigate, onToggle, onEdit, canManage }) {
                           icon: Power,
                           onClick: () => onToggle(role.id, true),
                         },
+                    {
+                      label: "Eliminar",
+                      icon: Trash2,
+                      variant: "destructive",
+                      onClick: () => onDelete(role),
+                    },
                   ]}
                 />
               </div>
@@ -226,7 +239,7 @@ function RolesCardView({ roles, onNavigate, onToggle, onEdit, canManage }) {
 
 // ── Grid view ──────────────────────────────────────────────────────────────────
 
-function RolesGridView({ roles, onNavigate, onToggle, onEdit, canManage }) {
+function RolesGridView({ roles, onNavigate, onToggle, onEdit, onDelete, canManage }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
       {roles.map((role) => (
@@ -274,6 +287,12 @@ function RolesGridView({ roles, onNavigate, onToggle, onEdit, canManage }) {
                         icon: Power,
                         onClick: () => onToggle(role.id, true),
                       },
+                  {
+                    label: "Eliminar",
+                    icon: Trash2,
+                    variant: "destructive",
+                    onClick: () => onDelete(role),
+                  },
                 ]}
               />
             </div>
@@ -365,6 +384,7 @@ export default function RolesScreen() {
   const [filters, setFilters] = useState({});
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const rolesQuery = useQuery({
     queryKey: ["identity-roles"],
@@ -400,6 +420,17 @@ export default function RolesScreen() {
       toast.success("Estado actualizado");
     },
     onError: () => toast.error("No se pudo cambiar el estado"),
+  });
+
+  const deleteRoleMutation = useMutation({
+    mutationFn: (id) => atlas.identity.deleteRole(id, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["identity-roles"] });
+      setDeleteTarget(null);
+      toast.success("Rol eliminado");
+    },
+    onError: (err) =>
+      toast.error(err?.message || "No se pudo eliminar el rol"),
   });
 
   const allRoles = rolesQuery.data?.data ?? [];
@@ -460,6 +491,7 @@ export default function RolesScreen() {
     onNavigate: handleNavigate,
     onToggle: handleToggle,
     onEdit: openEditSheet,
+    onDelete: setDeleteTarget,
     canManage: canManageRoles,
   };
 
@@ -616,6 +648,24 @@ export default function RolesScreen() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        title="Eliminar rol"
+        description={
+          (deleteTarget?.memberCount ?? 0) > 0
+            ? `El rol "${deleteTarget?.name}" tiene ${deleteTarget.memberCount} ${deleteTarget.memberCount === 1 ? "usuario asignado" : "usuarios asignados"}. Al eliminarlo quedaran sin rol y perderan todos los permisos asociados a este rol.`
+            : `¿Confirmas que quieres eliminar "${deleteTarget?.name}"? Esta accion no se puede deshacer.`
+        }
+        confirmLabel={
+          (deleteTarget?.memberCount ?? 0) > 0
+            ? "Eliminar de todas formas"
+            : "Eliminar"
+        }
+        onConfirm={() => deleteRoleMutation.mutate(deleteTarget.id)}
+        loading={deleteRoleMutation.isPending}
+      />
 
       {/* Edit role sheet */}
       <Sheet

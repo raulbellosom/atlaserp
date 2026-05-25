@@ -38,11 +38,21 @@ export function BulkActionBar({
 }) {
   if (selectedCount === 0) return null;
 
+  const resolvedActions = bulkActions
+    .map((action) =>
+      typeof action === "function" ? action(selectedRows) : action,
+    )
+    .filter((action) => action && action.hidden !== true);
+
   return (
-    <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
-      <div className="flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-2 shadow-lg">
-        <span className="mr-2 text-sm font-medium text-foreground">
-          {selectedCount} {selectedCount === 1 ? "seleccionado" : "seleccionados"}
+    <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 max-w-[calc(100vw-1rem)]">
+      <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap rounded-lg border border-border bg-background px-3 py-2 shadow-lg">
+        <span className="mr-2 text-sm font-medium text-foreground whitespace-nowrap">
+          <span className="hidden sm:inline">
+            {selectedCount}{" "}
+            {selectedCount === 1 ? "seleccionado" : "seleccionados"}
+          </span>
+          <span className="sm:hidden">{selectedCount} sel.</span>
         </span>
 
         <div className="mr-1 h-4 w-px bg-border" />
@@ -57,8 +67,12 @@ export function BulkActionBar({
           Exportar CSV
         </Button>
 
-        {bulkActions.map((action, i) => {
+        {resolvedActions.map((action, i) => {
           const Icon = action.icon ?? null;
+          const disabled =
+            typeof action.disabled === "function"
+              ? Boolean(action.disabled(selectedRows))
+              : Boolean(action.disabled);
           return (
             <Button
               key={i}
@@ -66,6 +80,8 @@ export function BulkActionBar({
               size="sm"
               className="h-7 gap-1.5 px-2 text-xs"
               onClick={() => action.onClick(selectedRows)}
+              disabled={disabled}
+              title={action.title ?? undefined}
             >
               {Icon && <Icon className="h-3.5 w-3.5" />}
               {action.label}

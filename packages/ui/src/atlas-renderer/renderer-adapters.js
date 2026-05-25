@@ -1,3 +1,21 @@
+export function stripMarkdown(text) {
+  if (text === undefined || text === null || text === "") return "—";
+  return String(text)
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/_(.*?)_/g, "$1")
+    .replace(/~~(.*?)~~/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/^>\s*/gm, "")
+    .replace(/^[-*+]\s+/gm, "")
+    .replace(/^-{3,}$/gm, "")
+    .replace(/\n+/g, " ")
+    .trim() || "—";
+}
+
 const ACCENT_MAP = {
   vehiculo: "vehículo", vehiculos: "vehículos",
   matricula: "matrícula", matriculas: "matrículas",

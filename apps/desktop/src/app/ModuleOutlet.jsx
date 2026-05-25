@@ -39,6 +39,9 @@ const SCREEN_MAP = {
   "atlas.identity:/identity/users/:id": lazy(
     () => import("../modules/atlas.identity/screens/UserEditorScreen.jsx"),
   ),
+  "atlas.identity:/identity/users/:id/edit": lazy(
+    () => import("../modules/atlas.identity/screens/UserEditorScreen.jsx"),
+  ),
   "atlas.identity:/identity/roles": lazy(
     () => import("../modules/atlas.identity/screens/RolesScreen.jsx"),
   ),
@@ -175,6 +178,9 @@ function resolveScreen(moduleKey, subPath) {
   ) {
     if (subPath === "/identity/users/new") {
       return SCREEN_MAP["atlas.identity:/identity/users/new"] ?? null;
+    }
+    if (subPath.endsWith("/edit")) {
+      return SCREEN_MAP["atlas.identity:/identity/users/:id/edit"] ?? null;
     }
     return SCREEN_MAP["atlas.identity:/identity/users/:id"] ?? null;
   }

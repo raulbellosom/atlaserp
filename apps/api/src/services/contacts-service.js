@@ -85,13 +85,13 @@ export function createContactsService({ prisma }) {
   }
 
   return {
-    async list({ authUserId, search, page, pageSize, sortBy, sortDir }) {
+    async list({ authUserId, search, page, pageSize, sortBy, sortDir, enabled = true }) {
       const companyId = await getCompanyContext(authUserId);
       const parsedPage = Math.max(1, Number.parseInt(String(page ?? 1), 10) || 1);
       const parsedPageSize = Math.min(200, Math.max(1, Number.parseInt(String(pageSize ?? 20), 10) || 20));
       const where = {
         companyId,
-        enabled: true,
+        enabled: Boolean(enabled),
         ...buildSearchWhere(search),
       };
       const SORT_FIELDS = { name: "name", type: "type", email: "email", phone: "phone", taxId: "taxId" };
@@ -145,6 +145,39 @@ export function createContactsService({ prisma }) {
       const companyId = await getCompanyContext(authUserId);
       await assertContactOwnership({ id, companyId });
       await prisma.contact.delete({ where: { id } });
+    },
+
+    async bulkSetEnabled({ authUserId, ids, enabled }) {
+      if (!Array.isArray(ids) || !ids.length) {
+        throw new ContactsServiceError("IDs requeridos.", 400);
+      }
+      const companyId = await getCompanyContext(authUserId);
+      await prisma.contact.updateMany({
+        where: { id: { in: ids }, companyId },
+        data: { enabled: Boolean(enabled) },
+      });
+    },
+
+    async bulkDelete({ authUserId, ids }) {
+      if (!Array.isArray(ids) || !ids.length) {
+        throw new ContactsServiceError("IDs requeridos.", 400);
+      }
+      const companyId = await getCompanyContext(authUserId);
+      await prisma.contact.deleteMany({
+        where: { id: { in: ids }, companyId },
+      });
+    },
+
+    async getContactsForExport({ authUserId, ids }) {
+      const companyId = await getCompanyContext(authUserId);
+      const where = { companyId };
+      if (Array.isArray(ids) && ids.length) {
+        where.id = { in: ids };
+      }
+      return prisma.contact.findMany({
+        where,
+        orderBy: { name: "asc" },
+      });
     },
 
     async picker({ authUserId, query, limit }) {

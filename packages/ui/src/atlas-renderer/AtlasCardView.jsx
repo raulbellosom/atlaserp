@@ -1,6 +1,7 @@
 import { Eye, ImageIcon, FileText, Pencil, Trash2 } from "lucide-react";
 import { Checkbox } from "../components/Checkbox.jsx";
 import { ActionMenu } from "../components/ActionMenu.jsx";
+import { stripMarkdown } from "./renderer-adapters.js";
 
 const STATUS_LABELS = {
   active: "Activo",
@@ -30,6 +31,11 @@ function formatCardDate(value) {
 
 function renderColValue(col, value) {
   if (col.type === "date" || col.type === "datetime") return formatCardDate(value);
+  if (col.type === "select" && col.options) {
+    const opt = col.options.find((o) => String(o.value) === String(value ?? ""));
+    return opt?.label ?? renderValue(value);
+  }
+  if (col.type === "markdown") return stripMarkdown(value);
   return renderValue(value);
 }
 
@@ -125,10 +131,10 @@ export function AtlasCardView({
                   >
                     {titleVal}
                   </button>
-                  {statusColumn && renderValue(row[statusColumn.field]) !== "—" && (
+                  {statusColumn && renderColValue(statusColumn, row[statusColumn.field]) !== "—" && (
                     <div className="mt-1">
                       <span className="inline-block text-xs font-medium text-[hsl(var(--foreground))] bg-[hsl(var(--muted))] rounded-full px-2.5 py-0.5">
-                        {renderValue(row[statusColumn.field])}
+                        {renderColValue(statusColumn, row[statusColumn.field])}
                       </span>
                     </div>
                   )}

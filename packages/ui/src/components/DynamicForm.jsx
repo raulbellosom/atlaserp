@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   TextField,
@@ -57,7 +57,15 @@ export function DynamicForm({
     formState: { errors },
   } = useForm({ defaultValues });
 
+  const serializedDefaultsRef = useRef(
+    (() => { try { return JSON.stringify(defaultValues); } catch { return ""; } })()
+  );
+
   useEffect(() => {
+    let next;
+    try { next = JSON.stringify(defaultValues); } catch { next = ""; }
+    if (next === serializedDefaultsRef.current) return;
+    serializedDefaultsRef.current = next;
     reset(defaultValues);
   }, [defaultValues, reset]);
 

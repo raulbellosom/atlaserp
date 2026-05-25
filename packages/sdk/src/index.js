@@ -266,14 +266,43 @@ export function createAtlasClient({ baseUrl }) {
         }),
     },
     identity: {
-      listUsers: (token) =>
-        request("/identity/users", { headers: withAuthHeaders(token) }),
+      listUsers: (token, query = null) =>
+        request(`/identity/users${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
       updateUser: (id, data, token) =>
         request(`/identity/users/${encodeURIComponent(id)}`, {
           method: "PATCH",
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
+      setUsersEnabled: (ids, enabled, token) =>
+        request("/identity/users/bulk/enabled", {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ ids, enabled }),
+        }),
+      deleteUsersBulk: (ids, token) =>
+        request("/identity/users/bulk", {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ ids }),
+        }),
+      exportUsersExcel: (ids, token) =>
+        requestBlob("/identity/users/export/excel", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ ids }),
+        }),
+      uploadUserAvatar: (id, file, token) => {
+        const formData = new FormData();
+        formData.append("avatar", file);
+        return request(`/identity/users/${encodeURIComponent(id)}/avatar`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: formData,
+        });
+      },
       listRoles: (token) =>
         request("/identity/roles", { headers: withAuthHeaders(token) }),
       createRole: (data, token) =>
@@ -310,6 +339,11 @@ export function createAtlasClient({ baseUrl }) {
         }),
       deleteUser: (id, token) =>
         request(`/identity/users/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
+      deleteRole: (id, token) =>
+        request(`/identity/roles/${encodeURIComponent(id)}`, {
           method: "DELETE",
           headers: withAuthHeaders(token),
         }),
@@ -683,6 +717,24 @@ export function createAtlasClient({ baseUrl }) {
         request(`/contacts/${encodeURIComponent(id)}`, {
           method: "DELETE",
           headers: withAuthHeaders(token),
+        }),
+      setContactsEnabled: (ids, enabled, token) =>
+        request("/contacts/bulk/enabled", {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ ids, enabled }),
+        }),
+      deleteContactsBulk: (ids, token) =>
+        request("/contacts/bulk", {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ ids }),
+        }),
+      exportContactsExcel: (ids, token) =>
+        requestBlob("/contacts/export/excel", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ ids }),
         }),
     },
     files: {

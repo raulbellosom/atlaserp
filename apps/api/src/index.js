@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { config as loadEnv } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import ExcelJS from "exceljs";
 import pkg from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 const { PrismaClient } = pkg;
@@ -400,6 +401,183 @@ async function getSignedUrlByFileId(fileId) {
     .from(fileAsset.bucket)
     .createSignedUrl(fileAsset.objectKey, 3600);
   return data?.signedUrl ?? null;
+}
+
+function toPositiveInt(value, fallback, { min = 1, max = 500 } = {}) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  const int = Math.floor(num);
+  if (int < min) return min;
+  if (int > max) return max;
+  return int;
+}
+
+function normalizeIdentityUsersQuery(query = {}) {
+  const page = toPositiveInt(query.page, 1, { min: 1, max: 100000 });
+  const pageSize = toPositiveInt(query.pageSize, 20, { min: 1, max: 200 });
+  const search = String(query.search ?? "").trim();
+  const enabledRaw = String(query.enabled ?? "").trim().toLowerCase();
+  const enabled =
+    enabledRaw === "true" ? true : enabledRaw === "false" ? false : null;
+  const sortByRaw = String(query.sortBy ?? "").trim();
+  const sortDirRaw = String(query.sortDir ?? "").trim().toLowerCase();
+  const sortDir = sortDirRaw === "asc" ? "asc" : "desc";
+
+  return { page, pageSize, search, enabled, sortBy: sortByRaw, sortDir };
+}
+
+function toIdentitySortOrder(sortBy, sortDir) {
+  const dir = sortDir === "asc" ? "asc" : "desc";
+  switch (sortBy) {
+    case "firstName":
+      return [{ firstName: dir }, { createdAt: "desc" }];
+    case "lastName":
+      return [{ lastName: dir }, { createdAt: "desc" }];
+    case "displayName":
+      return [{ displayName: dir }, { createdAt: "desc" }];
+    case "email":
+      return [{ email: dir }, { createdAt: "desc" }];
+    case "enabled":
+      return [{ enabled: dir }, { createdAt: "desc" }];
+    case "createdAt":
+      return [{ createdAt: dir }];
+    default:
+      return [{ createdAt: "desc" }];
+  }
+}
+
+function parseIdentityUserIds(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => String(entry ?? "").trim())
+    .filter(Boolean)
+    .filter((id) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        id,
+      ),
+    );
+}
+
+const PROTECTED_IDENTITY_ROLE_KEYS = new Set(["atlas.admin", "system.admin"]);
+
+function hasProtectedIdentityAdminRole(user) {
+  const memberships = Array.isArray(user?.memberships) ? user.memberships : [];
+  return memberships.some((membership) => {
+    if (!membership?.enabled) return false;
+    const roleKey = String(membership?.role?.key ?? "")
+      .trim()
+      .toLowerCase();
+    return PROTECTED_IDENTITY_ROLE_KEYS.has(roleKey);
+  });
+}
+
+function buildIdentityUsersWhere({ search, enabled }) {
+  const where = {};
+  if (typeof enabled === "boolean") {
+    where.enabled = enabled;
+  }
+  if (search) {
+    where.OR = [
+      { displayName: { contains: search, mode: "insensitive" } },
+      { firstName: { contains: search, mode: "insensitive" } },
+      { lastName: { contains: search, mode: "insensitive" } },
+      { email: { contains: search, mode: "insensitive" } },
+      {
+        memberships: {
+          some: {
+            enabled: true,
+            role: { name: { contains: search, mode: "insensitive" } },
+          },
+        },
+      },
+    ];
+  }
+  return where;
+}
+
+async function buildAvatarUrlMapByFileIds(fileIds) {
+  const avatarUrlMap = new Map();
+  if (!fileIds.length) return avatarUrlMap;
+
+  const fileAssets = await prisma.fileAsset.findMany({
+    where: { id: { in: fileIds } },
+    select: { id: true, bucket: true, objectKey: true },
+  });
+  const byBucket = new Map();
+  for (const asset of fileAssets) {
+    if (!byBucket.has(asset.bucket)) byBucket.set(asset.bucket, []);
+    byBucket.get(asset.bucket).push(asset);
+  }
+  await Promise.all(
+    [...byBucket.entries()].map(async ([bucket, assets]) => {
+      const paths = assets.map((asset) => asset.objectKey);
+      const { data: signedList } = await supabaseAdmin.storage
+        .from(bucket)
+        .createSignedUrls(paths, 3600);
+      if (!Array.isArray(signedList)) return;
+      for (let index = 0; index < assets.length; index += 1) {
+        avatarUrlMap.set(assets[index].id, signedList[index]?.signedUrl ?? null);
+      }
+    }),
+  );
+
+  return avatarUrlMap;
+}
+
+function serializeIdentityUser(user, avatarUrlMap) {
+  return {
+    ...user,
+    avatarUrl: user.avatarFileId
+      ? (avatarUrlMap.get(user.avatarFileId) ?? null)
+      : null,
+    memberships: (user.memberships ?? []).map((membership) => ({
+      id: membership.id,
+      companyId: membership.companyId,
+      companyName: membership.company?.name ?? null,
+      roleId: membership.roleId,
+      roleKey: membership.role?.key ?? null,
+      roleName: membership.role?.name ?? null,
+      enabled: membership.enabled,
+    })),
+  };
+}
+
+async function uploadIdentityAvatar({ profileId, file }) {
+  const ext = file.name.split(".").pop() || "png";
+  const objectKey = `modules/atlas-identity/userprofile/${profileId}/${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 10)}.${ext}`;
+  const arrayBuffer = await file.arrayBuffer();
+
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from(STORAGE_BUCKET_NAME)
+    .upload(objectKey, arrayBuffer, {
+      contentType: file.type,
+      upsert: true,
+    });
+  if (uploadError) {
+    throw new Error("UPLOAD_FAILED");
+  }
+
+  const asset = await prisma.fileAsset.create({
+    data: {
+      bucket: STORAGE_BUCKET_NAME,
+      objectKey,
+      originalName: file.name,
+      mimeType: file.type,
+      sizeBytes: file.size,
+      moduleKey: "atlas.identity",
+      entityType: "UserProfile",
+      entityId: profileId,
+    },
+  });
+
+  await prisma.userProfile.update({
+    where: { id: profileId },
+    data: { avatarFileId: asset.id },
+  });
+
+  return asset;
 }
 
 async function ensureBuckets() {
@@ -877,36 +1055,9 @@ app.post(
         return c.json({ error: "Solo se permiten imagenes." }, 400);
       }
 
-      const ext = file.name.split(".").pop() || "png";
-      const objectKey = `modules/atlas-identity/userprofile/${context.profile.id}/${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 10)}.${ext}`;
-      const arrayBuffer = await file.arrayBuffer();
-      const { error: uploadError } = await supabaseAdmin.storage
-        .from(STORAGE_BUCKET_NAME)
-        .upload(objectKey, arrayBuffer, {
-          contentType: file.type,
-          upsert: true,
-        });
-      if (uploadError)
-        return c.json({ error: "No se pudo subir el avatar." }, 500);
-
-      const asset = await prisma.fileAsset.create({
-        data: {
-          bucket: STORAGE_BUCKET_NAME,
-          objectKey,
-          originalName: file.name,
-          mimeType: file.type,
-          sizeBytes: file.size,
-          moduleKey: "atlas.identity",
-          entityType: "UserProfile",
-          entityId: context.profile.id,
-        },
-      });
-
-      await prisma.userProfile.update({
-        where: { id: context.profile.id },
-        data: { avatarFileId: asset.id },
+      const asset = await uploadIdentityAvatar({
+        profileId: context.profile.id,
+        file,
       });
       cacheDel(`user_ctx:${authUserId}`);
       const avatarUrl = await getSignedUrlByFileId(asset.id);
@@ -1761,6 +1912,7 @@ app.get(
               },
             },
           },
+          _count: { select: { memberships: { where: { enabled: true } } } },
         },
         orderBy: { name: "asc" },
       });
@@ -1768,6 +1920,7 @@ app.get(
         data: roles.map((role) => ({
           ...role,
           permissionKeys: role.permissions.map((p) => p.permission.key),
+          memberCount: role._count.memberships,
         })),
       });
     } catch {
@@ -1843,6 +1996,26 @@ app.patch(
   },
 );
 
+app.delete(
+  "/identity/roles/:id",
+  authMiddleware,
+  requirePermission("identity.roles.delete"),
+  async (c) => {
+    try {
+      const id = c.req.param("id");
+      const role = await prisma.role.findUnique({ where: { id }, select: { id: true, system: true, key: true } });
+      if (!role) return c.json({ error: "Rol no encontrado." }, 404);
+      if (role.system || ADMIN_ROLE_KEYS.has(role.key)) {
+        return c.json({ error: "No se puede eliminar un rol del sistema." }, 403);
+      }
+      await prisma.role.delete({ where: { id } });
+      return c.json({ ok: true });
+    } catch {
+      return c.json({ error: "No se pudo eliminar el rol." }, 500);
+    }
+  },
+);
+
 app.patch(
   "/identity/roles/:id/permissions",
   authMiddleware,
@@ -1889,67 +2062,46 @@ app.get(
   requirePermission("identity.users.read"),
   async (c) => {
     try {
-      const users = await prisma.userProfile.findMany({
-        include: {
-          memberships: {
-            include: {
-              role: true,
-              company: true,
+      const normalizedQuery = normalizeIdentityUsersQuery(c.req.query());
+      const where = buildIdentityUsersWhere(normalizedQuery);
+      const orderBy = toIdentitySortOrder(
+        normalizedQuery.sortBy,
+        normalizedQuery.sortDir,
+      );
+      const skip = (normalizedQuery.page - 1) * normalizedQuery.pageSize;
+
+      const [users, total] = await prisma.$transaction([
+        prisma.userProfile.findMany({
+          where,
+          include: {
+            memberships: {
+              include: {
+                role: true,
+                company: true,
+              },
+              where: { enabled: true },
             },
-            where: { enabled: true },
           },
+          orderBy,
+          skip,
+          take: normalizedQuery.pageSize,
+        }),
+        prisma.userProfile.count({ where }),
+      ]);
+
+      const avatarFileIds = users
+        .map((user) => user.avatarFileId)
+        .filter(Boolean);
+      const avatarUrlMap = await buildAvatarUrlMapByFileIds(avatarFileIds);
+
+      return c.json({
+        data: users.map((user) => serializeIdentityUser(user, avatarUrlMap)),
+        pagination: {
+          page: normalizedQuery.page,
+          pageSize: normalizedQuery.pageSize,
+          total,
         },
-        orderBy: { createdAt: "desc" },
       });
-
-      // Batch-load all avatar file assets in a single query, then batch signed URLs per bucket.
-      const avatarFileIds = users.map((u) => u.avatarFileId).filter(Boolean);
-      const avatarUrlMap = new Map();
-      if (avatarFileIds.length > 0) {
-        const fileAssets = await prisma.fileAsset.findMany({
-          where: { id: { in: avatarFileIds } },
-          select: { id: true, bucket: true, objectKey: true },
-        });
-        // Group by bucket so we call createSignedUrls once per bucket
-        const byBucket = new Map();
-        for (const asset of fileAssets) {
-          if (!byBucket.has(asset.bucket)) byBucket.set(asset.bucket, []);
-          byBucket.get(asset.bucket).push(asset);
-        }
-        await Promise.all(
-          [...byBucket.entries()].map(async ([bucket, assets]) => {
-            const paths = assets.map((a) => a.objectKey);
-            const { data: signedList } = await supabaseAdmin.storage
-              .from(bucket)
-              .createSignedUrls(paths, 3600);
-            if (Array.isArray(signedList)) {
-              for (let i = 0; i < assets.length; i++) {
-                avatarUrlMap.set(
-                  assets[i].id,
-                  signedList[i]?.signedUrl ?? null,
-                );
-              }
-            }
-          }),
-        );
-      }
-
-      const usersWithAvatars = users.map((user) => ({
-        ...user,
-        avatarUrl: user.avatarFileId
-          ? (avatarUrlMap.get(user.avatarFileId) ?? null)
-          : null,
-        memberships: user.memberships.map((m) => ({
-          id: m.id,
-          companyId: m.companyId,
-          companyName: m.company?.name ?? null,
-          roleId: m.roleId,
-          roleKey: m.role?.key ?? null,
-          roleName: m.role?.name ?? null,
-          enabled: m.enabled,
-        })),
-      }));
-      return c.json({ data: usersWithAvatars });
     } catch {
       return c.json({ error: "No se pudieron cargar los usuarios." }, 500);
     }
@@ -2026,10 +2178,228 @@ app.post(
   },
 );
 
+app.patch(
+  "/identity/users/bulk/enabled",
+  authMiddleware,
+  requirePermission("identity.users.update"),
+  async (c) => {
+    try {
+      const body = await c.req.json();
+      const ids = parseIdentityUserIds(body?.ids);
+      const enabled = body?.enabled;
+      if (!ids.length) {
+        return c.json({ error: "Debes enviar al menos un usuario valido." }, 400);
+      }
+      if (typeof enabled !== "boolean") {
+        return c.json({ error: "El campo enabled es obligatorio." }, 400);
+      }
+      const result = await prisma.userProfile.updateMany({
+        where: { id: { in: ids } },
+        data: { enabled },
+      });
+      return c.json({ data: { count: result.count, enabled } });
+    } catch {
+      return c.json({ error: "No se pudo actualizar el estado de los usuarios." }, 500);
+    }
+  },
+);
+
+app.delete(
+  "/identity/users/bulk",
+  authMiddleware,
+  requirePermission("identity.users.delete"),
+  async (c) => {
+    try {
+      const body = await c.req.json();
+      const ids = parseIdentityUserIds(body?.ids);
+      if (!ids.length) {
+        return c.json({ error: "Debes enviar al menos un usuario valido." }, 400);
+      }
+
+      const context = c.get("userContext");
+      if (ids.includes(context?.profile?.id)) {
+        return c.json({ error: "No puedes eliminar tu propia cuenta." }, 400);
+      }
+
+      const users = await prisma.userProfile.findMany({
+        where: { id: { in: ids } },
+        select: {
+          id: true,
+          authUserId: true,
+          memberships: {
+            where: { enabled: true },
+            select: {
+              enabled: true,
+              role: { select: { key: true } },
+            },
+          },
+        },
+      });
+      if (!users.length) {
+        return c.json({ data: { count: 0 } });
+      }
+      if (users.some(hasProtectedIdentityAdminRole)) {
+        return c.json(
+          {
+            error:
+              "No se pueden eliminar usuarios con rol Atlas Admin o System Admin.",
+          },
+          400,
+        );
+      }
+
+      for (const user of users) {
+        const { error } = await supabaseAdmin.auth.admin.deleteUser(user.authUserId);
+        if (error) {
+          return c.json({ error: "No se pudo eliminar uno o mas usuarios en Auth." }, 500);
+        }
+      }
+
+      const deleted = await prisma.userProfile.deleteMany({
+        where: { id: { in: users.map((user) => user.id) } },
+      });
+      for (const user of users) {
+        cacheDel(`user_ctx:${user.authUserId}`);
+      }
+
+      return c.json({ data: { count: deleted.count } });
+    } catch {
+      return c.json({ error: "No se pudieron eliminar los usuarios." }, 500);
+    }
+  },
+);
+
+app.post(
+  "/identity/users/export/excel",
+  authMiddleware,
+  requirePermission("identity.users.read"),
+  async (c) => {
+    try {
+      const body = await c.req.json().catch(() => ({}));
+      const ids = parseIdentityUserIds(body?.ids);
+      const normalizedQuery = normalizeIdentityUsersQuery(c.req.query());
+      const where = buildIdentityUsersWhere(normalizedQuery);
+      if (ids.length) where.id = { in: ids };
+
+      const users = await prisma.userProfile.findMany({
+        where,
+        include: {
+          memberships: {
+            include: { role: true, company: true },
+            where: { enabled: true },
+          },
+        },
+        orderBy: toIdentitySortOrder(normalizedQuery.sortBy, normalizedQuery.sortDir),
+      });
+
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet("Usuarios");
+      sheet.columns = [
+        { header: "ID", key: "id", width: 40 },
+        { header: "Nombre", key: "firstName", width: 20 },
+        { header: "Apellidos", key: "lastName", width: 24 },
+        { header: "Nombre completo", key: "displayName", width: 30 },
+        { header: "Correo", key: "email", width: 32 },
+        { header: "Rol", key: "roleName", width: 24 },
+        { header: "Empresa", key: "companyName", width: 28 },
+        { header: "Estado", key: "enabled", width: 12 },
+        { header: "Telefono", key: "phone", width: 18 },
+        { header: "Fecha nacimiento", key: "birthDate", width: 18 },
+        { header: "Sexo", key: "gender", width: 18 },
+        { header: "Pais", key: "country", width: 18 },
+        { header: "Estado/Provincia", key: "state", width: 20 },
+        { header: "Ciudad", key: "city", width: 20 },
+        { header: "Colonia", key: "colony", width: 20 },
+        { header: "Calle", key: "street", width: 20 },
+        { header: "Numero exterior", key: "extNumber", width: 16 },
+        { header: "Numero interior", key: "intNumber", width: 16 },
+        { header: "Codigo postal", key: "postalCode", width: 16 },
+        { header: "Biografia", key: "bio", width: 40 },
+        { header: "Creado", key: "createdAt", width: 20 },
+      ];
+      sheet.getRow(1).font = { bold: true };
+
+      for (const user of users) {
+        const membership = user.memberships?.[0] ?? null;
+        sheet.addRow({
+          id: user.id,
+          firstName: user.firstName ?? "",
+          lastName: user.lastName ?? "",
+          displayName: user.displayName ?? "",
+          email: user.email ?? "",
+          roleName: membership?.role?.name ?? "",
+          companyName: membership?.company?.name ?? "",
+          enabled: user.enabled ? "Activo" : "Inactivo",
+          phone: user.phone ?? "",
+          birthDate: user.birthDate ? new Date(user.birthDate).toISOString().slice(0, 10) : "",
+          gender: user.gender ?? "",
+          country: user.country ?? "",
+          state: user.state ?? "",
+          city: user.city ?? "",
+          colony: user.colony ?? "",
+          street: user.street ?? "",
+          extNumber: user.extNumber ?? "",
+          intNumber: user.intNumber ?? "",
+          postalCode: user.postalCode ?? "",
+          bio: user.bio ?? "",
+          createdAt: user.createdAt ? new Date(user.createdAt).toISOString().slice(0, 19).replace("T", " ") : "",
+        });
+      }
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const filename = `usuarios-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      c.header(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      c.header("Content-Disposition", `attachment; filename="${filename}"`);
+      c.header("X-Atlas-Export-Count", String(users.length));
+      return c.body(buffer);
+    } catch {
+      return c.json({ error: "No se pudo generar el archivo Excel." }, 500);
+    }
+  },
+);
+
+app.post(
+  "/identity/users/:id/avatar",
+  authMiddleware,
+  requirePermission("identity.users.update"),
+  async (c) => {
+    try {
+      const id = c.req.param("id");
+      const target = await prisma.userProfile.findUnique({
+        where: { id },
+        select: { id: true, authUserId: true },
+      });
+      if (!target) return c.json({ error: "Usuario no encontrado." }, 404);
+
+      const body = await c.req.parseBody();
+      const file = body.avatar;
+      if (!(file instanceof File) || file.size <= 0) {
+        return c.json({ error: "Selecciona una imagen valida." }, 400);
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        return c.json({ error: "La imagen no puede superar 10 MB." }, 400);
+      }
+      if (!file.type.startsWith("image/")) {
+        return c.json({ error: "Solo se permiten imagenes." }, 400);
+      }
+
+      const asset = await uploadIdentityAvatar({ profileId: target.id, file });
+      cacheDel(`user_ctx:${target.authUserId}`);
+      const avatarUrl = await getSignedUrlByFileId(asset.id);
+      return c.json({ data: { avatarUrl } });
+    } catch {
+      return c.json({ error: "No se pudo actualizar el avatar del usuario." }, 500);
+    }
+  },
+);
+
 app.delete(
   "/identity/users/:id",
   authMiddleware,
-  requirePermission("identity.users.update"),
+  requirePermission("identity.users.delete"),
   async (c) => {
     try {
       const id = c.req.param("id");
@@ -2039,9 +2409,26 @@ app.delete(
         return c.json({ error: "No puedes eliminar tu propia cuenta." }, 400);
       }
 
-      const targetUser = await prisma.userProfile.findUnique({ where: { id } });
+      const targetUser = await prisma.userProfile.findUnique({
+        where: { id },
+        include: {
+          memberships: {
+            where: { enabled: true },
+            include: { role: { select: { key: true } } },
+          },
+        },
+      });
       if (!targetUser) {
         return c.json({ error: "Usuario no encontrado." }, 404);
+      }
+      if (hasProtectedIdentityAdminRole(targetUser)) {
+        return c.json(
+          {
+            error:
+              "No se puede eliminar un usuario con rol Atlas Admin o System Admin.",
+          },
+          400,
+        );
       }
 
       await supabaseAdmin.auth.admin.deleteUser(targetUser.authUserId);
@@ -2283,6 +2670,8 @@ app.get(
       const pageSize = c.req.query("pageSize") ?? c.req.query("limit") ?? "20";
       const sortBy = c.req.query("sortBy") ?? "";
       const sortDir = c.req.query("sortDir") ?? "asc";
+      const enabledRaw = c.req.query("enabled");
+      const enabled = enabledRaw === "false" ? false : true;
       const result = await contactsService.list({
         authUserId,
         search,
@@ -2290,6 +2679,7 @@ app.get(
         pageSize,
         sortBy,
         sortDir,
+        enabled,
       });
       return c.json({
         data: result.rows,
@@ -2356,6 +2746,101 @@ app.post(
         return c.json({ error: err.message }, err.status);
       }
       return c.json({ error: "No se pudo crear el contacto." }, 500);
+    }
+  },
+);
+
+app.patch(
+  "/contacts/bulk/enabled",
+  authMiddleware,
+  requirePermission("contacts.contacts.update"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const { ids, enabled } = await c.req.json();
+      await contactsService.bulkSetEnabled({ authUserId, ids, enabled });
+      return c.json({ ok: true });
+    } catch (err) {
+      if (err instanceof ContactsServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo actualizar el estado de los contactos." }, 500);
+    }
+  },
+);
+
+app.delete(
+  "/contacts/bulk",
+  authMiddleware,
+  requirePermission("contacts.contacts.delete"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const { ids } = await c.req.json();
+      await contactsService.bulkDelete({ authUserId, ids });
+      return c.json({ ok: true });
+    } catch (err) {
+      if (err instanceof ContactsServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudieron eliminar los contactos." }, 500);
+    }
+  },
+);
+
+app.post(
+  "/contacts/export/excel",
+  authMiddleware,
+  requirePermission("contacts.contacts.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const body = await c.req.json().catch(() => ({}));
+      const ids = Array.isArray(body?.ids) ? body.ids.filter(Boolean) : [];
+      const contacts = await contactsService.getContactsForExport({ authUserId, ids });
+
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet("Contactos");
+      sheet.columns = [
+        { header: "ID", key: "id", width: 40 },
+        { header: "Nombre", key: "name", width: 30 },
+        { header: "Razon social", key: "legalName", width: 36 },
+        { header: "Tipo", key: "type", width: 16 },
+        { header: "Correo", key: "email", width: 32 },
+        { header: "Telefono", key: "phone", width: 18 },
+        { header: "RFC / ID fiscal", key: "taxId", width: 20 },
+        { header: "Estado", key: "enabled", width: 12 },
+        { header: "Creado", key: "createdAt", width: 22 },
+      ];
+      sheet.getRow(1).font = { bold: true };
+
+      for (const contact of contacts) {
+        sheet.addRow({
+          id: contact.id,
+          name: contact.name ?? "",
+          legalName: contact.legalName ?? "",
+          type: contact.type ?? "",
+          email: contact.email ?? "",
+          phone: contact.phone ?? "",
+          taxId: contact.taxId ?? "",
+          enabled: contact.enabled ? "Activo" : "Inactivo",
+          createdAt: contact.createdAt
+            ? new Date(contact.createdAt).toISOString().slice(0, 19).replace("T", " ")
+            : "",
+        });
+      }
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const filename = `contactos-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      c.header(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      c.header("Content-Disposition", `attachment; filename="${filename}"`);
+      c.header("X-Atlas-Export-Count", String(contacts.length));
+      return c.body(buffer);
+    } catch {
+      return c.json({ error: "No se pudo generar el archivo Excel." }, 500);
     }
   },
 );

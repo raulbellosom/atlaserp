@@ -1,7 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
   Badge,
   Button,
   Card,
@@ -11,6 +14,7 @@ import {
   ComboboxField,
   ConfirmDialog,
   DateField,
+  ImageViewer,
   PhoneField,
   SelectField,
   Skeleton,
@@ -21,13 +25,16 @@ import {
 import {
   ArrowLeft,
   CalendarDays,
+  Camera,
   Mail,
   MapPin,
+  Pencil,
   Phone,
   Shield,
   Trash2,
   UserRound,
   VenusAndMars,
+  ZoomIn,
 } from "lucide-react";
 import { Country, State, City } from "country-state-city";
 import { toast } from "sonner";
@@ -36,25 +43,35 @@ import { atlas } from "../../../lib/atlas";
 
 const NO_ROLE_VALUE = "__none__";
 
-function getUserIdFromPath(pathname) {
+function parseUserRoute(pathname) {
   const chunks = pathname.split("/").filter(Boolean);
-  return chunks[chunks.length - 1] ?? "";
+  const isEditRoute = chunks[chunks.length - 1] === "edit";
+  const userId = isEditRoute
+    ? (chunks[chunks.length - 2] ?? "")
+    : (chunks[chunks.length - 1] ?? "");
+  return { userId, isEditRoute };
 }
 
 export default function UserEditorScreen() {
-  const { session, userProfile } = useAuth();
+  const { session, userProfile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const token = session?.access_token;
-  const userId = getUserIdFromPath(location.pathname);
+  const { userId, isEditRoute } = parseUserRoute(location.pathname);
   const permissions = userProfile?.permissions ?? [];
   const hasPermission = (key) =>
     Boolean(userProfile?.isAdmin || permissions.includes(key));
   const canReadUsers = hasPermission("identity.users.read");
   const canManageUsers = hasPermission("identity.users.update");
+  const canDeleteUsers = hasPermission("identity.users.delete");
   const canReadRoles = hasPermission("identity.roles.read");
   const queryClient = useQueryClient();
   const isSelf = userId === userProfile?.id;
+  const canEditForm = canManageUsers && isEditRoute;
+  const canUpdateOwnAvatar = hasPermission("profile.avatar.update") && isSelf;
+  const canChangeAvatar = canManageUsers || canUpdateOwnAvatar;
+  const fileInputRef = useRef(null);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const usersQuery = useQuery({
@@ -100,6 +117,24 @@ export default function UserEditorScreen() {
         toast.error("No se pudo eliminar el usuario");
       }
     },
+  });
+
+  const avatarMutation = useMutation({
+    mutationFn: (file) => {
+      if (canManageUsers) {
+        return atlas.identity.uploadUserAvatar(userId, file, token);
+      }
+      return atlas.profile.uploadAvatar(file, token);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["identity-users"] });
+      if (isSelf) {
+        await queryClient.invalidateQueries({ queryKey: ["profile-me"] });
+        refreshProfile(session);
+      }
+      toast.success("Foto de perfil actualizada");
+    },
+    onError: () => toast.error("No se pudo actualizar la foto de perfil"),
   });
 
   const roleOptions = useMemo(
@@ -195,6 +230,11 @@ export default function UserEditorScreen() {
     });
   }
 
+  function handleAvatarFile(file) {
+    if (!file || !canChangeAvatar) return;
+    avatarMutation.mutate(file);
+  }
+
   return (
     <div className={`p-6 space-y-6${draft ? " pb-24" : ""}`}>
       <div className="flex items-center justify-between gap-3">
@@ -202,7 +242,9 @@ export default function UserEditorScreen() {
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-[hsl(var(--muted-foreground))]">
             Atlas Identity
           </p>
-          <h1 className="text-2xl font-semibold mt-1">Editar usuario</h1>
+          <h1 className="text-2xl font-semibold mt-1">
+            {isEditRoute ? "Editar usuario" : "Detalle de usuario"}
+          </h1>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -212,7 +254,28 @@ export default function UserEditorScreen() {
             <ArrowLeft className="h-4 w-4" />
             Volver a usuarios
           </Button>
-          {canManageUsers && user && !isSelf && (
+          {canManageUsers && user && (
+            isEditRoute ? (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  navigate(`/app/m/atlas.identity/identity/users/${user.id}`)
+                }
+              >
+                Ver detalle
+              </Button>
+            ) : (
+              <Button
+                onClick={() =>
+                  navigate(`/app/m/atlas.identity/identity/users/${user.id}/edit`)
+                }
+              >
+                <Pencil className="h-4 w-4" />
+                Editar
+              </Button>
+            )
+          )}
+          {canDeleteUsers && user && !isSelf && (
             <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
               <Trash2 className="h-4 w-4" />
               Eliminar usuario
@@ -268,6 +331,62 @@ export default function UserEditorScreen() {
             <CardTitle>{user.displayName || "Usuario"}</CardTitle>
           </CardHeader>
           <CardContent className="pt-0 space-y-4">
+            <div className="flex flex-col gap-4 rounded-xl border border-[hsl(var(--border))] p-4 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                className="group relative w-fit rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+                disabled={!user?.avatarUrl}
+                onClick={() => user?.avatarUrl && setImageViewerOpen(true)}
+              >
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src={user?.avatarUrl ?? ""} alt={user?.displayName || "Usuario"} />
+                  <AvatarFallback className="text-lg font-semibold">
+                    {(user?.displayName || user?.email || "U")
+                      .split(" ")
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((word) => word[0]?.toUpperCase() ?? "")
+                      .join("") || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                {user?.avatarUrl ? (
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-black/0 transition-colors group-hover:bg-black/30">
+                    <ZoomIn className="h-5 w-5 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+                  </span>
+                ) : null}
+              </button>
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium">
+                  {user?.displayName || "Usuario"}
+                </p>
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                  JPG, PNG o WebP, maximo 10 MB
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) handleAvatarFile(file);
+                    event.target.value = "";
+                  }}
+                />
+                {canChangeAvatar && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={avatarMutation.isPending}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Camera className="h-3.5 w-3.5" />
+                    {avatarMutation.isPending ? "Subiendo..." : "Cambiar foto"}
+                  </Button>
+                )}
+              </div>
+            </div>
+
             <div className="flex items-center gap-2">
               <Badge variant={effective.enabled ? "success" : "secondary"}>
                 {effective.enabled ? "Activo" : "Inactivo"}
@@ -284,7 +403,7 @@ export default function UserEditorScreen() {
                 icon={UserRound}
                 label="Nombre"
                 value={effective.firstName}
-                disabled={!canManageUsers}
+                disabled={!canEditForm}
                 onChange={(e) =>
                   setDraft((prev) => ({
                     ...(prev ?? {}),
@@ -296,7 +415,7 @@ export default function UserEditorScreen() {
                 icon={UserRound}
                 label="Apellidos"
                 value={effective.lastName}
-                disabled={!canManageUsers}
+                disabled={!canEditForm}
                 onChange={(e) =>
                   setDraft((prev) => ({
                     ...(prev ?? {}),
@@ -308,7 +427,7 @@ export default function UserEditorScreen() {
                 icon={Mail}
                 label="Correo"
                 value={effective.email}
-                disabled={!canManageUsers}
+                disabled={!canEditForm}
                 onChange={(e) =>
                   setDraft((prev) => ({
                     ...(prev ?? {}),
@@ -325,7 +444,7 @@ export default function UserEditorScreen() {
                 onValueChange={(value) =>
                   setDraft((prev) => ({ ...(prev ?? {}), roleId: value }))
                 }
-                disabled={!canManageUsers || !canReadRoles || !membership}
+                disabled={!canEditForm || !canReadRoles || !membership}
               />
             </div>
 
@@ -333,13 +452,13 @@ export default function UserEditorScreen() {
               id="user-enabled"
               label="Usuario activo"
               checked={effective.enabled}
-              disabled={!canManageUsers}
+              disabled={!canEditForm}
               onChange={(checked) =>
                 setDraft((prev) => ({ ...(prev ?? {}), enabled: checked }))
               }
             />
 
-            {!canManageUsers && (
+            {!canEditForm && (
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
                 Modo lectura: necesitas permiso identity.users.update para editar.
               </p>
@@ -359,7 +478,7 @@ export default function UserEditorScreen() {
                 label="Teléfono"
                 icon={Phone}
                 value={effective.phone}
-                disabled={!canManageUsers}
+                disabled={!canEditForm}
                 onChange={(e) =>
                   setDraft((prev) => ({ ...(prev ?? {}), phone: e.target.value }))
                 }
@@ -368,7 +487,7 @@ export default function UserEditorScreen() {
                 label="Fecha de nacimiento"
                 icon={CalendarDays}
                 value={effective.birthDate}
-                disabled={!canManageUsers}
+                disabled={!canEditForm}
                 onChange={(e) =>
                   setDraft((prev) => ({
                     ...(prev ?? {}),
@@ -381,7 +500,7 @@ export default function UserEditorScreen() {
                 label="Sexo"
                 value={effective.gender}
                 placeholder="Seleccionar"
-                disabled={!canManageUsers}
+                disabled={!canEditForm}
                 options={[
                   { value: "masculino", label: "Masculino" },
                   { value: "femenino", label: "Femenino" },
@@ -398,7 +517,7 @@ export default function UserEditorScreen() {
               label="Biografía"
               value={effective.bio}
               maxLength={500}
-              disabled={!canManageUsers}
+              disabled={!canEditForm}
               onChange={(e) =>
                 setDraft((prev) => ({ ...(prev ?? {}), bio: e.target.value }))
               }
@@ -413,7 +532,7 @@ export default function UserEditorScreen() {
                 label="País"
                 options={countryOptions}
                 value={effective.country}
-                disabled={!canManageUsers}
+                disabled={!canEditForm}
                 onChange={(val) =>
                   setDraft((prev) => ({
                     ...(prev ?? {}),
@@ -431,7 +550,7 @@ export default function UserEditorScreen() {
                   label="Estado / Provincia"
                   options={stateOptions}
                   value={effective.state}
-                  disabled={!canManageUsers}
+                  disabled={!canEditForm}
                   onChange={(val) =>
                     setDraft((prev) => ({
                       ...(prev ?? {}),
@@ -448,7 +567,7 @@ export default function UserEditorScreen() {
                   label="Estado / Provincia"
                   icon={MapPin}
                   value={effective.state}
-                  disabled={!canManageUsers}
+                  disabled={!canEditForm}
                   onChange={(e) =>
                     setDraft((prev) => ({
                       ...(prev ?? {}),
@@ -462,7 +581,7 @@ export default function UserEditorScreen() {
                   label="Ciudad / Municipio"
                   options={cityOptions}
                   value={effective.city}
-                  disabled={!canManageUsers}
+                  disabled={!canEditForm}
                   onChange={(val) =>
                     setDraft((prev) => ({ ...(prev ?? {}), city: val }))
                   }
@@ -475,7 +594,7 @@ export default function UserEditorScreen() {
                   label="Ciudad / Municipio"
                   icon={MapPin}
                   value={effective.city}
-                  disabled={!canManageUsers}
+                  disabled={!canEditForm}
                   onChange={(e) =>
                     setDraft((prev) => ({
                       ...(prev ?? {}),
@@ -488,7 +607,7 @@ export default function UserEditorScreen() {
                 label="Colonia / Fraccionamiento"
                 icon={MapPin}
                 value={effective.colony}
-                disabled={!canManageUsers}
+                disabled={!canEditForm}
                 onChange={(e) =>
                   setDraft((prev) => ({
                     ...(prev ?? {}),
@@ -500,7 +619,7 @@ export default function UserEditorScreen() {
                 label="Calle"
                 icon={MapPin}
                 value={effective.street}
-                disabled={!canManageUsers}
+                disabled={!canEditForm}
                 onChange={(e) =>
                   setDraft((prev) => ({
                     ...(prev ?? {}),
@@ -511,7 +630,7 @@ export default function UserEditorScreen() {
               <TextField
                 label="Número exterior"
                 value={effective.extNumber}
-                disabled={!canManageUsers}
+                disabled={!canEditForm}
                 onChange={(e) =>
                   setDraft((prev) => ({
                     ...(prev ?? {}),
@@ -522,7 +641,7 @@ export default function UserEditorScreen() {
               <TextField
                 label="Número interior"
                 value={effective.intNumber}
-                disabled={!canManageUsers}
+                disabled={!canEditForm}
                 onChange={(e) =>
                   setDraft((prev) => ({
                     ...(prev ?? {}),
@@ -533,7 +652,7 @@ export default function UserEditorScreen() {
               <TextField
                 label="Código postal"
                 value={effective.postalCode}
-                disabled={!canManageUsers}
+                disabled={!canEditForm}
                 onChange={(e) =>
                   setDraft((prev) => ({
                     ...(prev ?? {}),
@@ -543,7 +662,7 @@ export default function UserEditorScreen() {
               />
             </div>
 
-            {!canManageUsers && (
+            {!canEditForm && (
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
                 Modo lectura: necesitas permiso identity.users.update para editar.
               </p>
@@ -552,7 +671,7 @@ export default function UserEditorScreen() {
         </Card>
       )}
 
-      {canManageUsers && draft && (
+      {canEditForm && draft && (
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))] shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
           <div className="px-6 py-3 flex items-center justify-between gap-4">
             <p className="text-sm text-[hsl(var(--muted-foreground))]">
@@ -582,6 +701,13 @@ export default function UserEditorScreen() {
           </div>
         </div>
       )}
+
+      <ImageViewer
+        open={imageViewerOpen}
+        onOpenChange={setImageViewerOpen}
+        src={user?.avatarUrl || ""}
+        alt={user?.displayName || "Foto de perfil"}
+      />
 
       <ConfirmDialog
         open={deleteOpen}

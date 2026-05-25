@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, Pencil, Trash2 } from "lucide-react";
+import { Eye, Pencil, Power, PowerOff, Trash2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Checkbox } from "../components/Checkbox.jsx";
 import { Skeleton } from "../components/Skeleton.jsx";
@@ -25,6 +25,7 @@ import { useColumnConfig } from "./useColumnConfig.js";
 import {
   normalizeToFilterBarFilters,
   normalizeSpanishLabel,
+  stripMarkdown,
 } from "./renderer-adapters.js";
 import { resolveColorHex } from "./atlas-form-utils.js";
 
@@ -154,6 +155,7 @@ function normalizeColumns(schema) {
             ? entry.hrefTemplate.trim()
             : null,
         sortable: Boolean(entry.sortable),
+        defaultVisible: entry.defaultVisible !== false,
         isLink,
       };
     })
@@ -282,6 +284,8 @@ export function AtlasTable({
   onView,
   onEdit,
   onDelete,
+  onToggleEnabled = null,
+  canDeleteRow = null,
   refreshSignal = 0,
   bulkActions = [],
 }) {
@@ -539,6 +543,11 @@ export function AtlasTable({
           icon: Pencil,
           onClick: () => onEdit(row),
         },
+        onToggleEnabled && {
+          label: row.enabled ? "Desactivar" : "Activar",
+          icon: row.enabled ? PowerOff : Power,
+          onClick: () => onToggleEnabled(row),
+        },
         onDelete && {
           label: "Eliminar",
           icon: Trash2,
@@ -548,10 +557,13 @@ export function AtlasTable({
       ].filter(Boolean);
     }
 
+    const deleteAllowed =
+      onDelete &&
+      (typeof canDeleteRow === "function" ? canDeleteRow(row) : true);
     const fallbackQueue = [
       onView ? { kind: "view", icon: Eye, run: () => onView(row) } : null,
       onEdit ? { kind: "edit", icon: Pencil, run: () => onEdit(row) } : null,
-      onDelete
+      deleteAllowed
         ? {
             kind: "delete",
             icon: Trash2,
@@ -776,6 +788,8 @@ export function AtlasTable({
                       const str = String(value ?? "");
                       const opt = col.options.find((o) => String(o.value) === str);
                       cellContent = opt?.label ?? renderValue(value);
+                    } else if (col.type === "markdown") {
+                      cellContent = stripMarkdown(value);
                     } else if (col.type === "date" || col.type === "datetime") {
                       cellContent = formatTableDate(value);
                     } else if (col.type === "currency" || col.type === "decimal") {
@@ -895,7 +909,14 @@ export function AtlasTable({
               : "hsl(var(--muted))";
           const avatarText = itemColorHex ?? accentColor ?? "hsl(var(--muted-foreground))";
           const statusVal = statusCol
-            ? renderValue(getByPath(row, statusCol.field))
+            ? (() => {
+                const v = getByPath(row, statusCol.field);
+                if (statusCol.type === "select" && statusCol.options) {
+                  const opt = statusCol.options.find((o) => String(o.value) === String(v ?? ""));
+                  return opt?.label ?? renderValue(v);
+                }
+                return renderValue(v);
+              })()
             : null;
 
           return (
@@ -942,10 +963,17 @@ export function AtlasTable({
                 <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-6 gap-y-1.5 flex-1 min-w-0">
                   {detailCols.map((col) => {
                     const rawVal = getByPath(row, col.field);
-                    const formatted =
-                      col.type === "date" || col.type === "datetime"
-                        ? formatTableDate(rawVal)
-                        : renderValue(rawVal);
+                    let formatted;
+                    if (col.type === "date" || col.type === "datetime") {
+                      formatted = formatTableDate(rawVal);
+                    } else if (col.type === "select" && col.options) {
+                      const opt = col.options.find((o) => String(o.value) === String(rawVal ?? ""));
+                      formatted = opt?.label ?? renderValue(rawVal);
+                    } else if (col.type === "markdown") {
+                      formatted = stripMarkdown(rawVal);
+                    } else {
+                      formatted = renderValue(rawVal);
+                    }
                     if (formatted === "—") return null;
                     return (
                       <div key={col.key} className="min-w-0">
