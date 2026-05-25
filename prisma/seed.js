@@ -2,8 +2,7 @@ import "dotenv/config"
 import pkg from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 const { PrismaClient } = pkg
-import { coreModules } from '../packages/maps/src/core-modules.js'
-import { featureModules } from '../packages/maps/src/feature-modules.js'
+import { listOfficialModuleManifests } from '../apps/api/src/services/module-manifests-service.js'
 import { getPermissionPresentation } from '../apps/api/src/permission-catalog.js'
 
 const prismaConnectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL
@@ -44,16 +43,16 @@ async function upsertModule(manifest) {
 }
 
 async function main() {
-  const allModuleManifests = [...coreModules, ...featureModules]
+  const officialModuleManifests = listOfficialModuleManifests()
   const manifestPermissionKeys = new Set(
-    allModuleManifests.flatMap((manifest) =>
+    officialModuleManifests.flatMap((manifest) =>
       (manifest.permissions ?? []).map((permission) => permission.key)
     )
   )
 
   // Protect fleet permissions from the obsolete-cleanup block.
-  // custom.fleet is an AME3 module not in packages/maps, so its permissions
-  // are not included in the allModuleManifests scan above.
+  // custom.fleet is an AME3 module outside the legacy manifests snapshot,
+  // so its permissions are not included in the scan above.
   const fleetPermissionKeys = [
     'fleet.access',
     'fleet.vehicles.read', 'fleet.vehicles.create', 'fleet.vehicles.update', 'fleet.vehicles.delete',
@@ -63,7 +62,7 @@ async function main() {
   ]
   for (const key of fleetPermissionKeys) manifestPermissionKeys.add(key)
 
-  for (const manifest of allModuleManifests) {
+  for (const manifest of officialModuleManifests) {
     const module = await upsertModule(manifest)
     for (const blueprint of manifest.blueprints ?? []) {
       await prisma.blueprint.upsert({
@@ -106,7 +105,7 @@ async function main() {
     }
   }
 
-  // Upsert v0.2.0 permissions for custom.fleet (AME3 module, not in packages/maps).
+  // Upsert v0.2.0 permissions for custom.fleet (AME3 module outside legacy manifests).
   const fleetMod = await prisma.atlasModule.findUnique({ where: { key: 'custom.fleet' } })
   if (fleetMod) {
     const fleetNewPermissions = [
@@ -206,7 +205,7 @@ async function main() {
     }
   }
 
-  console.log(`Atlas modules seeded (${allModuleManifests.length})`)
+  console.log(`Atlas modules seeded (${officialModuleManifests.length})`)
 }
 
 main().finally(() => prisma.$disconnect())

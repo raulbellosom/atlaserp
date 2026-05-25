@@ -1,25 +1,36 @@
 // Registers custom.fleet React components into a ComponentRegistry-compatible instance.
 // Called at boot by apps/desktop/src/lib/moduleComponentRegistry.js.
 // The registry object must expose: register(key, component)
-
-import VehicleStatusBadge from "./VehicleStatusBadge.jsx";
-import ReportStatusBadge from "./ReportStatusBadge.jsx";
-import DriverStatusBadge from "./DriverStatusBadge.jsx";
-import DriverAvatarCell from "./DriverAvatarCell.jsx";
-import DriverAssignedVehicleCell from "./DriverAssignedVehicleCell.jsx";
-import VehicleImageCell from "./VehicleImageCell.jsx";
+//
+// Uses dynamic imports so this file is safe to load in Node.js (API server).
+// Components are only registered in browser environments where window exists.
 
 /**
  * @param {{ register: (key: string, component: unknown) => void }} registry
  */
-export function register(registry) {
-  registry.register("custom.fleet:VehicleStatusBadge", VehicleStatusBadge);
-  registry.register("custom.fleet:ReportStatusBadge", ReportStatusBadge);
-  registry.register("custom.fleet:DriverStatusBadge", DriverStatusBadge);
-  registry.register("custom.fleet:DriverAvatarCell", DriverAvatarCell);
-  registry.register(
-    "custom.fleet:DriverAssignedVehicleCell",
-    DriverAssignedVehicleCell,
-  );
-  registry.register("custom.fleet:VehicleImageCell", VehicleImageCell);
+export async function register(registry) {
+  if (typeof window === 'undefined') return
+
+  const [
+    { default: VehicleStatusBadge },
+    { default: ReportStatusBadge },
+    { default: DriverStatusBadge },
+    { default: DriverAvatarCell },
+    { default: DriverAssignedVehicleCell },
+    { default: VehicleImageCell },
+  ] = await Promise.all([
+    import('./VehicleStatusBadge.jsx'),
+    import('./ReportStatusBadge.jsx'),
+    import('./DriverStatusBadge.jsx'),
+    import('./DriverAvatarCell.jsx'),
+    import('./DriverAssignedVehicleCell.jsx'),
+    import('./VehicleImageCell.jsx'),
+  ])
+
+  registry.register('custom.fleet:VehicleStatusBadge', VehicleStatusBadge)
+  registry.register('custom.fleet:ReportStatusBadge', ReportStatusBadge)
+  registry.register('custom.fleet:DriverStatusBadge', DriverStatusBadge)
+  registry.register('custom.fleet:DriverAvatarCell', DriverAvatarCell)
+  registry.register('custom.fleet:DriverAssignedVehicleCell', DriverAssignedVehicleCell)
+  registry.register('custom.fleet:VehicleImageCell', VehicleImageCell)
 }

@@ -66,14 +66,14 @@ apps/
   worker/      Node.js background job handler (stub)
 packages/
   core/           Module registry, event bus, manifest contract
-  maps/           Legacy module manifests (being migrated to modules/) — do not extend
+  maps/           Legacy module manifests (decommission track) — do not extend
   module-engine/  @atlas/module-engine — AME3 primitives: defineAtlasModule, defineModel, defineView, definePage
   ui/             Shared React components (AppShell, Button, AtlasTable, AtlasForm, etc.)
   sdk/            Atlas API client (createAtlasClient factory)
   validators/     Zod schemas shared between API and frontend
 modules/
   custom/      Custom AME3 modules (e.g. custom.fleet) — self-contained, no core edits needed
-  official/    Future home for migrated official modules (currently empty)
+  official/    Reserved for optional curated official distributions
 prisma/
   schema.prisma   Single source of truth for Prisma-managed models (core + legacy feature models)
   seed.js         Seeds core modules, blueprints, permissions
@@ -98,16 +98,16 @@ All development uses the dedicated self-hosted Supabase instance:
 - API: https://supabase.racoondevs.com
 - Studio: https://studio.supabase.racoondevs.com (admin use only)
 
-### Module system (packages/core + packages/maps)
+### Module system (packages/core + AME3 manifests)
 
-Every ERP feature is a **map** (module). Modules are registered via manifests defined in `packages/maps/`.
+Every ERP feature is a **module**. Official manifest snapshots are maintained in `apps/api/src/manifests/official/`, and AME3 modules are declared under `modules/custom/` (and optionally `modules/official/`).
 
 A manifest defines: `key`, `name`, `version`, `kind`, `core`, `uninstallable`, `dependencies`, `permissions`, `navigation`, `blueprints`, `exposes`, `consumes`.
 
 Two categories:
 
-- **Core modules** (`core-modules.js`): `core: true`, `uninstallable: false` - atlas.core, atlas.identity, atlas.files, atlas.company. Cannot be removed via API.
-- **Feature modules** (`feature-modules.js`): installable, versioned, can depend on other modules.
+- **Core modules**: `core: true`, `uninstallable: false` - atlas.core, atlas.identity, atlas.files, atlas.company. Cannot be removed via API.
+- **Feature modules**: installable, versioned, can depend on other modules.
 
 The `ModuleRegistry` class (`packages/core/src/module-registry.js`) handles registration, dependency validation, navigation resolution, and blueprint flattening. The API seeds these into `AtlasModule` rows via `prisma/seed.js`.
 
@@ -185,8 +185,8 @@ Tailwind scans both `src/**` and `../../packages/ui/src/**` (configured in `apps
 - **Global ID policy**: UUID v7 only. New or modified entity identifiers must use UUID v7 semantics; `cuid` is deprecated and must not be reintroduced in source code.
 - **Atomic file size limit** — No source file may exceed **1000 lines**. Hard ceiling is **1500 lines** (treat as a build-blocking violation). Files approaching 800 lines should be proactively split. Strategies: extract sub-components, split routes by domain, separate sheets/dialogs from list screens, move helpers into `lib/` or `utils/`. Known violators that must be decomposed: `FinanceScreen.jsx` (4462), `apps/api/src/index.js` (3583), `FormFields.jsx` (2153), `HrEmployeeDetail.jsx` (1704), `finance-documents-service.js` (1118), `finance-service.js` (1076), `ModuleCatalog.jsx` (1033).
 - Soft-delete pattern: use `enabled: false` instead of hard-deleting records
-- Every **new AME3 module** lives in `modules/custom/<moduleKey>/` — requires only `module.manifest.js`, `models/`, `views/`, `api/index.js`, `validators/index.js`. No edits to `prisma/schema.prisma`, `apps/api/src/index.js`, `packages/maps/`, or `packages/validators/`. See `docs/03_custom_modules.md`.
-- **Legacy modules** (contacts, files, finance, hr, ledger, identity, company) still live in `packages/maps/` + `apps/api/src/` + `apps/desktop/src/modules/`. They follow the old checklist: manifest in `packages/maps`, Prisma model(s), API routes, service, Zod schema in `packages/validators`. Do not extend this pattern for new modules.
+- Every **new AME3 module** lives in `modules/custom/<moduleKey>/` — requires only `module.manifest.js`, `models/`, `views/`, `api/index.js`, `validators/index.js`. No edits to `prisma/schema.prisma`, `apps/api/src/index.js`, or `packages/validators/`. See `docs/03_custom_modules.md`.
+- Official functional modules (contacts, files, finance, hr, ledger, identity, company) continue to run from current API/desktop domains while official manifest snapshots are maintained in `apps/api/src/manifests/official/`.
 - In docs checklists, mark `[x]` only with explicit verification evidence and `Verified: YYYY-MM-DD (...)`
 - Prisma is at `^7` - root `package.json` overrides all workspace packages to `^7.8.0`
 - Applied Prisma migrations are immutable: never edit existing `prisma/migrations/**/migration.sql`
@@ -221,7 +221,8 @@ See `docs/TASKS.md` for the full phased roadmap.
 - AME3 Phase 2 (Route Loader + custom module): complete — `route-loader-service.js`, `custom.fleet` module operational
 - AME3 Phase 3 (Atlas ORM + Blueprint Renderer): complete — Atlas ORM provisions tables from `defineModel`; blueprint renderer (`AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`) in `@atlas/ui`
 - AME3 Phase 4 (Discovery as primary source + route/component lifecycle sync): complete
-- AME3 Phase 5+ (official module migration and `packages/maps` removal): planned
+- AME3 Phase 5 (official module relocation): retired by architecture decision (2026-05-25)
+- AME3 Phase 6 ongoing hardening and AME3 Phase 7 cleanup are tracked in `docs/TASKS.md`
 
 ## Local command permissions and secret safety
 

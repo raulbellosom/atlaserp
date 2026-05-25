@@ -19,7 +19,6 @@ export default defineConfig({
     alias: {
       "node:crypto": resolve(__dirname, "src/shims/node-crypto.js"),
       "@atlas/core": resolve(__dirname, "../../packages/core/src/index.js"),
-      "@atlas/maps": resolve(__dirname, "../../packages/maps/src/index.js"),
       "@atlas/module-engine": resolve(__dirname, "../../packages/module-engine/src/index.js"),
       "@atlas/sdk": resolve(__dirname, "../../packages/sdk/src/index.js"),
       "@atlas/ui": resolve(__dirname, "../../packages/ui/src/index.js"),

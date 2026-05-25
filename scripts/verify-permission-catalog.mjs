@@ -1,10 +1,11 @@
-import { coreModules } from "../packages/maps/src/core-modules.js";
-import { featureModules } from "../packages/maps/src/feature-modules.js";
+import { listOfficialModuleManifests } from "../apps/api/src/services/module-manifests-service.js";
 import { PERMISSION_CATALOG } from "../apps/api/src/permission-catalog.js";
+
+const officialModuleManifests = listOfficialModuleManifests();
 
 const manifestPermissionKeys = [
   ...new Set(
-    [...coreModules, ...featureModules].flatMap((manifest) =>
+    officialModuleManifests.flatMap((manifest) =>
       (manifest.permissions ?? []).map((permission) => permission.key),
     ),
   ),

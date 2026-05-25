@@ -21,6 +21,11 @@ export default defineModel({
       label: 'Descripcion',
       maxLength: 500,
     },
+    {
+      name: 'economic_group_number',
+      type: 'text',
+      label: 'No. economico grupo',
+    },
   ],
   indexes: [
     { fields: ['company_id', 'enabled'] },

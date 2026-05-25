@@ -222,7 +222,7 @@ export function createDriverService({ prisma }) {
                     WHERE fdd.driver_id::text = fd.id::text
                       AND fdd.company_id::text = fd.company_id::text
                       AND fdd.enabled = true
-                      AND fa."mimeType" ILIKE 'image/%'
+                      AND fa."mime_type" ILIKE 'image/%'
                     ORDER BY fdd.created_at DESC
                     LIMIT 1
                   )
@@ -285,7 +285,7 @@ export function createDriverService({ prisma }) {
                    WHERE fdd.driver_id::text = fleet_driver.id::text
                      AND fdd.company_id::text = fleet_driver.company_id::text
                      AND fdd.enabled = true
-                     AND fa."mimeType" ILIKE 'image/%'
+                     AND fa."mime_type" ILIKE 'image/%'
                    ORDER BY fdd.created_at DESC
                    LIMIT 1
                  )

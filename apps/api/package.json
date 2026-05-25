@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@atlas/core": "workspace:^",
-    "@atlas/maps": "workspace:*",
     "@atlas/module-engine": "workspace:*",
     "@atlas/validators": "workspace:*",
     "@hono/node-server": "latest",

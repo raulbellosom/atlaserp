@@ -45,9 +45,9 @@ Atlas ERP is transitioning to Atlas Module Engine v3 (AME3). The AME3 architectu
 Key decisions in force as of 2026-05-20:
 
 - New modules must use `defineAtlasModule` from `@atlas/module-engine`, not `createModuleManifest`.
-- New modules live in `modules/official/` or `modules/custom/`, not `packages/maps/`.
+- New modules live in `modules/custom/` (with `modules/official/` reserved for optional curated distributions), not `packages/maps/`.
 - No new module should require editing `prisma/schema.prisma`, `apps/api/src/index.js`, `apps/desktop/src/`, or `packages/validators/src/index.js`.
-- `packages/maps/` is deprecated — transitional only, removed in Phase 7.
+- Official manifest snapshots are maintained in `apps/api/src/manifests/official/` and `packages/maps/` has been removed.
 - Prisma manages Atlas Core stable models only. Module-owned tables use the Atlas ORM.
 
 See `docs/architecture/atlas-module-engine-v3.md` for the full specification and 7-phase roadmap.
@@ -56,12 +56,12 @@ See `docs/architecture/atlas-module-engine-v3.md` for the full specification and
 
 ### AME3 phases (status)
 - AME3 Phase 1: complete (`@atlas/module-engine` package, module lifecycle v2)
-- AME3 Phase 2: complete (module folder structure, sample custom module, Route Loader, `modules/official/` foundation)
+- AME3 Phase 2: complete (module folder structure, sample custom module, Route Loader, `modules/official/` reserved foundation)
 - AME3 Phase 3: complete (Atlas ORM metadata tables/services + Blueprint renderer)
 - AME3 Phase 4: complete (filesystem discovery primary source, hot sync/reload, component lifecycle registration by active module)
-- AME3 Phase 5: migrate official modules from old locations into `modules/official/`
+- AME3 Phase 5: retired (official module relocation no longer required)
 - AME3 Phase 6: generic CRUD Blueprint renderer (AtlasTable, AtlasForm, AtlasCrudView)
-- AME3 Phase 7: remove `packages/maps/` entirely
+- AME3 Phase 7: decommission legacy manifest package completed; final cleanup is in progress
 
 ### Feature modules
 - HR module (Phase 9): full employee lifecycle, org chart, dossier

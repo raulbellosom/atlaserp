@@ -5,6 +5,7 @@ import {
   moduleAccessKey,
   ensureUniquePermissionKeys,
 } from "../../permissions/granular-contract.js";
+import { listOfficialModuleManifests } from "../module-manifests-service.js";
 
 const LEGACY_PERMISSION_KEYS = new Set([
   "modules.read",
@@ -58,17 +59,12 @@ test("ensureUniquePermissionKeys throws on duplicates", () => {
 });
 
 test("all manifest permissions are explicit in PERMISSION_CATALOG", async () => {
-  const { coreModules } = await import(
-    "../../../../../packages/maps/src/core-modules.js"
-  );
-  const { featureModules } = await import(
-    "../../../../../packages/maps/src/feature-modules.js"
-  );
   const { PERMISSION_CATALOG } = await import("../../permission-catalog.js");
+  const manifests = listOfficialModuleManifests();
 
   const manifestPermissionKeys = [
     ...new Set(
-      [...coreModules, ...featureModules].flatMap((manifest) =>
+      manifests.flatMap((manifest) =>
         (manifest.permissions ?? []).map((permission) => permission.key),
       ),
     ),
@@ -86,16 +82,11 @@ test("all manifest permissions are explicit in PERMISSION_CATALOG", async () => 
 });
 
 test("manifests do not declare legacy permission keys", async () => {
-  const { coreModules } = await import(
-    "../../../../../packages/maps/src/core-modules.js"
-  );
-  const { featureModules } = await import(
-    "../../../../../packages/maps/src/feature-modules.js"
-  );
+  const manifests = listOfficialModuleManifests();
 
   const manifestPermissionKeys = [
     ...new Set(
-      [...coreModules, ...featureModules].flatMap((manifest) =>
+      manifests.flatMap((manifest) =>
         (manifest.permissions ?? []).map((permission) => permission.key),
       ),
     ),
@@ -113,8 +104,8 @@ test("manifests do not declare legacy permission keys", async () => {
 });
 
 test("core and identity manifests expose expected granular keys", async () => {
-  const { coreModules } = await import(
-    "../../../../../packages/maps/src/core-modules.js"
+  const coreModules = listOfficialModuleManifests().filter(
+    (manifest) => manifest?.core === true,
   );
 
   const byKey = Object.fromEntries(

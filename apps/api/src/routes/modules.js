@@ -11,12 +11,12 @@ import {
   moduleUninstallSchema,
   moduleResetSchema,
 } from '@atlas/validators'
-import { coreModules, featureModules } from '@atlas/maps'
 import { getPermissionPresentation, groupPermissionsForUi } from '../permission-catalog.js'
 import { createModuleLifecycleService, ModuleLifecycleError } from '../services/module-lifecycle-service.js'
 import { createModuleMetadataService } from '../services/module-metadata-service.js'
 import { createModuleMigrationService } from '../services/module-migration-service.js'
 import { discoverModules, getDiscoveryRootInfo } from '../services/module-discovery-service.js'
+import { listOfficialModuleManifests } from '../services/module-manifests-service.js'
 import {
   detectRequiredDependencyCycle,
   formatDependencyCycle,
@@ -255,11 +255,11 @@ function mergeDiscoveryIntoManifest(record, options = {}) {
   }
 }
 
-function buildLegacyFallbackManifests({ discoveredKeys }) {
+function buildOfficialFallbackManifests({ discoveredKeys }) {
   const fallback = []
-  const legacyMaps = [...coreModules, ...featureModules]
+  const officialManifests = listOfficialModuleManifests()
 
-  for (const manifest of legacyMaps) {
+  for (const manifest of officialManifests) {
     const key = typeof manifest?.key === 'string' ? manifest.key.trim() : ''
     if (!key || discoveredKeys.has(key)) continue
     fallback.push({
@@ -267,8 +267,8 @@ function buildLegacyFallbackManifests({ discoveredKeys }) {
       lifecycle: {
         ...(manifest?.lifecycle && typeof manifest.lifecycle === 'object' ? manifest.lifecycle : {}),
         discovery: {
-          source: 'maps_fallback',
-          localPath: 'packages/maps',
+          source: 'official_manifest_fallback',
+          localPath: 'apps/api/src/manifests/official',
         },
       },
     })
@@ -910,7 +910,7 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
 
       let lifecycleSync = { synced: 0, added: 0, updated: 0 }
       const discoveredKeys = new Set(validModules.map((record) => record.manifest.key))
-      const legacyFallbackManifests = buildLegacyFallbackManifests({ discoveredKeys })
+      const officialFallbackManifests = buildOfficialFallbackManifests({ discoveredKeys })
       const dependencySourceRecords = [...validModules]
       if (validModules.length > 0) {
         const syncManifests = validModules
@@ -929,16 +929,16 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
             return mergeDiscoveryIntoManifest(record)
           })
           .filter(Boolean)
-        syncManifests.push(...legacyFallbackManifests)
-        dependencySourceRecords.push(...legacyFallbackManifests.map((manifest) => ({ manifest })))
+        syncManifests.push(...officialFallbackManifests)
+        dependencySourceRecords.push(...officialFallbackManifests.map((manifest) => ({ manifest })))
         lifecycleSync = await svc.syncModules({
           manifests: syncManifests,
           actorId,
         })
-      } else if (legacyFallbackManifests.length > 0) {
-        dependencySourceRecords.push(...legacyFallbackManifests.map((manifest) => ({ manifest })))
+      } else if (officialFallbackManifests.length > 0) {
+        dependencySourceRecords.push(...officialFallbackManifests.map((manifest) => ({ manifest })))
         lifecycleSync = await svc.syncModules({
-          manifests: legacyFallbackManifests,
+          manifests: officialFallbackManifests,
           actorId,
         })
       }
@@ -1171,10 +1171,10 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
         valid: validModules.length,
         invalid: invalidModules.length,
         lifecycleSync,
-        legacyFallbackSync: {
-          used: legacyFallbackManifests.length > 0,
-          modulesCount: legacyFallbackManifests.length,
-          moduleKeys: legacyFallbackManifests.map((manifest) => manifest.key),
+        officialFallbackSync: {
+          used: officialFallbackManifests.length > 0,
+          modulesCount: officialFallbackManifests.length,
+          moduleKeys: officialFallbackManifests.map((manifest) => manifest.key),
         },
         dependencySync,
         metadataSync,

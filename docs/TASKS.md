@@ -501,7 +501,7 @@ Verified: 2026-05-22 (`node --check modules/custom/custom.fleet/api/reports-serv
 **Required plan:** `docs/superpowers/plans/2026-05-09-ame3-module-discovery-sync.md`
 
 - [x] *Spec approved* → API boot reads modules from `modules/custom/` and `modules/official/` as primary sources
-- [x] *Spec approved* → `packages/maps/` read only as fallback for not-yet-migrated official modules
+- [x] *Spec approved* → `packages/maps/` read only as fallback for legacy official modules during decommission track
 - [x] *Spec approved* → Route Loader: mount all installed module routers at boot; unmount on disable/uninstall
 - [x] *Spec approved* → Component Registry: load all installed module component registrations at boot
 - [x] *Spec approved* → `POST /modules/sync` triggers re-discovery without restart
@@ -521,41 +521,47 @@ Verified: 2026-05-20 (`node --check apps/api/src/routes/modules.js`; `node --che
 
 Verified: 2026-05-20 (`node --check apps/api/src/services/module-dependency-utils.js`; `node --check apps/api/src/services/module-discovery-service.js`; `node --check apps/api/src/services/module-migration-service.js`; `node --check apps/api/src/services/module-lifecycle-service.js`; `node --check apps/api/src/services/route-loader-service.js`; `node --check apps/api/src/routes/modules.js`; `node --check packages/module-engine/src/define-view.js`; `node --check packages/validators/src/index.js`; `node --test packages/module-engine/src/__tests__/define-view.test.js packages/validators/src/__tests__/module-lifecycle-schemas.test.js apps/api/src/services/__tests__/module-dependency-utils.test.js apps/api/src/services/__tests__/module-discovery-service.test.js apps/api/src/services/__tests__/route-loader-service.test.js`; `pnpm.cmd --filter @atlas/desktop build:web`)
 
-### AME3 Phase 5 — Migrate Official Modules to modules/official/
+### AME3 Phase 5 — Official Module Relocation to modules/official/ [RETIRED]
 
-**Required spec per module:** `docs/superpowers/specs/YYYY-MM-DD-ame3-migrate-<moduleKey>.md`  
-**Required plan per module:** `docs/superpowers/plans/YYYY-MM-DD-ame3-migrate-<moduleKey>.md`
+Architecture decision: as of 2026-05-25, relocating the six official base modules to `modules/official/` is no longer required.
+Official modules remain in their current workspace locations, and AME3 continues through renderer completion and `packages/maps` decommission.
 
-Migration order: atlas.ledger → atlas.contacts → atlas.hr → atlas.finance → atlas.core (navigation/shell only) → atlas.identity → atlas.files → atlas.company
+- [x] Decision recorded: remove official-module relocation as a required AME3 gate.
+- [x] Roadmap realigned: subsequent AME3 phases no longer depend on module folder relocation.
 
-For each module:
-- [ ] *Spec approved* → Move code from `packages/maps/` + `apps/api/src/` + `apps/desktop/src/` into `modules/official/<moduleKey>/`
-- [ ] *Spec approved* → Replace transitional Prisma models with Atlas ORM `defineModel` declarations
-- [ ] *Spec approved* → Replace manual API route mounting with Route Loader
-- [ ] *Spec approved* → Replace hardcoded frontend screens with blueprint-driven pages
+Verified: 2026-05-25 (architecture decision documented in `docs/TASKS.md` and `AGENTS.md`)
 
 ### AME3 Phase 6 — Generic CRUD Blueprint Renderer
 
 **Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-crud-blueprint-renderer.md`  
 **Required plan:** `docs/superpowers/plans/YYYY-MM-DD-ame3-crud-blueprint-renderer.md`
 
+- [x] Kickoff audit complete: renderer primitives (`AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`) and runtime registry wiring are present and actively used by `custom.fleet` routes.
 - [ ] *Spec approved* → `AtlasTable` fully renders any TABLE blueprint with sort, filter, pagination
 - [ ] *Spec approved* → `AtlasForm` fully renders any FORM blueprint with React Hook Form + generated Zod schema
 - [ ] *Spec approved* → `AtlasDetail` renders any DETAIL blueprint read-only
 - [ ] *Spec approved* → `AtlasCrudView` composes list + form + detail into a full CRUD experience
-- [ ] *Spec approved* → Shell and layout resolution: `atlas.dashboardShell`, `atlas.crudLayout`
-- [ ] *Spec approved* → Custom component key resolution via Component Registry
+- [x] *Spec approved* → Shell and layout resolution: `atlas.dashboardShell`, `atlas.crudLayout`
+- [x] *Spec approved* → Custom component key resolution via Component Registry
+
+Verified: 2026-05-25 (`rg -n "AtlasTable|AtlasForm|AtlasDetail|AtlasCrudView|ComponentRegistry|registry.register" apps packages modules`; `node --test apps/desktop/src/shell/__tests__/blueprint-layout-resolver.test.js`; `node --test apps/desktop/src/lib/__tests__/module-component-registry-core.test.js`; `pnpm.cmd --filter @atlas/desktop build:web`)
 
 ### AME3 Phase 7 — Remove packages/maps
 
 **Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-remove-packages-maps.md`  
 **Required plan:** `docs/superpowers/plans/YYYY-MM-DD-ame3-remove-packages-maps.md`
 
-- [ ] *Spec approved* → All official modules confirmed operational from `modules/official/`
-- [ ] *Spec approved* → `packages/maps/src/feature-modules.js` deleted
-- [ ] *Spec approved* → `packages/maps/src/core-modules.js` deleted or absorbed into `modules/official/atlas.core/`
-- [ ] *Spec approved* → `packages/maps/` package removed from monorepo
-- [ ] *Spec approved* → No remaining references to `packages/maps/` in core codebase
+- [x] Kickoff inventory completed for `packages/maps` decommission: direct runtime/seed/test import points identified in API, desktop, and Prisma seed flows.
+- [x] Desktop decommission cut #1 complete: removed `@atlas/maps` dependency/alias/import usage from runtime merge and module catalog install flow.
+- [x] API decommission cut #1 complete: centralized official manifest access behind `module-manifests-service` and removed direct maps imports from module routes and RBAC contract tests.
+- [x] Seed decommission cut #1 complete: `prisma/seed.js` now consumes `listOfficialModuleManifests()` and no longer imports map files directly.
+- [x] *Spec approved* → All official modules confirmed operational from current production locations (no `modules/official/` relocation required)
+- [x] *Spec approved* → `packages/maps/src/feature-modules.js` deleted
+- [x] *Spec approved* → `packages/maps/src/core-modules.js` deleted or absorbed into core runtime sources
+- [x] *Spec approved* → `packages/maps/` package removed from monorepo
+- [x] *Spec approved* → No remaining references to `packages/maps/` in core codebase
+
+Verified: 2026-05-25 (`pnpm.cmd install --lockfile-only`; `node --check apps/api/src/index.js`; `node --check apps/api/src/routes/modules.js`; `node --check apps/api/src/services/module-manifests-service.js`; `node --check prisma/seed.js`; `node --check scripts/verify-permission-catalog.mjs`; `node --test apps/api/src/services/__tests__/rbac-granular-contract.test.js`; `node --test apps/api/src/services/__tests__/module-discovery-service.test.js apps/api/src/services/__tests__/route-loader-service.test.js apps/api/src/services/__tests__/module-dependency-utils.test.js`; `node --test packages/module-engine/src/__tests__/define-view.test.js packages/module-engine/src/__tests__/sql-generator.test.js`; `pnpm.cmd --filter @atlas/desktop build:web`; `rg -n "@atlas/maps|packages/maps" apps packages prisma scripts --glob "!**/dist/**"` -> `NO_MATCHES`)
 
 ---
 

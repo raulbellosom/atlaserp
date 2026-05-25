@@ -126,11 +126,11 @@ No direct database access from the frontend. The API owns all business rules and
 
 ## Module system
 
-Atlas ERP is a **module engine that ships ERP modules**. Every ERP feature is a self-contained module that lives in `modules/official/` or `modules/custom/`. Modules declare their own data models, views, pages, navigation, permissions, and API endpoints — without touching any core files.
+Atlas ERP is a **module engine that ships ERP modules**. New self-contained AME3 modules live in `modules/custom/` (with `modules/official/` reserved for optional curated distributions). Modules declare their own data models, views, pages, navigation, permissions, and API endpoints — without touching any core files.
 
-- **Official modules** — `atlas.core`, `atlas.identity`, `atlas.files`, `atlas.company`, and feature modules. Maintained by the Atlas team in `modules/official/`.
+- **Official modules** — `atlas.core`, `atlas.identity`, `atlas.files`, `atlas.company`, and feature modules. Maintained by the Atlas team in current workspace locations (official relocation to `modules/official/` is no longer a required gate).
 - **Custom modules** — Community and partner modules in `modules/custom/`. Namespace must be `custom.*` or `community.*`.
-- **`packages/maps/`** — Deprecated. Contains legacy manifests only until official modules complete migration.
+- **Official manifest snapshots** — maintained in `apps/api/src/manifests/official/` as the seed/fallback source for official modules.
 
 New modules use `defineAtlasModule` from `@atlas/module-engine`. `createModuleManifest` is deprecated.
 

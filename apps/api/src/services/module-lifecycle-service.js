@@ -285,7 +285,11 @@ export function createModuleLifecycleService({ prisma }) {
     const mod = await prisma.atlasModule.findUnique({ where: { key } })
     if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
 
-    const ownedTables = await resolveRecoverableOwnedTables(mod.key, mod.lifecycleConfig)
+    // Use ownedTables directly from the manifest lifecycle config — no AtlasModel
+    // intersection required. The manifest is the authoritative declaration.
+    const ownedTables = uniqueStrings(toPlainObject(mod.lifecycleConfig).ownedTables)
+      .map(toModuleTableName)
+      .filter(Boolean)
     const tableChecks = []
     for (const tableName of ownedTables) {
       tableChecks.push(await getTableRowCount(tableName))
@@ -341,7 +345,7 @@ export function createModuleLifecycleService({ prisma }) {
       }
 
       for (const candidate of dryRun.dropCandidates) {
-        await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "${candidate}"`)
+        await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "${candidate}" CASCADE`)
         droppedTables.push(candidate)
       }
 
@@ -1161,7 +1165,7 @@ export function createModuleLifecycleService({ prisma }) {
 
         for (const entry of checks) {
           if (!entry.exists) continue
-          await tx.$executeRawUnsafe(`DROP TABLE IF EXISTS "${entry.tableName}"`)
+          await tx.$executeRawUnsafe(`DROP TABLE IF EXISTS "${entry.tableName}" CASCADE`)
           droppedTables.push(entry.tableName)
         }
 

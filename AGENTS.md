@@ -61,7 +61,6 @@ Frontend code must not access the database or Supabase directly. The API owns al
 | `apps/api`            | Hono API - routes, Prisma, Supabase Admin client            |
 | `apps/worker`         | Background worker stub                                      |
 | `packages/core`       | Module registry, event bus, manifest contract               |
-| `packages/maps`       | Core and feature module manifests                           |
 | `packages/ui`         | Shared React components (`AppShell`, `Button`, `Card`, ...) |
 | `packages/sdk`        | `createAtlasClient` factory - all frontend API calls        |
 | `packages/validators` | Zod schemas shared between API and frontend                 |
@@ -130,7 +129,7 @@ Invoke-WebRequest -UseBasicParsing http://localhost:5173
 ## Module System
 
 AME3 modules are filesystem modules. New module work lives in `modules/custom/` or `modules/official/`.
-`packages/maps` remains transitional fallback only until AME3 Phase 5-7 migration is complete.
+Official module manifest snapshots are maintained in `apps/api/src/manifests/official/`.
 
 **Core modules** (`core: true`, `uninstallable: false`):
 
@@ -163,11 +162,11 @@ Each new module needs: `module.manifest.js`, `models/`, `views/`, optional `api/
 | AME3 Phase 2                      | Complete    | Route loader + `custom.fleet` sample module       |
 | AME3 Phase 3                      | Complete    | Atlas ORM + Blueprint renderer                    |
 | AME3 Phase 4                      | Complete    | Discovery+sync primary, route/component lifecycle |
+| AME3 Phase 5                      | Retired     | Official module relocation no longer required     |
 
 See [docs/TASKS.md](docs/TASKS.md) for the full task checklist.
 
 ## Known Gaps
 
-- AME3 Phase 5+ official module migration is pending (`packages/maps` removal path).
 - Automated contract/regression coverage is still limited for module lifecycle, contacts, and files.
 - Legacy planning docs may include historical unchecked task markers; use `docs/TASKS.md` as status source of truth.

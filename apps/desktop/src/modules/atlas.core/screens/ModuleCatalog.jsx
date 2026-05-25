@@ -1,7 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { coreModules, featureModules } from "@atlas/maps";
 import {
   Badge,
   Button,
@@ -43,6 +42,7 @@ import {
   AlertCircle,
   CheckCircle2,
   RefreshCw,
+  Database,
 } from "lucide-react";
 import {
   ModuleIcon,
@@ -58,10 +58,6 @@ import {
   isModuleAvailable,
   mergeRuntimeModules,
 } from "../../../lib/runtimeModules";
-
-const MANIFEST_BY_KEY = new Map(
-  [...coreModules, ...featureModules].map((m) => [m.key, m]),
-);
 
 // ModuleIcon, resolveModuleVisuals, toAlphaHexColor imported from @/components/ModuleCard
 
@@ -410,6 +406,7 @@ export default function ModuleCatalog() {
   const [purgeOnUninstall, setPurgeOnUninstall] = useState(false);
   const [confirmCleanup, setConfirmCleanup] = useState(null);
   const [cleanupConfirmation, setCleanupConfirmation] = useState("");
+  const [confirmDbPurge, setConfirmDbPurge] = useState(null);
   const [errorDialog, setErrorDialog] = useState({
     open: false,
     module: null,
@@ -421,7 +418,7 @@ export default function ModuleCatalog() {
     mutationFn: async ({ action, module, purge = false, mode }) => {
       const key = module.key;
       if (action === "install") {
-        const manifest = module.manifest ?? MANIFEST_BY_KEY.get(key);
+        const manifest = module.manifest;
         if (!manifest) throw new Error("Manifiesto no disponible.");
         return atlas.modules.install(manifest, token);
       }
@@ -442,14 +439,24 @@ export default function ModuleCatalog() {
         return atlas.modules.sync(token, { autoRepair: true, moduleKey: key });
       }
       if (action === "uninstall") {
-        if (purge)
+        if (purge) {
+          const policy =
+            module?.manifest?.lifecycle?.defaultUninstallPolicy;
+          const uninstallMode =
+            policy === "purge-owned-tables"
+              ? "purge-owned-tables"
+              : "purge-data";
           return atlas.modules.uninstallExplicit(
             key,
-            "purge-data",
+            uninstallMode,
             "ACEPTO",
             token,
           );
+        }
         return atlas.modules.uninstall(key, token);
+      }
+      if (action === "purge-orphaned-tables") {
+        return atlas.modules.uninstallExplicit(key, "purge-owned-tables", "ACEPTO", token);
       }
     },
     onMutate: ({ action }) => {
@@ -462,6 +469,7 @@ export default function ModuleCatalog() {
         enable: "Habilitando módulo...",
         "sync-module": "Sincronizando módulo...",
         uninstall: "Desinstalando módulo...",
+        "purge-orphaned-tables": "Purgando tablas del módulo...",
       };
       const toastId = toast.loading(
         loadingLabels[action] ?? "Procesando módulo...",
@@ -476,6 +484,7 @@ export default function ModuleCatalog() {
       setPurgeOnUninstall(false);
       setConfirmCleanup(null);
       setCleanupConfirmation("");
+      setConfirmDbPurge(null);
       const labels = {
         install: "instalado",
         "retry-install": "reinstalado",
@@ -485,6 +494,7 @@ export default function ModuleCatalog() {
         enable: "habilitado",
         "sync-module": "sincronizado",
         uninstall: "desinstalado",
+        "purge-orphaned-tables": "purgado de la base de datos",
       };
       toast.success(`Módulo ${labels[action] ?? "actualizado"}`, {
         id: context?.toastId,
@@ -740,6 +750,14 @@ export default function ModuleCatalog() {
     const canUninstall =
       (module.status === "INSTALLED" || module.status === "DISABLED") &&
       !locked;
+    const canPurgeOrphanedTables =
+      module.status === "UNINSTALLED" &&
+      !locked &&
+      canUninstallModules &&
+      (
+        (Array.isArray(module?.lifecycleConfig?.ownedTables) && module.lifecycleConfig.ownedTables.length > 0) ||
+        module?.manifest?.lifecycle?.defaultUninstallPolicy === "purge-owned-tables"
+      );
     return (
       <div className="space-y-2">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
@@ -866,6 +884,20 @@ export default function ModuleCatalog() {
           >
             <Trash2 className="h-4 w-4" />
             Desinstalar módulo
+          </Button>
+        )}
+        {canPurgeOrphanedTables && (
+          <Button
+            className="w-full"
+            variant="outline"
+            disabled={inFlight}
+            onClick={() => {
+              setConfirmDbPurge(module);
+              setSelectedModule(null);
+            }}
+          >
+            <Database className="h-4 w-4 text-red-500" />
+            <span className="text-red-600 dark:text-red-400">Purgar tablas de base de datos</span>
           </Button>
         )}
         {locked && !canOpen && (
@@ -1559,7 +1591,10 @@ export default function ModuleCatalog() {
                 Eliminar todos los datos
               </span>
               <span className="block text-[hsl(var(--muted-foreground))]">
-                Se borrarán permanentemente todos los registros de este módulo.
+                {confirmUninstall?.manifest?.lifecycle
+                  ?.defaultUninstallPolicy === "purge-owned-tables"
+                  ? "Se eliminarán permanentemente todos los datos y tablas propias de este módulo."
+                  : "Se borrarán permanentemente todos los registros de este módulo."}
               </span>
             </span>
           </label>
@@ -1600,6 +1635,29 @@ export default function ModuleCatalog() {
             className="mt-1 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-red-500/50"
           />
         </label>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={Boolean(confirmDbPurge)}
+        onOpenChange={(v) => { if (!v) setConfirmDbPurge(null); }}
+        title="¿Purgar tablas de la base de datos?"
+        description="El módulo está desinstalado pero puede tener tablas residuales en la base de datos. Esta acción las eliminará permanentemente junto con todos sus datos. No se puede deshacer."
+        detail={confirmDbPurge?.name}
+        confirmLabel="Purgar base de datos"
+        onConfirm={() =>
+          lifecycleMutation.mutate({
+            action: "purge-orphaned-tables",
+            module: confirmDbPurge,
+          })
+        }
+        loading={lifecycleMutation.isPending}
+      >
+        <div className="flex items-start gap-2 rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-3">
+          <Database className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-red-700 dark:text-red-300 leading-relaxed">
+            Se eliminarán todas las tablas propias del módulo y sus registros asociados en la base de datos.
+          </p>
+        </div>
       </ConfirmDialog>
     </div>
   );

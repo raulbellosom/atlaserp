@@ -20,6 +20,7 @@ import { useRuntimeModules } from "../app/useRuntimeModules";
 import { atlas } from "../lib/atlas";
 import { isModuleAvailable } from "../lib/runtimeModules";
 import { componentRegistry } from "../lib/moduleComponentRegistry";
+import { resolveBlueprintPresentation } from "./blueprint-layout-resolver.js";
 
 const API_BASE_URL =
   import.meta.env.VITE_ATLAS_API_URL || "http://localhost:4010";
@@ -552,6 +553,22 @@ export function BlueprintCrudScreen() {
     [moduleRows, routeInfo],
   );
 
+  const presentation = useMemo(
+    () =>
+      resolveBlueprintPresentation({
+        pageBlueprint: routeInfo.pageMatch,
+        tableBlueprint: selection.tableBlueprint,
+        formBlueprint: selection.formBlueprint,
+        detailBlueprint: selection.detailBlueprint,
+      }),
+    [
+      routeInfo.pageMatch,
+      selection.detailBlueprint,
+      selection.formBlueprint,
+      selection.tableBlueprint,
+    ],
+  );
+
   const fields = useMemo(
     () =>
       extractFields(
@@ -802,12 +819,22 @@ export function BlueprintCrudScreen() {
   const createPath = routeInfo.moduleRoutePath
     ? `${routeInfo.moduleRoutePath}/new`
     : null;
+  const usesCrudLayout = presentation.layoutKey === "atlas.crudLayout";
+  const usesDashboardShell = presentation.shellKey === "atlas.dashboardShell";
+  const unsupportedPresentationKeys = [
+    presentation.unsupportedShellKey
+      ? `shell "${presentation.unsupportedShellKey}" (${presentation.shellSource})`
+      : null,
+    presentation.unsupportedLayoutKey
+      ? `layout "${presentation.unsupportedLayoutKey}" (${presentation.layoutSource})`
+      : null,
+  ].filter(Boolean);
 
   return (
-    <div className="flex flex-col">
+    <div className={usesDashboardShell ? "flex flex-col" : "p-4 md:p-6"}>
       {/* List-mode header: only shown for the main listing view, not form/detail/edit.
           AtlasCrudView renders its own compact header for create/detail/edit modes. */}
-      {routeInfo.initialMode === "list" && (
+      {usesCrudLayout && routeInfo.initialMode === "list" && (
         <div className="p-4 md:p-6 pb-0 space-y-4">
           <PageHeader
             eyebrow={moduleName || undefined}
@@ -827,7 +854,7 @@ export function BlueprintCrudScreen() {
       )}
 
       {/* Underline tab bar — only when sidebar children do NOT handle navigation */}
-      {showTabBar ? (
+      {usesCrudLayout && showTabBar ? (
         <div className="px-4 md:px-6 mt-2 border-b border-[hsl(var(--border))]">
           <div className="flex items-end gap-0 -mb-px">
             {groupedTabs.tabs.map((tab) => {
@@ -856,7 +883,24 @@ export function BlueprintCrudScreen() {
         </div>
       ) : null}
 
-      <div className="p-4 md:p-6 space-y-6 pt-4">
+      <div className={usesCrudLayout ? "p-4 md:p-6 space-y-6 pt-4" : "space-y-6"}>
+        {unsupportedPresentationKeys.length > 0 ? (
+          <Card className="border-amber-400/40 bg-amber-50/60">
+            <CardHeader>
+              <CardTitle>Layout de blueprint no soportado</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Se detectaron claves de shell/layout no soportadas y se aplico el fallback
+                estandar (`atlas.dashboardShell` + `atlas.crudLayout`).
+              </p>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                {unsupportedPresentationKeys.map((row) => (
+                  <p key={row}>{row}</p>
+                ))}
+              </div>
+            </CardHeader>
+          </Card>
+        ) : null}
+
         {missingComponentRefs.length > 0 ? (
           <Card className="border-amber-400/40 bg-amber-50/60">
             <CardHeader>

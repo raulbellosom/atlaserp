@@ -15,25 +15,55 @@ export default defineModel({
       required: true,
       maxLength: 20,
     },
+    // Legacy free-text fields — optional since vehicle_model_id is the primary identifier
     {
       name: 'brand',
       type: 'text',
-      label: 'Marca',
-      required: true,
+      label: 'Marca (texto)',
       maxLength: 100,
     },
     {
       name: 'model_name',
       type: 'text',
-      label: 'Modelo',
-      required: true,
+      label: 'Modelo (texto)',
       maxLength: 100,
     },
     {
       name: 'year',
       type: 'number',
       label: 'Anio',
-      required: true,
+    },
+    // Catalog FK references
+    {
+      name: 'vehicle_model_id',
+      type: 'relation',
+      label: 'Modelo de vehiculo',
+      relatedModel: 'fleet.vehicle_model',
+    },
+    {
+      name: 'vehicle_type_id',
+      type: 'relation',
+      label: 'Tipo de vehiculo',
+      relatedModel: 'fleet.vehicle_type',
+    },
+    {
+      name: 'vehicle_brand_id',
+      type: 'relation',
+      label: 'Marca',
+      relatedModel: 'fleet.vehicle_brand',
+    },
+    // Economic numbering
+    {
+      name: 'economic_group_number',
+      type: 'text',
+      label: 'No. economico grupo',
+      maxLength: 4,
+    },
+    {
+      name: 'economic_individual_number',
+      type: 'text',
+      label: 'No. economico individual',
+      maxLength: 4,
     },
     {
       name: 'color',
@@ -52,7 +82,12 @@ export default defineModel({
       name: 'driver_id',
       type: 'relation',
       label: 'Conductor',
-      relatedModel: 'Employee',
+      relatedModel: 'fleet.driver',
+    },
+    {
+      name: 'photo_asset_id',
+      type: 'file',
+      label: 'Foto (ID de archivo)',
     },
     {
       name: 'notes',
@@ -103,5 +138,8 @@ export default defineModel({
   indexes: [
     { fields: ['company_id', 'plate'], unique: true },
     { fields: ['company_id', 'status'] },
+    { fields: ['company_id', 'vehicle_model_id'] },
+    { fields: ['company_id', 'vehicle_type_id'] },
+    { fields: ['company_id', 'vehicle_brand_id'] },
   ],
 })
