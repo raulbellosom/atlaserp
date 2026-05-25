@@ -3,6 +3,8 @@ import { RESERVED_TABLE_PREFIXES } from './constants.js'
 import { ModuleEngineError } from './errors.js'
 
 const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/
+const CHECK_EXPRESSION_RE = /^[\w\s"'().,+\-/*<>=:%[\]|&!?]+$/
+const FK_ACTION_SET = new Set(['CASCADE', 'RESTRICT', 'SET NULL', 'SET DEFAULT', 'NO ACTION'])
 
 // Patterns that indicate destructive or unsafe SQL. assertSafeMigrationSql rejects these.
 const FORBIDDEN_SQL_PATTERNS = [
@@ -41,6 +43,17 @@ function escapeSqlString(value) {
   return value.replaceAll("'", "''")
 }
 
+function normalizeReferentialAction(value, fallback, context) {
+  const normalized = typeof value === 'string' ? value.trim().toUpperCase() : fallback
+  if (!FK_ACTION_SET.has(normalized)) {
+    throw new ModuleEngineError(
+      `${context}: invalid referential action "${value}"`,
+      'AME_UNSAFE_SQL'
+    )
+  }
+  return normalized
+}
+
 function fieldToColumnSql(field) {
   const typeMapper = SQL_TYPE_MAP[field.type]
   if (!typeMapper) {
@@ -65,7 +78,15 @@ export function generateCreateTableSql(modelDef) {
   if (!modelDef || typeof modelDef !== 'object') {
     throw new ModuleEngineError('generateCreateTableSql: modelDef must be a plain object', 'AME_INVALID_MODEL')
   }
-  const { tableName, companyScoped = true, softDelete = false, fields = [], indexes = [] } = modelDef
+  const {
+    tableName,
+    companyScoped = true,
+    softDelete = false,
+    fields = [],
+    indexes = [],
+    foreignKeys = [],
+    checks = [],
+  } = modelDef
 
   if (!tableName || !IDENTIFIER_RE.test(tableName)) {
     throw new ModuleEngineError(
@@ -93,6 +114,38 @@ export function generateCreateTableSql(modelDef) {
   }
   if (softDelete) {
     columns.push(`  "enabled" BOOLEAN NOT NULL DEFAULT true`)
+  }
+  for (const check of checks) {
+    if (!check || typeof check !== 'object' || Array.isArray(check)) continue
+    const name = typeof check.name === 'string' ? check.name : ''
+    const expression = typeof check.expression === 'string' ? check.expression.trim() : ''
+    if (!IDENTIFIER_RE.test(name)) {
+      throw new ModuleEngineError(
+        `generateCreateTableSql: check name "${name}" is not a safe SQL identifier`,
+        'AME_UNSAFE_IDENTIFIER'
+      )
+    }
+    if (!expression || !CHECK_EXPRESSION_RE.test(expression)) {
+      throw new ModuleEngineError(
+        `generateCreateTableSql: check expression for "${name}" contains unsupported characters`,
+        'AME_UNSAFE_SQL'
+      )
+    }
+    columns.push(`  CONSTRAINT ${requireSafeIdentifier(name, 'generateCreateTableSql check')} CHECK (${expression})`)
+  }
+  for (const fk of foreignKeys) {
+    if (!fk || typeof fk !== 'object' || Array.isArray(fk)) continue
+    const field = requireSafeIdentifier(fk.field, 'generateCreateTableSql foreignKeys.field')
+    const refTable = requireSafeIdentifier(fk.references?.table, 'generateCreateTableSql foreignKeys.references.table')
+    const refField = requireSafeIdentifier(fk.references?.field, 'generateCreateTableSql foreignKeys.references.field')
+    const constraintName = fk.name && IDENTIFIER_RE.test(fk.name)
+      ? requireSafeIdentifier(fk.name, 'generateCreateTableSql foreignKeys.name')
+      : requireSafeIdentifier(`${tableName}_${fk.field}_fkey`, 'generateCreateTableSql foreignKeys.name')
+    const onDelete = normalizeReferentialAction(fk.onDelete, 'RESTRICT', 'generateCreateTableSql foreignKeys.onDelete')
+    const onUpdate = normalizeReferentialAction(fk.onUpdate, 'CASCADE', 'generateCreateTableSql foreignKeys.onUpdate')
+    columns.push(
+      `  CONSTRAINT ${constraintName} FOREIGN KEY (${field}) REFERENCES ${refTable} (${refField}) ON DELETE ${onDelete} ON UPDATE ${onUpdate}`
+    )
   }
   columns.push(`  "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()`)
   columns.push(`  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()`)
@@ -138,4 +191,3 @@ export function assertSafeMigrationSql(sql) {
     }
   }
 }
-

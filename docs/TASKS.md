@@ -21,6 +21,32 @@
 
 Verified: 2026-05-24 (`pnpm.cmd exec prisma validate`, `pnpm.cmd db:generate`, `pnpm.cmd check:uuid-policy`, `node --test packages/module-engine/src/__tests__/sql-generator.test.js`, `node --test modules/custom/custom.fleet/api/__tests__/fleet-services.test.js modules/custom/custom.fleet/api/__tests__/fleet-routes-auth.test.js`)
 
+## Snake_case Global Rebaseline + Module Lifecycle Hardening
+
+- [x] Add destructive forward migration baseline for full `snake_case` rebuild (`20260525000000_snake_case_global_rebaseline`).
+- [x] Harden `public.uuidv7(...)` definition with explicit `SET search_path = public, pg_catalog`.
+- [x] Keep Prisma client API readable while mapping SQL objects to `snake_case` via `@@map/@map`.
+- [x] Promote `atlas.contacts` and `atlas.hr` to core policy (`core=true`, `uninstallable=false`) and include both in seeded core module list.
+- [x] Keep `DELETE /modules/:key` as non-destructive shorthand (`preserve-data`).
+- [x] Set explicit uninstall flow default to destructive table purge only for `custom.*` modules (`POST /modules/:key/uninstall` and dry-run).
+- [x] Remove `custom.fleet` dependency on `manifest.migrations` SQL chain and switch to declarative model lifecycle defaults.
+- [x] Ignore legacy `manifest.migrations` SQL execution for discovered custom modules to avoid checksum drift failures.
+- [x] Extend module-engine declarative DDL support with table-level `foreignKeys` and `checks`, including checksum coverage.
+- [ ] Execute destructive migration and reseed in live environment (`db:migrate`, `db:seed`) and validate Supabase Advisor warnings are fully cleared.
+
+Verified: 2026-05-25 (`pnpm.cmd prisma validate`, `pnpm.cmd prisma generate`, `node --test packages/module-engine/src/__tests__/define-model.test.js packages/module-engine/src/__tests__/sql-generator.test.js`, `node --test apps/api/src/services/__tests__/module-discovery-service.test.js`, `node --test apps/api/src/services/__tests__/rbac-granular-contract.test.js`)
+
+## Reset 0 + Core-only Baseline + Finance/Ledger Externalization
+
+- [x] Applied destructive reset in active DB (`public` objects dropped, including legacy migration footprint).
+- [x] Replaced migration history with a single baseline (`20260525193000_core_only_baseline`).
+- [x] Removed finance/ledger models from Prisma baseline schema (no `finance_%`/`ledger_%` at boot).
+- [x] Removed finance/ledger from internal feature seed list (`packages/maps` feature bootstrap now excludes them).
+- [x] Added placeholder externalized custom manifests `custom.finance` and `custom.ledger` (temporarily non-installable during cutover).
+- [x] Confirmed clean bootstrap excludes `fleet_%` tables (fleet stays custom and not auto-installed).
+
+Verified: 2026-05-25 (`pnpm.cmd db:migrate`, `pnpm.cmd db:seed`, DB query on `information_schema.tables` returns no `finance_%`/`ledger_%`/`fleet_%`, `pnpm.cmd prisma validate`, `node --check apps/api/src/index.js`, `pnpm.cmd --filter ./apps/desktop build:web`)
+
 ## Phase 0 - Repository and environment cleanup
 
 - [x] Remove docker-compose.local-lite.yml

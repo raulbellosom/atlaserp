@@ -8,6 +8,8 @@ const MODEL_DEFAULTS = {
   companyScoped: true,
   softDelete:    false,
   indexes:       [],
+  foreignKeys:   [],
+  checks:        [],
 }
 
 // Returns { valid: boolean, errors: string[] }. Never throws.
@@ -52,6 +54,55 @@ export function validateModel(model) {
   if (model.indexes !== undefined && !Array.isArray(model.indexes)) {
     errors.push('indexes must be an array')
   }
+  if (model.foreignKeys !== undefined) {
+    if (!Array.isArray(model.foreignKeys)) {
+      errors.push('foreignKeys must be an array')
+    } else {
+      model.foreignKeys.forEach((fk, i) => {
+        if (!fk || typeof fk !== 'object' || Array.isArray(fk)) {
+          errors.push(`foreignKeys[${i}] must be an object`)
+          return
+        }
+        if (!fk.field || typeof fk.field !== 'string' || !IDENTIFIER_RE.test(fk.field)) {
+          errors.push(`foreignKeys[${i}].field must be a valid identifier`)
+        }
+        if (!fk.references || typeof fk.references !== 'object' || Array.isArray(fk.references)) {
+          errors.push(`foreignKeys[${i}].references must be an object`)
+        } else {
+          if (!fk.references.table || typeof fk.references.table !== 'string' || !IDENTIFIER_RE.test(fk.references.table)) {
+            errors.push(`foreignKeys[${i}].references.table must be a valid identifier`)
+          }
+          if (!fk.references.field || typeof fk.references.field !== 'string' || !IDENTIFIER_RE.test(fk.references.field)) {
+            errors.push(`foreignKeys[${i}].references.field must be a valid identifier`)
+          }
+        }
+        if (fk.onDelete !== undefined && !['CASCADE', 'RESTRICT', 'SET NULL', 'SET DEFAULT', 'NO ACTION'].includes(String(fk.onDelete).toUpperCase())) {
+          errors.push(`foreignKeys[${i}].onDelete must be one of: CASCADE, RESTRICT, SET NULL, SET DEFAULT, NO ACTION`)
+        }
+        if (fk.onUpdate !== undefined && !['CASCADE', 'RESTRICT', 'SET NULL', 'SET DEFAULT', 'NO ACTION'].includes(String(fk.onUpdate).toUpperCase())) {
+          errors.push(`foreignKeys[${i}].onUpdate must be one of: CASCADE, RESTRICT, SET NULL, SET DEFAULT, NO ACTION`)
+        }
+      })
+    }
+  }
+  if (model.checks !== undefined) {
+    if (!Array.isArray(model.checks)) {
+      errors.push('checks must be an array')
+    } else {
+      model.checks.forEach((check, i) => {
+        if (!check || typeof check !== 'object' || Array.isArray(check)) {
+          errors.push(`checks[${i}] must be an object`)
+          return
+        }
+        if (!check.name || typeof check.name !== 'string' || !IDENTIFIER_RE.test(check.name)) {
+          errors.push(`checks[${i}].name must be a valid identifier`)
+        }
+        if (!check.expression || typeof check.expression !== 'string' || !check.expression.trim()) {
+          errors.push(`checks[${i}].expression must be a non-empty string`)
+        }
+      })
+    }
+  }
 
   return { valid: errors.length === 0, errors }
 }
@@ -67,5 +118,7 @@ export function defineModel(model) {
     ...model,
     fields:  model.fields ?? [],
     indexes: model.indexes ?? [],
+    foreignKeys: model.foreignKeys ?? [],
+    checks: model.checks ?? [],
   }
 }

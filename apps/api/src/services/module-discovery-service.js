@@ -576,10 +576,15 @@ async function discoverModulesBySource({ rootDir, source }) {
           moduleDir: moduleDirReal,
           manifest: loadedManifest.manifest,
         })
-        baseRecord.migrations = await loadModuleMigrations({
-          moduleDir: moduleDirReal,
-          manifest: loadedManifest.manifest,
-        })
+        // Custom modules now migrate declaratively from model definitions.
+        // Legacy manifest.migrations SQL entries are ignored to avoid brittle
+        // checksum/version chains between module revisions.
+        baseRecord.migrations = source === SOURCE_CUSTOM
+          ? []
+          : await loadModuleMigrations({
+            moduleDir: moduleDirReal,
+            manifest: loadedManifest.manifest,
+          })
       } catch (error) {
         baseRecord.status = 'ERROR'
         const errorCode =

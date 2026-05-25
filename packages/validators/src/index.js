@@ -519,7 +519,7 @@ export const ledgerMovementQuerySchema = z.object({
 });
 
 export const moduleDryRunSchema = z.object({
-  mode: z.enum(['preserve-data', 'purge-data', 'purge-owned-tables']).default('preserve-data'),
+  mode: z.enum(['preserve-data', 'purge-data', 'purge-owned-tables']).optional(),
 });
 
 export const moduleClearErrorSchema = z.object({
@@ -542,7 +542,7 @@ export const moduleCleanupSchema = z
 
 export const moduleUninstallSchema = z
   .object({
-    mode: z.enum(['preserve-data', 'purge-data', 'purge-owned-tables']).default('preserve-data'),
+    mode: z.enum(['preserve-data', 'purge-data', 'purge-owned-tables']).optional(),
     confirmation: z.string().trim().optional(),
   })
   .refine(
@@ -563,4 +563,3 @@ export const moduleResetSchema = z
     message: 'Debes escribir "ACEPTO" para confirmar el reinicio.',
     path: ['confirmation'],
   });
-

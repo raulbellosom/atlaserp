@@ -11,6 +11,7 @@ enum ModuleKind {
   FEATURE
   INTEGRATION
   WEBSITE
+  @@map("module_kind")
 }
 
 enum ModuleStatus {
@@ -18,6 +19,7 @@ enum ModuleStatus {
   DISABLED
   UNINSTALLED
   ERROR
+  @@map("module_status")
 }
 
 enum BlueprintKind {
@@ -28,60 +30,14 @@ enum BlueprintKind {
   ACTION
   RELATION
   PERMISSION
+  @@map("blueprint_kind")
 }
 
 enum FileVisibility {
   PRIVATE
   INTERNAL
   PUBLIC
-}
-
-enum FinanceDocumentDirection {
-  AR
-  AP
-}
-
-enum FinanceDocumentType {
-  INVOICE
-  CREDIT_NOTE
-  DEBIT_NOTE
-  ADVANCE
-  PAYMENT
-}
-
-enum FinanceDocumentStatus {
-  OPEN
-  PARTIAL
-  PAID
-  VOID
-}
-
-enum FinanceTaxKind {
-  TRANSFER
-  WITHHOLDING
-}
-
-enum FinanceDocumentEventType {
-  ISSUE
-  APPLY
-  REVERSE
-  VOID
-  ADJUST
-}
-
-enum FinanceApplicationStatus {
-  APPLIED
-  REVERSED
-}
-
-enum LedgerMovementDirection {
-  INCOME
-  EXPENSE
-}
-
-enum LedgerMovementStatus {
-  ACTIVE
-  CANCELLED
+  @@map("file_visibility")
 }
 
 model AtlasModule {
@@ -96,9 +52,9 @@ model AtlasModule {
   uninstallable  Boolean  @default(true)
   enabled        Boolean  @default(true)
   manifest       Json
-  lifecycleConfig Json?
-  installedAt    DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  lifecycleConfig Json? @map("lifecycle_config")
+  installedAt DateTime @default(now()) @map("installed_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   dependencies   ModuleDependency[] @relation("ModuleDependencies")
   requiredBy     ModuleDependency[] @relation("RequiredByModules")
@@ -106,66 +62,70 @@ model AtlasModule {
   permissions    Permission[]
 
   @@index([status, enabled])
+  @@map("atlas_module")
 }
 
 model ModuleDependency {
   id String @id @default(uuid(7)) @db.Uuid
-  moduleId String @db.Uuid
-  dependencyId String @db.Uuid
-  versionRange   String?
+  moduleId String @db.Uuid @map("module_id")
+  dependencyId String @db.Uuid @map("dependency_id")
+  versionRange String? @map("version_range")
   optional       Boolean @default(false)
 
   module         AtlasModule @relation("ModuleDependencies", fields: [moduleId], references: [id], onDelete: Cascade)
   dependency     AtlasModule @relation("RequiredByModules", fields: [dependencyId], references: [id], onDelete: Restrict)
 
   @@unique([moduleId, dependencyId])
+  @@map("module_dependency")
 }
 
 model Blueprint {
   id String @id @default(uuid(7)) @db.Uuid
   key         String @unique
-  moduleId String @db.Uuid
+  moduleId String @db.Uuid @map("module_id")
   kind        BlueprintKind
   version     String
   schema      Json
   enabled     Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   module      AtlasModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
   @@index([moduleId])
   @@index([enabled])
+  @@map("blueprint")
 }
 
 model AtlasModel {
   id String @id @default(uuid(7)) @db.Uuid
-  moduleKey     String
+  moduleKey String @map("module_key")
   name          String @unique
-  tableName     String @unique
+  tableName String @unique @map("table_name")
   label         String
-  pluralLabel   String?
-  companyScoped Boolean @default(true)
+  pluralLabel String? @map("plural_label")
+  companyScoped Boolean @default(true) @map("company_scoped")
   schema        Json
   enabled       Boolean @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   fields        AtlasField[]
   views         AtlasView[]
 
   @@index([moduleKey])
+  @@map("atlas_model")
 }
 
 model AtlasField {
   id String @id @default(uuid(7)) @db.Uuid
-  modelId String @db.Uuid
+  modelId String @db.Uuid @map("model_id")
   name         String
   label        String
   type         String
   required     Boolean @default(false)
   readonly     Boolean @default(false)
-  defaultValue Json?
+  defaultValue Json? @map("default_value")
   options      Json?
   relation     Json?
   validation   Json?
@@ -174,48 +134,51 @@ model AtlasField {
   model        AtlasModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
 
   @@unique([modelId, name])
+  @@map("atlas_field")
 }
 
 model AtlasView {
   id String @id @default(uuid(7)) @db.Uuid
-  moduleKey  String
+  moduleKey String @map("module_key")
   key        String @unique
-  modelName  String?
+  modelName String? @map("model_name")
   type       String
   title      String?
   schema     Json
   enabled    Boolean @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   model      AtlasModel? @relation(fields: [modelName], references: [name], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([moduleKey])
   @@index([modelName])
+  @@map("atlas_view")
 }
 
 model ModuleMigration {
   id String @id @default(uuid(7)) @db.Uuid
-  moduleKey String
+  moduleKey String @map("module_key")
   filename  String
   checksum  String
-  appliedAt DateTime @default(now())
+  appliedAt DateTime @default(now()) @map("applied_at")
 
   @@unique([moduleKey, filename])
+  @@map("module_migration")
 }
 
 model Company {
   id String @id @default(uuid(7)) @db.Uuid
   name           String
   slug           String          @unique
-  legalName      String?
+  legalName String? @map("legal_name")
   rfc            String?
-  companyType    String?
-  companyTypeName String?
-  industryKey    String?
-  industryName   String?
-  companySize    String?
-  contactEmail   String?
+  companyType String? @map("company_type")
+  companyTypeName String? @map("company_type_name")
+  industryKey String? @map("industry_key")
+  industryName String? @map("industry_name")
+  companySize String? @map("company_size")
+  contactEmail String? @map("contact_email")
   phone          String?
   website        String?
   country        String?
@@ -223,39 +186,32 @@ model Company {
   city           String?
   colony         String?
   street         String?
-  extNumber      String?
-  intNumber      String?
-  postalCode     String?
+  extNumber String? @map("ext_number")
+  intNumber String? @map("int_number")
+  postalCode String? @map("postal_code")
   enabled        Boolean         @default(true)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
 
   memberships    Membership[]
   brandingConfig BrandingConfig?
-  financeAccounts FinanceAccount[]
-  financeEntries  FinanceJournalEntry[]
-  financeFxRates  FinanceFxRate[]
-  financeDocuments FinanceDocument[]
-  financeDocumentApplications FinanceDocumentApplication[]
-  financeDocumentAccountingLinks FinanceDocumentAccountingLink[]
-  financeTaxRates FinanceTaxRate[]
-  financeDocumentTaxLines FinanceDocumentTaxLine[]
+
   hrEmployees    HrEmployee[]
   hrDepartments  HrDepartment[]
   hrJobTitles    HrJobTitle[]
-  ledgerAccounts LedgerAccount[]
-  ledgerMovements LedgerMovement[]
+
+  @@map("company")
 }
 
 model UserProfile {
   id String @id @default(uuid(7)) @db.Uuid
-  authUserId String @unique @db.Uuid
-  displayName  String
-  firstName    String   @default("")
-  lastName     String   @default("")
+  authUserId String @unique @db.Uuid @map("auth_user_id")
+  displayName String @map("display_name")
+  firstName String   @default("") @map("first_name")
+  lastName String   @default("") @map("last_name")
   email        String   @unique
-  avatarFileId String? @db.Uuid
-  birthDate    DateTime?
+  avatarFileId String? @db.Uuid @map("avatar_file_id")
+  birthDate DateTime? @map("birth_date")
   gender       String?
   phone        String?
   country      String?
@@ -263,45 +219,47 @@ model UserProfile {
   city         String?
   colony       String?
   street       String?
-  extNumber    String?
-  intNumber    String?
-  postalCode   String?
+  extNumber String? @map("ext_number")
+  intNumber String? @map("int_number")
+  postalCode String? @map("postal_code")
   bio          String?
   enabled      Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   memberships  Membership[]
   auditLogs    AuditLog[]
   notifications Notification[]
-  reversedFinanceApplications FinanceDocumentApplication[] @relation("FinanceDocumentApplicationReversedBy")
+
   hrEmployee HrEmployee?
   tablePreferences UserTablePreference[]
   preferences  UserPreference[]
+  @@map("user_profile")
 }
 
 model UserTablePreference {
   id String @id @default(uuid(7)) @db.Uuid
-  userId String @db.Uuid
-  tableKey  String
+  userId String @db.Uuid @map("user_id")
+  tableKey String @map("table_key")
   config    Json
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
 
   user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, tableKey])
   @@index([userId])
+  @@map("user_table_preference")
 }
 
 model Membership {
   id String @id @default(uuid(7)) @db.Uuid
-  companyId String @db.Uuid
-  userId String @db.Uuid
-  roleId String? @db.Uuid
+  companyId String @db.Uuid @map("company_id")
+  userId String @db.Uuid @map("user_id")
+  roleId String? @db.Uuid @map("role_id")
   enabled     Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user        UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -310,6 +268,7 @@ model Membership {
   @@unique([companyId, userId])
   @@index([userId, enabled])
   @@index([companyId])
+  @@map("membership")
 }
 
 model Role {
@@ -319,133 +278,136 @@ model Role {
   description String?
   system      Boolean @default(false)
   enabled     Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   memberships Membership[]
   permissions RolePermission[]
+  @@map("role")
 }
 
 model Permission {
   id String @id @default(uuid(7)) @db.Uuid
   key         String @unique
   name        String
-  moduleId String? @db.Uuid
-  moduleKey   String?
+  moduleId String? @db.Uuid @map("module_id")
+  moduleKey String? @map("module_key")
   description String?
   active      Boolean @default(true)
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   module      AtlasModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   roles       RolePermission[]
 
   @@index([moduleId])
   @@index([active])
+  @@map("permission")
 }
 
 model RolePermission {
   id String @id @default(uuid(7)) @db.Uuid
-  roleId String @db.Uuid
-  permissionId String @db.Uuid
+  roleId String @db.Uuid @map("role_id")
+  permissionId String @db.Uuid @map("permission_id")
 
   role          Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission    Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, permissionId])
+  @@map("role_permission")
 }
 
 model FileAsset {
   id String @id @default(uuid(7)) @db.Uuid
   bucket        String
-  objectKey     String
-  originalName  String
-  mimeType      String
-  sizeBytes     Int
+  objectKey String @map("object_key")
+  originalName String @map("original_name")
+  mimeType String @map("mime_type")
+  sizeBytes Int @map("size_bytes")
   checksum      String?
   visibility    FileVisibility @default(PRIVATE)
-  moduleKey     String?
-  entityType    String?
-  entityId String? @db.Uuid
-  uploadedById String? @db.Uuid
+  moduleKey String? @map("module_key")
+  entityType String? @map("entity_type")
+  entityId String? @db.Uuid @map("entity_id")
+  uploadedById String? @db.Uuid @map("uploaded_by_id")
   metadata      Json?
   enabled       Boolean @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
   hrProfileEmployees HrEmployee[] @relation("HrEmployeeProfileImage")
 
   @@index([moduleKey, entityType, entityId])
+  @@map("file_asset")
 }
 
 model AuditLog {
   id String @id @default(uuid(7)) @db.Uuid
-  actorId String? @db.Uuid
-  moduleKey   String?
-  entityType  String?
-  entityId String? @db.Uuid
+  actorId String? @db.Uuid @map("actor_id")
+  moduleKey String? @map("module_key")
+  entityType String? @map("entity_type")
+  entityId String? @db.Uuid @map("entity_id")
   action      String
   before      Json?
   after       Json?
   metadata    Json?
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   actor       UserProfile? @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([moduleKey, entityType, entityId])
   @@index([createdAt])
+  @@map("audit_log")
 }
 
 model Contact {
   id String @id @default(uuid(7)) @db.Uuid
-  companyId String? @db.Uuid
+  companyId String? @db.Uuid @map("company_id")
   type        String
   name        String
-  legalName   String?
+  legalName String? @map("legal_name")
   email       String?
   phone       String?
-  taxId       String?
-  notesMarkdown String?
+  taxId String? @map("tax_id")
+  notesMarkdown String? @map("notes_markdown")
   metadata    Json?
   enabled     Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  financeLines FinanceJournalLine[]
-  financeDocuments FinanceDocument[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([type])
   @@index([name])
   @@index([companyId, enabled])
+  @@map("contact")
 }
 
 model HrEmployee {
   id String @id @default(uuid(7)) @db.Uuid
-  companyId String @db.Uuid
-  userProfileId String? @unique @db.Uuid
-  supervisorEmployeeId String? @db.Uuid
-  departmentId String? @db.Uuid
-  jobTitleId String? @db.Uuid
-  profileImageFileId String? @db.Uuid
-  employeeCode   String?
-  firstName      String
-  lastName       String
-  workEmail      String?
-  personalEmail  String?
+  companyId String @db.Uuid @map("company_id")
+  userProfileId String? @unique @db.Uuid @map("user_profile_id")
+  supervisorEmployeeId String? @db.Uuid @map("supervisor_employee_id")
+  departmentId String? @db.Uuid @map("department_id")
+  jobTitleId String? @db.Uuid @map("job_title_id")
+  profileImageFileId String? @db.Uuid @map("profile_image_file_id")
+  employeeCode String? @map("employee_code")
+  firstName String @map("first_name")
+  lastName String @map("last_name")
+  workEmail String? @map("work_email")
+  personalEmail String? @map("personal_email")
   phone          String?
-  emergencyContactName  String?
-  emergencyContactPhone String?
-  jobTitle       String?
+  emergencyContactName String? @map("emergency_contact_name")
+  emergencyContactPhone String? @map("emergency_contact_phone")
+  jobTitle String? @map("job_title")
   department     String?
-  managerName    String?
-  employmentType String?
-  workLocation   String?
-  hireDate       DateTime?
-  terminationDate DateTime?
+  managerName String? @map("manager_name")
+  employmentType String? @map("employment_type")
+  workLocation String? @map("work_location")
+  hireDate DateTime? @map("hire_date")
+  terminationDate DateTime? @map("termination_date")
   status         String   @default("active")
-  notesMarkdown  String?
+  notesMarkdown String? @map("notes_markdown")
   metadata       Json?
   enabled        Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
   company        Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   userProfile    UserProfile? @relation(fields: [userProfileId], references: [id], onDelete: SetNull)
   supervisor     HrEmployee? @relation("HrEmployeeSupervisor", fields: [supervisorEmployeeId], references: [id], onDelete: SetNull)
@@ -459,361 +421,93 @@ model HrEmployee {
   @@index([companyId, supervisorEmployeeId])
   @@index([companyId, departmentId])
   @@index([companyId, jobTitleId])
+  @@map("hr_employee")
 }
 
 model HrDepartment {
   id String @id @default(uuid(7)) @db.Uuid
-  companyId String @db.Uuid
+  companyId String @db.Uuid @map("company_id")
   name        String
   description String?
   enabled     Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employees   HrEmployee[] @relation()
 
   @@unique([companyId, name])
   @@index([companyId, enabled])
+  @@map("hr_department")
 }
 
 model HrJobTitle {
   id String @id @default(uuid(7)) @db.Uuid
-  companyId String @db.Uuid
+  companyId String @db.Uuid @map("company_id")
   name        String
   description String?
   enabled     Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employees   HrEmployee[] @relation()
 
   @@unique([companyId, name])
   @@index([companyId, enabled])
-}
-
-model FinanceAccount {
-  id String @id @default(uuid(7)) @db.Uuid
-  companyId String @db.Uuid
-  parentAccountId String? @db.Uuid
-  code           String
-  name           String
-  type           String
-  currency       String @default("MXN")
-  initialBalance Decimal @default(0)
-  metadata       Json?
-  enabled        Boolean @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  parentAccount FinanceAccount? @relation("FinanceAccountHierarchy", fields: [parentAccountId], references: [id], onDelete: SetNull)
-  childAccounts FinanceAccount[] @relation("FinanceAccountHierarchy")
-  journalLines  FinanceJournalLine[]
-
-  @@unique([companyId, code])
-  @@index([companyId, enabled])
-  @@index([companyId, type])
-}
-
-model FinanceJournalEntry {
-  id String @id @default(uuid(7)) @db.Uuid
-  companyId String @db.Uuid
-  createdById String? @db.Uuid
-  entryNumber String
-  occurredAt  DateTime
-  concept     String
-  reference   String?
-  currency    String @default("MXN")
-  sourceType  String @default("manual")
-  metadata    Json?
-  enabled     Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  lines       FinanceJournalLine[]
-  documentLinks FinanceDocumentAccountingLink[]
-
-  @@unique([companyId, entryNumber])
-  @@index([companyId, occurredAt])
-  @@index([enabled, occurredAt])
-}
-
-model FinanceJournalLine {
-  id String @id @default(uuid(7)) @db.Uuid
-  entryId String @db.Uuid
-  accountId String @db.Uuid
-  contactId String? @db.Uuid
-  debit       Decimal @default(0)
-  credit      Decimal @default(0)
-  currency    String @default("MXN")
-  fxRate      Decimal?
-  baseAmount  Decimal?
-  note        String?
-  metadata    Json?
-  enabled     Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  entry       FinanceJournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  account     FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  contact     Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
-
-  @@index([entryId])
-  @@index([accountId])
-  @@index([contactId])
-}
-
-model FinanceFxRate {
-  id String @id @default(uuid(7)) @db.Uuid
-  companyId String @db.Uuid
-  baseCurrency String
-  quoteCurrency String
-  rateDate     DateTime
-  rate         Decimal
-  source       String @default("manual")
-  metadata     Json?
-  enabled      Boolean @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@unique([companyId, baseCurrency, quoteCurrency, rateDate])
-  @@index([companyId, rateDate])
-  @@index([companyId, baseCurrency, quoteCurrency])
-}
-
-model FinanceDocument {
-  id String @id @default(uuid(7)) @db.Uuid
-  companyId String @db.Uuid
-  direction     FinanceDocumentDirection
-  docType       FinanceDocumentType
-  status        FinanceDocumentStatus    @default(OPEN)
-  contactId String? @db.Uuid
-  currency      String                   @default("MXN")
-  issueDate     DateTime
-  dueDate       DateTime?
-  reference     String?
-  notesMarkdown String?
-  totalAmount   Decimal
-  openAmount    Decimal
-  metadata      Json?
-  enabled       Boolean                  @default(true)
-  createdAt     DateTime                 @default(now())
-  updatedAt     DateTime                 @updatedAt
-
-  company       Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contact       Contact?                 @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  sourceApplications FinanceDocumentApplication[] @relation("FinanceDocumentApplicationSource")
-  targetApplications FinanceDocumentApplication[] @relation("FinanceDocumentApplicationTarget")
-  accountingLinks FinanceDocumentAccountingLink[]
-  taxLines       FinanceDocumentTaxLine[]
-
-  @@index([companyId, direction, status])
-  @@index([companyId, issueDate])
-  @@index([companyId, dueDate])
-  @@index([contactId])
-}
-
-model FinanceTaxRate {
-  id String @id @default(uuid(7)) @db.Uuid
-  companyId String @db.Uuid
-  key        String
-  name       String
-  kind       FinanceTaxKind
-  rate       Decimal
-  direction  FinanceDocumentDirection?
-  metadata   Json?
-  enabled    Boolean   @default(true)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-
-  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  documentTaxLines FinanceDocumentTaxLine[]
-
-  @@unique([companyId, key])
-  @@index([companyId, kind])
-  @@index([companyId, direction])
-}
-
-model FinanceDocumentTaxLine {
-  id String @id @default(uuid(7)) @db.Uuid
-  companyId String @db.Uuid
-  documentId String @db.Uuid
-  taxRateId String? @db.Uuid
-  taxKey      String
-  taxName     String
-  kind        FinanceTaxKind
-  rate        Decimal
-  baseAmount  Decimal
-  taxAmount   Decimal
-  currency    String         @default("MXN")
-  metadata    Json?
-  enabled     Boolean        @default(true)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-
-  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  document    FinanceDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  taxRate     FinanceTaxRate? @relation(fields: [taxRateId], references: [id], onDelete: SetNull)
-
-  @@index([companyId, documentId])
-  @@index([companyId, kind])
-}
-
-model FinanceDocumentApplication {
-  id String @id @default(uuid(7)) @db.Uuid
-  companyId String @db.Uuid
-  sourceDocumentId String @db.Uuid
-  targetDocumentId String @db.Uuid
-  appliedAmount    Decimal
-  status           FinanceApplicationStatus @default(APPLIED)
-  effectiveFxRate  Decimal?
-  sourceAmount     Decimal?
-  targetAmount     Decimal?
-  appliedAt        DateTime        @default(now())
-  reversedAt       DateTime?
-  reversedById String? @db.Uuid
-  reversalReason   String?
-  metadata         Json?
-  enabled          Boolean         @default(true)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-
-  company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  sourceDocument   FinanceDocument @relation("FinanceDocumentApplicationSource", fields: [sourceDocumentId], references: [id], onDelete: Cascade)
-  targetDocument   FinanceDocument @relation("FinanceDocumentApplicationTarget", fields: [targetDocumentId], references: [id], onDelete: Cascade)
-  reversedBy       UserProfile?    @relation("FinanceDocumentApplicationReversedBy", fields: [reversedById], references: [id], onDelete: SetNull)
-
-  @@index([companyId, appliedAt])
-  @@index([companyId, sourceDocumentId])
-  @@index([companyId, targetDocumentId])
-  @@index([companyId, status])
-}
-
-model FinanceDocumentAccountingLink {
-  id String @id @default(uuid(7)) @db.Uuid
-  companyId String @db.Uuid
-  documentId String @db.Uuid
-  journalEntryId String @db.Uuid
-  eventType      FinanceDocumentEventType
-  metadata       Json?
-  enabled        Boolean                  @default(true)
-  createdAt      DateTime                 @default(now())
-  updatedAt      DateTime                 @updatedAt
-
-  company        Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  document       FinanceDocument          @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  journalEntry   FinanceJournalEntry      @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
-
-  @@unique([documentId, journalEntryId, eventType])
-  @@index([companyId, documentId])
-  @@index([companyId, journalEntryId])
+  @@map("hr_job_title")
 }
 
 model InstanceConfig {
   id String @id @default(uuid(7)) @db.Uuid
   key       String   @unique
   value     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@map("instance_config")
 }
 
 model BrandingConfig {
   id String @id @default(uuid(7)) @db.Uuid
-  companyId String @unique @db.Uuid
-  primaryColor String
-  logoFileId String? @db.Uuid
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  companyId String @unique @db.Uuid @map("company_id")
+  primaryColor String @map("primary_color")
+  logoFileId String? @db.Uuid @map("logo_file_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  @@map("branding_config")
 }
 
 model Notification {
   id String @id @default(uuid(7)) @db.Uuid
-  userId String @db.Uuid
-  companyId String? @db.Uuid
+  userId String @db.Uuid @map("user_id")
+  companyId String? @db.Uuid @map("company_id")
   kind      String    @default("info")
   title     String
   body      String?
   link      String?
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
+  readAt DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
   @@index([createdAt])
+  @@map("notification")
 }
 
 model UserPreference {
   id String @id @default(uuid(7)) @db.Uuid
-  userId String @db.Uuid
+  userId String @db.Uuid @map("user_id")
   key       String
   value     Json
-  updatedAt DateTime    @updatedAt
+  updatedAt DateTime    @updatedAt @map("updated_at")
 
   user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, key])
   @@index([userId])
+  @@map("user_preference")
 }
 
-model LedgerAccount {
-  id String @id @default(uuid(7)) @db.Uuid
-  companyId String @db.Uuid
-  name           String
-  type           String   @default("otro")
-  currency       String   @default("MXN")
-  initialBalance Decimal  @default(0)
-  currentBalance Decimal  @default(0)
-  description    String?
-  createdById String? @db.Uuid
-  enabled        Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  movements      LedgerMovement[]
-
-  @@unique([companyId, name])
-  @@index([companyId, enabled])
-}
-
-model LedgerMovement {
-  id String @id @default(uuid(7)) @db.Uuid
-  companyId String @db.Uuid
-  accountId String @db.Uuid
-  sequenceNumber     Int
-  occurredAt         DateTime
-  direction          LedgerMovementDirection
-  movementType       String?
-  number             String?
-  name               String?
-  reference          String?
-  concept            String
-  amount             Decimal
-  balanceAfter       Decimal
-  status             LedgerMovementStatus    @default(ACTIVE)
-  cancellationReason String?
-  cancelledAt        DateTime?
-  cancelledById String? @db.Uuid
-  createdById String? @db.Uuid
-  metadata           Json?
-  enabled            Boolean                 @default(true)
-  createdAt          DateTime                @default(now())
-  updatedAt          DateTime                @updatedAt
-
-  company            Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  account            LedgerAccount           @relation(fields: [accountId], references: [id], onDelete: Cascade)
-
-  @@unique([accountId, sequenceNumber])
-  @@index([companyId, occurredAt])
-  @@index([accountId, occurredAt])
-  @@index([accountId, status])
-  @@index([companyId, status])
-}

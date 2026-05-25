@@ -15,66 +15,6 @@ export default defineAtlasModule({
   logoUrl: "/module-logos/custom-fleet-128.webp",
   cover: null,
   dependencies: [{ key: "atlas.core" }],
-  migrations: [
-    {
-      path: "./migrations/V002_vehicle_expansion.sql",
-      checksum:
-        "d9d7d2edb2bc735d44ac7f2320e96c84534eb688617782510c2df38782008027",
-    },
-    {
-      path: "./migrations/V003_maintenance_expansion.sql",
-      checksum:
-        "8db5182df52cd8fae0b085287caf48ea46c9e4945a4eb8606a6e0d71311aecab",
-    },
-    {
-      path: "./migrations/V004_vehicle_model.sql",
-      checksum:
-        "c8cdde447328b26d268b8f9577e6ad54d2615d6f5b08f91ecef3b34add7dfb3b",
-    },
-    {
-      path: "./migrations/V004b_vehicle_legacy_columns_nullable.sql",
-      checksum:
-        "98df68dbff394fc64328d71e380827bf3ec8f4422c6bb2537cfc9f53b6ab2e2f",
-      unsafe: true,
-    },
-    {
-      path: "./migrations/V005_vehicle_type_economic_group_number.sql",
-      checksum:
-        "35c78041208289827642c4ecc68cf9e42572e6a1f27bf95f2aeceede2575353d",
-    },
-    {
-      path: "./migrations/V006_report_tables.sql",
-      checksum:
-        "8e06fb87447718c7aa2c7654690337af04514aca3a0420cb1cb77849d5be2410",
-    },
-    {
-      path: "./migrations/V007_report_document_file_asset_id_text.sql",
-      checksum:
-        "196420410c61cb2720aae5c51c226b605817be30d51e1ba84d016ec0fd08b39d",
-      unsafe: true,
-    },
-    {
-      path: "./migrations/V008_driver_photo_hr_link.sql",
-      checksum:
-        "ac48d3b53f8ca6cbd8c42e985d687b4cc02361638e503cd91848ca81d63fdd11",
-    },
-    {
-      path: "./migrations/V009_uuid_reference_columns.sql",
-      checksum:
-        "4b8e766dca372945a8704a137a1b97df2928bebc068c4d802a26b9f481756027",
-      unsafe: true,
-    },
-    {
-      path: "./migrations/V010_vehicle_financing_and_inhouse_workshop.sql",
-      checksum:
-        "098d279841919b5eae188c3aa8b5c53c107cde51d48b8dd09d9ed4210b632cac",
-    },
-    {
-      path: "./migrations/V011_report_inhouse_default_true.sql",
-      checksum:
-        "96197d8c747099810fbad96acb78ba52260a23744068f959c49a243d32e83ad8",
-    },
-  ],
   models: [
     "./models/vehicle.model.js",
     "./models/maintenance.model.js",
@@ -134,7 +74,7 @@ export default defineAtlasModule({
     uninstallable: true,
     resettable: true,
     supportsDataPurge: true,
-    defaultUninstallPolicy: "preserve-data",
+    defaultUninstallPolicy: "purge-owned-tables",
     ownedModels: [
       "fleet.vehicle",
       "fleet.maintenance",

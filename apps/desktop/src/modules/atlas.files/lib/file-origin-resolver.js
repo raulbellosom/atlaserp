@@ -4,7 +4,6 @@ const MODULE_LABELS = {
   "atlas.files": "Archivos",
   "atlas.company": "Empresa",
   "atlas.contacts": "Contactos",
-  "atlas.finance": "Finanzas",
   "atlas.hr": "Recursos Humanos",
 };
 

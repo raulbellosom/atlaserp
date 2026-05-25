@@ -1,4 +1,4 @@
-﻿import { FleetServiceError } from './fleet-service.js'
+import { FleetServiceError } from './fleet-service.js'
 
 const MODULE_KEY = 'custom.fleet'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -206,7 +206,7 @@ export function createDriverService({ prisma }) {
     const normalizedStatus = normalizeOptionalString(status)
     const normalizedSearch = normalizeSearch(search)
     const likeValue = normalizedSearch ? `%${normalizedSearch}%` : null
-    // sortCol from allowlist only â€” never raw user input
+    // sortCol from allowlist only — never raw user input
     const sortCol = SORT_FIELD_MAP[sortBy] ?? 'created_at'
     const sortDirection = sortDir === 'asc' ? 'ASC' : 'DESC'
 
@@ -218,7 +218,7 @@ export function createDriverService({ prisma }) {
                   (
                     SELECT fdd.file_asset_id
                     FROM fleet_driver_document fdd
-                    JOIN "FileAsset" fa ON fa.id::text = fdd.file_asset_id::text
+                    JOIN "file_asset" fa ON fa.id::text = fdd.file_asset_id::text
                     WHERE fdd.driver_id::text = fd.id::text
                       AND fdd.company_id::text = fd.company_id::text
                       AND fdd.enabled = true
@@ -281,7 +281,7 @@ export function createDriverService({ prisma }) {
                  (
                    SELECT fdd.file_asset_id
                    FROM fleet_driver_document fdd
-                   JOIN "FileAsset" fa ON fa.id::text = fdd.file_asset_id::text
+                   JOIN "file_asset" fa ON fa.id::text = fdd.file_asset_id::text
                    WHERE fdd.driver_id::text = fleet_driver.id::text
                      AND fdd.company_id::text = fleet_driver.company_id::text
                      AND fdd.enabled = true

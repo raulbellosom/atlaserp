@@ -17,7 +17,7 @@ import {
   normalizeManifestDependencies,
 } from './module-dependency-utils.js'
 
-const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company'])
+const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company', 'atlas.contacts', 'atlas.hr'])
 const FAILED_INSTALL_CLEAR_MODES = new Set(['metadata-only', 'preserve-data', 'purge-empty-tables'])
 const UNINSTALL_MODES = new Set(['preserve-data', 'purge-data', 'purge-owned-tables'])
 const TABLE_NAME_PATTERN = /^[a-z][a-z0-9_]*$/
@@ -558,6 +558,14 @@ export function createModuleLifecycleService({ prisma }) {
   }
 
   async function applyModuleManifestMigrations({ moduleKey, manifest, lifecycleConfig, actorId }) {
+    const source = typeof lifecycleConfig?.discovery?.source === 'string'
+      ? lifecycleConfig.discovery.source.trim()
+      : null
+    const isCustomModule = source === 'custom' || moduleKey.startsWith('custom.')
+    if (isCustomModule) {
+      return []
+    }
+
     const migrations = Array.isArray(manifest?.migrations) ? manifest.migrations : []
     if (!migrations.length) return []
 
@@ -1160,17 +1168,10 @@ export function createModuleLifecycleService({ prisma }) {
         if (droppedTables.length > 0) {
           const migrationRows = await tx.moduleMigration.findMany({
             where: { moduleKey: key },
-            select: { id: true, filename: true },
+            select: { filename: true },
           })
-          const toDeleteIds = migrationRows
-            .filter((row) => droppedTables.some((tableName) => row.filename.startsWith(`${tableName}__`)))
-            .map((row) => row.id)
-          if (toDeleteIds.length > 0) {
-            await tx.moduleMigration.deleteMany({ where: { id: { in: toDeleteIds } } })
-            removedMigrations = migrationRows
-              .filter((row) => toDeleteIds.includes(row.id))
-              .map((row) => row.filename)
-          }
+          await tx.moduleMigration.deleteMany({ where: { moduleKey: key } })
+          removedMigrations = migrationRows.map((row) => row.filename)
         }
       }
 

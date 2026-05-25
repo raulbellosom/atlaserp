@@ -24,7 +24,7 @@ import {
 } from '../services/module-dependency-utils.js'
 import { del as cacheDel } from '../lib/cache.js'
 
-const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company'])
+const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company', 'atlas.contacts', 'atlas.hr'])
 const SEMVER_PATCH_RE = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/
 
 function isPlainObject(value) {
@@ -39,6 +39,12 @@ function isCustomModuleRecord(record) {
   const source = typeof record?.source === 'string' ? record.source.trim() : ''
   const key = typeof record?.key === 'string' ? record.key.trim() : ''
   return source === 'custom' || key.startsWith('custom.')
+}
+
+function defaultUninstallModeForKey(key) {
+  return typeof key === 'string' && key.trim().startsWith('custom.')
+    ? 'purge-owned-tables'
+    : 'preserve-data'
 }
 
 function computeMigrationSignature(manifest) {
@@ -1460,7 +1466,9 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
       const key = c.req.param('key')
       const body = await c.req.json().catch(() => ({}))
       const parsed = moduleDryRunSchema.safeParse(body)
-      const mode = parsed.success ? parsed.data.mode : 'preserve-data'
+      const mode = parsed.success
+        ? (parsed.data.mode ?? defaultUninstallModeForKey(key))
+        : defaultUninstallModeForKey(key)
       const context = c.get('userContext')
       const companyId = context?.memberships?.[0]?.companyId ?? null
       const result = await svc.dryRunUninstall({ key, mode, companyId })
@@ -1483,9 +1491,10 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
       const actorId = c.get('userContext')?.profile?.id ?? null
       const context = c.get('userContext')
       const companyId = context?.memberships?.[0]?.companyId ?? null
+      const mode = parsed.data.mode ?? defaultUninstallModeForKey(key)
       const result = await svc.uninstallModule({
         key,
-        mode: parsed.data.mode,
+        mode,
         companyId,
         actorId,
         confirmation: parsed.data.confirmation ?? null,

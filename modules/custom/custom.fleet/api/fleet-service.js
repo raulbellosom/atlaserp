@@ -1,4 +1,4 @@
-﻿import { buildVehiclePdfBuffer } from './vehicle-pdf.js'
+import { buildVehiclePdfBuffer } from './vehicle-pdf.js'
 import {
   normalizePagination,
   normalizeSearch,
@@ -180,12 +180,12 @@ export function createFleetService({ prisma }) {
           (SELECT COUNT(*)::int FROM fleet_vehicle_document fvd
            WHERE fvd.vehicle_id::text = fv.id::text AND fvd.company_id::text = fv.company_id::text AND fvd.enabled = true) AS doc_count,
           (SELECT COUNT(*)::int FROM fleet_vehicle_document fvd2
-           JOIN "FileAsset" fa ON fa.id::text = fvd2.file_asset_id::text
+           JOIN "file_asset" fa ON fa.id::text = fvd2.file_asset_id::text
            WHERE fvd2.vehicle_id::text = fv.id::text AND fvd2.company_id::text = fv.company_id::text AND fvd2.enabled = true
            AND fa."mimeType" ILIKE 'image/%') AS image_count,
           (SELECT fvd3.file_asset_id
            FROM fleet_vehicle_document fvd3
-           JOIN "FileAsset" fa3 ON fa3.id::text = fvd3.file_asset_id::text
+           JOIN "file_asset" fa3 ON fa3.id::text = fvd3.file_asset_id::text
            WHERE fvd3.vehicle_id::text = fv.id::text
              AND fvd3.company_id::text = fv.company_id::text
              AND fvd3.enabled = true

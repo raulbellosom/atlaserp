@@ -60,36 +60,6 @@ const SCREEN_MAP = {
   "atlas.files:/files/:id": lazy(
     () => import("../modules/atlas.files/screens/FilesScreen.jsx"),
   ),
-  "atlas.finance:/": lazy(
-    () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
-  ),
-  "atlas.finance:/finance": lazy(
-    () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
-  ),
-  "atlas.finance:/finance/accounts": lazy(
-    () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
-  ),
-  "atlas.finance:/finance/ar": lazy(
-    () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
-  ),
-  "atlas.finance:/finance/ap": lazy(
-    () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
-  ),
-  "atlas.finance:/finance/aging": lazy(
-    () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
-  ),
-  "atlas.finance:/finance/applications": lazy(
-    () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
-  ),
-  "atlas.finance:/finance/entries": lazy(
-    () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
-  ),
-  "atlas.finance:/finance/taxes": lazy(
-    () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
-  ),
-  "atlas.finance:/finance/fx-rates": lazy(
-    () => import("../modules/atlas.finance/screens/FinanceScreen.jsx"),
-  ),
   "atlas.hr:/": lazy(() => import("../modules/atlas.hr/screens/HrScreen.jsx")),
   "atlas.hr:/hr": lazy(
     () => import("../modules/atlas.hr/screens/HrScreen.jsx"),
@@ -105,24 +75,6 @@ const SCREEN_MAP = {
   ),
   "atlas.hr:/hr/catalogs": lazy(
     () => import("../modules/atlas.hr/screens/HrScreen.jsx"),
-  ),
-  "atlas.ledger:/": lazy(
-    () => import("../modules/atlas.ledger/screens/LedgerScreen.jsx"),
-  ),
-  "atlas.ledger:/ledger": lazy(
-    () => import("../modules/atlas.ledger/screens/LedgerScreen.jsx"),
-  ),
-  "atlas.ledger:/ledger/accounts": lazy(
-    () => import("../modules/atlas.ledger/screens/LedgerScreen.jsx"),
-  ),
-  "atlas.ledger:/ledger/accounts/:id": lazy(
-    () => import("../modules/atlas.ledger/screens/LedgerScreen.jsx"),
-  ),
-  "atlas.ledger:/ledger/movements": lazy(
-    () => import("../modules/atlas.ledger/screens/LedgerScreen.jsx"),
-  ),
-  "atlas.ledger:/ledger/reports": lazy(
-    () => import("../modules/atlas.ledger/screens/LedgerScreen.jsx"),
   ),
   "atlas.identity:/": lazy(
     () => import("../modules/atlas.identity/screens/IdentityOverview.jsx"),
@@ -231,9 +183,6 @@ function resolveScreen(moduleKey, subPath) {
   }
   if (moduleKey === "atlas.hr" && subPath.startsWith("/hr/employees/")) {
     return SCREEN_MAP["atlas.hr:/hr/employees/:id"] ?? null;
-  }
-  if (moduleKey === "atlas.ledger" && subPath.startsWith("/ledger/accounts/")) {
-    return SCREEN_MAP["atlas.ledger:/ledger/accounts/:id"] ?? null;
   }
   if (subPath === "/") return SCREEN_MAP[`${moduleKey}:/`] ?? null;
   if (!SCREEN_MODULE_KEYS.has(moduleKey)) return BlueprintCrudScreen;

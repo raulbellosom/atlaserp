@@ -18,12 +18,29 @@ function normalizeModel(modelDef) {
   const indexes = (modelDef.indexes ?? [])
     .map((idx) => ({ fields: [...idx.fields].sort(), unique: idx.unique ?? false }))
     .sort((a, b) => a.fields.join(',').localeCompare(b.fields.join(',')))
+  const foreignKeys = (modelDef.foreignKeys ?? [])
+    .map((fk) => ({
+      field: fk.field,
+      table: fk.references?.table ?? null,
+      refField: fk.references?.field ?? null,
+      onDelete: typeof fk.onDelete === 'string' ? fk.onDelete.trim().toUpperCase() : 'RESTRICT',
+      onUpdate: typeof fk.onUpdate === 'string' ? fk.onUpdate.trim().toUpperCase() : 'CASCADE',
+    }))
+    .sort((a, b) => `${a.field}:${a.table}:${a.refField}`.localeCompare(`${b.field}:${b.table}:${b.refField}`))
+  const checks = (modelDef.checks ?? [])
+    .map((check) => ({
+      name: check.name,
+      expression: check.expression?.trim?.() ?? check.expression ?? null,
+    }))
+    .sort((a, b) => String(a.name).localeCompare(String(b.name)))
   return {
     tableName:     modelDef.tableName,
     companyScoped: modelDef.companyScoped ?? true,
     softDelete:    modelDef.softDelete ?? false,
     fields,
     indexes,
+    foreignKeys,
+    checks,
   }
 }
 
