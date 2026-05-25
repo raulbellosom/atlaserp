@@ -32,6 +32,30 @@ export const createVehicleSchema = z.object({
   vehicle_type_id: z.string().uuid().nullable().optional(),
   vehicle_brand_id: z.string().uuid().nullable().optional(),
   vehicle_model_id: z.string().uuid().nullable().optional(),
+  is_financed: z.boolean().default(false),
+  financing_institution: z.string().max(200).nullable().optional(),
+  financing_contract_number: z.string().max(120).nullable().optional(),
+  financing_start_date: isoDateSchema.nullable().optional(),
+  financing_end_date: isoDateSchema.nullable().optional(),
+  financing_monthly_payment: z.number().min(0).nullable().optional(),
+  financing_notes: z.string().max(1000).nullable().optional(),
+}).superRefine((value, ctx) => {
+  if (value.financing_start_date && value.financing_end_date && value.financing_end_date < value.financing_start_date) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['financing_end_date'], message: 'La fecha fin no puede ser menor a la fecha inicio del financiamiento.' })
+  }
+
+  if (!value.is_financed) {
+    const hasFinancingData =
+      Boolean(value.financing_institution) ||
+      Boolean(value.financing_contract_number) ||
+      Boolean(value.financing_start_date) ||
+      Boolean(value.financing_end_date) ||
+      value.financing_monthly_payment !== undefined && value.financing_monthly_payment !== null ||
+      Boolean(value.financing_notes)
+    if (hasFinancingData) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['is_financed'], message: 'Activa "Vehiculo financiado" para capturar datos de financiamiento.' })
+    }
+  }
 })
 
 export const updateVehicleSchema = z.object({
@@ -48,6 +72,17 @@ export const updateVehicleSchema = z.object({
   vehicle_type_id: z.string().uuid().nullable().optional(),
   vehicle_brand_id: z.string().uuid().nullable().optional(),
   vehicle_model_id: z.string().uuid().nullable().optional(),
+  is_financed: z.boolean().optional(),
+  financing_institution: z.string().max(200).nullable().optional(),
+  financing_contract_number: z.string().max(120).nullable().optional(),
+  financing_start_date: isoDateSchema.nullable().optional(),
+  financing_end_date: isoDateSchema.nullable().optional(),
+  financing_monthly_payment: z.number().min(0).nullable().optional(),
+  financing_notes: z.string().max(1000).nullable().optional(),
+}).superRefine((value, ctx) => {
+  if (value.financing_start_date && value.financing_end_date && value.financing_end_date < value.financing_start_date) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['financing_end_date'], message: 'La fecha fin no puede ser menor a la fecha inicio del financiamiento.' })
+  }
 })
 
 const maintenanceStatusSchema = z.enum(['scheduled', 'in_progress', 'completed', 'cancelled'])
@@ -194,6 +229,7 @@ export const createReportSchema = z.object({
   title: z.string().min(1).max(255),
   report_date: isoDateSchema,
   status: reportStatusSchema.default('draft'),
+  is_inhouse_workshop: z.boolean().default(true),
   odometer_km: z.number().int().min(0).nullable().optional(),
   workshop_name: z.string().max(200).nullable().optional(),
   workshop_phone: z.string().max(50).nullable().optional(),
@@ -228,7 +264,7 @@ export const createReportSchema = z.object({
     if (!value.service_subtype) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['service_subtype'], message: 'Subtipo requerido para servicio.' })
     }
-    if (!value.invoice_number) {
+    if (!value.is_inhouse_workshop && !value.invoice_number) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['invoice_number'], message: 'Factura/ticket requerido para servicio.' })
     }
   }
@@ -257,6 +293,7 @@ export const updateReportSchema = z.object({
   title: z.string().min(1).max(255).optional(),
   report_date: isoDateSchema.optional(),
   status: reportStatusSchema.optional(),
+  is_inhouse_workshop: z.boolean().optional(),
   odometer_km: z.number().int().min(0).nullable().optional(),
   workshop_name: z.string().max(200).nullable().optional(),
   workshop_phone: z.string().max(50).nullable().optional(),
@@ -278,4 +315,3 @@ export const updateReportSchema = z.object({
   warranty_notes: z.string().max(1000).nullable().optional(),
   other_category_label: z.string().max(120).nullable().optional(),
 })
-

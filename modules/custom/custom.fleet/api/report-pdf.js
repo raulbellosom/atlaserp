@@ -678,10 +678,15 @@ async function toPdfBuffer({ report, parts, branding }) {
   y = drawSectionTitle("TALLER Y COSTOS", y);
 
   const workshopRows = [
-    { label: "Taller", value: toSafeText(report.workshop_name) },
-    { label: "Telefono", value: toSafeText(report.workshop_phone) },
-    { label: "Direccion", value: toSafeText(report.workshop_address) },
-    { label: "Factura / Ticket", value: toSafeText(report.invoice_number) },
+    {
+      label: "Modalidad",
+      value: report.is_inhouse_workshop ? "Taller propio" : "Taller externo",
+      bold: true,
+    },
+    { label: "Taller", value: report.is_inhouse_workshop ? "-" : toSafeText(report.workshop_name) },
+    { label: "Telefono", value: report.is_inhouse_workshop ? "-" : toSafeText(report.workshop_phone) },
+    { label: "Direccion", value: report.is_inhouse_workshop ? "-" : toSafeText(report.workshop_address) },
+    { label: "Factura / Ticket", value: report.is_inhouse_workshop ? "-" : toSafeText(report.invoice_number) },
   ];
   const costsRows = [
     { label: "Mano de obra", value: formatCurrency(report.labor_cost) },

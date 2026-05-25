@@ -122,7 +122,8 @@ export function assertSafeMigrationSql(sql) {
   if (/\bALTER\s+TABLE\b/i.test(sql)) {
     if (!SAFE_ADDITIVE_ALTER_TABLE_RE.test(sql) || UNSAFE_ALTER_TABLE_PARTS_RE.test(sql)) {
       throw new ModuleEngineError(
-        'assertSafeMigrationSql: ALTER TABLE is allowed only for additive ADD COLUMN IF NOT EXISTS statements.',
+        'assertSafeMigrationSql: ALTER TABLE is allowed only for additive ADD COLUMN IF NOT EXISTS statements. ' +
+        'For other DDL (SET DEFAULT, ADD CONSTRAINT, RENAME, etc.) add unsafe: true to the migration entry in module.manifest.js.',
         'AME_UNSAFE_SQL'
       )
     }

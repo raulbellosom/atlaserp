@@ -3,7 +3,7 @@
 export default defineView({
   key: "fleet.reports.maintenance.form",
   kind: "FORM",
-  version: "0.2.1",
+  version: "0.2.2",
   schema: {
     entity: "report",
     component: "AtlasForm",
@@ -80,10 +80,11 @@ export default defineView({
         defaultCollapsed: false,
         columns: 2,
         fields: [
-          { field: "workshop_name", label: "Nombre del taller", type: "text" },
-          { field: "workshop_phone", label: "Telefono", type: "phone" },
-          { field: "workshop_address", label: "Direccion", type: "text" },
-          { field: "invoice_number", label: "No. de factura/ticket", type: "text" },
+          { field: "is_inhouse_workshop", label: "Taller propio", type: "boolean", default: true, hint: "Si activas esta opcion, los datos del taller quedan como no requeridos." },
+          { field: "workshop_name", label: "Nombre del taller", type: "text", visibleWhen: { field: "is_inhouse_workshop", equals: false } },
+          { field: "workshop_phone", label: "Telefono", type: "phone", visibleWhen: { field: "is_inhouse_workshop", equals: false } },
+          { field: "workshop_address", label: "Direccion", type: "text", visibleWhen: { field: "is_inhouse_workshop", equals: false } },
+          { field: "invoice_number", label: "No. de factura/ticket", type: "text", visibleWhen: { field: "is_inhouse_workshop", equals: false } },
         ],
       },
       {

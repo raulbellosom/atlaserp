@@ -10,9 +10,12 @@ export function normalizeField(fieldLike) {
     type: fieldLike.type ?? "text",
     required: Boolean(fieldLike.required),
     readonly: Boolean(fieldLike.readonly),
+    default: fieldLike.default,
     hint: typeof fieldLike.hint === "string" && fieldLike.hint.trim() ? fieldLike.hint.trim() : null,
     options: fieldLike.options,
     relation: fieldLike.relation,
+    visibleWhen: fieldLike.visibleWhen ?? null,
+    hiddenWhen: fieldLike.hiddenWhen ?? null,
     currency: fieldLike.currency ?? null,
     locale: fieldLike.locale ?? null,
     allowNegative: fieldLike.allowNegative ?? null,
@@ -25,7 +28,7 @@ function normalizeSectionField(item) {
     if (!key) return null;
     return {
       name: key,
-      field: { name: key, label: key, type: "text", required: false, readonly: false, options: [] },
+      field: { name: key, label: key, type: "text", required: false, readonly: false, options: [], visibleWhen: null, hiddenWhen: null },
     };
   }
   const normalized = normalizeField(item);
@@ -111,11 +114,17 @@ export function normalizeSections(schema, fieldMap) {
             type: fieldDef.field.type ?? existing?.type ?? "text",
             required: fieldDef.field.required ?? existing?.required ?? false,
             readonly: fieldDef.field.readonly ?? existing?.readonly ?? false,
+            default:
+              fieldDef.field.default !== undefined
+                ? fieldDef.field.default
+                : existing?.default,
             options:
               Array.isArray(fieldDef.field.options) && fieldDef.field.options.length > 0
                 ? fieldDef.field.options
                 : existing?.options ?? [],
             relation: fieldDef.field.relation ?? existing?.relation ?? undefined,
+            visibleWhen: fieldDef.field.visibleWhen ?? existing?.visibleWhen ?? null,
+            hiddenWhen: fieldDef.field.hiddenWhen ?? existing?.hiddenWhen ?? null,
           });
         }
         if (!uniqueFields.includes(name)) uniqueFields.push(name);

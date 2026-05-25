@@ -3,7 +3,7 @@ import { defineAtlasModule } from "@atlas/module-engine";
 export default defineAtlasModule({
   key: "custom.fleet",
   name: "Flota",
-  version: "0.4.0",
+  version: "0.4.3",
   kind: "FEATURE",
   description:
     "Gestion de flota vehicular: vehiculos, reportes y asignacion de conductores.",
@@ -17,9 +17,25 @@ export default defineAtlasModule({
   dependencies: [{ key: "atlas.core" }],
   migrations: [
     {
+      path: "./migrations/V002_vehicle_expansion.sql",
+      checksum:
+        "d9d7d2edb2bc735d44ac7f2320e96c84534eb688617782510c2df38782008027",
+    },
+    {
+      path: "./migrations/V003_maintenance_expansion.sql",
+      checksum:
+        "8db5182df52cd8fae0b085287caf48ea46c9e4945a4eb8606a6e0d71311aecab",
+    },
+    {
       path: "./migrations/V004_vehicle_model.sql",
       checksum:
-        "ecdca2a21165c46157db060e98ff6a7d63e20eeb3190f8f877d145266e275378",
+        "c8cdde447328b26d268b8f9577e6ad54d2615d6f5b08f91ecef3b34add7dfb3b",
+    },
+    {
+      path: "./migrations/V004b_vehicle_legacy_columns_nullable.sql",
+      checksum:
+        "98df68dbff394fc64328d71e380827bf3ec8f4422c6bb2537cfc9f53b6ab2e2f",
+      unsafe: true,
     },
     {
       path: "./migrations/V005_vehicle_type_economic_group_number.sql",
@@ -29,17 +45,34 @@ export default defineAtlasModule({
     {
       path: "./migrations/V006_report_tables.sql",
       checksum:
-        "38ade2acaee2b61280ff17c46e238f8f9cfe4bb0c3b07f4f3d067851d5eec709",
+        "8e06fb87447718c7aa2c7654690337af04514aca3a0420cb1cb77849d5be2410",
     },
     {
       path: "./migrations/V007_report_document_file_asset_id_text.sql",
       checksum:
-        "01bad3ccced4ef07cbfa35bc2bd257465f1552c2ef65625e4212a58b2c378770",
+        "196420410c61cb2720aae5c51c226b605817be30d51e1ba84d016ec0fd08b39d",
+      unsafe: true,
     },
     {
       path: "./migrations/V008_driver_photo_hr_link.sql",
       checksum:
-        "14c2063d9083e6d7b4315df7505b532e49c6d0d02ffa2d581b658f08adc76614",
+        "ac48d3b53f8ca6cbd8c42e985d687b4cc02361638e503cd91848ca81d63fdd11",
+    },
+    {
+      path: "./migrations/V009_uuid_reference_columns.sql",
+      checksum:
+        "4b8e766dca372945a8704a137a1b97df2928bebc068c4d802a26b9f481756027",
+      unsafe: true,
+    },
+    {
+      path: "./migrations/V010_vehicle_financing_and_inhouse_workshop.sql",
+      checksum:
+        "098d279841919b5eae188c3aa8b5c53c107cde51d48b8dd09d9ed4210b632cac",
+    },
+    {
+      path: "./migrations/V011_report_inhouse_default_true.sql",
+      checksum:
+        "96197d8c747099810fbad96acb78ba52260a23744068f959c49a243d32e83ad8",
     },
   ],
   models: [

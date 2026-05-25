@@ -59,6 +59,46 @@ export default defineModel({
       type: 'textarea',
       label: 'Notas',
     },
+    {
+      name: 'is_financed',
+      type: 'boolean',
+      label: 'Financiado',
+      required: true,
+      default: false,
+    },
+    {
+      name: 'financing_institution',
+      type: 'text',
+      label: 'Financiera',
+      maxLength: 200,
+    },
+    {
+      name: 'financing_contract_number',
+      type: 'text',
+      label: 'Contrato de financiamiento',
+      maxLength: 120,
+    },
+    {
+      name: 'financing_start_date',
+      type: 'date',
+      label: 'Inicio de financiamiento',
+    },
+    {
+      name: 'financing_end_date',
+      type: 'date',
+      label: 'Fin de financiamiento',
+    },
+    {
+      name: 'financing_monthly_payment',
+      type: 'decimal',
+      label: 'Mensualidad',
+    },
+    {
+      name: 'financing_notes',
+      type: 'textarea',
+      label: 'Notas de financiamiento',
+      maxLength: 1000,
+    },
   ],
   indexes: [
     { fields: ['company_id', 'plate'], unique: true },

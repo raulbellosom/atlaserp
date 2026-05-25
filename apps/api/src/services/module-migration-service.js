@@ -25,11 +25,136 @@ function toMigrationFilename(model, checksum) {
 }
 
 function splitSqlStatements(sql) {
-  return sql
-    .split(';')
-    .map((statement) => statement.trim())
-    .filter(Boolean)
-    .map((statement) => `${statement};`)
+  const statements = []
+  let current = ''
+  let i = 0
+  let inSingleQuote = false
+  let inDoubleQuote = false
+  let inLineComment = false
+  let inBlockComment = false
+  let dollarTag = null
+
+  while (i < sql.length) {
+    const ch = sql[i]
+    const next = i + 1 < sql.length ? sql[i + 1] : ''
+
+    if (inLineComment) {
+      current += ch
+      if (ch === '\n') {
+        inLineComment = false
+      }
+      i += 1
+      continue
+    }
+
+    if (inBlockComment) {
+      current += ch
+      if (ch === '*' && next === '/') {
+        current += next
+        i += 2
+        inBlockComment = false
+        continue
+      }
+      i += 1
+      continue
+    }
+
+    if (dollarTag) {
+      if (sql.startsWith(dollarTag, i)) {
+        current += dollarTag
+        i += dollarTag.length
+        dollarTag = null
+        continue
+      }
+      current += ch
+      i += 1
+      continue
+    }
+
+    if (inSingleQuote) {
+      current += ch
+      if (ch === "'") {
+        if (next === "'") {
+          current += next
+          i += 2
+          continue
+        }
+        inSingleQuote = false
+      }
+      i += 1
+      continue
+    }
+
+    if (inDoubleQuote) {
+      current += ch
+      if (ch === '"') {
+        if (next === '"') {
+          current += next
+          i += 2
+          continue
+        }
+        inDoubleQuote = false
+      }
+      i += 1
+      continue
+    }
+
+    if (ch === '-' && next === '-') {
+      inLineComment = true
+      current += ch + next
+      i += 2
+      continue
+    }
+    if (ch === '/' && next === '*') {
+      inBlockComment = true
+      current += ch + next
+      i += 2
+      continue
+    }
+
+    if (ch === "'") {
+      inSingleQuote = true
+      current += ch
+      i += 1
+      continue
+    }
+    if (ch === '"') {
+      inDoubleQuote = true
+      current += ch
+      i += 1
+      continue
+    }
+
+    if (ch === '$') {
+      const match = sql.slice(i).match(/^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/)
+      if (match) {
+        dollarTag = match[0]
+        current += dollarTag
+        i += dollarTag.length
+        continue
+      }
+    }
+
+    if (ch === ';') {
+      const statement = current.trim()
+      if (statement) {
+        statements.push(`${statement};`)
+      }
+      current = ''
+      i += 1
+      continue
+    }
+
+    current += ch
+    i += 1
+  }
+
+  const tail = current.trim()
+  if (tail) {
+    statements.push(tail.endsWith(';') ? tail : `${tail};`)
+  }
+
+  return statements
 }
 
 export function createModuleMigrationService({ prisma }) {
@@ -78,7 +203,7 @@ export function createModuleMigrationService({ prisma }) {
     return plans
   }
 
-  async function applySqlMigration({ moduleKey, filename, sql: sqlInput }) {
+  async function applySqlMigration({ moduleKey, filename, sql: sqlInput, allowUnsafeSql = false }) {
     const safeModuleKey = toRequiredString(moduleKey, 'moduleKey')
     const safeFilename = toRequiredString(filename, 'filename')
     const sql = toRequiredString(sqlInput, 'sql')
@@ -100,7 +225,9 @@ export function createModuleMigrationService({ prisma }) {
 
       for (const statement of splitSqlStatements(sql)) {
         try {
-          assertSafeMigrationSql(statement)
+          if (!allowUnsafeSql) {
+            assertSafeMigrationSql(statement)
+          }
           await tx.$executeRawUnsafe(statement)
         } catch (err) {
           const wrapped = new Error(`SQL execution failed for '${safeFilename}': ${err.message}`)

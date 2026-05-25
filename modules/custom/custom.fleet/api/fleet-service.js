@@ -30,8 +30,21 @@ function normalizeEconomicNumberPart(value) {
   return withoutLeadingZeros.length > 0 ? withoutLeadingZeros : '0'
 }
 
+function normalizeOptionalBoolean(value) {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  return Boolean(value)
+}
+
+function normalizeOptionalNumber(value) {
+  if (value === undefined) return undefined
+  if (value === null || value === '') return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : value
+}
+
 function normalizeVehiclePayload(data = {}) {
-  return {
+  const normalized = {
     ...data,
     plate: data.plate === undefined ? undefined : String(data.plate).trim(),
     brand: data.brand === undefined ? undefined : String(data.brand).trim(),
@@ -41,7 +54,25 @@ function normalizeVehiclePayload(data = {}) {
     economic_group_number: normalizeEconomicNumberPart(data.economic_group_number),
     economic_individual_number: normalizeEconomicNumberPart(data.economic_individual_number),
     vehicle_model_id: normalizeOptionalString(data.vehicle_model_id),
+    is_financed: normalizeOptionalBoolean(data.is_financed),
+    financing_institution: normalizeOptionalString(data.financing_institution),
+    financing_contract_number: normalizeOptionalString(data.financing_contract_number),
+    financing_start_date: normalizeOptionalString(data.financing_start_date),
+    financing_end_date: normalizeOptionalString(data.financing_end_date),
+    financing_monthly_payment: normalizeOptionalNumber(data.financing_monthly_payment),
+    financing_notes: normalizeOptionalString(data.financing_notes),
   }
+
+  if (normalized.is_financed === false) {
+    normalized.financing_institution = null
+    normalized.financing_contract_number = null
+    normalized.financing_start_date = null
+    normalized.financing_end_date = null
+    normalized.financing_monthly_payment = null
+    normalized.financing_notes = null
+  }
+
+  return normalized
 }
 
 function ensureCompanyId(companyId) {
@@ -355,7 +386,14 @@ export function createFleetService({ prisma }) {
             economic_individual_number,
             vehicle_type_id,
             vehicle_brand_id,
-            vehicle_model_id
+            vehicle_model_id,
+            is_financed,
+            financing_institution,
+            financing_contract_number,
+            financing_start_date,
+            financing_end_date,
+            financing_monthly_payment,
+            financing_notes
           )
           VALUES (
             ${safeCompanyId},
@@ -371,7 +409,14 @@ export function createFleetService({ prisma }) {
             ${payload.economic_individual_number ?? null},
             ${payload.vehicle_type_id ?? null},
             ${payload.vehicle_brand_id ?? null},
-            ${payload.vehicle_model_id ?? null}
+            ${payload.vehicle_model_id ?? null},
+            ${payload.is_financed ?? false},
+            ${payload.financing_institution ?? null},
+            ${payload.financing_contract_number ?? null},
+            ${payload.financing_start_date ?? null},
+            ${payload.financing_end_date ?? null},
+            ${payload.financing_monthly_payment ?? null},
+            ${payload.financing_notes ?? null}
           )
           RETURNING *
         `
@@ -414,10 +459,19 @@ export function createFleetService({ prisma }) {
     const hasVehicleTypeId = hasOwn(payload, 'vehicle_type_id') && payload.vehicle_type_id !== undefined
     const hasVehicleBrandId = hasOwn(payload, 'vehicle_brand_id') && payload.vehicle_brand_id !== undefined
     const hasVehicleModelId = hasOwn(payload, 'vehicle_model_id') && payload.vehicle_model_id !== undefined
+    const hasIsFinanced = hasOwn(payload, 'is_financed') && payload.is_financed !== undefined
+    const hasFinancingInstitution = hasOwn(payload, 'financing_institution') && payload.financing_institution !== undefined
+    const hasFinancingContractNumber = hasOwn(payload, 'financing_contract_number') && payload.financing_contract_number !== undefined
+    const hasFinancingStartDate = hasOwn(payload, 'financing_start_date') && payload.financing_start_date !== undefined
+    const hasFinancingEndDate = hasOwn(payload, 'financing_end_date') && payload.financing_end_date !== undefined
+    const hasFinancingMonthlyPayment = hasOwn(payload, 'financing_monthly_payment') && payload.financing_monthly_payment !== undefined
+    const hasFinancingNotes = hasOwn(payload, 'financing_notes') && payload.financing_notes !== undefined
 
     const hasAnyUpdate =
       hasPlate || hasBrand || hasModelName || hasYear || hasStatus || hasColor || hasDriverId || hasNotes ||
-      hasEconomicGroupNumber || hasEconomicIndividualNumber || hasVehicleTypeId || hasVehicleBrandId || hasVehicleModelId
+      hasEconomicGroupNumber || hasEconomicIndividualNumber || hasVehicleTypeId || hasVehicleBrandId || hasVehicleModelId ||
+      hasIsFinanced || hasFinancingInstitution || hasFinancingContractNumber || hasFinancingStartDate ||
+      hasFinancingEndDate || hasFinancingMonthlyPayment || hasFinancingNotes
 
     if (!hasAnyUpdate) {
       throw new FleetServiceError('No hay campos validos para actualizar.', 400)
@@ -442,6 +496,13 @@ export function createFleetService({ prisma }) {
               vehicle_type_id = CASE WHEN ${hasVehicleTypeId} THEN ${payload.vehicle_type_id ?? null} ELSE vehicle_type_id END,
               vehicle_brand_id = CASE WHEN ${hasVehicleBrandId} THEN ${payload.vehicle_brand_id ?? null} ELSE vehicle_brand_id END,
               vehicle_model_id = CASE WHEN ${hasVehicleModelId} THEN ${payload.vehicle_model_id ?? null} ELSE vehicle_model_id END,
+              is_financed = CASE WHEN ${hasIsFinanced} THEN ${payload.is_financed ?? false} ELSE is_financed END,
+              financing_institution = CASE WHEN ${hasFinancingInstitution} THEN ${payload.financing_institution ?? null} ELSE financing_institution END,
+              financing_contract_number = CASE WHEN ${hasFinancingContractNumber} THEN ${payload.financing_contract_number ?? null} ELSE financing_contract_number END,
+              financing_start_date = CASE WHEN ${hasFinancingStartDate} THEN ${payload.financing_start_date ?? null} ELSE financing_start_date END,
+              financing_end_date = CASE WHEN ${hasFinancingEndDate} THEN ${payload.financing_end_date ?? null} ELSE financing_end_date END,
+              financing_monthly_payment = CASE WHEN ${hasFinancingMonthlyPayment} THEN ${payload.financing_monthly_payment ?? null} ELSE financing_monthly_payment END,
+              financing_notes = CASE WHEN ${hasFinancingNotes} THEN ${payload.financing_notes ?? null} ELSE financing_notes END,
               updated_at = now()
           WHERE id = ${safeId}
             AND company_id = ${safeCompanyId}
@@ -562,5 +623,4 @@ export function createFleetService({ prisma }) {
     generateVehiclePdf,
   }
 }
-
 

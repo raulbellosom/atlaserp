@@ -18,6 +18,7 @@ export default defineView({
           { field: "status", label: "Estado", icon: "Activity" },
           { field: "report_date", label: "Fecha", type: "date", icon: "CalendarDays" },
           { field: "odometer_km", label: "Kilometraje", icon: "Hash", type: "number" },
+          { field: "is_inhouse_workshop", label: "Taller propio", type: "boolean", icon: "Building2" },
           { field: "repair_priority", label: "Prioridad", icon: "Tag", type: "select", options: [
             { label: "Baja", value: "low" },
             { label: "Normal", value: "normal" },
@@ -126,4 +127,3 @@ export default defineView({
     actions: [{ label: "Editar", permission: "fleet.reports.update" }], 
   },
 });
-

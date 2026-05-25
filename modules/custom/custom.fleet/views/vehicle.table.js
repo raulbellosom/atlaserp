@@ -34,6 +34,7 @@ export default defineView({
         sortable: true,
         component: "custom.fleet:VehicleStatusBadge",
       },
+      { field: "is_financed", label: "Financiado", sortable: true, type: "boolean" },
       { field: "full_economic_number", label: "No. Economico", sortable: false },
       { field: "vehicle_type_name", label: "Tipo", sortable: false },
       {

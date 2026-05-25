@@ -30,6 +30,19 @@ export default defineView({
         ],
       },
       {
+        label: 'Financiamiento',
+        columns: 2,
+        fields: [
+          { field: 'is_financed', label: 'Vehiculo financiado', type: 'boolean', icon: 'Landmark' },
+          { field: 'financing_institution', label: 'Financiera', icon: 'Building2' },
+          { field: 'financing_contract_number', label: 'No. contrato', icon: 'Hash' },
+          { field: 'financing_start_date', label: 'Inicio', type: 'date', icon: 'CalendarDays' },
+          { field: 'financing_end_date', label: 'Termino', type: 'date', icon: 'CalendarDays' },
+          { field: 'financing_monthly_payment', label: 'Mensualidad', type: 'currency', icon: 'Tag' },
+          { field: 'financing_notes', label: 'Notas', icon: 'FileText' },
+        ],
+      },
+      {
         id: 'assigned_driver',
         type: 'relation-card',
         label: 'Conductor asignado',

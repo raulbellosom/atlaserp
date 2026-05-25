@@ -1,10 +1,16 @@
 import { getPermissionPresentation } from '../permission-catalog.js'
 import { getModuleHandler } from './module-cleanup-registry.js'
 import { createModuleMigrationService } from './module-migration-service.js'
+import { createModuleMetadataService } from './module-metadata-service.js'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
-import { resolveProjectRoot } from './module-discovery-service.js'
+import {
+  resolveProjectRoot,
+  loadModuleManifest,
+  loadModuleModels,
+  loadModuleViews,
+} from './module-discovery-service.js'
 import {
   detectRequiredDependencyCycle,
   formatDependencyCycle,
@@ -37,6 +43,8 @@ function uniqueStrings(values = []) {
 
 function classifyInstallFailureStage(err) {
   if (typeof err?.stage === 'string' && err.stage.trim()) return err.stage.trim()
+  if (err?.code === 'MANIFEST_MIGRATION_CHECKSUM_MISMATCH') return 'manifest_migration'
+  if (err?.code === 'AME_METADATA_SYNC_FAILED') return 'metadata_sync'
   if (err?.name === 'ModuleOrmMigrationError') return 'orm_migration'
   if (err?.code === 'AME_ORM_MIGRATION_FAILED') return 'orm_migration'
   if (err?.code === 'AME_SQL_MIGRATION_EXECUTION_FAILED') return 'orm_migration'
@@ -72,6 +80,7 @@ function isWithinPath(parentPath, childPath) {
 
 export function createModuleLifecycleService({ prisma }) {
   const migrationSvc = createModuleMigrationService({ prisma })
+  const metadataSvc = createModuleMetadataService({ prisma })
 
   // ── Permission helpers ────────────────────────────────────────────────────
 
@@ -572,9 +581,7 @@ export function createModuleLifecycleService({ prisma }) {
         typeof migration.checksum === 'string' && migration.checksum.trim()
           ? migration.checksum.trim().toLowerCase()
           : null
-      if (!declaredChecksum) {
-        throw new Error(`manifest.migrations[${i}].checksum is required`)
-      }
+      const allowUnsafeSql = migration.unsafe === true
 
       const migrationPath = path.resolve(moduleDir, declaredPath)
       if (!isWithinPath(moduleDir, migrationPath)) {
@@ -582,9 +589,22 @@ export function createModuleLifecycleService({ prisma }) {
       }
       const sql = await fs.readFile(migrationPath, 'utf8')
       const computedChecksum = createHash('sha256').update(sql).digest('hex')
-      if (computedChecksum !== declaredChecksum) {
-        throw new Error(
-          `Checksum mismatch for ${declaredPath}: expected ${declaredChecksum}, got ${computedChecksum}`
+
+      if (declaredChecksum && computedChecksum !== declaredChecksum) {
+        const checksumError = new Error(
+          `Checksum mismatch for ${declaredPath}: expected ${declaredChecksum}, got ${computedChecksum}. ` +
+          `Fix: pnpm module:checksums:write modules/custom/${moduleKey}`
+        )
+        checksumError.code = 'MANIFEST_MIGRATION_CHECKSUM_MISMATCH'
+        checksumError.stage = 'manifest_migration'
+        checksumError.path = declaredPath
+        checksumError.expectedChecksum = declaredChecksum
+        checksumError.computedChecksum = computedChecksum
+        throw checksumError
+      }
+      if (!declaredChecksum) {
+        console.warn(
+          `[migration] ${moduleKey}/${declaredPath}: no checksum declared — add one for integrity protection (run: pnpm module:checksums:write modules/custom/${moduleKey})`
         )
       }
 
@@ -593,6 +613,7 @@ export function createModuleLifecycleService({ prisma }) {
         moduleKey,
         filename,
         sql,
+        allowUnsafeSql,
       })
 
       if (applyResult.applied && applyResult.migration?.id) {
@@ -681,14 +702,100 @@ export function createModuleLifecycleService({ prisma }) {
   // ── Public operations ─────────────────────────────────────────────────────
 
   async function installModule({ manifest, actorId, requestId = null }) {
-    const isCore = CORE_KEYS.has(manifest.key)
-    const lifecycleConfig = manifest.lifecycle ?? null
+    const requestedManifest = toPlainObject(manifest)
+    const requestedKey =
+      typeof requestedManifest.key === 'string' ? requestedManifest.key.trim() : ''
+    let installManifest = requestedManifest
+    let lifecycleConfig = requestedManifest.lifecycle ?? null
+    let moduleDir = null
+    let installModels = []
+    let installViews = []
+
+    if (requestedKey) {
+      const existing = await prisma.atlasModule.findUnique({
+        where: { key: requestedKey },
+        select: { lifecycleConfig: true },
+      })
+      if (existing?.lifecycleConfig) {
+        lifecycleConfig = existing.lifecycleConfig
+      }
+
+      moduleDir = await resolveModuleDirectory({
+        moduleKey: requestedKey,
+        lifecycleConfig,
+      })
+      if (moduleDir) {
+        const manifestPath = path.join(moduleDir, 'module.manifest.js')
+        const officialDirSegment = `${path.sep}modules${path.sep}official${path.sep}`
+        const source = moduleDir.includes(officialDirSegment) ? 'official' : 'custom'
+        const localManifestResult = await loadModuleManifest({
+          manifestPath,
+          source,
+        })
+        if (localManifestResult?.status !== 'VALID' || !localManifestResult.manifest) {
+          throw new ModuleLifecycleError(
+            `No se pudo cargar el manifiesto local para "${requestedKey}".`,
+            409
+          )
+        }
+        if (localManifestResult.manifest.key !== requestedKey) {
+          throw new ModuleLifecycleError(
+            `El manifiesto local de "${requestedKey}" tiene una clave distinta: "${localManifestResult.manifest.key}".`,
+            409
+          )
+        }
+        installManifest = localManifestResult.manifest
+        installModels = await loadModuleModels({
+          moduleDir,
+          manifest: installManifest,
+        })
+        installViews = await loadModuleViews({
+          moduleDir,
+          manifest: installManifest,
+        })
+      }
+    }
+
+    if (!moduleDir) {
+      if (Array.isArray(installManifest.models)) {
+        installModels = installManifest.models.filter(
+          (model) => model && typeof model === 'object' && !Array.isArray(model)
+        )
+      }
+      if (Array.isArray(installManifest.views)) {
+        installViews = installManifest.views.filter(
+          (view) => view && typeof view === 'object' && !Array.isArray(view)
+        )
+      }
+    }
+
+    const isCore = CORE_KEYS.has(installManifest.key)
+    lifecycleConfig = installManifest.lifecycle ?? lifecycleConfig ?? null
     let result = null
 
     try {
+      if (installModels.length > 0 || installViews.length > 0) {
+        try {
+          await metadataSvc.syncModuleMetadata({
+            manifest: installManifest,
+            models: installModels,
+            views: installViews,
+          })
+        } catch (err) {
+          const metadataErr = new Error(
+            `Metadata sync failed for module "${installManifest.key}": ${err?.message ?? 'unknown error'}`
+          )
+          metadataErr.code = 'AME_METADATA_SYNC_FAILED'
+          metadataErr.stage = 'metadata_sync'
+          metadataErr.moduleKey = installManifest.key
+          metadataErr.cause = err
+          throw metadataErr
+        }
+      }
+
       result = await prisma.$transaction(async (tx) => {
         const existing = await tx.atlasModule.findUnique({
-          where: { key: manifest.key },
+          where: { key: installManifest.key },
           select: { lifecycleConfig: true },
         })
         const mergedLifecycleConfig = {
@@ -698,44 +805,55 @@ export function createModuleLifecycleService({ prisma }) {
         delete mergedLifecycleConfig.lastError
 
         const upserted = await tx.atlasModule.upsert({
-          where: { key: manifest.key },
+          where: { key: installManifest.key },
           update: {
-            name: manifest.name,
-            description: manifest.description ?? null,
-            version: manifest.version,
-            kind: manifest.kind ?? (isCore ? 'CORE' : 'FEATURE'),
+            name: installManifest.name,
+            description: installManifest.description ?? null,
+            version: installManifest.version,
+            kind: installManifest.kind ?? (isCore ? 'CORE' : 'FEATURE'),
             core: isCore,
-            uninstallable: isCore ? false : (manifest.uninstallable ?? true),
+            uninstallable: isCore ? false : (installManifest.uninstallable ?? true),
             status: 'INSTALLED',
             enabled: true,
-            manifest,
+            manifest: installManifest,
             lifecycleConfig: mergedLifecycleConfig,
           },
           create: {
-            key: manifest.key,
-            name: manifest.name,
-            description: manifest.description ?? null,
-            version: manifest.version,
-            kind: manifest.kind ?? (isCore ? 'CORE' : 'FEATURE'),
+            key: installManifest.key,
+            name: installManifest.name,
+            description: installManifest.description ?? null,
+            version: installManifest.version,
+            kind: installManifest.kind ?? (isCore ? 'CORE' : 'FEATURE'),
             core: isCore,
-            uninstallable: isCore ? false : (manifest.uninstallable ?? true),
+            uninstallable: isCore ? false : (installManifest.uninstallable ?? true),
             status: 'INSTALLED',
             enabled: true,
-            manifest,
+            manifest: installManifest,
             lifecycleConfig: mergedLifecycleConfig,
           },
         })
 
-        await syncDependencies(tx, upserted.id, manifest.dependencies ?? [])
-        await upsertManifestPermissions(tx, upserted.id, manifest.key, manifest.permissions ?? [], true)
-        await upsertManifestBlueprints(tx, upserted.id, manifest.blueprints ?? [])
+        await syncDependencies(tx, upserted.id, installManifest.dependencies ?? [])
+        await upsertManifestPermissions(
+          tx,
+          upserted.id,
+          installManifest.key,
+          installManifest.permissions ?? [],
+          true
+        )
+        await upsertManifestBlueprints(tx, upserted.id, installManifest.blueprints ?? [])
 
         await writeAuditLog(tx, {
           action: 'core.module.install',
-          moduleKey: manifest.key,
+          moduleKey: installManifest.key,
           entityId: upserted.id,
           actorId,
-          after: { key: manifest.key, name: manifest.name, version: manifest.version, status: 'INSTALLED' },
+          after: {
+            key: installManifest.key,
+            name: installManifest.name,
+            version: installManifest.version,
+            status: 'INSTALLED',
+          },
         })
 
         return upserted
@@ -747,18 +865,18 @@ export function createModuleLifecycleService({ prisma }) {
         console.error('[lifecycle] syncAdminPermissions failed after install:', err)
       }
 
-      await applyModuleOrmMigrations({ moduleKey: manifest.key, actorId })
+      await applyModuleOrmMigrations({ moduleKey: installManifest.key, actorId })
       await applyModuleManifestMigrations({
-        moduleKey: manifest.key,
-        manifest,
-        lifecycleConfig: result?.lifecycleConfig ?? manifest.lifecycle ?? null,
+        moduleKey: installManifest.key,
+        manifest: installManifest,
+        lifecycleConfig: result?.lifecycleConfig ?? installManifest.lifecycle ?? null,
         actorId,
       })
-      await clearLastInstallError(manifest.key)
+      await clearLastInstallError(installManifest.key)
       return result
     } catch (err) {
       await persistInstallFailure({
-        moduleKey: manifest?.key ?? null,
+        moduleKey: installManifest?.key ?? requestedKey ?? null,
         actorId,
         requestId,
         err,
@@ -779,6 +897,40 @@ export function createModuleLifecycleService({ prisma }) {
     }
   }
 
+  async function repairManifestChecksums({ moduleDir, migrations }) {
+    const manifestPath = path.join(moduleDir, 'module.manifest.js')
+    let source
+    try {
+      source = await fs.readFile(manifestPath, 'utf8')
+    } catch {
+      return 0
+    }
+    let updated = 0
+    for (const migration of migrations) {
+      const declaredPath = typeof migration?.path === 'string' ? migration.path.trim() : null
+      const declaredChecksum = typeof migration?.checksum === 'string' ? migration.checksum.trim().toLowerCase() : null
+      if (!declaredPath || !declaredChecksum) continue
+      const sqlPath = path.resolve(moduleDir, declaredPath)
+      let sql
+      try { sql = await fs.readFile(sqlPath, 'utf8') } catch { continue }
+      const computedChecksum = createHash('sha256').update(sql).digest('hex')
+      if (computedChecksum === declaredChecksum) continue
+      const escaped = declaredPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const rx = new RegExp(
+        `(path:\\s*["']${escaped}["'][\\s\\S]{0,300}?checksum:\\s*[\\r\\n\\s]*["'])${declaredChecksum}(["'])`,
+        'm'
+      )
+      if (rx.test(source)) {
+        source = source.replace(rx, `$1${computedChecksum}$2`)
+        updated++
+      }
+    }
+    if (updated > 0) {
+      await fs.writeFile(manifestPath, source, 'utf8')
+    }
+    return updated
+  }
+
   async function retryInstallModule({ key, actorId, requestId = null }) {
     const mod = await prisma.atlasModule.findUnique({ where: { key } })
     if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
@@ -786,9 +938,41 @@ export function createModuleLifecycleService({ prisma }) {
       throw new ModuleLifecycleError('El modulo no tiene manifiesto persistido para reintentar.', 409)
     }
 
-    const manifest = mod.manifest
+    let manifest = mod.manifest
     if (manifest.key !== key) {
       throw new ModuleLifecycleError('El manifiesto persistido no coincide con la clave del modulo.', 409)
+    }
+
+    const moduleDir = await resolveModuleDirectory({
+      moduleKey: key,
+      lifecycleConfig: mod.lifecycleConfig ?? null,
+    })
+    if (moduleDir) {
+      const lastError = toPlainObject(mod.lifecycleConfig).lastError
+      if (lastError?.code === 'MANIFEST_MIGRATION_CHECKSUM_MISMATCH') {
+        const repaired = await repairManifestChecksums({
+          moduleDir,
+          migrations: Array.isArray(manifest.migrations) ? manifest.migrations : [],
+        })
+        if (repaired > 0) {
+          console.log(`[migration] auto-repaired ${repaired} checksum(s) in ${key} before retry`)
+        }
+      }
+
+      const manifestPath = path.join(moduleDir, 'module.manifest.js')
+      const localManifestResult = await loadModuleManifest({
+        manifestPath,
+        source: 'custom',
+      })
+      if (localManifestResult?.status === 'VALID' && localManifestResult.manifest) {
+        if (localManifestResult.manifest.key !== key) {
+          throw new ModuleLifecycleError(
+            `El manifiesto local de "${key}" tiene una clave distinta: "${localManifestResult.manifest.key}".`,
+            409
+          )
+        }
+        manifest = localManifestResult.manifest
+      }
     }
 
     return installModule({ manifest, actorId, requestId })

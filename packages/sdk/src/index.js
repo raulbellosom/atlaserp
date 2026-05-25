@@ -171,10 +171,13 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
           body: JSON.stringify({ manifest }),
         }),
-      sync: (token) =>
+      sync: (token, options = null) =>
         request('/modules/sync', {
           method: 'POST',
           headers: withAuthHeaders(token),
+          ...(options && typeof options === 'object'
+            ? { body: JSON.stringify(options) }
+            : {}),
         }),
       getLifecycle: (key, token) =>
         request(`/modules/${encodeURIComponent(key)}/lifecycle`, {

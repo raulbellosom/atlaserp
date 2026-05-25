@@ -485,6 +485,7 @@ export async function loadModuleMigrations({ moduleDir, manifest }) {
     })
     const filename = path.basename(filePath)
     const checksum = toRequiredString(entry.checksum, `manifest.migrations[${i}].checksum`).toLowerCase()
+    const unsafe = entry.unsafe === true
     const sql = await fs.readFile(filePath, 'utf8')
     if (!sql.trim()) {
       throw new Error(`Migration file is empty: ${declaredPath}`)
@@ -507,6 +508,7 @@ export async function loadModuleMigrations({ moduleDir, manifest }) {
       absolutePath: filePath,
       filename,
       checksum,
+      unsafe,
       sql,
     })
   }

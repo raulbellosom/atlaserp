@@ -133,7 +133,11 @@ export function buildInitialValues(fieldMap, initialData) {
   for (const field of fieldMap.values()) {
     const currentValue = initialData?.[field.name];
     if (currentValue === undefined || currentValue === null) {
-      values[field.name] = field.type === "boolean" ? false : "";
+      if (field.default !== undefined) {
+        values[field.name] = field.default;
+      } else {
+        values[field.name] = field.type === "boolean" ? false : "";
+      }
     } else if (field.type === "date" && typeof currentValue === "string" && currentValue.includes("T")) {
       values[field.name] = currentValue.slice(0, 10);
     } else {

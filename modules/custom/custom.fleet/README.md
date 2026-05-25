@@ -5,7 +5,7 @@ Atlas Module Engine v3 custom module used as the full end-to-end reference for e
 Module key: `custom.fleet`  
 Kind: `FEATURE`  
 Status: `GA` (functional + verified)  
-Manifest version: `0.3.0`
+Manifest version: `0.4.0`
 
 ## Scope
 
@@ -37,10 +37,17 @@ Manifest version: `0.3.0`
 
 ## Manifest migrations
 
-The module declares additive SQL migrations under `manifest.migrations` with SHA-256 checksums:
+The module declares SQL migrations under `manifest.migrations` with SHA-256 checksums:
 
+- `./migrations/V002_vehicle_expansion.sql`
+- `./migrations/V003_maintenance_expansion.sql`
 - `./migrations/V004_vehicle_model.sql`
+- `./migrations/V004b_vehicle_legacy_columns_nullable.sql` (`unsafe: true`)
 - `./migrations/V005_vehicle_type_economic_group_number.sql`
+- `./migrations/V006_report_tables.sql`
+- `./migrations/V007_report_document_file_asset_id_text.sql` (`unsafe: true`)
+- `./migrations/V008_driver_photo_hr_link.sql`
+- `./migrations/V009_uuid_reference_columns.sql` (`unsafe: true`)
 
 These are applied through AME3 module migration ledger (`ModuleMigration`) and are checksum-validated before execution.
 

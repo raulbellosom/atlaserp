@@ -56,6 +56,40 @@ const _relationOptionsCache = new Map();
 const MAIN_SECTION_TYPES = new Set(["fields", "parts", "attachments"]);
 const _RELATION_CACHE_TTL = 5 * 60 * 1000;
 
+function matchesFieldRule(rule, formValues) {
+  if (!rule || typeof rule !== "object") return true;
+  const fieldName = String(rule.field ?? "").trim();
+  if (!fieldName) return true;
+  const value = formValues?.[fieldName];
+  if (Object.prototype.hasOwnProperty.call(rule, "equals")) {
+    return value === rule.equals;
+  }
+  if (Object.prototype.hasOwnProperty.call(rule, "notEquals")) {
+    return value !== rule.notEquals;
+  }
+  if (Array.isArray(rule.in)) {
+    return rule.in.includes(value);
+  }
+  if (Array.isArray(rule.notIn)) {
+    return !rule.notIn.includes(value);
+  }
+  if (Object.prototype.hasOwnProperty.call(rule, "truthy")) {
+    return Boolean(value) === Boolean(rule.truthy);
+  }
+  return true;
+}
+
+function isFieldVisible(field, formValues) {
+  if (!field) return false;
+  if (field.visibleWhen && !matchesFieldRule(field.visibleWhen, formValues)) {
+    return false;
+  }
+  if (field.hiddenWhen && matchesFieldRule(field.hiddenWhen, formValues)) {
+    return false;
+  }
+  return true;
+}
+
 function buildResetInitialDataToken(initialData, mode) {
   const safeData =
     initialData && typeof initialData === "object" ? initialData : {};
@@ -156,6 +190,13 @@ export function AtlasForm({
     searchText: "",
   });
   const [nestedBlueprintRows, setNestedBlueprintRows] = useState(null);
+  // Stable fields array for the nested inline-create form. Recomputed only when the
+  // blueprint changes, not on every outer render.
+  const nestedBlueprintFields = useMemo(
+    () => extractFieldsFromBlueprint(inlineCreateState.blueprint),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [inlineCreateState.blueprint],
+  );
   const [collapsedSections, setCollapsedSections] = useState(() => {
     const next = {};
     for (const section of sections) {
@@ -167,6 +208,14 @@ export function AtlasForm({
   const attachmentsControllersRef = useRef(new Map());
   const relationDebounceRef = useRef({});
   const formValuesRef = useRef(formValues);
+  const fieldMapRef = useRef(fieldMap);
+  const initialDataRef = useRef(initialData);
+  const sectionsRef = useRef(sections);
+
+  // Keep refs current on every render so the reset effect always reads latest values
+  fieldMapRef.current = fieldMap;
+  initialDataRef.current = initialData;
+  sectionsRef.current = sections;
 
   useEffect(() => {
     formValuesRef.current = formValues;
@@ -302,22 +351,34 @@ export function AtlasForm({
     [apiBaseUrl, token],
   );
 
+  // Reset form state when the form structure or initial data actually changes.
+  // Uses string tokens (not object refs) so reference-equal but structurally identical
+  // re-renders (e.g. outer form re-rendering and producing a new fields array) do not
+  // spuriously clear user input in a nested inline-create form.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    setFormValues(buildInitialValues(fieldMap, initialData));
-    setReportParts(normalizeReportParts(initialData?.parts));
+    const fm = fieldMapRef.current;
+    const id = initialDataRef.current;
+    const sc = sectionsRef.current;
+    setFormValues(buildInitialValues(fm, id));
+    setReportParts(normalizeReportParts(id?.parts));
     setFieldErrors({});
     setRelationInlineErrors({});
     setSubmitError("");
-    setResolvedRecordId(resolveRecordId(initialData));
+    setResolvedRecordId(resolveRecordId(id));
     setCollapsedSections(() => {
       const next = {};
-      for (const section of sections) {
+      for (const section of sc) {
         if (!section?.collapsible) continue;
         next[section.id] = Boolean(section.defaultCollapsed);
       }
       return next;
     });
-  }, [fieldMap, initialData, sections, formStructureToken, resetInitialDataToken]);
+  // Only re-run when the form structure or initial data meaningfully changes.
+  // formStructureToken encodes blueprint key + field names + section layout.
+  // resetInitialDataToken encodes the initial data payload.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formStructureToken, resetInitialDataToken]);
 
   useEffect(() => {
     const partsCost = computePartsCost(reportParts);
@@ -403,7 +464,7 @@ export function AtlasForm({
   };
 
   const handlePartsChange = useCallback((nextParts) => {
-    setReportParts(normalizeReportParts(nextParts));
+    setReportParts(Array.isArray(nextParts) ? nextParts : []);
     setFieldErrors((prev) => ({ ...prev, parts: "" }));
   }, []);
 
@@ -654,6 +715,7 @@ export function AtlasForm({
       if (section.type !== "fields") continue;
       for (const fieldName of section.fields) {
         const field = fieldMap.get(fieldName);
+        if (!isFieldVisible(field, formValues)) continue;
         if (!field || !field.required || field.readonly) continue;
         if (field.type === "boolean") continue;
         const value = formValues[fieldName];
@@ -678,6 +740,7 @@ export function AtlasForm({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    event.stopPropagation();
     setSubmitError("");
     if (!validate()) return;
     if (isEditMode && !recordId) {
@@ -687,6 +750,7 @@ export function AtlasForm({
     const payload = {};
     for (const [name, field] of fieldMap.entries()) {
       if (field.readonly) continue;
+      if (!isFieldVisible(field, formValues)) continue;
       const casted = castValueByType(formValues[name], field.type);
       if (field.type === "boolean") {
         payload[name] = Boolean(casted);
@@ -700,7 +764,7 @@ export function AtlasForm({
       payload[name] = casted;
     }
     if (sections.some((section) => section.type === "parts")) {
-      payload.parts = reportParts;
+      payload.parts = normalizeReportParts(reportParts);
     }
     setSubmitting(true);
     try {
@@ -1105,7 +1169,7 @@ export function AtlasForm({
         >
           {section.fields.map((fieldName) => {
             const field = fieldMap.get(fieldName);
-            if (!field) return null;
+            if (!field || !isFieldVisible(field, formValues)) return null;
             const isFullWidth = ["textarea", "markdown"].includes(field.type);
             return (
               <div
@@ -1203,9 +1267,7 @@ export function AtlasForm({
               <div className="max-h-[70dvh] overflow-y-auto pr-1">
                 <AtlasForm
                   blueprint={inlineCreateState.blueprint}
-                  fields={extractFieldsFromBlueprint(
-                    inlineCreateState.blueprint,
-                  )}
+                  fields={nestedBlueprintFields}
                   initialData={inlineCreateState.prefillData}
                   mode="create"
                   token={token}

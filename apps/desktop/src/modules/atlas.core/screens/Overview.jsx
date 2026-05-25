@@ -15,13 +15,13 @@ import {
   ChevronRight,
   AlertTriangle,
   ArrowUpRight,
-  CheckCircle2,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useRuntimeModules } from "../../../app/useRuntimeModules";
+import { ModuleIcon } from "../../../components/ModuleCard";
 import { atlas } from "../../../lib/atlas";
 import {
   getModuleLaunchPath,
@@ -49,6 +49,58 @@ const STATUS_LABEL = {
   ERROR: "Error",
 };
 
+const ERROR_STAGE_LABEL = {
+  validation: "Validación",
+  dependency_sync: "Dependencias",
+  orm_migration: "Migración ORM",
+  manifest_migration: "Migración manifiesto",
+  install: "Instalación",
+  route_loader: "Carga de rutas",
+  unknown: "Desconocido",
+};
+
+function summarizeModuleIssue(mod) {
+  if (mod.compatibilityStatus === "BLOCKED") {
+    const missing = (mod.compatibilityBlocking ?? [])
+      .map((dep) => dep.name || dep.key)
+      .filter(Boolean);
+    if (missing.length > 0) {
+      return `Dependencias pendientes: ${missing.join(", ")}.`;
+    }
+    return "Dependencias requeridas no disponibles.";
+  }
+
+  if (mod.status === "DISABLED") {
+    return "El módulo está deshabilitado.";
+  }
+
+  if (mod.status !== "ERROR") {
+    return null;
+  }
+
+  const lastError = mod.lastError ?? mod.lifecycleConfig?.lastError ?? null;
+  if (!lastError) {
+    return "Se detectó un error de instalación o carga.";
+  }
+
+  const message = String(lastError.message ?? "").trim();
+  if (!message) {
+    return "Se detectó un error de instalación o carga.";
+  }
+
+  const checksumMatch = message.match(/Checksum mismatch for\s+([^:]+):/i);
+  if (checksumMatch?.[1]) {
+    return `Checksum de migración inválido en ${checksumMatch[1]}.`;
+  }
+
+  const migrationFileMatch = message.match(/SQL execution failed for '([^']+)'/i);
+  if (migrationFileMatch?.[1]) {
+    return `Falló la ejecución de la migración ${migrationFileMatch[1]}.`;
+  }
+
+  return message.length > 180 ? `${message.slice(0, 180)}...` : message;
+}
+
 export default function Overview() {
   const { userProfile, session } = useAuth();
   const token = session?.access_token;
@@ -70,10 +122,16 @@ export default function Overview() {
 
   const [confirm, setConfirm] = useState(null);
 
+  const dashboardModules = useMemo(
+    () => runtimeModules.filter((m) => isModuleAvailable(m)),
+    [runtimeModules],
+  );
+
   const enableMod = useMutation({
     mutationFn: (key) => atlas.modules.enable(key, token),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["modules"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["modules"] });
+      await queryClient.invalidateQueries({ queryKey: ["runtime-modules"] });
       toast.success("Módulo habilitado");
     },
     onError: () => toast.error("No se pudo habilitar el módulo"),
@@ -81,8 +139,9 @@ export default function Overview() {
 
   const disableMod = useMutation({
     mutationFn: (key) => atlas.modules.disable(key, token),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["modules"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["modules"] });
+      await queryClient.invalidateQueries({ queryKey: ["runtime-modules"] });
       toast.success("Módulo deshabilitado");
     },
     onError: () => toast.error("No se pudo deshabilitar el módulo"),
@@ -90,8 +149,9 @@ export default function Overview() {
 
   const uninstallMod = useMutation({
     mutationFn: (key) => atlas.modules.uninstall(key, token),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["modules"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["modules"] });
+      await queryClient.invalidateQueries({ queryKey: ["runtime-modules"] });
       setConfirm(null);
       toast.success("Módulo desinstalado");
     },
@@ -99,12 +159,7 @@ export default function Overview() {
   });
 
   // Stats
-  const installedCount = useMemo(
-    () =>
-      runtimeModules.filter((m) => m.status === "INSTALLED" && m.enabled)
-        .length,
-    [runtimeModules],
-  );
+  const installedCount = dashboardModules.length;
   const disabledCount = useMemo(
     () => runtimeModules.filter((m) => m.status === "DISABLED").length,
     [runtimeModules],
@@ -116,25 +171,33 @@ export default function Overview() {
   // Modules that need attention
   const problemModules = useMemo(
     () =>
-      runtimeModules.filter(
-        (m) =>
-          m.status === "DISABLED" ||
-          m.status === "ERROR" ||
-          m.compatibilityStatus === "BLOCKED",
-      ),
-    [runtimeModules],
+      dashboardModules.filter((m) => m.compatibilityStatus === "BLOCKED"),
+    [dashboardModules],
+  );
+
+  const problemModulesDetailed = useMemo(
+    () =>
+      problemModules.map((mod) => {
+        const stage =
+          mod.lastError?.stage ??
+          mod.lifecycleConfig?.lastError?.stage ??
+          null;
+        return {
+          ...mod,
+          issueSummary: summarizeModuleIssue(mod),
+          stageLabel: stage ? ERROR_STAGE_LABEL[stage] ?? stage : null,
+        };
+      }),
+    [problemModules],
   );
 
   // Quick launch: installed non-core modules with navigation
   const quickLaunch = useMemo(
     () =>
-      runtimeModules
-        .filter(
-          (m) =>
-            isModuleAvailable(m) && !m.core && (m.navigation?.length ?? 0) > 0,
-        )
+      dashboardModules
+        .filter((m) => !m.core && (m.navigation?.length ?? 0) > 0)
         .slice(0, 6),
-    [runtimeModules],
+    [dashboardModules],
   );
 
   const columns = useMemo(
@@ -144,19 +207,13 @@ export default function Overview() {
         header: "Módulo",
         cell: ({ row }) => {
           const mod = row.original;
-          const color = mod.color ?? "#6366f1";
           const hasIssue =
             mod.status === "DISABLED" ||
             mod.status === "ERROR" ||
             mod.compatibilityStatus === "BLOCKED";
           return (
             <div className="flex items-center gap-2.5">
-              <div
-                className="h-7 w-7 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0"
-                style={{ backgroundColor: `${color}20`, color }}
-              >
-                {mod.name?.charAt(0)?.toUpperCase()}
-              </div>
+              <ModuleIcon module={mod} size="sm" />
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <p className="text-sm font-medium truncate">{mod.name}</p>
@@ -274,8 +331,8 @@ export default function Overview() {
 
         {/* Problems alert */}
         {problemModules.length > 0 && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-800/40 dark:bg-amber-950/20 p-4 space-y-2">
-            <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300">
+          <div className="rounded-2xl border border-white/45 bg-white/55 p-4 space-y-2 shadow-[0_10px_35px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+            <div className="flex items-center gap-2 text-[hsl(var(--foreground))]">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <p className="text-sm font-semibold">
                 {problemModules.length} módulo
@@ -283,26 +340,40 @@ export default function Overview() {
                 {problemModules.length === 1 ? "" : "n"} atención
               </p>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {problemModules.map((m) => (
-                <span
+            <div className="grid grid-cols-1 gap-2">
+              {problemModulesDetailed.map((m) => (
+                <div
                   key={m.key}
-                  className="inline-flex items-center gap-1 text-xs bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 rounded-lg px-2 py-1 font-medium"
+                  className="rounded-xl border border-white/55 bg-white/65 px-2.5 py-2 backdrop-blur-md"
                 >
-                  <span
-                    className="h-1.5 w-1.5 rounded-full shrink-0"
-                    style={{
-                      backgroundColor: STATUS_DOT[m.status] ?? "#94a3b8",
-                    }}
-                  />
-                  {m.name}
-                  {" — "}
-                  {m.status === "DISABLED"
-                    ? "Deshabilitado"
-                    : m.compatibilityStatus === "BLOCKED"
-                      ? "Bloqueado"
-                      : "Error"}
-                </span>
+                  <div className="flex items-center gap-1.5 text-xs text-[hsl(var(--foreground))] font-semibold">
+                    <span
+                      className="h-1.5 w-1.5 rounded-full shrink-0"
+                      style={{
+                        backgroundColor: STATUS_DOT[m.status] ?? "#94a3b8",
+                      }}
+                    />
+                    <span>{m.name}</span>
+                    <span className="text-[hsl(var(--muted-foreground))] font-medium">
+                      {" - "}
+                      {m.status === "DISABLED"
+                        ? "Deshabilitado"
+                        : m.compatibilityStatus === "BLOCKED"
+                          ? "Bloqueado"
+                          : "Error"}
+                    </span>
+                    {m.stageLabel && (
+                      <span className="rounded-md border border-white/60 bg-white/70 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+                        {m.stageLabel}
+                      </span>
+                    )}
+                  </div>
+                  {m.issueSummary && (
+                    <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))] break-words">
+                      {m.issueSummary}
+                    </p>
+                  )}
+                </div>
               ))}
             </div>
           </div>
@@ -419,15 +490,7 @@ export default function Overview() {
                   onClick={() => navigate(getModuleLaunchPath(mod))}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:bg-[hsl(var(--muted))] transition-colors text-sm cursor-pointer group"
                 >
-                  <span
-                    className="h-5 w-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0"
-                    style={{
-                      backgroundColor: `${mod.color}20`,
-                      color: mod.color,
-                    }}
-                  >
-                    {mod.name.charAt(0)}
-                  </span>
+                  <ModuleIcon module={mod} size="sm" />
                   <span className="font-medium">{mod.name}</span>
                   <ChevronRight className="h-3 w-3 text-[hsl(var(--muted-foreground))] opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
@@ -438,15 +501,18 @@ export default function Overview() {
 
         <DataTable
           columns={columns}
-          data={runtimeModules}
+          data={dashboardModules}
           isLoading={modulesLoading}
           isError={modulesError}
-          onRetry={() =>
-            queryClient.invalidateQueries({ queryKey: ["modules"] })
-          }
+          onRetry={async () => {
+            await queryClient.invalidateQueries({ queryKey: ["modules"] });
+            await queryClient.invalidateQueries({
+              queryKey: ["runtime-modules"],
+            });
+          }}
           searchPlaceholder="Buscar módulo..."
-          emptyTitle="Sin módulos"
-          emptyDescription="No hay módulos registrados en el sistema."
+          emptyTitle="Sin modulos instalados"
+          emptyDescription="No hay modulos instalados y activos en el sistema."
         />
       </div>
 
@@ -463,3 +529,5 @@ export default function Overview() {
     </div>
   );
 }
+
+

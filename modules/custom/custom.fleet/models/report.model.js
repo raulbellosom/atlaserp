@@ -15,6 +15,7 @@ export default defineModel({
     { name: "title", type: "text", label: "Titulo", required: true, maxLength: 255 },
     { name: "report_date", type: "date", label: "Fecha", required: true },
     { name: "odometer_km", type: "number", label: "Kilometraje" },
+    { name: "is_inhouse_workshop", type: "boolean", label: "Taller propio", required: true, default: true },
     { name: "workshop_name", type: "text", label: "Taller", maxLength: 200 },
     { name: "workshop_phone", type: "text", label: "Telefono", maxLength: 50 },
     { name: "workshop_address", type: "text", label: "Direccion", maxLength: 300 },

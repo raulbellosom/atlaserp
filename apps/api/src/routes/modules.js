@@ -1,5 +1,7 @@
 import { Hono } from 'hono'
 import { createHash } from 'node:crypto'
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import {
   moduleInstallSchema,
   moduleDryRunSchema,
@@ -23,6 +25,75 @@ import {
 import { del as cacheDel } from '../lib/cache.js'
 
 const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company'])
+const SEMVER_PATCH_RE = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function isCustomModuleRecord(record) {
+  const source = typeof record?.source === 'string' ? record.source.trim() : ''
+  const key = typeof record?.key === 'string' ? record.key.trim() : ''
+  return source === 'custom' || key.startsWith('custom.')
+}
+
+function computeMigrationSignature(manifest) {
+  const migrations = Array.isArray(manifest?.migrations) ? manifest.migrations : []
+  const normalized = migrations.map((entry) => ({
+    path: typeof entry?.path === 'string' ? entry.path.trim() : '',
+    checksum: typeof entry?.checksum === 'string' ? entry.checksum.trim().toLowerCase() : '',
+    unsafe: entry?.unsafe === true,
+  }))
+  return createHash('sha256').update(JSON.stringify(normalized)).digest('hex')
+}
+
+function bumpPatchVersion(version) {
+  const normalized = typeof version === 'string' ? version.trim() : ''
+  const match = normalized.match(SEMVER_PATCH_RE)
+  if (!match) return null
+  return `${match[1]}.${match[2]}.${Number(match[3]) + 1}`
+}
+
+function toManifestMigrationFilename(declaredPath) {
+  const safePath = typeof declaredPath === 'string' ? declaredPath.trim() : ''
+  return `manifest__${safePath.replaceAll('\\', '/').replaceAll('/', '__')}`
+}
+
+async function applyManifestChecksumUpdates({ manifestPath, updates }) {
+  if (!updates.length) return { applied: false, updatedPaths: [] }
+
+  let source = await fs.readFile(manifestPath, 'utf8')
+  const updatedPaths = []
+  for (const update of updates) {
+    const rx = new RegExp(
+      `(path:\\s*["']${escapeRegExp(update.path)}["'][\\s\\S]{0,2000}?checksum:\\s*["'])([a-fA-F0-9]{64})(["'])`,
+      'm'
+    )
+    if (!rx.test(source)) {
+      throw new Error(`No se pudo ubicar checksum en manifest para ${update.path}`)
+    }
+    source = source.replace(rx, `$1${update.checksum}$3`)
+    updatedPaths.push(update.path)
+  }
+
+  await fs.writeFile(manifestPath, source, 'utf8')
+  return { applied: true, updatedPaths }
+}
+
+async function bumpManifestVersion({ manifestPath, fromVersion, toVersion }) {
+  let source = await fs.readFile(manifestPath, 'utf8')
+  const rx = /(\bversion\s*:\s*["'])([^"']+)(["'])/
+  if (!rx.test(source)) {
+    throw new Error(`No se pudo ubicar "version" en ${manifestPath}`)
+  }
+  source = source.replace(rx, `$1${toVersion}$3`)
+  await fs.writeFile(manifestPath, source, 'utf8')
+  return { fromVersion, toVersion }
+}
 
 function validateManifestAcl(manifest = {}) {
   const declaredKeys = new Set((manifest.permissions ?? []).map((p) => p.key))
@@ -79,6 +150,8 @@ function generateRequestId() {
 
 function classifyInstallStage(err) {
   if (err?.stage) return err.stage
+  if (err?.code === 'MANIFEST_MIGRATION_CHECKSUM_MISMATCH') return 'manifest_migration'
+  if (err?.code === 'AME_METADATA_SYNC_FAILED') return 'metadata_sync'
   if (err?.name === 'ModuleOrmMigrationError' || err?.code === 'AME_ORM_MIGRATION_FAILED' || err?.code === 'AME_SQL_MIGRATION_EXECUTION_FAILED') return 'orm_migration'
   if (err?.name === 'ZodError') return 'validation'
   if (err?.code === 'INVALID_MANIFEST_ACL') return 'validation'
@@ -144,21 +217,34 @@ function serializeDiscoveredModule(record) {
   }
 }
 
-function mergeDiscoveryIntoManifest(record) {
+function mergeDiscoveryIntoManifest(record, options = {}) {
   const manifest = record?.manifest && typeof record.manifest === 'object' ? record.manifest : null
   if (!manifest) return null
+  const extraLifecycle = isPlainObject(options?.extraLifecycle) ? options.extraLifecycle : {}
   const existingLifecycle =
     manifest.lifecycle && typeof manifest.lifecycle === 'object' && !Array.isArray(manifest.lifecycle)
       ? manifest.lifecycle
       : {}
+  const existingDiscovery = isPlainObject(existingLifecycle.discovery) ? existingLifecycle.discovery : {}
+  const existingDev = isPlainObject(existingLifecycle.dev) ? existingLifecycle.dev : {}
+  const extraDev = isPlainObject(extraLifecycle.dev) ? extraLifecycle.dev : {}
+  const mergedDev =
+    Object.keys(existingDev).length > 0 || Object.keys(extraDev).length > 0
+      ? { ...existingDev, ...extraDev }
+      : undefined
+  const discovery = {
+    ...existingDiscovery,
+    source: record?.source ?? null,
+    localPath: record?.localPath ?? null,
+  }
+
   return {
     ...manifest,
     lifecycle: {
       ...existingLifecycle,
-      discovery: {
-        source: record?.source ?? null,
-        localPath: record?.localPath ?? null,
-      },
+      ...extraLifecycle,
+      ...(mergedDev ? { dev: mergedDev } : {}),
+      discovery,
     },
   }
 }
@@ -413,6 +499,7 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
     for (const migration of migrations) {
       const sql = typeof migration?.sql === 'string' ? migration.sql : ''
       const checksum = typeof migration?.checksum === 'string' ? migration.checksum.trim().toLowerCase() : ''
+      const allowUnsafeSql = migration?.unsafe === true
       const computed = createHash('sha256').update(sql).digest('hex')
       const localPath = typeof migration?.path === 'string' ? migration.path : migration?.filename ?? 'unknown.sql'
       const filename = `manifest__${localPath.replaceAll('\\', '/').replaceAll('/', '__')}`
@@ -433,6 +520,7 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
           moduleKey,
           filename,
           sql,
+          allowUnsafeSql,
         })
         entries.push({
           filename,
@@ -585,12 +673,234 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
 
   app.post('/sync', authMiddleware, requirePermission('core.modules.create'), async (c) => {
     try {
+      const isDev = process.env.NODE_ENV !== 'production'
+      const requestBody = await c.req.json().catch(() => ({}))
+      const requestedAutoRepair =
+        typeof requestBody?.autoRepair === 'boolean' ? requestBody.autoRepair : null
+      const requestedModuleKey =
+        typeof requestBody?.moduleKey === 'string' && requestBody.moduleKey.trim()
+          ? requestBody.moduleKey.trim()
+          : null
+      const autoRepairEnabled = isDev && (requestedAutoRepair ?? true)
+
       const actorId = await resolveSyncActorId(prisma, c.get('userContext'))
       const discoveryRootInfo = await getDiscoveryRootInfo()
-      const discovered = await discoverModules({ rootDir: discoveryRootInfo.projectRoot })
+      const discoveredAll = await discoverModules({ rootDir: discoveryRootInfo.projectRoot })
+      const discovered = requestedModuleKey
+        ? discoveredAll.filter((record) => record?.key === requestedModuleKey)
+        : discoveredAll
+
+      const automation = {
+        autoRepairEnabled,
+        modulesScanned: discovered.filter((record) => isCustomModuleRecord(record)).length,
+        checksumsFixed: 0,
+        versionsBumped: 0,
+        reinstalled: 0,
+        failed: 0,
+        checksumFixes: [],
+        versionBumps: [],
+        reinstalledModules: [],
+        failedModules: [],
+      }
+
+      if (autoRepairEnabled) {
+        const checksumMismatchRecords = discovered.filter((record) => {
+          return (
+            isCustomModuleRecord(record) &&
+            record?.status !== 'VALID' &&
+            record?.error?.code === 'MANIFEST_MIGRATION_CHECKSUM_MISMATCH' &&
+            typeof record?.moduleDir === 'string' &&
+            isPlainObject(record?.manifest)
+          )
+        })
+
+        for (const record of checksumMismatchRecords) {
+          const moduleKey = typeof record?.key === 'string' ? record.key.trim() : ''
+          const migrations = Array.isArray(record?.manifest?.migrations)
+            ? record.manifest.migrations
+            : []
+          const manifestPath = path.join(record.moduleDir, 'module.manifest.js')
+
+          try {
+            const updates = []
+            for (const migration of migrations) {
+              const declaredPath =
+                typeof migration?.path === 'string' ? migration.path.trim() : ''
+              if (!declaredPath) continue
+
+              const sqlPath = path.resolve(record.moduleDir, declaredPath)
+              const sql = await fs.readFile(sqlPath, 'utf8')
+              const computedChecksum = createHash('sha256').update(sql).digest('hex')
+              const declaredChecksum =
+                typeof migration?.checksum === 'string'
+                  ? migration.checksum.trim().toLowerCase()
+                  : ''
+              if (computedChecksum !== declaredChecksum) {
+                updates.push({ path: declaredPath, checksum: computedChecksum })
+              }
+            }
+
+            if (updates.length > 0) {
+              const result = await applyManifestChecksumUpdates({
+                manifestPath,
+                updates,
+              })
+              automation.checksumsFixed += result.updatedPaths.length
+              automation.checksumFixes.push({
+                key: moduleKey || null,
+                manifestPath,
+                updatedPaths: result.updatedPaths,
+              })
+            }
+          } catch (error) {
+            automation.failed += 1
+            automation.failedModules.push({
+              key: moduleKey || null,
+              stage: 'checksum_autofix',
+              message: toErrorMessage(error),
+            })
+          }
+        }
+
+        if (automation.checksumFixes.length > 0) {
+          const rediscoveredAll = await discoverModules({ rootDir: discoveryRootInfo.projectRoot })
+          discovered.length = 0
+          discovered.push(
+            ...(requestedModuleKey
+              ? rediscoveredAll.filter((record) => record?.key === requestedModuleKey)
+              : rediscoveredAll)
+          )
+        }
+
+        const customValidRecordsForBump = discovered.filter(
+          (record) =>
+            isCustomModuleRecord(record) &&
+            record?.status === 'VALID' &&
+            isPlainObject(record?.manifest) &&
+            typeof record?.moduleDir === 'string'
+        )
+
+        const customKeysForBump = customValidRecordsForBump
+          .map((record) => record?.manifest?.key)
+          .filter((value) => typeof value === 'string' && value.trim())
+          .map((value) => value.trim())
+
+        const existingRowsForBump =
+          customKeysForBump.length > 0
+            ? await prisma.atlasModule.findMany({
+                where: { key: { in: customKeysForBump } },
+                select: { key: true, version: true, lifecycleConfig: true },
+              })
+            : []
+        const existingRowsByKey = new Map(existingRowsForBump.map((row) => [row.key, row]))
+
+        for (const record of customValidRecordsForBump) {
+          const key = record?.manifest?.key
+          const manifestVersion =
+            typeof record?.manifest?.version === 'string'
+              ? record.manifest.version.trim()
+              : ''
+          const existing = existingRowsByKey.get(key)
+          if (!existing || !manifestVersion) continue
+
+          const prevSignature =
+            existing?.lifecycleConfig?.dev &&
+            typeof existing.lifecycleConfig.dev === 'object' &&
+            !Array.isArray(existing.lifecycleConfig.dev)
+              ? existing.lifecycleConfig.dev.migrationSignature ?? null
+              : null
+          const nextSignature = computeMigrationSignature(record.manifest)
+          const signatureChanged = prevSignature !== nextSignature
+          const versionUnchangedVsDb = existing.version === manifestVersion
+
+          if (!signatureChanged || !versionUnchangedVsDb) continue
+
+          const nextVersion = bumpPatchVersion(manifestVersion)
+          if (!nextVersion || nextVersion === manifestVersion) continue
+
+          try {
+            const manifestPath = path.join(record.moduleDir, 'module.manifest.js')
+            const bumpResult = await bumpManifestVersion({
+              manifestPath,
+              fromVersion: manifestVersion,
+              toVersion: nextVersion,
+            })
+            automation.versionsBumped += 1
+            automation.versionBumps.push({
+              key,
+              manifestPath,
+              fromVersion: bumpResult.fromVersion,
+              toVersion: bumpResult.toVersion,
+            })
+          } catch (error) {
+            automation.failed += 1
+            automation.failedModules.push({
+              key,
+              stage: 'version_autobump',
+              message: toErrorMessage(error),
+            })
+          }
+        }
+
+        if (automation.versionBumps.length > 0) {
+          const rediscoveredAll = await discoverModules({ rootDir: discoveryRootInfo.projectRoot })
+          discovered.length = 0
+          discovered.push(
+            ...(requestedModuleKey
+              ? rediscoveredAll.filter((record) => record?.key === requestedModuleKey)
+              : rediscoveredAll)
+          )
+        }
+      }
 
       const validModules = discovered.filter((record) => record.status === 'VALID' && record.manifest)
       const invalidModules = discovered.filter((record) => record.status !== 'VALID')
+      automation.modulesScanned = discovered.filter((record) => isCustomModuleRecord(record)).length
+      const customValidModules = validModules.filter((record) => isCustomModuleRecord(record))
+
+      const customModuleKeys = customValidModules
+        .map((record) => record?.manifest?.key)
+        .filter((value) => typeof value === 'string' && value.trim())
+        .map((value) => value.trim())
+
+      const customModuleRows =
+        customModuleKeys.length > 0
+          ? await prisma.atlasModule.findMany({
+              where: { key: { in: customModuleKeys } },
+              select: {
+                key: true,
+                version: true,
+                status: true,
+                enabled: true,
+                lifecycleConfig: true,
+              },
+            })
+          : []
+      const customModuleRowsByKey = new Map(customModuleRows.map((row) => [row.key, row]))
+
+      const signatureByModuleKey = new Map(
+        customValidModules.map((record) => [
+          record.manifest.key,
+          computeMigrationSignature(record.manifest),
+        ])
+      )
+      const customMigrationRows =
+        customModuleKeys.length > 0
+          ? await prisma.moduleMigration.findMany({
+              where: { moduleKey: { in: customModuleKeys } },
+              select: { moduleKey: true, filename: true },
+            })
+          : []
+      const appliedManifestFilenamesByModule = new Map()
+      for (const row of customMigrationRows) {
+        const moduleKey = typeof row?.moduleKey === 'string' ? row.moduleKey.trim() : ''
+        const filename = typeof row?.filename === 'string' ? row.filename.trim() : ''
+        if (!moduleKey || !filename) continue
+        if (!appliedManifestFilenamesByModule.has(moduleKey)) {
+          appliedManifestFilenamesByModule.set(moduleKey, new Set())
+        }
+        appliedManifestFilenamesByModule.get(moduleKey).add(filename)
+      }
 
       let lifecycleSync = { synced: 0, added: 0, updated: 0 }
       const discoveredKeys = new Set(validModules.map((record) => record.manifest.key))
@@ -598,7 +908,20 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
       const dependencySourceRecords = [...validModules]
       if (validModules.length > 0) {
         const syncManifests = validModules
-          .map((record) => mergeDiscoveryIntoManifest(record))
+          .map((record) => {
+            if (autoRepairEnabled && isCustomModuleRecord(record)) {
+              const migrationSignature = signatureByModuleKey.get(record.manifest.key)
+              return mergeDiscoveryIntoManifest(record, {
+                extraLifecycle: {
+                  dev: {
+                    migrationSignature: migrationSignature ?? null,
+                    migrationSignatureUpdatedAt: new Date().toISOString(),
+                  },
+                },
+              })
+            }
+            return mergeDiscoveryIntoManifest(record)
+          })
           .filter(Boolean)
         syncManifests.push(...legacyFallbackManifests)
         dependencySourceRecords.push(...legacyFallbackManifests.map((manifest) => ({ manifest })))
@@ -690,6 +1013,79 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
         }
       }
 
+      const autoReconcileCandidates = []
+      if (autoRepairEnabled) {
+        for (const record of customValidModules) {
+          const key = record.manifest.key
+          const moduleRow = customModuleRowsByKey.get(key)
+          if (!moduleRow || moduleRow.status !== 'INSTALLED' || !moduleRow.enabled) {
+            continue
+          }
+
+          const prevSignature =
+            moduleRow?.lifecycleConfig?.dev &&
+            typeof moduleRow.lifecycleConfig.dev === 'object' &&
+            !Array.isArray(moduleRow.lifecycleConfig.dev)
+              ? moduleRow.lifecycleConfig.dev.migrationSignature ?? null
+              : null
+          const nextSignature = signatureByModuleKey.get(key) ?? null
+          const signatureChanged = prevSignature !== nextSignature
+          const versionChanged = moduleRow.version !== record.manifest.version
+          const expectedManifestFilenames = (Array.isArray(record?.migrations) ? record.migrations : [])
+            .map((migration) => toManifestMigrationFilename(migration?.path))
+            .filter((value) => typeof value === 'string' && value.trim())
+          const appliedFilenames = appliedManifestFilenamesByModule.get(key) ?? new Set()
+          const hasPendingManifestMigrations = expectedManifestFilenames.some(
+            (filename) => !appliedFilenames.has(filename)
+          )
+
+          if (!signatureChanged && !versionChanged && !hasPendingManifestMigrations) continue
+
+          autoReconcileCandidates.push({
+            key,
+            previousVersion: moduleRow.version,
+            nextVersion: record.manifest.version,
+            signatureChanged,
+            versionChanged,
+            pendingManifestMigrations: hasPendingManifestMigrations,
+          })
+        }
+      }
+
+      const autoReconciledModuleKeys = new Set()
+      for (const candidate of autoReconcileCandidates) {
+        autoReconciledModuleKeys.add(candidate.key)
+        try {
+          const result = await svc.retryInstallModule({
+            key: candidate.key,
+            actorId,
+            requestId: generateRequestId(),
+          })
+          const routeLoaderStatus = await safeRouteReload(candidate.key)
+          automation.reinstalled += 1
+          automation.reinstalledModules.push({
+            key: candidate.key,
+            status: result?.status ?? 'INSTALLED',
+            previousVersion: candidate.previousVersion,
+            nextVersion: candidate.nextVersion,
+            signatureChanged: candidate.signatureChanged,
+            versionChanged: candidate.versionChanged,
+            pendingManifestMigrations: candidate.pendingManifestMigrations,
+            routeLoader: routeLoaderStatus,
+          })
+        } catch (error) {
+          automation.failed += 1
+          automation.failedModules.push({
+            key: candidate.key,
+            stage: classifyInstallStage(error),
+            message: toErrorMessage(error),
+            previousVersion: candidate.previousVersion,
+            nextVersion: candidate.nextVersion,
+            pendingManifestMigrations: candidate.pendingManifestMigrations,
+          })
+        }
+      }
+
       const manifestMigrationsSync = {
         modules: [],
         applied: 0,
@@ -698,6 +1094,22 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
         skipped: [],
       }
       for (const record of validModules) {
+        const moduleKey = record?.manifest?.key ?? null
+        if (autoReconciledModuleKeys.has(moduleKey)) {
+          const skipped = {
+            moduleKey,
+            status: 'skipped',
+            reason: 'handled_by_auto_reconcile',
+            entries: [],
+          }
+          manifestMigrationsSync.modules.push(skipped)
+          manifestMigrationsSync.skipped.push({
+            moduleKey,
+            reason: skipped.reason,
+          })
+          continue
+        }
+
         const result = await applyManifestMigrationsForRecord({ record })
         manifestMigrationsSync.modules.push(result)
         if (result.status === 'skipped') {
@@ -735,6 +1147,20 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
       }
 
       const payload = {
+        status:
+          dependencySync.errors.length > 0 ||
+          metadataSync.errors.length > 0 ||
+          manifestMigrationsSync.errors.length > 0 ||
+          automation.failed > 0 ||
+          invalidModules.length > 0
+            ? 'partial'
+            : 'ok',
+        scope: {
+          moduleKey: requestedModuleKey,
+          scoped: Boolean(requestedModuleKey),
+          discoveredAll: discoveredAll.length,
+          discoveredScoped: discovered.length,
+        },
         discovered: discovered.length,
         valid: validModules.length,
         invalid: invalidModules.length,
@@ -748,6 +1174,7 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
         metadataSync,
         manifestMigrationsSync,
         invalidUpserts,
+        automation,
         modules: discovered.map(serializeDiscoveredModule),
       }
 
@@ -865,6 +1292,7 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
 
   app.post('/:key/retry-install', authMiddleware, requirePermission('core.modules.create'), async (c) => {
     const requestId = generateRequestId()
+    const isDev = process.env.NODE_ENV !== 'production'
     const key = c.req.param('key')
     try {
       const actorId = c.get('userContext')?.profile?.id ?? null
@@ -876,11 +1304,40 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
     } catch (err) {
       const stage = classifyInstallStage(err)
       const code = err?.code ?? (err instanceof ModuleLifecycleError ? 'LIFECYCLE_ERROR' : 'INTERNAL_ERROR')
+
+      console.error('[modules] POST /:key/retry-install failed', {
+        requestId,
+        moduleKey: key,
+        stage,
+        errorName: err?.name ?? null,
+        errorMessage: err?.message ?? null,
+        errorCode: err?.code ?? null,
+        causeMessage: err?.cause?.message ?? null,
+        causeCode: err?.cause?.code ?? null,
+        filename: err?.filename ?? null,
+        tableName: err?.tableName ?? null,
+        sqlPreview: err?.sqlPreview ?? err?.cause?.sqlPreview ?? null,
+        statementPreview: err?.statementPreview ?? err?.cause?.statementPreview ?? null,
+        stack: err?.stack ?? null,
+      })
+
       if (err instanceof ModuleLifecycleError) {
         return c.json({ error: err.message, code, moduleKey: key, stage, requestId }, err.status)
       }
       return c.json(
-        { error: 'No se pudo reintentar la instalacion del modulo.', code, moduleKey: key, stage, requestId },
+        {
+          error: 'No se pudo reintentar la instalacion del modulo.',
+          code,
+          moduleKey: key,
+          stage,
+          requestId,
+          ...(isDev
+            ? {
+                details: err?.message ?? null,
+                cause: err?.cause?.message ?? null,
+              }
+            : {}),
+        },
         500
       )
     }

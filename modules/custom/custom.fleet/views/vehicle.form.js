@@ -92,6 +92,50 @@ export default defineView({
         ],
       },
       {
+        label: 'Financiamiento',
+        icon: 'Landmark',
+        collapsible: true,
+        fields: [
+          {
+            field: 'is_financed',
+            label: 'Vehiculo financiado',
+            type: 'boolean',
+            hint: 'Activa esta opcion si la unidad se adquirio mediante financiamiento',
+          },
+          {
+            field: 'financing_institution',
+            label: 'Financiera',
+            type: 'text',
+            hint: 'Nombre de la institucion financiera (opcional)',
+          },
+          {
+            field: 'financing_contract_number',
+            label: 'No. de contrato',
+            type: 'text',
+          },
+          {
+            field: 'financing_start_date',
+            label: 'Fecha de inicio',
+            type: 'date',
+          },
+          {
+            field: 'financing_end_date',
+            label: 'Fecha de termino',
+            type: 'date',
+          },
+          {
+            field: 'financing_monthly_payment',
+            label: 'Mensualidad',
+            type: 'currency',
+          },
+          {
+            field: 'financing_notes',
+            label: 'Notas de financiamiento',
+            type: 'textarea',
+          },
+        ],
+      },
+      {
         label: 'Notas',
         icon: 'FileText',
         collapsible: true,

@@ -47,6 +47,7 @@ export default defineView({
         label: "Taller y costos",
         columns: 2,
         fields: [
+          { field: "is_inhouse_workshop", label: "Taller propio", type: "boolean", icon: "Building2" },
           { field: "workshop_name", label: "Taller", icon: "Library" },
           { field: "invoice_number", label: "Factura/Ticket", icon: "FileText" },
           { field: "workshop_phone", label: "Telefono", icon: "Phone" },
@@ -130,4 +131,3 @@ export default defineView({
     actions: [{ label: "Editar", permission: "fleet.reports.update" }], 
   },
 });
-

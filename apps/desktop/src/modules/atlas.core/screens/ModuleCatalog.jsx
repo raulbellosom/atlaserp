@@ -16,6 +16,11 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
   Tabs,
   TabsList,
   TabsTrigger,
@@ -81,6 +86,16 @@ const KIND_LABEL = {
   WEBSITE: "Sitio web",
 };
 
+const ERROR_STAGE_LABEL = {
+  validation: "Validación",
+  dependency_sync: "Dependencias",
+  orm_migration: "Migración ORM",
+  manifest_migration: "Migración manifiesto",
+  install: "Instalación",
+  route_loader: "Carga de rutas",
+  unknown: "Desconocido",
+};
+
 function getFirstFiniteNumber(...values) {
   for (const value of values) {
     const parsed = Number(value);
@@ -91,6 +106,7 @@ function getFirstFiniteNumber(...values) {
 
 function statusLabel(module) {
   if (module.core) return "Core";
+  if (module.updateAvailable) return "Actualización disponible";
   if (module.status === "INSTALLED" && module.enabled) return "Instalado";
   if (module.status === "DISABLED") return "Deshabilitado";
   if (module.status === "UNINSTALLED") return "Sin instalar";
@@ -111,19 +127,108 @@ function isLocked(module) {
   return module.core || module.uninstallable === false;
 }
 
+function getModuleErrorSummary(module) {
+  if (module?.status !== "ERROR") return null;
+  const lastError = module.lastError ?? module.lifecycleConfig?.lastError ?? null;
+  if (!lastError) {
+    return {
+      message: "No hay detalle de error disponible para este módulo.",
+      stageLabel: null,
+      code: null,
+    };
+  }
+  const message = String(lastError.message ?? "").trim();
+  return {
+    message:
+      message.length > 220
+        ? `${message.slice(0, 220)}...`
+        : message || "No hay detalle de error disponible para este módulo.",
+    stageLabel: lastError.stage
+      ? ERROR_STAGE_LABEL[lastError.stage] ?? String(lastError.stage)
+      : null,
+    code: lastError.code ? String(lastError.code) : null,
+  };
+}
+
+function buildModuleErrorDetail(module, lastError) {
+  if (!lastError || typeof lastError !== "object") {
+    return {
+      title: module?.name ?? module?.key ?? "Módulo",
+      summary: "No hay diagnóstico detallado de error disponible.",
+      copyText: `Módulo: ${module?.name ?? "-"}\nClave: ${module?.key ?? "-"}\n\nNo hay diagnóstico detallado de error disponible.`,
+      raw: null,
+    };
+  }
+
+  const stage = lastError?.stage ? String(lastError.stage) : null;
+  const stageLabel = stage ? ERROR_STAGE_LABEL[stage] ?? stage : null;
+  const code = lastError?.code ? String(lastError.code) : null;
+  const requestId = lastError?.requestId ? String(lastError.requestId) : null;
+  const failedAt = lastError?.failedAt ? String(lastError.failedAt) : null;
+  const retryable =
+    typeof lastError?.retryable === "boolean"
+      ? lastError.retryable
+        ? "Sí"
+        : "No"
+      : null;
+  const affectedTables = Array.isArray(lastError?.affectedTables)
+    ? lastError.affectedTables.filter(Boolean).map(String)
+    : [];
+  const affectedMigrations = Array.isArray(lastError?.affectedMigrations)
+    ? lastError.affectedMigrations.filter(Boolean).map(String)
+    : [];
+  const message =
+    String(lastError?.message ?? "").trim() || "Sin mensaje de error.";
+  const cause = String(lastError?.cause ?? "").trim() || null;
+
+  const lines = [
+    `Módulo: ${module?.name ?? "-"}`,
+    `Clave: ${module?.key ?? "-"}`,
+    stageLabel ? `Etapa: ${stageLabel}` : null,
+    code ? `Código: ${code}` : null,
+    requestId ? `RequestId: ${requestId}` : null,
+    failedAt ? `Fecha: ${failedAt}` : null,
+    retryable ? `Reintentable: ${retryable}` : null,
+    "",
+    `Mensaje: ${message}`,
+    cause ? `Causa: ${cause}` : null,
+    affectedTables.length > 0
+      ? `Tablas afectadas: ${affectedTables.join(", ")}`
+      : null,
+    affectedMigrations.length > 0
+      ? `Migraciones afectadas: ${affectedMigrations.join(", ")}`
+      : null,
+    "",
+    "Payload JSON:",
+    JSON.stringify(lastError, null, 2),
+  ].filter(Boolean);
+
+  return {
+    title: module?.name ?? module?.key ?? "Módulo",
+    summary: message,
+    copyText: lines.join("\n"),
+    raw: lastError,
+  };
+}
+
 // ---- ModuleIcon is imported from ../../../components/ModuleCard ----
 
 // ---- Status pill ----
 function StatusPill({ module, className }) {
-  const isInstalled = module.status === "INSTALLED" && module.enabled;
+  const isInstalled =
+    module.status === "INSTALLED" && module.enabled && !module.updateAvailable;
+  const dotColor = module.updateAvailable
+    ? "#0ea5e9"
+    : STATUS_DOT[module.status] ?? "#94a3b8";
   return (
     <div className={cn("flex items-center gap-1.5", className)}>
       <span
         className={cn(
           "h-2 w-2 rounded-full shrink-0",
           isInstalled && "shadow-[0_0_6px_rgba(34,197,94,0.7)]",
+          module.updateAvailable && "shadow-[0_0_6px_rgba(14,165,233,0.7)]",
         )}
-        style={{ backgroundColor: STATUS_DOT[module.status] ?? "#94a3b8" }}
+        style={{ backgroundColor: dotColor }}
       />
       <span className="text-[11px] font-medium text-[hsl(var(--muted-foreground))]">
         {statusLabel(module)}
@@ -139,8 +244,10 @@ function CardAction({
   canDisableModules,
   onAction,
   onOpen,
+  onViewError,
 }) {
   const canOpen = isModuleAvailable(module);
+  const canSyncModule = canOpen && module.updateAvailable && canInstallModules;
   const canInstall =
     module.status === "UNINSTALLED" &&
     canInstallModules &&
@@ -150,11 +257,26 @@ function CardAction({
   const canRetryInstall =
     module.status === "ERROR" && !isLocked(module) && canInstallModules;
 
+  if (canSyncModule) {
+    return (
+      <Button
+        size="sm"
+        className="shrink-0 h-7 px-2.5 text-xs gap-1 bg-sky-600 text-white hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-400"
+        onClick={(e) => {
+          e.stopPropagation();
+          onAction("sync-module", module);
+        }}
+      >
+        Sincronizar
+        <RefreshCw className="h-3 w-3" />
+      </Button>
+    );
+  }
   if (canOpen) {
     return (
       <Button
         size="sm"
-        className="shrink-0 h-7 px-2.5 text-xs gap-1"
+        className="shrink-0 h-7 px-2.5 text-xs gap-1 bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
         onClick={(e) => {
           e.stopPropagation();
           onOpen(module);
@@ -184,7 +306,7 @@ function CardAction({
     return (
       <Button
         size="sm"
-        className="shrink-0 h-7 px-2.5 text-xs gap-1"
+        className="shrink-0 h-7 px-2.5 text-xs gap-1 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
         onClick={(e) => {
           e.stopPropagation();
           onAction("install", module);
@@ -196,17 +318,31 @@ function CardAction({
   }
   if (canRetryInstall) {
     return (
-      <Button
-        size="sm"
-        className="shrink-0 h-7 px-2.5 text-xs gap-1"
-        variant="destructive"
-        onClick={(e) => {
-          e.stopPropagation();
-          onAction("retry-install", module);
-        }}
-      >
-        Reintentar
-      </Button>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <Button
+          size="sm"
+          className="shrink-0 h-7 px-2.5 text-xs gap-1 bg-amber-400 text-amber-950 hover:bg-amber-500 dark:bg-amber-300 dark:hover:bg-amber-200"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAction("retry-install", module);
+          }}
+        >
+          Reintentar
+        </Button>
+        {onViewError && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 h-7 px-2.5 text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewError(module);
+            }}
+          >
+            Ver detalles
+          </Button>
+        )}
+      </div>
     );
   }
   return null;
@@ -274,6 +410,12 @@ export default function ModuleCatalog() {
   const [purgeOnUninstall, setPurgeOnUninstall] = useState(false);
   const [confirmCleanup, setConfirmCleanup] = useState(null);
   const [cleanupConfirmation, setCleanupConfirmation] = useState("");
+  const [errorDialog, setErrorDialog] = useState({
+    open: false,
+    module: null,
+    loading: false,
+    detail: null,
+  });
 
   const lifecycleMutation = useMutation({
     mutationFn: async ({ action, module, purge = false, mode }) => {
@@ -296,6 +438,9 @@ export default function ModuleCatalog() {
         );
       if (action === "disable") return atlas.modules.disable(key, token);
       if (action === "enable") return atlas.modules.enable(key, token);
+      if (action === "sync-module") {
+        return atlas.modules.sync(token, { autoRepair: true, moduleKey: key });
+      }
       if (action === "uninstall") {
         if (purge)
           return atlas.modules.uninstallExplicit(
@@ -307,7 +452,23 @@ export default function ModuleCatalog() {
         return atlas.modules.uninstall(key, token);
       }
     },
-    onSuccess: async (_, { action }) => {
+    onMutate: ({ action }) => {
+      const loadingLabels = {
+        install: "Instalando módulo...",
+        "retry-install": "Reintentando instalación...",
+        "clear-error": "Restaurando estado del módulo...",
+        cleanup: "Limpiando intento fallido...",
+        disable: "Deshabilitando módulo...",
+        enable: "Habilitando módulo...",
+        "sync-module": "Sincronizando módulo...",
+        uninstall: "Desinstalando módulo...",
+      };
+      const toastId = toast.loading(
+        loadingLabels[action] ?? "Procesando módulo...",
+      );
+      return { toastId };
+    },
+    onSuccess: async (_, { action }, context) => {
       await queryClient.invalidateQueries({ queryKey: ["modules"] });
       await queryClient.invalidateQueries({ queryKey: ["runtime-modules"] });
       await queryClient.invalidateQueries({ queryKey: ["blueprints"] });
@@ -322,28 +483,41 @@ export default function ModuleCatalog() {
         cleanup: "limpiado",
         disable: "deshabilitado",
         enable: "habilitado",
+        "sync-module": "sincronizado",
         uninstall: "desinstalado",
       };
-      toast.success(`Módulo ${labels[action] ?? "actualizado"}`);
+      toast.success(`Módulo ${labels[action] ?? "actualizado"}`, {
+        id: context?.toastId,
+      });
     },
-    onError: (err) => {
+    onError: (err, _vars, context) => {
+      const fallback = "No se pudo actualizar el módulo";
       try {
         const msg = JSON.parse(err?.message ?? "{}").error;
-        toast.error(msg ?? "No se pudo actualizar el módulo");
+        toast.error(msg ?? fallback, { id: context?.toastId });
       } catch {
-        toast.error("No se pudo actualizar el módulo");
+        toast.error(err?.message || fallback, { id: context?.toastId });
       }
     },
   });
 
   const syncCatalogMutation = useMutation({
-    mutationFn: () => atlas.modules.sync(token),
-    onSuccess: async (result) => {
+    mutationFn: (vars) => atlas.modules.sync(token, { autoRepair: true, ...(vars ?? {}) }),
+    onMutate: (vars) => {
+      const toastId = toast.loading(
+        vars?.moduleKey
+          ? `Sincronizando ${vars.moduleKey}...`
+          : "Sincronizando módulos...",
+      );
+      return { toastId, moduleKey: vars?.moduleKey ?? null };
+    },
+    onSuccess: async (result, _vars, context) => {
       await queryClient.invalidateQueries({ queryKey: ["modules"] });
       await queryClient.invalidateQueries({ queryKey: ["runtime-modules"] });
       await queryClient.invalidateQueries({ queryKey: ["blueprints"] });
       const summary = result?.summary ?? result?.data ?? result ?? {};
       const totals = summary?.totals ?? {};
+      const automation = summary?.automation ?? {};
       const discovered = getFirstFiniteNumber(
         summary?.discovered,
         totals?.discovered,
@@ -356,42 +530,108 @@ export default function ModuleCatalog() {
         totals?.errored,
       );
       const hasCounts = [discovered, valid, invalid].every((n) => n !== null);
+      const scope = summary?.scope ?? {};
+      const scopedModuleKey = scope?.moduleKey ?? context?.moduleKey ?? null;
+      const autoSummary =
+        automation?.autoRepairEnabled === true
+          ? ` Auto: ${Number(automation?.modulesScanned ?? 0)} escaneados, ${Number(automation?.checksumsFixed ?? 0)} checksums corregidos, ${Number(automation?.versionsBumped ?? 0)} versiones ajustadas, ${Number(automation?.reinstalled ?? 0)} reinstalados, ${Number(automation?.failed ?? 0)} fallidos.`
+          : "";
+      const failedModules = Array.isArray(automation?.failedModules)
+        ? automation.failedModules
+        : [];
+
       if (hasCounts) {
-        toast.success(
-          `Catálogo sincronizado: ${discovered} descubierto${discovered === 1 ? "" : "s"}, ${valid} válido${valid === 1 ? "" : "s"}, ${invalid} inválido${invalid === 1 ? "" : "s"}.`,
-        );
+        const scopePrefix = scopedModuleKey
+          ? `Módulo sincronizado (${scopedModuleKey}): `
+          : "Catálogo sincronizado: ";
+        const message = `${scopePrefix}${discovered} descubierto${discovered === 1 ? "" : "s"}, ${valid} válido${valid === 1 ? "" : "s"}, ${invalid} inválido${invalid === 1 ? "" : "s"}.${autoSummary}`;
+        if (Number(automation?.failed ?? 0) > 0) {
+          toast.warning(message, {
+            id: context?.toastId,
+            action: {
+              label: "Ver detalle",
+              onClick: () => {
+                const detail = failedModules
+                  .map((item) => {
+                    const key = item?.key ?? "módulo";
+                    const stage = item?.stage ? ` (${item.stage})` : "";
+                    const msg = item?.message ?? "Error desconocido";
+                    return `${key}${stage}: ${msg}`;
+                  })
+                  .join(" | ");
+                toast.error(
+                  detail || "Hay errores en la automatización de módulos.",
+                );
+              },
+            },
+          });
+          return;
+        }
+
+        toast.success(message, { id: context?.toastId });
       } else {
-        toast.success("Catálogo sincronizado correctamente.");
+        const scopePrefix = scopedModuleKey
+          ? `Módulo sincronizado (${scopedModuleKey})`
+          : "Catálogo sincronizado correctamente";
+        toast.success(`${scopePrefix}.${autoSummary}`, {
+          id: context?.toastId,
+        });
       }
     },
-    onError: (error) => {
+    onError: (error, _vars, context) => {
       if (error?.status === 403) {
         toast.error(
           "No tienes permisos para sincronizar el catálogo de módulos.",
+          { id: context?.toastId },
         );
         return;
       }
-      toast.error("No se pudo sincronizar el catálogo de módulos.");
+      toast.error("No se pudo sincronizar el catálogo de módulos.", {
+        id: context?.toastId,
+      });
     },
   });
 
   async function handleViewError(module) {
+    setErrorDialog({
+      open: true,
+      module,
+      loading: true,
+      detail: null,
+    });
     try {
       const response = await atlas.modules.getError(module.key, token);
       const err = response?.data?.lastError;
-      if (!err) {
-        toast.info("No hay diagnostico de error disponible para este módulo.");
-        return;
-      }
-      const parts = [
-        err?.message,
-        err?.stage ? `Etapa: ${err.stage}` : null,
-        err?.code ? `Código: ${err.code}` : null,
-        err?.requestId ? `RequestId: ${err.requestId}` : null,
-      ].filter(Boolean);
-      toast.error(parts.join(" | "));
+      const fallback = module?.lastError ?? module?.lifecycleConfig?.lastError ?? null;
+      const detail = buildModuleErrorDetail(module, err ?? fallback);
+      setErrorDialog({
+        open: true,
+        module,
+        loading: false,
+        detail,
+      });
     } catch {
-      toast.error("No se pudo cargar el detalle del error.");
+      const fallback = module?.lastError ?? module?.lifecycleConfig?.lastError ?? null;
+      setErrorDialog({
+        open: true,
+        module,
+        loading: false,
+        detail: buildModuleErrorDetail(module, fallback),
+      });
+    }
+  }
+
+  async function handleCopyErrorDetails() {
+    const text = String(errorDialog?.detail?.copyText ?? "").trim();
+    if (!text) {
+      toast.error("No hay detalle para copiar.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Detalle copiado al portapapeles.");
+    } catch {
+      toast.error("No se pudo copiar automáticamente.");
     }
   }
 
@@ -484,6 +724,7 @@ export default function ModuleCatalog() {
       lifecycleMutation.variables?.module?.key === module.key;
     const locked = isLocked(module);
     const canOpen = isModuleAvailable(module);
+    const canSyncModule = canOpen && module.updateAvailable && canInstallModules;
     const canInstall = module.status === "UNINSTALLED";
     const canDisable =
       module.status === "INSTALLED" && module.enabled && !locked;
@@ -506,7 +747,7 @@ export default function ModuleCatalog() {
         </p>
         {canOpen && (
           <Button
-            className="w-full"
+            className="w-full bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
             disabled={inFlight}
             onClick={() => openModule(module)}
           >
@@ -514,9 +755,21 @@ export default function ModuleCatalog() {
             Abrir módulo
           </Button>
         )}
+        {canSyncModule && (
+          <Button
+            className="w-full bg-sky-600 text-white hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-400"
+            disabled={inFlight}
+            onClick={() =>
+              lifecycleMutation.mutate({ action: "sync-module", module })
+            }
+          >
+            <RefreshCw className="h-4 w-4" />
+            {inFlight ? "Sincronizando..." : "Sincronizar este módulo"}
+          </Button>
+        )}
         {canInstall && (
           <Button
-            className="w-full"
+            className="w-full bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
             disabled={!canInstallModules || inFlight}
             onClick={() =>
               lifecycleMutation.mutate({ action: "install", module })
@@ -527,8 +780,7 @@ export default function ModuleCatalog() {
         )}
         {canRetryInstall && (
           <Button
-            className="w-full"
-            variant="destructive"
+            className="w-full bg-amber-400 text-amber-950 hover:bg-amber-500 dark:bg-amber-300 dark:hover:bg-amber-200"
             disabled={!canInstallModules || inFlight}
             onClick={() =>
               lifecycleMutation.mutate({ action: "retry-install", module })
@@ -579,7 +831,7 @@ export default function ModuleCatalog() {
         )}
         {canEnable && (
           <Button
-            className="w-full"
+            className="w-full bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
             disabled={!canDisableModules || inFlight}
             onClick={() =>
               lifecycleMutation.mutate({ action: "enable", module })
@@ -647,28 +899,25 @@ export default function ModuleCatalog() {
           eyebrow="Atlas Core"
           title="Catálogo de módulos"
           description="Gestiona el ciclo de vida de los módulos de tu instancia Atlas."
+          actions={
+            <Button
+              variant="default"
+              className="bg-(--brand-primary) text-(--brand-primary-foreground) hover:bg-(--brand-primary-hover) shadow-sm"
+              disabled={syncCatalogMutation.isPending || !canReadModules || !token}
+              onClick={() => syncCatalogMutation.mutate()}
+            >
+              <RefreshCw
+                className={cn(
+                  "h-4 w-4",
+                  syncCatalogMutation.isPending && "animate-spin",
+                )}
+              />
+              {syncCatalogMutation.isPending
+                ? "Sincronizando..."
+                : "Sincronizar módulos"}
+            </Button>
+          }
         />
-
-        <div className="flex items-center justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={
-              syncCatalogMutation.isPending || !canReadModules || !token
-            }
-            onClick={() => syncCatalogMutation.mutate()}
-          >
-            <RefreshCw
-              className={cn(
-                "h-4 w-4",
-                syncCatalogMutation.isPending && "animate-spin",
-              )}
-            />
-            {syncCatalogMutation.isPending
-              ? "Sincronizando..."
-              : "Sincronizar módulos"}
-          </Button>
-        </div>
 
         {redirectMessage && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 text-sm px-4 py-3">
@@ -873,7 +1122,6 @@ export default function ModuleCatalog() {
                         module.summary ||
                         "Sin descripción disponible para este módulo."}
                     </p>
-
                     {/* Footer: meta + action */}
                     <div className="flex items-center justify-between gap-2 pt-0.5">
                       <div className="flex items-center gap-1.5 flex-wrap min-w-0">
@@ -893,6 +1141,12 @@ export default function ModuleCatalog() {
                             Bloqueado
                           </span>
                         )}
+                        {module.updateAvailable && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 rounded-full px-1.5 py-0.5 shrink-0">
+                            <RefreshCw className="h-2.5 w-2.5" />
+                            Actualización pendiente
+                          </span>
+                        )}
                       </div>
                       {!inFlight && (
                         <CardAction
@@ -901,6 +1155,7 @@ export default function ModuleCatalog() {
                           canDisableModules={canDisableModules}
                           onAction={handleAction}
                           onOpen={openModule}
+                          onViewError={handleViewError}
                         />
                       )}
                       {inFlight && (
@@ -977,6 +1232,12 @@ export default function ModuleCatalog() {
                       Bloqueado
                     </span>
                   )}
+                  {module.updateAvailable && (
+                    <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-medium text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 rounded-full px-1.5 py-0.5 shrink-0">
+                      <RefreshCw className="h-2.5 w-2.5" />
+                      Pendiente
+                    </span>
+                  )}
 
                   {/* Action */}
                   <div
@@ -990,6 +1251,7 @@ export default function ModuleCatalog() {
                         canDisableModules={canDisableModules}
                         onAction={handleAction}
                         onOpen={openModule}
+                        onViewError={handleViewError}
                       />
                     ) : (
                       <span className="text-xs text-[hsl(var(--muted-foreground))] animate-pulse">
@@ -1081,6 +1343,12 @@ export default function ModuleCatalog() {
                         Compatible
                       </span>
                     )}
+                    {selectedModule.updateAvailable && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/45 dark:border-sky-400/35 bg-sky-500/20 dark:bg-sky-400/20 px-2.5 py-1 text-xs font-medium text-sky-800 dark:text-sky-200">
+                        <RefreshCw className="h-3 w-3" />
+                        Actualización pendiente
+                      </span>
+                    )}
                   </div>
 
                   {/* Description */}
@@ -1109,6 +1377,15 @@ export default function ModuleCatalog() {
                         value: getCategoryLabel(selectedModule),
                       },
                       { label: "Versión", value: `v${selectedModule.version}` },
+                      ...(selectedModule.localVersion &&
+                      selectedModule.localVersion !== selectedModule.version
+                        ? [
+                            {
+                              label: "Versión local",
+                              value: `v${selectedModule.localVersion}`,
+                            },
+                          ]
+                        : []),
                       {
                         label: "Publicado por",
                         value: getPublisher(selectedModule),
@@ -1183,6 +1460,70 @@ export default function ModuleCatalog() {
             })()}
         </SheetContent>
       </Sheet>
+
+      <Dialog
+        open={Boolean(errorDialog.open)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setErrorDialog({
+              open: false,
+              module: null,
+              loading: false,
+              detail: null,
+            });
+          }
+        }}
+      >
+        <DialogContent className="w-full sm:max-w-xl lg:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Detalle del error del módulo</DialogTitle>
+            <DialogDescription>
+              {errorDialog?.module?.name ?? "Módulo"} · {errorDialog?.module?.key ?? "-"}
+            </DialogDescription>
+          </DialogHeader>
+          {errorDialog.loading ? (
+            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-4 text-sm text-[hsl(var(--muted-foreground))]">
+              Cargando diagnóstico...
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {errorDialog?.detail?.raw && (
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  {errorDialog.detail.raw.stage && (
+                    <span className="rounded-full border border-[hsl(var(--border))] px-2 py-0.5">
+                      Etapa: {ERROR_STAGE_LABEL[errorDialog.detail.raw.stage] ?? String(errorDialog.detail.raw.stage)}
+                    </span>
+                  )}
+                  {errorDialog.detail.raw.code && (
+                    <span className="rounded-full border border-[hsl(var(--border))] px-2 py-0.5 font-mono">
+                      {String(errorDialog.detail.raw.code)}
+                    </span>
+                  )}
+                  {errorDialog.detail.raw.requestId && (
+                    <span className="rounded-full border border-[hsl(var(--border))] px-2 py-0.5 font-mono">
+                      RequestId: {String(errorDialog.detail.raw.requestId)}
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/30">
+                <pre className="max-h-80 overflow-auto p-3 text-xs leading-relaxed whitespace-pre-wrap break-words font-mono">
+                  {errorDialog?.detail?.copyText ?? "No hay detalle de error disponible."}
+                </pre>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCopyErrorDetails}
+                >
+                  Copiar detalle
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={Boolean(confirmUninstall)}

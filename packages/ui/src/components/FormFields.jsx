@@ -2144,6 +2144,11 @@ export function RelationSelectField({
     if (!open && containerRef.current) {
       const r = containerRef.current.getBoundingClientRect();
       setDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+      // If there are no options yet and we're not already loading, request a fresh load.
+      // Covers the case where the form was just reset/remounted before the preload effect ran.
+      if (options.length === 0 && !loading) {
+        onSearchChange?.("");
+      }
     }
     setOpen((o) => !o);
     setTimeout(() => searchRef.current?.focus(), 50);

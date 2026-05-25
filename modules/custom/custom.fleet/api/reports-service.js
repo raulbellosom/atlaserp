@@ -43,6 +43,7 @@ const UPDATABLE_FIELDS = new Set([
   "report_date",
   "odometer_km",
   "status",
+  "is_inhouse_workshop",
   "finalized_at",
   "finalized_by_profile_id",
   "workshop_name",
@@ -174,6 +175,10 @@ function normalizeReportPayload(data = {}, defaultType = null) {
     ...data,
     report_type: reportType,
     status: status ?? undefined,
+    is_inhouse_workshop:
+      data.is_inhouse_workshop === undefined
+        ? undefined
+        : Boolean(data.is_inhouse_workshop),
     title: normalizeOptionalString(data.title),
     workshop_name: normalizeOptionalString(data.workshop_name),
     workshop_phone: normalizeOptionalString(data.workshop_phone),
@@ -193,6 +198,14 @@ function normalizeReportPayload(data = {}, defaultType = null) {
   normalized.total_cost = Number(
     (normalized.parts_cost + normalized.labor_cost).toFixed(2),
   );
+
+  if (normalized.is_inhouse_workshop === true) {
+    normalized.workshop_name = null;
+    normalized.workshop_phone = null;
+    normalized.workshop_address = null;
+    normalized.invoice_number = null;
+  }
+
   return normalized;
 }
 
@@ -229,7 +242,7 @@ function validateTypeBusinessRules(payload) {
     ) {
       throw new FleetServiceError("Servicio requiere subtipo valido.", 400);
     }
-    if (!payload.invoice_number) {
+    if (!payload.is_inhouse_workshop && !payload.invoice_number) {
       throw new FleetServiceError(
         "Servicio requiere numero de factura o ticket.",
         400,
@@ -384,6 +397,7 @@ export function createReportsService({ prisma }) {
           title varchar(255) NOT NULL,
           report_date date NOT NULL,
           odometer_km integer,
+          is_inhouse_workshop boolean NOT NULL DEFAULT true,
           workshop_name varchar(200),
           workshop_phone varchar(50),
           workshop_address varchar(300),
@@ -671,6 +685,7 @@ export function createReportsService({ prisma }) {
       const rows = await prisma.$queryRaw`
         INSERT INTO fleet_report (
           company_id, report_type, folio, status, vehicle_id, title, report_date, odometer_km,
+          is_inhouse_workshop,
           workshop_name, workshop_phone, workshop_address, invoice_number,
           labor_cost, parts_cost, total_cost, notes,
           maintenance_subtype, next_service_date, next_service_odometer, service_subtype,
@@ -680,6 +695,7 @@ export function createReportsService({ prisma }) {
         VALUES (
           ${safeCompanyId}, ${data.report_type}, ${folio}, ${data.status ?? "draft"}, ${data.vehicle_id},
           ${data.title}, ${data.report_date}, ${data.odometer_km ?? null},
+          ${data.is_inhouse_workshop ?? true},
           ${data.workshop_name ?? null}, ${data.workshop_phone ?? null}, ${data.workshop_address ?? null}, ${data.invoice_number ?? null},
           ${data.labor_cost}, ${data.parts_cost}, ${data.total_cost}, ${data.notes ?? null},
           ${data.maintenance_subtype ?? null}, ${data.next_service_date ?? null}, ${data.next_service_odometer ?? null}, ${data.service_subtype ?? null},
@@ -752,12 +768,20 @@ export function createReportsService({ prisma }) {
     );
     validateTypeBusinessRules(data);
 
-    const updates = Object.entries({
+    const normalizedPatch = {
       ...payload,
       parts_cost: data.parts_cost,
       total_cost: data.total_cost,
       labor_cost: data.labor_cost,
-    }).filter(
+    };
+    if (payload.is_inhouse_workshop === true) {
+      normalizedPatch.workshop_name = null;
+      normalizedPatch.workshop_phone = null;
+      normalizedPatch.workshop_address = null;
+      normalizedPatch.invoice_number = null;
+    }
+
+    const updates = Object.entries(normalizedPatch).filter(
       ([key, value]) => UPDATABLE_FIELDS.has(key) && value !== undefined,
     );
     if (updates.length === 0 && payload.parts === undefined) {
@@ -1091,7 +1115,5 @@ export function createReportsService({ prisma }) {
     purgeLegacyMaintenanceData,
   };
 }
-
-
 
 

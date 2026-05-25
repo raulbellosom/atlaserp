@@ -20,6 +20,21 @@ const STATUS_ORDER = {
   ERROR: 3,
 };
 
+function computeMigrationSignature(manifestLike) {
+  const migrations = Array.isArray(manifestLike?.migrations)
+    ? manifestLike.migrations
+    : [];
+  const normalized = migrations.map((entry) => ({
+    path: typeof entry?.path === "string" ? entry.path.trim() : "",
+    checksum:
+      typeof entry?.checksum === "string"
+        ? entry.checksum.trim().toLowerCase()
+        : "",
+    unsafe: entry?.unsafe === true,
+  }));
+  return JSON.stringify(normalized);
+}
+
 export { CATEGORY_LABELS, getSortedDisplay } from './sortModules.js';
 
 function getManifestsByKey() {
@@ -90,6 +105,26 @@ export function mergeRuntimeModules(rawApiModules, options = {}) {
       typeof apiRow?.enabled === "boolean" ? apiRow.enabled : core;
 
     const manifestFallback = apiRow?.manifest ?? {};
+    const localVersion =
+      typeof manifest?.version === "string" ? manifest.version.trim() : null;
+    const dbVersion =
+      typeof apiRow?.version === "string"
+        ? apiRow.version.trim()
+        : typeof manifestFallback?.version === "string"
+          ? manifestFallback.version.trim()
+          : null;
+    const localSignature = computeMigrationSignature(manifest);
+    const persistedSignature = computeMigrationSignature(manifestFallback);
+    const updateVersionMismatch =
+      Boolean(localVersion) && Boolean(dbVersion) && localVersion !== dbVersion;
+    const updateMigrationMismatch =
+      Boolean(localSignature) &&
+      Boolean(persistedSignature) &&
+      localSignature !== persistedSignature;
+    const updateAvailable =
+      (key.startsWith("custom.") || apiRow?.lifecycleConfig?.discovery?.source === "custom") &&
+      (updateVersionMismatch || updateMigrationMismatch);
+
     const navigationSource =
       manifest?.navigation ?? manifestFallback.navigation ?? [];
     const navigation = normalizeModuleNavigation(key, navigationSource);
@@ -124,17 +159,29 @@ export function mergeRuntimeModules(rawApiModules, options = {}) {
         manifest?.dependencies ?? manifestFallback.dependencies ?? [],
       layoutMode,
       version: apiRow?.version ?? manifest?.version ?? "0.0.0",
+      localVersion,
+      dbVersion,
       kind: apiRow?.kind ?? manifest?.kind ?? "FEATURE",
       core: Boolean(core),
       uninstallable: Boolean(uninstallable),
       status,
       enabled: Boolean(enabled),
-      manifest: apiRow?.manifest ?? manifest ?? null,
+      manifest: manifest ?? apiRow?.manifest ?? null,
       installedAt: apiRow?.installedAt ?? null,
       updatedAt: apiRow?.updatedAt ?? null,
       compatibility: apiRow?.compatibility ?? [],
       compatibilityStatus: apiRow?.compatibilityStatus ?? "OK",
       compatibilityBlocking: apiRow?.compatibilityBlocking ?? [],
+      lifecycleConfig: apiRow?.lifecycleConfig ?? null,
+      lastError: apiRow?.lifecycleConfig?.lastError ?? null,
+      updateAvailable,
+      updateReason: updateAvailable
+        ? updateVersionMismatch && updateMigrationMismatch
+          ? "version+migrations"
+          : updateVersionMismatch
+            ? "version"
+            : "migrations"
+        : null,
     };
   });
 
