@@ -5,6 +5,7 @@ import { createFleetService, FleetServiceError } from './fleet-service.js'
 import { createDriversRouter } from './drivers-routes.js'
 import { createCatalogsRouter } from './catalogs-routes.js'
 import { createReportsRouter } from './reports-routes.js'
+import { createInsuranceRouter } from './insurance-routes.js'
 
 const vehicleEnabledSchema = z.object({ enabled: z.boolean() })
 const vehicleStatusFilterSchema = z.enum(['active', 'maintenance', 'inactive', 'retired'])
@@ -169,6 +170,7 @@ export default function createFleetRouter({ prisma, requirePermission, moduleCon
   app.route('', createDriversRouter({ prisma, requirePermission, moduleContext }))
   app.route('', createCatalogsRouter({ prisma, requirePermission, moduleContext, cache }))
   app.route('', createReportsRouter({ prisma, requirePermission, moduleContext }))
+  app.route('', createInsuranceRouter({ prisma, requirePermission, moduleContext }))
 
   return app
 }
