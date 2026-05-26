@@ -1,0 +1,33 @@
+{
+  "key": "custom.demo",
+  "name": "Demo",
+  "version": "0.1.0",
+  "description": "Modulo de demostracion generado por el scaffolder",
+  "entities": [
+    {
+      "name": "product",
+      "label": "Producto",
+      "labelPlural": "Productos",
+      "softDelete": true,
+      "companyScoped": true,
+      "fields": [
+        { "name": "name", "type": "text", "label": "Nombre", "required": true },
+        { "name": "description", "type": "textarea", "label": "Descripcion" },
+        { "name": "price", "type": "decimal", "label": "Precio" },
+        { "name": "status", "type": "select", "label": "Estado", "options": ["activo", "inactivo", "agotado"] },
+        { "name": "category_id", "type": "relation", "label": "Categoria", "relatedModel": "demo.category" }
+      ]
+    },
+    {
+      "name": "category",
+      "label": "Categoria",
+      "labelPlural": "Categorias",
+      "softDelete": true,
+      "companyScoped": true,
+      "fields": [
+        { "name": "name", "type": "text", "label": "Nombre", "required": true },
+        { "name": "code", "type": "text", "label": "Codigo", "maxLength": 20 }
+      ]
+    }
+  ]
+}
