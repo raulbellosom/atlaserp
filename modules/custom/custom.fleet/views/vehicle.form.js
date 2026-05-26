@@ -35,6 +35,8 @@ export default defineView({
               preload: false,
               clearable: true,
               disabledField: 'enabled',
+              dependsOn: ['vehicle_brand_id', 'vehicle_type_id'],
+              queryParams: { brand_id: 'vehicle_brand_id', type_id: 'vehicle_type_id' },
               create: {
                 enabled: true,
                 label: 'Crear modelo de vehiculo',
