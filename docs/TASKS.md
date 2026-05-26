@@ -32,9 +32,11 @@ Verified: 2026-05-24 (`pnpm.cmd exec prisma validate`, `pnpm.cmd db:generate`, `
 - [x] Remove `custom.fleet` dependency on `manifest.migrations` SQL chain and switch to declarative model lifecycle defaults.
 - [x] Ignore legacy `manifest.migrations` SQL execution for discovered custom modules to avoid checksum drift failures.
 - [x] Extend module-engine declarative DDL support with table-level `foreignKeys` and `checks`, including checksum coverage.
-- [ ] Execute destructive migration and reseed in live environment (`db:migrate`, `db:seed`) and validate Supabase Advisor warnings are fully cleared.
+- [x] Execute destructive migration and reseed in live environment (`db:reset`, `db:migrate`, `db:seed`).
+- [x] Validate Supabase Advisor warnings are fully cleared after reset/reseed.
 
 Verified: 2026-05-25 (`pnpm.cmd prisma validate`, `pnpm.cmd prisma generate`, `node --test packages/module-engine/src/__tests__/define-model.test.js packages/module-engine/src/__tests__/sql-generator.test.js`, `node --test apps/api/src/services/__tests__/module-discovery-service.test.js`, `node --test apps/api/src/services/__tests__/rbac-granular-contract.test.js`)
+Note: destructive reset + reseed executed on live DB (`pnpm.cmd db:reset`, `pnpm.cmd db:migrate`, `pnpm.cmd db:seed`) with resulting baseline migration `20260525193000_core_only_baseline`. In this self-hosted environment the Supabase CLI `db advisors` path fails on direct-port TLS negotiation, so validation is executed with the official Splinter SQL lint set through Prisma (`pnpm.cmd db:advisor-equivalent` -> `SPLINTER_COUNTS { INFO: 33 }`, `SPLINTER_STATUS PASS_NO_WARN_OR_ERROR`).
 
 ## Reset 0 + Core-only Baseline + Finance/Ledger Externalization
 
@@ -46,6 +48,16 @@ Verified: 2026-05-25 (`pnpm.cmd prisma validate`, `pnpm.cmd prisma generate`, `n
 - [x] Confirmed clean bootstrap excludes `fleet_%` tables (fleet stays custom and not auto-installed).
 
 Verified: 2026-05-25 (`pnpm.cmd db:migrate`, `pnpm.cmd db:seed`, DB query on `information_schema.tables` returns no `finance_%`/`ledger_%`/`fleet_%`, `pnpm.cmd prisma validate`, `node --check apps/api/src/index.js`, `pnpm.cmd --filter ./apps/desktop build:web`)
+
+## Documentation Alignment (Module Status Reality Check)
+
+- [x] Align canonical docs with internal core baseline of 6 modules (`atlas.core`, `atlas.identity`, `atlas.files`, `atlas.company`, `atlas.contacts`, `atlas.hr`).
+- [x] Remove active-transition wording that still treated `packages/maps` as present.
+- [x] Align docs with direct PostgreSQL connectivity on Supabase port `5433` (no SSH tunnel as default path).
+- [x] Align docs with Prisma workspace baseline `^7`.
+- [x] Add explicit guidance that historical specs/plans may contain obsolete transitional references.
+
+Verified: 2026-05-25 (`rg -n "packages/maps|SSH tunnel|Prisma is pinned to \\`\\^6\\`|Four core modules|4 core modules seeded" AGENTS.md README.md CLAUDE.md docs/00_project_status.md docs/02_module_system.md docs/03_core_modules.md docs/TASKS.md`)
 
 ## Phase 0 - Repository and environment cleanup
 
@@ -199,9 +211,9 @@ Plan: `docs/superpowers/plans/2026-05-04-phase8-finance.md`
 - [x] Phase 8.3 - Analytics and dashboard
 - [x] Financial widgets (operational + analytical) over active company data
 - [x] Period trend and variance cards
-- [ ] Optional contact relation in transactions (only when contacts module is available)
+- [x] Optional contact relation in transactions (only when contacts module is available)
 
-Verified: 2026-05-05 (`node --check apps/api/src/index.js`, `node --check apps/api/src/services/finance-service.js`, `node --check packages/sdk/src/index.js`, `pnpm.cmd --filter ./apps/desktop build:web`, `pnpm.cmd prisma migrate status`)
+Verified: 2026-05-25 (`node --check apps/api/src/services/finance-service.js`; `pnpm.cmd --filter @atlas/desktop build:web`; finance entry UI now supports optional per-line contact selection in `EntrySheet`; backend validates contact ownership only when `atlas.contacts` is enabled+installed)
 
 ### Phase 8.4-A - AR/AP Core Expansion
 
@@ -274,16 +286,16 @@ Verified: 2026-05-05 (`node --check apps/api/src/services/finance-documents-serv
 Spec: `docs/superpowers/specs/2026-05-05-phase9-hr-design.md`  
 Plan: `docs/superpowers/plans/2026-05-05-phase9-hr.md`
 
-- [ ] Dedicated routes for HR list and employee detail (`/hr/employees`, `/hr/employees/:id`)
-- [ ] Single long-form employee view with all core sections visible (not modal-first)
-- [ ] View/Edit toggle with stable layout and async loading safeguards
-- [ ] Full HR v1 employee model fields persisted via API/SDK/Prisma
-- [ ] Rich markdown notes editor + rendered read mode
-- [ ] Employee dossier attachments via canonical files pipeline (`atlas-files`)
-- [ ] Embedded employee audit timeline (`actor/action/timestamp`)
-- [ ] Permission and auth contracts for `hr.employee|department|job_title|org_chart.*`
+- [x] Dedicated routes for HR list and employee detail (`/hr/employees`, `/hr/employees/:id`)
+- [x] Single long-form employee view with all core sections visible (not modal-first)
+- [x] View/Edit toggle with stable layout and async loading safeguards
+- [x] Full HR v1 employee model fields persisted via API/SDK/Prisma
+- [x] Rich markdown notes editor + rendered read mode
+- [x] Employee dossier attachments via canonical files pipeline (`atlas-files`)
+- [x] Embedded employee audit timeline (`actor/action/timestamp`)
+- [x] Permission and auth contracts for `hr.employee|department|job_title|org_chart.*`
 
-Verified: pending
+Verified: 2026-05-25 (`node --check apps/api/src/services/hr-service.js`; `node --check apps/api/src/index.js`; `node --check packages/sdk/src/index.js`; `node --check packages/validators/src/index.js`; `node --test apps/api/src/services/__tests__/rbac-granular-contract.test.js`; `pnpm.cmd --filter @atlas/desktop build:web`; `rg -n "atlas.hr:/hr/employees|atlas.hr:/hr/employees/:id" apps/desktop/src/app/ModuleOutlet.jsx`; `rg -n "queryKey: \\[\\\"hr-employee-audit\\\"|FilesPanel|MarkdownField|isEditing" apps/desktop/src/modules/atlas.hr/screens/HrEmployeeDetail.jsx`)
 
 ## Phase 9.5 - Module Lifecycle v2
 
@@ -537,14 +549,14 @@ Verified: 2026-05-25 (architecture decision documented in `docs/TASKS.md` and `A
 **Required plan:** `docs/superpowers/plans/YYYY-MM-DD-ame3-crud-blueprint-renderer.md`
 
 - [x] Kickoff audit complete: renderer primitives (`AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`) and runtime registry wiring are present and actively used by `custom.fleet` routes.
-- [ ] *Spec approved* → `AtlasTable` fully renders any TABLE blueprint with sort, filter, pagination
-- [ ] *Spec approved* → `AtlasForm` fully renders any FORM blueprint with React Hook Form + generated Zod schema
-- [ ] *Spec approved* → `AtlasDetail` renders any DETAIL blueprint read-only
-- [ ] *Spec approved* → `AtlasCrudView` composes list + form + detail into a full CRUD experience
+- [x] *Spec approved* → `AtlasTable` fully renders TABLE blueprints with sort, filter, and pagination controls.
+- [x] *Spec approved* → `AtlasForm` fully renders FORM blueprints using schema-driven sections, relation loaders, inline create, and submit validations.
+- [x] *Spec approved* → `AtlasDetail` renders DETAIL blueprints in read-only mode, including relation labels and attachments context.
+- [x] *Spec approved* → `AtlasCrudView` composes list + form + detail into a complete CRUD flow with create/view/edit transitions.
 - [x] *Spec approved* → Shell and layout resolution: `atlas.dashboardShell`, `atlas.crudLayout`
 - [x] *Spec approved* → Custom component key resolution via Component Registry
 
-Verified: 2026-05-25 (`rg -n "AtlasTable|AtlasForm|AtlasDetail|AtlasCrudView|ComponentRegistry|registry.register" apps packages modules`; `node --test apps/desktop/src/shell/__tests__/blueprint-layout-resolver.test.js`; `node --test apps/desktop/src/lib/__tests__/module-component-registry-core.test.js`; `pnpm.cmd --filter @atlas/desktop build:web`)
+Verified: 2026-05-25 (`rg -n "filterValues|sortBy|sortDir|pagination|TablePaginationFooter" packages/ui/src/atlas-renderer/AtlasTable.jsx packages/ui/src/atlas-renderer/AtlasTableToolbar.jsx packages/ui/src/atlas-renderer/TablePaginationFooter.jsx`; `rg -n "normalizeSections|handleSubmit|relation|inlineCreate|AttachmentsPanel" packages/ui/src/atlas-renderer/AtlasForm.jsx packages/ui/src/atlas-renderer/atlas-form-schema.js`; `rg -n "readOnly|AttachmentsPanel" packages/ui/src/atlas-renderer/AtlasDetail.jsx`; `rg -n "AtlasTable|AtlasForm|AtlasDetail|mode=\"create\"|mode=\"edit\"" packages/ui/src/atlas-renderer/AtlasCrudView.jsx`; `node --test packages/ui/src/atlas-renderer/__tests__/renderer-adapters.test.js`; `pnpm.cmd --filter @atlas/desktop build:web`)
 
 ### AME3 Phase 7 — Remove packages/maps
 
@@ -569,9 +581,14 @@ Verified: 2026-05-25 (`pnpm.cmd install --lockfile-only`; `node --check apps/api
 
 - [ ] Purchases (supplier orders, receiving)
 - [ ] Inventory (stock management)
-- [ ] Fleet (vehicles, drivers, maintenance) — candidate first AME3 custom module
+- [ ] Fleet (vehicles, drivers, maintenance) — active next focus (2026-05-25)
 - [ ] Reports (cross-module reporting engine)
 - [ ] Website builder / CMS
+
+## Next agreed focus (2026-05-25)
+
+- [ ] Fleet expansion execution (functional + UX + API hardening as next delivery block)
+- [ ] Module Scaffolder / Module Creator for future modules after Fleet expansion completion
 
 ## Phase 10 - Responsive foundation, toolbar migrations, and Finance decomposition
 

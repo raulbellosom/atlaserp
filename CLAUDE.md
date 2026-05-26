@@ -66,7 +66,6 @@ apps/
   worker/      Node.js background job handler (stub)
 packages/
   core/           Module registry, event bus, manifest contract
-  maps/           Legacy module manifests (decommission track) — do not extend
   module-engine/  @atlas/module-engine — AME3 primitives: defineAtlasModule, defineModel, defineView, definePage
   ui/             Shared React components (AppShell, Button, AtlasTable, AtlasForm, etc.)
   sdk/            Atlas API client (createAtlasClient factory)
@@ -106,7 +105,7 @@ A manifest defines: `key`, `name`, `version`, `kind`, `core`, `uninstallable`, `
 
 Two categories:
 
-- **Core modules**: `core: true`, `uninstallable: false` - atlas.core, atlas.identity, atlas.files, atlas.company. Cannot be removed via API.
+- **Core modules**: `core: true`, `uninstallable: false` - atlas.core, atlas.identity, atlas.files, atlas.company, atlas.contacts, atlas.hr. Cannot be removed via API.
 - **Feature modules**: installable, versioned, can depend on other modules.
 
 The `ModuleRegistry` class (`packages/core/src/module-registry.js`) handles registration, dependency validation, navigation resolution, and blueprint flattening. The API seeds these into `AtlasModule` rows via `prisma/seed.js`.
@@ -186,7 +185,7 @@ Tailwind scans both `src/**` and `../../packages/ui/src/**` (configured in `apps
 - **Atomic file size limit** — No source file may exceed **1000 lines**. Hard ceiling is **1500 lines** (treat as a build-blocking violation). Files approaching 800 lines should be proactively split. Strategies: extract sub-components, split routes by domain, separate sheets/dialogs from list screens, move helpers into `lib/` or `utils/`. Known violators that must be decomposed: `FinanceScreen.jsx` (4462), `apps/api/src/index.js` (3583), `FormFields.jsx` (2153), `HrEmployeeDetail.jsx` (1704), `finance-documents-service.js` (1118), `finance-service.js` (1076), `ModuleCatalog.jsx` (1033).
 - Soft-delete pattern: use `enabled: false` instead of hard-deleting records
 - Every **new AME3 module** lives in `modules/custom/<moduleKey>/` — requires only `module.manifest.js`, `models/`, `views/`, `api/index.js`, `validators/index.js`. No edits to `prisma/schema.prisma`, `apps/api/src/index.js`, or `packages/validators/`. See `docs/03_custom_modules.md`.
-- Official functional modules (contacts, files, finance, hr, ledger, identity, company) continue to run from current API/desktop domains while official manifest snapshots are maintained in `apps/api/src/manifests/official/`.
+- Official manifest snapshots are maintained in `apps/api/src/manifests/official/` and represent the internal baseline modules.
 - In docs checklists, mark `[x]` only with explicit verification evidence and `Verified: YYYY-MM-DD (...)`
 - Prisma is at `^7` - root `package.json` overrides all workspace packages to `^7.8.0`
 - Applied Prisma migrations are immutable: never edit existing `prisma/migrations/**/migration.sql`
@@ -215,14 +214,14 @@ See `docs/TASKS.md` for the full phased roadmap.
 
 - Phase 0–7.1.1: complete (repo setup, auth, shell, contacts, files)
 - Phase 8 (Finance): complete — double-entry accounting, AR/AP, FX, taxes, aging, applications, reversal (phases 8.1–8.6)
-- Phase 9 (HR): in progress — employee detail redesign
+- Phase 9 (HR): complete — dedicated routes, detail workflow, files dossier, and audit timeline
 - Phase 9.5 (Module Lifecycle v2): complete — Permission.active, dry-run uninstall/reset, cleanup registry
 - AME3 Phase 1 (Module Engine foundation): complete — `packages/module-engine` with `defineAtlasModule`, `defineModel`, `defineView`, `definePage`, SQL generator, checksum
 - AME3 Phase 2 (Route Loader + custom module): complete — `route-loader-service.js`, `custom.fleet` module operational
 - AME3 Phase 3 (Atlas ORM + Blueprint Renderer): complete — Atlas ORM provisions tables from `defineModel`; blueprint renderer (`AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`) in `@atlas/ui`
 - AME3 Phase 4 (Discovery as primary source + route/component lifecycle sync): complete
 - AME3 Phase 5 (official module relocation): retired by architecture decision (2026-05-25)
-- AME3 Phase 6 ongoing hardening and AME3 Phase 7 cleanup are tracked in `docs/TASKS.md`
+- AME3 Phase 6 (generic CRUD renderer baseline) and Phase 7 (maps decommission) are complete; follow-on refinements are tracked in `docs/TASKS.md`
 
 ## Local command permissions and secret safety
 

@@ -198,6 +198,40 @@ export function createFinanceService({ prisma }) {
     }
   }
 
+  async function isContactsModuleAvailable() {
+    const contactsModule = await prisma.atlasModule.findUnique({
+      where: { key: "atlas.contacts" },
+      select: { status: true, enabled: true },
+    });
+    return (
+      contactsModule?.enabled === true &&
+      contactsModule?.status === "INSTALLED"
+    );
+  }
+
+  async function assertContactOwnershipForLines({ companyId, contactIds }) {
+    const ids = [...new Set((contactIds ?? []).filter(Boolean))];
+    if (ids.length === 0) return;
+
+    const contactsAvailable = await isContactsModuleAvailable();
+    if (!contactsAvailable) return;
+
+    const validContacts = await prisma.contact.findMany({
+      where: {
+        id: { in: ids },
+        companyId,
+        enabled: true,
+      },
+      select: { id: true },
+    });
+    if (validContacts.length !== ids.length) {
+      throw new FinanceServiceError(
+        "Uno o mas contactos no existen o no pertenecen a tu empresa.",
+        400,
+      );
+    }
+  }
+
   async function getBaseCurrency() {
     const record = await prisma.instanceConfig.findUnique({
       where: { key: "currency" },
@@ -743,6 +777,9 @@ export function createFinanceService({ prisma }) {
               account: {
                 select: { id: true, code: true, name: true, type: true },
               },
+              contact: {
+                select: { id: true, name: true, type: true },
+              },
             },
             orderBy: { createdAt: "asc" },
           },
@@ -761,6 +798,9 @@ export function createFinanceService({ prisma }) {
             include: {
               account: {
                 select: { id: true, code: true, name: true, type: true },
+              },
+              contact: {
+                select: { id: true, name: true, type: true },
               },
             },
             orderBy: { createdAt: "asc" },
@@ -789,6 +829,10 @@ export function createFinanceService({ prisma }) {
           400,
         );
       }
+      await assertContactOwnershipForLines({
+        companyId,
+        contactIds: lines.map((line) => line.contactId),
+      });
 
       const convertedLines = await Promise.all(
         lines.map(async (line) => {

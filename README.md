@@ -10,20 +10,21 @@ Desktop-first, full-stack modular ERP built with React + Vite + Tauri, a Node/Ho
 cp .env.example .env
 ```
 
-Open `.env` and fill in the values. All keys come from the VPS file at:
+Open `.env` and fill in values from the VPS file:
 `/opt/supabase-atlaserp/supabase/docker/.env`
 
-| .env variable                 | Source in VPS .env                  |
-| ----------------------------- | ----------------------------------- |
-| `SUPABASE_ANON_KEY`           | `ANON_KEY`                          |
-| `SUPABASE_SERVICE_ROLE_KEY`   | `SERVICE_ROLE_KEY`                  |
-| `SUPABASE_JWT_SECRET`         | `JWT_SECRET`                        |
-| `DATABASE_URL` / `DIRECT_URL` | Use `POSTGRES_PASSWORD` — see below |
+| .env variable                 | Source in VPS .env |
+| ----------------------------- | ------------------ |
+| `SUPABASE_ANON_KEY`           | `ANON_KEY`         |
+| `SUPABASE_SERVICE_ROLE_KEY`   | `SERVICE_ROLE_KEY` |
+| `SUPABASE_JWT_SECRET`         | `JWT_SECRET`       |
+| `DATABASE_URL` / `DIRECT_URL` | `POSTGRES_PASSWORD` |
 
-`DATABASE_URL` uses the SSH tunnel address:
+Use direct PostgreSQL access on port `5433`:
 
-```
-DATABASE_URL=postgresql://postgres:<POSTGRES_PASSWORD>@127.0.0.1:54322/postgres
+```bash
+DATABASE_URL=postgresql://postgres:<POSTGRES_PASSWORD>@<SUPABASE_VPS_IP>:5433/postgres
+DIRECT_URL=postgresql://postgres:<POSTGRES_PASSWORD>@<SUPABASE_VPS_IP>:5433/postgres
 ```
 
 ### 2. Install dependencies
@@ -32,114 +33,127 @@ DATABASE_URL=postgresql://postgres:<POSTGRES_PASSWORD>@127.0.0.1:54322/postgres
 pnpm install
 ```
 
-### 3. Open SSH tunnel (required for all Prisma commands)
+If PowerShell blocks `pnpm`, use `pnpm.cmd`.
 
-PostgreSQL is not exposed publicly. Open this tunnel in a separate terminal before running any `db:*` command:
+### 3. Validate database connectivity
+
+Before Prisma commands, verify port `5433` is reachable:
 
 ```bash
-ssh -L 54322:172.22.0.3:5432 root@76.13.114.109
+nc -zv <SUPABASE_VPS_IP> 5433
 ```
 
-Keep it open for the duration of your database work.
+No SSH tunnel is required.
 
 ### 4. Set up database (first time only)
 
 ```bash
-pnpm db:generate    # generate Prisma client
-pnpm db:migrate     # apply migrations to Supabase PostgreSQL
-pnpm db:seed        # seed core modules, roles, permissions
+pnpm db:generate
+pnpm db:migrate
+pnpm db:seed
 ```
 
 ### 5. Start dev servers
 
 ```bash
-pnpm dev            # API + Vite web preview + worker
+pnpm dev
 ```
 
-Open **http://localhost:5173** in your browser or run `pnpm dev:tauri` for the native window.
+Open `http://localhost:5173` or run `pnpm dev:tauri` for the native window.
 
 ## Dev commands
 
 ### Servers
 
-| Command             | What it does                                                |
-| ------------------- | ----------------------------------------------------------- |
-| `pnpm dev`          | API + Vite web preview + worker (recommended)               |
-| `pnpm dev:api`      | API only — port 4010                                        |
-| `pnpm dev:frontend` | Vite web preview only — port 5173                           |
-| `pnpm dev:worker`   | Background worker only                                      |
-| `pnpm dev:tauri`    | Native Tauri window + all servers (requires Rust toolchain) |
+| Command             | What it does |
+| ------------------- | ------------ |
+| `pnpm dev`          | API + Vite web preview + worker |
+| `pnpm dev:api`      | API only (port 4010) |
+| `pnpm dev:frontend` | Vite only (port 5173) |
+| `pnpm dev:worker`   | Worker only |
+| `pnpm dev:tauri`    | Native Tauri window + servers |
 
-### Database (SSH tunnel required for all)
+### Database
 
-| Command            | What it does                                       |
-| ------------------ | -------------------------------------------------- |
-| `pnpm db:generate` | Regenerate Prisma client after schema changes      |
-| `pnpm db:migrate`  | Run pending migrations against Supabase PostgreSQL |
-| `pnpm db:seed`     | Seed core modules, permissions, roles              |
-| `pnpm db:studio`   | Open Prisma Studio GUI — http://localhost:5555     |
-| `pnpm db:fresh`    | migrate + generate + seed (non-destructive)        |
+| Command            | What it does |
+| ------------------ | ------------ |
+| `pnpm db:generate` | Regenerate Prisma client |
+| `pnpm db:migrate`  | Apply pending migrations |
+| `pnpm db:seed`     | Seed module lifecycle metadata, roles, permissions |
+| `pnpm db:studio`   | Open Prisma Studio (`http://localhost:5555`) |
+| `pnpm db:fresh`    | Migrate + generate + seed (non-destructive) |
 
 ### Build
 
-| Command               | What it does                                            |
-| --------------------- | ------------------------------------------------------- |
-| `pnpm build`          | Build all packages and apps                             |
-| `pnpm icons:generate` | Regenerate Tauri app icons                              |
-| `pnpm brand:build`    | Regenerate desktop icons + web metadata branding assets |
+| Command               | What it does |
+| --------------------- | ------------ |
+| `pnpm build`          | Build all apps and packages |
+| `pnpm icons:generate` | Regenerate Tauri app icons |
+| `pnpm brand:build`    | Regenerate desktop/web branding assets |
 
 ## Ports
 
-| Service         | URL                                    |
-| --------------- | -------------------------------------- |
-| API             | http://localhost:4010                  |
-| Frontend (Vite) | http://localhost:5173                  |
-| Prisma Studio   | http://localhost:5555                  |
-| Supabase API    | https://supabase.racoondevs.com        |
+| Service         | URL |
+| --------------- | --- |
+| API             | http://localhost:4010 |
+| Frontend (Vite) | http://localhost:5173 |
+| Prisma Studio   | http://localhost:5555 |
+| Supabase API    | https://supabase.racoondevs.com |
 | Supabase Studio | https://studio.supabase.racoondevs.com |
 
 ## Architecture
 
-```
+```txt
 apps/
   desktop/     React + Vite + Tauri 2 (desktop shell)
   api/         Node.js + Hono (business logic + REST API)
   worker/      Background job handler
 packages/
-  core/        Module registry, event bus, manifest contract
-  maps/        [DEPRECATED] Legacy manifests — transitional only, will be removed
-  ui/          Shared React components
-  sdk/         Atlas API client (createAtlasClient)
-  validators/  Zod schemas shared between API and frontend
-  module-engine/  @atlas/module-engine — defineAtlasModule, defineModel, defineView, definePage
+  core/           Module registry, event bus, manifest contract
+  module-engine/  @atlas/module-engine (defineAtlasModule, defineModel, defineView, definePage)
+  ui/             Shared React components
+  sdk/            Atlas API client (createAtlasClient)
+  validators/     Zod schemas shared between API and frontend
 modules/
-  official/    Atlas team modules (Phase 5 migration target)
   custom/      Community and partner modules
+  official/    Optional curated official distributions
 prisma/
-  schema.prisma   Atlas Core stable models only
-  seed.js         Seeds core modules, roles, permissions
+  schema.prisma   Atlas Core stable models + AME3 metadata tables
+  seed.js         Seeds module lifecycle metadata, roles, permissions
 ```
 
-**Request flow:** `React → @atlas/sdk → Hono API → Zod validation → Prisma / Atlas ORM → Supabase PostgreSQL`
+Request flow:
+`React -> @atlas/sdk -> Hono API -> Zod validation -> Prisma / Atlas ORM -> Supabase PostgreSQL`
 
-No direct database access from the frontend. The API owns all business rules and validation.
+No direct database access from the frontend.
 
 ## Module system
 
-Atlas ERP is a **module engine that ships ERP modules**. New self-contained AME3 modules live in `modules/custom/` (with `modules/official/` reserved for optional curated distributions). Modules declare their own data models, views, pages, navigation, permissions, and API endpoints — without touching any core files.
+Atlas ERP is a module engine. New AME3 modules live in `modules/custom/` and declare their own models, views, pages, navigation, permissions, and API endpoints.
 
-- **Official modules** — `atlas.core`, `atlas.identity`, `atlas.files`, `atlas.company`, and feature modules. Maintained by the Atlas team in current workspace locations (official relocation to `modules/official/` is no longer a required gate).
-- **Custom modules** — Community and partner modules in `modules/custom/`. Namespace must be `custom.*` or `community.*`.
-- **Official manifest snapshots** — maintained in `apps/api/src/manifests/official/` as the seed/fallback source for official modules.
+- Core modules (`core: true`, `uninstallable: false`):
+  - `atlas.core`
+  - `atlas.identity`
+  - `atlas.files`
+  - `atlas.company`
+  - `atlas.contacts`
+  - `atlas.hr`
+- Custom modules: `custom.*` or `community.*` in `modules/custom/`
+- Official manifest snapshots: `apps/api/src/manifests/official/`
 
-New modules use `defineAtlasModule` from `@atlas/module-engine`. `createModuleManifest` is deprecated.
+New modules use `defineAtlasModule` from `@atlas/module-engine`.
 
-See [docs/02_module_system.md](docs/02_module_system.md), [docs/03_custom_modules.md](docs/03_custom_modules.md), and [docs/architecture/atlas-module-engine-v3.md](docs/architecture/atlas-module-engine-v3.md).
+See:
+- `docs/02_module_system.md`
+- `docs/03_custom_modules.md`
+- `docs/architecture/atlas-module-engine-v3.md`
+- `docs/TASKS.md`
 
 ## Notes
 
-- All UI text must be in **Spanish**. Code, docs, and comments are in **English**.
-- JavaScript only — no TypeScript.
-- Tailwind for all styles.
-- Prisma is pinned to `^6`. Do not upgrade to v7 (breaking API changes).
-- Supabase Studio: https://studio.supabase.racoondevs.com (admin use only).
+- UI text in Spanish.
+- Code, docs, and comments in English.
+- JavaScript only.
+- Tailwind for styles.
+- Prisma pinned to `^7` via workspace overrides.
+- Supabase Studio is admin-only.

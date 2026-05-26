@@ -480,6 +480,7 @@ export default function ModuleCatalog() {
       await queryClient.invalidateQueries({ queryKey: ["modules"] });
       await queryClient.invalidateQueries({ queryKey: ["runtime-modules"] });
       await queryClient.invalidateQueries({ queryKey: ["blueprints"] });
+      await queryClient.invalidateQueries({ queryKey: ["module-orphan-tables"] });
       setConfirmUninstall(null);
       setPurgeOnUninstall(false);
       setConfirmCleanup(null);
@@ -750,7 +751,7 @@ export default function ModuleCatalog() {
     const canUninstall =
       (module.status === "INSTALLED" || module.status === "DISABLED") &&
       !locked;
-    const canPurgeOrphanedTables =
+    const couldHaveOrphanedTables =
       module.status === "UNINSTALLED" &&
       !locked &&
       canUninstallModules &&
@@ -758,6 +759,18 @@ export default function ModuleCatalog() {
         (Array.isArray(module?.lifecycleConfig?.ownedTables) && module.lifecycleConfig.ownedTables.length > 0) ||
         module?.manifest?.lifecycle?.defaultUninstallPolicy === "purge-owned-tables"
       );
+
+    const orphanQuery = useQuery({
+      queryKey: ["module-orphan-tables", module.key],
+      queryFn: () => atlas.modules.uninstallDryRun(module.key, token, "purge-owned-tables"),
+      enabled: Boolean(couldHaveOrphanedTables && token),
+      staleTime: 60000,
+      retry: false,
+    });
+
+    const hasOrphanedTables =
+      (orphanQuery.data?.data?.ownedTablePurge?.tableChecks ?? []).some((t) => t.exists);
+    const canPurgeOrphanedTables = couldHaveOrphanedTables && hasOrphanedTables;
     return (
       <div className="space-y-2">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">

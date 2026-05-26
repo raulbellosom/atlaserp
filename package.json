@@ -31,7 +31,8 @@
     "check:uuid-policy": "node scripts/enforce-uuid-policy.mjs",
     "module:checksums": "node scripts/check-module-manifest-migrations.mjs",
     "module:checksums:fleet": "node scripts/check-module-manifest-migrations.mjs modules/custom/custom.fleet",
-    "module:checksums:write": "node scripts/check-module-manifest-migrations.mjs modules/custom/custom.fleet --write"
+    "module:checksums:write": "node scripts/check-module-manifest-migrations.mjs modules/custom/custom.fleet --write",
+    "db:advisor-equivalent": "node scripts/check-supabase-advisor-equivalent.mjs"
   },
   "dependencies": {
     "@atlas/module-engine": "workspace:*",

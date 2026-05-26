@@ -229,8 +229,8 @@ export function defaultEntryForm() {
     currency: "MXN",
     sourceType: "manual",
     lines: [
-      { accountId: "", debit: "", credit: "", note: "" },
-      { accountId: "", debit: "", credit: "", note: "" },
+      { accountId: "", contactId: "", debit: "", credit: "", note: "" },
+      { accountId: "", contactId: "", debit: "", credit: "", note: "" },
     ],
   };
 }

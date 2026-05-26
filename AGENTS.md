@@ -137,20 +137,22 @@ Official module manifest snapshots are maintained in `apps/api/src/manifests/off
 - `atlas.identity`
 - `atlas.files`
 - `atlas.company`
+- `atlas.contacts`
+- `atlas.hr`
 
 **Feature modules** (installable, versioned):
 
-- `atlas.contacts`
-- `atlas.finance`
+- Official feature manifests are currently externalized from the internal seed baseline.
+- `custom.finance` and `custom.ledger` exist as custom-module placeholders during cutover.
 
 Each new module needs: `module.manifest.js`, `models/`, `views/`, optional `api/` + `components/`, lifecycle sync, and `docs/TASKS.md` evidence updates. Prefer Atlas ORM (`defineModel`) over new Prisma feature tables. See [docs/02_module_system.md](docs/02_module_system.md).
 
-## Current Phase Status (2026-05-20)
+## Current Phase Status (2026-05-25)
 
 | Phase                             | Status      | Notes                                             |
 | --------------------------------- | ----------- | ------------------------------------------------- |
 | 0 - Repo cleanup + env alignment  | Complete    | Supabase-first env, numbered docs suite           |
-| 1 - Supabase + Prisma connection  | Complete    | 3 migrations applied, 4 core modules seeded       |
+| 1 - Supabase + Prisma connection  | Complete    | 3 migrations applied (initial baseline seeded 4 core modules) |
 | 2 - ERP initialization state      | Complete    | InitGuard + instance status routing complete      |
 | 3 - Onboarding setup wizard       | Complete    | Transactional setup + branding flow complete      |
 | 4 - Auth integration              | Complete    | Login, session persistence, protected API context |

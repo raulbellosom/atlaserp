@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Badge,
   Button,
@@ -24,6 +24,7 @@ import {
   CalendarDays,
   Coins,
   FileText,
+  HandCoins,
   Hash,
   Minus,
   Notebook,
@@ -73,6 +74,13 @@ export function EntrySheet({
     () => (accounts ?? []).filter((a) => a.enabled),
     [accounts],
   );
+  const contactsQuery = useQuery({
+    queryKey: ["finance-contacts-options"],
+    queryFn: () => atlas.contacts.list(token, { limit: 200 }),
+    enabled: Boolean(token) && open,
+    staleTime: 5 * 60 * 1000,
+  });
+  const contacts = contactsQuery.data?.data ?? [];
 
   const createEntryMutation = useMutation({
     mutationFn: (payload) => atlas.finance.createEntry(payload, token),
@@ -103,7 +111,7 @@ export function EntrySheet({
       ...prev,
       lines: [
         ...prev.lines,
-        { accountId: "", debit: "", credit: "", note: "" },
+        { accountId: "", contactId: "", debit: "", credit: "", note: "" },
       ],
     }));
   }
@@ -124,6 +132,7 @@ export function EntrySheet({
     }
     const lines = entryForm.lines.map((line) => ({
       accountId: line.accountId,
+      contactId: line.contactId?.trim() || undefined,
       debit: toNumber(line.debit),
       credit: toNumber(line.credit),
       note: line.note?.trim() || undefined,
@@ -236,6 +245,9 @@ export function EntrySheet({
                       Cuenta
                     </th>
                     <th className="px-2 py-2.5 text-left font-medium">
+                      Contacto
+                    </th>
+                    <th className="px-2 py-2.5 text-left font-medium">
                       Debito
                     </th>
                     <th className="px-2 py-2.5 text-left font-medium">
@@ -269,6 +281,34 @@ export function EntrySheet({
                               {activeAccounts.map((account) => (
                                 <SelectItem key={account.id} value={account.id}>
                                   {account.code} - {account.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </td>
+                      <td className="px-2 py-2.5 min-w-56">
+                        <div className="relative">
+                          <HandCoins className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" />
+                          <Select
+                            value={line.contactId || "__none__"}
+                            onValueChange={(v) =>
+                              updateLine(index, {
+                                contactId: v === "__none__" ? "" : v,
+                              })
+                            }
+                          >
+                            <SelectTrigger className="h-10 pl-9">
+                              <SelectValue placeholder="Sin contacto" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">
+                                Sin contacto
+                              </SelectItem>
+                              {contacts.map((contact) => (
+                                <SelectItem key={contact.id} value={contact.id}>
+                                  {contact.name}
+                                  {contact.type ? ` (${contact.type})` : ""}
                                 </SelectItem>
                               ))}
                             </SelectContent>
