@@ -21,6 +21,7 @@ import { atlas } from "../lib/atlas";
 import { isModuleAvailable } from "../lib/runtimeModules";
 import { componentRegistry } from "../lib/moduleComponentRegistry";
 import { resolveBlueprintPresentation } from "./blueprint-layout-resolver.js";
+import { ImmersiveShell } from './ImmersiveShell.jsx'
 
 const API_BASE_URL =
   import.meta.env.VITE_ATLAS_API_URL || "http://localhost:4010";
@@ -537,6 +538,17 @@ export function BlueprintCrudScreen() {
     );
   }, [blueprintsQuery.data, moduleKey]);
 
+  const customBlueprint = useMemo(() => {
+    const normalizedPathname = normalizePath(location.pathname)
+    return (
+      moduleRows.find(
+        (row) =>
+          getBlueprintKind(row) === 'CUSTOM' &&
+          normalizePath(row?.schema?.path) === normalizedPathname
+      ) ?? null
+    )
+  }, [moduleRows, location.pathname])
+
   const routeInfo = useMemo(
     () =>
       resolveRouteInfo({
@@ -779,6 +791,40 @@ export function BlueprintCrudScreen() {
         />
       </div>
     );
+  }
+
+  if (customBlueprint) {
+    const componentKey = customBlueprint?.schema?.component
+    const CustomComponent = componentKey ? componentRegistry.resolve(componentKey) : null
+
+    if (!CustomComponent) {
+      return (
+        <div className="p-6">
+          <Card className="border-amber-400/40 bg-amber-50/60">
+            <CardHeader>
+              <CardTitle>Componente de módulo no disponible (requiere rebuild)</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                El componente{' '}
+                <code className="font-mono text-xs bg-[hsl(var(--muted))] px-1.5 py-0.5 rounded">
+                  {componentKey ?? 'desconocido'}
+                </code>{' '}
+                no está en el bundle actual. Reinstala o reconstruye la app para incluirlo.
+              </p>
+            </CardHeader>
+          </Card>
+        </div>
+      )
+    }
+
+    return (
+      <ImmersiveShell moduleKey={moduleKey}>
+        <CustomComponent
+          token={token}
+          navigate={navigate}
+          moduleKey={moduleKey}
+        />
+      </ImmersiveShell>
+    )
   }
 
   if (groupedTabs?.shouldRedirect && groupedTabs.defaultPath) {
