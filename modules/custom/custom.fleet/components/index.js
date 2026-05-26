@@ -18,6 +18,7 @@ export async function register(registry) {
     { default: DriverAvatarCell },
     { default: DriverAssignedVehicleCell },
     { default: VehicleImageCell },
+    { default: InsuranceBadgeCell },
   ] = await Promise.all([
     import('./VehicleStatusBadge.jsx'),
     import('./ReportStatusBadge.jsx'),
@@ -25,6 +26,7 @@ export async function register(registry) {
     import('./DriverAvatarCell.jsx'),
     import('./DriverAssignedVehicleCell.jsx'),
     import('./VehicleImageCell.jsx'),
+    import('./InsuranceBadgeCell.jsx'),
   ])
 
   registry.register('custom.fleet:VehicleStatusBadge', VehicleStatusBadge)
@@ -33,4 +35,5 @@ export async function register(registry) {
   registry.register('custom.fleet:DriverAvatarCell', DriverAvatarCell)
   registry.register('custom.fleet:DriverAssignedVehicleCell', DriverAssignedVehicleCell)
   registry.register('custom.fleet:VehicleImageCell', VehicleImageCell)
+  registry.register('custom.fleet:InsuranceBadgeCell', InsuranceBadgeCell)
 }
