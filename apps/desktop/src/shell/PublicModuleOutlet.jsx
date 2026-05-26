@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { EmptyState, ErrorState, Skeleton } from '@atlas/ui'
@@ -27,12 +27,6 @@ export function PublicModuleOutlet() {
     () => (Array.isArray(blueprintsQuery.data?.data) ? blueprintsQuery.data.data : []),
     [blueprintsQuery.data]
   )
-
-  useEffect(() => {
-    if (!rows.length) return
-    const moduleKeys = [...new Set(rows.map((r) => r.moduleKey).filter(Boolean))]
-    componentRegistry.setActiveModules(moduleKeys)
-  }, [rows])
 
   const matchedBlueprint = useMemo(() => {
     const normalizedPathname = normalizePath(location.pathname)

@@ -155,3 +155,44 @@ test('defineView with CUSTOM kind does not throw when valid', () => {
     })
   )
 })
+
+test('validateView accepts CUSTOM with schema.public: true', () => {
+  const result = validateView({
+    key: 'custom.mymodule:CustomerPortal',
+    kind: 'CUSTOM',
+    schema: {
+      component: 'custom.mymodule:CustomerPortalScreen',
+      path: '/p/portal',
+      public: true,
+    },
+  })
+  assert.equal(result.valid, true)
+  assert.deepEqual(result.errors, [])
+})
+
+test('validateView rejects CUSTOM with schema.public as non-boolean', () => {
+  const result = validateView({
+    key: 'custom.mymodule:CustomerPortal',
+    kind: 'CUSTOM',
+    schema: {
+      component: 'custom.mymodule:CustomerPortalScreen',
+      path: '/p/portal',
+      public: 'true',
+    },
+  })
+  assert.equal(result.valid, false)
+  assert.ok(result.errors.some((e) => e.includes('schema.public')))
+})
+
+test('validateView rejects CUSTOM with /p/ path but missing schema.public: true', () => {
+  const result = validateView({
+    key: 'custom.mymodule:CustomerPortal',
+    kind: 'CUSTOM',
+    schema: {
+      component: 'custom.mymodule:CustomerPortalScreen',
+      path: '/p/portal',
+    },
+  })
+  assert.equal(result.valid, false)
+  assert.ok(result.errors.some((e) => e.includes('/p/')))
+})

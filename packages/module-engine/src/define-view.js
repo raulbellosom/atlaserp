@@ -74,6 +74,12 @@ function validateKindSchema(kind, schema, errors) {
     if (!viewPath || typeof viewPath !== 'string' || !viewPath.startsWith('/')) {
       errors.push('CUSTOM views must declare schema.path starting with /')
     }
+    if ('public' in (schema ?? {}) && schema.public !== true) {
+      errors.push('CUSTOM views: schema.public must be boolean true when declared')
+    }
+    if (typeof viewPath === 'string' && viewPath.startsWith('/p/') && schema?.public !== true) {
+      errors.push('CUSTOM views with schema.path starting with /p/ must declare schema.public: true')
+    }
   }
 }
 
