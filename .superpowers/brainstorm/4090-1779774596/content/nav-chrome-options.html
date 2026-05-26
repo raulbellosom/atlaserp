@@ -1,0 +1,109 @@
+<h2>Navigation chrome para vistas personalizadas</h2>
+<p class="subtitle">El componente React del módulo ocupa toda la pantalla. ¿Cómo accede el usuario al sidebar y la navbar?</p>
+
+<div class="options">
+
+  <!-- Opción A -->
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Hover overlay — esquina superior izquierda</h3>
+      <p>Tu idea original. El contenido ocupa toda la pantalla. Al acercar el cursor a la esquina superior-izquierda (desktop), la navbar y el sidebar aparecen encima del contenido con una animación suave. En mobile, un botón hamburguesa flotante fijo en la esquina.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Vista desktop — cursor lejos</div>
+        <div class="mockup-body" style="padding:0;overflow:hidden;position:relative;height:140px;background:#0f172a">
+          <!-- Custom content fills everything -->
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px;letter-spacing:.05em">CONTENIDO DEL MÓDULO</div>
+          <!-- Tiny hover trigger hint -->
+          <div style="position:absolute;top:0;left:0;width:32px;height:32px;background:rgba(99,102,241,.15);border-bottom-right-radius:8px;display:flex;align-items:center;justify-content:center">
+            <div style="width:16px;height:2px;background:#6366f1;border-radius:2px;box-shadow:0 4px 0 #6366f1,0 8px 0 #6366f1"></div>
+          </div>
+        </div>
+        <div class="mockup-header" style="margin-top:6px">Vista desktop — cursor en esquina (overlay aparece)</div>
+        <div class="mockup-body" style="padding:0;overflow:hidden;position:relative;height:140px;background:#0f172a">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px;letter-spacing:.05em">CONTENIDO DEL MÓDULO</div>
+          <!-- Sidebar overlay -->
+          <div style="position:absolute;top:0;left:0;width:180px;height:100%;background:rgba(15,23,42,.95);backdrop-filter:blur(8px);border-right:1px solid rgba(99,102,241,.2);padding:8px">
+            <div style="color:#818cf8;font-size:10px;font-weight:700;margin-bottom:6px;padding:0 4px">FLOTA</div>
+            <div style="color:#e2e8f0;font-size:11px;padding:4px 8px;background:rgba(99,102,241,.2);border-radius:4px;margin-bottom:2px">Vehiculos</div>
+            <div style="color:#94a3b8;font-size:11px;padding:4px 8px;border-radius:4px;margin-bottom:2px">Seguros</div>
+            <div style="color:#94a3b8;font-size:11px;padding:4px 8px;border-radius:4px;margin-bottom:2px">Reportes</div>
+          </div>
+          <!-- Navbar overlay -->
+          <div style="position:absolute;top:0;left:180px;right:0;height:36px;background:rgba(15,23,42,.95);backdrop-filter:blur(8px);border-bottom:1px solid rgba(99,102,241,.2);display:flex;align-items:center;padding:0 12px;gap:12px">
+            <div style="color:#e2e8f0;font-size:11px">Atlas ERP</div>
+            <div style="flex:1"></div>
+            <div style="width:20px;height:20px;border-radius:50%;background:#6366f1;font-size:9px;color:white;display:flex;align-items:center;justify-content:center">R</div>
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Pantalla 100% limpia por defecto</li><li>Experiencia muy inmersiva</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>No obvio para usuarios nuevos</li><li>Requiere CSS/JS extra para el trigger</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Opción B -->
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Barra superior delgada siempre visible + sidebar overlay</h3>
+      <p>Una barra de 40 px siempre visible en la parte superior (logo + módulo activo + avatar). Al hacer clic en el ícono de menú (izquierda), el sidebar se despliega como overlay sobre el contenido. Mobile: hamburguesa en esa misma barra.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Vista normal — sidebar cerrado</div>
+        <div class="mockup-body" style="padding:0;overflow:hidden;position:relative;height:130px;background:#0f172a">
+          <!-- Persistent thin bar -->
+          <div style="position:absolute;top:0;left:0;right:0;height:36px;background:#1e293b;border-bottom:1px solid #334155;display:flex;align-items:center;padding:0 12px;gap:10px">
+            <div style="width:18px;height:18px;display:flex;flex-direction:column;gap:3px;justify-content:center;cursor:pointer">
+              <div style="height:2px;background:#94a3b8;border-radius:2px"></div>
+              <div style="height:2px;background:#94a3b8;border-radius:2px"></div>
+              <div style="height:2px;background:#94a3b8;border-radius:2px"></div>
+            </div>
+            <div style="color:#6366f1;font-size:11px;font-weight:700">ATLAS ERP</div>
+            <div style="color:#64748b;font-size:10px">/ Flota / Mi Vista</div>
+            <div style="flex:1"></div>
+            <div style="width:20px;height:20px;border-radius:50%;background:#6366f1;font-size:9px;color:white;display:flex;align-items:center;justify-content:center">R</div>
+          </div>
+          <!-- Custom content -->
+          <div style="position:absolute;top:36px;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px;letter-spacing:.05em">CONTENIDO DEL MÓDULO</div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Siempre hay un ancla visual visible</li><li>Familiar y predecible</li><li>Más fácil de implementar</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>40 px "perdidos" — no es 100% limpia</li><li>Menos inmersiva que A</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Opción C -->
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Pill flotante fijo (como un FAB de navegación)</h3>
+      <p>Un botón circular o píldora semi-transparente fijo en la esquina inferior-izquierda. Sin hover — siempre visible pero discreto. Al hacer clic, abre un sheet/drawer con el sidebar completo. Mobile e igual desktop.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Vista — pill visible en esquina</div>
+        <div class="mockup-body" style="padding:0;overflow:hidden;position:relative;height:140px;background:#0f172a">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px;letter-spacing:.05em">CONTENIDO DEL MÓDULO</div>
+          <!-- Floating pill -->
+          <div style="position:absolute;bottom:10px;left:10px;background:rgba(99,102,241,.85);backdrop-filter:blur(8px);border-radius:20px;padding:6px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)">
+            <div style="width:16px;height:16px;display:flex;flex-direction:column;gap:3px;justify-content:center">
+              <div style="height:1.5px;background:white;border-radius:2px"></div>
+              <div style="height:1.5px;background:white;border-radius:2px"></div>
+              <div style="height:1.5px;background:white;border-radius:2px"></div>
+            </div>
+            <div style="color:white;font-size:10px;font-weight:600">FLOTA</div>
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Siempre discoverable sin hover</li><li>Mismo patrón en desktop y mobile</li><li>Pantalla casi completamente limpia</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>La píldora compite visualmente con el contenido</li><li>Poco convencional para un ERP</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:1.5rem">Selecciona la opción que prefieras, o comenta en la terminal si quieres combinar elementos.</p>

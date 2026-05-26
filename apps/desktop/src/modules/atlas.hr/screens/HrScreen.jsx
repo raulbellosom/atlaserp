@@ -5,6 +5,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 
 const API_BASE_URL = import.meta.env.VITE_ATLAS_API_URL || "http://localhost:4010";
 import HrEmployeeDetail from "./HrEmployeeDetail";
+import HrEmployeeForm from "./HrEmployeeForm";
 import HrOrgChartScreen from "./HrOrgChartScreen";
 import HrCatalogsScreen from "./HrCatalogsScreen";
 
@@ -53,19 +54,39 @@ export default function HrScreen() {
   const { "*": wildcard } = useParams();
   const navigate = useNavigate();
 
-  const employeeId = wildcard?.startsWith("hr/employees/")
-    ? wildcard.replace("hr/employees/", "")
-    : null;
   const isOrgChartRoute = wildcard === "hr/org-chart";
   const isCatalogsRoute = wildcard === "hr/catalogs";
-  const isDetailRoute = Boolean(employeeId);
+  const isNewRoute = wildcard === "hr/employees/new";
+
+  const editMatch = wildcard?.match(/^hr\/employees\/([^/]+)\/edit$/);
+  const editEmployeeId = editMatch?.[1] ?? null;
+
+  const detailMatch = !editMatch && wildcard?.match(/^hr\/employees\/([^/]+)$/);
+  const detailEmployeeId = detailMatch?.[1] ?? null;
 
   if (isOrgChartRoute) return <HrOrgChartScreen />;
   if (isCatalogsRoute) return <HrCatalogsScreen />;
-  if (isDetailRoute) {
+
+  if (isNewRoute) {
     return (
       <div className="p-4 md:p-6 min-h-dvh">
-        <HrEmployeeDetail employeeId={employeeId} />
+        <HrEmployeeForm employeeId={null} />
+      </div>
+    );
+  }
+
+  if (editEmployeeId) {
+    return (
+      <div className="p-4 md:p-6 min-h-dvh">
+        <HrEmployeeForm employeeId={editEmployeeId} />
+      </div>
+    );
+  }
+
+  if (detailEmployeeId) {
+    return (
+      <div className="p-4 md:p-6 min-h-dvh">
+        <HrEmployeeDetail employeeId={detailEmployeeId} />
       </div>
     );
   }

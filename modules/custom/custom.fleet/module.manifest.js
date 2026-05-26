@@ -3,7 +3,7 @@ import { defineAtlasModule } from "@atlas/module-engine";
 export default defineAtlasModule({
   key: "custom.fleet",
   name: "Flota",
-  version: "0.5.0",
+  version: "0.5.1",
   kind: "FEATURE",
   description:
     "Gestion de flota vehicular: vehiculos, reportes y asignacion de conductores.",

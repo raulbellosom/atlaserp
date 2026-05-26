@@ -449,6 +449,7 @@ export const MarkdownField = forwardRef(function MarkdownField(
     className,
     disabled,
     readOnly,
+    readOnlyPlain = false,
     rows = 8,
     ...props
   },
@@ -488,6 +489,7 @@ export const MarkdownField = forwardRef(function MarkdownField(
       }),
     ],
     content: value || "",
+    contentType: "markdown",
     editable: !disabled && !readOnly,
     onUpdate({ editor }) {
       const md = editor.storage.markdown.getMarkdown();
@@ -510,7 +512,14 @@ export const MarkdownField = forwardRef(function MarkdownField(
     const incoming = value ?? "";
     if (incoming !== current && incoming !== lastPushed.current) {
       lastPushed.current = incoming;
-      editor.commands.setContent(incoming, false);
+      try {
+        editor.commands.setContent(incoming, {
+          contentType: "markdown",
+          emitUpdate: false,
+        });
+      } catch {
+        editor.commands.setContent(incoming, false);
+      }
     }
   }, [value, editor]);
 
@@ -709,9 +718,12 @@ export const MarkdownField = forwardRef(function MarkdownField(
     >
       <div
         className={cn(
-          "rounded-lg border bg-card overflow-hidden transition-colors",
-          error ? "border-destructive" : "border-border",
-          !disabled &&
+          readOnlyPlain
+            ? "bg-transparent border-0 rounded-none overflow-visible"
+            : "rounded-lg border bg-card overflow-hidden transition-colors",
+          !readOnlyPlain && (error ? "border-destructive" : "border-border"),
+          !readOnlyPlain &&
+            !disabled &&
             !readOnly &&
             "focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary",
           disabled && "opacity-60 cursor-not-allowed",
@@ -740,7 +752,7 @@ export const MarkdownField = forwardRef(function MarkdownField(
                 <ChevronDown className="h-3 w-3 opacity-60" />
               </button>
               {headingOpen && (
-                <div className="absolute top-full left-0 mt-1 z-50 min-w-35 rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+                <div className="absolute top-full left-0 mt-1 z-50 min-w-35 rounded-lg border border-border bg-[hsl(var(--card))] shadow-lg overflow-hidden">
                   {headingOptions.map((opt) => (
                     <button
                       key={opt.label}
@@ -805,7 +817,7 @@ export const MarkdownField = forwardRef(function MarkdownField(
                 }}
               />
               {linkPopover && (
-                <div className="absolute top-full left-0 mt-1 z-50 w-72 rounded-lg border border-border bg-popover shadow-lg p-2.5 flex gap-2">
+                <div className="absolute top-full left-0 mt-1 z-50 w-72 rounded-lg border border-border bg-[hsl(var(--card))] shadow-lg p-2.5 flex gap-2">
                   <input
                     ref={linkInputRef}
                     type="url"
@@ -855,8 +867,12 @@ export const MarkdownField = forwardRef(function MarkdownField(
         <EditorContent
           editor={editor}
           className={cn(
-            "wysiwyg-editor min-h-40 px-3.5 py-3 text-sm text-foreground",
-            "[&_.tiptap]:outline-none [&_.tiptap]:min-h-35",
+            "wysiwyg-editor text-sm text-foreground",
+            readOnlyPlain ? "px-0 py-0 min-h-0" : "px-3.5",
+            readOnly ? "min-h-0 py-2.5" : "min-h-40 py-3",
+            readOnly
+              ? "[&_.tiptap]:outline-none [&_.tiptap]:min-h-0"
+              : "[&_.tiptap]:outline-none [&_.tiptap]:min-h-35",
             "[&_.tiptap_p]:leading-relaxed [&_.tiptap_p]:my-1",
             "[&_.tiptap_h1]:text-xl [&_.tiptap_h1]:font-bold [&_.tiptap_h1]:mt-3 [&_.tiptap_h1]:mb-1",
             "[&_.tiptap_h2]:text-lg [&_.tiptap_h2]:font-semibold [&_.tiptap_h2]:mt-2 [&_.tiptap_h2]:mb-1",
@@ -884,7 +900,7 @@ export const MarkdownField = forwardRef(function MarkdownField(
           )}
         />
       </div>
-      {maxLength && (
+      {maxLength && !readOnly && (
         <p className="text-right text-[11px] text-muted-foreground -mt-0.5">
           {charCount} / {maxLength}
         </p>

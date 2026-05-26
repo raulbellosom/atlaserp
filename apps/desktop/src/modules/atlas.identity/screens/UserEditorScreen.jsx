@@ -120,15 +120,17 @@ export default function UserEditorScreen() {
 
   const avatarMutation = useMutation({
     mutationFn: (file) => atlas.identity.uploadUserAvatar(userId, file, token),
-    onSuccess: async () => {
+    onMutate: () => toast.loading("Subiendo foto de perfil..."),
+    onSuccess: async (_data, _vars, toastId) => {
       await queryClient.invalidateQueries({ queryKey: ["identity-users"] });
       if (isSelf) {
         await queryClient.invalidateQueries({ queryKey: ["profile-me"] });
         refreshProfile(session);
       }
-      toast.success("Foto de perfil actualizada");
+      toast.success("Foto de perfil actualizada", { id: toastId });
     },
-    onError: () => toast.error("No se pudo actualizar la foto de perfil"),
+    onError: (_err, _vars, toastId) =>
+      toast.error("No se pudo actualizar la foto de perfil", { id: toastId }),
   });
 
   const roleOptions = useMemo(

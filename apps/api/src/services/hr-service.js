@@ -184,20 +184,13 @@ export function createHrService({ prisma }) {
       where: {
         id: profileImageFileId,
         enabled: true,
-        OR: [
-          { moduleKey: "atlas.hr", entityType: "HrEmployee" },
-          {
-            moduleKey: "atlas.company",
-            entityType: "BrandingConfig",
-            entityId: companyId,
-          },
-        ],
+        entityId: companyId,
       },
       select: { id: true, mimeType: true },
     });
     if (!file) {
       throw new HrServiceError(
-        "La imagen de perfil no es v�lida para RH.",
+        "La imagen de perfil no es valida.",
         400,
       );
     }
@@ -370,7 +363,7 @@ export function createHrService({ prisma }) {
           },
           departmentRef: { select: { id: true, name: true } },
           jobTitleRef: { select: { id: true, name: true } },
-          userProfile: { select: { id: true, displayName: true, email: true } },
+          userProfile: { select: { id: true, displayName: true, email: true, avatarFileId: true } },
         },
       });
       if (!row) {
@@ -398,6 +391,16 @@ export function createHrService({ prisma }) {
         profileImageFileId: normalized.profileImageFileId,
         companyId,
       });
+
+      if (normalized.employeeCode) {
+        const codeConflict = await prisma.hrEmployee.findFirst({
+          where: { companyId, employeeCode: normalized.employeeCode, enabled: true },
+          select: { id: true },
+        });
+        if (codeConflict) {
+          throw new HrServiceError("El código de colaborador ya está en uso.", 400);
+        }
+      }
 
       const created = await prisma.hrEmployee.create({
         data: {
@@ -445,6 +448,16 @@ export function createHrService({ prisma }) {
         profileImageFileId: normalized.profileImageFileId,
         companyId,
       });
+
+      if (normalized.employeeCode) {
+        const codeConflict = await prisma.hrEmployee.findFirst({
+          where: { companyId, employeeCode: normalized.employeeCode, enabled: true, id: { not: id } },
+          select: { id: true },
+        });
+        if (codeConflict) {
+          throw new HrServiceError("El código de colaborador ya está en uso.", 400);
+        }
+      }
 
       const updated = await prisma.hrEmployee.update({
         where: { id },
