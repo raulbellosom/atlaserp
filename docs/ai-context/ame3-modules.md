@@ -90,7 +90,7 @@ modules/custom/custom.crm/
     contact-service.js           ← business logic, all inside factory closure
     company-routes.js
     company-service.js
-    service-helpers.js           ← shared helpers + CrmServiceError class
+    service-helpers.js           ← shared helpers + module-level error class
   validators/
     contact.validators.js        ← Zod schemas for create + update
     company.validators.js
@@ -334,9 +334,10 @@ await prisma.auditLog.create({
 
 ### 4.7 Error class — lives in `service-helpers.js`
 
-Define one error class per module in `api/service-helpers.js`. Import it in both
-the service file and the routes file from `service-helpers.js`. Never define it in
-the entity service file or re-export it from there.
+The scaffolder (`node scripts/scaffold-module.js`) places the error class in `api/service-helpers.js`
+so all entity services in the module share one class. The reference fleet module defines `FleetServiceError`
+directly in `api/fleet-service.js` and other services import it from there — both approaches work.
+What matters: **define it in one place per module and import from that same file everywhere.**
 
 ```js
 // api/service-helpers.js
@@ -349,11 +350,11 @@ export class CrmServiceError extends Error {
 }
 
 // api/contact-service.js
-import { CrmServiceError } from './service-helpers.js'   // ← from service-helpers
+import { CrmServiceError } from './service-helpers.js'
 
 // api/contact-routes.js
 import { createContactService } from './contact-service.js'
-import { CrmServiceError } from './service-helpers.js'   // ← same import, NOT from contact-service
+import { CrmServiceError } from './service-helpers.js'
 ```
 
 ### 4.8 Complete `module.manifest.js` example
@@ -390,13 +391,17 @@ export default defineAtlasModule({
       path: '/app/m/custom.crm/crm-contacts',
       icon: 'Users',
       permissionKey: 'crm.contact.read',
+      layout: 'main',
     },
   ],
   lifecycle: {
     installable: true,
     uninstallable: true,
-    ownedModels: ['contact'],
+    ownedModels: ['crm.contact'],
     ownedTables: ['crm_contact'],
+    resettable: true,
+    supportsDataPurge: true,
+    defaultUninstallPolicy: 'purge-owned-tables',
   },
 })
 ```
@@ -498,6 +503,7 @@ navigation: [
     path: '/app/m/custom.crm/crm-contacts',
     icon: 'Users',
     permissionKey: 'crm.contact.read',
+    layout: 'main',
   },
 ],
 ```
