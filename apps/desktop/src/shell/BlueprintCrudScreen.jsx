@@ -22,17 +22,10 @@ import { isModuleAvailable } from "../lib/runtimeModules";
 import { componentRegistry } from "../lib/moduleComponentRegistry";
 import { resolveBlueprintPresentation } from "./blueprint-layout-resolver.js";
 import { ImmersiveShell } from './ImmersiveShell.jsx'
+import { normalizePath } from '../lib/pathUtils'
 
 const API_BASE_URL =
   import.meta.env.VITE_ATLAS_API_URL || "http://localhost:4010";
-
-function normalizePath(value) {
-  const text = String(value ?? "").trim();
-  if (!text) return "";
-  if (text === "/") return "/";
-  const withSlash = text.startsWith("/") ? text : `/${text}`;
-  return withSlash.replace(/\/+$/, "");
-}
 
 function normalizeKind(value) {
   return String(value ?? "")

@@ -4,16 +4,9 @@ import { useQuery } from '@tanstack/react-query'
 import { EmptyState, ErrorState, Skeleton } from '@atlas/ui'
 import { Package } from 'lucide-react'
 import { componentRegistry } from '../lib/moduleComponentRegistry'
+import { normalizePath } from '../lib/pathUtils'
 
 const API_BASE_URL = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
-
-function normalizePath(value) {
-  const text = String(value ?? '').trim()
-  if (!text) return ''
-  if (text === '/') return '/'
-  const withSlash = text.startsWith('/') ? text : `/${text}`
-  return withSlash.replace(/\/+$/, '')
-}
 
 export function PublicModuleOutlet() {
   const location = useLocation()
@@ -61,7 +54,7 @@ export function PublicModuleOutlet() {
       <div className="p-6">
         <ErrorState
           title="No se pudo cargar la vista"
-          description="Verifica tu conexion e intenta de nuevo."
+          description="Verifica tu conexión e intenta de nuevo."
           onRetry={() => blueprintsQuery.refetch()}
         />
       </div>
@@ -73,8 +66,8 @@ export function PublicModuleOutlet() {
       <div className="p-6">
         <EmptyState
           icon={Package}
-          title="Vista publica no encontrada"
-          description="Esta ruta no tiene una vista publica configurada."
+          title="Vista pública no encontrada"
+          description="Esta ruta no tiene una vista pública configurada."
         />
       </div>
     )
@@ -89,7 +82,7 @@ export function PublicModuleOutlet() {
         <EmptyState
           icon={Package}
           title="Componente no disponible"
-          description={`El componente "${componentKey ?? 'desconocido'}" no esta en el bundle actual.`}
+          description={`El componente "${componentKey ?? 'desconocido'}" no está en el bundle actual.`}
         />
       </div>
     )
