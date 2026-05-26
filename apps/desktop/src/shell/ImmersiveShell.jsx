@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ModuleSidebar } from '@atlas/ui'
-import { Topbar } from '../components/Topbar'
 import { useRuntimeModules } from '../app/useRuntimeModules'
 
 const TRIGGER_PX = 80
@@ -44,13 +43,13 @@ export function ImmersiveShell({ children, moduleKey }) {
     setOverlayVisible(false)
   }, [location.pathname])
 
-  function handleNavigate(path) {
+  const handleNavigate = useCallback((path) => {
     navigate(path)
     setOverlayVisible(false)
-  }
+  }, [navigate])
 
   return (
-    <div className="relative w-full h-dvh overflow-hidden">
+    <div className="relative w-full h-full overflow-hidden">
       {/* Custom component — fills full viewport */}
       <div className="absolute inset-0 overflow-auto">
         {children}
@@ -73,18 +72,6 @@ export function ImmersiveShell({ children, moduleKey }) {
             mobileOpen={false}
             onMobileClose={() => {}}
           />
-        </div>
-      )}
-
-      {/* Desktop overlay topbar — slide in from top */}
-      {overlayVisible && (
-        <div
-          className="hidden lg:block fixed top-0 right-0 z-50"
-          style={{ left: '15rem', animation: 'immersive-slide-down 0.2s ease-out' }}
-          onMouseLeave={scheduleHide}
-          onMouseEnter={cancelHide}
-        >
-          <Topbar networkBusy={false} />
         </div>
       )}
 
