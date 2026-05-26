@@ -549,6 +549,8 @@ export function BlueprintCrudScreen() {
     )
   }, [moduleRows, location.pathname])
 
+  const isCustomView = customBlueprint !== null
+
   const routeInfo = useMemo(
     () =>
       resolveRouteInfo({
@@ -595,22 +597,22 @@ export function BlueprintCrudScreen() {
     ],
   );
 
-  const missingComponentRefs = useMemo(
-    () =>
-      collectMissingComponentReferences({
-        blueprints: [
-          selection.tableBlueprint,
-          selection.formBlueprint,
-          selection.detailBlueprint,
-        ].filter(Boolean),
-        registry: componentRegistry,
-      }),
-    [
-      selection.detailBlueprint,
-      selection.formBlueprint,
-      selection.tableBlueprint,
-    ],
-  );
+  const missingComponentRefs = useMemo(() => {
+    if (isCustomView) return []
+    return collectMissingComponentReferences({
+      blueprints: [
+        selection.tableBlueprint,
+        selection.formBlueprint,
+        selection.detailBlueprint,
+      ].filter(Boolean),
+      registry: componentRegistry,
+    })
+  }, [
+    isCustomView,
+    selection.detailBlueprint,
+    selection.formBlueprint,
+    selection.tableBlueprint,
+  ]);
 
   const navItem = useMemo(
     () =>
@@ -642,6 +644,7 @@ export function BlueprintCrudScreen() {
   // True when a sidebar nav group's children handle sub-navigation for this path.
   // In that case, the in-page tab bar is suppressed (sidebar IS the navigation).
   const navItemHasChildren = useMemo(() => {
+    if (isCustomView) return false
     const nav = module?.navigation ?? module?.manifest?.navigation ?? [];
     const pathname = normalizePath(location.pathname);
     return nav.some((item) => {
@@ -654,7 +657,7 @@ export function BlueprintCrudScreen() {
         );
       });
     });
-  }, [module, location.pathname]);
+  }, [isCustomView, module, location.pathname]);
 
   const showTabBar = Boolean(groupedTabs?.tabs?.length) && !navItemHasChildren;
 
@@ -794,7 +797,7 @@ export function BlueprintCrudScreen() {
   }
 
   if (customBlueprint) {
-    const componentKey = customBlueprint?.schema?.component
+    const componentKey = customBlueprint.schema?.component
     const CustomComponent = componentKey ? componentRegistry.resolve(componentKey) : null
 
     if (!CustomComponent) {
