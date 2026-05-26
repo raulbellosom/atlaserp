@@ -77,14 +77,10 @@ function normalizeInsurancePolicyPayload(data = {}) {
     } else if (data.premium === null) {
       normalized.premium = null
     }
-    // if undefined, leave unset (handled by not entering the block)
   }
 
-  // currency: always normalize, default to 'MXN'
-  if (data.currency !== undefined) {
-    const raw = normalizeOptionalString(data.currency)
-    normalized.currency = raw ?? 'MXN'
-  }
+  // currency: always provide a value, defaulting to 'MXN'
+  normalized.currency = String(data.currency ?? 'MXN').trim() || 'MXN'
 
   if (data.notes !== undefined) {
     normalized.notes = normalizeOptionalString(data.notes)
@@ -184,9 +180,6 @@ export function createInsuranceService({ prisma }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
     const payload = normalizeInsurancePolicyPayload(data)
 
-    // Default currency if not provided at all
-    const currency = payload.currency ?? 'MXN'
-
     try {
       const row = await withDbErrorMapping(async () => {
         const rows = await prisma.$queryRaw`
@@ -212,7 +205,7 @@ export function createInsuranceService({ prisma }) {
             ${payload.start_date ?? null},
             ${payload.expiry_date ?? null},
             ${payload.premium ?? null},
-            ${currency},
+            ${payload.currency},
             ${payload.notes ?? null},
             ${payload.document_asset_id ?? null}
           )
@@ -361,6 +354,8 @@ export function createInsuranceService({ prisma }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
     const safeId = normalizeRecordId(id, 'Poliza de seguro no encontrada.')
 
+    const before = await getPolicy({ companyId: safeCompanyId, id: safeId })
+
     const updated = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
         UPDATE fleet_insurance_policy
@@ -382,8 +377,8 @@ export function createInsuranceService({ prisma }) {
       entityType: 'InsurancePolicy',
       entityId: updated.id,
       action: 'fleet.insurance.disable',
-      before: updated,
-      after: { ...updated, enabled: false },
+      before,
+      after: updated,
     })
 
     return updated
@@ -393,6 +388,7 @@ export function createInsuranceService({ prisma }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
     const safeVehicleId = normalizeRecordId(vehicleId, 'Vehiculo no encontrado.')
 
+    // intentionally includes disabled policies — full history for the vehicle relation-list
     const rows = await withDbErrorMapping(() => prisma.$queryRaw`
       SELECT fip.*,
         fv.plate AS vehicle_plate,
