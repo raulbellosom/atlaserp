@@ -663,3 +663,66 @@ Verified: 2026-05-08 (git commit 8249aac — 9 files changed, 1125 insertions; `
 - [x] Removed unresolved custom badge dependencies in fleet table blueprints that caused “componentes no disponibles (requiere rebuild)” failures.
 
 Verified: 2026-05-21 (`pnpm.cmd --filter @atlas/desktop build:web`; line-count check for `packages/ui/src/atlas-renderer/AtlasForm.jsx` = 978)
+
+## custom.fleet Expansion — Fleet Operativo de Producción
+
+Spec: `docs/superpowers/specs/2026-05-25-fleet-expansion-design.md`
+Plan: `docs/superpowers/plans/ya-estamos-por-adaptive-backus.md`
+
+### Área 1: Legacy Cleanup
+
+- [x] Eliminated `fleet.maintenance`, `fleet.maintenance_document`, `fleet.maintenance_type` models from manifest
+- [x] Deleted all legacy maintenance views: `maintenance.table.js`, `maintenance.form.js`, `maintenance.detail.js`, `catalog.maintenance-types.table.js`, `catalog.maintenance-types.form.js`, `catalog.maintenance-types.page.js`
+- [x] Deleted legacy API files: `maintenance-routes.js`, `maintenance-service.js`
+- [x] Removed maintenance navigation entries and ACL entries from `module.manifest.js`
+- [x] Removed `createMaintenanceSchema`, `updateMaintenanceSchema` from `validators/index.js`
+- [x] Unmounted maintenance router from `api/index.js`
+
+### Área 2: Insurance Policy Entity
+
+- [x] Created `fleet.insurance_policy` model (vehicle relation, insurer_name, policy_number, coverage_type, start/expiry dates, premium, currency, notes, document_asset_id; companyScoped + softDelete)
+- [x] Added unique index on `(company_id, policy_number)` and expiry index for active-policy queries
+- [x] `insurance-service.js`: `listPolicies`, `createPolicy` (uniqueness check), `getPolicy`, `updatePolicy`, `disablePolicy`, `listVehiclePolicies`, `getActivePolicyForVehicle`
+- [x] `insurance-routes.js`: GET/POST /fleet/insurance, GET/PATCH/PATCH+enabled /:id, GET /fleet/vehicles/:vehicleId/insurance
+- [x] `createInsurancePolicySchema` + `updateInsurancePolicySchema` with cross-field refinement (`expiry_date >= start_date`)
+- [x] Manifest: 4 granular permissions (`fleet.insurance.read/create/update/delete`), Seguros navigation item with ShieldCheck icon
+- [x] Insurance views: `insurance-policy.table.js`, `insurance-policy.form.js`, `insurance-policy.detail.js`, `insurance-policy.page.js`
+- [x] Auth contract tests for all insurance routes
+
+### Área 3: Vehicle Integration
+
+- [x] `InsuranceBadgeCell.jsx` component (activa/vencida/sin póliza badges) registered in `components/index.js`
+- [x] `fleet-service.js`: `listVehicles` enriched with `insurance_status` lateral query; `getVehicle` enriched with `active_insurance_policy`
+- [x] `vehicle.table.js`: new `insurance_status` column using `custom.fleet:InsuranceBadgeCell`; `full_economic_number` computed column (`{group}-{individual}`)
+- [x] `vehicle.detail.js`: `relation-card` "Póliza activa" (with empty-state CTA) + `relation-list` "Historial de pólizas"
+- [x] `vehicles-routes.js`: `GET /fleet/vehicles/:vehicleId/insurance` delegating to insurance service
+
+### Área 4: UX Polish + Validaciones
+
+- [x] Cascading vehicle model picker: `catalogs-routes.js` accepts `?brand_id=&type_id=` filters; `vehicle.form.js` declares `dependsOn: ['vehicle_brand_id', 'vehicle_type_id']`
+- [x] Financing validation fix: `updateVehicleSchema` correctly requires `financing_start_date` when `is_financed: true` and validates `financing_end_date >= financing_start_date`
+- [x] Catalog filter: `GET /fleet/catalogs/vehicle-models?brand_id=&type_id=` scoped and paginated
+
+Verified: 2026-05-26 (commits `d6e52cf`–`1be2e6a`; `node --check` on all modified files; `POST /modules/sync` rediscovery confirmed; insurance routes return 200 with empty list; vehicle list/detail include `insurance_status` and `active_insurance_policy`; browser QA: badge column visible, cascading picker filters correctly)
+
+## Custom View Components — kind: CUSTOM + ImmersiveShell + Public Routes
+
+Spec: `docs/superpowers/specs/2026-05-25-custom-view-components-design.md` (implied by plan)
+Plan: `docs/superpowers/plans/` (inline subagent-driven-development session)
+
+- [x] **CUSTOM validation in `define-view.js`**: validates `schema.component` (namespaced key `namespace:ComponentName`), `schema.path` (starts with `/`), `schema.public` (boolean true when declared), rejects `/p/` paths without `schema.public: true`
+- [x] **16 passing tests** in `packages/module-engine/src/__tests__/define-view.test.js` covering all CUSTOM validation rules
+- [x] **ImmersiveShell**: full-viewport hover-overlay nav wrapper (`apps/desktop/src/shell/ImmersiveShell.jsx`); mouse trigger ≤80px from top-left; 400ms hide delay; mobile hamburger at bottom-left; uses `h-full` (inside AtlasApp content area below topbar); no duplicate Topbar
+- [x] **BlueprintCrudScreen CUSTOM branch**: `customBlueprint` useMemo + `isCustomView` flag; performance guards skip expensive memos on CUSTOM routes; renders `<ImmersiveShell>` wrapping the registered custom component; amber warning card if component not in registry
+- [x] **GET /public/blueprints** unauthenticated endpoint: Prisma JSON path filter (`schema.public === true`), cacheGet/cacheSet with `TTL.BLUEPRINTS`, schema projection allowlist (`component`, `path`, `title`, `public`) — no auth data leakage
+- [x] **PublicShell + PublicModuleOutlet**: bare outlet wrapper, matches pathname via `normalizePath`, resolves component from `componentRegistry`; NO `setActiveModules` call (would destructively overwrite authenticated registry)
+- [x] **`/p/*` router group**: outside `AppAccessGuard`, before catch-all, with `PublicShell` layout and `PublicModuleOutlet` as wildcard child
+- [x] **`pathUtils.js`** shared utility: `normalizePath` extracted from both `BlueprintCrudScreen` and `PublicModuleOutlet` to eliminate duplication
+- [x] Browser QA: `GET /p/test` (no session) → "Vista pública no encontrada" (confirmed via screenshot 2026-05-26)
+- [x] Build verified: `pnpm build` + Tauri native bundle — no errors
+
+Verified: 2026-05-26 (commits `c84dabc`–`aba2ad8`; `node --test packages/module-engine/src/__tests__/define-view.test.js` → 16 passing; browser screenshot confirms `/p/test` shows empty state without session; `pnpm build` clean)
+
+## Next: Module Scaffolder / Creator
+
+Fleet expansion is complete and validated. Custom view components (kind: CUSTOM, ImmersiveShell, public routes) are implemented and build-verified. The agreed next focus is the **Module Scaffolder / Creator** — a tool that generates the scaffold for a new AME3 custom module from a description, producing the complete file structure (`module.manifest.js`, `models/`, `views/`, `api/`, `validators/`) ready for development. Fleet serves as the reference implementation and pattern.
