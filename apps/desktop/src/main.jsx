@@ -28,6 +28,8 @@ import { AppLoader } from "./components/AppLoader";
 import { ApiErrorScreen } from "./components/ApiErrorScreen";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useBrandingStore } from "./stores/branding";
+import { PublicShell } from "./shell/PublicShell.jsx";
+import { PublicModuleOutlet } from "./shell/PublicModuleOutlet.jsx";
 import "./styles.css";
 
 const queryClient = new QueryClient({
@@ -216,6 +218,9 @@ function App() {
                   <Route path="m/:moduleKey/*" element={<ModuleOutlet />} />
                   <Route path="profile" element={<ProfileScreen />} />
                 </Route>
+              </Route>
+              <Route path="/p" element={<PublicShell />}>
+                <Route path="*" element={<PublicModuleOutlet />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
