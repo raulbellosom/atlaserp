@@ -367,3 +367,13 @@ body {
 *::after {
   -webkit-tap-highlight-color: transparent;
 }
+
+@keyframes immersive-slide-in {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+@keyframes immersive-slide-down {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
