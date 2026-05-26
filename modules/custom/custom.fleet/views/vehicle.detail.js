@@ -56,6 +56,37 @@ export default defineView({
         },
       },
       {
+        id: 'active_insurance',
+        type: 'relation-card',
+        label: 'Poliza de seguro activa',
+        relationCard: {
+          idField: 'active_insurance_policy',
+          titleField: 'insurer_name',
+          subtitleFields: ['policy_number', 'coverage_type', 'expiry_date'],
+          fallbackTitle: 'Sin poliza de seguro activa',
+          hrefTemplate: '/app/m/custom.fleet/insurance',
+          icon: 'ShieldCheck',
+        },
+      },
+      {
+        id: 'insurance_history',
+        type: 'relation-list',
+        label: 'Historial de polizas',
+        relationList: {
+          apiPath: '/fleet/vehicles/:id/insurance',
+          columns: [
+            { field: 'insurer_name', label: 'Aseguradora' },
+            { field: 'policy_number', label: 'No. Poliza' },
+            { field: 'coverage_type', label: 'Cobertura' },
+            { field: 'start_date', label: 'Inicio', type: 'date' },
+            { field: 'expiry_date', label: 'Fin', type: 'date' },
+            { field: 'is_active', label: 'Activa', type: 'boolean' },
+          ],
+          emptyState: { message: 'Este vehiculo no tiene polizas registradas.' },
+          permission: 'fleet.insurance.read',
+        },
+      },
+      {
         label: 'Observaciones',
         fields: [
           { field: 'notes', label: 'Notas', icon: 'FileText' },

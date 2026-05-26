@@ -43,6 +43,12 @@ export default defineView({
         sortable: false,
         hrefTemplate: "/app/m/custom.fleet/drivers/:driver_id",
       },
+      {
+        field: 'insurance_status',
+        label: 'Seguro',
+        sortable: false,
+        component: 'custom.fleet:InsuranceBadgeCell',
+      },
     ],
     actions: [
       {
