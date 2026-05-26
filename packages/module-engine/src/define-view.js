@@ -61,6 +61,20 @@ function validateKindSchema(kind, schema, errors) {
       errors.push('DETAIL views must declare schema.sections as a non-empty array')
     }
   }
+
+  if (kind === 'CUSTOM') {
+    const component = schema?.component
+    const NAMESPACED_KEY = /^[a-z0-9_.-]+:[A-Za-z0-9_.-]+$/
+    if (!component || typeof component !== 'string' || !NAMESPACED_KEY.test(component.trim())) {
+      errors.push(
+        'CUSTOM views must declare schema.component as a namespaced registry key (e.g. "my.module:MyComponent")'
+      )
+    }
+    const viewPath = schema?.path
+    if (!viewPath || typeof viewPath !== 'string' || !viewPath.startsWith('/')) {
+      errors.push('CUSTOM views must declare schema.path starting with /')
+    }
+  }
 }
 
 // Returns { valid: boolean, errors: string[] }. Never throws.

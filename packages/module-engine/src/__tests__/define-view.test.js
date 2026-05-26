@@ -1,6 +1,6 @@
 ﻿import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { validateView } from '../define-view.js'
+import { validateView, defineView } from '../define-view.js'
 
 test('validateView accepts TABLE with non-empty columns array', () => {
   const result = validateView({
@@ -82,4 +82,76 @@ test('validateView rejects DETAIL without sections', () => {
 
   assert.equal(result.valid, false)
   assert.ok(result.errors.some((error) => error.includes('schema.sections')))
+})
+
+test('validateView accepts CUSTOM with valid component key and path', () => {
+  const result = validateView({
+    key: 'custom.fleet:FleetDashboard',
+    kind: 'CUSTOM',
+    schema: {
+      component: 'custom.fleet:FleetDashboardScreen',
+      path: '/app/m/custom.fleet/dashboard',
+    },
+  })
+  assert.equal(result.valid, true)
+  assert.deepEqual(result.errors, [])
+})
+
+test('validateView rejects CUSTOM when schema.component is missing', () => {
+  const result = validateView({
+    key: 'custom.fleet:FleetDashboard',
+    kind: 'CUSTOM',
+    schema: { path: '/app/m/custom.fleet/dashboard' },
+  })
+  assert.equal(result.valid, false)
+  assert.ok(result.errors.some((e) => e.includes('schema.component')))
+})
+
+test('validateView rejects CUSTOM when schema.component has no namespace prefix', () => {
+  const result = validateView({
+    key: 'custom.fleet:FleetDashboard',
+    kind: 'CUSTOM',
+    schema: {
+      component: 'FleetDashboardScreen',
+      path: '/app/m/custom.fleet/dashboard',
+    },
+  })
+  assert.equal(result.valid, false)
+  assert.ok(result.errors.some((e) => e.includes('schema.component')))
+})
+
+test('validateView rejects CUSTOM when schema.path is missing', () => {
+  const result = validateView({
+    key: 'custom.fleet:FleetDashboard',
+    kind: 'CUSTOM',
+    schema: { component: 'custom.fleet:FleetDashboardScreen' },
+  })
+  assert.equal(result.valid, false)
+  assert.ok(result.errors.some((e) => e.includes('schema.path')))
+})
+
+test('validateView rejects CUSTOM when schema.path does not start with /', () => {
+  const result = validateView({
+    key: 'custom.fleet:FleetDashboard',
+    kind: 'CUSTOM',
+    schema: {
+      component: 'custom.fleet:FleetDashboardScreen',
+      path: 'app/m/custom.fleet/dashboard',
+    },
+  })
+  assert.equal(result.valid, false)
+  assert.ok(result.errors.some((e) => e.includes('schema.path')))
+})
+
+test('defineView with CUSTOM kind does not throw when valid', () => {
+  assert.doesNotThrow(() =>
+    defineView({
+      key: 'custom.fleet:FleetDashboard',
+      kind: 'CUSTOM',
+      schema: {
+        component: 'custom.fleet:FleetDashboardScreen',
+        path: '/app/m/custom.fleet/dashboard',
+      },
+    })
+  )
 })
