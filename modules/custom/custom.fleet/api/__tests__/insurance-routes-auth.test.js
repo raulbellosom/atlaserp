@@ -6,10 +6,13 @@ import createInsuranceRouter from '../insurance-routes.js'
 const COMPANY_ID = '11111111-1111-7111-a111-111111111111'
 
 function buildPrismaStub() {
+  let rawCalls = 0
   return {
     auditLog: { create: async () => ({ id: 'audit-1' }) },
     async $queryRaw() {
-      return []
+      rawCalls += 1
+      if (rawCalls % 2 === 1) return []
+      return [{ total: '0' }]
     },
     async $queryRawUnsafe() {
       return []
@@ -44,14 +47,12 @@ function createApp({ userContext, allowedPermissions = [] }) {
   return app
 }
 
-const defaultUserContext = {
-  profile: { id: 'actor-1' },
-  memberships: [{ companyId: COMPANY_ID }],
-}
-
-test('insurance-routes auth: GET /fleet/insurance returns 403 without fleet.insurance.read', async () => {
+test('insurance-routes auth: denies list access without fleet.insurance.read', async () => {
   const app = createApp({
-    userContext: defaultUserContext,
+    userContext: {
+      profile: { id: 'actor-1' },
+      memberships: [{ companyId: COMPANY_ID }],
+    },
     allowedPermissions: [],
   })
 
@@ -59,9 +60,12 @@ test('insurance-routes auth: GET /fleet/insurance returns 403 without fleet.insu
   assert.equal(response.status, 403)
 })
 
-test('insurance-routes auth: GET /fleet/insurance returns 200 with fleet.insurance.read', async () => {
+test('insurance-routes auth: allows scoped list when fleet.insurance.read is present', async () => {
   const app = createApp({
-    userContext: defaultUserContext,
+    userContext: {
+      profile: { id: 'actor-1' },
+      memberships: [{ companyId: COMPANY_ID }],
+    },
     allowedPermissions: ['fleet.insurance.read'],
   })
 
@@ -71,9 +75,12 @@ test('insurance-routes auth: GET /fleet/insurance returns 200 with fleet.insuran
   assert.ok(Array.isArray(payload.data))
 })
 
-test('insurance-routes auth: POST /fleet/insurance returns 403 without fleet.insurance.create', async () => {
+test('insurance-routes auth: denies create without fleet.insurance.create', async () => {
   const app = createApp({
-    userContext: defaultUserContext,
+    userContext: {
+      profile: { id: 'actor-1' },
+      memberships: [{ companyId: COMPANY_ID }],
+    },
     allowedPermissions: ['fleet.insurance.read'],
   })
 
@@ -81,9 +88,12 @@ test('insurance-routes auth: POST /fleet/insurance returns 403 without fleet.ins
   assert.equal(response.status, 403)
 })
 
-test('insurance-routes auth: GET /fleet/insurance/:id returns 403 without fleet.insurance.read', async () => {
+test('insurance-routes auth: denies detail access without fleet.insurance.read', async () => {
   const app = createApp({
-    userContext: defaultUserContext,
+    userContext: {
+      profile: { id: 'actor-1' },
+      memberships: [{ companyId: COMPANY_ID }],
+    },
     allowedPermissions: [],
   })
 
@@ -91,9 +101,12 @@ test('insurance-routes auth: GET /fleet/insurance/:id returns 403 without fleet.
   assert.equal(response.status, 403)
 })
 
-test('insurance-routes auth: GET /fleet/vehicles/:vehicleId/insurance returns 200 with fleet.vehicles.read', async () => {
+test('insurance-routes auth: allows vehicle insurance list with fleet.vehicles.read', async () => {
   const app = createApp({
-    userContext: defaultUserContext,
+    userContext: {
+      profile: { id: 'actor-1' },
+      memberships: [{ companyId: COMPANY_ID }],
+    },
     allowedPermissions: ['fleet.vehicles.read'],
   })
 
@@ -101,4 +114,34 @@ test('insurance-routes auth: GET /fleet/vehicles/:vehicleId/insurance returns 20
   assert.equal(response.status, 200)
   const payload = await response.json()
   assert.ok(Array.isArray(payload.data))
+})
+
+test('insurance-routes auth: fail-closed when membership/company context is missing', async () => {
+  const app = createApp({
+    userContext: {
+      profile: { id: 'actor-1' },
+      memberships: [],
+    },
+    allowedPermissions: ['fleet.insurance.read'],
+  })
+
+  const response = await app.request('/fleet/insurance')
+  assert.equal(response.status, 400)
+  const payload = await response.json()
+  assert.match(payload.error, /companyId es requerido/i)
+})
+
+test('insurance-routes auth: rejects legacy non-uuid companyId values', async () => {
+  const app = createApp({
+    userContext: {
+      profile: { id: 'actor-1' },
+      memberships: [{ companyId: 'clx4w0abx000008l45m0z9r2a' }],
+    },
+    allowedPermissions: ['fleet.insurance.read'],
+  })
+
+  const response = await app.request('/fleet/insurance')
+  assert.equal(response.status, 400)
+  const payload = await response.json()
+  assert.match(payload.error, /companyId debe ser UUID valido/i)
 })
