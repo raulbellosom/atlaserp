@@ -110,6 +110,16 @@ Two categories:
 
 The `ModuleRegistry` class (`packages/core/src/module-registry.js`) handles registration, dependency validation, navigation resolution, and blueprint flattening. The API seeds these into `AtlasModule` rows via `prisma/seed.js`.
 
+### AME3 custom module creation
+
+Full reference: `docs/ai-context/ame3-modules.md` — read it before creating or modifying any module.
+
+Critical rules (violating any of these corrupts the project):
+- **Never edit `prisma/schema.prisma`** for AME3 module tables — Atlas ORM manages them via `defineModel` + `POST /modules/sync`
+- **Never use `prisma.<model>` accessors** for AME3 tables — use `prisma.$queryRaw` tagged template literals
+- **All service functions must be declared inside `createXxxService({ prisma })`** — functions at module scope cannot access `prisma` and throw `ReferenceError` at runtime
+- **Never generate UUIDs in JavaScript** — the DB column has `DEFAULT uuidv7()`, use `INSERT ... RETURNING *`
+
 ### Blueprint system
 
 Blueprints are declarative JSON schemas describing UI and entity metadata. They live in module manifests under `blueprints`, are stored in the `Blueprint` table, and are served via `GET /blueprints`.
