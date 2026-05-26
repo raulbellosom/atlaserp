@@ -191,7 +191,14 @@ export function createFleetService({ prisma }) {
              AND fvd3.enabled = true
              AND fa3."mime_type" ILIKE 'image/%'
            ORDER BY fvd3.created_at ASC
-           LIMIT 1) AS cover_image_file_asset_id
+           LIMIT 1) AS cover_image_file_asset_id,
+          (SELECT CASE
+            WHEN COUNT(*) FILTER (WHERE fip.enabled = true AND fip.expiry_date::date >= CURRENT_DATE) > 0 THEN 'active'
+            WHEN COUNT(*) FILTER (WHERE fip.enabled = true AND fip.expiry_date::date < CURRENT_DATE) > 0 THEN 'expired'
+            ELSE 'none'
+           END
+           FROM fleet_insurance_policy fip
+           WHERE fip.vehicle_id = fv.id AND fip.company_id = fv.company_id) AS insurance_status
         FROM fleet_vehicle fv
         LEFT JOIN fleet_vehicle_model vm ON vm.id = fv.vehicle_model_id
         LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id
@@ -346,7 +353,18 @@ export function createFleetService({ prisma }) {
                 ) ||
                 COALESCE(NULLIF(REGEXP_REPLACE(fv.economic_individual_number, '^0+', ''), ''), '0')
             ELSE NULL
-          END AS full_economic_number
+          END AS full_economic_number,
+          (SELECT json_build_object(
+            'insurer_name', fip.insurer_name,
+            'policy_number', fip.policy_number,
+            'coverage_type', fip.coverage_type,
+            'expiry_date', fip.expiry_date::text
+           )
+           FROM fleet_insurance_policy fip
+           WHERE fip.vehicle_id = fv.id AND fip.company_id = fv.company_id
+             AND fip.enabled = true AND fip.expiry_date::date >= CURRENT_DATE
+           ORDER BY fip.start_date DESC
+           LIMIT 1) AS active_insurance_policy
         FROM fleet_vehicle fv
         LEFT JOIN fleet_vehicle_model vm ON vm.id = fv.vehicle_model_id
         LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id
