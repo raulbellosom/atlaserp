@@ -1631,6 +1631,7 @@ app.get(
           moduleKey: c.req.query("moduleKey"),
           entityType: c.req.query("entityType"),
           entityId: c.req.query("entityId"),
+          sourceEntityId: c.req.query("sourceEntityId"),
           mime: c.req.query("mime"),
           enabled: c.req.query("enabled"),
           page: c.req.query("page"),
@@ -2658,6 +2659,29 @@ app.get("/blueprints", authMiddleware, async (c) => {
 
   return c.json({ data: [...mergedByKey.values()] });
 });
+
+app.get('/public/blueprints', async (c) => {
+  try {
+    const views = await prisma.atlasView.findMany({
+      where: { type: 'CUSTOM', enabled: true },
+    })
+    const publicViews = views.filter((v) => v.schema?.public === true)
+    return c.json({
+      data: publicViews.map((v) => ({
+        key: v.key,
+        kind: v.type,
+        moduleKey: v.moduleKey,
+        schema: v.schema,
+        source: 'atlas-view',
+      })),
+    })
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[public/blueprints]', err?.message)
+    }
+    return c.json({ error: 'No se pudieron cargar las vistas públicas.' }, 500)
+  }
+})
 
 app.get(
   "/contacts",
