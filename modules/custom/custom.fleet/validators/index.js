@@ -3,7 +3,6 @@ import { z } from '../../../../apps/api/node_modules/zod/index.js'
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
 
 const vehicleStatusSchema = z.enum(['active', 'maintenance', 'inactive', 'retired'])
-const maintenanceTypeSchema = z.enum(['preventive', 'corrective', 'inspection'])
 
 function isValidIsoDate(value) {
   if (!ISO_DATE_REGEX.test(value)) return false
@@ -83,50 +82,18 @@ export const updateVehicleSchema = z.object({
   if (value.financing_start_date && value.financing_end_date && value.financing_end_date < value.financing_start_date) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['financing_end_date'], message: 'La fecha fin no puede ser menor a la fecha inicio del financiamiento.' })
   }
-})
-
-const maintenanceStatusSchema = z.enum(['scheduled', 'in_progress', 'completed', 'cancelled'])
-const isoDateTimeSchema = z.string().refine(
-  (v) => !Number.isNaN(new Date(v).getTime()),
-  { message: 'Debe ser una fecha y hora ISO valida.' }
-)
-
-export const createMaintenanceSchema = z.object({
-  vehicle_id: z.string().uuid(),
-  type: maintenanceTypeSchema,
-  description: z.string().min(1).max(5000),
-  scheduled_date: isoDateSchema,
-  completed_date: isoDateSchema.nullable().optional(),
-  cost: z.number().min(0).nullable().optional(),
-  notes: z.string().optional(),
-  // V003 expansion fields (all optional for backward compat)
-  maintenance_type_id: z.string().uuid().nullable().optional(),
-  title: z.string().max(255).nullable().optional(),
-  status: maintenanceStatusSchema.default('scheduled'),
-  driver_id: z.string().uuid().nullable().optional(),
-  started_at: isoDateTimeSchema.nullable().optional(),
-  odometer_km: z.number().int().min(0).nullable().optional(),
-  provider: z.string().max(200).nullable().optional(),
-  currency: z.string().max(10).optional(),
-})
-
-export const updateMaintenanceSchema = z.object({
-  vehicle_id: z.string().uuid().optional(),
-  type: maintenanceTypeSchema.optional(),
-  description: z.string().min(1).max(5000).optional(),
-  scheduled_date: isoDateSchema.optional(),
-  completed_date: isoDateSchema.nullable().optional(),
-  cost: z.number().min(0).nullable().optional(),
-  notes: z.string().optional(),
-  // V003 expansion fields
-  maintenance_type_id: z.string().uuid().nullable().optional(),
-  title: z.string().max(255).nullable().optional(),
-  status: maintenanceStatusSchema.optional(),
-  driver_id: z.string().uuid().nullable().optional(),
-  started_at: isoDateTimeSchema.nullable().optional(),
-  odometer_km: z.number().int().min(0).nullable().optional(),
-  provider: z.string().max(200).nullable().optional(),
-  currency: z.string().max(10).optional(),
+  if (value.is_financed === false) {
+    const hasFinancingData =
+      Boolean(value.financing_institution) ||
+      Boolean(value.financing_contract_number) ||
+      Boolean(value.financing_start_date) ||
+      Boolean(value.financing_end_date) ||
+      (value.financing_monthly_payment !== undefined && value.financing_monthly_payment !== null) ||
+      Boolean(value.financing_notes)
+    if (hasFinancingData) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['is_financed'], message: 'Activa "Vehiculo financiado" para capturar datos de financiamiento.' })
+    }
+  }
 })
 
 const driverStatusSchema = z.enum(['active', 'inactive', 'suspended'])
@@ -197,16 +164,6 @@ export const createVehicleBrandSchema = z.object({
 
 export const updateVehicleBrandSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-})
-
-export const createMaintenanceTypeSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-})
-
-export const updateMaintenanceTypeSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional(),
 })
 
 const reportTypeSchema = z.enum(['maintenance', 'service', 'repair', 'other'])
@@ -314,4 +271,41 @@ export const updateReportSchema = z.object({
   warranty_days: z.number().int().min(0).nullable().optional(),
   warranty_notes: z.string().max(1000).nullable().optional(),
   other_category_label: z.string().max(120).nullable().optional(),
+})
+
+const coverageTypeSchema = z.enum(['basic', 'comprehensive', 'third_party', 'other'])
+
+export const createInsurancePolicySchema = z.object({
+  vehicle_id:          z.string().uuid('ID de vehiculo invalido.'),
+  insurer_name:        z.string().min(1, 'La aseguradora es requerida.').max(100),
+  policy_number:       z.string().min(1, 'El numero de poliza es requerido.').max(50),
+  coverage_type:       coverageTypeSchema.nullable().optional(),
+  start_date:          isoDateSchema,
+  expiry_date:         isoDateSchema,
+  premium:             z.number().min(0, 'La prima no puede ser negativa.').nullable().optional(),
+  currency:            z.string().length(3, 'La moneda debe ser un codigo de 3 letras.').default('MXN'),
+  notes:               z.string().max(3000).nullable().optional(),
+  document_asset_id:   z.string().uuid('ID de archivo invalido.').nullable().optional(),
+}).refine(d => d.expiry_date >= d.start_date, {
+  message: 'La fecha de vencimiento debe ser igual o posterior al inicio de vigencia.',
+  path: ['expiry_date'],
+})
+
+export const updateInsurancePolicySchema = z.object({
+  vehicle_id:          z.string().uuid().optional(),
+  insurer_name:        z.string().min(1).max(100).optional(),
+  policy_number:       z.string().min(1).max(50).optional(),
+  coverage_type:       coverageTypeSchema.nullable().optional(),
+  start_date:          isoDateSchema.optional(),
+  expiry_date:         isoDateSchema.optional(),
+  premium:             z.number().min(0).nullable().optional(),
+  currency:            z.string().length(3).optional(),
+  notes:               z.string().max(3000).nullable().optional(),
+  document_asset_id:   z.string().uuid().nullable().optional(),
+}).refine(d => {
+  if (d.start_date && d.expiry_date) return d.expiry_date >= d.start_date
+  return true
+}, {
+  message: 'La fecha de vencimiento debe ser igual o posterior al inicio de vigencia.',
+  path: ['expiry_date'],
 })

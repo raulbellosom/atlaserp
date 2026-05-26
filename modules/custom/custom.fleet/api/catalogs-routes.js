@@ -5,8 +5,6 @@ import {
   updateVehicleTypeSchema,
   createVehicleBrandSchema,
   updateVehicleBrandSchema,
-  createMaintenanceTypeSchema,
-  updateMaintenanceTypeSchema,
   createVehicleModelSchema,
   updateVehicleModelSchema,
 } from '../validators/index.js'
@@ -207,104 +205,16 @@ export function createCatalogsRouter({ prisma, requirePermission, moduleContext,
     }
   })
 
-  // ── Maintenance Types ─────────────────────────────────────────────────────
-
-  app.get('/fleet/catalogs/maintenance-types', requirePermission('fleet.catalogs.read'), async (c) => {
-    try {
-      const companyId = getCompanyIdFromContext(c)
-      const search = c.req.query('search')
-      const page = c.req.query('page')
-      const useCache = !search && !page
-      const cacheKey = `ref:fleet:maintenance-types:${companyId}`
-      const result = useCache
-        ? await catalogGet(cacheKey, () => service.listMaintenanceTypes({ companyId, page, pageSize: c.req.query('pageSize'), search, sortBy: c.req.query('sortBy'), sortDir: c.req.query('sortDir') }))
-        : await service.listMaintenanceTypes({ companyId, page, pageSize: c.req.query('pageSize'), search, sortBy: c.req.query('sortBy'), sortDir: c.req.query('sortDir') })
-      return c.json(result)
-    } catch (err) {
-      return handleRouteError(c, err, { fallbackError: 'No se pudieron listar los tipos de mantenimiento.', route: '/fleet/catalogs/maintenance-types', moduleKey, operation: 'listMaintenanceTypes' })
-    }
-  })
-
-  app.get('/fleet/catalogs/maintenance-types/:id', requirePermission('fleet.catalogs.read'), async (c) => {
-    try {
-      const companyId = getCompanyIdFromContext(c)
-      const data = await service.getMaintenanceTypeById({ companyId, id: c.req.param('id') })
-      return c.json({ data })
-    } catch (err) {
-      return handleRouteError(c, err, { fallbackError: 'No se pudo obtener el tipo de mantenimiento.', route: '/fleet/catalogs/maintenance-types/:id', moduleKey, operation: 'getMaintenanceTypeById' })
-    }
-  })
-
-  app.post('/fleet/catalogs/maintenance-types/seed', requirePermission('fleet.catalogs.create'), async (c) => {
-    try {
-      const companyId = getCompanyIdFromContext(c)
-      const actorId = getActorIdFromContext(c)
-      const result = await service.seedMaintenanceTypes({ companyId, actorId })
-      return c.json({ data: result }, 201)
-    } catch (err) {
-      return handleRouteError(c, err, { fallbackError: 'No se pudieron sembrar los tipos de mantenimiento.', route: '/fleet/catalogs/maintenance-types/seed', moduleKey, operation: 'seedMaintenanceTypes' })
-    }
-  })
-
-  app.post('/fleet/catalogs/maintenance-types', requirePermission('fleet.catalogs.create'), async (c) => {
-    try {
-      const companyId = getCompanyIdFromContext(c)
-      const actorId = getActorIdFromContext(c)
-      const body = await c.req.json()
-      const parsed = createMaintenanceTypeSchema.safeParse(body)
-      if (!parsed.success) return c.json({ error: getValidationErrorMessage(parsed.error) }, 400)
-      const created = await service.createMaintenanceType({ companyId, actorId, payload: parsed.data })
-      invalidateCatalog(companyId, 'maintenance-types')
-      return c.json({ data: created }, 201)
-    } catch (err) {
-      return handleRouteError(c, err, { fallbackError: 'No se pudo crear el tipo de mantenimiento.', route: '/fleet/catalogs/maintenance-types', moduleKey, operation: 'createMaintenanceType' })
-    }
-  })
-
-  app.patch('/fleet/catalogs/maintenance-types/:id', requirePermission('fleet.catalogs.update'), async (c) => {
-    try {
-      const companyId = getCompanyIdFromContext(c)
-      const actorId = getActorIdFromContext(c)
-      const body = await c.req.json()
-      const parsed = updateMaintenanceTypeSchema.safeParse(body)
-      if (!parsed.success) return c.json({ error: getValidationErrorMessage(parsed.error) }, 400)
-      const updated = await service.updateMaintenanceType({ companyId, actorId, id: c.req.param('id'), payload: parsed.data })
-      invalidateCatalog(companyId, 'maintenance-types')
-      return c.json({ data: updated })
-    } catch (err) {
-      return handleRouteError(c, err, { fallbackError: 'No se pudo actualizar el tipo de mantenimiento.', route: '/fleet/catalogs/maintenance-types/:id', moduleKey, operation: 'updateMaintenanceType' })
-    }
-  })
-
-  app.patch('/fleet/catalogs/maintenance-types/:id/enabled', requirePermission('fleet.catalogs.delete'), async (c) => {
-    try {
-      const companyId = getCompanyIdFromContext(c)
-      const actorId = getActorIdFromContext(c)
-      const body = await c.req.json()
-      const parsed = catalogEnabledSchema.safeParse(body)
-      if (!parsed.success) return c.json({ error: getValidationErrorMessage(parsed.error) }, 400)
-      const updated = await service.setMaintenanceTypeEnabled({ companyId, actorId, id: c.req.param('id'), enabled: parsed.data.enabled })
-      invalidateCatalog(companyId, 'maintenance-types')
-      return c.json({ data: updated })
-    } catch (err) {
-      return handleRouteError(c, err, { fallbackError: 'No se pudo actualizar el estado del tipo de mantenimiento.', route: '/fleet/catalogs/maintenance-types/:id/enabled', moduleKey, operation: 'setMaintenanceTypeEnabled' })
-    }
-  })
-
   // ── Vehicle Models ────────────────────────────────────────────────────────
 
   app.get('/fleet/catalogs/vehicle-models', requirePermission('fleet.catalogs.read'), async (c) => {
     try {
       const companyId = getCompanyIdFromContext(c)
-      const search = c.req.query('search')
-      const page = c.req.query('page')
-      const brandId = c.req.query('brand_id')
-      const typeId = c.req.query('type_id')
-      const useCache = !search && !page && !brandId && !typeId
-      const cacheKey = `ref:fleet:vehicle-models:${companyId}`
-      const result = useCache
-        ? await catalogGet(cacheKey, () => service.listVehicleModels({ companyId, page, pageSize: c.req.query('pageSize'), search, brand_id: brandId, type_id: typeId, sortBy: c.req.query('sortBy'), sortDir: c.req.query('sortDir') }))
-        : await service.listVehicleModels({ companyId, page, pageSize: c.req.query('pageSize'), search, brand_id: brandId, type_id: typeId, sortBy: c.req.query('sortBy'), sortDir: c.req.query('sortDir') })
+      const brandId = c.req.query('brand_id') ?? null
+      const typeId = c.req.query('type_id') ?? null
+      const result = await catalogGet(`ref:fleet:vehicle-models:${companyId}:${brandId ?? ''}:${typeId ?? ''}`, () =>
+        service.listVehicleModels({ companyId, brandId, typeId })
+      )
       return c.json(result)
     } catch (err) {
       return handleRouteError(c, err, { fallbackError: 'No se pudieron listar los modelos de vehiculo.', route: '/fleet/catalogs/vehicle-models', moduleKey, operation: 'listVehicleModels' })

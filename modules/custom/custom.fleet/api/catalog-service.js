@@ -413,13 +413,13 @@ export function createCatalogService({ prisma }) {
     return row
   }
 
-  async function listVehicleModels({ companyId, page, pageSize, search, brand_id, type_id, sortBy, sortDir }) {
+  async function listVehicleModels({ companyId, page, pageSize, search, brandId = null, typeId = null, sortBy, sortDir }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
     const pagination = normalizePagination({ page, pageSize })
     const normalizedSearch = normalizeSearch(search)
     const likeValue = normalizedSearch ? `%${normalizedSearch}%` : null
-    const safeBrandId = brand_id && UUID_REGEX.test(String(brand_id)) ? String(brand_id).toLowerCase() : null
-    const safeTypeId = type_id && UUID_REGEX.test(String(type_id)) ? String(type_id).toLowerCase() : null
+    const safeBrandId = brandId && UUID_REGEX.test(String(brandId)) ? String(brandId).toLowerCase() : null
+    const safeTypeId = typeId && UUID_REGEX.test(String(typeId)) ? String(typeId).toLowerCase() : null
 
     const [rows, totalRows] = await withDbErrorMapping(async () => {
       const data = await prisma.$queryRaw`
