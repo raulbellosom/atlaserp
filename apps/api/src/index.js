@@ -2660,28 +2660,41 @@ app.get("/blueprints", authMiddleware, async (c) => {
   return c.json({ data: [...mergedByKey.values()] });
 });
 
-app.get('/public/blueprints', async (c) => {
+app.get("/public/blueprints", async (c) => {
   try {
-    const views = await prisma.atlasView.findMany({
-      where: { type: 'CUSTOM', enabled: true },
-    })
-    const publicViews = views.filter((v) => v.schema?.public === true)
+    const cacheKey = "public:blueprints:raw";
+    let publicViews = cacheGet(cacheKey);
+    if (!publicViews) {
+      publicViews = await prisma.atlasView.findMany({
+        where: {
+          type: "CUSTOM",
+          enabled: true,
+          schema: { path: ["public"], equals: true },
+        },
+      });
+      cacheSet(cacheKey, publicViews, TTL.BLUEPRINTS);
+    }
     return c.json({
       data: publicViews.map((v) => ({
         key: v.key,
         kind: v.type,
         moduleKey: v.moduleKey,
-        schema: v.schema,
-        source: 'atlas-view',
+        schema: {
+          component: v.schema?.component,
+          path: v.schema?.path,
+          title: v.schema?.title,
+          public: v.schema?.public,
+        },
+        source: "atlas-view",
       })),
-    })
+    });
   } catch (err) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('[public/blueprints]', err?.message)
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[public/blueprints]", err?.message);
     }
-    return c.json({ error: 'No se pudieron cargar las vistas públicas.' }, 500)
+    return c.json({ error: "No se pudieron cargar las vistas públicas." }, 500);
   }
-})
+});
 
 app.get(
   "/contacts",
