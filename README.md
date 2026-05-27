@@ -22,7 +22,16 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/
 node .\setup-local.mjs
 ```
 
-See `infra/installer/README.md` for full copy/paste steps (Windows, Linux, macOS), image tags, and reset commands.
+See [infra/installer/README.md](infra/installer/README.md) for full copy/paste steps (Windows, Linux, macOS), image tags, and reset commands.
+
+Quick kill/reset for local Supabase:
+
+```powershell
+npx --yes supabase stop --workdir ./.supabase-local --no-backup
+docker ps -a --filter "label=com.supabase.cli.project=supabase-local" -q | ForEach-Object { docker rm -f $_ }
+docker network ls --filter "label=com.supabase.cli.project=supabase-local" -q | ForEach-Object { docker network rm $_ }
+docker volume ls --filter "label=com.supabase.cli.project=supabase-local" -q | ForEach-Object { docker volume rm $_ }
+```
 
 ### 1. Fill environment variables
 
