@@ -9,11 +9,11 @@ const alertVariants = cva(
       variant: {
         default: 'glass text-[hsl(var(--foreground))]',
         destructive:
-          'border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400 [&>svg]:text-red-600 dark:[&>svg]:text-red-400',
+          'border-red-500/50 bg-red-50 text-red-900 dark:bg-red-950/60 dark:text-red-200 [&>svg]:text-red-900 dark:[&>svg]:text-red-200',
         warning:
-          'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 [&>svg]:text-amber-700 dark:[&>svg]:text-amber-400',
+          'border-amber-500/50 bg-amber-50 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200 [&>svg]:text-amber-900 dark:[&>svg]:text-amber-200',
         success:
-          'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 [&>svg]:text-emerald-700 dark:[&>svg]:text-emerald-400',
+          'border-emerald-500/50 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200 [&>svg]:text-emerald-900 dark:[&>svg]:text-emerald-200',
       },
     },
     defaultVariants: {
@@ -47,7 +47,7 @@ const AlertDescription = forwardRef(function AlertDescription({ className, ...pr
   return (
     <div
       ref={ref}
-      className={cn('text-sm [&_p]:leading-relaxed opacity-90', className)}
+      className={cn('text-sm [&_p]:leading-relaxed', className)}
       {...props}
     />
   )

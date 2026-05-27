@@ -8,6 +8,7 @@ export default defineView({
     entity: 'transaction_type',
     component: 'AtlasTable',
     apiPath: '/financia/types',
+    description: 'Codigos de operacion bancaria (DEP, CHQ, TRANSF, etc.). Identifican el instrumento de cada movimiento y permiten filtrar el registro por tipo.',
     primaryField: 'code',
     searchable: false,
     columns: [

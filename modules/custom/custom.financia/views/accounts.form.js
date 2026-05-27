@@ -8,12 +8,16 @@ export default defineView({
     entity: 'account',
     component: 'AtlasForm',
     apiPath: '/financia/accounts',
-    fields: [
-      { name: 'name',            label: 'Nombre',        type: 'text',    required: true },
-      { name: 'bank',            label: 'Banco',         type: 'text',    required: true },
-      { name: 'account_number',  label: 'No. de cuenta', type: 'text' },
-      { name: 'currency',        label: 'Moneda',        type: 'select',  required: true, options: ['MXN', 'USD'] },
-      { name: 'opening_balance', label: 'Saldo inicial', type: 'decimal', required: true },
+    sections: [
+      {
+        fields: [
+          { name: 'name',            label: 'Nombre',        type: 'text',    required: true },
+          { name: 'bank',            label: 'Banco',         type: 'text',    required: true },
+          { name: 'account_number',  label: 'No. de cuenta', type: 'text' },
+          { name: 'currency',        label: 'Moneda',        type: 'select',  required: true, options: ['MXN', 'USD'] },
+          { name: 'opening_balance', label: 'Saldo inicial', type: 'decimal', required: true },
+        ],
+      },
     ],
   },
 })

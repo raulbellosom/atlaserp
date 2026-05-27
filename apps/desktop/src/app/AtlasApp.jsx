@@ -160,11 +160,13 @@ export function AtlasApp() {
               />
             ))}
 
-          <main className="flex-1 min-w-0 overflow-y-auto overflow-x-clip scrollbar-gutter-stable">
-            <Outlet />
-          </main>
+          <div className="flex flex-col flex-1 min-w-0 min-h-0">
+            <main className="flex-1 overflow-y-auto overflow-x-clip scrollbar-gutter-stable">
+              <Outlet />
+            </main>
+            <BrandFooter />
+          </div>
         </div>
-        <BrandFooter />
       </div>
 
       <AppLauncher />

@@ -82,14 +82,16 @@ const SCREEN_MAP = {
   "atlas.identity:/": lazy(
     () => import("../modules/atlas.identity/screens/IdentityOverview.jsx"),
   ),
-  // custom.financia — accounts list, account detail, import wizard
-  "custom.financia:/financia/accounts": lazy(
+  // custom.financia — accounts list, account detail, import wizard.
+  // Navigation paths are normalized to strip the /app/m/:moduleKey prefix,
+  // so the subPath arriving here is "/accounts" not "/financia/accounts".
+  "custom.financia:/accounts": lazy(
     () => import("../../../../modules/custom/custom.financia/components/AccountsScreen.jsx"),
   ),
-  "custom.financia:/financia/accounts/:id": lazy(
+  "custom.financia:/accounts/:id": lazy(
     () => import("../../../../modules/custom/custom.financia/components/AccountScreen.jsx"),
   ),
-  "custom.financia:/financia/accounts/:id/import": lazy(
+  "custom.financia:/accounts/:id/import": lazy(
     () => import("../../../../modules/custom/custom.financia/components/ImportWizard.jsx"),
   ),
 };
@@ -201,16 +203,19 @@ function resolveScreen(moduleKey, subPath) {
     return SCREEN_MAP["atlas.hr:/hr/employees/:id"] ?? null;
   }
   if (moduleKey === "custom.financia") {
-    if (subPath === "/financia/accounts" || subPath === "/financia/accounts/new") {
-      return SCREEN_MAP["custom.financia:/financia/accounts"] ?? null;
+    // Subpaths arrive as "/accounts", "/categories", "/types" — the module prefix
+    // (/app/m/custom.financia) is already stripped by normalizeModuleNavigationPath.
+    if (subPath === "/accounts") {
+      return SCREEN_MAP["custom.financia:/accounts"] ?? null;
     }
     if (subPath.endsWith("/import")) {
-      return SCREEN_MAP["custom.financia:/financia/accounts/:id/import"] ?? null;
+      return SCREEN_MAP["custom.financia:/accounts/:id/import"] ?? null;
     }
-    if (subPath.startsWith("/financia/accounts/")) {
-      return SCREEN_MAP["custom.financia:/financia/accounts/:id"] ?? null;
+    // /accounts/:id — but let /accounts/new fall through to BlueprintCrudScreen (create form)
+    if (subPath.startsWith("/accounts/") && !subPath.endsWith("/new")) {
+      return SCREEN_MAP["custom.financia:/accounts/:id"] ?? null;
     }
-    // Categories and types use BlueprintCrudScreen (standard blueprint table)
+    // /accounts/new, /categories/*, /types/* → BlueprintCrudScreen (table + form + detail)
     return BlueprintCrudScreen;
   }
   if (subPath === "/") return SCREEN_MAP[`${moduleKey}:/`] ?? null;

@@ -1241,7 +1241,24 @@ export function createModuleLifecycleService({ prisma }) {
 
   async function dryRunUninstall({ key, mode = 'preserve-data', companyId }) {
     const mod = await prisma.atlasModule.findUnique({ where: { key } })
-    if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
+    if (!mod) {
+      // Module was never synced/installed — no DB row, no orphaned data possible.
+      // Return a safe empty result so the install modal can render without errors.
+      return {
+        moduleKey: key,
+        operation: 'uninstall',
+        mode,
+        allowed: false,
+        blockingDependents: [],
+        ownedEntities: [],
+        ownedTablePurge: mode === 'purge-owned-tables'
+          ? { supported: false, tableChecks: [], totalRows: 0 }
+          : null,
+        permissionsAffected: 0,
+        roleAssignmentsAffected: 0,
+        recommendation: 'Modulo no instalado — no hay datos residuales.',
+      }
+    }
 
     const dependents = await getRequiredDependents(prisma, mod.id)
     const allowedBase = !mod.core && !!mod.uninstallable && dependents.length === 0

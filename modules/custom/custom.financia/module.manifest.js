@@ -3,7 +3,7 @@ import { defineAtlasModule } from '@atlas/module-engine'
 export default defineAtlasModule({
   key: 'custom.financia',
   name: 'Financia',
-  version: '0.1.0',
+  version: '0.1.1',
   kind: 'FEATURE',
   description: 'Registro bancario tipo hoja de calculo: depositos, retiros y saldo corriente.',
   summary: 'Cuentas bancarias, registro de movimientos y exportacion.',
@@ -24,9 +24,11 @@ export default defineAtlasModule({
     './views/accounts.page.js',
     './views/categories.table.js',
     './views/categories.form.js',
+    './views/categories.detail.js',
     './views/categories.page.js',
     './views/types.table.js',
     './views/types.form.js',
+    './views/types.detail.js',
     './views/types.page.js',
   ],
   lifecycle: {

@@ -8,6 +8,7 @@ export default defineView({
     entity: 'category',
     component: 'AtlasTable',
     apiPath: '/financia/categories',
+    description: 'Agrupa movimientos por naturaleza: ingresos, egresos o ambos. Usadas para clasificar transacciones y analizarlas en el resumen de cuenta.',
     primaryField: 'name',
     searchable: false,
     columns: [
