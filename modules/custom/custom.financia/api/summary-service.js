@@ -81,7 +81,7 @@ export function createSummaryService({ prisma }) {
           AND (${from}::date IS NULL OR t.fecha >= ${from}::date)
           AND (${to}::date   IS NULL OR t.fecha <= ${to}::date)
         GROUP BY c.name, c.color
-        ORDER BY (deposito + retiro) DESC
+        ORDER BY SUM(COALESCE(t.deposito, 0) + COALESCE(t.retiro, 0)) DESC
       `
 
       return {

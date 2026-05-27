@@ -14,7 +14,7 @@ export default function createCategoriesRouter({ prisma, requirePermission }) {
   const app     = new Hono()
   const service = createCategoriesService({ prisma })
 
-  app.get('/financia/categories', requirePermission('financia.categories.manage'), async (c) => {
+  app.get('/financia/categories', requirePermission('financia.transactions.read'), async (c) => {
     try { return c.json(await service.listCategories({ companyId: getCompanyId(c) })) }
     catch (err) { return handleError(c, err, 'No se pudieron listar las categorias.') }
   })

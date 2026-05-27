@@ -17,6 +17,13 @@ function fmtDecimal(val) {
   return Number.isFinite(n) ? n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''
 }
 
+// PostgreSQL date columns arrive as ISO timestamps ("2026-05-27T00:00:00.000Z").
+// Slice to YYYY-MM-DD for <input type="date"> and API payloads.
+function toDateValue(value) {
+  if (!value) return ''
+  return String(value).slice(0, 10)
+}
+
 function emptyRow(accountId) {
   return {
     _isNew: true,
@@ -110,8 +117,9 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
       toast.error(err.message)
     },
     onSettled: () => {
-      // Always refetch so balances and consecutive numbers are correct
+      // Always refetch so balances, consecutive numbers, and account header are correct
       queryClient.invalidateQueries({ queryKey })
+      queryClient.invalidateQueries({ queryKey: ['financia-account', accountId] })
     },
   })
 
@@ -127,7 +135,10 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
       )
       if (!res.ok) throw new Error('No se pudo eliminar el movimiento.')
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey }) },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey })
+      queryClient.invalidateQueries({ queryKey: ['financia-account', accountId] })
+    },
     onError: (err) => { toast.error(err.message) },
   })
 
@@ -159,7 +170,7 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
     if (!deposito && !retiro)  { toast.error('Se requiere deposito o retiro mayor a cero.'); return }
 
     const payload = {
-      fecha:       draft.fecha,
+      fecha:       toDateValue(draft.fecha),
       tipo_id:     draft.tipo_id    || null,
       numero:      draft.numero     || null,
       nombre:      draft.nombre.trim(),
@@ -287,8 +298,8 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
               <th className={`${thClass} min-w-40`}>Nombre</th>
               <th className={`${thClass} w-32`}>Referencia</th>
               <th className={`${thClass} min-w-35`}>Concepto</th>
-              <th className={`${thClass} w-28 text-right`}>Deposito</th>
-              <th className={`${thClass} w-28 text-right`}>Retiro</th>
+              <th className={`${thClass} w-28 text-right`}>Ingreso</th>
+              <th className={`${thClass} w-28 text-right`}>Egreso</th>
               <th className={`${thClass} w-24`}>Categoria</th>
               <th className={`${thClass} w-28 text-right`}>Saldo</th>
               <th className={`${thClass} w-8`}></th>
@@ -313,7 +324,7 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                       type="date"
                       className={colClass}
                       data-row={rowIdx} data-col="fecha"
-                      value={draft.fecha ?? ''}
+                      value={toDateValue(draft.fecha)}
                       onChange={(e) => setDraft(row, rowIdx, 'fecha', e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, row, rowIdx, 'fecha')}
                     />
