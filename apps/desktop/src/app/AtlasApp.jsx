@@ -2,13 +2,14 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useIsFetching, useIsMutating } from "@tanstack/react-query";
 import { ModuleSidebar, BrandFooter } from "@atlas/ui";
+import { Menu } from "lucide-react";
 import { useThemeStore } from "../stores/theme";
 import { useLauncherStore } from "../stores/launcher";
 import { Topbar } from "../components/Topbar";
 import { AppLauncher } from "../components/AppLauncher";
 import { CommandPalette } from "../components/CommandPalette";
 import { useRuntimeModules } from "./useRuntimeModules";
-import { getLayoutMode } from "../lib/runtimeModules";
+import { getLayoutMode, matchesFullscreenPath } from "../lib/runtimeModules";
 
 function getSidebarCollapsed() {
   try {
@@ -95,6 +96,7 @@ export function AtlasApp() {
 
   const [collapsed, setCollapsed] = useState(getSidebarCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarOverlayOpen, setSidebarOverlayOpen] = useState(false);
   const isFetching = useIsFetching();
   const isMutating = useIsMutating();
 
@@ -104,9 +106,10 @@ export function AtlasApp() {
     persistSidebarCollapsed(next);
   }
 
-  // Auto-close mobile drawer on route change
+  // Auto-close mobile drawer and sidebar overlay on route change
   useEffect(() => {
     setMobileOpen(false);
+    setSidebarOverlayOpen(false);
   }, [location.pathname]);
 
   // Restore dark mode preference on mount
@@ -115,7 +118,25 @@ export function AtlasApp() {
   }, []);
 
   const layoutMode = getLayoutMode(activeModule);
+
+  // Normalize the current sub-path for fullscreen matching
+  const normalizedSubPath = useMemo(() => {
+    if (!moduleKeyFromPath) return null;
+    const prefix = `/app/m/${moduleKeyFromPath}`;
+    const full = location.pathname;
+    if (full === prefix) return "/";
+    if (full.startsWith(`${prefix}/`)) return full.slice(prefix.length);
+    return null;
+  }, [location.pathname, moduleKeyFromPath]);
+
+  // True when the active route is declared fullscreen in the manifest
+  const isFullscreen = useMemo(
+    () => matchesFullscreenPath(activeModule, normalizedSubPath),
+    [activeModule, normalizedSubPath],
+  );
+
   const showSidebar =
+    !isFullscreen &&
     Boolean(moduleKeyFromPath) &&
     !isHome &&
     (activeModule
@@ -168,6 +189,59 @@ export function AtlasApp() {
           </div>
         </div>
       </div>
+
+      {/* Fullscreen mode: corner trigger + sidebar overlay */}
+      {isFullscreen && activeModule && (
+        <>
+          {/* Corner trigger — shows when overlay is closed */}
+          <button
+            onClick={() => setSidebarOverlayOpen(true)}
+            className={[
+              "fixed z-40 left-0 top-14",
+              "h-10 w-8 flex items-center justify-center",
+              "border-r border-b border-[hsl(var(--border))] rounded-br-lg",
+              "bg-[hsl(var(--surface-2))] hover:bg-[hsl(var(--muted))]",
+              "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",
+              "transition-all duration-200",
+              sidebarOverlayOpen ? "opacity-0 pointer-events-none" : "opacity-100",
+            ].join(" ")}
+            title="Abrir navegacion del modulo"
+            aria-label="Abrir menu del modulo"
+          >
+            <Menu size={14} />
+          </button>
+
+          {/* Overlay backdrop */}
+          {sidebarOverlayOpen && (
+            <div
+              className="fixed inset-0 z-40 bg-black/25 backdrop-blur-[1px]"
+              onClick={() => setSidebarOverlayOpen(false)}
+            />
+          )}
+
+          {/* Overlay sidebar panel */}
+          <aside
+            className={[
+              "fixed left-0 top-14 bottom-0 z-50 w-60 shadow-2xl",
+              "transition-transform duration-250 ease-out",
+              sidebarOverlayOpen ? "translate-x-0" : "-translate-x-full pointer-events-none",
+            ].join(" ")}
+          >
+            <ModuleSidebar
+              module={activeModule}
+              currentPath={location.pathname}
+              onNavigate={(path) => {
+                navigate(path);
+                setSidebarOverlayOpen(false);
+              }}
+              collapsed={false}
+              onCollapse={() => setSidebarOverlayOpen(false)}
+              mobileOpen={false}
+              onMobileClose={() => setSidebarOverlayOpen(false)}
+            />
+          </aside>
+        </>
+      )}
 
       <AppLauncher />
       <CommandPalette activeModule={activeModule} />

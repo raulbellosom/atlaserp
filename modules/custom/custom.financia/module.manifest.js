@@ -8,9 +8,10 @@ export default defineAtlasModule({
   description: 'Registro bancario tipo hoja de calculo: depositos, retiros y saldo corriente.',
   summary: 'Cuentas bancarias, registro de movimientos y exportacion.',
   icon: 'Landmark',
-  color: '#2563EB',
-  accentColor: '#1D4ED8',
+  color: '#16a34a',
+  accentColor: '#15803d',
   initials: 'FN',
+  fullscreenPaths: ['/accounts/:id'],
   dependencies: [{ key: 'atlas.core' }],
   models: [
     './models/account.model.js',

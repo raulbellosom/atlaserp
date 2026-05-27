@@ -173,6 +173,11 @@ export function mergeRuntimeModules(rawApiModules, options = {}) {
       compatibilityBlocking: apiRow?.compatibilityBlocking ?? [],
       lifecycleConfig: apiRow?.lifecycleConfig ?? null,
       lastError: apiRow?.lifecycleConfig?.lastError ?? null,
+      fullscreenPaths: Array.isArray(manifest?.fullscreenPaths)
+        ? manifest.fullscreenPaths
+        : Array.isArray(manifestFallback.fullscreenPaths)
+          ? manifestFallback.fullscreenPaths
+          : [],
       updateAvailable,
       updateReason: updateAvailable
         ? updateVersionMismatch && updateMigrationMismatch
@@ -224,4 +229,18 @@ export function getModuleByKey(modules, key) {
 
 export function getLayoutMode(module) {
   return normalizeLayoutMode(module?.layoutMode);
+}
+
+/**
+ * Returns true if the given normalized sub-path matches any of the module's
+ * fullscreenPaths patterns (e.g. '/accounts/:id').
+ * Patterns support :param segments (match a single path segment) and * (wildcard).
+ */
+export function matchesFullscreenPath(module, normalizedSubPath) {
+  const patterns = Array.isArray(module?.fullscreenPaths) ? module.fullscreenPaths : [];
+  if (patterns.length === 0 || !normalizedSubPath) return false;
+  return patterns.some((pattern) => {
+    const regexStr = `^${pattern.replace(/:[^/]+/g, '[^/]+').replace(/\*/g, '.*')}$`;
+    return new RegExp(regexStr).test(normalizedSubPath);
+  });
 }

@@ -23,6 +23,7 @@ node .\setup-local.mjs
 ```
 
 See [infra/installer/README.md](infra/installer/README.md) for full copy/paste steps (Windows, Linux, macOS), image tags, and reset commands.
+The installer also downloads an AME3 Dev Kit to `custom-modules/_atlas-devkit/` for module development guidance.
 
 Quick kill/reset for local Supabase:
 

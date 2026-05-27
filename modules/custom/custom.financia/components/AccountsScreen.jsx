@@ -48,21 +48,24 @@ export default function AccountsScreen() {
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader
-        title="Cuentas bancarias"
-        actions={
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => navigate('/app/m/custom.financia/accounts/new')}
-          >
-            <Plus size={14} className="mr-1" />
-            Nueva cuenta
-          </Button>
-        }
-      />
+      <div className="px-6 pt-5">
+        <PageHeader
+          title="Cuentas bancarias"
+          description="Registro de saldos y movimientos por cuenta bancaria."
+          actions={
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => navigate('/app/m/custom.financia/accounts/new')}
+            >
+              <Plus size={14} className="mr-1" />
+              Nueva cuenta
+            </Button>
+          }
+        />
+      </div>
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto px-6 pb-6">
         {accounts.length === 0 ? (
           <EmptyState
             icon={<Landmark size={32} />}

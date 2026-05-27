@@ -7,6 +7,7 @@ Repositorio oficial:
 Este instalador soporta:
 - `external`: Atlas ERP contra Supabase externo.
 - `local`: Atlas ERP + Supabase local.
+- Dev Kit AME3 automatico para custom modules en `custom-modules/_atlas-devkit/`.
 
 Tags unificadas:
 - API: `raulbellosom/atlaserp:api-latest` (local y external)
@@ -61,9 +62,26 @@ node ./setup-local.mjs
 1. Inicializa Supabase local en `.supabase-local/`.
 2. Levanta Supabase sin `logflare` ni `vector`.
 3. Genera `.env.local` automaticamente.
-4. Hace `docker pull` de API, worker y web. Si `web-local-latest` no existe, usa fallback a `web-external-latest`.
-5. Ejecuta `pnpm db:migrate` y `pnpm db:seed` dentro de la imagen API.
-6. Levanta `docker compose --profile local up -d`.
+4. Descarga Dev Kit AME3 desde GitHub a `custom-modules/_atlas-devkit/` (AGENTS + guias de modulos).
+5. Hace `docker pull` de API, worker y web. Si `web-local-latest` no existe, usa fallback a `web-external-latest`.
+6. Ejecuta `pnpm db:migrate` y `pnpm db:seed` dentro de la imagen API.
+7. Levanta `docker compose --profile local up -d`.
+
+Opciones utiles:
+
+```bash
+node ./setup-local.mjs --skip-compose-up
+node ./setup-local.mjs --skip-dev-kit
+```
+
+Override del repositorio de documentacion (opcional):
+
+```bash
+export ATLAS_DOCS_REPO_OWNER=raulbellosom
+export ATLAS_DOCS_REPO_NAME=atlaserp
+export ATLAS_DOCS_REPO_REF=main
+node ./setup-local.mjs
+```
 
 ## Iniciar / detener
 

@@ -2,8 +2,8 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { PageHeader, Button } from '@atlas/ui'
-import { Upload } from 'lucide-react'
+import { Button } from '@atlas/ui'
+import { FileText, Table, Download, Upload, ArrowLeft } from 'lucide-react'
 import SpreadsheetRegister from './SpreadsheetRegister.jsx'
 import AccountSummary from './AccountSummary.jsx'
 import { useAuth } from '../../../../apps/desktop/src/auth/AuthProvider'
@@ -15,6 +15,12 @@ const TABS = [
   { key: 'resumen',  label: 'Resumen'  },
 ]
 
+function fmtCurrency(amount, currency = 'MXN') {
+  return Number(amount ?? 0).toLocaleString('es-MX', {
+    style: 'currency', currency, minimumFractionDigits: 2,
+  })
+}
+
 export default function AccountScreen() {
   const { id: accountId } = useParams()
   const navigate = useNavigate()
@@ -25,7 +31,7 @@ export default function AccountScreen() {
   const [dateFrom, setDateFrom]   = useState('')
   const [dateTo, setDateTo]       = useState('')
 
-  const { data: accountData } = useQuery({
+  const { data: accountData, isLoading: accountLoading } = useQuery({
     queryKey: ['financia-account', accountId],
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/financia/accounts/${accountId}`, {
@@ -69,78 +75,137 @@ export default function AccountScreen() {
     const params = new URLSearchParams()
     if (dateFrom) params.set('from', dateFrom)
     if (dateTo)   params.set('to', dateTo)
-    // Export endpoints require auth — pass token as query param since these are direct anchor downloads
     params.set('token', token ?? '')
     return `${API_BASE}/financia/accounts/${accountId}/export/${format}?${params}`
   }
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader
-        title={account?.name ?? 'Cuenta'}
-        subtitle={account ? `${account.bank} · ${account.currency}` : ''}
-        breadcrumb={[
-          { label: 'Cuentas', href: '/app/m/custom.financia/accounts' },
-          { label: account?.name ?? '...' },
-        ]}
-        actions={
-          activeTab === 'registro' ? (
-            <div className="flex items-center gap-2">
-              {/* Period filter */}
-              <input
-                type="date"
-                className="text-xs border border-[hsl(var(--border))] rounded-md px-2 py-1.5 bg-[hsl(var(--background))]"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                placeholder="Desde"
-              />
-              <input
-                type="date"
-                className="text-xs border border-[hsl(var(--border))] rounded-md px-2 py-1.5 bg-[hsl(var(--background))]"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                placeholder="Hasta"
-              />
-              <Button variant="ghost" size="sm" asChild>
-                <a href={buildExportUrl('pdf')} target="_blank" rel="noreferrer" download>PDF</a>
-              </Button>
-              <Button variant="ghost" size="sm" asChild>
-                <a href={buildExportUrl('xlsx')} target="_blank" rel="noreferrer" download>Excel</a>
-              </Button>
-              <Button variant="ghost" size="sm" asChild>
-                <a href={buildExportUrl('csv')} target="_blank" rel="noreferrer" download>CSV</a>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate(`/app/m/custom.financia/accounts/${accountId}/import`)}
-              >
-                <Upload size={13} className="mr-1" />
-                Importar
-              </Button>
-            </div>
-          ) : null
-        }
-      />
 
-      {/* Tabs */}
-      <div className="flex border-b border-[hsl(var(--border))] px-6">
-        {TABS.map((tab) => (
+      {/* ── Page header ──────────────────────────────────────────────── */}
+      <div className="px-6 pt-5 pb-4 border-b border-[hsl(var(--border))] flex items-start gap-4 justify-between shrink-0">
+        <div className="min-w-0 flex-1">
+          {/* Breadcrumb / eyebrow */}
           <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab.key
-                ? 'border-[var(--module-accent,#2563EB)] text-[hsl(var(--foreground))]'
-                : 'border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'
-            }`}
+            onClick={() => navigate('/app/m/custom.financia/accounts')}
+            className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] mb-1.5 transition-colors"
           >
-            {tab.label}
+            <ArrowLeft size={11} />
+            Cuentas bancarias
           </button>
-        ))}
+
+          {/* Account name — skeleton while loading */}
+          {accountLoading ? (
+            <div className="space-y-1.5">
+              <div className="h-7 w-44 rounded-lg bg-[hsl(var(--muted))] animate-pulse" />
+              <div className="h-4 w-56 rounded bg-[hsl(var(--muted))] animate-pulse opacity-70" />
+            </div>
+          ) : (
+            <>
+              <h1 className="text-2xl font-bold tracking-tight text-[hsl(var(--foreground))] truncate">
+                {account?.name ?? 'Cuenta'}
+              </h1>
+              {account && (
+                <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
+                  {account.bank}
+                  <span className="mx-1.5 opacity-40">·</span>
+                  {account.currency}
+                  <span className="mx-1.5 opacity-40">·</span>
+                  <span
+                    className="font-semibold tabular-nums"
+                    style={{ color: 'var(--module-accent, #16a34a)' }}
+                  >
+                    {fmtCurrency(account.current_balance, account.currency)}
+                  </span>
+                </p>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Export / import actions — only shown in Registro tab */}
+        {activeTab === 'registro' && (
+          <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+            <Button variant="outline" size="sm" asChild>
+              <a href={buildExportUrl('pdf')} target="_blank" rel="noreferrer" download>
+                <FileText size={12} />
+                PDF
+              </a>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <a href={buildExportUrl('xlsx')} target="_blank" rel="noreferrer" download>
+                <Table size={12} />
+                Excel
+              </a>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <a href={buildExportUrl('csv')} target="_blank" rel="noreferrer" download>
+                <Download size={12} />
+                CSV
+              </a>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/app/m/custom.financia/accounts/${accountId}/import`)}
+            >
+              <Upload size={12} />
+              Importar
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* Tab content */}
+      {/* ── Tabs + date range filter ─────────────────────────────────── */}
+      <div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-6 shrink-0">
+        <div className="flex">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.key
+                  ? 'border-(--module-accent,#16a34a) text-[hsl(var(--foreground))]'
+                  : 'border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Date range — only in Registro */}
+        {activeTab === 'registro' && (
+          <div className="flex items-center gap-2 py-2">
+            <input
+              type="date"
+              className="text-xs border border-[hsl(var(--border))] rounded-md px-2 py-1 bg-[hsl(var(--background))] text-[hsl(var(--foreground))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              title="Desde"
+            />
+            <span className="text-xs text-[hsl(var(--muted-foreground))]">—</span>
+            <input
+              type="date"
+              className="text-xs border border-[hsl(var(--border))] rounded-md px-2 py-1 bg-[hsl(var(--background))] text-[hsl(var(--foreground))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              title="Hasta"
+            />
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => { setDateFrom(''); setDateTo('') }}
+                className="text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
+                title="Limpiar filtro"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Tab content ──────────────────────────────────────────────── */}
       <div className="flex-1 overflow-hidden">
         {activeTab === 'registro' && (
           <SpreadsheetRegister
