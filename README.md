@@ -4,6 +4,16 @@ Desktop-first, full-stack modular ERP built with React + Vite + Tauri, a Node/Ho
 
 ## Quick start
 
+## Docker installer (external/local Supabase)
+
+Installer files live in `infra/installer/`.
+
+- `external` profile: Atlas ERP + external Supabase.
+- `local` profile: Atlas ERP + local Supabase (`supabase start` on host).
+- Custom modules mount path: host `infra/installer/custom-modules/` -> container `/app/modules/custom`.
+
+See `infra/installer/README.md` for commands and env setup.
+
 ### 1. Fill environment variables
 
 ```bash
