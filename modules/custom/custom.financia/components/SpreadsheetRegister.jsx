@@ -184,7 +184,43 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
   const thClass  = 'px-2 py-1.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] text-left whitespace-nowrap border-b border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)] select-none'
   const tdClass  = 'border-b border-[hsl(var(--border)/0.5)] p-0 align-middle'
 
-  if (isLoading) return <div className="p-4 text-sm text-[hsl(var(--muted-foreground))]">Cargando movimientos...</div>
+  if (isLoading) return (
+    <div className="flex flex-col h-full">
+      {/* Toolbar skeleton */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[hsl(var(--border))]">
+        <div className="h-3.5 w-24 rounded bg-[hsl(var(--muted))] animate-pulse" />
+        <div className="h-7 w-20 rounded-lg bg-[hsl(var(--muted))] animate-pulse" />
+      </div>
+      {/* Spreadsheet skeleton */}
+      <div className="flex-1 overflow-hidden">
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            <tr className="bg-[hsl(var(--muted)/0.3)]">
+              {[16, 64, 56, 80, 72, 96, 112, 72, 72, 72, 64].map((w, i) => (
+                <th key={i} className="px-2 py-1.5 border-b border-[hsl(var(--border))]">
+                  <div className="h-3 rounded bg-[hsl(var(--muted))] animate-pulse" style={{ width: w }} />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 12 }).map((_, rowIdx) => (
+              <tr key={rowIdx} className={rowIdx % 2 === 1 ? 'bg-[hsl(var(--muted)/0.15)]' : ''}>
+                {[16, 64, 56, 80, 72, 96, 112, 72, 72, 72, 64].map((w, colIdx) => (
+                  <td key={colIdx} className="border-b border-[hsl(var(--border)/0.5)] px-2 py-1 align-middle">
+                    <div
+                      className="h-3 rounded bg-[hsl(var(--muted))] animate-pulse"
+                      style={{ width: w }}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
   if (isError)   return <div className="p-4 text-sm text-red-500">No se pudieron cargar los movimientos.</div>
 
   return (

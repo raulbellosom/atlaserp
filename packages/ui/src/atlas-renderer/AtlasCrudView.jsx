@@ -219,6 +219,13 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
   const openDetail = (row) => {
     const nextId = resolveIdFromRow(row);
     if (!nextId) return;
+    // In sheet (non-page) mode, delegate to the parent navigator immediately so
+    // the route transition begins before this component re-renders. This prevents
+    // the sheet from flashing open for one frame before the navigation lands.
+    if (!pageMode && onNavigateRef.current) {
+      onNavigateRef.current({ mode: "detail", recordId: nextId });
+      return;
+    }
     setActiveRecordId(nextId);
     setMode("detail");
   };
@@ -226,6 +233,11 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
   const openEdit = (row) => {
     const nextId = resolveIdFromRow(row);
     if (!nextId) return;
+    // Same early-navigate pattern as openDetail.
+    if (!pageMode && onNavigateRef.current) {
+      onNavigateRef.current({ mode: "edit", recordId: nextId });
+      return;
+    }
     setActiveRecordId(nextId);
     setMode("edit");
   };
