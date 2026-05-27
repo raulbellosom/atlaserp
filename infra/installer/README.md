@@ -74,3 +74,5 @@ curl -X POST http://localhost:4010/modules/sync -H "Authorization: Bearer <ATLAS
 
 - Levanta un solo perfil por entorno (`external` o `local`), no ambos al mismo tiempo.
 - El frontend web en Vite usa variables en build-time. Por eso se separan etiquetas `web-external` y `web-local`.
+- `SUPABASE_JWT_SECRET` se obtiene de Supabase (Cloud: Settings -> API; local: `supabase status -o env`).
+- `JWT_SECRET` (Atlas) hoy puede usar el mismo valor que `SUPABASE_JWT_SECRET`.

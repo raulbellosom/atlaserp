@@ -9,6 +9,9 @@ atlas-erp-starter@*
 .env
 .env.local
 .env.*.local
+# .env.external --- IGNORE --- (may contain real secrets for external services)
+.env.external
+.env.local
 
 # MCP server config (may contain URLs with tokens)
 .mcp.json
