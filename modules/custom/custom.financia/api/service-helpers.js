@@ -3,9 +3,9 @@ export function toNumber(value, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
-export function normalizePagination({ page, pageSize }) {
+export function normalizePagination({ page, pageSize, maxPageSize = 100 }) {
   const safePage = Math.max(1, toNumber(page, 1))
-  const safePageSize = Math.min(100, Math.max(1, toNumber(pageSize, 50)))
+  const safePageSize = Math.min(maxPageSize, Math.max(1, toNumber(pageSize, 50)))
   return { page: safePage, pageSize: safePageSize, offset: (safePage - 1) * safePageSize }
 }
 

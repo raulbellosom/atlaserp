@@ -77,8 +77,42 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
       }
       return res.json()
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey }) },
-    onError: (err) => { toast.error(err.message) },
+    // Optimistic update: show changes immediately in the UI while the
+    // request is in flight. The balance column and consecutive # will be
+    // corrected when the background refetch completes.
+    onMutate: async ({ isNew, id, payload }) => {
+      await queryClient.cancelQueries({ queryKey })
+      const previousData = queryClient.getQueryData(queryKey)
+      queryClient.setQueryData(queryKey, (old) => {
+        if (!old?.data) return old
+        if (isNew) {
+          const tempRow = {
+            ...payload,
+            id: `__temp_${Date.now()}`,
+            account_id: accountId,
+            _pending: true,
+            consecutive: '?',
+            saldo_actual: null,
+          }
+          return { ...old, data: [...old.data, tempRow] }
+        }
+        return {
+          ...old,
+          data: old.data.map((r) =>
+            r.id === id ? { ...r, ...payload, _pending: true } : r,
+          ),
+        }
+      })
+      return { previousData }
+    },
+    onError: (err, _vars, context) => {
+      if (context?.previousData) queryClient.setQueryData(queryKey, context.previousData)
+      toast.error(err.message)
+    },
+    onSettled: () => {
+      // Always refetch so balances and consecutive numbers are correct
+      queryClient.invalidateQueries({ queryKey })
+    },
   })
 
   const deleteMutation = useMutation({
@@ -250,9 +284,9 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
               <th className={`${thClass} w-28`}>Fecha</th>
               <th className={`${thClass} w-24`}>Tipo</th>
               <th className={`${thClass} w-24`}>Numero</th>
-              <th className={`${thClass} min-w-[160px]`}>Nombre</th>
+              <th className={`${thClass} min-w-40`}>Nombre</th>
               <th className={`${thClass} w-32`}>Referencia</th>
-              <th className={`${thClass} min-w-[140px]`}>Concepto</th>
+              <th className={`${thClass} min-w-35`}>Concepto</th>
               <th className={`${thClass} w-28 text-right`}>Deposito</th>
               <th className={`${thClass} w-28 text-right`}>Retiro</th>
               <th className={`${thClass} w-24`}>Categoria</th>

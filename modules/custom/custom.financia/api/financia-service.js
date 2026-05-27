@@ -127,7 +127,8 @@ export function createFinanciaService({ prisma }) {
   async function listTransactions({ companyId, accountId, dateFrom, dateTo, page, pageSize }) {
     await getAccount({ companyId, accountId })
 
-    const pag  = normalizePagination({ page, pageSize })
+    // Allow up to 2000 rows for the spreadsheet view (default API cap is 100)
+    const pag  = normalizePagination({ page, pageSize, maxPageSize: 2000 })
     const from = normalizeOptionalString(dateFrom) ?? null
     const to   = normalizeOptionalString(dateTo)   ?? null
 
@@ -140,9 +141,10 @@ export function createFinanciaService({ prisma }) {
             tt.name  AS tipo_name,
             c.name   AS category_name,
             c.color  AS category_color,
+            -- Cast to int4 to avoid BigInt serialization errors in JSON responses
             ROW_NUMBER() OVER (
               PARTITION BY t.account_id ORDER BY t.fecha, t.created_at
-            ) AS consecutive,
+            ) ::int4 AS consecutive,
             a.opening_balance + SUM(COALESCE(t.deposito, 0) - COALESCE(t.retiro, 0))
               OVER (
                 PARTITION BY t.account_id
@@ -189,18 +191,23 @@ export function createFinanciaService({ prisma }) {
   }
 
   async function createTransaction({ companyId, accountId, data }) {
-    await getAccount({ companyId, accountId })
     const { fecha, tipo_id, numero, nombre, referencia, concepto, deposito, retiro, category_id } = data
-
-    // Normalize nullable UUID fields — pass null directly; PostgreSQL handles null::uuid = null
     const tipoIdVal     = normalizeOptionalString(tipo_id)     ?? null
     const categoryIdVal = normalizeOptionalString(category_id) ?? null
 
+    // Single round trip: CTE validates account ownership, INSERT only runs if account exists.
+    // No pre-flight getAccount() call needed — saves one network round trip to Supabase.
     const rows = await prisma.$queryRaw`
+      WITH account_check AS (
+        SELECT id FROM financia_account
+        WHERE id = ${accountId}::uuid
+          AND company_id = ${companyId}::uuid
+          AND enabled = true
+      )
       INSERT INTO financia_transaction
         (account_id, company_id, fecha, tipo_id, numero, nombre,
          referencia, concepto, deposito, retiro, category_id, enabled)
-      VALUES (
+      SELECT
         ${accountId}::uuid,
         ${companyId}::uuid,
         ${fecha}::date,
@@ -213,55 +220,60 @@ export function createFinanciaService({ prisma }) {
         ${retiro   ?? null},
         ${categoryIdVal}::uuid,
         true
-      )
+      FROM account_check
       RETURNING *
     `
-    return firstRow(rows)
+    const row = firstRow(rows)
+    if (!row) throw new FinanciaServiceError('Cuenta no encontrada o no disponible.', 404)
+    return row
   }
 
   async function updateTransaction({ companyId, accountId, transactionId, data }) {
-    const existingRows = await prisma.$queryRaw`
-      SELECT * FROM financia_transaction
-      WHERE id = ${transactionId}::uuid
-        AND account_id = ${accountId}::uuid
-        AND company_id = ${companyId}::uuid
-        AND enabled = true
-    `
-    const existing = firstRow(existingRows)
-    if (!existing) throw new FinanciaServiceError('Movimiento no encontrado.', 404)
+    // Single round trip — no pre-flight SELECT. Each field uses CASE WHEN to only update
+    // columns present in the payload, preserving current values for omitted fields.
+    // This halves the Supabase round trips vs the old SELECT-then-UPDATE pattern.
+    const hasFecha      = hasOwn(data, 'fecha')
+    const hasTipoId     = hasOwn(data, 'tipo_id')
+    const hasNumero     = hasOwn(data, 'numero')
+    const hasNombre     = hasOwn(data, 'nombre')
+    const hasReferencia = hasOwn(data, 'referencia')
+    const hasConcepto   = hasOwn(data, 'concepto')
+    const hasDeposito   = hasOwn(data, 'deposito')
+    const hasRetiro     = hasOwn(data, 'retiro')
+    const hasCatId      = hasOwn(data, 'category_id')
 
-    const fecha       = hasOwn(data, 'fecha')       ? data.fecha                               : existing.fecha
-    const tipoIdVal   = hasOwn(data, 'tipo_id')
-      ? (normalizeOptionalString(data.tipo_id) ?? null)
-      : (existing.tipo_id ?? null)
-    const numero      = hasOwn(data, 'numero')      ? normalizeOptionalString(data.numero)     : existing.numero
-    const nombre      = hasOwn(data, 'nombre')      ? String(data.nombre).trim()               : existing.nombre
-    const referencia  = hasOwn(data, 'referencia')  ? normalizeOptionalString(data.referencia) : existing.referencia
-    const concepto    = hasOwn(data, 'concepto')    ? normalizeOptionalString(data.concepto)   : existing.concepto
-    const deposito    = hasOwn(data, 'deposito')    ? (data.deposito ?? null)                  : existing.deposito
-    const retiro      = hasOwn(data, 'retiro')      ? (data.retiro   ?? null)                  : existing.retiro
-    const catIdVal    = hasOwn(data, 'category_id')
-      ? (normalizeOptionalString(data.category_id) ?? null)
-      : (existing.category_id ?? null)
+    const fechaVal    = hasFecha      ? (data.fecha ?? null)                                   : null
+    const tipoIdVal   = hasTipoId     ? (normalizeOptionalString(data.tipo_id)     ?? null)    : null
+    const numeroVal   = hasNumero     ? (normalizeOptionalString(data.numero)      ?? null)    : null
+    const nombreVal   = hasNombre     ? String(data.nombre).trim()                             : null
+    const refVal      = hasReferencia ? (normalizeOptionalString(data.referencia)  ?? null)    : null
+    const conceptoVal = hasConcepto   ? (normalizeOptionalString(data.concepto)    ?? null)    : null
+    const depositoVal = hasDeposito   ? (data.deposito ?? null)                                : null
+    const retiroVal   = hasRetiro     ? (data.retiro   ?? null)                                : null
+    const catIdVal    = hasCatId      ? (normalizeOptionalString(data.category_id) ?? null)    : null
 
     const rows = await prisma.$queryRaw`
       UPDATE financia_transaction
-      SET fecha       = ${fecha}::date,
-          tipo_id     = ${tipoIdVal}::uuid,
-          numero      = ${numero},
-          nombre      = ${nombre},
-          referencia  = ${referencia},
-          concepto    = ${concepto},
-          deposito    = ${deposito},
-          retiro      = ${retiro},
-          category_id = ${catIdVal}::uuid,
-          updated_at  = NOW()
+      SET
+        fecha       = CASE WHEN ${hasFecha}      THEN ${fechaVal}::date    ELSE fecha       END,
+        tipo_id     = CASE WHEN ${hasTipoId}     THEN ${tipoIdVal}::uuid   ELSE tipo_id     END,
+        numero      = CASE WHEN ${hasNumero}     THEN ${numeroVal}         ELSE numero      END,
+        nombre      = CASE WHEN ${hasNombre}     THEN ${nombreVal}         ELSE nombre      END,
+        referencia  = CASE WHEN ${hasReferencia} THEN ${refVal}            ELSE referencia  END,
+        concepto    = CASE WHEN ${hasConcepto}   THEN ${conceptoVal}       ELSE concepto    END,
+        deposito    = CASE WHEN ${hasDeposito}   THEN ${depositoVal}       ELSE deposito    END,
+        retiro      = CASE WHEN ${hasRetiro}     THEN ${retiroVal}         ELSE retiro      END,
+        category_id = CASE WHEN ${hasCatId}      THEN ${catIdVal}::uuid    ELSE category_id END,
+        updated_at  = NOW()
       WHERE id         = ${transactionId}::uuid
         AND account_id = ${accountId}::uuid
         AND company_id = ${companyId}::uuid
+        AND enabled    = true
       RETURNING *
     `
-    return firstRow(rows)
+    const row = firstRow(rows)
+    if (!row) throw new FinanciaServiceError('Movimiento no encontrado.', 404)
+    return row
   }
 
   async function setTransactionEnabled({ companyId, accountId, transactionId, enabled }) {
