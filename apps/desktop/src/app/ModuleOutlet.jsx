@@ -82,6 +82,16 @@ const SCREEN_MAP = {
   "atlas.identity:/": lazy(
     () => import("../modules/atlas.identity/screens/IdentityOverview.jsx"),
   ),
+  // custom.financia — accounts list, account detail, import wizard
+  "custom.financia:/financia/accounts": lazy(
+    () => import("../../../../modules/custom/custom.financia/components/AccountsScreen.jsx"),
+  ),
+  "custom.financia:/financia/accounts/:id": lazy(
+    () => import("../../../../modules/custom/custom.financia/components/AccountScreen.jsx"),
+  ),
+  "custom.financia:/financia/accounts/:id/import": lazy(
+    () => import("../../../../modules/custom/custom.financia/components/ImportWizard.jsx"),
+  ),
 };
 const SCREEN_MODULE_KEYS = new Set(
   Object.keys(SCREEN_MAP).map((entry) => entry.split(":")[0]),
@@ -189,6 +199,19 @@ function resolveScreen(moduleKey, subPath) {
   }
   if (moduleKey === "atlas.hr" && subPath.startsWith("/hr/employees/")) {
     return SCREEN_MAP["atlas.hr:/hr/employees/:id"] ?? null;
+  }
+  if (moduleKey === "custom.financia") {
+    if (subPath === "/financia/accounts" || subPath === "/financia/accounts/new") {
+      return SCREEN_MAP["custom.financia:/financia/accounts"] ?? null;
+    }
+    if (subPath.endsWith("/import")) {
+      return SCREEN_MAP["custom.financia:/financia/accounts/:id/import"] ?? null;
+    }
+    if (subPath.startsWith("/financia/accounts/")) {
+      return SCREEN_MAP["custom.financia:/financia/accounts/:id"] ?? null;
+    }
+    // Categories and types use BlueprintCrudScreen (standard blueprint table)
+    return BlueprintCrudScreen;
   }
   if (subPath === "/") return SCREEN_MAP[`${moduleKey}:/`] ?? null;
   if (!SCREEN_MODULE_KEYS.has(moduleKey)) return BlueprintCrudScreen;
