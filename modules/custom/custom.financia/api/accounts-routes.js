@@ -6,8 +6,9 @@ import {
 } from '../validators/index.js'
 import { createFinanciaService, FinanciaServiceError } from './financia-service.js'
 import { createSummaryService } from './summary-service.js'
-import { buildExcelBuffer, buildCsvString, buildPdfBuffer } from './export-service.js'
-import { parseImportBuffer, validateImportRows, commitImportRows } from './import-service.js'
+// export-service and import-service use optional heavy deps (exceljs, pdfkit, csv-parse)
+// that may not be hoisted in every workspace context — load them lazily so auth tests
+// can import this router without triggering package resolution at module load time.
 import { getCompanyId, getValidationErrorMessage } from './service-helpers.js'
 
 function handleError(c, err, fallback) {
@@ -108,6 +109,7 @@ export default function createAccountsRouter({ prisma, requirePermission }) {
 
   app.get('/financia/accounts/:id/export/xlsx', requirePermission('financia.export'), async (c) => {
     try {
+      const { buildExcelBuffer } = await import('./export-service.js')
       const companyId = getCompanyId(c)
       const { from, to } = c.req.query()
       const account = await service.getAccount({ companyId, accountId: c.req.param('id') })
@@ -121,6 +123,7 @@ export default function createAccountsRouter({ prisma, requirePermission }) {
 
   app.get('/financia/accounts/:id/export/csv', requirePermission('financia.export'), async (c) => {
     try {
+      const { buildCsvString } = await import('./export-service.js')
       const companyId = getCompanyId(c)
       const { from, to } = c.req.query()
       await service.getAccount({ companyId, accountId: c.req.param('id') })
@@ -134,6 +137,7 @@ export default function createAccountsRouter({ prisma, requirePermission }) {
 
   app.get('/financia/accounts/:id/export/pdf', requirePermission('financia.export'), async (c) => {
     try {
+      const { buildPdfBuffer } = await import('./export-service.js')
       const companyId = getCompanyId(c)
       const { from, to } = c.req.query()
       const account = await service.getAccount({ companyId, accountId: c.req.param('id') })
@@ -149,6 +153,7 @@ export default function createAccountsRouter({ prisma, requirePermission }) {
 
   app.post('/financia/accounts/:id/import/preview', requirePermission('financia.import'), async (c) => {
     try {
+      const { validateImportRows } = await import('./import-service.js')
       const companyId = getCompanyId(c)
       await service.getAccount({ companyId, accountId: c.req.param('id') })
       const body = await c.req.json()
@@ -159,6 +164,7 @@ export default function createAccountsRouter({ prisma, requirePermission }) {
 
   app.post('/financia/accounts/:id/import/commit', requirePermission('financia.import'), async (c) => {
     try {
+      const { validateImportRows, commitImportRows } = await import('./import-service.js')
       const companyId = getCompanyId(c)
       await service.getAccount({ companyId, accountId: c.req.param('id') })
       const body = await c.req.json()

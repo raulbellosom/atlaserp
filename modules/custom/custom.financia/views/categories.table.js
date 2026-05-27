@@ -1,0 +1,27 @@
+import { defineView } from '@atlas/module-engine'
+
+export default defineView({
+  key: 'financia.categories.table',
+  kind: 'TABLE',
+  version: '0.1.0',
+  schema: {
+    entity: 'category',
+    component: 'AtlasTable',
+    apiPath: '/financia/categories',
+    primaryField: 'name',
+    searchable: false,
+    columns: [
+      { field: 'color', label: 'Color',  sortable: false, type: 'color' },
+      { field: 'name',  label: 'Nombre', sortable: true,  link: true },
+      { field: 'kind',  label: 'Tipo',   sortable: true },
+    ],
+    actions: [
+      { label: 'Nueva categoria', permission: 'financia.categories.manage', variant: 'primary' },
+    ],
+    rowActions: [
+      { label: 'Editar',     permission: 'financia.categories.manage' },
+      { label: 'Desactivar', permission: 'financia.categories.manage' },
+    ],
+    emptyState: { message: 'No hay categorias registradas.' },
+  },
+})
