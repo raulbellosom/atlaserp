@@ -9,10 +9,20 @@ Desktop-first, full-stack modular ERP built with React + Vite + Tauri, a Node/Ho
 Installer files live in `infra/installer/`.
 
 - `external` profile: Atlas ERP + external Supabase.
-- `local` profile: Atlas ERP + local Supabase via `infra/installer/setup-local.ps1` (automated).
+- `local` profile: Atlas ERP + local Supabase via `infra/installer/setup-local.mjs` (automated).
 - Custom modules mount path: host `infra/installer/custom-modules/` -> container `/app/modules/custom`.
 
-See `infra/installer/README.md` for commands and env setup.
+Quick install in a new machine (without cloning repo):
+
+```powershell
+mkdir C:\atlaserp-installer -Force
+cd C:\atlaserp-installer
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml" -OutFile "docker-compose.yml"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.mjs" -OutFile "setup-local.mjs"
+node .\setup-local.mjs
+```
+
+See `infra/installer/README.md` for full copy/paste steps (Windows, Linux, macOS), image tags, and reset commands.
 
 ### 1. Fill environment variables
 

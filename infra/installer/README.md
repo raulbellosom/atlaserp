@@ -1,150 +1,133 @@
 # Atlas ERP Docker Installer
 
-Este instalador soporta dos perfiles:
+Repositorio oficial:
+- GitHub: `https://github.com/raulbellosom/atlaserp`
+- Docker Hub: `https://hub.docker.com/r/raulbellosom/atlaserp`
 
+Este instalador soporta:
 - `external`: Atlas ERP contra Supabase externo.
-- `local`: Atlas ERP + Supabase local (cross-platform).
-
-El objetivo del perfil `local` es replicar la instalación en otros equipos sin compilar el repo: descarga imágenes publicadas + levanta Supabase local + ejecuta migraciones/seed.
-
-## Ruta de custom modules
-
-- Host: `infra/installer/custom-modules/`
-- Contenedor API/worker: `/app/modules/custom`
+- `local`: Atlas ERP + Supabase local.
 
 ## Prerrequisitos
 
-- Docker Desktop / Docker Engine con Compose v2
-- Node.js 20+ (para ejecutar `setup-local.mjs`)
-- Acceso a Docker Hub para descargar imágenes:
-  - `raulbellosom/atlaserp:api-local-latest`
-  - `raulbellosom/atlaserp:worker-local-latest`
-  - `raulbellosom/atlaserp:web-local-latest`
-  - `raulbellosom/atlaserp:api-latest`
-  - `raulbellosom/atlaserp:worker-latest`
-  - `raulbellosom/atlaserp:web-external-latest`
+- Docker Desktop (o Docker Engine + Compose v2)
+- Node.js 20+
 
-## Instalación local (Windows, Linux, macOS)
-
-Desde `infra/installer`:
-
-```bash
-node ./setup-local.mjs
-```
-
-El script hace automáticamente:
-
-1. Inicializa Supabase local en `.supabase-local/` (si no existe).
-2. Levanta Supabase (`supabase start`) excluyendo `logflare` y `vector`.
-3. Genera `.env.local` con claves/URLs runtime.
-4. Descarga imágenes `api-local/worker-local/web-local` desde Docker Hub.
-5. Ejecuta `db:migrate` y `db:seed` dentro de la imagen API.
-6. Levanta `docker compose --profile local up -d`.
-
-## Instalación sin clonar el repo (solo instalador)
-
-Puedes descargar únicamente los archivos del instalador y ejecutar desde ahí.
-
-### Linux / macOS (bash)
-
-```bash
-mkdir -p atlaserp-installer && cd atlaserp-installer
-curl -fsSLO https://raw.githubusercontent.com/<ORG_O_USUARIO>/<REPO>/<TAG_O_BRANCH>/infra/installer/docker-compose.yml
-curl -fsSLO https://raw.githubusercontent.com/<ORG_O_USUARIO>/<REPO>/<TAG_O_BRANCH>/infra/installer/setup-local.mjs
-mkdir -p custom-modules
-node ./setup-local.mjs
-```
+## Instalacion en PC nueva sin clonar repo (copy/paste)
 
 ### Windows (PowerShell)
 
 ```powershell
-mkdir atlaserp-installer
-cd atlaserp-installer
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/<ORG_O_USUARIO>/<REPO>/<TAG_O_BRANCH>/infra/installer/docker-compose.yml" -OutFile "docker-compose.yml"
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/<ORG_O_USUARIO>/<REPO>/<TAG_O_BRANCH>/infra/installer/setup-local.mjs" -OutFile "setup-local.mjs"
+mkdir C:\atlaserp-installer -Force
+cd C:\atlaserp-installer
+
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml" -OutFile "docker-compose.yml"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.mjs" -OutFile "setup-local.mjs"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.ps1" -OutFile "setup-local.ps1"
+
 New-Item -ItemType Directory -Force -Path custom-modules | Out-Null
+
+# Si aun no publicaste tags *-local-latest, usa tus tags actuales:
+$env:ATLAS_API_LOCAL_IMAGE="raulbellosom/atlaserp:api-latest"
+$env:ATLAS_WORKER_LOCAL_IMAGE="raulbellosom/atlaserp:worker-latest"
+$env:ATLAS_WEB_LOCAL_IMAGE="raulbellosom/atlaserp:web-external-latest"
+
 node .\setup-local.mjs
 ```
 
-En este modo también puedes usar `custom-modules/` para tus módulos AME3.
-
-### Wrapper para PowerShell (opcional)
-
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File ./setup-local.ps1
-```
-
-### Solo preparar `.env.local` (sin arrancar contenedores)
+Si lo ejecutas desde Git Bash y quieres usar PowerShell wrapper:
 
 ```bash
-node ./setup-local.mjs --skip-compose-up
+powershell -ExecutionPolicy Bypass -File ./setup-local.ps1
 ```
 
-## Instalación external
-
-1. Copia variables:
+### Linux / macOS (bash)
 
 ```bash
-cp .env.external.example .env.external
+mkdir -p ~/atlaserp-installer && cd ~/atlaserp-installer
+
+curl -fsSLo docker-compose.yml https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml
+curl -fsSLo setup-local.mjs https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.mjs
+curl -fsSLo setup-local.ps1 https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.ps1
+
+mkdir -p custom-modules
+
+# Si aun no publicaste tags *-local-latest, usa tus tags actuales:
+export ATLAS_API_LOCAL_IMAGE=raulbellosom/atlaserp:api-latest
+export ATLAS_WORKER_LOCAL_IMAGE=raulbellosom/atlaserp:worker-latest
+export ATLAS_WEB_LOCAL_IMAGE=raulbellosom/atlaserp:web-external-latest
+
+node ./setup-local.mjs
 ```
 
-2. Edita `.env.external` con tus claves de Supabase y `DATABASE_URL`.
-3. Levanta Atlas:
+## Que hace setup-local.mjs
+
+1. Inicializa Supabase local en `.supabase-local/`.
+2. Levanta Supabase sin `logflare` ni `vector`.
+3. Genera `.env.local` automaticamente.
+4. Hace `docker pull` de API, worker y web.
+5. Ejecuta `pnpm db:migrate` y `pnpm db:seed` dentro de la imagen API.
+6. Levanta `docker compose --profile local up -d`.
+
+## Iniciar / detener
+
+Iniciar:
 
 ```bash
-docker compose --profile external up -d
+node ./setup-local.mjs
 ```
 
-## Detener local
+Detener:
 
 ```bash
 docker compose --profile local down
 npx --yes supabase stop --workdir ./.supabase-local
 ```
 
-## Reset limpio local (desde cero)
+## Reset total (local)
+
+### Linux / macOS (bash)
 
 ```bash
 docker compose --profile local down --remove-orphans || true
 npx --yes supabase stop --workdir ./.supabase-local --no-backup || true
 docker ps -a --filter "name=supabase_" -q | xargs -r docker rm -f
-docker network ls --format "{{.Name}}" | rg "^supabase_" | xargs -r docker network rm
-docker volume ls --format "{{.Name}}" | rg "^supabase_" | xargs -r docker volume rm
-rm -rf ./.supabase-local
-rm -f ./.env.local
+docker network ls --format "{{.Name}}" | grep "^supabase_" | xargs -r docker network rm
+docker volume ls --format "{{.Name}}" | grep "^supabase_" | xargs -r docker volume rm
+rm -rf ./.supabase-local ./.env.local
 ```
 
-## Sincronizar custom modules
+### Windows (PowerShell)
 
-Después de agregar o modificar módulos en `custom-modules`:
+```powershell
+docker compose --profile local down --remove-orphans
+npx --yes supabase stop --workdir ./.supabase-local --no-backup
+docker ps -a --filter "name=supabase_" -q | ForEach-Object { docker rm -f $_ }
+docker network ls --format "{{.Name}}" | Select-String "^supabase_" | ForEach-Object { docker network rm $_.Line }
+docker volume ls --format "{{.Name}}" | Select-String "^supabase_" | ForEach-Object { docker volume rm $_.Line }
+Remove-Item -Recurse -Force .\.supabase-local -ErrorAction SilentlyContinue
+Remove-Item -Force .\.env.local -ErrorAction SilentlyContinue
+```
+
+## Custom modules
+
+- Carpeta host: `custom-modules/`
+- Ruta en API/worker: `/app/modules/custom`
+
+Sincronizar modulos:
 
 ```bash
 curl -X POST http://localhost:4010/modules/sync -H "Authorization: Bearer <ATLAS_TOKEN>"
 ```
 
-## Publicar imágenes para nuevas instalaciones
-
-Si quieres versionar e instalar en otros dispositivos de forma estable, publica tags versionados además de `latest`.
-
-Ejemplo (multi-arch):
+## Instalacion external
 
 ```bash
-docker buildx build --platform linux/amd64,linux/arm64 -f infra/docker/api.Dockerfile -t raulbellosom/atlaserp:api-local-v1 --push .
-docker buildx build --platform linux/amd64,linux/arm64 -f infra/docker/worker.Dockerfile -t raulbellosom/atlaserp:worker-local-v1 --push .
-docker buildx build --platform linux/amd64,linux/arm64 -f infra/docker/web.Dockerfile -t raulbellosom/atlaserp:web-local-v1 --push .
+cp .env.external.example .env.external
+# editar .env.external
+docker compose --profile external up -d
 ```
 
-Luego, en la máquina destino, puedes fijar imágenes por variable:
+## Nota sobre tags de imagen
 
-```bash
-export ATLAS_API_LOCAL_IMAGE=raulbellosom/atlaserp:api-local-v1
-export ATLAS_WORKER_LOCAL_IMAGE=raulbellosom/atlaserp:worker-local-v1
-export ATLAS_WEB_LOCAL_IMAGE=raulbellosom/atlaserp:web-local-v1
-node ./setup-local.mjs
-```
-
-## Notas
-
-- Levanta un solo perfil por entorno (`external` o `local`), no ambos.
-- `JWT_SECRET` de Atlas puede reutilizar el `SUPABASE_JWT_SECRET` en local.
-- Para Linux/macOS usa `npx`; en Windows también puedes usar `npx.cmd`.
+Si ya tienes publicadas `api-local-latest`, `worker-local-latest`, `web-local-latest`, no necesitas exportar variables `ATLAS_*_LOCAL_IMAGE`.
