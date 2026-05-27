@@ -2,6 +2,9 @@
 
 This document explains how to create a custom module for Atlas ERP using Atlas Module Engine v3 (AME3). For the full architectural rationale and roadmap, see [docs/architecture/atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md).
 
+For installer-mode runtime limits/capabilities (blueprints, components, and available frontend libraries), read:
+- [docs/ai-context/ame3-runtime-capabilities.md](ai-context/ame3-runtime-capabilities.md)
+
 ---
 
 ## Before you start: Spec-Driven Development

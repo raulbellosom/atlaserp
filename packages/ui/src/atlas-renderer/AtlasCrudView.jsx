@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
@@ -87,7 +87,7 @@ function isActionVisible(action, record) {
   return true;
 }
 
-export function AtlasCrudView({
+export const AtlasCrudView = forwardRef(function AtlasCrudView({
   tableBlueprint,
   formBlueprint,
   detailBlueprint,
@@ -103,7 +103,7 @@ export function AtlasCrudView({
   onCreateSuccess,
   onEditSuccess,
   onDeleteSuccess,
-}) {
+}, ref) {
   const tableApiPath = getApiPath(tableBlueprint);
   const resolvedInitialMode = MODES.has(initialMode) ? initialMode : "list";
   const accentColor = resolveAccentColor(module, tableBlueprint);
@@ -229,6 +229,29 @@ export function AtlasCrudView({
     setActiveRecordId(nextId);
     setMode("edit");
   };
+
+  // Expose imperative API so parent shells can trigger navigation without URL changes.
+  useImperativeHandle(ref, () => ({
+    openCreate() {
+      if (!currentFormBlueprint) return;
+      setMode("create");
+      setActiveRecordId(null);
+      setRecordData(null);
+    },
+    openDetail(id) {
+      if (!id) return;
+      setActiveRecordId(id);
+      setMode("detail");
+    },
+    openEdit(id) {
+      if (!id) return;
+      setActiveRecordId(id);
+      setMode("edit");
+    },
+    goToList() {
+      goToList();
+    },
+  }), [currentFormBlueprint]);
 
   const requestDelete = (row) => {
     setPendingDeleteRow(row);
@@ -381,6 +404,7 @@ export function AtlasCrudView({
                 title={
                   currentFormBlueprint?.schema?.title ??
                   currentFormBlueprint?.title ??
+                  tableBlueprint?.schema?.actions?.[0]?.label ??
                   "Nuevo registro"
                 }
                 actions={
@@ -535,18 +559,20 @@ export function AtlasCrudView({
               if (!open && !pageMode) goToList();
             }}
           >
-            <SheetContent side="right" className="w-full sm:max-w-2xl">
+            <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col">
               {mode === "create" && currentFormBlueprint && (
                 <>
-                  <SheetHeader>
+                  <SheetHeader className="shrink-0">
                     <SheetTitle>
-                      {currentFormBlueprint?.title ?? "Nuevo registro"}
+                      {currentFormBlueprint?.title
+                        ?? tableBlueprint?.schema?.actions?.[0]?.label
+                        ?? "Nuevo registro"}
                     </SheetTitle>
                     <SheetDescription>
                       Completa la información y guarda los cambios.
                     </SheetDescription>
                   </SheetHeader>
-                  <div className="mt-4 max-h-[calc(100dvh-11rem)] overflow-y-auto pr-1">
+                  <div className="md:flex-1 md:min-h-0 md:overflow-y-auto pr-1">
                     <AtlasForm
                       blueprint={currentFormBlueprint}
                       fields={fields}
@@ -563,15 +589,17 @@ export function AtlasCrudView({
 
               {mode === "detail" && currentDetailBlueprint && (
                 <>
-                  <SheetHeader>
+                  <SheetHeader className="shrink-0">
                     <SheetTitle>
-                      {currentDetailBlueprint?.title ?? "Detalle"}
+                      {resolveRowLabel(recordData)
+                        ?? currentDetailBlueprint?.title
+                        ?? "Detalle"}
                     </SheetTitle>
                     <SheetDescription>
                       Información del registro seleccionado.
                     </SheetDescription>
                   </SheetHeader>
-                  <div className="mt-4 max-h-[calc(100dvh-11rem)] overflow-y-auto pr-1">
+                  <div className="md:flex-1 md:min-h-0 md:overflow-y-auto pr-1">
                     {renderRecordLoadingOrError() ??
                       (recordData && (
                         <AtlasDetail
@@ -594,15 +622,17 @@ export function AtlasCrudView({
 
               {mode === "edit" && currentFormBlueprint && (
                 <>
-                  <SheetHeader>
+                  <SheetHeader className="shrink-0">
                     <SheetTitle>
-                      {currentFormBlueprint?.title ?? "Editar registro"}
+                      {resolveRowLabel(recordData)
+                        ? `Editar: ${resolveRowLabel(recordData)}`
+                        : (currentFormBlueprint?.title ?? "Editar registro")}
                     </SheetTitle>
                     <SheetDescription>
                       Actualiza la información del registro.
                     </SheetDescription>
                   </SheetHeader>
-                  <div className="mt-4 max-h-[calc(100dvh-11rem)] overflow-y-auto pr-1">
+                  <div className="md:flex-1 md:min-h-0 md:overflow-y-auto pr-1">
                     {renderRecordLoadingOrError() ??
                       (recordData && (
                         <AtlasForm
@@ -637,4 +667,4 @@ export function AtlasCrudView({
       />
     </div>
   );
-}
+});

@@ -206,5 +206,6 @@ export {
   AtlasCardView,
   BulkActionBar,
   normalizeSpanishLabel,
+  shouldUsePageMode,
   CostsSummaryPanel,
 } from "./atlas-renderer/index.js";

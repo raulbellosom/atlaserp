@@ -30,6 +30,7 @@ const docsRawBase =
 const devKitFiles = [
   "AGENTS.md",
   "docs/ai-context/ame3-modules.md",
+  "docs/ai-context/ame3-runtime-capabilities.md",
   "docs/02_module_system.md",
   "docs/03_custom_modules.md",
   "docs/architecture/atlas-module-engine-v3.md",

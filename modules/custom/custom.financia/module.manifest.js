@@ -22,6 +22,7 @@ export default defineAtlasModule({
   views: [
     './views/accounts.table.js',
     './views/accounts.form.js',
+    './views/accounts.detail.js',
     './views/accounts.page.js',
     './views/categories.table.js',
     './views/categories.form.js',

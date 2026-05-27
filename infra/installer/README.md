@@ -62,7 +62,7 @@ node ./setup-local.mjs
 1. Inicializa Supabase local en `.supabase-local/`.
 2. Levanta Supabase sin `logflare` ni `vector`.
 3. Genera `.env.local` automaticamente.
-4. Descarga Dev Kit AME3 desde GitHub a `custom-modules/_atlas-devkit/` (AGENTS + guias de modulos).
+4. Descarga Dev Kit AME3 desde GitHub a `custom-modules/_atlas-devkit/` (AGENTS + guias de modulos + capacidades runtime disponibles).
 5. Hace `docker pull` de API, worker y web. Si `web-local-latest` no existe, usa fallback a `web-external-latest`.
 6. Ejecuta `pnpm db:migrate` y `pnpm db:seed` dentro de la imagen API.
 7. Levanta `docker compose --profile local up -d`.

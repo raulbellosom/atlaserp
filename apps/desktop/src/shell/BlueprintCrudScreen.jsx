@@ -13,6 +13,7 @@ import {
   PageHeader,
   Skeleton,
   normalizeSpanishLabel,
+  shouldUsePageMode,
 } from "@atlas/ui";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
@@ -590,6 +591,17 @@ export function BlueprintCrudScreen() {
     ],
   );
 
+  // When the form/detail renders as a Sheet (not a full page), we suppress URL
+  // navigation for create/detail/edit modes so opening a sheet does not feel
+  // like navigating to a different view.
+  const isSheetMode = useMemo(
+    () => !shouldUsePageMode(selection.formBlueprint?.schema, fields),
+    [selection.formBlueprint, fields],
+  );
+
+  // Ref used to imperatively open the create sheet without touching the URL.
+  const crudViewRef = useRef(null);
+
   const missingComponentRefs = useMemo(() => {
     if (isCustomView) return []
     return collectMissingComponentReferences({
@@ -664,6 +676,13 @@ export function BlueprintCrudScreen() {
 
   const handleNavigate = useCallback(
     ({ mode, recordId }) => {
+      // In sheet mode, suppress URL navigation ONLY for "create" mode.
+      // Opening a new-record sheet should not navigate to /new — the user
+      // is still on the list view and the sheet is a UI overlay.
+      // Detail and edit still update the URL so deep links and browser-back
+      // work correctly (e.g. /accounts/:id loads the AccountScreen).
+      if (isSheetMode && mode === "create") return;
+
       const basePath =
         routeInfo.moduleRoutePath ||
         (routeInfo.collectionPath
@@ -684,6 +703,7 @@ export function BlueprintCrudScreen() {
       }
     },
     [
+      isSheetMode,
       moduleKey,
       navigate,
       routeInfo.collectionPath,
@@ -884,8 +904,16 @@ export function BlueprintCrudScreen() {
             description={pageDescription || undefined}
             className="pb-2"
             actions={
-              canCreate && createPath ? (
-                <Button onClick={() => navigate(createPath)}>
+              canCreate ? (
+                <Button
+                  onClick={() => {
+                    if (isSheetMode) {
+                      crudViewRef.current?.openCreate();
+                    } else if (createPath) {
+                      navigate(createPath);
+                    }
+                  }}
+                >
                   <Plus className="mr-2 h-4 w-4" />
                   {createLabel}
                 </Button>
@@ -965,6 +993,7 @@ export function BlueprintCrudScreen() {
         ) : null}
 
         <AtlasCrudView
+          ref={crudViewRef}
           tableBlueprint={selection.tableBlueprint}
           formBlueprint={selection.formBlueprint}
           detailBlueprint={selection.detailBlueprint}

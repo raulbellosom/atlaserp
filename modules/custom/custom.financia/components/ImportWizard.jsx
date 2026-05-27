@@ -238,20 +238,27 @@ export default function ImportWizard() {
 
         {/* Step 0: Upload */}
         {step === STEP_UPLOAD && (
-          <div className="max-w-md mx-auto">
-            <p className="text-sm text-[hsl(var(--muted-foreground))] mb-4">
+          <div className="max-w-lg mx-auto">
+            <p className="text-sm text-[hsl(var(--muted-foreground))] mb-6">
               Sube un archivo CSV con tus movimientos bancarios. La primera fila debe contener los encabezados de columna.
             </p>
             <div
-              className="border-2 border-dashed border-[hsl(var(--border))] rounded-xl p-12 text-center cursor-pointer hover:border-[hsl(var(--ring))] transition-colors"
+              className="border-2 border-dashed border-[hsl(var(--border))] rounded-2xl py-16 px-8 text-center cursor-pointer hover:border-[hsl(var(--ring))] hover:bg-[hsl(var(--muted))]/30 transition-colors"
               onClick={() => fileRef.current?.click()}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]) }}
             >
-              <Upload size={32} className="mx-auto mb-3 text-[hsl(var(--muted-foreground))]" />
-              <p className="text-sm font-semibold">Arrastra tu archivo aqui</p>
-              <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1">o haz clic para seleccionar</p>
-              <p className="text-xs text-[hsl(var(--muted-foreground))] mt-2">CSV — primera fila debe ser encabezados</p>
+              <div className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-[hsl(var(--muted))] flex items-center justify-center">
+                <Upload size={24} className="text-[hsl(var(--muted-foreground))]" />
+              </div>
+              <p className="text-base font-semibold text-[hsl(var(--foreground))]">Arrastra tu archivo aqui</p>
+              <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
+                o{' '}
+                <span className="text-[hsl(var(--primary))] hover:underline">haz clic para seleccionar</span>
+              </p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))] mt-3 px-4 py-1.5 rounded-full bg-[hsl(var(--muted))] inline-block">
+                CSV — primera fila debe ser encabezados
+              </p>
             </div>
             <input
               ref={fileRef}

@@ -11,9 +11,19 @@ export default defineView({
     sections: [
       {
         fields: [
-          { name: 'name',  label: 'Nombre', type: 'text',   required: true },
+          { name: 'name',  label: 'Nombre', type: 'text',      required: true },
           { name: 'color', label: 'Color',  type: 'color' },
-          { name: 'kind',  label: 'Tipo',   type: 'select', required: true, options: ['income', 'expense', 'both'] },
+          {
+            name: 'kind',
+            label: 'Tipo',
+            type: 'select',
+            required: true,
+            options: [
+              { value: 'income',  label: 'Ingreso'  },
+              { value: 'expense', label: 'Egreso'   },
+              { value: 'both',    label: 'Ambos'    },
+            ],
+          },
         ],
       },
     ],

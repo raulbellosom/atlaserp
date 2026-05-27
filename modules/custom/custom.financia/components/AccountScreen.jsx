@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@atlas/ui'
+import { toast } from 'sonner'
 import { FileText, Table, Download, Upload, ArrowLeft } from 'lucide-react'
 import SpreadsheetRegister from './SpreadsheetRegister.jsx'
 import AccountSummary from './AccountSummary.jsx'
@@ -74,12 +75,25 @@ export default function AccountScreen() {
   const types      = typesData?.data ?? []
   const categories = categoriesData?.data ?? []
 
-  function buildExportUrl(format) {
+  async function handleExport(format) {
     const params = new URLSearchParams()
     if (dateFrom) params.set('from', dateFrom)
     if (dateTo)   params.set('to', dateTo)
-    params.set('token', token ?? '')
-    return `${API_BASE}/financia/accounts/${accountId}/export/${format}?${params}`
+    const url = `${API_BASE}/financia/accounts/${accountId}/export/${format}?${params}`
+    try {
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) { toast.error('No se pudo exportar el archivo.'); return }
+      const blob = await res.blob()
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `financia-${Date.now()}.${format}`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(a.href)
+    } catch {
+      toast.error('No se pudo exportar el archivo.')
+    }
   }
 
   return (
@@ -129,23 +143,17 @@ export default function AccountScreen() {
         {/* Export / import actions — only shown in Registro tab */}
         {activeTab === 'registro' && (
           <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
-            <Button variant="outline" size="sm" asChild>
-              <a href={buildExportUrl('pdf')} target="_blank" rel="noreferrer" download>
-                <FileText size={12} />
-                PDF
-              </a>
+            <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
+              <FileText size={12} />
+              PDF
             </Button>
-            <Button variant="outline" size="sm" asChild>
-              <a href={buildExportUrl('xlsx')} target="_blank" rel="noreferrer" download>
-                <Table size={12} />
-                Excel
-              </a>
+            <Button variant="outline" size="sm" onClick={() => handleExport('xlsx')}>
+              <Table size={12} />
+              Excel
             </Button>
-            <Button variant="outline" size="sm" asChild>
-              <a href={buildExportUrl('csv')} target="_blank" rel="noreferrer" download>
-                <Download size={12} />
-                CSV
-              </a>
+            <Button variant="outline" size="sm" onClick={() => handleExport('csv')}>
+              <Download size={12} />
+              CSV
             </Button>
             <Button
               variant="outline"

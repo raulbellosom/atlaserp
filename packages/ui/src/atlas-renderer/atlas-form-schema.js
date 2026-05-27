@@ -132,7 +132,11 @@ export function normalizeSections(schema, fieldMap) {
 
       return {
         id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
-        title: normalizeSpanishLabel(entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`),
+        // Keep null when no title is provided — renderSectionHeader checks for this
+        // and skips rendering the header bar for untitled sections.
+        title: (entry.title ?? entry.label)
+          ? normalizeSpanishLabel(entry.title ?? entry.label)
+          : null,
         type: "fields",
         columns: entry.columns === 1 ? 1 : Number(entry.columns) === 2 ? 2 : "auto",
         icon:

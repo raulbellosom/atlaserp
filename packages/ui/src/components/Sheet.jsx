@@ -112,6 +112,10 @@ const SheetContent = forwardRef(function SheetContent(
         className={cn(
           sheetVariants({ side: effectiveSide }),
           effectiveSide === "bottom" && "max-h-[85dvh] overflow-y-auto",
+          // On non-bottom panels (right/left/top) clip overflow so children can
+          // use flex-1 / min-h-0 to fill the panel height without causing scroll
+          // on the panel itself.
+          effectiveSide !== "bottom" && "overflow-hidden",
           className,
         )}
         style={

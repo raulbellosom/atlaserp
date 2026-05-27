@@ -7,6 +7,10 @@ export const STATUS_LABELS = {
   retired: "Retirado",
   pending: "Pendiente",
   disabled: "Desactivado",
+  // Financial transaction / category kind
+  income: "Ingreso",
+  expense: "Egreso",
+  both: "Ambos",
 };
 
 export const PRESET_COLORS = [

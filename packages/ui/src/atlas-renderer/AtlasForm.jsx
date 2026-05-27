@@ -20,6 +20,7 @@ import {
   RelationSelectField,
   CurrencyField,
   CarColorPickerField,
+  FieldWrapper,
 } from "../components/FormFields.jsx";
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
 import { DatePickerField } from "../components/DatePickerField.jsx";
@@ -988,6 +989,34 @@ export function AtlasForm({
         );
       }
 
+      // hex-color: native browser color picker — stores a #rrggbb hex string.
+      // Use this instead of "color" when a vehicle palette is not appropriate.
+      case "hex-color": {
+        const hexValue = value && String(value).startsWith("#") ? String(value) : "#000000";
+        return (
+          <FieldWrapper
+            label={field.label}
+            labelFor={field.name}
+            required={field.required}
+            hint={field.hint ?? undefined}
+            error={fieldErrors[field.name]}
+          >
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                id={field.name}
+                value={hexValue}
+                onChange={(e) => handleChange(field.name, e.target.value)}
+                className="h-10 w-16 rounded-lg border border-[hsl(var(--border))] bg-transparent cursor-pointer p-0.5"
+              />
+              <span className="text-sm font-mono text-[hsl(var(--muted-foreground))]">
+                {hexValue}
+              </span>
+            </div>
+          </FieldWrapper>
+        );
+      }
+
       case "relation": {
         const descriptor = normalizeRelationDescriptor(field);
         const relationError =
@@ -1297,10 +1326,8 @@ export function AtlasForm({
       {showFooter && (
         <div
           className={cn(
-            "sticky bottom-0 z-10 border-t border-white/15 px-4 py-3 flex items-center justify-between gap-2 backdrop-blur-md",
-            inlineCreateDepth === 0
-              ? "bg-transparent"
-              : "bg-transparent",
+            "sticky bottom-0 z-10 border-t border-[hsl(var(--border))] px-4 py-3 flex items-center justify-between gap-2",
+            "bg-[hsl(var(--surface-1))]",
           )}
         >
           <p className="text-xs text-[hsl(var(--muted-foreground))]">

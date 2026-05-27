@@ -216,7 +216,25 @@ function normalizeRelationListConfig(config) {
 }
 
 function normalizeSections(schema, fieldMap) {
-  const rawSections = Array.isArray(schema?.sections) ? schema.sections : [];
+  let rawSections = Array.isArray(schema?.sections) ? schema.sections : [];
+
+  // When no sections are defined (e.g. a TABLE blueprint used as detail fallback),
+  // auto-generate a flat section from the `columns` definition so the detail renders
+  // something meaningful instead of showing the "Detalle sin secciones" warning.
+  if (rawSections.length === 0 && Array.isArray(schema?.columns) && schema.columns.length > 0) {
+    rawSections = [
+      {
+        fields: schema.columns
+          .filter((col) => col.field && !col.hidden)
+          .map((col) => ({
+            name: col.field,
+            label: col.label ?? col.field,
+            type: col.type ?? "text",
+          })),
+      },
+    ];
+  }
+
   return rawSections
     .map((entry, sectionIndex) => {
       if (!entry || typeof entry !== "object") return null;
@@ -225,9 +243,9 @@ function normalizeSections(schema, fieldMap) {
           ? entry.type.trim().toLowerCase()
           : "fields";
 
-      const sectionTitle = normalizeSpanishLabel(
-        entry.title ?? entry.label ?? `Sección ${sectionIndex + 1}`,
-      );
+      const sectionTitle = (entry.title ?? entry.label)
+        ? normalizeSpanishLabel(entry.title ?? entry.label)
+        : null;
 
       const sectionIcon =
         typeof entry.icon === "string" && entry.icon.trim() ? entry.icon.trim() : null;

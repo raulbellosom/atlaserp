@@ -3,17 +3,18 @@ import { cva } from 'class-variance-authority'
 import { cn } from '../lib/utils.js'
 
 const alertVariants = cva(
-  'relative w-full rounded-xl border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-[hsl(var(--foreground))]',
+  'relative w-full rounded-xl border p-4 backdrop-blur-sm shadow-sm [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4',
   {
     variants: {
       variant: {
-        default: 'glass text-[hsl(var(--foreground))]',
+        default:
+          'border-[hsl(var(--border))] bg-[hsl(var(--card))]/70 text-[hsl(var(--foreground))] [&>svg]:text-[hsl(var(--foreground))]',
         destructive:
-          'border-red-500/50 bg-red-50 text-red-900 dark:bg-red-950/60 dark:text-red-200 [&>svg]:text-red-900 dark:[&>svg]:text-red-200',
+          'border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-200 [&>svg]:text-red-600 dark:[&>svg]:text-red-300',
         warning:
-          'border-amber-500/50 bg-amber-50 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200 [&>svg]:text-amber-900 dark:[&>svg]:text-amber-200',
+          'border-amber-400/50 bg-amber-400/10 text-amber-800 dark:text-amber-200 [&>svg]:text-amber-700 dark:[&>svg]:text-amber-300',
         success:
-          'border-emerald-500/50 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200 [&>svg]:text-emerald-900 dark:[&>svg]:text-emerald-200',
+          'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 [&>svg]:text-emerald-700 dark:[&>svg]:text-emerald-300',
       },
     },
     defaultVariants: {

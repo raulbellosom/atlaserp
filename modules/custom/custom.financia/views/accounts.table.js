@@ -22,7 +22,7 @@ export default defineView({
       { label: 'Nueva cuenta', permission: 'financia.accounts.create', variant: 'primary' },
     ],
     rowActions: [
-      { label: 'Ver registro', permission: 'financia.accounts.read' },
+      { label: 'Abrir cuenta', permission: 'financia.accounts.read' },
       { label: 'Editar',       permission: 'financia.accounts.edit' },
       { label: 'Desactivar',   permission: 'financia.accounts.delete' },
     ],
