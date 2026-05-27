@@ -21,7 +21,6 @@ Esto mantiene el core dentro de la imagen y deja extensiones en la ruta de modul
   - `raulbellosom/atlaserp:api-latest`
   - `raulbellosom/atlaserp:worker-latest`
   - `raulbellosom/atlaserp:web-external-latest`
-  - `raulbellosom/atlaserp:web-local-latest`
 
 ## Perfil external
 
@@ -41,26 +40,20 @@ docker compose --profile external up -d
 
 ## Perfil local
 
-1. Levanta Supabase local en tu host:
+1. Ejecuta instalacion automatica (no requiere Supabase CLI global):
 
 ```powershell
-supabase start
-supabase status -o env
+powershell.exe -ExecutionPolicy Bypass -File ./setup-local.ps1
 ```
 
-2. Copia variables:
+Este script hace todo:
 
-```powershell
-Copy-Item .env.local.example .env.local
-```
-
-3. Pega los valores de `anon key`, `service_role key` y `JWT secret` en `.env.local`.
-
-4. Levanta Atlas:
-
-```powershell
-docker compose --profile local up -d
-```
+- Inicializa un proyecto local de Supabase en `infra/installer/.supabase-local/`
+- Ejecuta `supabase start` via `npx` excluyendo `logflare` y `vector` (evita fallas de red frecuentes en Docker Desktop Windows)
+- Genera `infra/installer/.env.local` con claves y URLs reales
+- Construye imagenes locales (`atlaserp-api-local:dev`, `atlaserp-worker-local:dev`, `atlaserp-web-local:dev`)
+- Ejecuta migraciones y seed Prisma en la BD local antes de arrancar API (evita error `public.atlas_module does not exist`)
+- Levanta Atlas ERP con `docker compose --profile local up -d`
 
 ## Sincronizar modulos custom
 
@@ -76,3 +69,10 @@ curl -X POST http://localhost:4010/modules/sync -H "Authorization: Bearer <ATLAS
 - El frontend web en Vite usa variables en build-time. Por eso se separan etiquetas `web-external` y `web-local`.
 - `SUPABASE_JWT_SECRET` se obtiene de Supabase (Cloud: Settings -> API; local: `supabase status -o env`).
 - `JWT_SECRET` (Atlas) hoy puede usar el mismo valor que `SUPABASE_JWT_SECRET`.
+
+## Detener local
+
+```powershell
+docker compose --profile local down
+npx.cmd --yes supabase stop --workdir ./.supabase-local
+```

@@ -1,4 +1,4 @@
-name: atlaserp-installer
+name: atlaserp
 
 services:
   atlas-api-external:
@@ -36,7 +36,7 @@ services:
     restart: unless-stopped
 
   atlas-api-local:
-    image: ${ATLAS_API_IMAGE:-raulbellosom/atlaserp:api-latest}
+    image: ${ATLAS_API_LOCAL_IMAGE:-atlaserp-api-local:dev}
     container_name: atlas-api-local
     profiles: ["local"]
     env_file:
@@ -52,7 +52,7 @@ services:
     restart: unless-stopped
 
   atlas-worker-local:
-    image: ${ATLAS_WORKER_IMAGE:-raulbellosom/atlaserp:worker-latest}
+    image: ${ATLAS_WORKER_LOCAL_IMAGE:-atlaserp-worker-local:dev}
     container_name: atlas-worker-local
     profiles: ["local"]
     env_file:
@@ -66,7 +66,7 @@ services:
     restart: unless-stopped
 
   atlas-web-local:
-    image: ${ATLAS_WEB_LOCAL_IMAGE:-raulbellosom/atlaserp:web-local-latest}
+    image: ${ATLAS_WEB_LOCAL_IMAGE:-atlaserp-web-local:dev}
     container_name: atlas-web-local
     profiles: ["local"]
     ports:

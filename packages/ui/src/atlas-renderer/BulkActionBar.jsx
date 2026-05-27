@@ -1,5 +1,5 @@
 import { Download, X } from "lucide-react";
-import { Button } from "../components/button";
+import { Button } from "../components/Button.jsx";
 
 function getByPath(input, path) {
   if (!path) return undefined;

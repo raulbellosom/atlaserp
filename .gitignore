@@ -56,3 +56,6 @@ task*.tokens.json
 
 # Git worktrees
 .worktrees/
+
+# Installer local Supabase runtime artifacts
+infra/installer/.supabase-local/
