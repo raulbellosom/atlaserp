@@ -66,8 +66,8 @@ export default function AccountSummary({ accountId, currency = 'MXN', dateFrom, 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <KpiCard label="Saldo inicial"   value={kpis.opening_balance} currency={currency} />
         <KpiCard label="Saldo actual"    value={kpis.current_balance} currency={currency} />
-        <KpiCard label="Total depositos" value={kpis.total_deposito}  currency={currency} />
-        <KpiCard label="Total retiros"   value={kpis.total_retiro}    currency={currency} />
+        <KpiCard label="Total ingresos" value={kpis.total_deposito}  currency={currency} />
+        <KpiCard label="Total egresos"  value={kpis.total_retiro}    currency={currency} />
       </div>
 
       {/* Balance over time */}
@@ -133,12 +133,12 @@ export default function AccountSummary({ accountId, currency = 'MXN', dateFrom, 
               <Tooltip
                 formatter={(v, name) => [
                   Number(v).toLocaleString('es-MX', { style: 'currency', currency, minimumFractionDigits: 2 }),
-                  name === 'deposito' ? 'Deposito' : 'Retiro',
+                  name === 'deposito' ? 'Ingreso' : 'Egreso',
                 ]}
               />
-              <Legend formatter={(v) => (v === 'deposito' ? 'Deposito' : 'Retiro')} />
-              <Bar dataKey="deposito" fill="#22C55E" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="retiro"   fill="#EF4444" radius={[3, 3, 0, 0]} />
+              <Legend formatter={(v) => (v === 'deposito' ? 'Ingreso' : 'Egreso')} />
+              <Bar dataKey="deposito" name="deposito" fill="#22C55E" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="retiro"   name="retiro"   fill="#EF4444" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

@@ -57,6 +57,9 @@ export default function AccountScreen() {
       return res.json()
     },
     enabled: !!token,
+    // Always refetch on mount: types can be created/edited on the Types page
+    // and the global staleTime (5 min) would otherwise serve stale data.
+    staleTime: 0,
   })
 
   const { data: categoriesData } = useQuery({
@@ -69,6 +72,9 @@ export default function AccountScreen() {
       return res.json()
     },
     enabled: !!token,
+    // Always refetch on mount: categories can be created on the Categories
+    // page and the global staleTime (5 min) would otherwise serve stale data.
+    staleTime: 0,
   })
 
   const account    = accountData?.data ?? null

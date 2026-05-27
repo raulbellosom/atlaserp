@@ -14,7 +14,17 @@ export default defineView({
     columns: [
       { field: 'color', label: 'Color',  sortable: false, type: 'color' },
       { field: 'name',  label: 'Nombre', sortable: true,  link: true },
-      { field: 'kind',  label: 'Tipo',   sortable: true },
+      {
+        field: 'kind',
+        label: 'Tipo',
+        sortable: true,
+        type: 'select',
+        options: [
+          { value: 'income',  label: 'Ingreso' },
+          { value: 'expense', label: 'Egreso'  },
+          { value: 'both',    label: 'Ambos'   },
+        ],
+      },
     ],
     actions: [
       { label: 'Nueva categoria', permission: 'financia.categories.manage', variant: 'primary' },

@@ -226,8 +226,8 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
   const rows = data?.data ?? []
 
   const colClass = 'px-2 py-0 h-8 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))] rounded w-full'
-  const thClass  = 'px-2 py-1.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] text-left whitespace-nowrap border-b border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)] select-none'
-  const tdClass  = 'border-b border-[hsl(var(--border)/0.5)] p-0 align-middle'
+  const thClass  = 'px-2 py-1.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] text-left whitespace-nowrap border-b border-r border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)] select-none last:border-r-0'
+  const tdClass  = 'border-b border-r border-[hsl(var(--border)/0.5)] p-0 align-middle last:border-r-0'
 
   if (isLoading) return (
     <div className="flex flex-col h-full">
