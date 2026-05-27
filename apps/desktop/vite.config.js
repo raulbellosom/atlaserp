@@ -26,6 +26,13 @@ export default defineConfig({
         __dirname,
         "../../packages/validators/src/index.js",
       ),
+      // Ensure non-hoisted packages used by modules/custom/* components resolve
+      // to the desktop app's installation, not a missing root-level location.
+      "react-router-dom": resolve(__dirname, "node_modules/react-router-dom"),
+      "@tanstack/react-query": resolve(__dirname, "node_modules/@tanstack/react-query"),
+      "sonner": resolve(__dirname, "node_modules/sonner"),
+      "lucide-react": resolve(__dirname, "node_modules/lucide-react"),
+      "recharts": resolve(__dirname, "node_modules/recharts"),
     },
   },
   build: {
