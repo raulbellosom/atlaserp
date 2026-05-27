@@ -36,7 +36,7 @@ services:
     restart: unless-stopped
 
   atlas-api-local:
-    image: ${ATLAS_API_LOCAL_IMAGE:-atlaserp-api-local:dev}
+    image: ${ATLAS_API_LOCAL_IMAGE:-raulbellosom/atlaserp:api-local-latest}
     container_name: atlas-api-local
     profiles: ["local"]
     env_file:
@@ -52,7 +52,7 @@ services:
     restart: unless-stopped
 
   atlas-worker-local:
-    image: ${ATLAS_WORKER_LOCAL_IMAGE:-atlaserp-worker-local:dev}
+    image: ${ATLAS_WORKER_LOCAL_IMAGE:-raulbellosom/atlaserp:worker-local-latest}
     container_name: atlas-worker-local
     profiles: ["local"]
     env_file:
@@ -66,7 +66,7 @@ services:
     restart: unless-stopped
 
   atlas-web-local:
-    image: ${ATLAS_WEB_LOCAL_IMAGE:-atlaserp-web-local:dev}
+    image: ${ATLAS_WEB_LOCAL_IMAGE:-raulbellosom/atlaserp:web-local-latest}
     container_name: atlas-web-local
     profiles: ["local"]
     ports:
