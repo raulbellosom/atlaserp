@@ -8,6 +8,12 @@ Este instalador soporta:
 - `external`: Atlas ERP contra Supabase externo.
 - `local`: Atlas ERP + Supabase local.
 
+Tags unificadas:
+- API: `raulbellosom/atlaserp:api-latest` (local y external)
+- Worker: `raulbellosom/atlaserp:worker-latest` (local y external)
+- Web external: `raulbellosom/atlaserp:web-external-latest`
+- Web local: `raulbellosom/atlaserp:web-local-latest`
+
 ## Prerrequisitos
 
 - Docker Desktop (o Docker Engine + Compose v2)
@@ -26,11 +32,6 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.ps1" -OutFile "setup-local.ps1"
 
 New-Item -ItemType Directory -Force -Path custom-modules | Out-Null
-
-# Si aun no publicaste tags *-local-latest, usa tus tags actuales:
-$env:ATLAS_API_LOCAL_IMAGE="raulbellosom/atlaserp:api-latest"
-$env:ATLAS_WORKER_LOCAL_IMAGE="raulbellosom/atlaserp:worker-latest"
-$env:ATLAS_WEB_LOCAL_IMAGE="raulbellosom/atlaserp:web-external-latest"
 
 node .\setup-local.mjs
 ```
@@ -52,11 +53,6 @@ curl -fsSLo setup-local.ps1 https://raw.githubusercontent.com/raulbellosom/atlas
 
 mkdir -p custom-modules
 
-# Si aun no publicaste tags *-local-latest, usa tus tags actuales:
-export ATLAS_API_LOCAL_IMAGE=raulbellosom/atlaserp:api-latest
-export ATLAS_WORKER_LOCAL_IMAGE=raulbellosom/atlaserp:worker-latest
-export ATLAS_WEB_LOCAL_IMAGE=raulbellosom/atlaserp:web-external-latest
-
 node ./setup-local.mjs
 ```
 
@@ -65,7 +61,7 @@ node ./setup-local.mjs
 1. Inicializa Supabase local en `.supabase-local/`.
 2. Levanta Supabase sin `logflare` ni `vector`.
 3. Genera `.env.local` automaticamente.
-4. Hace `docker pull` de API, worker y web.
+4. Hace `docker pull` de API, worker y web. Si `web-local-latest` no existe, usa fallback a `web-external-latest`.
 5. Ejecuta `pnpm db:migrate` y `pnpm db:seed` dentro de la imagen API.
 6. Levanta `docker compose --profile local up -d`.
 
@@ -109,6 +105,14 @@ Remove-Item -Recurse -Force .\.supabase-local -ErrorAction SilentlyContinue
 Remove-Item -Force .\.env.local -ErrorAction SilentlyContinue
 ```
 
+Limpieza extra por label de Supabase CLI (PowerShell):
+
+```powershell
+docker ps -a --filter "label=com.supabase.cli.project=supabase-local" -q | ForEach-Object { docker rm -f $_ }
+docker network ls --filter "label=com.supabase.cli.project=supabase-local" -q | ForEach-Object { docker network rm $_ }
+docker volume ls --filter "label=com.supabase.cli.project=supabase-local" -q | ForEach-Object { docker volume rm $_ }
+```
+
 ## Custom modules
 
 - Carpeta host: `custom-modules/`
@@ -130,4 +134,14 @@ docker compose --profile external up -d
 
 ## Nota sobre tags de imagen
 
-Si ya tienes publicadas `api-local-latest`, `worker-local-latest`, `web-local-latest`, no necesitas exportar variables `ATLAS_*_LOCAL_IMAGE`.
+Solo necesitas publicar dos variantes para web (`web-local-latest` y `web-external-latest`).
+API y worker ya usan `api-latest` y `worker-latest` para ambos perfiles.
+
+Si quieres forzar tags manualmente:
+
+```bash
+export ATLAS_API_LOCAL_IMAGE=raulbellosom/atlaserp:api-latest
+export ATLAS_WORKER_LOCAL_IMAGE=raulbellosom/atlaserp:worker-latest
+export ATLAS_WEB_LOCAL_IMAGE=raulbellosom/atlaserp:web-external-latest
+node ./setup-local.mjs
+```

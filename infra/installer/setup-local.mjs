@@ -19,16 +19,21 @@ const supabaseWorkdir = path.resolve(__dirname, ".supabase-local");
 const supabaseConfig = path.resolve(supabaseWorkdir, "supabase", "config.toml");
 
 const apiImage =
-  process.env.ATLAS_API_LOCAL_IMAGE ?? "raulbellosom/atlaserp:api-local-latest";
+  process.env.ATLAS_API_LOCAL_IMAGE ?? "raulbellosom/atlaserp:api-latest";
 const workerImage =
   process.env.ATLAS_WORKER_LOCAL_IMAGE ??
-  "raulbellosom/atlaserp:worker-local-latest";
+  "raulbellosom/atlaserp:worker-latest";
 const webImage =
   process.env.ATLAS_WEB_LOCAL_IMAGE ?? "raulbellosom/atlaserp:web-local-latest";
 
-function run(command, args, { cwd = installerDir } = {}) {
+const fallbackApiImage = "raulbellosom/atlaserp:api-latest";
+const fallbackWorkerImage = "raulbellosom/atlaserp:worker-latest";
+const fallbackWebImage = "raulbellosom/atlaserp:web-external-latest";
+
+function run(command, args, { cwd = installerDir, env = process.env } = {}) {
   const result = spawnSync(command, args, {
     cwd,
+    env,
     stdio: "inherit",
     shell: isWindows,
   });
@@ -40,9 +45,10 @@ function run(command, args, { cwd = installerDir } = {}) {
   }
 }
 
-function capture(command, args, { cwd = installerDir } = {}) {
+function capture(command, args, { cwd = installerDir, env = process.env } = {}) {
   const result = spawnSync(command, args, {
     cwd,
+    env,
     stdio: "pipe",
     encoding: "utf8",
     shell: isWindows,
@@ -66,6 +72,32 @@ async function exists(targetPath) {
   } catch {
     return false;
   }
+}
+
+function tryRun(command, args, { cwd = installerDir, env = process.env } = {}) {
+  const result = spawnSync(command, args, {
+    cwd,
+    env,
+    stdio: "inherit",
+    shell: isWindows,
+  });
+  if (result.error) return false;
+  return result.status === 0;
+}
+
+function pullWithFallback(primary, fallback, label) {
+  const primaryOk = tryRun("docker", ["pull", primary]);
+  if (primaryOk) return primary;
+
+  if (primary !== fallback) {
+    console.warn(
+      `[setup-local] ${label}: image ${primary} not found or failed to pull. Trying fallback ${fallback}...`
+    );
+    const fallbackOk = tryRun("docker", ["pull", fallback]);
+    if (fallbackOk) return fallback;
+  }
+
+  throw new Error(`Could not pull ${label} image. Tried: ${primary}${primary !== fallback ? `, ${fallback}` : ""}`);
 }
 
 function replaceUrlHost(urlValue, targetHost) {
@@ -182,9 +214,9 @@ async function main() {
   }
 
   console.log("[5/7] Pulling Atlas local runtime images...");
-  run("docker", ["pull", apiImage]);
-  run("docker", ["pull", workerImage]);
-  run("docker", ["pull", webImage]);
+  const resolvedApiImage = pullWithFallback(apiImage, fallbackApiImage, "API");
+  const resolvedWorkerImage = pullWithFallback(workerImage, fallbackWorkerImage, "Worker");
+  const resolvedWebImage = pullWithFallback(webImage, fallbackWebImage, "Web");
 
   console.log("[6/7] Running migrations and seed...");
   run("docker", [
@@ -194,7 +226,7 @@ async function main() {
     "host.docker.internal:host-gateway",
     "--env-file",
     localEnvFile,
-    apiImage,
+    resolvedApiImage,
     "pnpm",
     "db:migrate",
   ]);
@@ -205,13 +237,24 @@ async function main() {
     "host.docker.internal:host-gateway",
     "--env-file",
     localEnvFile,
-    apiImage,
+    resolvedApiImage,
     "pnpm",
     "db:seed",
   ]);
 
   console.log("[7/7] Starting Atlas local profile...");
-  run("docker", ["compose", "-f", composeFile, "--profile", "local", "up", "-d"]);
+  run(
+    "docker",
+    ["compose", "-f", composeFile, "--profile", "local", "up", "-d"],
+    {
+      env: {
+        ...process.env,
+        ATLAS_API_LOCAL_IMAGE: resolvedApiImage,
+        ATLAS_WORKER_LOCAL_IMAGE: resolvedWorkerImage,
+        ATLAS_WEB_LOCAL_IMAGE: resolvedWebImage,
+      },
+    }
+  );
 
   console.log("");
   console.log("Local installation is ready:");
