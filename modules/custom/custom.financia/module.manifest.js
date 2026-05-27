@@ -11,7 +11,7 @@ export default defineAtlasModule({
   color: '#16a34a',
   accentColor: '#15803d',
   initials: 'FN',
-  fullscreenPaths: ['/accounts/:id'],
+  fullscreenPaths: ['/accounts/:id', '/accounts/:id/import'],
   dependencies: [{ key: 'atlas.core' }],
   models: [
     './models/account.model.js',

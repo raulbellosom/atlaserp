@@ -11,6 +11,7 @@ import { UserMenu } from "./UserMenu";
 export function Topbar({
   onLauncherOpen,
   onMobileMenuToggle,
+  onModuleMenuToggle,
   networkBusy = false,
 }) {
   const { session } = useAuth();
@@ -23,8 +24,18 @@ export function Topbar({
       <div className="h-14 flex items-center px-4 gap-2">
         {/* Left section */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Mobile hamburger — only shown when a sidebar is active */}
-          {onMobileMenuToggle && (
+          {/* Fullscreen module menu trigger — always visible on all breakpoints */}
+          {onModuleMenuToggle && (
+            <button
+              className="h-9 w-9 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer"
+              onClick={onModuleMenuToggle}
+              aria-label="Abrir navegacion del modulo"
+            >
+              <Menu size={18} />
+            </button>
+          )}
+          {/* Mobile hamburger — only shown when a regular sidebar is active */}
+          {onMobileMenuToggle && !onModuleMenuToggle && (
             <button
               className="lg:hidden h-9 w-9 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer"
               onClick={onMobileMenuToggle}

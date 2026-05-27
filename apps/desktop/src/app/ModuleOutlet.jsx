@@ -82,12 +82,11 @@ const SCREEN_MAP = {
   "atlas.identity:/": lazy(
     () => import("../modules/atlas.identity/screens/IdentityOverview.jsx"),
   ),
-  // custom.financia — accounts list, account detail, import wizard.
+  // custom.financia — account detail and import wizard only.
+  // The accounts list (/accounts) falls through to BlueprintCrudScreen so it gets
+  // the standard AtlasTable with sort/filter/view-toggle controls.
   // Navigation paths are normalized to strip the /app/m/:moduleKey prefix,
   // so the subPath arriving here is "/accounts" not "/financia/accounts".
-  "custom.financia:/accounts": lazy(
-    () => import("../../../../modules/custom/custom.financia/components/AccountsScreen.jsx"),
-  ),
   "custom.financia:/accounts/:id": lazy(
     () => import("../../../../modules/custom/custom.financia/components/AccountScreen.jsx"),
   ),
@@ -205,9 +204,7 @@ function resolveScreen(moduleKey, subPath) {
   if (moduleKey === "custom.financia") {
     // Subpaths arrive as "/accounts", "/categories", "/types" — the module prefix
     // (/app/m/custom.financia) is already stripped by normalizeModuleNavigationPath.
-    if (subPath === "/accounts") {
-      return SCREEN_MAP["custom.financia:/accounts"] ?? null;
-    }
+    // "/accounts" falls through to BlueprintCrudScreen (standard table with filters).
     if (subPath.endsWith("/import")) {
       return SCREEN_MAP["custom.financia:/accounts/:id/import"] ?? null;
     }

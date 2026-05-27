@@ -1,5 +1,5 @@
 // modules/custom/custom.financia/components/AccountScreen.jsx
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@atlas/ui'
@@ -22,7 +22,10 @@ function fmtCurrency(amount, currency = 'MXN') {
 }
 
 export default function AccountScreen() {
-  const { id: accountId } = useParams()
+  // The route is a wildcard (*) so named params like :id are not extracted.
+  // Wildcard for /accounts/UUID → "accounts/UUID" → split[1] = UUID.
+  const { "*": wildcard } = useParams()
+  const accountId = useMemo(() => wildcard?.split('/')[1] ?? null, [wildcard])
   const navigate = useNavigate()
   const { session } = useAuth()
   const token = session?.access_token ?? null

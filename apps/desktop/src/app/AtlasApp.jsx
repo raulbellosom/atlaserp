@@ -2,7 +2,6 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useIsFetching, useIsMutating } from "@tanstack/react-query";
 import { ModuleSidebar, BrandFooter } from "@atlas/ui";
-import { Menu } from "lucide-react";
 import { useThemeStore } from "../stores/theme";
 import { useLauncherStore } from "../stores/launcher";
 import { Topbar } from "../components/Topbar";
@@ -149,8 +148,11 @@ export function AtlasApp() {
     <div className="h-dvh overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       <Topbar
         onLauncherOpen={openLauncher}
-        onMobileMenuToggle={
-          showSidebar ? () => setMobileOpen((o) => !o) : undefined
+        onMobileMenuToggle={showSidebar ? () => setMobileOpen((o) => !o) : undefined}
+        onModuleMenuToggle={
+          isFullscreen && activeModule
+            ? () => setSidebarOverlayOpen((o) => !o)
+            : undefined
         }
         networkBusy={networkBusy}
       />
@@ -190,28 +192,10 @@ export function AtlasApp() {
         </div>
       </div>
 
-      {/* Fullscreen mode: corner trigger + sidebar overlay */}
+      {/* Fullscreen mode: sidebar overlay (trigger is in the Topbar) */}
       {isFullscreen && activeModule && (
         <>
-          {/* Corner trigger — shows when overlay is closed */}
-          <button
-            onClick={() => setSidebarOverlayOpen(true)}
-            className={[
-              "fixed z-40 left-0 top-14",
-              "h-10 w-8 flex items-center justify-center",
-              "border-r border-b border-[hsl(var(--border))] rounded-br-lg",
-              "bg-[hsl(var(--surface-2))] hover:bg-[hsl(var(--muted))]",
-              "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",
-              "transition-all duration-200",
-              sidebarOverlayOpen ? "opacity-0 pointer-events-none" : "opacity-100",
-            ].join(" ")}
-            title="Abrir navegacion del modulo"
-            aria-label="Abrir menu del modulo"
-          >
-            <Menu size={14} />
-          </button>
-
-          {/* Overlay backdrop */}
+          {/* Backdrop */}
           {sidebarOverlayOpen && (
             <div
               className="fixed inset-0 z-40 bg-black/25 backdrop-blur-[1px]"
@@ -219,11 +203,11 @@ export function AtlasApp() {
             />
           )}
 
-          {/* Overlay sidebar panel */}
+          {/* Slide-in sidebar panel */}
           <aside
             className={[
               "fixed left-0 top-14 bottom-0 z-50 w-60 shadow-2xl",
-              "transition-transform duration-250 ease-out",
+              "transition-transform duration-200 ease-out",
               sidebarOverlayOpen ? "translate-x-0" : "-translate-x-full pointer-events-none",
             ].join(" ")}
           >
