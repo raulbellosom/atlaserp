@@ -38,7 +38,9 @@
     "@atlas/module-engine": "workspace:*",
     "@prisma/adapter-pg": "^7.8.0",
     "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
     "hono": "^4.12.18",
+    "pdfkit": "^0.18.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

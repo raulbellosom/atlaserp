@@ -86,24 +86,24 @@ test('financia-service createAccount: maps 23505 to 409', async () => {
 })
 
 // ── listTransactions — window function ───────────────────────────────────────
-// listTransactions calls: getAccount (1 query) + window query (1) + count query (1) = 3 total
+// listTransactions issues a single query: window CTE + filtered CTE + COUNT(*) OVER()
 
 test('financia-service listTransactions: returns rows with consecutive and saldo_actual', async () => {
+  // _total_count is added by COUNT(*) OVER() and stripped before returning to callers
   const txRow = {
     id: 'tx-1', fecha: new Date('2026-01-15'), deposito: '500.00', retiro: null,
-    consecutive: '1', saldo_actual: '1500.00', nombre: 'Deposito',
+    consecutive: 1, saldo_actual: '1500.00', nombre: 'Deposito', _total_count: 1,
   }
   const { prisma } = createPrismaMock({
     rawQueue: [
-      [ACCOUNT_ROW],        // getAccount query
-      [txRow],              // window + filter query
-      [{ total: '1' }],     // count query
+      [txRow],  // single merged query (window + filter + COUNT(*) OVER)
     ],
   })
   const svc = createFinanciaService({ prisma })
   const result = await svc.listTransactions({ companyId: COMPANY_ID, accountId: ACCOUNT_ID, page: 1, pageSize: 10 })
   assert.equal(result.data.length, 1)
   assert.equal(String(result.data[0].saldo_actual), '1500.00')
+  assert.equal(result.data[0]._total_count, undefined, '_total_count debe ser eliminado del resultado')
   assert.equal(result.pagination.total, 1)
 })
 

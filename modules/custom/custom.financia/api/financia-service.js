@@ -125,14 +125,15 @@ export function createFinanciaService({ prisma }) {
   // ── Transactions ─────────────────────────────────────────────────────────────
 
   async function listTransactions({ companyId, accountId, dateFrom, dateTo, page, pageSize }) {
-    await getAccount({ companyId, accountId })
-
     // Allow up to 2000 rows for the spreadsheet view (default API cap is 100)
     const pag  = normalizePagination({ page, pageSize, maxPageSize: 2000 })
     const from = normalizeOptionalString(dateFrom) ?? null
     const to   = normalizeOptionalString(dateTo)   ?? null
 
     try {
+      // Single query: window functions compute consecutive + running balance,
+      // filtered CTE applies date range, COUNT(*) OVER() avoids a second round trip.
+      // Account ownership is enforced by the JOIN + company_id filter on the transaction.
       const rows = await prisma.$queryRaw`
         WITH ranked AS (
           SELECT
@@ -141,10 +142,9 @@ export function createFinanciaService({ prisma }) {
             tt.name  AS tipo_name,
             c.name   AS category_name,
             c.color  AS category_color,
-            -- Cast to int4 to avoid BigInt serialization errors in JSON responses
             ROW_NUMBER() OVER (
               PARTITION BY t.account_id ORDER BY t.fecha, t.created_at
-            ) ::int4 AS consecutive,
+            )::int4 AS consecutive,
             a.opening_balance + SUM(COALESCE(t.deposito, 0) - COALESCE(t.retiro, 0))
               OVER (
                 PARTITION BY t.account_id
@@ -152,36 +152,34 @@ export function createFinanciaService({ prisma }) {
                 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
               ) AS saldo_actual
           FROM financia_transaction t
-          JOIN financia_account a ON a.id = t.account_id
+          JOIN financia_account a ON a.id = t.account_id AND a.company_id = ${companyId}::uuid
           LEFT JOIN financia_transaction_type tt ON tt.id = t.tipo_id
           LEFT JOIN financia_category c ON c.id = t.category_id
           WHERE t.account_id = ${accountId}::uuid
             AND t.company_id = ${companyId}::uuid
             AND t.enabled = true
+        ),
+        filtered AS (
+          SELECT * FROM ranked
+          WHERE (${from}::date IS NULL OR fecha >= ${from}::date)
+            AND (${to}::date   IS NULL OR fecha <= ${to}::date)
         )
-        SELECT * FROM ranked
-        WHERE (${from}::date IS NULL OR fecha >= ${from}::date)
-          AND (${to}::date   IS NULL OR fecha <= ${to}::date)
+        SELECT *, COUNT(*) OVER()::int4 AS _total_count
+        FROM filtered
         ORDER BY fecha, created_at
         LIMIT ${pag.pageSize} OFFSET ${pag.offset}
       `
 
-      const countRows = await prisma.$queryRaw`
-        SELECT COUNT(*) AS total
-        FROM financia_transaction t
-        WHERE t.account_id = ${accountId}::uuid
-          AND t.company_id = ${companyId}::uuid
-          AND t.enabled = true
-          AND (${from}::date IS NULL OR t.fecha >= ${from}::date)
-          AND (${to}::date   IS NULL OR t.fecha <= ${to}::date)
-      `
+      const total = rows.length > 0 ? (rows[0]._total_count ?? rows.length) : 0
+      // Strip the internal count column before returning to callers
+      const data = rows.map(({ _total_count, ...r }) => r)
 
       return {
-        data: rows,
+        data,
         pagination: {
           page:     pag.page,
           pageSize: pag.pageSize,
-          total:    toCount(firstRow(countRows)?.total),
+          total:    toCount(total),
         },
       }
     } catch (err) {
