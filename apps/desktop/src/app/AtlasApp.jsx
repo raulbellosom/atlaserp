@@ -9,6 +9,7 @@ import { AppLauncher } from "../components/AppLauncher";
 import { CommandPalette } from "../components/CommandPalette";
 import { useRuntimeModules } from "./useRuntimeModules";
 import { getLayoutMode, matchesFullscreenPath } from "../lib/runtimeModules";
+import { ModuleBundleLoader } from '../shell/ModuleBundleLoader.jsx'
 
 function getSidebarCollapsed() {
   try {
@@ -145,7 +146,8 @@ export function AtlasApp() {
   const networkBusy = isFetching > 0 || isMutating > 0;
 
   return (
-    <div className="h-dvh overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
+    <ModuleBundleLoader>
+      <div className="h-dvh overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       <Topbar
         onLauncherOpen={openLauncher}
         onMobileMenuToggle={showSidebar ? () => setMobileOpen((o) => !o) : undefined}
@@ -230,5 +232,6 @@ export function AtlasApp() {
       <AppLauncher />
       <CommandPalette activeModule={activeModule} />
     </div>
+    </ModuleBundleLoader>
   );
 }

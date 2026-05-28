@@ -82,11 +82,11 @@ const SCREEN_MAP = {
   "atlas.identity:/": lazy(
     () => import("../modules/atlas.identity/screens/IdentityOverview.jsx"),
   ),
-  // custom.financia — account detail and import wizard only.
-  // The accounts list (/accounts) falls through to BlueprintCrudScreen so it gets
-  // the standard AtlasTable with sort/filter/view-toggle controls.
-  // Navigation paths are normalized to strip the /app/m/:moduleKey prefix,
-  // so the subPath arriving here is "/accounts" not "/financia/accounts".
+  // --- Transitional custom modules ---
+  // custom.fleet and custom.financia were built before the dynamic bundle system
+  // and compile their React components via Vite (import.meta.glob pattern).
+  // They remain here as exceptions until promoted to core modules.
+  // DO NOT add new custom module entries here — use kind:CUSTOM blueprints instead.
   "custom.financia:/accounts/:id": lazy(
     () => import("../../../../modules/custom/custom.financia/components/AccountScreen.jsx"),
   ),
