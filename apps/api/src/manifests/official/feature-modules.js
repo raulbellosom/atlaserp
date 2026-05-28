@@ -1,4 +1,5 @@
 import { createModuleManifest, MODULE_KINDS } from "@atlas/core";
+import websiteManifest from '../../../../../modules/official/atlas.website/module.manifest.js'
 
 export const contactsMap = createModuleManifest({
   key: "atlas.contacts",
@@ -261,4 +262,4 @@ export const hrMap = createModuleManifest({
   ],
 });
 
-export const featureModules = [];
+export const featureModules = [websiteManifest];
