@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../../apps/desktop/src/auth/AuthProvider.jsx'
@@ -23,7 +22,6 @@ export default function WebsitePagesScreen() {
   const { session } = useAuth()
   const token = session?.access_token
   const navigate = useNavigate()
-  const [creatingPage, setCreatingPage] = useState(false)
 
   const siteQuery = useQuery({
     queryKey: ['website-site', token],
@@ -56,7 +54,7 @@ export default function WebsitePagesScreen() {
           </p>
         </div>
         <button
-          onClick={() => setCreatingPage(true)}
+          onClick={() => navigate('/app/m/atlas.website/pages/new')}
           className="px-4 py-2 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-medium hover:opacity-90 transition-opacity"
         >
           Nueva pagina

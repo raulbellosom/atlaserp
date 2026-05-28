@@ -3,7 +3,7 @@ import { WebsiteServiceError, notFound, conflict } from './service-helpers.js'
 export { WebsiteServiceError }
 
 export function createWebsiteService({ prisma }) {
-  async function getOrCreateSite({ companyId }) {
+  async function getSite({ companyId }) {
     const rows = await prisma.$queryRaw`
       SELECT id, name, domain, status, homepage_page_id, theme_id, settings, seo_defaults
       FROM website_site
@@ -305,7 +305,7 @@ export function createWebsiteService({ prisma }) {
   }
 
   return {
-    getOrCreateSite,
+    getSite,
     createSite,
     updateSite,
     listPages,

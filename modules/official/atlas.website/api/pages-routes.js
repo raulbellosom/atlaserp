@@ -11,7 +11,7 @@ export function createPagesRouter({ websiteSvc, requirePermission }) {
     const { siteId, page, pageSize } = c.req.query()
     const site = siteId
       ? { id: siteId }
-      : await websiteSvc.getOrCreateSite({ companyId })
+      : await websiteSvc.getSite({ companyId })
     if (!site) return c.json({ data: [], total: 0 })
     const result = await websiteSvc.listPages({
       companyId,

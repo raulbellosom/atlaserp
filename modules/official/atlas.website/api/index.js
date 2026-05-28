@@ -14,7 +14,7 @@ export default function createWebsiteRouter({ prisma, requirePermission }) {
 
   app.get('/website/site', requirePermission('website.site.read'), async (c) => {
     const companyId = c.get('companyId')
-    const site = await websiteSvc.getOrCreateSite({ companyId })
+    const site = await websiteSvc.getSite({ companyId })
     return c.json({ data: site })
   })
 
