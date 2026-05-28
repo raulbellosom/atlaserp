@@ -5,8 +5,7 @@ import { EmptyState, ErrorState, Skeleton } from '@atlas/ui'
 import { Package } from 'lucide-react'
 import { componentRegistry } from '../lib/moduleComponentRegistry'
 import { normalizePath } from '../lib/pathUtils'
-
-const API_BASE_URL = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
+import { getApiUrl } from '../lib/runtimeConfig.js'
 
 export function PublicModuleOutlet() {
   const location = useLocation()
@@ -15,7 +14,7 @@ export function PublicModuleOutlet() {
   const blueprintsQuery = useQuery({
     queryKey: ['public-blueprints'],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/public/blueprints`)
+      const res = await fetch(`${getApiUrl()}/public/blueprints`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return res.json()
     },

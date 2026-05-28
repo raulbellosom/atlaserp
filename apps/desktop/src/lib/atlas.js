@@ -1,4 +1,4 @@
 import { createAtlasClient } from '@atlas/sdk'
+import { getApiUrl } from './runtimeConfig.js'
 
-const apiUrl = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
-export const atlas = createAtlasClient({ baseUrl: apiUrl })
+export const atlas = createAtlasClient({ baseUrl: getApiUrl() })

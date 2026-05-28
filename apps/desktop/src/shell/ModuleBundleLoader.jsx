@@ -3,8 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { componentRegistry } from '../lib/moduleComponentRegistry'
 import { atlas } from '../lib/atlas'
 import { useAuth } from '../auth/AuthProvider'
-
-const apiBase = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
+import { getApiUrl } from '../lib/runtimeConfig.js'
 
 async function loadModuleBundles(blueprints) {
   const seen = new Set()
@@ -28,7 +27,7 @@ async function loadModuleBundles(blueprints) {
 
   const results = await Promise.all(
     modulesWithBundles.map(async ({ key, bundleVersion }) => {
-      const bundleUrl = new URL(`${apiBase}/modules/${key}/bundle.js`)
+      const bundleUrl = new URL(`${getApiUrl()}/modules/${key}/bundle.js`)
       bundleUrl.searchParams.set('web_origin', window.location.origin)
       // Bust stale browser module cache entries after runtime rewriting changes.
       bundleUrl.searchParams.set('v', String(bundleVersion ?? Date.now()))
