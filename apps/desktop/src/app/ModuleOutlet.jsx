@@ -92,25 +92,25 @@ const SCREEN_MAP = {
     () => import("../../../../modules/official/atlas.ledger/components/ImportWizard.jsx"),
   ),
   "atlas.website:/": lazy(
-    () => import("../../../../modules/official/atlas.website/components/WebsiteOverviewScreen.jsx"),
+    () => import("../modules/atlas.website/screens/WebsiteOverviewScreen.jsx"),
   ),
   "atlas.website:/pages": lazy(
-    () => import("../../../../modules/official/atlas.website/components/WebsitePagesScreen.jsx"),
+    () => import("../modules/atlas.website/screens/WebsitePagesScreen.jsx"),
   ),
   "atlas.website:/pages/:id/editor": lazy(
-    () => import("../../../../modules/official/atlas.website/components/WebsitePageEditorScreen.jsx"),
+    () => import("../modules/atlas.website/screens/WebsitePageEditorScreen.jsx"),
   ),
   "atlas.website:/theme": lazy(
-    () => import("../../../../modules/official/atlas.website/components/WebsiteThemeScreen.jsx"),
+    () => import("../modules/atlas.website/screens/WebsiteThemeScreen.jsx"),
   ),
   "atlas.website:/menus": lazy(
-    () => import("../../../../modules/official/atlas.website/components/WebsiteMenusScreen.jsx"),
+    () => import("../modules/atlas.website/screens/WebsiteMenusScreen.jsx"),
   ),
   "atlas.website:/blog": lazy(
-    () => import("../../../../modules/official/atlas.website/components/WebsiteBlogScreen.jsx"),
+    () => import("../modules/atlas.website/screens/WebsiteBlogScreen.jsx"),
   ),
   "atlas.website:/forms": lazy(
-    () => import("../../../../modules/official/atlas.website/components/WebsiteFormsScreen.jsx"),
+    () => import("../modules/atlas.website/screens/WebsiteFormsScreen.jsx"),
   ),
 };
 const SCREEN_MODULE_KEYS = new Set(
