@@ -5,10 +5,10 @@ export function createPublicWebsiteRouter({ prisma }) {
 
   app.get('/resolve', async (c) => {
     try {
-      const instanceConfig = await prisma.instanceConfig.findFirst({
+      const instanceConfig = await prisma.instanceConfig.findUnique({
         where: { key: 'initialized' },
       })
-      if (!instanceConfig) {
+      if (!instanceConfig || instanceConfig.value !== 'true') {
         return c.json({ initialized: false })
       }
 
