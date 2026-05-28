@@ -1,4 +1,4 @@
-// modules/official/atlas.ledger/components/AccountScreen.jsx
+// apps/desktop/src/modules/atlas.ledger/screens/AccountScreen.jsx
 import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { FileText, Table, Download, Upload, ArrowLeft } from 'lucide-react'
 import SpreadsheetRegister from './SpreadsheetRegister.jsx'
 import AccountSummary from './AccountSummary.jsx'
-import { useAuth } from '../../../../apps/desktop/src/auth/AuthProvider'
+import { useAuth } from '../../../auth/AuthProvider'
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
 
@@ -241,4 +241,3 @@ export default function AccountScreen() {
     </div>
   )
 }
-

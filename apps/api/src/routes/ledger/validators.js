@@ -1,4 +1,4 @@
-import { z } from '../../../../apps/api/node_modules/zod/index.js'
+import { z } from 'zod'
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
 

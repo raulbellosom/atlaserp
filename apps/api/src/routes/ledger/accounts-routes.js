@@ -3,7 +3,7 @@ import {
   createAccountSchema, updateAccountSchema,
   createTransactionSchema, updateTransactionSchema,
   enabledSchema,
-} from '../validators/index.js'
+} from './validators.js'
 import { createLedgerService, LedgerServiceError } from './ledger-service.js'
 import { createSummaryService } from './summary-service.js'
 // export-service and import-service use optional heavy deps (exceljs, pdfkit, csv-parse)
@@ -17,7 +17,7 @@ function handleError(c, err, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export default function createAccountsRouter({ prisma, requirePermission }) {
+export function createAccountsRouter({ prisma, requirePermission }) {
   const app     = new Hono()
   const service = createLedgerService({ prisma })
   const summary = createSummaryService({ prisma })

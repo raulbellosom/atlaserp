@@ -646,3 +646,74 @@ model WebsitePublishedRender {
   @@map("website_published_render")
 }
 
+// ─── atlas.ledger ─────────────────────────────────────────────────────────────
+
+model LedgerAccount {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  companyId      String   @db.Uuid @map("company_id")
+  name           String
+  bank           String
+  accountNumber  String?  @map("account_number")
+  currency       String   @default("MXN")
+  openingBalance Decimal  @default(0) @db.Decimal(15, 2) @map("opening_balance")
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, name])
+  @@index([companyId, enabled])
+  @@map("ledger_account")
+}
+
+model LedgerCategory {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String   @db.Uuid @map("company_id")
+  name      String
+  color     String?
+  kind      String   @default("both")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, name])
+  @@index([companyId, enabled])
+  @@map("ledger_category")
+}
+
+model LedgerTransaction {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  companyId  String   @db.Uuid @map("company_id")
+  accountId  String   @db.Uuid @map("account_id")
+  categoryId String?  @db.Uuid @map("category_id")
+  tipoId     String?  @db.Uuid @map("tipo_id")
+  fecha      DateTime @db.Date
+  numero     String?
+  nombre     String
+  referencia String?
+  concepto   String?
+  deposito   Decimal? @db.Decimal(15, 2)
+  retiro     Decimal? @db.Decimal(15, 2)
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([accountId, enabled])
+  @@index([companyId, fecha])
+  @@index([accountId, fecha])
+  @@map("ledger_transaction")
+}
+
+model LedgerTransactionType {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String   @db.Uuid @map("company_id")
+  code      String
+  name      String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, code])
+  @@index([companyId, enabled])
+  @@map("ledger_transaction_type")
+}
+

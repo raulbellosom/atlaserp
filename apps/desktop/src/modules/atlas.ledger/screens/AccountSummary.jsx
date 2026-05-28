@@ -1,4 +1,4 @@
-// modules/official/atlas.ledger/components/AccountSummary.jsx
+// apps/desktop/src/modules/atlas.ledger/screens/AccountSummary.jsx
 import { useQuery } from '@tanstack/react-query'
 import {
   AreaChart, Area,
@@ -8,7 +8,7 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 import { Wallet, TrendingUp, ArrowDownLeft, ArrowUpRight } from 'lucide-react'
-import { useAuth } from '../../../../apps/desktop/src/auth/AuthProvider'
+import { useAuth } from '../../../auth/AuthProvider'
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
 
@@ -142,19 +142,6 @@ function Dot({ color }) {
 
 function renderLegend(value) {
   return <span style={{ color: '#64748b', fontSize: 11 }}>{value}</span>
-}
-
-// ── Donut center label ────────────────────────────────────────────────────────
-
-function DonutLabel({ cx, cy, value, currency }) {
-  return (
-    <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
-      <tspan x={cx} dy="-0.4em" style={{ fontSize: 11, fill: C_MUTED }}>Total</tspan>
-      <tspan x={cx} dy="1.4em" style={{ fontSize: 13, fontWeight: 700, fill: '#1e293b', fontFamily: 'monospace' }}>
-        {fmtCompact(value)}
-      </tspan>
-    </text>
-  )
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -404,4 +391,3 @@ export default function AccountSummary({ accountId, currency = 'MXN', dateFrom, 
     </div>
   )
 }
-

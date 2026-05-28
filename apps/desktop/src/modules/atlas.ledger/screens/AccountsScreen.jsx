@@ -1,9 +1,9 @@
-// modules/official/atlas.ledger/components/AccountsScreen.jsx
+// apps/desktop/src/modules/atlas.ledger/screens/AccountsScreen.jsx
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { PageHeader, Button, EmptyState, ErrorState } from '@atlas/ui'
 import { Plus, Landmark } from 'lucide-react'
-import { useAuth } from '../../../../apps/desktop/src/auth/AuthProvider'
+import { useAuth } from '../../../auth/AuthProvider'
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
 
@@ -97,4 +97,3 @@ export default function AccountsScreen() {
     </div>
   )
 }
-

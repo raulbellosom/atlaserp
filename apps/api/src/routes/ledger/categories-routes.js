@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { createCategorySchema, updateCategorySchema, enabledSchema } from '../validators/index.js'
+import { createCategorySchema, updateCategorySchema, enabledSchema } from './validators.js'
 import { createCategoriesService } from './categories-service.js'
 import { LedgerServiceError } from './ledger-service.js'
 import { getCompanyId, getValidationErrorMessage } from './service-helpers.js'
@@ -10,7 +10,7 @@ function handleError(c, err, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export default function createCategoriesRouter({ prisma, requirePermission }) {
+export function createCategoriesRouter({ prisma, requirePermission }) {
   const app     = new Hono()
   const service = createCategoriesService({ prisma })
 

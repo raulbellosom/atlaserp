@@ -86,10 +86,10 @@ const SCREEN_MAP = {
   // atlas.ledger keeps a few custom screens while table/form/detail routes
   // are rendered by BlueprintCrudScreen.
   "atlas.ledger:/accounts/:id": lazy(
-    () => import("../../../../modules/official/atlas.ledger/components/AccountScreen.jsx"),
+    () => import("../modules/atlas.ledger/screens/AccountScreen.jsx"),
   ),
   "atlas.ledger:/accounts/:id/import": lazy(
-    () => import("../../../../modules/official/atlas.ledger/components/ImportWizard.jsx"),
+    () => import("../modules/atlas.ledger/screens/ImportWizard.jsx"),
   ),
   "atlas.website:/": lazy(
     () => import("../modules/atlas.website/screens/WebsiteOverviewScreen.jsx"),

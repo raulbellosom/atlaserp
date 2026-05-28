@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { createTypeSchema, updateTypeSchema, enabledSchema } from '../validators/index.js'
+import { createTypeSchema, updateTypeSchema, enabledSchema } from './validators.js'
 import { createTypesService } from './types-service.js'
 import { LedgerServiceError } from './ledger-service.js'
 import { getCompanyId, getValidationErrorMessage } from './service-helpers.js'
@@ -10,7 +10,7 @@ function handleError(c, err, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export default function createTypesRouter({ prisma, requirePermission }) {
+export function createTypesRouter({ prisma, requirePermission }) {
   const app     = new Hono()
   const service = createTypesService({ prisma })
 

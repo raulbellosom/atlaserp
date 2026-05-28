@@ -1,7 +1,6 @@
 import { createModuleManifest, MODULE_KINDS } from "@atlas/core";
 import { contactsMap, hrMap } from "./feature-modules.js";
 import atlasFleetManifest from "../../../../../modules/official/atlas.fleet/module.manifest.js";
-import atlasLedgerManifest from "../../../../../modules/official/atlas.ledger/module.manifest.js";
 
 export const atlasCoreMap = createModuleManifest({
   key: "atlas.core",
@@ -328,6 +327,77 @@ export const companyMap = createModuleManifest({
     contactEmail: "string",
     phone: "string",
   },
+});
+
+export const atlasLedgerManifest = createModuleManifest({
+  key: "atlas.ledger",
+  name: "Libro de cuentas",
+  version: "0.1.1",
+  kind: MODULE_KINDS.CORE,
+  core: true,
+  uninstallable: false,
+  description: "Registro bancario tipo hoja de calculo: depositos, retiros y saldo corriente.",
+  summary: "Cuentas bancarias, registro de movimientos y exportacion.",
+  icon: "Landmark",
+  color: "#16a34a",
+  accentColor: "#15803d",
+  initials: "LC",
+  fullscreenPaths: ["/accounts/:id", "/accounts/:id/import"],
+  dependencies: [{ key: "atlas.core" }],
+  permissions: [
+    { key: "ledger.accounts.read",       name: "Ver cuentas" },
+    { key: "ledger.accounts.create",     name: "Crear cuentas" },
+    { key: "ledger.accounts.update",     name: "Editar cuentas" },
+    { key: "ledger.accounts.delete",     name: "Desactivar cuentas" },
+    { key: "ledger.transactions.read",   name: "Ver movimientos" },
+    { key: "ledger.transactions.create", name: "Crear movimientos" },
+    { key: "ledger.transactions.update", name: "Editar movimientos" },
+    { key: "ledger.transactions.delete", name: "Desactivar movimientos" },
+    { key: "ledger.export",              name: "Exportar movimientos" },
+    { key: "ledger.import",              name: "Importar movimientos" },
+    { key: "ledger.categories.manage",   name: "Gestionar categorias" },
+    { key: "ledger.types.manage",        name: "Gestionar tipos de movimiento" },
+  ],
+  acl: {
+    module: "ledger.accounts.read",
+    actions: {
+      "ledger.accounts.read":       "ledger.accounts.read",
+      "ledger.accounts.create":     "ledger.accounts.create",
+      "ledger.accounts.update":     "ledger.accounts.update",
+      "ledger.accounts.delete":     "ledger.accounts.delete",
+      "ledger.transactions.read":   "ledger.transactions.read",
+      "ledger.transactions.create": "ledger.transactions.create",
+      "ledger.transactions.update": "ledger.transactions.update",
+      "ledger.transactions.delete": "ledger.transactions.delete",
+      "ledger.export":              "ledger.export",
+      "ledger.import":              "ledger.import",
+      "ledger.categories.manage":   "ledger.categories.manage",
+      "ledger.types.manage":        "ledger.types.manage",
+    },
+  },
+  navigation: [
+    {
+      label: "Cuentas",
+      path: "/app/m/atlas.ledger/accounts",
+      icon: "Landmark",
+      layout: "main",
+      permissionKey: "ledger.accounts.read",
+    },
+    {
+      label: "Categorias",
+      path: "/app/m/atlas.ledger/categories",
+      icon: "Tag",
+      layout: "main",
+      permissionKey: "ledger.categories.manage",
+    },
+    {
+      label: "Tipos de mov.",
+      path: "/app/m/atlas.ledger/types",
+      icon: "SlidersHorizontal",
+      layout: "main",
+      permissionKey: "ledger.types.manage",
+    },
+  ],
 });
 
 export const coreModules = [

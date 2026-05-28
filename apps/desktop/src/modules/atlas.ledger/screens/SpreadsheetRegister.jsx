@@ -1,10 +1,10 @@
-// modules/official/atlas.ledger/components/SpreadsheetRegister.jsx
+// apps/desktop/src/modules/atlas.ledger/screens/SpreadsheetRegister.jsx
 import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 import { Button } from '@atlas/ui'
-import { useAuth } from '../../../../apps/desktop/src/auth/AuthProvider'
+import { useAuth } from '../../../auth/AuthProvider'
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
 
@@ -527,4 +527,3 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
     </div>
   )
 }
-

@@ -43,6 +43,7 @@ import { createHrService, HrServiceError } from "./services/hr-service.js";
 import { createModulesRouter } from "./routes/modules.js";
 import { createPublicWebsiteRouter } from "./routes/public-website.js";
 import { createWebsiteRouter } from "./routes/website/index.js";
+import { createLedgerRouter } from "./routes/ledger/index.js";
 import { createModuleBundlerService } from "./services/module-bundler-service.js";
 import { createRouteLoaderService } from "./services/route-loader-service.js";
 import {
@@ -3535,6 +3536,9 @@ app.route("/modules", modulesRouter);
 
 const websiteRouter = createWebsiteRouter({ prisma, requirePermission })
 app.route('/', websiteRouter)
+
+const ledgerRouter = createLedgerRouter({ prisma, requirePermission })
+app.route('/', ledgerRouter)
 
 const server = serve({ fetch: app.fetch, port });
 console.log(`Atlas API running on http://localhost:${port}`);

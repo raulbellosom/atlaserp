@@ -1,11 +1,11 @@
-// modules/official/atlas.ledger/components/ImportWizard.jsx
+// apps/desktop/src/modules/atlas.ledger/screens/ImportWizard.jsx
 import { useState, useRef, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '@atlas/ui'
 import { Upload, ArrowLeft, ArrowRight, Check } from 'lucide-react'
-import { useAuth } from '../../../../apps/desktop/src/auth/AuthProvider'
+import { useAuth } from '../../../auth/AuthProvider'
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
 
@@ -410,4 +410,3 @@ export default function ImportWizard() {
     </div>
   )
 }
-
