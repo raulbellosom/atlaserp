@@ -3,7 +3,7 @@ import { z } from "zod";
 export const moduleInstallSchema = z.object({
   manifest: z
     .object({
-      key: z.string().min(3),
+      key: z.string().min(3).regex(/^[\w.-]+$/, 'La clave del modulo solo puede contener letras, numeros, puntos y guiones.'),
       name: z.string().min(2),
       version: z.string().min(1),
       core: z.boolean().optional(),

@@ -1585,6 +1585,10 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
   app.get('/:key/bundle.js', async (c) => {
     const key = c.req.param('key')
 
+    if (!/^[\w.-]+$/.test(key)) {
+      return c.json({ error: 'Clave de modulo invalida.' }, 400)
+    }
+
     const moduleRow = await prisma.atlasModule.findUnique({
       where: { key },
       select: { status: true, enabled: true, hasBundle: true, bundleHash: true },

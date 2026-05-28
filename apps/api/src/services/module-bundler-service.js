@@ -182,7 +182,35 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
           console.log(`[bundler] restored ${key} from Storage`)
         } catch (restoreErr) {
           console.warn(`[bundler] restore failed for ${key}:`, restoreErr.message)
+          try {
+            await prisma.atlasModule.update({ where: { key }, data: { hasBundle: false, bundleHash: null } })
+          } catch {
+            // ignore secondary DB failure
+          }
         }
+      }
+    }
+
+    // Auto-build bundles for installed modules that have components/ but has_bundle=false
+    let modulesWithoutBundle
+    try {
+      modulesWithoutBundle = await prisma.atlasModule.findMany({
+        where: { status: 'INSTALLED', enabled: true, hasBundle: false },
+        select: { key: true },
+      })
+    } catch (err) {
+      console.warn('[bundler] restoreModuleBundlesOnBoot: auto-build query failed:', err.message)
+      return
+    }
+
+    for (const { key } of modulesWithoutBundle) {
+      try {
+        const result = await buildModuleBundle(key)
+        if (result.built) {
+          console.log(`[bundler] auto-built bundle for ${key} on boot`)
+        }
+      } catch (err) {
+        console.warn(`[bundler] auto-build failed for ${key}:`, err.message)
       }
     }
   }

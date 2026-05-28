@@ -48,13 +48,12 @@ export function ModuleBundleLoader({ children }) {
 
   useEffect(() => {
     if (!blueprintData?.data) return
-    const unloaded = blueprintData.data.filter(
+    const toLoad = blueprintData.data.filter(
       (bp) => bp.module?.has_bundle && bp.module?.key && !loadedRef.current.has(bp.module.key)
     )
-    if (!unloaded.length) return
-    loadModuleBundles(unloaded).then(() => {
-      unloaded.forEach((bp) => loadedRef.current.add(bp.module.key))
-    })
+    if (!toLoad.length) return
+    toLoad.forEach((bp) => loadedRef.current.add(bp.module.key))
+    loadModuleBundles(toLoad)
   }, [blueprintData])
 
   return children
