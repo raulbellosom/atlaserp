@@ -32,10 +32,7 @@ export default defineConfig({
       "@tanstack/react-query": resolve(__dirname, "node_modules/@tanstack/react-query"),
       "sonner": resolve(__dirname, "node_modules/sonner"),
       "lucide-react": resolve(__dirname, "node_modules/lucide-react"),
-      "@nivo/core": resolve(__dirname, "node_modules/@nivo/core"),
-      "@nivo/line": resolve(__dirname, "node_modules/@nivo/line"),
-      "@nivo/bar":  resolve(__dirname, "node_modules/@nivo/bar"),
-      "@nivo/pie":  resolve(__dirname, "node_modules/@nivo/pie"),
+      "recharts": resolve(__dirname, "node_modules/recharts"),
     },
   },
   build: {

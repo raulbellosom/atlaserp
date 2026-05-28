@@ -15,9 +15,6 @@
     "@atlas/core": "workspace:*",
     "@atlas/sdk": "workspace:*",
     "@atlas/ui": "workspace:*",
-    "@nivo/bar": "^0.99.0",
-    "@nivo/line": "^0.99.0",
-    "@nivo/pie": "^0.99.0",
     "@radix-ui/react-dialog": "^1.1.15",
     "@supabase/supabase-js": "^2.105.1",
     "@tanstack/react-query": "latest",
@@ -29,6 +26,7 @@
     "react-dom": "latest",
     "react-hook-form": "^7.75.0",
     "react-router-dom": "^7.14.2",
+    "recharts": "^3.8.1",
     "sonner": "^2.0.7",
     "zustand": "latest"
   },
