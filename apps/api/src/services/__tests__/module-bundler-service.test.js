@@ -86,7 +86,7 @@ describe('module-bundler-service', () => {
       await fs.rm(tmpBundlesDir, { recursive: true, force: true })
     })
 
-    it('esbuild compiles a minimal register() component to valid ESM', async () => {
+    it('esbuild smoke test: compiles a minimal JSX entry to an ESM bundle', async () => {
       const { computeSourceHash: hashFn } = await import('../module-bundler-service.js')
       const compDir = path.join(tmpModulesDir, 'custom', 'custom.test', 'components')
       const hash = await hashFn(compDir)
@@ -105,8 +105,8 @@ describe('module-bundler-service', () => {
       })
 
       const content = await fs.readFile(outfile, 'utf8')
-      assert.ok(content.length > 0, 'bundle should not be empty')
-      assert.ok(content.includes('register'), 'bundle should export register')
+      assert.match(content, /register/, 'bundle should contain the register function')
+      assert.ok(content.length > 100, 'bundle should have substantial content (not just empty)')
     })
 
     it('returns { built: false, reason: "no-components" } when entry is missing', async () => {
