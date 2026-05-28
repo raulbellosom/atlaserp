@@ -36,6 +36,9 @@
   },
   "dependencies": {
     "@atlas/module-engine": "workspace:*",
+    "@nivo/bar": "^0.99.0",
+    "@nivo/line": "^0.99.0",
+    "@nivo/pie": "^0.99.0",
     "@prisma/adapter-pg": "^7.8.0",
     "dotenv": "^17.4.2",
     "hono": "^4.12.18",
