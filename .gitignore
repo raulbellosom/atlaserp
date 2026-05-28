@@ -24,6 +24,7 @@ Thumbs.db
 dist
 build
 coverage
+apps/api/bundles/*.js
 
 # Tauri native build
 apps/desktop/src-tauri/target
