@@ -27,7 +27,7 @@ export async function computeSourceHash(dir) {
   const hash = createHash('sha256')
   for (const filePath of entries.sort()) {
     const content = await fs.readFile(filePath)
-    hash.update(filePath.replace(dir, ''))
+    hash.update(filePath.replace(dir, '').split(path.sep).join('/'))
     hash.update(content)
   }
   return hash.digest('hex')
@@ -92,7 +92,7 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
       loader: { '.js': 'jsx', '.jsx': 'jsx' },
       external: BUNDLE_EXTERNALS,
       outfile,
-      sourcemap: process.env.NODE_ENV !== 'production' ? 'inline' : false,
+      sourcemap: process.env.NODE_ENV === 'development' ? 'inline' : false,
     })
 
     try {
@@ -132,11 +132,17 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
       console.warn(`[bundler] Storage delete failed for ${key}:`, err.message)
     }
 
-    await prisma.atlasModule.update({
-      where: { key },
-      data: { hasBundle: false, bundleHash: null },
-    })
+    try {
+      await prisma.atlasModule.update({
+        where: { key },
+        data: { hasBundle: false, bundleHash: null },
+      })
+    } catch (err) {
+      console.warn(`[bundler] DB update failed for ${key}:`, err.message)
+    }
   }
+
+  let _devWatcher = null
 
   async function restoreModuleBundlesOnBoot() {
     await ensureBundlesDir()
@@ -183,34 +189,35 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
 
   function startDevWatcher() {
     if (process.env.NODE_ENV === 'production') return
+    if (_devWatcher) return
 
     const customModulesDir = path.join(REPO_ROOT, 'modules', 'custom')
     const debouncers = new Map()
 
     fs.access(customModulesDir).then(() => {
       import('node:fs').then(({ watch }) => {
-        watch(customModulesDir, { recursive: true }, (event, filename) => {
-          if (!filename?.includes(`${path.sep}components${path.sep}`)) return
-          const parts = filename.split(path.sep)
+        _devWatcher = watch(customModulesDir, { recursive: true }, (event, filename) => {
+          const normalized = filename?.replaceAll(path.sep, '/')
+          if (!normalized?.includes('/components/')) return
+          const parts = normalized.split('/')
           const key = parts[0]
           if (!key) return
 
           clearTimeout(debouncers.get(key))
           debouncers.set(key, setTimeout(async () => {
-            debouncers.delete(key)
             try {
               const result = await buildModuleBundle(key, { force: true })
               if (result.built) console.log(`[bundler:watch] rebuilt ${key}`)
             } catch (err) {
               console.error(`[bundler:watch] rebuild failed for ${key}:`, err.message)
+            } finally {
+              debouncers.delete(key)
             }
           }, 200))
         })
         console.log('[bundler] watching modules/custom for component changes')
       })
-    }).catch(() => {
-      // Directory doesn't exist yet
-    })
+    }).catch(() => {})
   }
 
   return {
