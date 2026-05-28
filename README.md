@@ -159,7 +159,7 @@ No direct database access from the frontend.
 
 ## Module system
 
-Atlas ERP is a module engine. New AME3 modules live in `modules/custom/` and declare their own models, views, pages, navigation, permissions, and API endpoints.
+Atlas ERP is a module engine. New AME3 modules live in `modules/custom/` and declare their own models, views, pages, navigation, permissions, API endpoints, and React components.
 
 - Core modules (`core: true`, `uninstallable: false`):
   - `atlas.core`
@@ -173,10 +173,13 @@ Atlas ERP is a module engine. New AME3 modules live in `modules/custom/` and dec
 
 New modules use `defineAtlasModule` from `@atlas/module-engine`.
 
+Modules can include React components in `components/` compiled at install time by esbuild — no web image rebuild needed. The frontend loads bundles via dynamic `import()` at startup. See `docs/ai-context/ame3-runtime-capabilities.md` for the full `@atlas/ui` component inventory and view kind examples (TABLE, FORM, DETAIL, CUSTOM).
+
 See:
 - `docs/02_module_system.md`
 - `docs/03_custom_modules.md`
 - `docs/architecture/atlas-module-engine-v3.md`
+- `docs/ai-context/ame3-runtime-capabilities.md`
 - `docs/TASKS.md`
 
 ## Notes

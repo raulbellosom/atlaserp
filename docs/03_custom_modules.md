@@ -16,7 +16,7 @@ Every new module requires an approved spec and implementation plan before any co
 | Spec | `docs/superpowers/specs/YYYY-MM-DD-ame3-<moduleKey>-design.md` | 15 required — see Section 14.3 of [atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md) |
 | Plan | `docs/superpowers/plans/YYYY-MM-DD-ame3-<moduleKey>.md` | 7 required — see Section 14.4 of [atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md) |
 
-**Module creation workflow (13 steps):**
+**Module creation workflow (14 steps):**
 
 1. Write module spec at `docs/superpowers/specs/YYYY-MM-DD-ame3-<moduleKey>-design.md`
 2. Get spec approved (explicit confirmation — not implied)
@@ -25,12 +25,13 @@ Every new module requires an approved spec and implementation plan before any co
 5. Create module folder at `modules/custom/<moduleKey>/`
 6. Write `module.manifest.js` using `defineAtlasModule`
 7. Declare models in `models/*.model.js` using `defineModel`
-8. Declare views in `views/*.view.js` using `defineView`
+8. Declare views in `views/*.view.js` using `defineView` (TABLE, FORM, DETAIL, CUSTOM kinds)
 9. Declare pages in `pages/*.page.js` using `definePage`
 10. Write `api/index.js` route factory and service files
 11. Write `validators/index.js`
 12. Register cleanup handler if `resettable: true` or `supportsDataPurge: true`
-13. Call `POST /modules/sync`, install from catalog, run the AME3 checklist below
+13. If the module has React components: write `components/index.js` exporting `register()` and place component files in `components/`
+14. Call `POST /modules/sync`, install from catalog, run the AME3 checklist below
 
 If any step reveals a deviation from the approved spec or plan, stop and revise before continuing.
 
@@ -406,28 +407,90 @@ export const fleetCleanupHandler = {
 
 ## Custom components
 
-```js
-// modules/custom/custom.fleet/components/index.js
-import { registry } from '@atlas/module-engine'
-import { VehicleStatusBadge } from './VehicleStatusBadge.jsx'
+Modules can include React components compiled at install time by esbuild. No web image rebuild is required.
 
-registry.register('custom.fleet:VehicleStatusBadge', VehicleStatusBadge)
+### Structure
+
+```
+modules/custom/<moduleKey>/
+  components/
+    index.js          ← required entry point — exports register()
+    VehicleStatusBadge.jsx
+    VehicleDetailScreen.jsx
 ```
 
-Blueprint using the custom component:
+### `components/index.js` contract
 
 ```js
-{
-  key: 'fleet.vehicle.status-cell',
-  kind: 'CUSTOM',
-  schema: {
-    componentKey: 'custom.fleet:VehicleStatusBadge',
-    props: { compact: true },
-  },
+// modules/custom/custom.fleet/components/index.js
+export async function register(registry) {
+  if (typeof window === 'undefined') return
+
+  const [
+    { default: VehicleStatusBadge },
+    { default: VehicleDetailScreen },
+  ] = await Promise.all([
+    import('./VehicleStatusBadge.jsx'),
+    import('./VehicleDetailScreen.jsx'),
+  ])
+
+  registry.register('custom.fleet:VehicleStatusBadge',   VehicleStatusBadge)
+  registry.register('custom.fleet:VehicleDetailScreen',  VehicleDetailScreen)
 }
 ```
 
-Available from Phase 3.
+Registry key convention: `<moduleKey>:<ComponentName>`
+
+The bundle is compiled automatically on install and sync. On API boot, modules with no bundle are auto-built. The bundle is stored in `apps/api/bundles/<key>.js` and Supabase Storage for persistence across restarts.
+
+### Available imports in components
+
+| Import | Available | Notes |
+|---|---|---|
+| `react`, `react-dom`, `react/jsx-runtime` | Yes | External — in main Vite bundle |
+| `@tanstack/react-query` | Yes | External — in main Vite bundle |
+| `zustand` | Yes | External — in main Vite bundle |
+| `@atlas/ui` | Yes | External — full component library |
+| `@atlas/sdk` | Yes | External — Atlas API client |
+| `react-router-dom` | Yes | External — in main Vite bundle |
+| Packages in root `node_modules` | Yes | esbuild bundles them into the module bundle |
+| CDN: `https://esm.sh/<pkg>` | Yes | Browser fetches at runtime |
+| Node.js built-ins (`fs`, `path`) | No | Browser environment only |
+| `exceljs`, `pdfkit`, `sharp` | No | API-only; use in `api/` not `components/` |
+
+See `docs/ai-context/ame3-runtime-capabilities.md` for the full `@atlas/ui` component inventory.
+
+### CUSTOM kind view — full screen
+
+When a module needs a full custom screen, declare it as a CUSTOM kind view. No SCREEN_MAP entry needed.
+
+```js
+// modules/custom/custom.fleet/views/vehicle-detail.custom.js
+import { defineView } from '@atlas/module-engine'
+
+export default defineView('custom.fleet.vehicle-detail', {
+  kind: 'CUSTOM',
+  schema: {
+    path: '/fleet/vehicles/:id',
+    component: 'custom.fleet:VehicleDetailScreen',
+    title: 'Detalle de vehiculo',
+  },
+})
+```
+
+`BlueprintCrudScreen` resolves `component` from the registry automatically.
+
+Cell components (badge renderers, custom table cells) used in TABLE blueprints do not need a CUSTOM view — register them by key and reference via `schema.columns[].component`.
+
+### Bundle lifecycle
+
+| Trigger | Bundle action |
+|---|---|
+| `POST /modules/<key>/install` | Built automatically |
+| `POST /modules/<key>/sync` | Rebuilt (skipped if source hash unchanged) |
+| `POST /modules/<key>/reset` | Force-rebuilt |
+| `POST /modules/<key>/uninstall` | Deleted |
+| API boot | Auto-built for installed modules without a bundle |
 
 ---
 
@@ -452,9 +515,12 @@ Use this checklist after completing the 13-step SDD workflow above. An item is c
 - [ ] Business logic in `api/*-service.js`, not in route handlers
 - [ ] Module-local validators in `validators/index.js`
 - [ ] Cleanup handler registered if `resettable: true` or `supportsDataPurge: true`
+- [ ] If module has components: `components/index.js` exports async `register(registry)` function
+- [ ] If module has components: CUSTOM kind views declared in `views/*.custom.js` for full screens
 - [ ] Call `POST /modules/sync` after placing the module directory
 - [ ] Module appears in catalog with `status: UNINSTALLED`
 - [ ] Install from catalog succeeds
+- [ ] If module has components: `GET /modules/<key>/bundle.js` returns 200 after install
 - [ ] API returns 403 when module is uninstalled (fail-closed test)
 - [ ] API returns 200 with correct permission when installed
 - [ ] Dry-run returns expected row counts

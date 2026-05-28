@@ -136,11 +136,61 @@ docker volume ls --filter "label=com.supabase.cli.project=supabase-local" -q | F
 - Carpeta host: `custom-modules/`
 - Ruta en API/worker: `/app/modules/custom`
 
-Sincronizar modulos:
+### Workflow basico
 
 ```bash
-curl -X POST http://localhost:4010/modules/sync -H "Authorization: Bearer <ATLAS_TOKEN>"
+# Sincronizar manifests y blueprints
+curl -X POST http://localhost:4010/modules/sync \
+  -H "Authorization: Bearer $ATLAS_TOKEN"
+
+# Instalar un modulo desde el catalogo
+curl -X POST http://localhost:4010/modules/custom.mymodule/install \
+  -H "Authorization: Bearer $ATLAS_TOKEN"
 ```
+
+### Componentes React en modulos (dynamic bundle)
+
+Los modulos pueden incluir componentes React compilados en el momento de instalacion. No se requiere reconstruir la imagen web.
+
+Estructura:
+
+```
+custom-modules/
+  custom.mymodule/
+    components/
+      index.js          ← entrada del bundle, exporta register()
+      MyScreen.jsx
+    views/
+      my-screen.custom.js
+    api/
+      index.js
+    module.manifest.js
+```
+
+Contrato de `components/index.js`:
+
+```js
+export async function register(registry) {
+  if (typeof window === 'undefined') return
+  const { default: MyScreen } = await import('./MyScreen.jsx')
+  registry.register('custom.mymodule:MyScreen', MyScreen)
+}
+```
+
+Despues de editar componentes, forzar recompilacion:
+
+```bash
+curl -X POST http://localhost:4010/modules/custom.mymodule/sync \
+  -H "Authorization: Bearer $ATLAS_TOKEN"
+
+# Verificar que el bundle existe
+curl http://localhost:4010/modules/custom.mymodule/bundle.js
+```
+
+El bundle se compila automaticamente en install, sync y reset. En el arranque del API, los bundles faltantes se restauran desde Supabase Storage.
+
+Para documentacion completa: `custom-modules/_atlas-devkit/docs/03_custom_modules.md`
+Para inventario de componentes UI disponibles: `custom-modules/_atlas-devkit/docs/ai-context/ame3-runtime-capabilities.md`
 
 ## Instalacion external
 

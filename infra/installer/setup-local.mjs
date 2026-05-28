@@ -145,11 +145,20 @@ ${fileList}
 Recommended workflow for AI assistants:
 1. Read AGENTS.md first.
 2. Read docs/ai-context/ame3-modules.md before creating or editing modules.
-3. Follow AME3 rules exactly (no prisma model accessors for module tables, no prisma/schema.prisma edits for module tables).
+3. Read docs/ai-context/ame3-runtime-capabilities.md for available UI components and view kinds.
+4. Follow AME3 rules exactly (no prisma model accessors for module tables, no prisma/schema.prisma edits for module tables).
+5. Custom React components in components/index.js are compiled at install time — no web image rebuild needed.
+6. Use @atlas/ui primitives and blueprint kinds (TABLE, FORM, DETAIL, CUSTOM) from ame3-runtime-capabilities.md.
 
 Custom modules directory:
 - Host: custom-modules/
 - Runtime mount: /app/modules/custom
+
+Key commands:
+  Sync module manifests:  curl -X POST http://localhost:4010/modules/sync -H "Authorization: Bearer <TOKEN>"
+  Install a module:       curl -X POST http://localhost:4010/modules/<key>/install -H "Authorization: Bearer <TOKEN>"
+  Rebuild bundle:         curl -X POST http://localhost:4010/modules/<key>/sync -H "Authorization: Bearer <TOKEN>"
+  Verify bundle:          curl http://localhost:4010/modules/<key>/bundle.js
 `;
   await fs.writeFile(readmePath, content, "utf8");
 }

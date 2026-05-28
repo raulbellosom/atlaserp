@@ -9,48 +9,322 @@ Installer mode means:
 - Web runs from a prebuilt Vite bundle image.
 - Custom modules are edited in `custom-modules/`.
 
-## What Works Today Without Rebuilding Web
+## What Works in Installer Mode
 
 - AME3 module manifest (`defineAtlasModule`)
 - Module models (`defineModel`) and Atlas ORM provisioning flow
-- Module API routes/services/validators
+- Module API routes, services, validators
 - Module lifecycle operations (`sync`, install, uninstall, reset)
-- Blueprint-driven views and pages using supported renderer contracts
+- Blueprint-driven views and pages (TABLE, FORM, DETAIL, CUSTOM)
+- **Custom React components via the dynamic module bundler** — no web image rebuild required
 
-This is enough for most backend + metadata-driven module work.
+## Dynamic Module Bundler
+
+Custom modules can ship React components compiled at install time. The API server compiles `components/` using esbuild and stores the result. The frontend loads the bundle via dynamic `import()` at startup. No Vite rebuild, no new web image needed.
+
+### How it works
+
+1. Place React components in `modules/custom/<key>/components/`.
+2. Create `components/index.js` exporting an async `register` function (see contract below).
+3. Call `POST /modules/<key>/install` (or `sync` if already installed).
+4. esbuild compiles the bundle and stores it in the filesystem and Supabase Storage.
+5. The frontend loads the bundle on next page load and calls `register(componentRegistry)`.
+6. Registered components are resolved by blueprints using their registry keys.
+
+### `components/index.js` contract
+
+```js
+// modules/custom/custom.mymodule/components/index.js
+export async function register(registry) {
+  if (typeof window === 'undefined') return
+
+  const [
+    { default: MyScreen },
+    { default: MyBadgeCell },
+  ] = await Promise.all([
+    import('./MyScreen.jsx'),
+    import('./MyBadgeCell.jsx'),
+  ])
+
+  registry.register('custom.mymodule:MyScreen',    MyScreen)
+  registry.register('custom.mymodule:MyBadgeCell', MyBadgeCell)
+}
+```
+
+Registry key convention: `<moduleKey>:<ComponentName>`
+
+### Available imports in components (BUNDLE_EXTERNALS)
+
+These packages are in the main Vite bundle and must NOT be re-bundled by esbuild:
+
+| Import | Available | Notes |
+|---|---|---|
+| `react`, `react-dom`, `react/jsx-runtime` | Yes | External — in main bundle |
+| `@tanstack/react-query` | Yes | External — in main bundle |
+| `zustand` | Yes | External — in main bundle |
+| `@atlas/ui` | Yes | External — full component library (see below) |
+| `@atlas/sdk` | Yes | External — Atlas API client |
+| `@atlas/validators` | Yes | External — shared Zod schemas |
+| `react-router-dom` | Yes | External — in main bundle |
+| Packages in root `node_modules` | Yes | esbuild bundles them into the module bundle |
+| CDN: `https://esm.sh/<pkg>` | Yes | Browser fetches at runtime |
+| Node.js built-ins (`fs`, `path`, `crypto`) | No | Browser environment only |
+| `exceljs`, `pdfkit`, `sharp` | No | API-only packages; use in `api/` not `components/` |
+
+### Bundle lifecycle
+
+| Trigger | Bundle action |
+|---|---|
+| `POST /modules/<key>/install` | Built automatically after install |
+| `POST /modules/<key>/sync` | Rebuilt (skipped if source hash unchanged) |
+| `POST /modules/<key>/reset` | Force-rebuilt |
+| `POST /modules/<key>/uninstall` | Deleted |
+| API boot | Missing bundles restored from Supabase Storage; installed modules with no bundle are auto-built |
+
+Verify a bundle was compiled:
+
+```bash
+curl http://localhost:4010/modules/custom.mymodule/bundle.js
+```
+
+Force rebuild without reinstalling:
+
+```bash
+curl -X POST http://localhost:4010/modules/custom.mymodule/sync \
+  -H "Authorization: Bearer $ATLAS_TOKEN"
+```
+
+---
 
 ## View Kinds and Blueprint Contracts
 
-Supported AME3 kinds (current architecture):
-- `TABLE`
-- `FORM`
-- `DETAIL`
-- `PAGE`
-- `CUSTOM` (with important limitation below)
+### TABLE — data grid with filters and actions
 
-Reference:
-- `docs/03_custom_modules.md`
-- `docs/08_blueprints.md`
+```js
+import { defineView } from '@atlas/module-engine'
 
-## UI Components Available to Blueprints
+export default defineView({
+  key: 'mymodule.vehicle.list',
+  kind: 'TABLE',
+  version: '0.1.0',
+  schema: {
+    entity: 'vehicle',
+    label: 'Vehiculos',
+    component: 'AtlasTable',
+    columns: ['plate', 'brand', 'model', 'year', 'status'],
+    defaultSort: { field: 'plate', direction: 'asc' },
+    filters: [
+      { field: 'status', type: 'select', label: 'Estado' },
+    ],
+    actions: [
+      { key: 'create', label: 'Agregar vehiculo', permissionKey: 'mymodule.vehicles.create' },
+    ],
+  },
+})
+```
 
-Blueprint renderer targets in the current shell:
-- `AtlasTable`
-- `AtlasForm`
-- `AtlasDetail`
-- `AtlasCrudView`
+### FORM — create / edit form
 
-Common shared UI primitives are exported from:
-- `packages/ui/src/index.js`
+```js
+export default defineView({
+  key: 'mymodule.vehicle.form',
+  kind: 'FORM',
+  version: '0.1.0',
+  schema: {
+    entity: 'vehicle',
+    label: 'Vehiculo',
+    component: 'AtlasForm',
+    sections: [
+      { title: 'Identificacion', columns: 2, fields: ['plate', 'brand', 'model', 'year'] },
+      { title: 'Estado y asignacion', columns: 2, fields: ['status', 'driverId'] },
+      { title: 'Notas', columns: 1, fields: ['notes'] },
+    ],
+  },
+})
+```
 
-Examples include table/form controls, dialogs, tabs, badges, page headers, filters, pickers, file widgets, etc.
+### DETAIL — read-only entity detail
+
+```js
+export default defineView({
+  key: 'mymodule.vehicle.detail',
+  kind: 'DETAIL',
+  version: '0.1.0',
+  schema: {
+    entity: 'vehicle',
+    label: 'Detalle de vehiculo',
+    component: 'AtlasDetail',
+    sections: [
+      { title: 'Vehiculo', fields: ['plate', 'brand', 'model', 'year', 'status'] },
+    ],
+  },
+})
+```
+
+### CUSTOM — full custom React screen
+
+Use CUSTOM when TABLE/FORM/DETAIL renderers are insufficient. Requires a component registered via the dynamic bundle. No SCREEN_MAP entry needed.
+
+```js
+// views/my-screen.custom.js
+import { defineView } from '@atlas/module-engine'
+
+export default defineView('custom.mymodule.my-screen', {
+  kind: 'CUSTOM',
+  schema: {
+    path: '/mymodule/entity/:id',
+    component: 'custom.mymodule:MyScreen',
+    title: 'Detalle de entidad',
+  },
+})
+```
+
+`BlueprintCrudScreen` resolves `component` from the registry automatically.
+
+Cell components used in TABLE blueprints (badge renderers, custom cells) do not need a CUSTOM view — register them and reference via `schema.columns[].component`.
+
+---
+
+## @atlas/ui Component Library
+
+Import from `@atlas/ui` in any component. All exports below are available.
+
+### Core primitives
+
+| Export | Description |
+|---|---|
+| `Button`, `buttonVariants` | Action button with size/variant props |
+| `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter` | Content card container |
+| `Badge`, `badgeVariants` | Status and label badge |
+| `Separator` | Horizontal or vertical divider |
+| `Skeleton` | Loading placeholder |
+| `Avatar`, `AvatarImage`, `AvatarFallback` | User avatar with fallback initials |
+
+### Forms
+
+| Export | Description |
+|---|---|
+| `Label` | Accessible form label |
+| `Input` | Single-line text input |
+| `Textarea` | Multi-line text input |
+| `Checkbox` | Checkbox control |
+| `Switch` | Toggle switch |
+| `Select`, `SelectTrigger`, `SelectContent`, `SelectItem`, `SelectValue`, `SelectLabel`, `SelectGroup`, `SelectSeparator` | Native select dropdown |
+| `Form`, `FormField`, `FormItem`, `FormLabel`, `FormControl`, `FormMessage`, `FormDescription`, `useFormField` | React Hook Form wrappers |
+
+#### FormFields (controlled — use inside a `<Form>` context)
+
+| Export | Description |
+|---|---|
+| `TextField` | Controlled text input |
+| `PasswordField` | Password with show/hide toggle |
+| `TextareaField` | Controlled textarea |
+| `MarkdownField` | Markdown editor |
+| `NumberField` | Numeric input |
+| `CurrencyField` | Currency input with locale formatting |
+| `DateField` | Date picker |
+| `DateTimeField` | Date + time picker |
+| `YearField` | Year-only picker |
+| `SelectField` | Controlled select dropdown |
+| `ComboboxField` | Searchable select with autocomplete |
+| `CreatableComboboxField` | Combobox that allows creating new options inline |
+| `CheckboxField` | Controlled checkbox |
+| `SwitchField` | Controlled toggle switch |
+| `RadioGroupField` | Controlled radio group |
+| `TagsField` | Multi-value tag input |
+| `PhoneField` | Phone number input with country prefix |
+| `DropzoneField` | File drag-and-drop area |
+
+### Navigation and layout
+
+| Export | Description |
+|---|---|
+| `AppShell` | Main app layout: fixed sidebar + scrollable content |
+| `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` | Tab navigation |
+| `DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuSeparator`, `DropdownMenuLabel`, `DropdownMenuCheckboxItem`, `DropdownMenuRadioItem`, `DropdownMenuSub`, `DropdownMenuSubTrigger`, `DropdownMenuSubContent`, `DropdownMenuRadioGroup`, `DropdownMenuShortcut`, `DropdownMenuGroup`, `DropdownMenuPortal` | Dropdown / context menu |
+| `Breadcrumb`, `BreadcrumbList`, `BreadcrumbItem`, `BreadcrumbLink`, `BreadcrumbPage`, `BreadcrumbSeparator`, `BreadcrumbEllipsis` | Breadcrumb navigation |
+
+### Data display
+
+| Export | Description |
+|---|---|
+| `Table`, `TableHeader`, `TableBody`, `TableFooter`, `TableHead`, `TableRow`, `TableCell`, `TableCaption` | HTML table primitives |
+| `DataTable` | Feature-rich sortable/filterable table |
+| `Pagination`, `PaginationContent`, `PaginationItem`, `PaginationLink`, `PaginationPrevious`, `PaginationNext`, `PaginationEllipsis` | Paginator |
+
+### Overlays and feedback
+
+| Export | Description |
+|---|---|
+| `Dialog`, `DialogTrigger`, `DialogContent`, `DialogHeader`, `DialogFooter`, `DialogTitle`, `DialogDescription`, `DialogClose`, `DialogPortal`, `DialogOverlay` | Modal dialog |
+| `Sheet`, `SheetTrigger`, `SheetContent`, `SheetHeader`, `SheetFooter`, `SheetTitle`, `SheetDescription`, `SheetClose`, `SheetPortal`, `SheetOverlay` | Slide-in panel |
+| `Popover`, `PopoverTrigger`, `PopoverContent`, `PopoverAnchor` | Floating popover |
+| `Tooltip`, `TooltipTrigger`, `TooltipContent`, `TooltipProvider` | Tooltip |
+| `Toaster` | Toast notification renderer (mount once in app root) |
+| `Alert`, `AlertTitle`, `AlertDescription` | Inline alert banner |
+
+### Molecules and organisms
+
+| Export | Description |
+|---|---|
+| `PageHeader` | Page title bar with actions slot |
+| `EmptyState` | Empty list placeholder with icon and message |
+| `ErrorState` | Error display with retry option |
+| `StatCard` | KPI metric card with label, value, trend |
+| `SearchInput` | Search text field with icon |
+| `FilterBar` | Horizontal filter control bar |
+| `DynamicTable` | Blueprint-driven table renderer |
+| `DynamicForm` | Blueprint-driven form renderer |
+| `ActionMenu` | Row action dropdown button |
+| `ConfirmDialog` | Confirmation dialog with destructive variant |
+| `ContactPicker` | Contact search and select picker |
+| `FileCard` | File display card with metadata |
+| `FileUploader` | File upload widget with progress |
+| `FileViewer` | File preview (PDF, image, etc.) |
+| `AttachmentsPanel` | File attachments list panel |
+| `DocumentsPanel` | Documents list panel |
+| `ImageViewer` | Image lightbox |
+| `ImageUploader` | Image crop and upload widget |
+| `DatePickerField` | Standalone date picker |
+| `PageFooter` | Page footer bar |
+| `BrandFooter` | Branded footer with logo |
+
+### Atlas blueprint renderer
+
+| Export | Description |
+|---|---|
+| `AtlasTable` | Renders TABLE kind blueprints |
+| `AtlasForm` | Renders FORM kind blueprints |
+| `AtlasDetail` | Renders DETAIL kind blueprints |
+| `AtlasCrudView` | Combined list + form + detail view |
+| `AtlasCardView` | Card grid alternative to AtlasTable |
+| `BulkActionBar` | Multi-select action toolbar |
+| `CostsSummaryPanel` | Costs summary panel |
+| `normalizeSpanishLabel` | Label normalization helper |
+| `shouldUsePageMode` | Layout mode helper |
+
+### Responsive patterns
+
+| Export | Description |
+|---|---|
+| `ViewModeSwitch`, `getStoredViewMode` | Table/card toggle with localStorage persistence |
+| `MobileFiltersSheet` | Mobile filter slide-in panel |
+| `ListLayout` | Responsive list container |
+
+### Hooks
+
+| Export | Description |
+|---|---|
+| `useAttachmentsController` | Manages file attachment list state |
+| `cn` | Tailwind class merge utility (from `lib/utils`) |
+
+---
 
 ## Frontend Libraries Available in the Published Web Image
 
-Authoritative source:
-- `apps/desktop/package.json`
+Authoritative source: `apps/desktop/package.json`
 
-Current key libraries include:
+Key libraries:
 - `react`, `react-dom`, `react-router-dom`
 - `@tanstack/react-query`
 - `@supabase/supabase-js`
@@ -62,29 +336,15 @@ Current key libraries include:
 - `motion`
 - `country-state-city`
 
-## Important Limitation: New React Components
-
-In installer mode, the web bundle is precompiled. Because of that:
-- Adding a new React component in `custom-modules/*/components` is not automatically available in the running web image.
-- If a blueprint references a component not present in the web bundle, the shell shows a "requires rebuild" warning.
-
-Implication:
-- Blueprint-only customization works now.
-- Net-new frontend component code requires publishing a new web image.
-
-## Practical Rule for External Module Authors
-
-Use this sequence:
-1. Build module behavior with AME3 manifest/models/api/validators.
-2. Implement UI using existing blueprint contracts and available UI primitives.
-3. Request web image rebuild only when truly needing net-new frontend components.
+---
 
 ## AI Assistant Prompt Starter
 
 Use this instruction before generating module code:
 
-> Read `AGENTS.md`, `docs/ai-context/ame3-modules.md`, and `docs/ai-context/ame3-runtime-capabilities.md` first.  
-> Follow AME3 rules exactly.  
-> Prefer blueprint-driven UI and existing runtime components/libraries.  
-> Do not assume new React components are available unless a new web image build is part of the plan.
-
+> Read `AGENTS.md`, `docs/ai-context/ame3-modules.md`, and `docs/ai-context/ame3-runtime-capabilities.md` first.
+> Follow AME3 rules exactly.
+> Custom React components in `components/index.js` are compiled at install time by esbuild and are available without rebuilding the web image — no image rebuild is ever needed for module UI.
+> Prefer blueprint-driven UI (TABLE, FORM, DETAIL kinds) and existing `@atlas/ui` primitives whenever possible.
+> Use CUSTOM kind blueprints when a screen requires logic that TABLE/FORM/DETAIL cannot express.
+> Do not add entries to SCREEN_MAP for new custom modules — use CUSTOM kind views instead.
