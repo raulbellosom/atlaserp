@@ -5,7 +5,6 @@ import {
   Routes,
   Route,
   Navigate,
-  useNavigate,
   Outlet,
 } from "react-router-dom";
 import {
@@ -30,6 +29,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useBrandingStore } from "./stores/branding";
 import { PublicShell } from "./shell/PublicShell.jsx";
 import { PublicModuleOutlet } from "./shell/PublicModuleOutlet.jsx";
+import { PublicWebsiteEntry } from "./shell/PublicWebsiteEntry.jsx";
 import "./styles.css";
 
 const queryClient = new QueryClient({
@@ -51,38 +51,6 @@ function useInstanceStatus() {
     staleTime: 30_000,
     gcTime: 60_000,
   });
-}
-
-function resolveNextPath({ initialized, session }) {
-  if (!initialized) return "/setup";
-  return session ? "/app" : "/login";
-}
-
-function InitGuard() {
-  const navigate = useNavigate();
-  const { session, loading: authLoading } = useAuth();
-  const { data, isPending, isError, error, refetch } = useInstanceStatus();
-
-  useEffect(() => {
-    if (isPending || authLoading || !data) return;
-    const nextPath = resolveNextPath({ initialized: data.initialized, session });
-    navigate(nextPath, {
-      replace: true,
-      state: nextPath === "/login" ? { branding: data.branding } : undefined,
-    });
-  }, [authLoading, data, isPending, navigate, session]);
-
-  if (isError) {
-    return (
-      <ApiErrorScreen
-        error={error}
-        onRetry={() => refetch()}
-        context="Verificacion de instancia"
-      />
-    );
-  }
-
-  return <AppLoader message="Verificando instancia..." />;
 }
 
 function SetupRouteGuard() {
@@ -208,7 +176,7 @@ function App() {
         <BrowserRouter>
           <AuthProvider>
             <Routes>
-              <Route path="/" element={<InitGuard />} />
+              <Route path="/" element={<PublicWebsiteEntry />} />
               <Route path="/setup" element={<SetupRouteGuard />} />
               <Route path="/login" element={<LoginRouteGuard />} />
               <Route element={<AppAccessGuard />}>
@@ -222,7 +190,7 @@ function App() {
               <Route path="/p" element={<PublicShell />}>
                 <Route path="*" element={<PublicModuleOutlet />} />
               </Route>
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<PublicWebsiteEntry />} />
             </Routes>
           </AuthProvider>
           <Toaster />
