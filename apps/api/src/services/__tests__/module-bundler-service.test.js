@@ -43,4 +43,78 @@ describe('module-bundler-service', () => {
       assert.notEqual(before, after)
     })
   })
+
+  describe('buildModuleBundle', () => {
+    let tmpModulesDir
+    let tmpBundlesDir
+    let mockPrisma
+    let mockSupabase
+
+    before(async () => {
+      tmpModulesDir = await fs.mkdtemp(path.join(os.tmpdir(), 'atlas-modules-'))
+      tmpBundlesDir = await fs.mkdtemp(path.join(os.tmpdir(), 'atlas-bundles-'))
+
+      const compDir = path.join(tmpModulesDir, 'custom', 'custom.test', 'components')
+      await fs.mkdir(compDir, { recursive: true })
+      await fs.writeFile(
+        path.join(compDir, 'index.js'),
+        `export async function register(registry) {
+           if (typeof window === 'undefined') return
+         }`
+      )
+
+      mockPrisma = {
+        atlasModule: {
+          findUnique: async () => ({ bundleHash: null }),
+          update: async () => ({}),
+        },
+      }
+      mockSupabase = {
+        storage: {
+          listBuckets: async () => ({ data: [{ name: 'module-bundles' }] }),
+          from: () => ({
+            upload: async () => ({ error: null }),
+            download: async () => ({ data: null, error: new Error('not found') }),
+            remove: async () => ({ error: null }),
+          }),
+        },
+      }
+    })
+
+    after(async () => {
+      await fs.rm(tmpModulesDir, { recursive: true, force: true })
+      await fs.rm(tmpBundlesDir, { recursive: true, force: true })
+    })
+
+    it('esbuild compiles a minimal register() component to valid ESM', async () => {
+      const { computeSourceHash: hashFn } = await import('../module-bundler-service.js')
+      const compDir = path.join(tmpModulesDir, 'custom', 'custom.test', 'components')
+      const hash = await hashFn(compDir)
+      assert.match(hash, /^[0-9a-f]{64}$/)
+
+      const { build } = await import('esbuild')
+      const entry = path.join(compDir, 'index.js')
+      const outfile = path.join(tmpBundlesDir, 'custom.test.js')
+      await build({
+        entryPoints: [entry],
+        bundle: true,
+        format: 'esm',
+        jsx: 'automatic',
+        outfile,
+        external: ['react'],
+      })
+
+      const content = await fs.readFile(outfile, 'utf8')
+      assert.ok(content.length > 0, 'bundle should not be empty')
+      assert.ok(content.includes('register'), 'bundle should export register')
+    })
+
+    it('returns { built: false, reason: "no-components" } when entry is missing', async () => {
+      const { createModuleBundlerService } = await import('../module-bundler-service.js')
+      const svc = createModuleBundlerService({ prisma: mockPrisma, supabaseAdmin: mockSupabase })
+      const result = await svc.buildModuleBundle('custom.nonexistent')
+      assert.equal(result.built, false)
+      assert.equal(result.reason, 'no-components')
+    })
+  })
 })
