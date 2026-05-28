@@ -199,14 +199,6 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
       path.resolve(modulesRoot, 'custom', moduleRow.key),
       `custom module directory for ${moduleRow.key}`
     )
-    if (await pathExists(customDir)) return customDir
-
-    const officialDir = ensurePathInsideModules(
-      path.resolve(modulesRoot, 'official', moduleRow.key),
-      `official module directory for ${moduleRow.key}`
-    )
-    if (await pathExists(officialDir)) return officialDir
-
     return customDir
   }
 

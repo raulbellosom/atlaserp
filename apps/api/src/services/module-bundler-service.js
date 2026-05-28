@@ -49,7 +49,6 @@ async function collectFiles(dir) {
 
 async function resolveModuleBaseDir(key) {
   const candidateDirs = [
-    path.join(REPO_ROOT, 'modules', 'official', key),
     path.join(REPO_ROOT, 'modules', 'custom', key),
   ]
 
@@ -243,7 +242,6 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
     _devWatcher = true
 
     const watchRoots = [
-      path.join(REPO_ROOT, 'modules', 'official'),
       path.join(REPO_ROOT, 'modules', 'custom'),
     ]
     const debouncers = new Map()
