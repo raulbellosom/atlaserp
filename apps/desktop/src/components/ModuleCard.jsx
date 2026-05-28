@@ -10,6 +10,7 @@ import {
   Contact,
   Wallet,
   Users,
+  UsersRound,
   Shield,
   Palette,
   FolderOpen,
@@ -20,6 +21,12 @@ import {
   Home,
   Truck,
   Package,
+  Globe,
+  BookOpen,
+  ClipboardList,
+  UserCheck,
+  ShieldCheck,
+  Menu,
 } from "lucide-react";
 import { cn } from "@atlas/ui";
 
@@ -38,6 +45,7 @@ export const MODULE_ICON_REGISTRY = {
   Contact,
   Wallet,
   Users,
+  UsersRound,
   Shield,
   Palette,
   FolderOpen,
@@ -48,6 +56,12 @@ export const MODULE_ICON_REGISTRY = {
   Home,
   Truck,
   Package,
+  Globe,
+  BookOpen,
+  ClipboardList,
+  UserCheck,
+  ShieldCheck,
+  Menu,
 };
 
 // ---- Helpers ----

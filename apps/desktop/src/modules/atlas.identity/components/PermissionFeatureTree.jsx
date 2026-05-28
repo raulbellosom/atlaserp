@@ -14,6 +14,9 @@ const MODULE_LABELS = {
   contacts: "Contactos",
   finance: "Finanzas",
   hr: "Recursos Humanos",
+  fleet: "Flota",
+  ledger: "Libro de cuentas",
+  website: "Sitio web",
   audit: "Bitacora",
 };
 
@@ -46,6 +49,20 @@ const FEATURE_LABELS = {
   org_chart: "Organigrama",
   address: "Direccion",
   branding: "Marca visual",
+  // fleet
+  vehicles: "Vehiculos",
+  drivers: "Choferes",
+  reports: "Reportes",
+  catalogs: "Catalogos",
+  insurance: "Seguros",
+  // ledger
+  categories: "Categorias",
+  types: "Tipos",
+  // website
+  site: "Sitio",
+  pages: "Paginas",
+  theme: "Tema",
+  menus: "Menus",
 };
 
 const ACTION_LABELS = {
@@ -60,6 +77,9 @@ const ACTION_LABELS = {
   manage: "Administrar",
   reverse: "Revertir",
   send: "Enviar",
+  publish: "Publicar",
+  export: "Exportar",
+  import: "Importar",
 };
 
 function parsePermissionKey(key) {
