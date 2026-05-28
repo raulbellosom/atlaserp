@@ -69,3 +69,20 @@ test("component registry warns and replaces duplicate keys", () => {
     true,
   );
 });
+
+test("component registry notifies subscribers when state changes", () => {
+  const registry = createModuleComponentRegistry();
+  let calls = 0;
+  const unsubscribe = registry.subscribe(() => {
+    calls += 1;
+  });
+  const ComponentA = () => null;
+
+  registry.register("custom.fleet:VehicleStatusBadge", ComponentA);
+  registry.setActiveModules(["custom.fleet"]);
+  unsubscribe();
+  registry.setActiveModules(["atlas.core"]);
+
+  assert.equal(calls >= 2, true);
+  assert.equal(typeof registry.getVersion(), "number");
+});

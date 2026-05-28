@@ -5,9 +5,9 @@ const GROUPS = {
   files: "Archivos",
   company: "Empresa",
   contacts: "Contactos",
-  finance: "Finanzas",
+  fleet: "Flota",
   hr: "Recursos Humanos",
-  ledger: "Libro Auxiliar",
+  ledger: "Libro de cuentas",
   audit: "Bitacora",
 };
 
@@ -18,17 +18,14 @@ const MODULE_LABELS = {
   files: "Archivos",
   company: "Empresa",
   contacts: "Contactos",
-  finance: "Finanzas",
+  fleet: "Flota",
   hr: "Recursos Humanos",
-  ledger: "Libro Auxiliar",
+  ledger: "Libro de cuentas",
   audit: "Bitacora",
 };
 
 const FEATURE_LABELS = {
   general: "General",
-  accounts: "Cuentas del libro auxiliar",
-  movements: "Movimientos",
-  reports: "Reportes y exportacion",
   modules: "Modulos",
   instance: "Configuracion de instancia",
   users: "Usuarios",
@@ -42,21 +39,19 @@ const FEATURE_LABELS = {
   address: "Direccion de empresa",
   branding: "Marca visual",
   contacts: "Contactos",
-  ar: "Cuentas por cobrar",
-  ap: "Cuentas por pagar",
-  accounts: "Cuentas contables",
-  entries: "Polizas",
-  applications: "Aplicaciones de pago",
-  tax_rates: "Impuestos",
-  fx_rates: "Tipo de cambio",
-  dashboard: "Resumen financiero",
-  aging: "Aging",
-  documents: "Documentos financieros",
-  reminder: "Recordatorios",
   employee: "Colaboradores",
   department: "Departamentos",
   job_title: "Puestos",
   org_chart: "Organigrama",
+  vehicles: "Vehiculos",
+  reports: "Reportes",
+  drivers: "Choferes",
+  catalogs: "Catalogos",
+  insurance: "Seguros",
+  accounts: "Cuentas",
+  transactions: "Movimientos",
+  categories: "Categorias",
+  types: "Tipos de movimiento",
 };
 
 const ACTION_LABELS = {
@@ -70,6 +65,7 @@ const ACTION_LABELS = {
   reverse: "Revertir",
   cancel: "Cancelar",
   export: "Exportar",
+  import: "Importar",
 };
 
 export const PERMISSION_CATALOG = {
@@ -390,263 +386,131 @@ export const PERMISSION_CATALOG = {
     order: 50,
   },
 
-  "finance.access": {
-    displayNameEs: "Acceder a finanzas",
-    descriptionEs: "Permite entrar al modulo de finanzas.",
-    groupKey: "finance",
+  "fleet.access": {
+    displayNameEs: "Acceder a flota",
+    descriptionEs: "Permite entrar al modulo de flota.",
+    groupKey: "fleet",
     order: 10,
   },
-  "finance.ar.read": {
-    displayNameEs: "Ver cuentas por cobrar",
-    descriptionEs: "Permite consultar cuentas por cobrar.",
-    groupKey: "finance",
+  "fleet.vehicles.read": {
+    displayNameEs: "Ver vehiculos",
+    descriptionEs: "Permite consultar el listado de vehiculos.",
+    groupKey: "fleet",
     order: 20,
   },
-  "finance.ar.create": {
-    displayNameEs: "Crear cuentas por cobrar",
-    descriptionEs: "Permite crear documentos de cuentas por cobrar.",
-    groupKey: "finance",
+  "fleet.vehicles.create": {
+    displayNameEs: "Crear vehiculos",
+    descriptionEs: "Permite registrar nuevos vehiculos.",
+    groupKey: "fleet",
     order: 21,
   },
-  "finance.ar.update": {
-    displayNameEs: "Editar cuentas por cobrar",
-    descriptionEs: "Permite actualizar documentos de cuentas por cobrar.",
-    groupKey: "finance",
+  "fleet.vehicles.update": {
+    displayNameEs: "Editar vehiculos",
+    descriptionEs: "Permite actualizar datos de vehiculos.",
+    groupKey: "fleet",
     order: 22,
   },
-  "finance.ar.delete": {
-    displayNameEs: "Eliminar cuentas por cobrar",
-    descriptionEs: "Permite eliminar documentos de cuentas por cobrar.",
-    groupKey: "finance",
+  "fleet.vehicles.delete": {
+    displayNameEs: "Desactivar vehiculos",
+    descriptionEs: "Permite desactivar vehiculos.",
+    groupKey: "fleet",
     order: 23,
   },
-  "finance.ap.read": {
-    displayNameEs: "Ver cuentas por pagar",
-    descriptionEs: "Permite consultar cuentas por pagar.",
-    groupKey: "finance",
+  "fleet.reports.read": {
+    displayNameEs: "Ver reportes de flota",
+    descriptionEs: "Permite consultar reportes de mantenimiento y servicio.",
+    groupKey: "fleet",
     order: 30,
   },
-  "finance.ap.create": {
-    displayNameEs: "Crear cuentas por pagar",
-    descriptionEs: "Permite crear documentos de cuentas por pagar.",
-    groupKey: "finance",
+  "fleet.reports.create": {
+    displayNameEs: "Crear reportes de flota",
+    descriptionEs: "Permite registrar reportes de flota.",
+    groupKey: "fleet",
     order: 31,
   },
-  "finance.ap.update": {
-    displayNameEs: "Editar cuentas por pagar",
-    descriptionEs: "Permite actualizar documentos de cuentas por pagar.",
-    groupKey: "finance",
+  "fleet.reports.update": {
+    displayNameEs: "Editar reportes de flota",
+    descriptionEs: "Permite actualizar reportes de flota.",
+    groupKey: "fleet",
     order: 32,
   },
-  "finance.ap.delete": {
-    displayNameEs: "Eliminar cuentas por pagar",
-    descriptionEs: "Permite eliminar documentos de cuentas por pagar.",
-    groupKey: "finance",
+  "fleet.reports.delete": {
+    displayNameEs: "Eliminar reportes de flota",
+    descriptionEs: "Permite eliminar reportes de flota.",
+    groupKey: "fleet",
     order: 33,
   },
-  "finance.accounts.read": {
-    displayNameEs: "Ver cuentas contables",
-    descriptionEs: "Permite consultar catalogo de cuentas contables.",
-    groupKey: "finance",
+  "fleet.drivers.read": {
+    displayNameEs: "Ver choferes",
+    descriptionEs: "Permite consultar choferes.",
+    groupKey: "fleet",
     order: 40,
   },
-  "finance.accounts.create": {
-    displayNameEs: "Crear cuentas contables",
-    descriptionEs: "Permite crear cuentas contables.",
-    groupKey: "finance",
+  "fleet.drivers.create": {
+    displayNameEs: "Crear choferes",
+    descriptionEs: "Permite registrar choferes.",
+    groupKey: "fleet",
     order: 41,
   },
-  "finance.accounts.update": {
-    displayNameEs: "Editar cuentas contables",
-    descriptionEs: "Permite actualizar cuentas contables.",
-    groupKey: "finance",
+  "fleet.drivers.update": {
+    displayNameEs: "Editar choferes",
+    descriptionEs: "Permite actualizar choferes.",
+    groupKey: "fleet",
     order: 42,
   },
-  "finance.accounts.delete": {
-    displayNameEs: "Eliminar cuentas contables",
-    descriptionEs: "Permite eliminar cuentas contables.",
-    groupKey: "finance",
+  "fleet.drivers.delete": {
+    displayNameEs: "Desactivar choferes",
+    descriptionEs: "Permite desactivar choferes.",
+    groupKey: "fleet",
     order: 43,
   },
-  "finance.entries.read": {
-    displayNameEs: "Ver polizas",
-    descriptionEs: "Permite consultar polizas contables.",
-    groupKey: "finance",
+  "fleet.catalogs.read": {
+    displayNameEs: "Ver catalogos de flota",
+    descriptionEs: "Permite consultar catalogos de tipos, marcas y modelos.",
+    groupKey: "fleet",
     order: 50,
   },
-  "finance.entries.create": {
-    displayNameEs: "Crear polizas",
-    descriptionEs: "Permite registrar polizas contables.",
-    groupKey: "finance",
+  "fleet.catalogs.create": {
+    displayNameEs: "Crear catalogos de flota",
+    descriptionEs: "Permite crear elementos de catalogos de flota.",
+    groupKey: "fleet",
     order: 51,
   },
-  "finance.entries.update": {
-    displayNameEs: "Editar polizas",
-    descriptionEs: "Permite actualizar polizas contables.",
-    groupKey: "finance",
+  "fleet.catalogs.update": {
+    displayNameEs: "Editar catalogos de flota",
+    descriptionEs: "Permite actualizar elementos de catalogos de flota.",
+    groupKey: "fleet",
     order: 52,
   },
-  "finance.entries.delete": {
-    displayNameEs: "Eliminar polizas",
-    descriptionEs: "Permite eliminar polizas contables.",
-    groupKey: "finance",
+  "fleet.catalogs.delete": {
+    displayNameEs: "Desactivar catalogos de flota",
+    descriptionEs: "Permite desactivar elementos de catalogos de flota.",
+    groupKey: "fleet",
     order: 53,
   },
-  "finance.documents.read": {
-    displayNameEs: "Ver documentos financieros",
-    descriptionEs: "Permite consultar documentos financieros.",
-    groupKey: "finance",
+  "fleet.insurance.read": {
+    displayNameEs: "Ver polizas de seguro",
+    descriptionEs: "Permite consultar polizas de seguro de las unidades.",
+    groupKey: "fleet",
     order: 60,
   },
-  "finance.documents.create": {
-    displayNameEs: "Crear documentos financieros",
-    descriptionEs: "Permite registrar documentos financieros.",
-    groupKey: "finance",
+  "fleet.insurance.create": {
+    displayNameEs: "Crear polizas de seguro",
+    descriptionEs: "Permite registrar polizas de seguro.",
+    groupKey: "fleet",
     order: 61,
   },
-  "finance.documents.update": {
-    displayNameEs: "Editar documentos financieros",
-    descriptionEs: "Permite actualizar documentos financieros.",
-    groupKey: "finance",
+  "fleet.insurance.update": {
+    displayNameEs: "Editar polizas de seguro",
+    descriptionEs: "Permite actualizar polizas de seguro.",
+    groupKey: "fleet",
     order: 62,
   },
-  "finance.documents.delete": {
-    displayNameEs: "Eliminar documentos financieros",
-    descriptionEs: "Permite eliminar documentos financieros.",
-    groupKey: "finance",
+  "fleet.insurance.delete": {
+    displayNameEs: "Desactivar polizas de seguro",
+    descriptionEs: "Permite desactivar polizas de seguro.",
+    groupKey: "fleet",
     order: 63,
-  },
-  "finance.documents.reminder.send": {
-    displayNameEs: "Enviar recordatorios de cobranza/pago",
-    descriptionEs: "Permite enviar recordatorios para documentos financieros.",
-    groupKey: "finance",
-    order: 64,
-  },
-  "finance.applications.read": {
-    displayNameEs: "Ver aplicaciones de pago",
-    descriptionEs: "Permite consultar aplicaciones de pago.",
-    groupKey: "finance",
-    order: 70,
-  },
-  "finance.applications.create": {
-    displayNameEs: "Crear aplicaciones de pago",
-    descriptionEs: "Permite crear aplicaciones de pago.",
-    groupKey: "finance",
-    order: 71,
-  },
-  "finance.applications.update": {
-    displayNameEs: "Editar aplicaciones de pago",
-    descriptionEs: "Permite actualizar aplicaciones de pago.",
-    groupKey: "finance",
-    order: 72,
-  },
-  "finance.applications.delete": {
-    displayNameEs: "Eliminar aplicaciones de pago",
-    descriptionEs: "Permite eliminar aplicaciones de pago.",
-    groupKey: "finance",
-    order: 73,
-  },
-  "finance.applications.reverse": {
-    displayNameEs: "Revertir aplicaciones de pago",
-    descriptionEs: "Permite anular aplicaciones previamente registradas.",
-    groupKey: "finance",
-    order: 74,
-  },
-  "finance.tax_rates.read": {
-    displayNameEs: "Ver impuestos",
-    descriptionEs: "Permite consultar catalogo de impuestos.",
-    groupKey: "finance",
-    order: 80,
-  },
-  "finance.tax_rates.create": {
-    displayNameEs: "Crear impuestos",
-    descriptionEs: "Permite crear impuestos.",
-    groupKey: "finance",
-    order: 81,
-  },
-  "finance.tax_rates.update": {
-    displayNameEs: "Editar impuestos",
-    descriptionEs: "Permite actualizar impuestos.",
-    groupKey: "finance",
-    order: 82,
-  },
-  "finance.tax_rates.delete": {
-    displayNameEs: "Eliminar impuestos",
-    descriptionEs: "Permite eliminar impuestos.",
-    groupKey: "finance",
-    order: 83,
-  },
-  "finance.fx_rates.read": {
-    displayNameEs: "Ver tipos de cambio",
-    descriptionEs: "Permite consultar tipos de cambio.",
-    groupKey: "finance",
-    order: 90,
-  },
-  "finance.fx_rates.create": {
-    displayNameEs: "Crear tipos de cambio",
-    descriptionEs: "Permite registrar tipos de cambio.",
-    groupKey: "finance",
-    order: 91,
-  },
-  "finance.fx_rates.update": {
-    displayNameEs: "Editar tipos de cambio",
-    descriptionEs: "Permite actualizar tipos de cambio.",
-    groupKey: "finance",
-    order: 92,
-  },
-  "finance.fx_rates.delete": {
-    displayNameEs: "Eliminar tipos de cambio",
-    descriptionEs: "Permite eliminar tipos de cambio.",
-    groupKey: "finance",
-    order: 93,
-  },
-  "finance.dashboard.read": {
-    displayNameEs: "Ver resumen financiero",
-    descriptionEs: "Permite consultar dashboard financiero.",
-    groupKey: "finance",
-    order: 100,
-  },
-  "finance.dashboard.create": {
-    displayNameEs: "Crear resumen financiero",
-    descriptionEs: "Permite crear configuraciones de dashboard financiero.",
-    groupKey: "finance",
-    order: 101,
-  },
-  "finance.dashboard.update": {
-    displayNameEs: "Editar resumen financiero",
-    descriptionEs: "Permite actualizar configuraciones de dashboard financiero.",
-    groupKey: "finance",
-    order: 102,
-  },
-  "finance.dashboard.delete": {
-    displayNameEs: "Eliminar resumen financiero",
-    descriptionEs: "Permite eliminar configuraciones de dashboard financiero.",
-    groupKey: "finance",
-    order: 103,
-  },
-  "finance.aging.read": {
-    displayNameEs: "Ver aging",
-    descriptionEs: "Permite consultar reporte de aging.",
-    groupKey: "finance",
-    order: 110,
-  },
-  "finance.aging.create": {
-    displayNameEs: "Crear aging",
-    descriptionEs: "Permite crear configuraciones de aging.",
-    groupKey: "finance",
-    order: 111,
-  },
-  "finance.aging.update": {
-    displayNameEs: "Editar aging",
-    descriptionEs: "Permite actualizar configuraciones de aging.",
-    groupKey: "finance",
-    order: 112,
-  },
-  "finance.aging.delete": {
-    displayNameEs: "Eliminar aging",
-    descriptionEs: "Permite eliminar configuraciones de aging.",
-    groupKey: "finance",
-    order: 113,
   },
 
   "hr.access": {
@@ -751,66 +615,80 @@ export const PERMISSION_CATALOG = {
     groupKey: "hr",
     order: 53,
   },
-  "ledger.access": {
-    displayNameEs: "Acceder al libro auxiliar",
-    descriptionEs: "Permite entrar al modulo de cuentas y movimientos.",
+
+  "ledger.accounts.read": {
+    displayNameEs: "Ver cuentas",
+    descriptionEs: "Permite consultar cuentas del libro de cuentas.",
     groupKey: "ledger",
     order: 10,
   },
-  "ledger.accounts.read": {
-    displayNameEs: "Ver cuentas del libro auxiliar",
-    descriptionEs: "Permite consultar el listado de cuentas y sus saldos.",
+  "ledger.accounts.create": {
+    displayNameEs: "Crear cuentas",
+    descriptionEs: "Permite crear cuentas en el libro de cuentas.",
+    groupKey: "ledger",
+    order: 11,
+  },
+  "ledger.accounts.update": {
+    displayNameEs: "Editar cuentas",
+    descriptionEs: "Permite actualizar cuentas del libro de cuentas.",
+    groupKey: "ledger",
+    order: 12,
+  },
+  "ledger.accounts.delete": {
+    displayNameEs: "Desactivar cuentas",
+    descriptionEs: "Permite desactivar cuentas del libro de cuentas.",
+    groupKey: "ledger",
+    order: 13,
+  },
+  "ledger.transactions.read": {
+    displayNameEs: "Ver movimientos",
+    descriptionEs: "Permite consultar movimientos por cuenta.",
     groupKey: "ledger",
     order: 20,
   },
-  "ledger.accounts.create": {
-    displayNameEs: "Crear cuentas del libro auxiliar",
-    descriptionEs: "Permite crear nuevas cuentas en el libro auxiliar.",
+  "ledger.transactions.create": {
+    displayNameEs: "Crear movimientos",
+    descriptionEs: "Permite registrar movimientos en una cuenta.",
+    groupKey: "ledger",
+    order: 21,
+  },
+  "ledger.transactions.update": {
+    displayNameEs: "Editar movimientos",
+    descriptionEs: "Permite actualizar movimientos registrados.",
+    groupKey: "ledger",
+    order: 22,
+  },
+  "ledger.transactions.delete": {
+    displayNameEs: "Desactivar movimientos",
+    descriptionEs: "Permite desactivar movimientos registrados.",
+    groupKey: "ledger",
+    order: 23,
+  },
+  "ledger.export": {
+    displayNameEs: "Exportar movimientos",
+    descriptionEs: "Permite exportar movimientos del libro de cuentas.",
     groupKey: "ledger",
     order: 30,
   },
-  "ledger.accounts.update": {
-    displayNameEs: "Editar cuentas del libro auxiliar",
-    descriptionEs: "Permite modificar nombre, tipo y descripcion de cuentas.",
+  "ledger.import": {
+    displayNameEs: "Importar movimientos",
+    descriptionEs: "Permite importar movimientos al libro de cuentas.",
+    groupKey: "ledger",
+    order: 31,
+  },
+  "ledger.categories.manage": {
+    displayNameEs: "Administrar categorias",
+    descriptionEs: "Permite gestionar categorias de movimientos.",
     groupKey: "ledger",
     order: 40,
   },
-  "ledger.accounts.delete": {
-    displayNameEs: "Deshabilitar cuentas del libro auxiliar",
-    descriptionEs: "Permite habilitar o deshabilitar cuentas del libro auxiliar.",
+  "ledger.types.manage": {
+    displayNameEs: "Administrar tipos de movimiento",
+    descriptionEs: "Permite gestionar tipos de movimiento.",
     groupKey: "ledger",
-    order: 50,
+    order: 41,
   },
-  "ledger.movements.read": {
-    displayNameEs: "Ver movimientos del libro auxiliar",
-    descriptionEs: "Permite consultar movimientos de cualquier cuenta.",
-    groupKey: "ledger",
-    order: 60,
-  },
-  "ledger.movements.create": {
-    displayNameEs: "Crear movimientos del libro auxiliar",
-    descriptionEs: "Permite registrar abonos y cargos en cuentas del libro auxiliar.",
-    groupKey: "ledger",
-    order: 70,
-  },
-  "ledger.movements.cancel": {
-    displayNameEs: "Cancelar movimientos del libro auxiliar",
-    descriptionEs: "Permite cancelar movimientos registrados con motivo de cancelacion.",
-    groupKey: "ledger",
-    order: 80,
-  },
-  "ledger.reports.read": {
-    displayNameEs: "Ver reportes del libro auxiliar",
-    descriptionEs: "Permite consultar el resumen y filtros de reportes del libro auxiliar.",
-    groupKey: "ledger",
-    order: 90,
-  },
-  "ledger.reports.export": {
-    displayNameEs: "Exportar reportes del libro auxiliar",
-    descriptionEs: "Permite exportar movimientos a Excel y PDF.",
-    groupKey: "ledger",
-    order: 100,
-  },
+
 };
 
 function inferGroupKey(permissionKey) {
@@ -896,3 +774,4 @@ export function groupPermissionsForUi(permissions = []) {
     }))
     .sort((a, b) => a.groupLabel.localeCompare(b.groupLabel));
 }
+

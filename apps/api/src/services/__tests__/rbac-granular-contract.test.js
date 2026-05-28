@@ -39,16 +39,16 @@ const LEGACY_PERMISSION_KEYS = new Set([
 ]);
 
 test("featureCrudKeys returns CRUD keys for module+feature", () => {
-  assert.deepEqual(featureCrudKeys("finance", "ar"), [
-    "finance.ar.read",
-    "finance.ar.create",
-    "finance.ar.update",
-    "finance.ar.delete",
+  assert.deepEqual(featureCrudKeys("ledger", "transactions"), [
+    "ledger.transactions.read",
+    "ledger.transactions.create",
+    "ledger.transactions.update",
+    "ledger.transactions.delete",
   ]);
 });
 
 test("moduleAccessKey returns access key for module", () => {
-  assert.equal(moduleAccessKey("finance"), "finance.access");
+  assert.equal(moduleAccessKey("ledger"), "ledger.access");
 });
 
 test("ensureUniquePermissionKeys throws on duplicates", () => {

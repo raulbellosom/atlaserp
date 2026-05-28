@@ -10,6 +10,7 @@ COPY apps/desktop/package.json apps/desktop/package.json
 COPY apps/worker/package.json apps/worker/package.json
 COPY packages packages
 COPY prisma prisma
+COPY modules modules
 COPY apps apps
 ENV DIRECT_URL=postgresql://postgres:postgres@localhost:5432/postgres
 RUN pnpm install --frozen-lockfile

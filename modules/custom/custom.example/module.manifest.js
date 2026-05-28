@@ -12,9 +12,18 @@ export default defineAtlasModule({
       path: '/example',
       label: 'Ejemplo',
       icon: 'Puzzle',
+      permissionKey: 'example.access',
     },
   ],
-  permissions: [],
+  permissions: [
+    { key: 'example.access', name: 'Acceso a Example' },
+  ],
+  acl: {
+    module: 'example.access',
+    actions: {
+      'example.access': 'example.access',
+    },
+  },
   blueprints: [],
   exposes: [],
   consumes: [],

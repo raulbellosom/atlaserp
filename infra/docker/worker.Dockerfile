@@ -9,6 +9,7 @@ COPY apps/desktop/package.json apps/desktop/package.json
 COPY apps/worker/package.json apps/worker/package.json
 COPY packages packages
 COPY prisma prisma
+COPY modules modules
 RUN pnpm install --frozen-lockfile
 RUN pnpm prisma:generate
 COPY apps apps

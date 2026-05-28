@@ -17,7 +17,7 @@ import {
   normalizeManifestDependencies,
 } from './module-dependency-utils.js'
 
-const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company', 'atlas.contacts', 'atlas.hr'])
+const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company', 'atlas.contacts', 'atlas.hr', 'atlas.fleet', 'atlas.ledger'])
 const FAILED_INSTALL_CLEAR_MODES = new Set(['metadata-only', 'preserve-data', 'purge-empty-tables'])
 const UNINSTALL_MODES = new Set(['preserve-data', 'purge-data', 'purge-owned-tables'])
 const TABLE_NAME_PATTERN = /^[a-z][a-z0-9_]*$/
@@ -605,7 +605,7 @@ export function createModuleLifecycleService({ prisma }) {
       if (declaredChecksum && computedChecksum !== declaredChecksum) {
         const checksumError = new Error(
           `Checksum mismatch for ${declaredPath}: expected ${declaredChecksum}, got ${computedChecksum}. ` +
-          `Fix: pnpm module:checksums:write modules/custom/${moduleKey}`
+          `Fix: pnpm module:checksums:write <module-dir>`
         )
         checksumError.code = 'MANIFEST_MIGRATION_CHECKSUM_MISMATCH'
         checksumError.stage = 'manifest_migration'
@@ -616,7 +616,7 @@ export function createModuleLifecycleService({ prisma }) {
       }
       if (!declaredChecksum) {
         console.warn(
-          `[migration] ${moduleKey}/${declaredPath}: no checksum declared — add one for integrity protection (run: pnpm module:checksums:write modules/custom/${moduleKey})`
+          `[migration] ${moduleKey}/${declaredPath}: no checksum declared. Add one for integrity protection (run: pnpm module:checksums:write <module-dir>)`
         )
       }
 
@@ -972,9 +972,11 @@ export function createModuleLifecycleService({ prisma }) {
       }
 
       const manifestPath = path.join(moduleDir, 'module.manifest.js')
+      const officialDirSegment = `${path.sep}modules${path.sep}official${path.sep}`
+      const source = moduleDir.includes(officialDirSegment) ? 'official' : 'custom'
       const localManifestResult = await loadModuleManifest({
         manifestPath,
-        source: 'custom',
+        source,
       })
       if (localManifestResult?.status === 'VALID' && localManifestResult.manifest) {
         if (localManifestResult.manifest.key !== key) {
@@ -1413,3 +1415,4 @@ export function createModuleLifecycleService({ prisma }) {
     syncModules,
   }
 }
+

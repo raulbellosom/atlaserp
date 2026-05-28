@@ -80,6 +80,8 @@ const CORE_MODULE_KEYS = new Set([
   "atlas.company",
   "atlas.contacts",
   "atlas.hr",
+  "atlas.fleet",
+  "atlas.ledger",
 ]);
 const STORAGE_BUCKET_NAME = "atlas-files";
 const filesService = createFilesService({ prisma, supabaseAdmin });

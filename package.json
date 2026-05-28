@@ -30,8 +30,8 @@
     "modules:seed": "node scripts/seed-core-modules.js",
     "check:uuid-policy": "node scripts/enforce-uuid-policy.mjs",
     "module:checksums": "node scripts/check-module-manifest-migrations.mjs",
-    "module:checksums:fleet": "node scripts/check-module-manifest-migrations.mjs modules/custom/custom.fleet",
-    "module:checksums:write": "node scripts/check-module-manifest-migrations.mjs modules/custom/custom.fleet --write",
+    "module:checksums:fleet": "node scripts/check-module-manifest-migrations.mjs modules/official/atlas.fleet",
+    "module:checksums:write": "node scripts/check-module-manifest-migrations.mjs modules/official/atlas.fleet --write",
     "db:advisor-equivalent": "node scripts/check-supabase-advisor-equivalent.mjs"
   },
   "dependencies": {

@@ -15,23 +15,37 @@ async function loadModuleBundles(blueprints) {
     const hasBundle = bp.module?.has_bundle
     if (key && hasBundle && !seen.has(key)) {
       seen.add(key)
-      modulesWithBundles.push(key)
+      const bundleVersion =
+        bp.module?.bundle_hash ??
+        bp.module?.bundleHash ??
+        bp.module?.updated_at ??
+        bp.module?.updatedAt ??
+        bp.module?.version ??
+        null
+      modulesWithBundles.push({ key, bundleVersion })
     }
   }
 
-  await Promise.all(
-    modulesWithBundles.map(async (key) => {
-      const bundleUrl = `${apiBase}/modules/${key}/bundle.js`
+  const results = await Promise.all(
+    modulesWithBundles.map(async ({ key, bundleVersion }) => {
+      const bundleUrl = new URL(`${apiBase}/modules/${key}/bundle.js`)
+      bundleUrl.searchParams.set('web_origin', window.location.origin)
+      // Bust stale browser module cache entries after runtime rewriting changes.
+      bundleUrl.searchParams.set('v', String(bundleVersion ?? Date.now()))
       try {
-        const mod = await import(/* @vite-ignore */ bundleUrl)
+        const mod = await import(/* @vite-ignore */ bundleUrl.toString())
         if (typeof mod.register === 'function') {
           await mod.register(componentRegistry)
         }
+        return { key, loaded: true }
       } catch (err) {
         console.error(`[ModuleBundleLoader] failed to load bundle for ${key}:`, err.message)
+        return { key, loaded: false }
       }
     })
   )
+
+  return results
 }
 
 export function ModuleBundleLoader({ children }) {
@@ -52,8 +66,21 @@ export function ModuleBundleLoader({ children }) {
       (bp) => bp.module?.has_bundle && bp.module?.key && !loadedRef.current.has(bp.module.key)
     )
     if (!toLoad.length) return
-    toLoad.forEach((bp) => loadedRef.current.add(bp.module.key))
-    loadModuleBundles(toLoad)
+    let cancelled = false
+
+    ;(async () => {
+      const results = await loadModuleBundles(toLoad)
+      if (cancelled) return
+      for (const result of results) {
+        if (result?.loaded) {
+          loadedRef.current.add(result.key)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
   }, [blueprintData])
 
   return children

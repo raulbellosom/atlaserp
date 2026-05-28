@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Package, Plus } from "lucide-react";
@@ -505,6 +505,12 @@ export function BlueprintCrudScreen() {
   const { moduleMap } = useRuntimeModules();
   const module = moduleMap.get(moduleKey) ?? null;
   const moduleName = module?.name ?? module?.manifest?.name ?? moduleKey ?? "";
+  const registryVersion = useSyncExternalStore(
+    componentRegistry.subscribe,
+    componentRegistry.getVersion,
+    componentRegistry.getVersion,
+  );
+  const [isRepairingComponents, setIsRepairingComponents] = useState(false);
 
   useEffect(() => {
     const activeKeys = [];
@@ -531,6 +537,40 @@ export function BlueprintCrudScreen() {
       (row) => row?.source === "atlas-view" && row?.moduleKey === moduleKey,
     );
   }, [blueprintsQuery.data, moduleKey]);
+
+  const retryModuleComponents = useCallback(async () => {
+    if (!moduleKey) return;
+    setIsRepairingComponents(true);
+    try {
+      // Best effort: this can rebuild module metadata/bundle if needed.
+      try {
+        await atlas.modules.sync(token, { autoRepair: true, moduleKey });
+      } catch (syncErr) {
+        console.warn(
+          `[BlueprintCrudScreen] modules.sync failed for ${moduleKey}:`,
+          syncErr?.message ?? syncErr,
+        );
+      }
+
+      const bundleUrl = new URL(`${API_BASE_URL}/modules/${moduleKey}/bundle.js`);
+      bundleUrl.searchParams.set("web_origin", window.location.origin);
+      bundleUrl.searchParams.set("t", String(Date.now()));
+
+      const mod = await import(/* @vite-ignore */ bundleUrl.toString());
+      if (typeof mod.register === "function") {
+        await mod.register(componentRegistry);
+      }
+
+      await blueprintsQuery.refetch();
+      toast.success("Componentes del módulo recargados.");
+    } catch (err) {
+      toast.error(
+        `No se pudieron recargar los componentes: ${err?.message ?? "error desconocido"}`,
+      );
+    } finally {
+      setIsRepairingComponents(false);
+    }
+  }, [blueprintsQuery, moduleKey, token]);
 
   const customBlueprint = useMemo(() => {
     const normalizedPathname = normalizePath(location.pathname)
@@ -614,6 +654,7 @@ export function BlueprintCrudScreen() {
     })
   }, [
     isCustomView,
+    registryVersion,
     selection.detailBlueprint,
     selection.formBlueprint,
     selection.tableBlueprint,
@@ -826,6 +867,11 @@ export function BlueprintCrudScreen() {
                 </code>{' '}
                 no está en el bundle actual. Reinstala o reconstruye la app para incluirlo.
               </p>
+              <div className="pt-2">
+                <Button onClick={retryModuleComponents} disabled={isRepairingComponents}>
+                  {isRepairingComponents ? "Reintentando..." : "Reintentar componentes"}
+                </Button>
+              </div>
             </CardHeader>
           </Card>
         </div>
@@ -980,6 +1026,11 @@ export function BlueprintCrudScreen() {
               <p className="text-sm text-muted-foreground">
                 Se detectaron componentes referenciados por blueprints que no est&aacute;n en el bundle actual. Reinstala o reconstruye la app para incluirlos.
               </p>
+              <div className="pt-2">
+                <Button onClick={retryModuleComponents} disabled={isRepairingComponents}>
+                  {isRepairingComponents ? "Reintentando..." : "Reintentar componentes"}
+                </Button>
+              </div>
               <div className="space-y-1 text-xs text-muted-foreground">
                 {missingComponentRefs.map((entry) => (
                   <p key={entry.componentKey}>

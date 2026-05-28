@@ -50,18 +50,6 @@ async function main() {
     )
   )
 
-  // Protect fleet permissions from the obsolete-cleanup block.
-  // custom.fleet is an AME3 module outside the legacy manifests snapshot,
-  // so its permissions are not included in the scan above.
-  const fleetPermissionKeys = [
-    'fleet.access',
-    'fleet.vehicles.read', 'fleet.vehicles.create', 'fleet.vehicles.update', 'fleet.vehicles.delete',
-    'fleet.maintenance.read', 'fleet.maintenance.create', 'fleet.maintenance.update', 'fleet.maintenance.delete',
-    'fleet.drivers.read', 'fleet.drivers.create', 'fleet.drivers.update', 'fleet.drivers.delete',
-    'fleet.catalogs.read', 'fleet.catalogs.create', 'fleet.catalogs.update', 'fleet.catalogs.delete',
-  ]
-  for (const key of fleetPermissionKeys) manifestPermissionKeys.add(key)
-
   for (const manifest of officialModuleManifests) {
     const module = await upsertModule(manifest)
     for (const blueprint of manifest.blueprints ?? []) {
@@ -103,29 +91,6 @@ async function main() {
         }
       })
     }
-  }
-
-  // Upsert v0.2.0 permissions for custom.fleet (AME3 module outside legacy manifests).
-  const fleetMod = await prisma.atlasModule.findUnique({ where: { key: 'custom.fleet' } })
-  if (fleetMod) {
-    const fleetNewPermissions = [
-      { key: 'fleet.drivers.read', name: 'Ver choferes' },
-      { key: 'fleet.drivers.create', name: 'Crear choferes' },
-      { key: 'fleet.drivers.update', name: 'Editar choferes' },
-      { key: 'fleet.drivers.delete', name: 'Desactivar choferes' },
-      { key: 'fleet.catalogs.read', name: 'Ver catalogos de flota' },
-      { key: 'fleet.catalogs.create', name: 'Crear catalogos de flota' },
-      { key: 'fleet.catalogs.update', name: 'Editar catalogos de flota' },
-      { key: 'fleet.catalogs.delete', name: 'Desactivar catalogos de flota' },
-    ]
-    for (const permission of fleetNewPermissions) {
-      await prisma.permission.upsert({
-        where: { key: permission.key },
-        update: { name: permission.name, moduleId: fleetMod.id, moduleKey: 'custom.fleet', active: true },
-        create: { key: permission.key, name: permission.name, moduleId: fleetMod.id, moduleKey: 'custom.fleet' },
-      })
-    }
-    console.log('Fleet v0.2.0 permissions upserted (8)')
   }
 
   // Set active=false for permissions belonging to uninstalled or disabled modules.

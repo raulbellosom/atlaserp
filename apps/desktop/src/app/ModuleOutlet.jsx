@@ -82,16 +82,14 @@ const SCREEN_MAP = {
   "atlas.identity:/": lazy(
     () => import("../modules/atlas.identity/screens/IdentityOverview.jsx"),
   ),
-  // --- Transitional custom modules ---
-  // custom.fleet and custom.financia were built before the dynamic bundle system
-  // and compile their React components via Vite (import.meta.glob pattern).
-  // They remain here as exceptions until promoted to core modules.
-  // DO NOT add new custom module entries here — use kind:CUSTOM blueprints instead.
-  "custom.financia:/accounts/:id": lazy(
-    () => import("../../../../modules/custom/custom.financia/components/AccountScreen.jsx"),
+  // --- Transitional module screens ---
+  // atlas.ledger keeps a few custom screens while table/form/detail routes
+  // are rendered by BlueprintCrudScreen.
+  "atlas.ledger:/accounts/:id": lazy(
+    () => import("../../../../modules/official/atlas.ledger/components/AccountScreen.jsx"),
   ),
-  "custom.financia:/accounts/:id/import": lazy(
-    () => import("../../../../modules/custom/custom.financia/components/ImportWizard.jsx"),
+  "atlas.ledger:/accounts/:id/import": lazy(
+    () => import("../../../../modules/official/atlas.ledger/components/ImportWizard.jsx"),
   ),
 };
 const SCREEN_MODULE_KEYS = new Set(
@@ -201,16 +199,16 @@ function resolveScreen(moduleKey, subPath) {
   if (moduleKey === "atlas.hr" && subPath.startsWith("/hr/employees/")) {
     return SCREEN_MAP["atlas.hr:/hr/employees/:id"] ?? null;
   }
-  if (moduleKey === "custom.financia") {
+  if (moduleKey === "atlas.ledger") {
     // Subpaths arrive as "/accounts", "/categories", "/types" — the module prefix
-    // (/app/m/custom.financia) is already stripped by normalizeModuleNavigationPath.
+    // (/app/m/atlas.ledger) is already stripped by normalizeModuleNavigationPath.
     // "/accounts" falls through to BlueprintCrudScreen (standard table with filters).
     if (subPath.endsWith("/import")) {
-      return SCREEN_MAP["custom.financia:/accounts/:id/import"] ?? null;
+      return SCREEN_MAP["atlas.ledger:/accounts/:id/import"] ?? null;
     }
     // /accounts/:id — but let /accounts/new fall through to BlueprintCrudScreen (create form)
     if (subPath.startsWith("/accounts/") && !subPath.endsWith("/new")) {
-      return SCREEN_MAP["custom.financia:/accounts/:id"] ?? null;
+      return SCREEN_MAP["atlas.ledger:/accounts/:id"] ?? null;
     }
     // /accounts/new, /categories/*, /types/* → BlueprintCrudScreen (table + form + detail)
     return BlueprintCrudScreen;
@@ -371,3 +369,4 @@ export function ModuleOutlet() {
     </Suspense>
   );
 }
+

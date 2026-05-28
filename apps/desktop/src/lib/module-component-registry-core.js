@@ -7,7 +7,20 @@ function normalizeKey(value) {
 export function createModuleComponentRegistry(options = {}) {
   const store = new Map();
   const activeModuleKeys = new Set();
+  const listeners = new Set();
+  let version = 0;
   const warn = typeof options.warn === "function" ? options.warn : () => {};
+
+  function notify() {
+    version += 1;
+    for (const listener of listeners) {
+      try {
+        listener();
+      } catch {
+        // ignore listener errors
+      }
+    }
+  }
 
   return {
     register(key, component) {
@@ -28,6 +41,7 @@ export function createModuleComponentRegistry(options = {}) {
         );
       }
       store.set(normalizedKey, component);
+      notify();
     },
 
     resolve(key) {
@@ -59,6 +73,21 @@ export function createModuleComponentRegistry(options = {}) {
         if (!normalizedKey) continue;
         activeModuleKeys.add(normalizedKey);
       }
+      notify();
+    },
+
+    subscribe(listener) {
+      if (typeof listener !== "function") {
+        return () => {};
+      }
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+
+    getVersion() {
+      return version;
     },
   };
 }

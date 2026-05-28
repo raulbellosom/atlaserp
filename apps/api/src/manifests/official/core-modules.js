@@ -1,5 +1,7 @@
 import { createModuleManifest, MODULE_KINDS } from "@atlas/core";
 import { contactsMap, hrMap } from "./feature-modules.js";
+import atlasFleetManifest from "../../../../../modules/official/atlas.fleet/module.manifest.js";
+import atlasLedgerManifest from "../../../../../modules/official/atlas.ledger/module.manifest.js";
 
 export const atlasCoreMap = createModuleManifest({
   key: "atlas.core",
@@ -328,4 +330,13 @@ export const companyMap = createModuleManifest({
   },
 });
 
-export const coreModules = [atlasCoreMap, identityMap, filesMap, companyMap, contactsMap, hrMap];
+export const coreModules = [
+  atlasCoreMap,
+  identityMap,
+  filesMap,
+  companyMap,
+  contactsMap,
+  hrMap,
+  atlasFleetManifest,
+  atlasLedgerManifest,
+];

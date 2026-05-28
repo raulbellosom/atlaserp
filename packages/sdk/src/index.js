@@ -348,213 +348,6 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
         }),
     },
-    finance: {
-      listAccounts: (token, options = {}) => {
-        const params = new URLSearchParams();
-        if (options.q) params.set("q", options.q);
-        if (options.limit) params.set("limit", String(options.limit));
-        const query = params.toString();
-        const path = query ? `/finance/accounts?${query}` : "/finance/accounts";
-        return request(path, { headers: withAuthHeaders(token) });
-      },
-      createAccount: (data, token) =>
-        request("/finance/accounts", {
-          method: "POST",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(data),
-        }),
-      updateAccount: (id, data, token) =>
-        request(`/finance/accounts/${encodeURIComponent(id)}`, {
-          method: "PUT",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(data),
-        }),
-      setAccountEnabled: (id, enabled, token) =>
-        request(`/finance/accounts/${encodeURIComponent(id)}/enabled`, {
-          method: "PATCH",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify({ enabled }),
-        }),
-      listEntries: (token, options = {}) => {
-        const params = new URLSearchParams();
-        if (options.limit) params.set("limit", String(options.limit));
-        const query = params.toString();
-        const path = query ? `/finance/entries?${query}` : "/finance/entries";
-        return request(path, { headers: withAuthHeaders(token) });
-      },
-      getEntry: (id, token) =>
-        request(`/finance/entries/${encodeURIComponent(id)}`, {
-          headers: withAuthHeaders(token),
-        }),
-      createEntry: (data, token) =>
-        request("/finance/entries", {
-          method: "POST",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(data),
-        }),
-      setEntryEnabled: (id, enabled, token) =>
-        request(`/finance/entries/${encodeURIComponent(id)}/enabled`, {
-          method: "PATCH",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify({ enabled }),
-        }),
-      getBalances: (token) =>
-        request("/finance/balances", {
-          headers: withAuthHeaders(token),
-        }),
-      listFxRates: (token, options = {}) => {
-        const params = new URLSearchParams();
-        if (options.baseCurrency) params.set("baseCurrency", options.baseCurrency);
-        if (options.quoteCurrency) params.set("quoteCurrency", options.quoteCurrency);
-        if (options.limit) params.set("limit", String(options.limit));
-        const query = params.toString();
-        const path = query ? `/finance/fx-rates?${query}` : "/finance/fx-rates";
-        return request(path, { headers: withAuthHeaders(token) });
-      },
-      listTaxRates: (token, options = {}) => {
-        const params = new URLSearchParams();
-        if (options.kind) params.set("kind", options.kind);
-        if (options.direction) params.set("direction", options.direction);
-        if (options.enabled !== undefined) {
-          params.set("enabled", String(options.enabled));
-        }
-        if (options.q) params.set("q", options.q);
-        if (options.limit) params.set("limit", String(options.limit));
-        const query = params.toString();
-        const path = query ? `/finance/tax-rates?${query}` : "/finance/tax-rates";
-        return request(path, { headers: withAuthHeaders(token) });
-      },
-      createTaxRate: (data, token) =>
-        request("/finance/tax-rates", {
-          method: "POST",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(data),
-        }),
-      setTaxRateEnabled: (id, enabled, token) =>
-        request(`/finance/tax-rates/${encodeURIComponent(id)}/enabled`, {
-          method: "PATCH",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify({ enabled }),
-        }),
-      createFxRate: (data, token) =>
-        request("/finance/fx-rates", {
-          method: "POST",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(data),
-        }),
-      setFxRateEnabled: (id, enabled, token) =>
-        request(`/finance/fx-rates/${encodeURIComponent(id)}/enabled`, {
-          method: "PATCH",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify({ enabled }),
-        }),
-      getDashboard: (token, options = {}) => {
-        const params = new URLSearchParams();
-        if (options.from) params.set("from", options.from);
-        if (options.to) params.set("to", options.to);
-        const query = params.toString();
-        const path = query ? `/finance/dashboard?${query}` : "/finance/dashboard";
-        return request(path, { headers: withAuthHeaders(token) });
-      },
-      listDocuments: (token, options = {}) => {
-        const params = new URLSearchParams();
-        if (options.direction) params.set("direction", options.direction);
-        if (options.docType) params.set("docType", options.docType);
-        if (options.status) params.set("status", options.status);
-        if (options.contactId) params.set("contactId", options.contactId);
-        if (options.q) params.set("q", options.q);
-        if (options.limit) params.set("limit", String(options.limit));
-        const query = params.toString();
-        const path = query ? `/finance/documents?${query}` : "/finance/documents";
-        return request(path, { headers: withAuthHeaders(token) });
-      },
-      createDocument: (data, token) =>
-        request("/finance/documents", {
-          method: "POST",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(data),
-        }),
-      getDocument: (id, token) =>
-        request(`/finance/documents/${encodeURIComponent(id)}`, {
-          headers: withAuthHeaders(token),
-        }),
-      updateDocument: (id, data, token) =>
-        request(`/finance/documents/${encodeURIComponent(id)}`, {
-          method: "PUT",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(data),
-        }),
-      setDocumentEnabled: (id, enabled, token) =>
-        request(`/finance/documents/${encodeURIComponent(id)}/enabled`, {
-          method: "PATCH",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify({ enabled }),
-        }),
-      sendDocumentReminder: (id, payload, token) =>
-        request(`/finance/documents/${encodeURIComponent(id)}/reminder`, {
-          method: "POST",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(payload ?? {}),
-        }),
-      sendBulkDocumentReminders: (payload, token) =>
-        request("/finance/documents/reminders/bulk", {
-          method: "POST",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(payload ?? {}),
-        }),
-      previewApplication: (id, payload, token) =>
-        request(`/finance/documents/${encodeURIComponent(id)}/apply-preview`, {
-          method: "POST",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(payload),
-        }),
-      applyDocument: (id, payload, token) =>
-        request(`/finance/documents/${encodeURIComponent(id)}/apply`, {
-          method: "POST",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(payload),
-        }),
-      getAging: (token, options = {}) => {
-        const params = new URLSearchParams();
-        if (options.direction) params.set("direction", options.direction);
-        if (options.contactId) params.set("contactId", options.contactId);
-        if (options.asOf) params.set("asOf", options.asOf);
-        if (options.currency) params.set("currency", options.currency);
-        const query = params.toString();
-        const path = query ? `/finance/aging?${query}` : "/finance/aging";
-        return request(path, { headers: withAuthHeaders(token) });
-      },
-      listApplications: (token, options = {}) => {
-        const params = new URLSearchParams();
-        if (options.direction) params.set("direction", options.direction);
-        if (options.status) params.set("status", options.status);
-        if (options.sourceDocumentId) {
-          params.set("sourceDocumentId", options.sourceDocumentId);
-        }
-        if (options.targetDocumentId) {
-          params.set("targetDocumentId", options.targetDocumentId);
-        }
-        if (options.contactId) params.set("contactId", options.contactId);
-        if (options.from) params.set("from", options.from);
-        if (options.to) params.set("to", options.to);
-        if (options.limit) params.set("limit", String(options.limit));
-        const query = params.toString();
-        const path = query
-          ? `/finance/applications?${query}`
-          : "/finance/applications";
-        return request(path, { headers: withAuthHeaders(token) });
-      },
-      reverseApplication: (id, payload, token) =>
-        request(`/finance/applications/${encodeURIComponent(id)}/reverse`, {
-          method: "POST",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(payload ?? {}),
-        }),
-      getDocumentJournalLinks: (id, token) =>
-        request(`/finance/documents/${encodeURIComponent(id)}/journal-links`, {
-          headers: withAuthHeaders(token),
-        }),
-    },
     hr: {
       listDepartments: (token, options = {}) => {
         const params = new URLSearchParams();
@@ -795,7 +588,9 @@ export function createAtlasClient({ baseUrl }) {
     },
     ledger: {
       listAccounts: (token, options = {}) =>
-        request(`/ledger/accounts${toQueryString(options)}`, { headers: withAuthHeaders(token) }),
+        request(`/ledger/accounts${toQueryString(options)}`, {
+          headers: withAuthHeaders(token),
+        }),
       createAccount: (data, token) =>
         request("/ledger/accounts", {
           method: "POST",
@@ -803,10 +598,12 @@ export function createAtlasClient({ baseUrl }) {
           body: JSON.stringify(data),
         }),
       getAccount: (id, token) =>
-        request(`/ledger/accounts/${encodeURIComponent(id)}`, { headers: withAuthHeaders(token) }),
+        request(`/ledger/accounts/${encodeURIComponent(id)}`, {
+          headers: withAuthHeaders(token),
+        }),
       updateAccount: (id, data, token) =>
         request(`/ledger/accounts/${encodeURIComponent(id)}`, {
-          method: "PUT",
+          method: "PATCH",
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
@@ -816,34 +613,109 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
           body: JSON.stringify({ enabled }),
         }),
-      listAccountMovements: (id, token, query = {}) =>
-        request(`/ledger/accounts/${encodeURIComponent(id)}/movements${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
-      createMovement: (id, data, token) =>
-        request(`/ledger/accounts/${encodeURIComponent(id)}/movements`, {
+      listAccountTransactions: (id, token, query = {}) =>
+        request(`/ledger/accounts/${encodeURIComponent(id)}/transactions${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      createTransaction: (id, data, token) =>
+        request(`/ledger/accounts/${encodeURIComponent(id)}/transactions`, {
           method: "POST",
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
-      cancelMovement: (id, data, token) =>
-        request(`/ledger/movements/${encodeURIComponent(id)}/cancel`, {
-          method: "POST",
+      updateTransaction: (accountId, txId, data, token) =>
+        request(
+          `/ledger/accounts/${encodeURIComponent(accountId)}/transactions/${encodeURIComponent(txId)}`,
+          {
+            method: "PATCH",
+            headers: withAuthHeaders(token),
+            body: JSON.stringify(data),
+          },
+        ),
+      setTransactionEnabled: (accountId, txId, enabled, token) =>
+        request(
+          `/ledger/accounts/${encodeURIComponent(accountId)}/transactions/${encodeURIComponent(txId)}/enabled`,
+          {
+            method: "PATCH",
+            headers: withAuthHeaders(token),
+            body: JSON.stringify({ enabled }),
+          },
+        ),
+      getAccountSummary: (id, token, query = {}) =>
+        request(`/ledger/accounts/${encodeURIComponent(id)}/summary${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      listCategories: (token, query = {}) =>
+        request(`/ledger/categories${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      createCategory: (data, token) =>
+        request('/ledger/categories', {
+          method: 'POST',
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
-      listAllMovements: (token, query = {}) =>
-        request(`/ledger/movements${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
-      getSummary: (token) =>
-        request("/ledger/summary", { headers: withAuthHeaders(token) }),
-      getReportSummary: (token, query = {}) =>
-        request(`/ledger/reports/summary${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
-      exportAccountExcel: (id, token, query = {}) =>
-        requestBlob(`/ledger/accounts/${encodeURIComponent(id)}/export/excel${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+      updateCategory: (id, data, token) =>
+        request(`/ledger/categories/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      setCategoryEnabled: (id, enabled, token) =>
+        request(`/ledger/categories/${encodeURIComponent(id)}/enabled`, {
+          method: 'PATCH',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ enabled }),
+        }),
+      listTypes: (token, query = {}) =>
+        request(`/ledger/types${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      createType: (data, token) =>
+        request('/ledger/types', {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateType: (id, data, token) =>
+        request(`/ledger/types/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      setTypeEnabled: (id, enabled, token) =>
+        request(`/ledger/types/${encodeURIComponent(id)}/enabled`, {
+          method: 'PATCH',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ enabled }),
+        }),
+      previewImport: (accountId, payload, token) =>
+        request(`/ledger/accounts/${encodeURIComponent(accountId)}/import/preview`, {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(payload ?? {}),
+        }),
+      commitImport: (accountId, payload, token) =>
+        request(`/ledger/accounts/${encodeURIComponent(accountId)}/import/commit`, {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(payload ?? {}),
+        }),
+      exportAccountXlsx: (id, token, query = {}) =>
+        requestBlob(`/ledger/accounts/${encodeURIComponent(id)}/export/xlsx${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      exportAccountCsv: (id, token, query = {}) =>
+        requestBlob(`/ledger/accounts/${encodeURIComponent(id)}/export/csv${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
       exportAccountPdf: (id, token, query = {}) =>
-        requestBlob(`/ledger/accounts/${encodeURIComponent(id)}/export/pdf${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
-      exportMovementsExcel: (token, query = {}) =>
-        requestBlob(`/ledger/movements/export/excel${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
-      exportMovementsPdf: (token, query = {}) =>
-        requestBlob(`/ledger/movements/export/pdf${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+        requestBlob(`/ledger/accounts/${encodeURIComponent(id)}/export/pdf${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
     },
   };
 }
+
+
+

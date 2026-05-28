@@ -8,6 +8,7 @@ COPY apps/desktop/package.json apps/desktop/package.json
 COPY apps/worker/package.json apps/worker/package.json
 COPY packages packages
 COPY apps/desktop apps/desktop
+COPY modules modules
 RUN pnpm install --frozen-lockfile
 
 # Vite bakes these at build-time — must be passed as build args, not runtime env
