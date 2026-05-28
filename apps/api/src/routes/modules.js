@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -25,6 +26,8 @@ import {
 import { del as cacheDel } from '../lib/cache.js'
 
 const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company', 'atlas.contacts', 'atlas.hr'])
+const __routesDir = path.dirname(fileURLToPath(import.meta.url))
+const BUNDLES_DIR_SERVE = path.resolve(__routesDir, '..', '..', 'bundles')
 const SEMVER_PATCH_RE = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/
 
 function isPlainObject(value) {
@@ -461,7 +464,7 @@ async function syncDiscoveredModuleDependencies({ prisma, moduleKey, dependencie
   }
 }
 
-export function createModulesRouter({ prisma, authMiddleware, requirePermission, routeLoader = null }) {
+export function createModulesRouter({ prisma, authMiddleware, requirePermission, routeLoader = null, bundlerSvc = null }) {
   const app = new Hono()
   const svc = createModuleLifecycleService({ prisma })
 
@@ -479,6 +482,27 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
     if (!routeLoader) return null
     return routeLoader.unloadModule(moduleKey)
   }
+
+  async function safeBuildBundle(key, opts = {}) {
+    if (!bundlerSvc) return null
+    try {
+      return await bundlerSvc.buildModuleBundle(key, opts)
+    } catch (err) {
+      console.warn(`[modules] bundle build failed for ${key}:`, err.message)
+      return null
+    }
+  }
+
+  async function safeDeleteBundle(key) {
+    if (!bundlerSvc) return null
+    try {
+      return await bundlerSvc.deleteModuleBundle(key)
+    } catch (err) {
+      console.warn(`[modules] bundle delete failed for ${key}:`, err.message)
+      return null
+    }
+  }
+
   const metadataSvc = createModuleMetadataService({ prisma })
   const migrationSvc = createModuleMigrationService({ prisma })
 
@@ -611,6 +635,7 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
       const actorId = c.get('userContext')?.profile?.id ?? null
       const result = await svc.installModule({ manifest: parsed.manifest, actorId, requestId })
       const rlStatus = await safeRouteReload(moduleKey)
+      await safeBuildBundle(moduleKey)
       cacheDel("blueprints:raw")
       cacheDel("runtime:modules:raw")
       return c.json({ data: result, routeLoader: rlStatus }, 201)
@@ -1194,6 +1219,15 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
         })
       }
 
+      if (bundlerSvc) {
+        const keysToBundle = validModules
+          .map((record) => record?.manifest?.key)
+          .filter((value) => typeof value === 'string' && value.trim())
+        for (const key of keysToBundle) {
+          await safeBuildBundle(key)
+        }
+      }
+
       if (process.env.NODE_ENV !== 'production') {
         payload.debug = {
           cwd: discoveryRootInfo.cwd,
@@ -1451,6 +1485,7 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
       const companyId = context?.memberships?.[0]?.companyId ?? null
       const result = await svc.uninstallModule({ key, mode: 'preserve-data', companyId, actorId })
       const rlUnloaded = safeRouteUnload(key)
+      await safeDeleteBundle(key)
       cacheDel("blueprints:raw")
       cacheDel("runtime:modules:raw")
       return c.json({ data: result, routeLoader: { unloaded: rlUnloaded ?? false } })
@@ -1500,6 +1535,7 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
         confirmation: parsed.data.confirmation ?? null,
       })
       const rlUnloaded = safeRouteUnload(key)
+      await safeDeleteBundle(key)
       cacheDel("blueprints:raw")
       cacheDel("runtime:modules:raw")
       return c.json({ data: result, routeLoader: { unloaded: rlUnloaded ?? false } })
@@ -1536,12 +1572,41 @@ export function createModulesRouter({ prisma, authMiddleware, requirePermission,
       const context = c.get('userContext')
       const companyId = context?.memberships?.[0]?.companyId ?? null
       const result = await svc.resetModule({ key, companyId, actorId })
+      await safeBuildBundle(key, { force: true })
       cacheDel("blueprints:raw")
       cacheDel("runtime:modules:raw")
       return c.json({ data: result })
     } catch (err) {
       return handleLifecycleError(c, err, 'No se pudo reiniciar el modulo.')
     }
+  })
+
+  // ── GET /modules/:key/bundle.js ───────────────────────────────────────────
+  app.get('/:key/bundle.js', async (c) => {
+    const key = c.req.param('key')
+
+    const moduleRow = await prisma.atlasModule.findUnique({
+      where: { key },
+      select: { status: true, enabled: true, hasBundle: true, bundleHash: true },
+    })
+
+    if (!moduleRow || moduleRow.status !== 'INSTALLED' || !moduleRow.enabled || !moduleRow.hasBundle) {
+      return c.json({ error: 'Bundle no disponible.' }, 404)
+    }
+
+    const bundlePath = path.join(BUNDLES_DIR_SERVE, `${key}.js`)
+
+    let content
+    try {
+      content = await fs.readFile(bundlePath)
+    } catch {
+      return c.json({ error: 'Bundle no encontrado. Ejecuta sync para reconstruirlo.' }, 404)
+    }
+
+    c.header('Content-Type', 'application/javascript')
+    c.header('ETag', `"${moduleRow.bundleHash ?? key}"`)
+    c.header('Cache-Control', 'public, max-age=3600')
+    return c.body(content)
   })
 
   return app
