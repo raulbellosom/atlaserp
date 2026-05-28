@@ -3535,14 +3535,16 @@ const modulesRouter = createModulesRouter({
 });
 app.route("/modules", modulesRouter);
 
-const websiteRouter = createWebsiteRouter({ prisma, requirePermission })
-app.route('/', websiteRouter)
+function mountWithAuth(baseApp, router) {
+  const secured = new Hono()
+  secured.use('*', authMiddleware)
+  secured.route('/', router)
+  baseApp.route('/', secured)
+}
 
-const ledgerRouter = createLedgerRouter({ prisma, requirePermission })
-app.route('/', ledgerRouter)
-
-const fleetRouter = createFleetRouter({ prisma, requirePermission })
-app.route('/', fleetRouter)
+mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission }))
+mountWithAuth(app, createLedgerRouter({ prisma, requirePermission }))
+mountWithAuth(app, createFleetRouter({ prisma, requirePermission }))
 
 const server = serve({ fetch: app.fetch, port });
 console.log(`Atlas API running on http://localhost:${port}`);

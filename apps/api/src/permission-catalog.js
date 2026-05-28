@@ -8,6 +8,7 @@ const GROUPS = {
   fleet: "Flota",
   hr: "Recursos Humanos",
   ledger: "Libro de cuentas",
+  website: "Sitio web",
   audit: "Bitacora",
 };
 
@@ -21,6 +22,7 @@ const MODULE_LABELS = {
   fleet: "Flota",
   hr: "Recursos Humanos",
   ledger: "Libro de cuentas",
+  website: "Sitio web",
   audit: "Bitacora",
 };
 
@@ -687,6 +689,80 @@ export const PERMISSION_CATALOG = {
     descriptionEs: "Permite gestionar tipos de movimiento.",
     groupKey: "ledger",
     order: 41,
+  },
+
+  // atlas.website
+  "website.access": {
+    displayNameEs: "Acceso al Sitio web",
+    descriptionEs: "Permite acceder al modulo de sitio web.",
+    groupKey: "website",
+    order: 1,
+  },
+  "website.site.read": {
+    displayNameEs: "Ver configuracion del sitio",
+    descriptionEs: "Permite ver la configuracion del sitio web.",
+    groupKey: "website",
+    order: 2,
+  },
+  "website.site.update": {
+    displayNameEs: "Editar configuracion del sitio",
+    descriptionEs: "Permite editar la configuracion del sitio web.",
+    groupKey: "website",
+    order: 3,
+  },
+  "website.pages.read": {
+    displayNameEs: "Ver paginas",
+    descriptionEs: "Permite ver las paginas del sitio web.",
+    groupKey: "website",
+    order: 4,
+  },
+  "website.pages.create": {
+    displayNameEs: "Crear paginas",
+    descriptionEs: "Permite crear nuevas paginas en el sitio web.",
+    groupKey: "website",
+    order: 5,
+  },
+  "website.pages.update": {
+    displayNameEs: "Editar paginas",
+    descriptionEs: "Permite editar el contenido de las paginas.",
+    groupKey: "website",
+    order: 6,
+  },
+  "website.pages.publish": {
+    displayNameEs: "Publicar paginas",
+    descriptionEs: "Permite publicar paginas para que sean visibles publicamente.",
+    groupKey: "website",
+    order: 7,
+  },
+  "website.pages.delete": {
+    displayNameEs: "Eliminar paginas",
+    descriptionEs: "Permite eliminar paginas del sitio web.",
+    groupKey: "website",
+    order: 8,
+  },
+  "website.theme.read": {
+    displayNameEs: "Ver temas",
+    descriptionEs: "Permite ver los temas del sitio web.",
+    groupKey: "website",
+    order: 9,
+  },
+  "website.theme.update": {
+    displayNameEs: "Editar temas",
+    descriptionEs: "Permite editar el tema del sitio web.",
+    groupKey: "website",
+    order: 10,
+  },
+  "website.menus.read": {
+    displayNameEs: "Ver menus",
+    descriptionEs: "Permite ver los menus de navegacion.",
+    groupKey: "website",
+    order: 11,
+  },
+  "website.menus.update": {
+    displayNameEs: "Editar menus",
+    descriptionEs: "Permite editar los menus de navegacion.",
+    groupKey: "website",
+    order: 12,
   },
 
 };
