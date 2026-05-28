@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { createDriverSchema, updateDriverSchema, createDocumentAssociationSchema } from '../validators/index.js'
+import { createDriverSchema, updateDriverSchema, createDocumentAssociationSchema } from './validators.js'
 import { createDriverService } from './driver-service.js'
 import { FleetServiceError } from './fleet-service.js'
 

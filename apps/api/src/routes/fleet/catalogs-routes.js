@@ -7,7 +7,7 @@ import {
   updateVehicleBrandSchema,
   createVehicleModelSchema,
   updateVehicleModelSchema,
-} from '../validators/index.js'
+} from './validators.js'
 import { createCatalogService } from './catalog-service.js'
 import { FleetServiceError } from './fleet-service.js'
 

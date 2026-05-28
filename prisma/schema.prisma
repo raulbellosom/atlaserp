@@ -717,3 +717,241 @@ model LedgerTransactionType {
   @@map("ledger_transaction_type")
 }
 
+// ─── atlas.fleet ──────────────────────────────────────────────────────────────
+
+model FleetVehicleType {
+  id                   String   @id @default(uuid(7)) @db.Uuid
+  companyId            String   @db.Uuid @map("company_id")
+  name                 String
+  description          String?
+  economicGroupNumber  String?  @map("economic_group_number")
+  enabled              Boolean  @default(true)
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId, enabled])
+  @@map("fleet_vehicle_type")
+}
+
+model FleetVehicleBrand {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String   @db.Uuid @map("company_id")
+  name      String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId, enabled])
+  @@map("fleet_vehicle_brand")
+}
+
+model FleetVehicleModel {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String   @db.Uuid @map("company_id")
+  brandId   String   @db.Uuid @map("brand_id")
+  typeId    String?  @db.Uuid @map("type_id")
+  name      String
+  year      Int?
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, brandId, typeId, name, year])
+  @@index([companyId, brandId])
+  @@index([companyId, typeId])
+  @@index([companyId, enabled])
+  @@map("fleet_vehicle_model")
+}
+
+model FleetVehicle {
+  id                       String    @id @default(uuid(7)) @db.Uuid
+  companyId                String    @db.Uuid @map("company_id")
+  plate                    String
+  brand                    String?
+  modelName                String?   @map("model_name")
+  year                     Int?
+  vehicleTypeId            String?   @db.Uuid @map("vehicle_type_id")
+  vehicleBrandId           String?   @db.Uuid @map("vehicle_brand_id")
+  vehicleModelId           String?   @db.Uuid @map("vehicle_model_id")
+  economicGroupNumber      String?   @map("economic_group_number")
+  economicIndividualNumber String?   @map("economic_individual_number")
+  color                    String?
+  status                   String    @default("active")
+  driverId                 String?   @db.Uuid @map("driver_id")
+  photoAssetId             String?   @db.Uuid @map("photo_asset_id")
+  notes                    String?
+  isFinanced               Boolean   @default(false) @map("is_financed")
+  financingInstitution     String?   @map("financing_institution")
+  financingContractNumber  String?   @map("financing_contract_number")
+  financingStartDate       DateTime? @map("financing_start_date") @db.Date
+  financingEndDate         DateTime? @map("financing_end_date") @db.Date
+  financingMonthlyPayment  Decimal?  @db.Decimal(10, 2) @map("financing_monthly_payment")
+  financingNotes           String?   @map("financing_notes")
+  enabled                  Boolean   @default(true)
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+
+  @@unique([companyId, plate])
+  @@index([companyId, status])
+  @@index([companyId, vehicleModelId])
+  @@index([companyId, vehicleTypeId])
+  @@index([companyId, vehicleBrandId])
+  @@map("fleet_vehicle")
+}
+
+model FleetVehicleDocument {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  companyId    String   @db.Uuid @map("company_id")
+  vehicleId    String   @db.Uuid @map("vehicle_id")
+  fileAssetId  String?  @db.Uuid @map("file_asset_id")
+  documentType String?  @map("document_type")
+  label        String?
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId, vehicleId])
+  @@index([companyId, fileAssetId])
+  @@map("fleet_vehicle_document")
+}
+
+model FleetDriver {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  companyId        String    @db.Uuid @map("company_id")
+  firstName        String    @map("first_name")
+  lastName         String    @map("last_name")
+  phone            String
+  email            String?
+  photoAssetId     String?   @db.Uuid @map("photo_asset_id")
+  hrEmployeeId     String?   @db.Uuid @map("hr_employee_id")
+  licenseNumber    String    @map("license_number")
+  licenseType      String?   @map("license_type")
+  licenseExpiryDate DateTime? @map("license_expiry_date") @db.Date
+  status           String    @default("active")
+  notes            String?
+  enabled          Boolean   @default(true)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@unique([companyId, licenseNumber])
+  @@index([companyId, enabled])
+  @@map("fleet_driver")
+}
+
+model FleetDriverDocument {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  companyId    String   @db.Uuid @map("company_id")
+  driverId     String   @db.Uuid @map("driver_id")
+  fileAssetId  String?  @db.Uuid @map("file_asset_id")
+  documentType String?  @map("document_type")
+  label        String?
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId, driverId])
+  @@index([companyId, fileAssetId])
+  @@map("fleet_driver_document")
+}
+
+model FleetReport {
+  id                     String    @id @default(uuid(7)) @db.Uuid
+  companyId              String    @db.Uuid @map("company_id")
+  vehicleId              String?   @db.Uuid @map("vehicle_id")
+  reportType             String    @map("report_type")
+  folio                  String?
+  status                 String    @default("draft")
+  title                  String?
+  reportDate             DateTime  @map("report_date") @db.Date
+  odometerKm             Int?      @map("odometer_km")
+  isInhouseWorkshop      Boolean   @default(true) @map("is_inhouse_workshop")
+  workshopName           String?   @map("workshop_name")
+  workshopPhone          String?   @map("workshop_phone")
+  workshopAddress        String?   @map("workshop_address")
+  invoiceNumber          String?   @map("invoice_number")
+  laborCost              Decimal?  @db.Decimal(10, 2) @map("labor_cost")
+  partsCost              Decimal?  @db.Decimal(10, 2) @map("parts_cost")
+  totalCost              Decimal?  @db.Decimal(10, 2) @map("total_cost")
+  notes                  String?
+  finalizedAt            DateTime? @map("finalized_at")
+  finalizedByProfileId   String?   @db.Uuid @map("finalized_by_profile_id")
+  maintenanceSubtype     String?   @map("maintenance_subtype")
+  nextServiceDate        DateTime? @map("next_service_date") @db.Date
+  nextServiceOdometer    Int?      @map("next_service_odometer")
+  serviceSubtype         String?   @map("service_subtype")
+  repairPriority         String?   @map("repair_priority")
+  repairDamageType       String?   @map("repair_damage_type")
+  repairStartDate        DateTime? @map("repair_start_date") @db.Date
+  repairCompletionDate   DateTime? @map("repair_completion_date") @db.Date
+  repairEstimatedCost    Decimal?  @db.Decimal(10, 2) @map("repair_estimated_cost")
+  warrantyDays           Int?      @map("warranty_days")
+  warrantyNotes          String?   @map("warranty_notes")
+  otherCategoryLabel     String?   @map("other_category_label")
+  enabled                Boolean   @default(true)
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  @@unique([companyId, folio])
+  @@index([companyId, vehicleId])
+  @@index([companyId, reportType])
+  @@index([companyId, status])
+  @@index([companyId, reportDate])
+  @@map("fleet_report")
+}
+
+model FleetReportPart {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String   @db.Uuid @map("company_id")
+  reportId  String   @db.Uuid @map("report_id")
+  name      String
+  quantity  Int      @default(1)
+  unitCost  Decimal? @db.Decimal(10, 2) @map("unit_cost")
+  subtotal  Decimal? @db.Decimal(10, 2)
+  notes     String?
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId, reportId])
+  @@map("fleet_report_part")
+}
+
+model FleetReportDocument {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  companyId    String   @db.Uuid @map("company_id")
+  reportId     String   @db.Uuid @map("report_id")
+  fileAssetId  String?  @db.Uuid @map("file_asset_id")
+  documentType String?  @map("document_type")
+  label        String?
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId, reportId])
+  @@index([companyId, fileAssetId])
+  @@map("fleet_report_document")
+}
+
+model FleetInsurancePolicy {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  companyId        String    @db.Uuid @map("company_id")
+  vehicleId        String?   @db.Uuid @map("vehicle_id")
+  insurerName      String    @map("insurer_name")
+  policyNumber     String    @map("policy_number")
+  coverageType     String?   @map("coverage_type")
+  startDate        DateTime? @map("start_date") @db.Date
+  expiryDate       DateTime? @map("expiry_date") @db.Date
+  premium          Decimal?  @db.Decimal(10, 2)
+  currency         String?   @default("MXN")
+  notes            String?
+  documentAssetId  String?   @db.Uuid @map("document_asset_id")
+  enabled          Boolean   @default(true)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@unique([companyId, policyNumber])
+  @@index([companyId, vehicleId])
+  @@index([companyId, expiryDate])
+  @@map("fleet_insurance_policy")
+}
+

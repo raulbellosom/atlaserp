@@ -1,5 +1,0 @@
--- V011: is_inhouse_workshop default is managed at the application layer.
--- The model definition (report.model.js) already sets default: true on this field.
--- Atlas ORM applies the DEFAULT constraint during initial table provisioning.
--- Altering an existing column default is not allowed by assertSafeMigrationSql.
--- No DDL change required; this migration is intentionally a no-op.

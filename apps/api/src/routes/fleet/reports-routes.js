@@ -4,7 +4,7 @@ import {
   createReportSchema,
   updateReportSchema,
   createDocumentAssociationSchema,
-} from "../validators/index.js";
+} from "./validators.js";
 import { FleetServiceError } from "./fleet-service.js";
 import { createReportsService } from "./reports-service.js";
 

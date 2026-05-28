@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { createInsurancePolicySchema, updateInsurancePolicySchema } from '../validators/index.js'
+import { createInsurancePolicySchema, updateInsurancePolicySchema } from './validators.js'
 import { createInsuranceService } from './insurance-service.js'
 import { FleetServiceError } from './fleet-service.js'
 
