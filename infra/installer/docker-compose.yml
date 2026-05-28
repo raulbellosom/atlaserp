@@ -31,6 +31,10 @@ services:
     image: ${ATLAS_WEB_EXTERNAL_IMAGE:-raulbellosom/atlaserp:web-external-latest}
     container_name: atlas-web-external
     profiles: ["external"]
+    environment:
+      ATLAS_API_URL: ${ATLAS_API_URL:-}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
     ports:
       - "5173:80"
     restart: unless-stopped
@@ -69,6 +73,10 @@ services:
     image: ${ATLAS_WEB_LOCAL_IMAGE:-raulbellosom/atlaserp:web-local-latest}
     container_name: atlas-web-local
     profiles: ["local"]
+    environment:
+      ATLAS_API_URL: http://localhost:4010
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
     ports:
       - "5173:80"
     restart: unless-stopped

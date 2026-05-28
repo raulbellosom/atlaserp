@@ -25,3 +25,6 @@ FROM nginx:alpine
 COPY --from=build /app/apps/desktop/dist /usr/share/nginx/html
 COPY infra/nginx/spa.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
+COPY infra/nginx/web-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+ENTRYPOINT ["/docker-entrypoint.sh"]
