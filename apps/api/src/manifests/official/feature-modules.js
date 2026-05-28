@@ -1,5 +1,4 @@
 import { createModuleManifest, MODULE_KINDS } from "@atlas/core";
-import websiteManifest from '../../../../../modules/official/atlas.website/module.manifest.js'
 
 export const contactsMap = createModuleManifest({
   key: "atlas.contacts",
@@ -262,4 +261,65 @@ export const hrMap = createModuleManifest({
   ],
 });
 
-export const featureModules = [websiteManifest];
+export const atlasWebsiteManifest = createModuleManifest({
+  key: 'atlas.website',
+  name: 'Sitio web',
+  description: 'Sitio web publico, editor visual de paginas y publicacion de contenido.',
+  version: '0.2.0',
+  kind: MODULE_KINDS.FEATURE,
+  core: false,
+  uninstallable: true,
+  icon: 'Globe',
+  color: '#6366f1',
+  summary: 'CMS, editor Puck y publicacion de paginas.',
+  dependencies: [{ key: 'atlas.core' }],
+  lifecycle: {
+    installable: true,
+    uninstallable: true,
+    resettable: true,
+    supportsDataPurge: true,
+    defaultUninstallPolicy: 'purge-owned-tables',
+    ownedEntities: [],
+    sharedEntities: ['Company', 'AuditLog'],
+  },
+  permissions: [
+    { key: 'website.access',         name: 'Acceso al Sitio web' },
+    { key: 'website.site.read',       name: 'Ver configuracion del sitio' },
+    { key: 'website.site.update',     name: 'Editar configuracion del sitio' },
+    { key: 'website.pages.read',      name: 'Ver paginas' },
+    { key: 'website.pages.create',    name: 'Crear paginas' },
+    { key: 'website.pages.update',    name: 'Editar paginas' },
+    { key: 'website.pages.publish',   name: 'Publicar paginas' },
+    { key: 'website.pages.delete',    name: 'Eliminar paginas' },
+    { key: 'website.theme.read',      name: 'Ver temas' },
+    { key: 'website.theme.update',    name: 'Editar temas' },
+    { key: 'website.menus.read',      name: 'Ver menus' },
+    { key: 'website.menus.update',    name: 'Editar menus' },
+  ],
+  acl: {
+    module: 'website.access',
+    actions: {
+      'website.site.read':     'website.site.read',
+      'website.site.update':   'website.site.update',
+      'website.pages.read':    'website.pages.read',
+      'website.pages.create':  'website.pages.create',
+      'website.pages.update':  'website.pages.update',
+      'website.pages.publish': 'website.pages.publish',
+      'website.pages.delete':  'website.pages.delete',
+      'website.theme.read':    'website.theme.read',
+      'website.theme.update':  'website.theme.update',
+      'website.menus.read':    'website.menus.read',
+      'website.menus.update':  'website.menus.update',
+    },
+  },
+  navigation: [
+    { label: 'Sitio web',    path: '/app/m/atlas.website',        icon: 'Globe',      layout: 'main', permissionKey: 'website.access' },
+    { label: 'Paginas',      path: '/app/m/atlas.website/pages',  icon: 'FileText',   layout: 'main', permissionKey: 'website.pages.read' },
+    { label: 'Tema',         path: '/app/m/atlas.website/theme',  icon: 'Palette',    layout: 'main', permissionKey: 'website.theme.read' },
+    { label: 'Menus',        path: '/app/m/atlas.website/menus',  icon: 'Menu',       layout: 'main', permissionKey: 'website.menus.read' },
+    { label: 'Blog',         path: '/app/m/atlas.website/blog',   icon: 'BookOpen',   layout: 'main', permissionKey: 'website.pages.read' },
+    { label: 'Formularios',  path: '/app/m/atlas.website/forms',  icon: 'FormInput',  layout: 'main', permissionKey: 'website.pages.read' },
+  ],
+})
+
+export const featureModules = [atlasWebsiteManifest];
