@@ -41,6 +41,7 @@ import {
 } from "./services/company-service.js";
 import { createHrService, HrServiceError } from "./services/hr-service.js";
 import { createModulesRouter } from "./routes/modules.js";
+import { createPublicWebsiteRouter } from "./routes/public-website.js";
 import { createModuleBundlerService } from "./services/module-bundler-service.js";
 import { createRouteLoaderService } from "./services/route-loader-service.js";
 import {
@@ -2671,6 +2672,9 @@ app.get("/blueprints", authMiddleware, async (c) => {
 
   return c.json({ data: [...mergedByKey.values()] });
 });
+
+const publicWebsiteRouter = createPublicWebsiteRouter({ prisma })
+app.route("/public/website", publicWebsiteRouter)
 
 app.get("/public/blueprints", async (c) => {
   try {
