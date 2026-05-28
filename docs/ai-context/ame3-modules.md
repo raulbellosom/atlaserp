@@ -599,7 +599,14 @@ curl -X POST http://localhost:4010/modules/sync \
 curl http://localhost:4010/blueprints \
   -H "Authorization: Bearer $ATLAS_TOKEN" | grep -i "<moduleKey>"
 
-# 6. Test CRUD
+# 6. If the module has components/ — verify the bundle was compiled
+curl http://localhost:4010/modules/<moduleKey>/bundle.js
+
+# 7. After editing components — rebuild without reinstalling
+curl -X POST http://localhost:4010/modules/<moduleKey>/sync \
+  -H "Authorization: Bearer $ATLAS_TOKEN"
+
+# 8. Test CRUD
 curl -X POST http://localhost:4010/<slug>/<entity>s \
   -H "Authorization: Bearer $ATLAS_TOKEN" \
   -H "Content-Type: application/json" \

@@ -10,6 +10,12 @@ Atlas ERP v2 is a Node.js + React + Hono monorepo. ERP features are built as sel
 Read **`docs/ai-context/ame3-modules.md`** — it contains the full pattern guide with
 working code examples for every pattern you need.
 
+Read **`docs/ai-context/ame3-runtime-capabilities.md`** — it lists all available
+`@atlas/ui` components (forms, inputs, cards, dropdowns, dialogs, tables, etc.),
+view kind examples (TABLE, FORM, DETAIL, CUSTOM), and the dynamic bundle system
+for custom React components. Custom React components in `components/index.js` are
+compiled at install time — no web image rebuild is ever needed for module UI.
+
 ### Critical rules — violating these corrupts the project
 
 1. **Never edit `prisma/schema.prisma`** for module tables — Atlas ORM manages them
