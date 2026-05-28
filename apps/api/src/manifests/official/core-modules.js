@@ -1,5 +1,5 @@
 import { createModuleManifest, MODULE_KINDS } from "@atlas/core";
-import { contactsMap, hrMap } from "./feature-modules.js";
+import { contactsMap, hrMap, atlasWebsiteManifest } from "./feature-modules.js";
 
 export const atlasCoreMap = createModuleManifest({
   key: "atlas.core",
@@ -623,4 +623,5 @@ export const coreModules = [
   hrMap,
   atlasFleetManifest,
   atlasLedgerManifest,
+  atlasWebsiteManifest,
 ];

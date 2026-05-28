@@ -266,9 +266,9 @@ export const atlasWebsiteManifest = createModuleManifest({
   name: 'Sitio web',
   description: 'Sitio web publico, editor visual de paginas y publicacion de contenido.',
   version: '0.2.0',
-  kind: MODULE_KINDS.FEATURE,
-  core: false,
-  uninstallable: true,
+  kind: MODULE_KINDS.WEBSITE,
+  core: true,
+  uninstallable: false,
   icon: 'Globe',
   color: '#6366f1',
   summary: 'CMS, editor Puck y publicacion de paginas.',
@@ -322,4 +322,4 @@ export const atlasWebsiteManifest = createModuleManifest({
   ],
 })
 
-export const featureModules = [atlasWebsiteManifest];
+export const featureModules = [];
