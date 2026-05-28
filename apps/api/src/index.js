@@ -41,6 +41,7 @@ import {
 } from "./services/company-service.js";
 import { createHrService, HrServiceError } from "./services/hr-service.js";
 import { createModulesRouter } from "./routes/modules.js";
+import { createModuleBundlerService } from "./services/module-bundler-service.js";
 import { createRouteLoaderService } from "./services/route-loader-service.js";
 import {
   get as cacheGet,
@@ -83,6 +84,7 @@ const CORE_MODULE_KEYS = new Set([
 const STORAGE_BUCKET_NAME = "atlas-files";
 const filesService = createFilesService({ prisma, supabaseAdmin });
 const companyService = createCompanyService({ prisma, supabaseAdmin });
+const bundlerService = createModuleBundlerService({ prisma, supabaseAdmin });
 const hrService = createHrService({ prisma });
 
 function toSlug(name) {
@@ -647,6 +649,8 @@ app.use(
 );
 
 await routeLoader.initialize(app);
+await bundlerService.restoreModuleBundlesOnBoot();
+bundlerService.startDevWatcher();
 
 ensureBuckets();
 
@@ -2607,6 +2611,7 @@ app.get("/blueprints", authMiddleware, async (c) => {
           enabled: true,
           version: true,
           manifest: true,
+          hasBundle: true,
         },
       }),
     ]);
@@ -2631,6 +2636,10 @@ app.get("/blueprints", authMiddleware, async (c) => {
     mergedByKey.set(blueprint.key, {
       ...blueprint,
       source: "blueprint",
+      module: blueprint.module ? {
+        ...blueprint.module,
+        has_bundle: blueprint.module.hasBundle ?? false,
+      } : blueprint.module,
     });
   }
 
@@ -2653,6 +2662,7 @@ app.get("/blueprints", authMiddleware, async (c) => {
         name: moduleRow.name,
         status: moduleRow.status,
         enabled: moduleRow.enabled,
+        has_bundle: moduleRow.hasBundle ?? false,
       },
     });
   }
@@ -3512,6 +3522,7 @@ const modulesRouter = createModulesRouter({
   authMiddleware,
   requirePermission,
   routeLoader,
+  bundlerSvc: bundlerService,
 });
 app.route("/modules", modulesRouter);
 
