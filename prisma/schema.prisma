@@ -513,3 +513,136 @@ model UserPreference {
   @@map("user_preference")
 }
 
+// ─── atlas.website ────────────────────────────────────────────────────────────
+
+model WebsiteSite {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  companyId      String    @db.Uuid @map("company_id")
+  name           String
+  domain         String?
+  defaultLocale  String    @default("es") @map("default_locale")
+  status         String    @default("draft")
+  homepagePageId String?   @db.Uuid @map("homepage_page_id")
+  themeId        String?   @db.Uuid @map("theme_id")
+  settings       Json?
+  seoDefaults    Json?     @map("seo_defaults")
+  enabled        Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([companyId, enabled])
+  @@map("website_site")
+}
+
+model WebsitePage {
+  id                   String    @id @default(uuid(7)) @db.Uuid
+  companyId            String    @db.Uuid @map("company_id")
+  siteId               String    @db.Uuid @map("site_id")
+  title                String
+  slug                 String
+  routePath            String    @map("route_path")
+  status               String    @default("draft")
+  pageType             String    @default("page") @map("page_type")
+  draftBuilderData     Json?     @map("draft_builder_data")
+  publishedBuilderData Json?     @map("published_builder_data")
+  seo                  Json?
+  visibility           String    @default("public")
+  publishedAt          DateTime? @map("published_at")
+  createdById          String?   @db.Uuid @map("created_by_id")
+  updatedById          String?   @db.Uuid @map("updated_by_id")
+  enabled              Boolean   @default(true)
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  @@unique([companyId, siteId, routePath])
+  @@index([companyId, status])
+  @@map("website_page")
+}
+
+model WebsitePageVersion {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  companyId     String   @db.Uuid @map("company_id")
+  pageId        String   @db.Uuid @map("page_id")
+  versionNumber Int      @map("version_number")
+  builderData   Json?    @map("builder_data")
+  seo           Json?
+  status        String   @default("snapshot")
+  createdById   String?  @db.Uuid @map("created_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([pageId])
+  @@map("website_page_version")
+}
+
+model WebsiteTheme {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  companyId  String   @db.Uuid @map("company_id")
+  siteId     String   @db.Uuid @map("site_id")
+  name       String
+  tokens     Json?
+  typography Json?
+  layout     Json?
+  customCss  String?  @map("custom_css")
+  isDefault  Boolean  @default(false) @map("is_default")
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId, siteId, enabled])
+  @@map("website_theme")
+}
+
+model WebsiteMenu {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String   @db.Uuid @map("company_id")
+  siteId    String   @db.Uuid @map("site_id")
+  name      String
+  location  String   @default("header")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId, siteId, enabled])
+  @@map("website_menu")
+}
+
+model WebsiteMenuItem {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String   @db.Uuid @map("company_id")
+  menuId    String   @db.Uuid @map("menu_id")
+  parentId  String?  @db.Uuid @map("parent_id")
+  label     String
+  url       String?
+  pageId    String?  @db.Uuid @map("page_id")
+  target    String   @default("_self")
+  icon      String?
+  sortOrder Int      @default(0) @map("sort_order")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([menuId, enabled])
+  @@map("website_menu_item")
+}
+
+model WebsitePublishedRender {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  companyId   String    @db.Uuid @map("company_id")
+  siteId      String    @db.Uuid @map("site_id")
+  sourceType  String    @map("source_type")
+  sourceId    String    @db.Uuid @map("source_id")
+  path        String
+  html        String?
+  title       String?
+  description String?
+  ogImage     String?   @map("og_image")
+  statusCode  Int       @default(200) @map("status_code")
+  contentHash String?   @map("content_hash")
+  publishedAt DateTime? @map("published_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@unique([siteId, path])
+  @@index([companyId, siteId])
+  @@map("website_published_render")
+}
+
