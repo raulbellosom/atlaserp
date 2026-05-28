@@ -91,6 +91,27 @@ const SCREEN_MAP = {
   "atlas.ledger:/accounts/:id/import": lazy(
     () => import("../../../../modules/official/atlas.ledger/components/ImportWizard.jsx"),
   ),
+  "atlas.website:/": lazy(
+    () => import("../../../../modules/official/atlas.website/components/WebsiteOverviewScreen.jsx"),
+  ),
+  "atlas.website:/pages": lazy(
+    () => import("../../../../modules/official/atlas.website/components/WebsitePagesScreen.jsx"),
+  ),
+  "atlas.website:/pages/:id/editor": lazy(
+    () => import("../../../../modules/official/atlas.website/components/WebsitePageEditorScreen.jsx"),
+  ),
+  "atlas.website:/theme": lazy(
+    () => import("../../../../modules/official/atlas.website/components/WebsiteThemeScreen.jsx"),
+  ),
+  "atlas.website:/menus": lazy(
+    () => import("../../../../modules/official/atlas.website/components/WebsiteMenusScreen.jsx"),
+  ),
+  "atlas.website:/blog": lazy(
+    () => import("../../../../modules/official/atlas.website/components/WebsiteBlogScreen.jsx"),
+  ),
+  "atlas.website:/forms": lazy(
+    () => import("../../../../modules/official/atlas.website/components/WebsiteFormsScreen.jsx"),
+  ),
 };
 const SCREEN_MODULE_KEYS = new Set(
   Object.keys(SCREEN_MAP).map((entry) => entry.split(":")[0]),
@@ -212,6 +233,12 @@ function resolveScreen(moduleKey, subPath) {
     }
     // /accounts/new, /categories/*, /types/* → BlueprintCrudScreen (table + form + detail)
     return BlueprintCrudScreen;
+  }
+  if (moduleKey === "atlas.website") {
+    if (/^\/pages\/[^/]+\/editor$/.test(subPath)) {
+      return SCREEN_MAP["atlas.website:/pages/:id/editor"] ?? null;
+    }
+    return SCREEN_MAP[`atlas.website:${subPath}`] ?? null;
   }
   if (subPath === "/") return SCREEN_MAP[`${moduleKey}:/`] ?? null;
   if (!SCREEN_MODULE_KEYS.has(moduleKey)) return BlueprintCrudScreen;
