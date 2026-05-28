@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { componentRegistry } from '../lib/moduleComponentRegistry'
 import { atlas } from '../lib/atlas'
@@ -37,6 +37,7 @@ async function loadModuleBundles(blueprints) {
 export function ModuleBundleLoader({ children }) {
   const { session } = useAuth()
   const token = session?.access_token ?? null
+  const loadedRef = useRef(new Set())
 
   const { data: blueprintData } = useQuery({
     queryKey: ['blueprints', token],
@@ -47,7 +48,13 @@ export function ModuleBundleLoader({ children }) {
 
   useEffect(() => {
     if (!blueprintData?.data) return
-    loadModuleBundles(blueprintData.data)
+    const unloaded = blueprintData.data.filter(
+      (bp) => bp.module?.has_bundle && bp.module?.key && !loadedRef.current.has(bp.module.key)
+    )
+    if (!unloaded.length) return
+    loadModuleBundles(unloaded).then(() => {
+      unloaded.forEach((bp) => loadedRef.current.add(bp.module.key))
+    })
   }, [blueprintData])
 
   return children
