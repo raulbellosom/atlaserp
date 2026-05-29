@@ -32,6 +32,11 @@ export function WebsiteGrapesEditor({ initialData, onDataChange, height }) {
     editor.on('update', emitChange)
     editorRef.current = editor
 
+    // Refresh layout after first paint to fix panel sizing when mounted inside a nested context
+    requestAnimationFrame(() => {
+      editorRef.current?.refresh()
+    })
+
     return () => {
       editor.off('update', emitChange)
       editor.destroy()
@@ -42,7 +47,7 @@ export function WebsiteGrapesEditor({ initialData, onDataChange, height }) {
   return (
     <div
       ref={containerRef}
-      style={{ height: height || 'calc(100vh - 48px)', width: '100%' }}
+      style={{ height: height || 'calc(100vh - 48px)', width: '100%', position: 'relative', overflow: 'hidden' }}
     />
   )
 }
