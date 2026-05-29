@@ -1,4 +1,4 @@
-export function buildGrapesConfig(container) {
+export function buildGrapesConfig(container, { token = null, apiUrl = 'http://localhost:4010' } = {}) {
   return {
     container,
     height: '100%',
@@ -16,6 +16,47 @@ export function buildGrapesConfig(container) {
         { name: 'Tablet', width: '768px', widthMedia: '768px' },
         { name: 'Mobile', width: '375px', widthMedia: '375px' },
       ],
+    },
+
+    // ── Asset Manager (atlas.files integration) ─────────────────────────────
+    assetManager: {
+      assets: [],
+      uploadText: 'Arrastra imagenes aqui o haz clic para subir desde tu dispositivo',
+      addBtnText: 'Agregar URL de imagen',
+      inputPlaceholder: 'https://...',
+
+      // Custom upload → sends file to atlas.files, returns the signed URL
+      uploadFile: token
+        ? async (ev, clb) => {
+            const files = ev.dataTransfer ? ev.dataTransfer.files : ev.target?.files
+            if (!files?.length) return
+            try {
+              const fd = new FormData()
+              fd.append('file', files[0])
+              fd.append('moduleKey', 'atlas.website')
+              fd.append('entityType', 'media')
+
+              const uploadRes = await fetch(`${apiUrl}/files`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                body: fd,
+              })
+              if (!uploadRes.ok) throw new Error(`Upload failed: HTTP ${uploadRes.status}`)
+              const uploadData = await uploadRes.json()
+              const fileId = uploadData.data?.id ?? uploadData.id
+
+              const urlRes = await fetch(`${apiUrl}/files/${fileId}/signed-url`, {
+                headers: { Authorization: `Bearer ${token}` },
+              })
+              if (!urlRes.ok) throw new Error('Could not get signed URL')
+              const urlData = await urlRes.json()
+              const src = urlData.data?.signedUrl ?? urlData.signedUrl
+              if (src) clb([src])
+            } catch (err) {
+              console.error('[atlas-files] upload error:', err.message)
+            }
+          }
+        : undefined,
     },
 
     styleManager: {
@@ -207,13 +248,9 @@ export function buildGrapesConfig(container) {
         <h3 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 12px">Puedo cambiar de plan en cualquier momento?</h3>
         <p style="font-size:15px;color:#64748b;line-height:1.75;margin:0">Si, puedes actualizar o degradar tu plan cuando quieras. Los cambios se aplican de forma inmediata.</p>
       </div>
-      <div style="border-top:1px solid #e2e8f0;padding:28px 0">
+      <div style="border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;padding:28px 0">
         <h3 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 12px">Mis datos estan seguros?</h3>
         <p style="font-size:15px;color:#64748b;line-height:1.75;margin:0">Usamos cifrado AES-256 y backups automaticos cada hora. Tu informacion siempre esta protegida.</p>
-      </div>
-      <div style="border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;padding:28px 0">
-        <h3 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 12px">Tienen soporte tecnico?</h3>
-        <p style="font-size:15px;color:#64748b;line-height:1.75;margin:0">Si, soporte 24/7 via chat, correo y telefono para todos los planes de pago.</p>
       </div>
     </div>
   </div>
@@ -234,37 +271,30 @@ export function buildGrapesConfig(container) {
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px;align-items:start">
       <div style="border:2px solid #e2e8f0;border-radius:24px;padding:36px">
         <h3 style="font-size:20px;font-weight:700;color:#0f172a;margin:0 0 8px">Basico</h3>
-        <p style="font-size:14px;color:#64748b;margin:0 0 24px">Perfecto para comenzar</p>
         <p style="margin:0 0 28px"><span style="font-size:48px;font-weight:900;color:#0f172a;letter-spacing:-0.04em">$29</span><span style="color:#94a3b8;font-size:16px">/mes</span></p>
         <ul style="list-style:none;padding:0;margin:0 0 32px;display:flex;flex-direction:column;gap:12px">
           <li style="display:flex;gap:10px;font-size:15px;color:#334155;align-items:center"><span style="color:#22c55e;font-weight:700">&#10003;</span>5 usuarios</li>
           <li style="display:flex;gap:10px;font-size:15px;color:#334155;align-items:center"><span style="color:#22c55e;font-weight:700">&#10003;</span>10 GB almacenamiento</li>
-          <li style="display:flex;gap:10px;font-size:15px;color:#334155;align-items:center"><span style="color:#22c55e;font-weight:700">&#10003;</span>Soporte por email</li>
         </ul>
         <a href="#" style="display:block;text-align:center;background:#f1f5f9;color:#0f172a;font-weight:600;font-size:15px;padding:14px;border-radius:12px;text-decoration:none">Empezar gratis</a>
       </div>
       <div style="border:2px solid #4f46e5;border-radius:24px;padding:36px;background:#fafaff;position:relative">
-        <div style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:#4f46e5;color:white;font-size:11px;font-weight:800;padding:4px 18px;border-radius:99px;white-space:nowrap;letter-spacing:0.06em">MAS POPULAR</div>
+        <div style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:#4f46e5;color:white;font-size:11px;font-weight:800;padding:4px 18px;border-radius:99px;white-space:nowrap">MAS POPULAR</div>
         <h3 style="font-size:20px;font-weight:700;color:#0f172a;margin:0 0 8px">Profesional</h3>
-        <p style="font-size:14px;color:#64748b;margin:0 0 24px">Para equipos en crecimiento</p>
         <p style="margin:0 0 28px"><span style="font-size:48px;font-weight:900;color:#4f46e5;letter-spacing:-0.04em">$79</span><span style="color:#94a3b8;font-size:16px">/mes</span></p>
         <ul style="list-style:none;padding:0;margin:0 0 32px;display:flex;flex-direction:column;gap:12px">
           <li style="display:flex;gap:10px;font-size:15px;color:#334155;align-items:center"><span style="color:#22c55e;font-weight:700">&#10003;</span>25 usuarios</li>
           <li style="display:flex;gap:10px;font-size:15px;color:#334155;align-items:center"><span style="color:#22c55e;font-weight:700">&#10003;</span>100 GB almacenamiento</li>
           <li style="display:flex;gap:10px;font-size:15px;color:#334155;align-items:center"><span style="color:#22c55e;font-weight:700">&#10003;</span>Soporte prioritario</li>
-          <li style="display:flex;gap:10px;font-size:15px;color:#334155;align-items:center"><span style="color:#22c55e;font-weight:700">&#10003;</span>Analitica avanzada</li>
         </ul>
         <a href="#" style="display:block;text-align:center;background:#4f46e5;color:white;font-weight:700;font-size:15px;padding:14px;border-radius:12px;text-decoration:none">Empezar ahora</a>
       </div>
       <div style="border:2px solid #e2e8f0;border-radius:24px;padding:36px">
         <h3 style="font-size:20px;font-weight:700;color:#0f172a;margin:0 0 8px">Enterprise</h3>
-        <p style="font-size:14px;color:#64748b;margin:0 0 24px">Para grandes organizaciones</p>
-        <p style="margin:0 0 28px"><span style="font-size:36px;font-weight:900;color:#0f172a;letter-spacing:-0.03em">Personalizado</span></p>
+        <p style="margin:0 0 28px"><span style="font-size:36px;font-weight:900;color:#0f172a">Personalizado</span></p>
         <ul style="list-style:none;padding:0;margin:0 0 32px;display:flex;flex-direction:column;gap:12px">
           <li style="display:flex;gap:10px;font-size:15px;color:#334155;align-items:center"><span style="color:#22c55e;font-weight:700">&#10003;</span>Usuarios ilimitados</li>
           <li style="display:flex;gap:10px;font-size:15px;color:#334155;align-items:center"><span style="color:#22c55e;font-weight:700">&#10003;</span>Almacenamiento ilimitado</li>
-          <li style="display:flex;gap:10px;font-size:15px;color:#334155;align-items:center"><span style="color:#22c55e;font-weight:700">&#10003;</span>SLA garantizado</li>
-          <li style="display:flex;gap:10px;font-size:15px;color:#334155;align-items:center"><span style="color:#22c55e;font-weight:700">&#10003;</span>Soporte dedicado</li>
         </ul>
         <a href="#" style="display:block;text-align:center;background:#f1f5f9;color:#0f172a;font-weight:600;font-size:15px;padding:14px;border-radius:12px;text-decoration:none">Contactar ventas</a>
       </div>
@@ -284,8 +314,8 @@ export function buildGrapesConfig(container) {
     <div style="background:linear-gradient(135deg,#ede9fe,#ddd6fe);border-radius:24px;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;font-size:64px">&#x1F5BC;</div>
     <div>
       <span style="color:#6366f1;font-size:13px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase">Nosotros</span>
-      <h2 style="font-size:clamp(28px,3.5vw,42px);font-weight:800;color:#0f172a;margin:14px 0 20px;line-height:1.2;letter-spacing:-0.025em">Construido para equipos que quieren crecer</h2>
-      <p style="font-size:16px;color:#64748b;line-height:1.8;margin:0 0 28px">Desde startups hasta grandes empresas, nuestra plataforma se adapta a las necesidades de cualquier equipo sin complicaciones.</p>
+      <h2 style="font-size:clamp(28px,3.5vw,42px);font-weight:800;color:#0f172a;margin:14px 0 20px;line-height:1.2">Construido para equipos que quieren crecer</h2>
+      <p style="font-size:16px;color:#64748b;line-height:1.8;margin:0 0 28px">Desde startups hasta grandes empresas, nuestra plataforma se adapta a las necesidades de cualquier equipo.</p>
       <a href="#" style="display:inline-block;background:#4f46e5;color:white;font-size:15px;font-weight:600;padding:13px 30px;border-radius:10px;text-decoration:none">Saber mas &rarr;</a>
     </div>
   </div>
@@ -299,25 +329,13 @@ export function buildGrapesConfig(container) {
 <div style="padding:80px 24px;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <div style="max-width:1100px;margin:0 auto">
     <div style="text-align:center;margin-bottom:60px">
-      <h2 style="font-size:clamp(28px,4vw,44px);font-weight:800;color:#0f172a;margin:0 0 16px;letter-spacing:-0.025em">Nuestros servicios</h2>
-      <p style="font-size:17px;color:#64748b;margin:0;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.7">Una suite completa de herramientas para digitalizar tu negocio.</p>
+      <h2 style="font-size:clamp(28px,4vw,44px);font-weight:800;color:#0f172a;margin:0 0 16px">Nuestros servicios</h2>
+      <p style="font-size:17px;color:#64748b;margin:0 auto;max-width:480px;line-height:1.7">Una suite completa de herramientas para digitalizar tu negocio.</p>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px">
-      <div style="background:white;border-radius:20px;padding:32px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.04)">
-        <div style="font-size:44px;margin-bottom:16px">&#x1F3AF;</div>
-        <h3 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 10px">Servicio uno</h3>
-        <p style="font-size:14px;color:#64748b;line-height:1.7;margin:0">Descripcion del primer servicio que ofreces a tus clientes.</p>
-      </div>
-      <div style="background:white;border-radius:20px;padding:32px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.04)">
-        <div style="font-size:44px;margin-bottom:16px">&#x1F4A1;</div>
-        <h3 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 10px">Servicio dos</h3>
-        <p style="font-size:14px;color:#64748b;line-height:1.7;margin:0">Descripcion del segundo servicio que ofreces a tus clientes.</p>
-      </div>
-      <div style="background:white;border-radius:20px;padding:32px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.04)">
-        <div style="font-size:44px;margin-bottom:16px">&#x1F680;</div>
-        <h3 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 10px">Servicio tres</h3>
-        <p style="font-size:14px;color:#64748b;line-height:1.7;margin:0">Descripcion del tercer servicio que ofreces a tus clientes.</p>
-      </div>
+      <div style="background:white;border-radius:20px;padding:32px;text-align:center"><div style="font-size:44px;margin-bottom:16px">&#x1F3AF;</div><h3 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 10px">Servicio uno</h3><p style="font-size:14px;color:#64748b;line-height:1.7;margin:0">Descripcion del primer servicio.</p></div>
+      <div style="background:white;border-radius:20px;padding:32px;text-align:center"><div style="font-size:44px;margin-bottom:16px">&#x1F4A1;</div><h3 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 10px">Servicio dos</h3><p style="font-size:14px;color:#64748b;line-height:1.7;margin:0">Descripcion del segundo servicio.</p></div>
+      <div style="background:white;border-radius:20px;padding:32px;text-align:center"><div style="font-size:44px;margin-bottom:16px">&#x1F680;</div><h3 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 10px">Servicio tres</h3><p style="font-size:14px;color:#64748b;line-height:1.7;margin:0">Descripcion del tercer servicio.</p></div>
     </div>
   </div>
 </div>`,
@@ -328,22 +346,13 @@ export function buildGrapesConfig(container) {
           id: 'heading',
           label: 'Titulo',
           category: 'Texto',
-          content: `
-<div style="padding:64px 24px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
-  <h2 style="font-size:clamp(32px,5vw,60px);font-weight:800;color:#0f172a;line-height:1.15;letter-spacing:-0.03em;margin:0 auto;max-width:800px">Tu titulo va aqui. Hazlo memorable.</h2>
-  <p style="font-size:19px;color:#64748b;margin:20px auto 0;max-width:560px;line-height:1.7">Agrega un subtitulo opcional para dar mas contexto a los visitantes.</p>
-</div>`,
+          content: `<div style="padding:64px 24px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"><h2 style="font-size:clamp(32px,5vw,60px);font-weight:800;color:#0f172a;line-height:1.15;letter-spacing:-0.03em;margin:0 auto;max-width:800px">Tu titulo va aqui. Hazlo memorable.</h2><p style="font-size:19px;color:#64748b;margin:20px auto 0;max-width:560px;line-height:1.7">Agrega un subtitulo opcional para dar mas contexto.</p></div>`,
         },
         {
           id: 'text',
           label: 'Parrafo',
           category: 'Texto',
-          content: `
-<div style="padding:40px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
-  <div style="max-width:740px;margin:0 auto">
-    <p style="font-size:17px;color:#334155;line-height:1.9;margin:0">Escribe aqui el contenido de tu parrafo. Puedes editar este texto directamente haciendo doble clic sobre el. Usa este bloque para contar la historia de tu empresa, explicar tus servicios o compartir informacion importante con tus visitantes.</p>
-  </div>
-</div>`,
+          content: `<div style="padding:40px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"><div style="max-width:740px;margin:0 auto"><p style="font-size:17px;color:#334155;line-height:1.9;margin:0">Escribe aqui el contenido de tu parrafo. Puedes editar este texto directamente haciendo doble clic sobre el.</p></div></div>`,
         },
 
         // ─── Media ───────────────────────────────────────────────────────────
@@ -354,13 +363,24 @@ export function buildGrapesConfig(container) {
           content: `
 <div style="padding:32px 24px;background:white;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <div style="max-width:1100px;margin:0 auto">
-    <div style="background:linear-gradient(135deg,#f1f5f9,#e2e8f0);border-radius:20px;overflow:hidden;aspect-ratio:16/7;display:flex;align-items:center;justify-content:center">
-      <div style="text-align:center;color:#94a3b8">
-        <div style="font-size:48px;margin-bottom:12px">&#x1F5BC;</div>
-        <p style="font-size:14px;margin:0;font-weight:500">Haz doble clic para cambiar la imagen</p>
-      </div>
-    </div>
+    <img src="https://placehold.co/1200x500/e2e8f0/94a3b8?text=Doble+clic+para+cambiar+imagen" alt="Imagen" style="width:100%;border-radius:20px;display:block" />
     <p style="font-size:13px;color:#94a3b8;text-align:center;margin:12px 0 0;font-style:italic">Descripcion de la imagen (opcional)</p>
+  </div>
+</div>`,
+        },
+        {
+          id: 'image-text',
+          label: 'Imagen + Texto',
+          category: 'Media',
+          content: `
+<div style="padding:80px 24px;background:white;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center">
+    <img src="https://placehold.co/600x450/e2e8f0/94a3b8?text=Tu+imagen" alt="Imagen" style="width:100%;border-radius:20px;display:block" />
+    <div>
+      <h2 style="font-size:clamp(26px,3.5vw,40px);font-weight:800;color:#0f172a;margin:0 0 16px;line-height:1.2">Tu titulo aqui</h2>
+      <p style="font-size:16px;color:#64748b;line-height:1.8;margin:0 0 28px">Describe tu mensaje principal. Puedes contar una historia, explicar un beneficio o presentar tu producto de forma visual.</p>
+      <a href="#" style="display:inline-block;background:#4f46e5;color:white;font-size:15px;font-weight:600;padding:13px 30px;border-radius:10px;text-decoration:none">Saber mas &rarr;</a>
+    </div>
   </div>
 </div>`,
         },

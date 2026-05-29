@@ -112,6 +112,7 @@ export default function WebsiteBlogPostEditorScreen() {
           initialData={postQuery.data?.draftBuilderData ?? null}
           onDataChange={(data) => { grapesDataRef.current = data }}
           height="100%"
+          token={token}
         />
       </div>
     </div>

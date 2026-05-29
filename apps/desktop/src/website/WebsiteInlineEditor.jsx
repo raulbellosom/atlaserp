@@ -12,6 +12,7 @@ async function apiFetch(path, options = {}) {
 }
 
 export function WebsiteInlineEditor({ pageId, token, onDataChange }) {
+  // token is passed through to WebsiteGrapesEditor for atlas.files integration
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
   const pageQuery = useQuery({
@@ -46,6 +47,7 @@ export function WebsiteInlineEditor({ pageId, token, onDataChange }) {
         initialData={pageQuery.data?.draftBuilderData ?? null}
         onDataChange={onDataChange}
         height="100%"
+        token={token}
       />
     </div>
   )
