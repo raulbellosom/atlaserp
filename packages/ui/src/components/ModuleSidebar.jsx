@@ -36,6 +36,8 @@ import {
   ClipboardList,
   UserCheck,
   Library,
+  Menu,
+  Globe,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "../lib/utils.js";
@@ -76,6 +78,8 @@ const ICON_MAP = {
   ClipboardList,
   UserCheck,
   Library,
+  Menu,
+  Globe,
 };
 
 const ICON_ALIAS_MAP = {
@@ -86,6 +90,9 @@ const ICON_ALIAS_MAP = {
   bookopen: "BookOpen",
   library: "Library",
   layers: "Layers",
+  menu: "Menu",
+  globe: "Globe",
+  forminput: "ClipboardList",
 };
 
 function NavIcon({ name, size = 15, ...props }) {
