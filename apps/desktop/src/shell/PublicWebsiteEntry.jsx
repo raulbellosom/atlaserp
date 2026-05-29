@@ -41,7 +41,7 @@ export function PublicWebsiteEntry() {
   const [isEditing, setIsEditing]   = useState(false)
   const [isSaving, setIsSaving]     = useState(false)
   const [isPublishing, setPublishing] = useState(false)
-  const puckDataRef = useRef(null)
+  const grapesDataRef = useRef(null)
 
   // Reset edit mode on navigation
   useEffect(() => { setIsEditing(false) }, [location.pathname])
@@ -85,16 +85,16 @@ export function PublicWebsiteEntry() {
   }, [resolveData, navigate])
 
   const handleDataChange = useCallback((data) => {
-    puckDataRef.current = data
+    grapesDataRef.current = data
   }, [])
 
   async function handleSave() {
-    if (!activePage?.id || !puckDataRef.current) return
+    if (!activePage?.id || !grapesDataRef.current) return
     setIsSaving(true)
     try {
       await apiFetch(`/website/pages/${activePage.id}/save-draft`, token, {
         method: 'POST',
-        body: JSON.stringify({ builderData: puckDataRef.current }),
+        body: JSON.stringify({ builderData: grapesDataRef.current }),
       })
       toast.success('Borrador guardado')
       queryClient.invalidateQueries({ queryKey: ['website-page-by-path', site?.id, location.pathname] })
@@ -108,12 +108,12 @@ export function PublicWebsiteEntry() {
   async function handlePublish() {
     if (!activePage?.id) return
     // Save first, then publish
-    if (puckDataRef.current) {
+    if (grapesDataRef.current) {
       setIsSaving(true)
       try {
         await apiFetch(`/website/pages/${activePage.id}/save-draft`, token, {
           method: 'POST',
-          body: JSON.stringify({ builderData: puckDataRef.current }),
+          body: JSON.stringify({ builderData: grapesDataRef.current }),
         })
       } catch { /* ignore, best effort */ }
       setIsSaving(false)

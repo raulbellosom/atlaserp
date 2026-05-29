@@ -1,9 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Puck } from '@measured/puck'
-import '@measured/puck/puck.css'
-import { atlasWebsiteConfig } from '../../../website/atlasWebsiteConfig.js'
+import { WebsiteGrapesEditor } from '../../../website/WebsiteGrapesEditor.jsx'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import { toast } from 'sonner'
@@ -24,8 +22,7 @@ export default function WebsiteBlogPostEditorScreen() {
   const { session } = useAuth()
   const token = session?.access_token
   const queryClient = useQueryClient()
-  const [puckData, setPuckData] = useState(null)
-
+  const grapesDataRef = useRef(null)
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
   const postQuery = useQuery({
@@ -35,17 +32,11 @@ export default function WebsiteBlogPostEditorScreen() {
     staleTime: 30_000,
   })
 
-  useEffect(() => {
-    if (postQuery.data && puckData === null) {
-      const draft = postQuery.data.draftBuilderData
-      setPuckData(draft && Object.keys(draft).length > 0 ? draft : { content: [], root: {} })
-    }
-  }, [postQuery.data, puckData])
-
   const saveDraftMutation = useMutation({
-    mutationFn: (builderData) =>
+    mutationFn: () =>
       apiFetch(`/website/blog/posts/${postId}/save-draft`, {
-        method: 'POST', headers, body: JSON.stringify({ builderData }),
+        method: 'POST', headers,
+        body: JSON.stringify({ builderData: grapesDataRef.current ?? {} }),
       }),
     onSuccess: () => {
       toast.success('Borrador guardado')
@@ -55,8 +46,13 @@ export default function WebsiteBlogPostEditorScreen() {
   })
 
   const publishMutation = useMutation({
-    mutationFn: () =>
-      apiFetch(`/website/blog/posts/${postId}/publish`, { method: 'POST', headers }),
+    mutationFn: async () => {
+      await apiFetch(`/website/blog/posts/${postId}/save-draft`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ builderData: grapesDataRef.current ?? {} }),
+      })
+      return apiFetch(`/website/blog/posts/${postId}/publish`, { method: 'POST', headers })
+    },
     onSuccess: () => {
       toast.success('Entrada publicada')
       queryClient.invalidateQueries({ queryKey: ['blog-post', postId] })
@@ -64,8 +60,6 @@ export default function WebsiteBlogPostEditorScreen() {
     },
     onError: (err) => toast.error(err.message || 'Error al publicar'),
   })
-
-  const handleChange = useCallback((data) => { setPuckData(data) }, [])
 
   if (postQuery.isPending) {
     return (
@@ -80,18 +74,11 @@ export default function WebsiteBlogPostEditorScreen() {
       <div className="h-screen flex items-center justify-center">
         <div className="text-center space-y-3">
           <p className="text-[hsl(var(--muted-foreground))]">No se pudo cargar la entrada.</p>
-          <button
-            onClick={() => navigate('/app/m/atlas.website/blog')}
-            className="text-sm underline"
-          >
-            Volver al blog
-          </button>
+          <button onClick={() => navigate('/app/m/atlas.website/blog')} className="text-sm underline">Volver al blog</button>
         </div>
       </div>
     )
   }
-
-  const initialData = puckData ?? { content: [], root: {} }
 
   return (
     <div className="h-screen flex flex-col">
@@ -102,20 +89,18 @@ export default function WebsiteBlogPostEditorScreen() {
         >
           Volver al blog
         </button>
-        <span className="text-sm font-medium text-[hsl(var(--foreground))]">
-          {postQuery.data?.title}
-        </span>
+        <span className="text-sm font-medium text-[hsl(var(--foreground))]">{postQuery.data?.title}</span>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => saveDraftMutation.mutate(puckData)}
-            disabled={saveDraftMutation.isPending}
+            onClick={() => saveDraftMutation.mutate()}
+            disabled={saveDraftMutation.isPending || publishMutation.isPending}
             className="px-3 py-1.5 rounded-lg border border-[hsl(var(--border))] text-sm hover:bg-[hsl(var(--muted))] transition-colors disabled:opacity-50"
           >
             {saveDraftMutation.isPending ? 'Guardando...' : 'Guardar borrador'}
           </button>
           <button
             onClick={() => publishMutation.mutate()}
-            disabled={publishMutation.isPending}
+            disabled={publishMutation.isPending || saveDraftMutation.isPending}
             className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50"
           >
             {publishMutation.isPending ? 'Publicando...' : 'Publicar'}
@@ -123,7 +108,11 @@ export default function WebsiteBlogPostEditorScreen() {
         </div>
       </div>
       <div className="flex-1 overflow-hidden">
-        <Puck config={atlasWebsiteConfig} data={initialData} onChange={handleChange} />
+        <WebsiteGrapesEditor
+          initialData={postQuery.data?.draftBuilderData ?? null}
+          onDataChange={(data) => { grapesDataRef.current = data }}
+          height="100%"
+        />
       </div>
     </div>
   )
