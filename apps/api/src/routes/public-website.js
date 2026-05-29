@@ -27,7 +27,6 @@ export function createPublicWebsiteRouter({ prisma }) {
         FROM website_site
         WHERE company_id = ${company.id}
           AND enabled = true
-          AND status = 'published'
         ORDER BY created_at ASC
         LIMIT 1
       `
@@ -37,7 +36,7 @@ export function createPublicWebsiteRouter({ prisma }) {
       }
 
       const pages = await prisma.$queryRaw`
-        SELECT id, title, route_path, published_builder_data, seo
+        SELECT id, title, slug, route_path, status, published_builder_data, seo
         FROM website_page
         WHERE company_id = ${company.id}
           AND site_id = ${site.id}
@@ -92,7 +91,9 @@ export function createPublicWebsiteRouter({ prisma }) {
           ? {
               id:                   page.id,
               title:                page.title,
+              slug:                 page.slug,
               routePath:            page.route_path,
+              status:               page.status,
               publishedBuilderData: page.published_builder_data ?? {},
               seo:                  page.seo ?? {},
             }

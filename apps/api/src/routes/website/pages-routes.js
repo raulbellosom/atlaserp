@@ -22,6 +22,20 @@ export function createPagesRouter({ websiteSvc, requirePermission }) {
     return c.json(result)
   })
 
+  // Find a page by its routePath (for inline editor — includes drafts)
+  app.get('/pages/by-path', requirePermission('website.pages.read'), async (c) => {
+    const companyId = c.get('companyId')
+    const { siteId, routePath } = c.req.query()
+    if (!siteId || !routePath) return c.json({ data: null })
+    try {
+      const page = await websiteSvc.getPageByPath({ companyId, siteId, routePath })
+      return c.json({ data: page })
+    } catch (err) {
+      if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
+      throw err
+    }
+  })
+
   app.post(
     '/pages',
     requirePermission('website.pages.create'),

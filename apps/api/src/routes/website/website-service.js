@@ -395,6 +395,12 @@ export function createWebsiteService({ prisma }) {
     return prisma.websiteTheme.update({ where: { id: themeId }, data })
   }
 
+  async function getPageByPath({ companyId, siteId, routePath }) {
+    return prisma.websitePage.findFirst({
+      where: { companyId, siteId, routePath, enabled: true },
+    })
+  }
+
   async function listBlogCategories({ companyId, siteId }) {
     return prisma.websiteBlogCategory.findMany({
       where: { companyId, siteId, enabled: true },
@@ -614,6 +620,7 @@ export function createWebsiteService({ prisma }) {
     updateSite,
     listPages,
     getPage,
+    getPageByPath,
     createPage,
     updatePage,
     saveDraft,
