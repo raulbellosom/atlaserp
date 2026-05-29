@@ -156,8 +156,9 @@ export default function EventFormModal({ event, defaultDate, defaultCalendarId, 
 
           <SwitchField
             label="Todo el dia"
+            description="El evento dura todo el dia sin hora especifica"
             checked={form.allDay}
-            onCheckedChange={(v) => set('allDay', v)}
+            onChange={(v) => set('allDay', v)}
           />
 
           <div className="grid grid-cols-2 gap-3">
