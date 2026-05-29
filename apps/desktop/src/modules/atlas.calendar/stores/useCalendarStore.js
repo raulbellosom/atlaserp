@@ -19,10 +19,19 @@ export const useCalendarStore = create(
       toggleLeftSidebar: () => set((s) => ({ leftSidebarOpen: !s.leftSidebarOpen })),
       toggleRightSidebar: () => set((s) => ({ rightSidebarOpen: !s.rightSidebarOpen })),
 
-      toggleCalendarFilter: (id) => set((s) => {
+      // allIds must be passed when toggling from the "all visible" state so we can
+      // remove just the clicked one instead of making it the only visible one.
+      toggleCalendarFilter: (id, allIds = []) => set((s) => {
         const active = s.activeCalendarIds
+        if (active.length === 0) {
+          // Currently showing all — deselect the clicked one by activating all except it
+          return { activeCalendarIds: allIds.filter((x) => x !== id) }
+        }
         if (active.includes(id)) return { activeCalendarIds: active.filter((x) => x !== id) }
-        return { activeCalendarIds: [...active, id] }
+        const next = [...active, id]
+        // If all are now active, collapse back to the "show all" sentinel
+        if (allIds.length > 0 && next.length >= allIds.length) return { activeCalendarIds: [] }
+        return { activeCalendarIds: next }
       }),
       setAllCalendarsActive: () => set({ activeCalendarIds: [] }),
 

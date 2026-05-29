@@ -1,13 +1,48 @@
-import { Plus } from 'lucide-react'
+import { Plus, MoreHorizontal } from 'lucide-react'
+import { Checkbox } from '@atlas/ui'
 import MiniCalendar from './MiniCalendar'
 import { useCalendarStore } from '../stores/useCalendarStore'
 import { useCalendars } from '../hooks/useCalendarData'
 
-export default function CalendarLeftSidebar({ onNewCalendar }) {
+function CalendarItem({ cal, isActive, allIds, onToggle, onShare, onEdit }) {
+  return (
+    <div className="flex items-center gap-2 py-1 group">
+      <Checkbox
+        checked={isActive}
+        onCheckedChange={() => onToggle(cal.id, allIds)}
+        className="shrink-0"
+        style={{
+          '--checked-bg': cal.color,
+          '--checked-border': cal.color,
+        }}
+        // override the indigo default with the calendar color via inline style on the root
+      />
+      <span
+        className="text-xs text-[hsl(var(--foreground))] truncate flex-1 min-w-0 cursor-pointer select-none"
+        onClick={() => onToggle(cal.id, allIds)}
+      >
+        {cal.name}
+      </span>
+      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        <button
+          onClick={() => onShare(cal)}
+          className="p-0.5 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
+          title="Compartir"
+        >
+          <MoreHorizontal size={12} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export default function CalendarLeftSidebar({ onNewCalendar, onShareCalendar }) {
   const { selectedDate, setSelectedDate, activeCalendarIds, toggleCalendarFilter } = useCalendarStore()
   const { data, isLoading } = useCalendars()
   const owned = data?.owned ?? []
   const shared = data?.shared ?? []
+
+  const allIds = [...owned.map(c => c.id), ...shared.map(c => c.id)]
 
   function isActive(id) {
     return activeCalendarIds.length === 0 || activeCalendarIds.includes(id)
@@ -21,12 +56,16 @@ export default function CalendarLeftSidebar({ onNewCalendar }) {
 
       <div className="flex-1 px-3 pt-3 space-y-4 pb-4">
         <section>
-          <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
               Mis calendarios
             </span>
-            <button onClick={onNewCalendar} className="p-0.5 rounded hover:bg-[hsl(var(--muted))]">
-              <Plus size={12} className="text-[hsl(var(--muted-foreground))]" />
+            <button
+              onClick={onNewCalendar}
+              className="p-0.5 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
+              title="Nuevo calendario"
+            >
+              <Plus size={12} />
             </button>
           </div>
 
@@ -35,35 +74,33 @@ export default function CalendarLeftSidebar({ onNewCalendar }) {
           )}
 
           {owned.map((cal) => (
-            <label key={cal.id} className="flex items-center gap-2 py-0.5 cursor-pointer group">
-              <input type="checkbox" checked={isActive(cal.id)} onChange={() => toggleCalendarFilter(cal.id)} className="sr-only" />
-              <span
-                className="w-3 h-3 rounded-sm shrink-0 border-2 flex items-center justify-center transition-colors"
-                style={{ borderColor: cal.color, backgroundColor: isActive(cal.id) ? cal.color : 'transparent' }}
-              >
-                {isActive(cal.id) && <span className="text-white text-[8px] leading-none">✓</span>}
-              </span>
-              <span className="text-xs text-[hsl(var(--foreground))] truncate flex-1">{cal.name}</span>
-            </label>
+            <CalendarItem
+              key={cal.id}
+              cal={cal}
+              isActive={isActive(cal.id)}
+              allIds={allIds}
+              onToggle={toggleCalendarFilter}
+              onShare={onShareCalendar ?? (() => {})}
+              onEdit={() => {}}
+            />
           ))}
         </section>
 
         {shared.length > 0 && (
           <section>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-2">
               Compartidos
             </div>
             {shared.map((cal) => (
-              <label key={cal.id} className="flex items-center gap-2 py-0.5 cursor-pointer">
-                <input type="checkbox" checked={isActive(cal.id)} onChange={() => toggleCalendarFilter(cal.id)} className="sr-only" />
-                <span
-                  className="w-3 h-3 rounded-sm shrink-0 border-2 flex items-center justify-center transition-colors"
-                  style={{ borderColor: cal.color, backgroundColor: isActive(cal.id) ? cal.color : 'transparent' }}
-                >
-                  {isActive(cal.id) && <span className="text-white text-[8px] leading-none">✓</span>}
-                </span>
-                <span className="text-xs text-[hsl(var(--foreground))] truncate flex-1">{cal.name}</span>
-              </label>
+              <CalendarItem
+                key={cal.id}
+                cal={cal}
+                isActive={isActive(cal.id)}
+                allIds={allIds}
+                onToggle={toggleCalendarFilter}
+                onShare={() => {}}
+                onEdit={() => {}}
+              />
             ))}
           </section>
         )}

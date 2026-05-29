@@ -1,10 +1,19 @@
 import { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { X, Calendar, MapPin, Video, Repeat } from 'lucide-react'
+import {
+  TextField,
+  MarkdownField,
+  DateTimeField,
+  DateField,
+  SelectField,
+  SwitchField,
+  FieldWrapper,
+} from '@atlas/ui'
 import { useCreateEvent, useUpdateEvent, useCalendars } from '../hooks/useCalendarData'
 import { toast } from 'sonner'
 
 const FREQ_OPTIONS = [
-  { value: '', label: 'Sin repeticion' },
+  { value: 'NONE', label: 'Sin repeticion' },
   { value: 'DAILY', label: 'Diario' },
   { value: 'WEEKLY', label: 'Semanal' },
   { value: 'MONTHLY', label: 'Mensual' },
@@ -17,11 +26,9 @@ function toLocalDatetimeValue(isoStr) {
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-const EMPTY_FORM = {
-  title: '', description: '', calendarId: '',
-  startAt: '', endAt: '', allDay: false,
-  location: '', videoUrl: '', color: '',
-  recurrenceFreq: '', recurrenceInterval: 1,
+function toLocalDateValue(isoStr) {
+  if (!isoStr) return ''
+  return new Date(isoStr).toISOString().slice(0, 10)
 }
 
 export default function EventFormModal({ event, defaultDate, defaultCalendarId, onClose, onSaved }) {
@@ -31,42 +38,52 @@ export default function EventFormModal({ event, defaultDate, defaultCalendarId, 
   const { data: calData } = useCalendars()
   const allCalendars = [...(calData?.owned ?? []), ...(calData?.shared ?? [])]
 
-  const [form, setForm] = useState(() => {
-    const now = new Date()
-    const base = defaultDate ? `${defaultDate}T` : `${now.toISOString().slice(0,10)}T`
-    return {
-      ...EMPTY_FORM,
-      calendarId: defaultCalendarId || allCalendars[0]?.id || '',
-      startAt: base + '09:00',
-      endAt: base + '10:00',
-    }
+  const now = new Date()
+  const baseDatetime = defaultDate
+    ? `${defaultDate}T09:00`
+    : `${now.toISOString().slice(0,10)}T${String(now.getHours()).padStart(2,'0')}:00`
+
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    calendarId: '',
+    startAt: baseDatetime,
+    endAt: defaultDate ? `${defaultDate}T10:00` : '',
+    allDay: false,
+    location: '',
+    videoUrl: '',
+    recurrenceFreq: 'NONE',
+    recurrenceInterval: 1,
   })
 
+  // Pre-select first calendar when data loads
   useEffect(() => {
-    if (event?.id) {
-      setForm({
-        title: event.title ?? '',
-        description: event.description ?? '',
-        calendarId: event.calendarId ?? '',
-        startAt: toLocalDatetimeValue(event.startAt),
-        endAt: toLocalDatetimeValue(event.endAt),
-        allDay: event.allDay ?? false,
-        location: event.location ?? '',
-        videoUrl: event.videoUrl ?? '',
-        color: event.color ?? '',
-        recurrenceFreq: event.recurrenceRule?.freq ?? '',
-        recurrenceInterval: event.recurrenceRule?.interval ?? 1,
-      })
+    if (allCalendars.length > 0 && !form.calendarId) {
+      const defaultId = defaultCalendarId || calData?.owned?.find(c => c.isDefault)?.id || allCalendars[0]?.id || ''
+      setForm(f => ({ ...f, calendarId: defaultId }))
     }
+  }, [allCalendars.length, calData])
+
+  // Populate form when editing
+  useEffect(() => {
+    if (!event?.id) return
+    setForm({
+      title: event.title ?? '',
+      description: event.description ?? '',
+      calendarId: event.calendarId ?? '',
+      startAt: toLocalDatetimeValue(event.startAt),
+      endAt: toLocalDatetimeValue(event.endAt),
+      allDay: event.allDay ?? false,
+      location: event.location ?? '',
+      videoUrl: event.videoUrl ?? '',
+      recurrenceFreq: event.recurrenceRule?.freq ?? 'NONE',
+      recurrenceInterval: event.recurrenceRule?.interval ?? 1,
+    })
   }, [event?.id])
 
-  useEffect(() => {
-    if (!form.calendarId && allCalendars.length > 0) {
-      setForm(f => ({ ...f, calendarId: allCalendars[0].id }))
-    }
-  }, [allCalendars.length])
-
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
+
+  const calendarOptions = allCalendars.map(c => ({ value: c.id, label: c.name }))
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -74,20 +91,21 @@ export default function EventFormModal({ event, defaultDate, defaultCalendarId, 
     if (!form.calendarId) { toast.error('Selecciona un calendario'); return }
     if (!form.startAt) { toast.error('La fecha de inicio es requerida'); return }
 
-    const recurrenceRule = form.recurrenceFreq
+    const recurrenceRule = (form.recurrenceFreq && form.recurrenceFreq !== 'NONE')
       ? { freq: form.recurrenceFreq, interval: Number(form.recurrenceInterval) || 1 }
       : null
+
+    const toISO = (v) => v ? new Date(v).toISOString() : null
 
     const payload = {
       calendarId: form.calendarId,
       title: form.title.trim(),
-      description: form.description.trim() || null,
-      startAt: new Date(form.startAt).toISOString(),
-      endAt: form.endAt ? new Date(form.endAt).toISOString() : null,
+      description: form.description?.trim() || null,
+      startAt: toISO(form.startAt),
+      endAt: form.allDay ? null : toISO(form.endAt),
       allDay: form.allDay,
       location: form.location.trim() || null,
       videoUrl: form.videoUrl.trim() || null,
-      color: form.color || null,
       recurrenceRule,
     }
 
@@ -108,8 +126,6 @@ export default function EventFormModal({ event, defaultDate, defaultCalendarId, 
 
   const isPending = createEvent.isPending || updateEvent.isPending
 
-  const inputCls = 'w-full text-sm rounded-lg border border-[hsl(var(--border))] px-2.5 py-1.5 bg-[hsl(var(--surface-2))] text-[hsl(var(--foreground))] outline-none focus:border-violet-500 transition-colors'
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <form
@@ -117,6 +133,7 @@ export default function EventFormModal({ event, defaultDate, defaultCalendarId, 
         className="bg-[hsl(var(--surface-1))] rounded-xl shadow-xl w-full max-w-lg overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--border))]">
           <h2 className="text-base font-semibold text-[hsl(var(--foreground))]">
             {isEdit ? 'Editar evento' : 'Nuevo evento'}
@@ -126,100 +143,116 @@ export default function EventFormModal({ event, defaultDate, defaultCalendarId, 
           </button>
         </div>
 
-        <div className="px-5 py-4 space-y-3 max-h-[70vh] overflow-y-auto">
-          <input
-            type="text"
-            placeholder="Titulo del evento *"
+        {/* Body */}
+        <div className="px-5 py-4 space-y-4 max-h-[72vh] overflow-y-auto">
+          <TextField
+            label="Titulo"
+            required
+            placeholder="Nombre del evento"
             value={form.title}
             onChange={(e) => set('title', e.target.value)}
-            className="w-full text-base font-medium bg-transparent border-b border-[hsl(var(--border))] pb-2 outline-none text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:border-violet-500 transition-colors"
-            required
             autoFocus
           />
 
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={form.allDay} onChange={(e) => set('allDay', e.target.checked)} className="rounded" />
-            <span className="text-sm text-[hsl(var(--foreground))]">Todo el dia</span>
-          </label>
+          <SwitchField
+            label="Todo el dia"
+            checked={form.allDay}
+            onCheckedChange={(v) => set('allDay', v)}
+          />
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-[hsl(var(--muted-foreground))] mb-1 block">Inicio *</label>
-              <input
-                type={form.allDay ? 'date' : 'datetime-local'}
-                value={form.allDay ? form.startAt.slice(0,10) : form.startAt}
-                onChange={(e) => set('startAt', e.target.value)}
-                className={inputCls}
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs text-[hsl(var(--muted-foreground))] mb-1 block">Fin</label>
-              <input
-                type={form.allDay ? 'date' : 'datetime-local'}
-                value={form.allDay ? (form.endAt?.slice(0,10) ?? '') : form.endAt}
-                onChange={(e) => set('endAt', e.target.value)}
-                className={inputCls}
-              />
-            </div>
+            {form.allDay ? (
+              <>
+                <DateField
+                  label="Inicio"
+                  required
+                  value={form.startAt?.slice(0,10) ?? ''}
+                  onChange={(e) => set('startAt', e.target.value)}
+                />
+                <DateField
+                  label="Fin"
+                  value={form.endAt?.slice(0,10) ?? ''}
+                  onChange={(e) => set('endAt', e.target.value)}
+                />
+              </>
+            ) : (
+              <>
+                <DateTimeField
+                  label="Inicio"
+                  required
+                  value={form.startAt}
+                  onChange={(e) => set('startAt', e.target.value)}
+                />
+                <DateTimeField
+                  label="Fin"
+                  value={form.endAt}
+                  onChange={(e) => set('endAt', e.target.value)}
+                />
+              </>
+            )}
           </div>
 
-          <div>
-            <label className="text-xs text-[hsl(var(--muted-foreground))] mb-1 block">Calendario *</label>
-            <select value={form.calendarId} onChange={(e) => set('calendarId', e.target.value)} className={inputCls} required>
-              <option value="">Seleccionar...</option>
-              {allCalendars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
+          <SelectField
+            label="Calendario"
+            required
+            icon={Calendar}
+            placeholder="Seleccionar calendario..."
+            options={calendarOptions}
+            value={form.calendarId}
+            onValueChange={(v) => set('calendarId', v)}
+          />
 
-          <textarea
-            placeholder="Descripcion (opcional)"
+          <MarkdownField
+            label="Descripcion"
+            rows={4}
             value={form.description}
             onChange={(e) => set('description', e.target.value)}
-            rows={2}
-            className={inputCls + ' resize-none'}
           />
 
-          <input
-            type="text"
-            placeholder="Ubicacion"
+          <TextField
+            label="Ubicacion"
+            icon={MapPin}
+            placeholder="Lugar del evento"
             value={form.location}
             onChange={(e) => set('location', e.target.value)}
-            className={inputCls}
           />
 
-          <input
-            type="url"
-            placeholder="URL de videollamada (https://...)"
+          <TextField
+            label="URL de videollamada"
+            icon={Video}
+            placeholder="https://meet.google.com/..."
             value={form.videoUrl}
             onChange={(e) => set('videoUrl', e.target.value)}
-            className={inputCls}
+            type="url"
           />
 
-          <div>
-            <label className="text-xs text-[hsl(var(--muted-foreground))] mb-1 block">Repeticion</label>
-            <select value={form.recurrenceFreq} onChange={(e) => set('recurrenceFreq', e.target.value)} className={inputCls}>
-              {FREQ_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
+          <SelectField
+            label="Repeticion"
+            icon={Repeat}
+            options={FREQ_OPTIONS}
+            value={form.recurrenceFreq}
+            onValueChange={(v) => set('recurrenceFreq', v)}
+          />
 
-          {form.recurrenceFreq && (
-            <div>
-              <label className="text-xs text-[hsl(var(--muted-foreground))] mb-1 block">Intervalo</label>
-              <input
-                type="number"
-                min={1}
-                max={99}
-                value={form.recurrenceInterval}
-                onChange={(e) => set('recurrenceInterval', e.target.value)}
-                className={inputCls}
-              />
-            </div>
+          {form.recurrenceFreq && form.recurrenceFreq !== 'NONE' && (
+            <TextField
+              label="Intervalo"
+              type="number"
+              min={1}
+              max={99}
+              value={String(form.recurrenceInterval)}
+              onChange={(e) => set('recurrenceInterval', e.target.value)}
+            />
           )}
         </div>
 
+        {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[hsl(var(--border))]">
-          <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-lg hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm rounded-lg hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
+          >
             Cancelar
           </button>
           <button

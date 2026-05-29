@@ -11,6 +11,7 @@ import AgendaView from '../components/AgendaView'
 import EventDetailModal from '../components/EventDetailModal'
 import EventFormModal from '../components/EventFormModal'
 import CalendarFormModal from '../components/CalendarFormModal'
+import CalendarShareModal from '../components/CalendarShareModal'
 
 export default function CalendarScreen() {
   const {
@@ -24,8 +25,9 @@ export default function CalendarScreen() {
   } = useCalendarStore()
 
   const [detailEvent, setDetailEvent] = useState(null)
-  const [formState, setFormState] = useState(null)  // null=closed, { _isNew, defaultDate? }=new, event=edit
+  const [formState, setFormState] = useState(null)
   const [showCalendarForm, setShowCalendarForm] = useState(false)
+  const [shareCalendar, setShareCalendar] = useState(null)
 
   function openNewEvent() {
     setFormState({ _isNew: true, defaultDate: selectedDate })
@@ -64,7 +66,10 @@ export default function CalendarScreen() {
       {/* Main area */}
       <div className="flex-1 flex overflow-hidden">
         {leftSidebarOpen && (
-          <CalendarLeftSidebar onNewCalendar={() => setShowCalendarForm(true)} />
+          <CalendarLeftSidebar
+            onNewCalendar={() => setShowCalendarForm(true)}
+            onShareCalendar={(cal) => setShareCalendar(cal)}
+          />
         )}
 
         <div className="flex-1 flex overflow-hidden min-w-0">
@@ -106,6 +111,13 @@ export default function CalendarScreen() {
 
       {showCalendarForm && (
         <CalendarFormModal onClose={() => setShowCalendarForm(false)} />
+      )}
+
+      {shareCalendar && (
+        <CalendarShareModal
+          calendar={shareCalendar}
+          onClose={() => setShareCalendar(null)}
+        />
       )}
     </div>
   )
