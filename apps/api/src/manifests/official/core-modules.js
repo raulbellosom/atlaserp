@@ -626,6 +626,7 @@ export const atlasCalendarManifest = createModuleManifest({
   color: '#7C3AED',
   accentColor: '#6D28D9',
   initials: 'CA',
+  logoUrl: '/module-logos/atlas-calendar-128.svg',
   category: 'sistema',
   summary: 'Calendarios personales, eventos y recordatorios',
   fullscreenPaths: ['/calendar'],

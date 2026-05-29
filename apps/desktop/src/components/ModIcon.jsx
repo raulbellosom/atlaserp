@@ -3,7 +3,7 @@ import {
   Settings, Contact, Wallet, Users, UsersRound, Shield, Palette,
   FolderOpen, Building2, CreditCard, BarChart3, FileText, Home,
   Truck, Globe, BookOpen, ClipboardList, UserCheck, ShieldCheck,
-  Menu, Package, Tag, SlidersHorizontal,
+  Menu, Package, Tag, SlidersHorizontal, Calendar,
 } from 'lucide-react';
 
 export const ICON_MAP = {
@@ -11,7 +11,7 @@ export const ICON_MAP = {
   Users, UsersRound, Shield, Palette, FolderOpen, Building2,
   Layers, ContactRound, Landmark, CreditCard, BarChart3, FileText,
   Home, Truck, Box, Globe, BookOpen, ClipboardList, UserCheck,
-  ShieldCheck, Menu, Package, Tag, SlidersHorizontal,
+  ShieldCheck, Menu, Package, Tag, SlidersHorizontal, Calendar,
 };
 
 export function ModIcon({ name, size = 22, color, logoUrl }) {
