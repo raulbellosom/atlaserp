@@ -184,10 +184,10 @@ export function PublicWebsiteEntry() {
         token={token}
         isSaving={isSaving}
         isPublishing={isPublishing}
-        visible={barVisible || isEditing}
+        visible={barVisible}
       />
 
-      <div style={{ paddingTop: (barVisible || isEditing) ? '48px' : '0', transition: 'padding-top 0.3s ease' }}>
+      <div>
         {isEditing ? (
           <WebsiteInlineEditor
             pageId={activePage?.id ?? null}
