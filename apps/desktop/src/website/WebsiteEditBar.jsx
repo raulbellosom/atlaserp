@@ -70,30 +70,47 @@ export function WebsiteEditBar({
     <>
       {/* CSS for animations */}
       <style>{`
-        @keyframes atlas-pulse {
-          0%, 100% { opacity: 1; transform: scaleX(1); }
-          50%       { opacity: 0.5; transform: scaleX(0.85); }
+        @keyframes atlas-corner-pulse {
+          0%, 100% { opacity: 1; filter: drop-shadow(0 0 4px rgba(239,68,68,0.9)); }
+          50%       { opacity: 0.35; filter: drop-shadow(0 0 1px rgba(239,68,68,0.2)); }
         }
-        .atlas-trigger-indicator { animation: atlas-pulse 2s ease-in-out infinite; }
+        .atlas-corner-line { animation: atlas-corner-pulse 1.8s ease-in-out infinite; }
       `}</style>
 
-      {/* Pulsing red trigger indicator — visible when bar is hidden */}
+      {/* L-shaped pulsing corner indicator — visible when bar is hidden */}
       {!visible && (
-        <div
-          className="atlas-trigger-indicator"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            height: '3px',
-            width: '140px',
-            background: 'linear-gradient(90deg, #ef4444 0%, rgba(239,68,68,0.5) 70%, transparent 100%)',
-            zIndex: 9998,
-            borderRadius: '0 0 4px 0',
-            pointerEvents: 'none',
-            transformOrigin: 'left center',
-          }}
-        />
+        <>
+          {/* Top horizontal arm */}
+          <div
+            className="atlas-corner-line"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              height: '3px',
+              width: '96px',
+              background: 'linear-gradient(90deg, #ef4444 0%, rgba(239,68,68,0.4) 75%, transparent 100%)',
+              zIndex: 9998,
+              pointerEvents: 'none',
+              borderRadius: '0 0 3px 0',
+            }}
+          />
+          {/* Left vertical arm */}
+          <div
+            className="atlas-corner-line"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '3px',
+              height: '96px',
+              background: 'linear-gradient(180deg, #ef4444 0%, rgba(239,68,68,0.4) 75%, transparent 100%)',
+              zIndex: 9998,
+              pointerEvents: 'none',
+              borderRadius: '0 0 3px 0',
+            }}
+          />
+        </>
       )}
 
       {/* Main edit bar — slides in/out */}

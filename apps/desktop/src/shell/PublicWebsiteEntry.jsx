@@ -58,7 +58,7 @@ export function PublicWebsiteEntry() {
         setBarVisible(true)
       } else if (!isEditing && e.clientY > 140) {
         clearTimeout(hideBarTimer.current)
-        hideBarTimer.current = setTimeout(() => setBarVisible(false), 1200)
+        hideBarTimer.current = setTimeout(() => setBarVisible(false), 400)
       }
     }
     window.addEventListener('mousemove', handleMouseMove)
