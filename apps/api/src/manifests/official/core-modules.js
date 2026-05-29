@@ -614,6 +614,63 @@ export const atlasFleetManifest = createModuleManifest({
   ],
 });
 
+export const atlasCalendarManifest = createModuleManifest({
+  key: 'atlas.calendar',
+  name: 'Calendario',
+  description: 'Calendario personal y compartido con eventos, recordatorios y vistas por dia, semana y mes.',
+  version: '0.1.0',
+  kind: MODULE_KINDS.CORE,
+  core: true,
+  uninstallable: false,
+  icon: 'Calendar',
+  color: '#7C3AED',
+  accentColor: '#6D28D9',
+  initials: 'CA',
+  category: 'sistema',
+  summary: 'Calendarios personales, eventos y recordatorios',
+  dependencies: [{ key: 'atlas.core' }, { key: 'atlas.identity' }],
+  navigation: [
+    {
+      label: 'Calendario',
+      path: '/app/m/atlas.calendar/calendar',
+      icon: 'Calendar',
+      layout: 'main',
+      permissionKey: 'calendar.access',
+    },
+  ],
+  permissions: [
+    { key: 'calendar.access',           name: 'Acceso al calendario' },
+    { key: 'calendar.calendars.read',   name: 'Ver calendarios' },
+    { key: 'calendar.calendars.create', name: 'Crear calendarios' },
+    { key: 'calendar.calendars.update', name: 'Editar calendarios' },
+    { key: 'calendar.calendars.delete', name: 'Eliminar calendarios' },
+    { key: 'calendar.events.read',      name: 'Ver eventos' },
+    { key: 'calendar.events.create',    name: 'Crear eventos' },
+    { key: 'calendar.events.update',    name: 'Editar eventos' },
+    { key: 'calendar.events.delete',    name: 'Eliminar eventos' },
+    { key: 'calendar.share.manage',     name: 'Gestionar accesos compartidos' },
+  ],
+  acl: {
+    module: 'calendar.access',
+    actions: {
+      'calendar.calendars.read':   'calendar.calendars.read',
+      'calendar.calendars.create': 'calendar.calendars.create',
+      'calendar.calendars.update': 'calendar.calendars.update',
+      'calendar.calendars.delete': 'calendar.calendars.delete',
+      'calendar.events.read':      'calendar.events.read',
+      'calendar.events.create':    'calendar.events.create',
+      'calendar.events.update':    'calendar.events.update',
+      'calendar.events.delete':    'calendar.events.delete',
+      'calendar.share.manage':     'calendar.share.manage',
+    },
+  },
+  exposes: {
+    'calendar.createEvent': 'function',
+    'calendar.getEvents':   'function',
+  },
+  consumes: ['atlas.files'],
+});
+
 export const coreModules = [
   atlasCoreMap,
   identityMap,
@@ -624,4 +681,5 @@ export const coreModules = [
   atlasFleetManifest,
   atlasLedgerManifest,
   atlasWebsiteManifest,
+  atlasCalendarManifest,
 ];
