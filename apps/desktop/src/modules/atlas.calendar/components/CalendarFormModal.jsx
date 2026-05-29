@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
+import { TextField } from '@atlas/ui'
 import { useCreateCalendar, useUpdateCalendar } from '../hooks/useCalendarData'
 import { toast } from 'sonner'
 
@@ -52,13 +53,12 @@ export default function CalendarFormModal({ calendar, onClose }) {
         </div>
 
         <div className="px-5 py-4 space-y-4">
-          <input
-            type="text"
-            placeholder="Nombre del calendario"
+          <TextField
+            label="Nombre"
+            required
+            placeholder="Mi calendario"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full text-sm rounded-lg border border-[hsl(var(--border))] px-3 py-2 bg-[hsl(var(--surface-2))] text-[hsl(var(--foreground))] outline-none focus:border-violet-500 transition-colors"
-            required
             autoFocus
           />
           <div>
@@ -69,8 +69,13 @@ export default function CalendarFormModal({ calendar, onClose }) {
                   key={c}
                   type="button"
                   onClick={() => setColor(c)}
-                  className={['w-7 h-7 rounded-full border-2 transition-all', color === c ? 'border-white scale-110 shadow-md ring-2 ring-offset-1' : 'border-transparent'].join(' ')}
-                  style={{ backgroundColor: c, '--tw-ring-color': c }}
+                  className="w-7 h-7 rounded-full transition-all focus-visible:outline-none"
+                  style={{
+                    backgroundColor: c,
+                    border: color === c ? '2px solid white' : '2px solid transparent',
+                    transform: color === c ? 'scale(1.15)' : 'scale(1)',
+                    boxShadow: color === c ? `0 0 0 2px ${c}` : 'none',
+                  }}
                 />
               ))}
             </div>

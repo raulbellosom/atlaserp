@@ -1,21 +1,31 @@
-import { Plus, MoreHorizontal } from 'lucide-react'
-import { Checkbox } from '@atlas/ui'
+import { Plus, MoreHorizontal, Check } from 'lucide-react'
 import MiniCalendar from './MiniCalendar'
 import { useCalendarStore } from '../stores/useCalendarStore'
 import { useCalendars } from '../hooks/useCalendarData'
 
-function CalendarItem({ cal, isActive, allIds, onToggle, onShare, onEdit }) {
+function CalendarColorToggle({ color, checked, onChange }) {
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      className="w-4 h-4 shrink-0 rounded-sm flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+      style={{
+        backgroundColor: checked ? color : 'transparent',
+        border: `2px solid ${color}`,
+      }}
+    >
+      {checked && <Check size={9} color="#fff" strokeWidth={3} />}
+    </button>
+  )
+}
+
+function CalendarItem({ cal, isActive, allIds, onToggle, onShare }) {
   return (
     <div className="flex items-center gap-2 py-1 group">
-      <Checkbox
+      <CalendarColorToggle
+        color={cal.color || '#6B46C1'}
         checked={isActive}
-        onCheckedChange={() => onToggle(cal.id, allIds)}
-        className="shrink-0"
-        style={{
-          '--checked-bg': cal.color,
-          '--checked-border': cal.color,
-        }}
-        // override the indigo default with the calendar color via inline style on the root
+        onChange={() => onToggle(cal.id, allIds)}
       />
       <span
         className="text-xs text-[hsl(var(--foreground))] truncate flex-1 min-w-0 cursor-pointer select-none"
@@ -81,7 +91,6 @@ export default function CalendarLeftSidebar({ onNewCalendar, onShareCalendar }) 
               allIds={allIds}
               onToggle={toggleCalendarFilter}
               onShare={onShareCalendar ?? (() => {})}
-              onEdit={() => {}}
             />
           ))}
         </section>
@@ -99,7 +108,6 @@ export default function CalendarLeftSidebar({ onNewCalendar, onShareCalendar }) 
                 allIds={allIds}
                 onToggle={toggleCalendarFilter}
                 onShare={() => {}}
-                onEdit={() => {}}
               />
             ))}
           </section>
