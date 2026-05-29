@@ -395,6 +395,219 @@ export function createWebsiteService({ prisma }) {
     return prisma.websiteTheme.update({ where: { id: themeId }, data })
   }
 
+  async function listBlogCategories({ companyId, siteId }) {
+    return prisma.websiteBlogCategory.findMany({
+      where: { companyId, siteId, enabled: true },
+      orderBy: { name: 'asc' },
+    })
+  }
+
+  async function createBlogCategory({ companyId, siteId, data }) {
+    return prisma.websiteBlogCategory.create({
+      data: { companyId, siteId, name: data.name, slug: data.slug, description: data.description ?? null },
+    })
+  }
+
+  async function updateBlogCategory({ companyId, categoryId, data }) {
+    const cat = await prisma.websiteBlogCategory.findFirst({ where: { id: categoryId, companyId } })
+    if (!cat) throw notFound('Categoria')
+    return prisma.websiteBlogCategory.update({ where: { id: categoryId }, data })
+  }
+
+  async function softDeleteBlogCategory({ companyId, categoryId }) {
+    const cat = await prisma.websiteBlogCategory.findFirst({ where: { id: categoryId, companyId } })
+    if (!cat) throw notFound('Categoria')
+    return prisma.websiteBlogCategory.update({ where: { id: categoryId }, data: { enabled: false } })
+  }
+
+  async function listBlogPosts({ companyId, siteId, status, categoryId, page = 1, pageSize = 20 }) {
+    const skip = (page - 1) * pageSize
+    const where = {
+      companyId,
+      siteId,
+      enabled: true,
+      ...(status     && { status }),
+      ...(categoryId && { categoryId }),
+    }
+    const [data, total] = await Promise.all([
+      prisma.websiteBlogPost.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+        include: { category: { select: { id: true, name: true } } },
+      }),
+      prisma.websiteBlogPost.count({ where }),
+    ])
+    return { data, total, page, pageSize }
+  }
+
+  async function getBlogPost({ companyId, postId }) {
+    const post = await prisma.websiteBlogPost.findFirst({
+      where: { id: postId, companyId, enabled: true },
+      include: { category: true },
+    })
+    if (!post) throw notFound('Entrada de blog')
+    return post
+  }
+
+  async function createBlogPost({ companyId, siteId, data, actorId }) {
+    return prisma.websiteBlogPost.create({
+      data: {
+        companyId, siteId,
+        title:        data.title,
+        slug:         data.slug,
+        categoryId:   data.categoryId ?? null,
+        excerpt:      data.excerpt ?? null,
+        featuredImage:data.featuredImage ?? null,
+        seo:          data.seo ?? null,
+        createdById:  actorId ?? null,
+      },
+    })
+  }
+
+  async function updateBlogPost({ companyId, postId, data, actorId }) {
+    const post = await prisma.websiteBlogPost.findFirst({ where: { id: postId, companyId } })
+    if (!post) throw notFound('Entrada de blog')
+    return prisma.websiteBlogPost.update({
+      where: { id: postId },
+      data: { ...data, updatedById: actorId ?? null },
+    })
+  }
+
+  async function saveBlogDraft({ companyId, postId, builderData, seo }) {
+    const post = await prisma.websiteBlogPost.findFirst({ where: { id: postId, companyId } })
+    if (!post) throw notFound('Entrada de blog')
+    return prisma.websiteBlogPost.update({
+      where: { id: postId },
+      data: { draftBuilderData: builderData, ...(seo && { seo }) },
+    })
+  }
+
+  async function publishBlogPost({ companyId, postId, actorId }) {
+    const post = await prisma.websiteBlogPost.findFirst({ where: { id: postId, companyId } })
+    if (!post) throw notFound('Entrada de blog')
+    const updated = await prisma.websiteBlogPost.update({
+      where: { id: postId },
+      data: {
+        status:              'published',
+        publishedBuilderData: post.draftBuilderData,
+        publishedAt:         new Date(),
+        updatedById:         actorId ?? null,
+      },
+    })
+    const site = await prisma.websiteSite.findFirst({ where: { id: post.siteId } })
+    if (site) {
+      await prisma.websitePublishedRender.upsert({
+        where:  { siteId_path: { siteId: site.id, path: `/blog/${post.slug}` } },
+        update: { updatedAt: new Date() },
+        create: { companyId, siteId: site.id, sourceType: 'blog_post', sourceId: postId, path: `/blog/${post.slug}` },
+      })
+    }
+    return updated
+  }
+
+  async function softDeleteBlogPost({ companyId, postId }) {
+    const post = await prisma.websiteBlogPost.findFirst({ where: { id: postId, companyId } })
+    if (!post) throw notFound('Entrada de blog')
+    return prisma.websiteBlogPost.update({ where: { id: postId }, data: { enabled: false } })
+  }
+
+  async function listForms({ companyId, siteId }) {
+    return prisma.websiteForm.findMany({
+      where: { companyId, siteId, enabled: true },
+      orderBy: { createdAt: 'desc' },
+      include: { _count: { select: { fields: true, submissions: true } } },
+    })
+  }
+
+  async function getForm({ companyId, formId }) {
+    const form = await prisma.websiteForm.findFirst({
+      where: { id: formId, companyId, enabled: true },
+      include: { fields: { where: { enabled: true }, orderBy: { sortOrder: 'asc' } } },
+    })
+    if (!form) throw notFound('Formulario')
+    return form
+  }
+
+  async function createForm({ companyId, siteId, data }) {
+    return prisma.websiteForm.create({
+      data: {
+        companyId, siteId,
+        name:           data.name,
+        description:    data.description ?? null,
+        submitLabel:    data.submitLabel ?? 'Enviar',
+        successMessage: data.successMessage ?? null,
+        notifyEmail:    data.notifyEmail ?? null,
+      },
+    })
+  }
+
+  async function updateForm({ companyId, formId, data }) {
+    const form = await prisma.websiteForm.findFirst({ where: { id: formId, companyId } })
+    if (!form) throw notFound('Formulario')
+    return prisma.websiteForm.update({ where: { id: formId }, data })
+  }
+
+  async function softDeleteForm({ companyId, formId }) {
+    const form = await prisma.websiteForm.findFirst({ where: { id: formId, companyId } })
+    if (!form) throw notFound('Formulario')
+    return prisma.websiteForm.update({ where: { id: formId }, data: { enabled: false } })
+  }
+
+  async function createFormField({ companyId, formId, data }) {
+    const form = await prisma.websiteForm.findFirst({ where: { id: formId, companyId } })
+    if (!form) throw notFound('Formulario')
+    return prisma.websiteFormField.create({
+      data: {
+        companyId, formId,
+        label:       data.label,
+        name:        data.name,
+        fieldType:   data.fieldType ?? 'text',
+        placeholder: data.placeholder ?? null,
+        required:    data.required ?? false,
+        options:     data.options ?? null,
+        sortOrder:   data.sortOrder ?? 0,
+      },
+    })
+  }
+
+  async function updateFormField({ companyId, fieldId, data }) {
+    const field = await prisma.websiteFormField.findFirst({ where: { id: fieldId, companyId } })
+    if (!field) throw notFound('Campo')
+    return prisma.websiteFormField.update({ where: { id: fieldId }, data })
+  }
+
+  async function softDeleteFormField({ companyId, fieldId }) {
+    const field = await prisma.websiteFormField.findFirst({ where: { id: fieldId, companyId } })
+    if (!field) throw notFound('Campo')
+    return prisma.websiteFormField.update({ where: { id: fieldId }, data: { enabled: false } })
+  }
+
+  async function reorderFormFields({ companyId, items }) {
+    return prisma.$transaction(
+      items.map(({ id, sortOrder }) =>
+        prisma.websiteFormField.update({ where: { id, companyId }, data: { sortOrder } })
+      )
+    )
+  }
+
+  async function listSubmissions({ companyId, formId, page = 1, pageSize = 20 }) {
+    const skip = (page - 1) * pageSize
+    const where = { formId, companyId }
+    const [data, total] = await Promise.all([
+      prisma.websiteFormSubmission.findMany({ where, orderBy: { submittedAt: 'desc' }, skip, take: pageSize }),
+      prisma.websiteFormSubmission.count({ where }),
+    ])
+    return { data, total, page, pageSize }
+  }
+
+  async function deleteSubmission({ companyId, submissionId }) {
+    const sub = await prisma.websiteFormSubmission.findFirst({ where: { id: submissionId, companyId } })
+    if (!sub) throw notFound('Envio')
+    return prisma.websiteFormSubmission.delete({ where: { id: submissionId } })
+  }
+
   return {
     getSite,
     createSite,
@@ -418,5 +631,27 @@ export function createWebsiteService({ prisma }) {
     getTheme,
     createTheme,
     updateTheme,
+    listBlogCategories,
+    createBlogCategory,
+    updateBlogCategory,
+    softDeleteBlogCategory,
+    listBlogPosts,
+    getBlogPost,
+    createBlogPost,
+    updateBlogPost,
+    saveBlogDraft,
+    publishBlogPost,
+    softDeleteBlogPost,
+    listForms,
+    getForm,
+    createForm,
+    updateForm,
+    softDeleteForm,
+    createFormField,
+    updateFormField,
+    softDeleteFormField,
+    reorderFormFields,
+    listSubmissions,
+    deleteSubmission,
   }
 }

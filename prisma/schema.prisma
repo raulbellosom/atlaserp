@@ -646,6 +646,106 @@ model WebsitePublishedRender {
   @@map("website_published_render")
 }
 
+model WebsiteBlogCategory {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  companyId   String   @db.Uuid @map("company_id")
+  siteId      String   @db.Uuid @map("site_id")
+  name        String
+  slug        String
+  description String?
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  posts WebsiteBlogPost[]
+
+  @@unique([companyId, siteId, slug])
+  @@index([companyId, siteId, enabled])
+  @@map("website_blog_category")
+}
+
+model WebsiteBlogPost {
+  id                   String    @id @default(uuid(7)) @db.Uuid
+  companyId            String    @db.Uuid @map("company_id")
+  siteId               String    @db.Uuid @map("site_id")
+  categoryId           String?   @db.Uuid @map("category_id")
+  title                String
+  slug                 String
+  excerpt              String?
+  featuredImage        String?   @map("featured_image")
+  status               String    @default("draft")
+  draftBuilderData     Json?     @map("draft_builder_data")
+  publishedBuilderData Json?     @map("published_builder_data")
+  seo                  Json?
+  publishedAt          DateTime? @map("published_at")
+  createdById          String?   @db.Uuid @map("created_by_id")
+  updatedById          String?   @db.Uuid @map("updated_by_id")
+  enabled              Boolean   @default(true)
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  category WebsiteBlogCategory? @relation(fields: [categoryId], references: [id])
+
+  @@unique([companyId, siteId, slug])
+  @@index([companyId, siteId, status, enabled])
+  @@map("website_blog_post")
+}
+
+model WebsiteForm {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  companyId      String   @db.Uuid @map("company_id")
+  siteId         String   @db.Uuid @map("site_id")
+  name           String
+  description    String?
+  submitLabel    String   @default("Enviar") @map("submit_label")
+  successMessage String?  @map("success_message")
+  notifyEmail    String?  @map("notify_email")
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  fields      WebsiteFormField[]
+  submissions WebsiteFormSubmission[]
+
+  @@index([companyId, siteId, enabled])
+  @@map("website_form")
+}
+
+model WebsiteFormField {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  companyId   String   @db.Uuid @map("company_id")
+  formId      String   @db.Uuid @map("form_id")
+  label       String
+  name        String
+  fieldType   String   @default("text") @map("field_type")
+  placeholder String?
+  required    Boolean  @default(false)
+  options     Json?
+  sortOrder   Int      @default(0) @map("sort_order")
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  form WebsiteForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId, enabled])
+  @@map("website_form_field")
+}
+
+model WebsiteFormSubmission {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  companyId   String   @db.Uuid @map("company_id")
+  formId      String   @db.Uuid @map("form_id")
+  data        Json
+  submitterIp String?  @map("submitter_ip")
+  submittedAt DateTime @default(now()) @map("submitted_at")
+
+  form WebsiteForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId, submittedAt])
+  @@map("website_form_submission")
+}
+
 // ─── atlas.ledger ─────────────────────────────────────────────────────────────
 
 model LedgerAccount {

@@ -4,6 +4,8 @@ import { createWebsiteService } from './website-service.js'
 import { createPagesRouter } from './pages-routes.js'
 import { createThemesRouter } from './themes-routes.js'
 import { createMenusRouter } from './menus-routes.js'
+import { createBlogRouter } from './blog-routes.js'
+import { createFormsRouter } from './forms-routes.js'
 import { createSiteSchema, updateSiteSchema } from './validators.js'
 import { WebsiteServiceError } from './service-helpers.js'
 
@@ -14,6 +16,8 @@ export function createWebsiteRouter({ prisma, requirePermission }) {
   app.route('/website', createPagesRouter({ websiteSvc, requirePermission }))
   app.route('/website', createThemesRouter({ websiteSvc, requirePermission }))
   app.route('/website', createMenusRouter({ websiteSvc, requirePermission }))
+  app.route('/website', createBlogRouter({ websiteSvc, requirePermission }))
+  app.route('/website', createFormsRouter({ websiteSvc, requirePermission }))
 
   app.get('/website/site', requirePermission('website.site.read'), async (c) => {
     const companyId = c.get('companyId')

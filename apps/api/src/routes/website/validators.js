@@ -92,3 +92,75 @@ export const updateThemeSchema = z.object({
   customCss:  z.string().optional().nullable(),
   isDefault:  z.boolean().optional(),
 })
+
+export const createBlogCategorySchema = z.object({
+  siteId:      z.string().uuid(),
+  name:        z.string().min(1).max(255),
+  slug:        z.string().min(1).max(255).regex(/^[a-z0-9-]+$/),
+  description: z.string().optional(),
+})
+
+export const createBlogPostSchema = z.object({
+  siteId:        z.string().uuid(),
+  categoryId:    z.string().uuid().optional().nullable(),
+  title:         z.string().min(1).max(255),
+  slug:          z.string().min(1).max(255).regex(/^[a-z0-9-]+$/),
+  excerpt:       z.string().optional(),
+  featuredImage: z.string().optional().nullable(),
+  seo:           z.record(z.unknown()).optional(),
+})
+
+export const updateBlogPostSchema = z.object({
+  categoryId:    z.string().uuid().optional().nullable(),
+  title:         z.string().min(1).max(255).optional(),
+  slug:          z.string().min(1).max(255).regex(/^[a-z0-9-]+$/).optional(),
+  excerpt:       z.string().optional(),
+  featuredImage: z.string().optional().nullable(),
+  seo:           z.record(z.unknown()).optional(),
+})
+
+export const saveBlogDraftSchema = z.object({
+  builderData: z.record(z.unknown()),
+  seo:         z.record(z.unknown()).optional(),
+})
+
+export const createFormSchema = z.object({
+  siteId:         z.string().uuid(),
+  name:           z.string().min(1).max(255),
+  description:    z.string().optional(),
+  submitLabel:    z.string().optional(),
+  successMessage: z.string().optional(),
+  notifyEmail:    z.string().email().optional().nullable(),
+})
+
+export const updateFormSchema = z.object({
+  name:           z.string().min(1).max(255).optional(),
+  description:    z.string().optional(),
+  submitLabel:    z.string().optional(),
+  successMessage: z.string().optional(),
+  notifyEmail:    z.string().email().optional().nullable(),
+})
+
+export const createFormFieldSchema = z.object({
+  label:       z.string().min(1).max(255),
+  name:        z.string().min(1).max(100).regex(/^[a-z_][a-z0-9_]*$/),
+  fieldType:   z.enum(['text', 'email', 'phone', 'textarea', 'select', 'checkbox', 'number', 'date']).default('text'),
+  placeholder: z.string().optional(),
+  required:    z.boolean().default(false),
+  options:     z.array(z.string()).optional().nullable(),
+  sortOrder:   z.number().int().default(0),
+})
+
+export const updateFormFieldSchema = z.object({
+  label:       z.string().min(1).max(255).optional(),
+  name:        z.string().min(1).max(100).regex(/^[a-z_][a-z0-9_]*$/).optional(),
+  fieldType:   z.enum(['text', 'email', 'phone', 'textarea', 'select', 'checkbox', 'number', 'date']).optional(),
+  placeholder: z.string().optional(),
+  required:    z.boolean().optional(),
+  options:     z.array(z.string()).optional().nullable(),
+  sortOrder:   z.number().int().optional(),
+})
+
+export const reorderFieldsSchema = z.object({
+  items: z.array(z.object({ id: z.string().uuid(), sortOrder: z.number().int() })),
+})

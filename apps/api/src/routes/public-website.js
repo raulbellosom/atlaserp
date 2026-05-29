@@ -109,5 +109,37 @@ export function createPublicWebsiteRouter({ prisma }) {
     }
   })
 
+  app.post('/forms/:formId/submit', async (c) => {
+    const { formId } = c.req.param()
+    const body = await c.req.json().catch(() => ({}))
+
+    try {
+      const form = await prisma.websiteForm.findFirst({
+        where: { id: formId, enabled: true },
+        include: { fields: { where: { enabled: true } } },
+      })
+      if (!form) return c.json({ error: 'Formulario no encontrado' }, 404)
+
+      const missing = form.fields.filter((f) => f.required && !body[f.name])
+      if (missing.length > 0) {
+        return c.json({ error: 'Campos requeridos incompletos', fields: missing.map((f) => f.name) }, 422)
+      }
+
+      await prisma.websiteFormSubmission.create({
+        data: {
+          companyId:   form.companyId,
+          formId:      form.id,
+          data:        body,
+          submitterIp: c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? null,
+        },
+      })
+
+      return c.json({ success: true, message: form.successMessage ?? 'Gracias por tu mensaje.' })
+    } catch (err) {
+      console.error('[public/website/forms/submit]', err?.message)
+      return c.json({ error: 'Error al procesar el envio' }, 500)
+    }
+  })
+
   return app
 }
