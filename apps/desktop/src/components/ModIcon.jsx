@@ -1,13 +1,17 @@
 import {
   Box, Layers, ContactRound, Landmark, LayoutDashboard, Puzzle,
-  Settings, Contact, Wallet, Users, Shield, Palette, FolderOpen,
-  Building2, CreditCard, BarChart3, FileText, Home, Truck,
+  Settings, Contact, Wallet, Users, UsersRound, Shield, Palette,
+  FolderOpen, Building2, CreditCard, BarChart3, FileText, Home,
+  Truck, Globe, BookOpen, ClipboardList, UserCheck, ShieldCheck,
+  Menu, Package,
 } from 'lucide-react';
 
 export const ICON_MAP = {
-  LayoutDashboard, Puzzle, Settings, Contact, Wallet, Users, Shield,
-  Palette, FolderOpen, Building2, Layers, ContactRound, Landmark,
-  CreditCard, BarChart3, FileText, Home, Truck, Box,
+  LayoutDashboard, Puzzle, Settings, Contact, Wallet,
+  Users, UsersRound, Shield, Palette, FolderOpen, Building2,
+  Layers, ContactRound, Landmark, CreditCard, BarChart3, FileText,
+  Home, Truck, Box, Globe, BookOpen, ClipboardList, UserCheck,
+  ShieldCheck, Menu, Package,
 };
 
 export function ModIcon({ name, size = 22, color, logoUrl }) {

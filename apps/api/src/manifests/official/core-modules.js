@@ -5,7 +5,7 @@ export const atlasCoreMap = createModuleManifest({
   key: "atlas.core",
   name: "Atlas Core",
   description:
-    "Core runtime, registry, permissions, audit and system configuration.",
+    "Nucleo del sistema: modulos, permisos, bitacora y configuracion de instancia.",
   version: "0.1.0",
   kind: MODULE_KINDS.CORE,
   core: true,
@@ -95,12 +95,12 @@ export const atlasCoreMap = createModuleManifest({
 export const identityMap = createModuleManifest({
   key: "atlas.identity",
   name: "Identidad",
-  description: "Profiles, companies, roles, permissions and memberships.",
+  description: "Usuarios, roles, permisos, membresias y control de acceso.",
   version: "0.1.0",
   kind: MODULE_KINDS.CORE,
   core: true,
   uninstallable: false,
-  icon: "Users",
+  icon: "Shield",
   color: "#21C7FF",
   category: "sistema",
   summary: "Usuarios, empresas, roles y membresias",
@@ -186,7 +186,7 @@ export const identityMap = createModuleManifest({
 export const filesMap = createModuleManifest({
   key: "atlas.files",
   name: "Archivos",
-  description: "File metadata and storage integration.",
+  description: "Gestion de archivos, carga, almacenamiento y acceso seguro.",
   version: "0.1.0",
   kind: MODULE_KINDS.CORE,
   core: true,
@@ -239,7 +239,7 @@ export const companyMap = createModuleManifest({
   key: "atlas.company",
   name: "Empresa",
   description:
-    "Company profile, address, branding and visual identity management.",
+    "Perfil de empresa, direccion, marca visual e identidad corporativa.",
   version: "0.1.0",
   kind: MODULE_KINDS.CORE,
   core: true,
