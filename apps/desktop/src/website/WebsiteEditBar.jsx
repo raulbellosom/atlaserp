@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
-  ChevronDown, Plus, Eye, Edit2, Check, ArrowLeft, Loader2,
+  ChevronDown, Plus, Eye, Edit2, Check, ArrowLeft, Loader2, Pin,
 } from 'lucide-react'
 import { getApiUrl } from '../lib/runtimeConfig.js'
 import { toast } from 'sonner'
@@ -34,6 +34,8 @@ export function WebsiteEditBar({
   isSaving,
   isPublishing,
   visible = true,
+  pinned = false,
+  onTogglePin,
 }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -132,6 +134,21 @@ export function WebsiteEditBar({
           paddingRight: 12,
         }}
       >
+        {/* Pin button — leftmost, controls bar visibility mode */}
+        {onTogglePin && (
+          <button
+            onClick={onTogglePin}
+            title={pinned ? 'Desanclar barra' : 'Anclar barra (mantener visible)'}
+            className="flex items-center justify-center w-7 h-7 rounded transition-colors mr-1"
+            style={{
+              color: pinned ? '#a5b4fc' : 'rgba(255,255,255,0.35)',
+              background: pinned ? 'rgba(255,255,255,0.1)' : 'transparent',
+            }}
+          >
+            <Pin size={13} style={{ transform: 'rotate(45deg)', fill: pinned ? 'currentColor' : 'none' }} />
+          </button>
+        )}
+
         {/* Back to ERP */}
         <a
           href="/app"
@@ -265,6 +282,7 @@ export function WebsiteEditBar({
             Editar
           </button>
         )}
+
       </div>
 
       {site && (

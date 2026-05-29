@@ -11,7 +11,7 @@ async function apiFetch(path, options = {}) {
   return res.json()
 }
 
-export function WebsiteInlineEditor({ pageId, token, onDataChange }) {
+export function WebsiteInlineEditor({ pageId, token, onDataChange, editorActionsRef }) {
   // token is passed through to WebsiteGrapesEditor for atlas.files integration
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
@@ -48,6 +48,7 @@ export function WebsiteInlineEditor({ pageId, token, onDataChange }) {
         onDataChange={onDataChange}
         height="100%"
         token={token}
+        actionsRef={editorActionsRef}
       />
     </div>
   )

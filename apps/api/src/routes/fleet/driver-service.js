@@ -1,184 +1,237 @@
-import { FleetServiceError } from './fleet-service.js'
+import { FleetServiceError } from "./fleet-service.js";
 
-const MODULE_KEY = 'atlas.fleet'
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const MODULE_KEY = "atlas.fleet";
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // sortBy column names come from this allowlist, never from raw user input
 const SORT_FIELD_MAP = {
   full_name: "first_name || ' ' || last_name",
-  first_name: 'first_name',
-  last_name: 'last_name',
-  phone: 'phone',
-  license_number: 'license_number',
-  license_expiry_date: 'license_expiry_date',
-  status: 'status',
-  created_at: 'created_at',
-}
+  first_name: "first_name",
+  last_name: "last_name",
+  phone: "phone",
+  license_number: "license_number",
+  license_expiry_date: "license_expiry_date",
+  status: "status",
+  created_at: "created_at",
+};
 
 function toNumber(value, fallback) {
-  const parsed = Number.parseInt(String(value ?? ''), 10)
-  return Number.isFinite(parsed) ? parsed : fallback
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function normalizePagination({ page, pageSize }) {
-  const safePage = Math.max(1, toNumber(page, 1))
-  const safePageSize = Math.min(100, Math.max(1, toNumber(pageSize, 20)))
-  return { page: safePage, pageSize: safePageSize, offset: (safePage - 1) * safePageSize }
+  const safePage = Math.max(1, toNumber(page, 1));
+  const safePageSize = Math.min(100, Math.max(1, toNumber(pageSize, 20)));
+  return {
+    page: safePage,
+    pageSize: safePageSize,
+    offset: (safePage - 1) * safePageSize,
+  };
 }
 
 function normalizeSearch(search) {
-  const value = String(search ?? '').trim()
-  return value.length > 0 ? value : null
+  const value = String(search ?? "").trim();
+  return value.length > 0 ? value : null;
 }
 
 function normalizeOptionalString(value) {
-  if (value === undefined) return undefined
-  if (value === null) return null
-  const normalized = String(value).trim()
-  return normalized.length > 0 ? normalized : null
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const normalized = String(value).trim();
+  return normalized.length > 0 ? normalized : null;
 }
 
 function ensureCompanyId(companyId) {
-  const normalized = (typeof companyId === 'string' && companyId.trim()) ? companyId.trim() : null
-  if (!normalized) throw new FleetServiceError('companyId es requerido.', 400)
-  return normalized
+  const normalized =
+    typeof companyId === "string" && companyId.trim() ? companyId.trim() : null;
+  if (!normalized) throw new FleetServiceError("companyId es requerido.", 400);
+  return normalized;
 }
 
 function normalizeDriverPayload(data = {}) {
   return {
     ...data,
-    first_name: data.first_name === undefined ? undefined : String(data.first_name).trim(),
-    last_name: data.last_name === undefined ? undefined : String(data.last_name).trim(),
+    first_name:
+      data.first_name === undefined
+        ? undefined
+        : String(data.first_name).trim(),
+    last_name:
+      data.last_name === undefined ? undefined : String(data.last_name).trim(),
     phone: data.phone === undefined ? undefined : String(data.phone).trim(),
-    license_number: data.license_number === undefined ? undefined : String(data.license_number).trim(),
-    license_type: data.license_type === undefined ? undefined : String(data.license_type).trim(),
+    license_number:
+      data.license_number === undefined
+        ? undefined
+        : String(data.license_number).trim(),
+    license_type:
+      data.license_type === undefined
+        ? undefined
+        : String(data.license_type).trim(),
     email: normalizeOptionalString(data.email),
     photo_asset_id: normalizeOptionalString(data.photo_asset_id),
     hr_employee_id: normalizeOptionalString(data.hr_employee_id),
     notes: normalizeOptionalString(data.notes),
-  }
+  };
 }
 
 function toScopedCompanyUuid(companyId) {
-  const normalized = (typeof companyId === 'string' && companyId.trim()) ? companyId.trim() : null
-  if (!normalized) throw new FleetServiceError('companyId es requerido.', 400)
-  if (!UUID_REGEX.test(normalized)) throw new FleetServiceError('companyId debe ser UUID valido.', 400)
-  return normalized.toLowerCase()
+  const normalized =
+    typeof companyId === "string" && companyId.trim() ? companyId.trim() : null;
+  if (!normalized) throw new FleetServiceError("companyId es requerido.", 400);
+  if (!UUID_REGEX.test(normalized))
+    throw new FleetServiceError("companyId debe ser UUID valido.", 400);
+  return normalized.toLowerCase();
 }
 
 function normalizeRecordId(id, notFoundMessage) {
-  const value = String(id ?? '').trim()
-  if (!UUID_REGEX.test(value)) throw new FleetServiceError(notFoundMessage, 404)
-  return value.toLowerCase()
+  const value = String(id ?? "").trim();
+  if (!UUID_REGEX.test(value))
+    throw new FleetServiceError(notFoundMessage, 404);
+  return value.toLowerCase();
 }
 
 function isTableNotFoundError(error) {
-  const codes = [error?.code, error?.meta?.code, error?.cause?.code, error?.originalError?.code]
-  if (codes.includes('42P01')) return true
-  const msg = String(error?.message ?? '').toLowerCase()
-  return msg.includes('42p01') || (msg.includes('relation') && msg.includes('does not exist'))
+  const codes = [
+    error?.code,
+    error?.meta?.code,
+    error?.cause?.code,
+    error?.originalError?.code,
+  ];
+  if (codes.includes("42P01")) return true;
+  const msg = String(error?.message ?? "").toLowerCase();
+  return (
+    msg.includes("42p01") ||
+    (msg.includes("relation") && msg.includes("does not exist"))
+  );
 }
 
 function isUniqueViolation(error) {
   const codes = [
-    error?.code, error?.meta?.code, error?.cause?.code, error?.cause?.originalCode,
-    error?.originalError?.code, error?.meta?.driverAdapterError?.cause?.code,
+    error?.code,
+    error?.meta?.code,
+    error?.cause?.code,
+    error?.cause?.originalCode,
+    error?.originalError?.code,
+    error?.meta?.driverAdapterError?.cause?.code,
     error?.meta?.driverAdapterError?.cause?.originalCode,
-  ].map((v) => (v == null ? null : String(v))).filter(Boolean)
-  if (codes.includes('23505')) return true
-  return String(error?.message ?? '').toLowerCase().includes('duplicate key value violates unique constraint')
+  ]
+    .map((v) => (v == null ? null : String(v)))
+    .filter(Boolean);
+  if (codes.includes("23505")) return true;
+  return String(error?.message ?? "")
+    .toLowerCase()
+    .includes("duplicate key value violates unique constraint");
 }
 
 function toCount(value) {
-  const parsed = Number(value ?? 0)
-  return Number.isFinite(parsed) ? parsed : 0
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 async function withDbErrorMapping(fn) {
   try {
-    return await fn()
+    return await fn();
   } catch (error) {
-    if (isTableNotFoundError(error)) throw new FleetServiceError('Las tablas del modulo no estan disponibles aun.', 503)
-    throw error
+    if (isTableNotFoundError(error))
+      throw new FleetServiceError(
+        "Las tablas del modulo no estan disponibles aun.",
+        503,
+      );
+    throw error;
   }
 }
 
 function firstRow(rows) {
-  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null
+  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
 }
 
 function hasOwn(data, key) {
-  return Object.prototype.hasOwnProperty.call(data, key)
+  return Object.prototype.hasOwnProperty.call(data, key);
 }
 
 export function createDriverService({ prisma }) {
   async function enrichDriversWithHrData(rows, rawCompanyId) {
-    if (!Array.isArray(rows) || rows.length === 0) return rows ?? []
+    if (!Array.isArray(rows) || rows.length === 0) return rows ?? [];
 
-    const ids = [...new Set(rows.map((row) => normalizeOptionalString(row?.hr_employee_id)).filter(Boolean))]
-    if (ids.length === 0) return rows
+    const ids = [
+      ...new Set(
+        rows
+          .map((row) => normalizeOptionalString(row?.hr_employee_id))
+          .filter(Boolean),
+      ),
+    ];
+    if (ids.length === 0) return rows;
 
-    let hrRows = []
+    let hrRows = [];
     try {
-      hrRows = await prisma.hrEmployee.findMany({
-        where: {
-          id: { in: ids },
-          companyId: rawCompanyId,
-        },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          employeeCode: true,
-          userProfileId: true,
-        },
-      })
+      const placeholders = ids.map((_, i) => `$${i + 2}`).join(", ");
+      hrRows = await prisma.$queryRawUnsafe(
+        `SELECT id, first_name, last_name, employee_code, user_profile_id
+         FROM hr_employee
+         WHERE company_id = $1 AND id IN (${placeholders})`,
+        rawCompanyId,
+        ...ids,
+      );
     } catch {
-      return rows
+      return rows;
     }
     const hrMap = new Map(
       hrRows.map((entry) => [
         entry.id,
         {
-          hr_employee_name: `${entry.firstName ?? ''} ${entry.lastName ?? ''}`.trim() || null,
-          hr_employee_code: entry.employeeCode ?? null,
-          linked_user_profile_id: entry.userProfileId ?? null,
+          hr_employee_name:
+            `${entry.first_name ?? ""} ${entry.last_name ?? ""}`.trim() || null,
+          hr_employee_code: entry.employee_code ?? null,
+          linked_user_profile_id: entry.user_profile_id ?? null,
         },
       ]),
-    )
+    );
 
     return rows.map((row) => {
-      const hrEmployeeId = normalizeOptionalString(row.hr_employee_id)
-      if (!hrEmployeeId) return row
-      const match = hrMap.get(hrEmployeeId)
-      if (!match) return row
-      return { ...row, ...match }
-    })
+      const hrEmployeeId = normalizeOptionalString(row.hr_employee_id);
+      if (!hrEmployeeId) return row;
+      const match = hrMap.get(hrEmployeeId);
+      if (!match) return row;
+      return { ...row, ...match };
+    });
   }
 
-  async function validateHrEmployeeLink({ rawCompanyId, hrEmployeeId, currentDriverId = null }) {
-    if (!hrEmployeeId) return
+  async function validateHrEmployeeLink({
+    rawCompanyId,
+    hrEmployeeId,
+    currentDriverId = null,
+  }) {
+    if (!hrEmployeeId) return;
 
-    let employee = null
+    let employee = null;
     try {
-      employee = await prisma.hrEmployee.findFirst({
-        where: {
-          id: hrEmployeeId,
-          companyId: rawCompanyId,
-        },
-        select: { id: true, enabled: true },
-      })
+      const rows = await prisma.$queryRaw`
+        SELECT id, enabled FROM hr_employee
+        WHERE id = ${hrEmployeeId}::uuid AND company_id = ${toScopedCompanyUuid(rawCompanyId)}
+        LIMIT 1
+      `;
+      employee = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
     } catch {
-      throw new FleetServiceError('No se pudo validar el colaborador de RH. Revisa que el modulo RH este disponible.', 503)
+      throw new FleetServiceError(
+        "No se pudo validar el colaborador de RH. Revisa que el modulo RH este disponible.",
+        503,
+      );
     }
     if (!employee) {
-      throw new FleetServiceError('El colaborador de RH seleccionado no existe en la empresa activa.', 400)
+      throw new FleetServiceError(
+        "El colaborador de RH seleccionado no existe en la empresa activa.",
+        400,
+      );
     }
     if (!employee.enabled) {
-      throw new FleetServiceError('El colaborador de RH seleccionado esta deshabilitado.', 400)
+      throw new FleetServiceError(
+        "El colaborador de RH seleccionado esta deshabilitado.",
+        400,
+      );
     }
 
-    const safeCurrentDriverId = normalizeOptionalString(currentDriverId)
+    const safeCurrentDriverId = normalizeOptionalString(currentDriverId);
     const linkedRows = await prisma.$queryRaw`
       SELECT id
       FROM fleet_driver
@@ -187,28 +240,56 @@ export function createDriverService({ prisma }) {
         AND hr_employee_id = ${hrEmployeeId}
         AND (${safeCurrentDriverId}::text IS NULL OR id <> ${safeCurrentDriverId}::uuid)
       LIMIT 1
-    `
+    `;
     if (Array.isArray(linkedRows) && linkedRows.length > 0) {
-      throw new FleetServiceError('Este colaborador de RH ya esta vinculado a otro chofer.', 409)
+      throw new FleetServiceError(
+        "Este colaborador de RH ya esta vinculado a otro chofer.",
+        409,
+      );
     }
   }
 
-  async function logAudit({ actorId, entityType, entityId, action, before = null, after = null, metadata = null }) {
+  async function logAudit({
+    actorId,
+    entityType,
+    entityId,
+    action,
+    before = null,
+    after = null,
+    metadata = null,
+  }) {
     await prisma.auditLog.create({
-      data: { actorId: actorId ?? null, moduleKey: MODULE_KEY, entityType, entityId: entityId ?? null, action, before, after, metadata },
-    })
+      data: {
+        actorId: actorId ?? null,
+        moduleKey: MODULE_KEY,
+        entityType,
+        entityId: entityId ?? null,
+        action,
+        before,
+        after,
+        metadata,
+      },
+    });
   }
 
-  async function listDrivers({ companyId, page, pageSize, search, status, sortBy, sortDir }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const rawCompanyId = ensureCompanyId(companyId)
-    const pagination = normalizePagination({ page, pageSize })
-    const normalizedStatus = normalizeOptionalString(status)
-    const normalizedSearch = normalizeSearch(search)
-    const likeValue = normalizedSearch ? `%${normalizedSearch}%` : null
+  async function listDrivers({
+    companyId,
+    page,
+    pageSize,
+    search,
+    status,
+    sortBy,
+    sortDir,
+  }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const rawCompanyId = ensureCompanyId(companyId);
+    const pagination = normalizePagination({ page, pageSize });
+    const normalizedStatus = normalizeOptionalString(status);
+    const normalizedSearch = normalizeSearch(search);
+    const likeValue = normalizedSearch ? `%${normalizedSearch}%` : null;
     // sortCol from allowlist only — never raw user input
-    const sortCol = SORT_FIELD_MAP[sortBy] ?? 'created_at'
-    const sortDirection = sortDir === 'asc' ? 'ASC' : 'DESC'
+    const sortCol = SORT_FIELD_MAP[sortBy] ?? "created_at";
+    const sortDirection = sortDir === "asc" ? "ASC" : "DESC";
 
     const [rows, totalRows] = await withDbErrorMapping(async () => {
       const dataRows = await prisma.$queryRawUnsafe(
@@ -247,8 +328,12 @@ export function createDriverService({ prisma }) {
            AND ($3::text IS NULL OR fd.first_name ILIKE $3 OR fd.last_name ILIKE $3 OR fd.license_number ILIKE $3 OR fd.phone ILIKE $3)
          ORDER BY ${sortCol} ${sortDirection}
          LIMIT $4 OFFSET $5`,
-        safeCompanyId, normalizedStatus, likeValue, pagination.pageSize, pagination.offset
-      )
+        safeCompanyId,
+        normalizedStatus,
+        likeValue,
+        pagination.pageSize,
+        pagination.offset,
+      );
       const countRows = await prisma.$queryRawUnsafe(
         `SELECT COUNT(*)::bigint AS total
          FROM fleet_driver
@@ -256,22 +341,28 @@ export function createDriverService({ prisma }) {
            AND enabled = true
            AND ($2::text IS NULL OR status = $2)
            AND ($3::text IS NULL OR first_name ILIKE $3 OR last_name ILIKE $3 OR license_number ILIKE $3 OR phone ILIKE $3)`,
-        safeCompanyId, normalizedStatus, likeValue
-      )
-      return [dataRows, countRows]
-    })
-    const enrichedRows = await enrichDriversWithHrData(rows, rawCompanyId)
+        safeCompanyId,
+        normalizedStatus,
+        likeValue,
+      );
+      return [dataRows, countRows];
+    });
+    const enrichedRows = await enrichDriversWithHrData(rows, rawCompanyId);
 
     return {
       data: enrichedRows,
-      pagination: { page: pagination.page, pageSize: pagination.pageSize, total: toCount(firstRow(totalRows)?.total) },
-    }
+      pagination: {
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+        total: toCount(firstRow(totalRows)?.total),
+      },
+    };
   }
 
   async function getDriver({ companyId, id }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const rawCompanyId = ensureCompanyId(companyId)
-    const safeId = normalizeRecordId(id, 'Chofer no encontrado.')
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const rawCompanyId = ensureCompanyId(companyId);
+    const safeId = normalizeRecordId(id, "Chofer no encontrado.");
     const row = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
         SELECT *,
@@ -293,19 +384,22 @@ export function createDriverService({ prisma }) {
         FROM fleet_driver
         WHERE id = ${safeId} AND company_id = ${safeCompanyId}
         LIMIT 1
-      `
-      return firstRow(rows)
-    })
-    if (!row) throw new FleetServiceError('Chofer no encontrado.', 404)
-    const [enriched] = await enrichDriversWithHrData([row], rawCompanyId)
-    return enriched ?? row
+      `;
+      return firstRow(rows);
+    });
+    if (!row) throw new FleetServiceError("Chofer no encontrado.", 404);
+    const [enriched] = await enrichDriversWithHrData([row], rawCompanyId);
+    return enriched ?? row;
   }
 
   async function createDriver({ companyId, actorId, payload }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const rawCompanyId = ensureCompanyId(companyId)
-    const data = normalizeDriverPayload(payload)
-    await validateHrEmployeeLink({ rawCompanyId, hrEmployeeId: data.hr_employee_id ?? null })
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const rawCompanyId = ensureCompanyId(companyId);
+    const data = normalizeDriverPayload(payload);
+    await validateHrEmployeeLink({
+      rawCompanyId,
+      hrEmployeeId: data.hr_employee_id ?? null,
+    });
     try {
       const row = await withDbErrorMapping(async () => {
         const rows = await prisma.$queryRaw`
@@ -317,40 +411,76 @@ export function createDriverService({ prisma }) {
             ${safeCompanyId}, ${data.first_name}, ${data.last_name}, ${data.phone},
             ${data.email ?? null}, ${data.photo_asset_id ?? null},
             ${data.license_number}, ${data.license_type}, ${data.license_expiry_date},
-            ${data.status ?? 'active'}, ${data.notes ?? null}, ${data.hr_employee_id ?? null}
+            ${data.status ?? "active"}, ${data.notes ?? null}, ${data.hr_employee_id ?? null}
           )
           RETURNING *, first_name || ' ' || last_name AS full_name
-        `
-        return firstRow(rows)
-      })
-      await logAudit({ actorId, entityType: 'Driver', entityId: row?.id ?? null, action: 'fleet.driver.create', before: null, after: row })
-      return row
+        `;
+        return firstRow(rows);
+      });
+      await logAudit({
+        actorId,
+        entityType: "Driver",
+        entityId: row?.id ?? null,
+        action: "fleet.driver.create",
+        before: null,
+        after: row,
+      });
+      return row;
     } catch (error) {
-      if (isUniqueViolation(error)) throw new FleetServiceError('Ya existe un chofer con ese numero de licencia.', 409)
-      throw error
+      if (isUniqueViolation(error))
+        throw new FleetServiceError(
+          "Ya existe un chofer con ese numero de licencia.",
+          409,
+        );
+      throw error;
     }
   }
 
   async function updateDriver({ companyId, actorId, id, payload }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const rawCompanyId = ensureCompanyId(companyId)
-    const safeId = normalizeRecordId(id, 'Chofer no encontrado.')
-    const data = normalizeDriverPayload(payload)
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const rawCompanyId = ensureCompanyId(companyId);
+    const safeId = normalizeRecordId(id, "Chofer no encontrado.");
+    const data = normalizeDriverPayload(payload);
 
-    const hasFirstName = hasOwn(data, 'first_name') && data.first_name !== undefined
-    const hasLastName = hasOwn(data, 'last_name') && data.last_name !== undefined
-    const hasPhone = hasOwn(data, 'phone') && data.phone !== undefined
-    const hasEmail = hasOwn(data, 'email') && data.email !== undefined
-    const hasPhotoAssetId = hasOwn(data, 'photo_asset_id') && data.photo_asset_id !== undefined
-    const hasLicenseNumber = hasOwn(data, 'license_number') && data.license_number !== undefined
-    const hasLicenseType = hasOwn(data, 'license_type') && data.license_type !== undefined
-    const hasLicenseExpiryDate = hasOwn(data, 'license_expiry_date') && data.license_expiry_date !== undefined
-    const hasStatus = hasOwn(data, 'status') && data.status !== undefined
-    const hasNotes = hasOwn(data, 'notes') && data.notes !== undefined
-    const hasHrEmployeeId = hasOwn(data, 'hr_employee_id') && data.hr_employee_id !== undefined
+    const hasFirstName =
+      hasOwn(data, "first_name") && data.first_name !== undefined;
+    const hasLastName =
+      hasOwn(data, "last_name") && data.last_name !== undefined;
+    const hasPhone = hasOwn(data, "phone") && data.phone !== undefined;
+    const hasEmail = hasOwn(data, "email") && data.email !== undefined;
+    const hasPhotoAssetId =
+      hasOwn(data, "photo_asset_id") && data.photo_asset_id !== undefined;
+    const hasLicenseNumber =
+      hasOwn(data, "license_number") && data.license_number !== undefined;
+    const hasLicenseType =
+      hasOwn(data, "license_type") && data.license_type !== undefined;
+    const hasLicenseExpiryDate =
+      hasOwn(data, "license_expiry_date") &&
+      data.license_expiry_date !== undefined;
+    const hasStatus = hasOwn(data, "status") && data.status !== undefined;
+    const hasNotes = hasOwn(data, "notes") && data.notes !== undefined;
+    const hasHrEmployeeId =
+      hasOwn(data, "hr_employee_id") && data.hr_employee_id !== undefined;
 
-    if (![hasFirstName, hasLastName, hasPhone, hasEmail, hasPhotoAssetId, hasLicenseNumber, hasLicenseType, hasLicenseExpiryDate, hasStatus, hasNotes, hasHrEmployeeId].some(Boolean)) {
-      throw new FleetServiceError('No hay campos validos para actualizar.', 400)
+    if (
+      ![
+        hasFirstName,
+        hasLastName,
+        hasPhone,
+        hasEmail,
+        hasPhotoAssetId,
+        hasLicenseNumber,
+        hasLicenseType,
+        hasLicenseExpiryDate,
+        hasStatus,
+        hasNotes,
+        hasHrEmployeeId,
+      ].some(Boolean)
+    ) {
+      throw new FleetServiceError(
+        "No hay campos validos para actualizar.",
+        400,
+      );
     }
 
     if (hasHrEmployeeId) {
@@ -358,10 +488,10 @@ export function createDriverService({ prisma }) {
         rawCompanyId,
         hrEmployeeId: data.hr_employee_id ?? null,
         currentDriverId: safeId,
-      })
+      });
     }
 
-    const before = await getDriver({ companyId, id: safeId })
+    const before = await getDriver({ companyId, id: safeId });
 
     try {
       const updated = await withDbErrorMapping(async () => {
@@ -381,22 +511,33 @@ export function createDriverService({ prisma }) {
               updated_at = now()
           WHERE id = ${safeId} AND company_id = ${safeCompanyId}
           RETURNING *, first_name || ' ' || last_name AS full_name
-        `
-        return firstRow(rows)
-      })
-      if (!updated) throw new FleetServiceError('Chofer no encontrado.', 404)
-      await logAudit({ actorId, entityType: 'Driver', entityId: updated.id, action: 'fleet.driver.update', before, after: updated })
-      return updated
+        `;
+        return firstRow(rows);
+      });
+      if (!updated) throw new FleetServiceError("Chofer no encontrado.", 404);
+      await logAudit({
+        actorId,
+        entityType: "Driver",
+        entityId: updated.id,
+        action: "fleet.driver.update",
+        before,
+        after: updated,
+      });
+      return updated;
     } catch (error) {
-      if (isUniqueViolation(error)) throw new FleetServiceError('Ya existe un chofer con ese numero de licencia.', 409)
-      throw error
+      if (isUniqueViolation(error))
+        throw new FleetServiceError(
+          "Ya existe un chofer con ese numero de licencia.",
+          409,
+        );
+      throw error;
     }
   }
 
   async function setDriverEnabled({ companyId, actorId, id, enabled }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeId = normalizeRecordId(id, 'Chofer no encontrado.')
-    const before = await getDriver({ companyId, id: safeId })
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const safeId = normalizeRecordId(id, "Chofer no encontrado.");
+    const before = await getDriver({ companyId, id: safeId });
 
     const updated = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
@@ -404,45 +545,63 @@ export function createDriverService({ prisma }) {
         SET enabled = ${Boolean(enabled)}, updated_at = now()
         WHERE id = ${safeId} AND company_id = ${safeCompanyId}
         RETURNING *, first_name || ' ' || last_name AS full_name
-      `
-      return firstRow(rows)
-    })
-    if (!updated) throw new FleetServiceError('Chofer no encontrado.', 404)
-    await logAudit({ actorId, entityType: 'Driver', entityId: updated.id, action: 'fleet.driver.disable', before, after: updated, metadata: { enabled: Boolean(enabled) } })
-    return updated
+      `;
+      return firstRow(rows);
+    });
+    if (!updated) throw new FleetServiceError("Chofer no encontrado.", 404);
+    await logAudit({
+      actorId,
+      entityType: "Driver",
+      entityId: updated.id,
+      action: "fleet.driver.disable",
+      before,
+      after: updated,
+      metadata: { enabled: Boolean(enabled) },
+    });
+    return updated;
   }
 
   async function listDriverDocuments({ companyId, driverId }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeDriverId = normalizeRecordId(driverId, 'Chofer no encontrado.')
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const safeDriverId = normalizeRecordId(driverId, "Chofer no encontrado.");
 
-    const docs = await withDbErrorMapping(() =>
-      prisma.$queryRaw`
+    const docs = await withDbErrorMapping(
+      () =>
+        prisma.$queryRaw`
         SELECT * FROM fleet_driver_document
         WHERE driver_id::text = ${safeDriverId}::text
           AND company_id::text = ${safeCompanyId}::text
           AND enabled = true
         ORDER BY created_at DESC
-      `
-    )
+      `,
+    );
 
-    if (!docs.length) return { data: [] }
+    if (!docs.length) return { data: [] };
 
-    const fileAssetIds = docs.map((d) => d.file_asset_id).filter(Boolean)
-    const assets = fileAssetIds.length > 0
-      ? await prisma.fileAsset.findMany({ where: { id: { in: fileAssetIds } } })
-      : []
-    const assetMap = Object.fromEntries(assets.map((a) => [a.id, a]))
+    const fileAssetIds = docs.map((d) => d.file_asset_id).filter(Boolean);
+    const assets =
+      fileAssetIds.length > 0
+        ? await prisma.fileAsset.findMany({
+            where: { id: { in: fileAssetIds } },
+          })
+        : [];
+    const assetMap = Object.fromEntries(assets.map((a) => [a.id, a]));
 
-    return { data: docs.map((d) => ({ ...d, file_asset: assetMap[d.file_asset_id] ?? null })) }
+    return {
+      data: docs.map((d) => ({
+        ...d,
+        file_asset: assetMap[d.file_asset_id] ?? null,
+      })),
+    };
   }
 
   async function listDriverVehicles({ companyId, driverId }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeDriverId = normalizeRecordId(driverId, 'Chofer no encontrado.')
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const safeDriverId = normalizeRecordId(driverId, "Chofer no encontrado.");
 
-    const rows = await withDbErrorMapping(() =>
-      prisma.$queryRaw`
+    const rows = await withDbErrorMapping(
+      () =>
+        prisma.$queryRaw`
         SELECT
           v.id,
           v.plate,
@@ -481,35 +640,36 @@ export function createDriverService({ prisma }) {
           AND v.driver_id = ${safeDriverId}
           AND v.enabled = true
         ORDER BY v.updated_at DESC, v.created_at DESC
-      `
-    )
+      `,
+    );
 
-    return { data: rows }
+    return { data: rows };
   }
 
   async function addDriverDocument({ companyId, actorId, driverId, payload }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeDriverId = normalizeRecordId(driverId, 'Chofer no encontrado.')
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const safeDriverId = normalizeRecordId(driverId, "Chofer no encontrado.");
 
-    const fileAssetId = normalizeOptionalString(payload.file_asset_id)
-    if (!fileAssetId) throw new FleetServiceError('Archivo invalido.', 400)
+    const fileAssetId = normalizeOptionalString(payload.file_asset_id);
+    if (!fileAssetId) throw new FleetServiceError("Archivo invalido.", 400);
 
     const doc = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
         INSERT INTO fleet_driver_document (company_id, driver_id, file_asset_id, document_type, label)
-        VALUES (${safeCompanyId}, ${safeDriverId}, ${fileAssetId}, ${payload.document_type ?? 'document'}, ${payload.label ?? null})
+        VALUES (${safeCompanyId}, ${safeDriverId}, ${fileAssetId}, ${payload.document_type ?? "document"}, ${payload.label ?? null})
         RETURNING *
-      `
-      return firstRow(rows)
-    })
+      `;
+      return firstRow(rows);
+    });
 
     const asset = await prisma.fileAsset.findUnique({
       where: { id: fileAssetId },
       select: { id: true, mimeType: true },
-    })
-    if (asset?.mimeType?.startsWith('image/')) {
-      await withDbErrorMapping(() =>
-        prisma.$queryRaw`
+    });
+    if (asset?.mimeType?.startsWith("image/")) {
+      await withDbErrorMapping(
+        () =>
+          prisma.$queryRaw`
           UPDATE fleet_driver
           SET photo_asset_id = CASE
             WHEN photo_asset_id IS NULL OR TRIM(photo_asset_id) = ''
@@ -520,17 +680,24 @@ export function createDriverService({ prisma }) {
           WHERE id = ${safeDriverId}
             AND company_id = ${safeCompanyId}
         `,
-      )
+      );
     }
 
-    await logAudit({ actorId, entityType: 'Driver', entityId: safeDriverId, action: 'fleet.driver.document.add', before: null, after: doc })
-    return doc
+    await logAudit({
+      actorId,
+      entityType: "Driver",
+      entityId: safeDriverId,
+      action: "fleet.driver.document.add",
+      before: null,
+      after: doc,
+    });
+    return doc;
   }
 
   async function removeDriverDocument({ companyId, actorId, driverId, docId }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeDriverId = normalizeRecordId(driverId, 'Chofer no encontrado.')
-    const safeDocId = normalizeRecordId(docId, 'Documento no encontrado.')
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const safeDriverId = normalizeRecordId(driverId, "Chofer no encontrado.");
+    const safeDocId = normalizeRecordId(docId, "Documento no encontrado.");
 
     const updated = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
@@ -540,12 +707,19 @@ export function createDriverService({ prisma }) {
           AND driver_id::text = ${safeDriverId}::text
           AND company_id::text = ${safeCompanyId}::text
         RETURNING *
-      `
-      return firstRow(rows)
-    })
-    if (!updated) throw new FleetServiceError('Documento no encontrado.', 404)
-    await logAudit({ actorId, entityType: 'Driver', entityId: safeDriverId, action: 'fleet.driver.document.remove', before: updated, after: { ...updated, enabled: false } })
-    return updated
+      `;
+      return firstRow(rows);
+    });
+    if (!updated) throw new FleetServiceError("Documento no encontrado.", 404);
+    await logAudit({
+      actorId,
+      entityType: "Driver",
+      entityId: safeDriverId,
+      action: "fleet.driver.document.remove",
+      before: updated,
+      after: { ...updated, enabled: false },
+    });
+    return updated;
   }
 
   return {
@@ -558,7 +732,5 @@ export function createDriverService({ prisma }) {
     listDriverVehicles,
     addDriverDocument,
     removeDriverDocument,
-  }
+  };
 }
-
-

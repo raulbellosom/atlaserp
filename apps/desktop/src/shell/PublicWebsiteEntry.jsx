@@ -38,12 +38,35 @@ export function PublicWebsiteEntry() {
   const token     = session?.access_token ?? null
   const isLoggedIn = Boolean(token)
 
+  // The global app CSS sets overflow:hidden on html/body for the ERP shell.
+  // Override it here so the public website can scroll normally.
+  useEffect(() => {
+    document.documentElement.style.overflow = 'auto'
+    document.body.style.overflow = 'auto'
+    return () => {
+      document.documentElement.style.overflow = ''
+      document.body.style.overflow = ''
+    }
+  }, [])
+
   const [isEditing, setIsEditing]   = useState(false)
   const [isSaving, setIsSaving]     = useState(false)
   const [isPublishing, setPublishing] = useState(false)
   const [barVisible, setBarVisible] = useState(false)
-  const grapesDataRef = useRef(null)
-  const hideBarTimer = useRef(null)
+  const [pinned, setPinned] = useState(() => {
+    try { return localStorage.getItem('atlas-website-bar-pinned') === 'true' } catch { return false }
+  })
+  const grapesDataRef    = useRef(null)
+  const editorActionsRef = useRef(null)   // exposes getLatestData() from the editor
+  const hideBarTimer     = useRef(null)
+
+  const handleTogglePin = useCallback(() => {
+    setPinned(p => {
+      const next = !p
+      try { localStorage.setItem('atlas-website-bar-pinned', String(next)) } catch {}
+      return next
+    })
+  }, [])
 
   // Reset edit mode on navigation
   useEffect(() => { setIsEditing(false) }, [location.pathname])
@@ -111,17 +134,23 @@ export function PublicWebsiteEntry() {
     }
   }, [resolveData, navigate])
 
+  // Bar is visible when: pinned by user, actively editing (needs save/publish), or mouse is near top-left
+  const isBarVisible = pinned || isEditing || barVisible
+
   const handleDataChange = useCallback((data) => {
     grapesDataRef.current = data
   }, [])
 
   async function handleSave() {
-    if (!activePage?.id || !grapesDataRef.current) return
+    if (!activePage?.id) return
+    // Prefer fresh data from editor (bypasses debounce) so style changes are never lost
+    const builderData = editorActionsRef.current?.getLatestData() ?? grapesDataRef.current
+    if (!builderData) return
     setIsSaving(true)
     try {
       await apiFetch(`/website/pages/${activePage.id}/save-draft`, token, {
         method: 'POST',
-        body: JSON.stringify({ builderData: grapesDataRef.current }),
+        body: JSON.stringify({ builderData }),
       })
       toast.success('Borrador guardado')
       queryClient.invalidateQueries({ queryKey: ['website-page-by-path', site?.id, location.pathname] })
@@ -134,28 +163,36 @@ export function PublicWebsiteEntry() {
 
   async function handlePublish() {
     if (!activePage?.id) return
-    // 1. Save current editor state to draft first
-    if (grapesDataRef.current) {
+
+    // 1. Save the current editor state as draft — MUST succeed before publishing.
+    //    Use fresh data from editor (bypasses debounce so no style changes are lost).
+    const builderDataForPublish = editorActionsRef.current?.getLatestData() ?? grapesDataRef.current
+    if (builderDataForPublish) {
       setIsSaving(true)
       try {
         await apiFetch(`/website/pages/${activePage.id}/save-draft`, token, {
           method: 'POST',
-          body: JSON.stringify({ builderData: grapesDataRef.current }),
+          body: JSON.stringify({ builderData: builderDataForPublish }),
         })
-      } catch { /* best effort — publish will use whatever draft is stored */ }
+      } catch (err) {
+        toast.error('No se pudo guardar: ' + (err.message || 'error desconocido'))
+        setIsSaving(false)
+        return // abort — don't publish stale data
+      }
       setIsSaving(false)
     }
-    // 2. Publish (copies draft → published in DB)
+
+    // 2. Publish (copies the just-saved draft → publishedBuilderData)
     setPublishing(true)
     try {
       await apiFetch(`/website/pages/${activePage.id}/publish`, token, { method: 'POST' })
-      // 3. Await a fresh fetch of the public resolver so the renderer gets the new HTML
+      // 3. Await refetch so preview shows fresh content immediately after switching
       await resolveQuery.refetch()
       queryClient.invalidateQueries({ queryKey: ['website-page-by-path', site?.id, location.pathname] })
       queryClient.invalidateQueries({ queryKey: ['edit-bar-pages', site?.id] })
-      // 4. Switch to preview so the user sees the published result immediately
+      // 4. Auto-switch to preview so the user sees the published result
       setIsEditing(false)
-      toast.success('Pagina publicada')
+      toast.success('Cambios publicados')
     } catch (err) {
       toast.error(err.message || 'Error al publicar')
     } finally {
@@ -193,8 +230,13 @@ export function PublicWebsiteEntry() {
         token={token}
         isSaving={isSaving}
         isPublishing={isPublishing}
-        visible={barVisible}
+        visible={isBarVisible}
+        pinned={pinned}
+        onTogglePin={handleTogglePin}
       />
+
+      {/* Spacer pushes page content below the pinned bar so nothing is hidden underneath */}
+      {pinned && !isEditing && <div style={{ height: 48 }} />}
 
       <div>
         {isEditing ? (
@@ -202,6 +244,7 @@ export function PublicWebsiteEntry() {
             pageId={activePage?.id ?? null}
             token={token}
             onDataChange={handleDataChange}
+            editorActionsRef={editorActionsRef}
           />
         ) : resolveData?.page ? (
           <WebsitePageRenderer

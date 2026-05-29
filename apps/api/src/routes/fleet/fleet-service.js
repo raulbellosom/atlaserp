@@ -355,9 +355,17 @@ export function createFleetService({ prisma }) {
             ELSE NULL
           END AS full_economic_number,
           (SELECT json_build_object(
+            'id', fip.id::text,
             'insurer_name', fip.insurer_name,
             'policy_number', fip.policy_number,
             'coverage_type', fip.coverage_type,
+            'coverage_type_label', CASE fip.coverage_type
+              WHEN 'basic' THEN 'Basica'
+              WHEN 'comprehensive' THEN 'Integral'
+              WHEN 'third_party' THEN 'Terceros'
+              WHEN 'other' THEN 'Otro'
+              ELSE fip.coverage_type
+            END,
             'expiry_date', fip.expiry_date::text
            )
            FROM fleet_insurance_policy fip

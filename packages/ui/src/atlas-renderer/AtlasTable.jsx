@@ -32,7 +32,9 @@ import { resolveColorHex } from "./atlas-form-utils.js";
 const DEFAULT_PAGE_SIZE = 20;
 
 function inferRowActionKind(label) {
-  const normalized = String(label ?? "").trim().toLowerCase();
+  const normalized = String(label ?? "")
+    .trim()
+    .toLowerCase();
   if (!normalized) return "unknown";
   if (
     normalized.includes("desactivar") ||
@@ -119,7 +121,8 @@ function getByPath(input, path) {
 
 function normalizeColumns(schema) {
   const rawColumns = Array.isArray(schema?.columns) ? schema.columns : [];
-  const primaryFieldName = schema?.primaryField ?? schema?.recordTitleField ?? null;
+  const primaryFieldName =
+    schema?.primaryField ?? schema?.recordTitleField ?? null;
 
   const cols = rawColumns
     .map((entry) => {
@@ -144,9 +147,7 @@ function normalizeColumns(schema) {
       return {
         key: fieldStr,
         field: fieldStr,
-        label: normalizeSpanishLabel(
-          entry.label ?? entry.title ?? fieldStr,
-        ),
+        label: normalizeSpanishLabel(entry.label ?? entry.title ?? fieldStr),
         component: entry.component ?? null,
         type: entry.type ?? null,
         options: Array.isArray(entry.options) ? entry.options : null,
@@ -246,7 +247,10 @@ function formatTableDate(value) {
 function formatTableCurrency(value) {
   const amount = Number(value ?? 0);
   if (!Number.isFinite(amount)) return "—";
-  return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(amount);
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+  }).format(amount);
 }
 
 function renderValue(value) {
@@ -258,7 +262,8 @@ function renderValue(value) {
 }
 
 function ColorCell({ value }) {
-  if (!value || value === "—") return <span className="text-muted-foreground">—</span>;
+  if (!value || value === "—")
+    return <span className="text-muted-foreground">—</span>;
   const hex = resolveColorHex(value);
   const displayName = value.startsWith("#") ? value : value;
   return (
@@ -346,7 +351,7 @@ export function AtlasTable({
     let cancelled = false;
     const prefUrl = `${apiBaseUrl.replace(/\/+$/, "")}/profile/me/table-preferences/${encodeURIComponent(tableKey)}`;
     fetch(prefUrl, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.ok ? r.json() : null)
+      .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
         if (cancelled) return;
         if (json?.data) {
@@ -362,7 +367,14 @@ export function AtlasTable({
     return () => {
       cancelled = true;
     };
-  }, [apiBaseUrl, tableKey, token, setFromConfig, resetToDefaults, preferenceScope]);
+  }, [
+    apiBaseUrl,
+    tableKey,
+    token,
+    setFromConfig,
+    resetToDefaults,
+    preferenceScope,
+  ]);
 
   // ── Preference save (debounced 800ms) ─────────────────────────────────────
   const saveTimerRef = useRef(null);
@@ -380,35 +392,50 @@ export function AtlasTable({
       const prefUrl = `${apiBaseUrl.replace(/\/+$/, "")}/profile/me/table-preferences/${encodeURIComponent(tableKey)}`;
       fetch(prefUrl, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(config),
       }).catch(() => {});
     }, 800);
   }, [apiBaseUrl, tableKey, token, preferenceScope]);
 
-  const handleReorderColumns = useCallback((activeKey, overKey) => {
-    reorderColumns(activeKey, overKey);
-    schedulePreferenceSave();
-  }, [reorderColumns, schedulePreferenceSave]);
+  const handleReorderColumns = useCallback(
+    (activeKey, overKey) => {
+      reorderColumns(activeKey, overKey);
+      schedulePreferenceSave();
+    },
+    [reorderColumns, schedulePreferenceSave],
+  );
 
-  const handleToggleColumn = useCallback((key) => {
-    toggleColumn(key);
-    schedulePreferenceSave();
-  }, [toggleColumn, schedulePreferenceSave]);
+  const handleToggleColumn = useCallback(
+    (key) => {
+      toggleColumn(key);
+      schedulePreferenceSave();
+    },
+    [toggleColumn, schedulePreferenceSave],
+  );
 
   const handleResetToDefaults = useCallback(async () => {
     resetToDefaults();
     if (tableKey && token && apiBaseUrl) {
       const prefUrl = `${apiBaseUrl.replace(/\/+$/, "")}/profile/me/table-preferences/${encodeURIComponent(tableKey)}`;
-      fetch(prefUrl, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+      fetch(prefUrl, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
     }
   }, [resetToDefaults, apiBaseUrl, tableKey, token]);
 
-  const handlePageSizeChange = useCallback((size) => {
-    setPageSize(size);
-    setPage(1);
-    schedulePreferenceSave();
-  }, [setPageSize, schedulePreferenceSave]);
+  const handlePageSizeChange = useCallback(
+    (size) => {
+      setPageSize(size);
+      setPage(1);
+      schedulePreferenceSave();
+    },
+    [setPageSize, schedulePreferenceSave],
+  );
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -426,7 +453,7 @@ export function AtlasTable({
   const [reloadTick, setReloadTick] = useState(0);
   const storageKey = `atlas.renderer.${apiPath.replace(/\//g, ".")}`;
   const [view, setView] = useState(() =>
-    getStoredViewMode(storageKey, "table"),
+    getStoredViewMode(storageKey, schema.defaultViewMode ?? "table"),
   );
   const [selectedIds, setSelectedIds] = useState(new Set());
 
@@ -526,9 +553,15 @@ export function AtlasTable({
 
   const rowActions = Array.isArray(schema.rowActions) ? schema.rowActions : [];
 
-  const viewActionLabel = rowActions.find((a) => inferRowActionKind(a?.label) === "view")?.label ?? "Ver detalle";
-  const editActionLabel = rowActions.find((a) => inferRowActionKind(a?.label) === "edit")?.label ?? "Editar";
-  const deleteActionLabel = rowActions.find((a) => inferRowActionKind(a?.label) === "delete")?.label ?? "Eliminar";
+  const viewActionLabel =
+    rowActions.find((a) => inferRowActionKind(a?.label) === "view")?.label ??
+    "Ver detalle";
+  const editActionLabel =
+    rowActions.find((a) => inferRowActionKind(a?.label) === "edit")?.label ??
+    "Editar";
+  const deleteActionLabel =
+    rowActions.find((a) => inferRowActionKind(a?.label) === "delete")?.label ??
+    "Eliminar";
 
   const rowMenuItems = (row) => {
     if (rowActions.length === 0) {
@@ -580,12 +613,16 @@ export function AtlasTable({
         const kind = inferRowActionKind(label);
         let chosen = null;
 
-        if (kind === "view" && onView) chosen = fallbackQueue.find((item) => item.kind === "view");
-        else if (kind === "edit" && onEdit) chosen = fallbackQueue.find((item) => item.kind === "edit");
-        else if (kind === "delete" && onDelete) chosen = fallbackQueue.find((item) => item.kind === "delete");
+        if (kind === "view" && onView)
+          chosen = fallbackQueue.find((item) => item.kind === "view");
+        else if (kind === "edit" && onEdit)
+          chosen = fallbackQueue.find((item) => item.kind === "edit");
+        else if (kind === "delete" && onDelete)
+          chosen = fallbackQueue.find((item) => item.kind === "delete");
 
         if (!chosen) {
-          chosen = fallbackQueue.find((item) => !usedKinds.has(item.kind)) ?? null;
+          chosen =
+            fallbackQueue.find((item) => !usedKinds.has(item.kind)) ?? null;
         }
         if (!chosen) return null;
 
@@ -677,9 +714,9 @@ export function AtlasTable({
       return (
         <EmptyState
           title="Sin registros"
-          description={
-            normalizeSpanishLabel(schema?.emptyState?.message ?? "No hay registros para mostrar.")
-          }
+          description={normalizeSpanishLabel(
+            schema?.emptyState?.message ?? "No hay registros para mostrar.",
+          )}
           action={
             onCreate ? { label: "Agregar", onClick: onCreate } : undefined
           }
@@ -706,10 +743,18 @@ export function AtlasTable({
                   <ColumnHeaderMenu
                     column={col}
                     canMoveLeft={!col.pinned && colIdx > 0}
-                    canMoveRight={!col.pinned && colIdx < visibleColumns.length - 1}
+                    canMoveRight={
+                      !col.pinned && colIdx < visibleColumns.length - 1
+                    }
                     onHide={handleToggleColumn}
-                    onMoveLeft={(key) => { moveColumn(key, "left"); schedulePreferenceSave(); }}
-                    onMoveRight={(key) => { moveColumn(key, "right"); schedulePreferenceSave(); }}
+                    onMoveLeft={(key) => {
+                      moveColumn(key, "left");
+                      schedulePreferenceSave();
+                    }}
+                    onMoveRight={(key) => {
+                      moveColumn(key, "right");
+                      schedulePreferenceSave();
+                    }}
                   >
                     {col.label}
                   </ColumnHeaderMenu>
@@ -741,10 +786,9 @@ export function AtlasTable({
                   </TableCell>
                   {visibleColumns.map((col) => {
                     const value = getByPath(row, col.field);
-                    const colHref =
-                      col.hrefTemplate
-                        ? replacePathTokens(col.hrefTemplate, row)
-                        : null;
+                    const colHref = col.hrefTemplate
+                      ? replacePathTokens(col.hrefTemplate, row)
+                      : null;
                     const hasColumnHref =
                       Boolean(colHref) && !hasUnresolvedPathToken(colHref);
                     let cellContent;
@@ -786,25 +830,42 @@ export function AtlasTable({
                       );
                     } else if (col.type === "select" && col.options) {
                       const str = String(value ?? "");
-                      const opt = col.options.find((o) => String(o.value) === str);
+                      const opt = col.options.find(
+                        (o) => String(o.value) === str,
+                      );
                       cellContent = opt?.label ?? renderValue(value);
                     } else if (col.type === "markdown") {
                       cellContent = stripMarkdown(value);
                     } else if (col.type === "date" || col.type === "datetime") {
                       cellContent = formatTableDate(value);
-                    } else if (col.type === "currency" || col.type === "decimal") {
+                    } else if (
+                      col.type === "currency" ||
+                      col.type === "decimal"
+                    ) {
                       cellContent = formatTableCurrency(value);
                     } else {
                       cellContent = renderValue(value);
                     }
                     const truncateCell = !col.component && col.type !== "color";
                     return (
-                      <TableCell key={`${col.key}-${rowIndex}`} className={truncateCell ? "max-w-50" : undefined}>
+                      <TableCell
+                        key={`${col.key}-${rowIndex}`}
+                        className={truncateCell ? "max-w-50" : undefined}
+                      >
                         {truncateCell ? (
-                          <div className="truncate" title={typeof cellContent === "string" ? cellContent : undefined}>
+                          <div
+                            className="truncate"
+                            title={
+                              typeof cellContent === "string"
+                                ? cellContent
+                                : undefined
+                            }
+                          >
                             {cellContent}
                           </div>
-                        ) : cellContent}
+                        ) : (
+                          cellContent
+                        )}
                       </TableCell>
                     );
                   })}
@@ -876,9 +937,9 @@ export function AtlasTable({
       return (
         <EmptyState
           title="Sin registros"
-          description={
-            normalizeSpanishLabel(schema?.emptyState?.message ?? "No hay registros para mostrar.")
-          }
+          description={normalizeSpanishLabel(
+            schema?.emptyState?.message ?? "No hay registros para mostrar.",
+          )}
           action={
             onCreate ? { label: "Agregar", onClick: onCreate } : undefined
           }
@@ -900,19 +961,22 @@ export function AtlasTable({
               : "#";
           const menuItems = rowMenuItems(row);
           const itemColorHex = colorCol
-            ? (resolveColorHex(getByPath(row, colorCol.field)) || null)
+            ? resolveColorHex(getByPath(row, colorCol.field)) || null
             : null;
           const avatarBg = itemColorHex
             ? `${itemColorHex}33`
             : accentColor
               ? `${accentColor}26`
               : "hsl(var(--muted))";
-          const avatarText = itemColorHex ?? accentColor ?? "hsl(var(--muted-foreground))";
+          const avatarText =
+            itemColorHex ?? accentColor ?? "hsl(var(--muted-foreground))";
           const statusVal = statusCol
             ? (() => {
                 const v = getByPath(row, statusCol.field);
                 if (statusCol.type === "select" && statusCol.options) {
-                  const opt = statusCol.options.find((o) => String(o.value) === String(v ?? ""));
+                  const opt = statusCol.options.find(
+                    (o) => String(o.value) === String(v ?? ""),
+                  );
                   return opt?.label ?? renderValue(v);
                 }
                 return renderValue(v);
@@ -967,7 +1031,9 @@ export function AtlasTable({
                     if (col.type === "date" || col.type === "datetime") {
                       formatted = formatTableDate(rawVal);
                     } else if (col.type === "select" && col.options) {
-                      const opt = col.options.find((o) => String(o.value) === String(rawVal ?? ""));
+                      const opt = col.options.find(
+                        (o) => String(o.value) === String(rawVal ?? ""),
+                      );
                       formatted = opt?.label ?? renderValue(rawVal);
                     } else if (col.type === "markdown") {
                       formatted = stripMarkdown(rawVal);
@@ -1040,9 +1106,9 @@ export function AtlasTable({
       return (
         <EmptyState
           title="Sin registros"
-          description={
-            normalizeSpanishLabel(schema?.emptyState?.message ?? "No hay registros para mostrar.")
-          }
+          description={normalizeSpanishLabel(
+            schema?.emptyState?.message ?? "No hay registros para mostrar.",
+          )}
           action={
             onCreate ? { label: "Agregar", onClick: onCreate } : undefined
           }

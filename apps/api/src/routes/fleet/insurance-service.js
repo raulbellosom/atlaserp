@@ -7,89 +7,91 @@ import {
   toCount,
   firstRow,
   hasOwn,
-} from './service-helpers.js'
-import { FleetServiceError } from './fleet-service.js'
+} from "./service-helpers.js";
+import { FleetServiceError } from "./fleet-service.js";
 
-const MODULE_KEY = 'atlas.fleet'
+const MODULE_KEY = "atlas.fleet";
 const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function toScopedCompanyUuid(companyId) {
   const normalized =
-    typeof companyId === 'string' && companyId.trim() ? companyId.trim() : null
-  if (!normalized) throw new FleetServiceError('companyId es requerido.', 400)
+    typeof companyId === "string" && companyId.trim() ? companyId.trim() : null;
+  if (!normalized) throw new FleetServiceError("companyId es requerido.", 400);
   if (!UUID_REGEX.test(normalized))
-    throw new FleetServiceError('companyId debe ser UUID valido.', 400)
-  return normalized.toLowerCase()
+    throw new FleetServiceError("companyId debe ser UUID valido.", 400);
+  return normalized.toLowerCase();
 }
 
 function normalizeRecordId(id, notFoundMessage) {
-  const value = String(id ?? '').trim()
+  const value = String(id ?? "").trim();
   if (!UUID_REGEX.test(value)) {
-    throw new FleetServiceError(notFoundMessage, 404)
+    throw new FleetServiceError(notFoundMessage, 404);
   }
-  return value.toLowerCase()
+  return value.toLowerCase();
 }
 
 async function withDbErrorMapping(fn) {
   try {
-    return await fn()
+    return await fn();
   } catch (error) {
     if (isTableNotFoundError(error)) {
       throw new FleetServiceError(
-        'Las tablas del modulo no estan disponibles aun.',
-        503
-      )
+        "Las tablas del modulo no estan disponibles aun.",
+        503,
+      );
     }
-    throw error
+    throw error;
   }
 }
 
 function normalizeInsurancePolicyPayload(data = {}) {
-  const normalized = {}
+  const normalized = {};
 
   if (data.vehicle_id !== undefined) {
     normalized.vehicle_id =
-      data.vehicle_id === null ? null : String(data.vehicle_id).trim()
+      data.vehicle_id === null ? null : String(data.vehicle_id).trim();
   }
   if (data.insurer_name !== undefined) {
     normalized.insurer_name =
-      data.insurer_name === null ? null : String(data.insurer_name).trim()
+      data.insurer_name === null ? null : String(data.insurer_name).trim();
   }
   if (data.policy_number !== undefined) {
     normalized.policy_number =
-      data.policy_number === null ? null : String(data.policy_number).trim()
+      data.policy_number === null ? null : String(data.policy_number).trim();
   }
   if (data.coverage_type !== undefined) {
-    normalized.coverage_type = normalizeOptionalString(data.coverage_type)
+    normalized.coverage_type = normalizeOptionalString(data.coverage_type);
   }
   if (data.start_date !== undefined) {
     normalized.start_date =
-      data.start_date === null ? null : String(data.start_date).trim()
+      data.start_date === null ? null : String(data.start_date).trim();
   }
   if (data.expiry_date !== undefined) {
     normalized.expiry_date =
-      data.expiry_date === null ? null : String(data.expiry_date).trim()
+      data.expiry_date === null ? null : String(data.expiry_date).trim();
   }
   if (data.premium !== undefined) {
-    if (typeof data.premium === 'number') {
-      normalized.premium = data.premium
+    if (typeof data.premium === "number") {
+      normalized.premium = data.premium;
     } else if (data.premium === null) {
-      normalized.premium = null
+      normalized.premium = null;
     }
   }
 
   // currency: always provide a value, defaulting to 'MXN'
-  normalized.currency = String(data.currency ?? 'MXN').trim() || 'MXN'
+  normalized.currency = String(data.currency ?? "MXN").trim() || "MXN";
 
   if (data.notes !== undefined) {
-    normalized.notes = normalizeOptionalString(data.notes)
+    normalized.notes = normalizeOptionalString(data.notes);
   }
   if (data.document_asset_id !== undefined) {
-    normalized.document_asset_id = normalizeOptionalString(data.document_asset_id)
+    normalized.document_asset_id = normalizeOptionalString(
+      data.document_asset_id,
+    );
   }
 
-  return normalized
+  return normalized;
 }
 
 export function createInsuranceService({ prisma }) {
@@ -112,28 +114,50 @@ export function createInsuranceService({ prisma }) {
         after,
         metadata: null,
       },
-    })
+    });
   }
 
-  async function listPolicies({ companyId, vehicleId, active, page, pageSize }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const pagination = normalizePagination({ page, pageSize })
+  async function listPolicies({
+    companyId,
+    vehicleId,
+    active,
+    page,
+    pageSize,
+  }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const pagination = normalizePagination({ page, pageSize });
 
     // Normalize vehicleId: null means "no filter"
-    let safeVehicleId = null
-    if (vehicleId !== undefined && vehicleId !== null && String(vehicleId).trim()) {
-      safeVehicleId = normalizeRecordId(vehicleId, 'Vehiculo no encontrado.')
+    let safeVehicleId = null;
+    if (
+      vehicleId !== undefined &&
+      vehicleId !== null &&
+      String(vehicleId).trim()
+    ) {
+      safeVehicleId = normalizeRecordId(vehicleId, "Vehiculo no encontrado.");
     }
 
     // active: true = only active, false = only inactive/expired, null/undefined = all enabled
     const activeFilter =
-      active === true ? true : active === false ? false : null
+      active === true ? true : active === false ? false : null;
 
     const [rows, totalRows] = await withDbErrorMapping(async () => {
       const dataRows = await prisma.$queryRaw`
         SELECT fip.*,
           fv.plate AS vehicle_plate,
-          (fip.enabled = true AND fip.expiry_date::date >= CURRENT_DATE) AS is_active
+          CONCAT(fip.insurer_name, ' - ', fip.policy_number) AS name,
+          CASE
+            WHEN fip.enabled = false THEN 'disabled'
+            WHEN fip.expiry_date::date < CURRENT_DATE THEN 'expired'
+            ELSE 'active'
+          END AS status,
+          CASE fip.coverage_type
+            WHEN 'basic' THEN 'Basica'
+            WHEN 'comprehensive' THEN 'Integral'
+            WHEN 'third_party' THEN 'Terceros'
+            WHEN 'other' THEN 'Otro'
+            ELSE fip.coverage_type
+          END AS coverage_type_label
         FROM fleet_insurance_policy fip
         LEFT JOIN fleet_vehicle fv ON fv.id = fip.vehicle_id AND fv.company_id = fip.company_id
         WHERE fip.company_id = ${safeCompanyId}
@@ -147,7 +171,7 @@ export function createInsuranceService({ prisma }) {
           AND (${safeVehicleId}::uuid IS NULL OR fip.vehicle_id = ${safeVehicleId}::uuid)
         ORDER BY fip.expiry_date DESC
         LIMIT ${pagination.pageSize} OFFSET ${pagination.offset}
-      `
+      `;
 
       const countRows = await prisma.$queryRaw`
         SELECT COUNT(*)::bigint AS total
@@ -161,10 +185,10 @@ export function createInsuranceService({ prisma }) {
             END
           )
           AND (${safeVehicleId}::uuid IS NULL OR fip.vehicle_id = ${safeVehicleId}::uuid)
-      `
+      `;
 
-      return [dataRows, countRows]
-    })
+      return [dataRows, countRows];
+    });
 
     return {
       data: rows,
@@ -173,12 +197,12 @@ export function createInsuranceService({ prisma }) {
         pageSize: pagination.pageSize,
         total: toCount(firstRow(totalRows)?.total),
       },
-    }
+    };
   }
 
   async function createPolicy({ companyId, actorId, data }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const payload = normalizeInsurancePolicyPayload(data)
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const payload = normalizeInsurancePolicyPayload(data);
 
     try {
       const row = await withDbErrorMapping(async () => {
@@ -210,79 +234,92 @@ export function createInsuranceService({ prisma }) {
             ${payload.document_asset_id ?? null}
           )
           RETURNING *
-        `
-        return firstRow(rows)
-      })
+        `;
+        return firstRow(rows);
+      });
 
       await logAudit({
         actorId,
-        entityType: 'InsurancePolicy',
+        entityType: "InsurancePolicy",
         entityId: row?.id ?? null,
-        action: 'fleet.insurance.create',
+        action: "fleet.insurance.create",
         before: null,
         after: row,
-      })
+      });
 
-      return row
+      return row;
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new FleetServiceError(
-          'Ya existe una poliza con ese numero para esta empresa.',
-          409
-        )
+          "Ya existe una poliza con ese numero para esta empresa.",
+          409,
+        );
       }
-      throw error
+      throw error;
     }
   }
 
   async function getPolicy({ companyId, id }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeId = normalizeRecordId(id, 'Poliza de seguro no encontrada.')
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const safeId = normalizeRecordId(id, "Poliza de seguro no encontrada.");
 
     const row = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
         SELECT fip.*,
           fv.plate AS vehicle_plate,
-          (fip.enabled = true AND fip.expiry_date::date >= CURRENT_DATE) AS is_active
+          CONCAT(fip.insurer_name, ' - ', fip.policy_number) AS name,
+          CASE
+            WHEN fip.enabled = false THEN 'disabled'
+            WHEN fip.expiry_date::date < CURRENT_DATE THEN 'expired'
+            ELSE 'active'
+          END AS status,
+          CASE fip.coverage_type
+            WHEN 'basic' THEN 'Basica'
+            WHEN 'comprehensive' THEN 'Integral'
+            WHEN 'third_party' THEN 'Terceros'
+            WHEN 'other' THEN 'Otro'
+            ELSE fip.coverage_type
+          END AS coverage_type_label
         FROM fleet_insurance_policy fip
         LEFT JOIN fleet_vehicle fv ON fv.id = fip.vehicle_id AND fv.company_id = fip.company_id
         WHERE fip.id = ${safeId}
           AND fip.company_id = ${safeCompanyId}
           AND fip.enabled = true
         LIMIT 1
-      `
-      return firstRow(rows)
-    })
+      `;
+      return firstRow(rows);
+    });
 
-    if (!row) throw new FleetServiceError('Poliza de seguro no encontrada.', 404)
-    return row
+    if (!row)
+      throw new FleetServiceError("Poliza de seguro no encontrada.", 404);
+    return row;
   }
 
   async function updatePolicy({ companyId, actorId, id, data }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeId = normalizeRecordId(id, 'Poliza de seguro no encontrada.')
-    const payload = normalizeInsurancePolicyPayload(data)
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const safeId = normalizeRecordId(id, "Poliza de seguro no encontrada.");
+    const payload = normalizeInsurancePolicyPayload(data);
 
     const hasVehicleId =
-      hasOwn(payload, 'vehicle_id') && payload.vehicle_id !== undefined
+      hasOwn(payload, "vehicle_id") && payload.vehicle_id !== undefined;
     const hasInsurerName =
-      hasOwn(payload, 'insurer_name') && payload.insurer_name !== undefined
+      hasOwn(payload, "insurer_name") && payload.insurer_name !== undefined;
     const hasPolicyNumber =
-      hasOwn(payload, 'policy_number') && payload.policy_number !== undefined
+      hasOwn(payload, "policy_number") && payload.policy_number !== undefined;
     const hasCoverageType =
-      hasOwn(payload, 'coverage_type') && payload.coverage_type !== undefined
+      hasOwn(payload, "coverage_type") && payload.coverage_type !== undefined;
     const hasStartDate =
-      hasOwn(payload, 'start_date') && payload.start_date !== undefined
+      hasOwn(payload, "start_date") && payload.start_date !== undefined;
     const hasExpiryDate =
-      hasOwn(payload, 'expiry_date') && payload.expiry_date !== undefined
+      hasOwn(payload, "expiry_date") && payload.expiry_date !== undefined;
     const hasPremium =
-      hasOwn(payload, 'premium') && payload.premium !== undefined
+      hasOwn(payload, "premium") && payload.premium !== undefined;
     const hasCurrency =
-      hasOwn(payload, 'currency') && payload.currency !== undefined
-    const hasNotes =
-      hasOwn(payload, 'notes') && payload.notes !== undefined
+      hasOwn(payload, "currency") && payload.currency !== undefined;
+    const hasNotes = hasOwn(payload, "notes") && payload.notes !== undefined;
     const hasDocumentAssetId =
-      hasOwn(payload, 'document_asset_id') && payload.document_asset_id !== undefined
+      hasOwn(payload, "document_asset_id") &&
+      payload.document_asset_id !== undefined;
 
     const hasAnyUpdate =
       hasVehicleId ||
@@ -294,13 +331,16 @@ export function createInsuranceService({ prisma }) {
       hasPremium ||
       hasCurrency ||
       hasNotes ||
-      hasDocumentAssetId
+      hasDocumentAssetId;
 
     if (!hasAnyUpdate) {
-      throw new FleetServiceError('No hay campos validos para actualizar.', 400)
+      throw new FleetServiceError(
+        "No hay campos validos para actualizar.",
+        400,
+      );
     }
 
-    const before = await getPolicy({ companyId: safeCompanyId, id: safeId })
+    const before = await getPolicy({ companyId: safeCompanyId, id: safeId });
 
     try {
       const updated = await withDbErrorMapping(async () => {
@@ -321,40 +361,41 @@ export function createInsuranceService({ prisma }) {
             AND company_id = ${safeCompanyId}
             AND enabled = true
           RETURNING *
-        `
-        return firstRow(rows)
-      })
+        `;
+        return firstRow(rows);
+      });
 
-      if (!updated) throw new FleetServiceError('Poliza de seguro no encontrada.', 404)
+      if (!updated)
+        throw new FleetServiceError("Poliza de seguro no encontrada.", 404);
 
-      const after = await getPolicy({ companyId: safeCompanyId, id: safeId })
+      const after = await getPolicy({ companyId: safeCompanyId, id: safeId });
 
       await logAudit({
         actorId,
-        entityType: 'InsurancePolicy',
+        entityType: "InsurancePolicy",
         entityId: updated.id,
-        action: 'fleet.insurance.update',
+        action: "fleet.insurance.update",
         before,
         after,
-      })
+      });
 
-      return after
+      return after;
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new FleetServiceError(
-          'Ya existe una poliza con ese numero para esta empresa.',
-          409
-        )
+          "Ya existe una poliza con ese numero para esta empresa.",
+          409,
+        );
       }
-      throw error
+      throw error;
     }
   }
 
   async function disablePolicy({ companyId, actorId, id }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeId = normalizeRecordId(id, 'Poliza de seguro no encontrada.')
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const safeId = normalizeRecordId(id, "Poliza de seguro no encontrada.");
 
-    const before = await getPolicy({ companyId: safeCompanyId, id: safeId })
+    const before = await getPolicy({ companyId: safeCompanyId, id: safeId });
 
     const updated = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
@@ -365,53 +406,81 @@ export function createInsuranceService({ prisma }) {
           AND company_id = ${safeCompanyId}
           AND enabled = true
         RETURNING *
-      `
-      return firstRow(rows)
-    })
+      `;
+      return firstRow(rows);
+    });
 
     if (!updated)
-      throw new FleetServiceError('Poliza de seguro no encontrada.', 404)
+      throw new FleetServiceError("Poliza de seguro no encontrada.", 404);
 
     await logAudit({
       actorId,
-      entityType: 'InsurancePolicy',
+      entityType: "InsurancePolicy",
       entityId: updated.id,
-      action: 'fleet.insurance.disable',
+      action: "fleet.insurance.disable",
       before,
       after: updated,
-    })
+    });
 
-    return updated
+    return updated;
   }
 
   async function listVehiclePolicies({ companyId, vehicleId }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeVehicleId = normalizeRecordId(vehicleId, 'Vehiculo no encontrado.')
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const safeVehicleId = normalizeRecordId(
+      vehicleId,
+      "Vehiculo no encontrado.",
+    );
 
     // intentionally includes disabled policies — full history for the vehicle relation-list
-    const rows = await withDbErrorMapping(() => prisma.$queryRaw`
+    const rows = await withDbErrorMapping(
+      () => prisma.$queryRaw`
       SELECT fip.*,
         fv.plate AS vehicle_plate,
-        (fip.enabled = true AND fip.expiry_date::date >= CURRENT_DATE) AS is_active
+        CONCAT(fip.insurer_name, ' - ', fip.policy_number) AS name,
+        CASE
+          WHEN fip.enabled = false THEN 'disabled'
+          WHEN fip.expiry_date::date < CURRENT_DATE THEN 'expired'
+          ELSE 'active'
+        END AS status,
+        CASE fip.coverage_type
+          WHEN 'basic' THEN 'Basica'
+          WHEN 'comprehensive' THEN 'Integral'
+          WHEN 'third_party' THEN 'Terceros'
+          WHEN 'other' THEN 'Otro'
+          ELSE fip.coverage_type
+        END AS coverage_type_label
       FROM fleet_insurance_policy fip
       LEFT JOIN fleet_vehicle fv ON fv.id = fip.vehicle_id AND fv.company_id = fip.company_id
       WHERE fip.vehicle_id = ${safeVehicleId}::uuid
         AND fip.company_id = ${safeCompanyId}
       ORDER BY fip.expiry_date DESC
-    `)
+    `,
+    );
 
-    return { data: rows }
+    return { data: rows };
   }
 
   async function getActivePolicyForVehicle({ companyId, vehicleId }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeVehicleId = normalizeRecordId(vehicleId, 'Vehiculo no encontrado.')
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const safeVehicleId = normalizeRecordId(
+      vehicleId,
+      "Vehiculo no encontrado.",
+    );
 
     const row = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
         SELECT fip.*,
           fv.plate AS vehicle_plate,
-          true AS is_active
+          CONCAT(fip.insurer_name, ' - ', fip.policy_number) AS name,
+          'active' AS status,
+          CASE fip.coverage_type
+            WHEN 'basic' THEN 'Basica'
+            WHEN 'comprehensive' THEN 'Integral'
+            WHEN 'third_party' THEN 'Terceros'
+            WHEN 'other' THEN 'Otro'
+            ELSE fip.coverage_type
+          END AS coverage_type_label
         FROM fleet_insurance_policy fip
         LEFT JOIN fleet_vehicle fv ON fv.id = fip.vehicle_id AND fv.company_id = fip.company_id
         WHERE fip.vehicle_id = ${safeVehicleId}::uuid
@@ -420,11 +489,11 @@ export function createInsuranceService({ prisma }) {
           AND fip.expiry_date::date >= CURRENT_DATE
         ORDER BY fip.start_date DESC
         LIMIT 1
-      `
-      return firstRow(rows)
-    })
+      `;
+      return firstRow(rows);
+    });
 
-    return row ?? null
+    return row ?? null;
   }
 
   return {
@@ -435,5 +504,5 @@ export function createInsuranceService({ prisma }) {
     disablePolicy,
     listVehiclePolicies,
     getActivePolicyForVehicle,
-  }
+  };
 }
