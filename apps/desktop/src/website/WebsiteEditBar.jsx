@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronDown, Plus, Eye, Edit2, Check, ArrowLeft, Loader2,
@@ -33,6 +33,7 @@ export function WebsiteEditBar({
   token,
   isSaving,
   isPublishing,
+  visible = true,
 }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -67,9 +68,52 @@ export function WebsiteEditBar({
 
   return (
     <>
+      {/* CSS for animations */}
+      <style>{`
+        @keyframes atlas-pulse {
+          0%, 100% { opacity: 1; transform: scaleX(1); }
+          50%       { opacity: 0.5; transform: scaleX(0.85); }
+        }
+        .atlas-trigger-indicator { animation: atlas-pulse 2s ease-in-out infinite; }
+      `}</style>
+
+      {/* Pulsing red trigger indicator — visible when bar is hidden */}
+      {!visible && (
+        <div
+          className="atlas-trigger-indicator"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            height: '3px',
+            width: '140px',
+            background: 'linear-gradient(90deg, #ef4444 0%, rgba(239,68,68,0.5) 70%, transparent 100%)',
+            zIndex: 9998,
+            borderRadius: '0 0 4px 0',
+            pointerEvents: 'none',
+            transformOrigin: 'left center',
+          }}
+        />
+      )}
+
+      {/* Main edit bar — slides in/out */}
       <div
-        className="fixed top-0 left-0 right-0 z-[9999] h-12 flex items-center gap-1 px-3"
-        style={{ backgroundColor: '#312e81' }}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 9999,
+          height: 48,
+          backgroundColor: '#312e81',
+          transform: visible ? 'translateY(0)' : 'translateY(-100%)',
+          transition: 'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          paddingLeft: 12,
+          paddingRight: 12,
+        }}
       >
         {/* Back to ERP */}
         <a
@@ -93,7 +137,7 @@ export function WebsiteEditBar({
                 {pageStatus && (
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[pageStatus] ?? 'bg-gray-400'}`} />
                 )}
-                <span className="max-w-[200px] truncate">{currentPage.title}</span>
+                <span className="max-w-50 truncate">{currentPage.title}</span>
               </>
             ) : (
               <span className="text-white/50">Sin pagina</span>
@@ -152,7 +196,7 @@ export function WebsiteEditBar({
 
         {/* Status badge */}
         {pageStatus && !isEditing && (
-          <span className={`flex items-center gap-1 text-xs text-white/60 mr-2`}>
+          <span className="flex items-center gap-1 text-xs text-white/60 mr-2">
             <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[pageStatus]}`} />
             {STATUS_LABELS[pageStatus] ?? pageStatus}
           </span>

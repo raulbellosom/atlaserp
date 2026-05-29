@@ -32,12 +32,12 @@ export function WebsiteGrapesEditor({ initialData, onDataChange, height }) {
     editor.on('update', emitChange)
     editorRef.current = editor
 
-    // Refresh layout after first paint to fix panel sizing when mounted inside a nested context
-    requestAnimationFrame(() => {
-      editorRef.current?.refresh()
-    })
+    // Emit the loaded state so the parent ref is populated before any user edits.
+    // Without this, saving immediately after opening returns empty data.
+    const initEmitTimer = setTimeout(emitChange, 250)
 
     return () => {
+      clearTimeout(initEmitTimer)
       editor.off('update', emitChange)
       editor.destroy()
       editorRef.current = null
@@ -47,7 +47,7 @@ export function WebsiteGrapesEditor({ initialData, onDataChange, height }) {
   return (
     <div
       ref={containerRef}
-      style={{ height: height || 'calc(100vh - 48px)', width: '100%', position: 'relative', overflow: 'hidden' }}
+      style={{ height: height || '100%', width: '100%' }}
     />
   )
 }

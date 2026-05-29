@@ -23,7 +23,7 @@ export function WebsiteInlineEditor({ pageId, token, onDataChange }) {
 
   if (!pageId) {
     return (
-      <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 48px)' }}>
+      <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 48px)' }}>
         <p className="text-gray-400 text-sm">No hay una pagina para este URL todavia.</p>
       </div>
     )
@@ -31,16 +31,21 @@ export function WebsiteInlineEditor({ pageId, token, onDataChange }) {
 
   if (pageQuery.isPending) {
     return (
-      <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 48px)' }}>
+      <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 48px)' }}>
         <p className="text-gray-400 text-sm">Cargando editor...</p>
       </div>
     )
   }
 
+  // Wrap in a container with overflow:hidden — same structure as the admin editor's
+  // parent div (flex-1 overflow-hidden), which is what makes GrapesJS panels render correctly.
   return (
-    <WebsiteGrapesEditor
-      initialData={pageQuery.data?.draftBuilderData ?? null}
-      onDataChange={onDataChange}
-    />
+    <div style={{ height: 'calc(100vh - 48px)', overflow: 'hidden' }}>
+      <WebsiteGrapesEditor
+        initialData={pageQuery.data?.draftBuilderData ?? null}
+        onDataChange={onDataChange}
+        height="100%"
+      />
+    </div>
   )
 }

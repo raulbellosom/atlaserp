@@ -41,10 +41,32 @@ export function PublicWebsiteEntry() {
   const [isEditing, setIsEditing]   = useState(false)
   const [isSaving, setIsSaving]     = useState(false)
   const [isPublishing, setPublishing] = useState(false)
+  const [barVisible, setBarVisible] = useState(false)
   const grapesDataRef = useRef(null)
+  const hideBarTimer = useRef(null)
 
   // Reset edit mode on navigation
   useEffect(() => { setIsEditing(false) }, [location.pathname])
+
+  // Reveal the edit bar when the cursor approaches the top of the page.
+  // Hide it after the cursor moves away (with a delay) unless actively editing.
+  useEffect(() => {
+    if (!isLoggedIn) return
+    function handleMouseMove(e) {
+      if (e.clientY < 72) {
+        clearTimeout(hideBarTimer.current)
+        setBarVisible(true)
+      } else if (!isEditing && e.clientY > 140) {
+        clearTimeout(hideBarTimer.current)
+        hideBarTimer.current = setTimeout(() => setBarVisible(false), 1200)
+      }
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      clearTimeout(hideBarTimer.current)
+    }
+  }, [isLoggedIn, isEditing])
 
   // --- Public resolve (no auth needed) ---
   const resolveQuery = useQuery({
@@ -162,9 +184,10 @@ export function PublicWebsiteEntry() {
         token={token}
         isSaving={isSaving}
         isPublishing={isPublishing}
+        visible={barVisible || isEditing}
       />
 
-      <div style={{ paddingTop: '48px' }}>
+      <div style={{ paddingTop: (barVisible || isEditing) ? '48px' : '0', transition: 'padding-top 0.3s ease' }}>
         {isEditing ? (
           <WebsiteInlineEditor
             pageId={activePage?.id ?? null}
