@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus } from 'lucide-react'
 import { useCalendarStore } from '../stores/useCalendarStore'
 
 const VIEWS = [
@@ -36,17 +36,17 @@ export default function CalendarToolbar({ onNewEvent }) {
           onClick={navigatePrev}
           className="p-1.5 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
         >
-          <ChevronLeft size={16} />
+          {activeView === 'month' ? <ChevronUp size={16} /> : <ChevronLeft size={16} />}
         </button>
         <button
           onClick={navigateNext}
           className="p-1.5 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
         >
-          <ChevronRight size={16} />
+          {activeView === 'month' ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         </button>
       </div>
 
-      <h2 className="text-sm font-semibold text-[hsl(var(--foreground))] capitalize min-w-[180px]">
+      <h2 className="text-sm font-semibold text-[hsl(var(--foreground))] capitalize min-w-45">
         {formatTitle(activeView, selectedDate)}
       </h2>
 
