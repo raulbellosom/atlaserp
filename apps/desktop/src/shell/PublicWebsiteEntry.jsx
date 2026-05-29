@@ -134,7 +134,7 @@ export function PublicWebsiteEntry() {
 
   async function handlePublish() {
     if (!activePage?.id) return
-    // Save first, then publish
+    // 1. Save current editor state to draft first
     if (grapesDataRef.current) {
       setIsSaving(true)
       try {
@@ -142,16 +142,20 @@ export function PublicWebsiteEntry() {
           method: 'POST',
           body: JSON.stringify({ builderData: grapesDataRef.current }),
         })
-      } catch { /* ignore, best effort */ }
+      } catch { /* best effort — publish will use whatever draft is stored */ }
       setIsSaving(false)
     }
+    // 2. Publish (copies draft → published in DB)
     setPublishing(true)
     try {
       await apiFetch(`/website/pages/${activePage.id}/publish`, token, { method: 'POST' })
-      toast.success('Pagina publicada')
-      queryClient.invalidateQueries({ queryKey: ['public-website-resolve', location.pathname] })
+      // 3. Await a fresh fetch of the public resolver so the renderer gets the new HTML
+      await resolveQuery.refetch()
       queryClient.invalidateQueries({ queryKey: ['website-page-by-path', site?.id, location.pathname] })
       queryClient.invalidateQueries({ queryKey: ['edit-bar-pages', site?.id] })
+      // 4. Switch to preview so the user sees the published result immediately
+      setIsEditing(false)
+      toast.success('Pagina publicada')
     } catch (err) {
       toast.error(err.message || 'Error al publicar')
     } finally {
