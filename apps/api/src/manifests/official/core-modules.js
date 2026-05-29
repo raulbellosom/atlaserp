@@ -628,6 +628,7 @@ export const atlasCalendarManifest = createModuleManifest({
   initials: 'CA',
   category: 'sistema',
   summary: 'Calendarios personales, eventos y recordatorios',
+  fullscreenPaths: ['/calendar'],
   dependencies: [{ key: 'atlas.core' }, { key: 'atlas.identity' }],
   navigation: [
     {
