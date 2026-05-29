@@ -6,6 +6,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@atlas/ui'
 import { Button, Input, Label } from '@atlas/ui'
+import { Home } from 'lucide-react'
 import { toast } from 'sonner'
 
 const PAGE_TYPES = [
@@ -29,47 +30,64 @@ function toSlug(text) {
     .replace(/^-|-$/g, '')
 }
 
+const HOMEPAGE_SLUG = 'home'
+
 export default function WebsiteNewPageDialog({ siteId, open, onOpenChange, onCreated }) {
   const { session } = useAuth()
   const token = session?.access_token
 
+  const [isHomepage, setIsHomepage] = useState(false)
   const [form, setForm] = useState({
     title: '',
     slug: '',
-    routePath: '/',
+    routePath: '',
     pageType: 'page',
     visibility: 'public',
   })
   const [slugTouched, setSlugTouched] = useState(false)
 
+  // Reset on close
   useEffect(() => {
     if (!open) {
-      setForm({ title: '', slug: '', routePath: '/', pageType: 'page', visibility: 'public' })
+      setIsHomepage(false)
       setSlugTouched(false)
+      setForm({ title: '', slug: '', routePath: '', pageType: 'page', visibility: 'public' })
     }
   }, [open])
 
+  // Auto-derive slug from title (unless slug was manually edited or is homepage)
   useEffect(() => {
-    if (!slugTouched && form.title) {
-      const slug = toSlug(form.title)
-      setForm((f) => ({ ...f, slug, routePath: slug ? `/${slug}` : '/' }))
+    if (isHomepage || slugTouched) return
+    if (!form.title) return
+    const slug = toSlug(form.title) || 'pagina'
+    setForm((f) => ({ ...f, slug, routePath: `/${slug}` }))
+  }, [form.title, slugTouched, isHomepage])
+
+  // Toggle homepage mode
+  function toggleHomepage(checked) {
+    setIsHomepage(checked)
+    setSlugTouched(false)
+    if (checked) {
+      setForm((f) => ({ ...f, slug: HOMEPAGE_SLUG, routePath: '/' }))
+    } else {
+      const slug = toSlug(form.title) || ''
+      setForm((f) => ({ ...f, slug, routePath: slug ? `/${slug}` : '' }))
     }
-  }, [form.title, slugTouched])
+  }
 
   function handleSlugChange(e) {
     setSlugTouched(true)
-    const slug = e.target.value
-    setForm((f) => ({ ...f, slug, routePath: slug ? `/${slug}` : '/' }))
+    const raw = e.target.value.replace(/[^a-z0-9-]/g, '')
+    setForm((f) => ({ ...f, slug: raw, routePath: raw ? `/${raw}` : '' }))
   }
+
+  const canSubmit = form.title.trim() && (isHomepage ? true : form.slug.trim())
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
       const res = await fetch(`${getApiUrl()}/website/pages`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
       if (!res.ok) {
@@ -88,16 +106,20 @@ export default function WebsiteNewPageDialog({ siteId, open, onOpenChange, onCre
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!form.title.trim() || !form.slug.trim()) return
+    if (!canSubmit) return
+    const slug      = isHomepage ? HOMEPAGE_SLUG : form.slug.trim()
+    const routePath = isHomepage ? '/' : `/${slug}`
     createMutation.mutate({
       siteId,
       title:      form.title.trim(),
-      slug:       form.slug.trim(),
-      routePath:  form.routePath || `/${form.slug.trim()}`,
+      slug,
+      routePath,
       pageType:   form.pageType,
       visibility: form.visibility,
     })
   }
+
+  const routePreview = isHomepage ? '/' : (form.slug ? `/${form.slug}` : '')
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -106,31 +128,69 @@ export default function WebsiteNewPageDialog({ siteId, open, onOpenChange, onCre
           <DialogTitle>Nueva pagina</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
+
+          {/* Homepage toggle */}
+          <label className="flex items-center gap-3 p-3 rounded-lg border border-[hsl(var(--border))] cursor-pointer hover:bg-[hsl(var(--muted)/0.4)] transition-colors">
+            <input
+              type="checkbox"
+              checked={isHomepage}
+              onChange={(e) => toggleHomepage(e.target.checked)}
+              className="rounded"
+            />
+            <Home size={15} className="text-[hsl(var(--muted-foreground))] shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-[hsl(var(--foreground))]">Pagina de inicio</p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                Esta pagina se mostrara en la URL raiz de tu sitio (racoondevs.com)
+              </p>
+            </div>
+          </label>
+
           <div className="space-y-1">
             <Label htmlFor="page-title">Titulo</Label>
             <Input
               id="page-title"
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              placeholder="Mi pagina"
+              placeholder={isHomepage ? 'Inicio' : 'Mi pagina'}
               required
               autoFocus
             />
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="page-slug">Slug (URL)</Label>
-            <Input
-              id="page-slug"
-              value={form.slug}
-              onChange={handleSlugChange}
-              placeholder="mi-pagina"
-              required
-            />
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">
-              Ruta: <span className="font-mono">{form.routePath || '/'}</span>
-            </p>
-          </div>
+          {!isHomepage && (
+            <div className="space-y-1">
+              <Label htmlFor="page-slug">Slug (URL)</Label>
+              <div className="flex items-center">
+                <span className="flex items-center h-9 px-3 rounded-l-md border border-r-0 border-[hsl(var(--border))] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] text-sm select-none">
+                  /
+                </span>
+                <Input
+                  id="page-slug"
+                  value={form.slug}
+                  onChange={handleSlugChange}
+                  placeholder="mi-pagina"
+                  className="rounded-l-none"
+                  required
+                />
+              </div>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                URL completa:{' '}
+                <span className="font-mono">
+                  {routePreview || <span className="opacity-50">escribe el slug arriba</span>}
+                </span>
+              </p>
+            </div>
+          )}
+
+          {isHomepage && (
+            <div className="rounded-lg bg-[hsl(var(--muted)/0.5)] px-3 py-2.5">
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                URL: <span className="font-mono text-[hsl(var(--foreground))]">/</span>
+                <span className="ml-2 opacity-60">(pagina principal del sitio)</span>
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
@@ -166,10 +226,7 @@ export default function WebsiteNewPageDialog({ siteId, open, onOpenChange, onCre
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button
-              type="submit"
-              disabled={createMutation.isPending || !form.title.trim() || !form.slug.trim()}
-            >
+            <Button type="submit" disabled={createMutation.isPending || !canSubmit}>
               {createMutation.isPending ? 'Creando...' : 'Crear pagina'}
             </Button>
           </DialogFooter>
