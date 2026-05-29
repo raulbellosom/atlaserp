@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
@@ -35,6 +35,22 @@ const HOMEPAGE_SLUG = 'home'
 export default function WebsiteNewPageDialog({ siteId, open, onOpenChange, onCreated }) {
   const { session } = useAuth()
   const token = session?.access_token
+
+  // Check if a homepage already exists for this site
+  const homepageCheckQuery = useQuery({
+    queryKey: ['homepage-exists', siteId, token],
+    queryFn: async () => {
+      const res = await fetch(
+        `${getApiUrl()}/website/pages/by-path?siteId=${siteId}&routePath=${encodeURIComponent('/')}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+      if (!res.ok) return { data: null }
+      return res.json()
+    },
+    enabled: Boolean(token) && Boolean(siteId) && open,
+    staleTime: 30_000,
+  })
+  const homepageExists = Boolean(homepageCheckQuery.data?.data)
 
   const [isHomepage, setIsHomepage] = useState(false)
   const [form, setForm] = useState({
@@ -130,20 +146,34 @@ export default function WebsiteNewPageDialog({ siteId, open, onOpenChange, onCre
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
 
           {/* Homepage toggle */}
-          <label className="flex items-center gap-3 p-3 rounded-lg border border-[hsl(var(--border))] cursor-pointer hover:bg-[hsl(var(--muted)/0.4)] transition-colors">
+          <label
+            className={`flex items-center gap-3 p-3 rounded-lg border border-[hsl(var(--border))] transition-colors ${
+              homepageExists
+                ? 'opacity-60 cursor-not-allowed bg-[hsl(var(--muted)/0.3)]'
+                : 'cursor-pointer hover:bg-[hsl(var(--muted)/0.4)]'
+            }`}
+          >
             <input
               type="checkbox"
               checked={isHomepage}
-              onChange={(e) => toggleHomepage(e.target.checked)}
-              className="rounded"
+              onChange={(e) => !homepageExists && toggleHomepage(e.target.checked)}
+              disabled={homepageExists}
+              className="rounded disabled:cursor-not-allowed"
             />
             <Home size={15} className="text-[hsl(var(--muted-foreground))] shrink-0" />
             <div>
               <p className="text-sm font-medium text-[hsl(var(--foreground))]">Pagina de inicio</p>
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                Esta pagina se mostrara en la URL raiz de tu sitio (racoondevs.com)
+                {homepageExists
+                  ? 'Ya existe una pagina de inicio para este sitio.'
+                  : 'Esta pagina se mostrara en la URL raiz de tu sitio (racoondevs.com)'}
               </p>
             </div>
+            {homepageExists && (
+              <span className="ml-auto text-xs text-[hsl(var(--muted-foreground))] bg-[hsl(var(--muted))] px-2 py-0.5 rounded-full shrink-0">
+                Ya existe
+              </span>
+            )}
           </label>
 
           <div className="space-y-1">
