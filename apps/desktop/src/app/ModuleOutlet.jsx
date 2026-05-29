@@ -115,6 +115,12 @@ const SCREEN_MAP = {
   "atlas.website:/forms": lazy(
     () => import("../modules/atlas.website/screens/WebsiteFormsScreen.jsx"),
   ),
+  "atlas.calendar:/calendar": lazy(
+    () => import("../modules/atlas.calendar/screens/CalendarScreen.jsx"),
+  ),
+  "atlas.calendar:/": lazy(
+    () => import("../modules/atlas.calendar/screens/CalendarScreen.jsx"),
+  ),
 };
 const SCREEN_MODULE_KEYS = new Set(
   Object.keys(SCREEN_MAP).map((entry) => entry.split(":")[0]),
