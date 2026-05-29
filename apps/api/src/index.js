@@ -260,6 +260,8 @@ function requirePermission(permissionKey) {
         401,
       );
     }
+    c.set('companyId', context.memberships?.[0]?.companyId ?? null);
+    c.set('userId', context.profile.id);
     if (context.isAdmin || context.permissionSet.has(permissionKey)) {
       await next();
       return;
@@ -277,6 +279,8 @@ function requireAnyPermission(permissionKeys = []) {
         401,
       );
     }
+    c.set('companyId', context.memberships?.[0]?.companyId ?? null);
+    c.set('userId', context.profile.id);
     if (context.isAdmin) {
       await next();
       return;
