@@ -236,6 +236,13 @@ model UserProfile {
   hrEmployee HrEmployee?
   tablePreferences UserTablePreference[]
   preferences  UserPreference[]
+
+  calendarOwner          CalendarCalendar[]       @relation("CalendarOwner")
+  calendarShares         CalendarShare[]          @relation("CalendarShareUser")
+  calendarAttendees      CalendarEventAttendee[]  @relation("CalendarAttendee")
+  calendarReminders      CalendarReminder[]       @relation("CalendarReminder")
+  calendarNotifications  CalendarNotification[]   @relation("CalendarNotificationUser")
+
   @@map("user_profile")
 }
 
@@ -336,6 +343,7 @@ model FileAsset {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   hrProfileEmployees HrEmployee[] @relation("HrEmployeeProfileImage")
+  calendarFiles      CalendarEventFile[]
 
   @@index([moduleKey, entityType, entityId])
   @@map("file_asset")
@@ -1053,5 +1061,140 @@ model FleetInsurancePolicy {
   @@index([companyId, vehicleId])
   @@index([companyId, expiryDate])
   @@map("fleet_insurance_policy")
+}
+
+// ── Atlas Calendar ────────────────────────────────────────────────────────────
+
+enum CalendarShareRole {
+  VIEWER
+  EDITOR
+  MANAGER
+  @@map("calendar_share_role")
+}
+
+enum CalendarAttendeeStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  @@map("calendar_attendee_status")
+}
+
+model CalendarCalendar {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  ownerId   String   @db.Uuid @map("owner_id")
+  name      String
+  color     String   @default("#6B46C1")
+  isDefault Boolean  @default(false) @map("is_default")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  owner  UserProfile     @relation("CalendarOwner", fields: [ownerId], references: [id])
+  shares CalendarShare[]
+  events CalendarEvent[]
+
+  @@index([ownerId])
+  @@map("calendar_calendar")
+}
+
+model CalendarShare {
+  id         String            @id @default(uuid(7)) @db.Uuid
+  calendarId String            @db.Uuid @map("calendar_id")
+  userId     String            @db.Uuid @map("user_id")
+  role       CalendarShareRole @default(VIEWER)
+  createdAt  DateTime          @default(now()) @map("created_at")
+
+  calendar CalendarCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  user     UserProfile      @relation("CalendarShareUser", fields: [userId], references: [id])
+
+  @@unique([calendarId, userId])
+  @@map("calendar_share")
+}
+
+model CalendarEvent {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  calendarId     String    @db.Uuid @map("calendar_id")
+  title          String
+  description    String?
+  startAt        DateTime  @map("start_at")
+  endAt          DateTime? @map("end_at")
+  allDay         Boolean   @default(false) @map("all_day")
+  location       String?
+  videoUrl       String?   @map("video_url")
+  color          String?
+  recurrenceRule Json?     @map("recurrence_rule")
+  sourceModule   String?   @map("source_module")
+  sourceEntityId String?   @db.Uuid @map("source_entity_id")
+  enabled        Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  calendar      CalendarCalendar        @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  attendees     CalendarEventAttendee[]
+  reminders     CalendarReminder[]
+  notifications CalendarNotification[]
+  files         CalendarEventFile[]
+
+  @@index([calendarId])
+  @@index([startAt])
+  @@index([sourceModule, sourceEntityId])
+  @@map("calendar_event")
+}
+
+model CalendarEventFile {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  eventId     String   @db.Uuid @map("event_id")
+  fileAssetId String   @db.Uuid @map("file_asset_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  event     CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  fileAsset FileAsset     @relation(fields: [fileAssetId], references: [id])
+
+  @@unique([eventId, fileAssetId])
+  @@map("calendar_event_file")
+}
+
+model CalendarEventAttendee {
+  id        String                 @id @default(uuid(7)) @db.Uuid
+  eventId   String                 @db.Uuid @map("event_id")
+  userId    String                 @db.Uuid @map("user_id")
+  status    CalendarAttendeeStatus @default(PENDING)
+  createdAt DateTime               @default(now()) @map("created_at")
+
+  event CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  UserProfile   @relation("CalendarAttendee", fields: [userId], references: [id])
+
+  @@unique([eventId, userId])
+  @@map("calendar_event_attendee")
+}
+
+model CalendarReminder {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  eventId       String    @db.Uuid @map("event_id")
+  userId        String    @db.Uuid @map("user_id")
+  minutesBefore Int       @map("minutes_before")
+  sentAt        DateTime? @map("sent_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  event CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  UserProfile   @relation("CalendarReminder", fields: [userId], references: [id])
+
+  @@unique([eventId, userId, minutesBefore])
+  @@map("calendar_reminder")
+}
+
+model CalendarNotification {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @db.Uuid @map("user_id")
+  eventId   String    @db.Uuid @map("event_id")
+  type      String    @default("REMINDER")
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user  UserProfile   @relation("CalendarNotificationUser", fields: [userId], references: [id])
+  event CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("calendar_notification")
 }
 
