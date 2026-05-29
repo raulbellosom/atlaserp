@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useCalendarStore } from '../stores/useCalendarStore'
-import { useCalendarEvents } from '../hooks/useCalendarData'
+import { useYearEvents } from '../hooks/useCalendarData'
 import EventChip from './EventChip'
 
 const WEEKDAYS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
@@ -141,30 +141,24 @@ export default function MonthView({ onEventClick, onDayClick, onNewEvent }) {
     return () => clearTimeout(t)
   }, [targetYear, targetMonth])
 
-  // ── Preload events for prev + current + next month ─────────────────────────
-  // One wide query — eliminates per-grid fetches and cache misses during animation
-  const fetchStart = new Date(current.year, current.month - 1, 1).toISOString()
-  const fetchEnd   = new Date(current.year, current.month + 2, 0, 23, 59, 59).toISOString()
-  const { data: allEvents = [] } = useCalendarEvents({
-    start: fetchStart,
-    end:   fetchEnd,
-    calendarIds: activeCalendarIds,
-  })
-  const byDate = groupEventsByDate(allEvents)
+  // ── Year-level event cache — one fetch per year, stable key, instant month nav
+  // Preload adjacent years at year boundaries so cross-year navigation is seamless
+  const needsPrevYear = current.month === 0 || prev?.year === current.year - 1
+  const needsNextYear = current.month === 11 || prev?.year === current.year + 1
 
-  // Also preload for the prev animation grid (it's from the SAME wide query)
-  const prevFetchStart = prev
-    ? new Date(prev.year, prev.month - 1, 1).toISOString()
-    : fetchStart
-  const prevFetchEnd = prev
-    ? new Date(prev.year, prev.month + 2, 0, 23, 59, 59).toISOString()
-    : fetchEnd
-  const { data: prevEvents = [] } = useCalendarEvents({
-    start: prevFetchStart,
-    end:   prevFetchEnd,
-    calendarIds: activeCalendarIds,
-  })
-  const prevByDate = groupEventsByDate(prevEvents)
+  const { data: curYearEvents  = [] } = useYearEvents(current.year,     activeCalendarIds)
+  const { data: prevYearEvents = [] } = useYearEvents(current.year - 1, activeCalendarIds, needsPrevYear)
+  const { data: nextYearEvents = [] } = useYearEvents(current.year + 1, activeCalendarIds, needsNextYear)
+
+  function eventsForYear(year) {
+    if (year === current.year)     return curYearEvents
+    if (year === current.year - 1) return prevYearEvents
+    if (year === current.year + 1) return nextYearEvents
+    return []
+  }
+
+  const byDate     = groupEventsByDate(curYearEvents)
+  const prevByDate = groupEventsByDate(prev ? eventsForYear(prev.year) : [])
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   function handleSelectDate(key) {

@@ -1084,6 +1084,7 @@ model CalendarCalendar {
   ownerId   String   @db.Uuid @map("owner_id")
   name      String
   color     String   @default("#6B46C1")
+  icon      String?
   isDefault Boolean  @default(false) @map("is_default")
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")

@@ -25,6 +25,7 @@ import * as LucideIcons from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
+import { MarkdownField } from "../components/FormFields.jsx";
 import { normalizeSpanishLabel } from "./renderer-adapters.js";
 import { resolveColorHex } from "./atlas-form-utils.js";
 import { CostsSummaryPanel } from "./CostsSummaryPanel.jsx";
@@ -115,9 +116,11 @@ function normalizeSectionField(item) {
   if (typeof item === "string") {
     const key = String(item).trim();
     if (!key) return null;
+    // No default type: let normalizeSections preserve the existing type from fieldMap
+    // (e.g. "markdown" from the form blueprint) instead of overwriting with "text".
     return {
       name: key,
-      field: { name: key, label: key, type: "text", icon: null },
+      field: { name: key, label: key, icon: null },
     };
   }
   const normalized = normalizeField(item);
@@ -803,6 +806,7 @@ export function AtlasDetail({
               config={section.attachments ?? {}}
               context="detail"
               readOnly
+              showHeading={false}
             />
           ) : null}
 
@@ -826,13 +830,23 @@ export function AtlasDetail({
                   const field = fieldMap.get(fieldName);
                   if (!field) return null;
                   const value = data[field.name];
+                  const isMarkdown = field.type === "markdown";
+                  const strValue = value != null && value !== "" ? String(value) : null;
                   return (
-                    <div key={field.name} className="space-y-1">
+                    <div key={field.name} className={`space-y-1.5${isMarkdown ? " col-span-full" : ""}`}>
                       <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
                         <FieldLabel field={field} />
                       </dt>
                       <dd className="text-sm text-[hsl(var(--foreground))]">
-                        {renderValue(field, value)}
+                        {isMarkdown ? (
+                          strValue ? (
+                            <MarkdownField readOnly readOnlyPlain value={strValue} />
+                          ) : (
+                            <span className="text-[hsl(var(--muted-foreground))]">—</span>
+                          )
+                        ) : (
+                          renderValue(field, value)
+                        )}
                       </dd>
                     </div>
                   );

@@ -77,18 +77,18 @@ export default function EventFormModal({ event, defaultDate, defaultCalendarId, 
   )
 
   // For new events: set calendarId once when calData first becomes available
-  // (in case calendars were not loaded when the modal opened)
+  // (in case calendars were not loaded when the modal opened).
+  // Check is inside the functional updater so it always reads current state,
+  // not the stale closure value — prevents overwriting the user's selection.
   useEffect(() => {
     if (isEdit || initializedRef.current) return
     if (!allCalendars.length) return
     initializedRef.current = true
-    if (!form.calendarId) {
-      const calId = defaultCalendarId
-        || calData?.owned?.find(c => c.isDefault)?.id
-        || allCalendars[0]?.id
-        || ''
-      setForm(f => ({ ...f, calendarId: calId }))
-    }
+    const calId = defaultCalendarId
+      || calData?.owned?.find(c => c.isDefault)?.id
+      || allCalendars[0]?.id
+      || ''
+    setForm(f => f.calendarId ? f : { ...f, calendarId: calId })
   }, [calData])
 
   // For edit events: repopulate form when the event changes

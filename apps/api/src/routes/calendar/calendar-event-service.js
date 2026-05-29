@@ -187,6 +187,10 @@ export function createCalendarEventService({ prisma }) {
     if (!canEdit) throw new CalendarServiceError('No tienes permiso para editar este evento.', 403)
 
     const updateData = {}
+    if (data.calendarId !== undefined && data.calendarId !== event.calendarId) {
+      if (!accessible.includes(data.calendarId)) throw new CalendarServiceError('No tienes acceso al calendario destino.', 403)
+      updateData.calendarId = data.calendarId
+    }
     if (data.title !== undefined) updateData.title = data.title.trim()
     if (data.description !== undefined) updateData.description = data.description?.trim() ?? null
     if (data.startAt !== undefined) updateData.startAt = new Date(data.startAt)

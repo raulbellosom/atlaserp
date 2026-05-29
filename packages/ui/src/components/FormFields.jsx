@@ -510,7 +510,7 @@ export const MarkdownField = forwardRef(function MarkdownField(
         placeholder: "Escribe tus observaciones aquí...",
       }),
       TaskList,
-      TaskItem.configure({ nested: true }),
+      TaskItem.configure({ nested: true, HTMLAttributes: { 'data-type': 'taskItem' } }),
       Markdown.configure({
         html: false,
         tightLists: true,
@@ -921,11 +921,8 @@ export const MarkdownField = forwardRef(function MarkdownField(
             "[&_.tiptap_code]:bg-muted [&_.tiptap_code]:rounded [&_.tiptap_code]:px-1.5 [&_.tiptap_code]:py-0.5 [&_.tiptap_code]:text-xs [&_.tiptap_code]:font-mono [&_.tiptap_code]:text-foreground",
             "[&_.tiptap_blockquote]:border-l-2 [&_.tiptap_blockquote]:border-border [&_.tiptap_blockquote]:pl-3.5 [&_.tiptap_blockquote]:text-muted-foreground [&_.tiptap_blockquote]:italic [&_.tiptap_blockquote]:my-2",
             "[&_.tiptap_hr]:border-t [&_.tiptap_hr]:border-border [&_.tiptap_hr]:my-3",
-            "[&_.tiptap_ul[data-type='taskList']]:list-none [&_.tiptap_ul[data-type='taskList']]:pl-0",
-            "[&_.tiptap_li[data-type='taskItem']]:flex [&_.tiptap_li[data-type='taskItem']]:items-start [&_.tiptap_li[data-type='taskItem']]:gap-2 [&_.tiptap_li[data-type='taskItem']]:my-0.5",
-            "[&_.tiptap_li[data-type='taskItem']>label]:flex [&_.tiptap_li[data-type='taskItem']>label]:items-center [&_.tiptap_li[data-type='taskItem']>label]:gap-2 [&_.tiptap_li[data-type='taskItem']>label]:mt-0.5",
-            "[&_.tiptap_li[data-type='taskItem']>label>input]:h-3.5 [&_.tiptap_li[data-type='taskItem']>label>input]:w-3.5 [&_.tiptap_li[data-type='taskItem']>label>input]:accent-primary [&_.tiptap_li[data-type='taskItem']>label>input]:cursor-pointer",
-            "[&_.tiptap_li[data-type='taskItem'][data-checked='true']>div]:line-through [&_.tiptap_li[data-type='taskItem'][data-checked='true']>div]:text-muted-foreground",
+            // task-list and task-item styles are in apps/desktop/src/styles.css
+            // (Tailwind v4 cannot parse arbitrary variants with nested brackets)
             "[&_.tiptap_.is-editor-empty_p:first-child::before]:content-[attr(data-placeholder)]",
             "[&_.tiptap_.is-editor-empty_p:first-child::before]:text-muted-foreground",
             "[&_.tiptap_.is-editor-empty_p:first-child::before]:float-left",

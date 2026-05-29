@@ -35,14 +35,14 @@ export function createCalendarService({ prisma }) {
     return { owned, shared: sharedCalendars }
   }
 
-  async function createCalendar(userId, { name, color }) {
+  async function createCalendar(userId, { name, color, icon }) {
     if (!name?.trim()) throw new CalendarServiceError('El nombre es requerido.', 400)
     return prisma.calendarCalendar.create({
-      data: { ownerId: userId, name: name.trim(), color: color ?? '#6B46C1' },
+      data: { ownerId: userId, name: name.trim(), color: color ?? '#6B46C1', icon: icon || null },
     })
   }
 
-  async function updateCalendar(userId, calendarId, { name, color }) {
+  async function updateCalendar(userId, calendarId, { name, color, icon }) {
     const calendar = await prisma.calendarCalendar.findFirst({
       where: { id: calendarId, ownerId: userId, enabled: true },
     })
@@ -52,6 +52,7 @@ export function createCalendarService({ prisma }) {
       data: {
         ...(name?.trim() ? { name: name.trim() } : {}),
         ...(color ? { color } : {}),
+        ...(icon !== undefined ? { icon: icon || null } : {}),
       },
     })
   }

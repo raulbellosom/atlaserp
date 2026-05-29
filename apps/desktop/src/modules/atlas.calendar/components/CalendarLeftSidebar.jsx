@@ -1,7 +1,12 @@
-import { Plus, MoreHorizontal, Check } from 'lucide-react'
+import { Plus, MoreHorizontal, Check, Pencil, Users } from 'lucide-react'
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuSeparator,
+} from '@atlas/ui'
 import MiniCalendar from './MiniCalendar'
 import { useCalendarStore } from '../stores/useCalendarStore'
 import { useCalendars } from '../hooks/useCalendarData'
+import { CalendarIcon } from '../calendarIcons'
 
 function CalendarColorToggle({ color, checked, onChange }) {
   return (
@@ -19,34 +24,74 @@ function CalendarColorToggle({ color, checked, onChange }) {
   )
 }
 
-function CalendarItem({ cal, isActive, allIds, onToggle, onShare }) {
+function CalendarItem({ cal, isActive, allIds, onToggle, onEdit, onManage }) {
+  const calColor = cal.color || '#6B46C1'
   return (
     <div className="flex items-center gap-2 py-1 group">
       <CalendarColorToggle
-        color={cal.color || '#6B46C1'}
+        color={calColor}
         checked={isActive}
         onChange={() => onToggle(cal.id, allIds)}
       />
+      {cal.icon && (
+        <CalendarIcon name={cal.icon} size={11} color={calColor} className="shrink-0" />
+      )}
       <span
         className="text-xs text-[hsl(var(--foreground))] truncate flex-1 min-w-0 cursor-pointer select-none"
         onClick={() => onToggle(cal.id, allIds)}
       >
         {cal.name}
       </span>
-      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-        <button
-          onClick={() => onShare(cal)}
-          className="p-0.5 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
-          title="Compartir"
-        >
-          <MoreHorizontal size={12} />
-        </button>
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="p-0.5 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
+              title="Opciones"
+            >
+              <MoreHorizontal size={12} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onClick={() => onEdit(cal)}>
+              <Pencil size={13} className="mr-2 shrink-0" />
+              Editar calendario
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onManage(cal)}>
+              <Users size={13} className="mr-2 shrink-0" />
+              Gestionar acceso
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   )
 }
 
-export default function CalendarLeftSidebar({ onNewCalendar, onShareCalendar }) {
+function SharedCalendarItem({ cal, isActive, allIds, onToggle }) {
+  const calColor = cal.color || '#6B46C1'
+  return (
+    <div className="flex items-center gap-2 py-1">
+      <CalendarColorToggle
+        color={calColor}
+        checked={isActive}
+        onChange={() => onToggle(cal.id, allIds)}
+      />
+      {cal.icon && (
+        <CalendarIcon name={cal.icon} size={11} color={calColor} className="shrink-0" />
+      )}
+      <span
+        className="text-xs text-[hsl(var(--foreground))] truncate flex-1 min-w-0 cursor-pointer select-none"
+        onClick={() => onToggle(cal.id, allIds)}
+      >
+        {cal.name}
+      </span>
+    </div>
+  )
+}
+
+export default function CalendarLeftSidebar({ onNewCalendar, onEditCalendar, onShareCalendar }) {
   const { selectedDate, setSelectedDate, activeCalendarIds, toggleCalendarFilter } = useCalendarStore()
   const { data, isLoading } = useCalendars()
   const owned = data?.owned ?? []
@@ -90,7 +135,8 @@ export default function CalendarLeftSidebar({ onNewCalendar, onShareCalendar }) 
               isActive={isActive(cal.id)}
               allIds={allIds}
               onToggle={toggleCalendarFilter}
-              onShare={onShareCalendar ?? (() => {})}
+              onEdit={onEditCalendar ?? (() => {})}
+              onManage={onShareCalendar ?? (() => {})}
             />
           ))}
         </section>
@@ -101,13 +147,12 @@ export default function CalendarLeftSidebar({ onNewCalendar, onShareCalendar }) 
               Compartidos
             </div>
             {shared.map((cal) => (
-              <CalendarItem
+              <SharedCalendarItem
                 key={cal.id}
                 cal={cal}
                 isActive={isActive(cal.id)}
                 allIds={allIds}
                 onToggle={toggleCalendarFilter}
-                onShare={() => {}}
               />
             ))}
           </section>

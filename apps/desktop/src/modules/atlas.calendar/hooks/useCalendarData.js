@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig'
 
@@ -105,6 +105,34 @@ export function useCalendarEvents({ start, end, calendarIds = [] }) {
     queryFn: () => apiFetch(`/calendar/events?${params}`, token),
     enabled: Boolean(token && start && end),
     staleTime: 60 * 1000,
+  })
+}
+
+// Year-level events — stable query key prevents cache misses when navigating months
+export function useYearEvents(year, calendarIds = [], enabled = true) {
+  const token = useToken()
+  const params = new URLSearchParams()
+  params.set('start', new Date(year, 0, 1).toISOString())
+  params.set('end', new Date(year, 11, 31, 23, 59, 59).toISOString())
+  calendarIds.forEach((id) => params.append('calendar_ids', id))
+  return useQuery({
+    queryKey: ['calendar', 'events', 'year', year, calendarIds.join(',')],
+    queryFn: () => apiFetch(`/calendar/events?${params}`, token),
+    enabled: Boolean(token && enabled),
+    staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  })
+}
+
+// User search for the calendar share combobox
+export function useUserSearch(query) {
+  const token = useToken()
+  const q = query.trim()
+  return useQuery({
+    queryKey: ['identity', 'users', 'search', q],
+    queryFn: () => apiFetch(`/identity/users?search=${encodeURIComponent(q)}&pageSize=10&enabled=true`, token),
+    enabled: Boolean(token && q.length >= 2),
+    staleTime: 30 * 1000,
   })
 }
 

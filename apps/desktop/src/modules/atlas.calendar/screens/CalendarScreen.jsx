@@ -26,7 +26,7 @@ export default function CalendarScreen() {
 
   const [detailEvent, setDetailEvent] = useState(null)
   const [formState, setFormState] = useState(null)
-  const [showCalendarForm, setShowCalendarForm] = useState(false)
+  const [calendarForm, setCalendarForm] = useState(null) // true = new, object = edit
   const [shareCalendar, setShareCalendar] = useState(null)
 
   function openNewEvent() {
@@ -67,7 +67,8 @@ export default function CalendarScreen() {
       <div className="flex-1 flex overflow-hidden">
         {leftSidebarOpen && (
           <CalendarLeftSidebar
-            onNewCalendar={() => setShowCalendarForm(true)}
+            onNewCalendar={() => setCalendarForm(true)}
+            onEditCalendar={(cal) => setCalendarForm(cal)}
             onShareCalendar={(cal) => setShareCalendar(cal)}
           />
         )}
@@ -110,8 +111,11 @@ export default function CalendarScreen() {
         />
       )}
 
-      {showCalendarForm && (
-        <CalendarFormModal onClose={() => setShowCalendarForm(false)} />
+      {calendarForm !== null && (
+        <CalendarFormModal
+          calendar={calendarForm === true ? undefined : calendarForm}
+          onClose={() => setCalendarForm(null)}
+        />
       )}
 
       {shareCalendar && (
