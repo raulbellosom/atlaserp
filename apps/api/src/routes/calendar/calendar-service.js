@@ -27,12 +27,10 @@ export function createCalendarService({ prisma }) {
     })
     const shared = await prisma.calendarShare.findMany({
       where: { userId },
-      include: {
-        calendar: { where: { enabled: true } },
-      },
+      include: { calendar: true },
     })
     const sharedCalendars = shared
-      .filter((s) => s.calendar)
+      .filter((s) => s.calendar?.enabled)
       .map((s) => ({ ...s.calendar, _sharedRole: s.role, _shareId: s.id }))
     return { owned, shared: sharedCalendars }
   }
