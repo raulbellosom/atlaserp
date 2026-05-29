@@ -1,4 +1,4 @@
-import { buildVehiclePdfBuffer } from './vehicle-pdf.js'
+import { buildVehiclePdfBuffer } from "./vehicle-pdf.js";
 import {
   normalizePagination,
   normalizeSearch,
@@ -8,39 +8,39 @@ import {
   toCount,
   firstRow,
   hasOwn,
-} from './service-helpers.js'
+} from "./service-helpers.js";
 
-const MODULE_KEY = 'atlas.fleet'
+const MODULE_KEY = "atlas.fleet";
 const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export class FleetServiceError extends Error {
   constructor(message, status = 500) {
-    super(message)
-    this.name = 'FleetServiceError'
-    this.status = status
+    super(message);
+    this.name = "FleetServiceError";
+    this.status = status;
   }
 }
 
 function normalizeEconomicNumberPart(value) {
-  const normalized = normalizeOptionalString(value)
-  if (normalized === undefined || normalized === null) return normalized
-  if (!/^\d+$/.test(normalized)) return normalized
-  const withoutLeadingZeros = normalized.replace(/^0+/, '')
-  return withoutLeadingZeros.length > 0 ? withoutLeadingZeros : '0'
+  const normalized = normalizeOptionalString(value);
+  if (normalized === undefined || normalized === null) return normalized;
+  if (!/^\d+$/.test(normalized)) return normalized;
+  const withoutLeadingZeros = normalized.replace(/^0+/, "");
+  return withoutLeadingZeros.length > 0 ? withoutLeadingZeros : "0";
 }
 
 function normalizeOptionalBoolean(value) {
-  if (value === undefined) return undefined
-  if (value === null) return null
-  return Boolean(value)
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  return Boolean(value);
 }
 
 function normalizeOptionalNumber(value) {
-  if (value === undefined) return undefined
-  if (value === null || value === '') return null
-  const number = Number(value)
-  return Number.isFinite(number) ? number : value
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : value;
 }
 
 function normalizeVehiclePayload(data = {}) {
@@ -48,61 +48,78 @@ function normalizeVehiclePayload(data = {}) {
     ...data,
     plate: data.plate === undefined ? undefined : String(data.plate).trim(),
     brand: data.brand === undefined ? undefined : String(data.brand).trim(),
-    model_name: data.model_name === undefined ? undefined : String(data.model_name).trim(),
+    model_name:
+      data.model_name === undefined
+        ? undefined
+        : String(data.model_name).trim(),
     color: normalizeOptionalString(data.color),
     notes: normalizeOptionalString(data.notes),
-    economic_group_number: normalizeEconomicNumberPart(data.economic_group_number),
-    economic_individual_number: normalizeEconomicNumberPart(data.economic_individual_number),
+    economic_group_number: normalizeEconomicNumberPart(
+      data.economic_group_number,
+    ),
+    economic_individual_number: normalizeEconomicNumberPart(
+      data.economic_individual_number,
+    ),
     vehicle_model_id: normalizeOptionalString(data.vehicle_model_id),
     is_financed: normalizeOptionalBoolean(data.is_financed),
     financing_institution: normalizeOptionalString(data.financing_institution),
-    financing_contract_number: normalizeOptionalString(data.financing_contract_number),
+    financing_contract_number: normalizeOptionalString(
+      data.financing_contract_number,
+    ),
     financing_start_date: normalizeOptionalString(data.financing_start_date),
     financing_end_date: normalizeOptionalString(data.financing_end_date),
-    financing_monthly_payment: normalizeOptionalNumber(data.financing_monthly_payment),
+    financing_monthly_payment: normalizeOptionalNumber(
+      data.financing_monthly_payment,
+    ),
     financing_notes: normalizeOptionalString(data.financing_notes),
-  }
+  };
 
   if (normalized.is_financed === false) {
-    normalized.financing_institution = null
-    normalized.financing_contract_number = null
-    normalized.financing_start_date = null
-    normalized.financing_end_date = null
-    normalized.financing_monthly_payment = null
-    normalized.financing_notes = null
+    normalized.financing_institution = null;
+    normalized.financing_contract_number = null;
+    normalized.financing_start_date = null;
+    normalized.financing_end_date = null;
+    normalized.financing_monthly_payment = null;
+    normalized.financing_notes = null;
   }
 
-  return normalized
+  return normalized;
 }
 
 function ensureCompanyId(companyId) {
-  if (typeof companyId === 'string' && companyId.trim()) return companyId.trim()
-  throw new FleetServiceError('companyId es requerido.', 400)
+  if (typeof companyId === "string" && companyId.trim())
+    return companyId.trim();
+  throw new FleetServiceError("companyId es requerido.", 400);
 }
 
 function toScopedCompanyUuid(companyId) {
-  const normalized = (typeof companyId === 'string' && companyId.trim()) ? companyId.trim() : null
-  if (!normalized) throw new FleetServiceError('companyId es requerido.', 400)
-  if (!UUID_REGEX.test(normalized)) throw new FleetServiceError('companyId debe ser UUID valido.', 400)
-  return normalized.toLowerCase()
+  const normalized =
+    typeof companyId === "string" && companyId.trim() ? companyId.trim() : null;
+  if (!normalized) throw new FleetServiceError("companyId es requerido.", 400);
+  if (!UUID_REGEX.test(normalized))
+    throw new FleetServiceError("companyId debe ser UUID valido.", 400);
+  return normalized.toLowerCase();
 }
 
 function normalizeRecordId(id, notFoundMessage) {
-  const value = String(id ?? '').trim()
+  const value = String(id ?? "").trim();
   if (!UUID_REGEX.test(value)) {
-    throw new FleetServiceError(notFoundMessage, 404)
+    throw new FleetServiceError(notFoundMessage, 404);
   }
-  return value.toLowerCase()
+  return value.toLowerCase();
 }
 
 async function withDbErrorMapping(fn) {
   try {
-    return await fn()
+    return await fn();
   } catch (error) {
     if (isTableNotFoundError(error)) {
-      throw new FleetServiceError('Las tablas del modulo no estan disponibles aun.', 503)
+      throw new FleetServiceError(
+        "Las tablas del modulo no estan disponibles aun.",
+        503,
+      );
     }
-    throw error
+    throw error;
   }
 }
 
@@ -127,15 +144,15 @@ export function createFleetService({ prisma }) {
         after,
         metadata,
       },
-    })
+    });
   }
 
   async function listVehicles({ companyId, page, pageSize, status, search }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const pagination = normalizePagination({ page, pageSize })
-    const normalizedStatus = normalizeOptionalString(status)
-    const normalizedSearch = normalizeSearch(search)
-    const likeValue = normalizedSearch ? `%${normalizedSearch}%` : null
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const pagination = normalizePagination({ page, pageSize });
+    const normalizedStatus = normalizeOptionalString(status);
+    const normalizedSearch = normalizeSearch(search);
+    const likeValue = normalizedSearch ? `%${normalizedSearch}%` : null;
 
     const [rows, totalRows] = await withDbErrorMapping(async () => {
       const dataRows = await prisma.$queryRaw`
@@ -254,7 +271,7 @@ export function createFleetService({ prisma }) {
         ORDER BY fv.created_at DESC
         LIMIT ${pagination.pageSize}
         OFFSET ${pagination.offset}
-      `
+      `;
 
       const countRows = await prisma.$queryRaw`
         SELECT COUNT(*)::bigint AS total
@@ -303,9 +320,9 @@ export function createFleetService({ prisma }) {
             ) ILIKE ${likeValue}
             OR (COALESCE(fd.first_name, '') || ' ' || COALESCE(fd.last_name, '')) ILIKE ${likeValue}
           )
-      `
-      return [dataRows, countRows]
-    })
+      `;
+      return [dataRows, countRows];
+    });
 
     return {
       data: rows,
@@ -314,12 +331,12 @@ export function createFleetService({ prisma }) {
         pageSize: pagination.pageSize,
         total: toCount(firstRow(totalRows)?.total),
       },
-    }
+    };
   }
 
   async function getVehicle({ companyId, id }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeId = normalizeRecordId(id, 'Vehiculo no encontrado.')
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const safeId = normalizeRecordId(id, "Vehiculo no encontrado.");
     const row = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
         SELECT
@@ -395,17 +412,17 @@ export function createFleetService({ prisma }) {
         WHERE fv.id = ${safeId}
           AND fv.company_id = ${safeCompanyId}
         LIMIT 1
-      `
-      return firstRow(rows)
-    })
+      `;
+      return firstRow(rows);
+    });
 
-    if (!row) throw new FleetServiceError('Vehiculo no encontrado.', 404)
-    return row
+    if (!row) throw new FleetServiceError("Vehiculo no encontrado.", 404);
+    return row;
   }
 
   async function createVehicle({ companyId, data, actorId }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const payload = normalizeVehiclePayload(data)
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const payload = normalizeVehiclePayload(data);
 
     try {
       const row = await withDbErrorMapping(async () => {
@@ -440,7 +457,7 @@ export function createFleetService({ prisma }) {
             ${payload.model_name ?? null},
             ${payload.year ?? null},
             ${payload.color ?? null},
-            ${payload.status ?? 'active'},
+            ${payload.status ?? "active"},
             ${payload.driver_id ?? null},
             ${payload.notes ?? null},
             ${payload.economic_group_number ?? null},
@@ -457,65 +474,112 @@ export function createFleetService({ prisma }) {
             ${payload.financing_notes ?? null}
           )
           RETURNING *
-        `
-        return firstRow(rows)
-      })
+        `;
+        return firstRow(rows);
+      });
 
       await logAudit({
         actorId,
-        entityType: 'Vehicle',
+        entityType: "Vehicle",
         entityId: row?.id ?? null,
-        action: 'fleet.vehicle.create',
+        action: "fleet.vehicle.create",
         before: null,
         after: row,
-      })
+      });
 
-      return row
+      return row;
     } catch (error) {
       if (isUniqueViolation(error)) {
-        throw new FleetServiceError('Ya existe un vehiculo con esa matricula.', 409)
+        throw new FleetServiceError(
+          "Ya existe un vehiculo con esa matricula.",
+          409,
+        );
       }
-      throw error
+      throw error;
     }
   }
 
   async function updateVehicle({ companyId, id, data, actorId }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeId = normalizeRecordId(id, 'Vehiculo no encontrado.')
-    const payload = normalizeVehiclePayload(data)
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const safeId = normalizeRecordId(id, "Vehiculo no encontrado.");
+    const payload = normalizeVehiclePayload(data);
 
-    const hasPlate = hasOwn(payload, 'plate') && payload.plate !== undefined
-    const hasBrand = hasOwn(payload, 'brand') && payload.brand !== undefined
-    const hasModelName = hasOwn(payload, 'model_name') && payload.model_name !== undefined
-    const hasYear = hasOwn(payload, 'year') && payload.year !== undefined
-    const hasStatus = hasOwn(payload, 'status') && payload.status !== undefined
-    const hasColor = hasOwn(payload, 'color') && payload.color !== undefined
-    const hasDriverId = hasOwn(payload, 'driver_id') && payload.driver_id !== undefined
-    const hasNotes = hasOwn(payload, 'notes') && payload.notes !== undefined
-    const hasEconomicGroupNumber = hasOwn(payload, 'economic_group_number') && payload.economic_group_number !== undefined
-    const hasEconomicIndividualNumber = hasOwn(payload, 'economic_individual_number') && payload.economic_individual_number !== undefined
-    const hasVehicleTypeId = hasOwn(payload, 'vehicle_type_id') && payload.vehicle_type_id !== undefined
-    const hasVehicleBrandId = hasOwn(payload, 'vehicle_brand_id') && payload.vehicle_brand_id !== undefined
-    const hasVehicleModelId = hasOwn(payload, 'vehicle_model_id') && payload.vehicle_model_id !== undefined
-    const hasIsFinanced = hasOwn(payload, 'is_financed') && payload.is_financed !== undefined
-    const hasFinancingInstitution = hasOwn(payload, 'financing_institution') && payload.financing_institution !== undefined
-    const hasFinancingContractNumber = hasOwn(payload, 'financing_contract_number') && payload.financing_contract_number !== undefined
-    const hasFinancingStartDate = hasOwn(payload, 'financing_start_date') && payload.financing_start_date !== undefined
-    const hasFinancingEndDate = hasOwn(payload, 'financing_end_date') && payload.financing_end_date !== undefined
-    const hasFinancingMonthlyPayment = hasOwn(payload, 'financing_monthly_payment') && payload.financing_monthly_payment !== undefined
-    const hasFinancingNotes = hasOwn(payload, 'financing_notes') && payload.financing_notes !== undefined
+    const hasPlate = hasOwn(payload, "plate") && payload.plate !== undefined;
+    const hasBrand = hasOwn(payload, "brand") && payload.brand !== undefined;
+    const hasModelName =
+      hasOwn(payload, "model_name") && payload.model_name !== undefined;
+    const hasYear = hasOwn(payload, "year") && payload.year !== undefined;
+    const hasStatus = hasOwn(payload, "status") && payload.status !== undefined;
+    const hasColor = hasOwn(payload, "color") && payload.color !== undefined;
+    const hasDriverId =
+      hasOwn(payload, "driver_id") && payload.driver_id !== undefined;
+    const hasNotes = hasOwn(payload, "notes") && payload.notes !== undefined;
+    const hasEconomicGroupNumber =
+      hasOwn(payload, "economic_group_number") &&
+      payload.economic_group_number !== undefined;
+    const hasEconomicIndividualNumber =
+      hasOwn(payload, "economic_individual_number") &&
+      payload.economic_individual_number !== undefined;
+    const hasVehicleTypeId =
+      hasOwn(payload, "vehicle_type_id") &&
+      payload.vehicle_type_id !== undefined;
+    const hasVehicleBrandId =
+      hasOwn(payload, "vehicle_brand_id") &&
+      payload.vehicle_brand_id !== undefined;
+    const hasVehicleModelId =
+      hasOwn(payload, "vehicle_model_id") &&
+      payload.vehicle_model_id !== undefined;
+    const hasIsFinanced =
+      hasOwn(payload, "is_financed") && payload.is_financed !== undefined;
+    const hasFinancingInstitution =
+      hasOwn(payload, "financing_institution") &&
+      payload.financing_institution !== undefined;
+    const hasFinancingContractNumber =
+      hasOwn(payload, "financing_contract_number") &&
+      payload.financing_contract_number !== undefined;
+    const hasFinancingStartDate =
+      hasOwn(payload, "financing_start_date") &&
+      payload.financing_start_date !== undefined;
+    const hasFinancingEndDate =
+      hasOwn(payload, "financing_end_date") &&
+      payload.financing_end_date !== undefined;
+    const hasFinancingMonthlyPayment =
+      hasOwn(payload, "financing_monthly_payment") &&
+      payload.financing_monthly_payment !== undefined;
+    const hasFinancingNotes =
+      hasOwn(payload, "financing_notes") &&
+      payload.financing_notes !== undefined;
 
     const hasAnyUpdate =
-      hasPlate || hasBrand || hasModelName || hasYear || hasStatus || hasColor || hasDriverId || hasNotes ||
-      hasEconomicGroupNumber || hasEconomicIndividualNumber || hasVehicleTypeId || hasVehicleBrandId || hasVehicleModelId ||
-      hasIsFinanced || hasFinancingInstitution || hasFinancingContractNumber || hasFinancingStartDate ||
-      hasFinancingEndDate || hasFinancingMonthlyPayment || hasFinancingNotes
+      hasPlate ||
+      hasBrand ||
+      hasModelName ||
+      hasYear ||
+      hasStatus ||
+      hasColor ||
+      hasDriverId ||
+      hasNotes ||
+      hasEconomicGroupNumber ||
+      hasEconomicIndividualNumber ||
+      hasVehicleTypeId ||
+      hasVehicleBrandId ||
+      hasVehicleModelId ||
+      hasIsFinanced ||
+      hasFinancingInstitution ||
+      hasFinancingContractNumber ||
+      hasFinancingStartDate ||
+      hasFinancingEndDate ||
+      hasFinancingMonthlyPayment ||
+      hasFinancingNotes;
 
     if (!hasAnyUpdate) {
-      throw new FleetServiceError('No hay campos validos para actualizar.', 400)
+      throw new FleetServiceError(
+        "No hay campos validos para actualizar.",
+        400,
+      );
     }
 
-    const before = await getVehicle({ companyId: safeCompanyId, id: safeId })
+    const before = await getVehicle({ companyId: safeCompanyId, id: safeId });
 
     try {
       const updated = await withDbErrorMapping(async () => {
@@ -545,34 +609,37 @@ export function createFleetService({ prisma }) {
           WHERE id = ${safeId}
             AND company_id = ${safeCompanyId}
           RETURNING *
-        `
-        return firstRow(rows)
-      })
+        `;
+        return firstRow(rows);
+      });
 
-      if (!updated) throw new FleetServiceError('Vehiculo no encontrado.', 404)
+      if (!updated) throw new FleetServiceError("Vehiculo no encontrado.", 404);
 
       await logAudit({
         actorId,
-        entityType: 'Vehicle',
+        entityType: "Vehicle",
         entityId: updated.id,
-        action: 'fleet.vehicle.update',
+        action: "fleet.vehicle.update",
         before,
         after: updated,
-      })
+      });
 
-      return updated
+      return updated;
     } catch (error) {
       if (isUniqueViolation(error)) {
-        throw new FleetServiceError('Ya existe un vehiculo con esa matricula.', 409)
+        throw new FleetServiceError(
+          "Ya existe un vehiculo con esa matricula.",
+          409,
+        );
       }
-      throw error
+      throw error;
     }
   }
 
   async function setVehicleEnabled({ companyId, id, enabled, actorId }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeId = normalizeRecordId(id, 'Vehiculo no encontrado.')
-    const before = await getVehicle({ companyId: safeCompanyId, id: safeId })
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const safeId = normalizeRecordId(id, "Vehiculo no encontrado.");
+    const before = await getVehicle({ companyId: safeCompanyId, id: safeId });
 
     const updated = await withDbErrorMapping(async () => {
       const rows = await prisma.$queryRaw`
@@ -582,71 +649,121 @@ export function createFleetService({ prisma }) {
         WHERE id = ${safeId}
           AND company_id = ${safeCompanyId}
         RETURNING *
-      `
-      return firstRow(rows)
-    })
+      `;
+      return firstRow(rows);
+    });
 
-    if (!updated) throw new FleetServiceError('Vehiculo no encontrado.', 404)
+    if (!updated) throw new FleetServiceError("Vehiculo no encontrado.", 404);
 
     await logAudit({
       actorId,
-      entityType: 'Vehicle',
+      entityType: "Vehicle",
       entityId: updated.id,
-      action: 'fleet.vehicle.disable',
+      action: "fleet.vehicle.disable",
       before,
       after: updated,
       metadata: { enabled: Boolean(enabled) },
-    })
+    });
 
-    return updated
+    return updated;
   }
 
   async function listVehicleDocuments({ companyId, vehicleId }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeVehicleId = normalizeRecordId(vehicleId, 'Vehiculo no encontrado.')
-    const docs = await withDbErrorMapping(() => prisma.$queryRaw`
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const safeVehicleId = normalizeRecordId(
+      vehicleId,
+      "Vehiculo no encontrado.",
+    );
+    const docs = await withDbErrorMapping(
+      () => prisma.$queryRaw`
       SELECT * FROM fleet_vehicle_document
       WHERE vehicle_id = ${safeVehicleId} AND company_id = ${safeCompanyId} AND enabled = true
       ORDER BY created_at DESC
-    `)
-    if (!docs.length) return { data: [] }
-    const ids = docs.map((d) => d.file_asset_id).filter(Boolean)
-    const assets = ids.length ? await prisma.fileAsset.findMany({ where: { id: { in: ids } } }) : []
-    const assetMap = Object.fromEntries(assets.map((a) => [a.id, a]))
-    return { data: docs.map((d) => ({ ...d, file_asset: assetMap[d.file_asset_id] ?? null })) }
+    `,
+    );
+    if (!docs.length) return { data: [] };
+    const ids = docs.map((d) => d.file_asset_id).filter(Boolean);
+    const assets = ids.length
+      ? await prisma.fileAsset.findMany({ where: { id: { in: ids } } })
+      : [];
+    const assetMap = Object.fromEntries(assets.map((a) => [a.id, a]));
+    return {
+      data: docs.map((d) => ({
+        ...d,
+        file_asset: assetMap[d.file_asset_id] ?? null,
+      })),
+    };
   }
 
-  async function addVehicleDocument({ companyId, actorId, vehicleId, payload }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeVehicleId = normalizeRecordId(vehicleId, 'Vehiculo no encontrado.')
-    const doc = await withDbErrorMapping(async () => firstRow(await prisma.$queryRaw`
+  async function addVehicleDocument({
+    companyId,
+    actorId,
+    vehicleId,
+    payload,
+  }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const safeVehicleId = normalizeRecordId(
+      vehicleId,
+      "Vehiculo no encontrado.",
+    );
+    const doc = await withDbErrorMapping(async () =>
+      firstRow(
+        await prisma.$queryRaw`
       INSERT INTO fleet_vehicle_document (company_id, vehicle_id, file_asset_id, document_type, label)
-      VALUES (${safeCompanyId}, ${safeVehicleId}, ${payload.file_asset_id}, ${payload.document_type ?? 'document'}, ${payload.label ?? null})
+      VALUES (${safeCompanyId}, ${safeVehicleId}, ${payload.file_asset_id}, ${payload.document_type ?? "document"}, ${payload.label ?? null})
       RETURNING *
-    `))
-    await logAudit({ actorId, entityType: 'Vehicle', entityId: safeVehicleId, action: 'fleet.vehicle.document.add', before: null, after: doc })
-    return doc
+    `,
+      ),
+    );
+    await logAudit({
+      actorId,
+      entityType: "Vehicle",
+      entityId: safeVehicleId,
+      action: "fleet.vehicle.document.add",
+      before: null,
+      after: doc,
+    });
+    return doc;
   }
 
-  async function removeVehicleDocument({ companyId, actorId, vehicleId, docId }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeVehicleId = normalizeRecordId(vehicleId, 'Vehiculo no encontrado.')
-    const safeDocId = normalizeRecordId(docId, 'Documento no encontrado.')
-    const updated = await withDbErrorMapping(async () => firstRow(await prisma.$queryRaw`
+  async function removeVehicleDocument({
+    companyId,
+    actorId,
+    vehicleId,
+    docId,
+  }) {
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const safeVehicleId = normalizeRecordId(
+      vehicleId,
+      "Vehiculo no encontrado.",
+    );
+    const safeDocId = normalizeRecordId(docId, "Documento no encontrado.");
+    const updated = await withDbErrorMapping(async () =>
+      firstRow(
+        await prisma.$queryRaw`
       UPDATE fleet_vehicle_document SET enabled = false
       WHERE id = ${safeDocId} AND vehicle_id = ${safeVehicleId} AND company_id = ${safeCompanyId}
       RETURNING *
-    `))
-    if (!updated) throw new FleetServiceError('Documento no encontrado.', 404)
-    await logAudit({ actorId, entityType: 'Vehicle', entityId: safeVehicleId, action: 'fleet.vehicle.document.remove', before: updated, after: { ...updated, enabled: false } })
-    return updated
+    `,
+      ),
+    );
+    if (!updated) throw new FleetServiceError("Documento no encontrado.", 404);
+    await logAudit({
+      actorId,
+      entityType: "Vehicle",
+      entityId: safeVehicleId,
+      action: "fleet.vehicle.document.remove",
+      before: updated,
+      after: { ...updated, enabled: false },
+    });
+    return updated;
   }
 
   async function generateVehiclePdf({ companyId, id }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const vehicle = await getVehicle({ companyId: safeCompanyId, id })
-    const pdf = await buildVehiclePdfBuffer({ prisma, companyId, vehicle })
-    return { vehicle, pdf }
+    const safeCompanyId = toScopedCompanyUuid(companyId);
+    const vehicle = await getVehicle({ companyId: safeCompanyId, id });
+    const pdf = await buildVehiclePdfBuffer({ prisma, companyId, vehicle });
+    return { vehicle, pdf };
   }
 
   return {
@@ -659,6 +776,5 @@ export function createFleetService({ prisma }) {
     addVehicleDocument,
     removeVehicleDocument,
     generateVehiclePdf,
-  }
+  };
 }
-

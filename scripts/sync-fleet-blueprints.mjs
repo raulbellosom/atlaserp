@@ -127,12 +127,27 @@ function patchVehicleTable(schema) {
 
   // Always-visible core columns
   columns = upsertColumns(columns, [
-    { field: "cover_image_file_asset_id", label: "Foto", component: "atlas.fleet:VehicleImageCell", visible: true },
+    {
+      field: "cover_image_file_asset_id",
+      label: "Foto",
+      component: "atlas.fleet:VehicleImageCell",
+      visible: true,
+    },
     { field: "plate", label: "Matricula", visible: true },
     { field: "vehicle_brand_name", label: "Marca", visible: true },
     { field: "vehicle_model_name", label: "Modelo", visible: true },
-    { field: "status", label: "Estado", component: "atlas.fleet:VehicleStatusBadge", visible: true },
-    { field: "insurance_status", label: "Poliza", component: "atlas.fleet:InsuranceBadgeCell", visible: true },
+    {
+      field: "status",
+      label: "Estado",
+      component: "atlas.fleet:VehicleStatusBadge",
+      visible: true,
+    },
+    {
+      field: "insurance_status",
+      label: "Poliza",
+      component: "atlas.fleet:InsuranceBadgeCell",
+      visible: true,
+    },
     { field: "driver_name", label: "Chofer", visible: true },
   ]);
 
@@ -142,11 +157,23 @@ function patchVehicleTable(schema) {
     { field: "vehicle_model_year", label: "Ano", visible: false },
     { field: "color", label: "Color", visible: false },
     { field: "full_economic_number", label: "No. Economico", visible: false },
-    { field: "economic_group_number", label: "Grupo Economico", visible: false },
-    { field: "economic_individual_number", label: "No. Individual", visible: false },
+    {
+      field: "economic_group_number",
+      label: "Grupo Economico",
+      visible: false,
+    },
+    {
+      field: "economic_individual_number",
+      label: "No. Individual",
+      visible: false,
+    },
     { field: "is_financed", label: "Financiado", visible: false },
     { field: "financing_institution", label: "Institucion", visible: false },
-    { field: "financing_end_date", label: "Fin financiamiento", visible: false },
+    {
+      field: "financing_end_date",
+      label: "Fin financiamiento",
+      visible: false,
+    },
     { field: "doc_count", label: "Documentos", visible: false },
     { field: "created_at", label: "Registro", visible: false },
   ]);
@@ -184,7 +211,10 @@ function patchVehicleDetail(schema) {
         },
       };
     }
-    if (section.id === "insurance_history" && section.type === "relation-list") {
+    if (
+      section.id === "insurance_history" &&
+      section.type === "relation-list"
+    ) {
       return {
         ...section,
         relationList: {
@@ -209,7 +239,11 @@ function patchVehicleDetail(schema) {
 function patchInsuranceTable(schema) {
   let columns = (schema.columns ?? []).map((col) => {
     if (col.field === "is_active") {
-      return { field: "status", label: "Estado", component: "atlas.fleet:InsuranceBadgeCell" };
+      return {
+        field: "status",
+        label: "Estado",
+        component: "atlas.fleet:InsuranceBadgeCell",
+      };
     }
     if (col.component === "custom.fleet:InsuranceBadgeCell") {
       return {
@@ -234,8 +268,18 @@ function patchInsuranceTable(schema) {
     { field: "policy_number", label: "No. Poliza", visible: true },
     { field: "insurer_name", label: "Aseguradora", visible: true },
     { field: "vehicle_plate", label: "Vehiculo", visible: true },
-    { field: "coverage_type", label: "Cobertura", component: "atlas.fleet:CoverageTypeBadge", visible: true },
-    { field: "status", label: "Estado", component: "atlas.fleet:InsuranceBadgeCell", visible: true },
+    {
+      field: "coverage_type",
+      label: "Cobertura",
+      component: "atlas.fleet:CoverageTypeBadge",
+      visible: true,
+    },
+    {
+      field: "status",
+      label: "Estado",
+      component: "atlas.fleet:InsuranceBadgeCell",
+      visible: true,
+    },
     { field: "expiry_date", label: "Vencimiento", visible: true },
   ]);
 
@@ -332,12 +376,27 @@ function patchDriverTable(schema) {
 
   // Visible core columns
   columns = upsertColumns(columns, [
-    { field: "photo_asset_id", label: "Foto", component: "atlas.fleet:DriverAvatarCell", visible: true },
+    {
+      field: "photo_asset_id",
+      label: "Foto",
+      component: "atlas.fleet:DriverAvatarCell",
+      visible: true,
+    },
     { field: "first_name", label: "Nombre", visible: true },
     { field: "last_name", label: "Apellido", visible: true },
     { field: "license_number", label: "No. Licencia", visible: true },
-    { field: "status", label: "Estado", component: "atlas.fleet:DriverStatusBadge", visible: true },
-    { field: "assigned_vehicle", label: "Vehiculo asignado", component: "atlas.fleet:DriverAssignedVehicleCell", visible: true },
+    {
+      field: "status",
+      label: "Estado",
+      component: "atlas.fleet:DriverStatusBadge",
+      visible: true,
+    },
+    {
+      field: "assigned_vehicle",
+      label: "Vehiculo asignado",
+      component: "atlas.fleet:DriverAssignedVehicleCell",
+      visible: true,
+    },
   ]);
 
   // Hidden extras
@@ -345,7 +404,11 @@ function patchDriverTable(schema) {
     { field: "phone", label: "Telefono", visible: false },
     { field: "email", label: "Email", visible: false },
     { field: "license_type", label: "Tipo licencia", visible: false },
-    { field: "license_expiry_date", label: "Vencimiento licencia", visible: false },
+    {
+      field: "license_expiry_date",
+      label: "Vencimiento licencia",
+      visible: false,
+    },
     { field: "hr_employee_name", label: "Colaborador RH", visible: false },
     { field: "created_at", label: "Registro", visible: false },
   ]);
@@ -368,7 +431,12 @@ function patchReportTable(schema) {
     { field: "title", label: "Titulo", visible: true },
     { field: "vehicle_plate", label: "Vehiculo", visible: true },
     { field: "report_date", label: "Fecha", visible: true },
-    { field: "status", label: "Estado", component: "atlas.fleet:ReportStatusBadge", visible: true },
+    {
+      field: "status",
+      label: "Estado",
+      component: "atlas.fleet:ReportStatusBadge",
+      visible: true,
+    },
   ]);
 
   // Hidden extras
@@ -396,7 +464,9 @@ function patchReportDetail(schema) {
     title: schema.title ?? "Reporte",
   };
 
-  const existingActions = Array.isArray(patched.headerActions) ? patched.headerActions : [];
+  const existingActions = Array.isArray(patched.headerActions)
+    ? patched.headerActions
+    : [];
   const hasFinalize = existingActions.some((a) => a.key === "finalize");
   const hasPdf = existingActions.some((a) => a.key === "download_pdf");
 
@@ -546,8 +616,11 @@ async function main() {
       const patchedSchema = patchFn(namespacedFixed);
 
       if (DRY_RUN) {
-        const diff = JSON.stringify(patchedSchema) !== JSON.stringify(currentSchema);
-        console.log(`  ${diff ? "~" : "="} ${view.key}${diff ? " [would update]" : " [no change]"}`);
+        const diff =
+          JSON.stringify(patchedSchema) !== JSON.stringify(currentSchema);
+        console.log(
+          `  ${diff ? "~" : "="} ${view.key}${diff ? " [would update]" : " [no change]"}`,
+        );
       } else {
         await prisma.atlasView.update({
           where: { key: view.key },
@@ -563,7 +636,9 @@ async function main() {
   }
 
   const label = DRY_RUN ? "Would update" : "Updated";
-  console.log(`\nDone. ${label}: ${updated}, Skipped: ${skipped}, Errors: ${errors}`);
+  console.log(
+    `\nDone. ${label}: ${updated}, Skipped: ${skipped}, Errors: ${errors}`,
+  );
 }
 
 main()
