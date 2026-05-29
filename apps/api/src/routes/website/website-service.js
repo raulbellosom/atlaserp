@@ -289,7 +289,8 @@ export function createWebsiteService({ prisma }) {
             json_build_object(
               'id', mi.id, 'label', mi.label, 'url', mi.url,
               'page_id', mi.page_id, 'target', mi.target,
-              'sort_order', mi.sort_order, 'parent_id', mi.parent_id
+              'sort_order', mi.sort_order, 'parent_id', mi.parent_id,
+              'icon', mi.icon
             ) ORDER BY mi.sort_order
           ) FILTER (WHERE mi.id IS NOT NULL),
           '[]'::json
@@ -299,6 +300,99 @@ export function createWebsiteService({ prisma }) {
       WHERE m.company_id = ${companyId} AND m.site_id = ${siteId} AND m.enabled = true
       GROUP BY m.id, m.name, m.location
     `
+  }
+
+  async function createMenu({ companyId, siteId, data }) {
+    return prisma.websiteMenu.create({
+      data: { companyId, siteId, name: data.name, location: data.location ?? 'header' },
+    })
+  }
+
+  async function updateMenu({ companyId, menuId, data }) {
+    const menu = await prisma.websiteMenu.findFirst({ where: { id: menuId, companyId } })
+    if (!menu) throw notFound('Menu')
+    return prisma.websiteMenu.update({ where: { id: menuId }, data })
+  }
+
+  async function softDeleteMenu({ companyId, menuId }) {
+    const menu = await prisma.websiteMenu.findFirst({ where: { id: menuId, companyId } })
+    if (!menu) throw notFound('Menu')
+    return prisma.websiteMenu.update({ where: { id: menuId }, data: { enabled: false } })
+  }
+
+  async function createMenuItem({ companyId, menuId, data }) {
+    const menu = await prisma.websiteMenu.findFirst({ where: { id: menuId, companyId } })
+    if (!menu) throw notFound('Menu')
+    return prisma.websiteMenuItem.create({
+      data: {
+        companyId,
+        menuId,
+        label:     data.label,
+        url:       data.url ?? null,
+        pageId:    data.pageId ?? null,
+        parentId:  data.parentId ?? null,
+        target:    data.target ?? '_self',
+        icon:      data.icon ?? null,
+        sortOrder: data.sortOrder ?? 0,
+      },
+    })
+  }
+
+  async function updateMenuItem({ companyId, itemId, data }) {
+    const item = await prisma.websiteMenuItem.findFirst({ where: { id: itemId, companyId } })
+    if (!item) throw notFound('Elemento de menu')
+    return prisma.websiteMenuItem.update({ where: { id: itemId }, data })
+  }
+
+  async function softDeleteMenuItem({ companyId, itemId }) {
+    const item = await prisma.websiteMenuItem.findFirst({ where: { id: itemId, companyId } })
+    if (!item) throw notFound('Elemento de menu')
+    return prisma.websiteMenuItem.update({ where: { id: itemId }, data: { enabled: false } })
+  }
+
+  async function reorderMenuItems({ companyId, items }) {
+    return prisma.$transaction(
+      items.map(({ id, sortOrder }) =>
+        prisma.websiteMenuItem.update({ where: { id, companyId }, data: { sortOrder } })
+      )
+    )
+  }
+
+  async function getTheme({ companyId, themeId }) {
+    return prisma.websiteTheme.findFirst({ where: { id: themeId, companyId, enabled: true } })
+  }
+
+  async function createTheme({ companyId, siteId, data }) {
+    if (data.isDefault) {
+      await prisma.websiteTheme.updateMany({
+        where: { companyId, siteId },
+        data: { isDefault: false },
+      })
+    }
+    return prisma.websiteTheme.create({
+      data: {
+        companyId,
+        siteId,
+        name:      data.name,
+        tokens:    data.tokens    ?? {},
+        typography:data.typography ?? {},
+        layout:    data.layout    ?? {},
+        customCss: data.customCss ?? null,
+        isDefault: data.isDefault ?? false,
+      },
+    })
+  }
+
+  async function updateTheme({ companyId, themeId, data }) {
+    const theme = await prisma.websiteTheme.findFirst({ where: { id: themeId, companyId } })
+    if (!theme) throw notFound('Tema')
+    if (data.isDefault) {
+      await prisma.websiteTheme.updateMany({
+        where: { companyId, siteId: theme.siteId, id: { not: themeId } },
+        data: { isDefault: false },
+      })
+    }
+    return prisma.websiteTheme.update({ where: { id: themeId }, data })
   }
 
   return {
@@ -314,5 +408,15 @@ export function createWebsiteService({ prisma }) {
     softDeletePage,
     listThemes,
     listMenus,
+    createMenu,
+    updateMenu,
+    softDeleteMenu,
+    createMenuItem,
+    updateMenuItem,
+    softDeleteMenuItem,
+    reorderMenuItems,
+    getTheme,
+    createTheme,
+    updateTheme,
   }
 }

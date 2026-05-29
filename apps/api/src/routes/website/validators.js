@@ -38,3 +38,57 @@ export const updateSiteSchema = z.object({
   settings:       z.record(z.unknown()).optional(),
   seoDefaults:    z.record(z.unknown()).optional(),
 })
+
+export const createMenuSchema = z.object({
+  siteId:   z.string().uuid(),
+  name:     z.string().min(1).max(255),
+  location: z.string().default('header'),
+})
+
+export const updateMenuSchema = z.object({
+  name:     z.string().min(1).max(255).optional(),
+  location: z.string().optional(),
+})
+
+export const createMenuItemSchema = z.object({
+  label:     z.string().min(1).max(255),
+  url:       z.string().optional().nullable(),
+  pageId:    z.string().uuid().optional().nullable(),
+  parentId:  z.string().uuid().optional().nullable(),
+  target:    z.enum(['_self', '_blank']).default('_self'),
+  icon:      z.string().optional().nullable(),
+  sortOrder: z.number().int().default(0),
+})
+
+export const updateMenuItemSchema = z.object({
+  label:     z.string().min(1).max(255).optional(),
+  url:       z.string().optional().nullable(),
+  pageId:    z.string().uuid().optional().nullable(),
+  parentId:  z.string().uuid().optional().nullable(),
+  target:    z.enum(['_self', '_blank']).optional(),
+  icon:      z.string().optional().nullable(),
+  sortOrder: z.number().int().optional(),
+})
+
+export const reorderItemsSchema = z.object({
+  items: z.array(z.object({ id: z.string().uuid(), sortOrder: z.number().int() })),
+})
+
+export const createThemeSchema = z.object({
+  siteId:     z.string().uuid(),
+  name:       z.string().min(1).max(255),
+  tokens:     z.record(z.unknown()).optional(),
+  typography: z.record(z.unknown()).optional(),
+  layout:     z.record(z.unknown()).optional(),
+  customCss:  z.string().optional().nullable(),
+  isDefault:  z.boolean().default(false),
+})
+
+export const updateThemeSchema = z.object({
+  name:       z.string().min(1).max(255).optional(),
+  tokens:     z.record(z.unknown()).optional(),
+  typography: z.record(z.unknown()).optional(),
+  layout:     z.record(z.unknown()).optional(),
+  customCss:  z.string().optional().nullable(),
+  isDefault:  z.boolean().optional(),
+})
