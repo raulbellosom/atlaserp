@@ -45,6 +45,7 @@ import { createPublicWebsiteRouter } from "./routes/public-website.js";
 import { createWebsiteRouter } from "./routes/website/index.js";
 import { createLedgerRouter } from "./routes/ledger/index.js";
 import { createFleetRouter } from "./routes/fleet/index.js";
+import { createCalendarRouter } from "./routes/calendar/index.js";
 import { createModuleBundlerService } from "./services/module-bundler-service.js";
 import { createRouteLoaderService } from "./services/route-loader-service.js";
 import {
@@ -86,6 +87,7 @@ const CORE_MODULE_KEYS = new Set([
   "atlas.hr",
   "atlas.fleet",
   "atlas.ledger",
+  "atlas.calendar",
 ]);
 const STORAGE_BUCKET_NAME = "atlas-files";
 const filesService = createFilesService({ prisma, supabaseAdmin });
@@ -3549,6 +3551,7 @@ function mountWithAuth(baseApp, router) {
 mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission }))
 mountWithAuth(app, createLedgerRouter({ prisma, requirePermission }))
 mountWithAuth(app, createFleetRouter({ prisma, requirePermission }))
+mountWithAuth(app, createCalendarRouter({ prisma, requirePermission }))
 
 const server = serve({ fetch: app.fetch, port });
 console.log(`Atlas API running on http://localhost:${port}`);
