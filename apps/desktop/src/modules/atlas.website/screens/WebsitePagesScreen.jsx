@@ -1,7 +1,11 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { Button } from '@atlas/ui'
+import { toast } from 'sonner'
+import WebsiteNewPageDialog from './WebsiteNewPageDialog.jsx'
 
 async function apiGet(path, token) {
   const res = await fetch(`${getApiUrl()}${path}`, {
@@ -22,6 +26,9 @@ export default function WebsitePagesScreen() {
   const { session } = useAuth()
   const token = session?.access_token
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+
+  const [dialogOpen, setDialogOpen] = useState(false)
 
   const siteQuery = useQuery({
     queryKey: ['website-site', token],
@@ -38,11 +45,35 @@ export default function WebsitePagesScreen() {
     staleTime: 30_000,
   })
 
-  const pages = pagesQuery.data?.data ?? []
+  const deleteMutation = useMutation({
+    mutationFn: async (pageId) => {
+      const res = await fetch(`${getApiUrl()}/website/pages/${pageId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `HTTP ${res.status}`)
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      toast.success('Pagina eliminada')
+      queryClient.invalidateQueries({ queryKey: ['website-pages', siteId] })
+    },
+    onError: (err) => toast.error(err.message || 'Error al eliminar la pagina'),
+  })
+
+  function handleDelete(page) {
+    if (!window.confirm(`Eliminar la pagina "${page.title}"?`)) return
+    deleteMutation.mutate(page.id)
+  }
 
   if (siteQuery.isPending) {
     return <div className="p-8 text-[hsl(var(--muted-foreground))] text-sm">Cargando...</div>
   }
+
+  const pages = pagesQuery.data?.data ?? []
 
   return (
     <div className="p-8 space-y-6">
@@ -53,17 +84,31 @@ export default function WebsitePagesScreen() {
             Gestiona las paginas del sitio publico.
           </p>
         </div>
-        <button
-          onClick={() => navigate('/app/m/atlas.website/pages/new')}
-          className="px-4 py-2 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-medium hover:opacity-90 transition-opacity"
+        <Button
+          onClick={() => setDialogOpen(true)}
+          disabled={!siteId}
+          title={!siteId ? 'Configura tu sitio web primero' : undefined}
         >
           Nueva pagina
-        </button>
+        </Button>
       </div>
 
-      {pages.length === 0 ? (
+      {!siteId ? (
+        <div className="rounded-xl border border-[hsl(var(--border))] p-10 text-center space-y-2">
+          <p className="text-[hsl(var(--muted-foreground))] text-sm">
+            Configura tu sitio web primero desde la seccion &quot;Sitio web&quot;.
+          </p>
+        </div>
+      ) : pagesQuery.isPending ? (
         <div className="rounded-xl border border-[hsl(var(--border))] p-10 text-center">
+          <p className="text-[hsl(var(--muted-foreground))] text-sm">Cargando paginas...</p>
+        </div>
+      ) : pages.length === 0 ? (
+        <div className="rounded-xl border border-[hsl(var(--border))] p-10 text-center space-y-4">
           <p className="text-[hsl(var(--muted-foreground))] text-sm">No hay paginas creadas aun.</p>
+          <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
+            Crear primera pagina
+          </Button>
         </div>
       ) : (
         <div className="rounded-xl border border-[hsl(var(--border))] overflow-hidden">
@@ -80,19 +125,30 @@ export default function WebsitePagesScreen() {
               {pages.map((page) => (
                 <tr key={page.id} className="hover:bg-[hsl(var(--muted)/0.4)] transition-colors">
                   <td className="px-4 py-3 font-medium text-[hsl(var(--foreground))]">{page.title}</td>
-                  <td className="px-4 py-3 text-[hsl(var(--muted-foreground))] font-mono text-xs">{page.route_path}</td>
+                  <td className="px-4 py-3 text-[hsl(var(--muted-foreground))] font-mono text-xs">
+                    {page.routePath}
+                  </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs border ${STATUS_COLORS[page.status] ?? ''}`}>
                       {STATUS_LABELS[page.status] ?? page.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => navigate(`/app/m/atlas.website/pages/${page.id}/editor`)}
-                      className="text-xs text-[hsl(var(--primary))] hover:underline"
-                    >
-                      Editar
-                    </button>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => navigate(`/app/m/atlas.website/pages/${page.id}/editor`)}
+                        className="text-xs text-[hsl(var(--primary))] hover:underline"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleDelete(page)}
+                        disabled={deleteMutation.isPending}
+                        className="text-xs text-[hsl(var(--destructive))] hover:underline disabled:opacity-50"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -100,6 +156,13 @@ export default function WebsitePagesScreen() {
           </table>
         </div>
       )}
+
+      <WebsiteNewPageDialog
+        siteId={siteId}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onCreated={() => queryClient.invalidateQueries({ queryKey: ['website-pages', siteId] })}
+      />
     </div>
   )
 }
