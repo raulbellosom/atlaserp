@@ -53,10 +53,15 @@ export function PublicWebsiteEntry() {
   useEffect(() => {
     if (!isLoggedIn) return
     function handleMouseMove(e) {
-      if (e.clientY < 72) {
+      if (e.clientY < 72 && e.clientX < 100) {
+        // Top-left corner trigger zone — reveal bar
         clearTimeout(hideBarTimer.current)
         setBarVisible(true)
-      } else if (!isEditing && e.clientY > 140) {
+      } else if (e.clientY < 48) {
+        // Cursor is on the bar itself — keep it open
+        clearTimeout(hideBarTimer.current)
+      } else if (e.clientY > 80) {
+        // Cursor moved into content area — schedule hide
         clearTimeout(hideBarTimer.current)
         hideBarTimer.current = setTimeout(() => setBarVisible(false), 400)
       }
@@ -66,7 +71,7 @@ export function PublicWebsiteEntry() {
       window.removeEventListener('mousemove', handleMouseMove)
       clearTimeout(hideBarTimer.current)
     }
-  }, [isLoggedIn, isEditing])
+  }, [isLoggedIn])
 
   // --- Public resolve (no auth needed) ---
   const resolveQuery = useQuery({
