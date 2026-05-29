@@ -72,16 +72,18 @@ export function createCalendarEventService({ prisma }) {
 
     if (!filterIds.length) return []
 
+    // Fetch all events that could produce instances in the range:
+    // - non-recurring: startAt in [start, end] (filtered in JS below)
+    // - recurring: startAt <= end (any series that could have future instances)
+    // We avoid JSON-field null filtering (not supported in Prisma 7 Json columns)
+    // by fetching all events with startAt <= end and filtering non-recurring ones in JS.
     const events = await prisma.calendarEvent.findMany({
       where: {
         calendarId: { in: filterIds },
         enabled: true,
+        startAt: { lte: new Date(end) },
         ...(sourceModule ? { sourceModule } : {}),
         ...(sourceEntityId ? { sourceEntityId } : {}),
-        OR: [
-          { recurrenceRule: null, startAt: { gte: new Date(start), lte: new Date(end) } },
-          { recurrenceRule: { not: null }, startAt: { lte: new Date(end) } },
-        ],
       },
       include: {
         calendar: { select: { id: true, name: true, color: true, ownerId: true } },
@@ -90,10 +92,14 @@ export function createCalendarEventService({ prisma }) {
       orderBy: { startAt: 'asc' },
     })
 
+    const rangeStartMs = new Date(start).getTime()
     const result = []
     for (const event of events) {
       if (!event.recurrenceRule) {
-        result.push(event)
+        // Non-recurring: include only if startAt is within [start, end]
+        if (new Date(event.startAt).getTime() >= rangeStartMs) {
+          result.push(event)
+        }
       } else {
         const instances = expandRecurrence(event, start, end)
         result.push(...instances)
