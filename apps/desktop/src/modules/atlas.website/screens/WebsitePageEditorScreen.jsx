@@ -6,6 +6,7 @@ import '@measured/puck/puck.css'
 import { atlasWebsiteConfig } from '../../../website/atlasWebsiteConfig.js'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { toast } from 'sonner'
 
 async function apiFetch(path, options = {}) {
   const res = await fetch(`${getApiUrl()}${path}`, options)
@@ -36,7 +37,7 @@ export default function WebsitePageEditorScreen() {
 
   useEffect(() => {
     if (pageQuery.data && puckData === null) {
-      const draft = pageQuery.data.draft_builder_data
+      const draft = pageQuery.data.draftBuilderData
       setPuckData(draft && Object.keys(draft).length > 0 ? draft : { content: [], root: {} })
     }
   }, [pageQuery.data, puckData])
@@ -48,16 +49,22 @@ export default function WebsitePageEditorScreen() {
         headers,
         body: JSON.stringify({ builderData }),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['website-page', pageId] }),
+    onSuccess: () => {
+      toast.success('Borrador guardado')
+      queryClient.invalidateQueries({ queryKey: ['website-page', pageId] })
+    },
+    onError: (err) => toast.error(err.message || 'Error al guardar el borrador'),
   })
 
   const publishMutation = useMutation({
     mutationFn: () =>
       apiFetch(`/website/pages/${pageId}/publish`, { method: 'POST', headers }),
     onSuccess: () => {
+      toast.success('Pagina publicada')
       queryClient.invalidateQueries({ queryKey: ['website-page', pageId] })
       queryClient.invalidateQueries({ queryKey: ['public-website-resolve'] })
     },
+    onError: (err) => toast.error(err.message || 'Error al publicar'),
   })
 
   const handleChange = useCallback((data) => {
