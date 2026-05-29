@@ -402,6 +402,54 @@ export function AtlasForm({
     }
   }, [fieldMap, loadRelationOptions]);
 
+  // When editing an existing record, seed each relation field with an initial
+  // option built from the initialData fields that match the descriptor's
+  // labelField(s). This prevents "Registro no disponible" when the current
+  // value isn't in the first page of remote results.
+  useEffect(() => {
+    if (!initialData || typeof initialData !== "object") return;
+    for (const [fieldName, field] of fieldMap.entries()) {
+      if (field.type !== "relation") continue;
+      const descriptor = normalizeRelationDescriptor(field);
+      if (!descriptor) continue;
+      const value = initialData[fieldName];
+      if (value == null || value === "") continue;
+
+      const labelFields = Array.isArray(descriptor.labelField)
+        ? descriptor.labelField
+        : typeof descriptor.labelField === "string"
+        ? [descriptor.labelField]
+        : [];
+
+      const labelParts = labelFields
+        .map((f) => (initialData[f] != null ? String(initialData[f]).trim() : ""))
+        .filter(Boolean);
+
+      if (labelParts.length === 0) continue;
+
+      const seedOption = {
+        value: String(value),
+        label: labelParts.join(descriptor.labelSeparator ?? " "),
+        disabled: false,
+        meta: null,
+      };
+
+      setRelationState((prev) => {
+        const current = prev[fieldName] ?? { options: [], loading: false, error: null };
+        if (current.options.some((o) => o.value === seedOption.value)) return prev;
+        return {
+          ...prev,
+          [fieldName]: {
+            ...current,
+            options: [seedOption, ...current.options.filter((o) => o.value !== seedOption.value)],
+          },
+        };
+      });
+    }
+  // Re-seed whenever the initial data token changes (i.e. a different record is opened).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetInitialDataToken, fieldMap]);
+
   if (!apiPath) {
     return (
       <Alert variant="warning">
@@ -872,7 +920,7 @@ export function AtlasForm({
           <MarkdownField
             {...sharedProps}
             value={value ?? ""}
-            onChange={(val) => handleChange(field.name, val)}
+            onChange={(e) => handleChange(field.name, e?.target?.value ?? "")}
           />
         );
 

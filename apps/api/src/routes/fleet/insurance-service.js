@@ -267,6 +267,18 @@ export function createInsuranceService({ prisma }) {
       const rows = await prisma.$queryRaw`
         SELECT fip.*,
           fv.plate AS vehicle_plate,
+          COALESCE(vb_m.name, vb.name) AS vehicle_brand_name,
+          vm.name AS vehicle_model_name,
+          vm.year AS vehicle_model_year,
+          COALESCE(vt_m.name, vt.name) AS vehicle_type_name,
+          CASE
+            WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) IS NOT NULL
+              AND fv.economic_individual_number IS NOT NULL
+              THEN
+                COALESCE(NULLIF(REGEXP_REPLACE(COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number), '^0+', ''), ''), '0') ||
+                COALESCE(NULLIF(REGEXP_REPLACE(fv.economic_individual_number, '^0+', ''), ''), '0')
+            ELSE NULL
+          END AS vehicle_economic_number,
           CONCAT(fip.insurer_name, ' - ', fip.policy_number) AS name,
           CASE
             WHEN fip.enabled = false THEN 'disabled'
@@ -282,6 +294,11 @@ export function createInsuranceService({ prisma }) {
           END AS coverage_type_label
         FROM fleet_insurance_policy fip
         LEFT JOIN fleet_vehicle fv ON fv.id = fip.vehicle_id AND fv.company_id = fip.company_id
+        LEFT JOIN fleet_vehicle_model vm ON vm.id = fv.vehicle_model_id
+        LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id
+        LEFT JOIN fleet_vehicle_type vt_m ON vt_m.id = vm.type_id
+        LEFT JOIN fleet_vehicle_type vt ON vt.id = fv.vehicle_type_id
+        LEFT JOIN fleet_vehicle_brand vb ON vb.id = fv.vehicle_brand_id
         WHERE fip.id = ${safeId}
           AND fip.company_id = ${safeCompanyId}
           AND fip.enabled = true

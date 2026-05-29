@@ -198,7 +198,13 @@ export function createFleetService({ prisma }) {
             ELSE 'none'
            END
            FROM fleet_insurance_policy fip
-           WHERE fip.vehicle_id = fv.id AND fip.company_id = fv.company_id) AS insurance_status
+           WHERE fip.vehicle_id = fv.id AND fip.company_id = fv.company_id) AS insurance_status,
+          TRIM(CONCAT(
+            fv.plate,
+            CASE WHEN COALESCE(vb_m.name, vb.name) IS NOT NULL THEN ' · ' || COALESCE(vb_m.name, vb.name) ELSE '' END,
+            CASE WHEN vm.name IS NOT NULL THEN ' ' || vm.name ELSE '' END,
+            CASE WHEN vm.year IS NOT NULL THEN ' (' || vm.year::text || ')' ELSE '' END
+          )) AS name
         FROM fleet_vehicle fv
         LEFT JOIN fleet_vehicle_model vm ON vm.id = fv.vehicle_model_id
         LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id
@@ -372,7 +378,13 @@ export function createFleetService({ prisma }) {
            WHERE fip.vehicle_id = fv.id AND fip.company_id = fv.company_id
              AND fip.enabled = true AND fip.expiry_date::date >= CURRENT_DATE
            ORDER BY fip.start_date DESC
-           LIMIT 1) AS active_insurance_policy
+           LIMIT 1) AS active_insurance_policy,
+          TRIM(CONCAT(
+            fv.plate,
+            CASE WHEN COALESCE(vb_m.name, vb.name) IS NOT NULL THEN ' · ' || COALESCE(vb_m.name, vb.name) ELSE '' END,
+            CASE WHEN vm.name IS NOT NULL THEN ' ' || vm.name ELSE '' END,
+            CASE WHEN vm.year IS NOT NULL THEN ' (' || vm.year::text || ')' ELSE '' END
+          )) AS name
         FROM fleet_vehicle fv
         LEFT JOIN fleet_vehicle_model vm ON vm.id = fv.vehicle_model_id
         LEFT JOIN fleet_vehicle_brand vb_m ON vb_m.id = vm.brand_id

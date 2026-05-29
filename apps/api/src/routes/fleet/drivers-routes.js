@@ -7,6 +7,7 @@ import {
 } from "./validators.js";
 import { createDriverService } from "./driver-service.js";
 import { FleetServiceError } from "./fleet-service.js";
+import { isTableNotFoundError } from "./service-helpers.js";
 import { buildDriversExcelBuffer } from "./fleet-export-service.js";
 
 const driverEnabledSchema = z.object({ enabled: z.boolean() });
@@ -158,6 +159,8 @@ export function createDriversRouter({
           })),
         });
       } catch (err) {
+        // HR module not installed — return empty list instead of error
+        if (isTableNotFoundError(err)) return c.json({ data: [] });
         return handleRouteError(c, err, {
           fallbackError: "No se pudieron cargar los colaboradores de RH.",
           route: "/fleet/drivers/hr-employee-options",
