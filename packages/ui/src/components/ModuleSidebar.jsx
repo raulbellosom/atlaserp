@@ -38,6 +38,8 @@ import {
   Library,
   Menu,
   Globe,
+  Tag,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "../lib/utils.js";
@@ -80,6 +82,8 @@ const ICON_MAP = {
   Library,
   Menu,
   Globe,
+  Tag,
+  SlidersHorizontal,
 };
 
 const ICON_ALIAS_MAP = {

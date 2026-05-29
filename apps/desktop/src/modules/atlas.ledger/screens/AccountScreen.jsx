@@ -57,7 +57,6 @@ export default function AccountScreen() {
       return res.json()
     },
     enabled: !!token,
-    staleTime: 5 * 60 * 1000,
   })
 
   const { data: categoriesData } = useQuery({
@@ -70,7 +69,6 @@ export default function AccountScreen() {
       return res.json()
     },
     enabled: !!token,
-    staleTime: 5 * 60 * 1000,
   })
 
   const account    = accountData?.data ?? null

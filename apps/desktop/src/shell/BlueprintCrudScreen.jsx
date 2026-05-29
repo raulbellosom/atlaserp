@@ -948,7 +948,7 @@ export function BlueprintCrudScreen() {
             eyebrow={moduleName || undefined}
             title={pageTitle}
             description={pageDescription || undefined}
-            className="pb-2"
+            className="pb-0"
             actions={
               canCreate ? (
                 <Button
@@ -999,7 +999,7 @@ export function BlueprintCrudScreen() {
         </div>
       ) : null}
 
-      <div className={usesCrudLayout ? "p-4 md:p-6 space-y-6 pt-4" : "space-y-6"}>
+      <div className={usesCrudLayout ? "p-4 md:p-6 space-y-6 pt-2" : "space-y-6"}>
         {unsupportedPresentationKeys.length > 0 ? (
           <Card className="border-amber-400/40 bg-amber-50/60">
             <CardHeader>
