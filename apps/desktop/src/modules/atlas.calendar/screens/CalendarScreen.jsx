@@ -77,6 +77,7 @@ export default function CalendarScreen() {
             <MonthView
               onEventClick={setDetailEvent}
               onDayClick={(dateStr) => setSelectedDate(dateStr)}
+              onNewEvent={(dateStr) => { setSelectedDate(dateStr); setFormState({ _isNew: true, defaultDate: dateStr }) }}
             />
           )}
           {activeView === 'week' && <WeekView onEventClick={setDetailEvent} />}
