@@ -30,6 +30,7 @@ import { useBrandingStore } from "./stores/branding";
 import { PublicShell } from "./shell/PublicShell.jsx";
 import { PublicModuleOutlet } from "./shell/PublicModuleOutlet.jsx";
 import { PublicWebsiteEntry } from "./shell/PublicWebsiteEntry.jsx";
+import { PublicClientLogin } from "./shell/PublicClientLogin.jsx";
 import "./styles.css";
 
 const queryClient = new QueryClient({
@@ -179,6 +180,7 @@ function App() {
               <Route path="/" element={<PublicWebsiteEntry />} />
               <Route path="/setup" element={<SetupRouteGuard />} />
               <Route path="/login" element={<LoginRouteGuard />} />
+              <Route path="/acceso" element={<PublicClientLogin />} />
               <Route element={<AppAccessGuard />}>
                 <Route path="/app" element={<AtlasApp />}>
                   <Route index element={<Navigate to="home" replace />} />
