@@ -252,7 +252,11 @@ export const templateRestaurante = {
       <button style="background:#c2410c;color:white;border:none;border-radius:10px;padding:14px;font-size:16px;font-weight:700;cursor:pointer">Confirmar reservacion</button>
     </div>
   </div>
-</section>`,
+</section>
+<footer style="background:#1a0a00;color:rgba(255,255,255,0.7);padding:32px 40px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <p style="margin:0;font-size:14px">Av. Principal 123 · 55 1234-5678 · hola@restaurante.com</p>
+  <p style="margin:16px 0 0;font-size:12px;color:rgba(255,255,255,0.4)">&copy; 2025 RestauranteName.</p>
+</footer>`,
       css: ``,
     },
     {
@@ -276,9 +280,9 @@ export const templateRestaurante = {
       <h1 style="font-size:40px;font-weight:400;color:#1a0a00;margin:0 0 20px;font-family:Georgia,'Playfair Display',serif">Visitanos</h1>
       <p style="color:#78716c;font-size:16px;line-height:1.7;margin:0 0 36px">Estamos ubicados en el corazon de la ciudad. Te esperamos de martes a domingo.</p>
       <div>
-        <div style="display:flex;gap:14px;margin-bottom:20px"><span style="font-size:22px">📍</span><div><p style="margin:0;font-weight:600;color:#1a0a00">Direccion</p><p style="margin:4px 0 0;color:#78716c;font-size:14px">Av. Principal 123, Col. Centro</p></div></div>
-        <div style="display:flex;gap:14px;margin-bottom:20px"><span style="font-size:22px">🕐</span><div><p style="margin:0;font-weight:600;color:#1a0a00">Horarios</p><p style="margin:4px 0 0;color:#78716c;font-size:14px">Mar-Dom: 1pm - 11pm</p></div></div>
-        <div style="display:flex;gap:14px"><span style="font-size:22px">📞</span><div><p style="margin:0;font-weight:600;color:#1a0a00">Telefono</p><p style="margin:4px 0 0;color:#78716c;font-size:14px">55 1234-5678</p></div></div>
+        <div style="display:flex;gap:14px;margin-bottom:20px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#c2410c;flex-shrink:0;margin-top:4px"></span><div><p style="margin:0;font-weight:600;color:#1a0a00">Direccion</p><p style="margin:4px 0 0;color:#78716c;font-size:14px">Av. Principal 123, Col. Centro</p></div></div>
+        <div style="display:flex;gap:14px;margin-bottom:20px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#c2410c;flex-shrink:0;margin-top:4px"></span><div><p style="margin:0;font-weight:600;color:#1a0a00">Horarios</p><p style="margin:4px 0 0;color:#78716c;font-size:14px">Mar-Dom: 1pm - 11pm</p></div></div>
+        <div style="display:flex;gap:14px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#c2410c;flex-shrink:0;margin-top:4px"></span><div><p style="margin:0;font-weight:600;color:#1a0a00">Telefono</p><p style="margin:4px 0 0;color:#78716c;font-size:14px">55 1234-5678</p></div></div>
       </div>
     </div>
     <div>
