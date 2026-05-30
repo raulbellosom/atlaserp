@@ -1,5 +1,5 @@
 // apps/desktop/src/website/TemplatePickerModal.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { allTemplates } from './atlasTemplates/index.js'
 import { getApiUrl } from '../lib/runtimeConfig.js'
 
@@ -58,6 +58,19 @@ export function TemplatePickerModal({ isOpen, onClose, token, siteId, onHomePage
   const [error, setError] = useState(null)
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [confirmReplace, setConfirmReplace] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) return
+    setStep(initialTemplate ? 2 : 1)
+    setSelected(initialTemplate ?? null)
+    setEnabledPages(
+      initialTemplate
+        ? Object.fromEntries(initialTemplate.pages.map((p) => [p.id, true]))
+        : {}
+    )
+    setConfirmReplace(false)
+    setError(null)
+  }, [isOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isOpen) return null
 
@@ -138,7 +151,7 @@ export function TemplatePickerModal({ isOpen, onClose, token, siteId, onHomePage
               {step === 1 ? 'Selecciona una plantilla para tu sitio.' : 'Elige que paginas deseas crear.'}
             </p>
           </div>
-          <button onClick={handleClose} style={{ background:'#f1f5f9', border:'none', borderRadius:'8px', width:'34px', height:'34px', cursor:'pointer', fontSize:'18px', color:'#64748b', display:'flex', alignItems:'center', justifyContent:'center' }}>&times;</button>
+          <button type="button" onClick={handleClose} style={{ background:'#f1f5f9', border:'none', borderRadius:'8px', width:'34px', height:'34px', cursor:'pointer', fontSize:'18px', color:'#64748b', display:'flex', alignItems:'center', justifyContent:'center' }}>&times;</button>
         </div>
 
         {/* Step 1 */}
@@ -146,7 +159,7 @@ export function TemplatePickerModal({ isOpen, onClose, token, siteId, onHomePage
           <>
             <div style={{ padding:'14px 28px 0', display:'flex', gap:'8px', flexWrap:'wrap', flexShrink:0 }}>
               {categories.map((cat) => (
-                <button key={cat} onClick={() => setCategoryFilter(cat)}
+                <button type="button" key={cat} onClick={() => setCategoryFilter(cat)}
                   style={{ background: categoryFilter === cat ? '#0f172a' : '#f1f5f9', color: categoryFilter === cat ? 'white' : '#374151', border:'none', borderRadius:'999px', padding:'6px 14px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
                   {CATEGORY_LABELS[cat] ?? cat}
                 </button>
@@ -155,7 +168,8 @@ export function TemplatePickerModal({ isOpen, onClose, token, siteId, onHomePage
             <div style={{ overflowY:'auto', padding:'16px 28px', flex:1 }}>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:'14px' }}>
                 {filtered.map((tpl) => (
-                  <div key={tpl.id} onClick={() => handleSelectTemplate(tpl)}
+                  <div key={tpl.id} role="button" tabIndex={0} onClick={() => handleSelectTemplate(tpl)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectTemplate(tpl) } }}
                     style={{ border: selected?.id === tpl.id ? `2px solid ${tpl.color}` : '2px solid #e2e8f0', borderRadius:'14px', cursor:'pointer', overflow:'hidden', transition:'border-color 0.15s', boxShadow: selected?.id === tpl.id ? `0 0 0 3px ${tpl.color}22` : 'none' }}>
                     <div style={{ height:'80px', background:`linear-gradient(135deg, ${tpl.color} 0%, ${tpl.color}bb 100%)`, display:'flex', alignItems:'center', justifyContent:'center', position:'relative' }}>
                       <span style={{ fontSize:'26px', fontWeight:900, color:'rgba(255,255,255,0.2)', textTransform:'uppercase' }}>{tpl.label.charAt(0)}</span>
@@ -177,8 +191,8 @@ export function TemplatePickerModal({ isOpen, onClose, token, siteId, onHomePage
               </div>
             </div>
             <div style={{ padding:'14px 28px', borderTop:'1px solid #f1f5f9', display:'flex', justifyContent:'flex-end', gap:'10px', flexShrink:0 }}>
-              <button onClick={handleClose} style={{ background:'#f1f5f9', border:'none', color:'#374151', fontSize:'14px', fontWeight:600, padding:'9px 20px', borderRadius:'8px', cursor:'pointer' }}>Cancelar</button>
-              <button onClick={() => setStep(2)} disabled={!selected}
+              <button type="button" onClick={handleClose} style={{ background:'#f1f5f9', border:'none', color:'#374151', fontSize:'14px', fontWeight:600, padding:'9px 20px', borderRadius:'8px', cursor:'pointer' }}>Cancelar</button>
+              <button type="button" onClick={() => { setStep(2); setConfirmReplace(false) }} disabled={!selected}
                 style={{ background: !selected ? '#e2e8f0' : '#4f46e5', border:'none', color: !selected ? '#94a3b8' : 'white', fontSize:'14px', fontWeight:700, padding:'9px 22px', borderRadius:'8px', cursor: selected ? 'pointer' : 'not-allowed' }}>
                 Siguiente &rarr;
               </button>
@@ -192,7 +206,9 @@ export function TemplatePickerModal({ isOpen, onClose, token, siteId, onHomePage
             <div style={{ overflowY:'auto', padding:'18px 28px', flex:1 }}>
               <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
                 {selected.pages.map((page) => (
-                  <div key={page.id} onClick={() => togglePage(page.id, page.required)}
+                  <div key={page.id} role="checkbox" aria-checked={enabledPages[page.id]} tabIndex={page.required ? -1 : 0}
+                    onClick={() => togglePage(page.id, page.required)}
+                    onKeyDown={(e) => { if (!page.required && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); togglePage(page.id, page.required) } }}
                     style={{ display:'flex', alignItems:'center', gap:'12px', padding:'13px 16px', borderRadius:'10px', border:`2px solid ${enabledPages[page.id] ? '#4f46e5' : '#e2e8f0'}`, background: enabledPages[page.id] ? '#f5f3ff' : 'white', cursor: page.required ? 'default' : 'pointer', transition:'all 0.12s' }}>
                     <div style={{ width:'18px', height:'18px', borderRadius:'4px', border:`2px solid ${enabledPages[page.id] ? '#4f46e5' : '#cbd5e1'}`, background: enabledPages[page.id] ? '#4f46e5' : 'white', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                       {enabledPages[page.id] && <span style={{ color:'white', fontSize:'11px', fontWeight:900, lineHeight:1 }}>&#10003;</span>}
@@ -217,12 +233,12 @@ export function TemplatePickerModal({ isOpen, onClose, token, siteId, onHomePage
 
             <div style={{ padding:'14px 28px', borderTop:'1px solid #f1f5f9', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'10px', flexShrink:0 }}>
               {!initialTemplate ? (
-                <button onClick={() => { setStep(1); setConfirmReplace(false); setError(null) }}
+                <button type="button" onClick={() => { setStep(1); setConfirmReplace(false); setError(null) }}
                   style={{ background:'#f1f5f9', border:'none', color:'#374151', fontSize:'14px', fontWeight:600, padding:'9px 20px', borderRadius:'8px', cursor:'pointer' }}>
                   &larr; Volver
                 </button>
               ) : (
-                <button onClick={handleClose}
+                <button type="button" onClick={handleClose}
                   style={{ background:'#f1f5f9', border:'none', color:'#374151', fontSize:'14px', fontWeight:600, padding:'9px 20px', borderRadius:'8px', cursor:'pointer' }}>
                   Cancelar
                 </button>
@@ -233,7 +249,7 @@ export function TemplatePickerModal({ isOpen, onClose, token, siteId, onHomePage
                     Las paginas con rutas existentes seran reemplazadas.
                   </p>
                 )}
-                <button onClick={handleApply} disabled={applying || count === 0}
+                <button type="button" onClick={handleApply} disabled={applying || count === 0}
                   style={{ background: applying || count === 0 ? '#e2e8f0' : confirmReplace ? '#dc2626' : '#4f46e5', border:'none', color: applying || count === 0 ? '#94a3b8' : 'white', fontSize:'14px', fontWeight:700, padding:'9px 22px', borderRadius:'8px', cursor: applying || count === 0 ? 'not-allowed' : 'pointer' }}>
                   {applying ? 'Aplicando...' : confirmReplace ? `Confirmar y crear ${count} pagina${count !== 1 ? 's' : ''}` : `Crear ${count} pagina${count !== 1 ? 's' : ''}`}
                 </button>
