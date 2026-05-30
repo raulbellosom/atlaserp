@@ -171,6 +171,7 @@ export const templateBlog = {
     <a href="/nosotros" style="color:#475569;text-decoration:none;font-size:14px;font-weight:500">Nosotros</a>
     <a href="/contacto" style="color:#475569;text-decoration:none;font-size:14px;font-weight:500">Contacto</a>
     <a href="/acceso" style="color:#475569;text-decoration:none;font-size:14px;font-weight:500">Iniciar sesion</a>
+    <a href="/" style="background:#1e293b;color:white;text-decoration:none;font-size:14px;font-weight:600;padding:9px 22px;border-radius:8px">Suscribirse</a>
   </div>
 </nav>
 
@@ -314,6 +315,7 @@ export const templateBlog = {
     <a href="/nosotros" style="color:#475569;text-decoration:none;font-size:14px;font-weight:500">Nosotros</a>
     <a href="/contacto" style="color:#475569;text-decoration:none;font-size:14px;font-weight:500">Contacto</a>
     <a href="/acceso" style="color:#475569;text-decoration:none;font-size:14px;font-weight:500">Iniciar sesion</a>
+    <a href="/" style="background:#1e293b;color:white;text-decoration:none;font-size:14px;font-weight:600;padding:9px 22px;border-radius:8px">Suscribirse</a>
   </div>
 </nav>
 
@@ -421,6 +423,7 @@ export const templateBlog = {
     <a href="/categorias" style="color:#475569;text-decoration:none;font-size:14px;font-weight:500">Categorias</a>
     <a href="/contacto" style="color:#475569;text-decoration:none;font-size:14px;font-weight:500">Contacto</a>
     <a href="/acceso" style="color:#475569;text-decoration:none;font-size:14px;font-weight:500">Iniciar sesion</a>
+    <a href="/" style="background:#1e293b;color:white;text-decoration:none;font-size:14px;font-weight:600;padding:9px 22px;border-radius:8px">Suscribirse</a>
   </div>
 </nav>
 
@@ -514,6 +517,7 @@ export const templateBlog = {
     <a href="/categorias" style="color:#475569;text-decoration:none;font-size:14px;font-weight:500">Categorias</a>
     <a href="/nosotros" style="color:#475569;text-decoration:none;font-size:14px;font-weight:500">Nosotros</a>
     <a href="/acceso" style="color:#475569;text-decoration:none;font-size:14px;font-weight:500">Iniciar sesion</a>
+    <a href="/" style="background:#1e293b;color:white;text-decoration:none;font-size:14px;font-weight:600;padding:9px 22px;border-radius:8px">Suscribirse</a>
   </div>
 </nav>
 
