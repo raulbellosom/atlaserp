@@ -122,7 +122,7 @@ export const templateClinica = {
     </div>
   </div>
   <div style="max-width:1100px;margin:32px auto 0;padding-top:24px;border-top:1px solid rgba(255,255,255,0.12);text-align:center;font-size:13px">
-    &copy; 2024 ClinicaNombre. Todos los derechos reservados.
+    &copy; 2025 ClinicaNombre. Todos los derechos reservados.
   </div>
 </footer>
 `,
@@ -254,7 +254,7 @@ export const templateClinica = {
     </div>
   </div>
   <div style="max-width:1100px;margin:32px auto 0;padding-top:24px;border-top:1px solid rgba(255,255,255,0.12);text-align:center;font-size:13px">
-    &copy; 2024 ClinicaNombre. Todos los derechos reservados.
+    &copy; 2025 ClinicaNombre. Todos los derechos reservados.
   </div>
 </footer>
 `,
@@ -365,7 +365,7 @@ export const templateClinica = {
     </div>
   </div>
   <div style="max-width:1100px;margin:32px auto 0;padding-top:24px;border-top:1px solid rgba(255,255,255,0.12);text-align:center;font-size:13px">
-    &copy; 2024 ClinicaNombre. Todos los derechos reservados.
+    &copy; 2025 ClinicaNombre. Todos los derechos reservados.
   </div>
 </footer>
 `,
@@ -408,6 +408,7 @@ export const templateClinica = {
   <div style="max-width:640px;margin:0 auto;background:white;border-radius:20px;box-shadow:0 4px 32px rgba(14,116,144,0.10);padding:48px 40px">
     <h2 style="font-size:22px;font-weight:800;color:#0c4a6e;margin:0 0 32px">Solicitar cita medica</h2>
 
+    <form style="display:grid;gap:0">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
       <div>
         <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">Nombre</label>
@@ -449,9 +450,10 @@ export const templateClinica = {
       <textarea rows="4" placeholder="Describe brevemente el motivo de tu consulta..." style="width:100%;padding:11px 14px;border:1.5px solid #bae6fd;border-radius:8px;font-size:15px;color:#0c4a6e;outline:none;resize:vertical;box-sizing:border-box;${FS}"></textarea>
     </div>
 
-    <button type="button" style="width:100%;background:#0e7490;color:white;font-size:16px;font-weight:700;padding:15px 24px;border-radius:10px;border:none;cursor:pointer;${FS}">Solicitar cita</button>
+    <button type="submit" style="width:100%;background:#0e7490;color:white;font-size:16px;font-weight:700;padding:15px 24px;border-radius:10px;border:none;cursor:pointer;${FS}">Solicitar cita</button>
 
     <p style="text-align:center;font-size:13px;color:#94a3b8;margin:16px 0 0;line-height:1.6">Te contactaremos en un plazo de 24 horas para confirmar tu cita.</p>
+    </form>
   </div>
 </section>
 
@@ -485,7 +487,7 @@ export const templateClinica = {
     </div>
   </div>
   <div style="max-width:1100px;margin:32px auto 0;padding-top:24px;border-top:1px solid rgba(255,255,255,0.12);text-align:center;font-size:13px">
-    &copy; 2024 ClinicaNombre. Todos los derechos reservados.
+    &copy; 2025 ClinicaNombre. Todos los derechos reservados.
   </div>
 </footer>
 `,
@@ -519,7 +521,7 @@ export const templateClinica = {
   <div style="max-width:1100px;margin:0 auto;text-align:center">
     <span style="color:#0e7490;font-size:12px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase">Estamos aqui para ayudarte</span>
     <h1 style="font-size:clamp(30px,4.5vw,50px);font-weight:800;color:#0c4a6e;margin:12px 0 16px;letter-spacing:-0.025em">Contacto</h1>
-    <p style="font-size:17px;color:#64748b;max-width:520px;margin:0 auto;line-height:1.7">Escríbenos o llamanos. Estamos disponibles para resolver todas tus dudas y orientarte en tu atencion medica.</p>
+    <p style="font-size:17px;color:#64748b;max-width:520px;margin:0 auto;line-height:1.7">Escribenos o llamanos. Estamos disponibles para resolver todas tus dudas y orientarte en tu atencion medica.</p>
   </div>
 </section>
 
@@ -564,7 +566,7 @@ export const templateClinica = {
     </div>
 
     <!-- FORMULARIO DE CONTACTO -->
-    <div style="background:#f0f9ff;border-radius:20px;padding:40px">
+    <form style="background:#f0f9ff;border-radius:20px;padding:40px">
       <h2 style="font-size:20px;font-weight:800;color:#0c4a6e;margin:0 0 28px">Envianos un mensaje</h2>
 
       <div style="margin-bottom:20px">
@@ -582,8 +584,8 @@ export const templateClinica = {
         <textarea rows="5" placeholder="Escribe tu consulta o mensaje aqui..." style="width:100%;padding:11px 14px;border:1.5px solid #bae6fd;border-radius:8px;font-size:15px;color:#0c4a6e;outline:none;resize:vertical;box-sizing:border-box;background:white;${FS}"></textarea>
       </div>
 
-      <button type="button" style="width:100%;background:#0e7490;color:white;font-size:16px;font-weight:700;padding:14px 24px;border-radius:10px;border:none;cursor:pointer;${FS}">Enviar mensaje</button>
-    </div>
+      <button type="submit" style="width:100%;background:#0e7490;color:white;font-size:16px;font-weight:700;padding:14px 24px;border-radius:10px;border:none;cursor:pointer;${FS}">Enviar mensaje</button>
+    </form>
 
   </div>
 </section>
@@ -618,7 +620,7 @@ export const templateClinica = {
     </div>
   </div>
   <div style="max-width:1100px;margin:32px auto 0;padding-top:24px;border-top:1px solid rgba(255,255,255,0.12);text-align:center;font-size:13px">
-    &copy; 2024 ClinicaNombre. Todos los derechos reservados.
+    &copy; 2025 ClinicaNombre. Todos los derechos reservados.
   </div>
 </footer>
 `,
