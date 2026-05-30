@@ -179,100 +179,100 @@ export const templateEcommerce = {
       required: false,
       css: '',
       html: `
-<nav style="background:#14532d;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+<nav style="background:#0c4a6e;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <a href="/" style="font-size:20px;font-weight:900;color:white;text-decoration:none;letter-spacing:-0.02em">TiendaOnline</a>
   <div style="display:flex;gap:24px;align-items:center">
     <a href="/" style="color:rgba(255,255,255,0.8);text-decoration:none;font-size:14px">Inicio</a>
     <a href="/nosotros" style="color:rgba(255,255,255,0.8);text-decoration:none;font-size:14px">Nosotros</a>
     <a href="/contacto" style="color:rgba(255,255,255,0.8);text-decoration:none;font-size:14px">Contacto</a>
     <a href="/acceso" style="color:rgba(255,255,255,0.8);text-decoration:none;font-size:14px">Iniciar sesion</a>
-    <a href="/contacto" style="background:#16a34a;color:white;text-decoration:none;font-size:14px;font-weight:700;padding:9px 22px;border-radius:8px">Contactar</a>
+    <a href="/contacto" style="background:#0369a1;color:white;text-decoration:none;font-size:14px;font-weight:700;padding:9px 22px;border-radius:8px">Contactar</a>
   </div>
 </nav>
 <section style="padding:80px 24px;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <div style="max-width:1100px;margin:0 auto">
     <div style="text-align:center;margin-bottom:60px">
-      <p style="color:#16a34a;font-size:12px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin:0 0 12px">Catalogo</p>
+      <p style="color:#0369a1;font-size:12px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin:0 0 12px">Catalogo</p>
       <h1 style="font-size:44px;font-weight:800;color:#0f172a;margin:0;letter-spacing:-0.02em">Nuestros productos</h1>
       <p style="font-size:17px;color:#64748b;margin:16px 0 0">Calidad garantizada en cada articulo.</p>
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
       <div style="background:white;border-radius:18px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
-        <img src="https://placehold.co/400x300/14532d/bbf7d0?text=Producto+A" style="width:100%;height:200px;object-fit:cover">
+        <img src="https://placehold.co/400x300/0c4a6e/7dd3fc?text=Producto+A" style="width:100%;height:200px;object-fit:cover">
         <div style="padding:20px">
-          <p style="font-size:12px;color:#16a34a;font-weight:700;margin:0 0 6px;text-transform:uppercase">Ropa</p>
+          <p style="font-size:12px;color:#0369a1;font-weight:700;margin:0 0 6px;text-transform:uppercase">Ropa</p>
           <h3 style="font-size:17px;font-weight:700;color:#0f172a;margin:0 0 8px">Camisa casual premium</h3>
           <p style="font-size:14px;color:#64748b;margin:0 0 16px;line-height:1.5">Tela de algodón 100% de alta calidad. Disponible en varios colores.</p>
           <div style="display:flex;justify-content:space-between;align-items:center">
             <span style="font-size:22px;font-weight:800;color:#0f172a">$45</span>
-            <a href="/contacto" style="background:#16a34a;color:white;font-size:13px;font-weight:700;padding:9px 18px;border-radius:8px;text-decoration:none">Ver producto</a>
+            <a href="/contacto" style="background:#0369a1;color:white;font-size:13px;font-weight:700;padding:9px 18px;border-radius:8px;text-decoration:none">Ver producto</a>
           </div>
         </div>
       </div>
       <div style="background:white;border-radius:18px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
-        <img src="https://placehold.co/400x300/166534/a7f3d0?text=Producto+B" style="width:100%;height:200px;object-fit:cover">
+        <img src="https://placehold.co/400x300/0c4a6e/bae6fd?text=Producto+B" style="width:100%;height:200px;object-fit:cover">
         <div style="padding:20px">
-          <p style="font-size:12px;color:#16a34a;font-weight:700;margin:0 0 6px;text-transform:uppercase">Accesorios</p>
+          <p style="font-size:12px;color:#0369a1;font-weight:700;margin:0 0 6px;text-transform:uppercase">Accesorios</p>
           <h3 style="font-size:17px;font-weight:700;color:#0f172a;margin:0 0 8px">Bolso de mano elegante</h3>
           <p style="font-size:14px;color:#64748b;margin:0 0 16px;line-height:1.5">Cuero genuino, compartimentos multiples. Ideal para uso diario.</p>
           <div style="display:flex;justify-content:space-between;align-items:center">
             <span style="font-size:22px;font-weight:800;color:#0f172a">$89</span>
-            <a href="/contacto" style="background:#16a34a;color:white;font-size:13px;font-weight:700;padding:9px 18px;border-radius:8px;text-decoration:none">Ver producto</a>
+            <a href="/contacto" style="background:#0369a1;color:white;font-size:13px;font-weight:700;padding:9px 18px;border-radius:8px;text-decoration:none">Ver producto</a>
           </div>
         </div>
       </div>
       <div style="background:white;border-radius:18px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
-        <img src="https://placehold.co/400x300/15803d/d1fae5?text=Producto+C" style="width:100%;height:200px;object-fit:cover">
+        <img src="https://placehold.co/400x300/0369a1/e0f2fe?text=Producto+C" style="width:100%;height:200px;object-fit:cover">
         <div style="padding:20px">
-          <p style="font-size:12px;color:#16a34a;font-weight:700;margin:0 0 6px;text-transform:uppercase">Hogar</p>
+          <p style="font-size:12px;color:#0369a1;font-weight:700;margin:0 0 6px;text-transform:uppercase">Hogar</p>
           <h3 style="font-size:17px;font-weight:700;color:#0f172a;margin:0 0 8px">Set decorativo minimalista</h3>
           <p style="font-size:14px;color:#64748b;margin:0 0 16px;line-height:1.5">Tres piezas coordinadas para transformar cualquier espacio del hogar.</p>
           <div style="display:flex;justify-content:space-between;align-items:center">
             <span style="font-size:22px;font-weight:800;color:#0f172a">$65</span>
-            <a href="/contacto" style="background:#16a34a;color:white;font-size:13px;font-weight:700;padding:9px 18px;border-radius:8px;text-decoration:none">Ver producto</a>
+            <a href="/contacto" style="background:#0369a1;color:white;font-size:13px;font-weight:700;padding:9px 18px;border-radius:8px;text-decoration:none">Ver producto</a>
           </div>
         </div>
       </div>
       <div style="background:white;border-radius:18px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
-        <img src="https://placehold.co/400x300/14532d/6ee7b7?text=Producto+D" style="width:100%;height:200px;object-fit:cover">
+        <img src="https://placehold.co/400x300/0c4a6e/7dd3fc?text=Producto+D" style="width:100%;height:200px;object-fit:cover">
         <div style="padding:20px">
-          <p style="font-size:12px;color:#16a34a;font-weight:700;margin:0 0 6px;text-transform:uppercase">Belleza</p>
+          <p style="font-size:12px;color:#0369a1;font-weight:700;margin:0 0 6px;text-transform:uppercase">Belleza</p>
           <h3 style="font-size:17px;font-weight:700;color:#0f172a;margin:0 0 8px">Kit de cuidado facial</h3>
           <p style="font-size:14px;color:#64748b;margin:0 0 16px;line-height:1.5">Formula natural con ingredientes botanicos para todo tipo de piel.</p>
           <div style="display:flex;justify-content:space-between;align-items:center">
             <span style="font-size:22px;font-weight:800;color:#0f172a">$38</span>
-            <a href="/contacto" style="background:#16a34a;color:white;font-size:13px;font-weight:700;padding:9px 18px;border-radius:8px;text-decoration:none">Ver producto</a>
+            <a href="/contacto" style="background:#0369a1;color:white;font-size:13px;font-weight:700;padding:9px 18px;border-radius:8px;text-decoration:none">Ver producto</a>
           </div>
         </div>
       </div>
       <div style="background:white;border-radius:18px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
-        <img src="https://placehold.co/400x300/166534/bbf7d0?text=Producto+E" style="width:100%;height:200px;object-fit:cover">
+        <img src="https://placehold.co/400x300/0c4a6e/bae6fd?text=Producto+E" style="width:100%;height:200px;object-fit:cover">
         <div style="padding:20px">
-          <p style="font-size:12px;color:#16a34a;font-weight:700;margin:0 0 6px;text-transform:uppercase">Ropa</p>
+          <p style="font-size:12px;color:#0369a1;font-weight:700;margin:0 0 6px;text-transform:uppercase">Ropa</p>
           <h3 style="font-size:17px;font-weight:700;color:#0f172a;margin:0 0 8px">Chaqueta denim clasica</h3>
           <p style="font-size:14px;color:#64748b;margin:0 0 16px;line-height:1.5">Corte clasico atemporal. Perfecta para cualquier ocasion.</p>
           <div style="display:flex;justify-content:space-between;align-items:center">
             <span style="font-size:22px;font-weight:800;color:#0f172a">$110</span>
-            <a href="/contacto" style="background:#16a34a;color:white;font-size:13px;font-weight:700;padding:9px 18px;border-radius:8px;text-decoration:none">Ver producto</a>
+            <a href="/contacto" style="background:#0369a1;color:white;font-size:13px;font-weight:700;padding:9px 18px;border-radius:8px;text-decoration:none">Ver producto</a>
           </div>
         </div>
       </div>
       <div style="background:white;border-radius:18px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
-        <img src="https://placehold.co/400x300/15803d/a7f3d0?text=Producto+F" style="width:100%;height:200px;object-fit:cover">
+        <img src="https://placehold.co/400x300/0369a1/e0f2fe?text=Producto+F" style="width:100%;height:200px;object-fit:cover">
         <div style="padding:20px">
-          <p style="font-size:12px;color:#16a34a;font-weight:700;margin:0 0 6px;text-transform:uppercase">Accesorios</p>
+          <p style="font-size:12px;color:#0369a1;font-weight:700;margin:0 0 6px;text-transform:uppercase">Accesorios</p>
           <h3 style="font-size:17px;font-weight:700;color:#0f172a;margin:0 0 8px">Reloj minimalista</h3>
           <p style="font-size:14px;color:#64748b;margin:0 0 16px;line-height:1.5">Diseno elegante con correa de cuero genuino. Movimiento de cuarzo.</p>
           <div style="display:flex;justify-content:space-between;align-items:center">
             <span style="font-size:22px;font-weight:800;color:#0f172a">$149</span>
-            <a href="/contacto" style="background:#16a34a;color:white;font-size:13px;font-weight:700;padding:9px 18px;border-radius:8px;text-decoration:none">Ver producto</a>
+            <a href="/contacto" style="background:#0369a1;color:white;font-size:13px;font-weight:700;padding:9px 18px;border-radius:8px;text-decoration:none">Ver producto</a>
           </div>
         </div>
       </div>
     </div>
   </div>
 </section>
-<footer style="background:#14532d;color:rgba(255,255,255,0.6);padding:40px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+<footer style="background:#0c4a6e;color:rgba(255,255,255,0.6);padding:40px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <p style="margin:0 0 8px;font-size:18px;font-weight:900;color:white">TiendaOnline</p>
   <p style="margin:0;font-size:13px">ventas@tiendaonline.com &middot; 55 0000-2222</p>
   <p style="margin:20px 0 0;font-size:12px;color:rgba(255,255,255,0.3)">&copy; 2025 TiendaOnline. Todos los derechos reservados.</p>
@@ -287,30 +287,30 @@ export const templateEcommerce = {
       required: false,
       css: '',
       html: `
-<nav style="background:#14532d;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+<nav style="background:#0c4a6e;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <a href="/" style="font-size:20px;font-weight:900;color:white;text-decoration:none;letter-spacing:-0.02em">TiendaOnline</a>
   <div style="display:flex;gap:24px;align-items:center">
     <a href="/" style="color:rgba(255,255,255,0.8);text-decoration:none;font-size:14px">Inicio</a>
     <a href="/productos" style="color:rgba(255,255,255,0.8);text-decoration:none;font-size:14px">Productos</a>
     <a href="/contacto" style="color:rgba(255,255,255,0.8);text-decoration:none;font-size:14px">Contacto</a>
     <a href="/acceso" style="color:rgba(255,255,255,0.8);text-decoration:none;font-size:14px">Iniciar sesion</a>
-    <a href="/contacto" style="background:#16a34a;color:white;text-decoration:none;font-size:14px;font-weight:700;padding:9px 22px;border-radius:8px">Contactar</a>
+    <a href="/contacto" style="background:#0369a1;color:white;text-decoration:none;font-size:14px;font-weight:700;padding:9px 22px;border-radius:8px">Contactar</a>
   </div>
 </nav>
 <section style="padding:80px 24px;background:white;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:72px;align-items:center">
     <div>
-      <p style="color:#16a34a;font-size:12px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin:0 0 16px">Nuestra historia</p>
+      <p style="color:#0369a1;font-size:12px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin:0 0 16px">Nuestra historia</p>
       <h1 style="font-size:44px;font-weight:800;color:#0f172a;margin:0 0 24px;letter-spacing:-0.02em;line-height:1.15">Una tienda creada con passion</h1>
       <p style="font-size:16px;color:#64748b;line-height:1.8;margin:0 0 20px">Fundada en 2018, TiendaOnline nacio con la mision de acercar productos de calidad a todos. Empezamos como un pequeno proyecto y hoy llegamos a miles de clientes en toda la region.</p>
       <p style="font-size:16px;color:#64748b;line-height:1.8;margin:0 0 36px">Cada producto que ofrecemos pasa por un riguroso proceso de seleccion para garantizar que cumple nuestros estandares de calidad y satisfaccion al cliente.</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-        <div style="background:#f0fdf4;border-radius:14px;padding:20px"><p style="font-size:32px;font-weight:900;color:#16a34a;margin:0">+10K</p><p style="font-size:13px;color:#64748b;margin:6px 0 0">Clientes felices</p></div>
-        <div style="background:#f0fdf4;border-radius:14px;padding:20px"><p style="font-size:32px;font-weight:900;color:#16a34a;margin:0">+500</p><p style="font-size:13px;color:#64748b;margin:6px 0 0">Productos disponibles</p></div>
+        <div style="background:#e0f2fe;border-radius:14px;padding:20px"><p style="font-size:32px;font-weight:900;color:#0369a1;margin:0">+10K</p><p style="font-size:13px;color:#64748b;margin:6px 0 0">Clientes felices</p></div>
+        <div style="background:#e0f2fe;border-radius:14px;padding:20px"><p style="font-size:32px;font-weight:900;color:#0369a1;margin:0">+500</p><p style="font-size:13px;color:#64748b;margin:6px 0 0">Productos disponibles</p></div>
       </div>
     </div>
     <div>
-      <img src="https://placehold.co/600x500/14532d/bbf7d0?text=Nuestra+tienda" style="width:100%;border-radius:24px;display:block;box-shadow:0 16px 48px rgba(20,83,45,0.15)">
+      <img src="https://placehold.co/600x500/0c4a6e/7dd3fc?text=Nuestra+tienda" style="width:100%;border-radius:24px;display:block;box-shadow:0 16px 48px rgba(3,105,161,0.15)">
     </div>
   </div>
 </section>
@@ -321,24 +321,24 @@ export const templateEcommerce = {
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:28px">
       <div style="background:white;border-radius:20px;padding:32px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
-        <div style="width:56px;height:56px;background:#dcfce7;border-radius:16px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#16a34a">C</div>
+        <div style="width:56px;height:56px;background:#dbeafe;border-radius:16px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#0369a1">C</div>
         <h3 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 10px">Calidad</h3>
         <p style="font-size:14px;color:#64748b;line-height:1.6;margin:0">Seleccionamos cada producto con criterios rigurosos para garantizar lo mejor.</p>
       </div>
       <div style="background:white;border-radius:20px;padding:32px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
-        <div style="width:56px;height:56px;background:#dcfce7;border-radius:16px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#16a34a">T</div>
+        <div style="width:56px;height:56px;background:#dbeafe;border-radius:16px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#0369a1">T</div>
         <h3 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 10px">Transparencia</h3>
         <p style="font-size:14px;color:#64748b;line-height:1.6;margin:0">Precios justos, politicas claras y comunicacion honesta en todo momento.</p>
       </div>
       <div style="background:white;border-radius:20px;padding:32px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
-        <div style="width:56px;height:56px;background:#dcfce7;border-radius:16px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#16a34a">S</div>
+        <div style="width:56px;height:56px;background:#dbeafe;border-radius:16px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#0369a1">S</div>
         <h3 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 10px">Servicio</h3>
         <p style="font-size:14px;color:#64748b;line-height:1.6;margin:0">Atencion personalizada para que cada compra sea una experiencia excepcional.</p>
       </div>
     </div>
   </div>
 </section>
-<footer style="background:#14532d;color:rgba(255,255,255,0.6);padding:40px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+<footer style="background:#0c4a6e;color:rgba(255,255,255,0.6);padding:40px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <p style="margin:0 0 8px;font-size:18px;font-weight:900;color:white">TiendaOnline</p>
   <p style="margin:0;font-size:13px">ventas@tiendaonline.com &middot; 55 0000-2222</p>
   <p style="margin:20px 0 0;font-size:12px;color:rgba(255,255,255,0.3)">&copy; 2025 TiendaOnline. Todos los derechos reservados.</p>
@@ -353,7 +353,7 @@ export const templateEcommerce = {
       required: false,
       css: '',
       html: `
-<nav style="background:#14532d;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+<nav style="background:#0c4a6e;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <a href="/" style="font-size:20px;font-weight:900;color:white;text-decoration:none;letter-spacing:-0.02em">TiendaOnline</a>
   <div style="display:flex;gap:24px;align-items:center">
     <a href="/" style="color:rgba(255,255,255,0.8);text-decoration:none;font-size:14px">Inicio</a>
@@ -369,19 +369,19 @@ export const templateEcommerce = {
       <p style="font-size:16px;color:#64748b;line-height:1.7;margin:0 0 36px">Preguntas sobre productos, pedidos o envios. Estamos aqui para ayudarte.</p>
       <div style="display:flex;flex-direction:column;gap:24px">
         <div style="display:flex;gap:14px">
-          <div style="width:44px;height:44px;background:#dcfce7;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#16a34a;flex-shrink:0">@</div>
+          <div style="width:44px;height:44px;background:#dbeafe;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#0369a1;flex-shrink:0">@</div>
           <div><p style="margin:0;font-weight:700;color:#0f172a">Email</p><p style="margin:4px 0 0;font-size:14px;color:#64748b">ventas@tiendaonline.com</p></div>
         </div>
         <div style="display:flex;gap:14px">
-          <div style="width:44px;height:44px;background:#dcfce7;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#16a34a;flex-shrink:0">T</div>
+          <div style="width:44px;height:44px;background:#dbeafe;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#0369a1;flex-shrink:0">T</div>
           <div><p style="margin:0;font-weight:700;color:#0f172a">Telefono</p><p style="margin:4px 0 0;font-size:14px;color:#64748b">55 0000-2222</p></div>
         </div>
         <div style="display:flex;gap:14px">
-          <div style="width:44px;height:44px;background:#dcfce7;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#16a34a;flex-shrink:0">H</div>
+          <div style="width:44px;height:44px;background:#dbeafe;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#0369a1;flex-shrink:0">H</div>
           <div><p style="margin:0;font-weight:700;color:#0f172a">Horario de atencion</p><p style="margin:4px 0 0;font-size:14px;color:#64748b">Lun - Vie: 9:00 - 18:00</p><p style="margin:2px 0 0;font-size:14px;color:#64748b">Sab: 10:00 - 14:00</p></div>
         </div>
         <div style="display:flex;gap:14px">
-          <div style="width:44px;height:44px;background:#dcfce7;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#16a34a;flex-shrink:0">U</div>
+          <div style="width:44px;height:44px;background:#dbeafe;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#0369a1;flex-shrink:0">U</div>
           <div><p style="margin:0;font-weight:700;color:#0f172a">Ubicacion</p><p style="margin:4px 0 0;font-size:14px;color:#64748b">Av. Comercio 456, Local 12</p><p style="margin:2px 0 0;font-size:14px;color:#64748b">Ciudad de Mexico</p></div>
         </div>
       </div>
@@ -400,12 +400,12 @@ export const templateEcommerce = {
           <option>Otro</option>
         </select>
         <textarea placeholder="Tu mensaje..." rows="4" style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;font-size:15px;outline:none;width:100%;box-sizing:border-box;resize:vertical"></textarea>
-        <button type="submit" style="background:#16a34a;color:white;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer">Enviar mensaje</button>
+        <button type="submit" style="background:#0369a1;color:white;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer">Enviar mensaje</button>
       </div>
     </div>
   </div>
 </section>
-<footer style="background:#14532d;color:rgba(255,255,255,0.6);padding:40px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+<footer style="background:#0c4a6e;color:rgba(255,255,255,0.6);padding:40px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <p style="margin:0 0 8px;font-size:18px;font-weight:900;color:white">TiendaOnline</p>
   <p style="margin:0;font-size:13px">ventas@tiendaonline.com &middot; 55 0000-2222</p>
   <p style="margin:20px 0 0;font-size:12px;color:rgba(255,255,255,0.3)">&copy; 2025 TiendaOnline. Todos los derechos reservados.</p>

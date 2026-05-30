@@ -150,7 +150,7 @@ export const templateServicios = {
 `,
     },
     {
-      id: 'servicios',
+      id: 'catalogo',
       label: 'Servicios',
       routePath: '/servicios',
       title: 'Servicios',
