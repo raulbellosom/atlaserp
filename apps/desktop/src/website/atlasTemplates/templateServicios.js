@@ -319,7 +319,7 @@ export const templateServicios = {
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:24px">
       <div style="background:white;border-radius:20px;padding:32px;box-shadow:0 2px 16px rgba(0,0,0,0.06)">
         <div style="display:flex;gap:4px;margin-bottom:16px">
-          <span style="color:#f59e0b;font-size:16px">&#9733;</span><span style="color:#f59e0b;font-size:16px">&#9733;</span><span style="color:#f59e0b;font-size:16px">&#9733;</span><span style="color:#f59e0b;font-size:16px">&#9733;</span><span style="color:#f59e0b;font-size:16px">&#9733;</span>
+          <span style="font-size:13px;font-weight:700;color:#7c3aed;letter-spacing:2px">5 / 5</span>
         </div>
         <p style="font-size:15px;color:#334155;line-height:1.7;margin:0 0 24px;font-style:italic">"ConsultingPro transformo la estructura financiera de nuestra empresa. En seis meses redujimos costos un 22% y aumentamos el margen operativo significativamente."</p>
         <div style="display:flex;gap:12px;align-items:center">
@@ -329,7 +329,7 @@ export const templateServicios = {
       </div>
       <div style="background:white;border-radius:20px;padding:32px;box-shadow:0 2px 16px rgba(0,0,0,0.06)">
         <div style="display:flex;gap:4px;margin-bottom:16px">
-          <span style="color:#f59e0b;font-size:16px">&#9733;</span><span style="color:#f59e0b;font-size:16px">&#9733;</span><span style="color:#f59e0b;font-size:16px">&#9733;</span><span style="color:#f59e0b;font-size:16px">&#9733;</span><span style="color:#f59e0b;font-size:16px">&#9733;</span>
+          <span style="font-size:13px;font-weight:700;color:#7c3aed;letter-spacing:2px">5 / 5</span>
         </div>
         <p style="font-size:15px;color:#334155;line-height:1.7;margin:0 0 24px;font-style:italic">"El equipo juridico nos ayudo a estructurar contratos que protegen a la empresa. Ahora operamos con mucha mas confianza en cada acuerdo comercial."</p>
         <div style="display:flex;gap:12px;align-items:center">
@@ -339,7 +339,7 @@ export const templateServicios = {
       </div>
       <div style="background:white;border-radius:20px;padding:32px;box-shadow:0 2px 16px rgba(0,0,0,0.06)">
         <div style="display:flex;gap:4px;margin-bottom:16px">
-          <span style="color:#f59e0b;font-size:16px">&#9733;</span><span style="color:#f59e0b;font-size:16px">&#9733;</span><span style="color:#f59e0b;font-size:16px">&#9733;</span><span style="color:#f59e0b;font-size:16px">&#9733;</span><span style="color:#f59e0b;font-size:16px">&#9733;</span>
+          <span style="font-size:13px;font-weight:700;color:#7c3aed;letter-spacing:2px">5 / 5</span>
         </div>
         <p style="font-size:15px;color:#334155;line-height:1.7;margin:0 0 24px;font-style:italic">"La consultoria estrategica nos permitio entrar a dos nuevos mercados con una hoja de ruta clara. Los resultados superaron nuestras expectativas iniciales."</p>
         <div style="display:flex;gap:12px;align-items:center">
@@ -349,7 +349,7 @@ export const templateServicios = {
       </div>
       <div style="background:white;border-radius:20px;padding:32px;box-shadow:0 2px 16px rgba(0,0,0,0.06)">
         <div style="display:flex;gap:4px;margin-bottom:16px">
-          <span style="color:#f59e0b;font-size:16px">&#9733;</span><span style="color:#f59e0b;font-size:16px">&#9733;</span><span style="color:#f59e0b;font-size:16px">&#9733;</span><span style="color:#f59e0b;font-size:16px">&#9733;</span><span style="color:#f59e0b;font-size:16px">&#9733;</span>
+          <span style="font-size:13px;font-weight:700;color:#7c3aed;letter-spacing:2px">5 / 5</span>
         </div>
         <p style="font-size:15px;color:#334155;line-height:1.7;margin:0 0 24px;font-style:italic">"El proceso de transformacion digital fue impecable. Pasamos de procesos manuales a una operacion automatizada y eficiente en menos de tres meses."</p>
         <div style="display:flex;gap:12px;align-items:center">

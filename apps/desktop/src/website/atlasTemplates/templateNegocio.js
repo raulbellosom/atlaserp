@@ -103,7 +103,7 @@ export const templateNegocio = {
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px">
       <div style="background:white;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.04)">
-        <div style="color:#f59e0b;font-size:16px;margin-bottom:14px">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <div style="color:#f59e0b;font-size:16px;margin-bottom:14px"><span style="font-size:13px;font-weight:700;color:#374151;letter-spacing:2px">5 / 5</span></div>
         <p style="font-size:15px;color:#334155;line-height:1.7;margin:0 0 20px;font-style:italic">"Excelente servicio desde el primer dia. El equipo es profesional, rapido y siempre disponible para ayudarnos."</p>
         <div style="display:flex;align-items:center;gap:10px">
           <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#4f46e5);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:15px">R</div>
@@ -111,7 +111,7 @@ export const templateNegocio = {
         </div>
       </div>
       <div style="background:white;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.04)">
-        <div style="color:#f59e0b;font-size:16px;margin-bottom:14px">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <div style="color:#f59e0b;font-size:16px;margin-bottom:14px"><span style="font-size:13px;font-weight:700;color:#374151;letter-spacing:2px">5 / 5</span></div>
         <p style="font-size:15px;color:#334155;line-height:1.7;margin:0 0 20px;font-style:italic">"Increibles resultados en poco tiempo. Sin duda la mejor decision que tomamos para nuestra empresa este ano."</p>
         <div style="display:flex;align-items:center;gap:10px">
           <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#22c55e,#16a34a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:15px">L</div>
@@ -119,7 +119,7 @@ export const templateNegocio = {
         </div>
       </div>
       <div style="background:white;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.04)">
-        <div style="color:#f59e0b;font-size:16px;margin-bottom:14px">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <div style="color:#f59e0b;font-size:16px;margin-bottom:14px"><span style="font-size:13px;font-weight:700;color:#374151;letter-spacing:2px">5 / 5</span></div>
         <p style="font-size:15px;color:#334155;line-height:1.7;margin:0 0 20px;font-style:italic">"Lo que mas valoro es la transparencia y la comunicacion constante. Siempre supe como iba mi proyecto."</p>
         <div style="display:flex;align-items:center;gap:10px">
           <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:15px">M</div>
