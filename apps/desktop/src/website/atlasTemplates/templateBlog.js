@@ -35,7 +35,7 @@ export const templateBlog = {
       <div>
         <span style="display:inline-block;background:#f1f5f9;color:#1e293b;font-size:11px;font-weight:700;padding:5px 12px;border-radius:999px;letter-spacing:0.08em;margin-bottom:16px">TECNOLOGIA</span>
         <h1 style="font-size:clamp(28px,3.5vw,46px);font-weight:900;color:#0f172a;line-height:1.15;margin:0 0 18px;letter-spacing:-0.03em">El futuro de la inteligencia artificial en los medios digitales</h1>
-        <p style="font-size:16px;color:#475569;line-height:1.8;margin:0 0 28px">Como las herramientas de IA estan redefiniendo la produccion de contenido, la curaduría editorial y la experiencia del lector en 2025.</p>
+        <p style="font-size:16px;color:#475569;line-height:1.8;margin:0 0 28px">Como las herramientas de IA estan redefiniendo la produccion de contenido, la curaduria editorial y la experiencia del lector en 2025.</p>
         <div style="display:flex;gap:16px;align-items:center;margin-bottom:28px">
           <img src="https://placehold.co/40x40/1e293b/f8fafc?text=A" alt="Autor" style="width:40px;height:40px;border-radius:50%">
           <div>

@@ -224,7 +224,7 @@ export const templateEducacion = {
       <img src="https://placehold.co/600x260/7c3aed/ede9fe?text=Marketing+Digital" alt="Marketing Digital" style="width:100%;display:block">
       <div style="padding:24px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <span style="background:#f0fdf4;color:#065f46;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px">AVANZADO</span>
+          <span style="background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px">AVANZADO</span>
           <span style="font-size:16px;font-weight:800;color:#ea580c">$3,800 MXN</span>
         </div>
         <h3 style="font-size:17px;font-weight:700;color:#1e3a8a;margin:0 0 6px">Marketing digital avanzado</h3>
@@ -252,7 +252,7 @@ export const templateEducacion = {
       <img src="https://placehold.co/600x260/b91c1c/fef2f2?text=Liderazgo" alt="Liderazgo" style="width:100%;display:block">
       <div style="padding:24px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <span style="background:#f0fdf4;color:#065f46;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px">AVANZADO</span>
+          <span style="background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px">AVANZADO</span>
           <span style="font-size:16px;font-weight:800;color:#ea580c">$4,500 MXN</span>
         </div>
         <h3 style="font-size:17px;font-weight:700;color:#1e3a8a;margin:0 0 6px">Liderazgo y gestion de equipos</h3>
