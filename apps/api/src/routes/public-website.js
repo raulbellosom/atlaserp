@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 
-export function createPublicWebsiteRouter({ prisma }) {
+export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
   const app = new Hono()
 
   app.get('/resolve', async (c) => {
@@ -139,6 +139,47 @@ export function createPublicWebsiteRouter({ prisma }) {
     } catch (err) {
       console.error('[public/website/forms/submit]', err?.message)
       return c.json({ error: 'Error al procesar el envio' }, 500)
+    }
+  })
+
+  app.get('/auth-check', async (c) => {
+    const authHeader = c.req.header('Authorization')
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+    if (!token) return c.json({ error: 'Token requerido' }, 401)
+
+    try {
+      const { data, error } = await supabaseAdmin.auth.getUser(token)
+      if (error || !data?.user) return c.json({ error: 'Token invalido o expirado' }, 401)
+
+      const authUserId = data.user.id
+      const profile = await prisma.userProfile.findUnique({ where: { authUserId } })
+      if (!profile) return c.json({ canAccessErp: false })
+
+      const memberships = await prisma.membership.findMany({
+        where: { userId: profile.id, enabled: true },
+        include: {
+          role: {
+            include: {
+              permissions: {
+                where: { permission: { active: true } },
+                include: { permission: { select: { key: true } } },
+              },
+            },
+          },
+        },
+      })
+
+      const ERP_PREFIXES = ['atlas.', 'website.', 'contacts.', 'hr.', 'finance.', 'fleet.']
+      const hasErpAccess = memberships.some((m) =>
+        m.role?.permissions?.some((rp) =>
+          ERP_PREFIXES.some((prefix) => rp.permission?.key?.startsWith(prefix))
+        )
+      )
+
+      return c.json({ canAccessErp: hasErpAccess })
+    } catch (err) {
+      console.error('[public/website/auth-check]', err?.message)
+      return c.json({ error: 'Error interno' }, 500)
     }
   })
 

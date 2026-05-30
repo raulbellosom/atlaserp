@@ -2682,7 +2682,7 @@ app.get("/blueprints", authMiddleware, async (c) => {
   return c.json({ data: [...mergedByKey.values()] });
 });
 
-const publicWebsiteRouter = createPublicWebsiteRouter({ prisma })
+const publicWebsiteRouter = createPublicWebsiteRouter({ prisma, supabaseAdmin })
 app.route("/public/website", publicWebsiteRouter)
 
 app.get("/public/blueprints", async (c) => {
