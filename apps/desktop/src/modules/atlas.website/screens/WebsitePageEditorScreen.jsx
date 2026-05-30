@@ -113,6 +113,7 @@ export default function WebsitePageEditorScreen() {
           onDataChange={(data) => { grapesDataRef.current = data }}
           height="100%"
           token={token}
+          siteId={pageQuery.data?.site_id ?? pageQuery.data?.siteId ?? null}
         />
       </div>
     </div>
