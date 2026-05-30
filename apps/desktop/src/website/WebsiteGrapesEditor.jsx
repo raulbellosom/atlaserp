@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import grapesjs from 'grapesjs'
 import 'grapesjs/dist/css/grapes.min.css'
 import { buildGrapesConfig } from './atlasGrapesConfig.js'
-import { allTemplates } from './atlasTemplates/index.js'
 import { getApiUrl } from '../lib/runtimeConfig.js'
+import { TemplatePickerModal } from './TemplatePickerModal.jsx'
 
 async function loadAtlasImages(editor, token) {
   const apiUrl = getApiUrl()
@@ -39,69 +39,8 @@ async function loadAtlasImages(editor, token) {
   }
 }
 
-function TemplatePickerModal({ onClose, onApply }) {
-  const [selected, setSelected] = useState(null)
-  const [confirming, setConfirming] = useState(false)
-
-  const handleApply = () => {
-    if (!selected) return
-    if (!confirming) { setConfirming(true); return }
-    onApply(selected)
-    onClose()
-  }
-
-  return (
-    <div
-      style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.6)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px', fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div style={{ background:'white', borderRadius:'20px', width:'100%', maxWidth:'860px', maxHeight:'88vh', overflow:'hidden', display:'flex', flexDirection:'column', boxShadow:'0 24px 80px rgba(0,0,0,0.3)' }}>
-        <div style={{ padding:'24px 28px', borderBottom:'1px solid #f1f5f9', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <div>
-            <h2 style={{ margin:0, fontSize:'20px', fontWeight:800, color:'#0f172a', letterSpacing:'-0.02em' }}>Plantillas</h2>
-            <p style={{ margin:'4px 0 0', fontSize:'14px', color:'#64748b' }}>Elige una plantilla para comenzar. Reemplazara el contenido actual.</p>
-          </div>
-          <button onClick={onClose} style={{ background:'#f1f5f9', border:'none', borderRadius:'8px', width:'36px', height:'36px', cursor:'pointer', fontSize:'18px', color:'#64748b' }}>&times;</button>
-        </div>
-
-        <div style={{ overflowY:'auto', padding:'24px 28px', flex:1 }}>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:'16px' }}>
-            {allTemplates.map((tpl) => (
-              <div
-                key={tpl.id}
-                onClick={() => { setSelected(tpl); setConfirming(false) }}
-                style={{ border: selected?.id === tpl.id ? `2px solid ${tpl.color}` : '2px solid #e2e8f0', borderRadius:'14px', cursor:'pointer', overflow:'hidden', transition:'border-color 0.15s', boxShadow: selected?.id === tpl.id ? `0 0 0 3px ${tpl.color}22` : 'none' }}
-              >
-                <div style={{ height:'96px', background:`linear-gradient(135deg, ${tpl.color} 0%, ${tpl.color}bb 100%)`, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <span style={{ fontSize:'32px', fontWeight:900, color:'rgba(255,255,255,0.25)', textTransform:'uppercase' }}>{tpl.label.charAt(0)}</span>
-                </div>
-                <div style={{ padding:'14px 16px' }}>
-                  <p style={{ margin:'0 0 4px', fontSize:'15px', fontWeight:700, color:'#0f172a' }}>{tpl.label}</p>
-                  <p style={{ margin:0, fontSize:'13px', color:'#64748b', lineHeight:'1.5' }}>{tpl.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ padding:'16px 28px', borderTop:'1px solid #f1f5f9', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px' }}>
-          <p style={{ margin:0, fontSize:'13px', color: confirming ? '#dc2626' : '#94a3b8' }}>
-            {confirming ? 'Esta accion reemplazara todo el contenido actual.' : selected ? `Seleccionada: ${selected.label}` : 'Selecciona una plantilla'}
-          </p>
-          <div style={{ display:'flex', gap:'10px' }}>
-            <button onClick={onClose} style={{ background:'#f1f5f9', border:'none', color:'#374151', fontSize:'14px', fontWeight:600, padding:'10px 20px', borderRadius:'8px', cursor:'pointer' }}>Cancelar</button>
-            <button onClick={handleApply} disabled={!selected} style={{ background: !selected ? '#e2e8f0' : confirming ? '#dc2626' : '#4f46e5', border:'none', color: !selected ? '#94a3b8' : 'white', fontSize:'14px', fontWeight:700, padding:'10px 24px', borderRadius:'8px', cursor: selected ? 'pointer' : 'not-allowed' }}>
-              {confirming ? 'Confirmar y aplicar' : 'Aplicar plantilla'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // actionsRef — optional ref passed by parent to call getLatestData() before save/publish
-export function WebsiteGrapesEditor({ initialData, onDataChange, height, token, actionsRef }) {
+export function WebsiteGrapesEditor({ initialData, onDataChange, height, token, siteId, actionsRef }) {
   const containerRef  = useRef(null)
   const editorRef     = useRef(null)
   const onChangeRef   = useRef(onDataChange)
@@ -111,13 +50,9 @@ export function WebsiteGrapesEditor({ initialData, onDataChange, height, token, 
 
   useEffect(() => { onChangeRef.current = onDataChange }, [onDataChange])
 
-  const handleApplyTemplate = useCallback((template) => {
+  const handleHomePageApplied = useCallback(({ html, css }) => {
     const editor = editorRef.current
     if (!editor) return
-    // Support both old flat format (html/css) and new multi-page format (pages[])
-    const homePage = template.pages ? template.pages[0] : template
-    const html = homePage.html ?? ''
-    const css = homePage.css ?? ''
     editor.DomComponents.clear()
     editor.setStyle('')
     editor.setComponents(html)
@@ -239,9 +174,13 @@ export function WebsiteGrapesEditor({ initialData, onDataChange, height, token, 
   return (
     <>
       <div ref={containerRef} style={{ height: height || '100%', width: '100%' }} />
-      {showTemplates && (
-        <TemplatePickerModal onClose={() => setShowTemplates(false)} onApply={handleApplyTemplate} />
-      )}
+      <TemplatePickerModal
+        isOpen={showTemplates}
+        onClose={() => setShowTemplates(false)}
+        token={token}
+        siteId={siteId ?? null}
+        onHomePageApplied={handleHomePageApplied}
+      />
     </>
   )
 }
