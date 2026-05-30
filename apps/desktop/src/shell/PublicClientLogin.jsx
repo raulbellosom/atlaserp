@@ -50,11 +50,14 @@ export function PublicClientLogin() {
 
   // Redirect if already logged in
   useEffect(() => {
+    let active = true
     supabase.auth.getSession().then(({ data }) => {
+      if (!active) return
       if (data?.session?.access_token) {
         checkRoleAndRedirect(data.session.access_token, navigate)
       }
     })
+    return () => { active = false }
   }, [navigate])
 
   async function handleSubmit(e) {
@@ -70,6 +73,10 @@ export function PublicClientLogin() {
         } else {
           setError('Ocurrio un error. Intenta de nuevo.')
         }
+        return
+      }
+      if (!data?.session?.access_token) {
+        setError('No se pudo iniciar sesion. Intenta de nuevo.')
         return
       }
       await checkRoleAndRedirect(data.session.access_token, navigate)
@@ -99,10 +106,11 @@ export function PublicClientLogin() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-[hsl(var(--foreground))]">
+            <label htmlFor="login-email" className="text-sm font-medium text-[hsl(var(--foreground))]">
               Correo electronico
             </label>
             <input
+              id="login-email"
               type="email"
               required
               value={email}
@@ -113,10 +121,11 @@ export function PublicClientLogin() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-[hsl(var(--foreground))]">
+            <label htmlFor="login-password" className="text-sm font-medium text-[hsl(var(--foreground))]">
               Contrasena
             </label>
             <input
+              id="login-password"
               type="password"
               required
               value={password}

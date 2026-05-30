@@ -1,5 +1,7 @@
 import { Hono } from 'hono'
 
+const ERP_PREFIXES = ['atlas.', 'website.', 'contacts.', 'hr.', 'finance.', 'fleet.']
+
 export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
   const app = new Hono()
 
@@ -169,7 +171,6 @@ export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
         },
       })
 
-      const ERP_PREFIXES = ['atlas.', 'website.', 'contacts.', 'hr.', 'finance.', 'fleet.']
       const hasErpAccess = memberships.some((m) =>
         m.role?.permissions?.some((rp) =>
           ERP_PREFIXES.some((prefix) => rp.permission?.key?.startsWith(prefix))
