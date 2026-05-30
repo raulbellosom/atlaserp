@@ -125,7 +125,7 @@ export const templateSpa = {
 </section>
 
 <!-- FOOTER -->
-<footer style="background:#064e3b;padding:40px 24px;text-align:center;${FS}">
+<footer style="background:#022c22;padding:40px 24px;text-align:center;${FS}">
   <p style="color:rgba(255,255,255,0.5);font-size:14px;margin:0">&#169; 2025 Serenity Spa &middot; Calle del Bienestar 456 &middot; contacto@serenityspa.com</p>
 </footer>
 `,
@@ -139,7 +139,8 @@ export const templateSpa = {
       css: '',
       html: `<nav style="background:rgba(255,255,255,0.95);backdrop-filter:blur(12px);padding:0 40px;height:68px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(0,0,0,0.06);position:sticky;top:0;z-index:100;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <a href="/" style="font-size:20px;font-weight:300;color:#065f46;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none">Serenity Spa</a>
-  <div style="display:flex;gap:28px;align-items:center">
+  <div style="display:flex;gap:24px;align-items:center">
+    <a href="/" style="color:#374151;text-decoration:none;font-size:14px">Inicio</a>
     <a href="/precios" style="color:#374151;text-decoration:none;font-size:14px">Precios</a>
     <a href="/contacto" style="color:#374151;text-decoration:none;font-size:14px">Contacto</a>
     <a href="/acceso" style="color:#374151;text-decoration:none;font-size:14px">Iniciar sesion</a>

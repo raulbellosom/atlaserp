@@ -114,10 +114,14 @@ export function WebsiteGrapesEditor({ initialData, onDataChange, height, token, 
   const handleApplyTemplate = useCallback((template) => {
     const editor = editorRef.current
     if (!editor) return
+    // Support both old flat format (html/css) and new multi-page format (pages[])
+    const homePage = template.pages ? template.pages[0] : template
+    const html = homePage.html ?? ''
+    const css = homePage.css ?? ''
     editor.DomComponents.clear()
     editor.setStyle('')
-    editor.setComponents(template.html)
-    if (template.css) editor.setStyle(template.css)
+    editor.setComponents(html)
+    if (css) editor.setStyle(css)
     clearTimeout(emitTimer.current)
     emitTimer.current = setTimeout(() => {
       if (!editorRef.current) return
