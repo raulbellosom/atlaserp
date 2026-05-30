@@ -97,6 +97,9 @@ const SCREEN_MAP = {
   "atlas.website:/pages": lazy(
     () => import("../modules/atlas.website/screens/WebsitePagesScreen.jsx"),
   ),
+  "atlas.website:/templates": lazy(
+    () => import("../modules/atlas.website/screens/WebsiteTemplatesScreen.jsx"),
+  ),
   "atlas.website:/pages/:id/editor": lazy(
     () => import("../modules/atlas.website/screens/WebsitePageEditorScreen.jsx"),
   ),
