@@ -6,6 +6,7 @@ import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import { Button } from '@atlas/ui'
 import { toast } from 'sonner'
 import WebsiteNewPageDialog from './WebsiteNewPageDialog.jsx'
+import { TemplatePickerModal } from '../../../website/TemplatePickerModal.jsx'
 
 async function apiGet(path, token) {
   const res = await fetch(`${getApiUrl()}${path}`, {
@@ -29,6 +30,7 @@ export default function WebsitePagesScreen() {
   const queryClient = useQueryClient()
 
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
 
   const siteQuery = useQuery({
     queryKey: ['website-site', token],
@@ -106,9 +108,17 @@ export default function WebsitePagesScreen() {
       ) : pages.length === 0 ? (
         <div className="rounded-xl border border-[hsl(var(--border))] p-10 text-center space-y-4">
           <p className="text-[hsl(var(--muted-foreground))] text-sm">No hay paginas creadas aun.</p>
-          <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
-            Crear primera pagina
-          </Button>
+          <div className="flex items-center justify-center gap-3">
+            <Button
+              onClick={() => setTemplatePickerOpen(true)}
+              disabled={!siteId}
+            >
+              Empezar desde plantilla
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
+              Pagina en blanco
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="rounded-xl border border-[hsl(var(--border))] overflow-hidden">
@@ -162,6 +172,16 @@ export default function WebsitePagesScreen() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onCreated={() => queryClient.invalidateQueries({ queryKey: ['website-pages', siteId] })}
+      />
+      <TemplatePickerModal
+        isOpen={templatePickerOpen}
+        onClose={() => setTemplatePickerOpen(false)}
+        token={token}
+        siteId={siteId}
+        onHomePageApplied={() => {
+          setTemplatePickerOpen(false)
+          queryClient.invalidateQueries({ queryKey: ['website-pages', siteId] })
+        }}
       />
     </div>
   )
