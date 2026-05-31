@@ -1,28 +1,41 @@
-import { ATLAS_BLOCKS_BASE_CSS } from './atlasBlocksBaseCSS.js'
+import { AtlasWebBuilderProvider, AtlasWebRenderer, baseBlocks, defineTheme, defaultTheme, parsePage } from '@raulbellosom/atlas-web-builder'
+import '@raulbellosom/atlas-web-builder/styles'
 
-export function WebsitePageRenderer({ page }) {
-  const data = page?.publishedBuilderData
+export function WebsitePageRenderer({ page, theme }) {
+  const resolvedTheme = theme?.tokens
+    ? defineTheme({
+        ...defaultTheme,
+        id: 'atlas-site',
+        name: 'Site Theme',
+        tokens: { ...defaultTheme.tokens, ...theme.tokens },
+      })
+    : defaultTheme
 
-  if (!data || (!data.html && !data.gjsProjectData)) {
+  if (!page?.publishedBuilderData) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center space-y-3 max-w-sm px-6">
-          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto">
-            <span className="text-gray-400 text-xl">&#128196;</span>
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900">Pagina sin contenido</h2>
-          <p className="text-gray-500 text-sm">Esta pagina aun no tiene contenido publicado.</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <p className="text-sm text-gray-400">Esta pagina no tiene contenido publicado aun.</p>
       </div>
     )
   }
 
-  const combinedCss = ATLAS_BLOCKS_BASE_CSS + (data.css ? '\n' + data.css : '')
+  let parsedPage
+  try {
+    parsedPage =
+      typeof page.publishedBuilderData === 'string'
+        ? parsePage(page.publishedBuilderData)
+        : parsePage(JSON.stringify(page.publishedBuilderData))
+  } catch {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <p className="text-sm text-gray-400">Esta pagina no tiene contenido publicado aun.</p>
+      </div>
+    )
+  }
 
   return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: combinedCss }} />
-      <div dangerouslySetInnerHTML={{ __html: data.html || '' }} />
-    </>
+    <AtlasWebBuilderProvider blocks={baseBlocks} theme={resolvedTheme}>
+      <AtlasWebRenderer page={parsedPage} mode="public" />
+    </AtlasWebBuilderProvider>
   )
 }
