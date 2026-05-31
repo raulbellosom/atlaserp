@@ -98,16 +98,22 @@
   // modules/official/atlas.catalog/models/catalog-category.model.js
   import { defineModel } from '@atlas/module-engine'
 
+  // company_id is auto-injected by the engine (companyScoped: true is the default).
+  // created_at and updated_at are auto-added by the SQL generator.
+  // Do not add them to the fields array.
   export const catalogCategoryModel = defineModel({
-    name: 'catalog_category',
+    key:       'catalog_category',
+    tableName: 'catalog_category',
+    companyScoped: true,
     fields: [
-      { name: 'company_id', type: 'uuid',    required: true },
-      { name: 'name',       type: 'text',    required: true },
-      { name: 'slug',       type: 'text',    required: true },
-      { name: 'description',type: 'text',    required: false },
-      { name: 'enabled',    type: 'boolean', required: true, default: true },
+      { name: 'name',        type: 'text',    required: true },
+      { name: 'slug',        type: 'text',    required: true },
+      { name: 'description', type: 'textarea', required: false },
+      { name: 'enabled',     type: 'boolean', required: true, default: true },
     ],
-    timestamps: true,
+    indexes: [
+      { fields: ['slug'], unique: true },
+    ],
   })
   ```
 
@@ -130,25 +136,42 @@
   // modules/official/atlas.catalog/models/catalog-product.model.js
   import { defineModel } from '@atlas/module-engine'
 
+  // company_id is auto-injected by the engine (companyScoped: true is the default).
+  // created_at and updated_at are auto-added by the SQL generator.
+  // Do not add them to the fields array.
+  // UUID foreign keys use type: 'relation' (maps to UUID column in SQL).
+  // Prices use type: 'decimal' (NUMERIC(18,4)). Quantity counts use type: 'number' (INTEGER).
+  // JSON arrays use type: 'json' (JSONB). String default '[]' becomes DEFAULT '[]'.
   export const catalogProductModel = defineModel({
-    name: 'catalog_product',
+    key:       'catalog_product',
+    tableName: 'catalog_product',
+    companyScoped: true,
     fields: [
-      { name: 'company_id',      type: 'uuid',    required: true },
-      { name: 'category_id',     type: 'uuid',    required: false },
-      { name: 'name',            type: 'text',    required: true },
-      { name: 'slug',            type: 'text',    required: true },
-      { name: 'description',     type: 'text',    required: false },
-      { name: 'price',           type: 'numeric', required: true, default: 0 },
-      { name: 'compare_price',   type: 'numeric', required: false },
-      { name: 'currency',        type: 'text',    required: true, default: 'USD' },
-      { name: 'stock',           type: 'integer', required: true, default: 0 },
-      { name: 'track_stock',     type: 'boolean', required: true, default: false },
-      { name: 'cover_asset_id',  type: 'uuid',    required: false },
-      { name: 'images',          type: 'jsonb',   required: false, default: '[]' },
-      { name: 'enabled',         type: 'boolean', required: true, default: true },
-      { name: 'published',       type: 'boolean', required: true, default: false },
+      { name: 'category_id',    type: 'relation', required: false },
+      { name: 'name',           type: 'text',     required: true },
+      { name: 'slug',           type: 'text',     required: true },
+      { name: 'description',    type: 'textarea', required: false },
+      { name: 'price',          type: 'decimal',  required: true,  default: 0 },
+      { name: 'compare_price',  type: 'decimal',  required: false },
+      { name: 'currency',       type: 'text',     required: true,  default: 'USD' },
+      { name: 'stock',          type: 'number',   required: true,  default: 0 },
+      { name: 'track_stock',    type: 'boolean',  required: true,  default: false },
+      { name: 'cover_asset_id', type: 'relation', required: false },
+      { name: 'images',         type: 'json',     required: false, default: '[]' },
+      { name: 'enabled',        type: 'boolean',  required: true,  default: true },
+      { name: 'published',      type: 'boolean',  required: true,  default: false },
     ],
-    timestamps: true,
+    indexes: [
+      { fields: ['slug'], unique: true },
+    ],
+    foreignKeys: [
+      {
+        field:      'category_id',
+        references: { table: 'catalog_category', field: 'id' },
+        onDelete:   'SET NULL',
+        onUpdate:   'CASCADE',
+      },
+    ],
   })
   ```
 
