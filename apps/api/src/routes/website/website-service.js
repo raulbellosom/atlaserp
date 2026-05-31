@@ -210,6 +210,7 @@ export function createWebsiteService({ prisma }) {
         ...(data.slug       !== undefined && { slug:       data.slug }),
         ...(data.routePath  !== undefined && { routePath:  data.routePath }),
         ...(data.visibility !== undefined && { visibility: data.visibility }),
+        ...(data.status     !== undefined && { status:     data.status }),
         ...(data.seo        !== undefined && { seo:        data.seo }),
         updatedById: actorId ?? null,
       },

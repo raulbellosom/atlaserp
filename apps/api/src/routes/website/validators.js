@@ -15,6 +15,7 @@ export const updatePageSchema = z.object({
   slug:       z.string().min(1).max(255).regex(/^[a-z0-9-]+$/).optional(),
   routePath:  z.string().min(1).max(512).startsWith('/').optional(),
   visibility: z.enum(['public', 'authenticated', 'private']).optional(),
+  status:     z.enum(['draft', 'published', 'archived']).optional(),
   seo:        z.record(z.unknown()).optional(),
 })
 

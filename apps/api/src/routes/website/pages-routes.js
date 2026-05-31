@@ -67,7 +67,7 @@ export function createPagesRouter({ websiteSvc, requirePermission }) {
     const companyId = c.get('companyId')
     try {
       const page = await websiteSvc.getPage({ companyId, pageId: c.req.param('id') })
-      return c.json(page)
+      return c.json({ data: page })
     } catch (err) {
       if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
       throw err
