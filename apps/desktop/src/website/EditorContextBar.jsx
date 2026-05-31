@@ -29,13 +29,18 @@ function PageCombobox({ pages = [], currentPage, onNavigate, onCreatePage }) {
   const [open, setOpen]     = useState(false)
   const [search, setSearch] = useState('')
   const triggerRef          = useRef(null)
+  const dropdownRef         = useRef(null)
   const inputRef            = useRef(null)
 
   useEffect(() => {
     if (!open) return
     inputRef.current?.focus()
     function onDown(e) {
-      if (!triggerRef.current?.contains(e.target)) {
+      // close only when clicking outside both the trigger AND the portal dropdown
+      if (
+        !triggerRef.current?.contains(e.target) &&
+        !dropdownRef.current?.contains(e.target)
+      ) {
         setOpen(false)
         setSearch('')
       }
@@ -80,7 +85,7 @@ function PageCombobox({ pages = [], currentPage, onNavigate, onCreatePage }) {
       </button>
 
       {open && rect && createPortal(
-        <div style={{
+        <div ref={dropdownRef} style={{
           position: 'fixed',
           top: rect.bottom + 4,
           left: rect.left,
