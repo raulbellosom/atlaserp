@@ -124,6 +124,12 @@ const SCREEN_MAP = {
   "atlas.calendar:/": lazy(
     () => import("../modules/atlas.calendar/screens/CalendarScreen.jsx"),
   ),
+  "atlas.catalog:/": lazy(
+    () => import("../modules/atlas.catalog/screens/CatalogProductsScreen.jsx"),
+  ),
+  "atlas.catalog:/categories": lazy(
+    () => import("../modules/atlas.catalog/screens/CatalogCategoriesScreen.jsx"),
+  ),
 };
 const SCREEN_MODULE_KEYS = new Set(
   Object.keys(SCREEN_MAP).map((entry) => entry.split(":")[0]),
