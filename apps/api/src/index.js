@@ -46,6 +46,7 @@ import { createWebsiteRouter } from "./routes/website/index.js";
 import { createLedgerRouter } from "./routes/ledger/index.js";
 import { createFleetRouter } from "./routes/fleet/index.js";
 import { createCalendarRouter } from "./routes/calendar/index.js";
+import { createSettingsRouter } from "./routes/settings-routes.js";
 import { createModuleBundlerService } from "./services/module-bundler-service.js";
 import { createRouteLoaderService } from "./services/route-loader-service.js";
 import {
@@ -3551,6 +3552,7 @@ function mountWithAuth(baseApp, router) {
   baseApp.route('/', secured)
 }
 
+mountWithAuth(app, createSettingsRouter({ prisma, requirePermission }))
 mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission }))
 mountWithAuth(app, createLedgerRouter({ prisma, requirePermission }))
 mountWithAuth(app, createFleetRouter({ prisma, requirePermission }))

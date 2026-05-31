@@ -1,5 +1,6 @@
 const GROUPS = {
   core: "Core",
+  platform: "Plataforma",
   identity: "Identidad",
   profile: "Perfil",
   files: "Archivos",
@@ -141,6 +142,13 @@ export const PERMISSION_CATALOG = {
     displayNameEs: "Ver bitacora",
     descriptionEs: "Permite consultar eventos y cambios del sistema.",
     groupKey: "audit",
+    order: 10,
+  },
+
+  "platform.settings.manage": {
+    displayNameEs: "Administrar configuracion de plataforma",
+    descriptionEs: "Permite gestionar configuracion de SMTP y otros ajustes de plataforma.",
+    groupKey: "platform",
     order: 10,
   },
 
