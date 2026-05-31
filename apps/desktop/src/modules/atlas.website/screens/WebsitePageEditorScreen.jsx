@@ -8,6 +8,7 @@ import {
 import '@raulbellosom/atlas-web-builder/styles'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { buildAtlasBlocks } from '../../../website/atlasBlocks/index.js'
 import { toast } from 'sonner'
 
 async function apiFetch(path, token, options = {}) {
@@ -159,13 +160,27 @@ export default function WebsitePageEditorScreen() {
   return (
     <div style={{ position: 'fixed', inset: 0 }}>
       <AtlasWebBuilderEditor
-        blocks={baseBlocks}
+        blocks={[...baseBlocks, ...buildAtlasBlocks(siteQuery.data?.data?.site_type ?? 'informational')]}
         initialPage={initialPage}
         theme={resolvedTheme}
         assets={createAssetSource(token)}
         brandName="Atlas ERP"
         onSaveDraft={(page) => saveDraftMutation.mutate(page)}
         onPublish={(page) => publishMutation.mutate(page)}
+        resources={
+          siteQuery.data?.data?.site_type === 'ecommerce'
+            ? {
+                products: async ({ categoryId, limit }) => {
+                  try {
+                    const url = `${getApiUrl()}/catalog/products?limit=${limit ?? 20}${categoryId ? `&categoryId=${categoryId}` : ''}`
+                    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+                    const data = await res.json()
+                    return data.data ?? []
+                  } catch { return [] }
+                },
+              }
+            : undefined
+        }
       />
     </div>
   )
