@@ -60,9 +60,10 @@ function createAssetSource(token) {
   }
 }
 
-export default function WebsitePageEditorScreen() {
+// pageIdProp: when rendered inline from the public website (not from a route URL)
+export default function WebsitePageEditorScreen({ pageId: pageIdProp } = {}) {
   const { '*': wildcard } = useParams()
-  const pageId = wildcard?.match(/^pages\/([^/]+)\/editor$/)?.[1] ?? null
+  const pageId = pageIdProp ?? wildcard?.match(/^pages\/([^/]+)\/editor$/)?.[1] ?? null
   const { session } = useAuth()
   const token = session?.access_token
   const queryClient = useQueryClient()
@@ -126,12 +127,12 @@ export default function WebsitePageEditorScreen() {
     : defaultTheme
 
   let initialPage = null
-  if (pageData?.draft_builder_data) {
+  if (pageData?.draftBuilderData) {
     try {
       initialPage =
-        typeof pageData.draft_builder_data === 'string'
-          ? parsePage(pageData.draft_builder_data)
-          : parsePage(JSON.stringify(pageData.draft_builder_data))
+        typeof pageData.draftBuilderData === 'string'
+          ? parsePage(pageData.draftBuilderData)
+          : parsePage(JSON.stringify(pageData.draftBuilderData))
     } catch { initialPage = null }
   }
 
@@ -149,6 +150,20 @@ export default function WebsitePageEditorScreen() {
     }
   }
 
+  if (pageQuery.isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen gap-3 text-sm">
+        <p className="text-red-400">No se pudo cargar la pagina.</p>
+        <button
+          className="text-[hsl(var(--primary))] hover:underline"
+          onClick={() => window.location.reload()}
+        >
+          Reintentar
+        </button>
+      </div>
+    )
+  }
+
   if (pageQuery.isPending || !initialPage) {
     return (
       <div className="flex items-center justify-center h-screen text-sm text-gray-400">
@@ -157,10 +172,12 @@ export default function WebsitePageEditorScreen() {
     )
   }
 
+  const siteType = siteQuery.data?.data?.siteType ?? 'informational'
+
   return (
     <div style={{ position: 'fixed', inset: 0 }}>
       <AtlasWebBuilderEditor
-        blocks={[...baseBlocks, ...buildAtlasBlocks(siteQuery.data?.data?.site_type ?? 'informational')]}
+        blocks={[...baseBlocks, ...buildAtlasBlocks(siteType)]}
         initialPage={initialPage}
         theme={resolvedTheme}
         assets={createAssetSource(token)}
@@ -168,7 +185,7 @@ export default function WebsitePageEditorScreen() {
         onSaveDraft={(page) => saveDraftMutation.mutate(page)}
         onPublish={(page) => publishMutation.mutate(page)}
         resources={
-          siteQuery.data?.data?.site_type === 'ecommerce'
+          siteType === 'ecommerce'
             ? {
                 products: async ({ categoryId, limit }) => {
                   try {
