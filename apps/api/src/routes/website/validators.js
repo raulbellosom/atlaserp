@@ -27,16 +27,22 @@ export const createSiteSchema = z.object({
   name:          z.string().min(1).max(255),
   domain:        z.string().optional(),
   defaultLocale: z.string().default('es'),
+  siteType:      z.enum(['website', 'ecommerce', 'blog', 'landing']).default('website'),
 })
 
 export const updateSiteSchema = z.object({
-  name:           z.string().min(1).max(255).optional(),
-  domain:         z.string().optional(),
-  status:         z.enum(['draft', 'published', 'maintenance']).optional(),
-  homepagePageId: z.string().uuid().optional().nullable(),
-  themeId:        z.string().uuid().optional().nullable(),
-  settings:       z.record(z.unknown()).optional(),
-  seoDefaults:    z.record(z.unknown()).optional(),
+  name:                  z.string().min(1).max(255).optional(),
+  domain:                z.string().optional(),
+  status:                z.enum(['draft', 'published', 'maintenance']).optional(),
+  siteType:              z.enum(['website', 'ecommerce', 'blog', 'landing']).optional(),
+  homepagePageId:        z.string().uuid().optional().nullable(),
+  themeId:               z.string().uuid().optional().nullable(),
+  settings:              z.record(z.unknown()).optional(),
+  seoDefaults:           z.record(z.unknown()).optional(),
+  stripePublishableKey:  z.string().optional().nullable(),
+  stripeSecretKey:       z.string().optional().nullable(),
+  stripeCurrency:        z.string().length(3).optional(),
+  stripeSuccessMessage:  z.string().optional().nullable(),
 })
 
 export const createMenuSchema = z.object({

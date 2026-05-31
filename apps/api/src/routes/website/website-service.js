@@ -1,24 +1,30 @@
 import { WebsiteServiceError, notFound, conflict } from './service-helpers.js'
+import { encryptPassword } from '../../services/smtp-service.js'
 
 export { WebsiteServiceError }
 
 export function createWebsiteService({ prisma }) {
   async function getSite({ companyId }) {
-    return prisma.websiteSite.findFirst({
+    const site = await prisma.websiteSite.findFirst({
       where: { companyId, enabled: true },
       orderBy: { createdAt: 'asc' },
     })
+    if (!site) return null
+    // Never expose the encrypted secret key — return a boolean flag instead
+    const { stripeSecretKey, ...rest } = site
+    return { ...rest, stripeSecretKeySet: Boolean(stripeSecretKey) }
   }
 
   async function createSite({ companyId, data, actorId }) {
     const created = await prisma.websiteSite.create({
       data: {
         companyId,
-        name: data.name,
-        domain: data.domain ?? null,
+        name:          data.name,
+        domain:        data.domain ?? null,
         defaultLocale: data.defaultLocale ?? 'es',
-        status: 'draft',
-        enabled: true,
+        siteType:      data.siteType ?? 'website',
+        status:        'draft',
+        enabled:       true,
       },
     })
     await prisma.auditLog.create({
@@ -44,13 +50,18 @@ export function createWebsiteService({ prisma }) {
     const after = await prisma.websiteSite.update({
       where: { id: siteId },
       data: {
-        ...(data.name        !== undefined && { name:           data.name }),
-        ...(data.domain      !== undefined && { domain:         data.domain }),
-        ...(data.status      !== undefined && { status:         data.status }),
-        ...(data.homepagePageId !== undefined && { homepagePageId: data.homepagePageId }),
-        ...(data.themeId     !== undefined && { themeId:        data.themeId }),
-        ...(data.settings    !== undefined && { settings:       data.settings }),
-        ...(data.seoDefaults !== undefined && { seoDefaults:    data.seoDefaults }),
+        ...(data.name                !== undefined && { name:                 data.name }),
+        ...(data.domain              !== undefined && { domain:               data.domain }),
+        ...(data.status              !== undefined && { status:               data.status }),
+        ...(data.siteType            !== undefined && { siteType:             data.siteType }),
+        ...(data.homepagePageId      !== undefined && { homepagePageId:       data.homepagePageId }),
+        ...(data.themeId             !== undefined && { themeId:              data.themeId }),
+        ...(data.settings            !== undefined && { settings:             data.settings }),
+        ...(data.seoDefaults         !== undefined && { seoDefaults:          data.seoDefaults }),
+        ...(data.stripePublishableKey !== undefined && { stripePublishableKey: data.stripePublishableKey }),
+        ...(data.stripeSecretKey     !== undefined && { stripeSecretKey:      encryptPassword(data.stripeSecretKey) }),
+        ...(data.stripeCurrency      !== undefined && { stripeCurrency:       data.stripeCurrency }),
+        ...(data.stripeSuccessMessage !== undefined && { stripeSuccessMessage: data.stripeSuccessMessage }),
       },
     })
     await prisma.auditLog.create({

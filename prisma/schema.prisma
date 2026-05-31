@@ -524,19 +524,24 @@ model UserPreference {
 // ─── atlas.website ────────────────────────────────────────────────────────────
 
 model WebsiteSite {
-  id             String    @id @default(uuid(7)) @db.Uuid
-  companyId      String    @db.Uuid @map("company_id")
-  name           String
-  domain         String?
-  defaultLocale  String    @default("es") @map("default_locale")
-  status         String    @default("draft")
-  homepagePageId String?   @db.Uuid @map("homepage_page_id")
-  themeId        String?   @db.Uuid @map("theme_id")
-  settings       Json?
-  seoDefaults    Json?     @map("seo_defaults")
-  enabled        Boolean   @default(true)
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  id                     String    @id @default(uuid(7)) @db.Uuid
+  companyId              String    @db.Uuid @map("company_id")
+  name                   String
+  domain                 String?
+  defaultLocale          String    @default("es") @map("default_locale")
+  status                 String    @default("draft")
+  siteType               String    @default("website") @map("site_type")
+  homepagePageId         String?   @db.Uuid @map("homepage_page_id")
+  themeId                String?   @db.Uuid @map("theme_id")
+  settings               Json?
+  seoDefaults            Json?     @map("seo_defaults")
+  stripePublishableKey   String?   @map("stripe_publishable_key")
+  stripeSecretKey        String?   @map("stripe_secret_key")
+  stripeCurrency         String    @default("usd") @map("stripe_currency")
+  stripeSuccessMessage   String?   @map("stripe_success_message")
+  enabled                Boolean   @default(true)
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
 
   @@index([companyId, enabled])
   @@map("website_site")
