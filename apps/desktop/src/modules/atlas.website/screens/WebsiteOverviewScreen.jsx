@@ -1,48 +1,300 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import {
+  Button, Input, Label, Switch, StatCard,
+  Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
+  Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
+} from '@atlas/ui'
+import { Globe, FileText, BookOpen, MessageSquare } from 'lucide-react'
+import { toast } from 'sonner'
 import WebsiteSiteWizard from './WebsiteSiteWizard.jsx'
 
-async function apiFetch(path, token) {
-  const res = await fetch(`${getApiUrl()}${path}`, { headers: { Authorization: `Bearer ${token}` } })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+const SITE_TYPES = [
+  { value: 'informational', label: 'Sitio informativo' },
+  { value: 'ecommerce',     label: 'Tienda online' },
+  { value: 'bookings',      label: 'Sitio con reservaciones' },
+]
+
+async function apiFetch(path, token, options = {}) {
+  const res = await fetch(`${getApiUrl()}${path}`, {
+    ...options,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...options.headers },
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || `HTTP ${res.status}`)
+  }
+  if (res.status === 204) return null
   return res.json()
 }
 
 export default function WebsiteOverviewScreen() {
   const { session } = useAuth()
   const token = session?.access_token
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+
+  const [deleteOpen, setDeleteOpen]     = useState(false)
+  const [deleteText, setDeleteText]     = useState('')
+  const [formName, setFormName]         = useState('')
+  const [formDomain, setFormDomain]     = useState('')
+  const [formSiteType, setFormSiteType] = useState('informational')
 
   const siteQuery = useQuery({
     queryKey: ['website-site', token],
-    queryFn: () => apiFetch('/website/site', token),
-    enabled: Boolean(token),
+    queryFn:  () => apiFetch('/website/site', token),
+    enabled:  Boolean(token),
     staleTime: 60_000,
   })
 
+  const site = siteQuery.data?.data ?? null
+
+  useEffect(() => {
+    if (site) {
+      setFormName(site.name ?? '')
+      setFormDomain(site.domain ?? '')
+      setFormSiteType(site.siteType ?? 'informational')
+    }
+  }, [site])
+
+  const publishedPagesQuery = useQuery({
+    queryKey: ['website-pages-stats', 'published', site?.id],
+    queryFn:  () => apiFetch(`/website/pages?siteId=${site.id}&status=published&pageSize=1`, token),
+    enabled:  Boolean(token) && Boolean(site?.id),
+    staleTime: 60_000,
+  })
+
+  const draftPagesQuery = useQuery({
+    queryKey: ['website-pages-stats', 'draft', site?.id],
+    queryFn:  () => apiFetch(`/website/pages?siteId=${site.id}&status=draft&pageSize=1`, token),
+    enabled:  Boolean(token) && Boolean(site?.id),
+    staleTime: 60_000,
+  })
+
+  const blogQuery = useQuery({
+    queryKey: ['website-blog-stats', site?.id],
+    queryFn:  () => apiFetch(`/website/blog/posts?siteId=${site.id}&pageSize=1`, token),
+    enabled:  Boolean(token) && Boolean(site?.id),
+    staleTime: 60_000,
+  })
+
+  const formsQuery = useQuery({
+    queryKey: ['website-forms-stats', site?.id],
+    queryFn:  () => apiFetch(`/website/forms?siteId=${site.id}`, token),
+    enabled:  Boolean(token) && Boolean(site?.id),
+    staleTime: 60_000,
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: (data) => apiFetch(`/website/site/${site.id}`, token, {
+      method: 'PATCH',
+      body:   JSON.stringify(data),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['website-site'] })
+      toast.success('Sitio actualizado')
+    },
+    onError: (err) => toast.error(err.message),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: () => apiFetch(`/website/site/${site.id}`, token, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['website-site'] })
+      setDeleteOpen(false)
+      setDeleteText('')
+      toast.success('Sitio web eliminado')
+    },
+    onError: (err) => toast.error(err.message),
+  })
+
   if (siteQuery.isPending) {
-    return <div className="flex items-center justify-center h-full text-sm text-[hsl(var(--muted-foreground))]">Cargando...</div>
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-[hsl(var(--muted-foreground))]">
+        Cargando...
+      </div>
+    )
   }
 
-  const site = siteQuery.data?.data ?? null
   if (!site) return <WebsiteSiteWizard />
 
+  const submissionsTotal = (formsQuery.data?.data ?? [])
+    .reduce((sum, f) => sum + (f._count?.submissions ?? 0), 0)
+
+  function handleSaveConfig() {
+    updateMutation.mutate({
+      name:     formName.trim() || undefined,
+      domain:   formDomain.trim() || null,
+      siteType: formSiteType,
+    })
+  }
+
+  function handleStatusToggle(checked) {
+    updateMutation.mutate({ status: checked ? 'published' : 'draft' })
+  }
+
+  function closeDeleteDialog() {
+    setDeleteOpen(false)
+    setDeleteText('')
+  }
+
   return (
-    <div className="p-8 space-y-4">
-      <h1 className="text-xl font-semibold text-[hsl(var(--foreground))]">{site.name}</h1>
-      <p className="text-sm text-[hsl(var(--muted-foreground))]">
-        Tipo: {site.site_type} · Estado: {site.status}
-      </p>
-      {site.domain && (
-        <a
-          href={`https://${site.domain}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm text-[hsl(var(--primary))] underline"
-        >
-          {site.domain}
-        </a>
-      )}
+    <div className="p-8 space-y-8 max-w-4xl">
+      {/* Stats */}
+      <section>
+        <h2 className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-widest mb-4">
+          Resumen
+        </h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="cursor-pointer" onClick={() => navigate('/app/m/atlas.website/pages')}>
+            <StatCard
+              label="Pag. publicadas"
+              value={publishedPagesQuery.data?.total ?? '—'}
+              icon={Globe}
+              loading={publishedPagesQuery.isPending}
+            />
+          </div>
+          <div className="cursor-pointer" onClick={() => navigate('/app/m/atlas.website/pages')}>
+            <StatCard
+              label="Borradores"
+              value={draftPagesQuery.data?.total ?? '—'}
+              icon={FileText}
+              loading={draftPagesQuery.isPending}
+            />
+          </div>
+          <div className="cursor-pointer" onClick={() => navigate('/app/m/atlas.website/blog')}>
+            <StatCard
+              label="Posts de blog"
+              value={blogQuery.data?.total ?? '—'}
+              icon={BookOpen}
+              loading={blogQuery.isPending}
+            />
+          </div>
+          <div className="cursor-pointer" onClick={() => navigate('/app/m/atlas.website/forms')}>
+            <StatCard
+              label="Envios de formulario"
+              value={formsQuery.isPending ? '—' : submissionsTotal}
+              icon={MessageSquare}
+              loading={formsQuery.isPending}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Config */}
+      <section className="rounded-xl border border-[hsl(var(--border))] p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-[hsl(var(--foreground))]">
+            Configuracion del sitio
+          </h2>
+          <div className="flex items-center gap-3">
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+              site.status === 'published'
+                ? 'bg-green-50 text-green-700 border-green-200'
+                : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+            }`}>
+              {site.status === 'published' ? 'Publicado' : 'Borrador'}
+            </span>
+            <Switch
+              checked={site.status === 'published'}
+              onCheckedChange={handleStatusToggle}
+              disabled={updateMutation.isPending}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="site-name">Nombre</Label>
+            <Input
+              id="site-name"
+              value={formName}
+              onChange={(e) => setFormName(e.target.value)}
+              placeholder="Mi sitio web"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="site-domain">Dominio</Label>
+            <Input
+              id="site-domain"
+              value={formDomain}
+              onChange={(e) => setFormDomain(e.target.value)}
+              placeholder="misitioweb.com"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1.5 max-w-xs">
+          <Label>Tipo de sitio</Label>
+          <Select value={formSiteType} onValueChange={setFormSiteType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SITE_TYPES.map((t) => (
+                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex justify-end">
+          <Button onClick={handleSaveConfig} disabled={updateMutation.isPending}>
+            {updateMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
+          </Button>
+        </div>
+      </section>
+
+      {/* Danger zone */}
+      <section className="rounded-xl border border-red-200 p-6 space-y-3">
+        <h2 className="text-base font-semibold text-red-700">Zona de peligro</h2>
+        <p className="text-sm text-[hsl(var(--muted-foreground))]">
+          Eliminar el sitio web borra de forma permanente todas las paginas, posts de blog,
+          formularios, menus y temas. Esta accion no se puede deshacer.
+        </p>
+        <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+          Eliminar sitio web
+        </Button>
+      </section>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteOpen} onOpenChange={(open) => { if (!open) closeDeleteDialog() }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar sitio web</DialogTitle>
+            <DialogDescription>
+              Esta accion es irreversible. Se eliminaran todas las paginas, posts de blog,
+              formularios, menus y temas del sitio <strong>{site.name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-2">
+            <Label>
+              Escribe el nombre del sitio para confirmar:{' '}
+              <strong>{site.name}</strong>
+            </Label>
+            <Input
+              value={deleteText}
+              onChange={(e) => setDeleteText(e.target.value)}
+              placeholder={site.name}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeDeleteDialog}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteText !== site.name || deleteMutation.isPending}
+              onClick={() => deleteMutation.mutate()}
+            >
+              {deleteMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
