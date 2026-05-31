@@ -78,10 +78,11 @@ export function createWebsiteService({ prisma }) {
     return after
   }
 
-  async function listPages({ companyId, siteId, page = 1, pageSize = 30, pageType = null }) {
+  async function listPages({ companyId, siteId, page = 1, pageSize = 30, pageType = null, status = null }) {
     const skip = (page - 1) * pageSize
     const where = { companyId, siteId, enabled: true }
     if (pageType) where.pageType = pageType
+    if (status) where.status = status
     const [data, total] = await Promise.all([
       prisma.websitePage.findMany({
         where,
