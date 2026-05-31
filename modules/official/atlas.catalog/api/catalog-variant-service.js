@@ -25,53 +25,58 @@ export function createCatalogVariantService({ prisma }) {
   }
 
   async function createOption({ companyId, productId, data }) {
-    const [option] = await prisma.$queryRaw`
-      INSERT INTO catalog_product_option (company_id, product_id, name, position)
-      VALUES (${companyId}::uuid, ${productId}::uuid, ${data.name}, ${data.position ?? 0})
-      RETURNING *
-    `
-    const vals = []
-    for (const [i, val] of (data.values ?? []).entries()) {
-      const [row] = await prisma.$queryRaw`
-        INSERT INTO catalog_product_option_value (company_id, option_id, value, position)
-        VALUES (${companyId}::uuid, ${option.id}::uuid, ${val}, ${i})
+    return prisma.$transaction(async (tx) => {
+      const [option] = await tx.$queryRaw`
+        INSERT INTO catalog_product_option (company_id, product_id, name, position)
+        VALUES (${companyId}::uuid, ${productId}::uuid, ${data.name}, ${data.position ?? 0})
         RETURNING *
       `
-      vals.push(row)
-    }
-    return { ...option, values: vals }
+      const vals = []
+      for (const [i, val] of (data.values ?? []).entries()) {
+        const [row] = await tx.$queryRaw`
+          INSERT INTO catalog_product_option_value (company_id, option_id, value, position)
+          VALUES (${companyId}::uuid, ${option.id}::uuid, ${val}, ${i})
+          RETURNING *
+        `
+        vals.push(row)
+      }
+      return { ...option, values: vals }
+    })
   }
 
   async function updateOption({ companyId, optionId, data }) {
-    if (data.name !== undefined || data.position !== undefined) {
-      const map = { name: data.name, position: data.position }
-      const entries = Object.entries(map).filter(([, v]) => v !== undefined)
-      if (entries.length) {
-        const setParts = entries.map(([k], i) => `${k} = $${i + 2}`).join(', ')
-        const values   = entries.map(([, v]) => v)
-        const sql = `UPDATE catalog_product_option SET ${setParts}, updated_at = now()
-                     WHERE id = $1::uuid AND company_id = $${values.length + 2}::uuid RETURNING *`
-        await prisma.$queryRawUnsafe(sql, optionId, ...values, companyId)
+    return prisma.$transaction(async (tx) => {
+      if (data.name !== undefined || data.position !== undefined) {
+        const map = { name: data.name, position: data.position }
+        const entries = Object.entries(map).filter(([, v]) => v !== undefined)
+        if (entries.length) {
+          const setParts = entries.map(([k], i) => `${k} = $${i + 2}`).join(', ')
+          const values   = entries.map(([, v]) => v)
+          const sql = `UPDATE catalog_product_option SET ${setParts}, updated_at = now()
+                       WHERE id = $1::uuid AND company_id = $${values.length + 2}::uuid RETURNING *`
+          await tx.$queryRawUnsafe(sql, optionId, ...values, companyId)
+        }
       }
-    }
-    if (data.values !== undefined) {
-      await prisma.$queryRaw`
-        DELETE FROM catalog_product_option_value WHERE option_id = ${optionId}::uuid
-      `
-      for (const [i, val] of data.values.entries()) {
-        await prisma.$queryRaw`
-          INSERT INTO catalog_product_option_value (company_id, option_id, value, position)
-          VALUES (${companyId}::uuid, ${optionId}::uuid, ${val}, ${i})
+      if (data.values !== undefined) {
+        await tx.$queryRaw`
+          DELETE FROM catalog_product_option_value WHERE option_id = ${optionId}::uuid
         `
+        for (const [i, val] of data.values.entries()) {
+          await tx.$queryRaw`
+            INSERT INTO catalog_product_option_value (company_id, option_id, value, position)
+            VALUES (${companyId}::uuid, ${optionId}::uuid, ${val}, ${i})
+          `
+        }
       }
-    }
-    const [updated] = await prisma.$queryRaw`
-      SELECT * FROM catalog_product_option WHERE id = ${optionId}::uuid LIMIT 1
-    `
-    const values = await prisma.$queryRaw`
-      SELECT * FROM catalog_product_option_value WHERE option_id = ${optionId}::uuid ORDER BY position ASC
-    `
-    return { ...updated, values }
+      const [updated] = await tx.$queryRaw`
+        SELECT * FROM catalog_product_option WHERE id = ${optionId}::uuid LIMIT 1
+      `
+      if (!updated) return null
+      const values = await tx.$queryRaw`
+        SELECT * FROM catalog_product_option_value WHERE option_id = ${optionId}::uuid ORDER BY position ASC
+      `
+      return { ...updated, values }
+    })
   }
 
   async function deleteOption({ companyId, optionId }) {
