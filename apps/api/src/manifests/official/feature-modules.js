@@ -313,13 +313,13 @@ export const atlasWebsiteManifest = createModuleManifest({
     },
   },
   navigation: [
-    { label: 'Sitio web',    path: '/app/m/atlas.website',        icon: 'Globe',      layout: 'main', permissionKey: 'website.access' },
-    { label: 'Paginas',      path: '/app/m/atlas.website/pages',     icon: 'FileText',       layout: 'main', permissionKey: 'website.pages.read' },
+    { label: 'Sitio web',   path: '/app/m/atlas.website',           icon: 'Globe',          layout: 'main', permissionKey: 'website.access' },
+    { label: 'Paginas',     path: '/app/m/atlas.website/pages',     icon: 'FileText',       layout: 'main', permissionKey: 'website.pages.read' },
     { label: 'Plantillas',  path: '/app/m/atlas.website/templates', icon: 'LayoutTemplate', layout: 'main', permissionKey: 'website.pages.create' },
-    { label: 'Tema',         path: '/app/m/atlas.website/theme',  icon: 'Palette',    layout: 'main', permissionKey: 'website.theme.read' },
-    { label: 'Menus',        path: '/app/m/atlas.website/menus',  icon: 'Menu',       layout: 'main', permissionKey: 'website.menus.read' },
-    { label: 'Blog',         path: '/app/m/atlas.website/blog',   icon: 'BookOpen',   layout: 'main', permissionKey: 'website.pages.read' },
-    { label: 'Formularios',  path: '/app/m/atlas.website/forms',  icon: 'FormInput',  layout: 'main', permissionKey: 'website.pages.read' },
+    { label: 'Blog',        path: '/app/m/atlas.website/blog',      icon: 'BookOpen',       layout: 'main', permissionKey: 'website.pages.read' },
+    { label: 'Formularios', path: '/app/m/atlas.website/forms',     icon: 'FormInput',      layout: 'main', permissionKey: 'website.pages.read' },
+    { label: 'Tema',        path: '/app/m/atlas.website/theme',     icon: 'Palette',        layout: 'main', permissionKey: 'website.theme.read' },
+    { label: 'Pagos',       path: '/app/m/atlas.website/payments',  icon: 'CreditCard',     layout: 'main', permissionKey: 'website.site.update' },
   ],
 })
 
