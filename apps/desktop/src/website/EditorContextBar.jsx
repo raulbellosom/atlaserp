@@ -1,40 +1,46 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Pin, PinOff } from 'lucide-react'
+import { Pin, PinOff, ChevronLeft, ChevronDown, Eye, Pencil } from 'lucide-react'
 
-const BAR_HEIGHT = 44
+const BAR_H      = 46
 const STORAGE_KEY = 'atlas-editor-bar-pinned'
+const STYLES_ID   = 'atlas-editor-bar-css'
 
-const STYLES_ID = 'atlas-editor-bar-styles'
 const CSS = `
-@keyframes atlas-pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.45; }
+@keyframes _atlasPulse {
+  0%,100% { opacity:1 }
+  50%      { opacity:0.35 }
 }
-@keyframes atlas-glow {
-  0%, 100% { box-shadow: 0 0 6px 2px rgba(99,102,241,0.55); }
-  50%       { box-shadow: 0 0 14px 5px rgba(139,92,246,0.75); }
-}
-.atlas-corner-line { animation: atlas-pulse 2s ease-in-out infinite; }
-.atlas-corner-dot  { animation: atlas-glow  2s ease-in-out infinite; }
+._atlasCornerLine { animation: _atlasPulse 2.2s ease-in-out infinite }
 `
 
-function injectStyles() {
+function injectCss() {
   if (document.getElementById(STYLES_ID)) return
-  const el = document.createElement('style')
-  el.id = STYLES_ID
-  el.textContent = CSS
-  document.head.appendChild(el)
+  const s = document.createElement('style')
+  s.id = STYLES_ID
+  s.textContent = CSS
+  document.head.appendChild(s)
 }
 
-export function EditorContextBar({ site, page, onPinChange, onEditPage }) {
+export function EditorContextBar({
+  site,
+  page,
+  pages = [],
+  editMode = false,
+  onPinChange,
+  onToggleEdit,
+  onNavigate,
+  onPublishPage,
+  onUnpublishPage,
+  isPublishing = false,
+}) {
   const navigate = useNavigate()
   const [pinned, setPinned]   = useState(() => localStorage.getItem(STORAGE_KEY) === 'true')
   const [visible, setVisible] = useState(() => localStorage.getItem(STORAGE_KEY) === 'true')
   const hideTimer = useRef(null)
 
   useEffect(() => {
-    injectStyles()
+    injectCss()
     return () => clearTimeout(hideTimer.current)
   }, [])
 
@@ -53,172 +59,220 @@ export function EditorContextBar({ site, page, onPinChange, onEditPage }) {
 
   function scheduleHide() {
     if (pinned) return
-    hideTimer.current = setTimeout(() => setVisible(false), 220)
+    hideTimer.current = setTimeout(() => setVisible(false), 400)
   }
 
-  const status      = site?.status ?? 'draft'
-  const isPublished = status === 'published'
-  const statusLabel = isPublished ? 'Publicado' : 'Borrador'
-  const statusStyle = isPublished
-    ? { background: 'rgba(16,185,129,0.18)', color: '#34d399', border: '1px solid rgba(52,211,153,0.35)' }
-    : { background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' }
+  const pageStatus  = page?.status ?? 'draft'
+  const isPublished = pageStatus === 'published'
+
+  function handlePageChange(e) {
+    const v = e.target.value
+    if (v === '__new__') {
+      navigate('/app/m/atlas.website/pages')
+      return
+    }
+    const found = pages.find((p) => p.id === v)
+    if (found) onNavigate?.(found.routePath)
+  }
+
+  // ── Shared styles ──────────────────────────────────────────────────────────
+
+  const btnBase = {
+    display: 'flex', alignItems: 'center', gap: 4,
+    background: 'none', border: 'none', cursor: 'pointer',
+    borderRadius: 6, padding: '4px 8px',
+    transition: 'all 120ms',
+    whiteSpace: 'nowrap',
+  }
 
   return (
     <>
-      {/* ── Corner trigger ──────────────────────────────────────────────────── */}
+      {/* ── Corner trigger ──────────────────────────────────────────────── */}
       <div
-        style={{ position: 'fixed', top: 0, left: 0, width: 64, height: 64, zIndex: 9999 }}
+        style={{ position: 'fixed', top: 0, left: 0, width: 60, height: 60, zIndex: 9999 }}
         onMouseEnter={show}
         onMouseLeave={scheduleHide}
       >
         {!visible && (
           <>
-            {/* Horizontal gradient line */}
-            <div
-              className="atlas-corner-line"
-              style={{
-                position: 'absolute', top: 0, left: 0,
-                width: 48, height: 3,
-                background: 'linear-gradient(90deg, #6366f1 0%, #a78bfa 60%, transparent 100%)',
-                borderRadius: '0 0 3px 0',
-              }}
-            />
-            {/* Vertical gradient line */}
-            <div
-              className="atlas-corner-line"
-              style={{
-                position: 'absolute', top: 0, left: 0,
-                width: 3, height: 48,
-                background: 'linear-gradient(180deg, #6366f1 0%, #a78bfa 60%, transparent 100%)',
-                borderRadius: '0 0 3px 0',
-              }}
-            />
-            {/* Glowing corner dot */}
-            <div
-              className="atlas-corner-dot"
-              style={{
-                position: 'absolute', top: 1, left: 1,
-                width: 9, height: 9,
-                borderRadius: 2,
-                background: 'radial-gradient(circle at 30% 30%, #818cf8, #6366f1)',
-              }}
-            />
+            <div className="_atlasCornerLine" style={{
+              position: 'absolute', top: 0, left: 0,
+              width: 46, height: 3,
+              background: 'linear-gradient(90deg, #ef4444 0%, #f87171 55%, transparent 100%)',
+              borderRadius: '0 0 2px 0',
+            }} />
+            <div className="_atlasCornerLine" style={{
+              position: 'absolute', top: 0, left: 0,
+              width: 3, height: 46,
+              background: 'linear-gradient(180deg, #ef4444 0%, #f87171 55%, transparent 100%)',
+              borderRadius: '0 0 2px 0',
+            }} />
           </>
         )}
       </div>
 
-      {/* ── Bar ─────────────────────────────────────────────────────────────── */}
+      {/* ── Bar ─────────────────────────────────────────────────────────── */}
       <div
         style={{
-          position: 'fixed',
-          top: 0, left: 0,
-          width: '100%',
-          height: BAR_HEIGHT,
+          position: 'fixed', top: 0, left: 0,
+          width: '100%', height: BAR_H,
           zIndex: 9998,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          paddingLeft: 10,
-          paddingRight: 14,
-          background: 'linear-gradient(180deg, rgba(22,18,58,0.97) 0%, rgba(15,12,42,0.97) 100%)',
-          borderBottom: '1px solid rgba(99,102,241,0.28)',
-          backdropFilter: 'blur(12px)',
+          display: 'flex', alignItems: 'center',
+          gap: 4,
+          paddingLeft: 8, paddingRight: 12,
+          background: 'linear-gradient(180deg, #0d0b20 0%, #100e26 100%)',
+          borderBottom: '1px solid rgba(99,102,241,0.22)',
+          backdropFilter: 'blur(14px)',
           transform: visible ? 'translateY(0)' : 'translateY(-100%)',
           opacity: visible ? 1 : 0,
-          transition: 'transform 180ms ease, opacity 180ms ease',
+          pointerEvents: visible ? 'auto' : 'none',
+          transition: 'transform 170ms ease, opacity 170ms ease',
+          overflow: 'hidden',
         }}
         onMouseEnter={show}
         onMouseLeave={scheduleHide}
       >
-        {/* Pin toggle */}
+        {/* Gradient top accent line */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+          background: 'linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa, #8b5cf6, #6366f1)',
+          opacity: 0.7,
+        }} />
+
+        {/* ── Pin icon ──────────────────────────────────────────────────── */}
         <button
           onClick={togglePin}
-          title={pinned ? 'Desfijar barra' : 'Fijar barra'}
+          title={pinned ? 'Desfijar' : 'Fijar barra'}
           style={{
-            flexShrink: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 28, height: 28,
-            borderRadius: 6,
-            background: pinned ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.06)',
-            border: pinned ? '1px solid rgba(99,102,241,0.45)' : '1px solid rgba(255,255,255,0.1)',
-            color: pinned ? '#a78bfa' : '#6b7280',
-            cursor: 'pointer',
-            transition: 'all 150ms',
+            ...btnBase,
+            padding: '4px 6px',
+            color: pinned ? '#a78bfa' : '#4b5563',
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = pinned ? '#c4b5fd' : '#6b7280' }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = pinned ? '#a78bfa' : '#4b5563' }}
         >
-          {pinned ? <Pin size={13} /> : <PinOff size={13} />}
+          {pinned ? <Pin size={15} /> : <PinOff size={15} />}
         </button>
 
-        {/* Status chip */}
-        <span style={{
-          flexShrink: 0,
-          fontSize: 11, fontWeight: 700,
-          padding: '2px 9px',
-          borderRadius: 9999,
-          letterSpacing: '0.02em',
-          ...statusStyle,
-        }}>
-          {statusLabel}
-        </span>
-
         {/* Divider */}
-        <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />
+        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
 
-        {/* Site · Page */}
-        <span style={{
-          fontSize: 12, color: '#9ca3af', flex: 1,
-          overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-          letterSpacing: '0.01em',
-        }}>
-          <span style={{ color: '#c4b5fd', fontWeight: 600 }}>{site?.name}</span>
-          {page?.title && (
-            <span style={{ color: '#6b7280' }}> · {page.title}</span>
-          )}
-        </span>
-
-        {/* Edit button */}
-        {page?.id && (
-          <button
-            onClick={() => onEditPage ? onEditPage() : navigate(`/app/m/atlas.website/pages/${page.id}/editor`)}
-            style={{
-              flexShrink: 0,
-              fontSize: 12, fontWeight: 600,
-              color: '#fff',
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-              border: 'none',
-              borderRadius: 7,
-              padding: '5px 14px',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              boxShadow: '0 1px 8px rgba(99,102,241,0.4)',
-              transition: 'opacity 150ms',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85' }}
-            onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
-          >
-            Editar esta pagina
-          </button>
-        )}
-
-        {/* Panel link */}
+        {/* ── Back to ERP ───────────────────────────────────────────────── */}
         <button
-          onClick={() => navigate('/app/m/atlas.website')}
-          style={{
-            flexShrink: 0,
-            fontSize: 12,
-            color: '#6b7280',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            padding: '4px 6px',
-            borderRadius: 5,
-            transition: 'color 150ms',
-          }}
+          onClick={() => navigate('/app')}
+          style={{ ...btnBase, color: '#6b7280', fontSize: 12 }}
           onMouseEnter={(e) => { e.currentTarget.style.color = '#9ca3af' }}
           onMouseLeave={(e) => { e.currentTarget.style.color = '#6b7280' }}
         >
-          Panel
+          <ChevronLeft size={13} />
+          <span>Atlas ERP</span>
+        </button>
+
+        {/* Divider */}
+        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
+
+        {/* ── Page selector ─────────────────────────────────────────────── */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <select
+            value={page?.id ?? ''}
+            onChange={handlePageChange}
+            style={{
+              appearance: 'none',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(99,102,241,0.25)',
+              color: '#c4b5fd',
+              borderRadius: 7,
+              padding: '4px 28px 4px 10px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              outline: 'none',
+              maxWidth: 200,
+            }}
+          >
+            {page && !pages.find((p) => p.id === page.id) && (
+              <option value={page.id}>{page.title}</option>
+            )}
+            {pages.map((p) => (
+              <option key={p.id} value={p.id}>{p.title}</option>
+            ))}
+            <option value="__new__">+ Nueva pagina</option>
+          </select>
+          <ChevronDown
+            size={12}
+            style={{ position: 'absolute', right: 8, color: '#6366f1', pointerEvents: 'none' }}
+          />
+        </div>
+
+        {/* Flex spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* ── Vista / Editor toggle ─────────────────────────────────────── */}
+        <div style={{
+          display: 'flex',
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: 8, padding: 2, gap: 1,
+        }}>
+          <button
+            onClick={() => editMode && onToggleEdit?.()}
+            style={{
+              ...btnBase,
+              padding: '3px 10px',
+              fontSize: 11, fontWeight: 600,
+              color: !editMode ? '#fff' : '#4b5563',
+              background: !editMode ? 'rgba(99,102,241,0.75)' : 'transparent',
+              cursor: !editMode ? 'default' : 'pointer',
+            }}
+          >
+            <Eye size={11} style={{ marginRight: 3 }} />
+            Vista
+          </button>
+          <button
+            onClick={() => !editMode && onToggleEdit?.()}
+            style={{
+              ...btnBase,
+              padding: '3px 10px',
+              fontSize: 11, fontWeight: 600,
+              color: editMode ? '#fff' : '#4b5563',
+              background: editMode ? 'rgba(99,102,241,0.75)' : 'transparent',
+              cursor: editMode ? 'default' : 'pointer',
+            }}
+          >
+            <Pencil size={11} style={{ marginRight: 3 }} />
+            Editor
+          </button>
+        </div>
+
+        {/* Divider */}
+        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
+
+        {/* ── Publish / Draft button ────────────────────────────────────── */}
+        <button
+          onClick={() => isPublished ? onUnpublishPage?.() : onPublishPage?.()}
+          disabled={isPublishing}
+          style={{
+            ...btnBase,
+            fontSize: 11, fontWeight: 700,
+            padding: '4px 12px',
+            border: '1px solid',
+            opacity: isPublishing ? 0.6 : 1,
+            cursor: isPublishing ? 'default' : 'pointer',
+            ...(isPublished
+              ? {
+                  background: 'rgba(16,185,129,0.12)',
+                  color: '#34d399',
+                  borderColor: 'rgba(52,211,153,0.3)',
+                }
+              : {
+                  background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+                  color: '#fff',
+                  borderColor: 'transparent',
+                  boxShadow: '0 1px 8px rgba(99,102,241,0.4)',
+                }),
+          }}
+        >
+          {isPublishing ? 'Procesando...' : isPublished ? 'Publicado' : 'Publicar'}
         </button>
       </div>
     </>

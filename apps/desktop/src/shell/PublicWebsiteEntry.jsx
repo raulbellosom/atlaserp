@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider.jsx'
 import { getApiUrl } from '../lib/runtimeConfig.js'
 import { AppLoader } from '../components/AppLoader.jsx'
@@ -8,8 +8,23 @@ import { PublicWebsite404 } from './PublicWebsite404.jsx'
 import { WebsitePageRenderer } from '../website/WebsitePageRenderer.jsx'
 import { EditorContextBar } from '../website/EditorContextBar.jsx'
 import WebsitePageEditorScreen from '../modules/atlas.website/screens/WebsitePageEditorScreen.jsx'
+import { toast } from 'sonner'
 
 const STORAGE_KEY = 'atlas-editor-bar-pinned'
+const BAR_H = 46
+
+async function apiFetch(path, token, options = {}) {
+  const res = await fetch(`${getApiUrl()}${path}`, {
+    ...options,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...options.headers },
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || `HTTP ${res.status}`)
+  }
+  if (res.status === 204) return null
+  return res.json()
+}
 
 async function fetchWebsiteResolve(pathname) {
   const url = `${getApiUrl()}/public/website/resolve?path=${encodeURIComponent(pathname)}`
@@ -27,8 +42,9 @@ async function fetchEditorCheck(token) {
 }
 
 export function PublicWebsiteEntry() {
-  const location = useLocation()
-  const navigate = useNavigate()
+  const location    = useLocation()
+  const navigate    = useNavigate()
+  const queryClient = useQueryClient()
   const { session } = useAuth()
   const token = session?.access_token
 
@@ -44,14 +60,7 @@ export function PublicWebsiteEntry() {
     }
   }, [])
 
-  // Restore scroll when exiting edit mode
-  useEffect(() => {
-    if (!editMode) {
-      document.documentElement.style.overflow = 'auto'
-      document.body.style.overflow = 'auto'
-    }
-  }, [editMode])
-
+  // Public resolve — no auth
   const resolveQuery = useQuery({
     queryKey: ['public-website-resolve', location.pathname],
     queryFn:  () => fetchWebsiteResolve(location.pathname),
@@ -59,7 +68,7 @@ export function PublicWebsiteEntry() {
     retry: 1,
   })
 
-  // Only runs when authenticated — verifies the user has website.site.read (editor access)
+  // Editor permission check — runs only when authenticated
   const editorCheckQuery = useQuery({
     queryKey: ['editor-check', token],
     queryFn:  () => fetchEditorCheck(token),
@@ -69,7 +78,42 @@ export function PublicWebsiteEntry() {
   })
 
   const resolveData = resolveQuery.data
-  const isEditor    = Boolean(token) && Boolean(editorCheckQuery.data?.data)
+  const site        = editorCheckQuery.data?.data ?? null
+  const isEditor    = Boolean(token) && Boolean(site)
+  const siteId      = site?.id ?? null
+
+  // Pages list for the bar selector
+  const pagesQuery = useQuery({
+    queryKey: ['website-pages-bar', siteId],
+    queryFn:  () => apiFetch(`/website/pages?siteId=${siteId}&pageSize=50`, token),
+    enabled:  isEditor && Boolean(siteId),
+    staleTime: 60_000,
+  })
+
+  // Publish current page (uses existing draftBuilderData)
+  const publishMutation = useMutation({
+    mutationFn: () => apiFetch(`/website/pages/${resolveData?.page?.id}/publish`, token, { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['public-website-resolve', location.pathname] })
+      queryClient.invalidateQueries({ queryKey: ['website-pages-bar', siteId] })
+      toast.success('Pagina publicada')
+    },
+    onError: (err) => toast.error(err.message),
+  })
+
+  // Set page back to draft
+  const unpublishMutation = useMutation({
+    mutationFn: () => apiFetch(`/website/pages/${resolveData?.page?.id}`, token, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'draft' }),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['public-website-resolve', location.pathname] })
+      queryClient.invalidateQueries({ queryKey: ['website-pages-bar', siteId] })
+      toast.success('Pagina marcada como borrador')
+    },
+    onError: (err) => toast.error(err.message),
+  })
 
   useEffect(() => {
     if (resolveData && resolveData.initialized === false) {
@@ -82,55 +126,42 @@ export function PublicWebsiteEntry() {
   if (resolveData?.initialized === false) return null
   if (!resolveData?.page) return <PublicWebsite404 />
 
-  // ── Inline edit mode ────────────────────────────────────────────────────────
+  const pages         = pagesQuery.data?.data ?? []
+  const isPublishing  = publishMutation.isPending || unpublishMutation.isPending
+  const topPad        = isEditor && barPinned ? BAR_H : 0
+
+  const editorBar = isEditor ? (
+    <EditorContextBar
+      site={site}
+      page={resolveData.page}
+      pages={pages}
+      editMode={editMode}
+      onPinChange={setBarPinned}
+      onToggleEdit={() => setEditMode((v) => !v)}
+      onNavigate={(routePath) => navigate(routePath)}
+      onPublishPage={() => publishMutation.mutate()}
+      onUnpublishPage={() => unpublishMutation.mutate()}
+      isPublishing={isPublishing}
+    />
+  ) : null
+
+  // ── Edit mode — editor renders full-screen, bar stays on top ──────────────
   if (editMode && resolveData.page?.id) {
     return (
       <>
-        <WebsitePageEditorScreen pageId={resolveData.page.id} />
-        {/* Floating close button — sits above the editor's own UI */}
-        <button
-          onClick={() => setEditMode(false)}
-          style={{
-            position: 'fixed',
-            top: 12,
-            left: 12,
-            zIndex: 99999,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 12,
-            fontWeight: 600,
-            color: '#e5e7eb',
-            background: 'rgba(22,18,58,0.92)',
-            border: '1px solid rgba(99,102,241,0.4)',
-            borderRadius: 7,
-            padding: '6px 14px',
-            cursor: 'pointer',
-            backdropFilter: 'blur(8px)',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
-            transition: 'opacity 150ms',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8' }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
-        >
-          ← Volver al sitio
-        </button>
+        {editorBar}
+        <div style={{ paddingTop: topPad }}>
+          <WebsitePageEditorScreen pageId={resolveData.page.id} />
+        </div>
       </>
     )
   }
 
-  // ── Normal public view ───────────────────────────────────────────────────────
+  // ── View mode ─────────────────────────────────────────────────────────────
   return (
     <>
-      {isEditor && (
-        <EditorContextBar
-          site={editorCheckQuery.data?.data}
-          page={resolveData.page}
-          onPinChange={setBarPinned}
-          onEditPage={() => setEditMode(true)}
-        />
-      )}
-      <div style={{ paddingTop: isEditor && barPinned ? 44 : 0 }}>
+      {editorBar}
+      <div style={{ paddingTop: topPad }}>
         <WebsitePageRenderer
           page={resolveData.page}
           theme={resolveData.theme}
