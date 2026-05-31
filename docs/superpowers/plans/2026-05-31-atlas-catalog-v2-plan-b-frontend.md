@@ -2,293 +2,206 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the two minimal catalog list screens with a complete catalog management UI: redesigned product list, full product detail with 6 tabs, redesigned category manager with hierarchy, inventory overview screen, and all supporting components.
+**Goal:** Build the complete catalog management UI following the exact design patterns of sibling modules (HR, Contacts): `PageHeader` + `AtlasTable` + pill tabs + `motion/react` animations + `ConfirmDialog` + `atlas.*` SDK calls.
 
-**Architecture:** Four screens under `apps/desktop/src/modules/atlas.catalog/screens/`, four supporting components under `components/`, and updated route registration in `index.js`. All data fetching uses TanStack Query. `MarkdownField` and `MarkdownViewer` are imported from `@atlas/ui` (already exist in packages/ui). File uploads go directly to atlas.files via the existing files API — the `ProductImageUploader` component handles this inline.
+**Architecture:** Add `atlas.catalog` section to the SDK. Four screens (Products list, Product detail with 6 tabs, Categories, Inventory) + four supporting components. `AtlasTable` with blueprints handles product and inventory lists. Product detail uses pill tabs + `AnimatePresence` transitions + `SectionCard` pattern — identical to `HrEmployeeDetail`. File uploads use `atlas.files.*` SDK methods.
 
-**Tech Stack:** React, TanStack Query (`useQuery`/`useMutation`), `@atlas/ui` components, Tailwind CSS, Lucide icons, `sonner` toasts.
+**Tech Stack:** React, TanStack Query, `@atlas/ui` (`AtlasTable`, `PageHeader`, `Badge`, `ConfirmDialog`, `EmptyState`, `Skeleton`, `MarkdownField`, `MarkdownViewer`, `cn`), `motion/react`, Lucide icons, Sonner toasts.
 
-**Prerequisite:** Plan A (backend) must be fully deployed and verified before starting Plan B.
+**Prerequisite:** Plan A backend must be complete and verified.
+
+**Reference files to read before implementing:**
+- `apps/desktop/src/modules/atlas.hr/screens/HrScreen.jsx` — AtlasTable + PageHeader pattern
+- `apps/desktop/src/modules/atlas.hr/screens/HrCatalogsScreen.jsx` — pill tabs + AnimatePresence
+- `apps/desktop/src/modules/atlas.hr/screens/HrEmployeeDetail.jsx` — detail tabs + SectionCard
+- `apps/desktop/src/modules/atlas.contacts/screens/ContactsScreen.jsx` — ConfirmDialog + bulk actions
+- `packages/sdk/src/index.js` — SDK structure (add catalog section before the closing brace)
 
 ---
 
 ## File map
 
 ```
+packages/sdk/src/index.js                                       MODIFY (add catalog section)
 apps/desktop/src/modules/atlas.catalog/
-  index.js                                      MODIFY  (add new routes)
+  index.js                                                      MODIFY (add new screen exports/routes)
   screens/
-    CatalogProductsScreen.jsx                   REWRITE (redesign)
-    CatalogProductDetailScreen.jsx              CREATE  (new - 6 tabs)
-    CatalogCategoriesScreen.jsx                 REWRITE (redesign)
-    CatalogInventoryScreen.jsx                  CREATE  (new)
+    CatalogProductsScreen.jsx                                   REWRITE
+    CatalogProductDetailScreen.jsx                              CREATE
+    CatalogCategoriesScreen.jsx                                 REWRITE
+    CatalogInventoryScreen.jsx                                  CREATE
   components/
-    ProductImageUploader.jsx                    CREATE
-    StockMovementModal.jsx                      CREATE
-    VariantOptionsEditor.jsx                    CREATE
-    VariantMatrix.jsx                           CREATE
+    ProductImageManager.jsx                                     CREATE
+    StockMovementModal.jsx                                      CREATE
+    VariantOptionsEditor.jsx                                    CREATE
+    VariantMatrix.jsx                                           CREATE
 ```
 
 ---
 
-## Task 1: Update module routes + rewrite CatalogProductsScreen
+## Task 1: Add atlas.catalog SDK methods + update catalog index.js
 
 **Files:**
+- Modify: `packages/sdk/src/index.js`
 - Modify: `apps/desktop/src/modules/atlas.catalog/index.js`
-- Rewrite: `apps/desktop/src/modules/atlas.catalog/screens/CatalogProductsScreen.jsx`
 
-- [ ] **Step 1: Read the current index.js to understand the route registration pattern**
+- [ ] **Step 1: Read packages/sdk/src/index.js**
 
-Read: `apps/desktop/src/modules/atlas.catalog/index.js`
+Read the file to locate the closing `}` of the `createAtlasClient` return object (after the `ledger` section). Add the `catalog` section just before that closing brace.
 
-Then replace with:
+- [ ] **Step 2: Add catalog section to SDK**
 
-```jsx
-// apps/desktop/src/modules/atlas.catalog/index.js
-import CatalogProductsScreen    from './screens/CatalogProductsScreen.jsx'
-import CatalogProductDetailScreen from './screens/CatalogProductDetailScreen.jsx'
-import CatalogCategoriesScreen  from './screens/CatalogCategoriesScreen.jsx'
-import CatalogInventoryScreen   from './screens/CatalogInventoryScreen.jsx'
+Insert this block inside the `createAtlasClient` return object, after the `ledger` property and before the closing `};`:
 
-export const routes = [
-  { path: '/app/m/atlas.catalog',              element: <CatalogProductsScreen /> },
-  { path: '/app/m/atlas.catalog/:id',          element: <CatalogProductDetailScreen /> },
-  { path: '/app/m/atlas.catalog/categories',   element: <CatalogCategoriesScreen /> },
-  { path: '/app/m/atlas.catalog/inventory',    element: <CatalogInventoryScreen /> },
-]
+```js
+    catalog: {
+      // Products
+      listProducts: (token, options = {}) =>
+        request(`/catalog/products${toQueryString(options)}`, { headers: withAuthHeaders(token) }),
+      getProduct: (id, token) =>
+        request(`/catalog/products/${encodeURIComponent(id)}`, { headers: withAuthHeaders(token) }),
+      createProduct: (data, token) =>
+        request('/catalog/products', { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      updateProduct: (id, data, token) =>
+        request(`/catalog/products/${encodeURIComponent(id)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      deleteProduct: (id, token) =>
+        request(`/catalog/products/${encodeURIComponent(id)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+      publishProduct: (id, token) =>
+        request(`/catalog/products/${encodeURIComponent(id)}/publish`, { method: 'POST', headers: withAuthHeaders(token) }),
+      unpublishProduct: (id, token) =>
+        request(`/catalog/products/${encodeURIComponent(id)}/unpublish`, { method: 'POST', headers: withAuthHeaders(token) }),
+      // Options
+      listOptions: (productId, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/options`, { headers: withAuthHeaders(token) }),
+      createOption: (productId, data, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/options`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      updateOption: (productId, optionId, data, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/options/${encodeURIComponent(optionId)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      deleteOption: (productId, optionId, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/options/${encodeURIComponent(optionId)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+      // Variants
+      listVariants: (productId, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/variants`, { headers: withAuthHeaders(token) }),
+      createVariant: (productId, data, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/variants`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      updateVariant: (productId, variantId, data, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      deleteVariant: (productId, variantId, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+      // Stock
+      recordStockMovement: (productId, data, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/stock-movements`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      listStockMovements: (productId, token, options = {}) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/stock-movements${toQueryString(options)}`, { headers: withAuthHeaders(token) }),
+      // Categories
+      listCategories: (token, options = {}) =>
+        request(`/catalog/categories${toQueryString(options)}`, { headers: withAuthHeaders(token) }),
+      createCategory: (data, token) =>
+        request('/catalog/categories', { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      updateCategory: (id, data, token) =>
+        request(`/catalog/categories/${encodeURIComponent(id)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      deleteCategory: (id, token) =>
+        request(`/catalog/categories/${encodeURIComponent(id)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+    },
 ```
 
-> Note: Check whether the existing index.js uses a different export shape (e.g. a default export function or a named `routes` array). Match the pattern used by other modules in the project (e.g. check `apps/desktop/src/modules/atlas.hr/index.js` for reference). The route paths above must match exactly.
-
-- [ ] **Step 2: Rewrite CatalogProductsScreen.jsx**
-
-```jsx
-// apps/desktop/src/modules/atlas.catalog/screens/CatalogProductsScreen.jsx
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuth } from '../../../auth/AuthProvider.jsx'
-import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import { Button, Input, Badge } from '@atlas/ui'
-import { Package, Plus } from 'lucide-react'
-import { toast } from 'sonner'
-
-async function apiFetch(path, token, options = {}) {
-  const res = await fetch(`${getApiUrl()}${path}`, {
-    ...options,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...options.headers },
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || `HTTP ${res.status}`)
-  }
-  return res.json()
-}
-
-export default function CatalogProductsScreen() {
-  const { session } = useAuth()
-  const token = session?.access_token
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const [search, setSearch] = useState('')
-  const [typeFilter, setTypeFilter] = useState('')
-  const [publishedFilter, setPublishedFilter] = useState('')
-
-  const { data, isPending } = useQuery({
-    queryKey: ['catalog-products', token, search, typeFilter, publishedFilter],
-    queryFn: () => {
-      const params = new URLSearchParams({ limit: '50' })
-      if (search)          params.set('search', search)
-      if (typeFilter)      params.set('type', typeFilter)
-      if (publishedFilter) params.set('published', publishedFilter)
-      return apiFetch(`/catalog/products?${params}`, token)
-    },
-    enabled: Boolean(token),
-    staleTime: 30_000,
-  })
-
-  const createMutation = useMutation({
-    mutationFn: (body) => apiFetch('/catalog/products', token, { method: 'POST', body: JSON.stringify(body) }),
-    onSuccess: (res) => {
-      toast.success('Producto creado')
-      queryClient.invalidateQueries({ queryKey: ['catalog-products'] })
-      navigate(`/app/m/atlas.catalog/${res.data.id}`)
-    },
-    onError: (err) => toast.error(err.message),
-  })
-
-  function handleCreate() {
-    const name = prompt('Nombre del producto:')
-    if (!name?.trim()) return
-    const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-    createMutation.mutate({ name: name.trim(), slug, price: 0 })
-  }
-
-  const products = data?.data ?? []
-  const total    = data?.total ?? 0
-
-  return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-[hsl(var(--foreground))]">Productos</h1>
-          <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">{total} productos</p>
-        </div>
-        <Button onClick={handleCreate} disabled={createMutation.isPending}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo producto
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap gap-3">
-        <Input
-          placeholder="Buscar productos..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
-        />
-        <select
-          className="border border-[hsl(var(--border))] rounded-md px-3 py-2 text-sm bg-[hsl(var(--background))] text-[hsl(var(--foreground))]"
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-        >
-          <option value="">Todos los tipos</option>
-          <option value="SIMPLE">Simple</option>
-          <option value="VARIABLE">Variable</option>
-        </select>
-        <select
-          className="border border-[hsl(var(--border))] rounded-md px-3 py-2 text-sm bg-[hsl(var(--background))] text-[hsl(var(--foreground))]"
-          value={publishedFilter}
-          onChange={(e) => setPublishedFilter(e.target.value)}
-        >
-          <option value="">Todos los estados</option>
-          <option value="true">Publicado</option>
-          <option value="false">Borrador</option>
-        </select>
-      </div>
-
-      {isPending ? (
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">Cargando...</p>
-      ) : products.length === 0 ? (
-        <div className="text-center py-16 text-[hsl(var(--muted-foreground))]">
-          <Package className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">{search ? 'Sin resultados.' : 'No hay productos. Crea el primero.'}</p>
-        </div>
-      ) : (
-        <div className="border border-[hsl(var(--border))] rounded-lg divide-y divide-[hsl(var(--border))]">
-          {products.map((p) => (
-            <div
-              key={p.id}
-              className="flex items-center gap-4 px-4 py-3 hover:bg-[hsl(var(--muted))/30] cursor-pointer"
-              onClick={() => navigate(`/app/m/atlas.catalog/${p.id}`)}
-            >
-              <div className="h-10 w-10 rounded border border-[hsl(var(--border))] bg-[hsl(var(--muted))] flex items-center justify-center shrink-0 overflow-hidden">
-                {p.cover_asset_id ? (
-                  <img src={`${getApiUrl()}/files/${p.cover_asset_id}/thumb`} alt="" className="h-full w-full object-cover" onError={(e) => { e.target.style.display = 'none' }} />
-                ) : (
-                  <Package className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-[hsl(var(--foreground))] truncate">{p.name}</p>
-                  <span className={`text-xs px-1.5 py-0.5 rounded border ${
-                    p.product_type === 'VARIABLE'
-                      ? 'bg-blue-50 text-blue-700 border-blue-200'
-                      : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]'
-                  }`}>
-                    {p.product_type === 'VARIABLE' ? 'Variable' : 'Simple'}
-                  </span>
-                  {p.published ? (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-green-50 text-green-700 border border-green-200">Publicado</span>
-                  ) : (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-50 text-yellow-700 border border-yellow-200">Borrador</span>
-                  )}
-                </div>
-                <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                  {p.category_name ?? 'Sin categoria'} · {p.currency} {Number(p.price).toFixed(2)}
-                  {p.track_stock && ` · Stock: ${p.stock}`}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-```
-
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Run syntax check on SDK**
 
 ```bash
-git add apps/desktop/src/modules/atlas.catalog/index.js \
-        apps/desktop/src/modules/atlas.catalog/screens/CatalogProductsScreen.jsx
-git commit -m "feat(catalog): redesign product list screen with filters and thumbnail"
+node --check packages/sdk/src/index.js
+```
+
+Expected: no output (no errors).
+
+- [ ] **Step 4: Update catalog module index.js**
+
+Replace the full content of `apps/desktop/src/modules/atlas.catalog/index.js`:
+
+```js
+export { default as CatalogProductsScreen }    from './screens/CatalogProductsScreen.jsx'
+export { default as CatalogProductDetailScreen } from './screens/CatalogProductDetailScreen.jsx'
+export { default as CatalogCategoriesScreen }  from './screens/CatalogCategoriesScreen.jsx'
+export { default as CatalogInventoryScreen }   from './screens/CatalogInventoryScreen.jsx'
+```
+
+> Note: Check how the app router registers catalog routes — look in `apps/desktop/src/App.jsx` or the main router file for how `atlas.hr` screens are registered, then follow the same pattern to register the new catalog screens. The router setup is NOT in index.js — it lives in the App router. Find where `CatalogProductsScreen` and `CatalogCategoriesScreen` are imported and add the two new screens + their routes.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add packages/sdk/src/index.js apps/desktop/src/modules/atlas.catalog/index.js
+git commit -m "feat(catalog): add atlas.catalog SDK methods and export new screens"
 ```
 
 ---
 
-## Task 2: Create ProductImageUploader component
+## Task 2: Create ProductImageManager component
 
 **Files:**
-- Create: `apps/desktop/src/modules/atlas.catalog/components/ProductImageUploader.jsx`
+- Create: `apps/desktop/src/modules/atlas.catalog/components/ProductImageManager.jsx`
 
-This component handles cover image + gallery, with inline upload to atlas.files. It calls `POST /files/upload` using multipart form data, then returns the FileAsset UUID.
+This component handles cover image + gallery. It uploads files directly to atlas.files via `atlas.files.upload()` and resolves signed URLs via `atlas.files.batchSignedUrls()`. It differs from the existing `ImageUploader` (which works with File objects) — this one works with FileAsset UUIDs persisted in the product.
 
-- [ ] **Step 1: Create ProductImageUploader.jsx**
+- [ ] **Step 1: Create ProductImageManager.jsx**
 
 ```jsx
-// apps/desktop/src/modules/atlas.catalog/components/ProductImageUploader.jsx
-import { useRef } from 'react'
-import { getApiUrl } from '../../../../lib/runtimeConfig.js'
-import { Button } from '@atlas/ui'
-import { ImagePlus, X, Star } from 'lucide-react'
+// apps/desktop/src/modules/atlas.catalog/components/ProductImageManager.jsx
+import { useEffect, useRef, useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
+import { cn } from '@atlas/ui'
+import { ImagePlus, Star, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-
-async function uploadFile(file, token) {
-  const form = new FormData()
-  form.append('file', file)
-  const res = await fetch(`${getApiUrl()}/files/upload`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: form,
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || 'Error al subir archivo')
-  }
-  const { data } = await res.json()
-  return data // FileAsset object with .id
-}
-
-function buildPreviewUrl(assetId) {
-  return `${getApiUrl()}/files/${assetId}/signed-url`
-}
+import { atlas } from '../../../lib/atlas.js'
 
 /**
  * Props:
- *   token        string   — auth bearer token
- *   coverId      string|null  — current cover_asset_id
- *   imageIds     string[]     — current images array of UUIDs
- *   onChange     fn({ coverId, imageIds }) — called on any change
+ *   token       string
+ *   coverId     string | null    — current cover_asset_id UUID
+ *   imageIds    string[]         — current gallery asset UUIDs
+ *   onChange    ({ coverId, imageIds }) => void
  */
-export default function ProductImageUploader({ token, coverId, imageIds = [], onChange }) {
-  const coverInputRef  = useRef(null)
+export default function ProductImageManager({ token, coverId, imageIds = [], onChange }) {
+  const coverInputRef   = useRef(null)
   const galleryInputRef = useRef(null)
+  const [signedUrls, setSignedUrls] = useState({})
+
+  const allIds = [...new Set([coverId, ...imageIds].filter(Boolean))]
+
+  useEffect(() => {
+    if (!allIds.length || !token) return
+    atlas.files.batchSignedUrls(allIds, token)
+      .then(res => {
+        const map = {}
+        const items = res?.data ?? res?.urls ?? []
+        if (Array.isArray(items)) {
+          items.forEach(item => { if (item?.fileId && item?.url) map[item.fileId] = item.url })
+        } else if (typeof items === 'object') {
+          Object.assign(map, items)
+        }
+        setSignedUrls(map)
+      })
+      .catch(() => null)
+  }, [allIds.join(','), token])
+
+  const uploadMutation = useMutation({
+    mutationFn: async (file) => {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await atlas.files.upload(form, token)
+      return res?.data ?? res
+    },
+  })
 
   async function handleCoverUpload(e) {
     const file = e.target.files?.[0]
     if (!file) return
     try {
-      const asset = await uploadFile(file, token)
+      const asset = await uploadMutation.mutateAsync(file)
       onChange({ coverId: asset.id, imageIds })
       toast.success('Imagen de portada actualizada')
     } catch (err) {
-      toast.error(err.message)
-    } finally {
-      e.target.value = ''
-    }
+      toast.error(err?.message ?? 'Error al subir imagen')
+    } finally { e.target.value = '' }
   }
 
   async function handleGalleryUpload(e) {
@@ -297,10 +210,10 @@ export default function ProductImageUploader({ token, coverId, imageIds = [], on
     const uploaded = []
     for (const file of files) {
       try {
-        const asset = await uploadFile(file, token)
+        const asset = await uploadMutation.mutateAsync(file)
         uploaded.push(asset.id)
       } catch (err) {
-        toast.error(`Error subiendo ${file.name}: ${err.message}`)
+        toast.error(`Error subiendo ${file.name}: ${err?.message}`)
       }
     }
     if (uploaded.length) {
@@ -310,122 +223,98 @@ export default function ProductImageUploader({ token, coverId, imageIds = [], on
     e.target.value = ''
   }
 
-  function removeCover() {
-    onChange({ coverId: null, imageIds })
-  }
-
-  function removeFromGallery(id) {
-    onChange({ coverId, imageIds: imageIds.filter(i => i !== id) })
-  }
-
-  function promoteTocover(id) {
-    onChange({ coverId: id, imageIds: imageIds.filter(i => i !== id) })
-  }
+  function removeCover() { onChange({ coverId: null, imageIds }) }
+  function removeFromGallery(id) { onChange({ coverId, imageIds: imageIds.filter(i => i !== id) }) }
+  function promoteTocover(id) { onChange({ coverId: id, imageIds: imageIds.filter(i => i !== id) }) }
 
   return (
     <div className="space-y-6">
-      {/* Cover image */}
+      {/* Cover */}
       <div>
-        <p className="text-sm font-medium text-[hsl(var(--foreground))] mb-2">Imagen de portada</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))] mb-3">Imagen de portada</p>
         <div className="flex items-start gap-4">
-          <div
-            className="h-32 w-32 rounded-lg border-2 border-dashed border-[hsl(var(--border))] flex items-center justify-center bg-[hsl(var(--muted))] overflow-hidden cursor-pointer relative group"
+          <button
+            type="button"
             onClick={() => coverInputRef.current?.click()}
+            className={cn(
+              'relative h-32 w-32 rounded-2xl border-2 border-dashed border-[hsl(var(--border))] overflow-hidden',
+              'bg-[hsl(var(--muted))]/40 transition-colors hover:bg-[hsl(var(--muted))]/60 hover:border-[hsl(var(--foreground))]/30',
+              'flex flex-col items-center justify-center gap-1',
+            )}
           >
-            {coverId ? (
+            {coverId && signedUrls[coverId] ? (
               <>
-                <ImageAsset assetId={coverId} token={token} />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <p className="text-white text-xs">Cambiar</p>
+                <img src={signedUrls[coverId]} alt="Portada" className="absolute inset-0 h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <p className="text-white text-xs font-medium">Cambiar</p>
                 </div>
               </>
             ) : (
-              <div className="text-center text-[hsl(var(--muted-foreground))]">
-                <ImagePlus className="h-6 w-6 mx-auto mb-1" />
-                <p className="text-xs">Subir portada</p>
-              </div>
+              <>
+                <ImagePlus className="h-6 w-6 text-[hsl(var(--muted-foreground))]" />
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">Subir portada</p>
+              </>
             )}
-          </div>
+          </button>
           {coverId && (
-            <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 mt-1" onClick={removeCover}>
-              <X className="h-4 w-4 mr-1" /> Quitar
-            </Button>
+            <button
+              type="button"
+              onClick={removeCover}
+              className="mt-1 flex items-center gap-1 text-xs text-red-500 hover:text-red-700"
+            >
+              <Trash2 className="h-3 w-3" /> Quitar portada
+            </button>
           )}
         </div>
-        <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
+        <input ref={coverInputRef} type="file" accept="image/*" className="sr-only" onChange={handleCoverUpload} />
       </div>
 
       {/* Gallery */}
       <div>
-        <p className="text-sm font-medium text-[hsl(var(--foreground))] mb-2">Galeria adicional</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))] mb-3">Galeria adicional</p>
         <div className="flex flex-wrap gap-3">
-          {imageIds.map((id) => (
-            <div key={id} className="relative h-24 w-24 rounded-lg border border-[hsl(var(--border))] overflow-hidden group">
-              <ImageAsset assetId={id} token={token} />
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1">
+          {imageIds.map(id => (
+            <div key={id} className="group relative h-24 w-24 rounded-xl border border-[hsl(var(--border))] overflow-hidden bg-[hsl(var(--muted))]">
+              {signedUrls[id] && <img src={signedUrls[id]} alt="" className="h-full w-full object-cover" />}
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
                 <button
-                  className="text-white text-xs flex items-center gap-1 hover:text-yellow-300"
+                  type="button"
                   onClick={() => promoteTocover(id)}
-                  title="Usar como portada"
+                  className="flex items-center gap-1 text-xs text-white hover:text-yellow-300"
                 >
                   <Star className="h-3 w-3" /> Portada
                 </button>
                 <button
-                  className="text-white text-xs flex items-center gap-1 hover:text-red-300"
+                  type="button"
                   onClick={() => removeFromGallery(id)}
+                  className="flex items-center gap-1 text-xs text-white hover:text-red-300"
                 >
-                  <X className="h-3 w-3" /> Quitar
+                  <Trash2 className="h-3 w-3" /> Quitar
                 </button>
               </div>
             </div>
           ))}
           <button
-            className="h-24 w-24 rounded-lg border-2 border-dashed border-[hsl(var(--border))] flex flex-col items-center justify-center text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--foreground)/50)] transition-colors"
+            type="button"
             onClick={() => galleryInputRef.current?.click()}
+            className="h-24 w-24 rounded-xl border-2 border-dashed border-[hsl(var(--border))] flex flex-col items-center justify-center gap-1 text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--foreground))]/30 hover:bg-[hsl(var(--muted))]/40 transition-colors"
           >
-            <ImagePlus className="h-5 w-5 mb-1" />
+            <ImagePlus className="h-5 w-5" />
             <span className="text-xs">Agregar</span>
           </button>
         </div>
-        <input ref={galleryInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleGalleryUpload} />
+        <input ref={galleryInputRef} type="file" accept="image/*" multiple className="sr-only" onChange={handleGalleryUpload} />
       </div>
     </div>
   )
 }
-
-function ImageAsset({ assetId, token }) {
-  const [src, setSrc] = useSignedUrl(assetId, token)
-  return src
-    ? <img src={src} alt="" className="h-full w-full object-cover" />
-    : <div className="h-full w-full bg-[hsl(var(--muted))]" />
-}
-
-function useSignedUrl(assetId, token) {
-  const [url, setUrl] = useState(null)
-  useEffect(() => {
-    if (!assetId || !token) return
-    fetch(`${getApiUrl()}/files/${assetId}/signed-url`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.json())
-      .then(data => setUrl(data?.data?.url ?? data?.url ?? null))
-      .catch(() => null)
-  }, [assetId, token])
-  return [url, setUrl]
-}
-```
-
-Add the missing React imports at the top:
-
-```jsx
-import { useRef, useState, useEffect } from 'react'
 ```
 
 - [ ] **Step 2: Commit**
 
 ```bash
-git add apps/desktop/src/modules/atlas.catalog/components/ProductImageUploader.jsx
-git commit -m "feat(catalog): add ProductImageUploader component with inline upload"
+git add apps/desktop/src/modules/atlas.catalog/components/ProductImageManager.jsx
+git commit -m "feat(catalog): add ProductImageManager component with atlas.files SDK upload"
 ```
 
 ---
@@ -442,47 +331,32 @@ git commit -m "feat(catalog): add ProductImageUploader component with inline upl
 // apps/desktop/src/modules/atlas.catalog/components/StockMovementModal.jsx
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { getApiUrl } from '../../../../lib/runtimeConfig.js'
-import { Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@atlas/ui'
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Input, Label } from '@atlas/ui'
 import { toast } from 'sonner'
-
-async function apiFetch(path, token, options = {}) {
-  const res = await fetch(`${getApiUrl()}${path}`, {
-    ...options,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...options.headers },
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || `HTTP ${res.status}`)
-  }
-  return res.json()
-}
+import { atlas } from '../../../lib/atlas.js'
 
 /**
  * Props:
- *   open       boolean
- *   onClose    fn()
- *   token      string
- *   productId  string
- *   variantId  string|null  — null for SIMPLE products
- *   variantLabel string|null — display label for the variant
+ *   open        boolean
+ *   onClose     fn()
+ *   token       string
+ *   productId   string
+ *   variantId   string | null
+ *   variantLabel string | null
  */
 export default function StockMovementModal({ open, onClose, token, productId, variantId = null, variantLabel = null }) {
   const queryClient = useQueryClient()
-  const [delta, setDelta] = useState('')
+  const [delta, setDelta]   = useState('')
   const [reason, setReason] = useState('')
-  const [note, setNote] = useState('')
+  const [note, setNote]     = useState('')
 
   const mutation = useMutation({
-    mutationFn: () => apiFetch(`/catalog/products/${productId}/stock-movements`, token, {
-      method: 'POST',
-      body: JSON.stringify({
-        variant_id:     variantId ?? undefined,
-        quantity_delta: Number(delta),
-        reason:         reason || undefined,
-        note:           note   || undefined,
-      }),
-    }),
+    mutationFn: () => atlas.catalog.recordStockMovement(productId, {
+      variant_id:     variantId ?? undefined,
+      quantity_delta: Number(delta),
+      reason:         reason || undefined,
+      note:           note   || undefined,
+    }, token),
     onSuccess: () => {
       toast.success('Ajuste registrado')
       queryClient.invalidateQueries({ queryKey: ['catalog-product', productId] })
@@ -490,7 +364,7 @@ export default function StockMovementModal({ open, onClose, token, productId, va
       setDelta(''); setReason(''); setNote('')
       onClose()
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => toast.error(err?.message ?? 'Error al registrar ajuste'),
   })
 
   function handleSubmit(e) {
@@ -506,29 +380,24 @@ export default function StockMovementModal({ open, onClose, token, productId, va
           <DialogTitle>Registrar ajuste de stock</DialogTitle>
         </DialogHeader>
         {variantLabel && (
-          <p className="text-sm text-[hsl(var(--muted-foreground))]">Variante: <strong>{variantLabel}</strong></p>
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            Variante: <strong className="text-[hsl(var(--foreground))]">{variantLabel}</strong>
+          </p>
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1">
-            <Label htmlFor="sm-delta">Cantidad (positivo = entrada, negativo = salida)</Label>
-            <Input
-              id="sm-delta"
-              type="number"
-              placeholder="ej. 10 o -3"
-              value={delta}
-              onChange={(e) => setDelta(e.target.value)}
-              required
-            />
+          <div className="space-y-1.5">
+            <Label htmlFor="sm-delta">Cantidad (+ entrada / - salida)</Label>
+            <Input id="sm-delta" type="number" placeholder="ej. 10 o -3" value={delta} onChange={e => setDelta(e.target.value)} required />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <Label htmlFor="sm-reason">Razon</Label>
             <select
               id="sm-reason"
-              className="w-full border border-[hsl(var(--border))] rounded-md px-3 py-2 text-sm bg-[hsl(var(--background))] text-[hsl(var(--foreground))]"
+              className="w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm text-[hsl(var(--foreground))]"
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={e => setReason(e.target.value)}
             >
-              <option value="">Seleccionar razon...</option>
+              <option value="">Sin razon especifica</option>
               <option value="Ajuste manual">Ajuste manual</option>
               <option value="Compra">Compra</option>
               <option value="Venta">Venta</option>
@@ -537,20 +406,13 @@ export default function StockMovementModal({ open, onClose, token, productId, va
               <option value="Inventario fisico">Inventario fisico</option>
             </select>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <Label htmlFor="sm-note">Nota (opcional)</Label>
-            <Input
-              id="sm-note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Detalle adicional..."
-            />
+            <Input id="sm-note" value={note} onChange={e => setNote(e.target.value)} placeholder="Detalle adicional..." />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? 'Guardando...' : 'Registrar'}
-            </Button>
+            <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? 'Guardando...' : 'Registrar'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -565,22 +427,10 @@ export default function StockMovementModal({ open, onClose, token, productId, va
 // apps/desktop/src/modules/atlas.catalog/components/VariantOptionsEditor.jsx
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { getApiUrl } from '../../../../lib/runtimeConfig.js'
-import { Button, Input, Label } from '@atlas/ui'
-import { Plus, X, Trash2 } from 'lucide-react'
+import { Button, Input, Label, cn } from '@atlas/ui'
+import { Plus, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
-
-async function apiFetch(path, token, options = {}) {
-  const res = await fetch(`${getApiUrl()}${path}`, {
-    ...options,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...options.headers },
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || `HTTP ${res.status}`)
-  }
-  return res.json()
-}
+import { atlas } from '../../../lib/atlas.js'
 
 /**
  * Props:
@@ -592,71 +442,59 @@ export default function VariantOptionsEditor({ token, productId, options = [] })
   const queryClient = useQueryClient()
   const [newOptionName, setNewOptionName] = useState('')
 
-  const addOptionMutation = useMutation({
-    mutationFn: (data) => apiFetch(`/catalog/products/${productId}/options`, token, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+  const addMutation = useMutation({
+    mutationFn: (data) => atlas.catalog.createOption(productId, data, token),
     onSuccess: () => {
       toast.success('Opcion creada')
       setNewOptionName('')
       queryClient.invalidateQueries({ queryKey: ['catalog-product', productId] })
     },
-    onError: (err) => toast.error(err.message),
+    onError: err => toast.error(err?.message ?? 'Error'),
   })
 
-  const deleteOptionMutation = useMutation({
-    mutationFn: (optionId) => apiFetch(`/catalog/products/${productId}/options/${optionId}`, token, { method: 'DELETE' }),
+  const deleteMutation = useMutation({
+    mutationFn: (optionId) => atlas.catalog.deleteOption(productId, optionId, token),
     onSuccess: () => {
       toast.success('Opcion eliminada')
       queryClient.invalidateQueries({ queryKey: ['catalog-product', productId] })
     },
-    onError: (err) => toast.error(err.message),
+    onError: err => toast.error(err?.message ?? 'Error'),
   })
 
-  const updateOptionMutation = useMutation({
-    mutationFn: ({ optionId, values }) => apiFetch(`/catalog/products/${productId}/options/${optionId}`, token, {
-      method: 'PATCH',
-      body: JSON.stringify({ values }),
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['catalog-product', productId] })
-    },
-    onError: (err) => toast.error(err.message),
+  const updateMutation = useMutation({
+    mutationFn: ({ optionId, values }) => atlas.catalog.updateOption(productId, optionId, { values }, token),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['catalog-product', productId] }),
+    onError: err => toast.error(err?.message ?? 'Error'),
   })
 
   function handleAddOption(e) {
     e.preventDefault()
     if (!newOptionName.trim()) return
-    addOptionMutation.mutate({ name: newOptionName.trim(), values: [] })
+    addMutation.mutate({ name: newOptionName.trim(), values: [] })
   }
 
-  function handleAddValue(option, newValue) {
-    if (!newValue.trim()) return
-    const currentValues = option.values.map(v => v.value)
-    if (currentValues.includes(newValue.trim())) return
-    updateOptionMutation.mutate({
-      optionId: option.id,
-      values:   [...currentValues, newValue.trim()],
-    })
+  function handleAddValue(option, val) {
+    if (!val.trim()) return
+    const current = option.values.map(v => v.value)
+    if (current.includes(val.trim())) return
+    updateMutation.mutate({ optionId: option.id, values: [...current, val.trim()] })
   }
 
-  function handleRemoveValue(option, valueToRemove) {
-    const remaining = option.values.map(v => v.value).filter(v => v !== valueToRemove)
-    updateOptionMutation.mutate({ optionId: option.id, values: remaining })
+  function handleRemoveValue(option, val) {
+    updateMutation.mutate({ optionId: option.id, values: option.values.map(v => v.value).filter(v => v !== val) })
   }
 
   return (
     <div className="space-y-4">
-      <p className="text-sm font-medium text-[hsl(var(--foreground))]">Opciones de variantes</p>
+      <p className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">Opciones de variantes</p>
 
-      {options.map((opt) => (
+      {options.map(opt => (
         <OptionRow
           key={opt.id}
           option={opt}
-          onDelete={() => deleteOptionMutation.mutate(opt.id)}
-          onAddValue={(val) => handleAddValue(opt, val)}
-          onRemoveValue={(val) => handleRemoveValue(opt, val)}
+          onDelete={() => deleteMutation.mutate(opt.id)}
+          onAddValue={val => handleAddValue(opt, val)}
+          onRemoveValue={val => handleRemoveValue(opt, val)}
         />
       ))}
 
@@ -664,10 +502,10 @@ export default function VariantOptionsEditor({ token, productId, options = [] })
         <Input
           placeholder="Nueva opcion (ej. Talla, Color...)"
           value={newOptionName}
-          onChange={(e) => setNewOptionName(e.target.value)}
+          onChange={e => setNewOptionName(e.target.value)}
           className="max-w-xs"
         />
-        <Button type="submit" variant="outline" size="sm" disabled={addOptionMutation.isPending}>
+        <Button type="submit" variant="outline" size="sm" disabled={addMutation.isPending}>
           <Plus className="h-4 w-4 mr-1" /> Agregar opcion
         </Button>
       </form>
@@ -679,26 +517,29 @@ function OptionRow({ option, onDelete, onAddValue, onRemoveValue }) {
   const [newVal, setNewVal] = useState('')
 
   function handleKeyDown(e) {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      onAddValue(newVal)
-      setNewVal('')
-    }
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+    onAddValue(newVal)
+    setNewVal('')
   }
 
   return (
-    <div className="border border-[hsl(var(--border))] rounded-lg p-4 space-y-3">
+    <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">{option.name}</p>
-        <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600" onClick={onDelete}>
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <p className="text-sm font-semibold text-[hsl(var(--foreground))]">{option.name}</p>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-red-100 hover:text-red-600 transition-colors"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {option.values.map((v) => (
-          <span key={v.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]">
+      <div className="flex flex-wrap gap-2 items-center">
+        {option.values.map(v => (
+          <span key={v.id} className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--muted))] px-2.5 py-1 text-xs font-medium text-[hsl(var(--foreground))]">
             {v.value}
-            <button className="hover:text-red-500" onClick={() => onRemoveValue(v.value)}>
+            <button type="button" onClick={() => onRemoveValue(v.value)} className="hover:text-red-500 ml-0.5">
               <X className="h-3 w-3" />
             </button>
           </span>
@@ -706,9 +547,9 @@ function OptionRow({ option, onDelete, onAddValue, onRemoveValue }) {
         <Input
           placeholder="Nuevo valor + Enter"
           value={newVal}
-          onChange={(e) => setNewVal(e.target.value)}
+          onChange={e => setNewVal(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="h-7 text-xs w-36"
+          className="h-7 w-36 text-xs"
         />
       </div>
     </div>
@@ -737,165 +578,120 @@ git commit -m "feat(catalog): add StockMovementModal and VariantOptionsEditor co
 // apps/desktop/src/modules/atlas.catalog/components/VariantMatrix.jsx
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { getApiUrl } from '../../../../lib/runtimeConfig.js'
-import { Button, Input } from '@atlas/ui'
-import { Plus, Save } from 'lucide-react'
+import { Button, Input, cn } from '@atlas/ui'
+import { Plus, Save, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-
-async function apiFetch(path, token, options = {}) {
-  const res = await fetch(`${getApiUrl()}${path}`, {
-    ...options,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...options.headers },
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || `HTTP ${res.status}`)
-  }
-  return res.json()
-}
+import { atlas } from '../../../lib/atlas.js'
 
 /**
  * Props:
  *   token      string
  *   productId  string
- *   variants   Array<{ id, option_values, sku, barcode, price, stock }>
- *   options    Array<{ id, name, values }>
+ *   variants   Array<{ id, option_values, sku, barcode, price, stock, enabled }>
  */
-export default function VariantMatrix({ token, productId, variants = [], options = [] }) {
-  const queryClient = useQueryClient()
+export default function VariantMatrix({ token, productId, variants = [] }) {
+  const queryClient  = useQueryClient()
   const [edits, setEdits] = useState({})
 
   const updateMutation = useMutation({
-    mutationFn: ({ variantId, data }) => apiFetch(`/catalog/products/${productId}/variants/${variantId}`, token, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    }),
+    mutationFn: ({ variantId, data }) => atlas.catalog.updateVariant(productId, variantId, data, token),
     onSuccess: (_, { variantId }) => {
       setEdits(prev => { const n = { ...prev }; delete n[variantId]; return n })
       queryClient.invalidateQueries({ queryKey: ['catalog-product', productId] })
+      toast.success('Variante guardada')
     },
-    onError: (err) => toast.error(err.message),
+    onError: err => toast.error(err?.message ?? 'Error'),
   })
 
   const createMutation = useMutation({
-    mutationFn: (data) => apiFetch(`/catalog/products/${productId}/variants`, token, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+    mutationFn: (data) => atlas.catalog.createVariant(productId, data, token),
     onSuccess: () => {
       toast.success('Variante creada')
       queryClient.invalidateQueries({ queryKey: ['catalog-product', productId] })
     },
-    onError: (err) => toast.error(err.message),
+    onError: err => toast.error(err?.message ?? 'Error'),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (variantId) => apiFetch(`/catalog/products/${productId}/variants/${variantId}`, token, { method: 'DELETE' }),
+    mutationFn: (variantId) => atlas.catalog.deleteVariant(productId, variantId, token),
     onSuccess: () => {
       toast.success('Variante eliminada')
       queryClient.invalidateQueries({ queryKey: ['catalog-product', productId] })
     },
-    onError: (err) => toast.error(err.message),
+    onError: err => toast.error(err?.message ?? 'Error'),
   })
 
   function edit(variantId, field, value) {
     setEdits(prev => ({ ...prev, [variantId]: { ...(prev[variantId] ?? {}), [field]: value } }))
   }
 
-  function saveVariant(variant) {
-    const changes = edits[variant.id]
-    if (!changes) return
-    updateMutation.mutate({ variantId: variant.id, data: changes })
-  }
-
   function getLabel(optionValues) {
     if (!optionValues || typeof optionValues !== 'object') return 'Default'
-    return Object.values(optionValues).join(' / ') || 'Default'
+    return Object.values(optionValues).filter(Boolean).join(' / ') || 'Default'
   }
-
-  function handleAddVariant() {
-    createMutation.mutate({ option_values: {}, price: 0, stock: 0 })
-  }
-
-  const optionNames = options.map(o => o.name)
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm font-medium text-[hsl(var(--foreground))]">Variantes ({variants.length})</p>
+    <div className="space-y-4">
+      <p className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
+        Variantes ({variants.length})
+      </p>
 
       {variants.length === 0 ? (
         <p className="text-sm text-[hsl(var(--muted-foreground))]">
-          Define las opciones arriba y luego agrega variantes aqui.
+          Define las opciones arriba y agrega variantes aqui.
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border border-[hsl(var(--border))] rounded-lg overflow-hidden">
-            <thead className="bg-[hsl(var(--muted))]">
-              <tr>
-                <th className="text-left px-3 py-2 font-medium text-[hsl(var(--muted-foreground))]">Variante</th>
-                <th className="text-left px-3 py-2 font-medium text-[hsl(var(--muted-foreground))]">SKU</th>
-                <th className="text-left px-3 py-2 font-medium text-[hsl(var(--muted-foreground))]">Codigo de barras</th>
-                <th className="text-left px-3 py-2 font-medium text-[hsl(var(--muted-foreground))]">Precio</th>
-                <th className="text-left px-3 py-2 font-medium text-[hsl(var(--muted-foreground))]">Stock</th>
-                <th className="px-3 py-2" />
+        <div className="rounded-2xl border border-[hsl(var(--border))] overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40">
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-[hsl(var(--muted-foreground))]">Variante</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-[hsl(var(--muted-foreground))]">SKU</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-[hsl(var(--muted-foreground))]">Cod. barras</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-[hsl(var(--muted-foreground))]">Precio</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-[hsl(var(--muted-foreground))]">Stock</th>
+                <th className="px-4 py-2.5" />
               </tr>
             </thead>
             <tbody className="divide-y divide-[hsl(var(--border))]">
-              {variants.map((v) => {
-                const e = edits[v.id] ?? {}
+              {variants.map(v => {
+                const e       = edits[v.id] ?? {}
                 const isDirty = Boolean(edits[v.id])
                 return (
-                  <tr key={v.id} className={isDirty ? 'bg-blue-50/30' : ''}>
-                    <td className="px-3 py-2 font-medium">{getLabel(v.option_values)}</td>
-                    <td className="px-3 py-2">
-                      <Input
-                        value={e.sku ?? v.sku ?? ''}
-                        onChange={(ev) => edit(v.id, 'sku', ev.target.value)}
-                        className="h-7 text-xs w-28"
-                        placeholder="SKU"
-                      />
+                  <tr key={v.id} className={cn('transition-colors', isDirty && 'bg-blue-50/30 dark:bg-blue-900/10')}>
+                    <td className="px-4 py-2 font-medium text-sm">{getLabel(v.option_values)}</td>
+                    <td className="px-4 py-2">
+                      <Input value={e.sku ?? v.sku ?? ''} onChange={ev => edit(v.id, 'sku', ev.target.value)} className="h-7 w-28 text-xs" placeholder="SKU" />
                     </td>
-                    <td className="px-3 py-2">
-                      <Input
-                        value={e.barcode ?? v.barcode ?? ''}
-                        onChange={(ev) => edit(v.id, 'barcode', ev.target.value)}
-                        className="h-7 text-xs w-32"
-                        placeholder="EAN/UPC"
-                      />
+                    <td className="px-4 py-2">
+                      <Input value={e.barcode ?? v.barcode ?? ''} onChange={ev => edit(v.id, 'barcode', ev.target.value)} className="h-7 w-32 text-xs" placeholder="EAN/UPC" />
                     </td>
-                    <td className="px-3 py-2">
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={e.price ?? v.price ?? 0}
-                        onChange={(ev) => edit(v.id, 'price', Number(ev.target.value))}
-                        className="h-7 text-xs w-24"
-                      />
+                    <td className="px-4 py-2">
+                      <Input type="number" min="0" step="0.01" value={e.price ?? v.price ?? 0} onChange={ev => edit(v.id, 'price', Number(ev.target.value))} className="h-7 w-24 text-xs" />
                     </td>
-                    <td className="px-3 py-2">
-                      <Input
-                        type="number"
-                        min="0"
-                        value={e.stock ?? v.stock ?? 0}
-                        onChange={(ev) => edit(v.id, 'stock', Number(ev.target.value))}
-                        className="h-7 text-xs w-20"
-                      />
+                    <td className="px-4 py-2">
+                      <Input type="number" min="0" value={e.stock ?? v.stock ?? 0} onChange={ev => edit(v.id, 'stock', Number(ev.target.value))} className="h-7 w-20 text-xs" />
                     </td>
-                    <td className="px-3 py-2 flex gap-1">
-                      {isDirty && (
-                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => saveVariant(v)} disabled={updateMutation.isPending}>
-                          <Save className="h-3 w-3" />
-                        </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 text-xs text-red-500 hover:text-red-600"
-                        onClick={() => { if (window.confirm('Eliminar esta variante?')) deleteMutation.mutate(v.id) }}
-                      >
-                        Eliminar
-                      </Button>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-1">
+                        {isDirty && (
+                          <button
+                            type="button"
+                            onClick={() => updateMutation.mutate({ variantId: v.id, data: edits[v.id] })}
+                            disabled={updateMutation.isPending}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-emerald-100 hover:text-emerald-700 transition-colors"
+                          >
+                            <Save className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => { if (window.confirm('Eliminar esta variante?')) deleteMutation.mutate(v.id) }}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-red-100 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -905,7 +701,7 @@ export default function VariantMatrix({ token, productId, variants = [], options
         </div>
       )}
 
-      <Button variant="outline" size="sm" onClick={handleAddVariant} disabled={createMutation.isPending}>
+      <Button variant="outline" size="sm" onClick={() => createMutation.mutate({ option_values: {}, price: 0, stock: 0 })} disabled={createMutation.isPending}>
         <Plus className="h-4 w-4 mr-1" /> Agregar variante
       </Button>
     </div>
@@ -922,216 +718,383 @@ git commit -m "feat(catalog): add VariantMatrix inline-editable component"
 
 ---
 
-## Task 5: Create CatalogProductDetailScreen (tabs: General, Imagenes, Precios)
+## Task 5: Rewrite CatalogProductsScreen
+
+**Files:**
+- Rewrite: `apps/desktop/src/modules/atlas.catalog/screens/CatalogProductsScreen.jsx`
+
+Pattern: identical to `HrScreen.jsx` and `ContactsScreen.jsx` — `PageHeader` + `AtlasTable` + `ConfirmDialog`.
+
+- [ ] **Step 1: Read the current CatalogProductsScreen.jsx to understand what to replace**
+
+- [ ] **Step 2: Write new CatalogProductsScreen.jsx**
+
+```jsx
+// apps/desktop/src/modules/atlas.catalog/screens/CatalogProductsScreen.jsx
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { AtlasTable, Button, ConfirmDialog, PageHeader } from '@atlas/ui'
+import { Plus } from 'lucide-react'
+import { toast } from 'sonner'
+import { useAuth } from '../../../auth/AuthProvider.jsx'
+import { atlas } from '../../../lib/atlas.js'
+
+const API_BASE_URL = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
+
+const CATALOG_PRODUCTS_BLUEPRINT = {
+  key: 'catalog.products.table',
+  schema: {
+    apiPath: '/catalog/products',
+    primaryField: 'name',
+    searchable: true,
+    searchPlaceholder: 'Buscar producto...',
+    columns: [
+      { field: 'name', label: 'Nombre', sortable: true, link: true },
+      {
+        field: 'product_type',
+        label: 'Tipo',
+        sortable: false,
+        type: 'select',
+        options: [
+          { value: 'SIMPLE',   label: 'Simple' },
+          { value: 'VARIABLE', label: 'Variable' },
+        ],
+      },
+      { field: 'category_name', label: 'Categoria', sortable: false },
+      { field: 'price', label: 'Precio', sortable: true, type: 'decimal' },
+      { field: 'stock', label: 'Stock', sortable: true },
+      {
+        field: 'published',
+        label: 'Estado',
+        sortable: false,
+        type: 'select',
+        options: [
+          { value: true,  label: 'Publicado' },
+          { value: false, label: 'Borrador' },
+        ],
+      },
+    ],
+    filters: [
+      {
+        key: 'type',
+        label: 'Tipo',
+        type: 'select',
+        options: [
+          { value: 'SIMPLE',   label: 'Simple' },
+          { value: 'VARIABLE', label: 'Variable' },
+        ],
+      },
+      {
+        key: 'published',
+        label: 'Estado',
+        type: 'select',
+        options: [
+          { value: 'true',  label: 'Publicado' },
+          { value: 'false', label: 'Borrador' },
+        ],
+      },
+    ],
+    emptyState: { message: 'No hay productos registrados.' },
+  },
+}
+
+export default function CatalogProductsScreen() {
+  const { session, userProfile } = useAuth()
+  const token = session?.access_token
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const permissions = userProfile?.permissions ?? []
+  const hasPermission = key => Boolean(userProfile?.isAdmin || permissions.includes(key))
+  const canCreate = hasPermission('catalog.products.create')
+  const canUpdate = hasPermission('catalog.products.update')
+  const canDelete = hasPermission('catalog.products.delete')
+
+  const [confirmDelete, setConfirmDelete] = useState(null)
+  const [refreshSignal, setRefreshSignal] = useState(0)
+
+  const deleteMutation = useMutation({
+    mutationFn: id => atlas.catalog.deleteProduct(id, token),
+    onSuccess: () => {
+      setConfirmDelete(null)
+      setRefreshSignal(s => s + 1)
+      toast.success('Producto eliminado')
+    },
+    onError: err => toast.error(err?.message ?? 'No se pudo eliminar el producto'),
+  })
+
+  const createMutation = useMutation({
+    mutationFn: data => atlas.catalog.createProduct(data, token),
+    onSuccess: res => {
+      toast.success('Producto creado')
+      queryClient.invalidateQueries({ queryKey: ['catalog-products'] })
+      navigate(`/app/m/atlas.catalog/${res.data.id}`)
+    },
+    onError: err => toast.error(err?.message ?? 'No se pudo crear el producto'),
+  })
+
+  function handleCreate() {
+    const name = prompt('Nombre del producto:')
+    if (!name?.trim()) return
+    const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+    createMutation.mutate({ name: name.trim(), slug, price: 0 })
+  }
+
+  return (
+    <div className="p-4 md:p-6 space-y-6 min-h-dvh">
+      <PageHeader
+        eyebrow="Atlas Catalog"
+        title="Productos"
+        description="Gestiona el catalogo de productos de tu empresa."
+        actions={
+          canCreate && (
+            <Button onClick={handleCreate} disabled={createMutation.isPending}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo producto
+            </Button>
+          )
+        }
+      />
+
+      <AtlasTable
+        blueprint={CATALOG_PRODUCTS_BLUEPRINT}
+        token={token}
+        apiBaseUrl={API_BASE_URL}
+        onView={row => navigate(`/app/m/atlas.catalog/${row.id}`)}
+        onEdit={canUpdate ? row => navigate(`/app/m/atlas.catalog/${row.id}`) : undefined}
+        onDelete={canDelete ? row => setConfirmDelete(row) : undefined}
+        refreshSignal={refreshSignal}
+      />
+
+      <ConfirmDialog
+        open={Boolean(confirmDelete)}
+        onOpenChange={v => !v && setConfirmDelete(null)}
+        title="Eliminar producto"
+        description="El producto sera desactivado. Esta accion no se puede deshacer facilmente."
+        detail={confirmDelete?.name}
+        confirmLabel="Eliminar"
+        onConfirm={() => deleteMutation.mutate(confirmDelete.id)}
+        loading={deleteMutation.isPending}
+      />
+    </div>
+  )
+}
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/desktop/src/modules/atlas.catalog/screens/CatalogProductsScreen.jsx
+git commit -m "feat(catalog): rewrite products list screen with PageHeader + AtlasTable"
+```
+
+---
+
+## Task 6: Create CatalogProductDetailScreen
 
 **Files:**
 - Create: `apps/desktop/src/modules/atlas.catalog/screens/CatalogProductDetailScreen.jsx`
 
-This is the main detail screen. It loads product data and renders 6 tabs. This task implements the first 3 tabs (General, Imagenes, Precios). Tasks 6 adds the remaining 3 tabs inline.
+Pattern: identical to `HrEmployeeDetail.jsx` — back arrow, badge, pill tabs, `AnimatePresence` transitions, `SectionCard` grouping.
 
-- [ ] **Step 1: Create CatalogProductDetailScreen.jsx with first 3 tabs**
+- [ ] **Step 1: Create CatalogProductDetailScreen.jsx**
 
 ```jsx
 // apps/desktop/src/modules/atlas.catalog/screens/CatalogProductDetailScreen.jsx
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuth } from '../../../auth/AuthProvider.jsx'
-import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import { Button, Input, Label, Switch } from '@atlas/ui'
-import { MarkdownField } from '@atlas/ui'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { AnimatePresence, motion } from 'motion/react'
+import { Badge, Button, Input, Label, MarkdownField, MarkdownViewer, Skeleton, Switch, cn } from '@atlas/ui'
 import { ArrowLeft, Globe, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
-import ProductImageUploader from '../components/ProductImageUploader.jsx'
+import { useAuth } from '../../../auth/AuthProvider.jsx'
+import { atlas } from '../../../lib/atlas.js'
+import ProductImageManager  from '../components/ProductImageManager.jsx'
 import StockMovementModal   from '../components/StockMovementModal.jsx'
 import VariantOptionsEditor from '../components/VariantOptionsEditor.jsx'
 import VariantMatrix        from '../components/VariantMatrix.jsx'
 
-const TABS = ['General', 'Imagenes', 'Precios', 'Variantes', 'Inventario', 'SEO']
+const ALL_TABS = ['General', 'Imagenes', 'Precios', 'Variantes', 'Inventario', 'SEO']
 
-async function apiFetch(path, token, options = {}) {
-  const res = await fetch(`${getApiUrl()}${path}`, {
-    ...options,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...options.headers },
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || `HTTP ${res.status}`)
-  }
-  return res.json()
+// ── SectionCard ───────────────────────────────────────────────────────────────
+
+function SectionCard({ title, icon: Icon, children, className }) {
+  return (
+    <div className={cn('rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-4', className)}>
+      {title && (
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />}
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">{title}</h3>
+        </div>
+      )}
+      {children}
+    </div>
+  )
 }
 
+// ── InfoRow ───────────────────────────────────────────────────────────────────
+
+function InfoRow({ label, value }) {
+  if (!value && value !== 0) return null
+  return (
+    <div className="min-w-0">
+      <p className="text-xs text-[hsl(var(--muted-foreground))]">{label}</p>
+      <p className="text-sm font-medium text-[hsl(var(--foreground))]">{value}</p>
+    </div>
+  )
+}
+
+// ── Main screen ───────────────────────────────────────────────────────────────
+
 export default function CatalogProductDetailScreen() {
-  const { id } = useParams()
-  const { session } = useAuth()
+  const { id }  = useParams()
+  const { session, userProfile } = useAuth()
   const token = session?.access_token
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const permissions = userProfile?.permissions ?? []
+  const hasPermission = key => Boolean(userProfile?.isAdmin || permissions.includes(key))
+  const canUpdate = hasPermission('catalog.products.update')
+
   const [tab, setTab] = useState('General')
   const [stockModalOpen, setStockModalOpen] = useState(false)
 
   const { data: productData, isPending } = useQuery({
     queryKey: ['catalog-product', id, token],
-    queryFn: () => apiFetch(`/catalog/products/${id}`, token),
+    queryFn: () => atlas.catalog.getProduct(id, token),
     enabled: Boolean(token && id),
     staleTime: 30_000,
   })
 
   const { data: categoriesData } = useQuery({
     queryKey: ['catalog-categories-flat', token],
-    queryFn: () => apiFetch('/catalog/categories?flat=true', token),
+    queryFn: () => atlas.catalog.listCategories(token, { flat: true }),
     enabled: Boolean(token),
     staleTime: 60_000,
   })
 
   const { data: movementsData } = useQuery({
     queryKey: ['catalog-stock-movements', id, token],
-    queryFn: () => apiFetch(`/catalog/products/${id}/stock-movements?limit=50`, token),
+    queryFn: () => atlas.catalog.listStockMovements(id, token, { limit: 50 }),
     enabled: Boolean(token && id && tab === 'Inventario'),
     staleTime: 30_000,
   })
 
   const updateMutation = useMutation({
-    mutationFn: (data) => apiFetch(`/catalog/products/${id}`, token, { method: 'PATCH', body: JSON.stringify(data) }),
+    mutationFn: data => atlas.catalog.updateProduct(id, data, token),
     onSuccess: () => {
       toast.success('Producto guardado')
       queryClient.invalidateQueries({ queryKey: ['catalog-product', id] })
     },
-    onError: (err) => toast.error(err.message),
+    onError: err => toast.error(err?.message ?? 'Error al guardar'),
   })
 
   const publishMutation = useMutation({
-    mutationFn: (pub) => apiFetch(`/catalog/products/${id}/${pub ? 'publish' : 'unpublish'}`, token, { method: 'POST' }),
+    mutationFn: pub => pub
+      ? atlas.catalog.publishProduct(id, token)
+      : atlas.catalog.unpublishProduct(id, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['catalog-product', id] })
-      queryClient.invalidateQueries({ queryKey: ['catalog-products'] })
     },
-    onError: (err) => toast.error(err.message),
+    onError: err => toast.error(err?.message ?? 'Error'),
   })
 
-  if (isPending) return <div className="p-8 text-sm text-[hsl(var(--muted-foreground))]">Cargando...</div>
+  if (isPending) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-72" />
+        <Skeleton className="h-96 w-full rounded-2xl" />
+      </div>
+    )
+  }
 
   const product    = productData?.data
-  if (!product) return <div className="p-8 text-sm text-red-500">Producto no encontrado</div>
+  if (!product) return <div className="p-4 md:p-6 text-sm text-red-500">Producto no encontrado.</div>
 
   const categories = categoriesData?.data ?? []
   const movements  = movementsData?.data  ?? []
   const movTotal   = movementsData?.total ?? 0
   const isVariable = product.product_type === 'VARIABLE'
+  const visibleTabs = ALL_TABS.filter(t => t !== 'Variantes' || isVariable)
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col min-h-dvh">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/app/m/atlas.catalog')} className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 md:px-6 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 backdrop-blur-sm">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => navigate('/app/m/atlas.catalog')}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
+          >
             <ArrowLeft className="h-4 w-4" />
           </button>
-          <span className="text-sm font-medium text-[hsl(var(--foreground))]">{product.name}</span>
-          <span className={`text-xs px-1.5 py-0.5 rounded border ${
-            isVariable ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]'
-          }`}>
+          <span className="text-sm font-semibold text-[hsl(var(--foreground))] truncate">{product.name}</span>
+          <Badge variant={isVariable ? 'secondary' : 'outline'} className="shrink-0">
             {isVariable ? 'Variable' : 'Simple'}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
+          </Badge>
           {product.published ? (
-            <Button variant="outline" size="sm" onClick={() => publishMutation.mutate(false)} disabled={publishMutation.isPending}>
-              <EyeOff className="h-4 w-4 mr-1" /> Despublicar
-            </Button>
+            <Badge variant="success" className="shrink-0">Publicado</Badge>
           ) : (
-            <Button size="sm" onClick={() => publishMutation.mutate(true)} disabled={publishMutation.isPending}>
-              <Globe className="h-4 w-4 mr-1" /> Publicar
-            </Button>
+            <Badge variant="outline" className="shrink-0">Borrador</Badge>
           )}
         </div>
+        {canUpdate && (
+          <div className="flex items-center gap-2 shrink-0">
+            {product.published ? (
+              <Button variant="outline" size="sm" onClick={() => publishMutation.mutate(false)} disabled={publishMutation.isPending}>
+                <EyeOff className="h-4 w-4 mr-1.5" /> Despublicar
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => publishMutation.mutate(true)} disabled={publishMutation.isPending}>
+                <Globe className="h-4 w-4 mr-1.5" /> Publicar
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-[hsl(var(--border))] px-6 bg-[hsl(var(--background))]">
-        {TABS.filter(t => t !== 'Variantes' || isVariable).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              tab === t
-                ? 'border-[hsl(var(--foreground))] text-[hsl(var(--foreground))]'
-                : 'border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'
-            }`}
-          >
-            {t}
-          </button>
-        ))}
+      {/* Pill tabs */}
+      <div className="px-4 md:px-6 pt-4">
+        <div className="flex items-center gap-1 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 p-1 w-fit">
+          {visibleTabs.map(t => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className={cn(
+                'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-150',
+                tab === t
+                  ? 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))] shadow-sm'
+                  : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
+              )}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-y-auto p-6">
-
-        {/* GENERAL */}
-        {tab === 'General' && (
-          <GeneralTab
-            product={product}
-            categories={categories}
-            onSave={(data) => updateMutation.mutate(data)}
-            saving={updateMutation.isPending}
-          />
-        )}
-
-        {/* IMAGENES */}
-        {tab === 'Imagenes' && (
-          <ProductImageUploader
-            token={token}
-            coverId={product.cover_asset_id}
-            imageIds={product.images ?? []}
-            onChange={({ coverId, imageIds }) => updateMutation.mutate({ cover_asset_id: coverId, images: imageIds })}
-          />
-        )}
-
-        {/* PRECIOS */}
-        {tab === 'Precios' && (
-          <PreciosTab
-            product={product}
-            onSave={(data) => updateMutation.mutate(data)}
-            saving={updateMutation.isPending}
-            onStockAdjust={() => setStockModalOpen(true)}
-          />
-        )}
-
-        {/* VARIANTES */}
-        {tab === 'Variantes' && isVariable && (
-          <div className="space-y-8">
-            <VariantOptionsEditor
-              token={token}
-              productId={id}
-              options={product.options ?? []}
-            />
-            <VariantMatrix
-              token={token}
-              productId={id}
-              variants={product.variants ?? []}
-              options={product.options ?? []}
-            />
-          </div>
-        )}
-
-        {/* INVENTARIO */}
-        {tab === 'Inventario' && (
-          <InventarioTab
-            product={product}
-            movements={movements}
-            total={movTotal}
-            onAdjust={() => setStockModalOpen(true)}
-          />
-        )}
-
-        {/* SEO */}
-        {tab === 'SEO' && (
-          <SeoTab
-            product={product}
-            onSave={(data) => updateMutation.mutate(data)}
-            saving={updateMutation.isPending}
-          />
-        )}
+      <div className="flex-1 px-4 md:px-6 py-6">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.18 }}
+          >
+            {tab === 'General'    && <GeneralTab    product={product} categories={categories} onSave={updateMutation.mutate} saving={updateMutation.isPending} />}
+            {tab === 'Imagenes'   && <ImagenesTab   product={product} token={token} onSave={updateMutation.mutate} />}
+            {tab === 'Precios'    && <PreciosTab    product={product} onSave={updateMutation.mutate} saving={updateMutation.isPending} onStockAdjust={() => setStockModalOpen(true)} />}
+            {tab === 'Variantes' && isVariable && <VariantesTab product={product} token={token} productId={id} />}
+            {tab === 'Inventario' && <InventarioTab movements={movements} total={movTotal} onAdjust={() => setStockModalOpen(true)} />}
+            {tab === 'SEO'        && <SeoTab        product={product} onSave={updateMutation.mutate} saving={updateMutation.isPending} />}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       <StockMovementModal
@@ -1139,13 +1102,12 @@ export default function CatalogProductDetailScreen() {
         onClose={() => setStockModalOpen(false)}
         token={token}
         productId={id}
-        variantId={null}
       />
     </div>
   )
 }
 
-// ── Tab sub-components ────────────────────────────────────
+// ── Tab components ────────────────────────────────────────────────────────────
 
 function GeneralTab({ product, categories, onSave, saving }) {
   const [form, setForm] = useState({
@@ -1153,25 +1115,8 @@ function GeneralTab({ product, categories, onSave, saving }) {
     slug:        product.slug        ?? '',
     description: product.description ?? '',
     category_id: product.category_id ?? '',
-    attributes:  product.attributes  ?? [],
+    attributes:  Array.isArray(product.attributes) ? product.attributes : [],
   })
-
-  function handleNameChange(name) {
-    setForm(f => ({ ...f, name }))
-  }
-
-  function setAttr(i, key, value) {
-    const next = form.attributes.map((a, idx) => idx === i ? { ...a, [key]: value } : a)
-    setForm(f => ({ ...f, attributes: next }))
-  }
-
-  function addAttr() {
-    setForm(f => ({ ...f, attributes: [...f.attributes, { key: '', value: '' }] }))
-  }
-
-  function removeAttr(i) {
-    setForm(f => ({ ...f, attributes: f.attributes.filter((_, idx) => idx !== i) }))
-  }
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -1180,68 +1125,88 @@ function GeneralTab({ product, categories, onSave, saving }) {
       slug:        form.slug,
       description: form.description || undefined,
       category_id: form.category_id || null,
-      attributes:  form.attributes.filter(a => a.key.trim()),
+      attributes:  form.attributes.filter(a => a.key?.trim()),
     })
   }
 
+  function addAttr()         { setForm(f => ({ ...f, attributes: [...f.attributes, { key: '', value: '' }] })) }
+  function removeAttr(i)     { setForm(f => ({ ...f, attributes: f.attributes.filter((_, idx) => idx !== i) })) }
+  function setAttr(i, k, v)  { setForm(f => ({ ...f, attributes: f.attributes.map((a, idx) => idx === i ? { ...a, [k]: v } : a) })) }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
-      <div className="space-y-1">
-        <Label htmlFor="g-name">Nombre</Label>
-        <Input id="g-name" value={form.name} onChange={(e) => handleNameChange(e.target.value)} required />
-      </div>
-      <div className="space-y-1">
-        <Label htmlFor="g-slug">Slug</Label>
-        <Input id="g-slug" value={form.slug} onChange={(e) => setForm(f => ({ ...f, slug: e.target.value }))} required />
-      </div>
-      <div className="space-y-1">
-        <Label>Descripcion</Label>
-        <MarkdownField
-          value={form.description}
-          onChange={(v) => setForm(f => ({ ...f, description: v }))}
-          placeholder="Describe el producto..."
-        />
-      </div>
-      <div className="space-y-1">
-        <Label htmlFor="g-cat">Categoria</Label>
-        <select
-          id="g-cat"
-          className="w-full border border-[hsl(var(--border))] rounded-md px-3 py-2 text-sm bg-[hsl(var(--background))] text-[hsl(var(--foreground))]"
-          value={form.category_id}
-          onChange={(e) => setForm(f => ({ ...f, category_id: e.target.value }))}
-        >
-          <option value="">Sin categoria</option>
-          {categories.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-      </div>
-      <div className="space-y-2">
-        <Label>Atributos</Label>
-        {form.attributes.map((a, i) => (
-          <div key={i} className="flex gap-2 items-center">
-            <Input placeholder="Clave" value={a.key} onChange={(e) => setAttr(i, 'key', e.target.value)} className="w-36" />
-            <Input placeholder="Valor" value={a.value} onChange={(e) => setAttr(i, 'value', e.target.value)} className="flex-1" />
-            <button type="button" className="text-red-400 hover:text-red-600 px-1" onClick={() => removeAttr(i)}>✕</button>
+    <form onSubmit={handleSubmit} className="space-y-5 max-w-2xl">
+      <SectionCard title="Informacion basica">
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="g-name">Nombre</Label>
+            <Input id="g-name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
           </div>
-        ))}
-        <Button type="button" variant="outline" size="sm" onClick={addAttr}>+ Agregar atributo</Button>
-      </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="g-slug">Slug</Label>
+            <Input id="g-slug" value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Descripcion</Label>
+            <MarkdownField value={form.description} onChange={v => setForm(f => ({ ...f, description: v }))} placeholder="Describe el producto..." />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="g-cat">Categoria</Label>
+            <select
+              id="g-cat"
+              className="w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm text-[hsl(var(--foreground))]"
+              value={form.category_id}
+              onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
+            >
+              <option value="">Sin categoria</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Atributos">
+        <div className="space-y-2">
+          {form.attributes.map((a, i) => (
+            <div key={i} className="flex gap-2 items-center">
+              <Input placeholder="Clave" value={a.key} onChange={e => setAttr(i, 'key', e.target.value)} className="w-36" />
+              <Input placeholder="Valor" value={a.value} onChange={e => setAttr(i, 'value', e.target.value)} className="flex-1" />
+              <button type="button" onClick={() => removeAttr(i)} className="flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-red-100 hover:text-red-600 transition-colors text-xs">✕</button>
+            </div>
+          ))}
+          <Button type="button" variant="outline" size="sm" onClick={addAttr}>+ Agregar atributo</Button>
+        </div>
+      </SectionCard>
+
       <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Guardar cambios'}</Button>
     </form>
+  )
+}
+
+function ImagenesTab({ product, token, onSave }) {
+  return (
+    <div className="max-w-2xl">
+      <SectionCard title="Imagenes del producto">
+        <ProductImageManager
+          token={token}
+          coverId={product.cover_asset_id}
+          imageIds={Array.isArray(product.images) ? product.images : []}
+          onChange={({ coverId, imageIds }) => onSave({ cover_asset_id: coverId, images: imageIds })}
+        />
+      </SectionCard>
+    </div>
   )
 }
 
 function PreciosTab({ product, onSave, saving, onStockAdjust }) {
   const isVariable = product.product_type === 'VARIABLE'
   const [form, setForm] = useState({
-    price:        String(product.price ?? 0),
+    price:        String(product.price        ?? 0),
     compare_price: product.compare_price != null ? String(product.compare_price) : '',
-    currency:     product.currency ?? 'USD',
-    sku:          product.sku      ?? '',
-    barcode:      product.barcode  ?? '',
-    weight:       product.weight   != null ? String(product.weight) : '',
-    track_stock:  product.track_stock ?? false,
+    currency:     product.currency     ?? 'USD',
+    sku:          product.sku          ?? '',
+    barcode:      product.barcode      ?? '',
+    weight:       product.weight  != null ? String(product.weight) : '',
+    track_stock:  product.track_stock  ?? false,
   })
 
   function handleSubmit(e) {
@@ -1250,95 +1215,126 @@ function PreciosTab({ product, onSave, saving, onStockAdjust }) {
       price:         Number(form.price),
       compare_price: form.compare_price ? Number(form.compare_price) : null,
       currency:      form.currency,
-      sku:           form.sku      || null,
-      barcode:       form.barcode  || null,
-      weight:        form.weight   ? Number(form.weight) : null,
+      sku:           form.sku     || null,
+      barcode:       form.barcode || null,
+      weight:        form.weight  ? Number(form.weight) : null,
       track_stock:   form.track_stock,
     })
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <Label htmlFor="p-price">Precio</Label>
-          <Input id="p-price" type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))} required />
+    <form onSubmit={handleSubmit} className="space-y-5 max-w-2xl">
+      <SectionCard title="Precios">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="pr-price">Precio</Label>
+            <Input id="pr-price" type="number" min="0" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="pr-currency">Moneda</Label>
+            <Input id="pr-currency" value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value.toUpperCase() }))} maxLength={3} />
+          </div>
         </div>
-        <div className="space-y-1">
-          <Label htmlFor="p-currency">Moneda</Label>
-          <Input id="p-currency" value={form.currency} onChange={(e) => setForm(f => ({ ...f, currency: e.target.value.toUpperCase() }))} maxLength={3} />
+        <div className="space-y-1.5">
+          <Label htmlFor="pr-compare">Precio anterior (tachado)</Label>
+          <Input id="pr-compare" type="number" min="0" step="0.01" value={form.compare_price} onChange={e => setForm(f => ({ ...f, compare_price: e.target.value }))} />
         </div>
-      </div>
-      <div className="space-y-1">
-        <Label htmlFor="p-compare">Precio anterior (opcional)</Label>
-        <Input id="p-compare" type="number" min="0" step="0.01" value={form.compare_price} onChange={(e) => setForm(f => ({ ...f, compare_price: e.target.value }))} />
-      </div>
+      </SectionCard>
+
       {!isVariable && (
         <>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="p-sku">SKU</Label>
-              <Input id="p-sku" value={form.sku} onChange={(e) => setForm(f => ({ ...f, sku: e.target.value }))} placeholder="Codigo interno" />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="p-barcode">Codigo de barras (EAN/UPC)</Label>
-              <Input id="p-barcode" value={form.barcode} onChange={(e) => setForm(f => ({ ...f, barcode: e.target.value }))} />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="p-weight">Peso (kg)</Label>
-            <Input id="p-weight" type="number" min="0" step="0.001" value={form.weight} onChange={(e) => setForm(f => ({ ...f, weight: e.target.value }))} />
-          </div>
-          <div className="flex items-center gap-3">
-            <Switch id="p-track" checked={form.track_stock} onCheckedChange={(v) => setForm(f => ({ ...f, track_stock: v }))} />
-            <Label htmlFor="p-track">Controlar stock</Label>
-          </div>
-          {form.track_stock && (
-            <div className="flex items-center gap-4 p-3 bg-[hsl(var(--muted))] rounded-lg">
-              <div>
-                <p className="text-sm font-medium">Stock actual</p>
-                <p className="text-2xl font-bold">{product.stock ?? 0}</p>
+          <SectionCard title="Codigos">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="pr-sku">SKU</Label>
+                <Input id="pr-sku" value={form.sku} onChange={e => setForm(f => ({ ...f, sku: e.target.value }))} placeholder="Codigo interno" />
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={onStockAdjust}>Registrar ajuste</Button>
+              <div className="space-y-1.5">
+                <Label htmlFor="pr-barcode">Codigo de barras (EAN/UPC)</Label>
+                <Input id="pr-barcode" value={form.barcode} onChange={e => setForm(f => ({ ...f, barcode: e.target.value }))} />
+              </div>
             </div>
-          )}
+            <div className="space-y-1.5">
+              <Label htmlFor="pr-weight">Peso (kg)</Label>
+              <Input id="pr-weight" type="number" min="0" step="0.001" value={form.weight} onChange={e => setForm(f => ({ ...f, weight: e.target.value }))} />
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Inventario">
+            <div className="flex items-center gap-3">
+              <Switch id="pr-track" checked={form.track_stock} onCheckedChange={v => setForm(f => ({ ...f, track_stock: v }))} />
+              <Label htmlFor="pr-track">Controlar stock</Label>
+            </div>
+            {form.track_stock && (
+              <div className="flex items-center gap-6 mt-3 p-4 rounded-xl bg-[hsl(var(--muted))]/50">
+                <div>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Stock actual</p>
+                  <p className="text-2xl font-bold text-[hsl(var(--foreground))]">{product.stock ?? 0}</p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={onStockAdjust}>Registrar ajuste</Button>
+              </div>
+            )}
+          </SectionCard>
         </>
       )}
+
       {isVariable && (
         <p className="text-sm text-[hsl(var(--muted-foreground))]">
           Los precios, SKU y stock de este producto se gestionan por variante en la pestana Variantes.
         </p>
       )}
+
       <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Guardar cambios'}</Button>
     </form>
   )
 }
 
-function InventarioTab({ product, movements, total, onAdjust }) {
+function VariantesTab({ product, token, productId }) {
+  return (
+    <div className="space-y-6 max-w-4xl">
+      <SectionCard title="Opciones">
+        <VariantOptionsEditor token={token} productId={productId} options={product.options ?? []} />
+      </SectionCard>
+      <SectionCard title="Combinaciones de variantes">
+        <VariantMatrix token={token} productId={productId} variants={product.variants ?? []} />
+      </SectionCard>
+    </div>
+  )
+}
+
+function InventarioTab({ movements, total, onAdjust }) {
+  function fmtDate(val) {
+    if (!val) return '—'
+    try { return new Date(val).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) } catch { return val }
+  }
+
   return (
     <div className="space-y-4 max-w-2xl">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">Historial de movimientos ({total})</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
+          Movimientos de stock ({total})
+        </p>
         <Button size="sm" onClick={onAdjust}>Registrar ajuste</Button>
       </div>
+
       {movements.length === 0 ? (
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">Sin movimientos registrados.</p>
+        <div className="rounded-2xl border border-[hsl(var(--border))] p-8 text-center text-sm text-[hsl(var(--muted-foreground))]">
+          Sin movimientos registrados.
+        </div>
       ) : (
-        <div className="border border-[hsl(var(--border))] rounded-lg divide-y divide-[hsl(var(--border))]">
-          {movements.map((m) => (
+        <div className="rounded-2xl border border-[hsl(var(--border))] divide-y divide-[hsl(var(--border))] overflow-hidden">
+          {movements.map(m => (
             <div key={m.id} className="flex items-start justify-between px-4 py-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-sm font-medium ${m.quantity_delta > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className={cn('text-sm font-semibold', m.quantity_delta > 0 ? 'text-emerald-600' : 'text-red-600')}>
                     {m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta}
                   </span>
                   {m.reason && <span className="text-sm text-[hsl(var(--foreground))]">{m.reason}</span>}
                 </div>
-                {m.note && <p className="text-xs text-[hsl(var(--muted-foreground))]">{m.note}</p>}
+                {m.note && <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">{m.note}</p>}
               </div>
-              <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                {new Date(m.created_at).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-              </p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))] shrink-0">{fmtDate(m.created_at)}</p>
             </div>
           ))}
         </div>
@@ -1353,149 +1349,141 @@ function SeoTab({ product, onSave, saving }) {
     meta_description: product.meta_description ?? '',
   })
 
-  const previewTitle = form.meta_title || product.name
-  const previewDesc  = form.meta_description || product.description || ''
-
   function handleSubmit(e) {
     e.preventDefault()
     onSave({ meta_title: form.meta_title || null, meta_description: form.meta_description || null })
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
-      <div className="space-y-1">
-        <Label htmlFor="seo-title">Titulo SEO</Label>
-        <Input
-          id="seo-title"
-          value={form.meta_title}
-          onChange={(e) => setForm(f => ({ ...f, meta_title: e.target.value }))}
-          placeholder={product.name}
-          maxLength={160}
-        />
-        <p className="text-xs text-[hsl(var(--muted-foreground))]">{form.meta_title.length}/160</p>
-      </div>
-      <div className="space-y-1">
-        <Label htmlFor="seo-desc">Descripcion SEO</Label>
-        <textarea
-          id="seo-desc"
-          className="w-full border border-[hsl(var(--border))] rounded-md px-3 py-2 text-sm bg-[hsl(var(--background))] text-[hsl(var(--foreground))] resize-none"
-          rows={3}
-          value={form.meta_description}
-          onChange={(e) => setForm(f => ({ ...f, meta_description: e.target.value }))}
-          placeholder="Descripcion para motores de busqueda..."
-          maxLength={320}
-        />
-        <p className="text-xs text-[hsl(var(--muted-foreground))]">{form.meta_description.length}/320</p>
-      </div>
-      <div className="space-y-2">
-        <Label>Vista previa en Google</Label>
-        <div className="border border-[hsl(var(--border))] rounded-lg p-4 space-y-1 max-w-lg">
-          <p className="text-sm text-blue-600 truncate">{previewTitle}</p>
-          <p className="text-xs text-green-700">/{product.slug}</p>
-          <p className="text-xs text-[hsl(var(--muted-foreground))] line-clamp-2">{previewDesc || 'Sin descripcion'}</p>
+    <form onSubmit={handleSubmit} className="space-y-5 max-w-2xl">
+      <SectionCard title="Metadatos SEO">
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="seo-title">Titulo SEO</Label>
+            <Input id="seo-title" value={form.meta_title} onChange={e => setForm(f => ({ ...f, meta_title: e.target.value }))} placeholder={product.name} maxLength={160} />
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">{form.meta_title.length}/160</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="seo-desc">Descripcion SEO</Label>
+            <textarea
+              id="seo-desc"
+              className="w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm text-[hsl(var(--foreground))] resize-none"
+              rows={3}
+              value={form.meta_description}
+              onChange={e => setForm(f => ({ ...f, meta_description: e.target.value }))}
+              placeholder="Descripcion para motores de busqueda..."
+              maxLength={320}
+            />
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">{form.meta_description.length}/320</p>
+          </div>
         </div>
-      </div>
+      </SectionCard>
+
+      <SectionCard title="Vista previa en Google">
+        <div className="max-w-md space-y-0.5 p-3 rounded-xl bg-[hsl(var(--muted))]/30">
+          <p className="text-sm text-blue-600 truncate">{form.meta_title || product.name}</p>
+          <p className="text-xs text-green-700">/{product.slug}</p>
+          <p className="text-xs text-[hsl(var(--muted-foreground))] line-clamp-2">
+            {form.meta_description || product.description || 'Sin descripcion'}
+          </p>
+        </div>
+      </SectionCard>
+
       <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Guardar SEO'}</Button>
     </form>
   )
 }
 ```
 
-> **Note:** `MarkdownField` is imported from `@atlas/ui`. Verify it is exported from `packages/ui/src/index.js`. If not, add the export. The component already exists at `packages/ui/src/components/MarkdownField.jsx` per git status.
-
 - [ ] **Step 2: Commit**
 
 ```bash
 git add apps/desktop/src/modules/atlas.catalog/screens/CatalogProductDetailScreen.jsx
-git commit -m "feat(catalog): add product detail screen with 6 tabs"
+git commit -m "feat(catalog): add product detail screen — pill tabs + AnimatePresence + SectionCard"
 ```
 
 ---
 
-## Task 6: Rewrite CatalogCategoriesScreen
+## Task 7: Rewrite CatalogCategoriesScreen
 
 **Files:**
 - Rewrite: `apps/desktop/src/modules/atlas.catalog/screens/CatalogCategoriesScreen.jsx`
+
+Pattern: `PageHeader` + hierarchical list (like `HrCatalogsScreen` — custom list since tree structure can't use `AtlasTable`) + `AnimatePresence` + `Sheet` for create/edit.
 
 - [ ] **Step 1: Rewrite CatalogCategoriesScreen.jsx**
 
 ```jsx
 // apps/desktop/src/modules/atlas.catalog/screens/CatalogCategoriesScreen.jsx
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuth } from '../../../auth/AuthProvider.jsx'
-import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import {
-  Button, Input, Label,
-  Sheet, SheetContent, SheetHeader, SheetTitle,
-} from '@atlas/ui'
-import { Tag, Plus, ChevronRight } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { AnimatePresence, motion } from 'motion/react'
+import { Button, ConfirmDialog, Input, Label, PageHeader, Sheet, SheetContent, SheetHeader, SheetTitle, Skeleton, cn } from '@atlas/ui'
+import { ChevronRight, Plus, Tag } from 'lucide-react'
 import { toast } from 'sonner'
-
-async function apiFetch(path, token, options = {}) {
-  const res = await fetch(`${getApiUrl()}${path}`, {
-    ...options,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...options.headers },
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || `HTTP ${res.status}`)
-  }
-  return res.json()
-}
-
-const EMPTY = { name: '', slug: '', description: '', parent_id: '', position: 0 }
+import { useAuth } from '../../../auth/AuthProvider.jsx'
+import { atlas } from '../../../lib/atlas.js'
 
 export default function CatalogCategoriesScreen() {
-  const { session } = useAuth()
+  const { session, userProfile } = useAuth()
   const token = session?.access_token
   const queryClient = useQueryClient()
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState(EMPTY)
+  const permissions = userProfile?.permissions ?? []
+  const hasPermission = key => Boolean(userProfile?.isAdmin || permissions.includes(key))
+  const canCreate = hasPermission('catalog.categories.create')
+  const canUpdate = hasPermission('catalog.categories.update')
+  const canDelete = hasPermission('catalog.categories.delete')
+
+  const [sheetOpen, setSheetOpen]     = useState(false)
+  const [editing, setEditing]         = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(null)
+  const [form, setForm] = useState({ name: '', slug: '', description: '', parent_id: '', position: '0' })
 
   const treeQuery = useQuery({
     queryKey: ['catalog-categories-tree', token],
-    queryFn: () => apiFetch('/catalog/categories', token),
+    queryFn: () => atlas.catalog.listCategories(token),
     enabled: Boolean(token),
     staleTime: 30_000,
   })
 
   const flatQuery = useQuery({
     queryKey: ['catalog-categories-flat', token],
-    queryFn: () => apiFetch('/catalog/categories?flat=true', token),
+    queryFn: () => atlas.catalog.listCategories(token, { flat: true }),
     enabled: Boolean(token),
     staleTime: 30_000,
   })
 
   const saveMutation = useMutation({
-    mutationFn: (data) => editing
-      ? apiFetch(`/catalog/categories/${editing.id}`, token, { method: 'PATCH', body: JSON.stringify(data) })
-      : apiFetch('/catalog/categories', token, { method: 'POST', body: JSON.stringify(data) }),
+    mutationFn: data => editing
+      ? atlas.catalog.updateCategory(editing.id, data, token)
+      : atlas.catalog.createCategory(data, token),
     onSuccess: () => {
       toast.success(editing ? 'Categoria actualizada' : 'Categoria creada')
       queryClient.invalidateQueries({ queryKey: ['catalog-categories'] })
       setSheetOpen(false)
     },
-    onError: (err) => toast.error(err.message),
+    onError: err => toast.error(err?.message ?? 'Error'),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => apiFetch(`/catalog/categories/${id}`, token, { method: 'DELETE' }),
+    mutationFn: id => atlas.catalog.deleteCategory(id, token),
     onSuccess: () => {
       toast.success('Categoria eliminada')
+      setConfirmDelete(null)
       queryClient.invalidateQueries({ queryKey: ['catalog-categories'] })
     },
-    onError: (err) => toast.error(err.message),
+    onError: err => toast.error(err?.message ?? 'Error'),
   })
 
   function openCreate() {
-    setEditing(null); setForm(EMPTY); setSheetOpen(true)
+    setEditing(null)
+    setForm({ name: '', slug: '', description: '', parent_id: '', position: '0' })
+    setSheetOpen(true)
   }
 
   function openEdit(cat) {
     setEditing(cat)
-    setForm({ name: cat.name, slug: cat.slug, description: cat.description ?? '', parent_id: cat.parent_id ?? '', position: cat.position ?? 0 })
+    setForm({ name: cat.name, slug: cat.slug, description: cat.description ?? '', parent_id: cat.parent_id ?? '', position: String(cat.position ?? 0) })
     setSheetOpen(true)
   }
 
@@ -1515,45 +1503,70 @@ export default function CatalogCategoriesScreen() {
     })
   }
 
-  const tree       = treeQuery.data?.data ?? []
-  const flatCats   = flatQuery.data?.data ?? []
-  const rootCats   = flatCats.filter(c => c.parent_id === null)
+  const tree     = treeQuery.data?.data ?? []
+  const flatCats = flatQuery.data?.data ?? []
+  const rootCats = flatCats.filter(c => c.parent_id === null)
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-[hsl(var(--foreground))]">Categorias</h1>
-          <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">{flatCats.length} categorias</p>
-        </div>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-2" /> Nueva categoria
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-6 min-h-dvh">
+      <PageHeader
+        eyebrow="Atlas Catalog"
+        title="Categorias"
+        description="Organiza tus productos en categorias y subcategorias."
+        actions={
+          canCreate && (
+            <Button onClick={openCreate}>
+              <Plus className="mr-2 h-4 w-4" /> Nueva categoria
+            </Button>
+          )
+        }
+      />
 
       {treeQuery.isPending ? (
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">Cargando...</p>
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full rounded-2xl" />
+          ))}
+        </div>
       ) : tree.length === 0 ? (
-        <div className="text-center py-16 text-[hsl(var(--muted-foreground))]">
-          <Tag className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">No hay categorias. Crea la primera.</p>
+        <div className="flex flex-col items-center gap-3 py-16 text-center">
+          <Tag className="h-10 w-10 text-[hsl(var(--muted-foreground))]/40" />
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">No hay categorias. Crea la primera.</p>
         </div>
       ) : (
-        <div className="border border-[hsl(var(--border))] rounded-lg divide-y divide-[hsl(var(--border))]">
-          {tree.map((cat) => (
-            <div key={cat.id}>
-              <CategoryRow cat={cat} onEdit={openEdit} onDelete={(id) => { if (window.confirm(`Eliminar "${cat.name}"?`)) deleteMutation.mutate(id) }} />
-              {(cat.children ?? []).map((child) => (
-                <CategoryRow
-                  key={child.id}
-                  cat={child}
-                  indent
-                  onEdit={openEdit}
-                  onDelete={(id) => { if (window.confirm(`Eliminar "${child.name}"?`)) deleteMutation.mutate(id) }}
-                />
-              ))}
-            </div>
-          ))}
+        <div className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden">
+          <AnimatePresence initial={false}>
+            {tree.map(cat => (
+              <div key={cat.id}>
+                <motion.div
+                  layout
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <CategoryRow
+                    cat={cat}
+                    canUpdate={canUpdate}
+                    canDelete={canDelete}
+                    onEdit={openEdit}
+                    onDelete={() => setConfirmDelete(cat)}
+                  />
+                  {(cat.children ?? []).map(child => (
+                    <CategoryRow
+                      key={child.id}
+                      cat={child}
+                      indent
+                      canUpdate={canUpdate}
+                      canDelete={canDelete}
+                      onEdit={openEdit}
+                      onDelete={() => setConfirmDelete(child)}
+                    />
+                  ))}
+                </motion.div>
+              </div>
+            ))}
+          </AnimatePresence>
         </div>
       )}
 
@@ -1563,24 +1576,24 @@ export default function CatalogCategoriesScreen() {
             <SheetTitle>{editing ? 'Editar categoria' : 'Nueva categoria'}</SheetTitle>
           </SheetHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label>Nombre</Label>
-              <Input value={form.name} onChange={(e) => handleNameChange(e.target.value)} required />
+              <Input value={form.name} onChange={e => handleNameChange(e.target.value)} required />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label>Slug</Label>
-              <Input value={form.slug} onChange={(e) => setForm(f => ({ ...f, slug: e.target.value }))} required />
+              <Input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} required />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label>Descripcion (opcional)</Label>
-              <Input value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
+              <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
             </div>
-            <div className="space-y-1">
-              <Label>Categoria padre (opcional)</Label>
+            <div className="space-y-1.5">
+              <Label>Categoria padre</Label>
               <select
-                className="w-full border border-[hsl(var(--border))] rounded-md px-3 py-2 text-sm bg-[hsl(var(--background))] text-[hsl(var(--foreground))]"
+                className="w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm text-[hsl(var(--foreground))]"
                 value={form.parent_id}
-                onChange={(e) => setForm(f => ({ ...f, parent_id: e.target.value }))}
+                onChange={e => setForm(f => ({ ...f, parent_id: e.target.value }))}
               >
                 <option value="">Sin padre (categoria raiz)</option>
                 {rootCats.filter(c => c.id !== editing?.id).map(c => (
@@ -1588,9 +1601,9 @@ export default function CatalogCategoriesScreen() {
                 ))}
               </select>
             </div>
-            <div className="space-y-1">
-              <Label>Posicion</Label>
-              <Input type="number" min="0" value={form.position} onChange={(e) => setForm(f => ({ ...f, position: e.target.value }))} />
+            <div className="space-y-1.5">
+              <Label>Posicion de orden</Label>
+              <Input type="number" min="0" value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))} />
             </div>
             <div className="flex gap-2 pt-2">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setSheetOpen(false)}>Cancelar</Button>
@@ -1601,23 +1614,53 @@ export default function CatalogCategoriesScreen() {
           </form>
         </SheetContent>
       </Sheet>
+
+      <ConfirmDialog
+        open={Boolean(confirmDelete)}
+        onOpenChange={v => !v && setConfirmDelete(null)}
+        title="Eliminar categoria"
+        description="La categoria sera desactivada. Los productos que la tengan asignada no se veran afectados."
+        detail={confirmDelete?.name}
+        confirmLabel="Eliminar"
+        onConfirm={() => deleteMutation.mutate(confirmDelete.id)}
+        loading={deleteMutation.isPending}
+      />
     </div>
   )
 }
 
-function CategoryRow({ cat, indent = false, onEdit, onDelete }) {
+function CategoryRow({ cat, indent = false, canUpdate, canDelete, onEdit, onDelete }) {
   return (
-    <div className={`flex items-center justify-between px-4 py-3 ${indent ? 'pl-10 bg-[hsl(var(--muted))/20]' : ''}`}>
-      <div className="flex items-center gap-2">
-        {indent && <ChevronRight className="h-3 w-3 text-[hsl(var(--muted-foreground))]" />}
-        <div>
-          <p className="text-sm font-medium text-[hsl(var(--foreground))]">{cat.name}</p>
+    <div className={cn(
+      'flex items-center justify-between px-4 py-3 border-b border-[hsl(var(--border))] last:border-0 transition-colors hover:bg-[hsl(var(--muted))]/30',
+      indent && 'pl-10 bg-[hsl(var(--muted))]/20',
+    )}>
+      <div className="flex items-center gap-2 min-w-0">
+        {indent && <ChevronRight className="h-3 w-3 shrink-0 text-[hsl(var(--muted-foreground))]" />}
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-[hsl(var(--foreground))] truncate">{cat.name}</p>
           <p className="text-xs text-[hsl(var(--muted-foreground))]">/{cat.slug}</p>
         </div>
       </div>
-      <div className="flex gap-2">
-        <Button variant="ghost" size="sm" onClick={() => onEdit(cat)}>Editar</Button>
-        <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600" onClick={() => onDelete(cat.id)}>Eliminar</Button>
+      <div className="flex items-center gap-1 shrink-0">
+        {canUpdate && (
+          <button
+            type="button"
+            onClick={() => onEdit(cat)}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
+          >
+            Editar
+          </button>
+        )}
+        {canDelete && (
+          <button
+            type="button"
+            onClick={() => onDelete(cat)}
+            className="flex h-7 items-center justify-center rounded-lg px-2 text-xs text-[hsl(var(--muted-foreground))] hover:bg-red-100 hover:text-red-600 transition-colors"
+          >
+            Eliminar
+          </button>
+        )}
       </div>
     </div>
   )
@@ -1628,132 +1671,94 @@ function CategoryRow({ cat, indent = false, onEdit, onDelete }) {
 
 ```bash
 git add apps/desktop/src/modules/atlas.catalog/screens/CatalogCategoriesScreen.jsx
-git commit -m "feat(catalog): redesign categories screen with hierarchy tree"
+git commit -m "feat(catalog): rewrite categories screen — PageHeader + tree list + Sheet"
 ```
 
 ---
 
-## Task 7: Create CatalogInventoryScreen
+## Task 8: Create CatalogInventoryScreen
 
 **Files:**
 - Create: `apps/desktop/src/modules/atlas.catalog/screens/CatalogInventoryScreen.jsx`
+
+Pattern: `PageHeader` + `AtlasTable` blueprint.
 
 - [ ] **Step 1: Create CatalogInventoryScreen.jsx**
 
 ```jsx
 // apps/desktop/src/modules/atlas.catalog/screens/CatalogInventoryScreen.jsx
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { PageHeader, AtlasTable } from '@atlas/ui'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
-import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import { Input } from '@atlas/ui'
-import { BarChart3, AlertTriangle, PackageX } from 'lucide-react'
 
-async function apiFetch(path, token, options = {}) {
-  const res = await fetch(`${getApiUrl()}${path}`, {
-    ...options,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...options.headers },
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || `HTTP ${res.status}`)
-  }
-  return res.json()
+const API_BASE_URL = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
+
+const INVENTORY_BLUEPRINT = {
+  key: 'catalog.inventory.table',
+  schema: {
+    apiPath: '/catalog/products',
+    primaryField: 'name',
+    searchable: true,
+    searchPlaceholder: 'Buscar producto...',
+    columns: [
+      { field: 'name',          label: 'Producto',   sortable: true, link: true },
+      { field: 'category_name', label: 'Categoria',  sortable: false },
+      {
+        field: 'product_type',
+        label: 'Tipo',
+        sortable: false,
+        type: 'select',
+        options: [
+          { value: 'SIMPLE',   label: 'Simple' },
+          { value: 'VARIABLE', label: 'Variable' },
+        ],
+      },
+      { field: 'stock', label: 'Stock actual', sortable: true },
+      {
+        field: 'track_stock',
+        label: 'Control stock',
+        sortable: false,
+        type: 'select',
+        options: [
+          { value: true,  label: 'Si' },
+          { value: false, label: 'No' },
+        ],
+      },
+    ],
+    filters: [
+      {
+        key: 'type',
+        label: 'Tipo',
+        type: 'select',
+        options: [
+          { value: 'SIMPLE',   label: 'Simple' },
+          { value: 'VARIABLE', label: 'Variable' },
+        ],
+      },
+    ],
+    emptyState: { message: 'No hay productos en el inventario.' },
+  },
 }
 
 export default function CatalogInventoryScreen() {
   const { session } = useAuth()
   const token = session?.access_token
   const navigate = useNavigate()
-  const [stockFilter, setStockFilter] = useState('')
-  const [search, setSearch] = useState('')
-
-  const { data, isPending } = useQuery({
-    queryKey: ['catalog-products-inventory', token],
-    queryFn: () => apiFetch('/catalog/products?limit=200', token),
-    enabled: Boolean(token),
-    staleTime: 30_000,
-  })
-
-  const products = (data?.data ?? []).filter(p => {
-    const matchesSearch = !search || p.name.toLowerCase().includes(search.toLowerCase())
-    const stock = Number(p.stock ?? 0)
-    const matchesFilter =
-      !stockFilter ||
-      (stockFilter === 'out'  && stock === 0) ||
-      (stockFilter === 'low'  && stock > 0 && stock <= 5) ||
-      (stockFilter === 'ok'   && stock > 5)
-    return matchesSearch && matchesFilter
-  })
-
-  function stockBadge(stock) {
-    const n = Number(stock ?? 0)
-    if (n === 0) return { icon: <PackageX className="h-3 w-3" />, label: 'Sin stock', cls: 'text-red-600 bg-red-50 border-red-200' }
-    if (n <= 5)  return { icon: <AlertTriangle className="h-3 w-3" />, label: 'Stock bajo', cls: 'text-yellow-600 bg-yellow-50 border-yellow-200' }
-    return { icon: null, label: 'OK', cls: 'text-green-700 bg-green-50 border-green-200' }
-  }
 
   return (
-    <div className="p-8 space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-[hsl(var(--foreground))]">Inventario</h1>
-        <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">Vision general del stock de todos los productos</p>
-      </div>
+    <div className="p-4 md:p-6 space-y-6 min-h-dvh">
+      <PageHeader
+        eyebrow="Atlas Catalog"
+        title="Inventario"
+        description="Vision general del stock de todos los productos."
+      />
 
-      <div className="flex flex-wrap gap-3">
-        <Input
-          placeholder="Buscar producto..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
-        />
-        <select
-          className="border border-[hsl(var(--border))] rounded-md px-3 py-2 text-sm bg-[hsl(var(--background))] text-[hsl(var(--foreground))]"
-          value={stockFilter}
-          onChange={(e) => setStockFilter(e.target.value)}
-        >
-          <option value="">Todo el stock</option>
-          <option value="out">Sin stock</option>
-          <option value="low">Stock bajo (≤5)</option>
-          <option value="ok">Stock normal (&gt;5)</option>
-        </select>
-      </div>
-
-      {isPending ? (
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">Cargando...</p>
-      ) : products.length === 0 ? (
-        <div className="text-center py-16 text-[hsl(var(--muted-foreground))]">
-          <BarChart3 className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Sin resultados.</p>
-        </div>
-      ) : (
-        <div className="border border-[hsl(var(--border))] rounded-lg divide-y divide-[hsl(var(--border))]">
-          {products.map((p) => {
-            const badge = stockBadge(p.stock)
-            return (
-              <div
-                key={p.id}
-                className="flex items-center justify-between px-4 py-3 hover:bg-[hsl(var(--muted))/30] cursor-pointer"
-                onClick={() => navigate(`/app/m/atlas.catalog/${p.id}`)}
-              >
-                <div>
-                  <p className="text-sm font-medium text-[hsl(var(--foreground))]">{p.name}</p>
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                    {p.category_name ?? 'Sin categoria'} · {p.product_type === 'VARIABLE' ? 'Variable' : 'Simple'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded border ${badge.cls}`}>
-                    {badge.icon} {badge.label}
-                  </span>
-                  <span className="text-lg font-bold text-[hsl(var(--foreground))] w-12 text-right">{p.stock ?? 0}</span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
+      <AtlasTable
+        blueprint={INVENTORY_BLUEPRINT}
+        token={token}
+        apiBaseUrl={API_BASE_URL}
+        onView={row => navigate(`/app/m/atlas.catalog/${row.id}`)}
+      />
     </div>
   )
 }
@@ -1763,86 +1768,91 @@ export default function CatalogInventoryScreen() {
 
 ```bash
 git add apps/desktop/src/modules/atlas.catalog/screens/CatalogInventoryScreen.jsx
-git commit -m "feat(catalog): add inventory overview screen with stock status filters"
+git commit -m "feat(catalog): add inventory screen — PageHeader + AtlasTable"
 ```
 
 ---
 
-## Task 8: Verify MarkdownField export + smoke test + final wiring
+## Task 9: Wire routes + verify UI + final checks
 
 **Files:**
-- Possibly modify: `packages/ui/src/index.js`
+- Modify: wherever catalog routes are registered (check `apps/desktop/src/App.jsx` or router file)
 
-- [ ] **Step 1: Check MarkdownField is exported from @atlas/ui**
+- [ ] **Step 1: Find route registration**
 
-Read `packages/ui/src/index.js` and verify `MarkdownField` and `MarkdownViewer` are exported. If they are missing, add them:
+Search in `apps/desktop/src/` for where `CatalogProductsScreen` and `CatalogCategoriesScreen` are imported and registered as routes. Look for files that import from `atlas.catalog`.
 
-```js
-export { default as MarkdownField }  from './components/MarkdownField.jsx'
-export { default as MarkdownViewer } from './components/MarkdownViewer.jsx'
+```bash
+grep -r "atlas.catalog\|CatalogProducts\|CatalogCategories" apps/desktop/src/ --include="*.jsx" --include="*.js" -l
 ```
 
-- [ ] **Step 2: Start the dev server and open the catalog**
+Read those files, then add routes for `CatalogProductDetailScreen` and `CatalogInventoryScreen` following the exact same pattern used for the existing catalog screens.
+
+- [ ] **Step 2: Start the dev server**
 
 ```bash
 pnpm dev
 ```
 
-Navigate to `http://localhost:5173`. Log in and go to Catalogo.
+- [ ] **Step 3: Smoke test products list**
 
-- [ ] **Step 3: Smoke test the product list**
+Navigate to `http://localhost:5173` → log in → open Catalogo → Productos.
 
-- [ ] Products list loads with thumbnail column, type badge, and status badge
-- [ ] Filters for type (SIMPLE/VARIABLE) and status (Publicado/Borrador) work
-- [ ] Clicking a product row navigates to `/app/m/atlas.catalog/:id`
+- [ ] Products list loads with `PageHeader` (eyebrow "Atlas Catalog"), `AtlasTable` with columns: Nombre, Tipo, Categoria, Precio, Stock, Estado.
+- [ ] Filters for Tipo and Estado work.
+- [ ] Clicking "Ver" or row navigates to `/app/m/atlas.catalog/:id`.
 
-- [ ] **Step 4: Smoke test the product detail**
+- [ ] **Step 4: Smoke test product detail**
 
-- [ ] All 6 tabs render without errors
-- [ ] General tab: name, slug, markdown description, category, attributes all editable
-- [ ] Imagenes tab: can upload a cover image (file is uploaded to atlas.files inline)
-- [ ] Precios tab: for SIMPLE product shows SKU, barcode, weight, stock fields
-- [ ] Inventario tab: "Registrar ajuste" opens StockMovementModal; after saving, movement appears in list
-- [ ] SEO tab: meta title/description editable; Google snippet preview updates live
-- [ ] Publicar/Despublicar button in top bar toggles published state
+- [ ] All tabs visible: General, Imagenes, Precios, Inventario, SEO (+ Variantes for VARIABLE products).
+- [ ] Pill tab switcher renders; clicking tabs transitions with animation.
+- [ ] General tab: name, slug, markdown description editor, category dropdown, attributes table.
+- [ ] Imagenes tab: can select and upload cover image (upload goes to atlas.files).
+- [ ] Precios tab: for SIMPLE product shows SKU, barcode, weight, stock section with "Registrar ajuste" button.
+- [ ] Inventario tab: "Registrar ajuste" opens StockMovementModal; after save, movement appears.
+- [ ] SEO tab: meta fields + Google snippet preview updates live.
+- [ ] Publish button in top bar toggles badge and published state.
 
-- [ ] **Step 5: Smoke test VARIABLE product**
+- [ ] **Step 5: Smoke test categories**
 
-- Create a product with `product_type: VARIABLE` (via API or by editing an existing product).
-- Variantes tab appears; add an option "Talla" with values S, M, L.
-- Add a variant via VariantMatrix; set price and SKU inline; save.
+- [ ] Categories screen shows `PageHeader` + hierarchical tree.
+- [ ] Create a new category → appears in list.
+- [ ] Create a subcategory (with parent) → appears indented below parent.
+- [ ] Edit and delete work with `ConfirmDialog`.
 
-- [ ] **Step 6: Smoke test categories**
+- [ ] **Step 6: Smoke test inventory screen**
 
-- [ ] Categories screen shows hierarchical tree (subcategories indented)
-- [ ] Creating a subcategory with a parent_id works; it appears nested
+- [ ] Inventario nav item navigates to the screen.
+- [ ] `AtlasTable` loads all products with stock column.
+- [ ] Clicking a row navigates to the product detail.
 
-- [ ] **Step 7: Smoke test inventory screen**
+- [ ] **Step 7: Build check**
 
-- [ ] Inventario nav item navigates to the new screen
-- [ ] Stock filter (sin stock / bajo / ok) filters correctly
-- [ ] Clicking a row navigates to the product detail
+```bash
+pnpm build
+```
+
+Expected: no errors. If there are errors, fix them before the final commit.
 
 - [ ] **Step 8: Final commit**
 
 ```bash
-git add packages/ui/src/index.js
-git commit -m "feat(catalog): wire MarkdownField export, complete catalog v2 UI smoke-tested"
+git add -A
+git commit -m "feat(catalog): complete v2 UI — PageHeader + AtlasTable + pill tabs + motion/react"
 ```
 
 ---
 
 ## Verification checklist
 
-After all tasks complete:
-
-- [ ] Three nav items appear in the sidebar for Catalogo: Productos, Categorias, Inventario
-- [ ] Product list shows thumbnail, type badge, and status badge
-- [ ] Product detail has 6 tabs; Variantes tab only visible for VARIABLE products
-- [ ] Inline image upload works — no navigation to atlas.files required
-- [ ] Markdown description editor renders in General tab
-- [ ] Stock movement modal records adjustment and updates stock count immediately
-- [ ] Variant options and matrix are editable from the Variantes tab
-- [ ] Categories screen shows 2-level hierarchy
-- [ ] Inventory screen shows all products with stock badges
-- [ ] No TypeScript/build errors (`pnpm build` passes)
+- [ ] `PageHeader` with `eyebrow="Atlas Catalog"` in all 3 list/overview screens
+- [ ] `AtlasTable` with blueprint used for Products and Inventory screens (not hand-coded tables)
+- [ ] Pill-style tabs (rounded-xl container) with `AnimatePresence` transitions in detail screen
+- [ ] `SectionCard` grouping used for content within each tab
+- [ ] `ConfirmDialog` used for all delete confirmations
+- [ ] `atlas.catalog.*` SDK methods used for all catalog API calls
+- [ ] `atlas.files.upload()` and `atlas.files.batchSignedUrls()` used in ProductImageManager
+- [ ] `motion/react` `AnimatePresence` used in categories list and detail tabs
+- [ ] `import.meta.env.VITE_ATLAS_API_URL` used (not `getApiUrl()`)
+- [ ] `useAuth()` with `hasPermission()` guard pattern used in all screens
+- [ ] `pnpm build` passes with no errors
