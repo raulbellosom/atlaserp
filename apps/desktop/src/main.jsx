@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BrowserRouter,
@@ -32,6 +32,10 @@ import { PublicModuleOutlet } from "./shell/PublicModuleOutlet.jsx";
 import { PublicWebsiteEntry } from "./shell/PublicWebsiteEntry.jsx";
 import { PublicClientLogin } from "./shell/PublicClientLogin.jsx";
 import "./styles.css";
+
+const SmtpSettingsScreen = lazy(() =>
+  import("./modules/platform-settings/screens/SmtpSettingsScreen.jsx"),
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -187,6 +191,7 @@ function App() {
                   <Route path="home" element={<HomeScreen />} />
                   <Route path="m/:moduleKey/*" element={<ModuleOutlet />} />
                   <Route path="profile" element={<ProfileScreen />} />
+                  <Route path="settings/smtp" element={<SmtpSettingsScreen />} />
                 </Route>
               </Route>
               <Route path="/p" element={<PublicShell />}>
