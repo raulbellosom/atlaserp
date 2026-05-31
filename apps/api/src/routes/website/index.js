@@ -62,5 +62,22 @@ export function createWebsiteRouter({ prisma, requirePermission }) {
     },
   )
 
+  app.delete(
+    '/website/site/:id',
+    requirePermission('website.site.update'),
+    async (c) => {
+      const companyId = c.get('companyId')
+      const actorId   = c.get('userId') ?? c.get('user')?.id ?? null
+      const siteId    = c.req.param('id')
+      try {
+        await websiteSvc.deleteSite({ companyId, siteId, actorId })
+        return c.body(null, 204)
+      } catch (err) {
+        if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
+        throw err
+      }
+    },
+  )
+
   return app
 }

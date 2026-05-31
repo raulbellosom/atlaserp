@@ -78,6 +78,54 @@ export function createWebsiteService({ prisma }) {
     return after
   }
 
+  async function deleteSite({ companyId, siteId, actorId }) {
+    const site = await prisma.websiteSite.findFirst({
+      where: { id: siteId, companyId },
+      select: { id: true, name: true },
+    })
+    if (!site) throw notFound('Sitio')
+
+    await prisma.auditLog.create({
+      data: {
+        actorId:    actorId ?? null,
+        moduleKey:  'atlas.website',
+        entityType: 'website.site',
+        entityId:   siteId,
+        action:     'site.delete',
+        before:     JSON.stringify(site),
+        after:      null,
+      },
+    })
+
+    await prisma.$transaction(async (tx) => {
+      const menuIds = (await tx.websiteMenu.findMany({
+        where: { siteId }, select: { id: true },
+      })).map((m) => m.id)
+
+      const pageIds = (await tx.websitePage.findMany({
+        where: { siteId }, select: { id: true },
+      })).map((p) => p.id)
+
+      // WebsiteFormField and WebsiteFormSubmission cascade from WebsiteForm (onDelete: Cascade)
+      await tx.websiteForm.deleteMany({ where: { siteId } })
+
+      if (menuIds.length) {
+        await tx.websiteMenuItem.deleteMany({ where: { menuId: { in: menuIds } } })
+      }
+      await tx.websiteMenu.deleteMany({ where: { siteId } })
+      await tx.websitePublishedRender.deleteMany({ where: { siteId } })
+
+      if (pageIds.length) {
+        await tx.websitePageVersion.deleteMany({ where: { pageId: { in: pageIds } } })
+      }
+      await tx.websitePage.deleteMany({ where: { siteId } })
+      await tx.websiteBlogPost.deleteMany({ where: { siteId } })
+      await tx.websiteBlogCategory.deleteMany({ where: { siteId } })
+      await tx.websiteTheme.deleteMany({ where: { siteId } })
+      await tx.websiteSite.delete({ where: { id: siteId } })
+    })
+  }
+
   async function listPages({ companyId, siteId, page = 1, pageSize = 30, pageType = null, status = null }) {
     const skip = (page - 1) * pageSize
     const where = { companyId, siteId, enabled: true }
@@ -666,6 +714,7 @@ export function createWebsiteService({ prisma }) {
     getSite,
     createSite,
     updateSite,
+    deleteSite,
     listPages,
     getPage,
     getPageByPath,
