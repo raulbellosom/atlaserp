@@ -8,16 +8,17 @@ export function createPagesRouter({ websiteSvc, requirePermission }) {
 
   app.get('/pages', requirePermission('website.pages.read'), async (c) => {
     const companyId = c.get('companyId')
-    const { siteId, page, pageSize } = c.req.query()
+    const { siteId, page, pageSize, page_type } = c.req.query()
     const site = siteId
       ? { id: siteId }
       : await websiteSvc.getSite({ companyId })
     if (!site) return c.json({ data: [], total: 0 })
     const result = await websiteSvc.listPages({
       companyId,
-      siteId: site.id,
+      siteId:   site.id,
       page:     parseInt(page     ?? '1',  10),
       pageSize: parseInt(pageSize ?? '30', 10),
+      pageType: page_type ?? null,
     })
     return c.json(result)
   })

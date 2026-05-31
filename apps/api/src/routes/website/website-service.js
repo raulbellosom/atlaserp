@@ -78,11 +78,13 @@ export function createWebsiteService({ prisma }) {
     return after
   }
 
-  async function listPages({ companyId, siteId, page = 1, pageSize = 30 }) {
+  async function listPages({ companyId, siteId, page = 1, pageSize = 30, pageType = null }) {
     const skip = (page - 1) * pageSize
+    const where = { companyId, siteId, enabled: true }
+    if (pageType) where.pageType = pageType
     const [data, total] = await Promise.all([
       prisma.websitePage.findMany({
-        where: { companyId, siteId, enabled: true },
+        where,
         orderBy: { createdAt: 'desc' },
         skip,
         take: pageSize,
@@ -99,7 +101,7 @@ export function createWebsiteService({ prisma }) {
           updatedAt: true,
         },
       }),
-      prisma.websitePage.count({ where: { companyId, siteId, enabled: true } }),
+      prisma.websitePage.count({ where }),
     ])
     return { data, total, page, pageSize }
   }
