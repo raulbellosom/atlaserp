@@ -8,6 +8,7 @@ import { PublicWebsite404 } from './PublicWebsite404.jsx'
 import { WebsitePageRenderer } from '../website/WebsitePageRenderer.jsx'
 import { EditorContextBar } from '../website/EditorContextBar.jsx'
 import WebsitePageEditorScreen from '../modules/atlas.website/screens/WebsitePageEditorScreen.jsx'
+import { BAR_H_PX } from '../website/EditorContextBar.jsx'
 import { toast } from 'sonner'
 
 function titleToSlug(title) {
@@ -57,7 +58,8 @@ export function PublicWebsiteEntry() {
   const { session } = useAuth()
   const token = session?.access_token
 
-  const [editMode, setEditMode] = useState(false)
+  const [editMode, setEditMode]   = useState(false)
+  const [barVisible, setBarVisible] = useState(() => localStorage.getItem('atlas-editor-bar-pinned') === 'true')
 
   // Allow public website to scroll and expand beyond app-shell constraints
   useEffect(() => {
@@ -163,16 +165,22 @@ export function PublicWebsiteEntry() {
       onPublishPage={() => publishMutation.mutate()}
       onUnpublishPage={() => unpublishMutation.mutate()}
       onCreatePage={handleCreatePage}
+      onVisibilityChange={setBarVisible}
       isPublishing={isPublishing}
     />
   ) : null
 
-  // Edit mode — editor fills the screen, bar stays above it (sticky z-index > editor)
+  // paddingTop matches bar height, transitions in sync with bar slide animation
+  const contentPad = isEditor && barVisible ? BAR_H_PX : 0
+
+  // Edit mode — editor fills screen, bar (fixed z-index 9998) stays on top of editor (fixed z-index 0)
   if (editMode && resolveData.page?.id) {
     return (
       <>
         {bar}
-        <WebsitePageEditorScreen pageId={resolveData.page.id} />
+        <div style={{ paddingTop: contentPad, transition: 'padding-top 170ms ease' }}>
+          <WebsitePageEditorScreen pageId={resolveData.page.id} />
+        </div>
       </>
     )
   }
@@ -181,10 +189,12 @@ export function PublicWebsiteEntry() {
   return (
     <>
       {bar}
-      <WebsitePageRenderer
-        page={resolveData.page}
-        theme={resolveData.theme}
-      />
+      <div style={{ paddingTop: contentPad, transition: 'padding-top 170ms ease' }}>
+        <WebsitePageRenderer
+          page={resolveData.page}
+          theme={resolveData.theme}
+        />
+      </div>
     </>
   )
 }

@@ -168,6 +168,8 @@ function PageCombobox({ pages = [], currentPage, onNavigate, onCreatePage }) {
 
 // ── Main bar ─────────────────────────────────────────────────────────────────
 
+export const BAR_H_PX = BAR_H
+
 export function EditorContextBar({
   site,
   page,
@@ -178,6 +180,7 @@ export function EditorContextBar({
   onPublishPage,
   onUnpublishPage,
   onCreatePage,
+  onVisibilityChange,
   isPublishing = false,
 }) {
   const navigate = useNavigate()
@@ -190,12 +193,18 @@ export function EditorContextBar({
     return () => clearTimeout(hideTimer.current)
   }, [])
 
+  const barOpen = visible || pinned
+
+  // Notify parent whenever visibility changes so it can animate paddingTop
+  useEffect(() => {
+    onVisibilityChange?.(barOpen)
+  }, [barOpen]) // eslint-disable-line react-hooks/exhaustive-deps
+
   function togglePin() {
     const next = !pinned
     setPinned(next)
     localStorage.setItem(STORAGE_KEY, String(next))
-    if (!next) setVisible(false)
-    else setVisible(true)
+    setVisible(next)
   }
 
   function show() {
@@ -208,30 +217,29 @@ export function EditorContextBar({
     hideTimer.current = setTimeout(() => setVisible(false), 350)
   }
 
-  const barOpen     = visible || pinned
   const isPublished = page?.status === 'published'
 
   const divider = (
-    <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)', flexShrink: 0, mx: 2 }} />
+    <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
   )
 
   return (
     <>
-      {/* ── Sticky wrapper — pushes content, animates height ──────────── */}
+      {/* ── Bar — position:fixed, transform slides it in/out ─────────── */}
       <div
         style={{
-          position: 'sticky',
-          top: 0,
+          position: 'fixed',
+          top: 0, left: 0,
+          width: '100%',
+          height: BAR_H,
           zIndex: 9998,
-          height: barOpen ? BAR_H : 0,
-          overflow: 'hidden',
-          transition: 'height 170ms ease',
-          flexShrink: 0,
+          transform: barOpen ? 'translateY(0)' : 'translateY(-100%)',
+          transition: 'transform 170ms ease',
+          // bar itself is interactive; corner trigger takes over when hidden
         }}
         onMouseEnter={show}
         onMouseLeave={scheduleHide}
       >
-        {/* Actual bar — always full height */}
         <div style={{
           position: 'relative',
           height: BAR_H,
@@ -306,8 +314,8 @@ export function EditorContextBar({
             flexShrink: 0,
           }}>
             {[
-              { label: 'Vista', icon: <Eye size={11} />, active: !editMode, onClick: () => editMode && onToggleEdit?.() },
-              { label: 'Editor', icon: <Pencil size={11} />, active: editMode, onClick: () => !editMode && onToggleEdit?.() },
+              { label: 'Vista',  icon: <Eye    size={11} />, active: !editMode, onClick: () => editMode  && onToggleEdit?.() },
+              { label: 'Editor', icon: <Pencil size={11} />, active:  editMode, onClick: () => !editMode && onToggleEdit?.() },
             ].map(({ label, icon, active, onClick }) => (
               <button
                 key={label}
@@ -353,7 +361,7 @@ export function EditorContextBar({
         </div>
       </div>
 
-      {/* ── Corner trigger — only when bar is hidden ──────────────────── */}
+      {/* ── Corner trigger — only when bar is off-screen ─────────────── */}
       {!barOpen && (
         <div
           style={{ position: 'fixed', top: 0, left: 0, width: 56, height: 56, zIndex: 9999 }}
