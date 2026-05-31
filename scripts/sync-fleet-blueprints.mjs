@@ -183,7 +183,31 @@ function patchVehicleTable(schema) {
 
 /** fleet.vehicle.form */
 function patchVehicleForm(schema) {
-  return applyMainEntityFormPatches(schema);
+  const patched = applyMainEntityFormPatches(schema);
+  const sections = transformFields(patched.sections ?? [], (field) => {
+    if (field.field === "driver_id") {
+      return {
+        ...field,
+        type: "relation",
+        label: field.label ?? "Conductor asignado",
+        required: false,
+        relation: {
+          apiPath: "/fleet/drivers",
+          labelField: "driver_name",
+          labelSeparator: " ",
+          searchParam: "search",
+          valueField: "id",
+          pageSize: 50,
+          preload: false,
+          displayFields: {
+            title: "driver_name",
+          },
+        },
+      };
+    }
+    return field;
+  });
+  return { ...patched, sections };
 }
 
 /** fleet.vehicle.detail */
@@ -193,7 +217,15 @@ function patchVehicleDetail(schema) {
     title: schema.title ?? "Vehiculo",
   };
 
-  const sections = (patched.sections ?? []).map((section) => {
+  // Bug fix: apply notes→markdown to fields sections in the detail view
+  const sectionsWithMarkdown = transformFields(patched.sections ?? [], (field) => {
+    if (field.field === "notes" || field.field === "observations") {
+      return { ...field, type: "markdown" };
+    }
+    return field;
+  });
+
+  const sections = (sectionsWithMarkdown ?? []).map((section) => {
     if (section.id === "active_insurance" && section.type === "relation-card") {
       return {
         ...section,
@@ -208,6 +240,7 @@ function patchVehicleDetail(schema) {
             "active_insurance_policy.coverage_type_label",
             "active_insurance_policy.expiry_date",
           ],
+          subtitleTypes: ["text", "text", "date"],
         },
       };
     }
@@ -223,6 +256,7 @@ function patchVehicleDetail(schema) {
           titleField: "name",
           subtitleFields: ["coverage_type_label", "start_date", "expiry_date"],
           subtitleLabels: ["Cobertura:", "Inicio:", "Vence:"],
+          subtitleTypes: ["text", "date", "date"],
           hrefTemplate: "/app/m/atlas.fleet/insurance/:id",
           emptyMessage: "Este vehiculo no tiene polizas registradas.",
           permission: "fleet.insurance.read",

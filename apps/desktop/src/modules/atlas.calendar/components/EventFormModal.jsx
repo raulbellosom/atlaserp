@@ -146,7 +146,7 @@ export default function EventFormModal({ event, defaultDate, defaultCalendarId, 
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <form
         onSubmit={handleSubmit}
-        className="bg-[hsl(var(--surface-1))] rounded-xl shadow-xl w-full max-w-lg overflow-hidden"
+        className="bg-[hsl(var(--surface-1))] rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--border))]">

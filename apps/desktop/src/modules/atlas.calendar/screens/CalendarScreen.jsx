@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react'
 import { useCalendarStore } from '../stores/useCalendarStore'
 import CalendarToolbar from '../components/CalendarToolbar'
@@ -13,6 +13,19 @@ import EventFormModal from '../components/EventFormModal'
 import CalendarFormModal from '../components/CalendarFormModal'
 import CalendarShareModal from '../components/CalendarShareModal'
 
+function useNarrow(breakpoint = 640) {
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < breakpoint,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`)
+    const fn = (e) => setNarrow(e.matches)
+    mq.addEventListener('change', fn)
+    return () => mq.removeEventListener('change', fn)
+  }, [breakpoint])
+  return narrow
+}
+
 export default function CalendarScreen() {
   const {
     activeView,
@@ -24,9 +37,22 @@ export default function CalendarScreen() {
     toggleRightSidebar,
   } = useCalendarStore()
 
+  const isNarrow = useNarrow()
+
+  // Close both sidebars when the window becomes narrow
+  const prevNarrow = useRef(isNarrow)
+  useEffect(() => {
+    if (isNarrow && !prevNarrow.current) {
+      if (leftSidebarOpen) toggleLeftSidebar()
+      if (rightSidebarOpen) toggleRightSidebar()
+    }
+    prevNarrow.current = isNarrow
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNarrow])
+
   const [detailEvent, setDetailEvent] = useState(null)
   const [formState, setFormState] = useState(null)
-  const [calendarForm, setCalendarForm] = useState(null) // true = new, object = edit
+  const [calendarForm, setCalendarForm] = useState(null)
   const [shareCalendar, setShareCalendar] = useState(null)
 
   function openNewEvent() {
@@ -64,13 +90,24 @@ export default function CalendarScreen() {
       </div>
 
       {/* Main area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Left sidebar — inline on desktop, overlay on narrow */}
         {leftSidebarOpen && (
-          <CalendarLeftSidebar
-            onNewCalendar={() => setCalendarForm(true)}
-            onEditCalendar={(cal) => setCalendarForm(cal)}
-            onShareCalendar={(cal) => setShareCalendar(cal)}
-          />
+          <>
+            {isNarrow && (
+              <div
+                className="absolute inset-0 z-40 bg-black/40"
+                onClick={toggleLeftSidebar}
+              />
+            )}
+            <div className={isNarrow ? 'absolute left-0 top-0 bottom-0 z-50 shadow-xl' : ''}>
+              <CalendarLeftSidebar
+                onNewCalendar={() => setCalendarForm(true)}
+                onEditCalendar={(cal) => setCalendarForm(cal)}
+                onShareCalendar={(cal) => setShareCalendar(cal)}
+              />
+            </div>
+          </>
         )}
 
         <div className="flex-1 flex overflow-hidden min-w-0">
@@ -86,8 +123,19 @@ export default function CalendarScreen() {
           {activeView === 'agenda' && <AgendaView onEventClick={setDetailEvent} />}
         </div>
 
+        {/* Right sidebar — inline on desktop, overlay on narrow */}
         {rightSidebarOpen && (
-          <CalendarRightSidebar onNewEvent={openNewEvent} />
+          <>
+            {isNarrow && (
+              <div
+                className="absolute inset-0 z-40 bg-black/40"
+                onClick={toggleRightSidebar}
+              />
+            )}
+            <div className={isNarrow ? 'absolute right-0 top-0 bottom-0 z-50 shadow-xl' : ''}>
+              <CalendarRightSidebar onNewEvent={openNewEvent} />
+            </div>
+          </>
         )}
       </div>
 

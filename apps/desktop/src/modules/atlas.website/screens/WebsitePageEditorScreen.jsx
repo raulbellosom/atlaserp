@@ -1,4 +1,5 @@
-import { useParams } from 'react-router-dom'
+import { useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   AtlasWebBuilderEditor, baseBlocks,
@@ -8,7 +9,7 @@ import {
 import '@raulbellosom/atlas-web-builder/styles'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import { buildAtlasBlocks } from '../../../website/atlasBlocks/index.js'
+import { buildAtlasBlocks, buildAtlasTemplates } from '../../../website/atlasBlocks/index.js'
 import { toast } from 'sonner'
 
 async function apiFetch(path, token, options = {}) {
@@ -64,7 +65,14 @@ function createAssetSource(token) {
 // topOffset: pixels to offset the fixed container from the top (for pinned editor bar)
 export default function WebsitePageEditorScreen({ pageId: pageIdProp, topOffset = 0 } = {}) {
   const { '*': wildcard } = useParams()
+  const navigate = useNavigate()
   const pageId = pageIdProp ?? wildcard?.match(/^pages\/([^/]+)\/editor$/)?.[1] ?? null
+
+  // When accessed directly from the AppShell route (pageIdProp is null),
+  // redirect to the public website URL with ?edit=1 so the editor runs
+  // in PublicWebsiteEntry context (correct z-index, EditorContextBar, publish button, etc.)
+  const isInAppShell = pageIdProp === undefined || pageIdProp === null
+
   const { session } = useAuth()
   const token = session?.access_token
   const queryClient = useQueryClient()
@@ -114,6 +122,14 @@ export default function WebsitePageEditorScreen({ pageId: pageIdProp, topOffset 
     },
     onError: (err) => toast.error(err.message),
   })
+
+  // Redirect to public website edit mode when accessed from AppShell route
+  useEffect(() => {
+    if (!isInAppShell) return
+    const routePath = pageQuery.data?.data?.routePath
+    if (!routePath) return
+    navigate(routePath + '?edit=1', { replace: true })
+  }, [isInAppShell, pageQuery.data, navigate])
 
   const pageData  = pageQuery.data?.data ?? null
   const themeData = themeQuery.data?.data ?? null
@@ -165,7 +181,8 @@ export default function WebsitePageEditorScreen({ pageId: pageIdProp, topOffset 
     )
   }
 
-  if (pageQuery.isPending || !initialPage) {
+  // While waiting to redirect to public URL
+  if (isInAppShell && !pageQuery.isError) {
     return (
       <div className="flex items-center justify-center h-screen text-sm text-gray-400">
         Cargando editor...
@@ -179,6 +196,7 @@ export default function WebsitePageEditorScreen({ pageId: pageIdProp, topOffset 
     <div style={{ position: 'fixed', top: topOffset, left: 0, right: 0, bottom: 0 }}>
       <AtlasWebBuilderEditor
         blocks={[...baseBlocks, ...buildAtlasBlocks(siteType)]}
+        templates={buildAtlasTemplates(siteType)}
         initialPage={initialPage}
         theme={resolvedTheme}
         assets={createAssetSource(token)}

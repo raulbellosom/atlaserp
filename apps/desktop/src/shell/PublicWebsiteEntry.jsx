@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider.jsx'
 import { getApiUrl } from '../lib/runtimeConfig.js'
@@ -51,15 +51,317 @@ async function fetchEditorCheck(token) {
   return res.json()
 }
 
-export function PublicWebsiteEntry() {
-  const location    = useLocation()
-  const navigate    = useNavigate()
-  const queryClient = useQueryClient()
-  const { session } = useAuth()
-  const token = session?.access_token
+// ── "En construccion" screen for anonymous visitors ───────────────────────────
 
-  const [editMode, setEditMode]   = useState(false)
+const CS_CSS = `
+  @keyframes _cs_fadeUp {
+    from { opacity: 0; transform: translateY(28px) }
+    to   { opacity: 1; transform: translateY(0) }
+  }
+  @keyframes _cs_lineGrow {
+    from { transform: scaleX(0) }
+    to   { transform: scaleX(1) }
+  }
+  @keyframes _cs_float {
+    0%, 100% { transform: translateY(0) }
+    50%       { transform: translateY(-20px) }
+  }
+  @keyframes _cs_grain {
+    0%,100%{ transform:translate(0,0) }
+    10%    { transform:translate(-2%,-3%) }
+    20%    { transform:translate(-4%,2%) }
+    30%    { transform:translate(3%,-4%) }
+    40%    { transform:translate(2%,3%) }
+    50%    { transform:translate(-1%,-2%) }
+    60%    { transform:translate(4%,1%) }
+    70%    { transform:translate(-3%,4%) }
+    80%    { transform:translate(1%,-1%) }
+    90%    { transform:translate(-2%,2%) }
+  }
+  @keyframes _cs_glow {
+    0%,100% { opacity: 0.35 }
+    50%      { opacity: 0.65 }
+  }
+  ._cs1 { animation: _cs_fadeUp .9s cubic-bezier(.16,1,.3,1) .05s both }
+  ._cs2 { animation: _cs_fadeUp .9s cubic-bezier(.16,1,.3,1) .2s  both }
+  ._cs3 { animation: _cs_fadeUp .9s cubic-bezier(.16,1,.3,1) .35s both }
+  ._cs4 { animation: _cs_fadeUp .9s cubic-bezier(.16,1,.3,1) .5s  both }
+  ._cs5 { animation: _cs_fadeUp .9s cubic-bezier(.16,1,.3,1) .65s both }
+  ._csLine  { animation: _cs_lineGrow 1.4s cubic-bezier(.16,1,.3,1) .55s both; transform-origin: left }
+  ._csFloat { animation: _cs_float 7s ease-in-out infinite }
+  ._csGlow  { animation: _cs_glow  5s ease-in-out infinite }
+  ._csGrain { animation: _cs_grain 9s steps(1) infinite }
+`
+
+function ComingSoonScreen({ siteName }) {
+  return (
+    <>
+      <style>{CS_CSS}</style>
+      <div style={{
+        minHeight: '100vh',
+        background: '#07090f',
+        position: 'relative',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        fontFamily: "'DM Sans', system-ui, sans-serif",
+      }}>
+
+        {/* ── Diagonal grid ── */}
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none',
+          backgroundImage: `
+            repeating-linear-gradient(-45deg,
+              rgba(255,255,255,.018) 0px, rgba(255,255,255,.018) 1px,
+              transparent 1px, transparent 64px)
+          `,
+        }} />
+
+        {/* ── Ambient glow — gold left ── */}
+        <div className="_csFloat _csGlow" style={{
+          position: 'absolute', top: '-25%', left: '-18%',
+          width: '72vw', height: '72vw',
+          background: 'radial-gradient(circle, rgba(210,160,60,.14) 0%, transparent 65%)',
+          zIndex: 0, pointerEvents: 'none',
+        }} />
+
+        {/* ── Ambient glow — indigo right ── */}
+        <div style={{
+          position: 'absolute', bottom: '-20%', right: '-12%',
+          width: '55vw', height: '55vw',
+          background: 'radial-gradient(circle, rgba(99,102,241,.1) 0%, transparent 65%)',
+          zIndex: 0, pointerEvents: 'none',
+        }} />
+
+        {/* ── Top scan line ── */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: 2, zIndex: 2,
+          background: 'linear-gradient(90deg, transparent 0%, rgba(210,160,60,.7) 30%, rgba(210,160,60,1) 50%, rgba(210,160,60,.7) 70%, transparent 100%)',
+        }} />
+
+        {/* ── SVG grain overlay ── */}
+        <div className="_csGrain" style={{
+          position: 'absolute', inset: '-50%', width: '200%', height: '200%',
+          zIndex: 1, opacity: .45, pointerEvents: 'none',
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.07'/%3E%3C/svg%3E")`,
+        }} />
+
+        {/* ── Ghost year — far right ── */}
+        <div style={{
+          position: 'absolute', right: '-3%', top: '50%',
+          transform: 'translateY(-50%)',
+          fontFamily: "'Playfair Display', Georgia, serif",
+          fontSize: 'clamp(140px, 22vw, 320px)',
+          fontWeight: 700, lineHeight: 1,
+          color: 'transparent',
+          WebkitTextStroke: '1px rgba(255,255,255,.035)',
+          userSelect: 'none', zIndex: 0, letterSpacing: '-0.05em',
+          whiteSpace: 'nowrap',
+        }}>
+          {new Date().getFullYear()}
+        </div>
+
+        {/* ── Vertical label — far left edge ── */}
+        <div style={{
+          position: 'absolute', left: 24, top: '50%',
+          transform: 'translateY(-50%) rotate(-90deg)',
+          transformOrigin: 'center center',
+          color: 'rgba(255,255,255,.12)',
+          fontSize: 10, fontWeight: 700, letterSpacing: '0.25em',
+          textTransform: 'uppercase', whiteSpace: 'nowrap',
+          zIndex: 2,
+        }}>
+          Atlas ERP · Sitio web
+        </div>
+
+        {/* ── Main content ── */}
+        <div style={{
+          position: 'relative', zIndex: 3,
+          padding: 'clamp(40px, 8vw, 100px)',
+          paddingLeft: 'clamp(64px, 10vw, 140px)',
+          maxWidth: 900, width: '100%',
+        }}>
+
+          {/* Badge */}
+          <div className="_cs1" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: 'rgba(210,160,60,.1)',
+            border: '1px solid rgba(210,160,60,.28)',
+            borderRadius: 100, padding: '5px 14px 5px 10px',
+            marginBottom: 36,
+          }}>
+            <div style={{
+              width: 7, height: 7, borderRadius: '50%',
+              background: '#d2a03c',
+              boxShadow: '0 0 10px #d2a03c, 0 0 20px rgba(210,160,60,.4)',
+            }} />
+            <span style={{ color: '#d2a03c', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+              Proximamente
+            </span>
+          </div>
+
+          {/* Company name */}
+          <h1 className="_cs2" style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: 'clamp(42px, 8.5vw, 104px)',
+            fontWeight: 700, color: '#ede8df',
+            lineHeight: 1.0, letterSpacing: '-0.025em',
+            margin: 0, marginBottom: 8,
+          }}>
+            {siteName || 'Nuevo sitio web'}
+          </h1>
+
+          {/* Subheader */}
+          <p className="_cs3" style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: 'clamp(16px, 2.2vw, 24px)',
+            fontWeight: 400, fontStyle: 'italic',
+            color: 'rgba(255,255,255,.28)',
+            margin: 0, marginBottom: 40,
+          }}>
+            en construccion
+          </p>
+
+          {/* Gold divider line */}
+          <div className="_csLine" style={{
+            width: 'min(520px, 80vw)', height: 1, marginBottom: 40,
+            background: 'linear-gradient(90deg, rgba(210,160,60,.9) 0%, rgba(210,160,60,.15) 100%)',
+          }} />
+
+          {/* Description */}
+          <p className="_cs4" style={{
+            color: 'rgba(255,255,255,.38)',
+            fontSize: 'clamp(13px, 1.4vw, 16px)',
+            lineHeight: 1.8, maxWidth: 460,
+            margin: 0, marginBottom: 52,
+          }}>
+            Estamos construyendo algo especial para ti.<br />
+            Vuelve pronto para descubrir el resultado.
+          </p>
+
+          {/* Admin link */}
+          <a className="_cs5" href="/app" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 10,
+            color: 'rgba(255,255,255,.25)',
+            fontSize: 11, fontWeight: 600,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            textDecoration: 'none',
+            transition: 'color 200ms, gap 200ms',
+            cursor: 'pointer',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = 'rgba(255,255,255,.55)'
+            e.currentTarget.style.gap = '14px'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'rgba(255,255,255,.25)'
+            e.currentTarget.style.gap = '10px'
+          }}
+          >
+            <svg viewBox="0 0 16 16" fill="none" style={{ width: 13, height: 13 }}>
+              <path d="M10 12l-4-4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Panel de administracion
+          </a>
+        </div>
+
+        {/* ── Decorative corner lines — bottom right ── */}
+        <div style={{
+          position: 'absolute', bottom: 44, right: 56,
+          display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5,
+          zIndex: 2, opacity: .18,
+        }}>
+          {[108, 72, 36].map((w, i) => (
+            <div key={i} style={{ width: w, height: 1, background: '#d2a03c', borderRadius: 1 }} />
+          ))}
+        </div>
+
+        {/* ── Decorative dot grid — top right ── */}
+        <div style={{
+          position: 'absolute', top: 48, right: 56,
+          display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10,
+          zIndex: 2, opacity: .12,
+        }}>
+          {Array.from({ length: 15 }).map((_, i) => (
+            <div key={i} style={{ width: 3, height: 3, borderRadius: '50%', background: '#d2a03c' }} />
+          ))}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ── Empty state for editors when no page is published on this route ───────────
+
+function EditorEmptyRoute({ routePath, onCreatePage, isCreating }) {
+  const isRoot = routePath === '/'
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white px-6">
+      <div className="max-w-md w-full text-center space-y-6">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl border-2 border-dashed border-indigo-300 bg-indigo-50 mx-auto">
+          <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7 text-indigo-400">
+            <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs font-mono text-indigo-400 bg-indigo-50 px-3 py-1 rounded-full inline-block">
+            {routePath}
+          </p>
+          <h2 className="text-xl font-bold text-gray-900 mt-2">
+            {isRoot ? 'Sin pagina de inicio publicada' : 'Esta ruta no tiene contenido'}
+          </h2>
+          <p className="text-gray-500 text-sm">
+            {isRoot
+              ? 'Crea y publica la pagina principal para que los visitantes la vean.'
+              : 'No existe una pagina publicada en esta ruta.'}
+          </p>
+        </div>
+        <div className="flex flex-col items-center gap-3">
+          <button
+            onClick={onCreatePage}
+            disabled={isCreating}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}
+          >
+            {isCreating ? 'Creando...' : `Crear pagina "${isRoot ? 'Inicio' : routePath}"`}
+          </button>
+          <a
+            href="/app/m/atlas.website/pages"
+            className="text-xs text-gray-400 hover:text-gray-600 transition-colors underline"
+          >
+            Ver todas las paginas
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main entry ─────────────────────────────────────────────────────────────────
+
+export function PublicWebsiteEntry() {
+  const location      = useLocation()
+  const navigate      = useNavigate()
+  const queryClient   = useQueryClient()
+  const { session }   = useAuth()
+  const token         = session?.access_token
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // If URL has ?edit=1, start in edit mode and remove the param from URL
+  const startInEdit = searchParams.get('edit') === '1'
+  const [editMode,  setEditMode]  = useState(startInEdit)
   const [barPinned, setBarPinned] = useState(() => localStorage.getItem('atlas-editor-bar-pinned') === 'true')
+
+  useEffect(() => {
+    if (startInEdit) {
+      // Remove ?edit=1 from URL without navigation
+      const next = new URLSearchParams(searchParams)
+      next.delete('edit')
+      setSearchParams(next, { replace: true })
+      setEditMode(true)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Allow public website to scroll and expand beyond app-shell constraints
   useEffect(() => {
@@ -94,6 +396,7 @@ export function PublicWebsiteEntry() {
   const isEditor    = Boolean(token) && Boolean(site)
   const siteId      = site?.id ?? null
 
+  // All pages list (for the bar combobox)
   const pagesQuery = useQuery({
     queryKey: ['website-pages-bar', siteId],
     queryFn:  () => apiFetch(`/website/pages?siteId=${siteId}&pageSize=50`, token),
@@ -101,28 +404,80 @@ export function PublicWebsiteEntry() {
     staleTime: 60_000,
   })
 
+  // Editor-only: fetch current route page regardless of publish status (includes drafts)
+  const editorPageQuery = useQuery({
+    queryKey: ['website-page-by-path', siteId, location.pathname],
+    queryFn:  () => apiFetch(
+      `/website/pages/by-path?siteId=${siteId}&routePath=${encodeURIComponent(location.pathname)}`,
+      token,
+    ),
+    enabled:  isEditor && Boolean(siteId),
+    staleTime: 30_000,
+  })
+
+  // activePage: the page at this route (published for visitors, any status for editors)
+  const publishedPage = resolveData?.page ?? null
+  const editorPage    = editorPageQuery.data?.data ?? null
+  const activePage    = publishedPage ?? (isEditor ? editorPage : null)
+
   const publishMutation = useMutation({
-    mutationFn: () => apiFetch(`/website/pages/${resolveData?.page?.id}/publish`, token, { method: 'POST' }),
+    mutationFn: () => apiFetch(`/website/pages/${activePage?.id}/publish`, token, { method: 'POST' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['public-website-resolve', location.pathname] })
       queryClient.invalidateQueries({ queryKey: ['website-pages-bar', siteId] })
+      queryClient.invalidateQueries({ queryKey: ['website-page-by-path', siteId, location.pathname] })
       toast.success('Pagina publicada')
     },
     onError: (err) => toast.error(err.message),
   })
 
   const unpublishMutation = useMutation({
-    mutationFn: () => apiFetch(`/website/pages/${resolveData?.page?.id}`, token, {
+    mutationFn: () => apiFetch(`/website/pages/${activePage?.id}`, token, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'draft' }),
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['public-website-resolve', location.pathname] })
       queryClient.invalidateQueries({ queryKey: ['website-pages-bar', siteId] })
+      queryClient.invalidateQueries({ queryKey: ['website-page-by-path', siteId, location.pathname] })
       toast.success('Pagina marcada como borrador')
     },
     onError: (err) => toast.error(err.message),
   })
+
+  const createPageMutation = useMutation({
+    mutationFn: async ({ title, routePath }) => {
+      const slug = titleToSlug(title)
+      return apiFetch('/website/pages', token, {
+        method: 'POST',
+        body: JSON.stringify({ siteId, title, slug, routePath, pageType: 'page', visibility: 'public' }),
+      })
+    },
+    onSuccess: (data) => {
+      const created = data?.data ?? data
+      queryClient.invalidateQueries({ queryKey: ['website-pages-bar', siteId] })
+      queryClient.invalidateQueries({ queryKey: ['website-page-by-path', siteId, location.pathname] })
+      toast.success('Pagina creada. Puedes editarla y publicarla desde el editor.')
+      if (created?.routePath) navigate(`${created.routePath}?edit=1`)
+    },
+    onError: (err) => toast.error(err.message),
+  })
+
+  async function handleCreatePageFromBar(title) {
+    const slug      = titleToSlug(title)
+    const routePath = `/${slug}`
+    try {
+      await apiFetch('/website/pages', token, {
+        method: 'POST',
+        body: JSON.stringify({ siteId, title, slug, routePath, pageType: 'page', visibility: 'public' }),
+      })
+      queryClient.invalidateQueries({ queryKey: ['website-pages-bar', siteId] })
+      navigate(routePath + '?edit=1')
+      toast.success(`Pagina "${title}" creada`)
+    } catch (err) {
+      toast.error(err.message)
+    }
+  }
 
   useEffect(() => {
     if (resolveData && resolveData.initialized === false) {
@@ -133,65 +488,110 @@ export function PublicWebsiteEntry() {
   if (resolveQuery.isPending) return <AppLoader message="Cargando..." />
   if (resolveQuery.isError)   return <PublicWebsite404 />
   if (resolveData?.initialized === false) return null
-  if (!resolveData?.page) return <PublicWebsite404 />
 
-  const pages = pagesQuery.data?.data ?? []
+  // ── Shared values ─────────────────────────────────────────────────────────
+  const pages        = pagesQuery.data?.data ?? []
+  const topOffset    = isEditor && barPinned ? BAR_H_PX : 0
   const isPublishing = publishMutation.isPending || unpublishMutation.isPending
 
-  async function handleCreatePage(title) {
-    const slug      = titleToSlug(title)
-    const routePath = `/${slug}`
-    try {
-      await apiFetch('/website/pages', token, {
-        method: 'POST',
-        body: JSON.stringify({ siteId, title, slug, routePath, pageType: 'page', visibility: 'public' }),
-      })
-      queryClient.invalidateQueries({ queryKey: ['website-pages-bar', siteId] })
-      navigate(routePath)
-      toast.success(`Pagina "${title}" creada`)
-    } catch (err) {
-      toast.error(err.message)
+  // ── No page on this route at all ──────────────────────────────────────────
+  if (!activePage) {
+    if (isEditor) {
+      // Still loading the editor page query
+      if (editorPageQuery.isPending && siteId) return <AppLoader message="Cargando..." />
+
+      // No page exists on this route → empty state with create CTA
+      const bar = (
+        <EditorContextBar
+          site={site}
+          page={null}
+          pages={pages}
+          editMode={false}
+          onToggleEdit={() => {}}
+          onNavigate={(rp) => navigate(rp)}
+          onPublishPage={() => {}}
+          onUnpublishPage={() => {}}
+          onCreatePage={handleCreatePageFromBar}
+          onPinChange={setBarPinned}
+          isPublishing={false}
+        />
+      )
+      return (
+        <>
+          {bar}
+          <div style={{ paddingTop: topOffset }}>
+            <EditorEmptyRoute
+              routePath={location.pathname}
+              onCreatePage={() => {
+                const rp = location.pathname
+                const title = rp === '/' ? 'Inicio' : rp.replace(/^\//, '').replace(/-/g, ' ')
+                createPageMutation.mutate({ title, routePath: rp })
+              }}
+              isCreating={createPageMutation.isPending}
+            />
+          </div>
+        </>
+      )
     }
+
+    // Anonymous visitor: coming soon
+    if (!resolveData?.site) return <ComingSoonScreen siteName={null} />
+    return <ComingSoonScreen siteName={resolveData.site?.name} />
   }
 
+  // ── Page exists (published or draft for editors) ───────────────────────────
   const bar = isEditor ? (
     <EditorContextBar
       site={site}
-      page={resolveData.page}
+      page={activePage}
       pages={pages}
       editMode={editMode}
       onToggleEdit={() => setEditMode((v) => !v)}
-      onNavigate={(routePath) => navigate(routePath)}
+      onNavigate={(rp) => navigate(rp)}
       onPublishPage={() => publishMutation.mutate()}
       onUnpublishPage={() => unpublishMutation.mutate()}
-      onCreatePage={handleCreatePage}
+      onCreatePage={handleCreatePageFromBar}
       onPinChange={setBarPinned}
       isPublishing={isPublishing}
     />
   ) : null
 
-  // Only the PINNED bar pushes content — peek mode just floats without shifting layout
-  const topOffset = isEditor && barPinned ? BAR_H_PX : 0
-
-  // Edit mode — editor receives topOffset so its fixed container starts below the pinned bar
-  if (editMode && resolveData.page?.id) {
+  // Edit mode
+  if (editMode && activePage?.id) {
     return (
       <>
         {bar}
-        <WebsitePageEditorScreen pageId={resolveData.page.id} topOffset={topOffset} />
+        <WebsitePageEditorScreen pageId={activePage.id} topOffset={topOffset} />
       </>
     )
   }
 
-  // View mode — paddingTop only when bar is pinned (static, no animation needed)
+  // View mode — only show renderer if page is published (drafts show an editor-only preview msg)
   return (
     <>
       {bar}
       <div style={{ paddingTop: topOffset }}>
-        <WebsitePageRenderer
-          page={resolveData.page}
-          theme={resolveData.theme}
-        />
+        {publishedPage ? (
+          <WebsitePageRenderer page={publishedPage} theme={resolveData.theme} />
+        ) : (
+          // Draft page, editor in view mode → hint to switch to editor
+          <div style={{
+            minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexDirection: 'column', gap: 12, color: '#9ca3af', fontSize: 14,
+          }}>
+            <p>Esta pagina es un borrador — aun no es visible para el publico.</p>
+            <button
+              onClick={() => setEditMode(true)}
+              style={{
+                background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff',
+                border: 'none', borderRadius: 10, padding: '8px 20px',
+                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              Abrir editor
+            </button>
+          </div>
+        )}
       </div>
     </>
   )

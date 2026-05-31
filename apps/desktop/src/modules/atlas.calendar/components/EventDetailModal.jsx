@@ -1,6 +1,7 @@
 import { X, MapPin, Video, Calendar, Clock, Users, Repeat, Edit2, Trash2 } from 'lucide-react'
 import { useDeleteEvent } from '../hooks/useCalendarData'
 import { toast } from 'sonner'
+import { MarkdownViewer } from '@atlas/ui'
 
 const STATUS_LABELS = { PENDING: 'Pendiente', ACCEPTED: 'Aceptado', DECLINED: 'Rechazado' }
 
@@ -25,7 +26,7 @@ export default function EventDetailModal({ event, onClose, onEdit, canEdit, canD
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div
-        className="bg-[hsl(var(--surface-1))] rounded-xl shadow-xl w-full max-w-md overflow-hidden"
+        className="bg-[hsl(var(--surface-1))] rounded-xl shadow-xl w-136 max-w-[calc(100vw-2rem)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="h-1.5" style={{ backgroundColor: calColor }} />
@@ -50,7 +51,7 @@ export default function EventDetailModal({ event, onClose, onEdit, canEdit, canD
           <h2 className="text-lg font-semibold text-[hsl(var(--foreground))] leading-tight">{event.title}</h2>
 
           {event.description && (
-            <p className="text-sm text-[hsl(var(--muted-foreground))] leading-relaxed">{event.description}</p>
+            <MarkdownViewer value={event.description} accentColor={calColor} />
           )}
 
           <div className="space-y-2.5">

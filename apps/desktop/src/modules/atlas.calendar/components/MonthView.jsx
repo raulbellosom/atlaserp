@@ -3,7 +3,8 @@ import { useCalendarStore } from '../stores/useCalendarStore'
 import { useYearEvents } from '../hooks/useCalendarData'
 import EventChip from './EventChip'
 
-const WEEKDAYS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+const WEEKDAYS        = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+const WEEKDAYS_NARROW = ['D',  'L',  'M',  'X',  'J',  'V',  'S' ]
 
 const SLIDE_CSS = `
   @keyframes cal-slide-in-up {
@@ -243,9 +244,10 @@ export default function MonthView({ onEventClick, onDayClick, onNewEvent }) {
 
       {/* Weekday headers */}
       <div className="grid grid-cols-7 border-b border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] shrink-0">
-        {WEEKDAYS.map((wd) => (
+        {WEEKDAYS.map((wd, i) => (
           <div key={wd} className="py-2 text-center text-xs font-semibold text-[hsl(var(--muted-foreground))] border-r border-[hsl(var(--border))] last:border-r-0">
-            {wd}
+            <span className="hidden sm:inline">{wd}</span>
+            <span className="sm:hidden">{WEEKDAYS_NARROW[i]}</span>
           </div>
         ))}
       </div>

@@ -25,7 +25,7 @@ import * as LucideIcons from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
-import { MarkdownField } from "../components/FormFields.jsx";
+import { MarkdownViewer } from "../components/MarkdownViewer.jsx";
 import { normalizeSpanishLabel } from "./renderer-adapters.js";
 import { resolveColorHex } from "./atlas-form-utils.js";
 import { CostsSummaryPanel } from "./CostsSummaryPanel.jsx";
@@ -52,13 +52,23 @@ const STATUS_COLORS = {
   finalized: "bg-green-500/15 text-green-700 dark:text-green-400",
 };
 
-function formatDetailDate(value) {
+function formatDetailDate(value, includeTime = false) {
   if (!value) return "—";
   const str = String(value);
-  const datePart = str.includes("T") ? str.slice(0, 10) : str;
+  const hasTime = str.includes("T");
+  const datePart = hasTime ? str.slice(0, 10) : str;
   const [year, month, day] = datePart.split("-");
   if (!year || !month || !day) return str;
-  return `${day}/${month}/${year}`;
+  const dateFmt = `${day}/${month}/${year}`;
+  if (!includeTime || !hasTime) return dateFmt;
+  const timePart = str.slice(11, 16); // "HH:MM"
+  if (!timePart || timePart === "00:00") return dateFmt;
+  const [hStr, mStr] = timePart.split(":");
+  const h = Number(hStr);
+  const m = mStr ?? "00";
+  const ampm = h < 12 ? "am" : "pm";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${dateFmt} ${h12}:${m} ${ampm}`;
 }
 
 function formatDetailCurrency(value) {
@@ -328,9 +338,8 @@ function renderValue(field, value) {
   if (value === undefined || value === null || value === "") return "—";
   if (field?.type === "boolean") return value ? "Sí" : "No";
 
-  if (field?.type === "date" || field?.type === "datetime") {
-    return formatDetailDate(value);
-  }
+  if (field?.type === "date") return formatDetailDate(value, false);
+  if (field?.type === "datetime") return formatDetailDate(value, true);
 
   if (field?.type === "currency" || field?.type === "decimal") {
     return formatDetailCurrency(value);
@@ -482,8 +491,15 @@ function RelationCardSection({ section, data }) {
     ? cleanTitle || "Registro relacionado"
     : relationCard.fallbackTitle;
 
-  const subtitles = relationCard.subtitleFields
-    .map((fieldKey) => normalizeTextValue(getByPath(data, fieldKey)))
+  const subtitles = (relationCard.subtitleFields ?? [])
+    .map((fieldKey, idx) => {
+      const raw = getByPath(data, fieldKey);
+      const type = relationCard.subtitleTypes?.[idx] ?? null;
+      if (raw === undefined || raw === null || raw === "") return null;
+      if (type === "date") return formatDetailDate(raw, false);
+      if (type === "datetime") return formatDetailDate(raw, true);
+      return normalizeTextValue(raw) || null;
+    })
     .filter(Boolean);
 
   const href =
@@ -631,6 +647,10 @@ function RelationListSection({ section, data, apiBaseUrl, token }) {
             let formatted;
             if (raw === undefined || raw === null || raw === "") {
               formatted = "—";
+            } else if (type === "date") {
+              formatted = formatDetailDate(raw, false);
+            } else if (type === "datetime") {
+              formatted = formatDetailDate(raw, true);
             } else if (type === "currency") {
               const n = Number(raw);
               formatted = Number.isFinite(n)
@@ -662,6 +682,10 @@ function RelationListSection({ section, data, apiBaseUrl, token }) {
               let formatted;
               if (raw === undefined || raw === null || raw === "") {
                 formatted = null;
+              } else if (type === "date") {
+                formatted = formatDetailDate(raw, false);
+              } else if (type === "datetime") {
+                formatted = formatDetailDate(raw, true);
               } else if (type === "currency") {
                 const n = Number(raw);
                 formatted = Number.isFinite(n) ? new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n) : String(raw);
@@ -840,7 +864,7 @@ export function AtlasDetail({
                       <dd className="text-sm text-[hsl(var(--foreground))]">
                         {isMarkdown ? (
                           strValue ? (
-                            <MarkdownField readOnly readOnlyPlain value={strValue} />
+                            <MarkdownViewer value={strValue} />
                           ) : (
                             <span className="text-[hsl(var(--muted-foreground))]">—</span>
                           )

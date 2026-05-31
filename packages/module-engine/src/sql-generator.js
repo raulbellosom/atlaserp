@@ -19,7 +19,7 @@ const FORBIDDEN_SQL_PATTERNS = [
   /\bTRUNCATE\b/i,
   /\bDELETE\s+FROM\b/i,
   /\bINSERT\s+INTO\b/i,
-  /\bUPDATE\s+(?:"[^"]+"|\w+)/i,
+  /(?<!ON\s)\bUPDATE\s+(?:"[^"]+"|\w+)/i,
   /(^|\s)\\(?:c|i|!)(?:\s|$)/im,
 ]
 

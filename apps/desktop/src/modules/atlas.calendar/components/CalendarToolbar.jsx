@@ -2,9 +2,9 @@ import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus } from 'lucide-
 import { useCalendarStore } from '../stores/useCalendarStore'
 
 const VIEWS = [
-  { key: 'day', label: 'Dia' },
-  { key: 'week', label: 'Semana' },
-  { key: 'month', label: 'Mes' },
+  { key: 'day',    label: 'Dia' },
+  { key: 'week',   label: 'Semana' },
+  { key: 'month',  label: 'Mes' },
   { key: 'agenda', label: 'Agenda' },
 ]
 
@@ -30,8 +30,9 @@ export default function CalendarToolbar({ onNewEvent }) {
   const { activeView, selectedDate, setActiveView, navigatePrev, navigateNext, navigateToday } = useCalendarStore()
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 bg-[hsl(var(--surface-1))]">
-      <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-1.5 px-3 py-2 bg-[hsl(var(--surface-1))]">
+      {/* Navigation arrows */}
+      <div className="flex items-center gap-0.5 shrink-0">
         <button
           onClick={navigatePrev}
           className="p-1.5 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
@@ -46,20 +47,23 @@ export default function CalendarToolbar({ onNewEvent }) {
         </button>
       </div>
 
-      <h2 className="text-sm font-semibold text-[hsl(var(--foreground))] capitalize min-w-45">
+      {/* Title — truncates on narrow */}
+      <h2 className="text-sm font-semibold text-[hsl(var(--foreground))] capitalize truncate min-w-0 flex-1 sm:flex-none sm:min-w-40">
         {formatTitle(activeView, selectedDate)}
       </h2>
 
+      {/* "Hoy" — hidden on narrow to save space */}
       <button
         onClick={navigateToday}
-        className="text-xs px-2.5 py-1 rounded border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]"
+        className="hidden sm:block text-xs px-2.5 py-1 rounded border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] shrink-0"
       >
         Hoy
       </button>
 
-      <div className="flex-1" />
+      <div className="hidden sm:block flex-1" />
 
-      <div className="flex items-center rounded-lg border border-[hsl(var(--border))] overflow-hidden">
+      {/* View switcher — pill buttons on desktop */}
+      <div className="hidden sm:flex items-center rounded-lg border border-[hsl(var(--border))] overflow-hidden shrink-0">
         {VIEWS.map((v) => (
           <button
             key={v.key}
@@ -76,12 +80,24 @@ export default function CalendarToolbar({ onNewEvent }) {
         ))}
       </div>
 
+      {/* View switcher — compact select on narrow */}
+      <select
+        value={activeView}
+        onChange={(e) => setActiveView(e.target.value)}
+        className="sm:hidden text-xs border border-[hsl(var(--border))] rounded-md px-2 py-1 bg-[hsl(var(--card))] text-[hsl(var(--foreground))] shrink-0 cursor-pointer"
+      >
+        {VIEWS.map((v) => (
+          <option key={v.key} value={v.key}>{v.label}</option>
+        ))}
+      </select>
+
+      {/* New event — icon only on narrow, icon+label on desktop */}
       <button
         onClick={onNewEvent}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium shrink-0"
       >
         <Plus size={14} />
-        Nuevo
+        <span className="hidden sm:inline">Nuevo</span>
       </button>
     </div>
   )

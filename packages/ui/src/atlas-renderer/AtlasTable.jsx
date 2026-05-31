@@ -235,13 +235,23 @@ const STATUS_LABELS = {
   finalized: "Finalizado",
 };
 
-function formatTableDate(value) {
+function formatTableDate(value, includeTime = false) {
   if (!value) return "—";
   const str = String(value);
-  const datePart = str.includes("T") ? str.slice(0, 10) : str;
+  const hasTime = str.includes("T");
+  const datePart = hasTime ? str.slice(0, 10) : str;
   const [year, month, day] = datePart.split("-");
   if (!year || !month || !day) return str;
-  return `${day}/${month}/${year}`;
+  const dateFmt = `${day}/${month}/${year}`;
+  if (!includeTime || !hasTime) return dateFmt;
+  const timePart = str.slice(11, 16);
+  if (!timePart || timePart === "00:00") return dateFmt;
+  const [hStr, mStr] = timePart.split(":");
+  const h = Number(hStr);
+  const m = mStr ?? "00";
+  const ampm = h < 12 ? "am" : "pm";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${dateFmt} ${h12}:${m} ${ampm}`;
 }
 
 function formatTableCurrency(value) {
@@ -836,8 +846,10 @@ export function AtlasTable({
                       cellContent = opt?.label ?? renderValue(value);
                     } else if (col.type === "markdown") {
                       cellContent = stripMarkdown(value);
-                    } else if (col.type === "date" || col.type === "datetime") {
-                      cellContent = formatTableDate(value);
+                    } else if (col.type === "date") {
+                      cellContent = formatTableDate(value, false);
+                    } else if (col.type === "datetime") {
+                      cellContent = formatTableDate(value, true);
                     } else if (
                       col.type === "currency" ||
                       col.type === "decimal"
@@ -1028,8 +1040,10 @@ export function AtlasTable({
                   {detailCols.map((col) => {
                     const rawVal = getByPath(row, col.field);
                     let formatted;
-                    if (col.type === "date" || col.type === "datetime") {
-                      formatted = formatTableDate(rawVal);
+                    if (col.type === "date") {
+                      formatted = formatTableDate(rawVal, false);
+                    } else if (col.type === "datetime") {
+                      formatted = formatTableDate(rawVal, true);
                     } else if (col.type === "select" && col.options) {
                       const opt = col.options.find(
                         (o) => String(o.value) === String(rawVal ?? ""),

@@ -3,11 +3,11 @@ import { Controller, useForm } from "react-hook-form";
 import {
   TextField,
   TextareaField,
-  MarkdownField,
   SelectField,
   PhoneField,
   SwitchField,
 } from "./FormFields.jsx";
+import { MarkdownField } from "./MarkdownField.jsx";
 import { Button } from "./Button.jsx";
 
 function getBlueprintFields(blueprint) {

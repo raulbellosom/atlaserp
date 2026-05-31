@@ -300,53 +300,203 @@ body,
   animation: loader-dot-bounce 1.2s ease-in-out var(--dot-delay, 0s) infinite;
 }
 
-/* ── WYSIWYG editor (Tiptap) ─────────────────────────────── */
-/* Task list — Tailwind arbitrary selectors with nested brackets fail in v4,
-   so these overrides live here as plain CSS. */
-.wysiwyg-editor .tiptap ul[data-type="taskList"] {
+/* ── MDXEditor theme overrides ────────────────────────────── */
+/* Adapt MDXEditor's CSS variables to the app's design tokens  */
+.mdxeditor {
+  --accentBase: hsl(var(--primary));
+  --accentBgSubtle: hsl(var(--primary) / 0.08);
+  --accentBgHover: hsl(var(--primary) / 0.12);
+  --accentText: hsl(var(--primary));
+  --baseBase: hsl(var(--foreground));
+  --baseBg: hsl(var(--card));
+  --baseBgSubtle: hsl(var(--muted));
+  --baseBgHover: hsl(var(--muted));
+  --baseBgActive: hsl(var(--border));
+  --baseBorder: hsl(var(--border));
+  --baseSolid: hsl(var(--primary));
+  --baseSolidHover: hsl(var(--primary));
+  --baseText: hsl(var(--foreground));
+  --baseTextContrast: hsl(var(--foreground));
+  font-family: inherit;
+}
+
+/* Toolbar: match the app border/muted style */
+.mdxeditor-toolbar {
+  background: hsl(var(--muted) / 0.3);
+  border-bottom: 1px solid hsl(var(--border));
+  padding: 0.25rem 0.5rem;
+  gap: 0.125rem;
+  flex-wrap: wrap;
+  min-height: 2.5rem;
+}
+
+/* Content area */
+.mdx-editor-root .mdxeditor-root-contenteditable {
+  min-height: 9rem;
+  padding: 0.75rem 0.875rem;
+}
+
+/* Link dialog + toolbar dropdowns must appear above any modal overlay (z-50) */
+[data-radix-popper-content-wrapper],
+.mdxeditor-popup-container,
+[data-radix-select-viewport],
+[data-radix-dropdown-menu-content] {
+  z-index: 9999 !important;
+}
+
+/* ── Shared prose styles (used by MDXEditor content + MarkdownViewer) ─ */
+/* Applied via .mdx-prose class on contentEditableClassName and viewer div */
+.mdx-prose {
+  font-size: 0.875rem;
+  color: hsl(var(--foreground));
+  line-height: 1.625;
+}
+
+.mdx-prose p {
+  margin: 0.25rem 0;
+  line-height: 1.625;
+}
+
+/* Headings — use !important to override Tailwind preflight's
+   h1,h2,h3{font-size:inherit;font-weight:inherit} reset */
+.mdx-prose h1 { font-size: 1.5rem !important; font-weight: 700 !important; margin: 0.75rem 0 0.25rem; line-height: 1.3; }
+.mdx-prose h2 { font-size: 1.25rem !important; font-weight: 600 !important; margin: 0.5rem 0 0.25rem; line-height: 1.35; }
+.mdx-prose h3 { font-size: 1.125rem !important; font-weight: 600 !important; margin: 0.5rem 0 0.125rem; line-height: 1.4; }
+
+.mdx-prose strong { font-weight: 600; }
+.mdx-prose em { font-style: italic; }
+.mdx-prose del, .mdx-prose s { text-decoration: line-through; }
+
+/* Lists — Tailwind preflight resets list-style; restore here with plain CSS */
+.mdx-prose ul:not(.contains-task-list) {
+  list-style-type: disc;
+  list-style-position: outside;
+  padding-left: 1.5rem;
+  margin: 0.375rem 0;
+}
+.mdx-prose ol {
+  list-style-type: decimal;
+  list-style-position: outside;
+  padding-left: 1.5rem;
+  margin: 0.375rem 0;
+}
+.mdx-prose li:not(.task-list-item) {
+  display: list-item;
+  line-height: 1.625;
+  margin: 0.125rem 0;
+}
+.mdx-prose li > p { margin: 0; }
+
+/* Task lists — react-markdown (remark-gfm) uses .contains-task-list + .task-list-item */
+.mdx-prose .contains-task-list {
   list-style: none;
   padding-left: 0;
   margin: 0.375rem 0;
 }
-
-.wysiwyg-editor .tiptap li[data-type="taskItem"] {
+.mdx-prose .task-list-item {
   display: flex;
-  flex-direction: row;
   align-items: flex-start;
-  gap: 0.5rem;
+  gap: 0.375rem;
   margin: 0.125rem 0;
+  list-style: none;
 }
-
-/* Tiptap v3 renders content <div> before <label> in DOM;
-   order: -1 forces the checkbox label to appear first visually. */
-.wysiwyg-editor .tiptap li[data-type="taskItem"] > label {
-  order: -1;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  margin-top: 0.1875rem;
-  cursor: pointer;
-}
-
-.wysiwyg-editor .tiptap li[data-type="taskItem"] > label input[type="checkbox"] {
-  width: 0.875rem;
-  height: 0.875rem;
-  cursor: pointer;
-  accent-color: hsl(var(--ring));
+.mdx-prose .task-list-item input[type="checkbox"] {
   flex-shrink: 0;
   margin: 0;
+  margin-top: 0.25rem;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 1.5px solid hsl(var(--border));
+  border-radius: 3px;
+  cursor: default;
+  background-color: transparent;
+  transition: background-color 0.1s, border-color 0.1s;
+}
+.mdx-prose .task-list-item input[type="checkbox"]:checked {
+  background-color: var(--md-accent-color, hsl(var(--primary)));
+  border-color: var(--md-accent-color, hsl(var(--primary)));
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 5.5L4 7.5L8 3' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 80%;
 }
 
-.wysiwyg-editor .tiptap li[data-type="taskItem"] > div,
-.wysiwyg-editor .tiptap li[data-type="taskItem"] > p {
-  flex: 1;
-  min-width: 0;
+/* Nested lists */
+.mdx-prose ul:not(.contains-task-list) ul:not(.contains-task-list) { list-style-type: circle; }
+.mdx-prose ul:not(.contains-task-list) ul:not(.contains-task-list) ul:not(.contains-task-list) { list-style-type: square; }
+
+.mdx-prose a {
+  color: hsl(var(--primary));
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: hsl(var(--primary) / 0.45);
+  border-radius: 2px;
+  padding: 0 1px;
+  transition: background 0.12s, text-decoration-color 0.12s;
+}
+.mdx-prose a:hover {
+  text-decoration-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.08);
 }
 
-.wysiwyg-editor .tiptap li[data-type="taskItem"][data-checked="true"] > div,
-.wysiwyg-editor .tiptap li[data-type="taskItem"][data-checked="true"] > p {
-  text-decoration: line-through;
+.mdx-prose code {
+  background: hsl(var(--muted));
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.mdx-prose pre {
+  background: hsl(var(--muted));
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.mdx-prose pre code {
+  background: transparent;
+  padding: 0;
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.mdx-prose blockquote {
+  border-left: 2px solid hsl(var(--border));
+  padding-left: 0.875rem;
   color: hsl(var(--muted-foreground));
+  font-style: italic;
+  margin: 0.5rem 0;
+}
+
+.mdx-prose hr {
+  border-top: 1px solid hsl(var(--border));
+  margin: 0.75rem 0;
+}
+
+.mdx-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.875rem;
+}
+.mdx-prose th, .mdx-prose td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.375rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+.mdx-prose th {
+  background: hsl(var(--muted));
+  font-weight: 600;
+}
+.mdx-prose tr:nth-child(even) td {
+  background: hsl(var(--muted) / 0.3);
 }
 
 /* ── General ──────────────────────────────────────────────── */

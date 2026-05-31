@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Badge, Button, ConfirmDialog, MarkdownField, Skeleton, cn } from "@atlas/ui";
+import { Badge, Button, ConfirmDialog, MarkdownViewer, Skeleton, cn } from "@atlas/ui";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
 import {
@@ -199,18 +199,7 @@ function InfoRow({ icon: Icon, label, value, href }) {
 // ── MarkdownDisplay ───────────────────────────────────────────────────────────
 
 function MarkdownDisplay({ value }) {
-  const source = String(value ?? "");
-  if (!source.trim()) return <p className="text-sm text-[hsl(var(--muted-foreground))]">Sin notas.</p>;
-  return (
-    <MarkdownField
-      readOnly
-      readOnlyPlain
-      value={source}
-      maxLength={0}
-      rows={6}
-      className="[&_.tiptap]:text-sm [&_.tiptap]:leading-6"
-    />
-  );
+  return <MarkdownViewer value={value} emptyText="Sin notas." className="[&_.tiptap]:leading-6" />;
 }
 
 // ── OrgChartPanel ─────────────────────────────────────────────────────────────

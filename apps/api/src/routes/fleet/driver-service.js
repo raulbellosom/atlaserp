@@ -294,6 +294,7 @@ export function createDriverService({ prisma }) {
     const [rows, totalRows] = await withDbErrorMapping(async () => {
       const dataRows = await prisma.$queryRawUnsafe(
         `SELECT fd.*, fd.first_name || ' ' || fd.last_name AS full_name,
+                fd.first_name || ' ' || fd.last_name AS driver_name,
                 COALESCE(
                   fd.photo_asset_id,
                   (

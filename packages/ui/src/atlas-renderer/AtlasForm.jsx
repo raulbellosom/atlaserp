@@ -13,7 +13,6 @@ import {
 import {
   TextField,
   TextareaField,
-  MarkdownField,
   SelectField,
   PhoneField,
   SwitchField,
@@ -22,6 +21,7 @@ import {
   CarColorPickerField,
   FieldWrapper,
 } from "../components/FormFields.jsx";
+import { MarkdownField } from "../components/MarkdownField.jsx";
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
 import { DatePickerField } from "../components/DatePickerField.jsx";
 import { ReportPartsEditor } from "./ReportPartsEditor.jsx";

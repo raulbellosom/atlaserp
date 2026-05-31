@@ -25,7 +25,6 @@ export {
   TextField,
   PasswordField,
   TextareaField,
-  MarkdownField,
   NumberField,
   CurrencyField,
   DateField,
@@ -42,6 +41,8 @@ export {
   CreatableComboboxField,
   CarColorPickerField,
 } from "./components/FormFields.jsx";
+export { MarkdownField } from "./components/MarkdownField.jsx";
+export { MarkdownViewer } from "./components/MarkdownViewer.jsx";
 export { Checkbox } from "./components/Checkbox.jsx";
 export { Switch } from "./components/Switch.jsx";
 export {
