@@ -10,8 +10,17 @@ import { EditorContextBar } from '../website/EditorContextBar.jsx'
 import WebsitePageEditorScreen from '../modules/atlas.website/screens/WebsitePageEditorScreen.jsx'
 import { toast } from 'sonner'
 
-const STORAGE_KEY = 'atlas-editor-bar-pinned'
-const BAR_H = 46
+function titleToSlug(title) {
+  return title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/(^-|-$)/g, '') || 'pagina'
+}
 
 async function apiFetch(path, token, options = {}) {
   const res = await fetch(`${getApiUrl()}${path}`, {
@@ -48,19 +57,21 @@ export function PublicWebsiteEntry() {
   const { session } = useAuth()
   const token = session?.access_token
 
-  const [barPinned, setBarPinned] = useState(() => localStorage.getItem(STORAGE_KEY) === 'true')
-  const [editMode, setEditMode]   = useState(false)
+  const [editMode, setEditMode] = useState(false)
 
+  // Allow public website to scroll and expand beyond app-shell constraints
   useEffect(() => {
     document.documentElement.style.overflow = 'auto'
-    document.body.style.overflow = 'auto'
+    document.body.style.overflow             = 'auto'
+    const root = document.getElementById('root')
+    if (root) root.style.height = 'auto'
     return () => {
       document.documentElement.style.overflow = ''
-      document.body.style.overflow = ''
+      document.body.style.overflow             = ''
+      if (root) root.style.height = ''
     }
   }, [])
 
-  // Public resolve — no auth
   const resolveQuery = useQuery({
     queryKey: ['public-website-resolve', location.pathname],
     queryFn:  () => fetchWebsiteResolve(location.pathname),
@@ -68,7 +79,6 @@ export function PublicWebsiteEntry() {
     retry: 1,
   })
 
-  // Editor permission check — runs only when authenticated
   const editorCheckQuery = useQuery({
     queryKey: ['editor-check', token],
     queryFn:  () => fetchEditorCheck(token),
@@ -82,7 +92,6 @@ export function PublicWebsiteEntry() {
   const isEditor    = Boolean(token) && Boolean(site)
   const siteId      = site?.id ?? null
 
-  // Pages list for the bar selector
   const pagesQuery = useQuery({
     queryKey: ['website-pages-bar', siteId],
     queryFn:  () => apiFetch(`/website/pages?siteId=${siteId}&pageSize=50`, token),
@@ -90,7 +99,6 @@ export function PublicWebsiteEntry() {
     staleTime: 60_000,
   })
 
-  // Publish current page (uses existing draftBuilderData)
   const publishMutation = useMutation({
     mutationFn: () => apiFetch(`/website/pages/${resolveData?.page?.id}/publish`, token, { method: 'POST' }),
     onSuccess: () => {
@@ -101,7 +109,6 @@ export function PublicWebsiteEntry() {
     onError: (err) => toast.error(err.message),
   })
 
-  // Set page back to draft
   const unpublishMutation = useMutation({
     mutationFn: () => apiFetch(`/website/pages/${resolveData?.page?.id}`, token, {
       method: 'PATCH',
@@ -126,47 +133,58 @@ export function PublicWebsiteEntry() {
   if (resolveData?.initialized === false) return null
   if (!resolveData?.page) return <PublicWebsite404 />
 
-  const pages         = pagesQuery.data?.data ?? []
-  const isPublishing  = publishMutation.isPending || unpublishMutation.isPending
-  const topPad        = isEditor && barPinned ? BAR_H : 0
+  const pages = pagesQuery.data?.data ?? []
+  const isPublishing = publishMutation.isPending || unpublishMutation.isPending
 
-  const editorBar = isEditor ? (
+  async function handleCreatePage(title) {
+    const slug      = titleToSlug(title)
+    const routePath = `/${slug}`
+    try {
+      await apiFetch('/website/pages', token, {
+        method: 'POST',
+        body: JSON.stringify({ siteId, title, slug, routePath, pageType: 'page', visibility: 'public' }),
+      })
+      queryClient.invalidateQueries({ queryKey: ['website-pages-bar', siteId] })
+      navigate(routePath)
+      toast.success(`Pagina "${title}" creada`)
+    } catch (err) {
+      toast.error(err.message)
+    }
+  }
+
+  const bar = isEditor ? (
     <EditorContextBar
       site={site}
       page={resolveData.page}
       pages={pages}
       editMode={editMode}
-      onPinChange={setBarPinned}
       onToggleEdit={() => setEditMode((v) => !v)}
       onNavigate={(routePath) => navigate(routePath)}
       onPublishPage={() => publishMutation.mutate()}
       onUnpublishPage={() => unpublishMutation.mutate()}
+      onCreatePage={handleCreatePage}
       isPublishing={isPublishing}
     />
   ) : null
 
-  // ── Edit mode — editor renders full-screen, bar stays on top ──────────────
+  // Edit mode — editor fills the screen, bar stays above it (sticky z-index > editor)
   if (editMode && resolveData.page?.id) {
     return (
       <>
-        {editorBar}
-        <div style={{ paddingTop: topPad }}>
-          <WebsitePageEditorScreen pageId={resolveData.page.id} />
-        </div>
+        {bar}
+        <WebsitePageEditorScreen pageId={resolveData.page.id} />
       </>
     )
   }
 
-  // ── View mode ─────────────────────────────────────────────────────────────
+  // View mode
   return (
     <>
-      {editorBar}
-      <div style={{ paddingTop: topPad }}>
-        <WebsitePageRenderer
-          page={resolveData.page}
-          theme={resolveData.theme}
-        />
-      </div>
+      {bar}
+      <WebsitePageRenderer
+        page={resolveData.page}
+        theme={resolveData.theme}
+      />
     </>
   )
 }
