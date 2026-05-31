@@ -133,6 +133,12 @@ const SCREEN_MAP = {
   "atlas.catalog:/categories": lazy(
     () => import("../modules/atlas.catalog/screens/CatalogCategoriesScreen.jsx"),
   ),
+  "atlas.catalog:/inventory": lazy(
+    () => import("../modules/atlas.catalog/screens/CatalogInventoryScreen.jsx"),
+  ),
+  "atlas.catalog:/:id": lazy(
+    () => import("../modules/atlas.catalog/screens/CatalogProductDetailScreen.jsx"),
+  ),
 };
 const SCREEN_MODULE_KEYS = new Set(
   Object.keys(SCREEN_MAP).map((entry) => entry.split(":")[0]),
@@ -263,6 +269,13 @@ function resolveScreen(moduleKey, subPath) {
       return SCREEN_MAP["atlas.website:/blog/:id/editor"] ?? null;
     }
     return SCREEN_MAP[`atlas.website:${subPath}`] ?? null;
+  }
+  if (moduleKey === "atlas.catalog") {
+    if (subPath === "/") return SCREEN_MAP["atlas.catalog:/"] ?? null;
+    if (subPath.startsWith("/categories")) return SCREEN_MAP["atlas.catalog:/categories"] ?? null;
+    if (subPath === "/inventory") return SCREEN_MAP["atlas.catalog:/inventory"] ?? null;
+    // Any remaining subpath like /:id is the product detail screen
+    return SCREEN_MAP["atlas.catalog:/:id"] ?? null;
   }
   if (subPath === "/") return SCREEN_MAP[`${moduleKey}:/`] ?? null;
   if (!SCREEN_MODULE_KEYS.has(moduleKey)) return BlueprintCrudScreen;

@@ -714,6 +714,55 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
         }),
     },
+    catalog: {
+      // Products
+      listProducts: (token, options = {}) =>
+        request(`/catalog/products${toQueryString(options)}`, { headers: withAuthHeaders(token) }),
+      getProduct: (id, token) =>
+        request(`/catalog/products/${encodeURIComponent(id)}`, { headers: withAuthHeaders(token) }),
+      createProduct: (data, token) =>
+        request('/catalog/products', { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      updateProduct: (id, data, token) =>
+        request(`/catalog/products/${encodeURIComponent(id)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      deleteProduct: (id, token) =>
+        request(`/catalog/products/${encodeURIComponent(id)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+      publishProduct: (id, token) =>
+        request(`/catalog/products/${encodeURIComponent(id)}/publish`, { method: 'POST', headers: withAuthHeaders(token) }),
+      unpublishProduct: (id, token) =>
+        request(`/catalog/products/${encodeURIComponent(id)}/unpublish`, { method: 'POST', headers: withAuthHeaders(token) }),
+      // Options
+      listOptions: (productId, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/options`, { headers: withAuthHeaders(token) }),
+      createOption: (productId, data, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/options`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      updateOption: (productId, optionId, data, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/options/${encodeURIComponent(optionId)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      deleteOption: (productId, optionId, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/options/${encodeURIComponent(optionId)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+      // Variants
+      listVariants: (productId, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/variants`, { headers: withAuthHeaders(token) }),
+      createVariant: (productId, data, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/variants`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      updateVariant: (productId, variantId, data, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      deleteVariant: (productId, variantId, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+      // Stock
+      recordStockMovement: (productId, data, token) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/stock-movements`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      listStockMovements: (productId, token, options = {}) =>
+        request(`/catalog/products/${encodeURIComponent(productId)}/stock-movements${toQueryString(options)}`, { headers: withAuthHeaders(token) }),
+      // Categories
+      listCategories: (token, options = {}) =>
+        request(`/catalog/categories${toQueryString(options)}`, { headers: withAuthHeaders(token) }),
+      createCategory: (data, token) =>
+        request('/catalog/categories', { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      updateCategory: (id, data, token) =>
+        request(`/catalog/categories/${encodeURIComponent(id)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      deleteCategory: (id, token) =>
+        request(`/catalog/categories/${encodeURIComponent(id)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+    },
   };
 }
 
