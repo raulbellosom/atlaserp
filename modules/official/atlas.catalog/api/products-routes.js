@@ -12,7 +12,7 @@ export function createProductsRouter({ productSvc, requirePermission }) {
         companyId,
         categoryId: categoryId || undefined,
         type:       type       || undefined,
-        published:  published  !== undefined ? published : undefined,
+        published:  published  !== undefined ? published === 'true' : undefined,
         search:     search     || undefined,
         limit:      limit  ? Number(limit)  : 50,
         offset:     offset ? Number(offset) : 0,
