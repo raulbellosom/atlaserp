@@ -27,7 +27,8 @@ function SectionCard({ title, children, className }) {
 }
 
 export default function CatalogProductDetailScreen() {
-  const { id } = useParams()
+  const { '*': wildcard } = useParams()
+  const id = wildcard
   const { session, userProfile } = useAuth()
   const token = session?.access_token
   const navigate = useNavigate()
