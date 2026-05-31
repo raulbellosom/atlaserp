@@ -144,6 +144,29 @@ export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
     }
   })
 
+  app.get('/blog', async (c) => {
+    try {
+      const { siteId, limit = '10', offset = '0' } = c.req.query()
+      if (!siteId) return c.json({ data: [] })
+      const limitNum  = Math.min(parseInt(limit)  || 10, 50)
+      const offsetNum = Math.max(parseInt(offset) || 0, 0)
+      const rows = await prisma.$queryRaw`
+        SELECT id, title, slug, excerpt, cover_asset_id, updated_at
+        FROM website_page
+        WHERE site_id   = ${siteId}::uuid
+          AND page_type = 'blog_post'
+          AND status    = 'published'
+          AND enabled   = true
+        ORDER BY updated_at DESC
+        LIMIT ${limitNum} OFFSET ${offsetNum}
+      `
+      return c.json({ data: rows })
+    } catch (err) {
+      if (err?.message?.includes('does not exist') || err?.code === '42P01') return c.json({ data: [] })
+      return c.json({ data: [] }, 500)
+    }
+  })
+
   app.get('/auth-check', async (c) => {
     const authHeader = c.req.header('Authorization')
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null

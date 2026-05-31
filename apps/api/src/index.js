@@ -42,6 +42,8 @@ import {
 import { createHrService, HrServiceError } from "./services/hr-service.js";
 import { createModulesRouter } from "./routes/modules.js";
 import { createPublicWebsiteRouter, createPublicCatalogRouter } from "./routes/public-website.js";
+import { createPublicFormsRouter } from "./routes/website/forms-public-routes.js";
+import { createPublicBookingsRouter } from "./routes/website/bookings-routes.js";
 import { createWebsiteRouter } from "./routes/website/index.js";
 import { createLedgerRouter } from "./routes/ledger/index.js";
 import { createFleetRouter } from "./routes/fleet/index.js";
@@ -2688,6 +2690,12 @@ app.route("/public/website", publicWebsiteRouter)
 
 const publicCatalogRouter = createPublicCatalogRouter({ prisma })
 app.route("/public/catalog", publicCatalogRouter)
+
+const publicFormsRouter = createPublicFormsRouter({ prisma })
+app.route("/public/website", publicFormsRouter)
+
+const publicBookingsRouter = createPublicBookingsRouter({ prisma })
+app.route("/public/website", publicBookingsRouter)
 
 app.get("/public/blueprints", async (c) => {
   try {
