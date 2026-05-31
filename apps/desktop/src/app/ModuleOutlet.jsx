@@ -118,6 +118,9 @@ const SCREEN_MAP = {
   "atlas.website:/forms": lazy(
     () => import("../modules/atlas.website/screens/WebsiteFormsScreen.jsx"),
   ),
+  "atlas.website:/payments": lazy(
+    () => import("../modules/atlas.website/screens/WebsitePaymentsScreen.jsx"),
+  ),
   "atlas.calendar:/calendar": lazy(
     () => import("../modules/atlas.calendar/screens/CalendarScreen.jsx"),
   ),
