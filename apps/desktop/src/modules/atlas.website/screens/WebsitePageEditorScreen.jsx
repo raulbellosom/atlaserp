@@ -61,7 +61,8 @@ function createAssetSource(token) {
 }
 
 // pageIdProp: when rendered inline from the public website (not from a route URL)
-export default function WebsitePageEditorScreen({ pageId: pageIdProp } = {}) {
+// topOffset: pixels to offset the fixed container from the top (for pinned editor bar)
+export default function WebsitePageEditorScreen({ pageId: pageIdProp, topOffset = 0 } = {}) {
   const { '*': wildcard } = useParams()
   const pageId = pageIdProp ?? wildcard?.match(/^pages\/([^/]+)\/editor$/)?.[1] ?? null
   const { session } = useAuth()
@@ -175,7 +176,7 @@ export default function WebsitePageEditorScreen({ pageId: pageIdProp } = {}) {
   const siteType = siteQuery.data?.data?.siteType ?? 'informational'
 
   return (
-    <div style={{ position: 'fixed', inset: 0 }}>
+    <div style={{ position: 'fixed', top: topOffset, left: 0, right: 0, bottom: 0 }}>
       <AtlasWebBuilderEditor
         blocks={[...baseBlocks, ...buildAtlasBlocks(siteType)]}
         initialPage={initialPage}

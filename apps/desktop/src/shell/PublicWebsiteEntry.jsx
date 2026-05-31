@@ -59,7 +59,7 @@ export function PublicWebsiteEntry() {
   const token = session?.access_token
 
   const [editMode, setEditMode]   = useState(false)
-  const [barVisible, setBarVisible] = useState(() => localStorage.getItem('atlas-editor-bar-pinned') === 'true')
+  const [barPinned, setBarPinned] = useState(() => localStorage.getItem('atlas-editor-bar-pinned') === 'true')
 
   // Allow public website to scroll and expand beyond app-shell constraints
   useEffect(() => {
@@ -165,31 +165,29 @@ export function PublicWebsiteEntry() {
       onPublishPage={() => publishMutation.mutate()}
       onUnpublishPage={() => unpublishMutation.mutate()}
       onCreatePage={handleCreatePage}
-      onVisibilityChange={setBarVisible}
+      onPinChange={setBarPinned}
       isPublishing={isPublishing}
     />
   ) : null
 
-  // paddingTop matches bar height, transitions in sync with bar slide animation
-  const contentPad = isEditor && barVisible ? BAR_H_PX : 0
+  // Only the PINNED bar pushes content — peek mode just floats without shifting layout
+  const topOffset = isEditor && barPinned ? BAR_H_PX : 0
 
-  // Edit mode — editor fills screen, bar (fixed z-index 9998) stays on top of editor (fixed z-index 0)
+  // Edit mode — editor receives topOffset so its fixed container starts below the pinned bar
   if (editMode && resolveData.page?.id) {
     return (
       <>
         {bar}
-        <div style={{ paddingTop: contentPad, transition: 'padding-top 170ms ease' }}>
-          <WebsitePageEditorScreen pageId={resolveData.page.id} />
-        </div>
+        <WebsitePageEditorScreen pageId={resolveData.page.id} topOffset={topOffset} />
       </>
     )
   }
 
-  // View mode
+  // View mode — paddingTop only when bar is pinned (static, no animation needed)
   return (
     <>
       {bar}
-      <div style={{ paddingTop: contentPad, transition: 'padding-top 170ms ease' }}>
+      <div style={{ paddingTop: topOffset }}>
         <WebsitePageRenderer
           page={resolveData.page}
           theme={resolveData.theme}

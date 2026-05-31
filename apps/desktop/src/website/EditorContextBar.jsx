@@ -180,7 +180,7 @@ export function EditorContextBar({
   onPublishPage,
   onUnpublishPage,
   onCreatePage,
-  onVisibilityChange,
+  onPinChange,
   isPublishing = false,
 }) {
   const navigate = useNavigate()
@@ -195,16 +195,12 @@ export function EditorContextBar({
 
   const barOpen = visible || pinned
 
-  // Notify parent whenever visibility changes so it can animate paddingTop
-  useEffect(() => {
-    onVisibilityChange?.(barOpen)
-  }, [barOpen]) // eslint-disable-line react-hooks/exhaustive-deps
-
   function togglePin() {
     const next = !pinned
     setPinned(next)
     localStorage.setItem(STORAGE_KEY, String(next))
     setVisible(next)
+    onPinChange?.(next)
   }
 
   function show() {
