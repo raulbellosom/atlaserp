@@ -118,6 +118,28 @@ export function createPagesRouter({ websiteSvc, requirePermission }) {
     },
   )
 
+  // POST /pages/:id/draft — alias used by the web builder editor (sends draft_builder_data)
+  app.post('/pages/:id/draft', requirePermission('website.pages.update'), async (c) => {
+    const companyId = c.get('companyId')
+    const actorId   = c.get('userId') ?? c.get('user')?.id ?? null
+    try {
+      const body = await c.req.json()
+      const builderData = body.draft_builder_data ?? body.builderData ?? {}
+      const updated = await websiteSvc.saveDraft({
+        companyId,
+        pageId: c.req.param('id'),
+        builderData,
+        seo: body.seo,
+        actorId,
+      })
+      return c.json({ ok: true, data: updated })
+    } catch (err) {
+      if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
+      console.error('[POST /website/pages/:id/draft]', err?.message)
+      return c.json({ error: 'Internal error' }, 500)
+    }
+  })
+
   app.post('/pages/:id/publish', requirePermission('website.pages.publish'), async (c) => {
     const companyId = c.get('companyId')
     const actorId   = c.get('userId') ?? c.get('user')?.id ?? null

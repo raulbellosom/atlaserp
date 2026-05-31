@@ -395,6 +395,40 @@ export function createWebsiteService({ prisma }) {
     return prisma.websiteTheme.update({ where: { id: themeId }, data })
   }
 
+  async function getActiveTheme({ companyId }) {
+    return prisma.websiteTheme.findFirst({
+      where: { companyId, enabled: true },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+    })
+  }
+
+  async function upsertTheme({ companyId, siteId, tokens, typography }) {
+    const existing = await prisma.websiteTheme.findFirst({
+      where: { companyId, siteId, enabled: true },
+      select: { id: true },
+    })
+    if (existing) {
+      return prisma.websiteTheme.update({
+        where: { id: existing.id },
+        data: {
+          ...(tokens     !== undefined && { tokens }),
+          ...(typography !== undefined && { typography }),
+        },
+      })
+    }
+    return prisma.websiteTheme.create({
+      data: {
+        companyId,
+        siteId,
+        name: 'Default',
+        tokens:     tokens     ?? {},
+        typography: typography ?? {},
+        layout:     {},
+        isDefault:  true,
+      },
+    })
+  }
+
   async function getPageByPath({ companyId, siteId, routePath }) {
     return prisma.websitePage.findFirst({
       where: { companyId, siteId, routePath, enabled: true },
@@ -636,8 +670,10 @@ export function createWebsiteService({ prisma }) {
     softDeleteMenuItem,
     reorderMenuItems,
     getTheme,
+    getActiveTheme,
     createTheme,
     updateTheme,
+    upsertTheme,
     listBlogCategories,
     createBlogCategory,
     updateBlogCategory,

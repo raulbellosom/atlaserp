@@ -6,6 +6,34 @@ import { WebsiteServiceError } from './service-helpers.js'
 export function createThemesRouter({ websiteSvc, requirePermission }) {
   const app = new Hono()
 
+  // GET /theme — returns active theme for site (used by web builder wizard/editor)
+  app.get('/theme', requirePermission('website.theme.read'), async (c) => {
+    const companyId = c.get('companyId')
+    try {
+      const theme = await websiteSvc.getActiveTheme({ companyId })
+      return c.json({ data: theme ?? null })
+    } catch (err) {
+      if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
+      console.error('[GET /website/theme]', err?.message)
+      return c.json({ error: 'Internal error' }, 500)
+    }
+  })
+
+  // POST /theme — create/upsert theme (used by web builder wizard)
+  app.post('/theme', requirePermission('website.theme.update'), async (c) => {
+    const companyId = c.get('companyId')
+    try {
+      const { site_id, siteId, tokens, typography } = await c.req.json()
+      const resolvedSiteId = site_id ?? siteId
+      const theme = await websiteSvc.upsertTheme({ companyId, siteId: resolvedSiteId, tokens, typography })
+      return c.json({ data: theme }, 201)
+    } catch (err) {
+      if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
+      console.error('[POST /website/theme]', err?.message)
+      return c.json({ error: 'Internal error' }, 500)
+    }
+  })
+
   app.get('/themes', requirePermission('website.theme.read'), async (c) => {
     const companyId = c.get('companyId')
     const siteId    = c.req.query('siteId')
