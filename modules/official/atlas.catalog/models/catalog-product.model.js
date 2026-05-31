@@ -14,7 +14,7 @@ export const catalogProductModel = defineModel({
     { name: 'stock',           type: 'integer', required: true, default: 0 },
     { name: 'track_stock',     type: 'boolean', required: true, default: false },
     { name: 'cover_asset_id',  type: 'uuid',    required: false },
-    { name: 'images',          type: 'jsonb',   required: false, default: '[]' },
+    { name: 'images',          type: 'jsonb',   required: false, default: [] },
     { name: 'enabled',         type: 'boolean', required: true, default: true },
     { name: 'published',       type: 'boolean', required: true, default: false },
   ],
