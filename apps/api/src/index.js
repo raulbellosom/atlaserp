@@ -41,7 +41,7 @@ import {
 } from "./services/company-service.js";
 import { createHrService, HrServiceError } from "./services/hr-service.js";
 import { createModulesRouter } from "./routes/modules.js";
-import { createPublicWebsiteRouter } from "./routes/public-website.js";
+import { createPublicWebsiteRouter, createPublicCatalogRouter } from "./routes/public-website.js";
 import { createWebsiteRouter } from "./routes/website/index.js";
 import { createLedgerRouter } from "./routes/ledger/index.js";
 import { createFleetRouter } from "./routes/fleet/index.js";
@@ -2684,6 +2684,9 @@ app.get("/blueprints", authMiddleware, async (c) => {
 
 const publicWebsiteRouter = createPublicWebsiteRouter({ prisma, supabaseAdmin })
 app.route("/public/website", publicWebsiteRouter)
+
+const publicCatalogRouter = createPublicCatalogRouter({ prisma })
+app.route("/public/catalog", publicCatalogRouter)
 
 app.get("/public/blueprints", async (c) => {
   try {

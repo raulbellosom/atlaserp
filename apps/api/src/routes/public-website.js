@@ -186,3 +186,73 @@ export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
 
   return app
 }
+
+export function createPublicCatalogRouter({ prisma }) {
+  const app = new Hono()
+
+  async function getActiveCompanyId() {
+    const company = await prisma.company.findFirst({
+      where: { enabled: true },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    })
+    return company?.id ?? null
+  }
+
+  app.get('/categories', async (c) => {
+    try {
+      const companyId = await getActiveCompanyId()
+      if (!companyId) return c.json({ data: [] })
+      const rows = await prisma.$queryRaw`
+        SELECT id, name, slug, description
+        FROM catalog_category
+        WHERE company_id = ${companyId}::uuid AND enabled = true
+        ORDER BY name ASC
+      `
+      return c.json({ data: rows })
+    } catch (err) {
+      if (err?.message?.includes('does not exist') || err?.code === '42P01') return c.json({ data: [] })
+      console.error('[public/catalog/categories]', err?.message)
+      return c.json({ data: [] }, 500)
+    }
+  })
+
+  app.get('/products', async (c) => {
+    try {
+      const companyId = await getActiveCompanyId()
+      if (!companyId) return c.json({ data: [] })
+      const { categoryId, limit = '20' } = c.req.query()
+      const limitNum = Math.min(Math.max(parseInt(limit) || 20, 1), 100)
+      let rows
+      if (categoryId) {
+        rows = await prisma.$queryRaw`
+          SELECT id, name, slug, description, price, compare_price, currency,
+                 stock, track_stock, cover_asset_id, images, category_id
+          FROM catalog_product
+          WHERE company_id = ${companyId}::uuid
+            AND enabled = true AND published = true
+            AND category_id = ${categoryId}::uuid
+          ORDER BY created_at DESC
+          LIMIT ${limitNum}
+        `
+      } else {
+        rows = await prisma.$queryRaw`
+          SELECT id, name, slug, description, price, compare_price, currency,
+                 stock, track_stock, cover_asset_id, images, category_id
+          FROM catalog_product
+          WHERE company_id = ${companyId}::uuid
+            AND enabled = true AND published = true
+          ORDER BY created_at DESC
+          LIMIT ${limitNum}
+        `
+      }
+      return c.json({ data: rows })
+    } catch (err) {
+      if (err?.message?.includes('does not exist') || err?.code === '42P01') return c.json({ data: [] })
+      console.error('[public/catalog/products]', err?.message)
+      return c.json({ data: [] }, 500)
+    }
+  })
+
+  return app
+}
