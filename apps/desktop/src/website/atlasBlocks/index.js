@@ -6,7 +6,7 @@ import { ProductCardBlock }  from './productCardBlock.jsx'
 import { CartBlock }         from './cartBlock.jsx'
 import { BookingFormBlock }  from './bookingFormBlock.jsx'
 
-// --- Bloques universales nuevos ---
+// --- Bloques universales ---
 import { ServicesGridBlock }    from './servicesGridBlock.jsx'
 import { TestimonialsBlock }    from './testimonialsBlock.jsx'
 import { StatsBlock }           from './statsBlock.jsx'
@@ -14,6 +14,12 @@ import { GalleryBlock }         from './galleryBlock.jsx'
 import { CtaBannerBlock }       from './ctaBannerBlock.jsx'
 import { FeaturesSectionBlock } from './featuresSectionBlock.jsx'
 import { TeamGridBlock }        from './teamGridBlock.jsx'
+
+// --- Bloques premium ---
+import { SplitFeatureBlock } from './splitFeatureBlock.jsx'
+import { MarqueeBlock }      from './marqueeBlock.jsx'
+import { BentoGridBlock }    from './bentoGridBlock.jsx'
+import { QuoteBlock }        from './quoteBlock.jsx'
 
 // --- Bloques específicos por giro ---
 import { MenuGridBlock } from './menuGridBlock.jsx'
@@ -25,6 +31,7 @@ import {
   tiendaTemplate,
   agenciaTemplate,
   negocioTemplate,
+  moradaTemplate,
   allAtlasTemplates,
 } from './templates/index.js'
 
@@ -34,6 +41,7 @@ export {
   tiendaTemplate,
   agenciaTemplate,
   negocioTemplate,
+  moradaTemplate,
   allAtlasTemplates,
 }
 
@@ -49,6 +57,10 @@ export const universalAtlasBlocks = [
   CtaBannerBlock,
   FeaturesSectionBlock,
   TeamGridBlock,
+  SplitFeatureBlock,
+  MarqueeBlock,
+  BentoGridBlock,
+  QuoteBlock,
 ]
 
 export const ecommerceAtlasBlocks = [
@@ -82,14 +94,14 @@ export {
   FeaturesSectionBlock,
   TeamGridBlock,
   MenuGridBlock,
+  SplitFeatureBlock,
+  MarqueeBlock,
+  BentoGridBlock,
+  QuoteBlock,
 }
 
 // ─── Builders por tipo de sitio ──────────────────────────────────────────────
 
-/**
- * Devuelve el array de bloques para un tipo de sitio dado.
- * siteType: 'general' | 'informational' | 'ecommerce' | 'bookings' | 'restaurant'
- */
 export function buildAtlasBlocks(siteType) {
   const blocks = [...universalAtlasBlocks]
   if (siteType === 'ecommerce')  blocks.push(...ecommerceAtlasBlocks)
@@ -98,16 +110,10 @@ export function buildAtlasBlocks(siteType) {
   return blocks
 }
 
-/**
- * Devuelve los templates relevantes para un tipo de sitio dado.
- * Siempre incluye templates universales (agencia, negocio).
- * Añade los específicos según el siteType.
- */
 export function buildAtlasTemplates(siteType) {
   const base = [agenciaTemplate, negocioTemplate]
-  if (siteType === 'ecommerce')  return [...base, tiendaTemplate]
+  if (siteType === 'ecommerce')  return [...base, tiendaTemplate, moradaTemplate]
   if (siteType === 'bookings')   return [...base, spaTemplate, restauranteTemplate]
   if (siteType === 'restaurant') return [restauranteTemplate, ...base]
-  // general / informational → todos excepto tienda
-  return [restauranteTemplate, spaTemplate, agenciaTemplate, negocioTemplate]
+  return [restauranteTemplate, spaTemplate, agenciaTemplate, negocioTemplate, moradaTemplate]
 }
