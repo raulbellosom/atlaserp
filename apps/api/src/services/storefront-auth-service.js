@@ -96,7 +96,7 @@ export function createStorefrontAuthService({ prisma, supabaseAdmin, supabaseAno
 
     const allowedRoles = await getRegistrableRoles()
     const membership = profile.memberships.find(
-      m => m.company.slug === companySlug && allowedRoles.includes(m.role?.key)
+      m => m.role != null && m.company.slug === companySlug && allowedRoles.includes(m.role.key)
     )
     if (!membership) {
       throw Object.assign(new Error('Sin acceso a esta plataforma'), { code: 'FORBIDDEN', status: 403 })
@@ -125,7 +125,7 @@ export function createStorefrontAuthService({ prisma, supabaseAdmin, supabaseAno
     }
     const allowedRoles = await getRegistrableRoles()
     const membership = profile.memberships.find(
-      m => m.company.slug === companySlug && allowedRoles.includes(m.role?.key)
+      m => m.role != null && m.company.slug === companySlug && allowedRoles.includes(m.role.key)
     )
     if (!membership) {
       throw Object.assign(new Error('Sin acceso'), { code: 'FORBIDDEN', status: 403 })
@@ -146,7 +146,13 @@ export function createStorefrontAuthService({ prisma, supabaseAdmin, supabaseAno
   }
 
   async function logout(token) {
-    await supabaseAnon.auth.signOut()
+    if (token) {
+      const { data } = await supabaseAdmin.auth.getUser(token).catch(() => ({ data: {} }))
+      const userId = data?.user?.id
+      if (userId) {
+        await supabaseAdmin.auth.admin.signOut(userId).catch(() => {})
+      }
+    }
     return { success: true }
   }
 
