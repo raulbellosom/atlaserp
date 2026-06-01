@@ -106,6 +106,9 @@ const SCREEN_MAP = {
   "atlas.website:/templates": lazy(
     () => import("../modules/atlas.website/screens/WebsiteTemplatesScreen.jsx"),
   ),
+  "atlas.website:/templates/:id/preview": lazy(
+    () => import("../modules/atlas.website/screens/TemplatePreviewScreen.jsx"),
+  ),
   "atlas.website:/pages/:id/editor": lazy(
     () =>
       import("../modules/atlas.website/screens/WebsitePageEditorScreen.jsx"),
@@ -297,6 +300,9 @@ function resolveScreen(moduleKey, subPath) {
     }
     if (/^\/blog\/[^/]+\/editor$/.test(subPath)) {
       return SCREEN_MAP["atlas.website:/blog/:id/editor"] ?? null;
+    }
+    if (/^\/templates\/[^/]+\/preview$/.test(subPath)) {
+      return SCREEN_MAP["atlas.website:/templates/:id/preview"] ?? null;
     }
     return SCREEN_MAP[`atlas.website:${subPath}`] ?? null;
   }
