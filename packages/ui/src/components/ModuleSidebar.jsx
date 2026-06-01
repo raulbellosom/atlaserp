@@ -50,6 +50,7 @@ import {
   Calendar,
   UsersRound,
   ShieldCheck,
+  LayoutTemplate,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "../lib/utils.js";
@@ -104,6 +105,7 @@ const ICON_MAP = {
   Calendar,
   UsersRound,
   ShieldCheck,
+  LayoutTemplate,
 };
 
 const ICON_ALIAS_MAP = {
