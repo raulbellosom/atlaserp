@@ -21,15 +21,44 @@ export function createStorefrontClient({ baseUrl, company, onSessionChange, init
     getSession: () => session.get(),
   })
 
-  async function request(method, path, body = null, options = {}) {
-    return _request(method, path, body, options)
+  async function _requestWithRefresh(method, path, body = null, options = {}) {
+    try {
+      return await _request(method, path, body, options)
+    } catch (err) {
+      const current = session.get()
+      if (
+        err?.code === 'UNAUTHORIZED' &&
+        current?.refreshToken &&
+        !options._retry
+      ) {
+        try {
+          const refreshRes = await _request(
+            'POST',
+            '/public/storefront/auth/refresh',
+            { refreshToken: current.refreshToken },
+            { _retry: true }
+          )
+          const { token, refreshToken, expiresAt } = refreshRes.data
+          session.set({ ...current, token, refreshToken, expiresAt })
+          return await _request(method, path, body, { ...options, _retry: true })
+        } catch {
+          session.clear()
+          throw err
+        }
+      }
+      throw err
+    }
   }
 
-  const auth = createAuthNamespace({ request: _request, session })
-  const files = createFilesNamespace({ request: _request })
-  const catalog = createCatalogNamespace({ request: _request })
-  const discovery = createDiscoveryNamespace({ request: _request })
-  const realtime = createRealtimeNamespace({ request: _request })
+  const auth = createAuthNamespace({ request: _requestWithRefresh, session })
+  const files = createFilesNamespace({ request: _requestWithRefresh })
+  const catalog = createCatalogNamespace({ request: _requestWithRefresh })
+  const discovery = createDiscoveryNamespace({ request: _requestWithRefresh })
+  const realtime = createRealtimeNamespace({ request: _requestWithRefresh })
+
+  async function request(method, path, body = null, options = {}) {
+    return _requestWithRefresh(method, path, body, options)
+  }
 
   return Object.freeze({ auth, files, catalog, discovery, realtime, request })
 }
