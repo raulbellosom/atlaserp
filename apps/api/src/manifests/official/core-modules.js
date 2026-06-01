@@ -4,6 +4,7 @@ import {
   hrMap,
   atlasWebsiteManifest,
   activityMap,
+  notificationsMap,
 } from "./feature-modules.js";
 
 export const atlasCoreMap = createModuleManifest({
@@ -705,6 +706,112 @@ export const atlasCalendarManifest = createModuleManifest({
   consumes: ["atlas.files"],
 });
 
+export const atlasCatalogManifest = createModuleManifest({
+  key: "atlas.catalog",
+  name: "Catalogo",
+  description: "Gestiona productos, categorias, variantes e inventario",
+  version: "2.1.0",
+  kind: MODULE_KINDS.CORE,
+  core: true,
+  uninstallable: false,
+  icon: "ShoppingBag",
+  color: "#F97316",
+  accentColor: "#EA580C",
+  initials: "CT",
+  category: "comercial",
+  logoUrl: "/module-logos/atlas-catalog-128.svg",
+  summary: "Productos, categorias, variantes e inventario unificados.",
+  dependencies: [{ key: "atlas.core" }],
+  lifecycle: {
+    installable: true,
+    uninstallable: false,
+    resettable: false,
+    supportsDataPurge: true,
+    defaultUninstallPolicy: "purge-owned-tables",
+    ownedEntities: [
+      "CatalogCategory",
+      "CatalogProduct",
+      "CatalogProductOption",
+      "CatalogProductOptionValue",
+      "CatalogProductVariant",
+      "CatalogStockMovement",
+    ],
+    ownedTables: [
+      "catalog_category",
+      "catalog_product",
+      "catalog_product_option",
+      "catalog_product_option_value",
+      "catalog_product_variant",
+      "catalog_stock_movement",
+    ],
+    sharedEntities: ["Company"],
+  },
+  permissions: [
+    { key: "catalog.access",            name: "Acceder al catalogo" },
+    { key: "catalog.products.read",     name: "Ver productos" },
+    { key: "catalog.products.create",   name: "Crear productos" },
+    { key: "catalog.products.update",   name: "Editar productos" },
+    { key: "catalog.products.delete",   name: "Eliminar productos" },
+    { key: "catalog.categories.read",   name: "Ver categorias" },
+    { key: "catalog.categories.create", name: "Crear categorias" },
+    { key: "catalog.categories.update", name: "Editar categorias" },
+    { key: "catalog.categories.delete", name: "Eliminar categorias" },
+    { key: "catalog.inventory.adjust",  name: "Ajustar stock" },
+  ],
+  acl: {
+    module: "catalog.access",
+    actions: {
+      "catalog.products.read":     "catalog.products.read",
+      "catalog.products.create":   "catalog.products.create",
+      "catalog.products.update":   "catalog.products.update",
+      "catalog.products.delete":   "catalog.products.delete",
+      "catalog.categories.read":   "catalog.categories.read",
+      "catalog.categories.create": "catalog.categories.create",
+      "catalog.categories.update": "catalog.categories.update",
+      "catalog.categories.delete": "catalog.categories.delete",
+      "catalog.inventory.adjust":  "catalog.inventory.adjust",
+    },
+    models: {
+      CatalogProduct: {
+        read:   "catalog.products.read",
+        create: "catalog.products.create",
+        update: "catalog.products.update",
+        delete: "catalog.products.delete",
+      },
+      CatalogCategory: {
+        read:   "catalog.categories.read",
+        create: "catalog.categories.create",
+        update: "catalog.categories.update",
+        delete: "catalog.categories.delete",
+      },
+    },
+  },
+  navigation: [
+    {
+      label: "Productos",
+      path: "/app/m/atlas.catalog",
+      icon: "ShoppingCart",
+      layout: "main",
+      permissionKey: "catalog.products.read",
+    },
+    {
+      label: "Categorias",
+      path: "/app/m/atlas.catalog/categories",
+      icon: "Tag",
+      layout: "main",
+      permissionKey: "catalog.categories.read",
+    },
+    {
+      label: "Inventario",
+      path: "/app/m/atlas.catalog/inventory",
+      icon: "BarChart3",
+      layout: "main",
+      permissionKey: "catalog.products.read",
+    },
+  ],
+  blueprints: [],
+});
+
 export const coreModules = [
   atlasCoreMap,
   identityMap,
@@ -717,4 +824,6 @@ export const coreModules = [
   atlasWebsiteManifest,
   atlasCalendarManifest,
   activityMap,
+  notificationsMap,
+  atlasCatalogManifest,
 ];

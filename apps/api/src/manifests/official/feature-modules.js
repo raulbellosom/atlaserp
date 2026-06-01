@@ -363,56 +363,17 @@ export const atlasWebsiteManifest = createModuleManifest({
       layout: "main",
       permissionKey: "website.site.update",
     },
+    {
+      label: "Configuracion",
+      path: "/app/m/atlas.website/settings",
+      icon: "Settings",
+      layout: "main",
+      permissionKey: "website.site.update",
+    },
   ],
 });
 
-export const atlasCatalogManifest = createModuleManifest({
-  key: "atlas.catalog",
-  name: "Catalogo",
-  version: "2.1.0",
-  kind: MODULE_KINDS.FEATURE,
-  core: false,
-  uninstallable: true,
-  description: "Gestiona productos, categorias, variantes e inventario",
-  summary: "Productos, categorias, variantes e inventario unificados.",
-  icon: "ShoppingBag",
-  color: "#F97316",
-  accentColor: "#EA580C",
-  initials: "CT",
-  category: "comercial",
-  logoUrl: "/module-logos/atlas-catalog-128.svg",
-  dependencies: [],
-  permissions: [
-    { key: "catalog.access", name: "Acceder al catalogo" },
-    { key: "catalog.products.read", name: "Ver productos" },
-    { key: "catalog.products.create", name: "Crear productos" },
-    { key: "catalog.products.update", name: "Editar productos" },
-    { key: "catalog.products.delete", name: "Eliminar productos" },
-    { key: "catalog.categories.read", name: "Ver categorias" },
-    {
-      key: "cShoppingBag",
-      layout: "main",
-      permissionKey: "catalog.products.read",
-    },
-    {
-      label: "Categorias",
-      path: "/app/m/atlas.catalog/categories",
-      icon: "Tag",
-      layout: "main",
-      permissionKey: "catalog.categories.read",
-    },
-    {
-      label: "Inventario",
-      path: "/app/m/atlas.catalog/inventory",
-      icon: "BarChart3",
-      layout: "main",
-      permissionKey: "catalog.products.read",
-    },
-  ],
-  blueprints: [],
-});
-
-export const featureModules = [atlasCatalogManifest];
+export const featureModules = [];
 
 export const activityMap = createModuleManifest({
   key: "atlas.activity",
@@ -471,6 +432,87 @@ export const activityMap = createModuleManifest({
         create: "activity.publish",
         update: "activity.manage",
         delete: "activity.manage",
+      },
+    },
+  },
+  blueprints: [],
+});
+
+export const notificationsMap = createModuleManifest({
+  key: "atlas.notifications",
+  name: "Notificaciones",
+  description: "Alertas accionables para eventos importantes del sistema.",
+  version: "0.1.0",
+  kind: MODULE_KINDS.CORE,
+  core: true,
+  uninstallable: false,
+  icon: "Bell",
+  color: "#0ea5e9",
+  category: "plataforma",
+  summary: "Inbox de notificaciones con prioridades y canales",
+  dependencies: [{ key: "atlas.core" }, { key: "atlas.identity" }],
+  lifecycle: {
+    installable: true,
+    uninstallable: false,
+    resettable: false,
+    supportsDataPurge: true,
+    defaultUninstallPolicy: "purge-owned-tables",
+    ownedEntities: ["Notification"],
+    sharedEntities: ["UserProfile", "Company", "Activity"],
+  },
+  navigation: [
+    {
+      label: "Notificaciones",
+      path: "/app/m/atlas.notifications",
+      icon: "Bell",
+      layout: "main",
+      permissionKey: "notifications.read",
+    },
+  ],
+  permissions: [
+    { key: "notifications.access", name: "Acceder a notificaciones" },
+    { key: "notifications.read", name: "Ver notificaciones" },
+    { key: "notifications.publish", name: "Publicar notificaciones" },
+    { key: "notifications.manage", name: "Administrar notificaciones" },
+  ],
+  acl: {
+    module: "notifications.access",
+    actions: {
+      "notifications.read": "notifications.read",
+      "notifications.publish": "notifications.publish",
+      "notifications.manage": "notifications.manage",
+      "notifications.list": "notifications.read",
+      "notifications.markRead": "notifications.read",
+      "notifications.markAllRead": "notifications.read",
+      "notifications.preferences.read": "notifications.read",
+      "notifications.preferences.update": "notifications.read",
+      "notifications.push.subscribe": "notifications.read",
+      "notifications.push.unsubscribe": "notifications.read",
+    },
+    models: {
+      Notification: {
+        read: "notifications.read",
+        create: "notifications.publish",
+        update: "notifications.manage",
+        delete: "notifications.manage",
+      },
+      NotificationDelivery: {
+        read: "notifications.read",
+        create: "notifications.publish",
+        update: "notifications.manage",
+        delete: "notifications.manage",
+      },
+      NotificationPreference: {
+        read: "notifications.read",
+        create: "notifications.read",
+        update: "notifications.read",
+        delete: "notifications.manage",
+      },
+      PushSubscription: {
+        read: "notifications.read",
+        create: "notifications.read",
+        update: "notifications.read",
+        delete: "notifications.read",
       },
     },
   },
