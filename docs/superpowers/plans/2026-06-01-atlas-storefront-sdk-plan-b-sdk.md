@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build `packages/storefront-sdk` — a stateful, SSR-compatible JavaScript client published as `@atlas/storefront-sdk` that wraps the storefront API endpoints added in Plan A.
+**Goal:** Build `packages/storefront-sdk` — a stateful, SSR-compatible JavaScript client published as `@raulbellosom/atlas-sdk` that wraps the storefront API endpoints added in Plan A.
 
 **Architecture:** A single factory function `createStorefrontClient({ baseUrl, company, onSessionChange?, initialSession? })` returns a frozen object with namespaces (`auth`, `files`, `catalog`, `discovery`, `realtime`, `request`). Session is stored in closure memory. All HTTP goes through a single internal `_request()` function that injects auth and company headers automatically. `StorefrontError` is the single error class thrown by every method.
 
@@ -95,7 +95,7 @@ Create `packages/storefront-sdk/package.json`:
 
 ```json
 {
-  "name": "@atlas/storefront-sdk",
+  "name": "@raulbellosom/atlas-sdk",
   "version": "0.1.0",
   "type": "module",
   "main": "./src/index.js",
@@ -1054,7 +1054,7 @@ Replace `packages/storefront-sdk/package.json` with:
 
 ```json
 {
-  "name": "@atlas/storefront-sdk",
+  "name": "@raulbellosom/atlas-sdk",
   "version": "0.1.0",
   "type": "module",
   "description": "Generic JavaScript client for AtlasERP storefront APIs",
@@ -1097,5 +1097,5 @@ Expected: All PASS.
 
 ```bash
 git add packages/storefront-sdk/package.json pnpm-lock.yaml
-git commit -m "feat(storefront-sdk): Plan B complete — @atlas/storefront-sdk ready for npm publish"
+git commit -m "feat(storefront-sdk): Plan B complete — @raulbellosom/atlas-sdk ready for npm publish"
 ```

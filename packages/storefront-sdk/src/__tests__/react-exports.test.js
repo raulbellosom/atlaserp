@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 // (React is a peer dep — not installed in this package)
 import * as reactExports from '../react/index.js'
 
-describe('@atlas/storefront-sdk/react exports', () => {
+describe('@raulbellosom/atlas-sdk/react exports', () => {
   it('exports StorefrontProvider', () => {
     assert.equal(typeof reactExports.StorefrontProvider, 'function')
   })

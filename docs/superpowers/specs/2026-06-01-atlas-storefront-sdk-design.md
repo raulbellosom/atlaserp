@@ -10,7 +10,7 @@
 
 The AtlasERP v2 admin SDK (`packages/sdk`) is a complete API client for the ERP but is 100% admin-facing — it requires an admin JWT on every call. There is no SDK for external developers building customer-facing applications on top of the ERP.
 
-The **Atlas Storefront SDK** (`packages/storefront-sdk`) fills this gap. It is a generic JavaScript client published to npm as `@atlas/storefront-sdk` that allows any external app — React, Astro, Vue, plain HTML, or any framework — to consume the ERP's public-facing API. The SDK handles authentication of end-users (customers, vendors, or any role), file uploads to public storage, catalog discovery, real-time subscriptions, and provides a generic escape hatch for any module-specific API call.
+The **Atlas Storefront SDK** (`packages/storefront-sdk`) fills this gap. It is a generic JavaScript client published to npm as `@raulbellosom/atlas-sdk` that allows any external app — React, Astro, Vue, plain HTML, or any framework — to consume the ERP's public-facing API. The SDK handles authentication of end-users (customers, vendors, or any role), file uploads to public storage, catalog discovery, real-time subscriptions, and provides a generic escape hatch for any module-specific API call.
 
 Musicfy (a musician booking marketplace) was used as a reference use case during design to validate that the SDK is expressive enough for complex multi-role platforms. The SDK itself contains no Musicfy-specific logic.
 
@@ -21,7 +21,7 @@ Musicfy (a musician booking marketplace) was used as a reference use case during
 | Property | Value |
 |---|---|
 | Location | `packages/storefront-sdk/` in the AtlasERP v2 monorepo |
-| npm package | `@atlas/storefront-sdk` |
+| npm package | `@raulbellosom/atlas-sdk` |
 | Entry point | `packages/storefront-sdk/src/index.js` |
 | Exports | `createStorefrontClient` (named export) |
 | Dependencies | `@supabase/supabase-js` (for real-time) |
@@ -35,7 +35,7 @@ The package is co-located with the ERP API to keep the SDK in sync with endpoint
 ## 3. Initialization
 
 ```js
-import { createStorefrontClient } from '@atlas/storefront-sdk'
+import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
 
 const sdk = createStorefrontClient({
   baseUrl: 'https://erp.dimare.mx',   // required — ERP instance URL
@@ -329,7 +329,7 @@ All new endpoints live under `/public/storefront/` and require no admin auth —
 When a developer uploads their compiled app (`dist/`) to the ERP:
 
 1. Developer builds their app: `npm run build` → `dist/`
-2. The compiled bundle already includes `@atlas/storefront-sdk` — no server-side injection needed.
+2. The compiled bundle already includes `@raulbellosom/atlas-sdk` — no server-side injection needed.
 3. Developer uploads `dist/` via the ERP panel (feature to be specced separately).
 4. The ERP serves `dist/index.html` at the tenant's root path.
 5. The browser loads the app; the SDK connects to the ERP API at the configured `baseUrl`.
@@ -343,7 +343,7 @@ The SDK works identically whether the app is hosted on the ERP or on an external
 The following are explicitly deferred to separate specs:
 
 - Module-specific namespaces: `sdk.bookings`, `sdk.reviews`, `sdk.payments` (depend on those modules existing)
-- React hooks companion package (`@atlas/storefront-sdk/react`)
+- React hooks companion package (`@raulbellosom/atlas-sdk/react`)
 - Hosted build upload feature (ERP panel for uploading compiled apps)
 - Platform owner dashboard (commissions, approval workflows)
 - Payment processing integration

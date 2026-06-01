@@ -1,5 +1,5 @@
 {
-  "name": "@atlas/storefront-sdk",
+  "name": "@raulbellosom/atlas-sdk",
   "version": "0.1.0",
   "type": "module",
   "description": "Generic JavaScript client for AtlasERP storefront APIs",
@@ -11,7 +11,12 @@
   "files": [
     "src"
   ],
-  "keywords": ["atlas", "erp", "storefront", "sdk"],
+  "keywords": [
+    "atlas",
+    "erp",
+    "storefront",
+    "sdk"
+  ],
   "license": "MIT",
   "dependencies": {
     "@supabase/supabase-js": "^2.0.0"
