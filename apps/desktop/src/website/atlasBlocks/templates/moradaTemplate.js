@@ -1,5 +1,14 @@
 import { defineTemplate } from '@raulbellosom/atlas-web-builder'
 
+export const moradaThemeTokens = {
+  color: {
+    primary:    '#B5603A',
+    bg:         '#FAF7F2',
+    foreground: '#1A1410',
+    muted:      '#8C7E72',
+  },
+}
+
 const NAVBAR = {
   id: 'navbar',
   type: 'NavbarBlock',

@@ -8,6 +8,7 @@ import {
   serializePage,
   parsePage,
   defaultTheme,
+  defineTheme,
 } from '@raulbellosom/atlas-web-builder'
 import '@raulbellosom/atlas-web-builder/styles'
 import { Button } from '@atlas/ui'
@@ -136,6 +137,18 @@ export default function TemplatePreviewScreen() {
           else throw err
         }
       }
+      if (template.themeTokens) {
+        const mergedTokens = {
+          ...defaultTheme.tokens,
+          color: { ...defaultTheme.tokens?.color, ...template.themeTokens.color },
+        }
+        const builtTheme = defineTheme({ ...defaultTheme, id: 'atlas-site', name: 'Site Theme', tokens: mergedTokens })
+        await apiFetch('/website/theme', token, {
+          method: 'POST',
+          body: JSON.stringify({ site_id: site.id, tokens: builtTheme.tokens }),
+        })
+      }
+
       return { firstPageId, created, skipped }
     },
     onSuccess: ({ firstPageId, created, skipped }) => {

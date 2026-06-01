@@ -3,7 +3,7 @@ import { spaTemplate,         spaSitePages }         from '../atlasBlocks/templa
 import { tiendaTemplate,      tiendaSitePages }      from '../atlasBlocks/templates/tiendaTemplate.js'
 import { agenciaTemplate,     agenciaSitePages }     from '../atlasBlocks/templates/agenciaTemplate.js'
 import { negocioTemplate,     negocioSitePages }     from '../atlasBlocks/templates/negocioTemplate.js'
-import { moradaTemplate,      moradaSitePages }      from '../atlasBlocks/templates/moradaTemplate.js'
+import { moradaTemplate,      moradaSitePages, moradaThemeTokens } from '../atlasBlocks/templates/moradaTemplate.js'
 
 const CATEGORY_COLORS = {
   restaurante: '#92400e',
@@ -30,13 +30,14 @@ function buildPageData(templateId, pageId, label, routePath, description, { root
   }
 }
 
-function wrapTemplate(tpl, sitePages = []) {
+function wrapTemplate(tpl, sitePages = [], themeTokens = null) {
   const homeData = tpl.build()
   return {
     id:          tpl.id,
     label:       tpl.label,
     description: tpl.description,
     color:       CATEGORY_COLORS[tpl.category] || '#334155',
+    themeTokens,
     pages: [
       {
         id:        'home',
@@ -62,5 +63,5 @@ export const allTemplates = [
   wrapTemplate(tiendaTemplate,     tiendaSitePages),
   wrapTemplate(agenciaTemplate,    agenciaSitePages),
   wrapTemplate(negocioTemplate,    negocioSitePages),
-  wrapTemplate(moradaTemplate,     moradaSitePages),
+  wrapTemplate(moradaTemplate,     moradaSitePages, moradaThemeTokens),
 ]
