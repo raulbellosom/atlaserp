@@ -90,11 +90,16 @@ export function invalidateCache(companyId) {
   }
 }
 
-export function createDistServeService({ prisma, supabaseAdmin }) {
-  let _primaryCompanyCache = null
-  let _primaryCompanyCachedAt = 0
-  const COMPANY_CACHE_TTL = 60_000
+let _primaryCompanyCache = null
+let _primaryCompanyCachedAt = 0
+const COMPANY_CACHE_TTL = 60_000
 
+export function invalidatePrimaryCache() {
+  _primaryCompanyCache = null
+  _primaryCompanyCachedAt = 0
+}
+
+export function createDistServeService({ prisma, supabaseAdmin }) {
   async function getPrimaryCompany() {
     if (_primaryCompanyCache && Date.now() - _primaryCompanyCachedAt < COMPANY_CACHE_TTL) {
       return _primaryCompanyCache
@@ -115,10 +120,6 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
     _primaryCompanyCache = site
     _primaryCompanyCachedAt = Date.now()
     return site
-  }
-
-  function invalidatePrimaryCache() {
-    _primaryCompanyCache = null
   }
 
   async function serve(c, urlPath) {

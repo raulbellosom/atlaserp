@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { createDistUploadService } from '../../services/dist-upload-service.js'
-import { invalidateCache } from '../../services/dist-serve-service.js'
+import { invalidateCache, invalidatePrimaryCache } from '../../services/dist-serve-service.js'
 
 const VALID_SOURCE_TYPES = new Set(['none', 'builder', 'dist'])
 
@@ -65,6 +65,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
                     dist_has_prerender as "distHasPrerender"
         `
         invalidateCache(companyId)
+        invalidatePrimaryCache()
         await prisma.auditLog.create({
           data: {
             actorId,
@@ -113,6 +114,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
           companySlug: site[0].company_slug,
         })
 
+        invalidatePrimaryCache()
         return c.json({ data: result }, 201)
       } catch (err) {
         return c.json({ error: err.message }, err.status ?? 500)
@@ -136,6 +138,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
         if (!site[0]) return c.json({ error: 'Sitio no encontrado' }, 404)
 
         await uploadService.deleteDist({ siteId, companySlug: site[0].company_slug })
+        invalidatePrimaryCache()
         return c.json({ data: { success: true } })
       } catch (err) {
         return c.json({ error: err.message }, err.status ?? 500)
