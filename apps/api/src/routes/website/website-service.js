@@ -164,10 +164,41 @@ export function createWebsiteService({ prisma }) {
 
   async function createPage({ companyId, siteId, data, actorId }) {
     const existing = await prisma.websitePage.findFirst({
-      where: { companyId, siteId, routePath: data.routePath, enabled: true },
-      select: { id: true },
+      where: { companyId, siteId, routePath: data.routePath },
     })
-    if (existing) throw conflict(`La ruta "${data.routePath}" ya esta en uso.`)
+
+    if (existing) {
+      if (existing.enabled) throw conflict(`La ruta "${data.routePath}" ya esta en uso.`)
+
+      // Soft-deleted page with same route — reactivate and reset instead of inserting
+      const restored = await prisma.websitePage.update({
+        where: { id: existing.id },
+        data: {
+          title:            data.title,
+          slug:             data.slug,
+          status:           'draft',
+          pageType:         data.pageType ?? 'page',
+          visibility:       data.visibility ?? 'public',
+          draftBuilderData: {},
+          publishedBuilderData: null,
+          seo:              data.seo ?? {},
+          updatedById:      actorId ?? null,
+          enabled:          true,
+        },
+      })
+      await prisma.auditLog.create({
+        data: {
+          actorId: actorId ?? null,
+          moduleKey: 'atlas.website',
+          entityType: 'website.page',
+          entityId: restored.id,
+          action: 'page.restore',
+          before: JSON.stringify(existing),
+          after: JSON.stringify(restored),
+        },
+      })
+      return restored
+    }
 
     const created = await prisma.websitePage.create({
       data: {
