@@ -170,6 +170,28 @@ async function main() {
     }
   }
 
+  // Storefront roles
+  for (const roleData of [
+    { key: 'storefront_client', name: 'Cliente (Storefront)', description: 'Usuario final registrado desde una app externa', system: true },
+    { key: 'storefront_vendor', name: 'Vendedor (Storefront)', description: 'Proveedor registrado desde una app externa', system: true },
+  ]) {
+    await prisma.role.upsert({
+      where: { key: roleData.key },
+      update: { name: roleData.name, description: roleData.description },
+      create: roleData,
+    })
+  }
+
+  // Storefront registrable roles config
+  await prisma.instanceConfig.upsert({
+    where: { key: 'storefront.registrable_roles' },
+    update: {},
+    create: {
+      key: 'storefront.registrable_roles',
+      value: JSON.stringify(['storefront_client', 'storefront_vendor']),
+    },
+  })
+
   console.log(`Atlas modules seeded (${officialModuleManifests.length})`)
 }
 
