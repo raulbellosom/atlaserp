@@ -233,6 +233,8 @@ model UserProfile {
   auditLogs    AuditLog[]
   activities   Activity[]
   notifications Notification[]
+  pushSubscriptions PushSubscription[]
+  notificationPreferences NotificationPreference[]
 
   hrEmployee HrEmployee?
   tablePreferences UserTablePreference[]
@@ -518,17 +520,88 @@ model Notification {
   userId String @db.Uuid @map("user_id")
   companyId String? @db.Uuid @map("company_id")
   kind      String    @default("info")
+  eventType String @default("system.general") @map("event_type")
+  sourceType String? @map("source_type")
+  sourceId String? @map("source_id")
+  sourceActivityId String? @db.Uuid @map("source_activity_id")
+  priority String @default("medium")
   title     String
   body      String?
   link      String?
+  metadata  Json?
+  dedupeKey String? @map("dedupe_key")
+  expiresAt DateTime? @map("expires_at")
   readAt DateTime? @map("read_at")
   createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries NotificationDelivery[]
 
   @@index([userId, readAt])
+  @@index([companyId, createdAt(sort: Desc)])
+  @@index([userId, priority, createdAt(sort: Desc)])
+  @@index([eventType, createdAt(sort: Desc)])
+  @@index([dedupeKey])
   @@index([createdAt])
   @@map("notification")
+}
+
+model NotificationDelivery {
+  id String @id @default(uuid(7)) @db.Uuid
+  notificationId String @db.Uuid @map("notification_id")
+  channel String
+  status String @default("queued")
+  attempts Int @default(0)
+  lastError String? @map("last_error")
+  sentAt DateTime? @map("sent_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId])
+  @@index([channel, status, createdAt])
+  @@map("notification_delivery")
+}
+
+model PushSubscription {
+  id String @id @default(uuid(7)) @db.Uuid
+  userId String @db.Uuid @map("user_id")
+  companyId String? @db.Uuid @map("company_id")
+  endpoint String @unique
+  p256dh String
+  auth String
+  deviceLabel String? @map("device_label")
+  userAgent String? @map("user_agent")
+  enabled Boolean @default(true)
+  lastSeenAt DateTime? @map("last_seen_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, enabled])
+  @@index([companyId, enabled])
+  @@map("push_subscription")
+}
+
+model NotificationPreference {
+  id String @id @default(uuid(7)) @db.Uuid
+  userId String @db.Uuid @map("user_id")
+  eventType String @map("event_type")
+  inAppEnabled Boolean @default(true) @map("in_app_enabled")
+  emailEnabled Boolean @default(false) @map("email_enabled")
+  pushEnabled Boolean @default(false) @map("push_enabled")
+  muteUntil DateTime? @map("mute_until")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventType])
+  @@index([userId])
+  @@map("notification_preference")
 }
 
 model UserPreference {
@@ -1228,3 +1301,135 @@ model CalendarNotification {
   @@map("calendar_notification")
 }
 
+// ─── atlas.catalog ────────────────────────────────────────────────────────────
+
+model CatalogCategory {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  companyId     String   @db.Uuid @map("company_id")
+  parentId      String?  @db.Uuid @map("parent_id")
+  name          String
+  slug          String
+  description   String?
+  coverAssetId  String?  @db.Uuid @map("cover_asset_id")
+  position      Int      @default(0)
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  parent        CatalogCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children      CatalogCategory[] @relation("CategoryHierarchy")
+  products      CatalogProduct[]
+
+  @@unique([companyId, slug])
+  @@index([companyId, enabled])
+  @@map("catalog_category")
+}
+
+model CatalogProduct {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  companyId       String   @db.Uuid @map("company_id")
+  categoryId      String?  @db.Uuid @map("category_id")
+  productType     String   @default("SIMPLE") @map("product_type")
+  name            String
+  slug            String
+  description     String?
+  sku             String?
+  barcode         String?
+  price           Decimal  @db.Decimal(12, 4)
+  comparePrice    Decimal? @db.Decimal(12, 4) @map("compare_price")
+  currency        String   @default("USD")
+  weight          Decimal? @db.Decimal(10, 3)
+  stock           Int      @default(0)
+  trackStock      Boolean  @default(false) @map("track_stock")
+  attributes      Json     @default("[]")
+  coverAssetId    String?  @db.Uuid @map("cover_asset_id")
+  images          Json     @default("[]")
+  metaTitle       String?  @map("meta_title")
+  metaDescription String?  @map("meta_description")
+  enabled         Boolean  @default(true)
+  published       Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  category        CatalogCategory?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  options         CatalogProductOption[]
+  variants        CatalogProductVariant[]
+  stockMovements  CatalogStockMovement[]
+
+  @@unique([companyId, slug])
+  @@index([companyId, enabled])
+  @@index([companyId, categoryId])
+  @@map("catalog_product")
+}
+
+model CatalogProductOption {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String   @db.Uuid @map("company_id")
+  productId String   @db.Uuid @map("product_id")
+  name      String
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  product   CatalogProduct              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  values    CatalogProductOptionValue[]
+
+  @@index([productId])
+  @@map("catalog_product_option")
+}
+
+model CatalogProductOptionValue {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String   @db.Uuid @map("company_id")
+  optionId  String   @db.Uuid @map("option_id")
+  value     String
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  option    CatalogProductOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@index([optionId])
+  @@map("catalog_product_option_value")
+}
+
+model CatalogProductVariant {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  companyId     String   @db.Uuid @map("company_id")
+  productId     String   @db.Uuid @map("product_id")
+  optionValues  Json     @default("{}") @map("option_values")
+  sku           String?
+  barcode       String?
+  price         Decimal  @db.Decimal(12, 4)
+  comparePrice  Decimal? @db.Decimal(12, 4) @map("compare_price")
+  stock         Int      @default(0)
+  coverAssetId  String?  @db.Uuid @map("cover_asset_id")
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  product        CatalogProduct         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stockMovements CatalogStockMovement[]
+
+  @@index([productId, enabled])
+  @@map("catalog_product_variant")
+}
+
+model CatalogStockMovement {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  companyId     String   @db.Uuid @map("company_id")
+  productId     String   @db.Uuid @map("product_id")
+  variantId     String?  @db.Uuid @map("variant_id")
+  quantityDelta Int      @map("quantity_delta")
+  reason        String?
+  note          String?
+  userId        String?  @db.Uuid @map("user_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  product CatalogProduct         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant CatalogProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, productId, createdAt(sort: Desc)])
+  @@map("catalog_stock_movement")
+}
