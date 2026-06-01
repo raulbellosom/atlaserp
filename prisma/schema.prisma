@@ -632,6 +632,11 @@ model WebsiteSite {
   themeId                String?   @db.Uuid @map("theme_id")
   settings               Json?
   seoDefaults            Json?     @map("seo_defaults")
+  sourceType             String    @default("builder") @map("source_type")
+  distUploadedAt         DateTime? @map("dist_uploaded_at")
+  distFileCount          Int?      @map("dist_file_count")
+  distHasPrerender       Boolean?  @map("dist_has_prerender")
+  distManifest           Json?     @map("dist_manifest")
   stripePublishableKey   String?   @map("stripe_publishable_key")
   stripeSecretKey        String?   @map("stripe_secret_key")
   stripeCurrency         String    @default("usd") @map("stripe_currency")
