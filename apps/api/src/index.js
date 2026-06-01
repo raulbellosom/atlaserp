@@ -1693,7 +1693,12 @@ app.post(
           `${actorName} subió "${asset.originalName ?? asset.id}"`.trim(),
       });
 
-      return c.json({ data: asset }, 201);
+      const responseAsset = { ...asset }
+      if (asset.bucket === WEBSITE_BUCKET_NAME) {
+        const { data: urlData } = supabaseAdmin.storage.from(asset.bucket).getPublicUrl(asset.objectKey)
+        responseAsset.url = urlData?.publicUrl ?? null
+      }
+      return c.json({ data: responseAsset }, 201);
     } catch (err) {
       if (err instanceof FilesServiceError) {
         return c.json({ error: err.message }, err.status);
@@ -1889,6 +1894,13 @@ app.post(
       const urlMap = {};
       await Promise.all(
         [...byBucket.entries()].map(async ([bucket, bucketAssets]) => {
+          if (bucket === WEBSITE_BUCKET_NAME) {
+            for (const a of bucketAssets) {
+              const { data } = supabaseAdmin.storage.from(bucket).getPublicUrl(a.objectKey)
+              urlMap[a.id] = data?.publicUrl ?? null
+            }
+            return
+          }
           const { data: signedList } = await supabaseAdmin.storage
             .from(bucket)
             .createSignedUrls(

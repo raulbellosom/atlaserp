@@ -45,6 +45,8 @@ function createAssetSource(token) {
     async upload(file) {
       const form = new FormData()
       form.append('file', file)
+      form.append('visibility', 'PUBLIC')
+      form.append('moduleKey', 'atlas.website')
       const res = await fetch(`${apiUrl}/files/upload`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
