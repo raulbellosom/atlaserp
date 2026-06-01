@@ -309,6 +309,7 @@ body,
   --accentText: hsl(var(--primary));
   --baseBase: hsl(var(--foreground));
   --baseBg: hsl(var(--card));
+  --basePageBg: hsl(var(--card));
   --baseBgSubtle: hsl(var(--muted));
   --baseBgHover: hsl(var(--muted));
   --baseBgActive: hsl(var(--border));

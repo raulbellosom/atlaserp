@@ -1,25 +1,35 @@
-import { X, MapPin, Video, Calendar, Clock, Users, Repeat, Edit2, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { X, MapPin, Video, Calendar, Clock, Users, Repeat, Edit2, Trash2, BellRing } from 'lucide-react'
 import { useDeleteEvent } from '../hooks/useCalendarData'
 import { toast } from 'sonner'
-import { MarkdownViewer } from '@atlas/ui'
+import { MarkdownViewer, ConfirmDialog } from '@atlas/ui'
+import {
+  formatReminderClock,
+  formatReminderLead,
+  getPrimaryReminderMinutes,
+} from '../lib/reminder-utils'
 
 const STATUS_LABELS = { PENDING: 'Pendiente', ACCEPTED: 'Aceptado', DECLINED: 'Rechazado' }
 
 export default function EventDetailModal({ event, onClose, onEdit, canEdit, canDelete }) {
   const deleteEvent = useDeleteEvent()
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   if (!event) return null
 
   const calColor = event.color || event.calendar?.color || '#6B46C1'
+  const reminderMinutes = getPrimaryReminderMinutes(event)
+  const reminderClock = formatReminderClock(event, reminderMinutes)
+  const deleteTitle = event._isRecurrenceInstance ? 'Eliminar serie' : 'Eliminar evento'
+  const deleteDescription = event._isRecurrenceInstance
+    ? '¿Eliminar todos los eventos de esta serie?'
+    : '¿Eliminar este evento?'
 
-  async function handleDelete() {
-    const msg = event._isRecurrenceInstance
-      ? '¿Eliminar todos los eventos de esta serie?'
-      : '¿Eliminar este evento?'
-    if (!window.confirm(msg)) return
+  async function doDelete() {
     try {
       await deleteEvent.mutateAsync(event._baseEventId ?? event.id)
       toast.success('Evento eliminado')
+      setConfirmOpen(false)
       onClose()
     } catch (err) {
       toast.error(err.message || 'Error al eliminar el evento')
@@ -27,6 +37,7 @@ export default function EventDetailModal({ event, onClose, onEdit, canEdit, canD
   }
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div
         className="bg-[hsl(var(--surface-1))] rounded-xl shadow-xl w-136 max-w-[calc(100vw-2rem)] overflow-hidden"
@@ -41,7 +52,7 @@ export default function EventDetailModal({ event, onClose, onEdit, canEdit, canD
             </button>
           )}
           {canDelete && (
-            <button onClick={handleDelete} disabled={deleteEvent.isPending} className="p-1.5 rounded hover:bg-[hsl(var(--muted))]" title={event._isRecurrenceInstance ? 'Eliminar serie' : 'Eliminar'}>
+            <button onClick={() => setConfirmOpen(true)} disabled={deleteEvent.isPending} className="p-1.5 rounded hover:bg-[hsl(var(--muted))]" title={event._isRecurrenceInstance ? 'Eliminar serie' : 'Eliminar'}>
               <Trash2 size={15} className="text-[hsl(var(--muted-foreground))]" />
             </button>
           )}
@@ -111,6 +122,16 @@ export default function EventDetailModal({ event, onClose, onEdit, canEdit, canD
               </div>
             )}
 
+            {reminderMinutes !== null && (
+              <div className="flex items-center gap-2.5">
+                <BellRing size={14} className="text-[hsl(var(--muted-foreground))] shrink-0" />
+                <span className="text-sm text-[hsl(var(--muted-foreground))]">
+                  {formatReminderLead(reminderMinutes)}
+                  {reminderClock ? ` (${reminderClock})` : ''}
+                </span>
+              </div>
+            )}
+
             {event.attendees?.length > 0 && (
               <div className="flex items-start gap-2.5">
                 <Users size={14} className="text-[hsl(var(--muted-foreground))] mt-0.5 shrink-0" />
@@ -132,5 +153,16 @@ export default function EventDetailModal({ event, onClose, onEdit, canEdit, canD
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      open={confirmOpen}
+      onOpenChange={setConfirmOpen}
+      title={deleteTitle}
+      description={deleteDescription}
+      confirmLabel="Eliminar"
+      loading={deleteEvent.isPending}
+      onConfirm={doDelete}
+    />
+    </>
   )
 }

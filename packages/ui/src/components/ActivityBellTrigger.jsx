@@ -30,7 +30,8 @@ function writeLastSeen(date) {
  *  - sdk, token: required
  *  - companyId?: string (for realtime channel)
  *  - supabase?: Supabase client (for realtime channel)
- *  - onNavigate?: (href) => void
+ *  - onSelect?: (activity) => void  — called when user clicks an item (Flujo B: open detail sheet)
+ *  - onNavigate?: (href) => void    — fallback if onSelect not provided
  *  - onSeeAll?: () => void
  *  - disabled?: boolean (hide bell — e.g. user lacks permission)
  */
@@ -39,6 +40,7 @@ export function ActivityBellTrigger({
   token,
   companyId,
   supabase,
+  onSelect,
   onNavigate,
   onSeeAll,
   disabled = false,
@@ -145,7 +147,8 @@ export function ActivityBellTrigger({
         token={token}
         newActivity={newActivity}
         refreshKey={refreshKey}
-        onNavigate={onNavigate}
+        onSelect={onSelect ? (a) => { setOpen(false); onSelect(a); } : undefined}
+        onNavigate={onSelect ? undefined : (href) => { setOpen(false); onNavigate?.(href); }}
         onSeeAll={onSeeAll}
       />
     </>

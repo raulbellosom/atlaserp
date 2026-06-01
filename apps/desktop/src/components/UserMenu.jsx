@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, User, Settings, Mail, BellRing, LogOut } from "lucide-react";
+import { ChevronDown, User, Mail, BellRing, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -77,13 +77,6 @@ export function UserMenu() {
           <User size={14} />
           Mi perfil
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => navigate("/app/m/atlas.core/settings")}
-          className="gap-2 cursor-pointer"
-        >
-          <Settings size={14} />
-          Configuración
-        </DropdownMenuItem>
         {(userProfile?.isAdmin ||
           userProfile?.permissions?.includes("platform.settings.manage")) && (
           <DropdownMenuItem
@@ -116,3 +109,4 @@ export function UserMenu() {
     </DropdownMenu>
   );
 }
+

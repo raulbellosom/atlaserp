@@ -1,4 +1,22 @@
+import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+
+function useIsDark() {
+  const [dark, setDark] = useState(
+    () => document.documentElement.classList.contains("dark")
+  );
+  useEffect(() => {
+    const obs = new MutationObserver(() =>
+      setDark(document.documentElement.classList.contains("dark"))
+    );
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => obs.disconnect();
+  }, []);
+  return dark;
+}
 
 // ─── Atlas ERP Isotype — pixel-perfect path data ─────────────────────────────
 //
@@ -35,7 +53,12 @@ const PATH = {
 const SPRING = [0.16, 1, 0.3, 1];
 const DURATION = 3.4;
 
-function AtlasIsotypeStatic({ size }) {
+function AtlasIsotypeStatic({ size, isDark }) {
+  const navyFill   = isDark ? "#ffffff"  : "#023581";
+  const shadowFill = isDark ? "#c8d4f0"  : "#011947";
+  const baseFill   = isDark ? "#e0e8ff"  : "#023698";
+  const lgId       = isDark ? "atlas-lg-static-d" : "atlas-lg-static-l";
+
   return (
     <svg
       width={size}
@@ -47,7 +70,7 @@ function AtlasIsotypeStatic({ size }) {
     >
       <defs>
         <linearGradient
-          id="atlas-lg"
+          id={lgId}
           gradientUnits="userSpaceOnUse"
           x1="58%"
           y1="63%"
@@ -58,15 +81,15 @@ function AtlasIsotypeStatic({ size }) {
           <stop offset="100%" stopColor="#07BFFB" />
         </linearGradient>
       </defs>
-      <path d={PATH.cyanOuter} fill="url(#atlas-lg)" />
-      <path d={PATH.cyanMid} fill="url(#atlas-lg)" />
-      <path d={PATH.cyanInner} fill="url(#atlas-lg)" />
-      <path d={PATH.rightDarkBase} fill="#023698" />
-      <path d={PATH.topLeft} fill="#023581" />
-      <path d={PATH.topRight} fill="#023581" />
-      <path d={PATH.leftMain} fill="#023581" />
-      <path d={PATH.leftShadow} fill="#011947" />
-      <path d={PATH.centerShadow} fill="#011947" />
+      <path d={PATH.cyanOuter} fill={`url(#${lgId})`} />
+      <path d={PATH.cyanMid}   fill={`url(#${lgId})`} />
+      <path d={PATH.cyanInner} fill={`url(#${lgId})`} />
+      <path d={PATH.rightDarkBase} fill={baseFill} />
+      <path d={PATH.topLeft}   fill={navyFill} />
+      <path d={PATH.topRight}  fill={navyFill} />
+      <path d={PATH.leftMain}  fill={navyFill} />
+      <path d={PATH.leftShadow}    fill={shadowFill} />
+      <path d={PATH.centerShadow}  fill={shadowFill} />
     </svg>
   );
 }
@@ -87,13 +110,14 @@ export function AtlasLogoLoader({
   showLabel = true,
 }) {
   const reduced = useReducedMotion();
+  const isDark  = useIsDark();
 
   if (reduced) {
     return (
       <div
         className={`flex flex-col items-center justify-center gap-4 ${className}`}
       >
-        <AtlasIsotypeStatic size={size} />
+        <AtlasIsotypeStatic size={size} isDark={isDark} />
         {showLabel && (
           <span
             className="text-xs font-medium tracking-[0.2em] uppercase"
@@ -105,6 +129,11 @@ export function AtlasLogoLoader({
       </div>
     );
   }
+
+  const navyFill   = isDark ? "#ffffff"  : "#023581";
+  const shadowFill = isDark ? "#c8d4f0"  : "#011947";
+  const baseFill   = isDark ? "#e0e8ff"  : "#023698";
+  const lgAnimId   = isDark ? "atlas-lg-anim-d" : "atlas-lg-anim";
 
   // Loop timeline (% of DURATION):
   //   0  – 8   pre-roll (hidden)
@@ -135,7 +164,7 @@ export function AtlasLogoLoader({
       >
         <defs>
           <linearGradient
-            id="atlas-lg-anim"
+            id={lgAnimId}
             gradientUnits="userSpaceOnUse"
             x1="58%"
             y1="63%"
@@ -198,9 +227,9 @@ export function AtlasLogoLoader({
           }}
           style={{ transformOrigin: "627px 360px" }}
         >
-          <path d={PATH.topLeft} fill="#023581" />
-          <path d={PATH.topRight} fill="#023581" />
-          <path d={PATH.centerShadow} fill="#011947" />
+          <path d={PATH.topLeft}       fill={navyFill} />
+          <path d={PATH.topRight}      fill={navyFill} />
+          <path d={PATH.centerShadow}  fill={shadowFill} />
         </motion.g>
 
         {/* ② LEFT PILLAR — slides in from bottom-left */}
@@ -219,8 +248,8 @@ export function AtlasLogoLoader({
           }}
           style={{ transformOrigin: "330px 820px" }}
         >
-          <path d={PATH.leftMain} fill="#023581" />
-          <path d={PATH.leftShadow} fill="#011947" />
+          <path d={PATH.leftMain}   fill={navyFill} />
+          <path d={PATH.leftShadow} fill={shadowFill} />
         </motion.g>
 
         {/* ③ RIGHT CYAN PILLAR — slides in from bottom-right */}
@@ -239,10 +268,10 @@ export function AtlasLogoLoader({
           }}
           style={{ transformOrigin: "880px 820px" }}
         >
-          <path d={PATH.cyanOuter} fill="url(#atlas-lg-anim)" />
-          <path d={PATH.cyanMid} fill="url(#atlas-lg-anim)" />
-          <path d={PATH.cyanInner} fill="url(#atlas-lg-anim)" />
-          <path d={PATH.rightDarkBase} fill="#023698" />
+          <path d={PATH.cyanOuter}     fill={`url(#${lgAnimId})`} />
+          <path d={PATH.cyanMid}       fill={`url(#${lgAnimId})`} />
+          <path d={PATH.cyanInner}     fill={`url(#${lgAnimId})`} />
+          <path d={PATH.rightDarkBase} fill={baseFill} />
         </motion.g>
       </svg>
 

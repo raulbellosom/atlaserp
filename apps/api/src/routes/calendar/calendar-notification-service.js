@@ -86,7 +86,7 @@ export function createCalendarNotificationService({ prisma }) {
             body: `Tu evento comienza pronto (${reminder.minutesBefore} min antes).`,
             link: `/app/m/atlas.calendar?eventId=${reminder.eventId}`,
             recipients: { userIds: [reminder.userId] },
-            channels: ['in_app', 'email'],
+            channels: ['in_app', 'email', 'web_push'],
             priority: 'high',
             sourceType: 'CalendarEvent',
             sourceId: reminder.eventId,

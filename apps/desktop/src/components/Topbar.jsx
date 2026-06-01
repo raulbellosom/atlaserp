@@ -5,8 +5,12 @@ import { Breadcrumbs } from "./Breadcrumbs";
 import { useCommandStore } from "../stores/command";
 import { ThemeToggle } from "./ThemeToggle";
 import { CompanySwitcher } from "./CompanySwitcher";
+import { useState } from "react";
+import { ActivityBellTrigger } from "@atlas/ui";
 import { NotificationBell } from "./NotificationBell";
 import { UserMenu } from "./UserMenu";
+import { atlas } from "../lib/atlas";
+import ActivityDetailSheet from "../modules/atlas.activity/ActivityDetailSheet";
 
 export function Topbar({
   onLauncherOpen,
@@ -22,6 +26,11 @@ export function Topbar({
     userProfile?.isAdmin ||
     (userProfile?.permissions ?? []).includes("notifications.read"),
   );
+  const canReadActivity = Boolean(
+    userProfile?.isAdmin ||
+    (userProfile?.permissions ?? []).includes("activity.read"),
+  );
+  const [selectedActivity, setSelectedActivity] = useState(null);
 
   function handleNotificationNavigate(href) {
     if (!href) return;
@@ -29,7 +38,9 @@ export function Topbar({
       window.open(href, "_blank", "noopener,noreferrer");
       return;
     }
-    navigate(href);
+    // Links stored in activity/notification records omit the /app prefix
+    const resolved = href.startsWith("/m/") ? `/app${href}` : href;
+    navigate(resolved);
   }
 
   return (
@@ -126,6 +137,22 @@ export function Topbar({
           <span className="hidden sm:contents">
             <ThemeToggle />
           </span>
+          {token && canReadActivity && (
+            <ActivityBellTrigger
+              sdk={atlas}
+              token={token}
+              onSelect={setSelectedActivity}
+              onSeeAll={() => navigate("/app/m/atlas.activity")}
+            />
+          )}
+          <ActivityDetailSheet
+            activity={selectedActivity}
+            onClose={() => setSelectedActivity(null)}
+            onNavigate={(href) => {
+              setSelectedActivity(null);
+              handleNotificationNavigate(href);
+            }}
+          />
           {token && canReadNotifications && (
             <NotificationBell
               token={token}

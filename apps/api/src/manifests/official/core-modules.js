@@ -100,6 +100,44 @@ export const atlasCoreMap = createModuleManifest({
 
 export const identityMap = createModuleManifest({
   key: "atlas.identity",
+  blueprints: [
+    {
+      key: "identity.user.entity",
+      kind: "ENTITY",
+      version: "0.1.0",
+      schema: {
+        entity: "UserProfile",
+        label: "Usuario",
+        fields: [
+          { name: "displayName", label: "Nombre de usuario", type: "text", required: true },
+          { name: "firstName",   label: "Nombre",            type: "text" },
+          { name: "lastName",    label: "Apellido",          type: "text" },
+          { name: "email",       label: "Correo",            type: "email", required: true },
+          { name: "phone",       label: "Telefono",          type: "phone" },
+          { name: "bio",         label: "Biografia",         type: "textarea" },
+          { name: "enabled",     label: "Activo",            type: "boolean" },
+        ],
+        table: { columns: ["displayName", "email", "phone", "enabled"] },
+      },
+    },
+    {
+      key: "identity.role.entity",
+      kind: "ENTITY",
+      version: "0.1.0",
+      schema: {
+        entity: "Role",
+        label: "Rol",
+        fields: [
+          { name: "key",         label: "Clave",       type: "text",     required: true },
+          { name: "name",        label: "Nombre",      type: "text",     required: true },
+          { name: "description", label: "Descripcion", type: "textarea" },
+          { name: "system",      label: "Sistema",     type: "boolean" },
+          { name: "enabled",     label: "Activo",      type: "boolean" },
+        ],
+        table: { columns: ["key", "name", "system", "enabled"] },
+      },
+    },
+  ],
   name: "Identidad",
   description: "Usuarios, roles, permisos, membresias y control de acceso.",
   version: "0.1.0",
@@ -239,6 +277,27 @@ export const filesMap = createModuleManifest({
       },
     },
   },
+  blueprints: [
+    {
+      key: "files.asset.entity",
+      kind: "ENTITY",
+      version: "0.1.0",
+      schema: {
+        entity: "FileAsset",
+        label: "Archivo",
+        fields: [
+          { name: "originalName", label: "Nombre",      type: "text" },
+          { name: "mimeType",     label: "Tipo MIME",   type: "text" },
+          { name: "sizeBytes",    label: "Tamano",      type: "number" },
+          { name: "bucket",       label: "Bucket",      type: "text" },
+          { name: "visibility",   label: "Visibilidad", type: "select", options: ["PRIVATE", "PUBLIC"] },
+          { name: "entityType",   label: "Entidad",     type: "text" },
+          { name: "enabled",      label: "Activo",      type: "boolean" },
+        ],
+        table: { columns: ["originalName", "mimeType", "sizeBytes", "visibility", "enabled"] },
+      },
+    },
+  ],
 });
 
 export const companyMap = createModuleManifest({
@@ -332,6 +391,43 @@ export const companyMap = createModuleManifest({
     contactEmail: "string",
     phone: "string",
   },
+  blueprints: [
+    {
+      key: "company.profile.entity",
+      kind: "ENTITY",
+      version: "0.1.0",
+      schema: {
+        entity: "Company",
+        label: "Empresa",
+        fields: [
+          { name: "name",         label: "Nombre",         type: "text",  required: true },
+          { name: "legalName",    label: "Nombre legal",   type: "text" },
+          { name: "rfc",          label: "RFC",            type: "text" },
+          { name: "contactEmail", label: "Correo",         type: "email" },
+          { name: "phone",        label: "Telefono",       type: "phone" },
+          { name: "website",      label: "Sitio web",      type: "url" },
+          { name: "country",      label: "Pais",           type: "text" },
+          { name: "state",        label: "Estado",         type: "text" },
+          { name: "city",         label: "Ciudad",         type: "text" },
+          { name: "postalCode",   label: "Codigo postal",  type: "text" },
+        ],
+        table: { columns: ["name", "rfc", "contactEmail", "phone"] },
+      },
+    },
+    {
+      key: "company.branding.entity",
+      kind: "ENTITY",
+      version: "0.1.0",
+      schema: {
+        entity: "BrandingConfig",
+        label: "Marca visual",
+        fields: [
+          { name: "primaryColor", label: "Color primario", type: "color", required: true },
+          { name: "logoFileId",   label: "Logo",           type: "file" },
+        ],
+      },
+    },
+  ],
 });
 
 export const atlasLedgerManifest = createModuleManifest({
@@ -381,6 +477,45 @@ export const atlasLedgerManifest = createModuleManifest({
       "ledger.types.manage": "ledger.types.manage",
     },
   },
+  blueprints: [
+    {
+      key: "ledger.account.entity",
+      kind: "ENTITY",
+      version: "0.1.0",
+      schema: {
+        entity: "LedgerAccount",
+        label: "Cuenta bancaria",
+        fields: [
+          { name: "name",           label: "Nombre",          type: "text",   required: true },
+          { name: "bank",           label: "Banco",           type: "text",   required: true },
+          { name: "accountNumber",  label: "No. de cuenta",   type: "text" },
+          { name: "currency",       label: "Moneda",          type: "text" },
+          { name: "openingBalance", label: "Saldo inicial",   type: "currency" },
+          { name: "enabled",        label: "Activo",          type: "boolean" },
+        ],
+        table: { columns: ["name", "bank", "accountNumber", "currency", "openingBalance"] },
+      },
+    },
+    {
+      key: "ledger.transaction.entity",
+      kind: "ENTITY",
+      version: "0.1.0",
+      schema: {
+        entity: "LedgerTransaction",
+        label: "Movimiento",
+        fields: [
+          { name: "nombre",     label: "Descripcion",  type: "text",     required: true },
+          { name: "fecha",      label: "Fecha",        type: "date",     required: true },
+          { name: "deposito",   label: "Deposito",     type: "currency" },
+          { name: "retiro",     label: "Retiro",       type: "currency" },
+          { name: "referencia", label: "Referencia",   type: "text" },
+          { name: "concepto",   label: "Concepto",     type: "text" },
+          { name: "enabled",    label: "Activo",       type: "boolean" },
+        ],
+        table: { columns: ["fecha", "nombre", "referencia", "deposito", "retiro"] },
+      },
+    },
+  ],
   navigation: [
     {
       label: "Cuentas",
@@ -573,6 +708,51 @@ export const atlasFleetManifest = createModuleManifest({
       },
     },
   },
+  blueprints: [
+    {
+      key: "fleet.vehicle.entity",
+      kind: "ENTITY",
+      version: "0.1.0",
+      schema: {
+        entity: "FleetVehicle",
+        label: "Vehiculo",
+        fields: [
+          { name: "plate",         label: "Placas",       type: "text",   required: true },
+          { name: "brand",         label: "Marca",        type: "text" },
+          { name: "modelName",     label: "Modelo",       type: "text" },
+          { name: "year",          label: "Anio",         type: "number" },
+          { name: "color",         label: "Color",        type: "color" },
+          { name: "status",        label: "Estado",       type: "select", options: ["active", "inactive", "maintenance"] },
+          { name: "economicGroupNumber",      label: "No. economico grupo",      type: "text" },
+          { name: "economicIndividualNumber", label: "No. economico individual", type: "text" },
+          { name: "notes",         label: "Notas",        type: "textarea" },
+          { name: "enabled",       label: "Activo",       type: "boolean" },
+        ],
+        table: { columns: ["plate", "brand", "modelName", "year", "status"] },
+      },
+    },
+    {
+      key: "fleet.driver.entity",
+      kind: "ENTITY",
+      version: "0.1.0",
+      schema: {
+        entity: "FleetDriver",
+        label: "Chofer",
+        fields: [
+          { name: "firstName",        label: "Nombre",           type: "text",  required: true },
+          { name: "lastName",         label: "Apellido",         type: "text",  required: true },
+          { name: "phone",            label: "Telefono",         type: "phone", required: true },
+          { name: "email",            label: "Correo",           type: "email" },
+          { name: "licenseNumber",    label: "No. de licencia",  type: "text",  required: true },
+          { name: "licenseType",      label: "Tipo de licencia", type: "text" },
+          { name: "licenseExpiryDate",label: "Vencimiento lic.", type: "date" },
+          { name: "status",           label: "Estado",           type: "select", options: ["active", "inactive"] },
+          { name: "enabled",          label: "Activo",           type: "boolean" },
+        ],
+        table: { columns: ["firstName", "lastName", "phone", "licenseNumber", "status"] },
+      },
+    },
+  ],
   navigation: [
     {
       label: "Vehiculos",
@@ -809,7 +989,47 @@ export const atlasCatalogManifest = createModuleManifest({
       permissionKey: "catalog.products.read",
     },
   ],
-  blueprints: [],
+  blueprints: [
+    {
+      key: "catalog.product.entity",
+      kind: "ENTITY",
+      version: "0.1.0",
+      schema: {
+        entity: "CatalogProduct",
+        label: "Producto",
+        fields: [
+          { name: "name",         label: "Nombre",          type: "text",     required: true },
+          { name: "slug",         label: "Slug",            type: "text",     required: true },
+          { name: "sku",          label: "SKU",             type: "text" },
+          { name: "barcode",      label: "Codigo de barras",type: "text" },
+          { name: "description",  label: "Descripcion",     type: "textarea" },
+          { name: "price",        label: "Precio",          type: "currency", required: true },
+          { name: "comparePrice", label: "Precio anterior", type: "currency" },
+          { name: "currency",     label: "Moneda",          type: "text" },
+          { name: "stock",        label: "Stock",           type: "number" },
+          { name: "trackStock",   label: "Rastrear stock",  type: "boolean" },
+          { name: "productType",  label: "Tipo",            type: "select", options: ["SIMPLE", "VARIABLE"] },
+          { name: "published",    label: "Publicado",       type: "boolean" },
+        ],
+        table: { columns: ["name", "sku", "price", "stock", "published"] },
+      },
+    },
+    {
+      key: "catalog.category.entity",
+      kind: "ENTITY",
+      version: "0.1.0",
+      schema: {
+        entity: "CatalogCategory",
+        label: "Categoria",
+        fields: [
+          { name: "name",        label: "Nombre",      type: "text", required: true },
+          { name: "slug",        label: "Slug",        type: "text", required: true },
+          { name: "description", label: "Descripcion", type: "textarea" },
+        ],
+        table: { columns: ["name", "slug", "description"] },
+      },
+    },
+  ],
 });
 
 export const coreModules = [

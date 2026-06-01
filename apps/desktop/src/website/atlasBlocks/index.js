@@ -31,7 +31,7 @@ import {
   tiendaTemplate,
   agenciaTemplate,
   negocioTemplate,
-  moradaTemplate,
+  habitiaTemplate,
   allAtlasTemplates,
 } from './templates/index.js'
 
@@ -41,7 +41,7 @@ export {
   tiendaTemplate,
   agenciaTemplate,
   negocioTemplate,
-  moradaTemplate,
+  habitiaTemplate,
   allAtlasTemplates,
 }
 
@@ -112,8 +112,8 @@ export function buildAtlasBlocks(siteType) {
 
 export function buildAtlasTemplates(siteType) {
   const base = [agenciaTemplate, negocioTemplate]
-  if (siteType === 'ecommerce')  return [...base, tiendaTemplate, moradaTemplate]
+  if (siteType === 'ecommerce')  return [...base, tiendaTemplate, habitiaTemplate]
   if (siteType === 'bookings')   return [...base, spaTemplate, restauranteTemplate]
   if (siteType === 'restaurant') return [restauranteTemplate, ...base]
-  return [restauranteTemplate, spaTemplate, agenciaTemplate, negocioTemplate, moradaTemplate]
+  return [restauranteTemplate, spaTemplate, agenciaTemplate, negocioTemplate, habitiaTemplate]
 }

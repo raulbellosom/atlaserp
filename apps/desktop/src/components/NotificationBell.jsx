@@ -39,7 +39,11 @@ const KIND_COLORS = {
   success: "#22c55e",
 };
 
-export function NotificationBell({ token, onNavigate, onSeeAll }) {
+export function NotificationBell({
+  token,
+  onNavigate,
+  onSeeAll,
+}) {
   const queryClient = useQueryClient();
 
   const { data } = useQuery({
@@ -113,7 +117,6 @@ export function NotificationBell({ token, onNavigate, onSeeAll }) {
             </button>
           )}
         </div>
-
         {/* Notification list */}
         <div className="max-h-80 overflow-y-auto">
           {recent.length === 0 ? (

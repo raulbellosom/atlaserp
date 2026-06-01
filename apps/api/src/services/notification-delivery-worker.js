@@ -9,19 +9,173 @@ function asErrorMessage(err) {
   return String(err);
 }
 
-function buildNotificationEmail({ notification }) {
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function normalizeBaseUrl(value) {
+  if (!value || typeof value !== "string") return null;
+  const input = value.trim();
+  if (!input) return null;
+  try {
+    const parsed = new URL(input);
+    if (!/^https?:$/i.test(parsed.protocol)) return null;
+    parsed.pathname = "/";
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
+async function resolveAppBaseUrl({ prisma }) {
+  const envCandidates = [
+    process.env.ATLAS_APP_URL,
+    process.env.APP_URL,
+    process.env.PUBLIC_APP_URL,
+    process.env.WEB_APP_URL,
+  ];
+  for (const candidate of envCandidates) {
+    const normalized = normalizeBaseUrl(candidate);
+    if (normalized) return normalized;
+  }
+
+  if (prisma?.instanceConfig?.findMany) {
+    try {
+      const cfg = await prisma.instanceConfig.findMany({
+        where: {
+          key: {
+            in: ["app.url", "app.public_url", "platform.public_url"],
+          },
+        },
+        select: { key: true, value: true },
+      });
+      for (const row of cfg) {
+        const normalized = normalizeBaseUrl(row?.value);
+        if (normalized) return normalized;
+      }
+    } catch {
+      // Ignore config lookup failures and continue with fallbacks.
+    }
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    return "http://localhost:5173";
+  }
+  return null;
+}
+
+function toAbsoluteLink(link, appBaseUrl) {
+  if (!link || typeof link !== "string") return null;
+  const value = link.trim();
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  if (!appBaseUrl) return value;
+  try {
+    return new URL(value, `${appBaseUrl}/`).toString();
+  } catch {
+    return value;
+  }
+}
+
+function formatDateTime(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString("es-MX", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+function reminderLeadText(minutesBefore) {
+  const minutes = Number(minutesBefore);
+  if (!Number.isFinite(minutes)) return null;
+  if (minutes === 0) return "A la hora del evento";
+  if (minutes === 60) return "1 hora antes";
+  return `${minutes} minutos antes`;
+}
+
+function buildNotificationEmail({ notification, appBaseUrl }) {
   const title = notification?.title ?? "Notificacion de Atlas";
   const body = notification?.body ?? "";
-  const link = notification?.link ?? null;
+  const link = toAbsoluteLink(notification?.link ?? null, appBaseUrl);
+  const logoUrl = appBaseUrl
+    ? toAbsoluteLink("/brand/atlas-logo-horizontal.png", appBaseUrl)
+    : null;
+  const createdAt = formatDateTime(notification?.createdAt);
+  const eventStart = formatDateTime(notification?.metadata?.startAt);
+  const reminderLead = reminderLeadText(notification?.metadata?.minutesBefore);
+  const titleEsc = escapeHtml(title);
+  const bodyEsc = escapeHtml(body);
+  const eventTypeEsc = escapeHtml(notification?.eventType ?? "general");
+  const priorityEsc = escapeHtml(notification?.priority ?? "medium");
+
+  const details = [
+    createdAt ? `Generado: ${createdAt}` : null,
+    eventStart ? `Evento: ${eventStart}` : null,
+    reminderLead ? `Recordatorio: ${reminderLead}` : null,
+    notification?.sourceType ? `Origen: ${notification.sourceType}` : null,
+  ].filter(Boolean);
 
   const html = `
-    <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111827">
-      <h2 style="margin:0 0 8px 0;">${title}</h2>
-      ${body ? `<p style="margin:0 0 12px 0;">${body}</p>` : ""}
-      ${link ? `<p style="margin:0;"><a href="${link}">Abrir notificacion</a></p>` : ""}
-    </div>
-  `;
-  const text = [title, body, link ? `Abrir: ${link}` : ""]
+<div style="background:#f3f4f6;padding:24px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#111827">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">
+    <tr>
+      <td style="padding:20px 24px;border-bottom:1px solid #eef2ff;background:#f8fafc">
+        ${logoUrl ? `<img src="${logoUrl}" alt="Atlas ERP" style="height:26px;display:block;margin-bottom:10px" />` : ""}
+        <div style="font-size:12px;color:#6b7280;letter-spacing:.06em;text-transform:uppercase">Atlas Notifications</div>
+        <h1 style="margin:6px 0 0 0;font-size:24px;line-height:1.25;color:#0f172a">${titleEsc}</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:20px 24px">
+        ${body ? `<p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334155">${bodyEsc}</p>` : ""}
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 16px 0;border:1px solid #e5e7eb;border-radius:10px">
+          <tr><td style="padding:10px 12px;font-size:13px;color:#475569"><strong style="color:#111827">Tipo:</strong> ${eventTypeEsc}</td></tr>
+          <tr><td style="padding:10px 12px;border-top:1px solid #e5e7eb;font-size:13px;color:#475569"><strong style="color:#111827">Prioridad:</strong> ${priorityEsc}</td></tr>
+          ${
+            details.length
+              ? `<tr><td style="padding:10px 12px;border-top:1px solid #e5e7eb;font-size:13px;color:#475569">${details
+                  .map((line) => `<div>${escapeHtml(line)}</div>`)
+                  .join("")}</td></tr>`
+              : ""
+          }
+        </table>
+        ${
+          link
+            ? `<a href="${link}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:10px;font-size:14px;font-weight:600">Abrir notificacion</a>`
+            : ""
+        }
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:14px 24px;border-top:1px solid #e5e7eb;background:#f8fafc;font-size:12px;color:#64748b">
+        Este correo fue generado automaticamente por Atlas ERP.
+      </td>
+    </tr>
+  </table>
+</div>
+  `.trim();
+
+  const text = [
+    `Atlas ERP`,
+    "",
+    title,
+    body ? body : null,
+    details.length ? details.join("\n") : null,
+    link ? `Abrir: ${link}` : null,
+  ]
     .filter(Boolean)
     .join("\n");
 
@@ -42,6 +196,7 @@ export function createNotificationDeliveryWorker({
     channel = "email",
     limit = DEFAULT_BATCH_SIZE,
   } = {}) {
+    const appBaseUrl = await resolveAppBaseUrl({ prisma });
     const rows = await prisma.notificationDelivery.findMany({
       where: {
         channel,
@@ -82,6 +237,7 @@ export function createNotificationDeliveryWorker({
           }
           const mail = buildNotificationEmail({
             notification: delivery.notification,
+            appBaseUrl,
           });
           await smtp.sendEmail({
             to: recipientEmail,

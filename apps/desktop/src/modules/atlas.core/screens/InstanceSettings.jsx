@@ -9,7 +9,7 @@ import {
   Skeleton,
   TextField,
 } from "@atlas/ui";
-import { Building2, Clock3, Coins } from "lucide-react";
+import { BellRing, Building2, Clock3, Coins, Mail, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
@@ -22,12 +22,15 @@ function SettingsTabs() {
   return (
     <div className="flex gap-1 border-b border-[hsl(var(--border))] pb-3">
       <NavLink to="/app/m/atlas.core/settings" end className={({ isActive }) => isActive ? active : inactive}>
+        <Settings className="h-4 w-4 inline mr-1.5 -mt-0.5" />
         General
       </NavLink>
       <NavLink to="/app/m/atlas.core/settings/smtp" className={({ isActive }) => isActive ? active : inactive}>
+        <Mail className="h-4 w-4 inline mr-1.5 -mt-0.5" />
         SMTP
       </NavLink>
       <NavLink to="/app/m/atlas.core/settings/webpush" className={({ isActive }) => isActive ? active : inactive}>
+        <BellRing className="h-4 w-4 inline mr-1.5 -mt-0.5" />
         Web Push
       </NavLink>
     </div>

@@ -6,7 +6,7 @@ export const QuoteBlock = defineBlock({
   category: 'atlas',
   defaultProps: {
     quote:       'Un hogar no se construye con paredes. Se construye con los objetos que elegimos, las texturas que tocamos y la luz que dejamos entrar.',
-    attribution: '— Morada',
+    attribution: '— Tu marca',
     background:  'cream',
     size:        'large',
     ornament:    'true',

@@ -468,6 +468,13 @@ export const notificationsMap = createModuleManifest({
       layout: "main",
       permissionKey: "notifications.read",
     },
+    {
+      label: "Configuracion",
+      path: "/app/m/atlas.notifications/settings",
+      icon: "Settings",
+      layout: "main",
+      permissionKey: "notifications.read",
+    },
   ],
   permissions: [
     { key: "notifications.access", name: "Acceder a notificaciones" },

@@ -28,11 +28,15 @@ import { AppLoader } from "./components/AppLoader";
 import { ApiErrorScreen } from "./components/ApiErrorScreen";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useBrandingStore } from "./stores/branding";
+import { useThemeStore } from "./stores/theme";
 import { PublicShell } from "./shell/PublicShell.jsx";
 import { PublicModuleOutlet } from "./shell/PublicModuleOutlet.jsx";
 import { PublicWebsiteEntry } from "./shell/PublicWebsiteEntry.jsx";
 import { PublicClientLogin } from "./shell/PublicClientLogin.jsx";
 import "./styles.css";
+
+// Sync Zustand state with the class already applied by the inline HTML script.
+useThemeStore.getState().init();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -145,9 +149,22 @@ function AppAccessGuard() {
   return <Outlet />;
 }
 
+// Public routes don't need to wait for Atlas brand to load.
+// /app, /login, /setup, /acceso are internal — they get the brand loader.
+function isAtlasInternalPath(pathname) {
+  return (
+    pathname.startsWith("/app") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/setup") ||
+    pathname.startsWith("/acceso")
+  );
+}
+
 function App() {
   const [brandReady, setBrandReady] = useState(false);
   const setBranding = useBrandingStore((s) => s.setBranding);
+
+  const skipBrandWait = !isAtlasInternalPath(window.location.pathname);
 
   useEffect(() => {
     let mounted = true;
@@ -170,7 +187,7 @@ function App() {
     registerNotificationServiceWorker().catch(() => {});
   }, []);
 
-  if (!brandReady) {
+  if (!brandReady && !skipBrandWait) {
     return <AppLoader />;
   }
 

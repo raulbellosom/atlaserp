@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider.jsx'
 import { getApiUrl } from '../lib/runtimeConfig.js'
-import { AppLoader } from '../components/AppLoader.jsx'
+import { PublicPageLoader, storePublicSiteHint } from '../components/PublicPageLoader.jsx'
 import { PublicWebsite404 } from './PublicWebsite404.jsx'
 import { WebsitePageRenderer } from '../website/WebsitePageRenderer.jsx'
 import { EditorContextBar } from '../website/EditorContextBar.jsx'
@@ -725,12 +725,22 @@ export function PublicWebsiteEntry() {
   }
 
   useEffect(() => {
+    if (resolveData?.site) {
+      storePublicSiteHint({
+        siteName: resolveData.site.name ?? null,
+        primaryColor: resolveData.theme?.tokens?.primary ?? null,
+        backgroundColor: resolveData.theme?.tokens?.background ?? null,
+      })
+    }
+  }, [resolveData])
+
+  useEffect(() => {
     if (resolveData && resolveData.initialized === false) {
       navigate('/setup', { replace: true })
     }
   }, [resolveData, navigate])
 
-  if (resolveQuery.isPending) return <AppLoader message="Cargando..." />
+  if (resolveQuery.isPending) return <PublicPageLoader />
   if (resolveQuery.isError)   return <PublicWebsite404 />
   if (resolveData?.initialized === false) return null
 
@@ -743,7 +753,7 @@ export function PublicWebsiteEntry() {
   if (!activePage) {
     if (isEditor) {
       // Still loading the editor page query
-      if (editorPageQuery.isPending && siteId) return <AppLoader message="Cargando..." />
+      if (editorPageQuery.isPending && siteId) return <PublicPageLoader />
 
       // No page exists on this route → empty state with create CTA
       const bar = (

@@ -145,6 +145,16 @@ export function useCreateEvent() {
   })
 }
 
+export function useCalendarEvent(eventId, enabled = true) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['calendar', 'event', eventId],
+    queryFn: () => apiFetch(`/calendar/events/${eventId}`, token),
+    enabled: Boolean(token && eventId && enabled),
+    staleTime: 30 * 1000,
+  })
+}
+
 export function useUpdateEvent() {
   const token = useToken()
   const qc = useQueryClient()
@@ -160,6 +170,37 @@ export function useDeleteEvent() {
   return useMutation({
     mutationFn: (id) => apiFetch(`/calendar/events/${id}`, token, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar', 'events'] }),
+  })
+}
+
+export function useAddEventReminder() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ eventId, minutesBefore }) =>
+      apiFetch(`/calendar/events/${eventId}/reminders`, token, {
+        method: 'POST',
+        body: JSON.stringify({ minutes_before: minutesBefore }),
+      }),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['calendar', 'events'] })
+      qc.invalidateQueries({ queryKey: ['calendar', 'event', vars?.eventId] })
+    },
+  })
+}
+
+export function useDeleteEventReminder() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ eventId, reminderId }) =>
+      apiFetch(`/calendar/events/${eventId}/reminders/${reminderId}`, token, {
+        method: 'DELETE',
+      }),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['calendar', 'events'] })
+      qc.invalidateQueries({ queryKey: ['calendar', 'event', vars?.eventId] })
+    },
   })
 }
 

@@ -92,6 +92,11 @@ export function createCalendarEventService({ prisma }) {
       include: {
         calendar: { select: { id: true, name: true, color: true, ownerId: true } },
         attendees: { include: { user: { select: { id: true, firstName: true, lastName: true } } } },
+        reminders: {
+          where: { userId },
+          select: { id: true, minutesBefore: true, sentAt: true },
+          orderBy: [{ minutesBefore: 'asc' }],
+        },
       },
       orderBy: { startAt: 'asc' },
     })
@@ -120,7 +125,11 @@ export function createCalendarEventService({ prisma }) {
       include: {
         calendar: { select: { id: true, name: true, color: true, ownerId: true } },
         attendees: { include: { user: { select: { id: true, firstName: true, lastName: true } } } },
-        reminders: { where: { userId }, select: { id: true, minutesBefore: true } },
+        reminders: {
+          where: { userId },
+          select: { id: true, minutesBefore: true, sentAt: true },
+          orderBy: [{ minutesBefore: 'asc' }],
+        },
         files: { include: { fileAsset: { select: { id: true, originalName: true, mimeType: true } } } },
       },
     })
@@ -206,6 +215,18 @@ export function createCalendarEventService({ prisma }) {
     if (data.recurrenceRule !== undefined) updateData.recurrenceRule = data.recurrenceRule ?? null
 
     await prisma.calendarEvent.update({ where: { id: eventId }, data: updateData })
+
+    const startAtChanged =
+      updateData.startAt instanceof Date &&
+      Number(updateData.startAt.getTime()) !== Number(new Date(event.startAt).getTime())
+
+    // If the schedule changed, re-arm reminders so they can fire again at the new time.
+    if (startAtChanged) {
+      await prisma.calendarReminder.updateMany({
+        where: { eventId },
+        data: { sentAt: null },
+      })
+    }
     return getEvent(userId, eventId)
   }
 

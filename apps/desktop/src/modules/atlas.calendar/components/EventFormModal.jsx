@@ -8,7 +8,14 @@ import {
   SelectField,
   SwitchField,
 } from '@atlas/ui'
-import { useCreateEvent, useUpdateEvent, useCalendars } from '../hooks/useCalendarData'
+import {
+  useAddEventReminder,
+  useCalendarEvent,
+  useCalendars,
+  useCreateEvent,
+  useDeleteEventReminder,
+  useUpdateEvent,
+} from '../hooks/useCalendarData'
 import { toast } from 'sonner'
 
 const FREQ_OPTIONS = [
@@ -17,6 +24,15 @@ const FREQ_OPTIONS = [
   { value: 'WEEKLY',  label: 'Semanal' },
   { value: 'MONTHLY', label: 'Mensual' },
   { value: 'YEARLY',  label: 'Anual' },
+]
+
+const REMINDER_OPTIONS = [
+  { value: 'NONE', label: 'Sin recordatorio' },
+  { value: '0', label: 'A la hora del evento' },
+  { value: '5', label: '5 minutos antes' },
+  { value: '10', label: '10 minutos antes' },
+  { value: '30', label: '30 minutos antes' },
+  { value: '60', label: '1 hora antes' },
 ]
 
 function toLocalDatetime(isoStr) {
@@ -42,12 +58,14 @@ function buildDefaultForm(defaultDate, defaultCalendarId, allCalendars) {
     allDay: false,
     location: '',
     videoUrl: '',
+    reminderMinutes: '10',
     recurrenceFreq: 'NONE',
     recurrenceInterval: 1,
   }
 }
 
 function buildEditForm(event) {
+  const firstReminder = Array.isArray(event?.reminders) ? event.reminders[0] : null
   return {
     title:             event.title ?? '',
     description:       event.description ?? '',
@@ -58,6 +76,7 @@ function buildEditForm(event) {
     allDay:            event.allDay ?? false,
     location:          event.location ?? '',
     videoUrl:          event.videoUrl ?? '',
+    reminderMinutes:   firstReminder ? String(firstReminder.minutesBefore) : 'NONE',
     recurrenceFreq:    event.recurrenceRule?.freq ?? 'NONE',
     recurrenceInterval: event.recurrenceRule?.interval ?? 1,
   }
@@ -65,8 +84,12 @@ function buildEditForm(event) {
 
 export default function EventFormModal({ event, defaultDate, defaultCalendarId, onClose, onSaved }) {
   const isEdit = Boolean(event?.id)
+  const editId = event?._baseEventId ?? event?.id ?? null
   const createEvent = useCreateEvent()
   const updateEvent = useUpdateEvent()
+  const addReminder = useAddEventReminder()
+  const deleteReminder = useDeleteEventReminder()
+  const eventDetailQuery = useCalendarEvent(editId, isEdit)
   const { data: calData } = useCalendars()
   const allCalendars = [...(calData?.owned ?? []), ...(calData?.shared ?? [])]
 
@@ -98,6 +121,19 @@ export default function EventFormModal({ event, defaultDate, defaultCalendarId, 
     setForm(buildEditForm(event))
   }, [event?.id])
 
+  useEffect(() => {
+    if (!isEdit || !eventDetailQuery.data) return
+    const reminderMinutes = Array.isArray(eventDetailQuery.data.reminders) &&
+      eventDetailQuery.data.reminders[0]
+      ? String(eventDetailQuery.data.reminders[0].minutesBefore)
+      : 'NONE'
+    setForm((prev) => (
+      prev.reminderMinutes === reminderMinutes
+        ? prev
+        : { ...prev, reminderMinutes }
+    ))
+  }, [isEdit, eventDetailQuery.dataUpdatedAt])
+
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
   const calendarOptions = allCalendars.map(c => ({ value: c.id, label: c.name }))
@@ -126,10 +162,38 @@ export default function EventFormModal({ event, defaultDate, defaultCalendarId, 
       recurrenceRule,
     }
 
+    if (!isEdit && form.reminderMinutes && form.reminderMinutes !== 'NONE') {
+      payload.reminderMinutes = [Number(form.reminderMinutes)]
+    }
+
     try {
       if (isEdit) {
-        const editId = event._baseEventId ?? event.id
         await updateEvent.mutateAsync({ id: editId, ...payload })
+
+        const existingReminders = Array.isArray(eventDetailQuery.data?.reminders)
+          ? eventDetailQuery.data.reminders
+          : []
+        const nextReminder = form.reminderMinutes
+        if (nextReminder === 'NONE') {
+          for (const reminder of existingReminders) {
+            await deleteReminder.mutateAsync({ eventId: editId, reminderId: reminder.id })
+          }
+        } else {
+          const desiredMinutes = Number(nextReminder)
+          const hasSameReminder = existingReminders.some(
+            (reminder) => Number(reminder.minutesBefore) === desiredMinutes,
+          )
+          if (!hasSameReminder) {
+            for (const reminder of existingReminders) {
+              await deleteReminder.mutateAsync({ eventId: editId, reminderId: reminder.id })
+            }
+            await addReminder.mutateAsync({
+              eventId: editId,
+              minutesBefore: desiredMinutes,
+            })
+          }
+        }
+
         toast.success('Evento actualizado')
       } else {
         await createEvent.mutateAsync(payload)
@@ -142,7 +206,11 @@ export default function EventFormModal({ event, defaultDate, defaultCalendarId, 
     }
   }
 
-  const isPending = createEvent.isPending || updateEvent.isPending
+  const isPending =
+    createEvent.isPending ||
+    updateEvent.isPending ||
+    addReminder.isPending ||
+    deleteReminder.isPending
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
@@ -223,6 +291,14 @@ export default function EventFormModal({ event, defaultDate, defaultCalendarId, 
             value={form.videoUrl}
             onChange={(e) => set('videoUrl', e.target.value)}
             type="url"
+          />
+
+          <SelectField
+            label="Recordatorio"
+            icon={Calendar}
+            options={REMINDER_OPTIONS}
+            value={form.reminderMinutes}
+            onValueChange={(v) => set('reminderMinutes', v)}
           />
 
           <SelectField

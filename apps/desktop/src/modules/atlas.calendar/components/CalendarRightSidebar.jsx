@@ -1,8 +1,9 @@
-import { Calendar, Plus } from 'lucide-react'
+import { BellRing, Calendar, Plus } from 'lucide-react'
 import { useCalendarStore } from '../stores/useCalendarStore'
 import { useCalendarEvents } from '../hooks/useCalendarData'
+import { formatReminderLead, getPrimaryReminderMinutes } from '../lib/reminder-utils'
 
-const WEEKDAYS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
+const WEEKDAYS = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado']
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 export default function CalendarRightSidebar({ onNewEvent }) {
@@ -45,6 +46,7 @@ export default function CalendarRightSidebar({ onNewEvent }) {
         ) : (
           events.map((ev) => {
             const color = ev.color || ev.calendar?.color || '#6B46C1'
+            const reminderMinutes = getPrimaryReminderMinutes(ev)
             return (
               <div
                 key={ev.id}
@@ -55,7 +57,13 @@ export default function CalendarRightSidebar({ onNewEvent }) {
                 {!ev.allDay && (
                   <div className="text-[hsl(var(--muted-foreground))] mt-0.5">
                     {new Date(ev.startAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                    {ev.endAt && ` – ${new Date(ev.endAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })}`}
+                    {ev.endAt && ` - ${new Date(ev.endAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })}`}
+                  </div>
+                )}
+                {reminderMinutes !== null && (
+                  <div className="text-[10px] mt-1 text-[hsl(var(--muted-foreground))] flex items-center gap-1">
+                    <BellRing size={10} />
+                    {formatReminderLead(reminderMinutes)}
                   </div>
                 )}
               </div>

@@ -3,7 +3,7 @@ import { spaTemplate,         spaSitePages }         from '../atlasBlocks/templa
 import { tiendaTemplate,      tiendaSitePages }      from '../atlasBlocks/templates/tiendaTemplate.js'
 import { agenciaTemplate,     agenciaSitePages }     from '../atlasBlocks/templates/agenciaTemplate.js'
 import { negocioTemplate,     negocioSitePages }     from '../atlasBlocks/templates/negocioTemplate.js'
-import { moradaTemplate,      moradaSitePages, moradaThemeTokens } from '../atlasBlocks/templates/moradaTemplate.js'
+import { habitiaTemplate, habtiaSitePages, habitiaThemeTokens } from '../atlasBlocks/templates/habitiaTemplate.js'
 
 const CATEGORY_COLORS = {
   restaurante: '#92400e',
@@ -63,5 +63,5 @@ export const allTemplates = [
   wrapTemplate(tiendaTemplate,     tiendaSitePages),
   wrapTemplate(agenciaTemplate,    agenciaSitePages),
   wrapTemplate(negocioTemplate,    negocioSitePages),
-  wrapTemplate(moradaTemplate,     moradaSitePages, moradaThemeTokens),
+  wrapTemplate(habitiaTemplate,    habtiaSitePages, habitiaThemeTokens),
 ]

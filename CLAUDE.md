@@ -173,7 +173,7 @@ Tailwind scans both `src/**` and `../../packages/ui/src/**` (configured in `apps
 
 Before writing any UI element, check `@atlas/ui` first. This is non-negotiable.
 
-**Never use native HTML form elements when a `@atlas/ui` equivalent exists:**
+**Never use native HTML form elements or native browser dialogs when a `@atlas/ui` equivalent exists:**
 
 | Instead of | Use |
 |---|---|
@@ -185,6 +185,9 @@ Before writing any UI element, check `@atlas/ui` first. This is non-negotiable.
 | hand-rolled table | `AtlasTable` / `DataTable` |
 | hand-rolled modal | `Dialog` or `Sheet` |
 | hand-rolled dropdown | `DropdownMenu` |
+| `window.confirm()` / `window.alert()` / `window.prompt()` | `ConfirmDialog` (destructive actions) or `Dialog` |
+
+**Native browser dialogs (`window.confirm`, `window.alert`, `window.prompt`) are strictly forbidden.** They break the design system, cannot be styled, and are not part of the Atlas UX. Always use `ConfirmDialog` from `@atlas/ui` for any destructive confirmation. Manage open state with `useState`.
 
 **Key components to know:**
 

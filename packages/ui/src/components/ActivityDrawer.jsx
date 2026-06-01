@@ -21,6 +21,7 @@ export function ActivityDrawer({
   token,
   newActivity = null,
   refreshKey = 0,
+  onSelect,
   onNavigate,
   onSeeAll,
 }) {
@@ -37,7 +38,7 @@ export function ActivityDrawer({
       {/* Backdrop */}
       <div
         onClick={onClose}
-        className={`fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm transition-opacity ${
+        className={`fixed inset-0 z-60 bg-black/30 backdrop-blur-sm transition-opacity ${
           open
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none"
@@ -70,6 +71,7 @@ export function ActivityDrawer({
             limit={30}
             newActivity={newActivity}
             refreshKey={refreshKey}
+            onSelect={onSelect}
             onNavigate={onNavigate}
             heightClass="h-full"
           />
