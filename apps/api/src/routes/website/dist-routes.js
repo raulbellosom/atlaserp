@@ -41,11 +41,18 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
       try {
         const { siteId } = c.req.param()
         const companyId = c.get('companyId')
+        const actorId = c.get('userId') ?? null
         const body = await c.req.json().catch(() => ({}))
         const { sourceType } = body
         if (!sourceType || !VALID_SOURCE_TYPES.has(sourceType)) {
           return c.json({ error: 'sourceType debe ser none, builder o dist' }, 422)
         }
+        const before = await prisma.$queryRaw`
+          SELECT source_type FROM website_site
+          WHERE id = ${siteId}::uuid AND company_id = ${companyId}::uuid AND enabled = true
+          LIMIT 1
+        `
+        if (!before[0]) return c.json({ error: 'Sitio no encontrado' }, 404)
         const updated = await prisma.$queryRaw`
           UPDATE website_site
           SET source_type = ${sourceType}
@@ -57,8 +64,18 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
                     dist_file_count as "distFileCount",
                     dist_has_prerender as "distHasPrerender"
         `
-        if (!updated[0]) return c.json({ error: 'Sitio no encontrado' }, 404)
         invalidateCache(companyId)
+        await prisma.auditLog.create({
+          data: {
+            actorId,
+            moduleKey: 'atlas.website',
+            entityType: 'website.site',
+            entityId: siteId,
+            action: 'site.source_type.update',
+            before: JSON.stringify({ sourceType: before[0].source_type }),
+            after: JSON.stringify({ sourceType }),
+          },
+        }).catch(() => {})
         return c.json({ data: updated[0] })
       } catch (err) {
         return c.json({ error: err.message }, 500)

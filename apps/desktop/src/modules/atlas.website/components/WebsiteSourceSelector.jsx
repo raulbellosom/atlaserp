@@ -29,20 +29,21 @@ export function WebsiteSourceSelector({ currentSource, onSelect, isLoading }) {
             disabled={isLoading}
             className={[
               'w-full text-left px-4 py-3 rounded-lg border transition-colors',
-              selected
-                ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5 cursor-default'
-                : 'border-[hsl(var(--border))] hover:border-[hsl(var(--primary))]/50 cursor-pointer',
-              isLoading ? 'opacity-50 cursor-not-allowed' : '',
+              isLoading && !selected ? 'opacity-50 cursor-not-allowed' : '',
+              selected ? 'cursor-default' : 'cursor-pointer hover:border-[hsl(var(--primary))]',
             ].join(' ')}
+            style={selected
+              ? { borderColor: 'hsl(var(--primary))', backgroundColor: 'hsl(var(--primary) / 0.05)' }
+              : { borderColor: 'hsl(var(--border))' }
+            }
           >
             <div className="flex items-center gap-3">
               <div
-                className={[
-                  'w-4 h-4 rounded-full border-2 shrink-0 transition-colors',
-                  selected
-                    ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]'
-                    : 'border-[hsl(var(--muted-foreground))] bg-transparent',
-                ].join(' ')}
+                className="w-4 h-4 rounded-full border-2 shrink-0 transition-colors"
+                style={selected
+                  ? { borderColor: 'hsl(var(--primary))', backgroundColor: 'hsl(var(--primary))' }
+                  : { borderColor: 'hsl(var(--muted-foreground))', backgroundColor: 'transparent' }
+                }
               />
               <div>
                 <p className="text-sm font-medium">{option.label}</p>
