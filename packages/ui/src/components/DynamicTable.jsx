@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { DataTable } from "./DataTable.jsx";
+import { formatTableDate } from "../lib/utils.js";
 
 function getFieldList(blueprint) {
   return blueprint?.schema?.fields ?? [];
@@ -17,6 +18,12 @@ function renderDefaultCell(value, field) {
   }
   if (field?.type === "boolean") {
     return value ? "Sí" : "No";
+  }
+  if (field?.type === "date") {
+    return formatTableDate(value, false);
+  }
+  if (field?.type === "datetime") {
+    return formatTableDate(value, true);
   }
   if (field?.type === "email") {
     return (

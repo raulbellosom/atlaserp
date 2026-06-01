@@ -1,6 +1,6 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
-import { useIsFetching, useIsMutating } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useIsFetching, useIsMutating, useQueryClient } from "@tanstack/react-query";
 import { ModuleSidebar, BrandFooter } from "@atlas/ui";
 import { useThemeStore } from "../stores/theme";
 import { useLauncherStore } from "../stores/launcher";
@@ -10,6 +10,8 @@ import { CommandPalette } from "../components/CommandPalette";
 import { useRuntimeModules } from "./useRuntimeModules";
 import { getLayoutMode, matchesFullscreenPath } from "../lib/runtimeModules";
 import { ModuleBundleLoader } from '../shell/ModuleBundleLoader.jsx'
+import { useAuth } from "../auth/AuthProvider";
+import { toast } from "sonner";
 
 function getSidebarCollapsed() {
   try {
@@ -73,8 +75,11 @@ function SidebarSkeleton({ collapsed }) {
 export function AtlasApp() {
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { session } = useAuth();
   const { openLauncher } = useLauncherStore();
   const { moduleMap, isPending: modulesLoading } = useRuntimeModules();
+  const seenRealtimeNotificationIds = useRef(new Set());
 
   // Module key derived directly from URL — available even before moduleMap loads
   const moduleKeyFromPath = useMemo(() => {
@@ -116,6 +121,85 @@ export function AtlasApp() {
   useEffect(() => {
     useThemeStore.getState().init();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+
+    function resolveLink(href) {
+      if (!href || typeof href !== "string") return null;
+      if (/^https?:\/\//i.test(href)) return href;
+      return href.startsWith("/m/") ? `/app${href}` : href;
+    }
+
+    function handleServiceWorkerMessage(event) {
+      const message = event?.data;
+      if (!message || typeof message !== "object") return;
+
+      if (message.type === "atlas.notifications.push") {
+        const notificationId = message.notificationId ?? null;
+        if (
+          notificationId &&
+          seenRealtimeNotificationIds.current.has(notificationId)
+        ) {
+          return;
+        }
+        if (notificationId) {
+          seenRealtimeNotificationIds.current.add(notificationId);
+          if (seenRealtimeNotificationIds.current.size > 200) {
+            seenRealtimeNotificationIds.current.clear();
+          }
+        }
+
+        const title =
+          typeof message.title === "string" && message.title.trim()
+            ? message.title
+            : "Nueva notificacion";
+        const body =
+          typeof message.body === "string" && message.body.trim()
+            ? message.body
+            : "";
+        const link = resolveLink(message.link);
+
+        toast(title, {
+          description: body || undefined,
+          action: link
+            ? {
+                label: "Abrir",
+                onClick: () => {
+                  if (/^https?:\/\//i.test(link)) {
+                    window.open(link, "_blank", "noopener,noreferrer");
+                    return;
+                  }
+                  navigate(link);
+                },
+              }
+            : undefined,
+        });
+
+        queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        queryClient.invalidateQueries({ queryKey: ["notifications-inbox"] });
+        return;
+      }
+
+      if (message.type === "atlas.notifications.click") {
+        const link = resolveLink(message.link);
+        if (!link) return;
+        if (/^https?:\/\//i.test(link)) {
+          window.open(link, "_blank", "noopener,noreferrer");
+          return;
+        }
+        navigate(link);
+      }
+    }
+
+    navigator.serviceWorker.addEventListener("message", handleServiceWorkerMessage);
+    return () => {
+      navigator.serviceWorker.removeEventListener(
+        "message",
+        handleServiceWorkerMessage,
+      );
+    };
+  }, [navigate, queryClient, session?.access_token]);
 
   const layoutMode = getLayoutMode(activeModule);
 

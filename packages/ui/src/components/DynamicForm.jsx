@@ -6,6 +6,8 @@ import {
   SelectField,
   PhoneField,
   SwitchField,
+  DateField,
+  DateTimeField,
 } from "./FormFields.jsx";
 import { MarkdownField } from "./MarkdownField.jsx";
 import { Button } from "./Button.jsx";
@@ -169,6 +171,28 @@ export function DynamicForm({
                 {...shared}
                 checked={Boolean(rhfField.value)}
                 onChange={rhfField.onChange}
+              />
+            );
+          }
+
+          if (field.type === "date") {
+            return (
+              <DateField
+                {...shared}
+                value={rhfField.value ?? ""}
+                onChange={rhfField.onChange}
+                onBlur={rhfField.onBlur}
+              />
+            );
+          }
+
+          if (field.type === "datetime") {
+            return (
+              <DateTimeField
+                {...shared}
+                value={rhfField.value ?? ""}
+                onChange={rhfField.onChange}
+                onBlur={rhfField.onBlur}
               />
             );
           }
