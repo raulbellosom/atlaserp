@@ -1,5 +1,20 @@
 import { defineTemplate } from '@raulbellosom/atlas-web-builder'
 
+const BASE_MENU_ITEMS = 'Entradas\nEnsalada de la Casa | Mixta con aderezo balsámico y queso manchego | 9.00\nSopa de Fideo Seco | Receta tradicional con chipotle y crema | 7.00\nCeviche de Camarón | Camarón fresco, limón, cilantro y chile | 13.00\nAgua de Jamaica | 500ml, flor de jamaica natural | 4.00\n---\nPlatos Fuertes\nFilete a las Brasas | 300g corte premium con guarnición a elegir | 32.00\nPollo en Mole Negro | Mole de 30 ingredientes con arroz y frijoles | 22.00\nPasta al Pesto | Fettuccine con pesto artesanal y parmesano | 18.00\nPescado a la Plancha | Filete del día con verduras asadas | 26.00\n---\nPostres\nFlan de Cajeta | Receta de la abuela, irresistible | 6.00\nPastel de Tres Leches | Esponjoso, húmedo y delicioso | 7.50\nHelado Artesanal | 3 bolas a elegir de nuestra carta | 5.00'
+
+const TESTIMONIALS_BLOCK = {
+  id: 'testimonials',
+  type: 'TestimonialsBlock',
+  props: {
+    eyebrow: 'Nuestros comensales',
+    title: 'Lo que dicen quienes nos visitan',
+    columns: '3',
+    background: 'muted',
+    testimonials: 'Valentina Cruz|Cliente frecuente|5\nSin duda el mejor restaurante de la ciudad. La comida es exquisita y el servicio impecable. Cada vez que vengo es una experiencia diferente y siempre sorprendente.\n---\nRoberto Sánchez|Empresario|5\nLlevé a un cliente importante y quedó encantado. El ambiente es elegante sin ser pretencioso. Los platillos llegaron perfectos y a tiempo. Regresaremos sin duda.\n---\nLaura Ibáñez|Foodie y blogger|4\nUna cocina honesta y llena de sabor. El mole negro es espectacular y el servicio muy atento. Un lugar que recomendaré siempre en mi blog.',
+  },
+  children: {},
+}
+
 const NAVBAR = {
   id: 'navbar',
   type: 'NavbarBlock',
@@ -87,7 +102,7 @@ export const restauranteTemplate = defineTemplate({
             currency: '$',
             showPrices: true,
             columns: '2',
-            menu: 'Entradas\nEnsalada de la Casa | Mixta con aderezo balsámico y queso manchego | 9.00\nSopa de Fideo Seco | Receta tradicional con chipotle y crema | 7.00\nCeviche de Camarón | Camarón fresco, limón, cilantro y chile | 13.00\nAgua de Jamaica | 500ml, flor de jamaica natural | 4.00\n---\nPlatos Fuertes\nFilete a las Brasas | 300g corte premium con guarnición a elegir | 32.00\nPollo en Mole Negro | Mole de 30 ingredientes con arroz y frijoles | 22.00\nPasta al Pesto | Fettuccine con pesto artesanal y parmesano | 18.00\nPescado a la Plancha | Filete del día con verduras asadas | 26.00\n---\nPostres\nFlan de Cajeta | Receta de la abuela, irresistible | 6.00\nPastel de Tres Leches | Esponjoso, húmedo y delicioso | 7.50\nHelado Artesanal | 3 bolas a elegir de nuestra carta | 5.00',
+            menu: BASE_MENU_ITEMS,
           },
           children: {},
         },
@@ -106,18 +121,7 @@ export const restauranteTemplate = defineTemplate({
           },
           children: {},
         },
-        testimonials: {
-          id: 'testimonials',
-          type: 'TestimonialsBlock',
-          props: {
-            eyebrow: 'Nuestros comensales',
-            title: 'Lo que dicen quienes nos visitan',
-            columns: '3',
-            background: 'muted',
-            testimonials: 'Valentina Cruz|Cliente frecuente|5\nSin duda el mejor restaurante de la ciudad. La comida es exquisita y el servicio impecable. Cada vez que vengo es una experiencia diferente y siempre sorprendente.\n---\nRoberto Sánchez|Empresario|5\nLlevé a un cliente importante y quedó encantado. El ambiente es elegante sin ser pretencioso. Los platillos llegaron perfectos y a tiempo. Regresaremos sin duda.\n---\nLaura Ibáñez|Foodie y blogger|4\nUna cocina honesta y llena de sabor. El mole negro es espectacular y el servicio muy atento. Un lugar que recomendaré siempre en mi blog.',
-          },
-          children: {},
-        },
+        testimonials: TESTIMONIALS_BLOCK,
         booking: {
           id: 'booking',
           type: 'CtaBannerBlock',
@@ -144,7 +148,7 @@ export const restauranteTemplate = defineTemplate({
 export const restauranteSitePages = [
   {
     id: 'menu',
-    label: 'Menu',
+    label: 'Menú',
     routePath: '/menu',
     required: false,
     description: 'Nuestro menú completo con precios.',
@@ -184,7 +188,7 @@ export const restauranteSitePages = [
             currency: '$',
             showPrices: true,
             columns: '2',
-            menu: 'Entradas\nEnsalada de la Casa | Mixta con aderezo balsámico y queso manchego | 9.00\nSopa de Fideo Seco | Receta tradicional con chipotle y crema | 7.00\nCeviche de Camarón | Camarón fresco, limón, cilantro y chile | 13.00\nAgua de Jamaica | 500ml, flor de jamaica natural | 4.00\n---\nPlatos Fuertes\nFilete a las Brasas | 300g corte premium con guarnición a elegir | 32.00\nPollo en Mole Negro | Mole de 30 ingredientes con arroz y frijoles | 22.00\nPasta al Pesto | Fettuccine con pesto artesanal y parmesano | 18.00\nPescado a la Plancha | Filete del día con verduras asadas | 26.00\n---\nPostres\nFlan de Cajeta | Receta de la abuela, irresistible | 6.00\nPastel de Tres Leches | Esponjoso, húmedo y delicioso | 7.50\nHelado Artesanal | 3 bolas a elegir de nuestra carta | 5.00\n---\nBebidas\nAgua de Fruta | Del día, 500ml | 4.00\nRefrescos | Varios sabores | 3.50\nVino de la Casa | Copa, blanco o tinto | 8.00\nCerveza Artesanal | Botella 355ml | 7.00',
+            menu: `${BASE_MENU_ITEMS}\n---\nBebidas\nAgua de Fruta | Del día, 500ml | 4.00\nRefrescos | Varios sabores | 3.50\nVino de la Casa | Copa, blanco o tinto | 8.00\nCerveza Artesanal | Botella 355ml | 7.00`,
           },
           children: {},
         },
@@ -337,18 +341,7 @@ export const restauranteSitePages = [
           },
           children: {},
         },
-        testimonials: {
-          id: 'testimonials',
-          type: 'TestimonialsBlock',
-          props: {
-            eyebrow: 'Nuestros comensales',
-            title: 'Lo que dicen quienes nos visitan',
-            columns: '3',
-            background: 'muted',
-            testimonials: 'Valentina Cruz|Cliente frecuente|5\nSin duda el mejor restaurante de la ciudad. La comida es exquisita y el servicio impecable. Cada vez que vengo es una experiencia diferente y siempre sorprendente.\n---\nRoberto Sánchez|Empresario|5\nLlevé a un cliente importante y quedó encantado. El ambiente es elegante sin ser pretencioso. Los platillos llegaron perfectos y a tiempo. Regresaremos sin duda.\n---\nLaura Ibáñez|Foodie y blogger|4\nUna cocina honesta y llena de sabor. El mole negro es espectacular y el servicio muy atento. Un lugar que recomendaré siempre en mi blog.',
-          },
-          children: {},
-        },
+        testimonials: TESTIMONIALS_BLOCK,
         cta: {
           id: 'cta',
           type: 'CtaBannerBlock',
