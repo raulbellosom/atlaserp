@@ -744,6 +744,39 @@ export function PublicWebsiteEntry() {
   if (resolveQuery.isError)   return <PublicWebsite404 />
   if (resolveData?.initialized === false) return null
 
+  const sourceType = resolveData?.site?.sourceType ?? 'builder'
+
+  // source_type = 'none': no public site — show 404 to visitors, empty state to editors
+  if (sourceType === 'none') {
+    if (isEditor) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-6">
+          <div className="max-w-sm w-full text-center space-y-4">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-100 mx-auto">
+              <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7 text-slate-400">
+                <path d="M17 8l4 4-4 4M3 12h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900">Sitio publico desactivado</h2>
+            <p className="text-sm text-gray-500">La fuente del sitio esta configurada como <strong>Sin sitio publico</strong>. Los visitantes ven un 404. Cambia la fuente en Configuracion para activarlo.</p>
+            <a href="/app/m/atlas.website/settings" className="inline-block text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
+              Ir a Configuracion →
+            </a>
+          </div>
+        </div>
+      )
+    }
+    return <PublicWebsite404 />
+  }
+
+  // source_type = 'dist': in dev, redirect to the API which serves the dist files
+  if (sourceType === 'dist') {
+    const apiUrl = getApiUrl()
+    const target = `${apiUrl}/public/site${location.pathname}${window.location.search}`
+    window.location.replace(target)
+    return <PublicPageLoader />
+  }
+
   // ── Shared values ─────────────────────────────────────────────────────────
   const pages        = pagesQuery.data?.data ?? []
   const topOffset    = isEditor && barPinned ? BAR_H_PX : 0

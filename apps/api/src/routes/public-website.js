@@ -26,7 +26,7 @@ export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
       }
 
       const sites = await prisma.$queryRaw`
-        SELECT id, name, domain, status, theme_id
+        SELECT id, name, domain, status, theme_id, source_type
         FROM website_site
         WHERE company_id = ${company.id}
           AND enabled = true
@@ -89,7 +89,7 @@ export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
 
       return c.json({
         initialized: true,
-        site: { id: site.id, name: site.name, domain: site.domain },
+        site: { id: site.id, name: site.name, domain: site.domain, sourceType: site.source_type ?? 'builder' },
         page: page
           ? {
               id:                   page.id,
