@@ -10,10 +10,12 @@ import {
   SwitchField,
   TextField,
 } from '@atlas/ui'
-import { Mail, Server, User } from 'lucide-react'
+import { Globe, Mail, Server, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { WebsiteSourceSelector } from '../components/WebsiteSourceSelector.jsx'
+import { DistUploadPanel } from '../components/DistUploadPanel.jsx'
 
 async function apiFetch(path, token, options = {}) {
   const res = await fetch(`${getApiUrl()}${path}`, {
@@ -21,6 +23,21 @@ async function apiFetch(path, token, options = {}) {
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || `HTTP ${res.status}`)
+  }
+  return res.json()
+}
+
+async function apiFetchForm(path, token, options = {}) {
+  const res = await fetch(`${getApiUrl()}${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
       ...options.headers,
     },
   })
@@ -40,6 +57,23 @@ export default function WebsiteSettingsScreen() {
   const [form, setForm] = useState(EMPTY)
   const [passChanged, setPassChanged] = useState(false)
 
+  // --- Site query (same pattern as WebsiteOverviewScreen) ---
+  const siteQuery = useQuery({
+    queryKey: ['website-site', token],
+    queryFn: () => apiFetch('/website/site', token),
+    enabled: Boolean(token),
+    staleTime: 60_000,
+  })
+  const siteId = siteQuery.data?.data?.id
+
+  // --- Source query ---
+  const sourceQuery = useQuery({
+    queryKey: ['website-site-source', siteId],
+    queryFn: () => apiFetch(`/website/sites/${siteId}`, token),
+    enabled: Boolean(token) && Boolean(siteId),
+  })
+
+  // --- SMTP config query ---
   const configQuery = useQuery({
     queryKey: ['website-smtp-settings'],
     queryFn: () => apiFetch('/website/settings/smtp', token),
@@ -80,6 +114,45 @@ export default function WebsiteSettingsScreen() {
     onError: (err) => toast.error(`Error: ${err.message}`),
   })
 
+  const sourceChangeMutation = useMutation({
+    mutationFn: (newSource) =>
+      apiFetch(`/website/sites/${siteId}`, token, {
+        method: 'PATCH',
+        body: JSON.stringify({ sourceType: newSource }),
+      }),
+    onSuccess: () => {
+      toast.success('Fuente del sitio actualizada')
+      sourceQuery.refetch()
+    },
+    onError: (err) => toast.error(err.message ?? 'Error al cambiar la fuente'),
+  })
+
+  const uploadDistMutation = useMutation({
+    mutationFn: (file) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return apiFetchForm(`/website/sites/${siteId}/dist/upload`, token, {
+        method: 'POST',
+        body: formData,
+      })
+    },
+    onSuccess: (res) => {
+      toast.success(`Build subido: ${res.data.fileCount} archivos`)
+      sourceQuery.refetch()
+    },
+    onError: (err) => toast.error(err.message ?? 'Error al subir el build'),
+  })
+
+  const deleteDistMutation = useMutation({
+    mutationFn: () =>
+      apiFetchForm(`/website/sites/${siteId}/dist`, token, { method: 'DELETE' }),
+    onSuccess: () => {
+      toast.success('Build eliminado. El sitio volvera al constructor de paginas.')
+      sourceQuery.refetch()
+    },
+    onError: (err) => toast.error(err.message ?? 'Error al eliminar el build'),
+  })
+
   function handleSubmit(e) {
     e.preventDefault()
     const payload = {
@@ -105,6 +178,49 @@ export default function WebsiteSettingsScreen() {
           description="Ajusta las integraciones y credenciales de tu sitio web."
         />
 
+        {/* Fuente del sitio */}
+        <Card className="p-0 overflow-hidden">
+          <div className="px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 flex items-center gap-2">
+            <Globe className="w-4 h-4 text-[hsl(var(--muted-foreground))]" />
+            <div>
+              <p className="text-sm font-semibold">Fuente del sitio</p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
+                Elige que se sirve en la ruta raiz de tu dominio.
+              </p>
+            </div>
+          </div>
+          <div className="p-4 space-y-4">
+            {sourceQuery.isPending ? (
+              <div className="space-y-2">
+                <Skeleton className="h-16 rounded-lg" />
+                <Skeleton className="h-16 rounded-lg" />
+                <Skeleton className="h-16 rounded-lg" />
+              </div>
+            ) : (
+              <>
+                <WebsiteSourceSelector
+                  currentSource={sourceQuery.data?.data?.sourceType ?? 'builder'}
+                  onSelect={(value) => sourceChangeMutation.mutate(value)}
+                  isLoading={sourceChangeMutation.isPending}
+                />
+                {sourceQuery.data?.data?.sourceType === 'dist' && (
+                  <div className="pt-2 border-t border-[hsl(var(--border))]">
+                    <p className="text-sm font-medium mb-3">Archivos del build</p>
+                    <DistUploadPanel
+                      site={sourceQuery.data?.data}
+                      onUpload={(file) => uploadDistMutation.mutate(file)}
+                      onDelete={() => deleteDistMutation.mutate()}
+                      isUploading={uploadDistMutation.isPending || deleteDistMutation.isPending}
+                      uploadError={uploadDistMutation.isError ? uploadDistMutation.error?.message : null}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </Card>
+
+        {/* SMTP */}
         <Card className="p-0 overflow-hidden">
           <div className="px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 flex items-center justify-between">
             <div>
