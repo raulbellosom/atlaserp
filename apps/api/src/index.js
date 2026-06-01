@@ -693,8 +693,9 @@ app.use(
   "*",
   cors({
     origin: (origin) => origin || "*",
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Atlas-Company"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    exposeHeaders: ["X-Atlas-Company"],
   }),
 );
 
