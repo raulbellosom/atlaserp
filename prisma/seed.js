@@ -192,6 +192,16 @@ async function main() {
     },
   })
 
+  // Seed primary_company_id InstanceConfig (first company, idempotent)
+  const firstCompany = await prisma.company.findFirst({ select: { id: true } })
+  if (firstCompany) {
+    await prisma.instanceConfig.upsert({
+      where: { key: 'primary_company_id' },
+      update: {},
+      create: { key: 'primary_company_id', value: firstCompany.id },
+    })
+  }
+
   console.log(`Atlas modules seeded (${officialModuleManifests.length})`)
 }
 

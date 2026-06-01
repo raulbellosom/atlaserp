@@ -296,6 +296,7 @@ export const atlasWebsiteManifest = createModuleManifest({
     { key: "website.theme.update", name: "Editar temas" },
     { key: "website.menus.read", name: "Ver menus" },
     { key: "website.menus.update", name: "Editar menus" },
+    { key: "website.dist.upload", name: "Subir build del sitio" },
   ],
   acl: {
     module: "website.access",

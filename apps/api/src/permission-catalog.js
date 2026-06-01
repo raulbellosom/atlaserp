@@ -831,6 +831,12 @@ export const PERMISSION_CATALOG = {
     groupKey: "website",
     order: 12,
   },
+  "website.dist.upload": {
+    displayNameEs: "Subir build del sitio",
+    descriptionEs: "Permite subir y eliminar el dist/ compilado del sitio publico.",
+    groupKey: "website",
+    order: 13,
+  },
 };
 
 function inferGroupKey(permissionKey) {
