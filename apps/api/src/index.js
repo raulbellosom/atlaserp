@@ -630,6 +630,9 @@ async function ensureBuckets() {
   await supabaseAdmin.storage
     .createBucket(STORAGE_BUCKET_NAME, { public: false })
     .catch(() => {});
+  await supabaseAdmin.storage
+    .createBucket(STOREFRONT_BUCKET_NAME, { public: true, fileSizeLimit: 104857600, allowedMimeTypes: ['image/*', 'audio/*', 'video/*', 'application/pdf'] })
+    .catch(() => {});
 }
 
 function serializeModulesForResponse(modules, context, options = {}) {
