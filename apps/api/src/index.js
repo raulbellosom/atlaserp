@@ -63,6 +63,7 @@ import {
 } from "./services/activity-publisher.js";
 import { createModuleBundlerService } from "./services/module-bundler-service.js";
 import { createRouteLoaderService } from "./services/route-loader-service.js";
+import { createDistServeService } from "./services/dist-serve-service.js";
 import { createNotificationDeliveryWorker } from "./services/notification-delivery-worker.js";
 import {
   get as cacheGet,
@@ -119,6 +120,7 @@ const companyService = createCompanyService({ prisma, supabaseAdmin });
 const bundlerService = createModuleBundlerService({ prisma, supabaseAdmin });
 const hrService = createHrService({ prisma });
 const notificationDeliveryWorker = createNotificationDeliveryWorker({ prisma });
+const distServeService = createDistServeService({ prisma, supabaseAdmin });
 
 function toSlug(name) {
   return name
@@ -2955,6 +2957,18 @@ app.route("/public/website", publicCheckoutRouter);
 const storefrontRouter = createStorefrontRouter({ prisma, supabaseAdmin, supabaseAnon });
 app.route("/public/storefront", storefrontRouter);
 
+// Public site catch-all — must be registered last among public routes
+app.get("/public/site/*", async (c) => {
+  const fullPath = c.req.path.replace(/^\/public\/site/, '') || '/'
+  const result = await distServeService.serve(c, fullPath)
+  if (result === null) {
+    // Builder mode: delegate to existing public-website handler
+    const builderPath = `/public/website/resolve${fullPath === '/' ? '' : '?path=' + encodeURIComponent(fullPath)}`
+    return c.redirect(builderPath, 307)
+  }
+  return result
+})
+
 app.get("/public/blueprints", async (c) => {
   try {
     const cacheKey = "public:blueprints:raw";
@@ -3879,7 +3893,7 @@ function mountWithAuth(baseApp, router) {
 }
 
 mountWithAuth(app, createSettingsRouter({ prisma, requirePermission }));
-mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission }));
+mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createLedgerRouter({ prisma, requirePermission }));
 mountWithAuth(app, createFleetRouter({ prisma, requirePermission }));
 mountWithAuth(app, createCatalogRouter({ prisma, requirePermission }));
