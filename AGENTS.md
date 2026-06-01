@@ -31,6 +31,31 @@ compiled at install time — no web image rebuild is ever needed for module UI.
 4. **Never generate UUIDs in JavaScript** — the `id` column has `DEFAULT uuidv7()` in
    PostgreSQL. Use `INSERT ... RETURNING *` and let the database produce the ID.
 
+### UI-first rule — mandatory
+
+Before writing any UI element, check `@atlas/ui` first. The full inventory is in
+`docs/ai-context/ame3-runtime-capabilities.md`.
+
+**Never use native HTML form elements when an `@atlas/ui` equivalent exists:**
+
+| Instead of | Use |
+|---|---|
+| `<select>` | `CreatableComboboxField` (new entries) · `ComboboxField` (read-only) · `SelectField` (short fixed list) |
+| `<input type="text">` | `TextField` / `Input` |
+| `<textarea>` | `TextareaField` / `Textarea` |
+| `<input type="checkbox">` | `CheckboxField` / `Checkbox` |
+| `<input type="date">` | `DateField` / `DatePickerField` |
+| hand-rolled table | `AtlasTable` / `DataTable` |
+| hand-rolled modal | `Dialog` / `Sheet` |
+| hand-rolled dropdown | `DropdownMenu` |
+
+Key components every module screen must use:
+- `PageHeader` — every screen starts here
+- `EmptyState` / `ErrorState` — never plain text for empty/error states
+- `ConfirmDialog` — all destructive confirmations
+- `AttachmentsPanel` / `FileUploader` — file attachments inline in the module, never redirect to atlas.files
+- `CreatableComboboxField` with `placeholder="Buscar o crear..."` — canonical UX for selects that allow new entries
+
 ---
 
 ## Creating a new module

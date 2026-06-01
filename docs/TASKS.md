@@ -8,6 +8,24 @@
 - If a task is implemented but not verified yet, keep it unchecked until validation is done.
 - Prisma migration safety: never edit existing `prisma/migrations/**/migration.sql` after apply; always add a new forward migration.
 
+## atlas.activity (CORE Activity Feed)
+
+- [x] Spec: `docs/superpowers/specs/2026-05-31-atlas-activity-design.md` (28 sections, status Approved).
+- [x] Plan: `docs/superpowers/plans/2026-05-31-atlas-activity.md` (14 tasks).
+- [x] Prisma `Activity` model + manual migration `20260531000000_add_activity_table` with `DEFAULT uuidv7()`, 4 indexes (company+createdAt desc, entity, type, actor), FK SET NULL.
+- [x] Core manifest `activityMap` registered (12 modules seeded), 4 permissions (`activity.access/read/publish/manage`) in catalog with Spanish labels.
+- [x] Validators: `activityPublishSchema` (4KB payload limit via `superRefine`), `activityListQuerySchema` (z.coerce), `ACTIVITY_CONSTANTS`.
+- [x] Service `apps/api/src/services/activity-service.js`: `publish`, `publishFromContext` (resolves company via membership), `list`, `recent`, `listForEntity`, 2s dedupe window, actor join.
+- [x] Bridge `apps/api/src/services/activity-bridge.js`: translator registry (HR, contacts, files, company, core), `logAndPublish` writes AuditLog first then never throws on activity errors.
+- [x] Routes `apps/api/src/routes/activity.js`: GET list/recent/entity, POST publish, POST subscribe-token; mounted with `requirePermission` guards.
+- [x] HR adoption: `hr-service.js` uses `bridge.logAndPublish` for create/update/setEnabled with severity hints.
+- [x] SDK `packages/sdk/src/index.js`: `atlas.activity.{list,recent,listForEntity,publish,subscribeToken,getRealtimeChannel}`.
+- [x] UI `packages/ui`: `ActivityTimeline`, `ActivityDrawer`, `ActivityBellTrigger` (poll 15s + optional Supabase Realtime, localStorage lastSeen).
+- [x] Desktop integration: `<ActivityBellTrigger />` in `Topbar` (permission-gated), `/app/activity` route + `ActivityFeedScreen`, embedded `HrEmployeeActivityPanel` in employee detail.
+- [x] Tests: `apps/api/src/services/__tests__/activity-service.test.js` (6) + `activity-bridge.test.js` (6) → 12/12 passing.
+
+Verified: 2026-05-31 (`pnpm prisma migrate deploy` → applied `20260531000000_add_activity_table`; `pnpm db:seed` → "Atlas modules seeded (12)"; `node --test apps/api/src/services/__tests__/activity-service.test.js apps/api/src/services/__tests__/activity-bridge.test.js` → tests 12 / pass 12 / fail 0; `node --check` on `apps/api/src/{index,routes/activity,services/activity-service,services/activity-bridge,services/hr-service}.js`, `packages/{sdk,validators}/src/index.js` → OK; `pnpm --filter ./apps/desktop build` → `✓ built in 4.86s` + Tauri release bundles produced)
+
 ## UUID v7 Global Cutover (Reset Total)
 
 - [x] Replace Prisma ID defaults from `cuid()` to UUID v7 (`@default(uuid(7)) @db.Uuid`) across domain models.
@@ -339,9 +357,9 @@ Module system: `docs/02_module_system.md`
 - [x] `README.md` — updated module system and architecture sections
 - [x] `docs/00_project_status.md` — AME3 direction and roadmap added
 - [x] Module Lifecycle v2 (Phase 9.5): `Permission.active`, dry-run, reset, purge-data, cleanup registry
-- [x] *Spec approved* → Create `packages/module-engine/` — exports `defineAtlasModule`, `defineModel`, `defineView`, `definePage`
-- [x] *Spec approved* → Create `modules/custom/` directory with `README.md` and `.gitkeep`
-- [x] *Spec approved* → File-system discovery from `modules/custom/` at API boot and `POST /modules/sync`
+- [x] _Spec approved_ → Create `packages/module-engine/` — exports `defineAtlasModule`, `defineModel`, `defineView`, `definePage`
+- [x] _Spec approved_ → Create `modules/custom/` directory with `README.md` and `.gitkeep`
+- [x] _Spec approved_ → File-system discovery from `modules/custom/` at API boot and `POST /modules/sync`
 
 Verified: 2026-05-09 (node --check 13 source files — all pass; node --test 4 test files — 61 tests, 0 fail [15 define-module, 14 define-model, 22 sql-generator, 10 checksum]; 16 named exports verified importable from packages/module-engine/src/index.js; pnpm --filter ./apps/desktop build:web exits 0)
 
@@ -350,11 +368,11 @@ Verified: 2026-05-09 (node --check 13 source files — all pass; node --test 4 t
 **Required spec:** `docs/superpowers/specs/2026-05-09-ame3-custom-fleet-module.md`  
 **Required plan:** `docs/superpowers/plans/2026-05-09-ame3-custom-fleet-module.md`
 
-- [x] *Spec approved* → Create `modules/official/` directory (migration target, initially empty)
-- [x] *Spec approved* → Route Loader: mount `api/index.js` from `modules/custom/*/` automatically
-- [x] *Spec approved* → Build and document one complete sample custom module (`custom.demo` or `custom.fleet`)
-- [x] *Spec approved* → Module-local validators auto-discovered from `validators/index.js` (no `packages/validators/` edit required)
-- [x] *Spec approved* → `@atlas/module-engine` ships with `defineAtlasModule`, `defineModel`, `defineView`, `definePage`
+- [x] _Spec approved_ → Create `modules/official/` directory (migration target, initially empty)
+- [x] _Spec approved_ → Route Loader: mount `api/index.js` from `modules/custom/*/` automatically
+- [x] _Spec approved_ → Build and document one complete sample custom module (`custom.demo` or `custom.fleet`)
+- [x] _Spec approved_ → Module-local validators auto-discovered from `validators/index.js` (no `packages/validators/` edit required)
+- [x] _Spec approved_ → `@atlas/module-engine` ships with `defineAtlasModule`, `defineModel`, `defineView`, `definePage`
 
 Verified: 2026-05-20 (`node --check apps/api/src/services/route-loader-service.js`; `node --check apps/api/src/services/module-discovery-service.js`; `node --check modules/custom/custom.fleet/module.manifest.js`; `node --test packages/module-engine/src/__tests__/define-module.test.js`; `pnpm.cmd --filter @atlas/desktop build:web`)
 
@@ -419,6 +437,7 @@ Verified: 2026-05-16 (`node --check packages/ui/src/atlas-renderer/renderer-adap
 - [x] Desktop build passes — Verified: 2026-05-16 (`pnpm.cmd --filter @atlas/desktop build:web` → ✓ built in 2.78s, 0 errors, 4404 modules transformed)
 
 Runtime checks: Not verified in this session (no browser access). Required manual follow-up:
+
 - Vehicle form relation selectors (vehicle_type_id, vehicle_brand_id, driver_id) load options from API
 - Maintenance form relation selectors load options (maintenance_type_id, vehicle_id, driver_id)
 - Search triggers debounced re-fetch from remote endpoints
@@ -512,11 +531,11 @@ Verified: 2026-05-22 (`node --check modules/custom/custom.fleet/api/reports-serv
 **Required spec:** `docs/superpowers/specs/2026-05-09-ame3-module-discovery-sync.md`  
 **Required plan:** `docs/superpowers/plans/2026-05-09-ame3-module-discovery-sync.md`
 
-- [x] *Spec approved* → API boot reads modules from `modules/custom/` and `modules/official/` as primary sources
-- [x] *Spec approved* → `packages/maps/` read only as fallback for legacy official modules during decommission track
-- [x] *Spec approved* → Route Loader: mount all installed module routers at boot; unmount on disable/uninstall
-- [x] *Spec approved* → Component Registry: load all installed module component registrations at boot
-- [x] *Spec approved* → `POST /modules/sync` triggers re-discovery without restart
+- [x] _Spec approved_ → API boot reads modules from `modules/custom/` and `modules/official/` as primary sources
+- [x] _Spec approved_ → `packages/maps/` read only as fallback for legacy official modules during decommission track
+- [x] _Spec approved_ → Route Loader: mount all installed module routers at boot; unmount on disable/uninstall
+- [x] _Spec approved_ → Component Registry: load all installed module component registrations at boot
+- [x] _Spec approved_ → `POST /modules/sync` triggers re-discovery without restart
 
 Verified: 2026-05-20 (`node --check apps/api/src/routes/modules.js`; `node --check apps/api/src/services/module-discovery-service.js`; `node --check apps/api/src/services/route-loader-service.js`; `node --check apps/api/src/services/module-lifecycle-service.js`; `node --check apps/api/src/services/module-metadata-service.js`; `node --check apps/api/src/services/module-migration-service.js`; `node --test packages/module-engine/src/__tests__/define-module.test.js`; `node --test packages/module-engine/src/__tests__/sql-generator.test.js`)
 
@@ -549,12 +568,12 @@ Verified: 2026-05-25 (architecture decision documented in `docs/TASKS.md` and `A
 **Required plan:** `docs/superpowers/plans/YYYY-MM-DD-ame3-crud-blueprint-renderer.md`
 
 - [x] Kickoff audit complete: renderer primitives (`AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`) and runtime registry wiring are present and actively used by `custom.fleet` routes.
-- [x] *Spec approved* → `AtlasTable` fully renders TABLE blueprints with sort, filter, and pagination controls.
-- [x] *Spec approved* → `AtlasForm` fully renders FORM blueprints using schema-driven sections, relation loaders, inline create, and submit validations.
-- [x] *Spec approved* → `AtlasDetail` renders DETAIL blueprints in read-only mode, including relation labels and attachments context.
-- [x] *Spec approved* → `AtlasCrudView` composes list + form + detail into a complete CRUD flow with create/view/edit transitions.
-- [x] *Spec approved* → Shell and layout resolution: `atlas.dashboardShell`, `atlas.crudLayout`
-- [x] *Spec approved* → Custom component key resolution via Component Registry
+- [x] _Spec approved_ → `AtlasTable` fully renders TABLE blueprints with sort, filter, and pagination controls.
+- [x] _Spec approved_ → `AtlasForm` fully renders FORM blueprints using schema-driven sections, relation loaders, inline create, and submit validations.
+- [x] _Spec approved_ → `AtlasDetail` renders DETAIL blueprints in read-only mode, including relation labels and attachments context.
+- [x] _Spec approved_ → `AtlasCrudView` composes list + form + detail into a complete CRUD flow with create/view/edit transitions.
+- [x] _Spec approved_ → Shell and layout resolution: `atlas.dashboardShell`, `atlas.crudLayout`
+- [x] _Spec approved_ → Custom component key resolution via Component Registry
 
 Verified: 2026-05-25 (`rg -n "filterValues|sortBy|sortDir|pagination|TablePaginationFooter" packages/ui/src/atlas-renderer/AtlasTable.jsx packages/ui/src/atlas-renderer/AtlasTableToolbar.jsx packages/ui/src/atlas-renderer/TablePaginationFooter.jsx`; `rg -n "normalizeSections|handleSubmit|relation|inlineCreate|AttachmentsPanel" packages/ui/src/atlas-renderer/AtlasForm.jsx packages/ui/src/atlas-renderer/atlas-form-schema.js`; `rg -n "readOnly|AttachmentsPanel" packages/ui/src/atlas-renderer/AtlasDetail.jsx`; `rg -n "AtlasTable|AtlasForm|AtlasDetail|mode=\"create\"|mode=\"edit\"" packages/ui/src/atlas-renderer/AtlasCrudView.jsx`; `node --test packages/ui/src/atlas-renderer/__tests__/renderer-adapters.test.js`; `pnpm.cmd --filter @atlas/desktop build:web`)
 
@@ -567,11 +586,11 @@ Verified: 2026-05-25 (`rg -n "filterValues|sortBy|sortDir|pagination|TablePagina
 - [x] Desktop decommission cut #1 complete: removed `@atlas/maps` dependency/alias/import usage from runtime merge and module catalog install flow.
 - [x] API decommission cut #1 complete: centralized official manifest access behind `module-manifests-service` and removed direct maps imports from module routes and RBAC contract tests.
 - [x] Seed decommission cut #1 complete: `prisma/seed.js` now consumes `listOfficialModuleManifests()` and no longer imports map files directly.
-- [x] *Spec approved* → All official modules confirmed operational from current production locations (no `modules/official/` relocation required)
-- [x] *Spec approved* → `packages/maps/src/feature-modules.js` deleted
-- [x] *Spec approved* → `packages/maps/src/core-modules.js` deleted or absorbed into core runtime sources
-- [x] *Spec approved* → `packages/maps/` package removed from monorepo
-- [x] *Spec approved* → No remaining references to `packages/maps/` in core codebase
+- [x] _Spec approved_ → All official modules confirmed operational from current production locations (no `modules/official/` relocation required)
+- [x] _Spec approved_ → `packages/maps/src/feature-modules.js` deleted
+- [x] _Spec approved_ → `packages/maps/src/core-modules.js` deleted or absorbed into core runtime sources
+- [x] _Spec approved_ → `packages/maps/` package removed from monorepo
+- [x] _Spec approved_ → No remaining references to `packages/maps/` in core codebase
 
 Verified: 2026-05-25 (`pnpm.cmd install --lockfile-only`; `node --check apps/api/src/index.js`; `node --check apps/api/src/routes/modules.js`; `node --check apps/api/src/services/module-manifests-service.js`; `node --check prisma/seed.js`; `node --check scripts/verify-permission-catalog.mjs`; `node --test apps/api/src/services/__tests__/rbac-granular-contract.test.js`; `node --test apps/api/src/services/__tests__/module-discovery-service.test.js apps/api/src/services/__tests__/route-loader-service.test.js apps/api/src/services/__tests__/module-dependency-utils.test.js`; `node --test packages/module-engine/src/__tests__/define-view.test.js packages/module-engine/src/__tests__/sql-generator.test.js`; `pnpm.cmd --filter @atlas/desktop build:web`; `rg -n "@atlas/maps|packages/maps" apps packages prisma scripts --glob "!**/dist/**"` -> `NO_MATCHES`)
 

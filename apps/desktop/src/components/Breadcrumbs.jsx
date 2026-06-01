@@ -7,6 +7,8 @@ const STATIC_LABELS = {
   "/app/profile": "Mi perfil",
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function buildCrumbs(pathname, moduleMap) {
   if (pathname === "/app" || pathname === "/app/" || pathname === "/app/home") {
     return [];
@@ -32,17 +34,24 @@ function buildCrumbs(pathname, moduleMap) {
   }
 
   const subPath = `/${rawSub}`;
-  const navItem = (mod.navigation ?? []).find(
+  const navItems = mod.navigation ?? [];
+  const navItem = navItems.find(
     (n) =>
       n.path === subPath ||
       n.path === rawSub ||
-      subPath.startsWith(`${n.path}/`),
+      (n.path !== "/" && subPath.startsWith(`${n.path}/`)),
   );
-  const subLabel = navItem
-    ? subPath === navItem.path
-      ? navItem.label
-      : `${navItem.label} · Detalle`
-    : rawSub;
+
+  let subLabel;
+  if (navItem) {
+    subLabel = subPath === navItem.path ? navItem.label : `${navItem.label} · Detalle`;
+  } else if (UUID_RE.test(rawSub)) {
+    // UUID sub-path = detail page; use the root nav item label as context
+    const rootNav = navItems.find((n) => n.path === "/");
+    subLabel = rootNav ? `${rootNav.label} · Detalle` : "Detalle";
+  } else {
+    subLabel = rawSub;
+  }
 
   return [
     { label: mod.name, path: moduleRoot, color: mod.color, isLast: false },

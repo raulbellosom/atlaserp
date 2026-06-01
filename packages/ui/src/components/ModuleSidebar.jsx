@@ -40,6 +40,16 @@ import {
   Globe,
   Tag,
   SlidersHorizontal,
+  Activity,
+  Package,
+  Boxes,
+  ShoppingBag,
+  ShoppingCart,
+  Store,
+  ListOrdered,
+  Calendar,
+  UsersRound,
+  ShieldCheck,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "../lib/utils.js";
@@ -84,6 +94,16 @@ const ICON_MAP = {
   Globe,
   Tag,
   SlidersHorizontal,
+  Activity,
+  Package,
+  Boxes,
+  ShoppingBag,
+  ShoppingCart,
+  Store,
+  ListOrdered,
+  Calendar,
+  UsersRound,
+  ShieldCheck,
 };
 
 const ICON_ALIAS_MAP = {
@@ -108,7 +128,8 @@ function NavIcon({ name, size = 15, ...props }) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join("");
-  const Icon = ICON_MAP[raw] ?? ICON_MAP[aliasName] ?? ICON_MAP[pascalName] ?? Box;
+  const Icon =
+    ICON_MAP[raw] ?? ICON_MAP[aliasName] ?? ICON_MAP[pascalName] ?? Box;
   return <Icon size={size} {...props} />;
 }
 
@@ -328,7 +349,9 @@ export function ModuleSidebar({
                   name={item.icon}
                   size={15}
                   className="shrink-0"
-                  style={{ color: isGroupActive && !isOpen ? module.color : undefined }}
+                  style={{
+                    color: isGroupActive && !isOpen ? module.color : undefined,
+                  }}
                 />
                 <span
                   className={cn(

@@ -27,6 +27,9 @@ import {
   UserCheck,
   ShieldCheck,
   Menu,
+  Activity,
+  ShoppingBag,
+  Tag,
 } from "lucide-react";
 import { cn } from "@atlas/ui";
 
@@ -62,6 +65,9 @@ export const MODULE_ICON_REGISTRY = {
   UserCheck,
   ShieldCheck,
   Menu,
+  Activity,
+  ShoppingBag,
+  Tag,
 };
 
 // ---- Helpers ----

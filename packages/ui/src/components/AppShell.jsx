@@ -30,6 +30,7 @@ export function AppShell({
   children,
   onThemeToggle,
   isDark,
+  headerActions = null,
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -125,6 +126,11 @@ export function AppShell({
           collapsed ? "ml-16" : "ml-64",
         )}
       >
+        {headerActions && (
+          <div className="fixed top-3 right-4 z-30 flex items-center gap-2">
+            {headerActions}
+          </div>
+        )}
         {children}
       </main>
     </div>

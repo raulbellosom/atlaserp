@@ -3,7 +3,13 @@ import { z } from "zod";
 export const moduleInstallSchema = z.object({
   manifest: z
     .object({
-      key: z.string().min(3).regex(/^[\w.-]+$/, 'La clave del modulo solo puede contener letras, numeros, puntos y guiones.'),
+      key: z
+        .string()
+        .min(3)
+        .regex(
+          /^[\w.-]+$/,
+          "La clave del modulo solo puede contener letras, numeros, puntos y guiones.",
+        ),
       name: z.string().min(2),
       version: z.string().min(1),
       core: z.boolean().optional(),
@@ -94,7 +100,9 @@ const hrEmployeeBaseSchema = z.object({
   workLocation: z.string().trim().max(120).optional().or(z.literal("")),
   hireDate: z.string().datetime().optional().or(z.literal("")),
   terminationDate: z.string().datetime().optional().or(z.literal("")),
-  status: z.enum(["active", "inactive", "vacation", "terminated"]).default("active"),
+  status: z
+    .enum(["active", "inactive", "vacation", "terminated"])
+    .default("active"),
   notesMarkdown: z.string().max(10000).optional().or(z.literal("")),
   metadata: z.record(z.any()).optional(),
 });
@@ -274,7 +282,10 @@ export const financeFxRateCreateSchema = z
   .object({
     baseCurrency: currencySchema,
     quoteCurrency: currencySchema,
-    rateDate: z.string().trim().min(1, "La fecha de tipo de cambio es obligatoria."),
+    rateDate: z
+      .string()
+      .trim()
+      .min(1, "La fecha de tipo de cambio es obligatoria."),
     rate: z.coerce.number().finite().positive("La tasa debe ser mayor a cero."),
     source: z.string().trim().min(1).max(40).optional().default("manual"),
   })
@@ -519,47 +530,117 @@ export const ledgerMovementQuerySchema = z.object({
 });
 
 export const moduleDryRunSchema = z.object({
-  mode: z.enum(['preserve-data', 'purge-data', 'purge-owned-tables']).optional(),
+  mode: z
+    .enum(["preserve-data", "purge-data", "purge-owned-tables"])
+    .optional(),
 });
 
 export const moduleClearErrorSchema = z.object({
-  mode: z.enum(['metadata-only', 'preserve-data']).default('preserve-data'),
+  mode: z.enum(["metadata-only", "preserve-data"]).default("preserve-data"),
 });
 
 export const moduleCleanupDryRunSchema = z.object({
-  mode: z.enum(['purge-empty-tables']).default('purge-empty-tables'),
+  mode: z.enum(["purge-empty-tables"]).default("purge-empty-tables"),
 });
 
 export const moduleCleanupSchema = z
   .object({
-    mode: z.enum(['purge-empty-tables']).default('purge-empty-tables'),
+    mode: z.enum(["purge-empty-tables"]).default("purge-empty-tables"),
     confirmation: z.string().trim(),
   })
-  .refine((data) => data.confirmation === 'ACEPTO', {
+  .refine((data) => data.confirmation === "ACEPTO", {
     message: 'Debes escribir "ACEPTO" para confirmar la limpieza.',
-    path: ['confirmation'],
+    path: ["confirmation"],
   });
 
 export const moduleUninstallSchema = z
   .object({
-    mode: z.enum(['preserve-data', 'purge-data', 'purge-owned-tables']).optional(),
+    mode: z
+      .enum(["preserve-data", "purge-data", "purge-owned-tables"])
+      .optional(),
     confirmation: z.string().trim().optional(),
   })
   .refine(
     (data) =>
-      (data.mode !== 'purge-data' && data.mode !== 'purge-owned-tables') ||
-      data.confirmation === 'ACEPTO',
+      (data.mode !== "purge-data" && data.mode !== "purge-owned-tables") ||
+      data.confirmation === "ACEPTO",
     {
-      message: 'Para purgar datos debes escribir "ACEPTO" en el campo de confirmación.',
-      path: ['confirmation'],
-    }
+      message:
+        'Para purgar datos debes escribir "ACEPTO" en el campo de confirmación.',
+      path: ["confirmation"],
+    },
   );
 
 export const moduleResetSchema = z
   .object({
     confirmation: z.string().trim(),
   })
-  .refine((data) => data.confirmation === 'ACEPTO', {
+  .refine((data) => data.confirmation === "ACEPTO", {
     message: 'Debes escribir "ACEPTO" para confirmar el reinicio.',
-    path: ['confirmation'],
+    path: ["confirmation"],
   });
+
+// ---------------------------------------------------------------------------
+// atlas.activity
+// ---------------------------------------------------------------------------
+
+const ACTIVITY_SEVERITIES = ["info", "success", "warning", "critical"];
+const ACTIVITY_PAYLOAD_MAX_BYTES = 4096;
+
+export const activityPublishSchema = z
+  .object({
+    type: z.string().trim().min(1).max(100),
+    summary: z.string().trim().min(1).max(500),
+    entityType: z.string().trim().min(1).max(100).optional(),
+    entityId: z.string().uuid().optional(),
+    severity: z.enum(ACTIVITY_SEVERITIES).optional(),
+    payload: z.record(z.any()).optional(),
+    link: z.string().trim().max(500).optional(),
+    companyId: z.string().uuid().optional(),
+    actorId: z.string().uuid().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.payload === undefined) return;
+    let size = 0;
+    try {
+      size = Buffer.byteLength(JSON.stringify(data.payload), "utf8");
+    } catch {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["payload"],
+        message: "Payload no serializable.",
+      });
+      return;
+    }
+    if (size > ACTIVITY_PAYLOAD_MAX_BYTES) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["payload"],
+        message: `Payload demasiado grande (${size}B > ${ACTIVITY_PAYLOAD_MAX_BYTES}B). Usa el campo "link".`,
+      });
+    }
+  });
+
+export const activityListQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(25),
+  entityType: z.string().trim().min(1).max(100).optional(),
+  entityId: z.string().uuid().optional(),
+  type: z.string().trim().min(1).max(100).optional(),
+  actorId: z.string().uuid().optional(),
+  severity: z.enum(ACTIVITY_SEVERITIES).optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  q: z.string().trim().max(200).optional(),
+  search: z.string().trim().max(200).optional(),
+  sortBy: z
+    .enum(["createdAt", "type", "severity", "entityType", "source"])
+    .optional(),
+  sortDir: z.enum(["asc", "desc"]).optional(),
+  ids: z.array(z.string().uuid()).optional(),
+});
+
+export const ACTIVITY_CONSTANTS = {
+  severities: ACTIVITY_SEVERITIES,
+  payloadMaxBytes: ACTIVITY_PAYLOAD_MAX_BYTES,
+};

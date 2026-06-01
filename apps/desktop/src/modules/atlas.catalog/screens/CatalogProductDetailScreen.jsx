@@ -3,8 +3,11 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { Badge, Button, Input, Label, MarkdownField, Skeleton, Switch, cn } from '@atlas/ui'
-import { ArrowLeft, EyeOff, Globe } from 'lucide-react'
+import {
+  Button, ComboboxField, EmptyState, MarkdownField, NumberField,
+  SelectField, Skeleton, Switch, TextareaField, TextField, cn,
+} from '@atlas/ui'
+import { ArrowLeft, EyeOff, Globe, Package, TrendingDown, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { atlas } from '../../../lib/atlas.js'
@@ -14,6 +17,18 @@ import VariantOptionsEditor from '../components/VariantOptionsEditor.jsx'
 import VariantMatrix        from '../components/VariantMatrix.jsx'
 
 const ALL_TABS = ['General', 'Imagenes', 'Precios', 'Variantes', 'Inventario', 'SEO']
+
+const CURRENCY_OPTIONS = [
+  { value: 'USD', label: 'USD — Dólar estadounidense' },
+  { value: 'EUR', label: 'EUR — Euro' },
+  { value: 'MXN', label: 'MXN — Peso mexicano' },
+  { value: 'COP', label: 'COP — Peso colombiano' },
+  { value: 'ARS', label: 'ARS — Peso argentino' },
+  { value: 'PEN', label: 'PEN — Sol peruano' },
+  { value: 'CLP', label: 'CLP — Peso chileno' },
+  { value: 'BRL', label: 'BRL — Real brasileño' },
+  { value: 'GTQ', label: 'GTQ — Quetzal guatemalteco' },
+]
 
 function SectionCard({ title, children, className }) {
   return (
@@ -83,15 +98,21 @@ export default function CatalogProductDetailScreen() {
   if (isPending) {
     return (
       <div className="p-4 md:p-6 space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-4 w-72" />
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-10 w-80" />
         <Skeleton className="h-96 w-full rounded-2xl" />
       </div>
     )
   }
 
-  const product    = productData?.data
-  if (!product) return <div className="p-4 md:p-6 text-sm text-red-500">Producto no encontrado.</div>
+  const product = productData?.data
+  if (!product) {
+    return (
+      <div className="p-4 md:p-6">
+        <EmptyState icon={Package} title="Producto no encontrado" description="El producto no existe o fue eliminado." />
+      </div>
+    )
+  }
 
   const categories = categoriesData?.data ?? []
   const movements  = movementsData?.data  ?? []
@@ -101,40 +122,46 @@ export default function CatalogProductDetailScreen() {
 
   return (
     <div className="flex flex-col min-h-dvh">
-      {/* Top bar */}
+      {/* ── Top bar ── */}
       <div className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 md:px-6 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 backdrop-blur-sm">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
             onClick={() => navigate('/app/m/atlas.catalog')}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
-          <span className="text-sm font-semibold text-[hsl(var(--foreground))] truncate">{product.name}</span>
-          <Badge variant={isVariable ? 'secondary' : 'outline'} className="shrink-0 text-xs">
-            {isVariable ? 'Variable' : 'Simple'}
-          </Badge>
-          <Badge variant={product.published ? 'success' : 'outline'} className="shrink-0 text-xs">
-            {product.published ? 'Publicado' : 'Borrador'}
-          </Badge>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-sm font-semibold text-[hsl(var(--foreground))] truncate">{product.name}</h1>
+              <span className="shrink-0 inline-flex items-center rounded-full border border-[hsl(var(--border))] px-2 py-0.5 text-[11px] font-medium text-[hsl(var(--muted-foreground))]">
+                {isVariable ? 'Variable' : 'Simple'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', product.published ? 'bg-emerald-500' : 'bg-amber-400')} />
+              <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                {product.published ? 'Publicado' : 'Borrador — no visible al público'}
+              </span>
+            </div>
+          </div>
         </div>
         {canUpdate && (
-          <div className="flex items-center gap-2 shrink-0">
-            {product.published ? (
-              <Button variant="outline" size="sm" onClick={() => publishMutation.mutate(false)} disabled={publishMutation.isPending}>
-                <EyeOff className="h-4 w-4 mr-1.5" /> Despublicar
-              </Button>
-            ) : (
-              <Button size="sm" onClick={() => publishMutation.mutate(true)} disabled={publishMutation.isPending}>
-                <Globe className="h-4 w-4 mr-1.5" /> Publicar
-              </Button>
-            )}
-          </div>
+          <Button
+            size="sm"
+            variant={product.published ? 'outline' : 'default'}
+            onClick={() => publishMutation.mutate(!product.published)}
+            disabled={publishMutation.isPending}
+          >
+            {product.published
+              ? <><EyeOff className="h-4 w-4 mr-1.5" />Despublicar</>
+              : <><Globe className="h-4 w-4 mr-1.5" />Publicar</>}
+          </Button>
         )}
       </div>
 
-      {/* Pill tabs */}
+      {/* ── Pill tabs ── */}
       <div className="px-4 md:px-6 pt-4">
         <div className="flex items-center gap-1 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 p-1 w-fit overflow-x-auto">
           {visibleTabs.map(t => (
@@ -143,7 +170,7 @@ export default function CatalogProductDetailScreen() {
               type="button"
               onClick={() => setTab(t)}
               className={cn(
-                'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-150 whitespace-nowrap',
+                'flex items-center rounded-lg px-4 py-2 text-sm font-medium transition-all duration-150 whitespace-nowrap',
                 tab === t
                   ? 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))] shadow-sm'
                   : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
@@ -155,7 +182,7 @@ export default function CatalogProductDetailScreen() {
         </div>
       </div>
 
-      {/* Tab content */}
+      {/* ── Tab content ── */}
       <div className="flex-1 px-4 md:px-6 py-6">
         <AnimatePresence mode="wait">
           <motion.div
@@ -165,12 +192,12 @@ export default function CatalogProductDetailScreen() {
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.18 }}
           >
-            {tab === 'General'    && <GeneralTab    product={product} categories={categories} onSave={updateMutation.mutate} saving={updateMutation.isPending} />}
-            {tab === 'Imagenes'   && <ImagenesTab   product={product} token={token} onSave={updateMutation.mutate} />}
-            {tab === 'Precios'    && <PreciosTab    product={product} onSave={updateMutation.mutate} saving={updateMutation.isPending} onStockAdjust={() => setStockModalOpen(true)} />}
+            {tab === 'General'   && <GeneralTab   product={product} categories={categories} onSave={updateMutation.mutate} saving={updateMutation.isPending} />}
+            {tab === 'Imagenes'  && <ImagenesTab  product={product} token={token} onSave={updateMutation.mutate} />}
+            {tab === 'Precios'   && <PreciosTab   product={product} onSave={updateMutation.mutate} saving={updateMutation.isPending} onStockAdjust={() => setStockModalOpen(true)} />}
             {tab === 'Variantes' && isVariable && <VariantesTab product={product} token={token} productId={id} />}
-            {tab === 'Inventario' && <InventarioTab movements={movements} total={movTotal} onAdjust={() => setStockModalOpen(true)} />}
-            {tab === 'SEO'        && <SeoTab        product={product} onSave={updateMutation.mutate} saving={updateMutation.isPending} />}
+            {tab === 'Inventario' && <InventarioTab movements={movements} total={movTotal} stock={product.stock} onAdjust={() => setStockModalOpen(true)} />}
+            {tab === 'SEO'       && <SeoTab       product={product} onSave={updateMutation.mutate} saving={updateMutation.isPending} />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -196,6 +223,17 @@ function GeneralTab({ product, categories, onSave, saving }) {
     attributes:  Array.isArray(product.attributes) ? product.attributes : [],
   })
 
+  function slugify(s) {
+    return s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+  }
+
+  function handleNameChange(e) {
+    const name = e.target.value
+    const autoSlug = slugify(product.name ?? '')
+    const isAutoSlug = form.slug === autoSlug || form.slug === slugify(form.name)
+    setForm(f => ({ ...f, name, slug: isAutoSlug ? slugify(name) : f.slug }))
+  }
+
   function handleSubmit(e) {
     e.preventDefault()
     onSave({
@@ -211,59 +249,110 @@ function GeneralTab({ product, categories, onSave, saving }) {
   function removeAttr(i)    { setForm(f => ({ ...f, attributes: f.attributes.filter((_, idx) => idx !== i) })) }
   function setAttr(i, k, v) { setForm(f => ({ ...f, attributes: f.attributes.map((a, idx) => idx === i ? { ...a, [k]: v } : a) })) }
 
+  const categoryOptions = [
+    { value: '', label: 'Sin categoría' },
+    ...categories.map(c => ({ value: c.id, label: c.name })),
+  ]
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 max-w-2xl">
-      <SectionCard title="Informacion basica">
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="g-name">Nombre</Label>
-            <Input id="g-name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="g-slug">Slug</Label>
-            <Input id="g-slug" value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} required />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Descripcion</Label>
-            <MarkdownField value={form.description} onChange={v => setForm(f => ({ ...f, description: v }))} placeholder="Describe el producto..." />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="g-cat">Categoria</Label>
-            <select
-              id="g-cat"
-              className="w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm text-[hsl(var(--foreground))]"
-              value={form.category_id}
-              onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
-            >
-              <option value="">Sin categoria</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
-        </div>
-      </SectionCard>
+    <form onSubmit={handleSubmit}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main — 2/3 */}
+        <div className="lg:col-span-2 space-y-5">
+          <SectionCard title="Información básica">
+            <TextField
+              label="Nombre del producto"
+              value={form.name}
+              onChange={handleNameChange}
+              required
+            />
+            <TextField
+              label="Slug"
+              value={form.slug}
+              onChange={e => setForm(f => ({ ...f, slug: e.target.value }))}
+              description="Identificador en la URL del producto"
+              required
+            />
+            <MarkdownField
+              label="Descripción"
+              value={form.description}
+              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Describe el producto..."
+            />
+          </SectionCard>
 
-      <SectionCard title="Atributos">
-        <div className="space-y-2">
-          {form.attributes.map((a, i) => (
-            <div key={i} className="flex gap-2 items-center">
-              <Input placeholder="Clave" value={a.key} onChange={e => setAttr(i, 'key', e.target.value)} className="w-36" />
-              <Input placeholder="Valor" value={a.value} onChange={e => setAttr(i, 'value', e.target.value)} className="flex-1" />
-              <button type="button" onClick={() => removeAttr(i)} className="flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-red-100 hover:text-red-600 transition-colors text-xs">✕</button>
+          <SectionCard title="Atributos personalizados">
+            <div className="space-y-2">
+              {form.attributes.length === 0 && (
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                  Sin atributos. Agrega pares clave-valor para especificaciones adicionales.
+                </p>
+              )}
+              {form.attributes.map((a, i) => (
+                <div key={i} className="flex gap-2 items-end">
+                  <TextField
+                    label={i === 0 ? 'Clave' : undefined}
+                    value={a.key}
+                    onChange={e => setAttr(i, 'key', e.target.value)}
+                    placeholder="Ej: Material"
+                    className="w-40"
+                  />
+                  <TextField
+                    label={i === 0 ? 'Valor' : undefined}
+                    value={a.value}
+                    onChange={e => setAttr(i, 'value', e.target.value)}
+                    placeholder="Ej: Aluminio"
+                    className="flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeAttr(i)}
+                    className={cn(
+                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors',
+                      'text-[hsl(var(--muted-foreground))] hover:bg-red-50 hover:text-red-500',
+                      i === 0 && 'mb-0',
+                    )}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={addAttr}>
+                + Agregar atributo
+              </Button>
             </div>
-          ))}
-          <Button type="button" variant="outline" size="sm" onClick={addAttr}>+ Agregar atributo</Button>
+          </SectionCard>
         </div>
-      </SectionCard>
 
-      <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Guardar cambios'}</Button>
+        {/* Sidebar — 1/3 */}
+        <div className="space-y-5">
+          <SectionCard title="Organización">
+            <ComboboxField
+              label="Categoría"
+              options={categoryOptions}
+              value={form.category_id}
+              onChange={v => setForm(f => ({ ...f, category_id: v }))}
+              placeholder="Seleccionar categoría..."
+              searchPlaceholder="Buscar categoría..."
+              emptyText="Sin resultados"
+            />
+          </SectionCard>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <Button type="submit" disabled={saving}>
+          {saving ? 'Guardando...' : 'Guardar cambios'}
+        </Button>
+      </div>
     </form>
   )
 }
 
 function ImagenesTab({ product, token, onSave }) {
   return (
-    <div className="max-w-2xl">
-      <SectionCard title="Imagenes del producto">
+    <div className="max-w-3xl">
+      <SectionCard title="Imágenes del producto">
         <ProductImageManager
           token={token}
           coverId={product.cover_asset_id}
@@ -301,68 +390,120 @@ function PreciosTab({ product, onSave, saving, onStockAdjust }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 max-w-2xl">
-      <SectionCard title="Precios">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="pr-price">Precio</Label>
-            <Input id="pr-price" type="number" min="0" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} required />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="pr-currency">Moneda</Label>
-            <Input id="pr-currency" value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value.toUpperCase() }))} maxLength={3} />
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="pr-compare">Precio anterior (tachado, opcional)</Label>
-          <Input id="pr-compare" type="number" min="0" step="0.01" value={form.compare_price} onChange={e => setForm(f => ({ ...f, compare_price: e.target.value }))} />
-        </div>
-      </SectionCard>
-
-      {!isVariable && (
-        <>
-          <SectionCard title="Codigos">
+    <form onSubmit={handleSubmit}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main — 2/3 */}
+        <div className="lg:col-span-2 space-y-5">
+          <SectionCard title="Precio de venta">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="pr-sku">SKU</Label>
-                <Input id="pr-sku" value={form.sku} onChange={e => setForm(f => ({ ...f, sku: e.target.value }))} placeholder="Codigo interno" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="pr-barcode">Codigo de barras (EAN/UPC)</Label>
-                <Input id="pr-barcode" value={form.barcode} onChange={e => setForm(f => ({ ...f, barcode: e.target.value }))} />
-              </div>
+              <NumberField
+                label="Precio"
+                value={form.price}
+                onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+                min={0}
+                step={0.01}
+                required
+              />
+              <SelectField
+                label="Moneda"
+                options={CURRENCY_OPTIONS}
+                value={form.currency}
+                onValueChange={v => setForm(f => ({ ...f, currency: v }))}
+                placeholder="Seleccionar..."
+              />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="pr-weight">Peso (kg)</Label>
-              <Input id="pr-weight" type="number" min="0" step="0.001" value={form.weight} onChange={e => setForm(f => ({ ...f, weight: e.target.value }))} />
-            </div>
+            <NumberField
+              label="Precio anterior (tachado, opcional)"
+              value={form.compare_price}
+              onChange={e => setForm(f => ({ ...f, compare_price: e.target.value }))}
+              min={0}
+              step={0.01}
+              description="Se muestra tachado junto al precio actual para indicar descuento"
+            />
           </SectionCard>
 
-          <SectionCard title="Inventario">
-            <div className="flex items-center gap-3">
-              <Switch id="pr-track" checked={form.track_stock} onCheckedChange={v => setForm(f => ({ ...f, track_stock: v }))} />
-              <Label htmlFor="pr-track">Controlar stock</Label>
+          {!isVariable && (
+            <SectionCard title="Identificadores y logística">
+              <div className="grid grid-cols-2 gap-4">
+                <TextField
+                  label="SKU"
+                  value={form.sku}
+                  onChange={e => setForm(f => ({ ...f, sku: e.target.value }))}
+                  placeholder="Código interno"
+                  description="Referencia interna del producto"
+                />
+                <TextField
+                  label="Código de barras"
+                  value={form.barcode}
+                  onChange={e => setForm(f => ({ ...f, barcode: e.target.value }))}
+                  placeholder="EAN / UPC"
+                />
+              </div>
+              <NumberField
+                label="Peso (kg)"
+                value={form.weight}
+                onChange={e => setForm(f => ({ ...f, weight: e.target.value }))}
+                min={0}
+                step={0.001}
+                description="Peso para cálculo de costos de envío"
+              />
+            </SectionCard>
+          )}
+
+          {isVariable && (
+            <div className="rounded-2xl border border-dashed border-[hsl(var(--border))] p-6 text-center text-sm text-[hsl(var(--muted-foreground))]">
+              Los precios, SKU y stock se gestionan por variante.<br />
+              <span className="font-medium">Usa la pestaña Variantes.</span>
             </div>
-            {form.track_stock && (
-              <div className="flex items-center gap-6 mt-3 p-4 rounded-xl bg-[hsl(var(--muted))]/50">
+          )}
+        </div>
+
+        {/* Sidebar — 1/3 */}
+        {!isVariable && (
+          <div className="space-y-5">
+            <SectionCard title="Inventario">
+              <div className="flex items-start gap-3">
+                <Switch
+                  id="pr-track"
+                  checked={form.track_stock}
+                  onCheckedChange={v => setForm(f => ({ ...f, track_stock: v }))}
+                  className="mt-0.5"
+                />
                 <div>
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Stock actual</p>
-                  <p className="text-2xl font-bold text-[hsl(var(--foreground))]">{product.stock ?? 0}</p>
+                  <p className="text-sm font-medium leading-none">Controlar stock</p>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1">Registrar entradas y salidas</p>
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={onStockAdjust}>Registrar ajuste</Button>
               </div>
-            )}
-          </SectionCard>
-        </>
-      )}
 
-      {isVariable && (
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">
-          Los precios, SKU y stock se gestionan por variante en la pestana Variantes.
-        </p>
-      )}
+              {form.track_stock && (
+                <div className="rounded-xl bg-[hsl(var(--muted))]/50 p-4 space-y-3">
+                  <div>
+                    <p className="text-xs text-[hsl(var(--muted-foreground))]">Stock actual</p>
+                    <p className={cn(
+                      'text-3xl font-bold tabular-nums',
+                      (product.stock ?? 0) <= 0 ? 'text-red-500' : 'text-[hsl(var(--foreground))]',
+                    )}>
+                      {product.stock ?? 0}
+                    </p>
+                    {(product.stock ?? 0) <= 0 && (
+                      <p className="text-xs text-red-500 mt-0.5">Sin stock disponible</p>
+                    )}
+                  </div>
+                  <Button type="button" variant="outline" size="sm" className="w-full" onClick={onStockAdjust}>
+                    Registrar ajuste
+                  </Button>
+                </div>
+              )}
+            </SectionCard>
+          </div>
+        )}
+      </div>
 
-      <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Guardar cambios'}</Button>
+      <div className="mt-6">
+        <Button type="submit" disabled={saving}>
+          {saving ? 'Guardando...' : 'Guardar cambios'}
+        </Button>
+      </div>
     </form>
   )
 }
@@ -370,49 +511,78 @@ function PreciosTab({ product, onSave, saving, onStockAdjust }) {
 function VariantesTab({ product, token, productId }) {
   return (
     <div className="space-y-6 max-w-4xl">
-      <SectionCard title="Opciones">
+      <SectionCard title="Opciones de variante">
         <VariantOptionsEditor token={token} productId={productId} options={product.options ?? []} />
       </SectionCard>
-      <SectionCard title="Combinaciones de variantes">
+      <SectionCard title="Combinaciones">
         <VariantMatrix token={token} productId={productId} variants={product.variants ?? []} />
       </SectionCard>
     </div>
   )
 }
 
-function InventarioTab({ movements, total, onAdjust }) {
+function InventarioTab({ movements, total, stock, onAdjust }) {
   function fmtDate(val) {
     if (!val) return '—'
-    try { return new Date(val).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) } catch { return val }
+    try {
+      return new Date(val).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })
+    } catch {
+      return val
+    }
   }
 
   return (
-    <div className="space-y-4 max-w-2xl">
+    <div className="space-y-5 max-w-3xl">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
-          Movimientos de stock ({total})
-        </p>
+        <div>
+          <h3 className="text-sm font-semibold">Movimientos de inventario</h3>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            {total} movimiento{total !== 1 ? 's' : ''} registrado{total !== 1 ? 's' : ''}
+          </p>
+        </div>
         <Button size="sm" onClick={onAdjust}>Registrar ajuste</Button>
       </div>
 
       {movements.length === 0 ? (
-        <div className="rounded-2xl border border-[hsl(var(--border))] p-8 text-center text-sm text-[hsl(var(--muted-foreground))]">
-          Sin movimientos registrados.
-        </div>
+        <EmptyState
+          icon={Package}
+          title="Sin movimientos"
+          description="Aún no hay ajustes de stock registrados para este producto."
+        />
       ) : (
         <div className="rounded-2xl border border-[hsl(var(--border))] divide-y divide-[hsl(var(--border))] overflow-hidden">
           {movements.map(m => (
-            <div key={m.id} className="flex items-start justify-between px-4 py-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className={cn('text-sm font-semibold', m.quantity_delta > 0 ? 'text-emerald-600' : 'text-red-600')}>
-                    {m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta}
-                  </span>
-                  {m.reason && <span className="text-sm text-[hsl(var(--foreground))]">{m.reason}</span>}
+            <div
+              key={m.id}
+              className="flex items-center justify-between px-4 py-3 hover:bg-[hsl(var(--muted))]/20 transition-colors"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={cn(
+                  'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+                  m.quantity_delta > 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600',
+                )}>
+                  {m.quantity_delta > 0
+                    ? <TrendingUp className="h-3.5 w-3.5" />
+                    : <TrendingDown className="h-3.5 w-3.5" />}
                 </div>
-                {m.note && <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">{m.note}</p>}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      'text-sm font-semibold tabular-nums',
+                      m.quantity_delta > 0 ? 'text-emerald-600' : 'text-red-600',
+                    )}>
+                      {m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta}
+                    </span>
+                    {m.reason && (
+                      <span className="text-sm text-[hsl(var(--foreground))] truncate">{m.reason}</span>
+                    )}
+                  </div>
+                  {m.note && (
+                    <p className="text-xs text-[hsl(var(--muted-foreground))] truncate mt-0.5">{m.note}</p>
+                  )}
+                </div>
               </div>
-              <p className="text-xs text-[hsl(var(--muted-foreground))] shrink-0">{fmtDate(m.created_at)}</p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))] shrink-0 ml-3">{fmtDate(m.created_at)}</p>
             </div>
           ))}
         </div>
@@ -433,41 +603,55 @@ function SeoTab({ product, onSave, saving }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 max-w-2xl">
-      <SectionCard title="Metadatos SEO">
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="seo-title">Titulo SEO</Label>
-            <Input id="seo-title" value={form.meta_title} onChange={e => setForm(f => ({ ...f, meta_title: e.target.value }))} placeholder={product.name} maxLength={160} />
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">{form.meta_title.length}/160</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="seo-desc">Descripcion SEO</Label>
-            <textarea
-              id="seo-desc"
-              className="w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm text-[hsl(var(--foreground))] resize-none"
-              rows={3}
+    <form onSubmit={handleSubmit}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main — 2/3 */}
+        <div className="lg:col-span-2">
+          <SectionCard title="Metadatos SEO">
+            <TextField
+              label="Título SEO"
+              value={form.meta_title}
+              onChange={e => setForm(f => ({ ...f, meta_title: e.target.value }))}
+              placeholder={product.name}
+              maxLength={160}
+              description={`${form.meta_title.length} / 160 caracteres`}
+            />
+            <TextareaField
+              label="Descripción SEO"
               value={form.meta_description}
               onChange={e => setForm(f => ({ ...f, meta_description: e.target.value }))}
-              placeholder="Descripcion para motores de busqueda..."
+              placeholder="Descripción para motores de búsqueda..."
               maxLength={320}
+              rows={4}
+              description={`${form.meta_description.length} / 320 caracteres`}
             />
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">{form.meta_description.length}/320</p>
-          </div>
+          </SectionCard>
         </div>
-      </SectionCard>
 
-      <SectionCard title="Vista previa en Google">
-        <div className="max-w-md space-y-0.5 p-3 rounded-xl bg-[hsl(var(--muted))]/30">
-          <p className="text-sm text-blue-600 truncate">{form.meta_title || product.name}</p>
-          <p className="text-xs text-green-700">/{product.slug}</p>
-          <p className="text-xs text-[hsl(var(--muted-foreground))] line-clamp-2">
-            {form.meta_description || product.description || 'Sin descripcion'}
-          </p>
+        {/* Sidebar — 1/3 */}
+        <div>
+          <SectionCard title="Vista previa en Google">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))] mb-3">
+              Ejemplo de resultado
+            </p>
+            <div className="space-y-0.5">
+              <p className="text-sm text-blue-600 font-medium truncate leading-snug">
+                {form.meta_title || product.name}
+              </p>
+              <p className="text-xs text-emerald-700 truncate">tudominio.com / {product.slug}</p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))] line-clamp-3 leading-relaxed mt-1">
+                {form.meta_description || product.description || 'Sin descripción SEO configurada.'}
+              </p>
+            </div>
+          </SectionCard>
         </div>
-      </SectionCard>
+      </div>
 
-      <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Guardar SEO'}</Button>
+      <div className="mt-6">
+        <Button type="submit" disabled={saving}>
+          {saving ? 'Guardando...' : 'Guardar SEO'}
+        </Button>
+      </div>
     </form>
   )
 }

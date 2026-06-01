@@ -1,0 +1,1 @@
+ALTER TABLE "catalog_product" ADD COLUMN IF NOT EXISTS "product_type" TEXT NOT NULL DEFAULT 'SIMPLE';

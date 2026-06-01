@@ -226,8 +226,8 @@ Import from `@atlas/ui` in any component. All exports below are available.
 | `DateTimeField` | Date + time picker |
 | `YearField` | Year-only picker |
 | `SelectField` | Controlled select dropdown |
-| `ComboboxField` | Searchable select with autocomplete |
-| `CreatableComboboxField` | Combobox that allows creating new options inline |
+| `ComboboxField` | Searchable select with autocomplete; use for read-only option sets |
+| `CreatableComboboxField` | Searchable combobox that shows a "+ Crear «X»" row when the typed term doesn't match any option; calls `onCreate(name)` on select. Use `placeholder="Buscar o crear..."`. Preferred over `SelectField` whenever new entries are possible. |
 | `CheckboxField` | Controlled checkbox |
 | `SwitchField` | Controlled toggle switch |
 | `RadioGroupField` | Controlled radio group |
@@ -348,3 +348,5 @@ Use this instruction before generating module code:
 > Prefer blueprint-driven UI (TABLE, FORM, DETAIL kinds) and existing `@atlas/ui` primitives whenever possible.
 > Use CUSTOM kind blueprints when a screen requires logic that TABLE/FORM/DETAIL cannot express.
 > Do not add entries to SCREEN_MAP for new custom modules — use CUSTOM kind views instead.
+>
+> **UI-first rule:** Never use native HTML form elements (`<select>`, `<input>`, `<textarea>`) — always use the `@atlas/ui` equivalent. For any searchable select with optional inline creation, use `CreatableComboboxField` with `placeholder="Buscar o crear..."`. For read-only searchable selects, use `ComboboxField`. Plain `SelectField` only for short fixed lists. All screens start with `PageHeader`. All destructive confirmations use `ConfirmDialog`. File attachments use `AttachmentsPanel` / `FileUploader` inline — never redirect to atlas.files.

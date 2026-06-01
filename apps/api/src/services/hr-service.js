@@ -5,6 +5,8 @@ import {
   hrEmployeeCreateSchema,
   hrEmployeeUpdateSchema,
 } from "@atlas/validators";
+import { createActivityService } from "./activity-service.js";
+import { createActivityBridge } from "./activity-bridge.js";
 
 class HrServiceError extends Error {
   constructor(message, status = 500) {
@@ -85,7 +87,13 @@ function mapCatalogPayload(payload) {
   };
 }
 
-export function createHrService({ prisma }) {
+export function createHrService({ prisma, activityBridge }) {
+  const bridge =
+    activityBridge ??
+    createActivityBridge({
+      prisma,
+      activityService: createActivityService({ prisma }),
+    });
   async function getUserContext(authUserId) {
     const profile = await prisma.userProfile.findUnique({
       where: { authUserId },
@@ -189,10 +197,7 @@ export function createHrService({ prisma }) {
       select: { id: true, mimeType: true },
     });
     if (!file) {
-      throw new HrServiceError(
-        "La imagen de perfil no es valida.",
-        400,
-      );
+      throw new HrServiceError("La imagen de perfil no es valida.", 400);
     }
     if (!file.mimeType?.startsWith("image/")) {
       throw new HrServiceError(
@@ -275,9 +280,11 @@ export function createHrService({ prisma }) {
     before,
     after,
     metadata,
+    companyId,
+    activityHint,
   }) {
-    await prisma.auditLog.create({
-      data: {
+    await bridge.logAndPublish({
+      auditEntry: {
         actorId,
         moduleKey: "atlas.hr",
         entityType: "HrEmployee",
@@ -287,11 +294,23 @@ export function createHrService({ prisma }) {
         after,
         metadata,
       },
+      hint: activityHint,
+      companyId,
     });
   }
 
   return {
-    async listEmployees({ authUserId, search, status, enabled, limit, page, pageSize, sortBy, sortDir }) {
+    async listEmployees({
+      authUserId,
+      search,
+      status,
+      enabled,
+      limit,
+      page,
+      pageSize,
+      sortBy,
+      sortDir,
+    }) {
       const { companyId } = await getUserContext(authUserId);
 
       // Paginated path (used by AtlasTable)
@@ -299,7 +318,10 @@ export function createHrService({ prisma }) {
         const take = Math.min(Math.max(1, Number(pageSize) || 20), 200);
         const skip = (Math.max(1, Number(page) || 1) - 1) * take;
         const SORT_MAP = {
-          full_name: [{ lastName: sortDir || "asc" }, { firstName: sortDir || "asc" }],
+          full_name: [
+            { lastName: sortDir || "asc" },
+            { firstName: sortDir || "asc" },
+          ],
           hire_date: [{ hireDate: sortDir || "asc" }],
           status: [{ status: sortDir || "asc" }],
           department: [{ department: sortDir || "asc" }],
@@ -363,7 +385,14 @@ export function createHrService({ prisma }) {
           },
           departmentRef: { select: { id: true, name: true } },
           jobTitleRef: { select: { id: true, name: true } },
-          userProfile: { select: { id: true, displayName: true, email: true, avatarFileId: true } },
+          userProfile: {
+            select: {
+              id: true,
+              displayName: true,
+              email: true,
+              avatarFileId: true,
+            },
+          },
         },
       });
       if (!row) {
@@ -394,11 +423,18 @@ export function createHrService({ prisma }) {
 
       if (normalized.employeeCode) {
         const codeConflict = await prisma.hrEmployee.findFirst({
-          where: { companyId, employeeCode: normalized.employeeCode, enabled: true },
+          where: {
+            companyId,
+            employeeCode: normalized.employeeCode,
+            enabled: true,
+          },
           select: { id: true },
         });
         if (codeConflict) {
-          throw new HrServiceError("El código de colaborador ya está en uso.", 400);
+          throw new HrServiceError(
+            "El código de colaborador ya está en uso.",
+            400,
+          );
         }
       }
 
@@ -416,6 +452,7 @@ export function createHrService({ prisma }) {
         before: null,
         after: created,
         metadata: { source: "api" },
+        companyId,
       });
       return created;
     },
@@ -451,11 +488,19 @@ export function createHrService({ prisma }) {
 
       if (normalized.employeeCode) {
         const codeConflict = await prisma.hrEmployee.findFirst({
-          where: { companyId, employeeCode: normalized.employeeCode, enabled: true, id: { not: id } },
+          where: {
+            companyId,
+            employeeCode: normalized.employeeCode,
+            enabled: true,
+            id: { not: id },
+          },
           select: { id: true },
         });
         if (codeConflict) {
-          throw new HrServiceError("El código de colaborador ya está en uso.", 400);
+          throw new HrServiceError(
+            "El código de colaborador ya está en uso.",
+            400,
+          );
         }
       }
 
@@ -470,6 +515,7 @@ export function createHrService({ prisma }) {
         before,
         after: updated,
         metadata: { source: "api" },
+        companyId,
       });
       return updated;
     },
@@ -489,6 +535,15 @@ export function createHrService({ prisma }) {
         before,
         after: updated,
         metadata: { source: "api" },
+        companyId,
+        activityHint: {
+          type: "hr.employee.setEnabled",
+          summary: updated.enabled
+            ? `Colaborador habilitado: ${updated.firstName ?? ""} ${updated.lastName ?? ""}`.trim()
+            : `Colaborador deshabilitado: ${updated.firstName ?? ""} ${updated.lastName ?? ""}`.trim(),
+          severity: updated.enabled ? "success" : "warning",
+          link: `/hr/employees/${id}`,
+        },
       });
       return updated;
     },

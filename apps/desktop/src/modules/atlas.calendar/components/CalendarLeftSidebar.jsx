@@ -104,7 +104,7 @@ export default function CalendarLeftSidebar({ onNewCalendar, onEditCalendar, onS
   }
 
   return (
-    <aside className="w-56 shrink-0 flex flex-col border-r border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] overflow-y-auto">
+    <aside className="w-56 h-full shrink-0 flex flex-col border-r border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] overflow-y-auto">
       <div className="pt-3">
         <MiniCalendar selectedDate={selectedDate} onSelectDate={setSelectedDate} />
       </div>

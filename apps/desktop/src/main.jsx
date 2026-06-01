@@ -33,8 +33,8 @@ import { PublicWebsiteEntry } from "./shell/PublicWebsiteEntry.jsx";
 import { PublicClientLogin } from "./shell/PublicClientLogin.jsx";
 import "./styles.css";
 
-const SmtpSettingsScreen = lazy(() =>
-  import("./modules/platform-settings/screens/SmtpSettingsScreen.jsx"),
+const SmtpSettingsScreen = lazy(
+  () => import("./modules/platform-settings/screens/SmtpSettingsScreen.jsx"),
 );
 
 const queryClient = new QueryClient({
@@ -142,9 +142,7 @@ function AppAccessGuard() {
   }
 
   if (!session) {
-    return (
-      <Navigate to="/login" replace state={{ branding: data.branding }} />
-    );
+    return <Navigate to="/login" replace state={{ branding: data.branding }} />;
   }
 
   return <Outlet />;
@@ -191,7 +189,10 @@ function App() {
                   <Route path="home" element={<HomeScreen />} />
                   <Route path="m/:moduleKey/*" element={<ModuleOutlet />} />
                   <Route path="profile" element={<ProfileScreen />} />
-                  <Route path="settings/smtp" element={<SmtpSettingsScreen />} />
+                  <Route
+                    path="settings/smtp"
+                    element={<SmtpSettingsScreen />}
+                  />
                 </Route>
               </Route>
               <Route path="/p" element={<PublicShell />}>

@@ -17,10 +17,10 @@ export default function createCatalogRouter({ prisma, requirePermission }) {
   const stockSvc   = createCatalogStockService({ prisma })
   const publicSvc  = createCatalogPublicService({ prisma })
 
-  app.route('/', createCategoriesRouter({ productSvc, requirePermission }))
-  app.route('/', createProductsRouter({ productSvc, requirePermission }))
+  app.route('/', createCategoriesRouter({ productSvc, prisma, requirePermission }))
+  app.route('/', createProductsRouter({ productSvc, prisma, requirePermission }))
   app.route('/', createVariantsRouter({ variantSvc, requirePermission }))
-  app.route('/', createStockRouter({ stockSvc, requirePermission }))
+  app.route('/', createStockRouter({ stockSvc, prisma, requirePermission }))
   app.route('/', createPublicRouter({ publicSvc }))
 
   return app

@@ -38,6 +38,10 @@ function expandRecurrence(event, rangeStart, rangeEnd) {
       const next = new Date(current)
       next.setMonth(next.getMonth() + interval)
       current = next
+    } else if (freq === 'YEARLY') {
+      const next = new Date(current)
+      next.setFullYear(next.getFullYear() + interval)
+      current = next
     } else {
       break
     }

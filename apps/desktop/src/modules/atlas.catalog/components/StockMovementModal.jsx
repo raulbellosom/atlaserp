@@ -1,28 +1,48 @@
 // apps/desktop/src/modules/atlas.catalog/components/StockMovementModal.jsx
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Input, Label } from '@atlas/ui'
+import {
+  Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  NumberField, SelectField, TextField, cn,
+} from '@atlas/ui'
+import { ArrowDown, ArrowUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { atlas } from '../../../lib/atlas.js'
 
+const REASON_NONE = '__none__'
+
+const REASON_OPTIONS = [
+  { value: REASON_NONE,         label: 'Sin razón específica' },
+  { value: 'Ajuste manual',     label: 'Ajuste manual' },
+  { value: 'Compra',            label: 'Compra' },
+  { value: 'Venta',             label: 'Venta' },
+  { value: 'Devolución',        label: 'Devolución' },
+  { value: 'Merma',             label: 'Merma' },
+  { value: 'Inventario físico', label: 'Inventario físico' },
+]
+
 export default function StockMovementModal({ open, onClose, token, productId, variantId = null, variantLabel = null }) {
   const queryClient = useQueryClient()
-  const [delta, setDelta]   = useState('')
-  const [reason, setReason] = useState('')
-  const [note, setNote]     = useState('')
+  const [direction, setDirection] = useState('entrada')
+  const [qty,       setQty]       = useState('')
+  const [reason,    setReason]    = useState(REASON_NONE)
+  const [note,      setNote]      = useState('')
+
+  const isEntrada = direction === 'entrada'
+  const delta     = qty ? (isEntrada ? Number(qty) : -Number(qty)) : 0
 
   const mutation = useMutation({
     mutationFn: () => atlas.catalog.recordStockMovement(productId, {
       variant_id:     variantId ?? undefined,
-      quantity_delta: Number(delta),
-      reason:         reason || undefined,
+      quantity_delta: delta,
+      reason:         reason === REASON_NONE ? undefined : reason,
       note:           note   || undefined,
     }, token),
     onSuccess: () => {
       toast.success('Ajuste registrado')
       queryClient.invalidateQueries({ queryKey: ['catalog-product', productId] })
       queryClient.invalidateQueries({ queryKey: ['catalog-stock-movements', productId] })
-      setDelta(''); setReason(''); setNote('')
+      setDirection('entrada'); setQty(''); setReason(REASON_NONE); setNote('')
       onClose()
     },
     onError: (err) => toast.error(err?.message ?? 'Error al registrar ajuste'),
@@ -30,50 +50,102 @@ export default function StockMovementModal({ open, onClose, token, productId, va
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!delta || Number(delta) === 0) return toast.error('El delta no puede ser cero')
+    const n = Number(qty)
+    if (!qty || isNaN(n) || n <= 0) return toast.error('La cantidad debe ser mayor a cero')
     mutation.mutate()
   }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Registrar ajuste de stock</DialogTitle>
         </DialogHeader>
+
         {variantLabel && (
           <p className="text-sm text-[hsl(var(--muted-foreground))]">
             Variante: <strong className="text-[hsl(var(--foreground))]">{variantLabel}</strong>
           </p>
         )}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="sm-delta">Cantidad (+ entrada / - salida)</Label>
-            <Input id="sm-delta" type="number" placeholder="ej. 10 o -3" value={delta} onChange={e => setDelta(e.target.value)} required />
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Direction + quantity row */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Movimiento</p>
+
+            {/* Segmented control */}
+            <div className="flex rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 p-1 gap-1">
+              <button
+                type="button"
+                onClick={() => setDirection('entrada')}
+                className={cn(
+                  'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-150',
+                  isEntrada
+                    ? 'bg-emerald-500 text-white shadow-sm'
+                    : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
+                )}
+              >
+                <ArrowUp className="h-4 w-4" />
+                Entrada
+              </button>
+              <button
+                type="button"
+                onClick={() => setDirection('salida')}
+                className={cn(
+                  'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-150',
+                  !isEntrada
+                    ? 'bg-red-500 text-white shadow-sm'
+                    : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
+                )}
+              >
+                <ArrowDown className="h-4 w-4" />
+                Salida
+              </button>
+            </div>
+
+            {/* Quantity input */}
+            <NumberField
+              label="Cantidad"
+              value={qty}
+              onChange={e => setQty(e.target.value)}
+              min={1}
+              step={1}
+              placeholder="Ej. 10"
+              required
+              description={
+                qty && Number(qty) > 0
+                  ? `Resultado: ${isEntrada ? '+' : '-'}${Number(qty)} unidades`
+                  : 'Ingresa un número entero positivo'
+              }
+            />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="sm-reason">Razon</Label>
-            <select
-              id="sm-reason"
-              className="w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm text-[hsl(var(--foreground))]"
-              value={reason}
-              onChange={e => setReason(e.target.value)}
-            >
-              <option value="">Sin razon especifica</option>
-              <option value="Ajuste manual">Ajuste manual</option>
-              <option value="Compra">Compra</option>
-              <option value="Venta">Venta</option>
-              <option value="Devolucion">Devolucion</option>
-              <option value="Merma">Merma</option>
-              <option value="Inventario fisico">Inventario fisico</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="sm-note">Nota (opcional)</Label>
-            <Input id="sm-note" value={note} onChange={e => setNote(e.target.value)} placeholder="Detalle adicional..." />
-          </div>
+
+          <SelectField
+            label="Razón"
+            options={REASON_OPTIONS}
+            value={reason}
+            onValueChange={v => setReason(v)}
+            placeholder="Sin razón específica"
+          />
+
+          <TextField
+            label="Nota (opcional)"
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="Detalle adicional del ajuste..."
+          />
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? 'Guardando...' : 'Registrar'}</Button>
+            <Button
+              type="submit"
+              disabled={mutation.isPending}
+              className={cn(!isEntrada && 'bg-red-500 hover:bg-red-600')}
+            >
+              {mutation.isPending
+                ? 'Guardando...'
+                : isEntrada ? 'Registrar entrada' : 'Registrar salida'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

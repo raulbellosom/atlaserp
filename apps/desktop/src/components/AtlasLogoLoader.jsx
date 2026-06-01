@@ -1,41 +1,78 @@
 import { motion, useReducedMotion } from "motion/react";
 
-// ─── Logo geometry (SVG viewBox 0 0 100 100) ─────────────────────────────────
+// ─── Atlas ERP Isotype — pixel-perfect path data ─────────────────────────────
 //
-// The Atlas isotype is an isometric 3-face "A" arch:
-//   TOP FACE   → dark navy flat roof/chevron
-//   LEFT FACE  → dark navy vertical pillar
-//   RIGHT FACE → cyan/blue bright pillar
+// Paths extracted verbatim from atlas-erp-isotipo.svg (viewBox 1254×1254).
+// The artwork is split into 3 logical faces so each can fly into place
+// independently, producing a clean "assembly" loader.
 //
-// Paths traced from the actual isotype PNG to match real geometry.
-// The hollow "A" arch opening is the natural gap between left/right pillars.
+//   ① TOP CHEVRON   → dark-navy roof of the "A" arch (drops in from above)
+//   ② LEFT PILLAR   → dark-navy base on the left (slides up from bottom-left)
+//   ③ RIGHT PILLAR  → cyan gradient stack + dark accent (slides from right + glow)
+//   ④ SHADOWS       → fade in last for depth
 
-const TOP_FACE   = "M 18 38  L 50 10  L 82 38  L 66 46  L 50 26  L 34 46 Z";
-const LEFT_FACE  = "M 12 44  L 34 48  L 34 90  L 12 86 Z";
-const RIGHT_FACE = "M 66 48  L 88 44  L 88 86  L 66 90 Z";
+const PATH = {
+  topLeft:
+    "M343.26 635.57c-4.29-1.71-7.96-8.45-7.23-13.35.61-3.67 36.86-70.66 94.54-174.63 11.88-21.55 25.35-45.8 29.76-53.88 28.53-51.56 63.92-113.03 67.6-117.32l4.53-5.14 95.64-.37c66.25-.24 96.38.12 98.09.98 2.57 1.35 3.31 6 1.35 7.96-2.69 2.82-70.66 136.67-89.52 176.34-11.14 23.51-46.78 98.7-56.94 120.62-4.9 10.41-12.61 26.7-17.02 36.13-4.9 10.53-9.43 18.49-11.76 20.57l-3.67 3.31-101.4-.12c-57.07 0-102.5-.49-103.97-1.1z",
+  topRight:
+    "M701.7 634.1c-3.8-2.57-15.8-19.1-55.72-76.29-11.51-16.41-14.21-19.72-17.02-19.96-3.18-.37-3.43-.73-2.69-4.29.73-3.67 16.78-37.11 80.33-167.4 15.68-31.96 29.27-60.25 30.25-62.7 1.35-3.55 2.57-4.65 4.65-4.65 2.45 0 5.63 5.02 23.39 37.72 11.27 20.7 25.47 46.66 31.47 57.8 37.84 69.44 66.74 123.44 107.28 200.59 6.86 13.1 12.74 25.23 13.1 27.19.86 4.04-1.96 9.92-6.12 12.74-2.82 1.71-12.37 1.96-103.97 1.96l-100.91 0-4.04-2.69z",
+  leftMain:
+    "M186.75 911.35c-2.2-5.63-.98-7.96 70.05-138.01 11.51-20.82 27.55-50.58 35.88-66.13 8.33-15.43 16.9-30 19.1-32.08l3.92-4.04 107.77 0c59.27 0 108.62.37 109.72.73 3.06 1.22 2.33 5.02-2.2 12.61-2.33 3.8-11.02 18.98-19.47 33.8-8.33 14.82-19.59 34.66-24.98 44.09-5.51 9.43-22.41 39.19-37.72 66.13-35.64 62.82-36.86 64.9-42.13 72.86-7.96 11.88 2.33 10.9-115.6 11.27-85.48.37-103.85.12-104.34-1.22z",
+  leftShadow:
+    "M211.98 948.09c-3.18-1.59-6.61-6.12-14.94-19.72-6-9.67-10.53-18.12-10.16-18.61.37-.61 46.54-1.1 102.5-1.1 99.07 0 102.01-.12 105.81-2.45 5.63-3.43 5.76-3.55 49.96-81.44 15.31-26.94 32.21-56.7 37.72-66.13 5.39-9.43 16.65-29.27 24.98-44.09 8.45-14.82 17.14-30.13 19.47-33.92 2.45-3.92 4.04-7.59 3.55-8.33-.37-.61-.24-1.22.24-1.22 2.94 0 7.59 5.63 20.33 24.25 7.59 11.27 21.8 31.96 31.35 46.05 12.49 18.25 17.76 26.82 18.12 30 .61 4.9 1.22 3.55-15.8 33.8-17.27 30.74-29.88 53.03-54.74 97.36-13.23 23.63-24 41.39-26.57 43.84l-4.16 3.92-141.69 0c-132.63 0-142.05-.12-145.97-2.2z",
+  centerShadow:
+    "M557.32 615.86c19.47-41.64 57.68-122.71 77.03-163.36 15.68-32.94 80.21-160.55 89.52-176.96 0.98-1.71 1.71-3.18 1.84-3.43.12-.12 1.1 0 2.2.49 2.08.73 7.47 9.55 16.65 26.82 2.82 5.39 3.92 8.33 2.45 6.49-1.47-1.96-3.06-3.43-3.67-3.43-.49 0-1.84 2.08-2.82 4.65-.98 2.45-14.57 30.74-30.25 62.7-59.39 121.85-79.6 163.73-79.6 165.08 0 .86-1.35 2.08-2.94 2.69-1.84.61-14.33 16.29-32.45 40.66-48.98 65.76-52.9 69.68-37.96 37.6z",
+  rightDarkBase:
+    "M746.77 945.77c-1.84-1.96-9.18-14.21-16.41-27.31-7.23-13.1-15.68-28.53-18.86-34.29-3.06-5.76-16.29-29.64-29.39-53.27-32.21-58.41-30.86-55.72-30.13-59.88.61-3.06 5.51-10.53 21.43-33.19 2.33-3.31 11.63-16.9 20.7-30 20.7-30 24.25-34.53 27.43-34.04 1.84.24 9.06 12 27.92 45.68 14.08 24.98 38.7 68.7 54.74 97.36l29.27 52.05-4.78.37c-6 .49-8.08 2.57-9.06 8.45-.37 2.57-1.71 6-3.06 7.59-1.22 1.59-2.2 4.78-2.2 6.98 0 4.78-2.2 10.29-4.16 10.29-.86 0-2.2 2.57-3.18 5.76-.86 3.18-2.2 6.49-2.94 7.47-4.65 5.51-7.96 8.82-8.94 8.82-3.18 0-7.72 3.31-7.72 5.76 0 3.92-1.22 6.49-3.18 6.49-.98 0-1.71.61-1.71 1.22 0 .73-1.1 1.22-2.45 1.22-1.35 0-2.45.49-2.45 1.1 0 .61-2.33 1.35-5.14 1.84-12.61 1.59-14.45 2.2-14.45 4.53 0 3.8-7.35 3.06-11.27-.98z",
+  cyanInner:
+    "M795.87 812.28c-15.06-26.82-37.96-67.72-51.07-90.99-12.98-23.27-24.61-42.98-25.72-43.84-1.96-1.47-1.84-1.84.98-3.92 2.94-2.33 5.63-2.33 74.7-2.2 39.43.24 63.56.49 53.76.61-14.08.37-18.37.86-19.47 2.2-.86.98-1.47 5.02-1.47 8.94 0 3.8-.61 7.35-1.35 7.72-.61.49-.86 1.71-.49 2.94.49 1.1 1.35 1.71 1.96 1.22 1.22-.73.86 5.76-.37 7.84-.49.61-.12 1.84.73 2.82 2.33 2.45 2.45 4.65.24 4.65-1.71 0-1.71.12 0 1.96 2.2 2.2 2.45 3.67.73 4.78-.61.37-1.22 1.84-1.22 3.18 0 1.22-.61 2.33-1.47 2.33-1.1 0-1.1.37 0 1.47 1.71 1.71 1.96 5.14.24 4.04-.61-.37-1.22.12-1.22 1.1 0 1.1.61 1.96 1.22 1.96.73 0 1.22 1.22 1.22 2.82 0 1.96-.37 2.2-1.1.98-.61-.98-1.35-1.1-1.84-.37-.37.61.37 2.45 1.71 3.92 2.82 3.31 2.94 3.92 1.1 5.76-.98.98-.86 1.84.49 2.94 1.59 1.47 1.59 2.2.12 5.02-1.22 2.45-1.35 4.16-.49 6.49 1.59 4.04 1.59 4.65-.12 3.55-.86-.49-.86.12.12 1.96 1.22 2.2.98 3.06-.86 5.14-1.59 1.84-1.84 2.69-.61 3.06.73.37 1.47 1.35 1.47 2.2 0 .86-.73 1.96-1.47 2.2-1.22.49-1.1.98.24 1.96 1.47.98 1.47 1.59.24 2.82-1.71 1.71-2.08 11.27-.24 10.16.73-.37 1.22-.24 1.22.49 0 .61-.73 1.35-1.47 1.71-1.22.37-1.22 1.1.12 3.43 1.1 1.84 1.22 2.94.37 3.31-.98.24-.98 1.22 0 3.31.73 1.71.86 3.8.24 5.14-1.22 2.94-1.47 12.61-.24 12.61.49 0 .86.37.86.98-.49 2.69.24 5.14 1.35 4.53.73-.37 1.22.12 1.22 1.1 0 1.1-.86 1.96-1.84 1.96-1.1 0-1.47.73-.98 1.96.37 1.1 1.1 1.35 1.47.73.49-.73 1.35-.49 2.33.49.86.98 1.1 1.71.49 1.71-.61 0-1.1.86-1.1 1.84 0 .98.49 1.84 1.1 1.84.49 0 0 1.1-1.22 2.45-2.45 2.94-3.06 7.35-.98 7.35.73 0 .61.49-.37 1.1-1.47.98-1.59 1.71-.37 4.29.98 2.2.98 3.18.12 3.18-.73 0-1.1.86-.61 1.84.49 1.35-.12 1.84-2.2 1.84-2.57 0-6.25-6-30.25-48.62z",
+  cyanMid:
+    "M859.31 912.33c-2.57-.49-6.25-2.33-8.08-4.16-1.96-1.84-8.82-12.86-15.31-24.49l-11.76-21.19 0-11.14c0-6.86.49-11.39 1.35-12 .98-.49.86-1.1-.24-1.71-.86-.61-1.96-3.92-2.45-7.59-1.1-8.08-1.22-56.82-.12-70.29.49-5.39.37-12-.24-14.7-1.35-5.76-.98-25.23.37-26.21.61-.37.49-6.37 0-13.47-.98-11.76-.73-19.84.86-30.25l.61-4.04 51.68.24c29.02.12 45.8.61 38.21.98-7.35.37-12.74.86-11.88.98 2.2.37 1.84 2.69-.61 2.69-1.1 0-1.71.37-1.22.73.37.37.12 2.08-.49 3.8-.61 1.71-.73 3.67-.24 4.41 1.47 2.2 1.22 15.55-.24 15.55-.61 0-.49.49.49 1.1 1.22.86 1.59 4.78 1.47 17.39-.12 9.06-.37 18.25-.49 20.57-.24 2.33.37 4.78 1.35 5.76.86.98 1.1 1.71.49 1.71-.98 0-1.71 6.25-1.59 13.84 0 1.35-.61 1.84-1.47 1.22-1.1-.61-1.1-.37 0 .98.73.98 1.47 5.02 1.47 9.06 0 4.29.49 7.47 1.35 7.72.73.24.12 1.47-1.35 2.82-1.47 1.22-2.08 2.33-1.47 2.33.73 0 1.59 1.35 1.84 3.06.49 2.2.12 3.06-1.35 3.06-1.59 0-1.59.24-.24 1.1 1.1.73 1.35 2.2.86 4.16-.49 1.96-.12 3.8.86 4.78 1.47 1.35 1.47 1.96-.12 3.43-1.22 1.1-1.35 1.84-.49 2.2.73.24.98 1.22.61 2.2-.37.98.12 2.69.98 3.8 1.35 1.59 1.35 2.08.24 2.45-.86.37-1.59 1.47-1.59 2.57 0 1.71.24 1.84 1.22.24.61-.98 1.47-1.47 1.84-.98.37.37-.12 1.59-1.22 2.69-1.22 1.22-1.84 3.67-1.59 6.86.12 3.31.61 4.53 1.47 3.67.61-.61 1.84-1.22 2.57-1.22.61 0-.61 1.71-2.94 3.67-3.55 3.18-3.8 3.67-1.59 3.67 1.35 0 2.69.86 3.18 1.84.73 2.08-.61 2.45-2.45.61-.86-.86-1.35-.73-1.35.61 0 .98.86 1.84 1.96 1.96 1.71 0 1.59.12-.12.86-1.59.61-1.84 1.35-.98 2.69.73 1.1 1.22 1.22 1.22.37 0-.86.86-1.22 1.96-.73 1.59.61 1.47.98-.61 3.06-2.82 2.57-3.55 4.53-.86 2.33 1.35-1.1 1.96-1.1 2.69 0 .49.73 0 1.96-1.22 2.57-2.45 1.35-2.57 3.43-.12 3.43.98 0 1.84 1.1 1.84 2.45 0 1.35.61 2.45 1.35 2.45.98 0 .86.61-.12 1.84-.86 1.1-2.33 1.71-3.31 1.35-1.1-.49-1.35-.12-.86.61.49.73 0 1.84-.86 2.45-1.35.86-1.35 1.1.37 1.1 1.1 0 2.33-.73 2.57-1.47.49-1.22.98-1.1 1.96.24.86 1.22.73 2.08-.12 2.57-.98.61-1.1 1.47-.24 2.57 2.08 2.57 1.35 6.49-.98 6.37-2.33-.24-2.94 1.35-1.1 2.45.61.37 1.35 1.84 1.71 3.31.49 1.84.24 2.33-1.1 1.84-2.08-.86-2.2.98-.24 4.16 1.84 2.94.49 4.53-2.08 2.45-2.08-1.71-2.33-.98-1.84 5.27.12 1.84-.49 3.31-1.22 3.31-1.22 0-1.1.49 0 1.84.86.98 2.33 1.84 3.18 1.84.98 0 1.71.49 1.71 1.1 0 .73-2.57 1.47-5.76 1.71-5.27.37-5.14.49 1.84.61 8.57.24 10.53 2.69 2.2 2.69-3.06 0-5.88.61-6.25 1.22-.86 1.35-30.49 1.47-37.72 0z",
+  cyanOuter:
+    "M912.7 912.58l-22.41-.24 0-4.29c0-3.43.49-4.29 2.33-4.29 1.96 0 2.57-1.22 3.18-6.86.49-3.67 1.71-7.47 2.57-8.45.98-.98 1.71-4.29 1.71-7.84 0-3.43.61-6.25 1.22-6.25.73 0 1.22-.49 1.22-1.22 0-.61-1.22-1.22-2.57-1.22-2.45 0-2.57-.49-1.84-6.37.49-4.04-.12-11.63-1.35-19.84-1.71-10.41-1.84-13.47-.61-13.96 1.84-.61 1.84-7.84 0-31.84-1.1-14.08-1.1-18.98 0-19.59.98-.73.98-3.31.12-9.92-.73-5.02-.98-10.29-.49-11.63 1.35-4.29 2.08-53.39.73-53.39-1.35 0-.98-30.62.37-32.82.61-.98 7.1-1.47 21.43-1.47l20.45 0 3.18 3.31c1.71 1.96 14.33 24.12 27.92 49.35 13.59 25.23 30.13 55.84 36.74 67.97 6.61 12.12 17.39 32.21 23.88 44.7 6.61 12.49 15.31 29.02 19.47 36.74 16.41 30.49 17.27 32.57 15.92 36.37l-1.1 3.43-64.9 0c-35.76 0-74.95-.12-87.19-.37z",
+};
 
-const SPRING   = [0.16, 1, 0.3, 1];
-const DURATION = 3.2;
+const SPRING = [0.16, 1, 0.3, 1];
+const DURATION = 3.4;
 
-function AtlasLogoSVG({ size = 140 }) {
+function AtlasIsotypeStatic({ size }) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 100 100"
+      viewBox="0 0 1254 1254"
       fill="none"
       aria-label="Atlas ERP"
       role="img"
     >
-      <path d={TOP_FACE}   fill="#0A1D44" />
-      <path d={LEFT_FACE}  fill="#102A5E" />
-      <path d={RIGHT_FACE} fill="#21C7FF" />
+      <defs>
+        <linearGradient
+          id="atlas-lg"
+          gradientUnits="userSpaceOnUse"
+          x1="58%"
+          y1="63%"
+          x2="84.5%"
+          y2="63%"
+        >
+          <stop offset="0%" stopColor="#027AF3" />
+          <stop offset="100%" stopColor="#07BFFB" />
+        </linearGradient>
+      </defs>
+      <path d={PATH.cyanOuter} fill="url(#atlas-lg)" />
+      <path d={PATH.cyanMid} fill="url(#atlas-lg)" />
+      <path d={PATH.cyanInner} fill="url(#atlas-lg)" />
+      <path d={PATH.rightDarkBase} fill="#023698" />
+      <path d={PATH.topLeft} fill="#023581" />
+      <path d={PATH.topRight} fill="#023581" />
+      <path d={PATH.leftMain} fill="#023581" />
+      <path d={PATH.leftShadow} fill="#011947" />
+      <path d={PATH.centerShadow} fill="#011947" />
     </svg>
   );
 }
 
 /**
- * Animated Atlas ERP logo — 3 SVG faces fly in and assemble.
+ * Animated Atlas ERP logo loader — pixel-perfect isotype that assembles in 3 phases.
  *
  * @param {object}  props
  * @param {number}  props.size       Container size in px. Default 140.
@@ -53,8 +90,10 @@ export function AtlasLogoLoader({
 
   if (reduced) {
     return (
-      <div className={`flex flex-col items-center justify-center gap-4 ${className}`}>
-        <AtlasLogoSVG size={size} />
+      <div
+        className={`flex flex-col items-center justify-center gap-4 ${className}`}
+      >
+        <AtlasIsotypeStatic size={size} />
         {showLabel && (
           <span
             className="text-xs font-medium tracking-[0.2em] uppercase"
@@ -67,115 +106,146 @@ export function AtlasLogoLoader({
     );
   }
 
+  // Loop timeline (% of DURATION):
+  //   0  – 8   pre-roll (hidden)
+  //   8  – 28  top chevron drops in
+  //   22 – 42  left pillar slides up from bottom-left
+  //   34 – 54  right cyan stack slides in from bottom-right + glow burst
+  //   54 – 70  inner shadows fade in
+  //   70 – 88  assembled hold
+  //   88 – 100 ease out, restart
+  const loopBase = {
+    duration: DURATION,
+    repeat: Infinity,
+    ease: SPRING,
+  };
+
   return (
-    <div className={`flex flex-col items-center justify-center gap-5 ${className}`}>
-      {/* ── SVG Assembly ───────────────────────────────────────────────── */}
+    <div
+      className={`flex flex-col items-center justify-center gap-5 ${className}`}
+    >
       <svg
         width={size}
         height={size}
-        viewBox="0 0 100 100"
+        viewBox="0 0 1254 1254"
         fill="none"
         aria-label="Atlas ERP logo animado"
         role="img"
         style={{ overflow: "visible" }}
       >
         <defs>
-          {/* Glow for the cyan face */}
-          <filter id="atlas-glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          {/* Drop shadow for depth */}
-          <filter id="atlas-shadow" x="-30%" y="-30%" width="160%" height="160%">
-            <feDropShadow dx="0" dy="4" stdDeviation="5" floodColor="#000" floodOpacity="0.28" />
+          <linearGradient
+            id="atlas-lg-anim"
+            gradientUnits="userSpaceOnUse"
+            x1="58%"
+            y1="63%"
+            x2="84.5%"
+            y2="63%"
+          >
+            <stop offset="0%" stopColor="#027AF3" />
+            <stop offset="100%" stopColor="#07BFFB" />
+          </linearGradient>
+
+          <filter
+            id="atlas-anim-shadow"
+            x="-20%"
+            y="-20%"
+            width="140%"
+            height="140%"
+          >
+            <feDropShadow
+              dx="0"
+              dy="18"
+              stdDeviation="22"
+              floodColor="#011947"
+              floodOpacity="0.32"
+            />
           </filter>
         </defs>
 
-        {/* ① TOP FACE — drops in from above */}
-        <motion.path
-          d={TOP_FACE}
-          fill="#0A1D44"
-          filter="url(#atlas-shadow)"
-          initial={{ opacity: 0 }}
-          animate={{
-            opacity: [0,    0,    1,    1,    1,    1,    0.95, 0   ],
-            y:       [-28, -28,   0,    0,    0,   -1,   -2,   -4  ],
-            scale:   [0.9,  0.9,  1,    1,    1,    1.02, 1.01, 0.95],
-          }}
-          transition={{
-            duration: DURATION,
-            times:    [0,   0.06, 0.20, 0.50, 0.70, 0.78, 0.88, 1.0],
-            repeat: Infinity,
-            ease: SPRING,
-          }}
-          style={{ originX: "50px", originY: "28px" }}
-        />
-
-        {/* ② LEFT FACE (navy) — slides from bottom-left */}
-        <motion.path
-          d={LEFT_FACE}
-          fill="#102A5E"
-          filter="url(#atlas-shadow)"
-          initial={{ opacity: 0 }}
-          animate={{
-            opacity: [0,    0,    0,    1,    1,    1,    0.95, 0   ],
-            x:       [-26, -26,  -26,   0,    0,    0,   -0.5, -2  ],
-            y:       [ 20,  20,   20,   0,    0,    0,   -0.5, -2  ],
-            scale:   [0.9,  0.9,  0.9,  1,    1,    1.02, 1.01, 0.95],
-          }}
-          transition={{
-            duration: DURATION,
-            times:    [0,   0.14, 0.24, 0.34, 0.50, 0.70, 0.82, 1.0],
-            repeat: Infinity,
-            ease: SPRING,
-          }}
-          style={{ originX: "23px", originY: "69px" }}
-        />
-
-        {/* ③ RIGHT FACE (cyan) — slides from bottom-right, glows */}
-        <motion.path
-          d={RIGHT_FACE}
-          fill="#21C7FF"
-          filter="url(#atlas-glow)"
-          initial={{ opacity: 0 }}
-          animate={{
-            opacity: [0,    0,    0,    0,    1,    1,    0.95, 0   ],
-            x:       [ 26,  26,   26,   26,   0,    0,    0.5,  2  ],
-            y:       [ 20,  20,   20,   20,   0,    0,   -0.5, -2  ],
-            scale:   [0.9,  0.9,  0.9,  0.9,  1,    1,    1.02, 0.95],
-          }}
-          transition={{
-            duration: DURATION,
-            times:    [0,   0.16, 0.28, 0.38, 0.50, 0.70, 0.82, 1.0],
-            repeat: Infinity,
-            ease: SPRING,
-          }}
-          style={{ originX: "77px", originY: "69px" }}
-        />
-
-        {/* ④ Cyan glow burst — fires once fully assembled */}
+        {/* Cyan glow burst behind the right pillar */}
         <motion.ellipse
-          cx="77" cy="67" rx="16" ry="20"
-          fill="#21C7FF"
-          style={{ filter: "blur(14px)" }}
+          cx="930"
+          cy="820"
+          rx="190"
+          ry="240"
+          fill="#07BFFB"
           initial={{ opacity: 0 }}
           animate={{
-            opacity: [0,    0,    0,    0,    0,    0.5,  0.18, 0  ],
-            scale:   [0.4,  0.4,  0.4,  0.4,  0.4,  1.3,  1.7,  2.0],
+            opacity: [0, 0, 0.5, 0.3, 0.2, 0.2, 0],
+            scale: [0.6, 0.6, 1, 1.05, 1.1, 1.1, 1.25],
           }}
           transition={{
-            duration: DURATION,
-            times:    [0,   0.16, 0.28, 0.38, 0.52, 0.64, 0.76, 0.90],
-            repeat: Infinity,
+            ...loopBase,
+            times: [0, 0.45, 0.6, 0.72, 0.85, 0.95, 1],
             ease: "easeOut",
           }}
+          style={{ filter: "blur(60px)", transformOrigin: "930px 820px" }}
         />
+
+        {/* ① TOP CHEVRON — drops from above */}
+        <motion.g
+          filter="url(#atlas-anim-shadow)"
+          initial={{ opacity: 0 }}
+          animate={{
+            opacity: [0, 1, 1, 1, 0],
+            y: [-340, 0, 0, 0, 0],
+            scale: [0.92, 1, 1, 1, 1],
+          }}
+          transition={{
+            ...loopBase,
+            times: [0, 0.22, 0.6, 0.95, 1],
+          }}
+          style={{ transformOrigin: "627px 360px" }}
+        >
+          <path d={PATH.topLeft} fill="#023581" />
+          <path d={PATH.topRight} fill="#023581" />
+          <path d={PATH.centerShadow} fill="#011947" />
+        </motion.g>
+
+        {/* ② LEFT PILLAR — slides in from bottom-left */}
+        <motion.g
+          filter="url(#atlas-anim-shadow)"
+          initial={{ opacity: 0 }}
+          animate={{
+            opacity: [0, 0, 1, 1, 1, 0],
+            x: [-280, -280, 0, 0, 0, 0],
+            y: [220, 220, 0, 0, 0, 0],
+            scale: [0.9, 0.9, 1, 1, 1, 1],
+          }}
+          transition={{
+            ...loopBase,
+            times: [0, 0.18, 0.38, 0.6, 0.95, 1],
+          }}
+          style={{ transformOrigin: "330px 820px" }}
+        >
+          <path d={PATH.leftMain} fill="#023581" />
+          <path d={PATH.leftShadow} fill="#011947" />
+        </motion.g>
+
+        {/* ③ RIGHT CYAN PILLAR — slides in from bottom-right */}
+        <motion.g
+          filter="url(#atlas-anim-shadow)"
+          initial={{ opacity: 0 }}
+          animate={{
+            opacity: [0, 0, 1, 1, 1, 0],
+            x: [300, 300, 0, 0, 0, 0],
+            y: [220, 220, 0, 0, 0, 0],
+            scale: [0.9, 0.9, 1, 1, 1, 1],
+          }}
+          transition={{
+            ...loopBase,
+            times: [0, 0.34, 0.54, 0.7, 0.95, 1],
+          }}
+          style={{ transformOrigin: "880px 820px" }}
+        >
+          <path d={PATH.cyanOuter} fill="url(#atlas-lg-anim)" />
+          <path d={PATH.cyanMid} fill="url(#atlas-lg-anim)" />
+          <path d={PATH.cyanInner} fill="url(#atlas-lg-anim)" />
+          <path d={PATH.rightDarkBase} fill="#023698" />
+        </motion.g>
       </svg>
 
-      {/* ── Loading label ───────────────────────────────────────────────── */}
       {showLabel && (
         <motion.span
           className="text-xs font-medium tracking-[0.22em] uppercase"

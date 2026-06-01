@@ -231,6 +231,7 @@ model UserProfile {
 
   memberships  Membership[]
   auditLogs    AuditLog[]
+  activities   Activity[]
   notifications Notification[]
 
   hrEmployee HrEmployee?
@@ -366,6 +367,29 @@ model AuditLog {
   @@index([moduleKey, entityType, entityId])
   @@index([createdAt])
   @@map("audit_log")
+}
+
+model Activity {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  companyId  String   @db.Uuid @map("company_id")
+  actorId    String?  @db.Uuid @map("actor_id")
+  type       String
+  entityType String?  @map("entity_type")
+  entityId   String?  @db.Uuid @map("entity_id")
+  summary    String
+  payload    Json?
+  link       String?
+  severity   String   @default("info")
+  source     String   @default("explicit")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor      UserProfile? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt(sort: Desc)])
+  @@index([companyId, entityType, entityId, createdAt(sort: Desc)])
+  @@index([companyId, type, createdAt(sort: Desc)])
+  @@index([companyId, actorId, createdAt(sort: Desc)])
+  @@map("activity")
 }
 
 model Contact {

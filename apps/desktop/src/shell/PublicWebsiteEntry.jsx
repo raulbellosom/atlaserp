@@ -292,6 +292,251 @@ function ComingSoonScreen({ siteName }) {
   )
 }
 
+// ── Draft page preview for editors in view mode ──────────────────────────────
+
+const DRAFT_CSS = `
+  @keyframes _dr_fadeUp {
+    from { opacity: 0; transform: translateY(22px) }
+    to   { opacity: 1; transform: translateY(0) }
+  }
+  @keyframes _dr_pulse {
+    0%, 100% { opacity: 0.35; transform: scale(1) }
+    50%       { opacity: 1;    transform: scale(1.15) }
+  }
+  @keyframes _dr_float {
+    0%, 100% { transform: translateY(0px) rotate(0deg) }
+    33%       { transform: translateY(-10px) rotate(0.5deg) }
+    66%       { transform: translateY(-5px) rotate(-0.5deg) }
+  }
+  @keyframes _dr_scanline {
+    0%   { transform: translateY(-100%) }
+    100% { transform: translateY(100vh) }
+  }
+  @keyframes _dr_drawDash {
+    from { stroke-dashoffset: 800 }
+    to   { stroke-dashoffset: 0 }
+  }
+  @keyframes _dr_glow {
+    0%,100% { opacity: 0.06 }
+    50%      { opacity: 0.14 }
+  }
+  ._dr1 { animation: _dr_fadeUp .75s cubic-bezier(.16,1,.3,1) .05s both }
+  ._dr2 { animation: _dr_fadeUp .75s cubic-bezier(.16,1,.3,1) .18s both }
+  ._dr3 { animation: _dr_fadeUp .75s cubic-bezier(.16,1,.3,1) .32s both }
+  ._dr4 { animation: _dr_fadeUp .75s cubic-bezier(.16,1,.3,1) .46s both }
+  ._dr5 { animation: _dr_fadeUp .75s cubic-bezier(.16,1,.3,1) .60s both }
+  ._drPulse { animation: _dr_pulse 2.2s ease-in-out infinite }
+  ._drFloat { animation: _dr_float 6s ease-in-out infinite }
+  ._drGlow  { animation: _dr_glow  4s ease-in-out infinite }
+  ._drDraw  {
+    stroke-dasharray: 800;
+    animation: _dr_drawDash 2.4s cubic-bezier(.16,1,.3,1) .3s both
+  }
+`
+
+function DraftViewScreen({ onOpenEditor, topOffset = 0 }) {
+  return (
+    <>
+      <style>{DRAFT_CSS}</style>
+      <div style={{
+        height: `calc(100dvh - ${topOffset}px)`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#07090f',
+        position: 'relative',
+        overflow: 'hidden',
+        fontFamily: "'DM Sans', system-ui, sans-serif",
+      }}>
+
+        {/* Blueprint grid */}
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none',
+          backgroundImage: `
+            linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px)
+          `,
+          backgroundSize: '52px 52px',
+        }} />
+
+        {/* Ambient indigo glow */}
+        <div className="_drGlow" style={{
+          position: 'absolute', top: '-20%', left: '20%',
+          width: '65vw', height: '65vw',
+          background: 'radial-gradient(circle, rgba(99,102,241,.12) 0%, transparent 65%)',
+          zIndex: 0, pointerEvents: 'none',
+        }} />
+
+        {/* Top scan line accent */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: 2, zIndex: 2,
+          background: 'linear-gradient(90deg, transparent 0%, rgba(99,102,241,.6) 30%, rgba(99,102,241,1) 50%, rgba(99,102,241,.6) 70%, transparent 100%)',
+        }} />
+
+        {/* Floating page wireframe — right side */}
+        <div className="_drFloat" style={{
+          position: 'absolute', right: '6%', top: '50%',
+          transform: 'translateY(-50%)',
+          zIndex: 1, opacity: 0.22,
+          filter: 'blur(0.3px)',
+        }}>
+          <svg width="220" height="270" viewBox="0 0 220 270" fill="none">
+            <rect className="_drDraw" x="12" y="12" width="196" height="246" rx="10"
+              stroke="rgba(99,102,241,.9)" strokeWidth="1.5" />
+            <rect x="30" y="38" width="110" height="12" rx="3" fill="rgba(99,102,241,.35)" />
+            <rect x="30" y="62" width="160" height="6" rx="2" fill="rgba(255,255,255,.14)" />
+            <rect x="30" y="75" width="130" height="6" rx="2" fill="rgba(255,255,255,.1)" />
+            <rect x="30" y="88" width="148" height="6" rx="2" fill="rgba(255,255,255,.07)" />
+            <rect x="30" y="110" width="160" height="78" rx="6"
+              fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.09)" strokeWidth="1" />
+            <line x1="30" y1="110" x2="190" y2="188" stroke="rgba(255,255,255,.06)" strokeWidth="1" />
+            <line x1="190" y1="110" x2="30" y2="188" stroke="rgba(255,255,255,.06)" strokeWidth="1" />
+            <rect x="30" y="204" width="80" height="6" rx="2" fill="rgba(255,255,255,.09)" />
+            <rect x="30" y="218" width="50" height="6" rx="2" fill="rgba(255,255,255,.06)" />
+          </svg>
+        </div>
+
+        {/* Vertical label */}
+        <div style={{
+          position: 'absolute', left: 20, top: '50%',
+          transform: 'translateY(-50%) rotate(-90deg)',
+          transformOrigin: 'center center',
+          color: 'rgba(255,255,255,.1)',
+          fontSize: 10, fontWeight: 700, letterSpacing: '0.22em',
+          textTransform: 'uppercase', whiteSpace: 'nowrap',
+          zIndex: 2,
+        }}>
+          Atlas ERP · Editor
+        </div>
+
+        {/* Corner dots decoration */}
+        <div style={{
+          position: 'absolute', bottom: 40, right: 48,
+          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 9,
+          zIndex: 2, opacity: .1,
+        }}>
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} style={{ width: 3, height: 3, borderRadius: '50%', background: '#6366f1' }} />
+          ))}
+        </div>
+
+        {/* Main content */}
+        <div style={{
+          position: 'relative', zIndex: 3,
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          textAlign: 'center',
+          padding: 'clamp(48px, 8vw, 80px) 40px',
+          maxWidth: 460,
+        }}>
+
+          {/* Animated pencil icon */}
+          <div className="_dr1 _drFloat" style={{
+            marginBottom: 28,
+            width: 68, height: 68,
+            borderRadius: 22,
+            background: 'rgba(99,102,241,.1)',
+            border: '1px solid rgba(99,102,241,.22)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 0 32px rgba(99,102,241,.12)',
+          }}>
+            <svg viewBox="0 0 24 24" fill="none" style={{ width: 30, height: 30 }}>
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                stroke="rgba(99,102,241,.85)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                stroke="rgba(99,102,241,.85)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+
+          {/* Borrador badge */}
+          <div className="_dr2" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: 'rgba(234,179,8,.07)',
+            border: '1px solid rgba(234,179,8,.22)',
+            borderRadius: 100, padding: '5px 14px 5px 10px',
+            marginBottom: 22,
+          }}>
+            <div className="_drPulse" style={{
+              width: 7, height: 7, borderRadius: '50%',
+              background: '#eab308',
+              boxShadow: '0 0 8px #eab308, 0 0 16px rgba(234,179,8,.4)',
+            }} />
+            <span style={{
+              color: '#eab308', fontSize: 10.5, fontWeight: 700,
+              letterSpacing: '0.16em', textTransform: 'uppercase',
+            }}>
+              Borrador
+            </span>
+          </div>
+
+          {/* Title */}
+          <h2 className="_dr3" style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: 'clamp(24px, 3.8vw, 36px)',
+            fontWeight: 700,
+            color: '#ede8df',
+            lineHeight: 1.18,
+            letterSpacing: '-0.022em',
+            margin: '0 0 14px',
+          }}>
+            Esta pagina esta en construccion
+          </h2>
+
+          {/* Divider */}
+          <div className="_dr3" style={{
+            width: 48, height: 1,
+            background: 'linear-gradient(90deg, transparent, rgba(99,102,241,.5), transparent)',
+            marginBottom: 18,
+          }} />
+
+          {/* Description */}
+          <p className="_dr4" style={{
+            color: 'rgba(255,255,255,.32)',
+            fontSize: 13.5,
+            lineHeight: 1.78,
+            margin: '0 0 36px',
+            maxWidth: 320,
+          }}>
+            Aun no es visible para el publico. Abre el editor para agregar contenido y publicarla cuando este lista.
+          </p>
+
+          {/* CTA */}
+          <button
+            className="_dr5"
+            onClick={onOpenEditor}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 9,
+              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              color: '#fff', border: 'none',
+              borderRadius: 12, padding: '12px 26px',
+              fontSize: 13.5, fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 4px 20px rgba(99,102,241,.38), 0 1px 4px rgba(0,0,0,.35)',
+              transition: 'transform 160ms ease, box-shadow 160ms ease',
+              letterSpacing: '0.01em',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)'
+              e.currentTarget.style.boxShadow = '0 8px 28px rgba(99,102,241,.5), 0 1px 4px rgba(0,0,0,.35)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = '0 4px 20px rgba(99,102,241,.38), 0 1px 4px rgba(0,0,0,.35)'
+            }}
+          >
+            <svg viewBox="0 0 16 16" fill="none" style={{ width: 15, height: 15 }}>
+              <path d="M11.5 2h-7A1.5 1.5 0 0 0 3 3.5v9A1.5 1.5 0 0 0 4.5 14h7A1.5 1.5 0 0 0 13 12.5v-9A1.5 1.5 0 0 0 11.5 2z"
+                stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3"
+                stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+            </svg>
+            Abrir editor
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ── Empty state for editors when no page is published on this route ───────────
 
 function EditorEmptyRoute({ routePath, onCreatePage, isCreating }) {
@@ -574,23 +819,7 @@ export function PublicWebsiteEntry() {
         {publishedPage ? (
           <WebsitePageRenderer page={publishedPage} theme={resolveData.theme} />
         ) : (
-          // Draft page, editor in view mode → hint to switch to editor
-          <div style={{
-            minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexDirection: 'column', gap: 12, color: '#9ca3af', fontSize: 14,
-          }}>
-            <p>Esta pagina es un borrador — aun no es visible para el publico.</p>
-            <button
-              onClick={() => setEditMode(true)}
-              style={{
-                background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff',
-                border: 'none', borderRadius: 10, padding: '8px 20px',
-                fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              }}
-            >
-              Abrir editor
-            </button>
-          </div>
+          <DraftViewScreen onOpenEditor={() => setEditMode(true)} topOffset={topOffset} />
         )}
       </div>
     </>

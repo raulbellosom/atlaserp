@@ -1,0 +1,14 @@
+ALTER TABLE "catalog_product" ADD COLUMN IF NOT EXISTS "category_id" UUID;
+ALTER TABLE "catalog_product" ADD COLUMN IF NOT EXISTS "description" TEXT;
+ALTER TABLE "catalog_product" ADD COLUMN IF NOT EXISTS "sku" TEXT;
+ALTER TABLE "catalog_product" ADD COLUMN IF NOT EXISTS "barcode" TEXT;
+ALTER TABLE "catalog_product" ADD COLUMN IF NOT EXISTS "compare_price" NUMERIC(18,4);
+ALTER TABLE "catalog_product" ADD COLUMN IF NOT EXISTS "weight" NUMERIC(18,4);
+ALTER TABLE "catalog_product" ADD COLUMN IF NOT EXISTS "track_stock" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "catalog_product" ADD COLUMN IF NOT EXISTS "attributes" JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE "catalog_product" ADD COLUMN IF NOT EXISTS "cover_asset_id" UUID;
+ALTER TABLE "catalog_product" ADD COLUMN IF NOT EXISTS "images" JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE "catalog_product" ADD COLUMN IF NOT EXISTS "meta_title" TEXT;
+ALTER TABLE "catalog_product" ADD COLUMN IF NOT EXISTS "meta_description" TEXT;
+ALTER TABLE "catalog_product" ADD COLUMN IF NOT EXISTS "published" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "catalog_product" ADD COLUMN IF NOT EXISTS "enabled" BOOLEAN NOT NULL DEFAULT true;

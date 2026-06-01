@@ -39,7 +39,7 @@ importers:
         version: 7.8.0(prisma@7.8.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))
       concurrently:
         specifier: latest
-        version: 10.0.0
+        version: 10.0.1
       prisma:
         specifier: ^7.8.0
         version: 7.8.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -125,8 +125,8 @@ importers:
         specifier: ^1.1.15
         version: 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@raulbellosom/atlas-web-builder':
-        specifier: ^0.0.1
-        version: 0.0.1(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
+        specifier: ^0.1.0
+        version: 0.1.0(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
       '@supabase/supabase-js':
         specifier: ^2.105.1
         version: 2.105.1
@@ -1581,8 +1581,8 @@ packages:
   '@radix-ui/rect@1.1.1':
     resolution: {integrity: sha512-HPwpGIzkl28mWyZqG52jiqDJ12waP11Pa1lGoiyUkIEuMLBP0oeK/C89esbXrxsky5we7dfd8U58nm0SgAWpVw==}
 
-  '@raulbellosom/atlas-web-builder@0.0.1':
-    resolution: {integrity: sha512-3TVqs3uwvL1dF6pY4RXVW9tD9muh36dGvw9+QjFsKxE0/tp2QgMPcHW8rSdpigWCPp6esGCGK7QScpxOYhkaIw==}
+  '@raulbellosom/atlas-web-builder@0.1.0':
+    resolution: {integrity: sha512-R3E9JToEgp9p0KB3ZG9veW1kEtmfMR/UVGqm7rI5Y+xNWBCNUE+1eXomhzzmPhB4AOg4okNIN9C53prMk+hCbQ==}
     engines: {node: '>=20'}
     peerDependencies:
       react: '>=18.0.0'
@@ -2211,8 +2211,8 @@ packages:
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
 
-  concurrently@10.0.0:
-    resolution: {integrity: sha512-DRrk10z3sVPpguNe8od2cGNqZGqbT15rwAnxD4dG3b78mdNNb/gJyr8T834Oj518WcBmTktrt4FhdwZn09ZWSg==}
+  concurrently@10.0.1:
+    resolution: {integrity: sha512-vN61cP9COzctyhBqKUOh9YHqU70hYPnaHqNpXdBzM9PcwIpfPAvNK06hjm4gEJEGuvy4GBairO6uU32+FKpS4g==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -5468,7 +5468,7 @@ snapshots:
 
   '@radix-ui/rect@1.1.1': {}
 
-  '@raulbellosom/atlas-web-builder@0.0.1(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))':
+  '@raulbellosom/atlas-web-builder@0.1.0(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))':
     dependencies:
       '@dnd-kit/core': 6.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@dnd-kit/sortable': 8.0.0(@dnd-kit/core@6.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)
@@ -6048,7 +6048,7 @@ snapshots:
 
   concat-map@0.0.1: {}
 
-  concurrently@10.0.0:
+  concurrently@10.0.1:
     dependencies:
       chalk: 5.6.2
       rxjs: 7.8.2

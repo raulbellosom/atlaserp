@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Badge, Button, ConfirmDialog, MarkdownViewer, Skeleton, cn } from "@atlas/ui";
+import {
+  Badge,
+  Button,
+  ConfirmDialog,
+  MarkdownViewer,
+  Skeleton,
+  cn,
+} from "@atlas/ui";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
 import {
@@ -32,6 +39,7 @@ import {
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 import { AdvancedFileViewer } from "../../atlas.files/components/AdvancedFileViewer";
+import HrEmployeeActivityPanel from "../components/HrEmployeeActivityPanel";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -50,38 +58,67 @@ const STATUS_LABEL = {
 };
 
 const STATUS_HERO = {
-  active:    { bg: "from-emerald-500/15 to-emerald-500/5",  ring: "ring-emerald-500/40", dot: "bg-emerald-500" },
-  vacation:  { bg: "from-amber-500/15  to-amber-500/5",    ring: "ring-amber-500/40",   dot: "bg-amber-500"  },
-  inactive:  { bg: "from-slate-400/10  to-slate-400/5",    ring: "ring-slate-400/30",   dot: "bg-slate-400"  },
-  terminated:{ bg: "from-red-500/15    to-red-500/5",      ring: "ring-red-500/40",     dot: "bg-red-500"    },
+  active: {
+    bg: "from-emerald-500/15 to-emerald-500/5",
+    ring: "ring-emerald-500/40",
+    dot: "bg-emerald-500",
+  },
+  vacation: {
+    bg: "from-amber-500/15  to-amber-500/5",
+    ring: "ring-amber-500/40",
+    dot: "bg-amber-500",
+  },
+  inactive: {
+    bg: "from-slate-400/10  to-slate-400/5",
+    ring: "ring-slate-400/30",
+    dot: "bg-slate-400",
+  },
+  terminated: {
+    bg: "from-red-500/15    to-red-500/5",
+    ring: "ring-red-500/40",
+    dot: "bg-red-500",
+  },
 };
 
 const EMPLOYMENT_TYPE_LABEL = {
-  full_time:  "Tiempo completo",
-  part_time:  "Medio tiempo",
+  full_time: "Tiempo completo",
+  part_time: "Medio tiempo",
   contractor: "Contratista",
-  intern:     "Practicante",
+  intern: "Practicante",
 };
 
 const ACTION_LABELS = {
-  "hr.employee.create":      "Colaborador creado",
-  "hr.employee.update":      "Datos actualizados",
-  "hr.employee.enable":      "Colaborador habilitado",
-  "hr.employee.disable":     "Colaborador deshabilitado",
+  "hr.employee.create": "Colaborador creado",
+  "hr.employee.update": "Datos actualizados",
+  "hr.employee.enable": "Colaborador habilitado",
+  "hr.employee.disable": "Colaborador deshabilitado",
   "hr.employee.file.attach": "Archivo adjuntado",
   "hr.employee.file.delete": "Archivo eliminado",
 };
 
 const FIELD_LABELS = {
-  firstName: "Nombre", lastName: "Apellidos", employeeCode: "Codigo",
-  status: "Estado", employmentType: "Tipo de empleo", workLocation: "Ubicacion",
-  jobTitle: "Puesto", department: "Departamento", managerName: "Supervisor",
-  workEmail: "Correo laboral", personalEmail: "Correo personal", phone: "Telefono",
-  emergencyContactName: "Contacto emergencia", emergencyContactPhone: "Tel. emergencia",
-  hireDate: "Fecha ingreso", terminationDate: "Fecha baja",
-  userProfileId: "Cuenta de usuario", supervisorEmployeeId: "Supervisor (ID)",
-  departmentId: "Departamento (ID)", jobTitleId: "Puesto (ID)",
-  profileImageFileId: "Foto de perfil", enabled: "Habilitado",
+  firstName: "Nombre",
+  lastName: "Apellidos",
+  employeeCode: "Codigo",
+  status: "Estado",
+  employmentType: "Tipo de empleo",
+  workLocation: "Ubicacion",
+  jobTitle: "Puesto",
+  department: "Departamento",
+  managerName: "Supervisor",
+  workEmail: "Correo laboral",
+  personalEmail: "Correo personal",
+  phone: "Telefono",
+  emergencyContactName: "Contacto emergencia",
+  emergencyContactPhone: "Tel. emergencia",
+  hireDate: "Fecha ingreso",
+  terminationDate: "Fecha baja",
+  userProfileId: "Cuenta de usuario",
+  supervisorEmployeeId: "Supervisor (ID)",
+  departmentId: "Departamento (ID)",
+  jobTitleId: "Puesto (ID)",
+  profileImageFileId: "Foto de perfil",
+  enabled: "Habilitado",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -104,19 +141,24 @@ function fmtTenure(hireDate) {
   if (!hireDate) return null;
   const start = new Date(hireDate);
   const now = new Date();
-  const months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+  const months =
+    (now.getFullYear() - start.getFullYear()) * 12 +
+    (now.getMonth() - start.getMonth());
   if (months < 1) return "Menos de 1 mes";
   if (months < 12) return `${months} mes${months > 1 ? "es" : ""}`;
   const years = Math.floor(months / 12);
   const rem = months % 12;
-  return rem > 0 ? `${years} año${years > 1 ? "s" : ""} y ${rem} mes${rem > 1 ? "es" : ""}` : `${years} año${years > 1 ? "s" : ""}`;
+  return rem > 0
+    ? `${years} año${years > 1 ? "s" : ""} y ${rem} mes${rem > 1 ? "es" : ""}`
+    : `${years} año${years > 1 ? "s" : ""}`;
 }
 
 function getFileKind(mimeType = "") {
   const v = String(mimeType || "").toLowerCase();
   if (v.startsWith("image/")) return "image";
   if (v === "application/pdf") return "pdf";
-  if (v.includes("spreadsheet") || v.includes("excel") || v.includes("csv")) return "sheet";
+  if (v.includes("spreadsheet") || v.includes("excel") || v.includes("csv"))
+    return "sheet";
   if (v.includes("word") || v.includes("document")) return "doc";
   if (v.startsWith("text/") || v.includes("json")) return "text";
   return "generic";
@@ -131,7 +173,16 @@ function formatBytes(bytes = 0) {
 
 function FileKindIcon({ mimeType, className = "h-8 w-8" }) {
   const kind = getFileKind(mimeType);
-  const Icon = kind === "image" ? FileImage : kind === "pdf" ? FileType2 : kind === "sheet" ? FileSpreadsheet : kind === "doc" || kind === "text" ? FileText : File;
+  const Icon =
+    kind === "image"
+      ? FileImage
+      : kind === "pdf"
+        ? FileType2
+        : kind === "sheet"
+          ? FileSpreadsheet
+          : kind === "doc" || kind === "text"
+            ? FileText
+            : File;
   return <Icon className={className} />;
 }
 
@@ -142,7 +193,13 @@ function computeDiff(before, after) {
   for (const key of keys) {
     const oldStr = before[key] == null ? "—" : String(before[key]);
     const newStr = after[key] == null ? "—" : String(after[key]);
-    if (oldStr !== newStr) changes.push({ key, label: FIELD_LABELS[key] ?? key, oldVal: oldStr, newVal: newStr });
+    if (oldStr !== newStr)
+      changes.push({
+        key,
+        label: FIELD_LABELS[key] ?? key,
+        oldVal: oldStr,
+        newVal: newStr,
+      });
   }
   return changes;
 }
@@ -152,7 +209,11 @@ function fmtFieldValue(val) {
   if (val === "true") return "Sí";
   if (val === "false") return "No";
   if (/^\d{4}-\d{2}-\d{2}T/.test(val)) {
-    try { return new Date(val).toLocaleString("es-MX", { dateStyle: "medium" }); } catch { return val; }
+    try {
+      return new Date(val).toLocaleString("es-MX", { dateStyle: "medium" });
+    } catch {
+      return val;
+    }
   }
   return EMPLOYMENT_TYPE_LABEL[val] ?? STATUS_LABEL[val] ?? val;
 }
@@ -161,10 +222,17 @@ function fmtFieldValue(val) {
 
 function SectionCard({ title, icon: Icon, children, className }) {
   return (
-    <div className={cn("rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-4", className)}>
+    <div
+      className={cn(
+        "rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-4",
+        className,
+      )}
+    >
       {title && (
         <div className="flex items-center gap-2">
-          {Icon && <Icon className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />}
+          {Icon && (
+            <Icon className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
+          )}
           <h3 className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
             {title}
           </h3>
@@ -181,15 +249,22 @@ function InfoRow({ icon: Icon, label, value, href }) {
   if (!value) return null;
   return (
     <div className="flex items-start gap-3">
-      {Icon && <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />}
+      {Icon && (
+        <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
+      )}
       <div className="min-w-0">
         <p className="text-xs text-[hsl(var(--muted-foreground))]">{label}</p>
         {href ? (
-          <a href={href} className="text-sm font-medium text-[hsl(var(--primary))] hover:underline truncate block">
+          <a
+            href={href}
+            className="text-sm font-medium text-[hsl(var(--primary))] hover:underline truncate block"
+          >
             {value}
           </a>
         ) : (
-          <p className="text-sm font-medium text-[hsl(var(--foreground))] wrap-break-word">{value}</p>
+          <p className="text-sm font-medium text-[hsl(var(--foreground))] wrap-break-word">
+            {value}
+          </p>
         )}
       </div>
     </div>
@@ -199,7 +274,13 @@ function InfoRow({ icon: Icon, label, value, href }) {
 // ── MarkdownDisplay ───────────────────────────────────────────────────────────
 
 function MarkdownDisplay({ value }) {
-  return <MarkdownViewer value={value} emptyText="Sin notas." className="[&_.tiptap]:leading-6" />;
+  return (
+    <MarkdownViewer
+      value={value}
+      emptyText="Sin notas."
+      className="[&_.tiptap]:leading-6"
+    />
+  );
 }
 
 // ── OrgChartPanel ─────────────────────────────────────────────────────────────
@@ -217,11 +298,19 @@ const ORG_AVATAR_COLORS = [
 
 function orgAvatarColor(name = "") {
   let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) & 0xffff;
+  for (let i = 0; i < name.length; i++)
+    hash = (hash * 31 + name.charCodeAt(i)) & 0xffff;
   return ORG_AVATAR_COLORS[hash % ORG_AVATAR_COLORS.length];
 }
 
-function OrgNode({ firstName = "", lastName = "", jobTitle, status, isSelf, onClick }) {
+function OrgNode({
+  firstName = "",
+  lastName = "",
+  jobTitle,
+  status,
+  isSelf,
+  onClick,
+}) {
   const initials = `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
   const name = `${firstName} ${lastName}`.trim();
   const dot = STATUS_HERO[status]?.dot;
@@ -239,18 +328,27 @@ function OrgNode({ firstName = "", lastName = "", jobTitle, status, isSelf, onCl
         isSelf
           ? "border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/6 cursor-default shadow-sm"
           : "border-[hsl(var(--border))]/80 bg-[hsl(var(--card))] hover:border-[hsl(var(--primary))]/30 hover:bg-[hsl(var(--muted))]/30 cursor-pointer",
-        !onClick && !isSelf && "cursor-default"
+        !onClick && !isSelf && "cursor-default",
       )}
     >
-      <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0", avatarCls)}>
+      <div
+        className={cn(
+          "h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0",
+          avatarCls,
+        )}
+      >
         {initials || <User className="h-4 w-4" />}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
-          <p className={cn(
-            "text-xs font-semibold truncate",
-            isSelf ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--foreground))]"
-          )}>
+          <p
+            className={cn(
+              "text-xs font-semibold truncate",
+              isSelf
+                ? "text-[hsl(var(--primary))]"
+                : "text-[hsl(var(--foreground))]",
+            )}
+          >
             {name}
           </p>
           {isSelf && (
@@ -260,10 +358,14 @@ function OrgNode({ firstName = "", lastName = "", jobTitle, status, isSelf, onCl
           )}
         </div>
         {jobTitle && (
-          <p className="text-[10px] text-[hsl(var(--muted-foreground))] truncate leading-4 mt-0.5">{jobTitle}</p>
+          <p className="text-[10px] text-[hsl(var(--muted-foreground))] truncate leading-4 mt-0.5">
+            {jobTitle}
+          </p>
         )}
       </div>
-      {dot && !isSelf && <div className={cn("h-2 w-2 rounded-full shrink-0", dot)} />}
+      {dot && !isSelf && (
+        <div className={cn("h-2 w-2 rounded-full shrink-0", dot)} />
+      )}
       {!isSelf && onClick && (
         <ChevronRight className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))] shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
       )}
@@ -296,14 +398,18 @@ function OrgChartPanel({ employee }) {
               firstName={supervisor.firstName}
               lastName={supervisor.lastName}
               status={supervisor.status}
-              onClick={() => navigate(`/app/m/atlas.hr/hr/employees/${supervisor.id}`)}
+              onClick={() =>
+                navigate(`/app/m/atlas.hr/hr/employees/${supervisor.id}`)
+              }
             />
             <OrgConnector />
           </>
         ) : (
           <div className="flex items-center gap-2 pb-2">
             <div className="h-px flex-1 bg-[hsl(var(--border))]/50" />
-            <span className="text-[10px] text-[hsl(var(--muted-foreground))] shrink-0">Sin supervisor</span>
+            <span className="text-[10px] text-[hsl(var(--muted-foreground))] shrink-0">
+              Sin supervisor
+            </span>
             <div className="h-px flex-1 bg-[hsl(var(--border))]/50" />
           </div>
         )}
@@ -329,7 +435,9 @@ function OrgChartPanel({ employee }) {
                   firstName={r.firstName}
                   lastName={r.lastName}
                   status={r.status}
-                  onClick={() => navigate(`/app/m/atlas.hr/hr/employees/${r.id}`)}
+                  onClick={() =>
+                    navigate(`/app/m/atlas.hr/hr/employees/${r.id}`)
+                  }
                 />
               ))}
             </div>
@@ -339,7 +447,9 @@ function OrgChartPanel({ employee }) {
             <OrgConnector />
             <div className="flex items-center gap-2 pt-0.5">
               <div className="h-px flex-1 bg-[hsl(var(--border))]/50" />
-              <span className="text-[10px] text-[hsl(var(--muted-foreground))] shrink-0">Sin reportes directos</span>
+              <span className="text-[10px] text-[hsl(var(--muted-foreground))] shrink-0">
+                Sin reportes directos
+              </span>
               <div className="h-px flex-1 bg-[hsl(var(--border))]/50" />
             </div>
           </>
@@ -360,7 +470,15 @@ function FilesPanel({ employeeId, token }) {
   const filesQuery = useQuery({
     queryKey: ["hr-employee-files", employeeId],
     queryFn: () =>
-      atlas.files.list({ moduleKey: "atlas.hr", entityType: "HrEmployee", sourceEntityId: employeeId, pageSize: 100 }, token),
+      atlas.files.list(
+        {
+          moduleKey: "atlas.hr",
+          entityType: "HrEmployee",
+          sourceEntityId: employeeId,
+          pageSize: 100,
+        },
+        token,
+      ),
     enabled: Boolean(token && employeeId),
   });
 
@@ -369,18 +487,30 @@ function FilesPanel({ employeeId, token }) {
     if (!token) return;
     const files = filesQuery.data?.data ?? [];
     const uncached = files
-      .filter((f) => getFileKind(f.mimeType) === "image" && !previewMap.has(f.id) && !signedUrlCache.current.has(f.id))
+      .filter(
+        (f) =>
+          getFileKind(f.mimeType) === "image" &&
+          !previewMap.has(f.id) &&
+          !signedUrlCache.current.has(f.id),
+      )
       .map((f) => f.id);
     if (uncached.length === 0) return;
-    atlas.files.batchSignedUrls(uncached, token).then((res) => {
-      const urlMap = res?.data ?? {};
-      uncached.forEach((id) => { if (urlMap[id]) signedUrlCache.current.set(id, urlMap[id]); });
-      setPreviewMap((prev) => {
-        const next = new Map(prev);
-        uncached.forEach((id) => { if (urlMap[id]) next.set(id, urlMap[id]); });
-        return next;
-      });
-    }).catch(() => {});
+    atlas.files
+      .batchSignedUrls(uncached, token)
+      .then((res) => {
+        const urlMap = res?.data ?? {};
+        uncached.forEach((id) => {
+          if (urlMap[id]) signedUrlCache.current.set(id, urlMap[id]);
+        });
+        setPreviewMap((prev) => {
+          const next = new Map(prev);
+          uncached.forEach((id) => {
+            if (urlMap[id]) next.set(id, urlMap[id]);
+          });
+          return next;
+        });
+      })
+      .catch(() => {});
   }, [filesQuery.data, token, previewMap]);
 
   const files = filesQuery.data?.data ?? [];
@@ -430,21 +560,34 @@ function FilesPanel({ employeeId, token }) {
               >
                 <button
                   type="button"
-                  onClick={() => kind === "image" ? handleOpenViewer(file) : undefined}
+                  onClick={() =>
+                    kind === "image" ? handleOpenViewer(file) : undefined
+                  }
                   className={cn(
                     "h-9 w-9 shrink-0 flex items-center justify-center rounded-lg border border-[hsl(var(--border))]/60 bg-[hsl(var(--background))] overflow-hidden",
-                    kind === "image" && "cursor-pointer"
+                    kind === "image" && "cursor-pointer",
                   )}
                 >
                   {preview ? (
-                    <img src={preview} alt="" className="h-full w-full object-cover" />
+                    <img
+                      src={preview}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
-                    <FileKindIcon mimeType={file.mimeType} className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+                    <FileKindIcon
+                      mimeType={file.mimeType}
+                      className="h-4 w-4 text-[hsl(var(--muted-foreground))]"
+                    />
                   )}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-[hsl(var(--foreground))] truncate">{file.originalName}</p>
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">{formatBytes(file.sizeBytes)}</p>
+                  <p className="text-xs font-medium text-[hsl(var(--foreground))] truncate">
+                    {file.originalName}
+                  </p>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                    {formatBytes(file.sizeBytes)}
+                  </p>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   {kind === "image" && (
@@ -459,7 +602,10 @@ function FilesPanel({ employeeId, token }) {
                   <button
                     type="button"
                     onClick={async () => {
-                      const res = await atlas.files.getSignedUrl(file.id, token);
+                      const res = await atlas.files.getSignedUrl(
+                        file.id,
+                        token,
+                      );
                       const url = res?.data?.signedUrl;
                       if (url) {
                         const a = document.createElement("a");
@@ -489,12 +635,17 @@ function AuditDetailModal({ log, onClose }) {
   const diff = computeDiff(log.before, log.after);
   const actionLabel = ACTION_LABELS[log.action] ?? log.action;
   const actor = log.actor?.displayName || log.actor?.email || "Sistema";
-  const isFileEvent = log.action === "hr.employee.file.attach" || log.action === "hr.employee.file.delete";
+  const isFileEvent =
+    log.action === "hr.employee.file.attach" ||
+    log.action === "hr.employee.file.delete";
   const fileMeta = isFileEvent ? log.metadata : null;
   const isDelete = log.action === "hr.employee.file.delete";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[hsl(var(--background))]/70 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[hsl(var(--background))]/70 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.97, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -505,44 +656,91 @@ function AuditDetailModal({ log, onClose }) {
       >
         <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-[hsl(var(--border))]">
           <div>
-            <p className="font-semibold text-[hsl(var(--foreground))]">{actionLabel}</p>
-            <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">{actor} · {fmtDate(log.createdAt)}</p>
+            <p className="font-semibold text-[hsl(var(--foreground))]">
+              {actionLabel}
+            </p>
+            <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
+              {actor} · {fmtDate(log.createdAt)}
+            </p>
           </div>
-          <button type="button" onClick={onClose} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
         <div className="max-h-96 overflow-auto px-5 py-4 space-y-3">
           {fileMeta && (
-            <div className={cn("flex items-center gap-3 rounded-xl border px-3 py-3", isDelete ? "border-red-500/30 bg-red-500/5" : "border-emerald-500/30 bg-emerald-500/5")}>
+            <div
+              className={cn(
+                "flex items-center gap-3 rounded-xl border px-3 py-3",
+                isDelete
+                  ? "border-red-500/30 bg-red-500/5"
+                  : "border-emerald-500/30 bg-emerald-500/5",
+              )}
+            >
               <div className="shrink-0 flex h-10 w-10 items-center justify-center rounded-lg border border-[hsl(var(--border))]/60 bg-[hsl(var(--muted))]">
-                <FileKindIcon mimeType={fileMeta.mimeType} className={cn("h-5 w-5", isDelete ? "text-red-500/70" : "text-emerald-600/70")} />
+                <FileKindIcon
+                  mimeType={fileMeta.mimeType}
+                  className={cn(
+                    "h-5 w-5",
+                    isDelete ? "text-red-500/70" : "text-emerald-600/70",
+                  )}
+                />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-[hsl(var(--foreground))] truncate">{fileMeta.originalName ?? "Archivo desconocido"}</p>
-                <p className="text-xs text-[hsl(var(--muted-foreground))]">{fileMeta.mimeType?.split("/")[1] ?? "archivo"}</p>
+                <p className="text-sm font-medium text-[hsl(var(--foreground))] truncate">
+                  {fileMeta.originalName ?? "Archivo desconocido"}
+                </p>
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                  {fileMeta.mimeType?.split("/")[1] ?? "archivo"}
+                </p>
               </div>
-              <span className={cn("shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full", isDelete ? "bg-red-500/10 text-red-500" : "bg-emerald-500/10 text-emerald-600")}>
+              <span
+                className={cn(
+                  "shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full",
+                  isDelete
+                    ? "bg-red-500/10 text-red-500"
+                    : "bg-emerald-500/10 text-emerald-600",
+                )}
+              >
                 {isDelete ? "Eliminado" : "Adjuntado"}
               </span>
             </div>
           )}
           {!fileMeta && diff.length === 0 && (
-            <p className="text-sm text-[hsl(var(--muted-foreground))] text-center py-4">Sin detalle de cambios disponible.</p>
+            <p className="text-sm text-[hsl(var(--muted-foreground))] text-center py-4">
+              Sin detalle de cambios disponible.
+            </p>
           )}
           {diff.map((change, i) => (
-            <div key={change.key} className={cn("py-3 grid grid-cols-[140px_1fr] gap-x-4 gap-y-1 text-sm", i < diff.length - 1 && "border-b border-[hsl(var(--border))]/50")}>
-              <span className="text-xs font-medium text-[hsl(var(--muted-foreground))] pt-0.5">{change.label}</span>
+            <div
+              key={change.key}
+              className={cn(
+                "py-3 grid grid-cols-[140px_1fr] gap-x-4 gap-y-1 text-sm",
+                i < diff.length - 1 &&
+                  "border-b border-[hsl(var(--border))]/50",
+              )}
+            >
+              <span className="text-xs font-medium text-[hsl(var(--muted-foreground))] pt-0.5">
+                {change.label}
+              </span>
               <div className="space-y-1 min-w-0">
                 {change.oldVal !== "—" && (
                   <div className="flex items-start gap-1.5">
                     <span className="mt-0.5 shrink-0 h-2 w-2 rounded-full bg-red-400/70" />
-                    <span className="text-xs text-[hsl(var(--muted-foreground))] line-through wrap-break-word">{fmtFieldValue(change.oldVal)}</span>
+                    <span className="text-xs text-[hsl(var(--muted-foreground))] line-through wrap-break-word">
+                      {fmtFieldValue(change.oldVal)}
+                    </span>
                   </div>
                 )}
                 <div className="flex items-start gap-1.5">
                   <span className="mt-0.5 shrink-0 h-2 w-2 rounded-full bg-emerald-400/70" />
-                  <span className="text-xs text-[hsl(var(--foreground))] wrap-break-word font-medium">{fmtFieldValue(change.newVal)}</span>
+                  <span className="text-xs text-[hsl(var(--foreground))] wrap-break-word font-medium">
+                    {fmtFieldValue(change.newVal)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -570,7 +768,10 @@ function AuditPanel({ employeeId, token }) {
     <>
       <AnimatePresence>
         {selectedLog && (
-          <AuditDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} />
+          <AuditDetailModal
+            log={selectedLog}
+            onClose={() => setSelectedLog(null)}
+          />
         )}
       </AnimatePresence>
 
@@ -583,10 +784,13 @@ function AuditPanel({ employeeId, token }) {
             </>
           )}
           {logs.map((log) => {
-            const isFileEvent = log.action === "hr.employee.file.attach" || log.action === "hr.employee.file.delete";
+            const isFileEvent =
+              log.action === "hr.employee.file.attach" ||
+              log.action === "hr.employee.file.delete";
             const hasDiff = Boolean(log.before || log.after) || isFileEvent;
             const actionLabel = ACTION_LABELS[log.action] ?? log.action;
-            const actor = log.actor?.displayName || log.actor?.email || "Sistema";
+            const actor =
+              log.actor?.displayName || log.actor?.email || "Sistema";
             return (
               <button
                 key={log.id}
@@ -594,22 +798,32 @@ function AuditPanel({ employeeId, token }) {
                 onClick={() => hasDiff && setSelectedLog(log)}
                 className={cn(
                   "w-full rounded-xl border border-[hsl(var(--border))]/60 bg-[hsl(var(--muted))]/20 px-3 py-2.5 text-left transition-colors",
-                  hasDiff ? "hover:bg-[hsl(var(--muted))]/50 hover:border-[hsl(var(--border))] cursor-pointer" : "cursor-default",
+                  hasDiff
+                    ? "hover:bg-[hsl(var(--muted))]/50 hover:border-[hsl(var(--border))] cursor-pointer"
+                    : "cursor-default",
                 )}
               >
                 <div className="flex items-center gap-2">
                   <Clock className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--muted-foreground))]" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-[hsl(var(--foreground))] truncate">{actionLabel}</p>
-                    <p className="text-xs text-[hsl(var(--muted-foreground))]">{actor} · {fmtDate(log.createdAt)}</p>
+                    <p className="text-xs font-medium text-[hsl(var(--foreground))] truncate">
+                      {actionLabel}
+                    </p>
+                    <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                      {actor} · {fmtDate(log.createdAt)}
+                    </p>
                   </div>
-                  {hasDiff && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--muted-foreground))]" />}
+                  {hasDiff && (
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--muted-foreground))]" />
+                  )}
                 </div>
               </button>
             );
           })}
           {!auditQuery.isLoading && logs.length === 0 && (
-            <p className="text-xs text-[hsl(var(--muted-foreground))] text-center py-3">Sin cambios registrados.</p>
+            <p className="text-xs text-[hsl(var(--muted-foreground))] text-center py-3">
+              Sin cambios registrados.
+            </p>
           )}
         </div>
       </SectionCard>
@@ -625,7 +839,8 @@ export default function HrEmployeeDetail({ employeeId }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const permissions = userProfile?.permissions ?? [];
-  const hasPermission = (k) => Boolean(userProfile?.isAdmin || permissions.includes(k));
+  const hasPermission = (k) =>
+    Boolean(userProfile?.isAdmin || permissions.includes(k));
   const canUpdate = hasPermission("hr.employee.update");
 
   const employeeQuery = useQuery({
@@ -639,7 +854,10 @@ export default function HrEmployeeDetail({ employeeId }) {
   const profileImageQuery = useQuery({
     queryKey: ["hr-profile-image-url", employee?.profileImageFileId],
     queryFn: async () => {
-      const res = await atlas.files.getSignedUrl(employee.profileImageFileId, token);
+      const res = await atlas.files.getSignedUrl(
+        employee.profileImageFileId,
+        token,
+      );
       return res?.data?.signedUrl ?? "";
     },
     enabled: Boolean(token && employee?.profileImageFileId),
@@ -649,7 +867,10 @@ export default function HrEmployeeDetail({ employeeId }) {
   const userAvatarQuery = useQuery({
     queryKey: ["hr-user-avatar", employee?.userProfile?.avatarFileId],
     queryFn: async () => {
-      const res = await atlas.files.getSignedUrl(employee.userProfile.avatarFileId, token);
+      const res = await atlas.files.getSignedUrl(
+        employee.userProfile.avatarFileId,
+        token,
+      );
       return res?.data?.signedUrl ?? "";
     },
     enabled: Boolean(token && employee?.userProfile?.avatarFileId),
@@ -659,25 +880,39 @@ export default function HrEmployeeDetail({ employeeId }) {
   const [enabledConfirm, setEnabledConfirm] = useState(false);
 
   const toggleEnabledMutation = useMutation({
-    mutationFn: (enabled) => atlas.hr.setEmployeeEnabled(employee.id, enabled, token),
+    mutationFn: (enabled) =>
+      atlas.hr.setEmployeeEnabled(employee.id, enabled, token),
     onMutate: (enabled) =>
-      toast.loading(enabled ? "Habilitando colaborador..." : "Deshabilitando colaborador..."),
+      toast.loading(
+        enabled
+          ? "Habilitando colaborador..."
+          : "Deshabilitando colaborador...",
+      ),
     onSuccess: (_, enabled, toastId) => {
-      toast.success(enabled ? "Colaborador habilitado" : "Colaborador deshabilitado", { id: toastId });
+      toast.success(
+        enabled ? "Colaborador habilitado" : "Colaborador deshabilitado",
+        { id: toastId },
+      );
       queryClient.invalidateQueries({ queryKey: ["hr-employees"] });
       queryClient.invalidateQueries({ queryKey: ["hr-employee", employeeId] });
       setEnabledConfirm(false);
     },
     onError: (_, enabled, toastId) =>
       toast.error(
-        enabled ? "No se pudo habilitar el colaborador" : "No se pudo deshabilitar el colaborador",
+        enabled
+          ? "No se pudo habilitar el colaborador"
+          : "No se pudo deshabilitar el colaborador",
         { id: toastId },
       ),
   });
 
   if (employeeQuery.isLoading) {
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="space-y-5"
+      >
         <Skeleton className="h-6 w-32" />
         <Skeleton className="h-36 rounded-2xl" />
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
@@ -694,8 +929,14 @@ export default function HrEmployeeDetail({ employeeId }) {
   if (!employee) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">Colaborador no encontrado.</p>
-        <Button variant="outline" className="mt-4" onClick={() => navigate("/app/m/atlas.hr/hr/employees")}>
+        <p className="text-sm text-[hsl(var(--muted-foreground))]">
+          Colaborador no encontrado.
+        </p>
+        <Button
+          variant="outline"
+          className="mt-4"
+          onClick={() => navigate("/app/m/atlas.hr/hr/employees")}
+        >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Volver
         </Button>
@@ -704,7 +945,8 @@ export default function HrEmployeeDetail({ employeeId }) {
   }
 
   const hero = STATUS_HERO[employee.status] ?? STATUS_HERO.active;
-  const initials = `${employee.firstName?.[0] ?? ""}${employee.lastName?.[0] ?? ""}`.toUpperCase();
+  const initials =
+    `${employee.firstName?.[0] ?? ""}${employee.lastName?.[0] ?? ""}`.toUpperCase();
   const fullName = `${employee.firstName} ${employee.lastName}`.trim();
   const tenure = fmtTenure(employee.hireDate);
 
@@ -719,7 +961,11 @@ export default function HrEmployeeDetail({ employeeId }) {
       <ConfirmDialog
         open={enabledConfirm}
         onOpenChange={setEnabledConfirm}
-        title={employee?.enabled ? "Deshabilitar colaborador" : "Habilitar colaborador"}
+        title={
+          employee?.enabled
+            ? "Deshabilitar colaborador"
+            : "Habilitar colaborador"
+        }
         description={
           employee?.enabled
             ? `¿Deseas deshabilitar a ${fullName}? No podrá acceder al sistema mientras esté deshabilitado.`
@@ -741,12 +987,26 @@ export default function HrEmployeeDetail({ employeeId }) {
       </button>
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
-      <div className={cn("rounded-2xl border border-[hsl(var(--border))] bg-linear-to-br p-6", hero.bg)}>
+      <div
+        className={cn(
+          "rounded-2xl border border-[hsl(var(--border))] bg-linear-to-br p-6",
+          hero.bg,
+        )}
+      >
         <div className="flex flex-wrap items-start gap-5">
           {/* avatar — no status dot */}
-          <div className={cn("flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl ring-2", hero.ring)}>
+          <div
+            className={cn(
+              "flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl ring-2",
+              hero.ring,
+            )}
+          >
             {profileImageQuery.data ? (
-              <img src={profileImageQuery.data} alt={fullName} className="h-full w-full object-cover" />
+              <img
+                src={profileImageQuery.data}
+                alt={fullName}
+                className="h-full w-full object-cover"
+              />
             ) : (
               <div className="h-full w-full flex items-center justify-center bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] text-2xl font-bold">
                 {initials || <User className="h-8 w-8" />}
@@ -756,23 +1016,32 @@ export default function HrEmployeeDetail({ employeeId }) {
 
           {/* identity */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight text-[hsl(var(--foreground))]">{fullName}</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-[hsl(var(--foreground))]">
+              {fullName}
+            </h1>
             {employee.jobTitle && (
-              <p className="text-sm text-[hsl(var(--foreground))]/70 mt-0.5">{employee.jobTitle}</p>
+              <p className="text-sm text-[hsl(var(--foreground))]/70 mt-0.5">
+                {employee.jobTitle}
+              </p>
             )}
             {employee.department && (
-              <p className="text-xs text-[hsl(var(--muted-foreground))]">{employee.department}</p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                {employee.department}
+              </p>
             )}
             <div className="mt-2.5 flex flex-wrap gap-1.5">
               <Badge variant={STATUS_VARIANT[employee.status] ?? "outline"}>
                 {STATUS_LABEL[employee.status] ?? employee.status}
               </Badge>
               {!employee.enabled && (
-                <Badge variant="destructive" className="text-xs">Deshabilitado</Badge>
+                <Badge variant="destructive" className="text-xs">
+                  Deshabilitado
+                </Badge>
               )}
               {employee.employmentType && (
                 <Badge variant="outline" className="text-xs">
-                  {EMPLOYMENT_TYPE_LABEL[employee.employmentType] ?? employee.employmentType}
+                  {EMPLOYMENT_TYPE_LABEL[employee.employmentType] ??
+                    employee.employmentType}
                 </Badge>
               )}
               {employee.employeeCode && (
@@ -795,7 +1064,9 @@ export default function HrEmployeeDetail({ employeeId }) {
             {canUpdate && (
               <Button
                 variant="outline"
-                onClick={() => navigate(`/app/m/atlas.hr/hr/employees/${employeeId}/edit`)}
+                onClick={() =>
+                  navigate(`/app/m/atlas.hr/hr/employees/${employeeId}/edit`)
+                }
               >
                 <Edit3 className="mr-2 h-4 w-4" />
                 Editar
@@ -821,20 +1092,24 @@ export default function HrEmployeeDetail({ employeeId }) {
 
       {/* ── BODY: two columns ─────────────────────────────────────── */}
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-
         {/* LEFT COLUMN */}
         <div className="space-y-5">
-
           {/* user account card */}
           {employee.userProfile && (
             <SectionCard title="Cuenta de usuario vinculada" icon={Link2}>
               <div className="flex items-center gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[hsl(var(--muted))] ring-1 ring-[hsl(var(--border))]">
                   {userAvatarQuery.data ? (
-                    <img src={userAvatarQuery.data} alt={employee.userProfile.displayName} className="h-full w-full object-cover" />
+                    <img
+                      src={userAvatarQuery.data}
+                      alt={employee.userProfile.displayName}
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
                     <span className="text-base font-bold text-[hsl(var(--muted-foreground))]">
-                      {employee.userProfile.displayName?.[0]?.toUpperCase() ?? <User className="h-5 w-5" />}
+                      {employee.userProfile.displayName?.[0]?.toUpperCase() ?? (
+                        <User className="h-5 w-5" />
+                      )}
                     </span>
                   )}
                 </div>
@@ -846,7 +1121,9 @@ export default function HrEmployeeDetail({ employeeId }) {
                     {employee.userProfile.email}
                   </p>
                 </div>
-                <Badge variant="outline" className="text-xs shrink-0">Vinculado</Badge>
+                <Badge variant="outline" className="text-xs shrink-0">
+                  Vinculado
+                </Badge>
               </div>
             </SectionCard>
           )}
@@ -854,15 +1131,39 @@ export default function HrEmployeeDetail({ employeeId }) {
           {/* work info */}
           <SectionCard title="Datos laborales" icon={Briefcase}>
             <div className="grid gap-4 sm:grid-cols-2">
-              <InfoRow icon={Briefcase} label="Puesto" value={employee.jobTitle} />
-              <InfoRow icon={Building2} label="Departamento" value={employee.department} />
+              <InfoRow
+                icon={Briefcase}
+                label="Puesto"
+                value={employee.jobTitle}
+              />
+              <InfoRow
+                icon={Building2}
+                label="Departamento"
+                value={employee.department}
+              />
               {employee.employmentType && (
-                <InfoRow icon={User} label="Tipo de empleo" value={EMPLOYMENT_TYPE_LABEL[employee.employmentType]} />
+                <InfoRow
+                  icon={User}
+                  label="Tipo de empleo"
+                  value={EMPLOYMENT_TYPE_LABEL[employee.employmentType]}
+                />
               )}
-              <InfoRow icon={MapPin} label="Ubicacion" value={employee.workLocation} />
-              <InfoRow icon={Calendar} label="Fecha de ingreso" value={fmtDateShort(employee.hireDate)} />
+              <InfoRow
+                icon={MapPin}
+                label="Ubicacion"
+                value={employee.workLocation}
+              />
+              <InfoRow
+                icon={Calendar}
+                label="Fecha de ingreso"
+                value={fmtDateShort(employee.hireDate)}
+              />
               {employee.terminationDate && (
-                <InfoRow icon={Calendar} label="Fecha de baja" value={fmtDateShort(employee.terminationDate)} />
+                <InfoRow
+                  icon={Calendar}
+                  label="Fecha de baja"
+                  value={fmtDateShort(employee.terminationDate)}
+                />
               )}
             </div>
           </SectionCard>
@@ -870,19 +1171,54 @@ export default function HrEmployeeDetail({ employeeId }) {
           {/* contact */}
           <SectionCard title="Contacto" icon={Mail}>
             <div className="grid gap-4 sm:grid-cols-2">
-              <InfoRow icon={Mail} label="Correo laboral" value={employee.workEmail} href={employee.workEmail ? `mailto:${employee.workEmail}` : null} />
-              <InfoRow icon={Mail} label="Correo personal" value={employee.personalEmail} href={employee.personalEmail ? `mailto:${employee.personalEmail}` : null} />
-              <InfoRow icon={Phone} label="Telefono" value={employee.phone} href={employee.phone ? `tel:${employee.phone}` : null} />
+              <InfoRow
+                icon={Mail}
+                label="Correo laboral"
+                value={employee.workEmail}
+                href={
+                  employee.workEmail ? `mailto:${employee.workEmail}` : null
+                }
+              />
+              <InfoRow
+                icon={Mail}
+                label="Correo personal"
+                value={employee.personalEmail}
+                href={
+                  employee.personalEmail
+                    ? `mailto:${employee.personalEmail}`
+                    : null
+                }
+              />
+              <InfoRow
+                icon={Phone}
+                label="Telefono"
+                value={employee.phone}
+                href={employee.phone ? `tel:${employee.phone}` : null}
+              />
             </div>
 
-            {(employee.emergencyContactName || employee.emergencyContactPhone) && (
+            {(employee.emergencyContactName ||
+              employee.emergencyContactPhone) && (
               <div className="pt-3 border-t border-[hsl(var(--border))]">
                 <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-widest mb-3">
                   Contacto de emergencia
                 </p>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <InfoRow icon={User} label="Nombre" value={employee.emergencyContactName} />
-                  <InfoRow icon={Phone} label="Telefono" value={employee.emergencyContactPhone} href={employee.emergencyContactPhone ? `tel:${employee.emergencyContactPhone}` : null} />
+                  <InfoRow
+                    icon={User}
+                    label="Nombre"
+                    value={employee.emergencyContactName}
+                  />
+                  <InfoRow
+                    icon={Phone}
+                    label="Telefono"
+                    value={employee.emergencyContactPhone}
+                    href={
+                      employee.emergencyContactPhone
+                        ? `tel:${employee.emergencyContactPhone}`
+                        : null
+                    }
+                  />
                 </div>
               </div>
             )}
@@ -901,6 +1237,7 @@ export default function HrEmployeeDetail({ employeeId }) {
           <OrgChartPanel employee={employee} />
           {/* Files - key forces remount on employee change to clear cache */}
           <FilesPanel key={employeeId} employeeId={employeeId} token={token} />
+          <HrEmployeeActivityPanel employeeId={employeeId} token={token} />
           <AuditPanel employeeId={employeeId} token={token} />
         </div>
       </div>

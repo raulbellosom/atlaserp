@@ -198,6 +198,11 @@ export { MobileFiltersSheet } from "./components/MobileFiltersSheet.jsx";
 export { ListLayout } from "./components/ListLayout.jsx";
 export { useAttachmentsController } from "./hooks/useAttachmentsController.js";
 
+// atlas.activity
+export { ActivityTimeline } from "./components/ActivityTimeline.jsx";
+export { ActivityDrawer } from "./components/ActivityDrawer.jsx";
+export { ActivityBellTrigger } from "./components/ActivityBellTrigger.jsx";
+
 // Atlas blueprint renderer
 export {
   AtlasTable,

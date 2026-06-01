@@ -13,7 +13,10 @@ export default function EventDetailModal({ event, onClose, onEdit, canEdit, canD
   const calColor = event.color || event.calendar?.color || '#6B46C1'
 
   async function handleDelete() {
-    if (!window.confirm('¿Eliminar este evento?')) return
+    const msg = event._isRecurrenceInstance
+      ? '¿Eliminar todos los eventos de esta serie?'
+      : '¿Eliminar este evento?'
+    if (!window.confirm(msg)) return
     try {
       await deleteEvent.mutateAsync(event._baseEventId ?? event.id)
       toast.success('Evento eliminado')
@@ -32,13 +35,13 @@ export default function EventDetailModal({ event, onClose, onEdit, canEdit, canD
         <div className="h-1.5" style={{ backgroundColor: calColor }} />
 
         <div className="flex items-center justify-end gap-1 px-4 pt-3 pb-1">
-          {canEdit && !event._isRecurrenceInstance && (
-            <button onClick={() => onEdit(event)} className="p-1.5 rounded hover:bg-[hsl(var(--muted))]" title="Editar">
+          {canEdit && (
+            <button onClick={() => onEdit(event)} className="p-1.5 rounded hover:bg-[hsl(var(--muted))]" title={event._isRecurrenceInstance ? 'Editar serie' : 'Editar'}>
               <Edit2 size={15} className="text-[hsl(var(--muted-foreground))]" />
             </button>
           )}
-          {canDelete && !event._isRecurrenceInstance && (
-            <button onClick={handleDelete} disabled={deleteEvent.isPending} className="p-1.5 rounded hover:bg-[hsl(var(--muted))]" title="Eliminar">
+          {canDelete && (
+            <button onClick={handleDelete} disabled={deleteEvent.isPending} className="p-1.5 rounded hover:bg-[hsl(var(--muted))]" title={event._isRecurrenceInstance ? 'Eliminar serie' : 'Eliminar'}>
               <Trash2 size={15} className="text-[hsl(var(--muted-foreground))]" />
             </button>
           )}
@@ -102,6 +105,7 @@ export default function EventDetailModal({ event, onClose, onEdit, canEdit, canD
                   {event.recurrenceRule.freq === 'DAILY' && 'Se repite diariamente'}
                   {event.recurrenceRule.freq === 'WEEKLY' && 'Se repite semanalmente'}
                   {event.recurrenceRule.freq === 'MONTHLY' && 'Se repite mensualmente'}
+                  {event.recurrenceRule.freq === 'YEARLY' && 'Se repite anualmente'}
                   {event.recurrenceRule.interval > 1 && ` cada ${event.recurrenceRule.interval}`}
                 </span>
               </div>

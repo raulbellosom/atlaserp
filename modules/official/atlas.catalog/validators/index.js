@@ -33,7 +33,29 @@ export const createProductSchema = z.object({
   published:        z.boolean().default(false),
 })
 
-export const updateProductSchema = createProductSchema.partial()
+// Separate schema with NO .default() values so Zod returns `undefined` (not a
+// default) for any field absent from the PATCH body. The service filters out
+// `undefined` entries, ensuring only explicitly sent fields are updated in the DB.
+export const updateProductSchema = z.object({
+  name:             z.string().min(1).max(200),
+  slug:             z.string().min(1).max(200).regex(/^[a-z0-9-]+$/),
+  description:      z.string().max(5000).optional().nullable(),
+  product_type:     z.enum(['SIMPLE', 'VARIABLE']),
+  sku:              z.string().max(100).optional().nullable(),
+  barcode:          z.string().max(100).optional().nullable(),
+  price:            z.number().min(0),
+  compare_price:    z.number().min(0).optional().nullable(),
+  currency:         z.string().length(3),
+  weight:           z.number().min(0).optional().nullable(),
+  track_stock:      z.boolean(),
+  attributes:       z.array(z.object({ key: z.string().min(1), value: z.string() })),
+  cover_asset_id:   z.string().uuid().optional().nullable(),
+  images:           z.array(z.string().uuid()),
+  category_id:      z.string().uuid().optional().nullable(),
+  meta_title:       z.string().max(160).optional().nullable(),
+  meta_description: z.string().max(320).optional().nullable(),
+  published:        z.boolean(),
+}).partial()
 
 export const createOptionSchema = z.object({
   name:     z.string().min(1).max(60),

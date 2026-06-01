@@ -1,21 +1,85 @@
 import {
-  Box, Layers, ContactRound, Landmark, LayoutDashboard, Puzzle,
-  Settings, Contact, Wallet, Users, UsersRound, Shield, Palette,
-  FolderOpen, Building2, CreditCard, BarChart3, FileText, Home,
-  Truck, Globe, BookOpen, ClipboardList, UserCheck, ShieldCheck,
-  Menu, Package, Tag, SlidersHorizontal, Calendar,
-} from 'lucide-react';
+  Box,
+  Layers,
+  ContactRound,
+  Landmark,
+  LayoutDashboard,
+  Puzzle,
+  Settings,
+  Contact,
+  Wallet,
+  Users,
+  UsersRound,
+  Shield,
+  Palette,
+  FolderOpen,
+  Building2,
+  CreditCard,
+  BarChart3,
+  FileText,
+  Home,
+  Truck,
+  Globe,
+  BookOpen,
+  ClipboardList,
+  UserCheck,
+  ShieldCheck,
+  Menu,
+  Package,
+  Tag,
+  SlidersHorizontal,
+  Calendar,
+  Activity,
+  ShoppingBag,
+  ShoppingCart,
+  Store,
+  Boxes,
+  ListOrdered,
+  Receipt,
+} from "lucide-react";
 
 export const ICON_MAP = {
-  LayoutDashboard, Puzzle, Settings, Contact, Wallet,
-  Users, UsersRound, Shield, Palette, FolderOpen, Building2,
-  Layers, ContactRound, Landmark, CreditCard, BarChart3, FileText,
-  Home, Truck, Box, Globe, BookOpen, ClipboardList, UserCheck,
-  ShieldCheck, Menu, Package, Tag, SlidersHorizontal, Calendar,
+  LayoutDashboard,
+  Puzzle,
+  Settings,
+  Contact,
+  Wallet,
+  Users,
+  UsersRound,
+  Shield,
+  Palette,
+  FolderOpen,
+  Building2,
+  Layers,
+  ContactRound,
+  Landmark,
+  CreditCard,
+  BarChart3,
+  FileText,
+  Home,
+  Truck,
+  Box,
+  Globe,
+  BookOpen,
+  ClipboardList,
+  UserCheck,
+  ShieldCheck,
+  Menu,
+  Package,
+  Tag,
+  SlidersHorizontal,
+  Calendar,
+  Activity,
+  ShoppingBag,
+  ShoppingCart,
+  Store,
+  Boxes,
+  ListOrdered,
+  Receipt,
 };
 
 export function ModIcon({ name, size = 22, color, logoUrl }) {
-  if (typeof logoUrl === 'string' && logoUrl.trim()) {
+  if (typeof logoUrl === "string" && logoUrl.trim()) {
     const frameSize = Math.max(12, Math.round(size));
     return (
       <span
@@ -35,12 +99,12 @@ export function ModIcon({ name, size = 22, color, logoUrl }) {
       </span>
     );
   }
-  const raw = typeof name === 'string' ? name.trim() : '';
+  const raw = typeof name === "string" ? name.trim() : "";
   const pascalName = raw
     .split(/[^a-zA-Z0-9]/)
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join('');
+    .join("");
   const Icon = ICON_MAP[raw] ?? ICON_MAP[pascalName] ?? Box;
   return <Icon size={size} style={{ color }} />;
 }

@@ -16,6 +16,7 @@ const FREQ_OPTIONS = [
   { value: 'DAILY',   label: 'Diario' },
   { value: 'WEEKLY',  label: 'Semanal' },
   { value: 'MONTHLY', label: 'Mensual' },
+  { value: 'YEARLY',  label: 'Anual' },
 ]
 
 function toLocalDatetime(isoStr) {
@@ -127,7 +128,8 @@ export default function EventFormModal({ event, defaultDate, defaultCalendarId, 
 
     try {
       if (isEdit) {
-        await updateEvent.mutateAsync({ id: event.id, ...payload })
+        const editId = event._baseEventId ?? event.id
+        await updateEvent.mutateAsync({ id: editId, ...payload })
         toast.success('Evento actualizado')
       } else {
         await createEvent.mutateAsync(payload)

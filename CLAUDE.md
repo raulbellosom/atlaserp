@@ -169,6 +169,42 @@ Zod schemas are shared between API and frontend. Add new schemas here when creat
 
 Tailwind scans both `src/**` and `../../packages/ui/src/**` (configured in `apps/desktop/tailwind.config.js`).
 
+#### UI-first policy — mandatory
+
+Before writing any UI element, check `@atlas/ui` first. This is non-negotiable.
+
+**Never use native HTML form elements when a `@atlas/ui` equivalent exists:**
+
+| Instead of | Use |
+|---|---|
+| `<select>` | `SelectField` or `CreatableComboboxField` |
+| `<input type="text">` | `TextField` or `Input` |
+| `<textarea>` | `TextareaField` or `Textarea` |
+| `<input type="checkbox">` | `CheckboxField` or `Checkbox` |
+| `<input type="date">` | `DateField` or `DatePickerField` |
+| hand-rolled table | `AtlasTable` / `DataTable` |
+| hand-rolled modal | `Dialog` or `Sheet` |
+| hand-rolled dropdown | `DropdownMenu` |
+
+**Key components to know:**
+
+- `CreatableComboboxField` — searchable combobox with inline "+ Crear «X»" option; use whenever a select needs to allow new entries. `placeholder="Buscar o crear..."` is the canonical UX.
+- `ComboboxField` — same as above without the create option; use for read-only option sets.
+- `SelectField` — plain controlled select (no search). Use only for short, fixed lists.
+- `AtlasTable` / `AtlasCrudView` / `AtlasForm` / `AtlasDetail` — blueprint-driven renderers; use for all standard module CRUD screens.
+- `PageHeader` — every screen must start with `PageHeader`.
+- `EmptyState` / `ErrorState` — standard empty/error placeholders; never render plain text instead.
+- `ConfirmDialog` — for all destructive action confirmations.
+- `AttachmentsPanel` / `FileUploader` — for all file attachment UX within a module; never require the user to navigate to atlas.files.
+
+**Adding a new reusable component:**
+
+1. Create it in `packages/ui/src/components/<ComponentName>.jsx`.
+2. Export it from `packages/ui/src/index.js`.
+3. Document it in `docs/ai-context/ame3-runtime-capabilities.md` under the correct table.
+
+Never hardcode a one-off component inside a module screen when the same pattern could apply to other modules. Extract it to `@atlas/ui` instead.
+
 ### Prisma schema highlights
 
 - `AtlasModule` - installed modules (status: INSTALLED/DISABLED/UNINSTALLED/ERROR)

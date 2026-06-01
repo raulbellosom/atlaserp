@@ -103,20 +103,29 @@ export function createAtlasClient({ baseUrl }) {
           body: JSON.stringify({ value }),
         }),
       getTablePreference: (tableKey, token) =>
-        request(`/profile/me/table-preferences/${encodeURIComponent(tableKey)}`, {
-          headers: withAuthHeaders(token),
-        }),
+        request(
+          `/profile/me/table-preferences/${encodeURIComponent(tableKey)}`,
+          {
+            headers: withAuthHeaders(token),
+          },
+        ),
       setTablePreference: (tableKey, config, token) =>
-        request(`/profile/me/table-preferences/${encodeURIComponent(tableKey)}`, {
-          method: "PUT",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(config),
-        }),
+        request(
+          `/profile/me/table-preferences/${encodeURIComponent(tableKey)}`,
+          {
+            method: "PUT",
+            headers: withAuthHeaders(token),
+            body: JSON.stringify(config),
+          },
+        ),
       deleteTablePreference: (tableKey, token) =>
-        request(`/profile/me/table-preferences/${encodeURIComponent(tableKey)}`, {
-          method: "DELETE",
-          headers: withAuthHeaders(token),
-        }),
+        request(
+          `/profile/me/table-preferences/${encodeURIComponent(tableKey)}`,
+          {
+            method: "DELETE",
+            headers: withAuthHeaders(token),
+          },
+        ),
     },
     instanceConfig: {
       get: (token) =>
@@ -161,21 +170,20 @@ export function createAtlasClient({ baseUrl }) {
         }),
     },
     modules: {
-      list: (token) =>
-        request('/modules', { headers: withAuthHeaders(token) }),
+      list: (token) => request("/modules", { headers: withAuthHeaders(token) }),
       getAvailable: (token) =>
-        request('/modules/available', { headers: withAuthHeaders(token) }),
+        request("/modules/available", { headers: withAuthHeaders(token) }),
       install: (manifest, token) =>
-        request('/modules/install', {
-          method: 'POST',
+        request("/modules/install", {
+          method: "POST",
           headers: withAuthHeaders(token),
           body: JSON.stringify({ manifest }),
         }),
       sync: (token, options = null) =>
-        request('/modules/sync', {
-          method: 'POST',
+        request("/modules/sync", {
+          method: "POST",
           headers: withAuthHeaders(token),
-          ...(options && typeof options === 'object'
+          ...(options && typeof options === "object"
             ? { body: JSON.stringify(options) }
             : {}),
         }),
@@ -189,24 +197,24 @@ export function createAtlasClient({ baseUrl }) {
         }),
       retryInstall: (key, token) =>
         request(`/modules/${encodeURIComponent(key)}/retry-install`, {
-          method: 'POST',
+          method: "POST",
           headers: withAuthHeaders(token),
         }),
-      clearError: (key, mode = 'preserve-data', token) =>
+      clearError: (key, mode = "preserve-data", token) =>
         request(`/modules/${encodeURIComponent(key)}/clear-error`, {
-          method: 'POST',
+          method: "POST",
           headers: withAuthHeaders(token),
           body: JSON.stringify({ mode }),
         }),
-      cleanupDryRun: (key, mode = 'purge-empty-tables', token) =>
+      cleanupDryRun: (key, mode = "purge-empty-tables", token) =>
         request(`/modules/${encodeURIComponent(key)}/cleanup-dry-run`, {
-          method: 'POST',
+          method: "POST",
           headers: withAuthHeaders(token),
           body: JSON.stringify({ mode }),
         }),
-      cleanup: (key, mode = 'purge-empty-tables', confirmation, token) =>
+      cleanup: (key, mode = "purge-empty-tables", confirmation, token) =>
         request(`/modules/${encodeURIComponent(key)}/cleanup`, {
-          method: 'POST',
+          method: "POST",
           headers: withAuthHeaders(token),
           body: JSON.stringify({ mode, confirmation }),
         }),
@@ -216,39 +224,39 @@ export function createAtlasClient({ baseUrl }) {
         }),
       disable: (key, token) =>
         request(`/modules/${encodeURIComponent(key)}/disable`, {
-          method: 'POST',
+          method: "POST",
           headers: withAuthHeaders(token),
         }),
       enable: (key, token) =>
         request(`/modules/${encodeURIComponent(key)}/enable`, {
-          method: 'POST',
+          method: "POST",
           headers: withAuthHeaders(token),
         }),
       uninstall: (key, token) =>
         request(`/modules/${encodeURIComponent(key)}`, {
-          method: 'DELETE',
+          method: "DELETE",
           headers: withAuthHeaders(token),
         }),
-      uninstallDryRun: (key, token, mode = 'preserve-data') =>
+      uninstallDryRun: (key, token, mode = "preserve-data") =>
         request(`/modules/${encodeURIComponent(key)}/uninstall/dry-run`, {
-          method: 'POST',
+          method: "POST",
           headers: withAuthHeaders(token),
           body: JSON.stringify({ mode }),
         }),
       uninstallExplicit: (key, mode, confirmation, token) =>
         request(`/modules/${encodeURIComponent(key)}/uninstall`, {
-          method: 'POST',
+          method: "POST",
           headers: withAuthHeaders(token),
           body: JSON.stringify({ mode, confirmation }),
         }),
       resetDryRun: (key, token) =>
         request(`/modules/${encodeURIComponent(key)}/reset/dry-run`, {
-          method: 'POST',
+          method: "POST",
           headers: withAuthHeaders(token),
         }),
       reset: (key, confirmation, token) =>
         request(`/modules/${encodeURIComponent(key)}/reset`, {
-          method: 'POST',
+          method: "POST",
           headers: withAuthHeaders(token),
           body: JSON.stringify({ confirmation }),
         }),
@@ -614,9 +622,12 @@ export function createAtlasClient({ baseUrl }) {
           body: JSON.stringify({ enabled }),
         }),
       listAccountTransactions: (id, token, query = {}) =>
-        request(`/ledger/accounts/${encodeURIComponent(id)}/transactions${toQueryString(query)}`, {
-          headers: withAuthHeaders(token),
-        }),
+        request(
+          `/ledger/accounts/${encodeURIComponent(id)}/transactions${toQueryString(query)}`,
+          {
+            headers: withAuthHeaders(token),
+          },
+        ),
       createTransaction: (id, data, token) =>
         request(`/ledger/accounts/${encodeURIComponent(id)}/transactions`, {
           method: "POST",
@@ -642,28 +653,31 @@ export function createAtlasClient({ baseUrl }) {
           },
         ),
       getAccountSummary: (id, token, query = {}) =>
-        request(`/ledger/accounts/${encodeURIComponent(id)}/summary${toQueryString(query)}`, {
-          headers: withAuthHeaders(token),
-        }),
+        request(
+          `/ledger/accounts/${encodeURIComponent(id)}/summary${toQueryString(query)}`,
+          {
+            headers: withAuthHeaders(token),
+          },
+        ),
       listCategories: (token, query = {}) =>
         request(`/ledger/categories${toQueryString(query)}`, {
           headers: withAuthHeaders(token),
         }),
       createCategory: (data, token) =>
-        request('/ledger/categories', {
-          method: 'POST',
+        request("/ledger/categories", {
+          method: "POST",
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
       updateCategory: (id, data, token) =>
         request(`/ledger/categories/${encodeURIComponent(id)}`, {
-          method: 'PATCH',
+          method: "PATCH",
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
       setCategoryEnabled: (id, enabled, token) =>
         request(`/ledger/categories/${encodeURIComponent(id)}/enabled`, {
-          method: 'PATCH',
+          method: "PATCH",
           headers: withAuthHeaders(token),
           body: JSON.stringify({ enabled }),
         }),
@@ -672,99 +686,242 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
         }),
       createType: (data, token) =>
-        request('/ledger/types', {
-          method: 'POST',
+        request("/ledger/types", {
+          method: "POST",
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
       updateType: (id, data, token) =>
         request(`/ledger/types/${encodeURIComponent(id)}`, {
-          method: 'PATCH',
+          method: "PATCH",
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
       setTypeEnabled: (id, enabled, token) =>
         request(`/ledger/types/${encodeURIComponent(id)}/enabled`, {
-          method: 'PATCH',
+          method: "PATCH",
           headers: withAuthHeaders(token),
           body: JSON.stringify({ enabled }),
         }),
       previewImport: (accountId, payload, token) =>
-        request(`/ledger/accounts/${encodeURIComponent(accountId)}/import/preview`, {
-          method: 'POST',
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(payload ?? {}),
-        }),
+        request(
+          `/ledger/accounts/${encodeURIComponent(accountId)}/import/preview`,
+          {
+            method: "POST",
+            headers: withAuthHeaders(token),
+            body: JSON.stringify(payload ?? {}),
+          },
+        ),
       commitImport: (accountId, payload, token) =>
-        request(`/ledger/accounts/${encodeURIComponent(accountId)}/import/commit`, {
-          method: 'POST',
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(payload ?? {}),
-        }),
+        request(
+          `/ledger/accounts/${encodeURIComponent(accountId)}/import/commit`,
+          {
+            method: "POST",
+            headers: withAuthHeaders(token),
+            body: JSON.stringify(payload ?? {}),
+          },
+        ),
       exportAccountXlsx: (id, token, query = {}) =>
-        requestBlob(`/ledger/accounts/${encodeURIComponent(id)}/export/xlsx${toQueryString(query)}`, {
-          headers: withAuthHeaders(token),
-        }),
+        requestBlob(
+          `/ledger/accounts/${encodeURIComponent(id)}/export/xlsx${toQueryString(query)}`,
+          {
+            headers: withAuthHeaders(token),
+          },
+        ),
       exportAccountCsv: (id, token, query = {}) =>
-        requestBlob(`/ledger/accounts/${encodeURIComponent(id)}/export/csv${toQueryString(query)}`, {
-          headers: withAuthHeaders(token),
-        }),
+        requestBlob(
+          `/ledger/accounts/${encodeURIComponent(id)}/export/csv${toQueryString(query)}`,
+          {
+            headers: withAuthHeaders(token),
+          },
+        ),
       exportAccountPdf: (id, token, query = {}) =>
-        requestBlob(`/ledger/accounts/${encodeURIComponent(id)}/export/pdf${toQueryString(query)}`, {
-          headers: withAuthHeaders(token),
-        }),
+        requestBlob(
+          `/ledger/accounts/${encodeURIComponent(id)}/export/pdf${toQueryString(query)}`,
+          {
+            headers: withAuthHeaders(token),
+          },
+        ),
     },
     catalog: {
       // Products
       listProducts: (token, options = {}) =>
-        request(`/catalog/products${toQueryString(options)}`, { headers: withAuthHeaders(token) }),
+        request(`/catalog/products${toQueryString(options)}`, {
+          headers: withAuthHeaders(token),
+        }),
       getProduct: (id, token) =>
-        request(`/catalog/products/${encodeURIComponent(id)}`, { headers: withAuthHeaders(token) }),
+        request(`/catalog/products/${encodeURIComponent(id)}`, {
+          headers: withAuthHeaders(token),
+        }),
       createProduct: (data, token) =>
-        request('/catalog/products', { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+        request("/catalog/products", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       updateProduct: (id, data, token) =>
-        request(`/catalog/products/${encodeURIComponent(id)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+        request(`/catalog/products/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       deleteProduct: (id, token) =>
-        request(`/catalog/products/${encodeURIComponent(id)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+        request(`/catalog/products/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
       publishProduct: (id, token) =>
-        request(`/catalog/products/${encodeURIComponent(id)}/publish`, { method: 'POST', headers: withAuthHeaders(token) }),
+        request(`/catalog/products/${encodeURIComponent(id)}/publish`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+        }),
       unpublishProduct: (id, token) =>
-        request(`/catalog/products/${encodeURIComponent(id)}/unpublish`, { method: 'POST', headers: withAuthHeaders(token) }),
+        request(`/catalog/products/${encodeURIComponent(id)}/unpublish`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+        }),
       // Options
       listOptions: (productId, token) =>
-        request(`/catalog/products/${encodeURIComponent(productId)}/options`, { headers: withAuthHeaders(token) }),
+        request(`/catalog/products/${encodeURIComponent(productId)}/options`, {
+          headers: withAuthHeaders(token),
+        }),
       createOption: (productId, data, token) =>
-        request(`/catalog/products/${encodeURIComponent(productId)}/options`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+        request(`/catalog/products/${encodeURIComponent(productId)}/options`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       updateOption: (productId, optionId, data, token) =>
-        request(`/catalog/products/${encodeURIComponent(productId)}/options/${encodeURIComponent(optionId)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+        request(
+          `/catalog/products/${encodeURIComponent(productId)}/options/${encodeURIComponent(optionId)}`,
+          {
+            method: "PATCH",
+            headers: withAuthHeaders(token),
+            body: JSON.stringify(data),
+          },
+        ),
       deleteOption: (productId, optionId, token) =>
-        request(`/catalog/products/${encodeURIComponent(productId)}/options/${encodeURIComponent(optionId)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+        request(
+          `/catalog/products/${encodeURIComponent(productId)}/options/${encodeURIComponent(optionId)}`,
+          { method: "DELETE", headers: withAuthHeaders(token) },
+        ),
       // Variants
       listVariants: (productId, token) =>
-        request(`/catalog/products/${encodeURIComponent(productId)}/variants`, { headers: withAuthHeaders(token) }),
+        request(`/catalog/products/${encodeURIComponent(productId)}/variants`, {
+          headers: withAuthHeaders(token),
+        }),
       createVariant: (productId, data, token) =>
-        request(`/catalog/products/${encodeURIComponent(productId)}/variants`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+        request(`/catalog/products/${encodeURIComponent(productId)}/variants`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       updateVariant: (productId, variantId, data, token) =>
-        request(`/catalog/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+        request(
+          `/catalog/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}`,
+          {
+            method: "PATCH",
+            headers: withAuthHeaders(token),
+            body: JSON.stringify(data),
+          },
+        ),
       deleteVariant: (productId, variantId, token) =>
-        request(`/catalog/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+        request(
+          `/catalog/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}`,
+          { method: "DELETE", headers: withAuthHeaders(token) },
+        ),
       // Stock
       recordStockMovement: (productId, data, token) =>
-        request(`/catalog/products/${encodeURIComponent(productId)}/stock-movements`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+        request(
+          `/catalog/products/${encodeURIComponent(productId)}/stock-movements`,
+          {
+            method: "POST",
+            headers: withAuthHeaders(token),
+            body: JSON.stringify(data),
+          },
+        ),
       listStockMovements: (productId, token, options = {}) =>
-        request(`/catalog/products/${encodeURIComponent(productId)}/stock-movements${toQueryString(options)}`, { headers: withAuthHeaders(token) }),
+        request(
+          `/catalog/products/${encodeURIComponent(productId)}/stock-movements${toQueryString(options)}`,
+          { headers: withAuthHeaders(token) },
+        ),
       // Categories
       listCategories: (token, options = {}) =>
-        request(`/catalog/categories${toQueryString(options)}`, { headers: withAuthHeaders(token) }),
+        request(`/catalog/categories${toQueryString(options)}`, {
+          headers: withAuthHeaders(token),
+        }),
       createCategory: (data, token) =>
-        request('/catalog/categories', { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+        request("/catalog/categories", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       updateCategory: (id, data, token) =>
-        request(`/catalog/categories/${encodeURIComponent(id)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+        request(`/catalog/categories/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       deleteCategory: (id, token) =>
-        request(`/catalog/categories/${encodeURIComponent(id)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+        request(`/catalog/categories/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
+    },
+    activity: {
+      list: (query, token) =>
+        request(`/activity${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      recent: (token, limit = 20) =>
+        request(`/activity/recent${toQueryString({ limit })}`, {
+          headers: withAuthHeaders(token),
+        }),
+      listForEntity: (entityType, entityId, token, limit = 50) =>
+        request(
+          `/activity/entity/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}${toQueryString({ limit })}`,
+          { headers: withAuthHeaders(token) },
+        ),
+      publish: (payload, token) =>
+        request("/activity", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(payload),
+        }),
+      subscribeToken: (token) =>
+        request("/activity/subscribe-token", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+        }),
+      exportExcel: (queryOrOptions, token) => {
+        const body =
+          queryOrOptions && Array.isArray(queryOrOptions.ids)
+            ? { ids: queryOrOptions.ids, query: queryOrOptions.query ?? {} }
+            : { query: queryOrOptions ?? {} };
+        return requestBlob("/activity/export/excel", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(body),
+        });
+      },
+      getRealtimeChannel: ({ supabase, companyId, onInsert }) => {
+        if (!supabase || typeof supabase.channel !== "function") return null;
+        if (!companyId) return null;
+        const channel = supabase.channel(`activity:company:${companyId}`);
+        channel.on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "activity",
+            filter: `company_id=eq.${companyId}`,
+          },
+          (payload) => {
+            if (typeof onInsert === "function") onInsert(payload.new);
+          },
+        );
+        return channel;
+      },
     },
   };
 }
-
-
-

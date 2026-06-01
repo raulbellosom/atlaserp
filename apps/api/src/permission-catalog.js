@@ -11,6 +11,7 @@ const GROUPS = {
   ledger: "Libro de cuentas",
   website: "Sitio web",
   audit: "Bitacora",
+  activity: "Actividad",
 };
 
 const MODULE_LABELS = {
@@ -25,6 +26,7 @@ const MODULE_LABELS = {
   ledger: "Libro de cuentas",
   website: "Sitio web",
   audit: "Bitacora",
+  activity: "Actividad",
 };
 
 const FEATURE_LABELS = {
@@ -145,9 +147,35 @@ export const PERMISSION_CATALOG = {
     order: 10,
   },
 
+  "activity.access": {
+    displayNameEs: "Acceder a actividad",
+    descriptionEs: "Permite entrar al modulo de actividad.",
+    groupKey: "activity",
+    order: 10,
+  },
+  "activity.read": {
+    displayNameEs: "Ver actividad",
+    descriptionEs: "Permite consultar el feed de actividad de la empresa.",
+    groupKey: "activity",
+    order: 20,
+  },
+  "activity.publish": {
+    displayNameEs: "Publicar actividad",
+    descriptionEs: "Permite registrar eventos en el feed de actividad.",
+    groupKey: "activity",
+    order: 30,
+  },
+  "activity.manage": {
+    displayNameEs: "Administrar actividad",
+    descriptionEs: "Permite eliminar o purgar registros del feed de actividad.",
+    groupKey: "activity",
+    order: 40,
+  },
+
   "platform.settings.manage": {
     displayNameEs: "Administrar configuracion de plataforma",
-    descriptionEs: "Permite gestionar configuracion de SMTP y otros ajustes de plataforma.",
+    descriptionEs:
+      "Permite gestionar configuracion de SMTP y otros ajustes de plataforma.",
     groupKey: "platform",
     order: 10,
   },
@@ -738,7 +766,8 @@ export const PERMISSION_CATALOG = {
   },
   "website.pages.publish": {
     displayNameEs: "Publicar paginas",
-    descriptionEs: "Permite publicar paginas para que sean visibles publicamente.",
+    descriptionEs:
+      "Permite publicar paginas para que sean visibles publicamente.",
     groupKey: "website",
     order: 7,
   },
@@ -772,7 +801,6 @@ export const PERMISSION_CATALOG = {
     groupKey: "website",
     order: 12,
   },
-
 };
 
 function inferGroupKey(permissionKey) {
@@ -816,7 +844,8 @@ export function getPermissionPresentation(permissionKey) {
   return {
     key: permissionKey,
     name: item?.displayNameEs ?? inferred?.name ?? permissionKey,
-    description: item?.descriptionEs ?? inferred?.description ?? "Permiso del sistema.",
+    description:
+      item?.descriptionEs ?? inferred?.description ?? "Permiso del sistema.",
     groupKey,
     groupLabel,
     sortOrder: item?.order ?? 999,
@@ -858,4 +887,3 @@ export function groupPermissionsForUi(permissions = []) {
     }))
     .sort((a, b) => a.groupLabel.localeCompare(b.groupLabel));
 }
-

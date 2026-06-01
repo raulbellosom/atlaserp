@@ -29,6 +29,38 @@ export function createCatalogProductService({ prisma }) {
     `
   }
 
+  async function listCategoriesPaginated({ companyId, search, sort, order, limit = 20, offset = 0 }) {
+    const likeSearch = search ? `%${String(search).trim()}%` : null
+    const safeLimit  = Math.min(Math.max(Number.parseInt(String(limit),  10) || 20, 1), 200)
+    const safeOffset = Math.max(Number.parseInt(String(offset), 10) || 0, 0)
+    const ALLOWED_SORT = ['name', 'slug', 'position', 'created_at']
+    const safeSort  = ALLOWED_SORT.includes(sort) ? sort : 'position'
+    const safeOrder = order === 'desc' ? 'DESC' : 'ASC'
+
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT c.id, c.name, c.slug, c.description, c.parent_id,
+              c.position, c.enabled, c.created_at,
+              p.name AS parent_name
+       FROM catalog_category c
+       LEFT JOIN catalog_category p ON p.id = c.parent_id
+       WHERE c.company_id = $1::uuid AND c.enabled = true
+         AND ($2::text IS NULL OR c.name ILIKE $2 OR c.slug ILIKE $2)
+       ORDER BY c.${safeSort} ${safeOrder}
+       LIMIT $3 OFFSET $4`,
+      companyId, likeSearch, safeLimit, safeOffset,
+    )
+
+    const [{ total }] = await prisma.$queryRawUnsafe(
+      `SELECT COUNT(*)::int AS total
+       FROM catalog_category c
+       WHERE c.company_id = $1::uuid AND c.enabled = true
+         AND ($2::text IS NULL OR c.name ILIKE $2 OR c.slug ILIKE $2)`,
+      companyId, likeSearch,
+    )
+
+    return { data: rows, total }
+  }
+
   async function getCategoryById({ companyId, id }) {
     const rows = await prisma.$queryRaw`
       SELECT * FROM catalog_category
@@ -261,6 +293,7 @@ export function createCatalogProductService({ prisma }) {
   return {
     listCategoriesTree,
     listCategories,
+    listCategoriesPaginated,
     getCategoryById,
     createCategory,
     updateCategory,

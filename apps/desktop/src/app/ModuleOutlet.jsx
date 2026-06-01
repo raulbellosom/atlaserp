@@ -101,7 +101,8 @@ const SCREEN_MAP = {
     () => import("../modules/atlas.website/screens/WebsiteTemplatesScreen.jsx"),
   ),
   "atlas.website:/pages/:id/editor": lazy(
-    () => import("../modules/atlas.website/screens/WebsitePageEditorScreen.jsx"),
+    () =>
+      import("../modules/atlas.website/screens/WebsitePageEditorScreen.jsx"),
   ),
   "atlas.website:/theme": lazy(
     () => import("../modules/atlas.website/screens/WebsiteThemeScreen.jsx"),
@@ -113,7 +114,8 @@ const SCREEN_MAP = {
     () => import("../modules/atlas.website/screens/WebsiteBlogScreen.jsx"),
   ),
   "atlas.website:/blog/:id/editor": lazy(
-    () => import("../modules/atlas.website/screens/WebsiteBlogPostEditorScreen.jsx"),
+    () =>
+      import("../modules/atlas.website/screens/WebsiteBlogPostEditorScreen.jsx"),
   ),
   "atlas.website:/forms": lazy(
     () => import("../modules/atlas.website/screens/WebsiteFormsScreen.jsx"),
@@ -131,13 +133,18 @@ const SCREEN_MAP = {
     () => import("../modules/atlas.catalog/screens/CatalogProductsScreen.jsx"),
   ),
   "atlas.catalog:/categories": lazy(
-    () => import("../modules/atlas.catalog/screens/CatalogCategoriesScreen.jsx"),
+    () =>
+      import("../modules/atlas.catalog/screens/CatalogCategoriesScreen.jsx"),
   ),
   "atlas.catalog:/inventory": lazy(
     () => import("../modules/atlas.catalog/screens/CatalogInventoryScreen.jsx"),
   ),
   "atlas.catalog:/:id": lazy(
-    () => import("../modules/atlas.catalog/screens/CatalogProductDetailScreen.jsx"),
+    () =>
+      import("../modules/atlas.catalog/screens/CatalogProductDetailScreen.jsx"),
+  ),
+  "atlas.activity:/": lazy(
+    () => import("../modules/atlas.activity/ActivityFeedScreen.jsx"),
   ),
 };
 const SCREEN_MODULE_KEYS = new Set(
@@ -215,7 +222,9 @@ function isPathAllowedByNavigation(module, subPath) {
   return navigation.some((item) => {
     const navPath = item?.path;
     if (!navPath) return false;
-    if (navPath === "/") return subPath === "/";
+    // Root nav item ("/" after normalization) means the module owns its entire
+    // routing space — detail pages like /:id are sub-routes of that root entry.
+    if (navPath === "/") return true;
     return subPath === navPath || subPath.startsWith(`${navPath}/`);
   });
 }
@@ -272,8 +281,10 @@ function resolveScreen(moduleKey, subPath) {
   }
   if (moduleKey === "atlas.catalog") {
     if (subPath === "/") return SCREEN_MAP["atlas.catalog:/"] ?? null;
-    if (subPath.startsWith("/categories")) return SCREEN_MAP["atlas.catalog:/categories"] ?? null;
-    if (subPath === "/inventory") return SCREEN_MAP["atlas.catalog:/inventory"] ?? null;
+    if (subPath.startsWith("/categories"))
+      return SCREEN_MAP["atlas.catalog:/categories"] ?? null;
+    if (subPath === "/inventory")
+      return SCREEN_MAP["atlas.catalog:/inventory"] ?? null;
     // Any remaining subpath like /:id is the product detail screen
     return SCREEN_MAP["atlas.catalog:/:id"] ?? null;
   }
@@ -285,7 +296,8 @@ function resolveScreen(moduleKey, subPath) {
 export function ModuleOutlet() {
   const { moduleKey, "*": wildcard } = useParams();
   const navigate = useNavigate();
-  const { moduleMap, isLoading, isPending, isError, error } = useRuntimeModules();
+  const { moduleMap, isLoading, isPending, isError, error } =
+    useRuntimeModules();
 
   const module = moduleMap.get(moduleKey) ?? null;
   const companyPrimaryColor = useBrandingStore((s) => s.branding?.primaryColor);
@@ -433,4 +445,3 @@ export function ModuleOutlet() {
     </Suspense>
   );
 }
-

@@ -41,7 +41,10 @@ import {
 } from "./services/company-service.js";
 import { createHrService, HrServiceError } from "./services/hr-service.js";
 import { createModulesRouter } from "./routes/modules.js";
-import { createPublicWebsiteRouter, createPublicCatalogRouter } from "./routes/public-website.js";
+import {
+  createPublicWebsiteRouter,
+  createPublicCatalogRouter,
+} from "./routes/public-website.js";
 import { createPublicFormsRouter } from "./routes/website/forms-public-routes.js";
 import { createPublicBookingsRouter } from "./routes/website/bookings-routes.js";
 import { createPublicCheckoutRouter } from "./routes/website/checkout-routes.js";
@@ -50,6 +53,11 @@ import { createLedgerRouter } from "./routes/ledger/index.js";
 import { createFleetRouter } from "./routes/fleet/index.js";
 import { createCalendarRouter } from "./routes/calendar/index.js";
 import { createSettingsRouter } from "./routes/settings-routes.js";
+import { createActivityRouter } from "./routes/activity.js";
+import {
+  publishActivityFromContext,
+  getActivityContext,
+} from "./services/activity-publisher.js";
 import { createModuleBundlerService } from "./services/module-bundler-service.js";
 import { createRouteLoaderService } from "./services/route-loader-service.js";
 import {
@@ -266,8 +274,8 @@ function requirePermission(permissionKey) {
         401,
       );
     }
-    c.set('companyId', context.memberships?.[0]?.companyId ?? null);
-    c.set('userId', context.profile.id);
+    c.set("companyId", context.memberships?.[0]?.companyId ?? null);
+    c.set("userId", context.profile.id);
     if (context.isAdmin || context.permissionSet.has(permissionKey)) {
       await next();
       return;
@@ -285,8 +293,8 @@ function requireAnyPermission(permissionKeys = []) {
         401,
       );
     }
-    c.set('companyId', context.memberships?.[0]?.companyId ?? null);
-    c.set('userId', context.profile.id);
+    c.set("companyId", context.memberships?.[0]?.companyId ?? null);
+    c.set("userId", context.profile.id);
     if (context.isAdmin) {
       await next();
       return;
@@ -435,11 +443,15 @@ function normalizeIdentityUsersQuery(query = {}) {
   const page = toPositiveInt(query.page, 1, { min: 1, max: 100000 });
   const pageSize = toPositiveInt(query.pageSize, 20, { min: 1, max: 200 });
   const search = String(query.search ?? "").trim();
-  const enabledRaw = String(query.enabled ?? "").trim().toLowerCase();
+  const enabledRaw = String(query.enabled ?? "")
+    .trim()
+    .toLowerCase();
   const enabled =
     enabledRaw === "true" ? true : enabledRaw === "false" ? false : null;
   const sortByRaw = String(query.sortBy ?? "").trim();
-  const sortDirRaw = String(query.sortDir ?? "").trim().toLowerCase();
+  const sortDirRaw = String(query.sortDir ?? "")
+    .trim()
+    .toLowerCase();
   const sortDir = sortDirRaw === "asc" ? "asc" : "desc";
 
   return { page, pageSize, search, enabled, sortBy: sortByRaw, sortDir };
@@ -535,7 +547,10 @@ async function buildAvatarUrlMapByFileIds(fileIds) {
         .createSignedUrls(paths, 3600);
       if (!Array.isArray(signedList)) return;
       for (let index = 0; index < assets.length; index += 1) {
-        avatarUrlMap.set(assets[index].id, signedList[index]?.signedUrl ?? null);
+        avatarUrlMap.set(
+          assets[index].id,
+          signedList[index]?.signedUrl ?? null,
+        );
       }
     }),
   );
@@ -1456,6 +1471,13 @@ app.put(
         phone: String(body.phone ?? "").trim(),
         website: String(body.website ?? "").trim(),
       });
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "company.profile.update",
+        severity: "info",
+        entityType: "Company",
+        summary: `${actorName} actualizó el perfil de la empresa`,
+      });
       return c.json({ data });
     } catch (err) {
       if (err instanceof CompanyServiceError)
@@ -1505,6 +1527,13 @@ app.put(
         extNumber: String(body.extNumber ?? "").trim(),
         intNumber: String(body.intNumber ?? "").trim(),
         postalCode: String(body.postalCode ?? "").trim(),
+      });
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "company.address.update",
+        severity: "info",
+        entityType: "Company",
+        summary: `${actorName} actualizó la dirección de la empresa`,
       });
       return c.json({ data });
     } catch (err) {
@@ -1567,6 +1596,14 @@ app.put(
         { primaryColor, logoFileId },
         companyId,
       );
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "company.branding.update",
+        severity: "info",
+        entityType: "Company",
+        entityId: companyId,
+        summary: `${actorName} actualizó la marca de la empresa`,
+      });
       return c.json({ data });
     } catch (err) {
       if (err instanceof CompanyServiceError)
@@ -1626,6 +1663,16 @@ app.post(
           });
         }
       }
+
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "files.assets.upload",
+        severity: "success",
+        entityType: "FileAsset",
+        entityId: asset.id,
+        summary:
+          `${actorName} subió "${asset.originalName ?? asset.id}"`.trim(),
+      });
 
       return c.json({ data: asset }, 201);
     } catch (err) {
@@ -1719,6 +1766,15 @@ app.patch(
         authUserId,
         id,
         originalName: parsed.data.originalName,
+      });
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "files.assets.rename",
+        severity: "info",
+        entityType: "FileAsset",
+        entityId: id,
+        summary:
+          `${actorName} renombró un archivo a "${updated.originalName ?? ""}"`.trim(),
       });
       return c.json({ data: updated });
     } catch (err) {
@@ -1852,6 +1908,14 @@ app.patch(
         id,
         enabled: Boolean(body.enabled),
       });
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: updated.enabled ? "files.assets.enable" : "files.assets.disable",
+        severity: updated.enabled ? "info" : "warning",
+        entityType: "FileAsset",
+        entityId: id,
+        summary: `${actorName} ${updated.enabled ? "habilitó" : "deshabilitó"} un archivo`,
+      });
       return c.json({ data: updated });
     } catch (err) {
       if (err instanceof FilesServiceError) {
@@ -1874,6 +1938,14 @@ app.delete(
       const authUserId = c.get("authUserId");
       const id = c.req.param("id");
       await filesService.delete({ authUserId, id });
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "files.assets.delete",
+        severity: "warning",
+        entityType: "FileAsset",
+        entityId: id,
+        summary: `${actorName} eliminó un archivo`,
+      });
       return c.json({ ok: true });
     } catch (err) {
       if (err instanceof FilesServiceError) {
@@ -1969,6 +2041,14 @@ app.post(
       if (["atlas.admin", "system.admin"].includes(role.key)) {
         await syncAdminRolesPermissions(prisma);
       }
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "identity.role.create",
+        severity: "success",
+        entityType: "Role",
+        entityId: role.id,
+        summary: `${actorName} creó el rol "${role.name}"`,
+      });
       return c.json({ data: role }, 201);
     } catch {
       return c.json({ error: "No se pudo crear el rol." }, 500);
@@ -1991,6 +2071,14 @@ app.put(
         where: { id },
         data: { name, description },
       });
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "identity.role.update",
+        severity: "info",
+        entityType: "Role",
+        entityId: id,
+        summary: `${actorName} actualizó el rol "${role.name}"`,
+      });
       return c.json({ data: role });
     } catch {
       return c.json({ error: "No se pudo actualizar el rol." }, 500);
@@ -2011,6 +2099,14 @@ app.patch(
         where: { id },
         data: { enabled },
       });
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: role.enabled ? "identity.role.enable" : "identity.role.disable",
+        severity: role.enabled ? "info" : "warning",
+        entityType: "Role",
+        entityId: id,
+        summary: `${actorName} ${role.enabled ? "habilitó" : "deshabilitó"} el rol "${role.name}"`,
+      });
       return c.json({ data: role });
     } catch {
       return c.json({ error: "No se pudo actualizar el estado del rol." }, 500);
@@ -2025,12 +2121,26 @@ app.delete(
   async (c) => {
     try {
       const id = c.req.param("id");
-      const role = await prisma.role.findUnique({ where: { id }, select: { id: true, system: true, key: true } });
+      const role = await prisma.role.findUnique({
+        where: { id },
+        select: { id: true, system: true, key: true },
+      });
       if (!role) return c.json({ error: "Rol no encontrado." }, 404);
       if (role.system || ADMIN_ROLE_KEYS.has(role.key)) {
-        return c.json({ error: "No se puede eliminar un rol del sistema." }, 403);
+        return c.json(
+          { error: "No se puede eliminar un rol del sistema." },
+          403,
+        );
       }
       await prisma.role.delete({ where: { id } });
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "identity.role.delete",
+        severity: "critical",
+        entityType: "Role",
+        entityId: id,
+        summary: `${actorName} eliminó el rol "${role.key}"`,
+      });
       return c.json({ ok: true });
     } catch {
       return c.json({ error: "No se pudo eliminar el rol." }, 500);
@@ -2066,6 +2176,14 @@ app.patch(
             ]
           : []),
       ]);
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "identity.role.permissions.update",
+        severity: "info",
+        entityType: "Role",
+        entityId: id,
+        summary: `${actorName} actualizó los permisos del rol (${permissions.length})`,
+      });
       return c.json({
         data: { roleId: id, permissionCount: permissions.length },
       });
@@ -2183,6 +2301,14 @@ app.post(
           });
           return profile;
         });
+        const { actorName } = getActivityContext(c);
+        await publishActivityFromContext(prisma, c, {
+          type: "identity.user.create",
+          severity: "success",
+          entityType: "UserProfile",
+          entityId: userProfile.id,
+          summary: `${actorName} creó al usuario ${fields.email}`,
+        });
         return c.json({ data: userProfile }, 201);
       } catch (txError) {
         await supabaseAdmin.auth.admin.deleteUser(authUserId);
@@ -2210,7 +2336,10 @@ app.patch(
       const ids = parseIdentityUserIds(body?.ids);
       const enabled = body?.enabled;
       if (!ids.length) {
-        return c.json({ error: "Debes enviar al menos un usuario valido." }, 400);
+        return c.json(
+          { error: "Debes enviar al menos un usuario valido." },
+          400,
+        );
       }
       if (typeof enabled !== "boolean") {
         return c.json({ error: "El campo enabled es obligatorio." }, 400);
@@ -2219,9 +2348,21 @@ app.patch(
         where: { id: { in: ids } },
         data: { enabled },
       });
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: enabled
+          ? "identity.user.bulk_enable"
+          : "identity.user.bulk_disable",
+        severity: enabled ? "info" : "warning",
+        entityType: "UserProfile",
+        summary: `${actorName} ${enabled ? "habilitó" : "deshabilitó"} ${result.count} usuario(s)`,
+      });
       return c.json({ data: { count: result.count, enabled } });
     } catch {
-      return c.json({ error: "No se pudo actualizar el estado de los usuarios." }, 500);
+      return c.json(
+        { error: "No se pudo actualizar el estado de los usuarios." },
+        500,
+      );
     }
   },
 );
@@ -2235,7 +2376,10 @@ app.delete(
       const body = await c.req.json();
       const ids = parseIdentityUserIds(body?.ids);
       if (!ids.length) {
-        return c.json({ error: "Debes enviar al menos un usuario valido." }, 400);
+        return c.json(
+          { error: "Debes enviar al menos un usuario valido." },
+          400,
+        );
       }
 
       const context = c.get("userContext");
@@ -2271,9 +2415,14 @@ app.delete(
       }
 
       for (const user of users) {
-        const { error } = await supabaseAdmin.auth.admin.deleteUser(user.authUserId);
+        const { error } = await supabaseAdmin.auth.admin.deleteUser(
+          user.authUserId,
+        );
         if (error) {
-          return c.json({ error: "No se pudo eliminar uno o mas usuarios en Auth." }, 500);
+          return c.json(
+            { error: "No se pudo eliminar uno o mas usuarios en Auth." },
+            500,
+          );
         }
       }
 
@@ -2283,6 +2432,14 @@ app.delete(
       for (const user of users) {
         cacheDel(`user_ctx:${user.authUserId}`);
       }
+
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "identity.user.bulk_delete",
+        severity: "critical",
+        entityType: "UserProfile",
+        summary: `${actorName} eliminó ${deleted.count} usuario(s)`,
+      });
 
       return c.json({ data: { count: deleted.count } });
     } catch {
@@ -2311,7 +2468,10 @@ app.post(
             where: { enabled: true },
           },
         },
-        orderBy: toIdentitySortOrder(normalizedQuery.sortBy, normalizedQuery.sortDir),
+        orderBy: toIdentitySortOrder(
+          normalizedQuery.sortBy,
+          normalizedQuery.sortDir,
+        ),
       });
 
       const workbook = new ExcelJS.Workbook();
@@ -2353,7 +2513,9 @@ app.post(
           companyName: membership?.company?.name ?? "",
           enabled: user.enabled ? "Activo" : "Inactivo",
           phone: user.phone ?? "",
-          birthDate: user.birthDate ? new Date(user.birthDate).toISOString().slice(0, 10) : "",
+          birthDate: user.birthDate
+            ? new Date(user.birthDate).toISOString().slice(0, 10)
+            : "",
           gender: user.gender ?? "",
           country: user.country ?? "",
           state: user.state ?? "",
@@ -2364,7 +2526,12 @@ app.post(
           intNumber: user.intNumber ?? "",
           postalCode: user.postalCode ?? "",
           bio: user.bio ?? "",
-          createdAt: user.createdAt ? new Date(user.createdAt).toISOString().slice(0, 19).replace("T", " ") : "",
+          createdAt: user.createdAt
+            ? new Date(user.createdAt)
+                .toISOString()
+                .slice(0, 19)
+                .replace("T", " ")
+            : "",
         });
       }
 
@@ -2413,7 +2580,10 @@ app.post(
       const avatarUrl = await getSignedUrlByFileId(asset.id);
       return c.json({ data: { avatarUrl } });
     } catch {
-      return c.json({ error: "No se pudo actualizar el avatar del usuario." }, 500);
+      return c.json(
+        { error: "No se pudo actualizar el avatar del usuario." },
+        500,
+      );
     }
   },
 );
@@ -2456,6 +2626,15 @@ app.delete(
       await supabaseAdmin.auth.admin.deleteUser(targetUser.authUserId);
       await prisma.userProfile.delete({ where: { id } });
 
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "identity.user.delete",
+        severity: "critical",
+        entityType: "UserProfile",
+        entityId: id,
+        summary: `${actorName} eliminó al usuario ${targetUser.email ?? id}`,
+      });
+
       return c.json({ ok: true });
     } catch {
       return c.json({ error: "No se pudo eliminar el usuario." }, 500);
@@ -2474,14 +2653,18 @@ app.patch(
       const patch = {};
 
       if (typeof body.enabled === "boolean") patch.enabled = body.enabled;
-      if (typeof body.firstName === "string") patch.firstName = body.firstName.trim();
-      if (typeof body.lastName === "string") patch.lastName = body.lastName.trim();
+      if (typeof body.firstName === "string")
+        patch.firstName = body.firstName.trim();
+      if (typeof body.lastName === "string")
+        patch.lastName = body.lastName.trim();
       // Extended personal fields
-      if (typeof body.phone === "string") patch.phone = body.phone.trim() || null;
+      if (typeof body.phone === "string")
+        patch.phone = body.phone.trim() || null;
       if (body.phone === null) patch.phone = null;
       if (typeof body.bio === "string") patch.bio = body.bio.trim() || null;
       if (body.bio === null) patch.bio = null;
-      if (typeof body.gender === "string") patch.gender = body.gender.trim() || null;
+      if (typeof body.gender === "string")
+        patch.gender = body.gender.trim() || null;
       if (body.gender === null) patch.gender = null;
       if (typeof body.birthDate === "string") {
         const d = body.birthDate ? new Date(body.birthDate) : null;
@@ -2490,21 +2673,28 @@ app.patch(
       if (body.birthDate === null) patch.birthDate = null;
 
       // Address fields
-      if (typeof body.country === "string") patch.country = body.country.trim() || null;
+      if (typeof body.country === "string")
+        patch.country = body.country.trim() || null;
       if (body.country === null) patch.country = null;
-      if (typeof body.state === "string") patch.state = body.state.trim() || null;
+      if (typeof body.state === "string")
+        patch.state = body.state.trim() || null;
       if (body.state === null) patch.state = null;
       if (typeof body.city === "string") patch.city = body.city.trim() || null;
       if (body.city === null) patch.city = null;
-      if (typeof body.colony === "string") patch.colony = body.colony.trim() || null;
+      if (typeof body.colony === "string")
+        patch.colony = body.colony.trim() || null;
       if (body.colony === null) patch.colony = null;
-      if (typeof body.street === "string") patch.street = body.street.trim() || null;
+      if (typeof body.street === "string")
+        patch.street = body.street.trim() || null;
       if (body.street === null) patch.street = null;
-      if (typeof body.extNumber === "string") patch.extNumber = body.extNumber.trim() || null;
+      if (typeof body.extNumber === "string")
+        patch.extNumber = body.extNumber.trim() || null;
       if (body.extNumber === null) patch.extNumber = null;
-      if (typeof body.intNumber === "string") patch.intNumber = body.intNumber.trim() || null;
+      if (typeof body.intNumber === "string")
+        patch.intNumber = body.intNumber.trim() || null;
       if (body.intNumber === null) patch.intNumber = null;
-      if (typeof body.postalCode === "string") patch.postalCode = body.postalCode.trim() || null;
+      if (typeof body.postalCode === "string")
+        patch.postalCode = body.postalCode.trim() || null;
       if (body.postalCode === null) patch.postalCode = null;
 
       const user = await prisma.userProfile.update({
@@ -2513,9 +2703,13 @@ app.patch(
       });
 
       if (patch.firstName !== undefined || patch.lastName !== undefined) {
-        const newDisplay = `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim();
+        const newDisplay =
+          `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim();
         if (newDisplay !== user.displayName) {
-          await prisma.userProfile.update({ where: { id }, data: { displayName: newDisplay } });
+          await prisma.userProfile.update({
+            where: { id },
+            data: { displayName: newDisplay },
+          });
           user.displayName = newDisplay;
         }
       }
@@ -2523,19 +2717,30 @@ app.patch(
       // Email update — requires both DB and Supabase auth update
       if (typeof body.email === "string" && body.email.trim()) {
         const newEmail = body.email.trim().toLowerCase();
-        const { error: authEmailError } = await supabaseAdmin.auth.admin.updateUserById(
-          user.authUserId,
-          { email: newEmail }
-        );
+        const { error: authEmailError } =
+          await supabaseAdmin.auth.admin.updateUserById(user.authUserId, {
+            email: newEmail,
+          });
         if (authEmailError) {
-          return c.json({ error: "No se pudo actualizar el correo del usuario." }, 500);
+          return c.json(
+            { error: "No se pudo actualizar el correo del usuario." },
+            500,
+          );
         }
         try {
-          await prisma.userProfile.update({ where: { id }, data: { email: newEmail } });
+          await prisma.userProfile.update({
+            where: { id },
+            data: { email: newEmail },
+          });
           user.email = newEmail;
         } catch {
-          await supabaseAdmin.auth.admin.updateUserById(user.authUserId, { email: user.email });
-          return c.json({ error: "No se pudo sincronizar el correo. Intenta de nuevo." }, 500);
+          await supabaseAdmin.auth.admin.updateUserById(user.authUserId, {
+            email: user.email,
+          });
+          return c.json(
+            { error: "No se pudo sincronizar el correo. Intenta de nuevo." },
+            500,
+          );
         }
       }
 
@@ -2549,6 +2754,15 @@ app.patch(
 
       // Bust user context cache so the next GET /user/me reflects changes
       cacheDel(`user_ctx:${user.authUserId}`);
+
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "identity.user.update",
+        severity: "info",
+        entityType: "UserProfile",
+        entityId: id,
+        summary: `${actorName} actualizó al usuario ${user.email ?? id}`,
+      });
 
       return c.json({ data: user });
     } catch {
@@ -2652,10 +2866,12 @@ app.get("/blueprints", authMiddleware, async (c) => {
     mergedByKey.set(blueprint.key, {
       ...blueprint,
       source: "blueprint",
-      module: blueprint.module ? {
-        ...blueprint.module,
-        has_bundle: blueprint.module.hasBundle ?? false,
-      } : blueprint.module,
+      module: blueprint.module
+        ? {
+            ...blueprint.module,
+            has_bundle: blueprint.module.hasBundle ?? false,
+          }
+        : blueprint.module,
     });
   }
 
@@ -2686,20 +2902,23 @@ app.get("/blueprints", authMiddleware, async (c) => {
   return c.json({ data: [...mergedByKey.values()] });
 });
 
-const publicWebsiteRouter = createPublicWebsiteRouter({ prisma, supabaseAdmin })
-app.route("/public/website", publicWebsiteRouter)
+const publicWebsiteRouter = createPublicWebsiteRouter({
+  prisma,
+  supabaseAdmin,
+});
+app.route("/public/website", publicWebsiteRouter);
 
-const publicCatalogRouter = createPublicCatalogRouter({ prisma })
-app.route("/public/catalog", publicCatalogRouter)
+const publicCatalogRouter = createPublicCatalogRouter({ prisma });
+app.route("/public/catalog", publicCatalogRouter);
 
-const publicFormsRouter = createPublicFormsRouter({ prisma })
-app.route("/public/website", publicFormsRouter)
+const publicFormsRouter = createPublicFormsRouter({ prisma });
+app.route("/public/website", publicFormsRouter);
 
-const publicBookingsRouter = createPublicBookingsRouter({ prisma })
-app.route("/public/website", publicBookingsRouter)
+const publicBookingsRouter = createPublicBookingsRouter({ prisma });
+app.route("/public/website", publicBookingsRouter);
 
-const publicCheckoutRouter = createPublicCheckoutRouter({ prisma })
-app.route("/public/website", publicCheckoutRouter)
+const publicCheckoutRouter = createPublicCheckoutRouter({ prisma });
+app.route("/public/website", publicCheckoutRouter);
 
 app.get("/public/blueprints", async (c) => {
   try {
@@ -2813,6 +3032,14 @@ app.post(
       const authUserId = c.get("authUserId");
       const payload = await c.req.json();
       const contact = await contactsService.create({ authUserId, payload });
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "contacts.contact.create",
+        severity: "success",
+        entityType: "Contact",
+        entityId: contact.id,
+        summary: `${actorName} creó el contacto "${contact.name ?? ""}"`.trim(),
+      });
       return c.json({ data: contact }, 201);
     } catch (err) {
       if (err?.name === "ZodError") {
@@ -2838,12 +3065,24 @@ app.patch(
       const authUserId = c.get("authUserId");
       const { ids, enabled } = await c.req.json();
       await contactsService.bulkSetEnabled({ authUserId, ids, enabled });
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: enabled
+          ? "contacts.contact.bulk_enable"
+          : "contacts.contact.bulk_disable",
+        severity: enabled ? "info" : "warning",
+        entityType: "Contact",
+        summary: `${actorName} ${enabled ? "habilitó" : "deshabilitó"} ${Array.isArray(ids) ? ids.length : 0} contacto(s)`,
+      });
       return c.json({ ok: true });
     } catch (err) {
       if (err instanceof ContactsServiceError) {
         return c.json({ error: err.message }, err.status);
       }
-      return c.json({ error: "No se pudo actualizar el estado de los contactos." }, 500);
+      return c.json(
+        { error: "No se pudo actualizar el estado de los contactos." },
+        500,
+      );
     }
   },
 );
@@ -2857,6 +3096,13 @@ app.delete(
       const authUserId = c.get("authUserId");
       const { ids } = await c.req.json();
       await contactsService.bulkDelete({ authUserId, ids });
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "contacts.contact.bulk_delete",
+        severity: "warning",
+        entityType: "Contact",
+        summary: `${actorName} eliminó ${Array.isArray(ids) ? ids.length : 0} contacto(s)`,
+      });
       return c.json({ ok: true });
     } catch (err) {
       if (err instanceof ContactsServiceError) {
@@ -2876,7 +3122,10 @@ app.post(
       const authUserId = c.get("authUserId");
       const body = await c.req.json().catch(() => ({}));
       const ids = Array.isArray(body?.ids) ? body.ids.filter(Boolean) : [];
-      const contacts = await contactsService.getContactsForExport({ authUserId, ids });
+      const contacts = await contactsService.getContactsForExport({
+        authUserId,
+        ids,
+      });
 
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet("Contactos");
@@ -2904,7 +3153,10 @@ app.post(
           taxId: contact.taxId ?? "",
           enabled: contact.enabled ? "Activo" : "Inactivo",
           createdAt: contact.createdAt
-            ? new Date(contact.createdAt).toISOString().slice(0, 19).replace("T", " ")
+            ? new Date(contact.createdAt)
+                .toISOString()
+                .slice(0, 19)
+                .replace("T", " ")
             : "",
         });
       }
@@ -2934,6 +3186,15 @@ app.put(
       const id = c.req.param("id");
       const payload = await c.req.json();
       const contact = await contactsService.update({ authUserId, id, payload });
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "contacts.contact.update",
+        severity: "info",
+        entityType: "Contact",
+        entityId: id,
+        summary:
+          `${actorName} actualizó el contacto "${contact.name ?? ""}"`.trim(),
+      });
       return c.json({ data: contact });
     } catch (err) {
       if (err?.name === "ZodError") {
@@ -2964,6 +3225,17 @@ app.patch(
         id,
         enabled,
       });
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: contact.enabled
+          ? "contacts.contact.enable"
+          : "contacts.contact.disable",
+        severity: contact.enabled ? "info" : "warning",
+        entityType: "Contact",
+        entityId: id,
+        summary:
+          `${actorName} ${contact.enabled ? "habilitó" : "deshabilitó"} el contacto "${contact.name ?? ""}"`.trim(),
+      });
       return c.json({ data: contact });
     } catch (err) {
       if (err instanceof ContactsServiceError) {
@@ -2986,6 +3258,14 @@ app.delete(
       const authUserId = c.get("authUserId");
       const id = c.req.param("id");
       await contactsService.delete({ authUserId, id });
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "contacts.contact.delete",
+        severity: "warning",
+        entityType: "Contact",
+        entityId: id,
+        summary: `${actorName} eliminó un contacto`,
+      });
       return c.json({ ok: true });
     } catch (err) {
       if (err instanceof ContactsServiceError) {
@@ -3547,7 +3827,6 @@ app.get(
   },
 );
 
-
 const modulesRouter = createModulesRouter({
   prisma,
   authMiddleware,
@@ -3558,17 +3837,18 @@ const modulesRouter = createModulesRouter({
 app.route("/modules", modulesRouter);
 
 function mountWithAuth(baseApp, router) {
-  const secured = new Hono()
-  secured.use('*', authMiddleware)
-  secured.route('/', router)
-  baseApp.route('/', secured)
+  const secured = new Hono();
+  secured.use("*", authMiddleware);
+  secured.route("/", router);
+  baseApp.route("/", secured);
 }
 
-mountWithAuth(app, createSettingsRouter({ prisma, requirePermission }))
-mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission }))
-mountWithAuth(app, createLedgerRouter({ prisma, requirePermission }))
-mountWithAuth(app, createFleetRouter({ prisma, requirePermission }))
-mountWithAuth(app, createCalendarRouter({ prisma, requirePermission }))
+mountWithAuth(app, createSettingsRouter({ prisma, requirePermission }));
+mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission }));
+mountWithAuth(app, createLedgerRouter({ prisma, requirePermission }));
+mountWithAuth(app, createFleetRouter({ prisma, requirePermission }));
+mountWithAuth(app, createCalendarRouter({ prisma, requirePermission }));
+mountWithAuth(app, createActivityRouter({ prisma, requirePermission }));
 
 const server = serve({ fetch: app.fetch, port });
 console.log(`Atlas API running on http://localhost:${port}`);

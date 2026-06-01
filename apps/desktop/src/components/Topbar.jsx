@@ -1,5 +1,6 @@
 import { LayoutGrid, Menu, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { ActivityBellTrigger } from "@atlas/ui";
 import { useAuth } from "../auth/AuthProvider";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { useCommandStore } from "../stores/command";
@@ -7,6 +8,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { CompanySwitcher } from "./CompanySwitcher";
 import { NotificationBell } from "./NotificationBell";
 import { UserMenu } from "./UserMenu";
+import { atlas } from "../lib/atlas";
 
 export function Topbar({
   onLauncherOpen,
@@ -14,10 +16,14 @@ export function Topbar({
   onModuleMenuToggle,
   networkBusy = false,
 }) {
-  const { session } = useAuth();
+  const { session, userProfile } = useAuth();
   const { openCommand } = useCommandStore();
   const navigate = useNavigate();
   const token = session?.access_token;
+  const canReadActivity = Boolean(
+    userProfile?.isAdmin ||
+    (userProfile?.permissions ?? []).includes("activity.read"),
+  );
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-topbar safe-top bg-surface-1 border-b border-[hsl(var(--border))] flex flex-col justify-end">
@@ -114,6 +120,14 @@ export function Topbar({
             <ThemeToggle />
           </span>
           {token && <NotificationBell token={token} />}
+          {token && canReadActivity && (
+            <ActivityBellTrigger
+              sdk={atlas}
+              token={token}
+              onNavigate={(href) => navigate(href)}
+              onSeeAll={() => navigate("/app/m/atlas.activity")}
+            />
+          )}
           <UserMenu />
         </div>
       </div>
