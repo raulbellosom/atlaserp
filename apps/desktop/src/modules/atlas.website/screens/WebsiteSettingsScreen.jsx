@@ -8,6 +8,10 @@ import {
   PasswordField,
   Skeleton,
   SwitchField,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   TextField,
 } from '@atlas/ui'
 import { Globe, Mail, Server, User } from 'lucide-react'
@@ -48,13 +52,13 @@ async function apiFetchForm(path, token, options = {}) {
   return res.json()
 }
 
-const EMPTY = { host: '', port: 587, user: '', pass: '', from_name: '', from_email: '', tls: false }
+const SMTP_EMPTY = { host: '', port: 587, user: '', pass: '', from_name: '', from_email: '', tls: false }
 
 export default function WebsiteSettingsScreen() {
   const { session } = useAuth()
   const token = session?.access_token
 
-  const [form, setForm] = useState(EMPTY)
+  const [smtpForm, setSmtpForm] = useState(SMTP_EMPTY)
   const [passChanged, setPassChanged] = useState(false)
 
   // --- Site query (same pattern as WebsiteOverviewScreen) ---
@@ -83,7 +87,7 @@ export default function WebsiteSettingsScreen() {
   useEffect(() => {
     const data = configQuery.data?.data
     if (!data) return
-    setForm({
+    setSmtpForm({
       host:       data.host,
       port:       data.port,
       user:       data.user,
@@ -94,7 +98,7 @@ export default function WebsiteSettingsScreen() {
     })
   }, [configQuery.data])
 
-  const saveMutation = useMutation({
+  const smtpSaveMutation = useMutation({
     mutationFn: (data) =>
       apiFetch('/website/settings/smtp', token, { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => {
@@ -105,7 +109,7 @@ export default function WebsiteSettingsScreen() {
     onError: (err) => toast.error(err.message),
   })
 
-  const testMutation = useMutation({
+  const smtpTestMutation = useMutation({
     mutationFn: () => apiFetch('/website/settings/smtp/test', token, { method: 'POST' }),
     onSuccess: (res) => {
       const label = res.source === 'website' ? 'SMTP propio del website' : 'SMTP de plataforma (fallback)'
@@ -153,21 +157,21 @@ export default function WebsiteSettingsScreen() {
     onError: (err) => toast.error(err.message ?? 'Error al eliminar el build'),
   })
 
-  function handleSubmit(e) {
+  function handleSmtpSubmit(e) {
     e.preventDefault()
     const payload = {
-      host:       form.host,
-      port:       Number(form.port),
-      user:       form.user,
-      from_name:  form.from_name  || undefined,
-      from_email: form.from_email || undefined,
-      tls:        form.tls,
+      host:       smtpForm.host,
+      port:       Number(smtpForm.port),
+      user:       smtpForm.user,
+      from_name:  smtpForm.from_name  || undefined,
+      from_email: smtpForm.from_email || undefined,
+      tls:        smtpForm.tls,
     }
-    if (passChanged && form.pass) payload.pass = form.pass
-    saveMutation.mutate(payload)
+    if (passChanged && smtpForm.pass) payload.pass = smtpForm.pass
+    smtpSaveMutation.mutate(payload)
   }
 
-  const configured = configQuery.data?.data?.configured ?? false
+  const smtpConfigured = configQuery.data?.data?.configured ?? false
 
   return (
     <div className="flex flex-col min-h-full">
@@ -178,156 +182,170 @@ export default function WebsiteSettingsScreen() {
           description="Ajusta las integraciones y credenciales de tu sitio web."
         />
 
-        {/* Fuente del sitio */}
-        <Card className="p-0 overflow-hidden">
-          <div className="px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 flex items-center gap-2">
-            <Globe className="w-4 h-4 text-[hsl(var(--muted-foreground))]" />
-            <div>
-              <p className="text-sm font-semibold">Fuente del sitio</p>
-              <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
-                Elige que se sirve en la ruta raiz de tu dominio.
-              </p>
-            </div>
-          </div>
-          <div className="p-4 space-y-4">
-            {sourceQuery.isPending ? (
-              <div className="space-y-2">
-                <Skeleton className="h-16 rounded-lg" />
-                <Skeleton className="h-16 rounded-lg" />
-                <Skeleton className="h-16 rounded-lg" />
+        <Tabs defaultValue="source">
+          <TabsList>
+            <TabsTrigger value="source">
+              <Globe className="w-4 h-4 mr-1.5" />
+              Fuente del sitio
+            </TabsTrigger>
+            <TabsTrigger value="smtp">
+              <Mail className="w-4 h-4 mr-1.5" />
+              Correo electronico
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Tab: Fuente del sitio */}
+          <TabsContent value="source" className="mt-4">
+            <Card className="p-0 overflow-hidden">
+              <div className="px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40">
+                <p className="text-sm font-semibold">Fuente del sitio</p>
+                <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
+                  Elige que se sirve en la ruta raiz de tu dominio.
+                </p>
               </div>
-            ) : (
-              <>
-                <WebsiteSourceSelector
-                  currentSource={sourceQuery.data?.data?.sourceType ?? 'builder'}
-                  onSelect={(value) => sourceChangeMutation.mutate(value)}
-                  isLoading={sourceChangeMutation.isPending}
-                />
-                {sourceQuery.data?.data?.sourceType === 'dist' && (
-                  <div className="pt-2 border-t border-[hsl(var(--border))]">
-                    <p className="text-sm font-medium mb-3">Archivos del build</p>
-                    <DistUploadPanel
-                      site={sourceQuery.data?.data}
-                      onUpload={(file) => uploadDistMutation.mutate(file)}
-                      onDelete={() => deleteDistMutation.mutate()}
-                      isUploading={uploadDistMutation.isPending || deleteDistMutation.isPending}
-                      uploadError={uploadDistMutation.isError ? uploadDistMutation.error?.message : null}
-                    />
+              <div className="p-4 space-y-4">
+                {sourceQuery.isPending || siteQuery.isPending ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-16 rounded-lg" />
+                    <Skeleton className="h-16 rounded-lg" />
+                    <Skeleton className="h-16 rounded-lg" />
                   </div>
+                ) : (
+                  <>
+                    <WebsiteSourceSelector
+                      currentSource={sourceQuery.data?.data?.sourceType ?? 'builder'}
+                      onSelect={(value) => sourceChangeMutation.mutate(value)}
+                      isLoading={sourceChangeMutation.isPending}
+                    />
+                    {sourceQuery.data?.data?.sourceType === 'dist' && (
+                      <div className="pt-2 border-t border-[hsl(var(--border))]">
+                        <p className="text-sm font-medium mb-3">Archivos del build</p>
+                        <DistUploadPanel
+                          site={sourceQuery.data?.data}
+                          onUpload={(file) => uploadDistMutation.mutate(file)}
+                          onDelete={() => deleteDistMutation.mutate()}
+                          isUploading={uploadDistMutation.isPending || deleteDistMutation.isPending}
+                          uploadError={uploadDistMutation.isError ? uploadDistMutation.error?.message : null}
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
-              </>
-            )}
-          </div>
-        </Card>
-
-        {/* SMTP */}
-        <Card className="p-0 overflow-hidden">
-          <div className="px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold">Correo electronico (SMTP)</p>
-              <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
-                Credenciales propias del sitio. Si no se configuran, se usa el SMTP de la plataforma como respaldo.
-              </p>
-            </div>
-            {configured && (
-              <span className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                Configurado
-              </span>
-            )}
-          </div>
-
-          <div className="p-4 space-y-4">
-            {configQuery.isPending ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <Skeleton className="h-11 rounded-lg" />
-                  <Skeleton className="h-11 rounded-lg" />
-                </div>
-                <Skeleton className="h-11 w-full rounded-lg" />
-                <Skeleton className="h-11 w-full rounded-lg" />
-                <Skeleton className="h-11 w-full rounded-lg" />
-                <Skeleton className="h-11 w-full rounded-lg" />
               </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <TextField
-                    label="Servidor (host)"
-                    icon={Server}
-                    placeholder="smtp.gmail.com"
-                    value={form.host}
-                    onChange={(e) => setForm((f) => ({ ...f, host: e.target.value }))}
-                    required
-                  />
-                  <NumberField
-                    label="Puerto"
-                    value={form.port}
-                    onChange={(e) => setForm((f) => ({ ...f, port: Number(e.target.value) }))}
-                    required
-                  />
+            </Card>
+          </TabsContent>
+
+          {/* Tab: Correo electronico (SMTP) */}
+          <TabsContent value="smtp" className="mt-4">
+            <Card className="p-0 overflow-hidden">
+              <div className="px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold">Correo electronico (SMTP)</p>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
+                    Credenciales propias del sitio. Si no se configuran, se usa el SMTP de la plataforma como respaldo.
+                  </p>
                 </div>
+                {smtpConfigured && (
+                  <span className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    Configurado
+                  </span>
+                )}
+              </div>
 
-                <TextField
-                  label="Usuario"
-                  icon={User}
-                  placeholder="reservas@minegocio.com"
-                  value={form.user}
-                  onChange={(e) => setForm((f) => ({ ...f, user: e.target.value }))}
-                  required
-                />
+              <div className="p-4 space-y-4">
+                {configQuery.isPending ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <Skeleton className="h-11 rounded-lg" />
+                      <Skeleton className="h-11 rounded-lg" />
+                    </div>
+                    <Skeleton className="h-11 w-full rounded-lg" />
+                    <Skeleton className="h-11 w-full rounded-lg" />
+                    <Skeleton className="h-11 w-full rounded-lg" />
+                    <Skeleton className="h-11 w-full rounded-lg" />
+                  </div>
+                ) : (
+                  <form onSubmit={handleSmtpSubmit} className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <TextField
+                        label="Servidor (host)"
+                        icon={Server}
+                        placeholder="smtp.gmail.com"
+                        value={smtpForm.host}
+                        onChange={(e) => setSmtpForm((f) => ({ ...f, host: e.target.value }))}
+                        required
+                      />
+                      <NumberField
+                        label="Puerto"
+                        value={smtpForm.port}
+                        onChange={(e) => setSmtpForm((f) => ({ ...f, port: Number(e.target.value) }))}
+                        required
+                      />
+                    </div>
 
-                <PasswordField
-                  label={configured && !passChanged ? 'Contrasena (dejar en blanco para mantener)' : 'Contrasena'}
-                  placeholder={configured ? '••••••••' : ''}
-                  value={form.pass}
-                  onChange={(e) => {
-                    setForm((f) => ({ ...f, pass: e.target.value }))
-                    setPassChanged(true)
-                  }}
-                />
+                    <TextField
+                      label="Usuario"
+                      icon={User}
+                      placeholder="reservas@minegocio.com"
+                      value={smtpForm.user}
+                      onChange={(e) => setSmtpForm((f) => ({ ...f, user: e.target.value }))}
+                      required
+                    />
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  <TextField
-                    label="Nombre del remitente"
-                    icon={Mail}
-                    placeholder="Mi Restaurante"
-                    value={form.from_name}
-                    onChange={(e) => setForm((f) => ({ ...f, from_name: e.target.value }))}
-                  />
-                  <TextField
-                    label="Email del remitente"
-                    icon={Mail}
-                    placeholder="reservas@minegocio.com"
-                    value={form.from_email}
-                    onChange={(e) => setForm((f) => ({ ...f, from_email: e.target.value }))}
-                  />
-                </div>
+                    <PasswordField
+                      label={smtpConfigured && !passChanged ? 'Contrasena (dejar en blanco para mantener)' : 'Contrasena'}
+                      placeholder={smtpConfigured ? '••••••••' : ''}
+                      value={smtpForm.pass}
+                      onChange={(e) => {
+                        setSmtpForm((f) => ({ ...f, pass: e.target.value }))
+                        setPassChanged(true)
+                      }}
+                    />
 
-                <SwitchField
-                  id="ws-smtp-tls"
-                  label="Usar TLS / SSL"
-                  checked={form.tls}
-                  onChange={(checked) => setForm((f) => ({ ...f, tls: checked }))}
-                />
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <TextField
+                        label="Nombre del remitente"
+                        icon={Mail}
+                        placeholder="Mi Restaurante"
+                        value={smtpForm.from_name}
+                        onChange={(e) => setSmtpForm((f) => ({ ...f, from_name: e.target.value }))}
+                      />
+                      <TextField
+                        label="Email del remitente"
+                        icon={Mail}
+                        placeholder="reservas@minegocio.com"
+                        value={smtpForm.from_email}
+                        onChange={(e) => setSmtpForm((f) => ({ ...f, from_email: e.target.value }))}
+                      />
+                    </div>
 
-                <div className="flex gap-2 pt-2 border-t border-[hsl(var(--border))]">
-                  <Button type="submit" disabled={saveMutation.isPending} className="flex-1">
-                    {saveMutation.isPending ? 'Guardando...' : 'Guardar configuracion'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => testMutation.mutate()}
-                    disabled={testMutation.isPending}
-                  >
-                    {testMutation.isPending ? 'Enviando...' : 'Enviar prueba'}
-                  </Button>
-                </div>
-              </form>
-            )}
-          </div>
-        </Card>
+                    <SwitchField
+                      id="ws-smtp-tls"
+                      label="Usar TLS / SSL"
+                      checked={smtpForm.tls}
+                      onChange={(checked) => setSmtpForm((f) => ({ ...f, tls: checked }))}
+                    />
+
+                    <div className="flex gap-2 pt-2 border-t border-[hsl(var(--border))]">
+                      <Button type="submit" disabled={smtpSaveMutation.isPending} className="flex-1">
+                        {smtpSaveMutation.isPending ? 'Guardando...' : 'Guardar configuracion'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => smtpTestMutation.mutate()}
+                        disabled={smtpTestMutation.isPending}
+                      >
+                        {smtpTestMutation.isPending ? 'Enviando...' : 'Enviar prueba'}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )
