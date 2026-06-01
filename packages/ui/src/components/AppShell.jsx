@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   LayoutDashboard,
+  LayoutTemplate,
   Puzzle,
   Settings,
   Contact,
@@ -16,6 +17,7 @@ import { cn } from "../lib/utils.js";
 
 const icons = {
   LayoutDashboard,
+  LayoutTemplate,
   Puzzle,
   Settings,
   Contact,
