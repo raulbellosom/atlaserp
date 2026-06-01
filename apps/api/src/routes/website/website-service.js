@@ -58,10 +58,9 @@ export function createWebsiteService({ prisma }) {
         ...(data.themeId             !== undefined && { themeId:              data.themeId }),
         ...(data.settings            !== undefined && { settings:             data.settings }),
         ...(data.seoDefaults         !== undefined && { seoDefaults:          data.seoDefaults }),
-        ...(data.stripePublishableKey !== undefined && { stripePublishableKey: data.stripePublishableKey }),
-        ...(data.stripeSecretKey     !== undefined && { stripeSecretKey:      encryptPassword(data.stripeSecretKey) }),
-        ...(data.stripeCurrency      !== undefined && { stripeCurrency:       data.stripeCurrency }),
-        ...(data.stripeSuccessMessage !== undefined && { stripeSuccessMessage: data.stripeSuccessMessage }),
+        ...(data.stripePublishableKey  !== undefined && { stripePublishableKey:  data.stripePublishableKey }),
+        ...(data.stripeSecretKey      !== undefined && { stripeSecretKey:       encryptPassword(data.stripeSecretKey) }),
+        ...(data.stripeSuccessMessage !== undefined && { stripeSuccessMessage:  data.stripeSuccessMessage }),
       },
     })
     await prisma.auditLog.create({

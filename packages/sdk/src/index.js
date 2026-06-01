@@ -868,6 +868,56 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
         }),
     },
+    notifications: {
+      list: (token, query = {}) =>
+        request(`/notifications${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      getWebPushPublicKey: (token) =>
+        request("/notifications/subscriptions/webpush/public-key", {
+          headers: withAuthHeaders(token),
+        }),
+      markRead: (token, id) =>
+        request(`/notifications/${encodeURIComponent(id)}/read`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+        }),
+      markAllRead: (token) =>
+        request("/notifications/read-all", {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+        }),
+      publish: (token, payload) =>
+        request("/notifications/publish", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(payload),
+        }),
+      subscribeWebPush: (token, payload) =>
+        request("/notifications/subscriptions/webpush", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(payload),
+        }),
+      unsubscribeWebPush: (token, id) =>
+        request(
+          `/notifications/subscriptions/webpush/${encodeURIComponent(id)}`,
+          {
+            method: "DELETE",
+            headers: withAuthHeaders(token),
+          },
+        ),
+      listPreferences: (token) =>
+        request("/notifications/preferences", {
+          headers: withAuthHeaders(token),
+        }),
+      upsertPreference: (token, payload) =>
+        request("/notifications/preferences", {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(payload),
+        }),
+    },
     activity: {
       list: (query, token) =>
         request(`/activity${toQueryString(query)}`, {

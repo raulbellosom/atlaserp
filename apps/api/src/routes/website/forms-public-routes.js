@@ -1,6 +1,6 @@
 // apps/api/src/routes/website/forms-public-routes.js
 import { Hono } from 'hono'
-import { createSmtpService } from '../../services/smtp-service.js'
+import { createWebsiteSmtpService } from '../../services/smtp-service.js'
 
 export function createPublicFormsRouter({ prisma }) {
   const app = new Hono()
@@ -26,7 +26,7 @@ export function createPublicFormsRouter({ prisma }) {
 
       if (form.notification_email) {
         try {
-          const smtpSvc = createSmtpService({ prisma })
+          const smtpSvc = createWebsiteSmtpService({ prisma })
           const rows = Object.entries(body)
             .map(([k, v]) => `<tr><td style="padding:4px 8px;font-weight:600">${k}</td><td style="padding:4px 8px">${v}</td></tr>`)
             .join('')

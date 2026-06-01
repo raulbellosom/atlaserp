@@ -39,12 +39,12 @@ const KIND_COLORS = {
   success: "#22c55e",
 };
 
-export function NotificationBell({ token }) {
+export function NotificationBell({ token, onNavigate, onSeeAll }) {
   const queryClient = useQueryClient();
 
   const { data } = useQuery({
     queryKey: ["notifications", token],
-    queryFn: () => atlas.notifications.list(token, { unreadOnly: false }),
+    queryFn: () => atlas.notifications.list(token, { unreadOnly: false, limit: 20 }),
     enabled: Boolean(token),
     refetchInterval: 60000,
     staleTime: 30000,
@@ -65,6 +65,22 @@ export function NotificationBell({ token }) {
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["notifications", token] }),
   });
+
+  async function handleNotificationClick(notification) {
+    if (!notification) return;
+    if (!notification.read) {
+      try {
+        await markOneRead.mutateAsync(notification.id);
+      } catch {}
+    }
+    if (notification.link && typeof onNavigate === "function") {
+      onNavigate(notification.link);
+      return;
+    }
+    if (typeof onSeeAll === "function") {
+      onSeeAll();
+    }
+  }
 
   return (
     <DropdownMenu>
@@ -113,9 +129,7 @@ export function NotificationBell({ token }) {
               return (
                 <button
                   key={notification.id}
-                  onClick={() =>
-                    !notification.read && markOneRead.mutate(notification.id)
-                  }
+                  onClick={() => handleNotificationClick(notification)}
                   className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer text-left border-b border-[hsl(var(--border))] last:border-0"
                 >
                   <KindIcon
@@ -152,6 +166,15 @@ export function NotificationBell({ token }) {
               );
             })
           )}
+        </div>
+        <div className="border-t border-[hsl(var(--border))] p-2">
+          <button
+            type="button"
+            onClick={() => onSeeAll?.()}
+            className="w-full rounded-md px-3 py-2 text-xs text-left text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors cursor-pointer"
+          >
+            Ver todas las notificaciones
+          </button>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>

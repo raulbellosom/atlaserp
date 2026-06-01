@@ -23,6 +23,7 @@ import { ModuleOutlet } from "./app/ModuleOutlet";
 import { ProfileScreen } from "./app/ProfileScreen";
 import { atlas } from "./lib/atlas";
 import { applyBrandTheme } from "./lib/brandTheme";
+import { registerNotificationServiceWorker } from "./lib/webPush";
 import { AppLoader } from "./components/AppLoader";
 import { ApiErrorScreen } from "./components/ApiErrorScreen";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -32,10 +33,6 @@ import { PublicModuleOutlet } from "./shell/PublicModuleOutlet.jsx";
 import { PublicWebsiteEntry } from "./shell/PublicWebsiteEntry.jsx";
 import { PublicClientLogin } from "./shell/PublicClientLogin.jsx";
 import "./styles.css";
-
-const SmtpSettingsScreen = lazy(
-  () => import("./modules/platform-settings/screens/SmtpSettingsScreen.jsx"),
-);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -169,6 +166,10 @@ function App() {
     };
   }, [setBranding]);
 
+  useEffect(() => {
+    registerNotificationServiceWorker().catch(() => {});
+  }, []);
+
   if (!brandReady) {
     return <AppLoader />;
   }
@@ -189,10 +190,6 @@ function App() {
                   <Route path="home" element={<HomeScreen />} />
                   <Route path="m/:moduleKey/*" element={<ModuleOutlet />} />
                   <Route path="profile" element={<ProfileScreen />} />
-                  <Route
-                    path="settings/smtp"
-                    element={<SmtpSettingsScreen />}
-                  />
                 </Route>
               </Route>
               <Route path="/p" element={<PublicShell />}>

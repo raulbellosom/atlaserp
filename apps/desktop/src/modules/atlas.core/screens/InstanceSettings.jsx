@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { NavLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
@@ -13,6 +14,25 @@ import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 import { CURRENCY_OPTIONS, TIME_ZONE_OPTIONS } from "../../../lib/localeCatalogs";
+
+function SettingsTabs() {
+  const base = "px-4 py-2 text-sm font-medium rounded-lg transition-colors";
+  const active = `${base} bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))]`;
+  const inactive = `${base} text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--accent))]/50`;
+  return (
+    <div className="flex gap-1 border-b border-[hsl(var(--border))] pb-3">
+      <NavLink to="/app/m/atlas.core/settings" end className={({ isActive }) => isActive ? active : inactive}>
+        General
+      </NavLink>
+      <NavLink to="/app/m/atlas.core/settings/smtp" className={({ isActive }) => isActive ? active : inactive}>
+        SMTP
+      </NavLink>
+      <NavLink to="/app/m/atlas.core/settings/webpush" className={({ isActive }) => isActive ? active : inactive}>
+        Web Push
+      </NavLink>
+    </div>
+  );
+}
 
 export default function InstanceSettings() {
   const { session, userProfile } = useAuth();
@@ -62,9 +82,10 @@ export default function InstanceSettings() {
       <div className="flex-1 p-4 md:p-6 space-y-6 max-w-3xl mx-auto w-full">
         <PageHeader
           eyebrow="Atlas Core"
-          title="Configuración de instancia"
-          description="Ajusta nombre, descripción, zona horaria y moneda predeterminada de tu instancia."
+          title="Configuracion"
+          description="Ajusta la configuracion general y las integraciones de tu instancia."
         />
+        <SettingsTabs />
 
         {!canManage && (
           <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 text-sm px-4 py-3 text-[hsl(var(--muted-foreground))]">

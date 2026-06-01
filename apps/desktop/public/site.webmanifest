@@ -2,10 +2,16 @@
   "name": "Atlas ERP",
   "short_name": "Atlas",
   "description": "CONNECT. MANAGE. GROW.",
+  "id": "/",
+  "scope": "/",
+  "lang": "es-MX",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#0A1D44",
   "theme_color": "#102A5E",
+  "prefer_related_applications": false,
+  "categories": ["business", "productivity"],
   "icons": [
     {
       "src": "/icon-192.png",

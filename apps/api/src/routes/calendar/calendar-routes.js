@@ -9,6 +9,7 @@ import {
   publishActivityFromContext,
   getActivityContext,
 } from "../../services/activity-publisher.js";
+import { publishNotificationFromContext } from "../../services/notification-publisher.js";
 
 function getUserId(c) {
   return c.get("userContext")?.profile?.id ?? null;
@@ -20,6 +21,16 @@ function handleError(c, err, fallback) {
   if (process.env.NODE_ENV !== "production")
     console.error("[atlas.calendar]", err);
   return c.json({ error: fallback }, 500);
+}
+
+function toAttendeeUserIds(event, excludeUserId = null) {
+  const attendees = Array.isArray(event?.attendees) ? event.attendees : [];
+  const ids = attendees
+    .map((attendee) => attendee?.userId)
+    .filter((id) => typeof id === "string" && id.trim().length > 0);
+  const unique = [...new Set(ids)];
+  if (!excludeUserId) return unique;
+  return unique.filter((id) => id !== excludeUserId);
 }
 
 export function createCalendarRouter({ prisma, requirePermission }) {
@@ -214,6 +225,25 @@ export function createCalendarRouter({ prisma, requirePermission }) {
             location: event.location ?? null,
           },
         });
+        const attendeeUserIds = toAttendeeUserIds(event, userId);
+        if (attendeeUserIds.length > 0) {
+          await publishNotificationFromContext(prisma, c, {
+            eventType: "calendar.event.invite",
+            title: `Invitacion: ${event.title ?? "Evento"}`,
+            body: `${actorName} te invito a un evento del calendario.`,
+            link: `/app/m/atlas.calendar?eventId=${event.id}`,
+            recipients: { userIds: attendeeUserIds },
+            channels: ["in_app", "email"],
+            priority: "high",
+            sourceType: "CalendarEvent",
+            sourceId: event.id,
+            metadata: {
+              startDate: event.startDate ?? null,
+              endDate: event.endDate ?? null,
+              calendarId: event.calendarId ?? null,
+            },
+          });
+        }
         return c.json(event, 201);
       } catch (err) {
         return handleError(c, err, "No se pudo crear el evento.");
@@ -287,6 +317,31 @@ export function createCalendarRouter({ prisma, requirePermission }) {
           link: `/app/m/atlas.calendar?eventId=${event.id}`,
           payload,
         });
+        const attendeeUserIds = toAttendeeUserIds(event, userId);
+        const scheduleChanged = Boolean(
+          changes.startDate ||
+            changes.endDate ||
+            changes.calendarId ||
+            changes.location,
+        );
+        if (scheduleChanged && attendeeUserIds.length > 0) {
+          await publishNotificationFromContext(prisma, c, {
+            eventType: "calendar.event.reschedule",
+            title: `Evento actualizado: ${event.title ?? "Calendario"}`,
+            body: `${actorName} actualizo horario o detalles del evento.`,
+            link: `/app/m/atlas.calendar?eventId=${event.id}`,
+            recipients: { userIds: attendeeUserIds },
+            channels: ["in_app", "email"],
+            priority: "high",
+            sourceType: "CalendarEvent",
+            sourceId: event.id,
+            metadata: {
+              changes,
+              startDate: event.startDate ?? null,
+              endDate: event.endDate ?? null,
+            },
+          });
+        }
         return c.json(event);
       } catch (err) {
         return handleError(c, err, "No se pudo actualizar el evento.");
@@ -324,6 +379,27 @@ export function createCalendarRouter({ prisma, requirePermission }) {
               }
             : undefined,
         });
+        const attendeeUserIds = toAttendeeUserIds(before, userId);
+        if (attendeeUserIds.length > 0) {
+          await publishNotificationFromContext(prisma, c, {
+            eventType: "calendar.event.cancel",
+            title: `Evento cancelado: ${title || "Calendario"}`,
+            body: `${actorName} cancelo un evento programado.`,
+            link: "/app/m/atlas.calendar",
+            recipients: { userIds: attendeeUserIds },
+            channels: ["in_app", "email"],
+            priority: "high",
+            sourceType: "CalendarEvent",
+            sourceId: eventId,
+            metadata: before
+              ? {
+                  startDate: before.startDate ?? null,
+                  endDate: before.endDate ?? null,
+                  calendarId: before.calendarId ?? null,
+                }
+              : undefined,
+          });
+        }
         return c.json({ ok: true });
       } catch (err) {
         return handleError(c, err, "No se pudo eliminar el evento.");
@@ -343,6 +419,24 @@ export function createCalendarRouter({ prisma, requirePermission }) {
           c.req.param("id"),
           user_id,
         );
+        const event = await eventSvc.getEvent(userId, c.req.param("id"));
+        const { actorName } = getActivityContext(c);
+        await publishNotificationFromContext(prisma, c, {
+          eventType: "calendar.event.invite",
+          title: `Invitacion: ${event.title ?? "Evento"}`,
+          body: `${actorName} te invito a un evento del calendario.`,
+          link: `/app/m/atlas.calendar?eventId=${event.id}`,
+          recipients: { userIds: [user_id] },
+          channels: ["in_app", "email"],
+          priority: "high",
+          sourceType: "CalendarEvent",
+          sourceId: event.id,
+          metadata: {
+            startDate: event.startDate ?? null,
+            endDate: event.endDate ?? null,
+            calendarId: event.calendarId ?? null,
+          },
+        });
         return c.json(attendee, 201);
       } catch (err) {
         return handleError(c, err, "No se pudo agregar el invitado.");

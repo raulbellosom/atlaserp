@@ -42,7 +42,6 @@ export const updateSiteSchema = z.object({
   seoDefaults:           z.record(z.unknown()).optional(),
   stripePublishableKey:  z.string().optional().nullable(),
   stripeSecretKey:       z.string().optional().nullable(),
-  stripeCurrency:        z.string().length(3).optional(),
   stripeSuccessMessage:  z.string().optional().nullable(),
 })
 

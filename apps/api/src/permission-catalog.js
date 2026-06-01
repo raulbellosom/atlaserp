@@ -12,6 +12,7 @@ const GROUPS = {
   website: "Sitio web",
   audit: "Bitacora",
   activity: "Actividad",
+  notifications: "Notificaciones",
 };
 
 const MODULE_LABELS = {
@@ -27,6 +28,7 @@ const MODULE_LABELS = {
   website: "Sitio web",
   audit: "Bitacora",
   activity: "Actividad",
+  notifications: "Notificaciones",
 };
 
 const FEATURE_LABELS = {
@@ -57,6 +59,7 @@ const FEATURE_LABELS = {
   transactions: "Movimientos",
   categories: "Categorias",
   types: "Tipos de movimiento",
+  notifications: "Notificaciones",
 };
 
 const ACTION_LABELS = {
@@ -169,6 +172,33 @@ export const PERMISSION_CATALOG = {
     displayNameEs: "Administrar actividad",
     descriptionEs: "Permite eliminar o purgar registros del feed de actividad.",
     groupKey: "activity",
+    order: 40,
+  },
+
+  "notifications.access": {
+    displayNameEs: "Acceder a notificaciones",
+    descriptionEs: "Permite entrar al modulo de notificaciones.",
+    groupKey: "notifications",
+    order: 10,
+  },
+  "notifications.read": {
+    displayNameEs: "Ver notificaciones",
+    descriptionEs: "Permite consultar y marcar notificaciones personales.",
+    groupKey: "notifications",
+    order: 20,
+  },
+  "notifications.publish": {
+    displayNameEs: "Publicar notificaciones",
+    descriptionEs:
+      "Permite emitir notificaciones para usuarios de la empresa activa.",
+    groupKey: "notifications",
+    order: 30,
+  },
+  "notifications.manage": {
+    displayNameEs: "Administrar notificaciones",
+    descriptionEs:
+      "Permite gestionar operaciones administrativas de notificaciones.",
+    groupKey: "notifications",
     order: 40,
   },
 

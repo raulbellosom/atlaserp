@@ -1,0 +1,350 @@
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  EmptyState,
+  ErrorState,
+  PageHeader,
+  Skeleton,
+  Switch,
+} from "@atlas/ui";
+import { BellRing, CalendarClock, Globe2, ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "../../auth/AuthProvider";
+import { atlas } from "../../lib/atlas";
+import {
+  getStoredWebPushSubscriptionId,
+  isWebPushSupported,
+  subscribeCurrentDeviceToWebPush,
+  unsubscribeCurrentDeviceFromWebPush,
+} from "../../lib/webPush";
+
+const DEFAULT_PREFS = {
+  inAppEnabled: true,
+  emailEnabled: false,
+  pushEnabled: false,
+};
+
+const EVENT_CATALOG = [
+  {
+    eventType: "calendar.event.reminder",
+    title: "Recordatorio de calendario",
+    description: "Alerta cuando un evento esta por comenzar.",
+    icon: CalendarClock,
+  },
+  {
+    eventType: "website.sale.confirmed",
+    title: "Venta confirmada",
+    description: "Notifica nuevas ventas confirmadas en website.",
+    icon: Globe2,
+  },
+  {
+    eventType: "website.payment.failed",
+    title: "Pago fallido",
+    description: "Avisa si una transaccion falla en checkout.",
+    icon: Globe2,
+  },
+  {
+    eventType: "system.alert",
+    title: "Alerta de sistema",
+    description: "Eventos criticos de operacion o integraciones.",
+    icon: ShieldAlert,
+  },
+];
+
+function PreferencesSkeleton() {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div
+          key={index}
+          className="rounded-2xl border border-[hsl(var(--border))] p-4 space-y-3"
+        >
+          <Skeleton className="h-4 w-56" />
+          <Skeleton className="h-3.5 w-3/4" />
+          <div className="grid grid-cols-3 gap-2">
+            <Skeleton className="h-10 rounded-lg" />
+            <Skeleton className="h-10 rounded-lg" />
+            <Skeleton className="h-10 rounded-lg" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function NotificationSettingsScreen() {
+  const queryClient = useQueryClient();
+  const { session, userProfile } = useAuth();
+  const token = session?.access_token;
+  const canRead = Boolean(
+    userProfile?.isAdmin ||
+      (userProfile?.permissions ?? []).includes("notifications.read"),
+  );
+
+  const [pendingKey, setPendingKey] = useState(null);
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushPermission, setPushPermission] = useState("default");
+  const [pushSubscriptionId, setPushSubscriptionId] = useState(null);
+  const [pushBusy, setPushBusy] = useState(false);
+
+  const preferencesQuery = useQuery({
+    queryKey: ["notification-preferences", token],
+    queryFn: () => atlas.notifications.listPreferences(token),
+    enabled: Boolean(token) && canRead,
+  });
+
+  const upsertMutation = useMutation({
+    mutationFn: (payload) => atlas.notifications.upsertPreference(token, payload),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["notification-preferences", token],
+      }),
+    onError: () => toast.error("No se pudo guardar la preferencia"),
+    onSettled: () => setPendingKey(null),
+  });
+
+  const preferencesMap = useMemo(() => {
+    const rows = preferencesQuery.data?.data ?? [];
+    return new Map(rows.map((row) => [row.eventType, row]));
+  }, [preferencesQuery.data]);
+
+  const catalogRows = useMemo(() => {
+    const known = new Set(EVENT_CATALOG.map((item) => item.eventType));
+    const extras = [...preferencesMap.keys()]
+      .filter((eventType) => !known.has(eventType))
+      .map((eventType) => ({
+        eventType,
+        title: eventType,
+        description: "Evento registrado por un modulo.",
+        icon: BellRing,
+      }));
+    return [...EVENT_CATALOG, ...extras];
+  }, [preferencesMap]);
+
+  useEffect(() => {
+    const supported = isWebPushSupported();
+    setPushSupported(supported);
+    if (!supported) return;
+    setPushPermission(Notification.permission);
+    setPushSubscriptionId(getStoredWebPushSubscriptionId());
+  }, []);
+
+  function getPreference(eventType) {
+    return {
+      ...DEFAULT_PREFS,
+      ...(preferencesMap.get(eventType) ?? {}),
+    };
+  }
+
+  function updatePreference(eventType, patch) {
+    const current = getPreference(eventType);
+    setPendingKey(`${eventType}:${Object.keys(patch)[0]}`);
+    upsertMutation.mutate({
+      eventType,
+      inAppEnabled: current.inAppEnabled,
+      emailEnabled: current.emailEnabled,
+      pushEnabled: current.pushEnabled,
+      ...patch,
+    });
+  }
+
+  async function handleSubscribeCurrentDevice() {
+    if (!token) return;
+    setPushBusy(true);
+    try {
+      const response = await subscribeCurrentDeviceToWebPush({
+        token,
+        deviceLabel: "Dispositivo web",
+      });
+      setPushPermission(Notification.permission);
+      setPushSubscriptionId(response?.data?.id ?? getStoredWebPushSubscriptionId());
+      toast.success("Push web activado en este dispositivo.");
+    } catch (err) {
+      toast.error(err?.message ?? "No se pudo activar push web.");
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
+  async function handleUnsubscribeCurrentDevice() {
+    if (!token) return;
+    setPushBusy(true);
+    try {
+      await unsubscribeCurrentDeviceFromWebPush({ token });
+      setPushSubscriptionId(null);
+      setPushPermission(
+        typeof Notification === "undefined" ? "default" : Notification.permission,
+      );
+      toast.success("Push web desactivado en este dispositivo.");
+    } catch (err) {
+      toast.error(err?.message ?? "No se pudo desactivar push web.");
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
+  if (!canRead) {
+    return (
+      <div className="p-4 md:p-6">
+        <PageHeader
+          eyebrow="Atlas Notifications"
+          title="Configuracion de notificaciones"
+          description="Define por que canales quieres recibir alertas."
+        />
+        <div className="mt-4 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
+          No tienes permisos para configurar notificaciones.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 md:p-6 space-y-6">
+      <PageHeader
+        eyebrow="Atlas Notifications"
+        title="Configuracion"
+        description="Controla que eventos reciben notificacion en plataforma, correo y push."
+      />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Push web en este dispositivo</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            Activa notificaciones para recibir alertas en segundo plano cuando uses la PWA.
+          </p>
+          {!pushSupported ? (
+            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-sm text-[hsl(var(--muted-foreground))]">
+              Este navegador no soporta Web Push.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-sm text-[hsl(var(--muted-foreground))]">
+                Estado del permiso:{" "}
+                <span className="font-medium text-[hsl(var(--foreground))]">
+                  {pushPermission === "granted"
+                    ? "Permitido"
+                    : pushPermission === "denied"
+                      ? "Bloqueado"
+                      : "Pendiente"}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  onClick={handleSubscribeCurrentDevice}
+                  disabled={pushBusy || pushPermission === "denied"}
+                >
+                  {pushBusy ? "Procesando..." : "Suscribirme a push"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleUnsubscribeCurrentDevice}
+                  disabled={pushBusy || !pushSubscriptionId}
+                >
+                  {pushBusy ? "Procesando..." : "Desuscribirme"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Preferencias por evento</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {preferencesQuery.isLoading ? (
+            <PreferencesSkeleton />
+          ) : preferencesQuery.isError ? (
+            <ErrorState
+              title="No se pudieron cargar las preferencias"
+              onRetry={() => preferencesQuery.refetch()}
+            />
+          ) : catalogRows.length === 0 ? (
+            <EmptyState
+              icon={BellRing}
+              title="Sin eventos"
+              description="Aun no hay eventos configurables."
+            />
+          ) : (
+            catalogRows.map((row) => {
+              const pref = getPreference(row.eventType);
+              const Icon = row.icon ?? BellRing;
+              return (
+                <div
+                  key={row.eventType}
+                  className="rounded-2xl border border-[hsl(var(--border))] p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-[hsl(var(--muted))] flex items-center justify-center shrink-0">
+                      <Icon className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-[hsl(var(--foreground))]">
+                        {row.title}
+                      </p>
+                      <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
+                        {row.description}
+                      </p>
+                      <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-1 font-mono">
+                        {row.eventType}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="rounded-lg border border-[hsl(var(--border))] px-3 py-2 flex items-center justify-between">
+                      <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                        En plataforma
+                      </span>
+                      <Switch
+                        checked={Boolean(pref.inAppEnabled)}
+                        disabled={pendingKey === `${row.eventType}:inAppEnabled`}
+                        onCheckedChange={(checked) =>
+                          updatePreference(row.eventType, { inAppEnabled: checked })
+                        }
+                      />
+                    </div>
+                    <div className="rounded-lg border border-[hsl(var(--border))] px-3 py-2 flex items-center justify-between">
+                      <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                        Correo
+                      </span>
+                      <Switch
+                        checked={Boolean(pref.emailEnabled)}
+                        disabled={pendingKey === `${row.eventType}:emailEnabled`}
+                        onCheckedChange={(checked) =>
+                          updatePreference(row.eventType, { emailEnabled: checked })
+                        }
+                      />
+                    </div>
+                    <div className="rounded-lg border border-[hsl(var(--border))] px-3 py-2 flex items-center justify-between">
+                      <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                        Push web
+                      </span>
+                      <Switch
+                        checked={Boolean(pref.pushEnabled)}
+                        disabled={pendingKey === `${row.eventType}:pushEnabled`}
+                        onCheckedChange={(checked) =>
+                          updatePreference(row.eventType, { pushEnabled: checked })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

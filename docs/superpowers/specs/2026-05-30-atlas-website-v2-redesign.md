@@ -11,10 +11,11 @@
 
 Rediseño total del módulo `atlas.website`. Se elimina GrapesJS por completo y se reemplaza con `@raulbellosom/atlas-web-builder` (builder visual basado en CraftJS, publicado en npm). El cambio permite contenido dinámico real: productos del catálogo, formularios con submissions reales, reservaciones integradas con `atlas.calendar`, y checkout con Stripe.
 
-El rediseño abarca tres piezas independientes:
-1. **`atlas.website`** — módulo refactorizado (editor, renderer, wizard, blog, formularios, Stripe)
+El rediseño abarca cuatro piezas independientes:
+1. **`atlas.website`** — módulo refactorizado (editor, renderer, wizard, blog, formularios, Stripe, settings propios)
 2. **`atlas.catalog`** — nuevo módulo AME3 de catálogo de productos
-3. **Platform Settings / SMTP** — nueva área de configuración global del ERP
+3. **Platform Settings / SMTP** — SMTP global del ERP (atlas.core), fallback para el website
+4. **Website Settings / SMTP** — SMTP propio del negocio del cliente, dentro de atlas.website
 
 Cada pieza tiene su propio plan de implementación. Los specs hijos (`atlas.catalog` y platform-settings) detallan esas piezas; este spec define los contratos entre ellas.
 
@@ -26,15 +27,22 @@ Cada pieza tiene su propio plan de implementación. Los specs hijos (`atlas.cata
 atlas.website
   ├── depende de atlas.catalog (opcional — activa bloques ecommerce)
   ├── depende de atlas.calendar (opcional — activa bloques de reservaciones)
-  ├── lee SMTP de InstanceConfig (configurado por platform-settings)
+  ├── SMTP de website: website.smtp.* en InstanceConfig → fallback a smtp.* (platform)
   └── Stripe keys propias en website_site
 
 atlas.catalog
   └── independiente — cualquier módulo futuro puede consumirlo
 
 Platform Settings / SMTP
-  └── persiste en InstanceConfig — cualquier módulo puede leerlo
+  └── persiste en InstanceConfig (smtp.*) — cualquier módulo puede leerlo como fallback
 ```
+
+**Cadena de resolución SMTP para emails del website:**
+1. Si existen `website.smtp.host` + `website.smtp.user` en `InstanceConfig` → usar credenciales propias del website (dominio/marca del cliente)
+2. Si no → intentar con `smtp.*` (SMTP de plataforma)
+3. Si tampoco → no enviar email, loguear warning en API
+
+Esto permite que emails de cara al visitante (confirmaciones de reserva, submissions de formularios, órdenes de ecommerce) salgan desde el dominio/cuenta del negocio del cliente, mientras que los emails internos del ERP (notificaciones de módulos, alertas de sistema) siguen usando el SMTP de plataforma.
 
 **Dependencias opcionales:** `atlas.website` verifica en runtime si `atlas.catalog` y `atlas.calendar` están instalados y habilitados. Si `atlas.catalog` no está instalado, los bloques `ProductsGridBlock`, `ProductCardBlock` y `CartBlock` no aparecen en el editor. Si `atlas.calendar` no está instalado, `BookingFormBlock` no aparece.
 
@@ -273,7 +281,7 @@ export function WebsitePageRenderer({ page, theme, siteType }) {
 - Crear/editar formulario: nombre, campos configurables, email de notificación
 - Al seleccionar un formulario → panel lateral de submissions con tabla (fecha, datos, toggle leído)
 
-**Endpoint público:** `POST /public/website/forms/:formId/submit` → valida campos → inserta en `website_form_submission` → si SMTP configurado, envía email via `createSmtpService` al `notification_email` del formulario.
+**Endpoint público:** `POST /public/website/forms/:formId/submit` → valida campos → inserta en `website_form_submission` → si SMTP disponible, envía email via `createWebsiteSmtpService` (website SMTP con fallback a platform SMTP) al `notification_email` del formulario.
 
 ---
 
@@ -326,9 +334,11 @@ export function WebsitePageRenderer({ page, theme, siteType }) {
 
 > Spec hijo detallado: `docs/superpowers/specs/2026-05-30-platform-settings-smtp-design.md`
 
-**Ruta:** `/app/settings/integrations/smtp` — nueva área en el shell del ERP.
+**Ruta:** `/app/m/atlas.core/settings/smtp` — dentro del módulo Atlas Core, pestaña SMTP.
 
 **Permiso:** `platform.settings.manage` — solo admins del sistema.
+
+**Propósito:** SMTP global del ERP para emails internos (alertas de módulos, notificaciones del sistema, reseteo de contraseña). También actúa como **fallback** cuando el website no tiene su propio SMTP configurado.
 
 **Persistencia en `InstanceConfig`:**
 | Key | Descripción |
@@ -341,9 +351,40 @@ export function WebsitePageRenderer({ page, theme, siteType }) {
 | `smtp.from_email` | Email del remitente |
 | `smtp.tls` | Boolean |
 
-**Servicio compartido:** `apps/api/src/services/smtp-service.js` — `createSmtpService({ prisma })`. Lee las claves de `InstanceConfig`, construye un transporter de `nodemailer`. Cualquier módulo lo importa.
+**Servicio compartido:** `apps/api/src/services/smtp-service.js` — exporta `createSmtpService({ prisma })` (platform SMTP) y `createWebsiteSmtpService({ prisma })` (website SMTP con fallback a platform). Cualquier módulo lo importa.
 
 **Endpoint de prueba:** `POST /settings/smtp/test` — envía un email de prueba al email del usuario logueado.
+
+---
+
+## Sección 11b: Website Settings — SMTP propio
+
+**Ruta:** `/app/m/atlas.website/settings` — nueva pantalla dentro de `atlas.website` con pestañas. Tab activo por defecto: SMTP.
+
+**Permiso:** `website.site.update` — mismo permiso que editar el sitio.
+
+**Propósito:** Credenciales de correo propias del negocio del cliente. Los emails de cara al visitante (confirmaciones de reserva, submissions de formularios, notificaciones de ecommerce) salen desde este SMTP, dando la apariencia de que vienen del negocio — no del ERP.
+
+**Persistencia en `InstanceConfig`** (mismo mecanismo que platform SMTP, prefijo diferente):
+| Key | Descripción |
+|---|---|
+| `website.smtp.host` | Servidor SMTP del negocio |
+| `website.smtp.port` | Puerto |
+| `website.smtp.user` | Usuario |
+| `website.smtp.pass` | Contraseña (AES encriptada) |
+| `website.smtp.from_name` | Nombre del remitente (ej. "Mi Restaurante") |
+| `website.smtp.from_email` | Email del remitente (ej. reservas@mirestaurante.com) |
+| `website.smtp.tls` | Boolean |
+
+**UI:** `WebsiteSettingsScreen.jsx` — pantalla con tabs. Tab "SMTP": formulario idéntico al de platform SMTP. Incluye badge de estado (configurado / usando SMTP de plataforma / sin SMTP) y botón "Enviar prueba".
+
+**Lógica de fallback en `createWebsiteSmtpService({ prisma })`:**
+```js
+// Lee website.smtp.* primero; si host/user vacíos, lee smtp.*
+// Si ninguno tiene config → retorna null (el llamador decide si loguear warning)
+```
+
+**Endpoint de prueba:** `POST /website/settings/smtp/test` — envía email de prueba al usuario logueado usando la cadena de resolución website → platform.
 
 ---
 
@@ -358,6 +399,7 @@ navigation: [
   { label: 'Formularios',  path: '/app/m/atlas.website/forms',        icon: 'FormInput',    permissionKey: 'website.pages.read' },
   { label: 'Tema',         path: '/app/m/atlas.website/theme',        icon: 'Palette',      permissionKey: 'website.theme.read' },
   { label: 'Pagos',        path: '/app/m/atlas.website/payments',     icon: 'CreditCard',   permissionKey: 'website.site.update', condition: 'site_type=ecommerce' },
+  { label: 'Configuracion',path: '/app/m/atlas.website/settings',     icon: 'Settings',     permissionKey: 'website.site.update' },
 ]
 ```
 
@@ -524,8 +566,10 @@ apps/desktop/src/website/atlasTemplates/templateInmobiliaria.js
 apps/desktop/src/website/atlasTemplates/index.js
 apps/desktop/src/modules/atlas.website/screens/WebsiteSiteWizard.jsx
 apps/desktop/src/modules/atlas.website/screens/WebsitePaymentsScreen.jsx
-apps/api/src/services/smtp-service.js
+apps/desktop/src/modules/atlas.website/screens/WebsiteSettingsScreen.jsx  (tabs: SMTP)
+apps/api/src/services/smtp-service.js               (añadir createWebsiteSmtpService con fallback)
 apps/api/src/routes/website/forms-routes.js         (reescribir)
+apps/api/src/routes/website/settings-routes.js      (GET/POST /website/settings/smtp, POST /website/settings/smtp/test)
 apps/api/src/routes/public-website.js               (añadir: /bookings, /checkout, /stripe/webhook, /blog)
 docs/superpowers/specs/2026-05-30-atlas-catalog-design.md        (spec hijo)
 docs/superpowers/specs/2026-05-30-platform-settings-smtp-design.md (spec hijo)
@@ -560,7 +604,8 @@ Antes de iniciar la implementación se deben escribir:
 ## Notas de implementación
 
 - **Tamaño de archivos:** `WebsitePageEditorScreen.jsx` y `WebsiteSiteWizard.jsx` deben mantenerse bajo 800 líneas. Si el wizard crece, extraer cada paso a un componente propio en `screens/wizard/`.
-- **Encriptación de Stripe secret key y SMTP password:** usar AES-256-GCM con `JWT_SECRET` como clave derivada (pbkdf2). Nunca loguear ni exponer en responses.
+- **Encriptación de Stripe secret key y SMTP passwords:** usar AES-256-GCM con `JWT_SECRET` como clave derivada (pbkdf2). Aplica tanto a `smtp.pass` (platform) como a `website.smtp.pass`. Nunca loguear ni exponer en responses.
+- **Cadena SMTP del website:** `createWebsiteSmtpService({ prisma })` en `smtp-service.js` lee `website.smtp.*` primero; si host/user están vacíos, intenta con `smtp.*`; si ninguno está configurado, retorna `null` y el endpoint loguea un warning sin fallar con 500.
 - **Stripe secret key:** nunca incluir en `GET /website/site` público ni en el resolve endpoint. Solo se usa server-side.
 - **`parsePage` en renderer:** si los datos en DB son de GrapesJS (objeto inválido para el builder), `parsePage` lanzará un error — el renderer lo captura y muestra la pantalla "sin contenido publicado".
 - **Orden de implementación sugerido:**

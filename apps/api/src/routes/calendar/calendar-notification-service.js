@@ -1,4 +1,5 @@
 import { CalendarServiceError } from './calendar-service.js'
+import { createNotificationService } from '../../services/notification-service.js'
 
 export function createCalendarNotificationService({ prisma }) {
   async function getNotifications(userId, { unreadOnly = true } = {}) {
@@ -37,6 +38,7 @@ export function createCalendarNotificationService({ prisma }) {
 
   async function processReminders() {
     const now = new Date()
+    const notificationSvc = createNotificationService({ prisma })
     const pendingReminders = await prisma.calendarReminder.findMany({
       where: { sentAt: null },
       include: {
@@ -66,7 +68,42 @@ export function createCalendarNotificationService({ prisma }) {
       data: { sentAt: now },
     })
 
-    return { processed: toFire.length }
+    let published = 0
+    for (const reminder of toFire) {
+      try {
+        const membership = await prisma.membership.findFirst({
+          where: { userId: reminder.userId, enabled: true },
+          select: { companyId: true },
+        })
+        if (!membership?.companyId) continue
+        const title = reminder.event?.title ?? 'Evento'
+        await notificationSvc.publish({
+          companyId: membership.companyId,
+          actorId: null,
+          input: {
+            eventType: 'calendar.event.reminder',
+            title: `Recordatorio: ${title}`,
+            body: `Tu evento comienza pronto (${reminder.minutesBefore} min antes).`,
+            link: `/app/m/atlas.calendar?eventId=${reminder.eventId}`,
+            recipients: { userIds: [reminder.userId] },
+            channels: ['in_app', 'email'],
+            priority: 'high',
+            sourceType: 'CalendarEvent',
+            sourceId: reminder.eventId,
+            dedupeKey: `calendar.reminder:${reminder.id}`,
+            metadata: {
+              minutesBefore: reminder.minutesBefore,
+              startAt: reminder.event?.startAt ?? null,
+            },
+          },
+        })
+        published += 1
+      } catch (err) {
+        console.error('[calendar.reminder.notification]', err?.message ?? err)
+      }
+    }
+
+    return { processed: toFire.length, published }
   }
 
   return { getNotifications, markRead, markAllRead, processReminders }

@@ -3,6 +3,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Hono } from 'hono'
 import { resolveProjectRoot } from './module-discovery-service.js'
+import { publishNotificationFromContext } from './notification-publisher.js'
 
 function isWithinPath(parentPath, childPath) {
   const rel = path.relative(parentPath, childPath)
@@ -301,6 +302,10 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
       moduleContext: {
         moduleKey,
         manifest: moduleRow.manifest ?? null,
+        notifications: {
+          publishFromContext: (c, payload, options) =>
+            publishNotificationFromContext(prisma, c, payload, options),
+        },
       },
     })
 

@@ -644,3 +644,71 @@ export const ACTIVITY_CONSTANTS = {
   severities: ACTIVITY_SEVERITIES,
   payloadMaxBytes: ACTIVITY_PAYLOAD_MAX_BYTES,
 };
+
+// ---------------------------------------------------------------------------
+// atlas.notifications
+// ---------------------------------------------------------------------------
+
+const NOTIFICATION_CHANNELS = ["in_app", "email", "web_push"];
+const NOTIFICATION_PRIORITIES = ["low", "medium", "high", "critical"];
+
+export const notificationPublishSchema = z.object({
+  eventType: z.string().trim().min(1).max(100),
+  title: z.string().trim().min(1).max(200),
+  body: z.string().trim().max(1000).optional(),
+  link: z.string().trim().max(500).optional(),
+  recipients: z.object({
+    userIds: z.array(z.string().uuid()).min(1).max(300),
+  }),
+  channels: z
+    .array(z.enum(NOTIFICATION_CHANNELS))
+    .min(1)
+    .max(3)
+    .optional()
+    .default(["in_app"]),
+  priority: z.enum(NOTIFICATION_PRIORITIES).optional().default("medium"),
+  sourceType: z.string().trim().max(100).optional(),
+  sourceId: z.string().trim().max(200).optional(),
+  sourceActivityId: z.string().uuid().optional(),
+  metadata: z.record(z.any()).optional(),
+  dedupeKey: z.string().trim().max(200).optional(),
+  expiresAt: z.coerce.date().optional(),
+});
+
+export const notificationListQuerySchema = z.object({
+  unreadOnly: z
+    .union([z.boolean(), z.enum(["true", "false"])])
+    .transform((value) =>
+      typeof value === "boolean" ? value : value === "true",
+    )
+    .optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  cursor: z.string().uuid().optional(),
+  priority: z.enum(NOTIFICATION_PRIORITIES).optional(),
+  eventType: z.string().trim().max(100).optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  q: z.string().trim().max(200).optional(),
+});
+
+export const webPushSubscriptionSchema = z.object({
+  endpoint: z.string().url().max(2000),
+  keys: z.object({
+    p256dh: z.string().min(1).max(500),
+    auth: z.string().min(1).max(200),
+  }),
+  deviceLabel: z.string().trim().max(120).optional(),
+});
+
+export const notificationPreferenceUpsertSchema = z.object({
+  eventType: z.string().trim().min(1).max(100),
+  inAppEnabled: z.boolean().optional().default(true),
+  emailEnabled: z.boolean().optional().default(false),
+  pushEnabled: z.boolean().optional().default(false),
+  muteUntil: z.coerce.date().optional().nullable(),
+});
+
+export const NOTIFICATION_CONSTANTS = {
+  channels: NOTIFICATION_CHANNELS,
+  priorities: NOTIFICATION_PRIORITIES,
+};

@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { encryptPassword, createSmtpService } from '../services/smtp-service.js'
+import { createWebPushService } from '../services/web-push-service.js'
 
 const smtpSchema = z.object({
   host:       z.string().min(1),
@@ -14,6 +15,7 @@ const smtpSchema = z.object({
 
 export function createSettingsRouter({ prisma, requirePermission }) {
   const app = new Hono()
+  const webPushService = createWebPushService({ prisma })
 
   app.get('/settings/smtp', requirePermission('platform.settings.manage'), async (c) => {
     try {
@@ -99,6 +101,48 @@ export function createSettingsRouter({ prisma, requirePermission }) {
       return c.json({ ok: true })
     } catch (err) {
       return c.json({ error: err.message }, 400)
+    }
+  })
+
+  app.get('/settings/notifications/webpush', requirePermission('platform.settings.manage'), async (c) => {
+    try {
+      const data = await webPushService.getVapidConfig()
+      return c.json({ data })
+    } catch (err) {
+      console.error('[GET /settings/notifications/webpush]', err?.message)
+      return c.json({ error: 'Internal error' }, 500)
+    }
+  })
+
+  app.post('/settings/notifications/webpush', requirePermission('platform.settings.manage'), async (c) => {
+    try {
+      const body = await c.req.json()
+      const data = await webPushService.saveVapidConfig(body)
+      return c.json({ data })
+    } catch (err) {
+      if (err?.name === 'ZodError') return c.json({ error: err.flatten() }, 400)
+      console.error('[POST /settings/notifications/webpush]', err?.message)
+      return c.json({ error: 'Internal error' }, 500)
+    }
+  })
+
+  app.post('/settings/notifications/webpush/generate', requirePermission('platform.settings.manage'), async (c) => {
+    try {
+      const data = webPushService.generateVapidKeys()
+      return c.json({ data })
+    } catch (err) {
+      console.error('[POST /settings/notifications/webpush/generate]', err?.message)
+      return c.json({ error: 'Internal error' }, 500)
+    }
+  })
+
+  app.delete('/settings/notifications/webpush', requirePermission('platform.settings.manage'), async (c) => {
+    try {
+      const data = await webPushService.clearVapidConfig()
+      return c.json({ data })
+    } catch (err) {
+      console.error('[DELETE /settings/notifications/webpush]', err?.message)
+      return c.json({ error: 'Internal error' }, 500)
     }
   })
 

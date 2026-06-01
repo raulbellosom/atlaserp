@@ -18,6 +18,12 @@ const SCREEN_MAP = {
   "atlas.core:/settings": lazy(
     () => import("../modules/atlas.core/screens/InstanceSettings.jsx"),
   ),
+  "atlas.core:/settings/smtp": lazy(
+    () => import("../modules/atlas.core/screens/SmtpSettingsScreen.jsx"),
+  ),
+  "atlas.core:/settings/webpush": lazy(
+    () => import("../modules/atlas.core/screens/WebPushSettingsScreen.jsx"),
+  ),
   "atlas.company:/": lazy(
     () => import("../modules/atlas.company/screens/CompanyOverview.jsx"),
   ),
@@ -120,6 +126,9 @@ const SCREEN_MAP = {
   "atlas.website:/forms": lazy(
     () => import("../modules/atlas.website/screens/WebsiteFormsScreen.jsx"),
   ),
+  "atlas.website:/settings": lazy(
+    () => import("../modules/atlas.website/screens/WebsiteSettingsScreen.jsx"),
+  ),
   "atlas.website:/payments": lazy(
     () => import("../modules/atlas.website/screens/WebsitePaymentsScreen.jsx"),
   ),
@@ -145,6 +154,18 @@ const SCREEN_MAP = {
   ),
   "atlas.activity:/": lazy(
     () => import("../modules/atlas.activity/ActivityFeedScreen.jsx"),
+  ),
+  "atlas.notifications:/": lazy(
+    () =>
+      import(
+        "../modules/atlas.notifications/NotificationsInboxScreen.jsx"
+      ),
+  ),
+  "atlas.notifications:/settings": lazy(
+    () =>
+      import(
+        "../modules/atlas.notifications/NotificationSettingsScreen.jsx"
+      ),
   ),
 };
 const SCREEN_MODULE_KEYS = new Set(

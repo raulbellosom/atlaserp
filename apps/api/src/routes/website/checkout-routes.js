@@ -17,7 +17,7 @@ export function createPublicCheckoutRouter({ prisma }) {
 
     try {
       const sites = await prisma.$queryRaw`
-        SELECT stripe_secret_key, stripe_currency, stripe_success_message
+        SELECT stripe_secret_key, stripe_success_message
         FROM website_site
         WHERE id = ${siteId}::uuid AND enabled = true
         LIMIT 1
@@ -27,12 +27,18 @@ export function createPublicCheckoutRouter({ prisma }) {
         return c.json({ error: 'Stripe no configurado para este sitio' }, 400)
       }
 
+      // Currency comes from each product — all items in a session must share the same currency
+      const currencies = [...new Set(items.map((i) => i.currency).filter(Boolean))]
+      if (currencies.length === 0) return c.json({ error: 'Los productos no tienen moneda definida' }, 400)
+      if (currencies.length > 1) return c.json({ error: 'Todos los productos del carrito deben usar la misma moneda' }, 400)
+      const currency = currencies[0].toLowerCase()
+
       const secretKey = decryptPassword(site.stripe_secret_key)
       const stripe    = new Stripe(secretKey, { apiVersion: '2024-12-18.acacia' })
 
       const lineItems = items.map((item) => ({
         price_data: {
-          currency:     (site.stripe_currency ?? 'usd').toLowerCase(),
+          currency,
           product_data: { name: item.name },
           unit_amount:  Math.round(item.price * 100),
         },

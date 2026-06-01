@@ -81,3 +81,80 @@ export function createSmtpService({ prisma }) {
 
   return { sendEmail, isConfigured, getConfig }
 }
+
+export function createWebsiteSmtpService({ prisma }) {
+  async function getConfig() {
+    const keys = [
+      'website.smtp.host', 'website.smtp.port', 'website.smtp.user', 'website.smtp.pass',
+      'website.smtp.from_name', 'website.smtp.from_email', 'website.smtp.tls',
+      'smtp.host', 'smtp.port', 'smtp.user', 'smtp.pass',
+      'smtp.from_name', 'smtp.from_email', 'smtp.tls',
+    ]
+    const rows = await prisma.instanceConfig.findMany({ where: { key: { in: keys } } })
+    const cfg = Object.fromEntries(rows.map((r) => [r.key, r.value]))
+
+    const host = cfg['website.smtp.host'] || cfg['smtp.host']
+    const user = cfg['website.smtp.user'] || cfg['smtp.user']
+    if (!host || !user) return null
+
+    const useWebsite = Boolean(cfg['website.smtp.host'] && cfg['website.smtp.user'])
+    const prefix = useWebsite ? 'website.smtp' : 'smtp'
+
+    const passRaw = cfg[`${prefix}.pass`]
+    return {
+      host:      cfg[`${prefix}.host`],
+      port:      Number(cfg[`${prefix}.port`] ?? 587),
+      user:      cfg[`${prefix}.user`],
+      pass:      passRaw ? decryptPassword(passRaw) : '',
+      fromName:  cfg[`${prefix}.from_name`] ?? '',
+      fromEmail: cfg[`${prefix}.from_email`] ?? cfg[`${prefix}.user`],
+      tls:       cfg[`${prefix}.tls`] === 'true',
+      source:    useWebsite ? 'website' : 'platform',
+    }
+  }
+
+  async function sendEmail({ to, subject, html, text }) {
+    const config = await getConfig()
+    if (!config) throw new Error('SMTP no configurado (website ni plataforma)')
+
+    const transporter = nodemailer.createTransport({
+      host:   config.host,
+      port:   config.port,
+      secure: config.tls,
+      auth:   { user: config.user, pass: config.pass },
+    })
+
+    await transporter.sendMail({
+      from:    `"${config.fromName}" <${config.fromEmail}>`,
+      to,
+      subject,
+      html,
+      text,
+    })
+  }
+
+  async function isConfigured() {
+    const config = await getConfig()
+    return Boolean(config)
+  }
+
+  async function getWebsiteOnlyConfig() {
+    const keys = [
+      'website.smtp.host', 'website.smtp.port', 'website.smtp.user',
+      'website.smtp.from_name', 'website.smtp.from_email', 'website.smtp.tls',
+    ]
+    const rows = await prisma.instanceConfig.findMany({ where: { key: { in: keys } } })
+    const cfg = Object.fromEntries(rows.map((r) => [r.key, r.value]))
+    return {
+      host:       cfg['website.smtp.host']       ?? '',
+      port:       Number(cfg['website.smtp.port'] ?? 587),
+      user:       cfg['website.smtp.user']       ?? '',
+      from_name:  cfg['website.smtp.from_name']  ?? '',
+      from_email: cfg['website.smtp.from_email'] ?? '',
+      tls:        cfg['website.smtp.tls'] === 'true',
+      configured: Boolean(cfg['website.smtp.host'] && cfg['website.smtp.user']),
+    }
+  }
+
+  return { sendEmail, isConfigured, getConfig, getWebsiteOnlyConfig }
+}
