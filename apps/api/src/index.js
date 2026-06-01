@@ -113,6 +113,7 @@ const CORE_MODULE_KEYS = new Set([
 ]);
 const STORAGE_BUCKET_NAME = "atlas-files";
 const STOREFRONT_BUCKET_NAME = "atlas-storefront";
+const WEBSITE_BUCKET_NAME = "atlas-website";
 const filesService = createFilesService({ prisma, supabaseAdmin });
 const companyService = createCompanyService({ prisma, supabaseAdmin });
 const bundlerService = createModuleBundlerService({ prisma, supabaseAdmin });
@@ -632,6 +633,9 @@ async function ensureBuckets() {
     .catch(() => {});
   await supabaseAdmin.storage
     .createBucket(STOREFRONT_BUCKET_NAME, { public: true, fileSizeLimit: 104857600, allowedMimeTypes: ['image/*', 'audio/*', 'video/*', 'application/pdf'] })
+    .catch(() => {});
+  await supabaseAdmin.storage
+    .createBucket(WEBSITE_BUCKET_NAME, { public: true, fileSizeLimit: 10485760, allowedMimeTypes: ['image/*', 'video/*', 'audio/*', 'application/pdf'] })
     .catch(() => {});
 }
 

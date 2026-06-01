@@ -5,6 +5,7 @@ const SIGNED_URL_SECONDS = 3600;
 const BULK_DOWNLOAD_MAX_FILE_IDS = 50;
 const BULK_DOWNLOAD_MAX_TOTAL_BYTES = 250 * 1024 * 1024;
 const STORAGE_BUCKET_NAME = "atlas-files";
+const WEBSITE_BUCKET_NAME = "atlas-website";
 const BULK_ZIP_FOLDER = "system/bulk-downloads";
 const ALLOWED_FILE_ENTITY_TYPES = [
   "AtlasFile",
@@ -243,9 +244,10 @@ export function createFilesService({ prisma, supabaseAdmin }) {
         mimeType: file.type,
       });
 
+      const targetBucket = visibility === "PUBLIC" ? WEBSITE_BUCKET_NAME : STORAGE_BUCKET_NAME;
       const arrayBuffer = await file.arrayBuffer();
       const { error: uploadError } = await supabaseAdmin.storage
-        .from(STORAGE_BUCKET_NAME)
+        .from(targetBucket)
         .upload(objectKey, arrayBuffer, {
           contentType: file.type,
           upsert: false,
@@ -257,7 +259,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
 
       const asset = await prisma.fileAsset.create({
         data: {
-          bucket: STORAGE_BUCKET_NAME,
+          bucket: targetBucket,
           objectKey,
           originalName: file.name,
           mimeType: file.type || "application/octet-stream",
@@ -543,6 +545,11 @@ export function createFilesService({ prisma, supabaseAdmin }) {
         companyId,
         includeDisabled: false,
       });
+
+      if (file.visibility === "PUBLIC" || file.bucket === WEBSITE_BUCKET_NAME) {
+        const { data } = supabaseAdmin.storage.from(file.bucket).getPublicUrl(file.objectKey)
+        return { signedUrl: data.publicUrl, expiresIn: null, permanent: true }
+      }
 
       const { data, error } = await supabaseAdmin.storage
         .from(file.bucket)
