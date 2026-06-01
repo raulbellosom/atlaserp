@@ -93,6 +93,10 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
 );
+const supabaseAnon = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY,
+);
 const CORE_MODULE_KEYS = new Set([
   "atlas.core",
   "atlas.identity",
@@ -107,6 +111,7 @@ const CORE_MODULE_KEYS = new Set([
   "atlas.notifications",
 ]);
 const STORAGE_BUCKET_NAME = "atlas-files";
+const STOREFRONT_BUCKET_NAME = "atlas-storefront";
 const filesService = createFilesService({ prisma, supabaseAdmin });
 const companyService = createCompanyService({ prisma, supabaseAdmin });
 const bundlerService = createModuleBundlerService({ prisma, supabaseAdmin });
