@@ -194,7 +194,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <BrowserRouter>
+        <BrowserRouter basename={import.meta.env.VITE_BASE_PATH?.replace(/\/$/, '') ?? ''}>
           <AuthProvider>
             <Routes>
               <Route path="/" element={<PublicWebsiteEntry />} />
