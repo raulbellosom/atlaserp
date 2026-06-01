@@ -53,7 +53,10 @@ export function createStorefrontFilesService({ prisma, supabaseAdmin }) {
 
     let url = null
     if (bucket === STOREFRONT_BUCKET) {
-      const { data } = supabaseAdmin.storage.from(bucket).getPublicUrl(objectKey)
+      const { data, error: urlError } = supabaseAdmin.storage.from(bucket).getPublicUrl(objectKey)
+      if (urlError || !data) {
+        throw Object.assign(new Error('Error al obtener URL pública'), { code: 'UNKNOWN', status: 500 })
+      }
       url = data.publicUrl
     }
 
