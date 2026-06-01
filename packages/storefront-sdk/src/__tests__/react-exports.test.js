@@ -45,4 +45,12 @@ describe('@atlas/storefront-sdk/react exports', () => {
   it('exports useCategories', () => {
     assert.equal(typeof reactExports.useCategories, 'function')
   })
+
+  it('exports useCompanyConfig', () => {
+    assert.equal(typeof reactExports.useCompanyConfig, 'function')
+  })
+
+  it('exports useRequest', () => {
+    assert.equal(typeof reactExports.useRequest, 'function')
+  })
 })
