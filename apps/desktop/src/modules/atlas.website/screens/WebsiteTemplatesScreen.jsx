@@ -4,10 +4,10 @@ import { useNavigate } from 'react-router-dom'
 import { serializePage } from '@raulbellosom/atlas-web-builder'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import { Button } from '@atlas/ui'
-import { LayoutTemplate, Check } from 'lucide-react'
+import { LayoutTemplate } from 'lucide-react'
 import { toast } from 'sonner'
 import { allTemplates } from '../../../website/atlasTemplates/index.js'
+import { TemplatePreviewDialog } from './TemplatePreviewDialog.jsx'
 
 async function apiFetch(path, token, options = {}) {
   const res = await fetch(`${getApiUrl()}${path}`, {
@@ -36,8 +36,8 @@ export default function WebsiteTemplatesScreen() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  const [selected, setSelected]             = useState(null)
-  const [selectedPageIds, setSelectedPageIds] = useState([])
+  const [previewTpl,  setPreviewTpl]  = useState(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const siteQuery = useQuery({
     queryKey: ['website-site', token],
@@ -47,21 +47,10 @@ export default function WebsiteTemplatesScreen() {
   })
   const site = siteQuery.data?.data ?? null
 
-  function handleSelectTemplate(tpl) {
-    setSelected(tpl)
-    setSelectedPageIds(tpl.pages.map((p) => p.id))
-  }
-
-  function togglePage(pageId) {
-    setSelectedPageIds((prev) =>
-      prev.includes(pageId) ? prev.filter((id) => id !== pageId) : [...prev, pageId]
-    )
-  }
-
   const applyMutation = useMutation({
-    mutationFn: async () => {
-      if (!selected || !site) throw new Error('Sin plantilla o sitio seleccionado')
-      const pagesToCreate = selected.pages.filter((p) => selectedPageIds.includes(p.id))
+    mutationFn: async ({ template, pageIds }) => {
+      if (!template || !site) throw new Error('Sin plantilla o sitio seleccionado')
+      const pagesToCreate = template.pages.filter((p) => pageIds.includes(p.id))
       let firstPageId = null
       let created = 0
       let skipped = 0
@@ -100,9 +89,12 @@ export default function WebsiteTemplatesScreen() {
       return { firstPageId, created, skipped }
     },
     onSuccess: ({ firstPageId, created, skipped }) => {
+      setPreviewOpen(false)
       queryClient.invalidateQueries({ queryKey: ['website-pages'] })
       if (created === 0) {
-        const skip = skipped > 0 ? `${skipped} pagina${skipped !== 1 ? 's' : ''} omitida${skipped !== 1 ? 's' : ''} (ruta ya existe)` : 'Ninguna pagina fue creada.'
+        const skip = skipped > 0
+          ? `${skipped} pagina${skipped !== 1 ? 's' : ''} omitida${skipped !== 1 ? 's' : ''} (ruta ya existe)`
+          : 'Ninguna pagina fue creada.'
         toast.info(skip + ' Edítalas directamente desde Páginas.')
         return
       }
@@ -127,21 +119,16 @@ export default function WebsiteTemplatesScreen() {
       <div>
         <h1 className="text-2xl font-semibold text-[hsl(var(--foreground))]">Plantillas</h1>
         <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-          Aplica una plantilla para crear paginas con diseno predefinido.
+          Selecciona una plantilla para previsualizar y aplicar sus paginas.
         </p>
       </div>
 
-      {/* Template cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {allTemplates.map((tpl) => (
           <button
             key={tpl.id}
-            onClick={() => handleSelectTemplate(tpl)}
-            className={`text-left rounded-xl border-2 p-5 transition-all w-full ${
-              selected?.id === tpl.id
-                ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.05)]'
-                : 'border-[hsl(var(--border))] hover:border-[hsl(var(--primary)/0.4)] hover:bg-[hsl(var(--muted)/0.4)]'
-            }`}
+            onClick={() => { setPreviewTpl(tpl); setPreviewOpen(true) }}
+            className="text-left rounded-xl border-2 border-[hsl(var(--border))] p-5 transition-all w-full hover:border-[hsl(var(--primary)/0.4)] hover:bg-[hsl(var(--muted)/0.4)] hover:shadow-sm"
           >
             <div className="flex items-start gap-3">
               <div
@@ -151,17 +138,12 @@ export default function WebsiteTemplatesScreen() {
                 <LayoutTemplate size={18} style={{ color: tpl.color }} />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-semibold text-[hsl(var(--foreground))]">{tpl.label}</h3>
-                  {selected?.id === tpl.id && (
-                    <Check size={16} className="text-[hsl(var(--primary))] shrink-0" />
-                  )}
-                </div>
+                <h3 className="font-semibold text-[hsl(var(--foreground))]">{tpl.label}</h3>
                 <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5 line-clamp-2">
                   {tpl.description}
                 </p>
                 <p className="text-xs text-[hsl(var(--muted-foreground))] mt-2">
-                  {tpl.pages.length} pagina{tpl.pages.length !== 1 ? 's' : ''}
+                  {tpl.pages.length} pagina{tpl.pages.length !== 1 ? 's' : ''} · Clic para previsualizar
                 </p>
               </div>
             </div>
@@ -169,63 +151,19 @@ export default function WebsiteTemplatesScreen() {
         ))}
       </div>
 
-      {/* Page selection panel */}
-      {selected && (
-        <div className="rounded-xl border border-[hsl(var(--border))] p-6 space-y-4">
-          <h2 className="font-semibold text-[hsl(var(--foreground))]">
-            Paginas incluidas en "{selected.label}"
-          </h2>
-          <div className="space-y-2">
-            {selected.pages.map((p) => (
-              <label
-                key={p.id}
-                className={`flex items-center gap-3 py-2 px-3 rounded-lg transition-colors ${
-                  p.required ? 'opacity-70' : 'cursor-pointer hover:bg-[hsl(var(--muted)/0.5)]'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedPageIds.includes(p.id)}
-                  onChange={() => { if (!p.required) togglePage(p.id) }}
-                  disabled={p.required}
-                  className="rounded"
-                />
-                <span className="flex-1 text-sm font-medium text-[hsl(var(--foreground))]">
-                  {p.label}
-                </span>
-                <span className="text-xs font-mono text-[hsl(var(--muted-foreground))]">
-                  {p.routePath}
-                </span>
-                {p.required && (
-                  <span className="text-xs text-[hsl(var(--muted-foreground))] border border-[hsl(var(--border))] rounded px-1.5 py-0.5">
-                    requerida
-                  </span>
-                )}
-              </label>
-            ))}
-          </div>
-
-          {!site && (
-            <p className="text-sm text-[hsl(var(--muted-foreground))]">
-              Configura tu sitio web primero para poder aplicar plantillas.
-            </p>
-          )}
-
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            Si una ruta ya existe, esa pagina sera omitida. Puedes editarla desde Paginas.
-          </p>
-          <div className="flex justify-end pt-2 border-t border-[hsl(var(--border))]">
-            <Button
-              onClick={() => applyMutation.mutate()}
-              disabled={applyMutation.isPending || selectedPageIds.length === 0 || !site}
-            >
-              {applyMutation.isPending
-                ? 'Creando paginas...'
-                : `Aplicar — ${selectedPageIds.length} pagina${selectedPageIds.length !== 1 ? 's' : ''}`}
-            </Button>
-          </div>
-        </div>
-      )}
+      <TemplatePreviewDialog
+        template={previewTpl}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        applying={applyMutation.isPending}
+        onApply={(pageIds) => {
+          if (!site) {
+            toast.error('Configura tu sitio web primero.')
+            return
+          }
+          applyMutation.mutate({ template: previewTpl, pageIds })
+        }}
+      />
     </div>
   )
 }
