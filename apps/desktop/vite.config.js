@@ -7,6 +7,7 @@ import { dirname, resolve } from "path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  base: process.env.VITE_BASE_PATH ?? "/",
   // Read shared monorepo env vars from repository root (.env, .env.local, etc.).
   envDir: "../..",
   plugins: [tailwindcss(), react()],
