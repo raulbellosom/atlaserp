@@ -15,5 +15,7 @@ COPY apps apps
 ENV DIRECT_URL=postgresql://postgres:postgres@localhost:5432/postgres
 RUN pnpm install --frozen-lockfile
 RUN pnpm prisma:generate
+COPY infra/docker/api-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 EXPOSE 4010
-CMD ["pnpm", "--filter", "@atlas/api", "start"]
+CMD ["/entrypoint.sh"]
