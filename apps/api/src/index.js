@@ -51,15 +51,18 @@ import { createPublicCheckoutRouter } from "./routes/website/checkout-routes.js"
 import { createWebsiteRouter } from "./routes/website/index.js";
 import { createLedgerRouter } from "./routes/ledger/index.js";
 import { createFleetRouter } from "./routes/fleet/index.js";
+import { createCatalogRouter } from "./routes/catalog/index.js";
 import { createCalendarRouter } from "./routes/calendar/index.js";
 import { createSettingsRouter } from "./routes/settings-routes.js";
 import { createActivityRouter } from "./routes/activity.js";
+import { createNotificationsRouter } from "./routes/notifications.js";
 import {
   publishActivityFromContext,
   getActivityContext,
 } from "./services/activity-publisher.js";
 import { createModuleBundlerService } from "./services/module-bundler-service.js";
 import { createRouteLoaderService } from "./services/route-loader-service.js";
+import { createNotificationDeliveryWorker } from "./services/notification-delivery-worker.js";
 import {
   get as cacheGet,
   set as cacheSet,
@@ -100,12 +103,15 @@ const CORE_MODULE_KEYS = new Set([
   "atlas.fleet",
   "atlas.ledger",
   "atlas.calendar",
+  "atlas.catalog",
+  "atlas.notifications",
 ]);
 const STORAGE_BUCKET_NAME = "atlas-files";
 const filesService = createFilesService({ prisma, supabaseAdmin });
 const companyService = createCompanyService({ prisma, supabaseAdmin });
 const bundlerService = createModuleBundlerService({ prisma, supabaseAdmin });
 const hrService = createHrService({ prisma });
+const notificationDeliveryWorker = createNotificationDeliveryWorker({ prisma });
 
 function toSlug(name) {
   return name
@@ -3847,8 +3853,49 @@ mountWithAuth(app, createSettingsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission }));
 mountWithAuth(app, createLedgerRouter({ prisma, requirePermission }));
 mountWithAuth(app, createFleetRouter({ prisma, requirePermission }));
+mountWithAuth(app, createCatalogRouter({ prisma, requirePermission }));
 mountWithAuth(app, createCalendarRouter({ prisma, requirePermission }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission }));
+mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission }));
+
+app.post("/internal/notifications/process-deliveries", async (c) => {
+  const secret = c.req.header("x-internal-secret");
+  if (
+    process.env.NODE_ENV === "production" &&
+    secret !== process.env.ATLAS_INTERNAL_SECRET
+  ) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const limit = Number(body?.limit ?? c.req.query("limit") ?? 50);
+    const channel = String(body?.channel ?? c.req.query("channel") ?? "email");
+    if (channel === "all") {
+      const [email, webPush] = await Promise.all([
+        notificationDeliveryWorker.processPendingNotificationDeliveries({
+          channel: "email",
+          limit,
+        }),
+        notificationDeliveryWorker.processPendingNotificationDeliveries({
+          channel: "web_push",
+          limit,
+        }),
+      ]);
+      return c.json({ data: { email, webPush } });
+    }
+    const result =
+      await notificationDeliveryWorker.processPendingNotificationDeliveries({
+        channel,
+        limit,
+      });
+    return c.json({ data: result });
+  } catch (err) {
+    return c.json(
+      { error: err instanceof Error ? err.message : "Error interno." },
+      500,
+    );
+  }
+});
 
 const server = serve({ fetch: app.fetch, port });
 console.log(`Atlas API running on http://localhost:${port}`);
