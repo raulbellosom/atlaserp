@@ -5,7 +5,8 @@
   "description": "Generic JavaScript client for AtlasERP storefront APIs",
   "main": "./src/index.js",
   "exports": {
-    ".": "./src/index.js"
+    ".": "./src/index.js",
+    "./react": "./src/react/index.js"
   },
   "files": [
     "src"
@@ -15,7 +16,12 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.0.0"
   },
-  "peerDependencies": {},
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "react": "^18.3.1"
+  },
   "publishConfig": {
     "access": "public"
   }
