@@ -101,6 +101,11 @@ export default function WebsiteTemplatesScreen() {
     },
     onSuccess: ({ firstPageId, created, skipped }) => {
       queryClient.invalidateQueries({ queryKey: ['website-pages'] })
+      if (created === 0) {
+        const skip = skipped > 0 ? `${skipped} pagina${skipped !== 1 ? 's' : ''} omitida${skipped !== 1 ? 's' : ''} (ruta ya existe)` : 'Ninguna pagina fue creada.'
+        toast.info(skip + ' Edítalas directamente desde Páginas.')
+        return
+      }
       const msg = `${created} pagina${created !== 1 ? 's' : ''} creada${created !== 1 ? 's' : ''}`
       const skip = skipped > 0 ? ` · ${skipped} omitida${skipped !== 1 ? 's' : ''} (ruta ya existe)` : ''
       toast.success(msg + skip)
@@ -206,6 +211,9 @@ export default function WebsiteTemplatesScreen() {
             </p>
           )}
 
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            Si una ruta ya existe, esa pagina sera omitida. Puedes editarla desde Paginas.
+          </p>
           <div className="flex justify-end pt-2 border-t border-[hsl(var(--border))]">
             <Button
               onClick={() => applyMutation.mutate()}
