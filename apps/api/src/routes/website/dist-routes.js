@@ -1,9 +1,66 @@
 import { Hono } from 'hono'
 import { createDistUploadService } from '../../services/dist-upload-service.js'
+import { invalidateCache } from '../../services/dist-serve-service.js'
+
+const VALID_SOURCE_TYPES = new Set(['none', 'builder', 'dist'])
+
+const SITE_SOURCE_SELECT = {
+  id: true, name: true, sourceType: true,
+  distUploadedAt: true, distFileCount: true, distHasPrerender: true,
+}
 
 export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
   const app = new Hono()
   const uploadService = createDistUploadService({ prisma, supabaseAdmin })
+
+  app.get(
+    '/website/sites/:siteId',
+    requirePermission('website.site.read'),
+    async (c) => {
+      try {
+        const { siteId } = c.req.param()
+        const companyId = c.get('companyId')
+        const site = await prisma.websiteSite.findFirst({
+          where: { id: siteId, companyId, enabled: true },
+          select: SITE_SOURCE_SELECT,
+        })
+        if (!site) return c.json({ error: 'Sitio no encontrado' }, 404)
+        return c.json({ data: site })
+      } catch (err) {
+        return c.json({ error: err.message }, 500)
+      }
+    }
+  )
+
+  app.patch(
+    '/website/sites/:siteId',
+    requirePermission('website.site.update'),
+    async (c) => {
+      try {
+        const { siteId } = c.req.param()
+        const companyId = c.get('companyId')
+        const body = await c.req.json().catch(() => ({}))
+        const { sourceType } = body
+        if (!sourceType || !VALID_SOURCE_TYPES.has(sourceType)) {
+          return c.json({ error: 'sourceType debe ser none, builder o dist' }, 422)
+        }
+        const exists = await prisma.websiteSite.findFirst({
+          where: { id: siteId, companyId, enabled: true },
+          select: { id: true },
+        })
+        if (!exists) return c.json({ error: 'Sitio no encontrado' }, 404)
+        const updated = await prisma.websiteSite.update({
+          where: { id: siteId },
+          data: { sourceType },
+          select: SITE_SOURCE_SELECT,
+        })
+        invalidateCache(companyId)
+        return c.json({ data: updated })
+      } catch (err) {
+        return c.json({ error: err.message }, 500)
+      }
+    }
+  )
 
   app.post(
     '/website/sites/:siteId/dist/upload',
