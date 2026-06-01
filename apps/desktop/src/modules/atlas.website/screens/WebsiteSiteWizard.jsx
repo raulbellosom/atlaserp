@@ -765,7 +765,7 @@ export default function WebsiteSiteWizard() {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-700 mb-2.5">Paginas a incluir</p>
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                       {selectedTemplate.pages.map((p) => (
                         <label key={p.id}
                           className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
