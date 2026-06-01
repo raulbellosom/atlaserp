@@ -1,5 +1,19 @@
 import { AtlasWebBuilderProvider, AtlasWebRenderer, baseBlocks, defineTheme, defaultTheme, parsePage } from '@raulbellosom/atlas-web-builder'
 import '@raulbellosom/atlas-web-builder/styles'
+import {
+  universalAtlasBlocks,
+  ecommerceAtlasBlocks,
+  bookingsAtlasBlocks,
+  restaurantAtlasBlocks,
+} from './atlasBlocks/index.js'
+
+const ALL_BLOCKS = [
+  ...baseBlocks,
+  ...universalAtlasBlocks,
+  ...ecommerceAtlasBlocks,
+  ...bookingsAtlasBlocks,
+  ...restaurantAtlasBlocks,
+]
 
 export function WebsitePageRenderer({ page, theme }) {
   const resolvedTheme = theme?.tokens
@@ -34,7 +48,7 @@ export function WebsitePageRenderer({ page, theme }) {
   }
 
   return (
-    <AtlasWebBuilderProvider blocks={baseBlocks} theme={resolvedTheme}>
+    <AtlasWebBuilderProvider blocks={ALL_BLOCKS} theme={resolvedTheme}>
       <AtlasWebRenderer page={parsedPage} mode="public" />
     </AtlasWebBuilderProvider>
   )
