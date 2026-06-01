@@ -4,11 +4,6 @@ import { invalidateCache } from '../../services/dist-serve-service.js'
 
 const VALID_SOURCE_TYPES = new Set(['none', 'builder', 'dist'])
 
-const SITE_SOURCE_SELECT = {
-  id: true, name: true, sourceType: true,
-  distUploadedAt: true, distFileCount: true, distHasPrerender: true,
-}
-
 export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
   const app = new Hono()
   const uploadService = createDistUploadService({ prisma, supabaseAdmin })
@@ -20,12 +15,19 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
       try {
         const { siteId } = c.req.param()
         const companyId = c.get('companyId')
-        const site = await prisma.websiteSite.findFirst({
-          where: { id: siteId, companyId, enabled: true },
-          select: SITE_SOURCE_SELECT,
-        })
-        if (!site) return c.json({ error: 'Sitio no encontrado' }, 404)
-        return c.json({ data: site })
+        const rows = await prisma.$queryRaw`
+          SELECT id, name, source_type as "sourceType",
+                 dist_uploaded_at as "distUploadedAt",
+                 dist_file_count as "distFileCount",
+                 dist_has_prerender as "distHasPrerender"
+          FROM website_site
+          WHERE id = ${siteId}::uuid
+            AND company_id = ${companyId}::uuid
+            AND enabled = true
+          LIMIT 1
+        `
+        if (!rows[0]) return c.json({ error: 'Sitio no encontrado' }, 404)
+        return c.json({ data: rows[0] })
       } catch (err) {
         return c.json({ error: err.message }, 500)
       }
@@ -44,18 +46,20 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
         if (!sourceType || !VALID_SOURCE_TYPES.has(sourceType)) {
           return c.json({ error: 'sourceType debe ser none, builder o dist' }, 422)
         }
-        const exists = await prisma.websiteSite.findFirst({
-          where: { id: siteId, companyId, enabled: true },
-          select: { id: true },
-        })
-        if (!exists) return c.json({ error: 'Sitio no encontrado' }, 404)
-        const updated = await prisma.websiteSite.update({
-          where: { id: siteId },
-          data: { sourceType },
-          select: SITE_SOURCE_SELECT,
-        })
+        const updated = await prisma.$queryRaw`
+          UPDATE website_site
+          SET source_type = ${sourceType}
+          WHERE id = ${siteId}::uuid
+            AND company_id = ${companyId}::uuid
+            AND enabled = true
+          RETURNING id, name, source_type as "sourceType",
+                    dist_uploaded_at as "distUploadedAt",
+                    dist_file_count as "distFileCount",
+                    dist_has_prerender as "distHasPrerender"
+        `
+        if (!updated[0]) return c.json({ error: 'Sitio no encontrado' }, 404)
         invalidateCache(companyId)
-        return c.json({ data: updated })
+        return c.json({ data: updated[0] })
       } catch (err) {
         return c.json({ error: err.message }, 500)
       }
