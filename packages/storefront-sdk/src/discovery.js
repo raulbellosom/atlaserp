@@ -1,5 +1,10 @@
 const CACHE_TTL_MS = 30_000
 
+/**
+ * Factory for the sdk.discovery namespace. Results are cached for 30s and deduplicated.
+ * @param {{ request: Function }} deps
+ * @returns {{ blueprints, hasModule }}
+ */
 export function createDiscoveryNamespace({ request }) {
   let _cache = null
   let _cacheAt = 0

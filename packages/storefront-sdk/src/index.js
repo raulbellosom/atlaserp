@@ -9,6 +9,27 @@ import { createRealtimeNamespace } from './realtime.js'
 
 export { StorefrontError }
 
+/**
+ * Create a stateful storefront SDK client instance.
+ *
+ * One instance per app. The client manages auth state in memory.
+ * Persist session across page loads via `onSessionChange` + `initialSession`.
+ *
+ * @param {object} options
+ * @param {string} options.baseUrl - ERP instance URL (e.g. 'https://erp.acme.mx')
+ * @param {string} options.company - Company slug registered in the ERP
+ * @param {function} [options.onSessionChange] - Called with session object on login/logout. Use to persist to localStorage.
+ * @param {object|null} [options.initialSession] - Previously persisted session to restore on init.
+ * @returns {{ auth, files, catalog, discovery, realtime, request }} Frozen SDK client
+ *
+ * @example
+ * const sdk = createStorefrontClient({
+ *   baseUrl: 'https://erp.acme.mx',
+ *   company: 'acme',
+ *   onSessionChange: (s) => localStorage.setItem('sf', JSON.stringify(s)),
+ *   initialSession: JSON.parse(localStorage.getItem('sf') ?? 'null'),
+ * })
+ */
 export function createStorefrontClient({ baseUrl, company, onSessionChange, initialSession }) {
   if (!baseUrl) throw new Error('createStorefrontClient: baseUrl es requerido')
   if (!company) throw new Error('createStorefrontClient: company es requerido')
