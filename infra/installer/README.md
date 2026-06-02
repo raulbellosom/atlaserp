@@ -33,6 +33,7 @@ cd C:\atlaserp-installer
 
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml" -OutFile "docker-compose.yml"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.mjs" -OutFile "setup-local.mjs"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-local.mjs" -OutFile "stop-local.mjs"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.ps1" -OutFile "setup-local.ps1"
 
 New-Item -ItemType Directory -Force -Path custom-modules | Out-Null
@@ -53,6 +54,7 @@ mkdir -p ~/atlaserp-installer && cd ~/atlaserp-installer
 
 curl -fsSLo docker-compose.yml https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml
 curl -fsSLo setup-local.mjs https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.mjs
+curl -fsSLo stop-local.mjs https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-local.mjs
 curl -fsSLo setup-local.ps1 https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.ps1
 
 mkdir -p custom-modules
@@ -86,54 +88,26 @@ export ATLAS_DOCS_REPO_REF=main
 node ./setup-local.mjs
 ```
 
-## Iniciar / detener
+## Iniciar / detener / resetear
 
-Iniciar:
+Iniciar (primera vez o tras un reset):
 
 ```bash
 node ./setup-local.mjs
 ```
 
-Detener:
+Detener (conserva datos — para el dia siguiente):
 
 ```bash
-docker compose --profile local down
-npx --yes supabase stop --workdir ./.supabase-local
+node ./stop-local.mjs
 ```
 
-## Reset total (local)
-
-### Linux / macOS (bash)
+Reset total (borra todos los contenedores, volumenes y archivos generados):
 
 ```bash
-docker compose --profile local down --remove-orphans || true
-npx --yes supabase stop --workdir ./.supabase-local --no-backup || true
-docker ps -a --filter "name=supabase_" -q | xargs -r docker rm -f
-docker network ls --format "{{.Name}}" | grep "^supabase_" | xargs -r docker network rm
-docker volume ls --format "{{.Name}}" | grep "^supabase_" | xargs -r docker volume rm
-rm -rf ./.supabase-local ./.env.local ./.env
+node ./stop-local.mjs --reset
 ```
 
-### Windows (PowerShell)
-
-```powershell
-docker compose --profile local down --remove-orphans
-npx --yes supabase stop --workdir ./.supabase-local --no-backup
-docker ps -a --filter "name=supabase_" -q | ForEach-Object { docker rm -f $_ }
-docker network ls --format "{{.Name}}" | Select-String "^supabase_" | ForEach-Object { docker network rm $_.Line }
-docker volume ls --format "{{.Name}}" | Select-String "^supabase_" | ForEach-Object { docker volume rm $_.Line }
-Remove-Item -Recurse -Force .\.supabase-local -ErrorAction SilentlyContinue
-Remove-Item -Force .\.env.local -ErrorAction SilentlyContinue
-Remove-Item -Force .\.env -ErrorAction SilentlyContinue
-```
-
-Limpieza extra por label de Supabase CLI (PowerShell):
-
-```powershell
-docker ps -a --filter "label=com.supabase.cli.project=supabase-local" -q | ForEach-Object { docker rm -f $_ }
-docker network ls --filter "label=com.supabase.cli.project=supabase-local" -q | ForEach-Object { docker network rm $_ }
-docker volume ls --filter "label=com.supabase.cli.project=supabase-local" -q | ForEach-Object { docker volume rm $_ }
-```
 
 ## Custom modules
 
