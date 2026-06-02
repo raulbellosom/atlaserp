@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider.jsx'
 import { getApiUrl } from '../lib/runtimeConfig.js'
+import { atlas } from '../lib/atlas.js'
 import { PublicPageLoader, storePublicSiteHint } from '../components/PublicPageLoader.jsx'
 import { PublicWebsite404 } from './PublicWebsite404.jsx'
 import { WebsitePageRenderer } from '../website/WebsitePageRenderer.jsx'
@@ -93,7 +94,7 @@ const CS_CSS = `
   ._csGrain { animation: _cs_grain 9s steps(1) infinite }
 `
 
-function ComingSoonScreen({ siteName }) {
+function ComingSoonScreen({ siteName, onLoginClick }) {
   return (
     <>
       <style>{CS_CSS}</style>
@@ -107,6 +108,61 @@ function ComingSoonScreen({ siteName }) {
         justifyContent: 'flex-start',
         fontFamily: "'DM Sans', system-ui, sans-serif",
       }}>
+
+        {/* ── Navbar ── */}
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 clamp(24px, 5vw, 56px)',
+          height: 64,
+          background: 'rgba(7,9,15,0.72)',
+          backdropFilter: 'blur(16px)',
+          borderBottom: '1px solid rgba(255,255,255,0.05)',
+        }}>
+          {/* Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 30, height: 30, borderRadius: 8,
+              background: 'linear-gradient(135deg, #d2a03c 0%, #b8832a 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <svg viewBox="0 0 20 20" fill="none" style={{ width: 16, height: 16 }}>
+                <rect x="3" y="3" width="6" height="6" rx="1.5" fill="white" opacity="0.9"/>
+                <rect x="11" y="3" width="6" height="6" rx="1.5" fill="white" opacity="0.6"/>
+                <rect x="3" y="11" width="6" height="6" rx="1.5" fill="white" opacity="0.6"/>
+                <rect x="11" y="11" width="6" height="6" rx="1.5" fill="white" opacity="0.3"/>
+              </svg>
+            </div>
+            <span style={{
+              color: '#ede8df', fontWeight: 700, fontSize: 15,
+              letterSpacing: '-0.01em',
+            }}>
+              Atlas ERP
+            </span>
+          </div>
+
+          {/* Login button */}
+          <button
+            onClick={onLoginClick}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              background: 'linear-gradient(135deg, #d2a03c 0%, #b8832a 100%)',
+              color: '#07090f', border: 'none', borderRadius: 8,
+              padding: '8px 18px', fontSize: 13, fontWeight: 700,
+              letterSpacing: '0.01em', cursor: 'pointer',
+              transition: 'opacity 150ms, transform 150ms',
+              boxShadow: '0 2px 12px rgba(210,160,60,0.25)',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)' }}
+          >
+            <svg viewBox="0 0 16 16" fill="none" style={{ width: 13, height: 13 }}>
+              <path d="M8 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6zm0 8c-3.3 0-6 1.3-6 3v.5h12V13c0-1.7-2.7-3-6-3z" fill="currentColor"/>
+            </svg>
+            Iniciar sesion
+          </button>
+        </div>
 
         {/* ── Diagonal grid ── */}
         <div style={{
@@ -179,6 +235,7 @@ function ComingSoonScreen({ siteName }) {
         <div style={{
           position: 'relative', zIndex: 3,
           padding: 'clamp(40px, 8vw, 100px)',
+          paddingTop: 'clamp(100px, 14vw, 160px)',
           paddingLeft: 'clamp(64px, 10vw, 140px)',
           maxWidth: 900, width: '100%',
         }}>
@@ -241,12 +298,12 @@ function ComingSoonScreen({ siteName }) {
           </p>
 
           {/* Admin link */}
-          <a className="_cs5" href="/app" style={{
+          <button className="_cs5" onClick={onLoginClick} style={{
             display: 'inline-flex', alignItems: 'center', gap: 10,
             color: 'rgba(255,255,255,.25)',
             fontSize: 11, fontWeight: 600,
             letterSpacing: '0.08em', textTransform: 'uppercase',
-            textDecoration: 'none',
+            background: 'none', border: 'none', padding: 0,
             transition: 'color 200ms, gap 200ms',
             cursor: 'pointer',
           }}
@@ -263,7 +320,7 @@ function ComingSoonScreen({ siteName }) {
               <path d="M10 12l-4-4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             Panel de administracion
-          </a>
+          </button>
         </div>
 
         {/* ── Decorative corner lines — bottom right ── */}
@@ -621,6 +678,21 @@ export function PublicWebsiteEntry() {
     }
   }, [])
 
+  // Check instance initialization independently — the website resolve endpoint
+  // does not always return initialized:false for fresh installs.
+  const instanceQuery = useQuery({
+    queryKey: ['instance-status-public'],
+    queryFn:  atlas.instance.status,
+    staleTime: 30_000,
+    retry: 1,
+  })
+
+  useEffect(() => {
+    if (instanceQuery.data && instanceQuery.data.initialized === false) {
+      navigate('/setup', { replace: true })
+    }
+  }, [instanceQuery.data, navigate])
+
   const resolveQuery = useQuery({
     queryKey: ['public-website-resolve', location.pathname],
     queryFn:  () => fetchWebsiteResolve(location.pathname),
@@ -746,9 +818,9 @@ export function PublicWebsiteEntry() {
 
   const sourceType = resolveData?.site?.sourceType ?? 'builder'
 
-  // source_type = 'none': no public site — redirect to the admin panel
+  // source_type = 'none': no public site — go to login
   if (sourceType === 'none') {
-    window.location.replace('/app')
+    navigate('/login', { replace: true })
     return <PublicPageLoader />
   }
 
@@ -806,8 +878,9 @@ export function PublicWebsiteEntry() {
     }
 
     // Anonymous visitor: coming soon
-    if (!resolveData?.site) return <ComingSoonScreen siteName={null} />
-    return <ComingSoonScreen siteName={resolveData.site?.name} />
+    const handleLogin = () => navigate('/login')
+    if (!resolveData?.site) return <ComingSoonScreen siteName={null} onLoginClick={handleLogin} />
+    return <ComingSoonScreen siteName={resolveData.site?.name} onLoginClick={handleLogin} />
   }
 
   // ── Page exists (published or draft for editors) ───────────────────────────
