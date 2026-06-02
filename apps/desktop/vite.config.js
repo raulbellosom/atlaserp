@@ -182,11 +182,13 @@ export default defineConfig({
           ) {
             return "ui-vendor";
           }
-          // Give Atlas workspace packages their own chunks so the shim files
-          // become thin re-export wrappers rather than duplicating source code.
-          if (id.includes("/packages/ui/src/")) return "atlas-ui";
-          if (id.includes("/packages/sdk/src/")) return "atlas-sdk";
-          if (id.includes("/packages/validators/src/")) return "atlas-validators";
+          // NOTE: @atlas/ui, @atlas/sdk, @atlas/validators are intentionally NOT
+          // in manualChunks. Rolldown has a CJS-interop bug when React is imported
+          // from a separate manual chunk — the chunk captures React as null, breaking
+          // hooks in AME3 module bundles that use those packages via the shim.
+          // Letting Rolldown auto-split them into a shared chunk (created from the
+          // main HTML entry) avoids the issue. preserveEntrySignatures ensures all
+          // exports remain accessible through the shims.
         },
       },
     },
