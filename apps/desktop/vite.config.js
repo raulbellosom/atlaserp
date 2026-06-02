@@ -123,6 +123,13 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      // 'allow-extension' tells Rolldown/Rollup: preserve every export declared in
+      // entry modules, even if no other module in the build graph imports it.
+      // Without this, Rolldown tree-shakes exports like `Alert` from the atlas-ui
+      // chunk when the main app never imports them directly — the shim's
+      // `export * from '@atlas/ui'` then appears to provide no such export at
+      // runtime, breaking AME3 module bundles that use those components.
+      preserveEntrySignatures: "allow-extension",
       input: {
         index: resolve(__dirname, "index.html"),
         // Shim entry points — each becomes shims/<name>.js (non-hashed) in the
