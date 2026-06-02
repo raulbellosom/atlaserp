@@ -6,11 +6,96 @@ import { dirname, resolve } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// Bare specifiers that AME3 module bundles declare as external (must stay in sync
+// with BUNDLE_EXTERNALS in apps/api/src/services/module-bundler-service.js).
+// The importmap plugins below map these specifiers to URLs the browser can resolve
+// both in dev (Vite /@id/ virtual modules) and in production (shim entry files).
+const MODULE_EXTERNALS_IMPORTMAP = {
+  "react":                  "ext-react",
+  "react-dom":              "ext-react-dom",
+  "react/jsx-runtime":      "ext-react-jsx-runtime",
+  "react/jsx-dev-runtime":  "ext-react-jsx-dev-runtime",
+  "@tanstack/react-query":  "ext-tanstack-react-query",
+  "zustand":                "ext-zustand",
+  "@atlas/ui":              "ext-atlas-ui",
+  "@atlas/sdk":             "ext-atlas-sdk",
+  "@atlas/validators":      "ext-atlas-validators",
+  "react-router-dom":       "ext-react-router-dom",
+  "sonner":                 "ext-sonner",
+  "lucide-react":           "ext-lucide-react",
+};
+
+// Dev-mode: inject importmap that resolves bare specifiers via Vite's /@id/ virtual
+// module system.  Only the dynamically-loaded AME3 bundles use this importmap;
+// Vite-processed source files have their imports transformed at serve time.
+function atlasDevImportmapPlugin() {
+  return {
+    name: "atlas-module-externals-importmap-dev",
+    apply: "serve",
+    transformIndexHtml: {
+      order: "pre",
+      handler() {
+        const imports = Object.fromEntries(
+          Object.keys(MODULE_EXTERNALS_IMPORTMAP).map((specifier) => [
+            specifier,
+            `/@id/${specifier}`,
+          ]),
+        );
+        return [
+          {
+            tag: "script",
+            attrs: { type: "importmap" },
+            children: JSON.stringify({ imports }),
+            injectTo: "head-prepend",
+          },
+        ];
+      },
+    },
+  };
+}
+
+// Build-mode: inject importmap that resolves bare specifiers to the shim JS files
+// baked into the production build at shims/ext-*.js (non-hashed paths for
+// predictable importmap entries).
+function atlasBuildImportmapPlugin() {
+  return {
+    name: "atlas-module-externals-importmap-build",
+    apply: "build",
+    transformIndexHtml: {
+      order: "pre",
+      handler(_, { base }) {
+        const basePath = (base ?? "/").replace(/\/$/, "");
+        const imports = Object.fromEntries(
+          Object.entries(MODULE_EXTERNALS_IMPORTMAP).map(
+            ([specifier, shimName]) => [
+              specifier,
+              `${basePath}/shims/${shimName}.js`,
+            ],
+          ),
+        );
+        return [
+          {
+            tag: "script",
+            attrs: { type: "importmap" },
+            children: JSON.stringify({ imports }),
+            injectTo: "head-prepend",
+          },
+        ];
+      },
+    },
+  };
+}
+
 export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? "/",
   // Read shared monorepo env vars from repository root (.env, .env.local, etc.).
   envDir: "../..",
-  plugins: [tailwindcss(), react()],
+  plugins: [
+    tailwindcss(),
+    react(),
+    atlasDevImportmapPlugin(),
+    atlasBuildImportmapPlugin(),
+  ],
   resolve: {
     // Prevents duplicate React instances across chunks (e.g. workspace packages
     // that list react in devDependencies). Without this, Rollup's auto-splitting
@@ -38,11 +123,32 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      input: {
+        index: resolve(__dirname, "index.html"),
+        // Shim entry points — each becomes shims/<name>.js (non-hashed) in the
+        // production build and is referenced by the importmap injected above.
+        "ext-react":               resolve(__dirname, "src/shims/ext-react.js"),
+        "ext-react-dom":           resolve(__dirname, "src/shims/ext-react-dom.js"),
+        "ext-react-jsx-runtime":   resolve(__dirname, "src/shims/ext-react-jsx-runtime.js"),
+        "ext-react-jsx-dev-runtime": resolve(__dirname, "src/shims/ext-react-jsx-dev-runtime.js"),
+        "ext-tanstack-react-query": resolve(__dirname, "src/shims/ext-tanstack-react-query.js"),
+        "ext-zustand":             resolve(__dirname, "src/shims/ext-zustand.js"),
+        "ext-atlas-ui":            resolve(__dirname, "src/shims/ext-atlas-ui.js"),
+        "ext-atlas-sdk":           resolve(__dirname, "src/shims/ext-atlas-sdk.js"),
+        "ext-atlas-validators":    resolve(__dirname, "src/shims/ext-atlas-validators.js"),
+        "ext-react-router-dom":    resolve(__dirname, "src/shims/ext-react-router-dom.js"),
+        "ext-sonner":              resolve(__dirname, "src/shims/ext-sonner.js"),
+        "ext-lucide-react":        resolve(__dirname, "src/shims/ext-lucide-react.js"),
+      },
       output: {
-        // Put React into its own chunk so it initializes before all other chunks.
-        // Without this, Rollup's auto-splitting can create a circular reference
-        // between the main chunk and AuthProvider's chunk, causing React to be
-        // accessed as null on the first render in production.
+        // Shim entries get non-hashed names at a predictable path so the
+        // importmap entries above never need to be updated.
+        entryFileNames: (chunk) =>
+          chunk.name.startsWith("ext-")
+            ? "shims/[name].js"
+            : "assets/[name]-[hash].js",
+        chunkFileNames: "assets/[name]-[hash].js",
+        assetFileNames: "assets/[name]-[hash][extname]",
         manualChunks(id) {
           if (
             id.includes("/node_modules/react/") ||
@@ -69,6 +175,11 @@ export default defineConfig({
           ) {
             return "ui-vendor";
           }
+          // Give Atlas workspace packages their own chunks so the shim files
+          // become thin re-export wrappers rather than duplicating source code.
+          if (id.includes("/packages/ui/src/")) return "atlas-ui";
+          if (id.includes("/packages/sdk/src/")) return "atlas-sdk";
+          if (id.includes("/packages/validators/src/")) return "atlas-validators";
         },
       },
     },

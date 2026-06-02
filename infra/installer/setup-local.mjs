@@ -16,10 +16,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const installerDir = __dirname;
 const composeFile = path.resolve(__dirname, "docker-compose.yml");
+const linuxComposeOverride = path.resolve(__dirname, "docker-compose.linux.yml");
 const localEnvFile = path.resolve(__dirname, ".env.local");
 const supabaseWorkdir = path.resolve(__dirname, ".supabase-local");
 const supabaseConfig = path.resolve(supabaseWorkdir, "supabase", "config.toml");
 const devKitDir = path.resolve(__dirname, "custom-modules", "_atlas-devkit");
+
+// Docker Desktop (Windows/macOS) injects host.docker.internal automatically.
+// Linux Docker Engine does not — we handle it via --add-host for docker run and
+// via docker-compose.linux.yml override for compose services.
+const isLinux = process.platform === "linux";
+const addHostArgs = isLinux ? ["--add-host", "host.docker.internal:host-gateway"] : [];
+const composeFiles = isLinux
+  ? ["-f", composeFile, "-f", linuxComposeOverride]
+  : ["-f", composeFile];
 
 const docsRepoOwner = process.env.ATLAS_DOCS_REPO_OWNER ?? "raulbellosom";
 const docsRepoName = process.env.ATLAS_DOCS_REPO_NAME ?? "atlaserp";
@@ -354,32 +364,22 @@ async function main() {
 
   console.log("[7/8] Running migrations and seed...");
   run("docker", [
-    "run",
-    "--rm",
-    "--add-host",
-    "host.docker.internal:host-gateway",
-    "--env-file",
-    localEnvFile,
-    resolvedApiImage,
-    "pnpm",
-    "db:migrate",
+    "run", "--rm",
+    ...addHostArgs,
+    "--env-file", localEnvFile,
+    resolvedApiImage, "pnpm", "db:migrate",
   ]);
   run("docker", [
-    "run",
-    "--rm",
-    "--add-host",
-    "host.docker.internal:host-gateway",
-    "--env-file",
-    localEnvFile,
-    resolvedApiImage,
-    "pnpm",
-    "db:seed",
+    "run", "--rm",
+    ...addHostArgs,
+    "--env-file", localEnvFile,
+    resolvedApiImage, "pnpm", "db:seed",
   ]);
 
   console.log("[8/8] Starting Atlas local profile...");
   run(
     "docker",
-    ["compose", "-f", composeFile, "--profile", "local", "up", "-d"],
+    ["compose", ...composeFiles, "--profile", "local", "up", "-d"],
     {
       env: {
         ...process.env,

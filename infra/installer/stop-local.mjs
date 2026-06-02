@@ -14,7 +14,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isWindows = process.platform === "win32";
 const isReset = process.argv.includes("--reset");
 const composeFile = path.resolve(__dirname, "docker-compose.yml");
+const linuxComposeOverride = path.resolve(__dirname, "docker-compose.linux.yml");
 const supabaseWorkdir = path.resolve(__dirname, ".supabase-local");
+const composeFiles = process.platform === "linux" && fs.existsSync(linuxComposeOverride)
+  ? ["-f", composeFile, "-f", linuxComposeOverride]
+  : ["-f", composeFile];
 
 function run(command, args, { cwd = __dirname, failOk = false } = {}) {
   const result = spawnSync(command, args, {
@@ -51,7 +55,7 @@ console.log(isReset ? "[stop-local] Stopping and resetting Atlas local..." : "[s
 // 1. Stop Atlas containers
 if (fs.existsSync(composeFile)) {
   console.log("\n[1] Stopping Atlas containers...");
-  run("docker", ["compose", "-f", composeFile, "--profile", "local", "down", "--remove-orphans"], { failOk: true });
+  run("docker", ["compose", ...composeFiles, "--profile", "local", "down", "--remove-orphans"], { failOk: true });
 } else {
   console.log("[1] docker-compose.yml not found, skipping compose down.");
 }

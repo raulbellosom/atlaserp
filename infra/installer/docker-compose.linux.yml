@@ -1,0 +1,21 @@
+# Linux-only override: adds host.docker.internal to the local-profile containers.
+# On Linux, Docker Engine does not inject host.docker.internal automatically, so
+# we must provide it via host-gateway.
+# On Docker Desktop (Windows/macOS), this file is NOT used — Docker Desktop injects
+# host.docker.internal automatically and adding --add-host would override it with
+# the wrong IP.
+#
+# Applied automatically by setup-local.mjs when process.platform === "linux".
+# Manual usage on Linux:
+#   docker compose -f docker-compose.yml -f docker-compose.linux.yml --profile local up -d
+
+name: atlaserp
+
+services:
+  atlas-api-local:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  atlas-worker-local:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

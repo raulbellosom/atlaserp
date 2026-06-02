@@ -49,8 +49,6 @@ services:
       - ./.env.local
     environment:
       ATLAS_PROJECT_ROOT: /app
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     ports:
       - "4010:4010"
     volumes:
@@ -65,8 +63,6 @@ services:
       - ./.env.local
     environment:
       ATLAS_PROJECT_ROOT: /app
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     volumes:
       - ./custom-modules:/app/modules/custom
     restart: unless-stopped

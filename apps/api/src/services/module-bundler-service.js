@@ -20,6 +20,8 @@ export const BUNDLE_EXTERNALS = [
   '@atlas/sdk',
   '@atlas/validators',
   'react-router-dom',
+  'sonner',
+  'lucide-react',
 ]
 
 export async function computeSourceHash(dir) {

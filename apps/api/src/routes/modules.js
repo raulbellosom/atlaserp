@@ -48,24 +48,6 @@ const CORE_KEYS = new Set([
 ]);
 const __routesDir = path.dirname(fileURLToPath(import.meta.url));
 const BUNDLES_DIR_SERVE = path.resolve(__routesDir, "..", "..", "bundles");
-const MODULE_BUNDLE_EXTERNALS = [
-  "react",
-  "react-dom",
-  "react/jsx-runtime",
-  "react/jsx-dev-runtime",
-  "@tanstack/react-query",
-  "zustand",
-  "@atlas/ui",
-  "@atlas/sdk",
-  "@atlas/validators",
-  "react-router-dom",
-];
-const CJS_EXTERNAL_DEFAULT_ONLY = new Set([
-  "react",
-  "react-dom",
-  "react/jsx-runtime",
-  "react/jsx-dev-runtime",
-]);
 const SEMVER_PATCH_RE = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/;
 
 function isPlainObject(value) {
@@ -74,104 +56,6 @@ function isPlainObject(value) {
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function normalizeWebOrigin(value) {
-  const raw = typeof value === "string" ? value.trim() : "";
-  if (!raw) return null;
-  try {
-    const parsed = new URL(raw);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:")
-      return null;
-    if (parsed.username || parsed.password) return null;
-    return parsed.origin;
-  } catch {
-    return null;
-  }
-}
-
-function rewriteBundleImportsForViteRuntime(source, webOrigin) {
-  if (!webOrigin || typeof source !== "string" || !source.length) return source;
-
-  let rewritten = source;
-  let cjsImportCounter = 0;
-  const cjsSpecRx =
-    "(react|react-dom|react\\/jsx-runtime|react\\/jsx-dev-runtime)";
-
-  rewritten = rewritten.replace(
-    new RegExp(
-      `import\\s+\\*\\s+as\\s+([A-Za-z_$][\\w$]*)\\s*from\\s*["']${cjsSpecRx}["'];?`,
-      "g",
-    ),
-    (_match, localName, specifier) => {
-      const importLocal = `__atlas_cjs_external_${cjsImportCounter++}`;
-      return `import ${importLocal} from "${webOrigin}/@id/${specifier}";\nconst ${localName} = ${importLocal};`;
-    },
-  );
-
-  rewritten = rewritten.replace(
-    new RegExp(
-      `import\\s+((?!__atlas_cjs_external_)[A-Za-z_$][\\w$]*)\\s*from\\s*["']${cjsSpecRx}["'];?`,
-      "g",
-    ),
-    (_match, localName, specifier) => {
-      return `import ${localName} from "${webOrigin}/@id/${specifier}";`;
-    },
-  );
-
-  // Vite's /@id endpoints for some CommonJS deps only expose default exports.
-  // Rewrite named imports to default + destructuring to keep AME3 bundles runnable.
-  rewritten = rewritten.replace(
-    new RegExp(
-      `import\\s*\\{([^}]+)\\}\\s*from\\s*["']${cjsSpecRx}["'];?`,
-      "g",
-    ),
-    (_match, rawBindings, specifier) => {
-      const rawParts = String(rawBindings)
-        .split(",")
-        .map((part) => part.trim())
-        .filter(Boolean);
-
-      if (!rawParts.length) {
-        return `import "${webOrigin}/@id/${specifier}";`;
-      }
-
-      const destructured = rawParts
-        .map((part) => {
-          const aliasParts = part
-            .split(/\s+as\s+/i)
-            .map((token) => token.trim());
-          if (aliasParts.length === 2 && aliasParts[0] && aliasParts[1]) {
-            return `${aliasParts[0]}: ${aliasParts[1]}`;
-          }
-          return aliasParts[0] ?? part;
-        })
-        .join(", ");
-
-      const importLocal = `__atlas_cjs_external_${cjsImportCounter++}`;
-      return `import ${importLocal} from "${webOrigin}/@id/${specifier}";\nconst { ${destructured} } = ${importLocal};`;
-    },
-  );
-
-  rewritten = rewritten.replace(
-    new RegExp(`import\\s*["']${cjsSpecRx}["'];?`, "g"),
-    (_match, specifier) => `import "${webOrigin}/@id/${specifier}";`,
-  );
-
-  for (const specifier of MODULE_BUNDLE_EXTERNALS) {
-    if (CJS_EXTERNAL_DEFAULT_ONLY.has(specifier)) continue;
-    const escaped = escapeRegExp(specifier);
-    const target = `${webOrigin}/@id/${specifier}`;
-    const fromRx = new RegExp(`(\\bfrom\\s*["'])${escaped}(["'])`, "g");
-    const importRx = new RegExp(
-      `(\\bimport\\s*\\(\\s*["'])${escaped}(["']\\s*\\))`,
-      "g",
-    );
-    rewritten = rewritten.replace(fromRx, `$1${target}$2`);
-    rewritten = rewritten.replace(importRx, `$1${target}$2`);
-  }
-
-  return rewritten;
 }
 
 function isCustomModuleRecord(record) {
@@ -2181,11 +2065,12 @@ export function createModulesRouter({
   );
 
   // ── GET /modules/:key/bundle.js ───────────────────────────────────────────
+  // The bundle is served with its original bare-specifier imports intact.
+  // The frontend HTML injects an importmap (via Vite plugin) that resolves
+  // those specifiers both in dev (/@id/ virtual modules) and in production
+  // (/app/shims/ext-*.js shim chunks).  No server-side rewriting is needed.
   app.get("/:key/bundle.js", async (c) => {
     const key = c.req.param("key");
-    const webOrigin = normalizeWebOrigin(
-      c.req.query("web_origin") ?? c.req.header("origin") ?? null,
-    );
 
     if (!/^[\w.-]+$/.test(key)) {
       return c.json({ error: "Clave de modulo invalida." }, 400);
@@ -2222,8 +2107,6 @@ export function createModulesRouter({
       );
     }
 
-    const body = rewriteBundleImportsForViteRuntime(content, webOrigin);
-
     c.header("Content-Type", "application/javascript");
     c.header("ETag", `"${moduleRow.bundleHash ?? key}"`);
     c.header(
@@ -2232,7 +2115,7 @@ export function createModulesRouter({
         ? "public, max-age=3600"
         : "no-store",
     );
-    return c.body(body);
+    return c.body(content);
   });
 
   return app;
