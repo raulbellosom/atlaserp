@@ -75,8 +75,19 @@ node ./setup-local.mjs
 Opciones utiles:
 
 ```bash
-node ./setup-local.mjs --skip-compose-up
-node ./setup-local.mjs --skip-dev-kit
+node ./setup-local.mjs --skip-compose-up  # solo inicializa Supabase, no levanta Atlas
+node ./setup-local.mjs --skip-dev-kit     # omite la descarga del Dev Kit AME3
+node ./setup-local.mjs --skip-pull        # usa imagenes ya descargadas, no hace docker pull
+```
+
+Si el pull falla por timeout de red, el script reintenta automaticamente hasta 3 veces.
+Si falla igualmente, descarga las imagenes a mano y vuelve a ejecutar con `--skip-pull`:
+
+```bash
+docker pull raulbellosom/atlaserp:api-latest
+docker pull raulbellosom/atlaserp:worker-latest
+docker pull raulbellosom/atlaserp:web-latest
+node ./setup-local.mjs --skip-pull
 ```
 
 Override del repositorio de documentacion (opcional):

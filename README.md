@@ -123,6 +123,14 @@ Open `http://localhost:5173` or run `pnpm dev:tauri` for the native window.
 | `pnpm icons:generate` | Regenerate Tauri app icons |
 | `pnpm brand:build`    | Regenerate desktop/web branding assets |
 
+### Docker images
+
+| Command              | What it does |
+| -------------------- | ------------ |
+| `pnpm docker:build`  | Build all 3 images (api-latest, worker-latest, web-latest) |
+| `pnpm docker:push`   | Push all 3 images to Docker Hub |
+| `pnpm docker:release`| Build + push in one step |
+
 ## Ports
 
 | Service         | URL |

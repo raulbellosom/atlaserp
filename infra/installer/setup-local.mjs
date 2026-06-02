@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process";
 const argv = new Set(process.argv.slice(2));
 const skipComposeUp = argv.has("--skip-compose-up");
 const skipDevKit = argv.has("--skip-dev-kit");
+const skipPull = argv.has("--skip-pull");
 const isWindows = process.platform === "win32";
 const npxCommand = "npx";
 
@@ -104,19 +105,21 @@ function tryRun(command, args, { cwd = installerDir, env = process.env } = {}) {
   return result.status === 0;
 }
 
-function pullWithFallback(primary, fallback, label) {
-  const primaryOk = tryRun("docker", ["pull", primary]);
-  if (primaryOk) return primary;
+function sleep(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
 
-  if (primary !== fallback) {
-    console.warn(
-      `[setup-local] ${label}: image ${primary} not found or failed to pull. Trying fallback ${fallback}...`
-    );
-    const fallbackOk = tryRun("docker", ["pull", fallback]);
-    if (fallbackOk) return fallback;
+function pullWithRetry(image, label, retries = 3, delayMs = 5000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    console.log(`[setup-local] Pulling ${label} (attempt ${attempt}/${retries})...`);
+    const ok = tryRun("docker", ["pull", image]);
+    if (ok) return image;
+    if (attempt < retries) {
+      console.warn(`[setup-local] Pull failed, retrying in ${delayMs / 1000}s...`);
+      sleep(delayMs);
+    }
   }
-
-  throw new Error(`Could not pull ${label} image. Tried: ${primary}${primary !== fallback ? `, ${fallback}` : ""}`);
+  throw new Error(`Could not pull ${label} image (${image}) after ${retries} attempts. Check your network and try again, or run with --skip-pull if the image is already local.`);
 }
 
 async function downloadTextFile(url) {
@@ -336,10 +339,18 @@ async function main() {
     return;
   }
 
-  console.log("[6/8] Pulling Atlas local runtime images...");
-  const resolvedApiImage = pullWithFallback(apiImage, fallbackApiImage, "API");
-  const resolvedWorkerImage = pullWithFallback(workerImage, fallbackWorkerImage, "Worker");
-  const resolvedWebImage = pullWithFallback(webImage, fallbackWebImage, "Web");
+  let resolvedApiImage = apiImage;
+  let resolvedWorkerImage = workerImage;
+  let resolvedWebImage = webImage;
+
+  if (skipPull) {
+    console.log("[6/8] Skipping image pull (--skip-pull). Using local images.");
+  } else {
+    console.log("[6/8] Pulling Atlas local runtime images...");
+    resolvedApiImage = pullWithRetry(apiImage, "API");
+    resolvedWorkerImage = pullWithRetry(workerImage, "Worker");
+    resolvedWebImage = pullWithRetry(webImage, "Web");
+  }
 
   console.log("[7/8] Running migrations and seed...");
   run("docker", [
