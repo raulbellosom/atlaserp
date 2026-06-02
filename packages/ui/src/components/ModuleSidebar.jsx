@@ -279,9 +279,14 @@ export function ModuleSidebar({
             // Flat nav item (unchanged behavior)
             const isActive = item.fullPath === activeFullPath;
             return (
-              <button
+              <a
                 key={item.fullPath}
-                onClick={() => onNavigate(item.fullPath)}
+                href={item.fullPath}
+                onClick={(e) => {
+                  if (e.ctrlKey || e.metaKey || e.button === 1) return;
+                  e.preventDefault();
+                  onNavigate(item.fullPath);
+                }}
                 title={collapsed ? item.label : undefined}
                 className={cn(
                   "w-full flex items-center gap-2.5 px-2.5 h-9 rounded-lg text-sm",
@@ -314,7 +319,7 @@ export function ModuleSidebar({
                 >
                   {item.label}
                 </span>
-              </button>
+              </a>
             );
           }
 
@@ -385,9 +390,14 @@ export function ModuleSidebar({
                         child.fullPath === activeFullPath ||
                         currentPath.startsWith(child.fullPath + "/");
                       return (
-                        <button
+                        <a
                           key={child.fullPath}
-                          onClick={() => onNavigate(child.fullPath)}
+                          href={child.fullPath}
+                          onClick={(e) => {
+                            if (e.ctrlKey || e.metaKey || e.button === 1) return;
+                            e.preventDefault();
+                            onNavigate(child.fullPath);
+                          }}
                           className={cn(
                             "w-full flex items-center gap-2 h-8 rounded-lg text-sm px-2",
                             "transition-colors duration-150 cursor-pointer outline-none overflow-hidden",
@@ -414,7 +424,7 @@ export function ModuleSidebar({
                             }}
                           />
                           <span className="truncate">{child.label}</span>
-                        </button>
+                        </a>
                       );
                     })}
                   </div>

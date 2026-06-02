@@ -8,11 +8,13 @@ Desktop-first, full-stack modular ERP built with React + Vite + Tauri, a Node/Ho
 
 Installer files live in `infra/installer/`.
 
-- `external` profile: Atlas ERP + external Supabase.
-- `local` profile: Atlas ERP + local Supabase via `infra/installer/setup-local.mjs` (automated).
-- Custom modules mount path: host `infra/installer/custom-modules/` -> container `/app/modules/custom`.
+- `external` profile: Atlas ERP against an existing Supabase instance.
+- `local` profile: Atlas ERP + local Supabase (fully automated via `setup-local.mjs`).
+- Custom modules mount path: `infra/installer/custom-modules/` on the host -> `/app/modules/custom` inside the container.
 
-Quick install in a new machine (without cloning repo):
+Images: `raulbellosom/atlaserp:api-latest`, `worker-latest`, `web-latest` (single web image for both profiles — Supabase URL and API URL are injected at container startup via env vars, not baked into the image).
+
+Quick install on any machine without cloning the repo:
 
 ```powershell
 mkdir C:\atlaserp-installer -Force
@@ -22,17 +24,20 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/
 node .\setup-local.mjs
 ```
 
-See [infra/installer/README.md](infra/installer/README.md) for full copy/paste steps (Windows, Linux, macOS), image tags, and reset commands.
-The installer also downloads an AME3 Dev Kit to `custom-modules/_atlas-devkit/` for module development guidance, including runtime component/blueprint/library availability.
+See [infra/installer/README.md](infra/installer/README.md) for full copy/paste steps (Windows, Linux, macOS), external Supabase setup, image tags, and reset commands.
+The installer also downloads an AME3 Dev Kit to `custom-modules/_atlas-devkit/` for module development guidance.
 
-Quick kill/reset for local Supabase:
+Quick stop/reset for local Supabase:
 
 ```powershell
+docker compose --profile local down
 npx --yes supabase stop --workdir ./.supabase-local --no-backup
 docker ps -a --filter "label=com.supabase.cli.project=supabase-local" -q | ForEach-Object { docker rm -f $_ }
 docker network ls --filter "label=com.supabase.cli.project=supabase-local" -q | ForEach-Object { docker network rm $_ }
 docker volume ls --filter "label=com.supabase.cli.project=supabase-local" -q | ForEach-Object { docker volume rm $_ }
 ```
+
+## Contributor setup (cloning the repo)
 
 ### 1. Fill environment variables
 
@@ -40,8 +45,7 @@ docker volume ls --filter "label=com.supabase.cli.project=supabase-local" -q | F
 cp .env.example .env
 ```
 
-Open `.env` and fill in values from the VPS file:
-`/opt/supabase-atlaserp/supabase/docker/.env`
+Open `.env` and fill in values from the self-hosted Supabase VPS (`/opt/supabase-atlaserp/supabase/docker/.env`):
 
 | .env variable                 | Source in VPS .env |
 | ----------------------------- | ------------------ |

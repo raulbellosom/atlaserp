@@ -28,7 +28,7 @@ services:
     restart: unless-stopped
 
   atlas-web-external:
-    image: ${ATLAS_WEB_EXTERNAL_IMAGE:-raulbellosom/atlaserp:web-external-latest}
+    image: ${ATLAS_WEB_EXTERNAL_IMAGE:-raulbellosom/atlaserp:web-latest}
     container_name: atlas-web-external
     profiles: ["external"]
     environment:
@@ -70,7 +70,7 @@ services:
     restart: unless-stopped
 
   atlas-web-local:
-    image: ${ATLAS_WEB_LOCAL_IMAGE:-raulbellosom/atlaserp:web-local-latest}
+    image: ${ATLAS_WEB_LOCAL_IMAGE:-raulbellosom/atlaserp:web-latest}
     container_name: atlas-web-local
     profiles: ["local"]
     environment:

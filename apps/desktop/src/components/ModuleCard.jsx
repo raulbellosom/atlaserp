@@ -30,6 +30,8 @@ import {
   Activity,
   ShoppingBag,
   Tag,
+  Bell,
+  Calendar,
 } from "lucide-react";
 import { cn } from "@atlas/ui";
 
@@ -68,6 +70,8 @@ export const MODULE_ICON_REGISTRY = {
   Activity,
   ShoppingBag,
   Tag,
+  Bell,
+  Calendar,
 };
 
 // ---- Helpers ----

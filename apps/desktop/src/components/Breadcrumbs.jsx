@@ -92,13 +92,18 @@ export function Breadcrumbs() {
               {crumb.label}
             </span>
           ) : (
-            <button
-              onClick={() => navigate(crumb.path)}
+            <a
+              href={crumb.path}
+              onClick={(e) => {
+                if (e.ctrlKey || e.metaKey || e.button === 1) return;
+                e.preventDefault();
+                navigate(crumb.path);
+              }}
               className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors duration-150 truncate max-w-[160px] cursor-pointer"
               title={crumb.label}
             >
               {crumb.label}
-            </button>
+            </a>
           )}
         </span>
       ))}

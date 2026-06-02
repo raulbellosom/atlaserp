@@ -96,7 +96,8 @@ export function mergeRuntimeModules(rawApiModules, options = {}) {
     const manifest = manifestsByKey.get(key) ?? null;
     const apiRow = apiByKey.get(key) ?? null;
 
-    const core = apiRow?.core ?? manifest?.core ?? false;
+    // Use || so a false DB column doesn't block a true value in the manifest JSON (stale seed data)
+    const core = Boolean(manifest?.core || apiRow?.manifest?.core || apiRow?.core);
     const uninstallable =
       apiRow?.uninstallable ?? manifest?.uninstallable ?? !core;
     const status = apiRow?.status ?? (core ? "INSTALLED" : "UNINSTALLED");

@@ -137,9 +137,14 @@ export function AppLauncher() {
                     {viewMode === 'list' ? (
                       <div className="flex flex-col gap-0.5">
                         {section.modules.map((module) => (
-                          <button
+                          <a
                             key={module.key}
-                            onClick={() => handleModuleClick(module)}
+                            href={getModuleLaunchPath(module)}
+                            onClick={(e) => {
+                              if (e.ctrlKey || e.metaKey || e.button === 1) return;
+                              e.preventDefault();
+                              handleModuleClick(module);
+                            }}
                             onContextMenu={(e) => handleContextMenu(e, module.key)}
                             className="flex items-center gap-3 w-full rounded-lg px-3 py-2 hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer text-left"
                           >
@@ -160,15 +165,20 @@ export function AppLauncher() {
                             {isFavorite(module.key) && (
                               <Star size={11} className="text-amber-400 fill-amber-400 shrink-0" />
                             )}
-                          </button>
+                          </a>
                         ))}
                       </div>
                     ) : (
                       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                         {section.modules.map((module) => (
-                          <button
+                          <a
                             key={module.key}
-                            onClick={() => handleModuleClick(module)}
+                            href={getModuleLaunchPath(module)}
+                            onClick={(e) => {
+                              if (e.ctrlKey || e.metaKey || e.button === 1) return;
+                              e.preventDefault();
+                              handleModuleClick(module);
+                            }}
                             onContextMenu={(e) => handleContextMenu(e, module.key)}
                             className="flex flex-col items-center gap-2 rounded-xl p-4 hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer text-center relative"
                           >
@@ -187,7 +197,7 @@ export function AppLauncher() {
                             <p className="text-[10px] text-[hsl(var(--muted-foreground))] line-clamp-2 leading-snug w-full">
                               {module.summary || module.description}
                             </p>
-                          </button>
+                          </a>
                         ))}
                       </div>
                     )}
