@@ -37,6 +37,8 @@ services:
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
     ports:
       - "5173:80"
+    depends_on:
+      - atlas-api-external
     restart: unless-stopped
 
   atlas-api-local:
@@ -79,4 +81,6 @@ services:
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
     ports:
       - "5173:80"
+    depends_on:
+      - atlas-api-local
     restart: unless-stopped
