@@ -53,30 +53,41 @@ export async function register(registry) {
 
 Registry key convention: `<moduleKey>:<ComponentName>`
 
-### Available imports in components (BUNDLE_EXTERNALS)
+### Available imports in components
 
-These packages are in the main Vite bundle and must NOT be re-bundled by esbuild:
+There are two categories. Use **Category A** (external) whenever possible — it keeps module bundles small and avoids duplicate code.
 
-| Import | Available | Notes |
-|---|---|---|
-| `react`, `react-dom`, `react/jsx-runtime` | Yes | External — in main bundle |
-| `@tanstack/react-query` | Yes | External — in main bundle |
-| `zustand` | Yes | External — in main bundle |
-| `@atlas/ui` | Yes | External — full component library (see below) |
-| `@atlas/sdk` | Yes | External — Atlas API client |
-| `@atlas/validators` | Yes | External — shared Zod schemas |
-| `react-router-dom` | Yes | External — in main bundle |
-| `sonner` | Yes | External — toast notifications |
-| `lucide-react` | Yes | External — icon library |
-| Packages in root `node_modules` | Yes | esbuild bundles them into the module bundle |
-| CDN: `https://esm.sh/<pkg>` | Yes | Browser fetches at runtime |
-| Node.js built-ins (`fs`, `path`, `crypto`) | No | Browser environment only |
-| `exceljs`, `pdfkit`, `sharp` | No | API-only packages; use in `api/` not `components/` |
+#### Category A — External (shared with the web image, resolved via importmap, zero bundle weight)
 
-> **Critical rule — React hooks:** Always import hooks from `'react'` as named imports:
+| Import | What you get |
+|---|---|
+| `react` | `useState`, `useEffect`, `useCallback`, `useMemo`, `useRef`, `useContext`, `createContext`, `forwardRef`, `memo`, `Fragment` … |
+| `react-dom` | `createPortal`, `flushSync` |
+| `@tanstack/react-query` | `useQuery`, `useMutation`, `useQueryClient`, `QueryClient`, `QueryClientProvider` … |
+| `zustand` | `create`, `useStore` |
+| `@atlas/ui` | **Full component library** — cards, inputs, forms, toasts, badges, tables, dialogs, datepickers, file uploaders, etc. (full list below) |
+| `@atlas/sdk` | `createAtlasClient` — Atlas API client factory |
+| `@atlas/validators` | Shared Zod schemas |
+| `react-router-dom` | `useNavigate`, `useParams`, `useLocation`, `Link` … |
+| `sonner` | `toast()` — trigger toast notifications programmatically |
+| `lucide-react` | All Lucide icons (`Music`, `Play`, `Settings`, `Plus` …) |
+| `recharts` | `LineChart`, `BarChart`, `PieChart`, `AreaChart`, `ResponsiveContainer`, `Tooltip`, `Legend` … |
+
+#### Category B — Bundled by esbuild (works, but adds weight to the module bundle)
+
+| Import | Notes |
+|---|---|
+| `react-hook-form` | `useForm`, `Controller` — prefer using `@atlas/ui` Form components which already wrap it |
+| `motion` (Framer Motion) | ~280 KB — use sparingly |
+| `country-state-city` | Geo data helpers |
+| Any package in `custom-modules/` root `node_modules` | esbuild bundles it at install time |
+| CDN: `https://esm.sh/<pkg>` | Browser fetches at runtime — no install needed |
+
+> **Not available** in browser components: Node.js built-ins (`fs`, `path`, `crypto`), `exceljs`, `pdfkit`, `sharp` — use those in `api/` only.
+
+> **Critical rule — React hooks:** Always import hooks as named imports:
 > `import { useState, useEffect, useCallback, useMemo, useRef } from 'react'`
-> Never do `import React from 'react'` and call `React.useState()` — the default export
-> is not guaranteed to be the same instance as the running React tree and will throw
+> Never do `import React from 'react'` and call `React.useState()` — causes
 > `Cannot read properties of null (reading 'useState')` at runtime.
 
 ### Bundle lifecycle
@@ -423,19 +434,17 @@ Import from `@atlas/ui` in any component. All exports below are available.
 
 ## Frontend Libraries Available in the Published Web Image
 
-Authoritative source: `apps/desktop/package.json`
+These libraries ship in every published Docker web image. Custom module components can
+use all of them without rebuilding the image.
 
-Key libraries:
-- `react`, `react-dom`, `react-router-dom`
-- `@tanstack/react-query`
-- `@supabase/supabase-js`
-- `zustand`
-- `react-hook-form`
-- `recharts`
-- `lucide-react`
-- `sonner`
-- `motion`
-- `country-state-city`
+**Category A (external/shared — no bundle weight):**
+`react`, `react-dom`, `@tanstack/react-query`, `zustand`, `@atlas/ui`, `@atlas/sdk`,
+`@atlas/validators`, `react-router-dom`, `sonner`, `lucide-react`, `recharts`
+
+**Category B (bundled by esbuild into the module bundle):**
+`react-hook-form`, `motion`, `country-state-city`, `@supabase/supabase-js`
+
+Authoritative source of all included packages: `apps/desktop/package.json`
 
 ---
 

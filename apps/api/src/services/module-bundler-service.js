@@ -22,6 +22,7 @@ export const BUNDLE_EXTERNALS = [
   'react-router-dom',
   'sonner',
   'lucide-react',
+  'recharts',
 ]
 
 export async function computeSourceHash(dir) {

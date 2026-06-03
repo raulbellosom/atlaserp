@@ -23,6 +23,7 @@ const MODULE_EXTERNALS_IMPORTMAP = {
   "react-router-dom":       "ext-react-router-dom",
   "sonner":                 "ext-sonner",
   "lucide-react":           "ext-lucide-react",
+  "recharts":               "ext-recharts",
 };
 
 // Dev-mode: inject importmap that resolves bare specifiers via Vite's /@id/ virtual
@@ -146,6 +147,7 @@ export default defineConfig({
         "ext-react-router-dom":    resolve(__dirname, "src/shims/ext-react-router-dom.js"),
         "ext-sonner":              resolve(__dirname, "src/shims/ext-sonner.js"),
         "ext-lucide-react":        resolve(__dirname, "src/shims/ext-lucide-react.js"),
+        "ext-recharts":            resolve(__dirname, "src/shims/ext-recharts.js"),
       },
       output: {
         // Shim entries get non-hashed names at a predictable path so the
