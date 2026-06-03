@@ -66,10 +66,18 @@ These packages are in the main Vite bundle and must NOT be re-bundled by esbuild
 | `@atlas/sdk` | Yes | External — Atlas API client |
 | `@atlas/validators` | Yes | External — shared Zod schemas |
 | `react-router-dom` | Yes | External — in main bundle |
+| `sonner` | Yes | External — toast notifications |
+| `lucide-react` | Yes | External — icon library |
 | Packages in root `node_modules` | Yes | esbuild bundles them into the module bundle |
 | CDN: `https://esm.sh/<pkg>` | Yes | Browser fetches at runtime |
 | Node.js built-ins (`fs`, `path`, `crypto`) | No | Browser environment only |
 | `exceljs`, `pdfkit`, `sharp` | No | API-only packages; use in `api/` not `components/` |
+
+> **Critical rule — React hooks:** Always import hooks from `'react'` as named imports:
+> `import { useState, useEffect, useCallback, useMemo, useRef } from 'react'`
+> Never do `import React from 'react'` and call `React.useState()` — the default export
+> is not guaranteed to be the same instance as the running React tree and will throw
+> `Cannot read properties of null (reading 'useState')` at runtime.
 
 ### Bundle lifecycle
 
@@ -165,19 +173,112 @@ export default defineView({
 
 Use CUSTOM when TABLE/FORM/DETAIL renderers are insufficient. Requires a component registered via the dynamic bundle. No SCREEN_MAP entry needed.
 
+**Three files are always required together:**
+
 ```js
-// views/my-screen.custom.js
+// 1. views/dashboard.custom.js  — declares the route and component key
 import { defineView } from '@atlas/module-engine'
 
-export default defineView('custom.mymodule.my-screen', {
+export default defineView('custom.mymodule.dashboard', {
   kind: 'CUSTOM',
   schema: {
-    path: '/mymodule/entity/:id',
-    component: 'custom.mymodule:MyScreen',
-    title: 'Detalle de entidad',
+    path: '/mymodule/dashboard',
+    component: 'custom.mymodule:MyDashboard',
+    title: 'Dashboard',
   },
 })
 ```
+
+```js
+// 2. components/index.js  — registers the component so the runtime can find it
+export async function register(registry) {
+  if (typeof window === 'undefined') return
+  const { default: MyDashboard } = await import('./MyDashboard.jsx')
+  registry.register('custom.mymodule:MyDashboard', MyDashboard)
+}
+```
+
+```jsx
+// 3. components/MyDashboard.jsx  — the actual React component
+import { useState, useEffect, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import {
+  PageHeader,
+  Card, CardHeader, CardTitle, CardContent,
+  Button,
+  EmptyState,
+  Skeleton,
+} from '@atlas/ui'
+
+// Helpers
+function useAtlasToken() {
+  // The Atlas token is stored in localStorage by the auth provider.
+  // Key: sb-<project>-auth-token  (Supabase session)
+  // Simplest approach: read from window.__atlas_token if your shell exposes it,
+  // or grab it from localStorage directly.
+  return localStorage.getItem('atlas_token') ?? ''
+}
+
+export default function MyDashboard() {
+  const token = useAtlasToken()
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['mymodule.dashboard'],
+    queryFn: async () => {
+      const res = await fetch('/api/mymodule/summary', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return res.json()
+    },
+    enabled: Boolean(token),
+  })
+
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <EmptyState
+          title="Error al cargar"
+          description={error.message}
+          action={<Button onClick={refetch}>Reintentar</Button>}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      <PageHeader title="Dashboard" description="Resumen general" />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader><CardTitle>Total</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{data?.total ?? 0}</p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+```
+
+**Key rules for CUSTOM components:**
+- Import hooks as named imports: `import { useState } from 'react'` — never `React.useState()`
+- Import UI from `@atlas/ui` — all components in the library are available
+- Use `useQuery` from `@tanstack/react-query` for API calls — it's external and available
+- Every screen must start with `<PageHeader />`
+- Use `<Skeleton />` for loading states, `<EmptyState />` for empty/error states
+- File must be `.jsx` (not `.tsx` — TypeScript is not supported in module bundles)
 
 `BlueprintCrudScreen` resolves `component` from the registry automatically.
 

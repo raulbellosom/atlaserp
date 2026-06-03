@@ -555,7 +555,10 @@ columns: [
 For fully custom pages (dashboards, wizards, immersive screens). The view renders
 a registered React component at a specific URL via `ImmersiveShell`.
 
+**Three files required for every CUSTOM view:**
+
 ```js
+// views/dashboard.custom.js
 import { defineView } from '@atlas/module-engine'
 
 export default defineView({
@@ -563,14 +566,63 @@ export default defineView({
   kind: 'CUSTOM',
   version: '0.1.0',
   schema: {
-    component: 'custom.crm:CrmDashboard',      // must match registry.register() key
-    path: '/app/m/custom.crm/dashboard',        // must start with /
-    // public: true                             // required only if path starts with /p/
+    component: 'custom.crm:CrmDashboard',   // must match registry.register() key
+    path: '/app/m/custom.crm/dashboard',    // must start with /
+    title: 'Dashboard CRM',
+    // public: true                         // required only if path starts with /p/
   },
 })
 ```
 
-Rules:
+```js
+// components/index.js
+export async function register(registry) {
+  if (typeof window === 'undefined') return
+  const { default: CrmDashboard } = await import('./CrmDashboard.jsx')
+  registry.register('custom.crm:CrmDashboard', CrmDashboard)
+}
+```
+
+```jsx
+// components/CrmDashboard.jsx
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { PageHeader, Card, CardHeader, CardTitle, CardContent, Skeleton, EmptyState } from '@atlas/ui'
+
+export default function CrmDashboard() {
+  const [filter, setFilter] = useState('all')
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['crm.summary', filter],
+    queryFn: async () => {
+      const res = await fetch(`/api/crm/summary?filter=${filter}`)
+      return res.json()
+    },
+  })
+
+  if (isLoading) return <div className="p-6"><Skeleton className="h-32 w-full" /></div>
+
+  return (
+    <div className="p-6 space-y-6">
+      <PageHeader title="Dashboard CRM" />
+      <Card>
+        <CardHeader><CardTitle>Resumen</CardTitle></CardHeader>
+        <CardContent>
+          <p className="text-2xl font-bold">{data?.total ?? 0} contactos</p>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+```
+
+**Critical rules:**
+- Import hooks as named imports: `import { useState, useEffect } from 'react'`
+- Never use `import React from 'react'` and call `React.useState()` — causes null error
+- Files must be `.jsx` — TypeScript (`.tsx`) is not supported in module bundles
+- Every screen must start with `<PageHeader />`
+
+Rules for the view schema:
 - `schema.component` must match pattern `namespace:ComponentName`
 - `schema.path` must start with `/`
 - If `schema.path` starts with `/p/`, then `schema.public: true` is required
