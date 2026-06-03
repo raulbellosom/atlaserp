@@ -78,12 +78,12 @@ function SetupRouteGuard() {
   }
 
   if (data?.initialized) {
-    const nextPath = session ? "/app" : "/login";
+    const nextPath = session ? "/app" : "/app/login";
     return (
       <Navigate
         to={nextPath}
         replace
-        state={nextPath === "/login" ? { branding: data.branding } : undefined}
+        state={nextPath === "/app/login" ? { branding: data.branding } : undefined}
       />
     );
   }
@@ -110,7 +110,7 @@ function LoginRouteGuard() {
   }
 
   if (!data?.initialized) {
-    return <Navigate to="/setup" replace />;
+    return <Navigate to="/app/setup" replace />;
   }
 
   if (session) {
@@ -139,25 +139,21 @@ function AppAccessGuard() {
   }
 
   if (!data?.initialized) {
-    return <Navigate to="/setup" replace />;
+    return <Navigate to="/app/setup" replace />;
   }
 
   if (!session) {
-    return <Navigate to="/login" replace state={{ branding: data.branding }} />;
+    return <Navigate to="/app/login" replace state={{ branding: data.branding }} />;
   }
 
   return <Outlet />;
 }
 
-// Public routes don't need to wait for Atlas brand to load.
-// /app, /login, /setup, /acceso are internal — they get the brand loader.
+// Routes under /app are internal and get the brand loader.
+// /login, /setup, /acceso are now mounted at /app/login, /app/setup, /app/acceso
+// so they are all covered by the /app prefix check.
 function isAtlasInternalPath(pathname) {
-  return (
-    pathname.startsWith("/app") ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/setup") ||
-    pathname.startsWith("/acceso")
-  );
+  return pathname.startsWith("/app");
 }
 
 function App() {
@@ -194,13 +190,13 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <BrowserRouter basename={import.meta.env.VITE_BASE_PATH?.replace(/\/$/, '') ?? ''}>
+        <BrowserRouter>
           <AuthProvider>
             <Routes>
               <Route path="/" element={<PublicWebsiteEntry />} />
-              <Route path="/setup" element={<SetupRouteGuard />} />
-              <Route path="/login" element={<LoginRouteGuard />} />
-              <Route path="/acceso" element={<PublicClientLogin />} />
+              <Route path="/app/setup" element={<SetupRouteGuard />} />
+              <Route path="/app/login" element={<LoginRouteGuard />} />
+              <Route path="/app/acceso" element={<PublicClientLogin />} />
               <Route element={<AppAccessGuard />}>
                 <Route path="/app" element={<AtlasApp />}>
                   <Route index element={<Navigate to="home" replace />} />

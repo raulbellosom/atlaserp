@@ -30,7 +30,7 @@ export function LoginScreen() {
       .then((data) => {
         if (!mounted) return
         if (!data?.initialized) {
-          navigate('/setup', { replace: true })
+          navigate('/app/setup', { replace: true })
         }
       })
       .catch(() => {})

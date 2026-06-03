@@ -689,7 +689,7 @@ export function PublicWebsiteEntry() {
 
   useEffect(() => {
     if (instanceQuery.data && instanceQuery.data.initialized === false) {
-      navigate('/setup', { replace: true })
+      navigate('/app/setup', { replace: true })
     }
   }, [instanceQuery.data, navigate])
 
@@ -808,7 +808,7 @@ export function PublicWebsiteEntry() {
 
   useEffect(() => {
     if (resolveData && resolveData.initialized === false) {
-      navigate('/setup', { replace: true })
+      navigate('/app/setup', { replace: true })
     }
   }, [resolveData, navigate])
 
@@ -820,7 +820,7 @@ export function PublicWebsiteEntry() {
 
   // source_type = 'none': no public site — go to login
   if (sourceType === 'none') {
-    navigate('/login', { replace: true })
+    navigate('/app/login', { replace: true })
     return <PublicPageLoader />
   }
 
@@ -878,7 +878,7 @@ export function PublicWebsiteEntry() {
     }
 
     // Anonymous visitor: coming soon
-    const handleLogin = () => navigate('/login')
+    const handleLogin = () => navigate('/app/login')
     if (!resolveData?.site) return <ComingSoonScreen siteName={null} onLoginClick={handleLogin} />
     return <ComingSoonScreen siteName={resolveData.site?.name} onLoginClick={handleLogin} />
   }

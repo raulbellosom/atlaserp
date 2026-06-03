@@ -159,7 +159,7 @@ export function SetupWizard() {
         applyBrandTheme(status?.branding?.primaryColor);
         setBranding(status?.branding ?? null);
       } catch {}
-      navigate("/login", { replace: true });
+      navigate("/app/login", { replace: true });
     },
   });
 
