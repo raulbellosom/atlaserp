@@ -2064,6 +2064,31 @@ export function createModulesRouter({
     },
   );
 
+  // ── POST /modules/:key/seed ──────────────────────────────────────────────
+  app.post(
+    "/:key/seed",
+    authMiddleware,
+    requirePermission("core.modules.install"),
+    async (c) => {
+      try {
+        const key = c.req.param("key");
+        const mod = await prisma.atlasModule.findUnique({ where: { key } });
+        if (!mod) return c.json({ error: "Modulo no encontrado." }, 404);
+        if (mod.status !== "INSTALLED" || !mod.enabled) {
+          return c.json(
+            { error: "El modulo debe estar instalado y activo para ejecutar el seed." },
+            409,
+          );
+        }
+        const actorId = c.get("userContext")?.profile?.id ?? null;
+        const result = await svc.runModuleSeed({ moduleKey: key, actorId });
+        return c.json({ data: result });
+      } catch (err) {
+        return handleLifecycleError(c, err, "No se pudo ejecutar el seed del modulo.");
+      }
+    },
+  );
+
   // ── GET /modules/:key/bundle.js ───────────────────────────────────────────
   // The bundle is served with its original bare-specifier imports intact.
   // The frontend HTML injects an importmap (via Vite plugin) that resolves

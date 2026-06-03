@@ -5,6 +5,7 @@ import { createModuleMetadataService } from './module-metadata-service.js'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
+import { pathToFileURL } from 'node:url'
 import {
   resolveProjectRoot,
   loadModuleManifest,
@@ -885,6 +886,7 @@ export function createModuleLifecycleService({ prisma }) {
         actorId,
       })
       await clearLastInstallError(installManifest.key)
+      await runModuleSeed({ moduleKey: installManifest.key, actorId })
       return result
     } catch (err) {
       await persistInstallFailure({
@@ -1144,6 +1146,10 @@ export function createModuleLifecycleService({ prisma }) {
       ownedTableDryRun = await dryRunOwnedTablePurge({ key })
     }
 
+    if (mode === 'purge-data' || mode === 'purge-owned-tables') {
+      await runModuleTeardown({ moduleKey: key, actorId })
+    }
+
     return prisma.$transaction(async (tx) => {
       await deactivateModulePermissions(tx, mod.id)
 
@@ -1399,6 +1405,90 @@ export function createModuleLifecycleService({ prisma }) {
     return { synced: manifests.length, added, updated }
   }
 
+  async function runModuleSeed({ moduleKey, actorId, _lifecycleConfig = null }) {
+    const row = await prisma.atlasModule.findUnique({
+      where: { key: moduleKey },
+      select: { lifecycleConfig: true },
+    })
+    const lifecycleConfig = row?.lifecycleConfig ?? _lifecycleConfig ?? null
+
+    const moduleDir = await resolveModuleDirectory({ moduleKey, lifecycleConfig })
+    if (!moduleDir) return { ran: false, reason: 'module directory not found' }
+
+    const seedPath = path.join(moduleDir, 'seed.js')
+    try {
+      await fs.access(seedPath)
+    } catch {
+      return { ran: false, reason: 'no seed.js found' }
+    }
+
+    const url = new URL(pathToFileURL(seedPath).href)
+    url.searchParams.set('t', Date.now())
+    const mod = await import(url.href)
+    const seedFn = mod.default
+    if (typeof seedFn !== 'function') {
+      throw new ModuleLifecycleError(`seed.js de "${moduleKey}" debe exportar una función por defecto.`, 500)
+    }
+
+    const result = await seedFn({ prisma })
+
+    await prisma.auditLog.create({
+      data: {
+        actorId: actorId ?? null,
+        moduleKey: 'atlas.core',
+        entityType: 'AtlasModule',
+        entityId: null,
+        action: 'atlas.module.seed',
+        before: null,
+        after: { moduleKey, result: result ?? null },
+      },
+    })
+
+    return { ran: true, result: result ?? null }
+  }
+
+  async function runModuleTeardown({ moduleKey, actorId }) {
+    const row = await prisma.atlasModule.findUnique({
+      where: { key: moduleKey },
+      select: { lifecycleConfig: true },
+    })
+    const lifecycleConfig = row?.lifecycleConfig ?? null
+
+    const moduleDir = await resolveModuleDirectory({ moduleKey, lifecycleConfig })
+    if (!moduleDir) return { ran: false, reason: 'module directory not found' }
+
+    const teardownPath = path.join(moduleDir, 'teardown.js')
+    try {
+      await fs.access(teardownPath)
+    } catch {
+      return { ran: false, reason: 'no teardown.js found' }
+    }
+
+    const url = new URL(pathToFileURL(teardownPath).href)
+    url.searchParams.set('t', Date.now())
+    const mod = await import(url.href)
+    const teardownFn = mod.default
+    if (typeof teardownFn !== 'function') {
+      throw new ModuleLifecycleError(`teardown.js de "${moduleKey}" debe exportar una función por defecto.`, 500)
+    }
+
+    const result = await teardownFn({ prisma })
+
+    await prisma.auditLog.create({
+      data: {
+        actorId: actorId ?? null,
+        moduleKey: 'atlas.core',
+        entityType: 'AtlasModule',
+        entityId: null,
+        action: 'atlas.module.teardown',
+        before: null,
+        after: { moduleKey, result: result ?? null },
+      },
+    })
+
+    return { ran: true, result: result ?? null }
+  }
+
   return {
     installModule,
     retryInstallModule,
@@ -1413,6 +1503,8 @@ export function createModuleLifecycleService({ prisma }) {
     dryRunUninstall,
     dryRunReset,
     syncModules,
+    runModuleSeed,
+    runModuleTeardown,
   }
 }
 

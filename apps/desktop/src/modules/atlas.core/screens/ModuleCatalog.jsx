@@ -43,6 +43,7 @@ import {
   CheckCircle2,
   RefreshCw,
   Database,
+  Sprout,
 } from "lucide-react";
 import {
   ModuleIcon,
@@ -458,6 +459,7 @@ export default function ModuleCatalog() {
       if (action === "purge-orphaned-tables") {
         return atlas.modules.uninstallExplicit(key, "purge-owned-tables", "ACEPTO", token);
       }
+      if (action === "seed") return atlas.modules.seed(key, token);
     },
     onMutate: ({ action }) => {
       const loadingLabels = {
@@ -470,6 +472,7 @@ export default function ModuleCatalog() {
         "sync-module": "Sincronizando módulo...",
         uninstall: "Desinstalando módulo...",
         "purge-orphaned-tables": "Purgando tablas del módulo...",
+        seed: "Ejecutando seed...",
       };
       const toastId = toast.loading(
         loadingLabels[action] ?? "Procesando módulo...",
@@ -496,6 +499,7 @@ export default function ModuleCatalog() {
         "sync-module": "sincronizado",
         uninstall: "desinstalado",
         "purge-orphaned-tables": "purgado de la base de datos",
+        seed: "seed ejecutado",
       };
       toast.success(`Módulo ${labels[action] ?? "actualizado"}`, {
         id: context?.toastId,
@@ -796,6 +800,19 @@ export default function ModuleCatalog() {
           >
             <RefreshCw className="h-4 w-4" />
             {inFlight ? "Sincronizando..." : "Sincronizar este módulo"}
+          </Button>
+        )}
+        {!locked && module.status === "INSTALLED" && module.enabled && (
+          <Button
+            className="w-full"
+            variant="outline"
+            disabled={inFlight}
+            onClick={() =>
+              lifecycleMutation.mutate({ action: "seed", module })
+            }
+          >
+            <Sprout className="h-4 w-4" />
+            {inFlight ? "Ejecutando..." : "Ejecutar seed"}
           </Button>
         )}
         {canInstall && (

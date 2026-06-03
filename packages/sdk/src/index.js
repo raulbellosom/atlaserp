@@ -260,6 +260,11 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
           body: JSON.stringify({ confirmation }),
         }),
+      seed: (key, token) =>
+        request(`/modules/${encodeURIComponent(key)}/seed`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+        }),
     },
     runtime: {
       modules: (token) =>
