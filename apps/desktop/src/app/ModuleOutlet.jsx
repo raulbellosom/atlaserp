@@ -241,16 +241,27 @@ function unavailableMessage(module) {
 
 function isPathAllowedByNavigation(module, subPath) {
   const navigation = module?.navigation ?? [];
-  if (!navigation.length) return subPath === "/";
-  if (subPath === "/") return true;
-  return navigation.some((item) => {
-    const navPath = item?.path;
+  if (!navigation.length) return subPath === '/';
+  if (subPath === '/') return true;
+
+  const modulePrefix = `/app/m/${module.key}`;
+
+  function pathMatches(navPath) {
     if (!navPath) return false;
-    // Root nav item ("/" after normalization) means the module owns its entire
-    // routing space — detail pages like /:id are sub-routes of that root entry.
-    if (navPath === "/") return true;
-    return subPath === navPath || subPath.startsWith(`${navPath}/`);
-  });
+    if (navPath === '/') return true;
+    const rel = navPath.startsWith(modulePrefix)
+      ? (navPath.slice(modulePrefix.length) || '/')
+      : navPath;
+    if (rel === '/') return false;
+    return subPath === rel || subPath.startsWith(`${rel}/`);
+  }
+
+  function itemAllows(item) {
+    if (pathMatches(item?.path)) return true;
+    return (item?.children ?? []).some((child) => pathMatches(child?.path));
+  }
+
+  return navigation.some(itemAllows);
 }
 
 function resolveScreen(moduleKey, subPath) {
