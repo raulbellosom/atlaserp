@@ -756,6 +756,24 @@ export const PERMISSION_CATALOG = {
     groupKey: "ledger",
     order: 41,
   },
+  "ledger.groups.read": {
+    displayNameEs: "Ver grupos",
+    descriptionEs: "Permite ver grupos y sus cuentas en el libro de cuentas.",
+    groupKey: "ledger",
+    order: 50,
+  },
+  "ledger.groups.write": {
+    displayNameEs: "Gestionar grupos",
+    descriptionEs: "Permite crear y administrar grupos en el libro de cuentas.",
+    groupKey: "ledger",
+    order: 51,
+  },
+  "ledger.members.write": {
+    displayNameEs: "Gestionar colaboradores",
+    descriptionEs: "Permite invitar y remover colaboradores de cuentas y grupos.",
+    groupKey: "ledger",
+    order: 52,
+  },
 
   // atlas.website
   "website.access": {

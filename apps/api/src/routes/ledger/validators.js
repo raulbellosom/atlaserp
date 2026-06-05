@@ -74,3 +74,44 @@ export const updateTransactionSchema = z.object({
 })
 
 export const enabledSchema = z.object({ enabled: z.boolean() })
+
+// ── Groups ────────────────────────────────────────────────────────────────────
+
+export const createGroupSchema = z.object({
+  name: z.string().min(1).max(128),
+})
+
+export const updateGroupSchema = createGroupSchema.partial()
+
+// ── Group / Account members ───────────────────────────────────────────────────
+
+export const inviteGroupMemberSchema = z.object({
+  user_id: z.string().uuid(),
+  role:    z.enum(['viewer', 'editor', 'admin']),
+})
+
+export const updateGroupMemberRoleSchema = z.object({
+  role: z.enum(['viewer', 'editor', 'admin']),
+})
+
+export const inviteAccountMemberSchema = z.object({
+  user_id: z.string().uuid(),
+  role:    z.enum(['viewer', 'editor']),
+})
+
+export const updateAccountMemberRoleSchema = z.object({
+  role: z.enum(['viewer', 'editor']),
+})
+
+// ── Move account ──────────────────────────────────────────────────────────────
+
+export const moveAccountGroupSchema = z.object({
+  group_id: z.string().uuid().nullable(),
+})
+
+// ── User search ───────────────────────────────────────────────────────────────
+
+export const userSearchQuerySchema = z.object({
+  q:     z.string().trim().min(2).max(100),
+  limit: z.coerce.number().int().min(1).max(20).default(10),
+})
