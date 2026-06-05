@@ -126,6 +126,8 @@ export default function WebsiteWizard() {
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json()
           logoFileId = uploadData.data?.id ?? null
+        } else {
+          toast.warning('No se pudo subir el logo. Podras subirlo despues desde Configuracion.')
         }
       }
       if (logoFileId || finalData.identity.useCompanyLogo) {
