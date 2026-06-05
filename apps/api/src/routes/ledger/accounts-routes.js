@@ -15,7 +15,7 @@ import {
 // export-service and import-service use optional heavy deps (exceljs, pdfkit, csv-parse)
 // that may not be hoisted in every workspace context — load them lazily so auth tests
 // can import this router without triggering package resolution at module load time.
-import { getCompanyId, getValidationErrorMessage } from "./service-helpers.js";
+import { getCompanyId, getActorId, getValidationErrorMessage } from "./service-helpers.js";
 
 function handleError(c, err, fallback) {
   if (err instanceof LedgerServiceError)
@@ -38,7 +38,7 @@ export function createAccountsRouter({ prisma, requirePermission }) {
     async (c) => {
       try {
         return c.json(
-          await service.listAccounts({ companyId: getCompanyId(c) }),
+          await service.listAccounts({ companyId: getCompanyId(c), actorId: getActorId(c) }),
         );
       } catch (err) {
         return handleError(c, err, "No se pudieron listar las cuentas.");
@@ -59,6 +59,7 @@ export function createAccountsRouter({ prisma, requirePermission }) {
           );
         const account = await service.createAccount({
           companyId: getCompanyId(c),
+          ownerId: getActorId(c),
           data: parsed.data,
         });
         const { actorName } = getActivityContext(c);
@@ -85,6 +86,7 @@ export function createAccountsRouter({ prisma, requirePermission }) {
           data: await service.getAccount({
             companyId: getCompanyId(c),
             accountId: c.req.param("id"),
+            actorId: getActorId(c),
           }),
         });
       } catch (err) {
@@ -98,6 +100,12 @@ export function createAccountsRouter({ prisma, requirePermission }) {
     requirePermission("ledger.accounts.update"),
     async (c) => {
       try {
+        const companyId = getCompanyId(c)
+        const actorId   = getActorId(c)
+        const accountId = c.req.param("id")
+        if (!(await service.canWriteAccount({ companyId, accountId, actorId }))) {
+          return c.json({ error: 'No tienes permisos para editar esta cuenta.' }, 403)
+        }
         const parsed = updateAccountSchema.safeParse(await c.req.json());
         if (!parsed.success)
           return c.json(
@@ -105,8 +113,8 @@ export function createAccountsRouter({ prisma, requirePermission }) {
             400,
           );
         const account = await service.updateAccount({
-          companyId: getCompanyId(c),
-          accountId: c.req.param("id"),
+          companyId,
+          accountId,
           data: parsed.data,
         });
         const { actorName } = getActivityContext(c);
@@ -114,7 +122,7 @@ export function createAccountsRouter({ prisma, requirePermission }) {
           type: "ledger.account.update",
           severity: "info",
           entityType: "FinanceAccount",
-          entityId: c.req.param("id"),
+          entityId: accountId,
           summary:
             `${actorName} actualizó la cuenta "${account.name ?? ""}"`.trim(),
         });
@@ -188,6 +196,12 @@ export function createAccountsRouter({ prisma, requirePermission }) {
     requirePermission("ledger.transactions.create"),
     async (c) => {
       try {
+        const companyId = getCompanyId(c)
+        const actorId   = getActorId(c)
+        const accountId = c.req.param("id")
+        if (!(await service.canWriteAccount({ companyId, accountId, actorId }))) {
+          return c.json({ error: 'No tienes permisos para registrar movimientos en esta cuenta.' }, 403)
+        }
         const parsed = createTransactionSchema.safeParse(await c.req.json());
         if (!parsed.success)
           return c.json(
@@ -195,8 +209,8 @@ export function createAccountsRouter({ prisma, requirePermission }) {
             400,
           );
         const tx = await service.createTransaction({
-          companyId: getCompanyId(c),
-          accountId: c.req.param("id"),
+          companyId,
+          accountId,
           data: parsed.data,
         });
         const { actorName } = getActivityContext(c);

@@ -15,7 +15,7 @@ export function createLedgerService({ prisma }) {
 
   // ── Accounts ────────────────────────────────────────────────────────────────
 
-  async function listAccounts({ companyId }) {
+  async function listAccounts({ companyId, actorId }) {
     try {
       const rows = await prisma.$queryRaw`
         SELECT a.*,
@@ -25,7 +25,20 @@ export function createLedgerService({ prisma }) {
           ) AS current_balance
         FROM ledger_account a
         LEFT JOIN ledger_transaction t ON t.account_id = a.id
-        WHERE a.company_id = ${companyId}::uuid AND a.enabled = true
+        WHERE a.company_id = ${companyId}::uuid
+          AND a.enabled = true
+          AND (
+            a.owner_id IS NULL
+            OR a.owner_id = ${actorId}::uuid
+            OR EXISTS (
+              SELECT 1 FROM ledger_account_member m
+              WHERE m.account_id = a.id AND m.user_id = ${actorId}::uuid AND m.status = 'active'
+            )
+            OR EXISTS (
+              SELECT 1 FROM ledger_group_member gm
+              WHERE gm.group_id = a.group_id AND gm.user_id = ${actorId}::uuid AND gm.status = 'active'
+            )
+          )
         GROUP BY a.id
         ORDER BY a.name
       `
@@ -36,7 +49,7 @@ export function createLedgerService({ prisma }) {
     }
   }
 
-  async function getAccount({ companyId, accountId }) {
+  async function getAccount({ companyId, accountId, actorId = null }) {
     try {
       const rows = await prisma.$queryRaw`
         SELECT a.*,
@@ -46,7 +59,21 @@ export function createLedgerService({ prisma }) {
           ) AS current_balance
         FROM ledger_account a
         LEFT JOIN ledger_transaction t ON t.account_id = a.id
-        WHERE a.id = ${accountId}::uuid AND a.company_id = ${companyId}::uuid
+        WHERE a.id = ${accountId}::uuid
+          AND a.company_id = ${companyId}::uuid
+          AND (
+            ${actorId}::uuid IS NULL
+            OR a.owner_id IS NULL
+            OR a.owner_id = ${actorId}::uuid
+            OR EXISTS (
+              SELECT 1 FROM ledger_account_member m
+              WHERE m.account_id = a.id AND m.user_id = ${actorId}::uuid AND m.status = 'active'
+            )
+            OR EXISTS (
+              SELECT 1 FROM ledger_group_member gm
+              WHERE gm.group_id = a.group_id AND gm.user_id = ${actorId}::uuid AND gm.status = 'active'
+            )
+          )
         GROUP BY a.id
       `
       const account = firstRow(rows)
@@ -59,13 +86,16 @@ export function createLedgerService({ prisma }) {
     }
   }
 
-  async function createAccount({ companyId, data }) {
+  async function createAccount({ companyId, ownerId = null, groupId = null, data }) {
     const { name, bank, account_number, currency, opening_balance } = data
     try {
       const rows = await prisma.$queryRaw`
-        INSERT INTO ledger_account (company_id, name, bank, account_number, currency, opening_balance, enabled)
+        INSERT INTO ledger_account
+          (company_id, owner_id, group_id, name, bank, account_number, currency, opening_balance, enabled)
         VALUES (
           ${companyId}::uuid,
+          ${ownerId},
+          ${groupId},
           ${name},
           ${bank},
           ${normalizeOptionalString(account_number)},
@@ -80,6 +110,29 @@ export function createLedgerService({ prisma }) {
       if (isUniqueViolation(err)) throw new LedgerServiceError(`Ya existe una cuenta con el nombre "${name}".`, 409)
       throw err
     }
+  }
+
+  async function canWriteAccount({ companyId, accountId, actorId }) {
+    const rows = await prisma.$queryRaw`
+      SELECT 1 FROM ledger_account a
+      WHERE a.id = ${accountId}::uuid
+        AND a.company_id = ${companyId}::uuid
+        AND (
+          a.owner_id IS NULL
+          OR a.owner_id = ${actorId}::uuid
+          OR EXISTS (
+            SELECT 1 FROM ledger_account_member m
+            WHERE m.account_id = a.id AND m.user_id = ${actorId}::uuid
+              AND m.status = 'active' AND m.role = 'editor'
+          )
+          OR EXISTS (
+            SELECT 1 FROM ledger_group_member gm
+            WHERE gm.group_id = a.group_id AND gm.user_id = ${actorId}::uuid
+              AND gm.status = 'active' AND (gm.role = 'editor' OR gm.role = 'admin')
+          )
+        )
+    `
+    return rows.length > 0
   }
 
   async function updateAccount({ companyId, accountId, data }) {
@@ -289,7 +342,7 @@ export function createLedgerService({ prisma }) {
   }
 
   return {
-    listAccounts, getAccount, createAccount, updateAccount, setAccountEnabled,
+    listAccounts, getAccount, createAccount, canWriteAccount, updateAccount, setAccountEnabled,
     listTransactions, createTransaction, updateTransaction, setTransactionEnabled,
   }
 }
