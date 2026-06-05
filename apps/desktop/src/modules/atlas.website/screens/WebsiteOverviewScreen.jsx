@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
-  Button, Input, Label, Switch, StatCard,
+  Button, Input, Label, Switch, StatCard, PageHeader,
   Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
   Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
 } from '@atlas/ui'
@@ -142,7 +142,29 @@ export default function WebsiteOverviewScreen() {
   }
 
   return (
-    <div className="p-8 space-y-8 max-w-4xl">
+    <div className="p-6 space-y-6">
+      {/* Page header with status toggle */}
+      <PageHeader
+        title={site.name}
+        description={site.domain ? `https://${site.domain}` : 'Dominio no configurado'}
+        actions={
+          <div className="flex items-center gap-3">
+            <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+              site.status === 'published'
+                ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800'
+                : 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+            }`}>
+              {site.status === 'published' ? 'Publicado' : 'Borrador'}
+            </span>
+            <Switch
+              checked={site.status === 'published'}
+              onCheckedChange={handleStatusToggle}
+              disabled={updateMutation.isPending}
+            />
+          </div>
+        }
+      />
+
       {/* Stats */}
       <section>
         <h2 className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-widest mb-4">
@@ -184,81 +206,68 @@ export default function WebsiteOverviewScreen() {
         </div>
       </section>
 
-      {/* Config */}
-      <section className="rounded-xl border border-[hsl(var(--border))] p-6 space-y-6">
-        <div className="flex items-center justify-between">
+      {/* Config + Danger zone — two columns on large screens */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Config */}
+        <section className="rounded-xl border border-[hsl(var(--border))] p-6 space-y-6">
           <h2 className="text-base font-semibold text-[hsl(var(--foreground))]">
             Configuracion del sitio
           </h2>
-          <div className="flex items-center gap-3">
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-              site.status === 'published'
-                ? 'bg-green-50 text-green-700 border-green-200'
-                : 'bg-yellow-50 text-yellow-700 border-yellow-200'
-            }`}>
-              {site.status === 'published' ? 'Publicado' : 'Borrador'}
-            </span>
-            <Switch
-              checked={site.status === 'published'}
-              onCheckedChange={handleStatusToggle}
-              disabled={updateMutation.isPending}
-            />
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="site-name">Nombre</Label>
-            <Input
-              id="site-name"
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-              placeholder="Mi sitio web"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="site-name">Nombre</Label>
+              <Input
+                id="site-name"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="Mi sitio web"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="site-domain">Dominio</Label>
+              <Input
+                id="site-domain"
+                value={formDomain}
+                onChange={(e) => setFormDomain(e.target.value)}
+                placeholder="misitioweb.com"
+              />
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="site-domain">Dominio</Label>
-            <Input
-              id="site-domain"
-              value={formDomain}
-              onChange={(e) => setFormDomain(e.target.value)}
-              placeholder="misitioweb.com"
-            />
+
+          <div className="space-y-1.5 max-w-xs">
+            <Label>Tipo de sitio</Label>
+            <Select value={formSiteType} onValueChange={setFormSiteType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SITE_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </div>
 
-        <div className="space-y-1.5 max-w-xs">
-          <Label>Tipo de sitio</Label>
-          <Select value={formSiteType} onValueChange={setFormSiteType}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SITE_TYPES.map((t) => (
-                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+          <div className="flex justify-end">
+            <Button onClick={handleSaveConfig} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
+            </Button>
+          </div>
+        </section>
 
-        <div className="flex justify-end">
-          <Button onClick={handleSaveConfig} disabled={updateMutation.isPending}>
-            {updateMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
+        {/* Danger zone */}
+        <section className="rounded-xl border border-red-200 p-6 space-y-3">
+          <h2 className="text-base font-semibold text-red-700">Zona de peligro</h2>
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            Eliminar el sitio web borra de forma permanente todas las paginas, posts de blog,
+            formularios, menus y temas. Esta accion no se puede deshacer.
+          </p>
+          <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+            Eliminar sitio web
           </Button>
-        </div>
-      </section>
-
-      {/* Danger zone */}
-      <section className="rounded-xl border border-red-200 p-6 space-y-3">
-        <h2 className="text-base font-semibold text-red-700">Zona de peligro</h2>
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">
-          Eliminar el sitio web borra de forma permanente todas las paginas, posts de blog,
-          formularios, menus y temas. Esta accion no se puede deshacer.
-        </p>
-        <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
-          Eliminar sitio web
-        </Button>
-      </section>
+        </section>
+      </div>
 
       {/* Delete confirmation dialog */}
       <Dialog open={deleteOpen} onOpenChange={(open) => { if (!open) closeDeleteDialog() }}>
