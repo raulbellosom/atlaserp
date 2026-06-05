@@ -1,1 +1,10 @@
-export * from 'react/jsx-runtime'
+import { Fragment, createElement } from 'react'
+
+export { Fragment }
+
+export function jsx(type, props, key) {
+  if (key === undefined) return createElement(type, props)
+  return createElement(type, { ...props, key })
+}
+
+export const jsxs = jsx

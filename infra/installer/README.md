@@ -31,8 +31,8 @@ Requiere: Docker Desktop (o Docker Engine + Compose v2), Node.js 20+, npx.
 ### Windows (PowerShell)
 
 ```powershell
-mkdir C:\atlaserp-installer -Force
-cd C:\atlaserp-installer
+mkdir atlaserp -Force
+cd atlaserp
 
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml" -OutFile "docker-compose.yml"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.mjs"   -OutFile "setup-local.mjs"
@@ -46,7 +46,7 @@ node .\setup-local.mjs
 ### Linux / macOS / Git Bash
 
 ```bash
-mkdir -p ~/atlaserp-installer && cd ~/atlaserp-installer
+mkdir -p ./atlaserp && cd ./atlaserp
 
 curl -fsSLo docker-compose.yml  https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml
 curl -fsSLo setup-local.mjs     https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.mjs

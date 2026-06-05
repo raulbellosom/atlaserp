@@ -1442,6 +1442,61 @@ export function createModulesRouter({
           });
         }
 
+        // ── Stale custom module cleanup ────────────────────────────────────
+        // Custom module rows that exist in DB but have no files on disk anymore.
+        // We include both valid and invalid (broken manifest) discovered keys as
+        // "present on disk" so only truly gone modules are treated as stale.
+        const allDiskCustomKeys = new Set([
+          ...validModules
+            .filter((r) => isCustomModuleRecord(r))
+            .map((r) => r.manifest.key),
+          ...invalidModules
+            .filter((r) => isCustomModuleRecord(r) && r.key)
+            .map((r) => r.key),
+        ]);
+
+        const dbCustomRows = await prisma.atlasModule.findMany({
+          where: requestedModuleKey
+            ? { key: requestedModuleKey }
+            : { key: { startsWith: "custom." } },
+          select: { key: true, status: true, lifecycleConfig: true },
+        });
+
+        const staleRows = dbCustomRows.filter(
+          (row) => !allDiskCustomKeys.has(row.key),
+        );
+        const staleSync = { removed: 0, disabled: 0, keys: [] };
+
+        for (const row of staleRows) {
+          const hasData =
+            row.status === "INSTALLED" || row.status === "DISABLED";
+          if (hasData) {
+            const existingLifecycle = isPlainObject(row.lifecycleConfig)
+              ? row.lifecycleConfig
+              : {};
+            await prisma.atlasModule.update({
+              where: { key: row.key },
+              data: {
+                enabled: false,
+                lifecycleConfig: {
+                  ...existingLifecycle,
+                  discovery: {
+                    status: "MISSING_FILES",
+                    detectedAt: new Date().toISOString(),
+                  },
+                },
+              },
+            });
+            safeRouteUnload(row.key);
+            staleSync.disabled++;
+            staleSync.keys.push({ key: row.key, action: "disabled_missing_files" });
+          } else {
+            await prisma.atlasModule.delete({ where: { key: row.key } });
+            staleSync.removed++;
+            staleSync.keys.push({ key: row.key, action: "removed" });
+          }
+        }
+
         const payload = {
           status:
             dependencySync.errors.length > 0 ||
@@ -1472,6 +1527,7 @@ export function createModulesRouter({
           metadataSync,
           manifestMigrationsSync,
           invalidUpserts,
+          staleSync,
           automation,
           modules: discovered.map(serializeDiscoveredModule),
         };
