@@ -51,6 +51,7 @@ import { createPublicCheckoutRouter } from "./routes/website/checkout-routes.js"
 import { createStorefrontRouter } from "./routes/storefront/storefront-router.js";
 import { createWebsiteRouter } from "./routes/website/index.js";
 import { createLedgerRouter } from "./routes/ledger/index.js";
+import { createUsersRouter } from './routes/users-routes.js'
 import { createFleetRouter } from "./routes/fleet/index.js";
 import { createCatalogRouter } from "./routes/catalog/index.js";
 import { createCalendarRouter } from "./routes/calendar/index.js";
@@ -3896,6 +3897,7 @@ function mountWithAuth(baseApp, router) {
 mountWithAuth(app, createSettingsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createLedgerRouter({ prisma, requirePermission }));
+mountWithAuth(app, createUsersRouter({ prisma, requirePermission }));
 mountWithAuth(app, createFleetRouter({ prisma, requirePermission }));
 mountWithAuth(app, createCatalogRouter({ prisma, requirePermission }));
 mountWithAuth(app, createCalendarRouter({ prisma, requirePermission }));
