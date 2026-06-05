@@ -3,7 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import { Button } from '@atlas/ui'
+import {
+  Button,
+  PageHeader,
+  EmptyState,
+  ConfirmDialog,
+  Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
+} from '@atlas/ui'
 import { toast } from 'sonner'
 import WebsiteNewBlogPostDialog from './WebsiteNewBlogPostDialog.jsx'
 
@@ -14,10 +20,10 @@ async function apiGet(path, token) {
 }
 
 const STATUS_LABELS = { draft: 'Borrador', published: 'Publicado', archived: 'Archivado' }
-const STATUS_COLORS = {
-  draft:     'bg-yellow-50 text-yellow-700 border-yellow-200',
-  published: 'bg-green-50  text-green-700  border-green-200',
-  archived:  'bg-gray-50   text-gray-500   border-gray-200',
+const STATUS_CLASSES = {
+  draft:     'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-700/50',
+  published: 'bg-green-100  text-green-800  dark:bg-green-900/40  dark:text-green-300  border border-green-200  dark:border-green-700/50',
+  archived:  'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] border border-[hsl(var(--border))]',
 }
 
 function fmtDate(dateStr) {
@@ -33,6 +39,7 @@ export default function WebsiteBlogScreen() {
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const siteQuery = useQuery({
     queryKey: ['website-site', token],
@@ -72,34 +79,35 @@ export default function WebsiteBlogScreen() {
     onSuccess: () => {
       toast.success('Entrada eliminada')
       queryClient.invalidateQueries({ queryKey: ['blog-posts', siteId] })
+      setDeleteTarget(null)
     },
-    onError: () => toast.error('Error al eliminar la entrada'),
+    onError: () => {
+      toast.error('Error al eliminar la entrada')
+      setDeleteTarget(null)
+    },
   })
 
   if (siteQuery.isPending) {
-    return <div className="p-8 text-[hsl(var(--muted-foreground))] text-sm">Cargando...</div>
+    return <div className="p-6 text-[hsl(var(--muted-foreground))] text-sm">Cargando...</div>
   }
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-[hsl(var(--foreground))]">Blog</h1>
-          <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-            Gestiona las entradas del blog publico.
-          </p>
-        </div>
-        <Button onClick={() => setDialogOpen(true)} disabled={!siteId}>
-          Nueva entrada
-        </Button>
-      </div>
+    <div className="p-6 space-y-6">
+      <PageHeader
+        title="Blog"
+        description="Gestiona las entradas del blog publico."
+        actions={
+          <Button onClick={() => setDialogOpen(true)} disabled={!siteId}>
+            Nuevo post
+          </Button>
+        }
+      />
 
       {!siteId ? (
-        <div className="rounded-xl border border-[hsl(var(--border))] p-10 text-center">
-          <p className="text-[hsl(var(--muted-foreground))] text-sm">
-            Configura tu sitio web primero desde la seccion &quot;Sitio web&quot;.
-          </p>
-        </div>
+        <EmptyState
+          title="Sitio web no configurado"
+          description='Configura tu sitio web primero desde la seccion "Sitio web".'
+        />
       ) : (
         <>
           {categories.length > 0 && (
@@ -108,7 +116,7 @@ export default function WebsiteBlogScreen() {
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="h-8 rounded-md border border-[hsl(var(--border))] bg-transparent px-2 py-0 text-sm focus:outline-none"
+                className="h-8 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] text-[hsl(var(--foreground))] px-2 py-0 text-sm focus:outline-none"
               >
                 <option value="">Todas las categorias</option>
                 {categories.map((cat) => (
@@ -121,50 +129,59 @@ export default function WebsiteBlogScreen() {
           {postsQuery.isPending ? (
             <div className="text-sm text-[hsl(var(--muted-foreground))]">Cargando entradas...</div>
           ) : posts.length === 0 ? (
-            <div className="rounded-xl border border-[hsl(var(--border))] p-10 text-center space-y-4">
-              <p className="text-[hsl(var(--muted-foreground))] text-sm">No hay entradas de blog aun.</p>
-              <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
-                Crear primera entrada
-              </Button>
-            </div>
+            <EmptyState
+              title="Sin entradas de blog"
+              description="Crea tu primera entrada para empezar a publicar contenido."
+              action={{ label: 'Crear primera entrada', onClick: () => setDialogOpen(true) }}
+            />
           ) : (
             <div className="rounded-xl border border-[hsl(var(--border))] overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-[hsl(var(--muted))]">
-                  <tr>
-                    <th className="text-left px-4 py-3 font-medium text-[hsl(var(--muted-foreground))]">Titulo</th>
-                    <th className="text-left px-4 py-3 font-medium text-[hsl(var(--muted-foreground))]">Categoria</th>
-                    <th className="text-left px-4 py-3 font-medium text-[hsl(var(--muted-foreground))]">Estado</th>
-                    <th className="text-left px-4 py-3 font-medium text-[hsl(var(--muted-foreground))]">Publicado</th>
-                    <th className="px-4 py-3" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[hsl(var(--border))]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Titulo</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Publicado</TableHead>
+                    <TableHead className="w-24" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {posts.map((post) => (
-                    <tr key={post.id} className="hover:bg-[hsl(var(--muted)/0.4)] transition-colors">
-                      <td className="px-4 py-3 font-medium text-[hsl(var(--foreground))]">{post.title}</td>
-                      <td className="px-4 py-3 text-[hsl(var(--muted-foreground))]">
+                    <TableRow
+                      key={post.id}
+                      className="cursor-pointer"
+                      onClick={() => navigate(`/app/m/atlas.website/blog/${post.id}/editor`)}
+                    >
+                      <TableCell className="font-medium text-[hsl(var(--foreground))]">
+                        {post.title}
+                      </TableCell>
+                      <TableCell className="text-[hsl(var(--muted-foreground))]">
                         {post.category?.name ?? '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs border ${STATUS_COLORS[post.status] ?? ''}`}>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CLASSES[post.status] ?? ''}`}>
                           {STATUS_LABELS[post.status] ?? post.status}
                         </span>
-                      </td>
-                      <td className="px-4 py-3 text-[hsl(var(--muted-foreground))] text-xs">
+                      </TableCell>
+                      <TableCell className="text-[hsl(var(--muted-foreground))] text-xs">
                         {fmtDate(post.publishedAt)}
-                      </td>
-                      <td className="px-4 py-3">
+                      </TableCell>
+                      <TableCell>
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => navigate(`/app/m/atlas.website/blog/${post.id}/editor`)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigate(`/app/m/atlas.website/blog/${post.id}/editor`)
+                            }}
                             className="text-xs text-[hsl(var(--primary))] hover:underline"
                           >
                             Editar
                           </button>
                           <button
-                            onClick={() => {
-                              if (window.confirm(`Eliminar "${post.title}"?`)) deleteMutation.mutate(post.id)
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setDeleteTarget(post)
                             }}
                             disabled={deleteMutation.isPending}
                             className="text-xs text-[hsl(var(--destructive))] hover:underline disabled:opacity-50"
@@ -172,11 +189,11 @@ export default function WebsiteBlogScreen() {
                             Eliminar
                           </button>
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </>
@@ -190,6 +207,16 @@ export default function WebsiteBlogScreen() {
           queryClient.invalidateQueries({ queryKey: ['blog-posts', siteId] })
           navigate(`/app/m/atlas.website/blog/${post.id}/editor`)
         }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        title="Eliminar entrada"
+        description={`Se eliminara permanentemente la entrada "${deleteTarget?.title}". Esta accion no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate(deleteTarget?.id)}
       />
     </div>
   )
