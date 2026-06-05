@@ -243,7 +243,7 @@ export function createCollaborationService({ prisma }) {
         )
       RETURNING *
     `
-    if (!firstRow(rows)) throw new CollaborationServiceError('Invitacion no encontrada.', 404)
+    if (!firstRow(rows)) throw new CollaborationServiceError('Invitación no encontrada.', 404)
     return { ok: true }
   }
 
@@ -257,7 +257,7 @@ export function createCollaborationService({ prisma }) {
         )
       RETURNING *
     `
-    if (!firstRow(rows)) throw new CollaborationServiceError('Invitacion no encontrada.', 404)
+    if (!firstRow(rows)) throw new CollaborationServiceError('Invitación no encontrada.', 404)
     return { ok: true }
   }
 
