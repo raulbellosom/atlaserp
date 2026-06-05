@@ -1,4 +1,6 @@
+// apps/desktop/src/modules/atlas.website/screens/WebsiteTemplatesScreen.jsx
 import { useNavigate } from 'react-router-dom'
+import { PageHeader } from '@atlas/ui'
 import { LayoutTemplate } from 'lucide-react'
 import { allTemplates } from '../../../website/atlasTemplates/index.js'
 
@@ -6,37 +8,34 @@ export default function WebsiteTemplatesScreen() {
   const navigate = useNavigate()
 
   return (
-    <div className="p-8 space-y-8 max-w-4xl">
-      <div>
-        <h1 className="text-2xl font-semibold text-[hsl(var(--foreground))]">Plantillas</h1>
-        <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-          Selecciona una plantilla para previsualizarla y elegir las paginas que deseas crear.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="p-6 space-y-6">
+      <PageHeader
+        title="Plantillas"
+        description="Selecciona una plantilla para previsualizarla y elegir las paginas que deseas crear."
+      />
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
         {allTemplates.map((tpl) => (
           <button
             key={tpl.id}
-            onClick={() => navigate(`/app/m/atlas.website/templates/${tpl.id}/preview`)}
-            className="text-left rounded-xl border-2 border-[hsl(var(--border))] p-5 transition-all w-full hover:border-[hsl(var(--primary)/0.4)] hover:bg-[hsl(var(--muted)/0.4)] hover:shadow-sm cursor-pointer"
+            onClick={() => navigate(`/app/m/atlas.website/templates/${tpl.id}/detail`)}
+            className="text-left rounded-xl border border-border bg-card overflow-hidden hover:border-primary/40 hover:shadow-md transition-all group"
           >
-            <div className="flex items-start gap-3">
+            <div
+              className="aspect-video relative overflow-hidden flex items-center justify-center"
+              style={{ background: `linear-gradient(135deg, ${tpl.color}22, ${tpl.color}44)` }}
+            >
+              <LayoutTemplate size={36} style={{ color: tpl.color }} className="opacity-40"/>
               <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                style={{ background: `${tpl.color}20` }}
+                className="absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
+                style={{ background: tpl.color }}
               >
-                <LayoutTemplate size={18} style={{ color: tpl.color }} />
+                {tpl.pages.length} pag{tpl.pages.length !== 1 ? 's' : ''}
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-[hsl(var(--foreground))]">{tpl.label}</h3>
-                <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5 line-clamp-2">
-                  {tpl.description}
-                </p>
-                <p className="text-xs text-[hsl(var(--muted-foreground))] mt-2">
-                  {tpl.pages.length} pagina{tpl.pages.length !== 1 ? 's' : ''} · Clic para previsualizar
-                </p>
-              </div>
+            </div>
+            <div className="p-4">
+              <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">{tpl.label}</h3>
+              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{tpl.description}</p>
+              <p className="text-xs text-muted-foreground mt-2">Clic para previsualizar</p>
             </div>
           </button>
         ))}
