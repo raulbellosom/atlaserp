@@ -68,11 +68,11 @@ export function DistUploadPanel({ site, onUpload, onDelete, isUploading, uploadE
 
       {/* Existing build info */}
       {hasExistingDist && (
-        <div className="flex items-start gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+        <div className="flex items-start gap-3 rounded-2xl border border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/30 p-4">
           <CheckCircle2 className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-indigo-800">Build activo</p>
-            <p className="text-xs text-indigo-600 mt-0.5">
+            <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-300">Build activo</p>
+            <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5">
               Desplegado el {formatDate(site.distUploadedAt)} &middot; {site.distFileCount ?? 0} archivo{(site.distFileCount ?? 0) !== 1 ? 's' : ''}
               {site.distHasPrerender ? ' · Prerenderizado' : ' · SPA'}
             </p>
@@ -98,12 +98,12 @@ export function DistUploadPanel({ site, onUpload, onDelete, isUploading, uploadE
         className={[
           'flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-8 px-4 text-center select-none transition-all duration-200',
           isUploading
-            ? 'opacity-50 cursor-not-allowed border-gray-200 bg-gray-50'
+            ? 'opacity-50 cursor-not-allowed border-border bg-muted/30'
             : isDragging
-              ? 'border-indigo-500 bg-indigo-50 cursor-copy'
+              ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30 cursor-copy'
               : file
-                ? 'border-indigo-300 bg-indigo-50/50 cursor-pointer'
-                : 'border-gray-200 bg-gray-50/50 hover:border-indigo-300 hover:bg-gray-50 cursor-pointer',
+                ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50/50 dark:bg-indigo-950/20 cursor-pointer'
+                : 'border-border bg-muted/30 hover:border-primary/40 hover:bg-muted/50 cursor-pointer',
         ].join(' ')}
       >
         <input
@@ -127,21 +127,21 @@ export function DistUploadPanel({ site, onUpload, onDelete, isUploading, uploadE
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); clearFile() }}
-              className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors"
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
             >
               <X className="w-3 h-3" /> Cambiar archivo
             </button>
           </>
         ) : (
           <>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isDragging ? 'bg-indigo-100' : 'bg-gray-100'}`}>
-              <Upload className={`w-5 h-5 transition-colors ${isDragging ? 'text-indigo-600' : 'text-gray-400'}`} />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isDragging ? 'bg-indigo-100 dark:bg-indigo-900/40' : 'bg-muted'}`}>
+              <Upload className={`w-5 h-5 transition-colors ${isDragging ? 'text-indigo-600 dark:text-indigo-400' : 'text-muted-foreground'}`} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-700">
+              <p className="text-sm font-semibold text-foreground">
                 {isDragging ? 'Suelta el archivo aqui' : 'Arrastra tu .zip aqui'}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">o haz clic para seleccionar · max {MAX_SIZE_MB} MB</p>
+              <p className="text-xs text-muted-foreground mt-0.5">o haz clic para seleccionar · max {MAX_SIZE_MB} MB</p>
             </div>
           </>
         )}
@@ -159,8 +159,13 @@ export function DistUploadPanel({ site, onUpload, onDelete, isUploading, uploadE
           type="button"
           onClick={handleUpload}
           disabled={!file || isUploading}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
-          style={{ background: file && !isUploading ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : '#d1d5db' }}
+          className={[
+            'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200',
+            'disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-md hover:-translate-y-0.5 active:translate-y-0',
+            file && !isUploading
+              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+              : 'bg-muted text-muted-foreground',
+          ].join(' ')}
         >
           <Upload className="w-4 h-4" />
           {isUploading ? 'Subiendo...' : 'Subir build'}

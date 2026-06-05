@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import {
   Button,
   Card,
+  EmptyState,
   NumberField,
   PageHeader,
   PasswordField,
@@ -15,6 +16,7 @@ import {
   TextField,
 } from '@atlas/ui'
 import { Globe, Mail, Server, User } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -57,6 +59,7 @@ const SMTP_EMPTY = { host: '', port: 587, user: '', pass: '', from_name: '', fro
 export default function WebsiteSettingsScreen() {
   const { session } = useAuth()
   const token = session?.access_token
+  const navigate = useNavigate()
 
   const [smtpForm, setSmtpForm] = useState(SMTP_EMPTY)
   const [passChanged, setPassChanged] = useState(false)
@@ -173,6 +176,28 @@ export default function WebsiteSettingsScreen() {
 
   const smtpConfigured = configQuery.data?.data?.configured ?? false
 
+  // No site configured yet — show empty state
+  if (!siteQuery.isPending && !siteId) {
+    return (
+      <div className="p-6 space-y-6">
+        <PageHeader
+          eyebrow="Atlas Website"
+          title="Configuracion"
+          description="Ajusta las integraciones y credenciales de tu sitio web."
+        />
+        <EmptyState
+          title="No hay sitio configurado"
+          description="Completa el asistente de configuracion para activar estas opciones."
+          action={
+            <Button onClick={() => navigate('/app/m/atlas.website')}>
+              Ir al asistente
+            </Button>
+          }
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col min-h-full">
       <div className="flex-1 p-4 md:p-6 space-y-6 max-w-3xl mx-auto w-full">
@@ -197,9 +222,9 @@ export default function WebsiteSettingsScreen() {
           {/* Tab: Fuente del sitio */}
           <TabsContent value="source" className="mt-4">
             <Card className="p-0 overflow-hidden">
-              <div className="px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40">
+              <div className="px-4 py-3 border-b border-border bg-muted/40">
                 <p className="text-sm font-semibold">Fuente del sitio</p>
-                <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Elige que se sirve en la ruta raiz de tu dominio.
                 </p>
               </div>
@@ -218,7 +243,7 @@ export default function WebsiteSettingsScreen() {
                       isLoading={sourceChangeMutation.isPending}
                     />
                     {sourceQuery.data?.data?.sourceType === 'dist' && (
-                      <div className="pt-2 border-t border-[hsl(var(--border))]">
+                      <div className="pt-2 border-t border-border">
                         <p className="text-sm font-medium mb-3">Archivos del build</p>
                         <DistUploadPanel
                           site={sourceQuery.data?.data}
@@ -238,10 +263,10 @@ export default function WebsiteSettingsScreen() {
           {/* Tab: Correo electronico (SMTP) */}
           <TabsContent value="smtp" className="mt-4">
             <Card className="p-0 overflow-hidden">
-              <div className="px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 flex items-center justify-between">
+              <div className="px-4 py-3 border-b border-border bg-muted/40 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold">Correo electronico (SMTP)</p>
-                  <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Credenciales propias del sitio. Si no se configuran, se usa el SMTP de la plataforma como respaldo.
                   </p>
                 </div>
@@ -327,7 +352,7 @@ export default function WebsiteSettingsScreen() {
                       onChange={(checked) => setSmtpForm((f) => ({ ...f, tls: checked }))}
                     />
 
-                    <div className="flex gap-2 pt-2 border-t border-[hsl(var(--border))]">
+                    <div className="flex gap-2 pt-2 border-t border-border">
                       <Button type="submit" disabled={smtpSaveMutation.isPending} className="flex-1">
                         {smtpSaveMutation.isPending ? 'Guardando...' : 'Guardar configuracion'}
                       </Button>
