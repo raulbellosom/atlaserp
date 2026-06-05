@@ -4,8 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
-  Button, Badge, PageHeader,
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Button, PageHeader,
   ActionMenu, ConfirmDialog, Switch, Skeleton,
   EmptyState,
 } from '@atlas/ui'
@@ -27,11 +26,6 @@ async function apiFetch(path, token, options = {}) {
   return res.json()
 }
 
-const STATUS_BADGE = {
-  draft:     { label: 'Borrador',  variant: 'secondary' },
-  published: { label: 'Publicado', variant: 'success'   },
-  archived:  { label: 'Archivado', variant: 'outline'   },
-}
 
 export default function WebsitePagesScreen() {
   const { session } = useAuth()
@@ -189,55 +183,48 @@ export default function WebsitePagesScreen() {
             }
           />
         ) : (
-          <div className="rounded-xl border border-[hsl(var(--border))] overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Titulo</TableHead>
-                  <TableHead>Ruta</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="w-20 text-center">Publicar</TableHead>
-                  <TableHead className="w-12" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pages.map((page) => {
-                  const badgeMeta  = STATUS_BADGE[page.status] ?? { label: page.status, variant: 'outline' }
-                  const isPublished = page.status === 'published'
-                  const isBusy     = publishMutation.isPending || unpublishMutation.isPending
-
-                  return (
-                    <TableRow key={page.id} className="cursor-default">
-                      <TableCell className="font-medium">
-                        <button
-                          onClick={() => handleEdit(page)}
-                          className="hover:text-[hsl(var(--primary))] hover:underline transition-colors text-left"
-                        >
-                          {page.title}
-                        </button>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-[hsl(var(--muted-foreground))]">
-                        {page.routePath}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={badgeMeta.variant}>{badgeMeta.label}</Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Switch
-                          checked={isPublished}
-                          disabled={isBusy}
-                          onCheckedChange={() => handlePublishToggle(page)}
-                          aria-label={isPublished ? 'Despublicar pagina' : 'Publicar pagina'}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <ActionMenu items={getRowActionItems(page)} />
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+            {pages.map((page) => {
+              const isPublished = page.status === 'published'
+              const isBusy = publishMutation.isPending || unpublishMutation.isPending
+              return (
+                <div
+                  key={page.id}
+                  className="relative rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:shadow-sm transition-all group"
+                >
+                  <button
+                    onClick={() => navigate(`/app/m/atlas.website/pages/${page.id}/editor`)}
+                    className="text-left w-full"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <p className="font-semibold text-foreground group-hover:text-primary transition-colors truncate text-sm">
+                        {page.title}
+                      </p>
+                      <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium border ${
+                        isPublished
+                          ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800'
+                          : 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                      }`}>
+                        {isPublished ? 'Publicada' : 'Borrador'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground font-mono">{page.slug}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {new Date(page.updatedAt ?? page.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  </button>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+                    <Switch
+                      checked={isPublished}
+                      disabled={isBusy}
+                      onCheckedChange={() => handlePublishToggle(page)}
+                      aria-label={isPublished ? 'Despublicar pagina' : 'Publicar pagina'}
+                    />
+                    <ActionMenu items={getRowActionItems(page)} />
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
