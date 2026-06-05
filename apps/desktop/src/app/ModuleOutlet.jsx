@@ -97,6 +97,15 @@ const SCREEN_MAP = {
   "atlas.ledger:/accounts/:id/import": lazy(
     () => import("../modules/atlas.ledger/screens/ImportWizard.jsx"),
   ),
+  "atlas.ledger:/groups": lazy(
+    () => import("../modules/atlas.ledger/screens/GroupsScreen.jsx"),
+  ),
+  "atlas.ledger:/groups/:id": lazy(
+    () => import("../modules/atlas.ledger/screens/GroupScreen.jsx"),
+  ),
+  "atlas.ledger:/memberships": lazy(
+    () => import("../modules/atlas.ledger/screens/MembershipsScreen.jsx"),
+  ),
   "atlas.website:/": lazy(
     () => import("../modules/atlas.website/screens/WebsiteOverviewScreen.jsx"),
   ),
@@ -305,6 +314,16 @@ function resolveScreen(moduleKey, subPath) {
     // /accounts/:id — but let /accounts/new fall through to BlueprintCrudScreen (create form)
     if (subPath.startsWith("/accounts/") && !subPath.endsWith("/new")) {
       return SCREEN_MAP["atlas.ledger:/accounts/:id"] ?? null;
+    }
+    // /groups/:id — UUID segment after /groups/
+    if (/^\/groups\/[^/]+$/.test(subPath)) {
+      return SCREEN_MAP["atlas.ledger:/groups/:id"] ?? null;
+    }
+    if (subPath === "/groups") {
+      return SCREEN_MAP["atlas.ledger:/groups"] ?? null;
+    }
+    if (subPath === "/memberships") {
+      return SCREEN_MAP["atlas.ledger:/memberships"] ?? null;
     }
     // /accounts/new, /categories/*, /types/* → BlueprintCrudScreen (table + form + detail)
     return BlueprintCrudScreen;
