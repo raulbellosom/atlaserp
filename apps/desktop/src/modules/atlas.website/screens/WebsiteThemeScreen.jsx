@@ -244,26 +244,15 @@ export default function WebsiteThemeScreen() {
                     onChange={(typography) => updateDraft('typography', typography)}
                   />
                 )}
-
-                <div className="flex justify-end pt-1">
-                  <Button
-                    size="sm"
-                    onClick={() => saveMutation.mutate()}
-                    disabled={saveMutation.isPending || !isDirty}
-                  >
-                    {saveMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
-                  </Button>
-                </div>
               </div>
             ) : null}
           </div>
 
           {/* Right: preview panel */}
           <div
-            className="rounded-xl border border-border bg-muted overflow-hidden sticky top-6"
-            style={{ minHeight: '300px' }}
+            className="rounded-xl border border-border bg-muted overflow-hidden sticky top-6 min-h-[300px]"
           >
-            <div className="flex items-center justify-center h-full p-8 text-center text-muted-foreground min-h-75">
+            <div className="flex items-center justify-center h-full p-8 text-center text-muted-foreground">
               <div>
                 <div
                   className="w-16 h-16 rounded-xl mb-3 mx-auto border border-border"
