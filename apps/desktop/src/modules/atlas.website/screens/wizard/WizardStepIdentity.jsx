@@ -128,7 +128,7 @@ export function WizardStepIdentity({ defaultValues, companyLogoUrl, onNext, onBa
       setSuggestedColors(colors.length >= 3 ? colors : PRESET_COLORS)
     })
     return () => URL.revokeObjectURL(url)
-  }, [logoFile]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [logoFile, useCompanyLogo])
 
   useEffect(() => {
     if (!useCompanyLogo || !companyLogoUrl) return
