@@ -192,7 +192,8 @@ curl -X POST http://localhost:4010/modules/custom.mymodule/install \
 ### Componentes React en modulos (dynamic bundle)
 
 Los modulos pueden incluir componentes React compilados en el momento de instalacion.
-No se requiere reconstruir la imagen web.
+No se requiere reconstruir la imagen web cuando solo cambias archivos dentro de
+`custom-modules/<moduleKey>/`.
 
 Estructura:
 
@@ -219,6 +220,19 @@ export async function register(registry) {
 }
 ```
 
+Reglas importantes:
+
+- Usa el runtime JSX automatico normal del proyecto. No agregues
+  `/** @jsxRuntime classic */`, `/** @jsx createElement */` ni
+  `import { createElement } from 'react'` en componentes del modulo.
+- Si cambias solo `custom-modules/<moduleKey>/components/*`, basta con sincronizar o
+  reinstalar el modulo para regenerar el bundle.
+- Si cambias el runtime compartido del host en `apps/desktop`
+  (por ejemplo `src/shims/*`, importmap, externals) debes publicar una nueva imagen
+  `web` y recrear `atlas-web-local`.
+- Si cambias CORS o autenticacion cross-origin en `apps/api`, debes publicar una nueva
+  imagen `api` y recrear `atlas-api-local`.
+
 Forzar recompilacion del bundle tras editar componentes:
 
 ```bash
@@ -228,6 +242,22 @@ curl -X POST http://localhost:4010/modules/custom.mymodule/sync \
 # Verificar
 curl http://localhost:4010/modules/custom.mymodule/bundle.js
 ```
+
+### Troubleshooting rapido
+
+- `The requested module 'react/jsx-runtime' does not provide an export named 'jsx'`
+  - La imagen `web` publicada no trae el shim/runtime correcto.
+  - Solucion: publicar nueva imagen `web`, hacer `docker compose pull atlas-web-local`
+    y recrear el contenedor.
+- `Cannot read properties of null (reading 'useContext')`
+  - El host esta resolviendo externals por rutas inconsistentes y termina cargando
+    dos copias de React/React Query.
+  - Solucion: publicar nueva imagen `web` con importmap/shims alineados al mismo
+    base path del host y limpiar datos del sitio en el navegador.
+- `blocked by CORS policy` con `credentials mode is 'include'`
+  - La API responde sin `Access-Control-Allow-Credentials: true`.
+  - Solucion: publicar nueva imagen `api`, hacer `docker compose pull atlas-api-local`
+    y recrear el contenedor.
 
 Para documentacion completa: `custom-modules/_atlas-devkit/docs/03_custom_modules.md`
 
@@ -245,6 +275,10 @@ docker push raulbellosom/atlaserp:api-latest
 docker push raulbellosom/atlaserp:worker-latest
 docker push raulbellosom/atlaserp:web-latest
 ```
+
+Si el cambio solo afecta al runtime web compartido, publica solo `web`. Si el cambio
+solo afecta CORS/autenticacion/rutas del API, publica solo `api`. No hace falta subir
+`worker` para fixes exclusivos del frontend del modulo.
 
 Forzar tags personalizados en setup:
 

@@ -407,7 +407,7 @@ export const fleetCleanupHandler = {
 
 ## Custom components
 
-Modules can include React components compiled at install time by esbuild. No web image rebuild is required.
+Modules can include React components compiled at install time by esbuild. No web image rebuild is required for module-local UI changes inside `modules/custom/<moduleKey>/components/`.
 
 ### Structure
 
@@ -442,6 +442,10 @@ export async function register(registry) {
 Registry key convention: `<moduleKey>:<ComponentName>`
 
 The bundle is compiled automatically on install and sync. On API boot, modules with no bundle are auto-built. The bundle is stored in `apps/api/bundles/<key>.js` and Supabase Storage for persistence across restarts.
+
+Use the project's default automatic JSX runtime. Do not add `/** @jsxRuntime classic */`,
+`/** @jsx createElement */`, or `import { createElement } from 'react'` in custom module
+components.
 
 ### Available imports in components
 
@@ -491,6 +495,11 @@ Cell components (badge renderers, custom table cells) used in TABLE blueprints d
 | `POST /modules/<key>/reset` | Force-rebuilt |
 | `POST /modules/<key>/uninstall` | Deleted |
 | API boot | Auto-built for installed modules without a bundle |
+
+Important distinction:
+- Editing only files inside `modules/custom/<moduleKey>/` does not require publishing a new web image.
+- Editing the shared module host/runtime in `apps/desktop` (importmap, external shims, externals wiring) does require publishing a new `web` image.
+- Editing credentialed browser/API behavior in `apps/api` (for example CORS with `credentials: 'include'`) does require publishing a new `api` image.
 
 ---
 

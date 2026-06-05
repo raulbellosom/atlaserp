@@ -59,13 +59,17 @@ function atlasDevImportmapPlugin() {
 // baked into the production build at shims/ext-*.js (non-hashed paths for
 // predictable importmap entries).
 function atlasBuildImportmapPlugin() {
+  let resolvedBasePath = "";
   return {
     name: "atlas-module-externals-importmap-build",
     apply: "build",
+    configResolved(config) {
+      resolvedBasePath = (config.base ?? "/").replace(/\/$/, "");
+    },
     transformIndexHtml: {
       order: "pre",
-      handler(_, { base }) {
-        const basePath = (base ?? "/").replace(/\/$/, "");
+      handler() {
+        const basePath = resolvedBasePath || "";
         const imports = Object.fromEntries(
           Object.entries(MODULE_EXTERNALS_IMPORTMAP).map(
             ([specifier, shimName]) => [

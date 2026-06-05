@@ -20,7 +20,7 @@ Installer mode means:
 
 ## Dynamic Module Bundler
 
-Custom modules can ship React components compiled at install time. The API server compiles `components/` using esbuild and stores the result. The frontend loads the bundle via dynamic `import()` at startup. No Vite rebuild, no new web image needed.
+Custom modules can ship React components compiled at install time. The API server compiles `components/` using esbuild and stores the result. The frontend loads the bundle via dynamic `import()` at startup. No Vite rebuild or new web image is needed for module-local code changes.
 
 ### How it works
 
@@ -52,6 +52,10 @@ export async function register(registry) {
 ```
 
 Registry key convention: `<moduleKey>:<ComponentName>`
+
+Use the project's default automatic JSX runtime. Do not add `/** @jsxRuntime classic */`,
+`/** @jsx createElement */`, or `import { createElement } from 'react'` in custom module
+components.
 
 ### Available imports in components
 
@@ -99,6 +103,11 @@ There are two categories. Use **Category A** (external) whenever possible — it
 | `POST /modules/<key>/reset` | Force-rebuilt |
 | `POST /modules/<key>/uninstall` | Deleted |
 | API boot | Missing bundles restored from Supabase Storage; installed modules with no bundle are auto-built |
+
+Important distinction:
+- Editing only files inside `modules/custom/<moduleKey>/` does not require publishing a new web image.
+- Editing the shared module host/runtime in `apps/desktop` (importmap, external shims, externals wiring) does require publishing a new `web` image.
+- Editing credentialed browser/API behavior in `apps/api` (for example CORS with `credentials: 'include'`) does require publishing a new `api` image.
 
 Verify a bundle was compiled:
 
@@ -435,7 +444,8 @@ Import from `@atlas/ui` in any component. All exports below are available.
 ## Frontend Libraries Available in the Published Web Image
 
 These libraries ship in every published Docker web image. Custom module components can
-use all of them without rebuilding the image.
+use all of them without rebuilding the image when the change stays inside the module
+itself.
 
 **Category A (external/shared — no bundle weight):**
 `react`, `react-dom`, `@tanstack/react-query`, `zustand`, `@atlas/ui`, `@atlas/sdk`,
@@ -455,8 +465,11 @@ Use this instruction before generating module code:
 > Read `AGENTS.md`, `docs/ai-context/ame3-modules.md`, and `docs/ai-context/ame3-runtime-capabilities.md` first.
 > Follow AME3 rules exactly.
 > Custom React components in `components/index.js` are compiled at install time by esbuild and are available without rebuilding the web image — no image rebuild is ever needed for module UI.
+> Use the normal automatic JSX runtime. Do not add `/** @jsxRuntime classic */`, `/** @jsx createElement */`, or `import { createElement } from 'react'` in module components.
 > Prefer blueprint-driven UI (TABLE, FORM, DETAIL kinds) and existing `@atlas/ui` primitives whenever possible.
 > Use CUSTOM kind blueprints when a screen requires logic that TABLE/FORM/DETAIL cannot express.
 > Do not add entries to SCREEN_MAP for new custom modules — use CUSTOM kind views instead.
 >
 > **UI-first rule:** Never use native HTML form elements (`<select>`, `<input>`, `<textarea>`) — always use the `@atlas/ui` equivalent. For any searchable select with optional inline creation, use `CreatableComboboxField` with `placeholder="Buscar o crear..."`. For read-only searchable selects, use `ComboboxField`. Plain `SelectField` only for short fixed lists. All screens start with `PageHeader`. All destructive confirmations use `ConfirmDialog`. File attachments use `AttachmentsPanel` / `FileUploader` inline — never redirect to atlas.files.
+>
+> If a fix touches the shared runtime host in `apps/desktop` (importmap, shims, externals) or credentialed browser/API CORS behavior in `apps/api`, publish new Docker images for `web` and/or `api`. Dynamic module bundling only avoids rebuilds for module-local code changes.

@@ -183,7 +183,7 @@ Atlas ERP is a module engine. New AME3 modules live in `modules/custom/` and dec
 
 New modules use `defineAtlasModule` from `@atlas/module-engine`.
 
-Modules can include React components in `components/` compiled at install time by esbuild — no web image rebuild needed. The frontend loads bundles via dynamic `import()` at startup. See `docs/ai-context/ame3-runtime-capabilities.md` for the full `@atlas/ui` component inventory and view kind examples (TABLE, FORM, DETAIL, CUSTOM).
+Modules can include React components in `components/` compiled at install time by esbuild — no web image rebuild is needed for module-local UI changes. The frontend loads bundles via dynamic `import()` at startup. If you change the shared module runtime in `apps/desktop` (for example importmap/shims/externals) or credentialed cross-origin API behavior in `apps/api`, publish fresh `web` and/or `api` images and recreate the installer containers. See `docs/ai-context/ame3-runtime-capabilities.md` for the full `@atlas/ui` component inventory and view kind examples (TABLE, FORM, DETAIL, CUSTOM).
 
 See:
 - `docs/02_module_system.md`
