@@ -52,6 +52,7 @@ export function WizardStepInfo({ defaultValues, onNext, onBack }) {
         render={({ field }) => (
           <CreatableComboboxField
             label="Giro o sector"
+            hint="Opcional"
             placeholder="Buscar o escribir giro..."
             options={GIROS}
             value={field.value}

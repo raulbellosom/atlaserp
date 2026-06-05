@@ -124,15 +124,17 @@ export function WizardStepType({ value, onNext, onBack }) {
           </button>
         )
       })}
-      <div className="flex gap-3 pt-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex-1 py-3 rounded-xl font-semibold text-sm text-foreground border-2 border-border hover:bg-muted transition-all"
-        >
-          Atras
-        </button>
-      </div>
+      {onBack && (
+        <div className="flex gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex-1 py-3 rounded-xl font-semibold text-sm text-foreground border-2 border-border hover:bg-muted transition-all"
+          >
+            Atras
+          </button>
+        </div>
+      )}
     </div>
   )
 }
