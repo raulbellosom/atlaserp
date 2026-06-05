@@ -358,12 +358,11 @@ export default function AccountScreen() {
 
             <ConfirmDialog
               open={!!revokeTarget}
-              onClose={() => setRevokeTarget(null)}
+              onOpenChange={(v) => { if (!v) setRevokeTarget(null) }}
               onConfirm={() => handleRevoke(revokeTarget?.user_id)}
               title="Revocar acceso"
               description={`¿Remover a ${revokeTarget?.display_name} de esta cuenta?`}
               confirmLabel="Revocar"
-              variant="destructive"
             />
           </div>
         )}
