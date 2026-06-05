@@ -271,8 +271,8 @@ export default function WebsiteSettingsScreen() {
                   </p>
                 </div>
                 {smtpConfigured && (
-                  <span className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  <span className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 px-2 py-0.5 rounded-full shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 dark:bg-green-400" />
                     Configurado
                   </span>
                 )}

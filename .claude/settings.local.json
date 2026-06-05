@@ -1,5 +1,6 @@
 {
   "permissions": {
+    "defaultMode": "bypassPermissions",
     "allow": [
       "Bash(git *)",
       "Bash(pnpm *)",
@@ -25,6 +26,10 @@
       "Bash(type *)",
       "Bash(where *)",
       "Bash(which *)",
+      "Bash(prisma *)",
+      "Bash(bash *)",
+      "Bash(touch *)",
+      "Bash(jq *)",
       "Read",
       "Edit",
       "Write"

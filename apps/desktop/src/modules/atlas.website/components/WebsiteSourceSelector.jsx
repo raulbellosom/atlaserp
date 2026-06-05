@@ -9,9 +9,9 @@ const SOURCE_OPTIONS = [
     tags: ['Modo privado', 'Solo /app/'],
     accentBg: 'bg-slate-50 dark:bg-slate-900/30',
     accentText: 'text-slate-600 dark:text-slate-400',
-    accentBorder: 'border-slate-400',
+    accentBorder: 'border-slate-400 dark:border-slate-500',
     accentRing: 'ring-slate-200 dark:ring-slate-800',
-    accentTag: 'text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/30 border-slate-400',
+    accentTag: 'text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/30 border-slate-400 dark:border-slate-600',
   },
   {
     value: 'builder',
