@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  PageHeader,
 } from '@atlas/ui'
 import { Button, Input, Label } from '@atlas/ui'
 import { toast } from 'sonner'
@@ -24,6 +26,7 @@ export default function WebsiteThemeScreen() {
   const { session } = useAuth()
   const token = session?.access_token
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   const [activeTab, setActiveTab] = useState('Colores')
   const [selectedThemeId, setSelectedThemeId] = useState(null)
@@ -126,14 +129,14 @@ export default function WebsiteThemeScreen() {
   }
 
   if (siteQuery.isPending) {
-    return <div className="p-8 text-[hsl(var(--muted-foreground))] text-sm">Cargando...</div>
+    return <div className="p-8 text-muted-foreground text-sm">Cargando...</div>
   }
 
   if (!siteId) {
     return (
       <div className="p-8">
-        <div className="rounded-xl border border-[hsl(var(--border))] p-10 text-center">
-          <p className="text-[hsl(var(--muted-foreground))] text-sm">
+        <div className="rounded-xl border border-border p-10 text-center">
+          <p className="text-muted-foreground text-sm">
             Configura tu sitio web primero desde la seccion &quot;Sitio web&quot;.
           </p>
         </div>
@@ -142,80 +145,107 @@ export default function WebsiteThemeScreen() {
   }
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-[hsl(var(--foreground))]">Tema</h1>
-          <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-            Personaliza los colores y tipografia del sitio publico.
-          </p>
-        </div>
-        <Button onClick={() => setNewThemeOpen(true)} variant="outline" size="sm">
-          Nuevo tema
-        </Button>
-      </div>
+    <div className="p-6 space-y-6 h-full">
+      <PageHeader
+        title="Tema"
+        description="Personaliza los colores y tipografia del sitio publico."
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/app/m/atlas.website/templates')}
+          >
+            Cambiar plantilla
+          </Button>
+        }
+      />
 
       {themesQuery.isPending ? (
-        <div className="text-sm text-[hsl(var(--muted-foreground))]">Cargando temas...</div>
+        <div className="text-sm text-muted-foreground">Cargando temas...</div>
       ) : themes.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[hsl(var(--border))] p-10 text-center space-y-4">
-          <p className="text-[hsl(var(--muted-foreground))] text-sm">No hay temas creados.</p>
+        <div className="rounded-xl border border-dashed border-border p-10 text-center space-y-4">
+          <p className="text-muted-foreground text-sm">No hay temas creados.</p>
           <Button size="sm" onClick={() => setNewThemeOpen(true)}>Crear primer tema</Button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {themes.length > 1 && (
-            <div className="flex gap-2 flex-wrap">
-              {themes.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => { setSelectedThemeId(t.id); setIsDirty(false) }}
-                  className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
-                    activeThemeId === t.id
-                      ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] border-transparent'
-                      : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]'
-                  }`}
-                >
-                  {t.name}
-                  {t.isDefault && <span className="ml-1 text-xs opacity-70">(activo)</span>}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {/* Left: config editors */}
+          <div className="space-y-4">
+            {themes.length > 1 && (
+              <div className="flex gap-2 flex-wrap">
+                {themes.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => { setSelectedThemeId(t.id); setIsDirty(false) }}
+                    className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
+                      activeThemeId === t.id
+                        ? 'bg-primary text-primary-foreground border-transparent'
+                        : 'border-border hover:bg-muted'
+                    }`}
+                  >
+                    {t.name}
+                    {t.isDefault && <span className="ml-1 text-xs opacity-70">(activo)</span>}
+                  </button>
+                ))}
+              </div>
+            )}
 
-          {themeDetailQuery.isPending ? (
-            <div className="text-sm text-[hsl(var(--muted-foreground))]">Cargando tema...</div>
-          ) : themeDetail ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex gap-1 border border-[hsl(var(--border))] rounded-lg p-0.5">
-                  {TABS.map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
-                        activeTab === tab
-                          ? 'bg-[hsl(var(--background))] shadow-sm font-medium'
-                          : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'
-                      }`}
+            {themeDetailQuery.isPending ? (
+              <div className="text-sm text-muted-foreground">Cargando tema...</div>
+            ) : themeDetail ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex gap-1 border border-border rounded-lg p-0.5">
+                    {TABS.map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+                          activeTab === tab
+                            ? 'bg-background shadow-sm font-medium'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {tab}
+                        {isDirty && <span className="ml-1 text-primary">*</span>}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {site?.themeId !== activeThemeId && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => useSiteThemeMutation.mutate()}
+                        disabled={useSiteThemeMutation.isPending}
+                      >
+                        Usar este tema
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={() => saveMutation.mutate()}
+                      disabled={saveMutation.isPending || !isDirty}
                     >
-                      {tab}
-                      {isDirty && <span className="ml-1 text-[hsl(var(--primary))]">*</span>}
-                    </button>
-                  ))}
+                      {saveMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {site?.themeId !== activeThemeId && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => useSiteThemeMutation.mutate()}
-                      disabled={useSiteThemeMutation.isPending}
-                    >
-                      Usar este tema
-                    </Button>
-                  )}
+                {activeTab === 'Colores' ? (
+                  <ThemeColorEditor
+                    tokens={draft.tokens}
+                    onChange={(tokens) => updateDraft('tokens', tokens)}
+                  />
+                ) : (
+                  <ThemeTypographyEditor
+                    typography={draft.typography}
+                    onChange={(typography) => updateDraft('typography', typography)}
+                  />
+                )}
+
+                <div className="flex justify-end pt-1">
                   <Button
                     size="sm"
                     onClick={() => saveMutation.mutate()}
@@ -225,20 +255,25 @@ export default function WebsiteThemeScreen() {
                   </Button>
                 </div>
               </div>
+            ) : null}
+          </div>
 
-              {activeTab === 'Colores' ? (
-                <ThemeColorEditor
-                  tokens={draft.tokens}
-                  onChange={(tokens) => updateDraft('tokens', tokens)}
+          {/* Right: preview panel */}
+          <div
+            className="rounded-xl border border-border bg-muted overflow-hidden sticky top-6"
+            style={{ minHeight: '300px' }}
+          >
+            <div className="flex items-center justify-center h-full p-8 text-center text-muted-foreground min-h-75">
+              <div>
+                <div
+                  className="w-16 h-16 rounded-xl mb-3 mx-auto border border-border"
+                  style={{ background: 'var(--primary, #4F46E5)' }}
                 />
-              ) : (
-                <ThemeTypographyEditor
-                  typography={draft.typography}
-                  onChange={(typography) => updateDraft('typography', typography)}
-                />
-              )}
+                <p className="text-sm font-medium">Vista previa del tema</p>
+                <p className="text-xs mt-1 text-muted-foreground">Guarda los cambios para ver el efecto</p>
+              </div>
             </div>
-          ) : null}
+          </div>
         </div>
       )}
 
