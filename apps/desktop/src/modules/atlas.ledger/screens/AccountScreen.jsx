@@ -1,10 +1,10 @@
 // apps/desktop/src/modules/atlas.ledger/screens/AccountScreen.jsx
 import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { Button } from '@atlas/ui'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Button, UserSearchModal, ConfirmDialog } from '@atlas/ui'
 import { toast } from 'sonner'
-import { FileText, Table, Download, Upload, ArrowLeft } from 'lucide-react'
+import { FileText, Table, Download, Upload, ArrowLeft, Users, UserPlus, Trash2, FolderOpen } from 'lucide-react'
 import SpreadsheetRegister from './SpreadsheetRegister.jsx'
 import AccountSummary from './AccountSummary.jsx'
 import { useAuth } from '../../../auth/AuthProvider'
@@ -14,6 +14,7 @@ const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
 const TABS = [
   { key: 'registro', label: 'Registro' },
   { key: 'resumen',  label: 'Resumen'  },
+  { key: 'acceso',   label: 'Acceso'   },
 ]
 
 function fmtCurrency(amount, currency = 'MXN') {
@@ -34,6 +35,9 @@ export default function AccountScreen() {
   const [activeTab, setActiveTab] = useState('registro')
   const [dateFrom, setDateFrom]   = useState('')
   const [dateTo, setDateTo]       = useState('')
+  const queryClient = useQueryClient()
+  const [inviteOpen, setInviteOpen]     = useState(false)
+  const [revokeTarget, setRevokeTarget] = useState(null)
 
   const { data: accountData, isLoading: accountLoading } = useQuery({
     queryKey: ['ledger-account', accountId],
@@ -71,7 +75,21 @@ export default function AccountScreen() {
     enabled: !!token,
   })
 
+  const { data: membersData, refetch: refetchMembers } = useQuery({
+    queryKey: ['ledger-account-members', accountId],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/ledger/accounts/${accountId}/members`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return { data: [] }
+      return res.json()
+    },
+    enabled: !!accountId && !!token && activeTab === 'acceso',
+  })
+
+  const members  = membersData?.data ?? []
   const account    = accountData?.data ?? null
+  const isOwner  = !!account?.owner_id
   const types      = typesData?.data ?? []
   const categories = categoriesData?.data ?? []
 
@@ -94,6 +112,48 @@ export default function AccountScreen() {
     } catch {
       toast.error('No se pudo exportar el archivo.')
     }
+  }
+
+  async function handleInvite(userId, role) {
+    const res = await fetch(`${API_BASE}/ledger/accounts/${accountId}/members`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, role }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      toast.error(err.error ?? 'No se pudo invitar al colaborador.')
+      return
+    }
+    toast.success('Colaborador invitado.')
+    refetchMembers()
+  }
+
+  async function handleRevoke(targetUserId) {
+    const res = await fetch(`${API_BASE}/ledger/accounts/${accountId}/members/${targetUserId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) { toast.error('No se pudo remover al colaborador.'); return }
+    toast.success('Acceso revocado.')
+    setRevokeTarget(null)
+    refetchMembers()
+  }
+
+  async function handleMoveGroup(groupId) {
+    const res = await fetch(`${API_BASE}/ledger/accounts/${accountId}/group`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ group_id: groupId }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      toast.error(err.error ?? 'No se pudo mover la cuenta.')
+      return
+    }
+    toast.success(groupId ? 'Cuenta movida al grupo.' : 'Cuenta movida a personal.')
+    queryClient.invalidateQueries({ queryKey: ['ledger-account', accountId] })
+    refetchMembers()
   }
 
   return (
@@ -234,6 +294,78 @@ export default function AccountScreen() {
             dateFrom={dateFrom || undefined}
             dateTo={dateTo || undefined}
           />
+        )}
+        {activeTab === 'acceso' && account && (
+          <div className="px-6 pb-6 space-y-6 max-w-2xl">
+            {account.group_id ? (
+              <div className="rounded-lg border border-[hsl(var(--border))] p-4 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <FolderOpen size={14} /> Pertenece a un grupo
+                </div>
+                <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                  El acceso a esta cuenta está controlado por el grupo. Para gestionar miembros ve al grupo.
+                </p>
+                {isOwner && (
+                  <Button variant="ghost" size="sm" onClick={() => handleMoveGroup(null)}>
+                    Mover a personal
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold">Colaboradores</h3>
+                  {isOwner && (
+                    <Button variant="ghost" size="sm" onClick={() => setInviteOpen(true)}>
+                      <UserPlus size={14} className="mr-1" /> Invitar
+                    </Button>
+                  )}
+                </div>
+                {members.length === 0 ? (
+                  <p className="text-sm text-[hsl(var(--muted-foreground))]">Esta cuenta no tiene colaboradores.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {members.map((m) => (
+                      <div key={m.id} className="flex items-center justify-between rounded-lg border border-[hsl(var(--border))] px-3 py-2">
+                        <div>
+                          <div className="text-sm font-medium">{m.display_name}</div>
+                          <div className="text-xs text-[hsl(var(--muted-foreground))]">{m.email} · {m.role}</div>
+                        </div>
+                        {isOwner && (
+                          <Button variant="ghost" size="icon" onClick={() => setRevokeTarget(m)}>
+                            <Trash2 size={14} />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <UserSearchModal
+              open={inviteOpen}
+              onClose={() => setInviteOpen(false)}
+              onConfirm={handleInvite}
+              roles={[
+                { value: 'viewer', label: 'Viewer — solo ver' },
+                { value: 'editor', label: 'Editor — ver y editar' },
+              ]}
+              excludeIds={members.map((m) => m.user_id)}
+              apiBase={API_BASE}
+              token={token}
+            />
+
+            <ConfirmDialog
+              open={!!revokeTarget}
+              onClose={() => setRevokeTarget(null)}
+              onConfirm={() => handleRevoke(revokeTarget?.user_id)}
+              title="Revocar acceso"
+              description={`¿Remover a ${revokeTarget?.display_name} de esta cuenta?`}
+              confirmLabel="Revocar"
+              variant="destructive"
+            />
+          </div>
         )}
       </div>
     </div>
