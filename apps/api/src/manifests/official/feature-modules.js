@@ -317,14 +317,14 @@ export const atlasWebsiteManifest = createModuleManifest({
   navigation: [
     {
       label: 'Sitio web',
-      path: '/app/m/atlas.website',
+      path: '/',
       icon: 'Globe',
       layout: 'main',
       permissionKey: 'website.access',
     },
     {
       label: 'Contenido',
-      icon: 'BookOpen',
+      icon: 'FileText',
       layout: 'main',
       permissionKey: 'website.pages.read',
       children: [

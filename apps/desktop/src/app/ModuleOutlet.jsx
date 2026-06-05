@@ -248,10 +248,11 @@ function isPathAllowedByNavigation(module, subPath) {
 
   function pathMatches(navPath) {
     if (!navPath) return false;
-    if (navPath === '/') return true;
+    // Normalize full paths to relative
     const rel = navPath.startsWith(modulePrefix)
       ? (navPath.slice(modulePrefix.length) || '/')
       : navPath;
+    // Root items never authorise sub-paths (root subPath is handled by the early return above)
     if (rel === '/') return false;
     return subPath === rel || subPath.startsWith(`${rel}/`);
   }
