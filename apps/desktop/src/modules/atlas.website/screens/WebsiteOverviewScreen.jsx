@@ -10,7 +10,7 @@ import {
 } from '@atlas/ui'
 import { Globe, FileText, BookOpen, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
-import WebsiteSiteWizard from './WebsiteSiteWizard.jsx'
+import WebsiteWizard from './WebsiteWizard.jsx'
 
 const SITE_TYPES = [
   { value: 'informational', label: 'Sitio informativo' },
@@ -119,7 +119,7 @@ export default function WebsiteOverviewScreen() {
     )
   }
 
-  if (!site) return <WebsiteSiteWizard />
+  if (!site) return <WebsiteWizard />
 
   const submissionsTotal = (formsQuery.data?.data ?? [])
     .reduce((sum, f) => sum + (f._count?.submissions ?? 0), 0)
