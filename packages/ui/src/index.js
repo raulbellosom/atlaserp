@@ -215,3 +215,5 @@ export {
   shouldUsePageMode,
   CostsSummaryPanel,
 } from "./atlas-renderer/index.js";
+
+export { UserSearchModal } from "./components/UserSearchModal.jsx";
