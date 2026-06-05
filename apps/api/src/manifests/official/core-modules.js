@@ -433,7 +433,7 @@ export const companyMap = createModuleManifest({
 export const atlasLedgerManifest = createModuleManifest({
   key: "atlas.ledger",
   name: "Libro de cuentas",
-  version: "0.1.1",
+  version: "0.1.2",
   kind: MODULE_KINDS.CORE,
   core: true,
   uninstallable: false,
@@ -459,6 +459,9 @@ export const atlasLedgerManifest = createModuleManifest({
     { key: "ledger.import", name: "Importar movimientos" },
     { key: "ledger.categories.manage", name: "Gestionar categorias" },
     { key: "ledger.types.manage", name: "Gestionar tipos de movimiento" },
+    { key: "ledger.groups.read",   name: "Ver grupos" },
+    { key: "ledger.groups.write",  name: "Gestionar grupos" },
+    { key: "ledger.members.write", name: "Gestionar colaboradores" },
   ],
   acl: {
     module: "ledger.accounts.read",
@@ -475,6 +478,9 @@ export const atlasLedgerManifest = createModuleManifest({
       "ledger.import": "ledger.import",
       "ledger.categories.manage": "ledger.categories.manage",
       "ledger.types.manage": "ledger.types.manage",
+      "ledger.groups.read":   "ledger.groups.read",
+      "ledger.groups.write":  "ledger.groups.write",
+      "ledger.members.write": "ledger.members.write",
     },
   },
   blueprints: [
