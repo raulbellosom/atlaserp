@@ -4,13 +4,13 @@ import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Button, Input, Label,
+  PageHeader, EmptyState, ConfirmDialog,
+  Tabs, TabsList, TabsTrigger, TabsContent,
 } from '@atlas/ui'
-import { Button, Input, Label } from '@atlas/ui'
 import { toast } from 'sonner'
 import FormFieldBuilder from './FormFieldBuilder.jsx'
 import FormSubmissionsPanel from './FormSubmissionsPanel.jsx'
-
-const TABS = ['Campos', 'Envios']
 
 async function apiGet(path, token) {
   const res = await fetch(`${getApiUrl()}${path}`, { headers: { Authorization: `Bearer ${token}` } })
@@ -24,9 +24,10 @@ export default function WebsiteFormsScreen() {
   const queryClient = useQueryClient()
 
   const [selectedFormId, setSelectedFormId] = useState(null)
-  const [activeTab, setActiveTab] = useState('Campos')
+  const [activeTab, setActiveTab] = useState('campos')
   const [newFormOpen, setNewFormOpen] = useState(false)
   const [newFormData, setNewFormData] = useState({ name: '', description: '', submitLabel: 'Enviar', successMessage: '', notifyEmail: '' })
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
@@ -84,53 +85,59 @@ export default function WebsiteFormsScreen() {
     onSuccess: () => {
       toast.success('Formulario eliminado')
       setSelectedFormId(null)
+      setDeleteTarget(null)
       queryClient.invalidateQueries({ queryKey: ['website-forms', siteId] })
     },
-    onError: () => toast.error('Error al eliminar el formulario'),
+    onError: () => {
+      toast.error('Error al eliminar el formulario')
+      setDeleteTarget(null)
+    },
   })
 
   if (siteQuery.isPending) {
-    return <div className="p-8 text-[hsl(var(--muted-foreground))] text-sm">Cargando...</div>
+    return <div className="p-6 text-[hsl(var(--muted-foreground))] text-sm">Cargando...</div>
   }
 
   if (!siteId) {
     return (
-      <div className="p-8">
-        <div className="rounded-xl border border-[hsl(var(--border))] p-10 text-center">
-          <p className="text-[hsl(var(--muted-foreground))] text-sm">
-            Configura tu sitio web primero desde la seccion &quot;Sitio web&quot;.
-          </p>
-        </div>
+      <div className="p-6 space-y-6">
+        <PageHeader
+          title="Formularios"
+          description="Crea formularios de contacto y captura envios desde el sitio publico."
+        />
+        <EmptyState
+          title="Sitio web no configurado"
+          description='Configura tu sitio web primero desde la seccion "Sitio web".'
+        />
       </div>
     )
   }
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-[hsl(var(--foreground))]">Formularios</h1>
-          <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-            Crea formularios de contacto y captura envios desde el sitio publico.
-          </p>
-        </div>
-        <Button onClick={() => setNewFormOpen(true)}>Nuevo formulario</Button>
-      </div>
+    <div className="p-6 space-y-6">
+      <PageHeader
+        title="Formularios"
+        description="Crea formularios de contacto y captura envios desde el sitio publico."
+        actions={
+          <Button onClick={() => setNewFormOpen(true)}>Nuevo formulario</Button>
+        }
+      />
 
       {formsQuery.isPending ? (
         <div className="text-sm text-[hsl(var(--muted-foreground))]">Cargando formularios...</div>
       ) : forms.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[hsl(var(--border))] p-10 text-center space-y-4">
-          <p className="text-[hsl(var(--muted-foreground))] text-sm">No hay formularios creados.</p>
-          <Button size="sm" onClick={() => setNewFormOpen(true)}>Crear primer formulario</Button>
-        </div>
+        <EmptyState
+          title="Sin formularios"
+          description="Crea tu primer formulario para capturar envios desde el sitio publico."
+          action={{ label: 'Crear primer formulario', onClick: () => setNewFormOpen(true) }}
+        />
       ) : (
         <div className="flex gap-6">
           <div className="w-52 shrink-0 space-y-1">
             {forms.map((form) => (
               <button
                 key={form.id}
-                onClick={() => { setSelectedFormId(form.id); setActiveTab('Campos') }}
+                onClick={() => { setSelectedFormId(form.id); setActiveTab('campos') }}
                 className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   activeFormId === form.id
                     ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-medium'
@@ -152,47 +159,42 @@ export default function WebsiteFormsScreen() {
                 <div className="flex items-center justify-between">
                   <h2 className="text-base font-medium text-[hsl(var(--foreground))]">{selectedForm.name}</h2>
                   <button
-                    onClick={() => { if (window.confirm(`Eliminar "${selectedForm.name}"?`)) deleteFormMutation.mutate(selectedForm.id) }}
+                    onClick={() => setDeleteTarget(selectedForm)}
                     className="text-xs text-[hsl(var(--destructive))] hover:underline"
                   >
                     Eliminar formulario
                   </button>
                 </div>
 
-                <div className="flex gap-1 border border-[hsl(var(--border))] rounded-lg p-0.5 w-fit">
-                  {TABS.map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
-                        activeTab === tab
-                          ? 'bg-[hsl(var(--background))] shadow-sm font-medium'
-                          : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'
-                      }`}
-                    >
-                      {tab}
-                      {tab === 'Envios' && (selectedForm._count?.submissions ?? 0) > 0 && (
-                        <span className="ml-1 text-xs bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-full px-1.5 py-0.5">
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList>
+                    <TabsTrigger value="campos">Campos</TabsTrigger>
+                    <TabsTrigger value="envios">
+                      Envios
+                      {(selectedForm._count?.submissions ?? 0) > 0 && (
+                        <span className="ml-1.5 text-xs bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-full px-1.5 py-0.5 leading-none">
                           {selectedForm._count.submissions}
                         </span>
                       )}
-                    </button>
-                  ))}
-                </div>
+                    </TabsTrigger>
+                  </TabsList>
 
-                {activeTab === 'Campos' ? (
-                  formDetailQuery.isPending ? (
-                    <div className="text-sm text-[hsl(var(--muted-foreground))]">Cargando campos...</div>
-                  ) : (
-                    <FormFieldBuilder
-                      formId={selectedForm.id}
-                      fields={formDetail?.fields ?? []}
-                      onRefresh={() => queryClient.invalidateQueries({ queryKey: ['website-form-detail', selectedForm.id] })}
-                    />
-                  )
-                ) : (
-                  <FormSubmissionsPanel formId={selectedForm.id} />
-                )}
+                  <TabsContent value="campos">
+                    {formDetailQuery.isPending ? (
+                      <div className="text-sm text-[hsl(var(--muted-foreground))]">Cargando campos...</div>
+                    ) : (
+                      <FormFieldBuilder
+                        formId={selectedForm.id}
+                        fields={formDetail?.fields ?? []}
+                        onRefresh={() => queryClient.invalidateQueries({ queryKey: ['website-form-detail', selectedForm.id] })}
+                      />
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="envios">
+                    <FormSubmissionsPanel formId={selectedForm.id} />
+                  </TabsContent>
+                </Tabs>
               </>
             ) : (
               <div className="py-10 text-center">
@@ -243,6 +245,16 @@ export default function WebsiteFormsScreen() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        title="Eliminar formulario"
+        description={`Se eliminara permanentemente el formulario "${deleteTarget?.name}" y todos sus campos y envios. Esta accion no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        loading={deleteFormMutation.isPending}
+        onConfirm={() => deleteFormMutation.mutate(deleteTarget?.id)}
+      />
     </div>
   )
 }
