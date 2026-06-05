@@ -1,16 +1,23 @@
 // apps/desktop/src/modules/atlas.ledger/screens/AccountsScreen.jsx
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { PageHeader, Button, EmptyState, ErrorState } from '@atlas/ui'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  PageHeader, Button, EmptyState, ErrorState,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  TextField, NumberField, SelectField,
+} from '@atlas/ui'
 import { Plus, Landmark, Users, FolderOpen } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
 
-function fmtCurrency(amount, currency = 'MXN') {
-  return Number(amount ?? 0).toLocaleString('es-MX', { style: 'currency', currency, minimumFractionDigits: 2 })
-}
+const CURRENCY_OPTIONS = [
+  { value: 'MXN', label: 'MXN — Peso mexicano' },
+  { value: 'USD', label: 'USD — Dólar estadounidense' },
+]
 
 const TABS = [
   { key: 'own',    label: 'Mis cuentas',        icon: Landmark   },
@@ -18,11 +25,24 @@ const TABS = [
   { key: 'groups', label: 'Grupos',              icon: FolderOpen },
 ]
 
+const EMPTY_ACCOUNT = { name: '', bank: '', account_number: '', currency: 'MXN', opening_balance: 0 }
+
 export default function AccountsScreen() {
-  const navigate = useNavigate()
-  const { session } = useAuth()
-  const token = session?.access_token ?? null
+  const navigate     = useNavigate()
+  const { session }  = useAuth()
+  const token        = session?.access_token ?? null
+  const queryClient  = useQueryClient()
   const [activeTab, setActiveTab] = useState('own')
+
+  // Nueva cuenta Sheet
+  const [newAccOpen, setNewAccOpen]   = useState(false)
+  const [accForm, setAccForm]         = useState(EMPTY_ACCOUNT)
+  const [accSaving, setAccSaving]     = useState(false)
+
+  // Nuevo grupo Dialog
+  const [newGrpOpen, setNewGrpOpen]   = useState(false)
+  const [newGrpName, setNewGrpName]   = useState('')
+  const [grpSaving, setGrpSaving]     = useState(false)
 
   const headers = { Authorization: `Bearer ${token}` }
 
@@ -62,6 +82,60 @@ export default function AccountsScreen() {
 
   const isLoading = allLoading || mbLoading || grpLoading
 
+  async function handleCreateAccount(e) {
+    e.preventDefault()
+    if (!accForm.name.trim() || !accForm.bank.trim()) return
+    setAccSaving(true)
+    try {
+      const res = await fetch(`${API_BASE}/ledger/accounts`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: accForm.name.trim(),
+          bank: accForm.bank.trim(),
+          account_number: accForm.account_number.trim() || null,
+          currency: accForm.currency,
+          opening_balance: Number(accForm.opening_balance) || 0,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err.error ?? 'No se pudo crear la cuenta.')
+        return
+      }
+      toast.success('Cuenta creada.')
+      setAccForm(EMPTY_ACCOUNT)
+      setNewAccOpen(false)
+      queryClient.invalidateQueries({ queryKey: ['ledger-accounts'] })
+    } finally {
+      setAccSaving(false)
+    }
+  }
+
+  async function handleCreateGroup(e) {
+    e.preventDefault()
+    if (!newGrpName.trim()) return
+    setGrpSaving(true)
+    try {
+      const res = await fetch(`${API_BASE}/ledger/groups`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newGrpName.trim() }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err.error ?? 'No se pudo crear el grupo.')
+        return
+      }
+      toast.success('Grupo creado.')
+      setNewGrpName('')
+      setNewGrpOpen(false)
+      queryClient.invalidateQueries({ queryKey: ['ledger-groups'] })
+    } finally {
+      setGrpSaving(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-3">
@@ -80,12 +154,12 @@ export default function AccountsScreen() {
           description="Registro de saldos y movimientos por cuenta bancaria."
           actions={
             activeTab !== 'groups' ? (
-              <Button variant="primary" size="sm" onClick={() => navigate('/app/m/atlas.ledger/accounts/new')}>
+              <Button variant="primary" size="sm" onClick={() => setNewAccOpen(true)}>
                 <Plus size={14} className="mr-1" /> Nueva cuenta
               </Button>
             ) : (
-              <Button variant="primary" size="sm" onClick={() => navigate('/app/m/atlas.ledger/groups')}>
-                <FolderOpen size={14} className="mr-1" /> Ver grupos
+              <Button variant="primary" size="sm" onClick={() => setNewGrpOpen(true)}>
+                <Plus size={14} className="mr-1" /> Nuevo grupo
               </Button>
             )
           }
@@ -116,19 +190,19 @@ export default function AccountsScreen() {
       <div className="flex-1 overflow-auto px-6 pb-6 pt-4">
         {activeTab === 'own' && (
           ownAccounts.length === 0
-            ? <EmptyState icon={<Landmark size={32} />} message="No tienes cuentas personales. Crea una para comenzar." />
+            ? <EmptyState icon={Landmark} title="Sin cuentas personales" description="Crea una cuenta para registrar tus movimientos." action={{ label: 'Nueva cuenta', onClick: () => setNewAccOpen(true) }} />
             : <AccountGrid accounts={ownAccounts} onSelect={(id) => navigate(`/app/m/atlas.ledger/accounts/${id}`)} />
         )}
 
         {activeTab === 'shared' && (
           sharedAccounts.length === 0
-            ? <EmptyState icon={<Users size={32} />} message="Nadie ha compartido cuentas contigo." />
+            ? <EmptyState icon={Users} title="Sin cuentas compartidas" description="Nadie ha compartido cuentas contigo todavía." />
             : <AccountGrid accounts={sharedAccounts} onSelect={(id) => navigate(`/app/m/atlas.ledger/accounts/${id}`)} />
         )}
 
         {activeTab === 'groups' && (
           groups.length === 0
-            ? <EmptyState icon={<FolderOpen size={32} />} message="No perteneces a ningún grupo. Pide que te inviten o crea uno." />
+            ? <EmptyState icon={FolderOpen} title="Sin grupos" description="No perteneces a ningún grupo todavía." action={{ label: 'Nuevo grupo', onClick: () => setNewGrpOpen(true) }} />
             : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {groups.map((group) => (
@@ -151,6 +225,92 @@ export default function AccountsScreen() {
             )
         )}
       </div>
+
+      {/* Nueva cuenta Sheet */}
+      <Sheet open={newAccOpen} onOpenChange={(v) => { if (!v) { setNewAccOpen(false); setAccForm(EMPTY_ACCOUNT) } }}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Nueva cuenta</SheetTitle>
+          </SheetHeader>
+          <form onSubmit={handleCreateAccount} className="space-y-4 pt-4">
+            <TextField
+              label="Nombre"
+              id="acc-name"
+              required
+              value={accForm.name}
+              onChange={(e) => setAccForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Ej. Cuenta operativa BBVA"
+              maxLength={255}
+            />
+            <TextField
+              label="Banco"
+              id="acc-bank"
+              required
+              value={accForm.bank}
+              onChange={(e) => setAccForm((f) => ({ ...f, bank: e.target.value }))}
+              placeholder="Ej. BBVA"
+              maxLength={255}
+            />
+            <TextField
+              label="Número de cuenta"
+              id="acc-number"
+              value={accForm.account_number}
+              onChange={(e) => setAccForm((f) => ({ ...f, account_number: e.target.value }))}
+              placeholder="Opcional"
+              maxLength={64}
+            />
+            <SelectField
+              label="Moneda"
+              id="acc-currency"
+              options={CURRENCY_OPTIONS}
+              value={accForm.currency}
+              onValueChange={(v) => setAccForm((f) => ({ ...f, currency: v }))}
+            />
+            <NumberField
+              label="Saldo inicial"
+              id="acc-balance"
+              value={accForm.opening_balance}
+              onChange={(e) => setAccForm((f) => ({ ...f, opening_balance: e.target.value }))}
+              placeholder="0.00"
+              min={0}
+              step="0.01"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => { setNewAccOpen(false); setAccForm(EMPTY_ACCOUNT) }}>Cancelar</Button>
+              <Button type="submit" variant="primary" size="sm" disabled={accSaving || !accForm.name.trim() || !accForm.bank.trim()}>
+                {accSaving ? 'Guardando...' : 'Crear cuenta'}
+              </Button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      {/* Nuevo grupo Dialog */}
+      <Dialog open={newGrpOpen} onOpenChange={(v) => { if (!v) { setNewGrpOpen(false); setNewGrpName('') } }}>
+        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Nuevo grupo</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateGroup} className="space-y-4 pt-2">
+            <TextField
+              label="Nombre del grupo"
+              id="grp-name"
+              required
+              value={newGrpName}
+              onChange={(e) => setNewGrpName(e.target.value)}
+              placeholder="Ej. Finanzas Q2"
+              autoFocus
+              maxLength={128}
+            />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => { setNewGrpOpen(false); setNewGrpName('') }}>Cancelar</Button>
+              <Button type="submit" variant="primary" size="sm" disabled={grpSaving || !newGrpName.trim()}>
+                {grpSaving ? 'Creando...' : 'Crear'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

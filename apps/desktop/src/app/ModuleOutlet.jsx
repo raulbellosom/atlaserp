@@ -91,6 +91,9 @@ const SCREEN_MAP = {
   // --- Transitional module screens ---
   // atlas.ledger keeps a few custom screens while table/form/detail routes
   // are rendered by BlueprintCrudScreen.
+  "atlas.ledger:/accounts": lazy(
+    () => import("../modules/atlas.ledger/screens/AccountsScreen.jsx"),
+  ),
   "atlas.ledger:/accounts/:id": lazy(
     () => import("../modules/atlas.ledger/screens/AccountScreen.jsx"),
   ),
@@ -307,7 +310,9 @@ function resolveScreen(moduleKey, subPath) {
   if (moduleKey === "atlas.ledger") {
     // Subpaths arrive as "/accounts", "/categories", "/types" — the module prefix
     // (/app/m/atlas.ledger) is already stripped by normalizeModuleNavigationPath.
-    // "/accounts" falls through to BlueprintCrudScreen (standard table with filters).
+    if (subPath === "/accounts") {
+      return SCREEN_MAP["atlas.ledger:/accounts"] ?? null;
+    }
     if (subPath.endsWith("/import")) {
       return SCREEN_MAP["atlas.ledger:/accounts/:id/import"] ?? null;
     }

@@ -2,8 +2,12 @@
 import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { PageHeader, Button, EmptyState, ErrorState, ConfirmDialog, UserSearchModal } from '@atlas/ui'
-import { ArrowLeft, Plus, UserPlus, Trash2, Landmark } from 'lucide-react'
+import {
+  PageHeader, Button, EmptyState, ErrorState, ConfirmDialog, UserSearchModal,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+  TextField, NumberField, SelectField,
+} from '@atlas/ui'
+import { ArrowLeft, Plus, UserPlus, Trash2, Landmark, Link2, Unlink2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 
@@ -20,18 +24,39 @@ const ROLE_OPTIONS = [
   { value: 'admin',  label: 'Admin — gestionar miembros' },
 ]
 
+const CURRENCY_OPTIONS = [
+  { value: 'MXN', label: 'MXN — Peso mexicano' },
+  { value: 'USD', label: 'USD — Dólar estadounidense' },
+]
+
+const EMPTY_ACCOUNT = { name: '', bank: '', account_number: '', currency: 'MXN', opening_balance: 0 }
+
 export default function GroupScreen() {
   const { '*': wildcard } = useParams()
   const groupId           = useMemo(() => wildcard?.split('/')[1] ?? null, [wildcard])
   const navigate          = useNavigate()
   const { session }       = useAuth()
   const token             = session?.access_token ?? null
+  const actorId           = session?.user?.id ?? null
   const queryClient       = useQueryClient()
   const headers           = { Authorization: `Bearer ${token}` }
 
   const [activeTab, setActiveTab]       = useState('cuentas')
   const [inviteOpen, setInviteOpen]     = useState(false)
   const [removeTarget, setRemoveTarget] = useState(null)
+
+  // Asignar cuenta Sheet
+  const [assignOpen, setAssignOpen]         = useState(false)
+  const [assignTarget, setAssignTarget]     = useState(null)
+  const [assigning, setAssigning]           = useState(false)
+
+  // Quitar cuenta Confirm
+  const [unassignTarget, setUnassignTarget] = useState(null)
+
+  // Nueva cuenta Sheet
+  const [newAccOpen, setNewAccOpen]   = useState(false)
+  const [accForm, setAccForm]         = useState(EMPTY_ACCOUNT)
+  const [accSaving, setAccSaving]     = useState(false)
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['ledger-group', groupId],
@@ -43,10 +68,26 @@ export default function GroupScreen() {
     enabled: !!groupId && !!token,
   })
 
+  // Fetch own accounts only when assign sheet is open
+  const { data: allAccountsData } = useQuery({
+    queryKey: ['ledger-accounts', token],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/ledger/accounts`, { headers })
+      if (!res.ok) return { data: [] }
+      return res.json()
+    },
+    enabled: !!token && assignOpen,
+  })
+
   const group    = data?.data ?? null
   const members  = group?.members ?? []
   const accounts = group?.accounts ?? []
   const myRole   = group?.role ?? null
+
+  // Own accounts not yet assigned to any group
+  const assignableAccounts = (allAccountsData?.data ?? []).filter(
+    (a) => a.owner_id === actorId && (a.group_id == null || a.group_id === undefined || a.group_id === '')
+  )
 
   async function handleInvite(userId, role) {
     const res = await fetch(`${API_BASE}/ledger/groups/${groupId}/members`, {
@@ -63,7 +104,7 @@ export default function GroupScreen() {
     queryClient.invalidateQueries({ queryKey: ['ledger-group', groupId] })
   }
 
-  async function handleRemove(targetUserId) {
+  async function handleRemoveMember(targetUserId) {
     const res = await fetch(`${API_BASE}/ledger/groups/${groupId}/members/${targetUserId}`, {
       method: 'DELETE',
       headers,
@@ -72,6 +113,88 @@ export default function GroupScreen() {
     toast.success('Miembro removido.')
     setRemoveTarget(null)
     queryClient.invalidateQueries({ queryKey: ['ledger-group', groupId] })
+  }
+
+  async function handleAssignAccount() {
+    if (!assignTarget) return
+    setAssigning(true)
+    try {
+      const res = await fetch(`${API_BASE}/ledger/accounts/${assignTarget.id}/group`, {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group_id: groupId }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err.error ?? 'No se pudo asignar la cuenta.')
+        return
+      }
+      toast.success(`Cuenta "${assignTarget.name}" asignada al grupo.`)
+      setAssignOpen(false)
+      setAssignTarget(null)
+      queryClient.invalidateQueries({ queryKey: ['ledger-group', groupId] })
+      queryClient.invalidateQueries({ queryKey: ['ledger-accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['ledger-groups'] })
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  async function handleUnassignAccount(account) {
+    const res = await fetch(`${API_BASE}/ledger/accounts/${account.id}/group`, {
+      method: 'PATCH',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ group_id: null }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      toast.error(err.error ?? 'No se pudo quitar la cuenta del grupo.')
+      return
+    }
+    toast.success(`Cuenta "${account.name}" quitada del grupo.`)
+    setUnassignTarget(null)
+    queryClient.invalidateQueries({ queryKey: ['ledger-group', groupId] })
+    queryClient.invalidateQueries({ queryKey: ['ledger-accounts'] })
+    queryClient.invalidateQueries({ queryKey: ['ledger-groups'] })
+  }
+
+  async function handleCreateAccount(e) {
+    e.preventDefault()
+    if (!accForm.name.trim() || !accForm.bank.trim()) return
+    setAccSaving(true)
+    try {
+      const res = await fetch(`${API_BASE}/ledger/accounts`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: accForm.name.trim(),
+          bank: accForm.bank.trim(),
+          account_number: accForm.account_number.trim() || null,
+          currency: accForm.currency,
+          opening_balance: Number(accForm.opening_balance) || 0,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err.error ?? 'No se pudo crear la cuenta.')
+        return
+      }
+      const created = await res.json()
+      // Assign to this group immediately
+      await fetch(`${API_BASE}/ledger/accounts/${created.data.id}/group`, {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group_id: groupId }),
+      })
+      toast.success('Cuenta creada y asignada al grupo.')
+      setAccForm(EMPTY_ACCOUNT)
+      setNewAccOpen(false)
+      queryClient.invalidateQueries({ queryKey: ['ledger-group', groupId] })
+      queryClient.invalidateQueries({ queryKey: ['ledger-accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['ledger-groups'] })
+    } finally {
+      setAccSaving(false)
+    }
   }
 
   if (isLoading) {
@@ -84,24 +207,31 @@ export default function GroupScreen() {
 
   if (isError || !group) return <ErrorState message="No se pudo cargar el grupo." />
 
+  const canWrite = myRole === 'editor' || myRole === 'admin'
+
   return (
     <div className="flex flex-col h-full">
       <div className="px-6 pt-5">
         <button
-          onClick={() => navigate('/app/m/atlas.ledger/groups')}
+          onClick={() => navigate('/app/m/atlas.ledger/accounts')}
           className="flex items-center gap-1 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] mb-3 transition-colors"
         >
-          <ArrowLeft size={14} /> Grupos
+          <ArrowLeft size={14} /> Cuentas
         </button>
         <PageHeader
           title={group.name}
           description={`${members.length} miembro${members.length !== 1 ? 's' : ''} · ${accounts.length} cuenta${accounts.length !== 1 ? 's' : ''}`}
           actions={
             activeTab === 'cuentas' ? (
-              (myRole === 'editor' || myRole === 'admin') ? (
-                <Button variant="primary" size="sm" onClick={() => navigate('/app/m/atlas.ledger/accounts/new')}>
-                  <Plus size={14} className="mr-1" /> Nueva cuenta
-                </Button>
+              canWrite ? (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setAssignOpen(true)}>
+                    <Link2 size={14} className="mr-1" /> Asignar cuenta
+                  </Button>
+                  <Button variant="primary" size="sm" onClick={() => setNewAccOpen(true)}>
+                    <Plus size={14} className="mr-1" /> Nueva cuenta
+                  </Button>
+                </div>
               ) : null
             ) : (
               myRole === 'admin' ? (
@@ -134,22 +264,52 @@ export default function GroupScreen() {
       <div className="flex-1 overflow-auto px-6 pb-6 pt-4">
         {activeTab === 'cuentas' && (
           accounts.length === 0
-            ? <EmptyState icon={<Landmark size={32} />} message="Este grupo no tiene cuentas todavía." />
-            : (
+            ? (
+              <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-[hsl(var(--border))] px-6 py-14 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[hsl(var(--muted))]">
+                  <Landmark className="h-7 w-7 text-[hsl(var(--muted-foreground))]" />
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-sm font-semibold">Sin cuentas</p>
+                  <p className="text-sm text-[hsl(var(--muted-foreground))]">Este grupo no tiene cuentas todavía.</p>
+                </div>
+                {canWrite && (
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setAssignOpen(true)}>
+                      <Link2 size={14} className="mr-1" /> Asignar cuenta existente
+                    </Button>
+                    <Button variant="primary" size="sm" onClick={() => setNewAccOpen(true)}>
+                      <Plus size={14} className="mr-1" /> Nueva cuenta
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {accounts.map((account) => (
-                  <button
-                    key={account.id}
-                    onClick={() => navigate(`/app/m/atlas.ledger/accounts/${account.id}`)}
-                    className="text-left p-4 rounded-xl border border-[hsl(var(--border))] hover:border-[hsl(var(--ring))] hover:bg-[hsl(var(--muted)/0.4)] transition-colors"
-                  >
-                    <div className="font-semibold text-sm truncate">{account.name}</div>
-                    <div className="mt-1 font-mono text-sm font-semibold">
-                      {Number(account.current_balance ?? 0).toLocaleString('es-MX', {
-                        style: 'currency', currency: account.currency ?? 'MXN', minimumFractionDigits: 2,
-                      })}
-                    </div>
-                  </button>
+                  <div key={account.id} className="relative group/card">
+                    <button
+                      onClick={() => navigate(`/app/m/atlas.ledger/accounts/${account.id}`)}
+                      className="w-full text-left p-4 rounded-xl border border-[hsl(var(--border))] hover:border-[hsl(var(--ring))] hover:bg-[hsl(var(--muted)/0.4)] transition-colors"
+                    >
+                      <div className="font-semibold text-sm truncate pr-8">{account.name}</div>
+                      <div className="text-xs text-[hsl(var(--muted-foreground))] truncate">{account.bank}</div>
+                      <div className="mt-2 font-mono text-sm font-semibold">
+                        {Number(account.current_balance ?? 0).toLocaleString('es-MX', {
+                          style: 'currency', currency: account.currency ?? 'MXN', minimumFractionDigits: 2,
+                        })}
+                      </div>
+                    </button>
+                    {account.owner_id === actorId && (
+                      <button
+                        onClick={() => setUnassignTarget(account)}
+                        title="Quitar del grupo"
+                        className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity p-1 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--destructive))]"
+                      >
+                        <Unlink2 size={14} />
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
             )
@@ -157,7 +317,7 @@ export default function GroupScreen() {
 
         {activeTab === 'miembros' && (
           members.length === 0
-            ? <EmptyState icon={<UserPlus size={32} />} message="El grupo no tiene miembros activos." />
+            ? <EmptyState icon={UserPlus} title="Sin miembros" description="El grupo no tiene miembros activos." />
             : (
               <div className="space-y-2 max-w-xl">
                 {members.map((m) => (
@@ -180,6 +340,118 @@ export default function GroupScreen() {
         )}
       </div>
 
+      {/* Asignar cuenta Sheet */}
+      <Sheet open={assignOpen} onOpenChange={(v) => { if (!v) { setAssignOpen(false); setAssignTarget(null) } }}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Asignar cuenta al grupo</SheetTitle>
+          </SheetHeader>
+          <div className="pt-4 space-y-3">
+            {assignableAccounts.length === 0 ? (
+              <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                No tienes cuentas personales disponibles para asignar. Todas tus cuentas ya pertenecen a un grupo o no tienes ninguna.
+              </p>
+            ) : (
+              <>
+                <p className="text-sm text-[hsl(var(--muted-foreground))] mb-2">Selecciona una de tus cuentas para agregarla a este grupo:</p>
+                <div className="space-y-2">
+                  {assignableAccounts.map((acc) => (
+                    <button
+                      key={acc.id}
+                      onClick={() => setAssignTarget(acc)}
+                      className={[
+                        'w-full text-left p-3 rounded-lg border transition-colors',
+                        assignTarget?.id === acc.id
+                          ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.05)]'
+                          : 'border-[hsl(var(--border))] hover:border-[hsl(var(--ring))]',
+                      ].join(' ')}
+                    >
+                      <div className="font-medium text-sm">{acc.name}</div>
+                      <div className="text-xs text-[hsl(var(--muted-foreground))]">{acc.bank} · {acc.currency}</div>
+                      <div className="text-xs font-mono mt-0.5">
+                        {Number(acc.current_balance ?? 0).toLocaleString('es-MX', {
+                          style: 'currency', currency: acc.currency ?? 'MXN', minimumFractionDigits: 2,
+                        })}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="ghost" size="sm" onClick={() => { setAssignOpen(false); setAssignTarget(null) }}>Cancelar</Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={!assignTarget || assigning}
+                    onClick={handleAssignAccount}
+                  >
+                    {assigning ? 'Asignando...' : 'Asignar'}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Nueva cuenta Sheet */}
+      <Sheet open={newAccOpen} onOpenChange={(v) => { if (!v) { setNewAccOpen(false); setAccForm(EMPTY_ACCOUNT) } }}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Nueva cuenta en {group.name}</SheetTitle>
+          </SheetHeader>
+          <form onSubmit={handleCreateAccount} className="space-y-4 pt-4">
+            <TextField
+              label="Nombre"
+              id="acc-name"
+              required
+              value={accForm.name}
+              onChange={(e) => setAccForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Ej. Cuenta operativa BBVA"
+              maxLength={255}
+            />
+            <TextField
+              label="Banco"
+              id="acc-bank"
+              required
+              value={accForm.bank}
+              onChange={(e) => setAccForm((f) => ({ ...f, bank: e.target.value }))}
+              placeholder="Ej. BBVA"
+              maxLength={255}
+            />
+            <TextField
+              label="Número de cuenta"
+              id="acc-number"
+              value={accForm.account_number}
+              onChange={(e) => setAccForm((f) => ({ ...f, account_number: e.target.value }))}
+              placeholder="Opcional"
+              maxLength={64}
+            />
+            <SelectField
+              label="Moneda"
+              id="acc-currency"
+              options={CURRENCY_OPTIONS}
+              value={accForm.currency}
+              onValueChange={(v) => setAccForm((f) => ({ ...f, currency: v }))}
+            />
+            <NumberField
+              label="Saldo inicial"
+              id="acc-balance"
+              value={accForm.opening_balance}
+              onChange={(e) => setAccForm((f) => ({ ...f, opening_balance: e.target.value }))}
+              placeholder="0.00"
+              min={0}
+              step="0.01"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => { setNewAccOpen(false); setAccForm(EMPTY_ACCOUNT) }}>Cancelar</Button>
+              <Button type="submit" variant="primary" size="sm" disabled={accSaving || !accForm.name.trim() || !accForm.bank.trim()}>
+                {accSaving ? 'Guardando...' : 'Crear cuenta'}
+              </Button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
+
       <UserSearchModal
         open={inviteOpen}
         onClose={() => setInviteOpen(false)}
@@ -193,10 +465,19 @@ export default function GroupScreen() {
       <ConfirmDialog
         open={!!removeTarget}
         onOpenChange={(v) => { if (!v) setRemoveTarget(null) }}
-        onConfirm={() => handleRemove(removeTarget?.user_id)}
+        onConfirm={() => handleRemoveMember(removeTarget?.user_id)}
         title="Remover miembro"
         description={`¿Remover a ${removeTarget?.display_name} del grupo?`}
         confirmLabel="Remover"
+      />
+
+      <ConfirmDialog
+        open={!!unassignTarget}
+        onOpenChange={(v) => { if (!v) setUnassignTarget(null) }}
+        onConfirm={() => handleUnassignAccount(unassignTarget)}
+        title="Quitar cuenta del grupo"
+        description={`¿Quitar "${unassignTarget?.name}" de este grupo? La cuenta quedará como personal sin grupo.`}
+        confirmLabel="Quitar"
       />
     </div>
   )

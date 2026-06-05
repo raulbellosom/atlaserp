@@ -76,8 +76,8 @@ export function createGroupService({ prisma }) {
     const rows = await prisma.$queryRaw`
       SELECT g.*,
         gm.role AS my_role,
-        COUNT(DISTINCT gm2.user_id) FILTER (WHERE gm2.status = 'active') AS member_count,
-        COUNT(DISTINCT a.id) FILTER (WHERE a.enabled = true) AS account_count
+        COUNT(DISTINCT gm2.user_id) FILTER (WHERE gm2.status = 'active')::int4 AS member_count,
+        COUNT(DISTINCT a.id) FILTER (WHERE a.enabled = true)::int4 AS account_count
       FROM ledger_group g
       LEFT JOIN ledger_group_member gm
         ON gm.group_id = g.id AND gm.user_id = ${actorId}::uuid AND gm.status = 'active'

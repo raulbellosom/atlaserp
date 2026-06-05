@@ -259,6 +259,7 @@ export function AtlasApp() {
               <SidebarSkeleton collapsed={collapsed} />
             ) : (
               <ModuleSidebar
+                key={activeModule?.key}
                 module={activeModule}
                 currentPath={location.pathname}
                 onNavigate={(path) => navigate(path)}

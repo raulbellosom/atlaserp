@@ -104,7 +104,7 @@ export default function GroupsScreen() {
       </div>
 
       <Dialog open={createOpen} onOpenChange={(v) => { if (!v) setCreateOpen(false) }}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Nuevo grupo</DialogTitle>
           </DialogHeader>

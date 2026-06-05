@@ -25,6 +25,10 @@ export const createAccountSchema = z.object({
 
 export const updateAccountSchema = createAccountSchema.partial()
 
+export const setAccountGroupSchema = z.object({
+  group_id: z.string().uuid().nullable(),
+})
+
 // ── Transaction types ─────────────────────────────────────────────────────────
 
 export const createTypeSchema = z.object({

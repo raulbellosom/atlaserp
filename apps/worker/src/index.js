@@ -34,6 +34,30 @@ const deliveryWorker = createNotificationDeliveryWorker({ prisma })
 const calendarNotificationService = createCalendarNotificationService({ prisma })
 const DELIVERY_INTERVAL_MS = Number(process.env.ATLAS_NOTIFICATION_DELIVERY_INTERVAL_MS ?? 30000)
 
+function isConnectionError(err) {
+  const msg = err?.message ?? ''
+  return (
+    msg.includes('Server has closed the connection') ||
+    msg.includes('Connection terminated') ||
+    msg.includes('Connection reset') ||
+    msg.includes("Can't reach database server") ||
+    err?.code === 'P1001' ||
+    err?.code === 'P1017'
+  )
+}
+
+async function reconnect() {
+  try {
+    await prisma.$disconnect()
+  } catch (_) {}
+  try {
+    await prisma.$connect()
+    console.log('[worker] prisma reconnected')
+  } catch (reconnErr) {
+    console.error('[worker] prisma reconnect failed:', reconnErr?.message ?? reconnErr)
+  }
+}
+
 async function runCalendarReminderTick() {
   try {
     const result = await calendarNotificationService.processReminders()
@@ -44,6 +68,7 @@ async function runCalendarReminderTick() {
     }
   } catch (err) {
     console.error('[worker] calendar reminder tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
   }
 }
 
@@ -63,6 +88,7 @@ async function runDeliveryTick() {
     }
   } catch (err) {
     console.error('[worker] notification delivery tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
   }
 }
 

@@ -175,6 +175,42 @@ export function createLedgerService({ prisma }) {
     return row
   }
 
+  async function setAccountGroup({ companyId, accountId, actorId, groupId }) {
+    const accountRows = await prisma.$queryRaw`
+      SELECT id, owner_id, group_id FROM ledger_account
+      WHERE id = ${accountId}::uuid AND company_id = ${companyId}::uuid AND enabled = true
+    `
+    const account = firstRow(accountRows)
+    if (!account) throw new LedgerServiceError('Cuenta no encontrada.', 404)
+    if (account.owner_id !== actorId) {
+      throw new LedgerServiceError('Solo el propietario puede asignar esta cuenta a un grupo.', 403)
+    }
+
+    if (groupId !== null) {
+      const groupRows = await prisma.$queryRaw`
+        SELECT g.id FROM ledger_group g
+        WHERE g.id = ${groupId}::uuid AND g.company_id = ${companyId}::uuid AND g.enabled = true
+          AND (
+            g.created_by = ${actorId}::uuid
+            OR EXISTS (
+              SELECT 1 FROM ledger_group_member gm
+              WHERE gm.group_id = g.id AND gm.user_id = ${actorId}::uuid
+                AND gm.status = 'active' AND gm.role IN ('editor', 'admin')
+            )
+          )
+      `
+      if (!firstRow(groupRows)) throw new LedgerServiceError('Grupo no encontrado o sin permisos.', 403)
+    }
+
+    const rows = await prisma.$queryRaw`
+      UPDATE ledger_account
+      SET group_id = ${groupId}, updated_at = NOW()
+      WHERE id = ${accountId}::uuid AND company_id = ${companyId}::uuid
+      RETURNING *
+    `
+    return firstRow(rows)
+  }
+
   // ── Transactions ─────────────────────────────────────────────────────────────
 
   async function listTransactions({ companyId, accountId, dateFrom, dateTo, page, pageSize }) {
@@ -342,7 +378,7 @@ export function createLedgerService({ prisma }) {
   }
 
   return {
-    listAccounts, getAccount, createAccount, canWriteAccount, updateAccount, setAccountEnabled,
+    listAccounts, getAccount, createAccount, canWriteAccount, updateAccount, setAccountEnabled, setAccountGroup,
     listTransactions, createTransaction, updateTransaction, setTransactionEnabled,
   }
 }

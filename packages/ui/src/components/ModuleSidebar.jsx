@@ -154,14 +154,19 @@ export function ModuleSidebar({
 }) {
   if (!module) return null;
 
-  const navItems = (module.navigation ?? []).map((item) => ({
-    ...item,
-    fullPath: buildFullPath(module.key, item.path),
-    children: (item.children ?? []).map((child) => ({
-      ...child,
-      fullPath: buildFullPath(module.key, child.path),
-    })),
-  }));
+  // uid is a stable unique identifier: fullPath for leaf items, label-based fallback for groups without a path.
+  const navItems = (module.navigation ?? []).map((item, index) => {
+    const fullPath = buildFullPath(module.key, item.path);
+    return {
+      ...item,
+      fullPath,
+      uid: fullPath || `${module.key}:group:${item.label ?? index}`,
+      children: (item.children ?? []).map((child) => ({
+        ...child,
+        fullPath: buildFullPath(module.key, child.path),
+      })),
+    };
+  });
 
   // Pick only the most specific (longest) nav item / child that matches currentPath
   const activeFullPath = useMemo(() => {
@@ -195,18 +200,18 @@ export function ModuleSidebar({
           currentPath === child.fullPath ||
           currentPath.startsWith(child.fullPath + "/"),
       );
-      if (hasActive) open.add(item.fullPath);
+      if (hasActive) open.add(item.uid);
     }
     return open;
   }, []); // intentionally empty deps — only initializes once on mount
 
   const [openGroups, setOpenGroups] = useState(initialOpenGroups);
 
-  function toggleGroup(fullPath) {
+  function toggleGroup(uid) {
     setOpenGroups((prev) => {
       const next = new Set(prev);
-      if (next.has(fullPath)) next.delete(fullPath);
-      else next.add(fullPath);
+      if (next.has(uid)) next.delete(uid);
+      else next.add(uid);
       return next;
     });
   }
@@ -280,7 +285,7 @@ export function ModuleSidebar({
             const isActive = item.fullPath === activeFullPath;
             return (
               <a
-                key={item.fullPath}
+                key={item.uid}
                 href={item.fullPath}
                 onClick={(e) => {
                   if (e.ctrlKey || e.metaKey || e.button === 1) return;
@@ -324,7 +329,7 @@ export function ModuleSidebar({
           }
 
           // Group header with children
-          const isOpen = openGroups.has(item.fullPath);
+          const isOpen = openGroups.has(item.uid);
           const isGroupActive = item.children.some(
             (child) =>
               child.fullPath === activeFullPath ||
@@ -332,10 +337,10 @@ export function ModuleSidebar({
           );
 
           return (
-            <div key={item.fullPath}>
+            <div key={item.uid}>
               {/* Group header button */}
               <button
-                onClick={() => toggleGroup(item.fullPath)}
+                onClick={() => toggleGroup(item.uid)}
                 title={collapsed ? item.label : undefined}
                 className={cn(
                   "w-full flex items-center gap-2.5 px-2.5 h-9 rounded-lg text-sm",
