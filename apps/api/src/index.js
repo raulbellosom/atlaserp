@@ -58,6 +58,7 @@ import { createCalendarRouter } from "./routes/calendar/index.js";
 import { createSettingsRouter } from "./routes/settings-routes.js";
 import { createActivityRouter } from "./routes/activity.js";
 import { createNotificationsRouter } from "./routes/notifications.js";
+import { createSyncRouter } from "./routes/sync.js";
 import {
   publishActivityFromContext,
   getActivityContext,
@@ -637,9 +638,21 @@ async function ensureBuckets() {
   await supabaseAdmin.storage
     .createBucket(STOREFRONT_BUCKET_NAME, { public: true, fileSizeLimit: 104857600, allowedMimeTypes: ['image/*', 'audio/*', 'video/*', 'application/pdf'] })
     .catch(() => {});
-  await supabaseAdmin.storage
-    .createBucket(WEBSITE_BUCKET_NAME, { public: true, fileSizeLimit: 10485760, allowedMimeTypes: ['image/*', 'video/*', 'audio/*', 'application/pdf'] })
-    .catch(() => {});
+  const WEBSITE_BUCKET_OPTS = {
+    public: true,
+    fileSizeLimit: 104857600,
+    allowedMimeTypes: null,
+  };
+  await supabaseAdmin.storage.createBucket(WEBSITE_BUCKET_NAME, { ...WEBSITE_BUCKET_OPTS, allowedMimeTypes: [] }).catch(() => {});
+  const { error: bucketUpdateError } = await supabaseAdmin.storage.updateBucket(WEBSITE_BUCKET_NAME, WEBSITE_BUCKET_OPTS);
+  if (bucketUpdateError) {
+    console.warn('[ensureBuckets] updateBucket failed, falling back to direct SQL:', bucketUpdateError.message);
+    await prisma.$executeRaw`
+      UPDATE storage.buckets
+      SET allowed_mime_types = NULL, file_size_limit = 104857600
+      WHERE id = ${WEBSITE_BUCKET_NAME}
+    `.catch((e) => console.error('[ensureBuckets] SQL fallback failed:', e.message));
+  }
 }
 
 function serializeModulesForResponse(modules, context, options = {}) {
@@ -3903,6 +3916,7 @@ mountWithAuth(app, createCatalogRouter({ prisma, requirePermission }));
 mountWithAuth(app, createCalendarRouter({ prisma, requirePermission }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission }));
+mountWithAuth(app, createSyncRouter({ prisma }));
 
 app.post("/internal/notifications/process-deliveries", async (c) => {
   const secret = c.req.header("x-internal-secret");
