@@ -28,7 +28,7 @@ export function PendingMutationsPanel({ mutations = [], onRetry, onDiscard }) {
     return (
       <EmptyState
         title="Sin cambios pendientes"
-        description="Todos los cambios estan sincronizados."
+        description="Todos los cambios están sincronizados."
       />
     )
   }
@@ -65,6 +65,7 @@ export function PendingMutationsPanel({ mutations = [], onRetry, onDiscard }) {
                   className="h-7 w-7"
                   onClick={() => onRetry(m.id)}
                   title="Reintentar"
+                  aria-label="Reintentar"
                 >
                   <RefreshCw size={13} />
                 </Button>
@@ -76,6 +77,7 @@ export function PendingMutationsPanel({ mutations = [], onRetry, onDiscard }) {
                   className="h-7 w-7 text-[hsl(var(--destructive))]"
                   onClick={() => onDiscard(m.id)}
                   title="Descartar"
+                  aria-label="Descartar"
                 >
                   <Trash2 size={13} />
                 </Button>
