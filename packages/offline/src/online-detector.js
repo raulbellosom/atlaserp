@@ -1,12 +1,13 @@
 const HEALTH_PROBE_INTERVAL_MS = 30_000
 
 export class OnlineDetector {
-  constructor({ getNavigatorOnline = () => navigator.onLine, probeUrl = null } = {}) {
+  constructor({ getNavigatorOnline = () => (typeof navigator !== 'undefined' ? navigator.onLine : true), probeUrl = null } = {}) {
     this._getNavigatorOnline = getNavigatorOnline
     this._probeUrl = probeUrl
     this._callbacks = []
     this._currentState = getNavigatorOnline()
     this._probeTimer = null
+    this._probing = false
 
     this._handleOnline = this._handleOnline.bind(this)
     this._handleOffline = this._handleOffline.bind(this)
@@ -60,12 +61,15 @@ export class OnlineDetector {
   }
 
   async _probe() {
-    if (!this._probeUrl) return
+    if (!this._probeUrl || this._probing) return
+    this._probing = true
     try {
       await fetch(this._probeUrl, { method: 'HEAD', cache: 'no-store' })
       this._handleOnline()
     } catch {
       this._handleOffline()
+    } finally {
+      this._probing = false
     }
   }
 }
