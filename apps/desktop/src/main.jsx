@@ -9,9 +9,10 @@ import {
 } from "react-router-dom";
 import {
   QueryClient,
-  QueryClientProvider,
   useQuery,
 } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { AtlasOfflineDatabase, createDexiePersister } from "@atlas/offline";
 import { Toaster, TooltipProvider } from "@atlas/ui";
 import { SetupWizard } from "./setup/SetupWizard";
 import { AuthProvider } from "./auth/AuthProvider";
@@ -48,6 +49,9 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+const _offlineDb = new AtlasOfflineDatabase()
+const _persister = createDexiePersister(_offlineDb)
 
 function useInstanceStatus() {
   return useQuery({
@@ -188,7 +192,14 @@ function App() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister: _persister,
+        maxAge: 24 * 60 * 60 * 1000,
+        buster: import.meta.env.VITE_APP_VERSION ?? '1',
+      }}
+    >
       <TooltipProvider>
         <BrowserRouter>
           <AuthProvider>
@@ -214,7 +225,7 @@ function App() {
           <Toaster />
         </BrowserRouter>
       </TooltipProvider>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }
 
