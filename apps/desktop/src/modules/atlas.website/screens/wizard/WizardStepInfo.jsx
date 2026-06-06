@@ -4,18 +4,19 @@ import { z } from 'zod'
 import { TextField, TextareaField, CreatableComboboxField } from '@atlas/ui'
 
 const GIROS = [
-  { value: 'restaurantes', label: 'Restaurantes y alimentos' },
-  { value: 'spa',          label: 'Spa y bienestar' },
-  { value: 'ecommerce',    label: 'Comercio electronico' },
-  { value: 'servicios',    label: 'Servicios profesionales' },
-  { value: 'agencia',      label: 'Agencia creativa' },
-  { value: 'salud',        label: 'Salud y medicina' },
-  { value: 'educacion',    label: 'Educacion' },
-  { value: 'hosteleria',   label: 'Hosteleria y turismo' },
-  { value: 'tecnologia',   label: 'Tecnologia' },
-  { value: 'construccion', label: 'Construccion' },
-  { value: 'legal',        label: 'Servicios legales' },
-  { value: 'moda',         label: 'Moda y ropa' },
+  { value: 'restaurantes',     label: 'Restaurantes y alimentos' },
+  { value: 'spa',              label: 'Spa y bienestar' },
+  { value: 'ecommerce',        label: 'Comercio electronico' },
+  { value: 'servicios',        label: 'Servicios profesionales' },
+  { value: 'agencia',          label: 'Agencia creativa' },
+  { value: 'salud',            label: 'Salud y medicina' },
+  { value: 'educacion',        label: 'Educacion' },
+  { value: 'entretenimiento',  label: 'Entretenimiento' },
+  { value: 'hosteleria',       label: 'Hosteleria y turismo' },
+  { value: 'tecnologia',       label: 'Tecnologia' },
+  { value: 'construccion',     label: 'Construccion' },
+  { value: 'legal',            label: 'Servicios legales' },
+  { value: 'moda',             label: 'Moda y ropa' },
 ]
 
 const schema = z.object({

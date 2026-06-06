@@ -94,7 +94,7 @@ export function WizardStepType({ value, onNext, onBack }) {
             onClick={() => onNext(t.value)}
             className={`w-full group text-left rounded-2xl border-2 p-5 transition-all duration-200 ${
               isSelected
-                ? `${ac.selected} ring-4`
+                ? `${ac.selected} ring-2`
                 : 'border-border hover:border-border/80 hover:shadow-md bg-card/50 hover:bg-card'
             }`}
           >

@@ -13,9 +13,10 @@ import { toast } from 'sonner'
 import WebsiteWizard from './WebsiteWizard.jsx'
 
 const SITE_TYPES = [
-  { value: 'informational', label: 'Sitio informativo' },
-  { value: 'ecommerce',     label: 'Tienda online' },
-  { value: 'bookings',      label: 'Sitio con reservaciones' },
+  { value: 'website',   label: 'Sitio informativo' },
+  { value: 'ecommerce', label: 'Tienda online' },
+  { value: 'blog',      label: 'Blog / Contenido' },
+  { value: 'landing',   label: 'Landing page' },
 ]
 
 async function apiFetch(path, token, options = {}) {
@@ -41,7 +42,7 @@ export default function WebsiteOverviewScreen() {
   const [deleteText, setDeleteText]     = useState('')
   const [formName, setFormName]         = useState('')
   const [formDomain, setFormDomain]     = useState('')
-  const [formSiteType, setFormSiteType] = useState('informational')
+  const [formSiteType, setFormSiteType] = useState('website')
 
   const siteQuery = useQuery({
     queryKey: ['website-site', token],
@@ -56,7 +57,7 @@ export default function WebsiteOverviewScreen() {
     if (site) {
       setFormName(site.name ?? '')
       setFormDomain(site.domain ?? '')
-      setFormSiteType(site.siteType ?? 'informational')
+      setFormSiteType(site.siteType ?? 'website')
     }
   }, [site])
 

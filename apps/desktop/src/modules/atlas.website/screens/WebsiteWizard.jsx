@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { defineTheme, defaultTheme, serializePage } from '@raulbellosom/atlas-web-builder'
+import { Globe } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -88,6 +89,10 @@ export default function WebsiteWizard() {
       })
 
       if (finalData.mode === 'zip') {
+        await apiFetch(`/website/sites/${site.id}`, token, {
+          method: 'PATCH',
+          body: JSON.stringify({ sourceType: 'dist' }),
+        })
         return { siteId: site.id, firstPageId: null, mode: 'zip' }
       }
 
@@ -216,10 +221,7 @@ export default function WebsiteWizard() {
         {/* Header */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 shadow-lg bg-primary">
-            <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7 text-primary-foreground">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            <Globe className="w-7 h-7 text-primary-foreground" />
           </div>
           <h1 className="text-3xl font-bold text-foreground tracking-tight">Nuevo sitio web</h1>
           <p className="text-muted-foreground mt-1 text-sm">Configura tu presencia digital</p>
