@@ -180,6 +180,7 @@ export { ActionMenu } from "./components/ActionMenu.jsx";
 export { ConfirmDialog } from "./components/ConfirmDialog.jsx";
 export { ContactPicker } from "./components/ContactPicker.jsx";
 export { FileCard } from "./components/FileCard.jsx";
+export { DistDropZone } from "./components/DistDropZone.jsx";
 export { FileUploader } from "./components/FileUploader.jsx";
 export { FileViewer } from "./components/FileViewer.jsx";
 export { AttachmentsPanel } from "./components/AttachmentsPanel.jsx";
@@ -220,3 +221,4 @@ export { UserSearchModal } from "./components/UserSearchModal.jsx";
 
 export { OfflineIndicator } from "./components/OfflineIndicator.jsx";
 export { SyncStatusBar } from "./components/SyncStatusBar.jsx";
+export { PendingMutationsPanel } from "./components/PendingMutationsPanel.jsx";
