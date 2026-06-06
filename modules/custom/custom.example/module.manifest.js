@@ -27,4 +27,17 @@ export default defineAtlasModule({
   blueprints: [],
   exposes: [],
   consumes: [],
+
+  // Offline declaration — controls how this module participates in sync.
+  // Remove or set enabled: false to keep a module fully online-only.
+  offline: {
+    enabled: true,
+    models: [],            // replace with actual defineModel() names from this module's models/
+    strategy: 'last-write-wins', // 'last-write-wins' | 'server-wins' | 'readonly' | 'conflict-ui'
+    allowCreate: true,
+    allowUpdate: true,
+    allowDelete: false,    // DELETE operations always require connectivity
+    maxRecords: 5000,      // safety cap on local IndexedDB cache size
+    pullFields: null,      // null = all fields; or ['id', 'name'] to limit payload size
+  },
 })
