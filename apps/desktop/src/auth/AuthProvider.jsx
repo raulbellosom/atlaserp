@@ -1,6 +1,10 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { atlas } from '../lib/atlas'
+import { AtlasOfflineDatabase, SessionVault } from '@atlas/offline'
+
+const _vaultDb = new AtlasOfflineDatabase()
+const _sessionVault = new SessionVault(_vaultDb)
 
 const AuthContext = createContext(null)
 
@@ -17,6 +21,7 @@ export function AuthProvider({ children }) {
       try {
         await supabase.auth.signOut()
       } catch {}
+      _sessionVault.clear().catch(() => {})
       if (!mounted) return
       setSession(null)
       setUserProfile(null)
@@ -45,11 +50,24 @@ export function AuthProvider({ children }) {
         const currentSession = data?.session ?? null
         setSession(currentSession)
         if (currentSession) {
+          _sessionVault.store({
+            accessToken: currentSession.access_token,
+            refreshToken: currentSession.refresh_token,
+            expiresAt: new Date(currentSession.expires_at * 1000).toISOString(),
+            userProfile: null,
+            companyId: null,
+            apiBaseUrl: import.meta.env.VITE_ATLAS_API_URL ?? '',
+          }).catch(() => {})
+
           atlas.auth.me(currentSession.access_token)
             .then(profile => {
               if (!mounted) return
               setUserProfile(profile)
               profileLoadedForAuthUserId = currentSession?.user?.id ?? null
+              _sessionVault.update({
+                userProfile: profile,
+                companyId: profile?.companyId ?? null,
+              }).catch(() => {})
             })
             .catch(async (error) => {
               if (shouldForceLogout(error)) {
@@ -74,6 +92,15 @@ export function AuthProvider({ children }) {
       setSession(session)
       setLoading(false)
       if (session) {
+        _sessionVault.store({
+          accessToken: session.access_token,
+          refreshToken: session.refresh_token,
+          expiresAt: new Date(session.expires_at * 1000).toISOString(),
+          userProfile: null,
+          companyId: null,
+          apiBaseUrl: import.meta.env.VITE_ATLAS_API_URL ?? '',
+        }).catch(() => {})
+
         const eventName = String(event ?? '').toUpperCase()
         const authUserId = session?.user?.id ?? null
         // On token rotation we keep current profile to avoid noisy /me requests
