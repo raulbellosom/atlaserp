@@ -6,6 +6,7 @@ import pkg from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { createNotificationDeliveryWorker } from '../../api/src/services/notification-delivery-worker.js'
 import { createCalendarNotificationService } from '../../api/src/routes/calendar/calendar-notification-service.js'
+import { createSyncLogCleanupWorker } from '../../api/src/services/sync-cleanup-worker.js'
 
 const { PrismaClient } = pkg
 
@@ -33,6 +34,8 @@ const prisma = new PrismaClient({ adapter: prismaAdapter })
 const deliveryWorker = createNotificationDeliveryWorker({ prisma })
 const calendarNotificationService = createCalendarNotificationService({ prisma })
 const DELIVERY_INTERVAL_MS = Number(process.env.ATLAS_NOTIFICATION_DELIVERY_INTERVAL_MS ?? 30000)
+const syncCleanupWorker = createSyncLogCleanupWorker({ prisma })
+const SYNC_CLEANUP_INTERVAL_MS = syncCleanupWorker.SYNC_CLEANUP_INTERVAL_MS
 
 function isConnectionError(err) {
   const msg = err?.message ?? ''
@@ -92,6 +95,18 @@ async function runDeliveryTick() {
   }
 }
 
+async function runSyncCleanupTick() {
+  try {
+    const result = await syncCleanupWorker.processExpiredLogs()
+    if (result.deleted > 0) {
+      console.log(`[worker] sync log cleanup ${formatLogTimestamp()} deleted=${result.deleted}`)
+    }
+  } catch (err) {
+    console.error('[worker] sync log cleanup tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  }
+}
+
 console.log('Atlas Worker started')
 runCalendarReminderTick()
 runDeliveryTick()
@@ -104,6 +119,10 @@ setInterval(() => {
 setInterval(() => {
   console.log(`[worker] heartbeat ${formatLogTimestamp()}`)
 }, 30000)
+runSyncCleanupTick()
+setInterval(() => {
+  runSyncCleanupTick()
+}, SYNC_CLEANUP_INTERVAL_MS)
 
 process.on('SIGTERM', async () => {
   await prisma.$disconnect().catch(() => {})
