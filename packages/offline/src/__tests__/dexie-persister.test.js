@@ -52,3 +52,18 @@ test('createDexiePersister - persistClient() silently swallows errors', async ()
   const badPersister = createDexiePersister({ _query_cache: { put: async () => { throw new Error('disk full') } } })
   await assert.doesNotReject(() => badPersister.persistClient(MOCK_CLIENT))
 })
+
+test('createDexiePersister - restoreClient() returns undefined on error', async () => {
+  const badPersister = createDexiePersister({
+    _query_cache: { get: async () => { throw new Error('read error') } },
+  })
+  const result = await badPersister.restoreClient()
+  assert.equal(result, undefined)
+})
+
+test('createDexiePersister - removeClient() silently swallows errors', async () => {
+  const badPersister = createDexiePersister({
+    _query_cache: { delete: async () => { throw new Error('delete error') } },
+  })
+  await assert.doesNotReject(() => badPersister.removeClient())
+})
