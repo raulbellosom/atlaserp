@@ -37,3 +37,29 @@ test('createOfflineStore - setSyncing updates isSyncing', () => {
   store.getState().setSyncing(true)
   assert.equal(store.getState().isSyncing, true)
 })
+
+test('createOfflineStore - incrementPending increments atomically', () => {
+  const store = createOfflineStore()
+  store.getState().incrementPending()
+  store.getState().incrementPending()
+  assert.equal(store.getState().pendingCount, 2)
+})
+
+test('createOfflineStore - decrementPending clamps to zero', () => {
+  const store = createOfflineStore()
+  store.getState().decrementPending()
+  assert.equal(store.getState().pendingCount, 0)
+})
+
+test('createOfflineStore - setSyncError updates syncError', () => {
+  const store = createOfflineStore()
+  store.getState().setSyncError('network timeout')
+  assert.equal(store.getState().syncError, 'network timeout')
+})
+
+test('createOfflineStore - instances are independent', () => {
+  const a = createOfflineStore()
+  const b = createOfflineStore()
+  a.getState().setOnline(false)
+  assert.equal(b.getState().isOnline, true)
+})

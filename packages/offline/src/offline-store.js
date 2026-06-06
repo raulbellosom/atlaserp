@@ -6,16 +6,18 @@ const stateCreator = (set) => ({
   pendingCount: 0,
   lastSyncAt: null,
   isSyncing: false,
+  syncError: null,
   setOnline: (isOnline) => set({ isOnline }),
   setPendingCount: (pendingCount) => set({ pendingCount }),
+  incrementPending: () => set((s) => ({ pendingCount: s.pendingCount + 1 })),
+  decrementPending: () => set((s) => ({ pendingCount: Math.max(0, s.pendingCount - 1) })),
   setLastSyncAt: (lastSyncAt) => set({ lastSyncAt }),
   setSyncing: (isSyncing) => set({ isSyncing }),
+  setSyncError: (syncError) => set({ syncError }),
 })
 
-// Vanilla store used in tests and non-React contexts
 export function createOfflineStore() {
   return createStore(stateCreator)
 }
 
-// React hook for components
 export const useOfflineStore = create(stateCreator)
