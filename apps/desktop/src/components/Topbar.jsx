@@ -6,7 +6,7 @@ import { useCommandStore } from "../stores/command";
 import { ThemeToggle } from "./ThemeToggle";
 import { CompanySwitcher } from "./CompanySwitcher";
 import { useState } from "react";
-import { ActivityBellTrigger, OfflineIndicator } from "@atlas/ui";
+import { ActivityBellTrigger, OfflineIndicator, SyncStatusBar } from "@atlas/ui";
 import { NotificationBell } from "./NotificationBell";
 import { UserMenu } from "./UserMenu";
 import { atlas } from "../lib/atlas";
@@ -23,8 +23,12 @@ export function Topbar({
   const { openCommand } = useCommandStore();
   const navigate = useNavigate();
   const token = session?.access_token;
-  const isOnline = useOfflineStore((s) => s.isOnline);
-  const pendingCount = useOfflineStore((s) => s.pendingCount);
+  const { isOnline, pendingCount, isSyncing, lastSyncAt } = useOfflineStore((s) => ({
+    isOnline: s.isOnline,
+    pendingCount: s.pendingCount,
+    isSyncing: s.isSyncing,
+    lastSyncAt: s.lastSyncAt,
+  }));
   const canReadNotifications = Boolean(
     userProfile?.isAdmin ||
     (userProfile?.permissions ?? []).includes("notifications.read"),
@@ -126,6 +130,11 @@ export function Topbar({
 
         {/* Right section — pushed to the right */}
         <div className="ml-auto flex items-center gap-1 shrink-0">
+          <SyncStatusBar
+            isOnline={isOnline}
+            isSyncing={isSyncing}
+            lastSyncAt={lastSyncAt}
+          />
           <OfflineIndicator isOnline={isOnline} pendingCount={pendingCount} />
           {networkBusy && (
             <div className="hidden md:flex items-center gap-2 rounded-full border border-[hsl(var(--border))] px-2.5 py-1 text-xs text-[hsl(var(--muted-foreground))]">
