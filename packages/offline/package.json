@@ -1,0 +1,22 @@
+{
+  "name": "@atlas/offline",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test src/__tests__/"
+  },
+  "dependencies": {
+    "dexie": "^3.2.7"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "zustand": "^5.0.0",
+    "@tanstack/react-query": "^5.0.0",
+    "@tanstack/react-query-persist-client": "^5.0.0"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^4.0.2",
+    "zustand": "^5.0.0"
+  }
+}
