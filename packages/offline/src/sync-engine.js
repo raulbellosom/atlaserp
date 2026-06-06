@@ -3,16 +3,20 @@ export class SyncEngine {
   #apiBaseUrl
   #getToken
   #fetchImpl
+  #pulling = false
 
   constructor({ db, apiBaseUrl, getToken, fetchImpl }) {
     this.#db = db
-    this.#apiBaseUrl = apiBaseUrl
     this.#getToken = getToken
     // fetchImpl is injected for testing; in production globalThis.fetch is used
     this.#fetchImpl = fetchImpl ?? ((...args) => globalThis.fetch(...args))
+    this.#apiBaseUrl = (apiBaseUrl ?? '').replace(/\/$/, '')
   }
 
   async pull({ modules }) {
+    if (this.#pulling) return { pulled: 0, nextCursor: null }
+    this.#pulling = true
+    try {
     const token = await this.#getToken()
     if (!token) return { pulled: 0, nextCursor: null }
 
@@ -83,6 +87,9 @@ export class SyncEngine {
     )
 
     return { pulled: records.length, nextCursor }
+    } finally {
+      this.#pulling = false
+    }
   }
 
   async getLocalCount({ moduleKey, entityType }) {

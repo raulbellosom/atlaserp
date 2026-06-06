@@ -176,4 +176,35 @@ describe('SyncEngine', () => {
     const count = await engine.getLocalCount({ moduleKey: 'atlas.contacts', entityType: 'contact' })
     assert.equal(count, 0)
   })
+
+  it('concurrent pull calls are coalesced — second returns immediately without fetching', async () => {
+    let fetchCount = 0
+    let resolveFetch
+    const fetchImpl = async () => {
+      fetchCount++
+      // Hold the first fetch until released
+      await new Promise((resolve) => { resolveFetch = resolve })
+      return { ok: true, json: async () => makeResponse([]) }
+    }
+    const engine = new SyncEngine({ db, apiBaseUrl: 'http://localhost:4010', getToken: async () => 'tok', fetchImpl })
+
+    // Start first pull — #pulling becomes true synchronously before any await
+    const first = engine.pull({ modules: ['atlas.contacts'] })
+    // Second call should return immediately (guard kicks in)
+    const second = await engine.pull({ modules: ['atlas.contacts'] })
+    assert.deepEqual(second, { pulled: 0, nextCursor: null })
+
+    // Poll until the first pull has reached fetchImpl (resolveFetch is assigned)
+    // Each tick gives the first pull a chance to advance through its awaits
+    while (typeof resolveFetch !== 'function') {
+      await new Promise((r) => setImmediate(r))
+    }
+
+    // Release the first fetch and let it complete
+    resolveFetch()
+    await first
+
+    // Only one fetch was ever started (the second pull was coalesced)
+    assert.equal(fetchCount, 1)
+  })
 })
