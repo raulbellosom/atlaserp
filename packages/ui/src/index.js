@@ -219,3 +219,4 @@ export {
 export { UserSearchModal } from "./components/UserSearchModal.jsx";
 
 export { OfflineIndicator } from "./components/OfflineIndicator.jsx";
+export { SyncStatusBar } from "./components/SyncStatusBar.jsx";
