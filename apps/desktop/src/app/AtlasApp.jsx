@@ -2,6 +2,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useIsFetching, useIsMutating, useQueryClient } from "@tanstack/react-query";
 import { ModuleSidebar, BrandFooter } from "@atlas/ui";
+import { OfflineProvider } from "@atlas/offline";
 import { useThemeStore } from "../stores/theme";
 import { useLauncherStore } from "../stores/launcher";
 import { Topbar } from "../components/Topbar";
@@ -80,6 +81,7 @@ export function AtlasApp() {
   const { openLauncher } = useLauncherStore();
   const { moduleMap, isPending: modulesLoading } = useRuntimeModules();
   const seenRealtimeNotificationIds = useRef(new Set());
+  const apiBaseUrl = import.meta.env.VITE_ATLAS_API_URL ?? '';
 
   // Module key derived directly from URL — available even before moduleMap loads
   const moduleKeyFromPath = useMemo(() => {
@@ -230,8 +232,9 @@ export function AtlasApp() {
   const networkBusy = isFetching > 0 || isMutating > 0;
 
   return (
-    <ModuleBundleLoader>
-      <div className="h-dvh overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
+    <OfflineProvider apiBaseUrl={apiBaseUrl}>
+      <ModuleBundleLoader>
+        <div className="h-dvh overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       <Topbar
         onLauncherOpen={openLauncher}
         onMobileMenuToggle={showSidebar ? () => setMobileOpen((o) => !o) : undefined}
@@ -314,9 +317,10 @@ export function AtlasApp() {
         </>
       )}
 
-      <AppLauncher />
-      <CommandPalette activeModule={activeModule} />
-    </div>
-    </ModuleBundleLoader>
+        <AppLauncher />
+        <CommandPalette activeModule={activeModule} />
+      </div>
+      </ModuleBundleLoader>
+    </OfflineProvider>
   );
 }
