@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useIsFetching, useIsMutating, useQueryClient } from "@tanstack/react-query";
 import { ModuleSidebar, BrandFooter } from "@atlas/ui";
 import { OfflineProvider } from "@atlas/offline";
@@ -83,6 +83,7 @@ export function AtlasApp() {
   const { moduleMap, isPending: modulesLoading } = useRuntimeModules();
   const seenRealtimeNotificationIds = useRef(new Set());
   const apiBaseUrl = import.meta.env.VITE_ATLAS_API_URL ?? '';
+  const handleTransportReady = useCallback((t) => atlas.setOfflineTransport(t), [])
 
   // Module key derived directly from URL — available even before moduleMap loads
   const moduleKeyFromPath = useMemo(() => {
@@ -233,7 +234,7 @@ export function AtlasApp() {
   const networkBusy = isFetching > 0 || isMutating > 0;
 
   return (
-    <OfflineProvider apiBaseUrl={apiBaseUrl} onTransportReady={(t) => atlas.setOfflineTransport(t)}>
+    <OfflineProvider apiBaseUrl={apiBaseUrl} onTransportReady={handleTransportReady}>
       <ModuleBundleLoader>
         <div className="h-dvh overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       <Topbar

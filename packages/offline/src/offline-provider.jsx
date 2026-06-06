@@ -54,7 +54,9 @@ export function OfflineProvider({ children, apiBaseUrl, onTransportReady }) {
       try {
         const count = await transport.mutationQueue.getPendingCount()
         setPendingCount(count)
-      } catch {}
+      } catch (err) {
+        console.warn('[atlas/offline] getPendingCount failed', err?.message ?? err)
+      }
     }
 
     async function runSync() {
