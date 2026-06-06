@@ -1438,3 +1438,16 @@ model CatalogStockMovement {
   @@index([companyId, productId, createdAt(sort: Desc)])
   @@map("catalog_stock_movement")
 }
+
+model SyncCursor {
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId  String   @db.Uuid @map("company_id")
+  moduleKey  String   @map("module_key")
+  entityType String   @map("entity_type")
+  cursor     DateTime
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, moduleKey, entityType])
+  @@index([companyId])
+  @@map("sync_cursor")
+}
