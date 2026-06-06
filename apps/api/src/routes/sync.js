@@ -1,9 +1,11 @@
 import { Hono } from 'hono'
 import { createSyncService, SyncServiceError } from '../services/sync-service.js'
+import { createSyncPushService } from '../services/sync-push-service.js'
 
 export function createSyncRouter({ prisma }) {
   const app = new Hono()
   const service = createSyncService({ prisma })
+  const pushService = createSyncPushService({ prisma })
 
   function handleError(c, err, scope) {
     if (err instanceof SyncServiceError) {
@@ -38,6 +40,19 @@ export function createSyncRouter({ prisma }) {
       return c.json({ cursors: result })
     } catch (err) {
       return handleError(c, err, 'GET /sync/status')
+    }
+  })
+
+  // POST /sync/push — apply a batch of offline mutations
+  app.post('/sync/push', async (c) => {
+    try {
+      const authUserId = c.get('authUserId')
+      const body = await c.req.json()
+      const mutations = Array.isArray(body?.mutations) ? body.mutations : []
+      const result = await pushService.push({ authUserId, mutations })
+      return c.json(result)
+    } catch (err) {
+      return handleError(c, err, 'POST /sync/push')
     }
   })
 
