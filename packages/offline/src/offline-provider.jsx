@@ -13,7 +13,9 @@ export function OfflineProvider({ children, apiBaseUrl }) {
   useEffect(() => {
     const database = new AtlasOfflineDatabase()
     dbRef.current = database
-    database.open().catch(() => {})
+    database.open().catch((err) => {
+      console.warn('[atlas/offline] IndexedDB failed to open — offline features unavailable', err)
+    })
 
     const detector = new OnlineDetector({
       probeUrl: apiBaseUrl ? `${apiBaseUrl}/health` : null,

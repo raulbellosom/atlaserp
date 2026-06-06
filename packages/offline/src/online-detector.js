@@ -63,12 +63,15 @@ export class OnlineDetector {
   async _probe() {
     if (!this._probeUrl || this._probing) return
     this._probing = true
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 10_000)
     try {
-      await fetch(this._probeUrl, { method: 'HEAD', cache: 'no-store' })
+      await fetch(this._probeUrl, { method: 'HEAD', cache: 'no-store', signal: controller.signal })
       this._handleOnline()
     } catch {
       this._handleOffline()
     } finally {
+      clearTimeout(timer)
       this._probing = false
     }
   }
