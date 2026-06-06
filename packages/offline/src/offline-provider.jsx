@@ -4,17 +4,18 @@ import { AtlasOfflineDatabase } from './db.js'
 import { OnlineDetector } from './online-detector.js'
 import { SessionVault } from './session-vault.js'
 import { SyncEngine } from './sync-engine.js'
+import { createOfflineTransport } from './offline-transport.js'
 import { useOfflineStore } from './offline-store.js'
 
-// Tier 1 modules pulled on every sync cycle.
-// Phase 3 will derive this list from installed module manifests with offline.enabled = true.
+// Tier 1 modules synced on every cycle.
+// Phase 4 will derive this list from installed module manifests with offline.enabled = true.
 const OFFLINE_MODULES = ['atlas.contacts', 'atlas.hr', 'custom.fleet']
 
 const PULL_INTERVAL_MS = 10 * 60 * 1000 // 10 minutes
 
 const OfflineContext = createContext(null)
 
-export function OfflineProvider({ children, apiBaseUrl }) {
+export function OfflineProvider({ children, apiBaseUrl, onTransportReady }) {
   const detectorRef = useRef(null)
   const dbRef = useRef(null)
   const engineRef = useRef(null)
@@ -23,6 +24,7 @@ export function OfflineProvider({ children, apiBaseUrl }) {
   const setOnline = useOfflineStore((s) => s.setOnline)
   const setLastSyncAt = useOfflineStore((s) => s.setLastSyncAt)
   const setSyncing = useOfflineStore((s) => s.setSyncing)
+  const setPendingCount = useOfflineStore((s) => s.setPendingCount)
 
   useEffect(() => {
     const database = new AtlasOfflineDatabase()
@@ -39,54 +41,66 @@ export function OfflineProvider({ children, apiBaseUrl }) {
     })
     engineRef.current = engine
 
-    const detector = new OnlineDetector({
-      probeUrl: apiBaseUrl ? `${apiBaseUrl}/health` : null,
+    const transport = createOfflineTransport({
+      db: database,
+      getSession: () => vault.load(),
     })
-    detectorRef.current = detector
 
-    // Sync our detector with TanStack Query's onlineManager so React Query
-    // pauses queries when offline and resumes (and re-fetches) on reconnect.
-    const initialOnline = detector.isOnline()
-    setOnline(initialOnline)
-    onlineManager.setOnline(initialOnline)
+    if (onTransportReady) {
+      onTransportReady(transport)
+    }
 
-    async function runPull() {
+    async function updatePendingCount() {
+      try {
+        const count = await transport.mutationQueue.getPendingCount()
+        setPendingCount(count)
+      } catch {}
+    }
+
+    async function runSync() {
       setSyncing(true)
       try {
+        // Push first, then pull — so the server sees our changes before we refresh
+        await engine.push().catch((err) => {
+          console.warn('[atlas/offline] Push failed', err?.message ?? err)
+        })
         await engine.pull({ modules: OFFLINE_MODULES })
         setLastSyncAt(new Date().toISOString())
       } catch (err) {
         console.warn('[atlas/offline] Pull failed', err?.message ?? err)
       } finally {
         setSyncing(false)
+        await updatePendingCount()
       }
     }
+
+    const detector = new OnlineDetector({
+      probeUrl: apiBaseUrl ? `${apiBaseUrl}/health` : null,
+    })
+    detectorRef.current = detector
+
+    const initialOnline = detector.isOnline()
+    setOnline(initialOnline)
+    onlineManager.setOnline(initialOnline)
 
     detector.onChange((isOnline) => {
       setOnline(isOnline)
       onlineManager.setOnline(isOnline)
-      if (isOnline) {
-        // Trigger an immediate pull when connectivity is restored
-        runPull()
-      }
+      if (isOnline) runSync()
     })
 
-    // Schedule periodic pulls while the app is running
     intervalRef.current = setInterval(() => {
-      if (detector.isOnline()) runPull()
+      if (detector.isOnline()) runSync()
     }, PULL_INTERVAL_MS)
 
-    // Run an initial pull if we start online
-    if (initialOnline) {
-      runPull()
-    }
+    if (initialOnline) runSync()
 
     return () => {
       detector.destroy()
       database.close()
       clearInterval(intervalRef.current)
     }
-  }, [apiBaseUrl, setOnline, setLastSyncAt, setSyncing])
+  }, [apiBaseUrl, setOnline, setLastSyncAt, setSyncing, setPendingCount, onTransportReady])
 
   return (
     <OfflineContext.Provider value={{ dbRef, engineRef }}>

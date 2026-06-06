@@ -1,4 +1,6 @@
 export function createAtlasClient({ baseUrl }) {
+  let _offlineTransport = null;
+
   function withAuthHeaders(token, headers = {}) {
     if (!token) return headers;
     return { ...headers, Authorization: `Bearer ${token}` };
@@ -31,6 +33,13 @@ export function createAtlasClient({ baseUrl }) {
 
   async function request(path, options = {}) {
     const isFormData = options.body instanceof FormData;
+    const method = (options.method ?? 'GET').toUpperCase();
+    const MUTATION_METHODS = ['POST', 'PUT', 'PATCH'];
+    const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine;
+    if (!isOnline && _offlineTransport && MUTATION_METHODS.includes(method) && !isFormData) {
+      const queued = await _offlineTransport.queue(path, options);
+      if (queued) return queued;
+    }
     const response = await fetch(`${baseUrl}${path}`, {
       headers: isFormData
         ? (options.headers ?? {})
@@ -1003,6 +1012,9 @@ export function createAtlasClient({ baseUrl }) {
           method: 'DELETE',
           headers: withAuthHeaders(token),
         }),
+    },
+    setOfflineTransport(transport) {
+      _offlineTransport = transport;
     },
   };
 }

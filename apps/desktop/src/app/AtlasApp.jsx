@@ -13,6 +13,7 @@ import { getLayoutMode, matchesFullscreenPath } from "../lib/runtimeModules";
 import { ModuleBundleLoader } from '../shell/ModuleBundleLoader.jsx'
 import { useAuth } from "../auth/AuthProvider";
 import { toast } from "sonner";
+import { atlas } from '../lib/atlas.js'
 
 function getSidebarCollapsed() {
   try {
@@ -232,7 +233,7 @@ export function AtlasApp() {
   const networkBusy = isFetching > 0 || isMutating > 0;
 
   return (
-    <OfflineProvider apiBaseUrl={apiBaseUrl}>
+    <OfflineProvider apiBaseUrl={apiBaseUrl} onTransportReady={(t) => atlas.setOfflineTransport(t)}>
       <ModuleBundleLoader>
         <div className="h-dvh overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       <Topbar
