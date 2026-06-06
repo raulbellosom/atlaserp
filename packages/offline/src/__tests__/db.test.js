@@ -104,3 +104,28 @@ test('session_vault - can put and retrieve session', async () => {
   const row = await db.session_vault.get('current')
   assert.equal(row.accessToken, 'tok-abc')
 })
+
+test('conflicts - can put and get a conflict', async () => {
+  await db.conflicts.put({
+    id: 'conflict-1',
+    status: 'PENDING',
+    moduleKey: 'atlas.contacts',
+    entityType: 'contact',
+    recordId: 'rec-1',
+    localData: { name: 'Local' },
+    serverData: { name: 'Server' },
+    detectedAt: new Date().toISOString(),
+  })
+  const row = await db.conflicts.get('conflict-1')
+  assert.equal(row.status, 'PENDING')
+  assert.equal(row.moduleKey, 'atlas.contacts')
+})
+
+test('_query_cache - can put and get cached client', async () => {
+  await db._query_cache.put({
+    id: 'persisted',
+    data: { buster: 'v1', timestamp: Date.now(), clientState: { queries: [] } },
+  })
+  const row = await db._query_cache.get('persisted')
+  assert.equal(row.data.buster, 'v1')
+})
