@@ -106,4 +106,36 @@ describe('MutationQueue', () => {
     const row = await db.mutation_queue.get('mut-1')
     assert.equal(row, undefined)
   })
+
+  it('markSyncing sets status to SYNCING', async () => {
+    await queue.enqueue(ITEM)
+    await queue.markSyncing('mut-1')
+    const row = await db.mutation_queue.get('mut-1')
+    assert.equal(row.status, 'SYNCING')
+  })
+
+  it('resetToRetry resets FAILED item to PENDING with cleared attempts and lastError', async () => {
+    await queue.enqueue(ITEM)
+    await queue.markFailed('mut-1', 'err')
+    await queue.markFailed('mut-1', 'err')
+    await queue.markFailed('mut-1', 'err')
+    const failed = await db.mutation_queue.get('mut-1')
+    assert.equal(failed.status, 'FAILED')
+    await queue.resetToRetry('mut-1')
+    const reset = await db.mutation_queue.get('mut-1')
+    assert.equal(reset.status, 'PENDING')
+    assert.equal(reset.attempts, 0)
+    assert.equal(reset.lastError, null)
+  })
+
+  it('getAll with statuses filter returns only matching items', async () => {
+    await queue.enqueue({ ...ITEM, id: 'x', idempotencyKey: 'ik-x' })
+    await queue.enqueue({ ...ITEM, id: 'y', idempotencyKey: 'ik-y' })
+    await db.mutation_queue.update('y', { status: 'FAILED' })
+    const failed = await queue.getAll({ statuses: ['FAILED'] })
+    assert.equal(failed.length, 1)
+    assert.equal(failed[0].id, 'y')
+    const all = await queue.getAll({ statuses: [] })
+    assert.equal(all.length, 2)
+  })
 })
