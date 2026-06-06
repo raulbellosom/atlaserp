@@ -1,9 +1,13 @@
+import { MutationQueue } from './mutation-queue.js'
+
 export class SyncEngine {
   #db
   #apiBaseUrl
   #getToken
   #fetchImpl
   #pulling = false
+  #pushing = false
+  #mutationQueue
 
   constructor({ db, apiBaseUrl, getToken, fetchImpl }) {
     this.#db = db
@@ -11,6 +15,7 @@ export class SyncEngine {
     // fetchImpl is injected for testing; in production globalThis.fetch is used
     this.#fetchImpl = fetchImpl ?? ((...args) => globalThis.fetch(...args))
     this.#apiBaseUrl = (apiBaseUrl ?? '').replace(/\/$/, '')
+    this.#mutationQueue = new MutationQueue({ db })
   }
 
   async pull({ modules }) {
@@ -89,6 +94,84 @@ export class SyncEngine {
     return { pulled: records.length, nextCursor }
     } finally {
       this.#pulling = false
+    }
+  }
+
+  async push() {
+    if (this.#pushing) return { pushed: 0, failed: 0 }
+    this.#pushing = true
+    try {
+      const token = await this.#getToken()
+      if (!token) return { pushed: 0, failed: 0 }
+
+      const pending = await this.#mutationQueue.getPending({ limit: 50 })
+      if (pending.length === 0) return { pushed: 0, failed: 0 }
+
+      for (const item of pending) {
+        await this.#mutationQueue.markSyncing(item.id)
+      }
+
+      const mutations = pending.map((item) => ({
+        idempotencyKey: item.idempotencyKey,
+        moduleKey: item.moduleKey,
+        entityType: item.entityType,
+        operation: item.operation,
+        recordId: item.recordId ?? null,
+        payload: item.payload,
+        queuedAt: item.queuedAt,
+      }))
+
+      const response = await this.#fetchImpl(`${this.#apiBaseUrl}/sync/push`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ mutations }),
+      })
+
+      if (!response.ok) {
+        for (const item of pending) {
+          await this.#mutationQueue.markFailed(item.id, `Push failed: ${response.status}`)
+        }
+        throw new Error(`Push failed: ${response.status}`)
+      }
+
+      const { results } = await response.json()
+      let pushed = 0
+      let failed = 0
+
+      for (const result of results) {
+        const item = pending.find((p) => p.idempotencyKey === result.idempotencyKey)
+        if (!item) continue
+
+        if (result.status === 'OK') {
+          await this.#mutationQueue.markDone(item.id)
+          if (result.record) {
+            await this.#db.offline_records.put({
+              moduleKey: item.moduleKey,
+              entityType: item.entityType,
+              id: result.record.id,
+              data: result.record,
+              version: result.record.updatedAt ?? new Date().toISOString(),
+              pulledAt: new Date().toISOString(),
+              companyId: result.record.companyId ?? item.companyId ?? null,
+              dirty: false,
+            })
+          }
+          pushed++
+        } else if (result.status === 'CONFLICT') {
+          await this.#mutationQueue.markConflict(item.id, JSON.stringify(result))
+          failed++
+        } else {
+          await this.#mutationQueue.markFailed(item.id, result.status ?? 'Error')
+          failed++
+        }
+      }
+
+      return { pushed, failed }
+    } finally {
+      this.#pushing = false
     }
   }
 

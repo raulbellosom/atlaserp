@@ -207,4 +207,193 @@ describe('SyncEngine', () => {
     // Only one fetch was ever started (the second pull was coalesced)
     assert.equal(fetchCount, 1)
   })
+
+  // ─── push() tests ───────────────────────────────────────────────────────────
+
+  it('push returns { pushed: 0, failed: 0 } when mutation queue is empty', async () => {
+    const engine = new SyncEngine({
+      db,
+      apiBaseUrl: 'http://localhost:4010',
+      getToken: async () => 'tok',
+      fetchImpl: makeFetch({ results: [] }),
+    })
+    const result = await engine.push()
+    assert.deepEqual(result, { pushed: 0, failed: 0 })
+  })
+
+  it('push returns { pushed: 0, failed: 0 } when getToken returns null', async () => {
+    await db.mutation_queue.put({
+      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'atlas.contacts',
+      entityType: 'contact', recordId: null, operation: 'CREATE',
+      payload: { name: 'X' }, status: 'PENDING', queuedAt: '2026-06-06T10:00:00Z',
+      attempts: 0, lastError: null, companyId: COMPANY_ID, userId: 'u1',
+    })
+    const engine = new SyncEngine({
+      db,
+      apiBaseUrl: 'http://localhost:4010',
+      getToken: async () => null,
+      fetchImpl: async () => { throw new Error('should not be called') },
+    })
+    const result = await engine.push()
+    assert.deepEqual(result, { pushed: 0, failed: 0 })
+  })
+
+  it('concurrent push calls are coalesced — second returns immediately', async () => {
+    await db.mutation_queue.put({
+      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'atlas.contacts',
+      entityType: 'contact', recordId: null, operation: 'CREATE',
+      payload: {}, status: 'PENDING', queuedAt: '2026-06-06T10:00:00Z',
+      attempts: 0, lastError: null, companyId: COMPANY_ID, userId: 'u1',
+    })
+
+    let resolvePush
+    const fetchImpl = async () => {
+      await new Promise((resolve) => { resolvePush = resolve })
+      return { ok: true, json: async () => ({ results: [{ idempotencyKey: 'ik-1', status: 'OK', record: { id: 'c1', companyId: COMPANY_ID, updatedAt: '2026-06-06T10:00:00Z' } }] }) }
+    }
+    const engine = new SyncEngine({ db, apiBaseUrl: 'http://localhost:4010', getToken: async () => 'tok', fetchImpl })
+
+    const first = engine.push()
+    const second = await engine.push()
+    assert.deepEqual(second, { pushed: 0, failed: 0 })
+
+    while (typeof resolvePush !== 'function') {
+      await new Promise((r) => setImmediate(r))
+    }
+    resolvePush()
+    await first
+  })
+
+  it('successful OK result marks mutation DONE and updates offline_records', async () => {
+    await db.mutation_queue.put({
+      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'atlas.contacts',
+      entityType: 'contact', recordId: null, operation: 'CREATE',
+      payload: { name: 'Ana' }, status: 'PENDING', queuedAt: '2026-06-06T10:00:00Z',
+      attempts: 0, lastError: null, companyId: COMPANY_ID, userId: 'u1',
+    })
+
+    const serverRecord = { id: 'srv-c1', companyId: COMPANY_ID, name: 'Ana', updatedAt: '2026-06-06T10:00:00Z' }
+    const engine = new SyncEngine({
+      db,
+      apiBaseUrl: 'http://localhost:4010',
+      getToken: async () => 'tok',
+      fetchImpl: async (_url, opts) => {
+        assert.ok(opts.method === 'POST')
+        return { ok: true, json: async () => ({ results: [{ idempotencyKey: 'ik-1', status: 'OK', record: serverRecord }] }) }
+      },
+    })
+
+    const result = await engine.push()
+    assert.deepEqual(result, { pushed: 1, failed: 0 })
+
+    const mut = await db.mutation_queue.get('mut-1')
+    assert.equal(mut.status, 'DONE')
+
+    const stored = await db.offline_records.get(['atlas.contacts', 'contact', 'srv-c1'])
+    assert.ok(stored)
+    assert.equal(stored.dirty, false)
+    assert.equal(stored.data.name, 'Ana')
+  })
+
+  it('CONFLICT result marks mutation CONFLICT', async () => {
+    await db.mutation_queue.put({
+      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'atlas.contacts',
+      entityType: 'contact', recordId: 'c1', operation: 'UPDATE',
+      payload: { name: 'New' }, status: 'PENDING', queuedAt: '2026-06-06T10:00:00Z',
+      attempts: 0, lastError: null, companyId: COMPANY_ID, userId: 'u1',
+    })
+
+    const engine = new SyncEngine({
+      db,
+      apiBaseUrl: 'http://localhost:4010',
+      getToken: async () => 'tok',
+      fetchImpl: async () => ({
+        ok: true,
+        json: async () => ({ results: [{ idempotencyKey: 'ik-1', status: 'CONFLICT', record: null }] }),
+      }),
+    })
+
+    const result = await engine.push()
+    assert.deepEqual(result, { pushed: 0, failed: 1 })
+
+    const mut = await db.mutation_queue.get('mut-1')
+    assert.equal(mut.status, 'CONFLICT')
+  })
+
+  it('non-OK HTTP response marks all pending as failed', async () => {
+    await db.mutation_queue.put({
+      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'atlas.contacts',
+      entityType: 'contact', recordId: null, operation: 'CREATE',
+      payload: {}, status: 'PENDING', queuedAt: '2026-06-06T10:00:00Z',
+      attempts: 0, lastError: null, companyId: COMPANY_ID, userId: 'u1',
+    })
+
+    const engine = new SyncEngine({
+      db,
+      apiBaseUrl: 'http://localhost:4010',
+      getToken: async () => 'tok',
+      fetchImpl: async () => ({ ok: false, status: 503, json: async () => ({}) }),
+    })
+
+    await assert.rejects(() => engine.push(), /Push failed/)
+    const mut = await db.mutation_queue.get('mut-1')
+    assert.equal(mut.attempts, 1)
+  })
+
+  it('NOT_FOUND result increments attempts via markFailed', async () => {
+    await db.mutation_queue.put({
+      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'atlas.contacts',
+      entityType: 'contact', recordId: 'ghost', operation: 'UPDATE',
+      payload: {}, status: 'PENDING', queuedAt: '2026-06-06T10:00:00Z',
+      attempts: 0, lastError: null, companyId: COMPANY_ID, userId: 'u1',
+    })
+
+    const engine = new SyncEngine({
+      db,
+      apiBaseUrl: 'http://localhost:4010',
+      getToken: async () => 'tok',
+      fetchImpl: async () => ({
+        ok: true,
+        json: async () => ({ results: [{ idempotencyKey: 'ik-1', status: 'NOT_FOUND', record: null }] }),
+      }),
+    })
+
+    const result = await engine.push()
+    assert.deepEqual(result, { pushed: 0, failed: 1 })
+    const mut = await db.mutation_queue.get('mut-1')
+    assert.equal(mut.attempts, 1)
+  })
+
+  it('batch with OK + CONFLICT returns correct pushed/failed counts', async () => {
+    await db.mutation_queue.put({
+      id: 'mut-a', idempotencyKey: 'ik-a', moduleKey: 'atlas.contacts',
+      entityType: 'contact', recordId: null, operation: 'CREATE',
+      payload: {}, status: 'PENDING', queuedAt: '2026-06-06T10:00:00Z',
+      attempts: 0, lastError: null, companyId: COMPANY_ID, userId: 'u1',
+    })
+    await db.mutation_queue.put({
+      id: 'mut-b', idempotencyKey: 'ik-b', moduleKey: 'atlas.contacts',
+      entityType: 'contact', recordId: 'c2', operation: 'UPDATE',
+      payload: {}, status: 'PENDING', queuedAt: '2026-06-06T10:01:00Z',
+      attempts: 0, lastError: null, companyId: COMPANY_ID, userId: 'u1',
+    })
+
+    const engine = new SyncEngine({
+      db,
+      apiBaseUrl: 'http://localhost:4010',
+      getToken: async () => 'tok',
+      fetchImpl: async () => ({
+        ok: true,
+        json: async () => ({
+          results: [
+            { idempotencyKey: 'ik-a', status: 'OK', record: { id: 'srv-a', companyId: COMPANY_ID, updatedAt: '2026-06-06T10:00:00Z' } },
+            { idempotencyKey: 'ik-b', status: 'CONFLICT', record: null },
+          ],
+        }),
+      }),
+    })
+
+    const result = await engine.push()
+    assert.deepEqual(result, { pushed: 1, failed: 1 })
+  })
 })
