@@ -63,4 +63,47 @@ describe('createOfflineTransport.queue', () => {
     assert.equal(items[0].moduleKey, 'atlas.contacts')
     assert.equal(items[0].operation, 'CREATE')
   })
+
+  it('queue returns null for non-mutation methods (GET)', async () => {
+    const result = await transport.queue('/contacts', { method: 'GET' })
+    assert.equal(result, null)
+    const items = await db.mutation_queue.toArray()
+    assert.equal(items.length, 0)
+  })
+
+  it('CREATE enqueues mutation AND inserts optimistic record into offline_records with dirty: true', async () => {
+    await transport.queue('/contacts', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'Bob', type: 'company' }),
+    })
+    const items = await db.mutation_queue.toArray()
+    assert.equal(items.length, 1)
+    const queuedId = items[0].id
+    const localRecord = await db.offline_records.where('[moduleKey+entityType+id]').equals(['atlas.contacts', 'contact', queuedId]).first()
+    assert.ok(localRecord)
+    assert.equal(localRecord.dirty, true)
+    assert.equal(localRecord.data.name, 'Bob')
+  })
+
+  it('UPDATE patches existing offline_record with dirty: true', async () => {
+    const existingId = 'existing-c1'
+    await db.offline_records.put({
+      moduleKey: 'atlas.contacts',
+      entityType: 'contact',
+      id: existingId,
+      data: { id: existingId, name: 'Old Name', companyId: 'co-1' },
+      version: '2026-06-06T00:00:00Z',
+      pulledAt: '2026-06-06T00:00:00Z',
+      companyId: 'co-1',
+      dirty: false,
+    })
+    await transport.queue(`/contacts/${existingId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name: 'New Name' }),
+    })
+    const updated = await db.offline_records.where('[moduleKey+entityType+id]').equals(['atlas.contacts', 'contact', existingId]).first()
+    assert.ok(updated)
+    assert.equal(updated.dirty, true)
+    assert.equal(updated.data.name, 'New Name')
+  })
 })

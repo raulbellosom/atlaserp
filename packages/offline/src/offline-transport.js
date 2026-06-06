@@ -27,8 +27,8 @@ const ROUTE_MAP = [
 
 export function parseMutationRoute(path, method) {
   const upperMethod = (method ?? 'GET').toUpperCase()
-  // Strip query string before matching
-  const cleanPath = path.split('?')[0]
+  // Strip query string and trailing slash before matching
+  const cleanPath = path.split('?')[0].replace(/\/+$/, '')
   for (const route of ROUTE_MAP) {
     const match = cleanPath.match(route.pattern)
     if (!match) continue
@@ -54,7 +54,11 @@ export function createOfflineTransport({ db, getSession }) {
 
     let payload = {}
     if (options?.body) {
-      payload = typeof options.body === 'string' ? JSON.parse(options.body) : options.body
+      try {
+        payload = typeof options.body === 'string' ? JSON.parse(options.body) : options.body
+      } catch {
+        payload = {}
+      }
     }
 
     const id = crypto.randomUUID()
