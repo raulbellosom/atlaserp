@@ -20,7 +20,9 @@ export function usePendingMutations() {
           .anyOf(ACTIVE_STATUSES)
           .sortBy('queuedAt')
         if (mounted) setMutations(items)
-      } catch {}
+      } catch (err) {
+        console.warn('[atlas/offline] load pending mutations failed', err?.message ?? err)
+      }
     }
 
     load()
