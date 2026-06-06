@@ -109,6 +109,9 @@ importers:
       '@atlas/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@atlas/offline':
+        specifier: workspace:*
+        version: link:../../packages/offline
       '@atlas/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
@@ -139,6 +142,9 @@ importers:
       '@tanstack/react-query':
         specifier: latest
         version: 5.101.0(react@19.2.7)
+      '@tanstack/react-query-persist-client':
+        specifier: ^5.101.0
+        version: 5.101.0(@tanstack/react-query@5.101.0(react@19.2.7))(react@19.2.7)
       '@tauri-apps/api':
         specifier: latest
         version: 2.11.0
@@ -228,13 +234,13 @@ importers:
       dexie:
         specifier: ^3.2.7
         version: 3.2.7
-      react:
-        specifier: ^19.0.0
-        version: 19.2.7
     devDependencies:
       fake-indexeddb:
         specifier: ^4.0.2
         version: 4.0.2
+      react:
+        specifier: ^19.0.0
+        version: 19.2.7
       zustand:
         specifier: ^5.0.0
         version: 5.0.14(@types/react@19.2.14)(immer@11.1.8)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
