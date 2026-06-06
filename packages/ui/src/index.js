@@ -217,3 +217,5 @@ export {
 } from "./atlas-renderer/index.js";
 
 export { UserSearchModal } from "./components/UserSearchModal.jsx";
+
+export { OfflineIndicator } from "./components/OfflineIndicator.jsx";
