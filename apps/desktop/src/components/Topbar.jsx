@@ -6,11 +6,12 @@ import { useCommandStore } from "../stores/command";
 import { ThemeToggle } from "./ThemeToggle";
 import { CompanySwitcher } from "./CompanySwitcher";
 import { useState } from "react";
-import { ActivityBellTrigger } from "@atlas/ui";
+import { ActivityBellTrigger, OfflineIndicator } from "@atlas/ui";
 import { NotificationBell } from "./NotificationBell";
 import { UserMenu } from "./UserMenu";
 import { atlas } from "../lib/atlas";
 import ActivityDetailSheet from "../modules/atlas.activity/ActivityDetailSheet";
+import { useOfflineStore } from "@atlas/offline";
 
 export function Topbar({
   onLauncherOpen,
@@ -22,6 +23,8 @@ export function Topbar({
   const { openCommand } = useCommandStore();
   const navigate = useNavigate();
   const token = session?.access_token;
+  const isOnline = useOfflineStore((s) => s.isOnline);
+  const pendingCount = useOfflineStore((s) => s.pendingCount);
   const canReadNotifications = Boolean(
     userProfile?.isAdmin ||
     (userProfile?.permissions ?? []).includes("notifications.read"),
@@ -123,6 +126,7 @@ export function Topbar({
 
         {/* Right section — pushed to the right */}
         <div className="ml-auto flex items-center gap-1 shrink-0">
+          <OfflineIndicator isOnline={isOnline} pendingCount={pendingCount} />
           {networkBusy && (
             <div className="hidden md:flex items-center gap-2 rounded-full border border-[hsl(var(--border))] px-2.5 py-1 text-xs text-[hsl(var(--muted-foreground))]">
               <span className="h-1.5 w-1.5 rounded-full bg-(--brand-primary) animate-pulse" />
