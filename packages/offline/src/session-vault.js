@@ -24,7 +24,8 @@ export class SessionVault {
   async update(fields) {
     const existing = await this.load()
     if (!existing) return
-    await this._db.session_vault.put({ ...existing, ...fields })
+    const { id: _id, storedAt: _storedAt, ...safeFields } = fields
+    await this._db.session_vault.put({ ...existing, ...safeFields })
   }
 
   async clear() {

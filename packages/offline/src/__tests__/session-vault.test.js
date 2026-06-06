@@ -82,3 +82,20 @@ test('SessionVault - isExpired() returns false when within validity window', asy
   })
   assert.equal(await vault.isExpired(), false)
 })
+
+test('SessionVault - update() on empty vault does nothing', async () => {
+  const freshDb = new AtlasOfflineDatabase('test-sv-update-empty')
+  await freshDb.open()
+  const freshVault = new SessionVault(freshDb)
+  await assert.doesNotReject(() => freshVault.update({ accessToken: 'x' }))
+  assert.equal(await freshVault.load(), null)
+  await freshDb.delete()
+})
+
+test('SessionVault - isExpired() returns true when vault is empty', async () => {
+  const freshDb = new AtlasOfflineDatabase('test-sv-expired-empty')
+  await freshDb.open()
+  const freshVault = new SessionVault(freshDb)
+  assert.equal(await freshVault.isExpired(), true)
+  await freshDb.delete()
+})
