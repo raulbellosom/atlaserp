@@ -1451,3 +1451,20 @@ model SyncCursor {
   @@index([companyId])
   @@map("sync_cursor")
 }
+
+model SyncMutationLog {
+  id             String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  idempotencyKey String   @unique @db.Uuid @map("idempotency_key")
+  companyId      String   @db.Uuid @map("company_id")
+  userId         String   @db.Uuid @map("user_id")
+  moduleKey      String   @map("module_key")
+  entityType     String   @map("entity_type")
+  operation      String
+  recordId       String?  @db.Uuid @map("record_id")
+  appliedAt      DateTime @default(now()) @map("applied_at")
+  expiresAt      DateTime @map("expires_at")
+
+  @@index([idempotencyKey])
+  @@index([companyId, appliedAt])
+  @@map("sync_mutation_log")
+}
