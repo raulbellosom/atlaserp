@@ -124,6 +124,10 @@ export default defineConfig({
       "sonner": resolve(__dirname, "node_modules/sonner"),
       "lucide-react": resolve(__dirname, "node_modules/lucide-react"),
       "recharts": resolve(__dirname, "node_modules/recharts"),
+      "@tauri-apps/plugin-store": resolve(
+        __dirname,
+        "node_modules/@tauri-apps/plugin-store/dist-js/index.js",
+      ),
     },
   },
   build: {

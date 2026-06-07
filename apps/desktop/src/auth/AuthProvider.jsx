@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { atlas } from '../lib/atlas'
+import { getApiUrl } from '../lib/runtimeConfig.js'
 import { AtlasOfflineDatabase, SessionVault } from '@atlas/offline'
 
 const _vaultDb = new AtlasOfflineDatabase()
@@ -56,7 +57,7 @@ export function AuthProvider({ children }) {
             expiresAt: new Date(currentSession.expires_at * 1000).toISOString(),
             userProfile: null,
             companyId: null,
-            apiBaseUrl: import.meta.env.VITE_ATLAS_API_URL ?? '',
+            apiBaseUrl: getApiUrl(),
           }).catch(() => {})
 
           atlas.auth.me(currentSession.access_token)
@@ -98,7 +99,7 @@ export function AuthProvider({ children }) {
           expiresAt: new Date(session.expires_at * 1000).toISOString(),
           userProfile: null,
           companyId: null,
-          apiBaseUrl: import.meta.env.VITE_ATLAS_API_URL ?? '',
+          apiBaseUrl: getApiUrl(),
         }).catch(() => {})
 
         const eventName = String(event ?? '').toUpperCase()

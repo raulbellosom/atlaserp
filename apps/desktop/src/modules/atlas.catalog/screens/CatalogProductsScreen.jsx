@@ -7,8 +7,9 @@ import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { atlas } from '../../../lib/atlas.js'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
-const API_BASE_URL = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
+const API_BASE_URL = getApiUrl()
 
 const CATALOG_PRODUCTS_BLUEPRINT = {
   key: 'catalog.products.table',

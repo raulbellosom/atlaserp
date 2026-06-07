@@ -10,13 +10,13 @@ import {
   DateField,
   DistDropZone,
   ImageViewer,
+  MarkdownField,
   PageHeader,
   PasswordField,
   PhoneField,
   SelectField,
   Skeleton,
   TextField,
-  TextareaField,
 } from "@atlas/ui";
 import { Country, State, City } from "country-state-city";
 import {
@@ -318,10 +318,11 @@ export function ProfileScreen() {
                   />
                 </div>
 
-                <TextareaField
+                <MarkdownField
                   label="Biografía"
                   value={form.bio}
                   maxLength={500}
+                  placeholder="Escribe tu biografía aquí..."
                   onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
                 />
 

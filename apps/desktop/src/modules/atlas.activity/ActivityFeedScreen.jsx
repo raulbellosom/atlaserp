@@ -4,10 +4,10 @@ import { FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../auth/AuthProvider";
 import { atlas } from "../../lib/atlas";
+import { getApiUrl } from "../../lib/runtimeConfig.js";
 import ActivityDetailSheet from "./ActivityDetailSheet";
 
-const API_BASE_URL =
-  import.meta.env.VITE_ATLAS_API_URL || "http://localhost:4010";
+const API_BASE_URL = getApiUrl();
 
 const SEVERITY_OPTIONS = [
   { value: "info", label: "Info" },

@@ -6,8 +6,9 @@ import { PageHeader, EmptyState, ErrorState, ConfirmDialog, Button } from '@atla
 import { LogOut, FolderOpen, Landmark } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
-const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
+const API_BASE = getApiUrl()
 
 export default function MembershipsScreen() {
   const navigate    = useNavigate()

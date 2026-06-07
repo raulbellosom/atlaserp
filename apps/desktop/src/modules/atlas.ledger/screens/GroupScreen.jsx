@@ -10,8 +10,9 @@ import {
 import { ArrowLeft, Plus, UserPlus, Trash2, Landmark, Link2, Unlink2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
-const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
+const API_BASE = getApiUrl()
 
 const TABS = [
   { key: 'cuentas',  label: 'Cuentas'  },

@@ -16,12 +16,12 @@ import {
   DateField,
   DistDropZone,
   ImageViewer,
+  MarkdownField,
   PhoneField,
   SelectField,
   Skeleton,
   SwitchField,
   TextField,
-  TextareaField,
 } from "@atlas/ui";
 import {
   ArrowLeft,
@@ -492,10 +492,11 @@ export default function UserEditorScreen() {
               />
             </div>
 
-            <TextareaField
+            <MarkdownField
               label="Biografía"
               value={effective.bio}
               maxLength={500}
+              placeholder="Escribe la biografía aquí..."
               disabled={!canEditForm}
               onChange={(e) =>
                 setDraft((prev) => ({ ...(prev ?? {}), bio: e.target.value }))

@@ -12,8 +12,9 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
+import { getApiUrl } from "../../../lib/runtimeConfig.js";
 
-const API_BASE_URL = import.meta.env.VITE_ATLAS_API_URL || "http://localhost:4010";
+const API_BASE_URL = getApiUrl();
 const PROTECTED_ROLE_KEYS = new Set(["atlas.admin", "system.admin"]);
 
 const USERS_BLUEPRINT = {

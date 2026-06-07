@@ -26,6 +26,7 @@
     "@tanstack/react-query": "latest",
     "@tanstack/react-query-persist-client": "^5.101.0",
     "@tauri-apps/api": "latest",
+    "@tauri-apps/plugin-store": "^2.2.0",
     "@tauri-apps/plugin-sql": "^2.3.0",
     "country-state-city": "^3.2.1",
     "lucide-react": "latest",

@@ -6,6 +6,7 @@ import {
   Button,
   ComboboxField,
   ConfirmDialog,
+  MarkdownField,
   NumberField,
   PageHeader,
   Sheet,
@@ -13,14 +14,14 @@ import {
   SheetHeader,
   SheetTitle,
   TextField,
-  TextareaField,
 } from '@atlas/ui'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { atlas } from '../../../lib/atlas.js'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
-const API_BASE_URL = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
+const API_BASE_URL = getApiUrl()
 
 const CATEGORIES_BLUEPRINT = {
   key: 'catalog.categories.table',
@@ -180,11 +181,11 @@ export default function CatalogCategoriesScreen() {
               description="Identificador único en la URL"
               required
             />
-            <TextareaField
+            <MarkdownField
               label="Descripción (opcional)"
               value={form.description}
+              placeholder="Describe la categoría..."
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              rows={3}
             />
             <ComboboxField
               label="Categoría padre"

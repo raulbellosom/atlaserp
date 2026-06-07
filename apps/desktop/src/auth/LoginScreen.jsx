@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Server, Layers, Building2, Mail, Lock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { TextField, PasswordField, Button } from '@atlas/ui'
+import { clearServerUrl, isTauriRuntime } from '../lib/serverStore.js'
 import { useBrandingStore } from '../stores/branding'
 import { atlas } from '../lib/atlas'
 import { useAuth } from './AuthProvider'
@@ -67,6 +68,12 @@ export function LoginScreen() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleChangeServer() {
+    await supabase.auth.signOut().catch(() => {})
+    await clearServerUrl().catch(() => {})
+    window.location.reload()
   }
 
   return (
@@ -209,6 +216,15 @@ export function LoginScreen() {
                 Contacta al administrador del sistema para restablecer tu acceso.
               </p>
             )}
+            {isTauriRuntime() ? (
+              <button
+                type="button"
+                onClick={handleChangeServer}
+                className="text-sm text-primary hover:text-primary/80 transition-colors duration-150"
+              >
+                Cambiar servidor
+              </button>
+            ) : null}
           </div>
         </div>
       </div>

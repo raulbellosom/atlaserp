@@ -7,8 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@atlas/ui'
 import { Plus, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
-const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
+const API_BASE = getApiUrl()
 
 export default function GroupsScreen() {
   const navigate    = useNavigate()

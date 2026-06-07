@@ -7,12 +7,14 @@ import {
   ComboboxField,
   PageHeader,
   Skeleton,
+  TextareaField,
   TextField,
 } from "@atlas/ui";
 import { BellRing, Building2, Clock3, Coins, Mail, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
+import { ATLAS_DESKTOP_DOWNLOAD_URL } from "../../../lib/appConfig.js";
 import { CURRENCY_OPTIONS, TIME_ZONE_OPTIONS } from "../../../lib/localeCatalogs";
 
 function SettingsTabs() {
@@ -135,28 +137,17 @@ export default function InstanceSettings() {
                   placeholder="Mi Empresa ERP"
                 />
 
-                <div className="space-y-2">
-                  <label
-                    htmlFor="instance-description"
-                    className="text-sm font-medium text-[hsl(var(--foreground))]"
-                  >
-                    Descripción
-                  </label>
-                  <textarea
-                    id="instance-description"
-                    value={form.description}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, description: e.target.value.slice(0, 500) }))
-                    }
-                    disabled={!canManage}
-                    placeholder="Describe brevemente tu operación o alcance de la instancia."
-                    rows={3}
-                    className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] disabled:opacity-60 disabled:cursor-not-allowed"
-                  />
-                  <p className="text-xs text-[hsl(var(--muted-foreground))] text-right">
-                    {form.description.length}/500
-                  </p>
-                </div>
+                <TextareaField
+                  label="Descripción"
+                  value={form.description}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, description: e.target.value.slice(0, 500) }))
+                  }
+                  disabled={!canManage}
+                  placeholder="Describe brevemente tu operación o alcance de la instancia."
+                  rows={3}
+                  maxLength={500}
+                />
 
                 <ComboboxField
                   label="Zona horaria"
@@ -190,6 +181,29 @@ export default function InstanceSettings() {
                 </div>
               </>
             )}
+          </div>
+        </Card>
+
+        <Card className="p-0">
+          <div className="px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 rounded-t-2xl">
+            <p className="text-sm font-semibold">App de escritorio</p>
+          </div>
+          <div className="p-4 space-y-4">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-[hsl(var(--foreground))]">
+                ¿Quieres usar Atlas ERP desde tu escritorio?
+              </p>
+              <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                Descarga la app y conéctala a esta instancia.
+              </p>
+            </div>
+
+            <Button
+              type="button"
+              onClick={() => window.open(ATLAS_DESKTOP_DOWNLOAD_URL, "_blank", "noopener,noreferrer")}
+            >
+              Descargar para Windows
+            </Button>
           </div>
         </Card>
       </div>

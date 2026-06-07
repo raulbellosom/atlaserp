@@ -4,8 +4,9 @@ import { AtlasTable, Button, PageHeader } from '@atlas/ui'
 import { Plus } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
-const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
+const API_BASE = getApiUrl()
 
 const REPORT_TABS = [
   { key: 'maintenance', label: 'Mantenimiento' },

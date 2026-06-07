@@ -19,14 +19,14 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useRuntimeModules } from "../app/useRuntimeModules";
 import { atlas } from "../lib/atlas";
+import { getApiUrl } from "../lib/runtimeConfig.js";
 import { isModuleAvailable } from "../lib/runtimeModules";
 import { componentRegistry } from "../lib/moduleComponentRegistry";
 import { resolveBlueprintPresentation } from "./blueprint-layout-resolver.js";
 import { ImmersiveShell } from './ImmersiveShell.jsx'
 import { normalizePath } from '../lib/pathUtils'
 
-const API_BASE_URL =
-  import.meta.env.VITE_ATLAS_API_URL || "http://localhost:4010";
+const API_BASE_URL = getApiUrl();
 
 function normalizeKind(value) {
   return String(value ?? "")

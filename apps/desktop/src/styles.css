@@ -331,9 +331,13 @@ body,
   min-height: 2.5rem;
 }
 
-/* Content area */
+/* Content area — padding must live on the contenteditable itself so the
+   placeholder (absolutely positioned relative to it) aligns with the cursor.
+   Scoped to .mdx-editor-root so MarkdownViewer's .mdx-prose is unaffected. */
 .mdx-editor-root .mdxeditor-root-contenteditable {
   min-height: 9rem;
+}
+.mdx-editor-root .mdx-prose {
   padding: 0.75rem 0.875rem;
 }
 

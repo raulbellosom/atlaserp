@@ -5,8 +5,9 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry'
 import { atlas } from '../../../lib/atlas'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
-const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
+const API_BASE = getApiUrl()
 
 const REPORT_TABLE_STUB = {
   key: 'fleet.reports.stub',

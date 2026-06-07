@@ -3,8 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { AtlasCrudView } from '@atlas/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
-const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
+const API_BASE = getApiUrl()
 const BASE_PATH = '/app/m/atlas.fleet/drivers'
 
 const DRIVER_TABLE = {

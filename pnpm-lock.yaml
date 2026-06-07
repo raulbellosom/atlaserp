@@ -151,6 +151,9 @@ importers:
       '@tauri-apps/plugin-sql':
         specifier: ^2.3.0
         version: 2.4.0
+      '@tauri-apps/plugin-store':
+        specifier: ^2.2.0
+        version: 2.4.3
       country-state-city:
         specifier: ^3.2.1
         version: 3.2.1
@@ -1985,6 +1988,9 @@ packages:
 
   '@tauri-apps/plugin-sql@2.4.0':
     resolution: {integrity: sha512-SIICc5JlnK6OrBZzOw7MmhXHPlmASpt5zLWIu10WW4kLr5cDYOXHdV2MoCgYQkgZLQfyBYgF3SQa5XCisUiQkw==}
+
+  '@tauri-apps/plugin-store@2.4.3':
+    resolution: {integrity: sha512-9LWPj9yMphRi9czEtUv87XHbl1b6xgd9EXpPrUnq6nG7+nbtoF84d4Kwz9xhAv/Hf30sr58pq7EOlyI936y8qw==}
 
   '@tybys/wasm-util@0.10.1':
     resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==}
@@ -5916,6 +5922,10 @@ snapshots:
       '@tauri-apps/cli-win32-x64-msvc': 2.11.2
 
   '@tauri-apps/plugin-sql@2.4.0':
+    dependencies:
+      '@tauri-apps/api': 2.11.0
+
+  '@tauri-apps/plugin-store@2.4.3':
     dependencies:
       '@tauri-apps/api': 2.11.0
 

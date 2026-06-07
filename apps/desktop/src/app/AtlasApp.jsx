@@ -11,6 +11,7 @@ import { CommandPalette } from "../components/CommandPalette";
 import { useRuntimeModules } from "./useRuntimeModules";
 import { getLayoutMode, matchesFullscreenPath } from "../lib/runtimeModules";
 import { ModuleBundleLoader } from '../shell/ModuleBundleLoader.jsx'
+import { getApiUrl } from "../lib/runtimeConfig.js";
 import { useAuth } from "../auth/AuthProvider";
 import { toast } from "sonner";
 import { atlas } from '../lib/atlas.js'
@@ -94,7 +95,7 @@ export function AtlasApp() {
   }, [instanceConfigData?.data?.instanceName])
   const { moduleMap, isPending: modulesLoading } = useRuntimeModules();
   const seenRealtimeNotificationIds = useRef(new Set());
-  const apiBaseUrl = import.meta.env.VITE_ATLAS_API_URL ?? '';
+  const apiBaseUrl = getApiUrl();
   const handleTransportReady = useCallback((t) => atlas.setOfflineTransport(t), [])
 
   // Module key derived directly from URL — available even before moduleMap loads

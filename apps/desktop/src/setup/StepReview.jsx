@@ -1,6 +1,8 @@
 import { forwardRef, useImperativeHandle } from "react";
+import { Button, Card, CardContent } from "@atlas/ui";
 import { Pencil } from "lucide-react";
 import { Country, State } from "country-state-city";
+import { ATLAS_DESKTOP_DOWNLOAD_URL } from "../lib/appConfig.js";
 
 const COMPANY_TYPE_LABELS = {
   sa_de_cv: "SA de CV",
@@ -180,6 +182,26 @@ export const StepReview = forwardRef(function StepReview(
           ]}
         />
       </div>
+
+      <Card className="mt-5">
+        <CardContent className="space-y-4 p-5">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-foreground">
+              ¿Quieres usar Atlas ERP desde tu escritorio?
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Descarga la app y conéctala a esta instancia.
+            </p>
+          </div>
+
+          <Button
+            type="button"
+            onClick={() => window.open(ATLAS_DESKTOP_DOWNLOAD_URL, "_blank", "noopener,noreferrer")}
+          >
+            Descargar para Windows
+          </Button>
+        </CardContent>
+      </Card>
 
       {error && (
         <div className="mt-5 rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">

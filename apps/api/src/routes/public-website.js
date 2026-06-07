@@ -6,6 +6,15 @@ const ERP_PREFIXES = ['atlas.', 'website.', 'contacts.', 'hr.', 'finance.', 'fle
 export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
   const app = new Hono()
 
+  app.get('/desktop/config', async (c) => {
+    return c.json({
+      data: {
+        supabaseUrl: process.env.SUPABASE_URL ?? null,
+        supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? null,
+      },
+    })
+  })
+
   app.get('/resolve', async (c) => {
     try {
       const instanceConfig = await prisma.instanceConfig.findUnique({

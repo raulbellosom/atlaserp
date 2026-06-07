@@ -2,12 +2,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { AtlasTable, Button, PageHeader } from "@atlas/ui";
 import { Plus } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
+import { getApiUrl } from "../../../lib/runtimeConfig.js";
 
-const API_BASE_URL = import.meta.env.VITE_ATLAS_API_URL || "http://localhost:4010";
 import HrEmployeeDetail from "./HrEmployeeDetail";
 import HrEmployeeForm from "./HrEmployeeForm";
 import HrOrgChartScreen from "./HrOrgChartScreen";
 import HrCatalogsScreen from "./HrCatalogsScreen";
+
+const API_BASE_URL = getApiUrl();
 
 const HR_EMPLOYEES_BLUEPRINT = {
   key: "hr.employees.table",

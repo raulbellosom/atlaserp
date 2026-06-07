@@ -2,8 +2,9 @@
 import { useNavigate } from 'react-router-dom'
 import { AtlasTable, PageHeader } from '@atlas/ui'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
-const API_BASE_URL = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
+const API_BASE_URL = getApiUrl()
 
 const INVENTORY_BLUEPRINT = {
   key: 'catalog.inventory.table',

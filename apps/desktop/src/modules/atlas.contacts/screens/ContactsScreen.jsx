@@ -5,12 +5,13 @@ import { FileSpreadsheet, Power, PowerOff, Trash2, UserPlus } from "lucide-react
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
+import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import {
   ContactFormSheet,
   resolveContactsBlueprint,
 } from "../components/ContactFormSheet";
 
-const API_BASE_URL = import.meta.env.VITE_ATLAS_API_URL || "http://localhost:4010";
+const API_BASE_URL = getApiUrl();
 
 const CONTACTS_BLUEPRINT = {
   key: "contacts.list",
