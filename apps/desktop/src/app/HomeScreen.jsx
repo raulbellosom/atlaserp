@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Star, WifiOff, Zap } from "lucide-react";
 import { Skeleton, Separator, cn } from "@atlas/ui";
@@ -59,7 +59,10 @@ export function HomeScreen() {
     useAppViewPrefs();
 
   const isOnline = useOfflineStore((s) => s.isOnline)
-  const isOfflineBlocked = (module) => !isOnline && !OFFLINE_MODULES.includes(module.key)
+  const isOfflineBlocked = useCallback(
+    (module) => !isOnline && !OFFLINE_MODULES.includes(module.key),
+    [isOnline],
+  )
 
   const favoriteModules = useMemo(
     () => availableModules.filter((m) => favorites.includes(m.key)),

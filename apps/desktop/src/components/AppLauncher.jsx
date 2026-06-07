@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, X, Home, Star, WifiOff } from 'lucide-react';
@@ -19,7 +19,10 @@ export function AppLauncher() {
   const { availableModules } = useRuntimeModules();
   const { sortMode, viewMode, favorites, favoritesFirst, isFavorite } = useAppViewPrefs();
   const isOnline = useOfflineStore((s) => s.isOnline);
-  const isOfflineBlocked = (module) => !isOnline && !OFFLINE_MODULES.includes(module.key);
+  const isOfflineBlocked = useCallback(
+    (module) => !isOnline && !OFFLINE_MODULES.includes(module.key),
+    [isOnline],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
