@@ -106,4 +106,38 @@ describe('createOfflineTransport.queue', () => {
     assert.equal(updated.dirty, true)
     assert.equal(updated.data.name, 'New Name')
   })
+
+  it('UPDATE mutation stores clientUpdatedAt from existing offline record', async () => {
+    const existingUpdatedAt = '2026-06-06T09:00:00.000Z'
+    await db.offline_records.put({
+      moduleKey: 'atlas.contacts',
+      entityType: 'contact',
+      id: 'c-existing',
+      data: { id: 'c-existing', name: 'Old Name', companyId: 'co-1', updatedAt: existingUpdatedAt },
+      version: existingUpdatedAt,
+      pulledAt: existingUpdatedAt,
+      companyId: 'co-1',
+      dirty: false,
+    })
+
+    await transport.queue('/contacts/c-existing', {
+      method: 'PUT',
+      body: JSON.stringify({ name: 'New Name' }),
+    })
+
+    const items = await db.mutation_queue.toArray()
+    assert.equal(items.length, 1)
+    assert.equal(items[0].clientUpdatedAt, existingUpdatedAt)
+  })
+
+  it('CREATE mutation stores clientUpdatedAt as null', async () => {
+    await transport.queue('/contacts', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'Brand New' }),
+    })
+
+    const items = await db.mutation_queue.toArray()
+    assert.equal(items.length, 1)
+    assert.equal(items[0].clientUpdatedAt, null)
+  })
 })

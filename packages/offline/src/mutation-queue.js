@@ -5,7 +5,7 @@ export class MutationQueue {
     this.#db = db
   }
 
-  async enqueue({ id, idempotencyKey, moduleKey, entityType, recordId, operation, payload, companyId, userId }) {
+  async enqueue({ id, idempotencyKey, moduleKey, entityType, recordId, operation, payload, companyId, userId, clientUpdatedAt }) {
     await this.#db.mutation_queue.put({
       id,
       idempotencyKey,
@@ -20,6 +20,7 @@ export class MutationQueue {
       lastError: null,
       companyId: companyId ?? null,
       userId: userId ?? null,
+      clientUpdatedAt: clientUpdatedAt ?? null,
     })
   }
 

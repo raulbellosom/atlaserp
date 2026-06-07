@@ -64,6 +64,15 @@ export function createOfflineTransport({ db, getSession }) {
     const id = crypto.randomUUID()
     const idempotencyKey = crypto.randomUUID()
 
+    // For UPDATE mutations, read the existing record once: used for both
+    // clientUpdatedAt capture (conflict detection) and the optimistic write below.
+    let existingRecord = null
+    let clientUpdatedAt = null
+    if (operation === 'UPDATE' && recordId) {
+      existingRecord = await db.offline_records.get([moduleKey, entityType, recordId])
+      clientUpdatedAt = existingRecord?.data?.updatedAt ?? null
+    }
+
     await mutationQueue.enqueue({
       id,
       idempotencyKey,
@@ -74,14 +83,12 @@ export function createOfflineTransport({ db, getSession }) {
       payload,
       companyId: session?.companyId ?? null,
       userId: session?.userProfile?.id ?? null,
+      clientUpdatedAt,
     })
 
     // Optimistic update: apply the change to offline_records immediately
-    if (operation === 'UPDATE' && recordId) {
-      const existing = await db.offline_records.get([moduleKey, entityType, recordId])
-      if (existing) {
-        await db.offline_records.put({ ...existing, data: { ...existing.data, ...payload }, dirty: true })
-      }
+    if (operation === 'UPDATE' && existingRecord) {
+      await db.offline_records.put({ ...existingRecord, data: { ...existingRecord.data, ...payload }, dirty: true })
     } else if (operation === 'CREATE') {
       const localId = recordId ?? id
       await db.offline_records.put({
