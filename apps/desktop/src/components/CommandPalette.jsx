@@ -24,10 +24,12 @@ import {
   Home,
   User,
   Truck,
+  WifiOff,
 } from "lucide-react";
 import { useCommandStore } from "../stores/command";
 import { getModuleLaunchPath } from "../lib/runtimeModules";
 import { useRuntimeModules } from "../app/useRuntimeModules";
+import { useOfflineStore, OFFLINE_MODULES } from "@atlas/offline";
 
 const ICON_MAP = {
   LayoutDashboard,
@@ -88,6 +90,8 @@ export function CommandPalette({ activeModule }) {
   const inputRef = useRef(null);
   const listRef = useRef(null);
   const { availableModules } = useRuntimeModules();
+  const isOnline = useOfflineStore((s) => s.isOnline);
+  const isOfflineBlocked = (module) => !isOnline && !OFFLINE_MODULES.includes(module.key);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -128,7 +132,9 @@ export function CommandPalette({ activeModule }) {
         icon: m.icon,
         color: m.color,
         section: "Módulos",
+        blocked: isOfflineBlocked(m),
         action() {
+          if (isOfflineBlocked(m)) return;
           navigate(getModuleLaunchPath(m));
           closeCommand();
           setQuery("");
@@ -279,17 +285,20 @@ export function CommandPalette({ activeModule }) {
                           data-cmd-idx={idx}
                           onClick={item.action}
                           onMouseEnter={() => setSelectedIndex(idx)}
-                          className={`w-full flex items-center gap-3 py-2.5 px-3 rounded-lg transition-colors duration-100 cursor-pointer text-left ${
-                            isSelected
-                              ? "bg-[hsl(var(--muted))]"
-                              : "hover:bg-[hsl(var(--muted))]"
+                          className={`w-full flex items-center gap-3 py-2.5 px-3 rounded-lg transition-colors duration-100 text-left ${
+                            item.blocked
+                              ? 'opacity-40 cursor-not-allowed'
+                              : `cursor-pointer ${isSelected ? 'bg-[hsl(var(--muted))]' : 'hover:bg-[hsl(var(--muted))]'}`
                           }`}
                         >
                           <div
                             className="h-7 w-7 rounded-lg flex items-center justify-center shrink-0"
                             style={{ backgroundColor: `${item.color}20` }}
                           >
-                            <CmdIcon name={item.icon} size={14} color={item.color} />
+                            {item.blocked
+                              ? <WifiOff size={14} className="text-[hsl(var(--muted-foreground))]" />
+                              : <CmdIcon name={item.icon} size={14} color={item.color} />
+                            }
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-[hsl(var(--foreground))] truncate">
