@@ -67,6 +67,8 @@ export function AppLauncher() {
   }
 
   function handleContextMenu(e, moduleKey) {
+    const module = availableModules.find((m) => m.key === moduleKey);
+    if (module && isOfflineBlocked(module)) return;
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, moduleKey });
   }
