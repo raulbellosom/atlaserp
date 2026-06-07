@@ -34,6 +34,8 @@ export function createAtlasClient({ baseUrl }) {
   async function request(path, options = {}) {
     const isFormData = options.body instanceof FormData;
     const method = (options.method ?? 'GET').toUpperCase();
+    // DELETE is intentionally excluded: Atlas ERP uses soft-delete (PATCH enabled=false) for
+    // offline-safe deletions. Hard DELETEs are not queued to avoid replay-after-recreate races.
     const MUTATION_METHODS = ['POST', 'PUT', 'PATCH'];
     const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine;
     if (!isOnline && _offlineTransport && MUTATION_METHODS.includes(method) && !isFormData) {
