@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, X, Home, Star } from 'lucide-react';
+import { Search, X, Home, Star, WifiOff } from 'lucide-react';
 import { useLauncherStore } from '../stores/launcher';
 import { getModuleLaunchPath, getSortedDisplay } from '../lib/runtimeModules';
 import { useRuntimeModules } from '../app/useRuntimeModules';
@@ -9,6 +9,7 @@ import { useAppViewPrefs } from '../hooks/useAppViewPrefs';
 import { AppViewControls } from './AppViewControls';
 import { AppContextMenu } from './AppContextMenu';
 import { ModIcon } from './ModIcon';
+import { useOfflineStore, OFFLINE_MODULES } from '@atlas/offline';
 
 export function AppLauncher() {
   const { isOpen, closeLauncher, toggleLauncher } = useLauncherStore();
@@ -17,6 +18,8 @@ export function AppLauncher() {
   const [contextMenu, setContextMenu] = useState(null);
   const { availableModules } = useRuntimeModules();
   const { sortMode, viewMode, favorites, favoritesFirst, isFavorite } = useAppViewPrefs();
+  const isOnline = useOfflineStore((s) => s.isOnline);
+  const isOfflineBlocked = (module) => !isOnline && !OFFLINE_MODULES.includes(module.key);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -51,6 +54,7 @@ export function AppLauncher() {
   }, [closeLauncher, toggleLauncher, contextMenu]);
 
   function handleModuleClick(module) {
+    if (isOfflineBlocked(module)) return;
     navigate(getModuleLaunchPath(module));
     closeLauncher();
     setQuery('');
@@ -146,7 +150,11 @@ export function AppLauncher() {
                               handleModuleClick(module);
                             }}
                             onContextMenu={(e) => handleContextMenu(e, module.key)}
-                            className="flex items-center gap-3 w-full rounded-lg px-3 py-2 hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer text-left"
+                            className={`flex items-center gap-3 w-full rounded-lg px-3 py-2 transition-colors duration-150 text-left ${
+                              isOfflineBlocked(module)
+                                ? 'pointer-events-none opacity-40 cursor-not-allowed'
+                                : 'hover:bg-[hsl(var(--muted))] cursor-pointer'
+                            }`}
                           >
                             <div
                               className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
@@ -162,9 +170,10 @@ export function AppLauncher() {
                                 {module.summary || module.description}
                               </p>
                             </div>
-                            {isFavorite(module.key) && (
-                              <Star size={11} className="text-amber-400 fill-amber-400 shrink-0" />
-                            )}
+                            {isOfflineBlocked(module)
+                              ? <WifiOff size={11} className="text-[hsl(var(--muted-foreground))] shrink-0" />
+                              : isFavorite(module.key) && <Star size={11} className="text-amber-400 fill-amber-400 shrink-0" />
+                            }
                           </a>
                         ))}
                       </div>
@@ -180,11 +189,16 @@ export function AppLauncher() {
                               handleModuleClick(module);
                             }}
                             onContextMenu={(e) => handleContextMenu(e, module.key)}
-                            className="flex flex-col items-center gap-2 rounded-xl p-4 hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer text-center relative"
+                            className={`flex flex-col items-center gap-2 rounded-xl p-4 transition-colors duration-150 text-center relative ${
+                              isOfflineBlocked(module)
+                                ? 'pointer-events-none opacity-40 cursor-not-allowed'
+                                : 'hover:bg-[hsl(var(--muted))] cursor-pointer'
+                            }`}
                           >
-                            {isFavorite(module.key) && (
-                              <Star size={9} className="absolute top-2 right-2 text-amber-400 fill-amber-400" />
-                            )}
+                            {isOfflineBlocked(module)
+                              ? <WifiOff size={9} className="absolute top-2 right-2 text-[hsl(var(--muted-foreground))]" />
+                              : isFavorite(module.key) && <Star size={9} className="absolute top-2 right-2 text-amber-400 fill-amber-400" />
+                            }
                             <div
                               className="h-12 w-12 rounded-xl flex items-center justify-center"
                               style={{ backgroundColor: `${module.color}26` }}
