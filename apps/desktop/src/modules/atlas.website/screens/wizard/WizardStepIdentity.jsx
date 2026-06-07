@@ -67,6 +67,9 @@ function LogoZone({ logoFile, logoPreviewUrl, companyLogoUrl, useCompanyLogo, on
       <DistDropZone
         accept="image/*"
         maxSizeMB={5}
+        fullScreenOverlay
+        overlayLabel="Suelta tu logo aqui"
+        overlayHint="PNG, SVG o WebP · Max 5 MB"
         onFile={onFile}
         emptyLabel="Subir logo propio"
         emptyHint="PNG, SVG o WebP · Max 5 MB"

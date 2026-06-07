@@ -229,6 +229,9 @@ function LogoZone({
       accept="image/*"
       maxSizeMB={5}
       isUploading={disabled}
+      fullScreenOverlay={!disabled}
+      overlayLabel="Suelta tu logotipo aqui"
+      overlayHint={`PNG, JPG o WebP · max 5 MB`}
       onFile={onFile}
       emptyLabel="Arrastra tu logotipo aqui"
       emptyHint={`PNG, JPG o WebP · Maximo ${formatBytes(FIVE_MB)}`}

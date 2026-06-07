@@ -1,17 +1,27 @@
 import { RefreshCw, CheckCircle, WifiOff } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
 function formatRelativeTime(isoString) {
   if (!isoString) return null
   const diffMs = Date.now() - new Date(isoString).getTime()
-  if (diffMs < 60_000) return 'hace un momento'
   if (diffMs < 3_600_000) return `hace ${Math.floor(diffMs / 60_000)} min`
   return `hace ${Math.floor(diffMs / 3_600_000)} h`
 }
 
 export function SyncStatusBar({ isOnline = true, isSyncing = false, lastSyncAt = null, onSyncNow }) {
-  const relTime = formatRelativeTime(lastSyncAt)
+  const [showLabel, setShowLabel] = useState(false)
+
+  useEffect(() => {
+    if (!lastSyncAt) return
+    setShowLabel(true)
+    const t = setTimeout(() => setShowLabel(false), 6_000)
+    return () => clearTimeout(t)
+  }, [lastSyncAt])
 
   if (!lastSyncAt && !isSyncing) return null
+
+  const relTime = formatRelativeTime(lastSyncAt)
+  const label = isSyncing ? 'Sincronizando...' : relTime ? `Sync ${relTime}` : null
 
   return (
     <div className="flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]">
@@ -36,13 +46,9 @@ export function SyncStatusBar({ isOnline = true, isSyncing = false, lastSyncAt =
           aria-label="Sin conexion"
         />
       )}
-      <span className="hidden md:inline">
-        {isSyncing
-          ? 'Sincronizando...'
-          : relTime
-            ? `Sincronizado ${relTime}`
-            : 'Sin sincronizar'}
-      </span>
+      {(isSyncing || showLabel) && label && (
+        <span className="hidden md:inline">{label}</span>
+      )}
       {onSyncNow && isOnline && !isSyncing && (
         <button
           onClick={onSyncNow}

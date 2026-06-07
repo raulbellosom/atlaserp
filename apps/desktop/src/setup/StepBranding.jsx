@@ -127,6 +127,9 @@ export const StepBranding = forwardRef(function StepBranding(
             <DistDropZone
               accept="image/*"
               maxSizeMB={10}
+              fullScreenOverlay
+              overlayLabel="Suelta tu logotipo aqui"
+              overlayHint={`Opcional · Maximo ${formatBytes(MAX_LOGO_BYTES)}`}
               onFile={(f) => onChange({ logo: f })}
               emptyLabel="Arrastra tu logotipo aqui"
               emptyHint={`Opcional · Maximo ${formatBytes(MAX_LOGO_BYTES)}`}

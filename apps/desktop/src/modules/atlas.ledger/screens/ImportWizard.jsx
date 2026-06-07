@@ -244,6 +244,9 @@ export default function ImportWizard() {
             <DistDropZone
               accept=".csv,.xlsx"
               maxSizeMB={20}
+              fullScreenOverlay
+              overlayLabel="Suelta tu archivo aqui"
+              overlayHint="CSV — primera fila debe ser encabezados"
               onFile={handleFile}
               emptyLabel="Arrastra tu archivo aqui"
               emptyHint="CSV — primera fila debe ser encabezados"

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Upload, FileArchive, X } from 'lucide-react'
+import { Upload, FileArchive, X, Camera, User } from 'lucide-react'
 
 function formatBytes(bytes) {
   if (!bytes) return ''
@@ -27,73 +27,10 @@ function validateFile(file, accept, maxSizeMB) {
   return null
 }
 
-export function DistDropZone({
-  onFile,
-  accept,
-  maxSizeMB = 10,
-  fullScreenOverlay = false,
-  overlayLabel,
-  overlayHint,
-  isUploading = false,
-  file = null,
-  onClear,
-  emptyLabel = 'Arrastra tu archivo aqui',
-  emptyHint = 'o haz clic para seleccionar',
-  dragActiveLabel = 'Suelta el archivo aqui',
-  error = null,
-}) {
-  const [isDraggingZone, setIsDraggingZone] = useState(false)
-  const [isDraggingPage, setIsDraggingPage] = useState(false)
-  const [localError, setLocalError] = useState(null)
-  const inputRef = useRef(null)
-  const dragCounter = useRef(0)
+// ─── Full-screen overlay ──────────────────────────────────────────────────────
 
-  function pick(f) {
-    if (!f) return
-    const err = validateFile(f, accept, maxSizeMB)
-    if (err) { setLocalError(err); return }
-    setLocalError(null)
-    if (inputRef.current) inputRef.current.value = ''
-    onFile(f)
-  }
-
-  useEffect(() => {
-    if (!fullScreenOverlay) return
-
-    const onEnter = (e) => {
-      e.preventDefault()
-      dragCounter.current++
-      if (dragCounter.current === 1) setIsDraggingPage(true)
-    }
-    const onLeave = (e) => {
-      e.preventDefault()
-      dragCounter.current = Math.max(0, dragCounter.current - 1)
-      if (dragCounter.current === 0) setIsDraggingPage(false)
-    }
-    const onOver = (e) => e.preventDefault()
-    const onDrop = (e) => {
-      e.preventDefault()
-      dragCounter.current = 0
-      setIsDraggingPage(false)
-      setIsDraggingZone(false)
-      if (!isUploading) pick(e.dataTransfer.files?.[0] ?? null)
-    }
-
-    document.addEventListener('dragenter', onEnter)
-    document.addEventListener('dragleave', onLeave)
-    document.addEventListener('dragover', onOver)
-    document.addEventListener('drop', onDrop)
-    return () => {
-      document.removeEventListener('dragenter', onEnter)
-      document.removeEventListener('dragleave', onLeave)
-      document.removeEventListener('dragover', onOver)
-      document.removeEventListener('drop', onDrop)
-    }
-  }, [fullScreenOverlay, isUploading])
-
-  const displayError = localError || error
-
-  const overlay = (
+function PageOverlay({ overlayLabel, overlayHint }) {
+  return (
     <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
       <div className="absolute inset-4 rounded-3xl bg-[hsl(var(--primary))]/8 border-2 border-dashed border-[hsl(var(--primary))]/50 backdrop-blur-sm" />
       <div className="relative flex flex-col items-center gap-4 text-center">
@@ -107,10 +44,80 @@ export function DistDropZone({
       </div>
     </div>
   )
+}
+
+// ─── Shared hook ─────────────────────────────────────────────────────────────
+
+function usePageDrag({ enabled, isUploading, onDrop }) {
+  const [isDraggingPage, setIsDraggingPage] = useState(false)
+  const dragCounter = useRef(0)
+
+  useEffect(() => {
+    if (!enabled) return
+
+    const onEnter = (e) => {
+      e.preventDefault()
+      dragCounter.current++
+      if (dragCounter.current === 1) setIsDraggingPage(true)
+    }
+    const onLeave = (e) => {
+      e.preventDefault()
+      dragCounter.current = Math.max(0, dragCounter.current - 1)
+      if (dragCounter.current === 0) setIsDraggingPage(false)
+    }
+    const onOver = (e) => e.preventDefault()
+    const onDropDoc = (e) => {
+      e.preventDefault()
+      dragCounter.current = 0
+      setIsDraggingPage(false)
+      if (!isUploading) onDrop(e.dataTransfer.files?.[0] ?? null)
+    }
+
+    document.addEventListener('dragenter', onEnter)
+    document.addEventListener('dragleave', onLeave)
+    document.addEventListener('dragover', onOver)
+    document.addEventListener('drop', onDropDoc)
+    return () => {
+      document.removeEventListener('dragenter', onEnter)
+      document.removeEventListener('dragleave', onLeave)
+      document.removeEventListener('dragover', onOver)
+      document.removeEventListener('drop', onDropDoc)
+    }
+  }, [enabled, isUploading])
+
+  return isDraggingPage
+}
+
+// ─── Default variant ──────────────────────────────────────────────────────────
+
+function DefaultZone({
+  onFile, accept, maxSizeMB, isUploading, file, onClear,
+  emptyLabel, emptyHint, dragActiveLabel, error,
+  fullScreenOverlay, overlayLabel, overlayHint,
+}) {
+  const [isDraggingZone, setIsDraggingZone] = useState(false)
+  const [localError, setLocalError] = useState(null)
+  const inputRef = useRef(null)
+
+  function pick(f) {
+    if (!f) return
+    const err = validateFile(f, accept, maxSizeMB)
+    if (err) { setLocalError(err); return }
+    setLocalError(null)
+    if (inputRef.current) inputRef.current.value = ''
+    onFile(f)
+  }
+
+  const isDraggingPage = usePageDrag({ enabled: fullScreenOverlay, isUploading, onDrop: pick })
+
+  const displayError = localError || error
 
   return (
     <>
-      {fullScreenOverlay && isDraggingPage && createPortal(overlay, document.body)}
+      {fullScreenOverlay && isDraggingPage && createPortal(
+        <PageOverlay overlayLabel={overlayLabel} overlayHint={overlayHint} />,
+        document.body
+      )}
 
       <div className="space-y-2">
         <div
@@ -190,4 +197,254 @@ export function DistDropZone({
       </div>
     </>
   )
+}
+
+// ─── Compact variant ──────────────────────────────────────────────────────────
+
+function CompactZone({
+  onFile, accept, maxSizeMB, isUploading, file, onClear,
+  emptyLabel, emptyHint, dragActiveLabel, error,
+  fullScreenOverlay, overlayLabel, overlayHint,
+}) {
+  const [isDraggingZone, setIsDraggingZone] = useState(false)
+  const [localError, setLocalError] = useState(null)
+  const inputRef = useRef(null)
+
+  function pick(f) {
+    if (!f) return
+    const err = validateFile(f, accept, maxSizeMB)
+    if (err) { setLocalError(err); return }
+    setLocalError(null)
+    if (inputRef.current) inputRef.current.value = ''
+    onFile(f)
+  }
+
+  const isDraggingPage = usePageDrag({ enabled: fullScreenOverlay, isUploading, onDrop: pick })
+
+  const displayError = localError || error
+
+  return (
+    <>
+      {fullScreenOverlay && isDraggingPage && createPortal(
+        <PageOverlay overlayLabel={overlayLabel} overlayHint={overlayHint} />,
+        document.body
+      )}
+
+      <div className="space-y-1.5">
+        <div
+          onClick={() => !isUploading && inputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); if (!isUploading) setIsDraggingZone(true) }}
+          onDragLeave={() => setIsDraggingZone(false)}
+          onDrop={(e) => {
+            e.preventDefault()
+            setIsDraggingZone(false)
+            if (!isUploading) pick(e.dataTransfer.files?.[0] ?? null)
+          }}
+          className={[
+            'flex items-center gap-3 rounded-xl border-2 border-dashed px-3.5 py-2.5 select-none transition-all duration-200',
+            isUploading
+              ? 'opacity-50 cursor-not-allowed border-border bg-muted/20'
+              : isDraggingZone
+                ? 'border-primary bg-primary/5 cursor-copy'
+                : file
+                  ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50/50 dark:bg-indigo-950/20 cursor-pointer'
+                  : 'border-border bg-muted/20 hover:border-primary/40 hover:bg-muted/40 cursor-pointer',
+          ].join(' ')}
+        >
+          <input
+            ref={inputRef}
+            type="file"
+            accept={accept}
+            onChange={(e) => pick(e.target.files?.[0] ?? null)}
+            disabled={isUploading}
+            className="sr-only"
+          />
+
+          {file ? (
+            <>
+              <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0">
+                <FileArchive className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-300 truncate">{file.name}</p>
+                <p className="text-xs text-indigo-500 dark:text-indigo-400">{formatBytes(file.size)}</p>
+              </div>
+              {onClear && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setLocalError(null)
+                    if (inputRef.current) inputRef.current.value = ''
+                    onClear()
+                  }}
+                  className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0"
+                  aria-label="Quitar archivo"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${isDraggingZone ? 'bg-primary/10' : 'bg-muted'}`}>
+                <Upload className={`w-4 h-4 transition-colors ${isDraggingZone ? 'text-primary' : 'text-muted-foreground'}`} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium leading-tight">
+                  {isDraggingZone ? dragActiveLabel : emptyLabel}
+                </p>
+                <p className="text-xs text-muted-foreground leading-tight mt-0.5">{emptyHint}</p>
+              </div>
+            </>
+          )}
+        </div>
+
+        {displayError && (
+          <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
+            <X className="w-3 h-3 shrink-0" />
+            {displayError}
+          </p>
+        )}
+      </div>
+    </>
+  )
+}
+
+// ─── Avatar variant ───────────────────────────────────────────────────────────
+
+function AvatarZone({
+  onFile, accept, maxSizeMB, isUploading, src,
+  emptyLabel, emptyHint, error,
+  fullScreenOverlay, overlayLabel, overlayHint,
+}) {
+  const [isDraggingZone, setIsDraggingZone] = useState(false)
+  const [localError, setLocalError] = useState(null)
+  const inputRef = useRef(null)
+
+  function pick(f) {
+    if (!f) return
+    const err = validateFile(f, accept, maxSizeMB)
+    if (err) { setLocalError(err); return }
+    setLocalError(null)
+    if (inputRef.current) inputRef.current.value = ''
+    onFile(f)
+  }
+
+  const isDraggingPage = usePageDrag({ enabled: fullScreenOverlay, isUploading, onDrop: pick })
+
+  const displayError = localError || error
+
+  return (
+    <>
+      {fullScreenOverlay && isDraggingPage && createPortal(
+        <PageOverlay overlayLabel={overlayLabel} overlayHint={overlayHint} />,
+        document.body
+      )}
+
+      <div className="flex flex-col items-center gap-2">
+        <div
+          onClick={() => !isUploading && inputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); if (!isUploading) setIsDraggingZone(true) }}
+          onDragLeave={() => setIsDraggingZone(false)}
+          onDrop={(e) => {
+            e.preventDefault()
+            setIsDraggingZone(false)
+            if (!isUploading) pick(e.dataTransfer.files?.[0] ?? null)
+          }}
+          className={[
+            'relative w-24 h-24 rounded-2xl overflow-hidden select-none transition-all duration-200',
+            isUploading
+              ? 'cursor-not-allowed'
+              : 'cursor-pointer',
+            isDraggingZone
+              ? 'ring-2 ring-primary ring-offset-2'
+              : '',
+          ].join(' ')}
+        >
+          <input
+            ref={inputRef}
+            type="file"
+            accept={accept}
+            onChange={(e) => pick(e.target.files?.[0] ?? null)}
+            disabled={isUploading}
+            className="sr-only"
+          />
+
+          {src ? (
+            <img src={src} alt="Foto" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <User className="w-10 h-10 text-muted-foreground" />
+            </div>
+          )}
+
+          <div className={[
+            'absolute inset-0 flex items-center justify-center transition-all duration-200',
+            isUploading
+              ? 'bg-black/50'
+              : isDraggingZone
+                ? 'bg-primary/25'
+                : 'bg-black/0 hover:bg-black/40 group',
+          ].join(' ')}>
+            {isUploading ? (
+              <span className="text-[11px] text-white font-semibold">Subiendo...</span>
+            ) : isDraggingZone ? (
+              <Upload className="w-6 h-6 text-primary" />
+            ) : (
+              <Camera className="w-6 h-6 text-white opacity-0 hover:opacity-100 transition-opacity duration-200" />
+            )}
+          </div>
+        </div>
+
+        {(emptyLabel || emptyHint) && (
+          <div className="text-center">
+            {emptyLabel && <p className="text-xs font-medium text-foreground/70">{emptyLabel}</p>}
+            {emptyHint && <p className="text-xs text-muted-foreground">{emptyHint}</p>}
+          </div>
+        )}
+
+        {displayError && (
+          <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5 text-center">
+            <X className="w-3 h-3 shrink-0" />
+            {displayError}
+          </p>
+        )}
+      </div>
+    </>
+  )
+}
+
+// ─── Public component ─────────────────────────────────────────────────────────
+
+export function DistDropZone({
+  variant = 'default',
+  onFile,
+  accept,
+  maxSizeMB = 10,
+  fullScreenOverlay = false,
+  overlayLabel,
+  overlayHint,
+  isUploading = false,
+  file = null,
+  onClear,
+  src,
+  emptyLabel = 'Arrastra tu archivo aqui',
+  emptyHint = 'o haz clic para seleccionar',
+  dragActiveLabel = 'Suelta el archivo aqui',
+  error = null,
+}) {
+  const shared = {
+    onFile, accept, maxSizeMB, isUploading,
+    emptyLabel, emptyHint, dragActiveLabel, error,
+    fullScreenOverlay, overlayLabel, overlayHint,
+  }
+
+  if (variant === 'compact') {
+    return <CompactZone {...shared} file={file} onClear={onClear} />
+  }
+  if (variant === 'avatar') {
+    return <AvatarZone {...shared} src={src} />
+  }
+  return <DefaultZone {...shared} file={file} onClear={onClear} />
 }

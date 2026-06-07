@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, User, Mail, BellRing, LogOut } from "lucide-react";
+import { ChevronDown, User, Settings, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -80,21 +80,11 @@ export function UserMenu() {
         {(userProfile?.isAdmin ||
           userProfile?.permissions?.includes("platform.settings.manage")) && (
           <DropdownMenuItem
-            onClick={() => navigate("/app/m/atlas.core/settings/smtp")}
+            onClick={() => navigate("/app/m/atlas.core/settings")}
             className="gap-2 cursor-pointer"
           >
-            <Mail size={14} />
-            SMTP
-          </DropdownMenuItem>
-        )}
-        {(userProfile?.isAdmin ||
-          userProfile?.permissions?.includes("platform.settings.manage")) && (
-          <DropdownMenuItem
-            onClick={() => navigate("/app/m/atlas.core/settings/webpush")}
-            className="gap-2 cursor-pointer"
-          >
-            <BellRing size={14} />
-            Web Push
+            <Settings size={14} />
+            Configuración
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />

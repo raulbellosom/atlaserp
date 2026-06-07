@@ -8,6 +8,7 @@ import {
   Card,
   ComboboxField,
   DateField,
+  DistDropZone,
   ImageViewer,
   PageHeader,
   PasswordField,
@@ -20,7 +21,6 @@ import {
 import { Country, State, City } from "country-state-city";
 import {
   CalendarDays,
-  Camera,
   LockKeyhole,
   Mail,
   MapPin,
@@ -60,7 +60,6 @@ const EMPTY_FORM = {
 export function ProfileScreen() {
   const { session, refreshProfile } = useAuth();
   const token = session?.access_token;
-  const fileInputRef = useRef(null);
   const initialFormRef = useRef(EMPTY_FORM);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
 
@@ -255,31 +254,20 @@ export function ProfileScreen() {
                       ) : null}
                     </button>
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="flex-1 min-w-0 space-y-1.5">
                     <p className="text-sm font-medium">{profile?.displayName ?? form.firstName}</p>
-                    <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                      JPG, PNG o WebP · máximo 10 MB
-                    </p>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
+                    <DistDropZone
+                      variant="compact"
                       accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleAvatarFile(file);
-                        e.target.value = "";
-                      }}
+                      maxSizeMB={10}
+                      fullScreenOverlay
+                      overlayLabel="Suelta tu foto aqui"
+                      overlayHint="JPG, PNG o WebP · maximo 10 MB"
+                      onFile={handleAvatarFile}
+                      isUploading={avatarMutation.isPending}
+                      emptyLabel="Arrastra o haz clic para cambiar foto"
+                      emptyHint="JPG, PNG o WebP · maximo 10 MB"
                     />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={avatarMutation.isPending}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Camera className="h-3.5 w-3.5" />
-                      Cambiar foto
-                    </Button>
                   </div>
                 </div>
 
