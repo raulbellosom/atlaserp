@@ -35,6 +35,26 @@ describe('parseMutationRoute', () => {
     const result = parseMutationRoute('/finance/accounts', 'POST')
     assert.equal(result, null)
   })
+
+  it('maps POST /catalog/products to atlas.catalog product CREATE', () => {
+    const result = parseMutationRoute('/catalog/products', 'POST')
+    assert.deepEqual(result, { moduleKey: 'atlas.catalog', entityType: 'product', operation: 'CREATE', recordId: null })
+  })
+
+  it('maps PATCH /catalog/products/:id to atlas.catalog product UPDATE', () => {
+    const result = parseMutationRoute('/catalog/products/prod-abc-123', 'PATCH')
+    assert.deepEqual(result, { moduleKey: 'atlas.catalog', entityType: 'product', operation: 'UPDATE', recordId: 'prod-abc-123' })
+  })
+
+  it('maps POST /catalog/categories to atlas.catalog category CREATE', () => {
+    const result = parseMutationRoute('/catalog/categories', 'POST')
+    assert.deepEqual(result, { moduleKey: 'atlas.catalog', entityType: 'category', operation: 'CREATE', recordId: null })
+  })
+
+  it('maps PATCH /catalog/categories/:id to atlas.catalog category UPDATE', () => {
+    const result = parseMutationRoute('/catalog/categories/cat-xyz-456', 'PATCH')
+    assert.deepEqual(result, { moduleKey: 'atlas.catalog', entityType: 'category', operation: 'UPDATE', recordId: 'cat-xyz-456' })
+  })
 })
 
 describe('createOfflineTransport.queue', () => {

@@ -23,6 +23,12 @@ const ROUTE_MAP = [
   // custom.fleet — drivers
   { pattern: /^\/fleet\/drivers\/([^/?#]+)$/, moduleKey: 'custom.fleet', entityType: 'driver', hasId: true },
   { pattern: /^\/fleet\/drivers$/, moduleKey: 'custom.fleet', entityType: 'driver', hasId: false },
+  // atlas.catalog — products
+  { pattern: /^\/catalog\/products\/([^/?#]+)$/, moduleKey: 'atlas.catalog', entityType: 'product', hasId: true },
+  { pattern: /^\/catalog\/products$/, moduleKey: 'atlas.catalog', entityType: 'product', hasId: false },
+  // atlas.catalog — categories
+  { pattern: /^\/catalog\/categories\/([^/?#]+)$/, moduleKey: 'atlas.catalog', entityType: 'category', hasId: true },
+  { pattern: /^\/catalog\/categories$/, moduleKey: 'atlas.catalog', entityType: 'category', hasId: false },
 ]
 
 export function parseMutationRoute(path, method) {
