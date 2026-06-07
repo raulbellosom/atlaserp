@@ -49,6 +49,46 @@ const SYNC_MODULE_REGISTRY = {
       makeHandler('driver', 'fleetDriver'),
     ],
   },
+  'atlas.calendar': {
+    handlers: [
+      {
+        entityType: 'calendar',
+        async fetch({ prisma, userId, cursor, limit }) {
+          const where = { ownerId: userId, enabled: true }
+          if (cursor) where.updatedAt = { gt: new Date(cursor) }
+          return prisma.calendarCalendar.findMany({
+            where,
+            take: limit,
+            orderBy: { updatedAt: 'asc' },
+          })
+        },
+        toRecord(row) {
+          return { id: row.id, data: row, version: row.updatedAt.toISOString(), deleted: false }
+        },
+      },
+      {
+        entityType: 'event',
+        async fetch({ prisma, userId, cursor, limit }) {
+          const owned = await prisma.calendarCalendar.findMany({
+            where: { ownerId: userId, enabled: true },
+            select: { id: true },
+          })
+          const calendarIds = owned.map((c) => c.id)
+          if (!calendarIds.length) return []
+          const where = { calendarId: { in: calendarIds }, enabled: true }
+          if (cursor) where.updatedAt = { gt: new Date(cursor) }
+          return prisma.calendarEvent.findMany({
+            where,
+            take: limit,
+            orderBy: { updatedAt: 'asc' },
+          })
+        },
+        toRecord(row) {
+          return { id: row.id, data: row, version: row.updatedAt.toISOString(), deleted: false }
+        },
+      },
+    ],
+  },
 }
 
 export function createSyncService({ prisma }) {
@@ -68,7 +108,7 @@ export function createSyncService({ prisma }) {
     if (!membership?.companyId) {
       throw new SyncServiceError('No tienes una empresa activa.', 403, 'no_active_company')
     }
-    return { companyId: membership.companyId }
+    return { companyId: membership.companyId, userId: profile.id }
   }
 
   async function pull({ authUserId, modules, cursor }) {
@@ -76,7 +116,7 @@ export function createSyncService({ prisma }) {
       return { records: [], nextCursor: cursor ?? null, hasMore: false }
     }
 
-    const { companyId } = await resolveCompanyContext(authUserId)
+    const { companyId, userId } = await resolveCompanyContext(authUserId)
     const records = []
     let hasMore = false
 
@@ -84,7 +124,7 @@ export function createSyncService({ prisma }) {
       const mod = SYNC_MODULE_REGISTRY[moduleKey]
       if (!mod) continue
       for (const handler of mod.handlers) {
-        const rows = await handler.fetch({ prisma, companyId, cursor, limit: RECORDS_LIMIT + 1 })
+        const rows = await handler.fetch({ prisma, companyId, userId, cursor, limit: RECORDS_LIMIT + 1 })
         if (rows.length > RECORDS_LIMIT) {
           hasMore = true
           rows.splice(RECORDS_LIMIT)

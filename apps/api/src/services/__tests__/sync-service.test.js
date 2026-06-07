@@ -41,6 +41,14 @@ function makePrisma(overrides = {}) {
       findMany: async () => [],
       ...(overrides.fleetDriver ?? {}),
     },
+    calendarCalendar: {
+      findMany: async () => [],
+      ...(overrides.calendarCalendar ?? {}),
+    },
+    calendarEvent: {
+      findMany: async () => [],
+      ...(overrides.calendarEvent ?? {}),
+    },
     syncCursor: {
       findMany: async () => [],
       ...(overrides.syncCursor ?? {}),
@@ -156,5 +164,73 @@ describe('sync-service', () => {
     assert.equal(result[0].moduleKey, 'atlas.contacts')
     assert.equal(result[0].entityType, 'contact')
     assert.ok(result[0].cursor)
+  })
+
+  describe('atlas.calendar module', () => {
+    it('returns calendar records scoped by userId (not companyId)', async () => {
+      const cal = { id: 'cal1', ownerId: USER_ID, name: 'Mi agenda', color: '#6B46C1', isDefault: true, enabled: true, createdAt: past, updatedAt: now }
+      const svc = createSyncService({
+        prisma: makePrisma({
+          calendarCalendar: { findMany: async () => [cal] },
+          calendarEvent: { findMany: async () => [] },
+        }),
+      })
+      const result = await svc.pull({ authUserId: 'auth-u1', modules: ['atlas.calendar'], cursor: null })
+      const calRec = result.records.find((r) => r.entityType === 'calendar')
+      assert.ok(calRec, 'calendar record must be present')
+      assert.equal(calRec.id, 'cal1')
+      assert.equal(calRec.moduleKey, 'atlas.calendar')
+      assert.equal(calRec.deleted, false)
+    })
+
+    it('calendar handler uses ownerId = userId (not companyId)', async () => {
+      let capturedWhere = null
+      const svc = createSyncService({
+        prisma: makePrisma({
+          calendarCalendar: {
+            findMany: async ({ where }) => { capturedWhere = where; return [] },
+          },
+          calendarEvent: { findMany: async () => [] },
+        }),
+      })
+      await svc.pull({ authUserId: 'auth-u1', modules: ['atlas.calendar'], cursor: null })
+      assert.equal(capturedWhere?.ownerId, USER_ID)
+      assert.equal(capturedWhere?.enabled, true)
+      assert.equal(capturedWhere?.companyId, undefined, 'calendar must NOT filter by companyId')
+    })
+
+    it('event handler fetches events for owned calendar IDs', async () => {
+      const cal = { id: 'cal1', ownerId: USER_ID, name: 'Mi agenda', color: '#6B46C1', isDefault: true, enabled: true, createdAt: past, updatedAt: now }
+      const event = { id: 'ev1', calendarId: 'cal1', title: 'Reunión', startAt: now, endAt: null, allDay: false, enabled: true, createdAt: past, updatedAt: now }
+      let capturedEventWhere = null
+      const svc = createSyncService({
+        prisma: makePrisma({
+          calendarCalendar: {
+            findMany: async ({ select }) => select ? [{ id: 'cal1' }] : [cal],
+          },
+          calendarEvent: {
+            findMany: async ({ where }) => { capturedEventWhere = where; return [event] },
+          },
+        }),
+      })
+      const result = await svc.pull({ authUserId: 'auth-u1', modules: ['atlas.calendar'], cursor: null })
+      const evRec = result.records.find((r) => r.entityType === 'event')
+      assert.ok(evRec, 'event record must be present')
+      assert.equal(evRec.id, 'ev1')
+      assert.deepEqual(capturedEventWhere?.calendarId, { in: ['cal1'] })
+    })
+
+    it('event handler returns empty when user owns no calendars', async () => {
+      let eventFetchCalled = false
+      const svc = createSyncService({
+        prisma: makePrisma({
+          calendarCalendar: { findMany: async () => [] },
+          calendarEvent: { findMany: async () => { eventFetchCalled = true; return [] } },
+        }),
+      })
+      const result = await svc.pull({ authUserId: 'auth-u1', modules: ['atlas.calendar'], cursor: null })
+      assert.equal(result.records.filter((r) => r.entityType === 'event').length, 0)
+      assert.equal(eventFetchCalled, false, 'event query must be skipped when no owned calendars')
+    })
   })
 })
