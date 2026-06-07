@@ -83,7 +83,7 @@ apps/desktop/package.json                 Add @tauri-apps/plugin-sql
 packages/offline/src/ledger-sqlite.js     LedgerSQLiteStore — schema, migrations, query helpers
 packages/offline/src/index.js             Export LedgerSQLiteStore
 apps/api/src/services/sync-service.js     Add atlas.ledger to SYNC_MODULE_REGISTRY
-apps/desktop/src/modules/atlas.ledger/    Hook changes (use SQLite when available)
+apps/desktop/src/modules/atlas.ledger/    Hook changes (use SQLite when offline cache is available)
 ```
 
 ### 3.2 Data flow
@@ -98,13 +98,13 @@ Offline cache path (new):
     → GET /sync/pull → returns LedgerAccount, LedgerTransaction records
     → LedgerSQLiteStore.upsertBatch(records)   ← new step
 
-Reporting path (new, online or offline):
+Reporting path (new, offline-first in the final Phase 5C implementation):
   useAccountTransactions(accountId, { start, end })
-    → if (isTauri && sqliteReady) LedgerSQLiteStore.queryTransactions(...)
+    → if (isTauri && sqliteReady && appOffline) LedgerSQLiteStore.queryTransactions(...)
     → else atlas.ledger.listAccountTransactions(accountId, token, { start, end })
 ```
 
-The key insight: SQLite is used **even when online** for reporting queries, because local SQL is faster than a network round-trip for paginated history. The cache is kept fresh by the 10-minute pull interval already in `OfflineProvider`.
+Implementation note: the original design considered using SQLite even while online for reporting reads. The final Phase 5C implementation keeps the live API as the online source of truth so freshly created or edited movements appear immediately without waiting for the next pull cycle. SQLite is therefore the offline read path, not the primary online read path.
 
 ### 3.3 `LedgerSQLiteStore`
 
@@ -337,11 +337,13 @@ The offline navigation guard (`OFFLINE_MODULES`) is updated to include `atlas.le
 ### Phase 5C — Frontend ledger hooks read from SQLite
 
 - `useLedgerSQLiteContext` / `useLedgerSQLite` hook
-- Migrate `useAccountTransactions` and `useAccountList` to check SQLite first
+- Migrate `useAccountTransactions` and `useAccountList` to use SQLite during offline reads
 - New `useRunningBalance`, `useMonthlyCashFlow`, `useCategoryBreakdown` hooks
 - Update offline navigation guard: `atlas.ledger` no longer blocked offline
 
 **Deliverable:** Account history browses offline. Running balance and category charts work offline. New local-SQL reporting hooks available.
+
+**Status:** Implemented on 2026-06-07 via `docs/superpowers/specs/2026-06-07-offline-phase5c-ledger-hooks.md` and `docs/superpowers/plans/2026-06-07-offline-phase5c-ledger-hooks.md`.
 
 ---
 

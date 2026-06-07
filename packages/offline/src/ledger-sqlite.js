@@ -4,6 +4,8 @@ const ENTITY_CONFIG = {
     columns: [
       'id',
       'company_id',
+      'owner_id',
+      'group_id',
       'name',
       'bank',
       'account_number',
@@ -17,14 +19,16 @@ const ENTITY_CONFIG = {
       return [
         record.id,
         record.companyId,
+        record.ownerId ?? record.owner_id ?? null,
+        record.groupId ?? record.group_id ?? null,
         record.name,
         record.bank,
         record.accountNumber ?? null,
         record.currency ?? 'MXN',
         Number(record.openingBalance ?? 0),
         record.enabled === false ? 0 : 1,
-        record.createdAt,
-        record.updatedAt,
+        normalizeTimestamp(record.createdAt ?? record.created_at),
+        normalizeTimestamp(record.updatedAt ?? record.updated_at),
       ]
     },
   },
@@ -54,7 +58,7 @@ const ENTITY_CONFIG = {
         record.accountId,
         record.categoryId ?? null,
         record.tipoId ?? null,
-        record.fecha,
+        normalizeDate(record.fecha),
         record.numero ?? null,
         record.nombre,
         record.referencia ?? null,
@@ -62,8 +66,8 @@ const ENTITY_CONFIG = {
         record.deposito ?? null,
         record.retiro ?? null,
         record.enabled === false ? 0 : 1,
-        record.createdAt,
-        record.updatedAt,
+        normalizeTimestamp(record.createdAt ?? record.created_at),
+        normalizeTimestamp(record.updatedAt ?? record.updated_at),
       ]
     },
   },
@@ -87,8 +91,8 @@ const ENTITY_CONFIG = {
         record.color ?? null,
         record.kind ?? 'both',
         record.enabled === false ? 0 : 1,
-        record.createdAt,
-        record.updatedAt,
+        normalizeTimestamp(record.createdAt ?? record.created_at),
+        normalizeTimestamp(record.updatedAt ?? record.updated_at),
       ]
     },
   },
@@ -110,8 +114,8 @@ const ENTITY_CONFIG = {
         record.code,
         record.name,
         record.enabled === false ? 0 : 1,
-        record.createdAt,
-        record.updatedAt,
+        normalizeTimestamp(record.createdAt ?? record.created_at),
+        normalizeTimestamp(record.updatedAt ?? record.updated_at),
       ]
     },
   },
@@ -121,6 +125,8 @@ const MIGRATIONS = [
   `CREATE TABLE IF NOT EXISTS ledger_account (
     id TEXT PRIMARY KEY,
     company_id TEXT NOT NULL,
+    owner_id TEXT,
+    group_id TEXT,
     name TEXT NOT NULL,
     bank TEXT NOT NULL,
     account_number TEXT,
@@ -179,6 +185,18 @@ function normalizePath(path) {
   return String(path).replace(/\\/g, '/')
 }
 
+function normalizeTimestamp(value) {
+  if (!value) return null
+  if (value instanceof Date) return value.toISOString()
+  return String(value)
+}
+
+function normalizeDate(value) {
+  if (!value) return null
+  if (value instanceof Date) return value.toISOString().slice(0, 10)
+  return String(value).slice(0, 10)
+}
+
 async function loadTauriDatabase(path) {
   const { default: Database } = await import('@tauri-apps/plugin-sql')
   return Database.load(path)
@@ -224,6 +242,8 @@ export class LedgerSQLiteStore {
     for (const sql of MIGRATIONS) {
       await database.execute(sql)
     }
+    await this.#safeAlterTable('ALTER TABLE ledger_account ADD COLUMN owner_id TEXT')
+    await this.#safeAlterTable('ALTER TABLE ledger_account ADD COLUMN group_id TEXT')
   }
 
   async upsertBatch(entityType, records = []) {
@@ -257,16 +277,79 @@ export class LedgerSQLiteStore {
     return database.select(
       `SELECT
         id,
-        company_id AS companyId,
+        company_id,
+        owner_id,
+        group_id,
         name,
         bank,
-        account_number AS accountNumber,
+        account_number,
         currency,
-        opening_balance AS openingBalance,
+        opening_balance,
+        COALESCE(opening_balance, 0) + COALESCE((
+          SELECT SUM(COALESCE(t.deposito, 0) - COALESCE(t.retiro, 0))
+          FROM ledger_transaction t
+          WHERE t.account_id = ledger_account.id
+            AND t.company_id = ledger_account.company_id
+            AND t.enabled = 1
+        ), 0) AS current_balance,
         enabled,
-        created_at AS createdAt,
-        updated_at AS updatedAt
+        created_at,
+        updated_at
       FROM ledger_account
+      WHERE company_id = ? AND enabled = 1
+      ORDER BY name ASC`,
+      [this.companyId],
+    )
+  }
+
+  async getAccount(accountId) {
+    const database = this.#ensureDb()
+    const rows = await database.select(
+      `SELECT
+        id,
+        company_id,
+        owner_id,
+        group_id,
+        name,
+        bank,
+        account_number,
+        currency,
+        opening_balance,
+        COALESCE(opening_balance, 0) + COALESCE((
+          SELECT SUM(COALESCE(t.deposito, 0) - COALESCE(t.retiro, 0))
+          FROM ledger_transaction t
+          WHERE t.account_id = ledger_account.id
+            AND t.company_id = ledger_account.company_id
+            AND t.enabled = 1
+        ), 0) AS current_balance,
+        enabled,
+        created_at,
+        updated_at
+      FROM ledger_account
+      WHERE company_id = ? AND id = ? AND enabled = 1
+      LIMIT 1`,
+      [this.companyId, accountId],
+    )
+
+    return rows[0] ?? null
+  }
+
+  async getTransactionTypes() {
+    const database = this.#ensureDb()
+    return database.select(
+      `SELECT id, company_id, code, name, enabled, created_at, updated_at
+      FROM ledger_transaction_type
+      WHERE company_id = ? AND enabled = 1
+      ORDER BY code ASC`,
+      [this.companyId],
+    )
+  }
+
+  async getCategories() {
+    const database = this.#ensureDb()
+    return database.select(
+      `SELECT id, company_id, name, color, kind, enabled, created_at, updated_at
+      FROM ledger_category
       WHERE company_id = ? AND enabled = 1
       ORDER BY name ASC`,
       [this.companyId],
@@ -275,40 +358,56 @@ export class LedgerSQLiteStore {
 
   async queryTransactions(accountId, { start, end, limit = 100, offset = 0 } = {}) {
     const database = this.#ensureDb()
-    const conditions = ['company_id = ?', 'account_id = ?', 'enabled = 1']
-    const params = [this.companyId, accountId]
-
-    if (start) {
-      conditions.push('fecha >= ?')
-      params.push(start)
-    }
-    if (end) {
-      conditions.push('fecha <= ?')
-      params.push(end)
-    }
-
-    params.push(limit, offset)
+    const params = [
+      this.companyId,
+      accountId,
+      start ?? null,
+      start ?? null,
+      end ?? null,
+      end ?? null,
+      limit,
+      offset,
+    ]
 
     return database.select(
-      `SELECT
-        id,
-        company_id AS companyId,
-        account_id AS accountId,
-        category_id AS categoryId,
-        tipo_id AS tipoId,
-        fecha,
-        numero,
-        nombre,
-        referencia,
-        concepto,
-        deposito,
-        retiro,
-        enabled,
-        created_at AS createdAt,
-        updated_at AS updatedAt
-      FROM ledger_transaction
-      WHERE ${conditions.join(' AND ')}
-      ORDER BY fecha DESC, created_at DESC
+      `WITH ranked AS (
+        SELECT
+          t.*,
+          tt.code AS tipo_code,
+          tt.name AS tipo_name,
+          c.name AS category_name,
+          c.color AS category_color,
+          ROW_NUMBER() OVER (
+            PARTITION BY t.account_id ORDER BY t.fecha, t.created_at, t.id
+          ) AS consecutive,
+          COALESCE(a.opening_balance, 0) + SUM(COALESCE(t.deposito, 0) - COALESCE(t.retiro, 0))
+            OVER (
+              PARTITION BY t.account_id
+              ORDER BY t.fecha, t.created_at, t.id
+              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+            ) AS saldo_actual
+        FROM ledger_transaction t
+        INNER JOIN ledger_account a
+          ON a.id = t.account_id
+          AND a.company_id = t.company_id
+        LEFT JOIN ledger_transaction_type tt
+          ON tt.id = t.tipo_id
+          AND tt.company_id = t.company_id
+        LEFT JOIN ledger_category c
+          ON c.id = t.category_id
+          AND c.company_id = t.company_id
+        WHERE t.company_id = ?
+          AND t.account_id = ?
+          AND t.enabled = 1
+      ),
+      filtered AS (
+        SELECT * FROM ranked
+        WHERE (? IS NULL OR fecha >= ?)
+          AND (? IS NULL OR fecha <= ?)
+      )
+      SELECT *, COUNT(*) OVER() AS _total_count
+      FROM filtered
+      ORDER BY fecha, created_at
       LIMIT ? OFFSET ?`,
       params,
     )
@@ -373,19 +472,90 @@ export class LedgerSQLiteStore {
 
     return database.select(
       `SELECT
-        c.id AS categoryId,
-        c.name AS categoryName,
-        c.color AS categoryColor,
-        COALESCE(SUM(COALESCE(t.deposito, 0) - COALESCE(t.retiro, 0)), 0) AS total
+        COALESCE(c.name, 'Sin categoria') AS category_name,
+        COALESCE(c.color, '#94A3B8') AS color,
+        COALESCE(SUM(COALESCE(t.deposito, 0)), 0) AS deposito,
+        COALESCE(SUM(COALESCE(t.retiro, 0)), 0) AS retiro
       FROM ledger_transaction t
-      INNER JOIN ledger_category c
+      LEFT JOIN ledger_category c
         ON c.id = t.category_id
         AND c.company_id = t.company_id
       WHERE ${conditions.join(' AND ')}
-      GROUP BY c.id, c.name, c.color
-      ORDER BY total DESC, c.name ASC`,
+      GROUP BY c.name, c.color
+      ORDER BY SUM(COALESCE(t.deposito, 0) + COALESCE(t.retiro, 0)) DESC`,
       params,
     )
+  }
+
+  async getAccountSummary(accountId, { start, end } = {}) {
+    const database = this.#ensureDb()
+    const account = await this.getAccount(accountId)
+    const openingBalance = Number(account?.opening_balance ?? 0)
+    const currentBalance = Number(account?.current_balance ?? 0)
+
+    const kpiRows = await database.select(
+      `SELECT
+        COALESCE(SUM(COALESCE(deposito, 0)), 0) AS total_deposito,
+        COALESCE(SUM(COALESCE(retiro, 0)), 0) AS total_retiro
+      FROM ledger_transaction
+      WHERE account_id = ?
+        AND company_id = ?
+        AND enabled = 1
+        AND (? IS NULL OR fecha >= ?)
+        AND (? IS NULL OR fecha <= ?)`,
+      [accountId, this.companyId, start ?? null, start ?? null, end ?? null, end ?? null],
+    )
+
+    const seriesRows = await database.select(
+      `WITH ranked AS (
+        SELECT
+          t.fecha AS fecha,
+          COALESCE(a.opening_balance, 0) +
+            SUM(COALESCE(t.deposito, 0) - COALESCE(t.retiro, 0))
+            OVER (
+              PARTITION BY t.account_id ORDER BY t.fecha, t.created_at, t.id
+              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+            ) AS balance,
+          ROW_NUMBER() OVER (PARTITION BY fecha ORDER BY t.created_at DESC, t.id DESC) AS rn
+        FROM ledger_transaction t
+        INNER JOIN ledger_account a
+          ON a.id = t.account_id
+          AND a.company_id = t.company_id
+        WHERE t.account_id = ?
+          AND t.company_id = ?
+          AND t.enabled = 1
+          AND (? IS NULL OR t.fecha >= ?)
+          AND (? IS NULL OR t.fecha <= ?)
+      )
+      SELECT fecha, balance FROM ranked WHERE rn = 1
+      ORDER BY fecha`,
+      [accountId, this.companyId, start ?? null, start ?? null, end ?? null, end ?? null],
+    )
+
+    const byCategoryRows = await this.getCategoryBreakdown(accountId, { start, end })
+    const kpiRow = rowsFirst(kpiRows) ?? {}
+    const totalDeposits = Number(kpiRow.total_deposito ?? 0)
+    const totalWithdrawals = Number(kpiRow.total_retiro ?? 0)
+
+    return {
+      kpis: {
+        opening_balance: openingBalance,
+        current_balance: currentBalance,
+        total_deposito: totalDeposits,
+        total_retiro: totalWithdrawals,
+        net: totalDeposits - totalWithdrawals,
+      },
+      balance_series: seriesRows.map((row) => ({
+        fecha: normalizeDate(row.fecha),
+        balance: Number(row.balance ?? 0),
+      })),
+      by_category: byCategoryRows.map((row) => ({
+        category_name: row.category_name,
+        color: row.color,
+        deposito: Number(row.deposito ?? 0),
+        retiro: Number(row.retiro ?? 0),
+      })),
+    }
   }
 
   async close() {
@@ -402,4 +572,18 @@ export class LedgerSQLiteStore {
     }
     return this.db
   }
+
+  async #safeAlterTable(sql) {
+    try {
+      await this.#ensureDb().execute(sql)
+    } catch (error) {
+      const message = String(error?.message ?? '').toLowerCase()
+      if (message.includes('duplicate column name')) return
+      throw error
+    }
+  }
+}
+
+function rowsFirst(rows) {
+  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null
 }

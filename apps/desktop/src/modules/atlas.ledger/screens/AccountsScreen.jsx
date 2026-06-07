@@ -8,11 +8,14 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   TextField, NumberField, SelectField,
 } from '@atlas/ui'
+import { useOfflineStatus } from '@atlas/offline'
 import { Plus, Landmark, Users, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { useAccountList, useLedgerSQLite } from '../hooks/use-ledger-queries.js'
 
-const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
+const API_BASE = getApiUrl()
 
 const CURRENCY_OPTIONS = [
   { value: 'MXN', label: 'MXN — Peso mexicano' },
@@ -20,41 +23,32 @@ const CURRENCY_OPTIONS = [
 ]
 
 const TABS = [
-  { key: 'own',    label: 'Mis cuentas',        icon: Landmark   },
-  { key: 'shared', label: 'Compartidas conmigo', icon: Users      },
-  { key: 'groups', label: 'Grupos',              icon: FolderOpen },
+  { key: 'own', label: 'Mis cuentas', icon: Landmark },
+  { key: 'shared', label: 'Compartidas conmigo', icon: Users },
+  { key: 'groups', label: 'Grupos', icon: FolderOpen },
 ]
 
 const EMPTY_ACCOUNT = { name: '', bank: '', account_number: '', currency: 'MXN', opening_balance: 0 }
 
 export default function AccountsScreen() {
-  const navigate     = useNavigate()
-  const { session }  = useAuth()
-  const token        = session?.access_token ?? null
-  const queryClient  = useQueryClient()
+  const navigate = useNavigate()
+  const { session } = useAuth()
+  const token = session?.access_token ?? null
+  const queryClient = useQueryClient()
+  const { isOnline } = useOfflineStatus()
+  const { isUsingLocalLedger } = useLedgerSQLite()
   const [activeTab, setActiveTab] = useState('own')
 
-  // Nueva cuenta Sheet
-  const [newAccOpen, setNewAccOpen]   = useState(false)
-  const [accForm, setAccForm]         = useState(EMPTY_ACCOUNT)
-  const [accSaving, setAccSaving]     = useState(false)
+  const [newAccOpen, setNewAccOpen] = useState(false)
+  const [accForm, setAccForm] = useState(EMPTY_ACCOUNT)
+  const [accSaving, setAccSaving] = useState(false)
 
-  // Nuevo grupo Dialog
-  const [newGrpOpen, setNewGrpOpen]   = useState(false)
-  const [newGrpName, setNewGrpName]   = useState('')
-  const [grpSaving, setGrpSaving]     = useState(false)
+  const [newGrpOpen, setNewGrpOpen] = useState(false)
+  const [newGrpName, setNewGrpName] = useState('')
+  const [grpSaving, setGrpSaving] = useState(false)
 
   const headers = { Authorization: `Bearer ${token}` }
-
-  const { data: allData, isLoading: allLoading, isError: allError } = useQuery({
-    queryKey: ['ledger-accounts', token],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE}/ledger/accounts`, { headers })
-      if (!res.ok) throw new Error('No se pudieron cargar las cuentas.')
-      return res.json()
-    },
-    enabled: !!token,
-  })
+  const { data: allData, isLoading: allLoading, isError: allError } = useAccountList()
 
   const { data: membershipData, isLoading: mbLoading } = useQuery({
     queryKey: ['ledger-memberships', token],
@@ -63,7 +57,7 @@ export default function AccountsScreen() {
       if (!res.ok) return { data: { groups: [], accounts: [] } }
       return res.json()
     },
-    enabled: !!token,
+    enabled: !!token && isOnline,
   })
 
   const { data: groupsData, isLoading: grpLoading } = useQuery({
@@ -73,18 +67,26 @@ export default function AccountsScreen() {
       if (!res.ok) return { data: [] }
       return res.json()
     },
-    enabled: !!token,
+    enabled: !!token && isOnline,
   })
 
-  const ownAccounts    = (allData?.data ?? []).filter((a) => a.owner_id != null && a.group_id == null)
+  const offlineLedgerView = isUsingLocalLedger
+  const tabs = offlineLedgerView
+    ? [{ key: 'offline', label: 'Disponibles offline', icon: Landmark }]
+    : TABS
+  const effectiveTab = offlineLedgerView ? 'offline' : activeTab
+
+  const ownAccounts = (allData?.data ?? []).filter((account) => account.owner_id != null && account.group_id == null)
   const sharedAccounts = membershipData?.data?.accounts ?? []
-  const groups         = groupsData?.data ?? []
+  const groups = groupsData?.data ?? []
+  const offlineAccounts = allData?.data ?? []
 
   const isLoading = allLoading || mbLoading || grpLoading
 
-  async function handleCreateAccount(e) {
-    e.preventDefault()
+  async function handleCreateAccount(event) {
+    event.preventDefault()
     if (!accForm.name.trim() || !accForm.bank.trim()) return
+
     setAccSaving(true)
     try {
       const res = await fetch(`${API_BASE}/ledger/accounts`, {
@@ -98,11 +100,13 @@ export default function AccountsScreen() {
           opening_balance: Number(accForm.opening_balance) || 0,
         }),
       })
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         toast.error(err.error ?? 'No se pudo crear la cuenta.')
         return
       }
+
       toast.success('Cuenta creada.')
       setAccForm(EMPTY_ACCOUNT)
       setNewAccOpen(false)
@@ -112,9 +116,10 @@ export default function AccountsScreen() {
     }
   }
 
-  async function handleCreateGroup(e) {
-    e.preventDefault()
+  async function handleCreateGroup(event) {
+    event.preventDefault()
     if (!newGrpName.trim()) return
+
     setGrpSaving(true)
     try {
       const res = await fetch(`${API_BASE}/ledger/groups`, {
@@ -122,11 +127,13 @@ export default function AccountsScreen() {
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newGrpName.trim() }),
       })
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         toast.error(err.error ?? 'No se pudo crear el grupo.')
         return
       }
+
       toast.success('Grupo creado.')
       setNewGrpName('')
       setNewGrpOpen(false)
@@ -139,12 +146,16 @@ export default function AccountsScreen() {
   if (isLoading) {
     return (
       <div className="p-6 space-y-3">
-        {[1, 2, 3].map((i) => <div key={i} className="h-16 rounded-lg bg-[hsl(var(--muted))] animate-pulse" />)}
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-16 rounded-lg bg-[hsl(var(--muted))] animate-pulse" />
+        ))}
       </div>
     )
   }
 
-  if (allError) return <ErrorState message="No se pudieron cargar las cuentas." />
+  if (allError) {
+    return <ErrorState title="No se pudieron cargar las cuentas." />
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -153,28 +164,33 @@ export default function AccountsScreen() {
           title="Cuentas bancarias"
           description="Registro de saldos y movimientos por cuenta bancaria."
           actions={
-            activeTab !== 'groups' ? (
-              <Button variant="primary" size="sm" onClick={() => setNewAccOpen(true)}>
-                <Plus size={14} className="mr-1" /> Nueva cuenta
-              </Button>
-            ) : (
-              <Button variant="primary" size="sm" onClick={() => setNewGrpOpen(true)}>
-                <Plus size={14} className="mr-1" /> Nuevo grupo
-              </Button>
-            )
+            offlineLedgerView
+              ? null
+              : effectiveTab !== 'groups'
+                ? (
+                    <Button variant="primary" size="sm" onClick={() => setNewAccOpen(true)}>
+                      <Plus size={14} className="mr-1" /> Nueva cuenta
+                    </Button>
+                  )
+                : (
+                    <Button variant="primary" size="sm" onClick={() => setNewGrpOpen(true)}>
+                      <Plus size={14} className="mr-1" /> Nuevo grupo
+                    </Button>
+                  )
           }
         />
 
         <div className="flex gap-1 mt-4 border-b border-[hsl(var(--border))]">
-          {TABS.map((tab) => {
+          {tabs.map((tab) => {
             const Icon = tab.icon
             return (
               <button
                 key={tab.key}
+                type="button"
                 onClick={() => setActiveTab(tab.key)}
                 className={[
                   'flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
-                  activeTab === tab.key
+                  effectiveTab === tab.key
                     ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]'
                     : 'border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
                 ].join(' ')}
@@ -188,46 +204,66 @@ export default function AccountsScreen() {
       </div>
 
       <div className="flex-1 overflow-auto px-6 pb-6 pt-4">
-        {activeTab === 'own' && (
+        {offlineLedgerView && (
+          <div className="mb-4 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.25)] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
+            Mostrando la cache local de ledger. La separación por compartidas y grupos vuelve al reconectar.
+          </div>
+        )}
+
+        {effectiveTab === 'offline' && (
+          offlineAccounts.length === 0
+            ? <EmptyState icon={Landmark} title="Sin cuentas en cache" description="Sincroniza ledger mientras estés conectado para consultarlo offline después." />
+            : <AccountGrid accounts={offlineAccounts} onSelect={(id) => navigate(`/app/m/atlas.ledger/accounts/${id}`)} />
+        )}
+
+        {effectiveTab === 'own' && (
           ownAccounts.length === 0
             ? <EmptyState icon={Landmark} title="Sin cuentas personales" description="Crea una cuenta para registrar tus movimientos." action={{ label: 'Nueva cuenta', onClick: () => setNewAccOpen(true) }} />
             : <AccountGrid accounts={ownAccounts} onSelect={(id) => navigate(`/app/m/atlas.ledger/accounts/${id}`)} />
         )}
 
-        {activeTab === 'shared' && (
+        {effectiveTab === 'shared' && (
           sharedAccounts.length === 0
             ? <EmptyState icon={Users} title="Sin cuentas compartidas" description="Nadie ha compartido cuentas contigo todavía." />
             : <AccountGrid accounts={sharedAccounts} onSelect={(id) => navigate(`/app/m/atlas.ledger/accounts/${id}`)} />
         )}
 
-        {activeTab === 'groups' && (
+        {effectiveTab === 'groups' && (
           groups.length === 0
             ? <EmptyState icon={FolderOpen} title="Sin grupos" description="No perteneces a ningún grupo todavía." action={{ label: 'Nuevo grupo', onClick: () => setNewGrpOpen(true) }} />
             : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {groups.map((group) => (
-                  <button
-                    key={group.id}
-                    onClick={() => navigate(`/app/m/atlas.ledger/groups/${group.id}`)}
-                    className="text-left p-4 rounded-xl border border-[hsl(var(--border))] hover:border-[hsl(var(--ring))] hover:bg-[hsl(var(--muted)/0.4)] transition-colors"
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <FolderOpen size={14} className="text-[hsl(var(--muted-foreground))]" />
-                      <span className="text-xs text-[hsl(var(--muted-foreground))] capitalize">{group.my_role}</span>
-                    </div>
-                    <div className="font-semibold text-sm truncate">{group.name}</div>
-                    <div className="text-xs text-[hsl(var(--muted-foreground))] mt-1">
-                      {group.member_count} miembro{Number(group.member_count) !== 1 ? 's' : ''} · {group.account_count} cuenta{Number(group.account_count) !== 1 ? 's' : ''}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {groups.map((group) => (
+                    <button
+                      key={group.id}
+                      type="button"
+                      onClick={() => navigate(`/app/m/atlas.ledger/groups/${group.id}`)}
+                      className="text-left p-4 rounded-xl border border-[hsl(var(--border))] hover:border-[hsl(var(--ring))] hover:bg-[hsl(var(--muted)/0.4)] transition-colors"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <FolderOpen size={14} className="text-[hsl(var(--muted-foreground))]" />
+                        <span className="text-xs text-[hsl(var(--muted-foreground))] capitalize">{group.my_role}</span>
+                      </div>
+                      <div className="font-semibold text-sm truncate">{group.name}</div>
+                      <div className="text-xs text-[hsl(var(--muted-foreground))] mt-1">
+                        {group.member_count} miembro{Number(group.member_count) !== 1 ? 's' : ''} · {group.account_count} cuenta{Number(group.account_count) !== 1 ? 's' : ''}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )
         )}
       </div>
 
-      {/* Nueva cuenta Sheet */}
-      <Sheet open={newAccOpen} onOpenChange={(v) => { if (!v) { setNewAccOpen(false); setAccForm(EMPTY_ACCOUNT) } }}>
+      <Sheet
+        open={newAccOpen && !offlineLedgerView}
+        onOpenChange={(open) => {
+          if (!open) {
+            setNewAccOpen(false)
+            setAccForm(EMPTY_ACCOUNT)
+          }
+        }}
+      >
         <SheetContent side="right" className="w-full sm:max-w-md">
           <SheetHeader>
             <SheetTitle>Nueva cuenta</SheetTitle>
@@ -238,7 +274,7 @@ export default function AccountsScreen() {
               id="acc-name"
               required
               value={accForm.name}
-              onChange={(e) => setAccForm((f) => ({ ...f, name: e.target.value }))}
+              onChange={(event) => setAccForm((form) => ({ ...form, name: event.target.value }))}
               placeholder="Ej. Cuenta operativa BBVA"
               maxLength={255}
             />
@@ -247,7 +283,7 @@ export default function AccountsScreen() {
               id="acc-bank"
               required
               value={accForm.bank}
-              onChange={(e) => setAccForm((f) => ({ ...f, bank: e.target.value }))}
+              onChange={(event) => setAccForm((form) => ({ ...form, bank: event.target.value }))}
               placeholder="Ej. BBVA"
               maxLength={255}
             />
@@ -255,7 +291,7 @@ export default function AccountsScreen() {
               label="Número de cuenta"
               id="acc-number"
               value={accForm.account_number}
-              onChange={(e) => setAccForm((f) => ({ ...f, account_number: e.target.value }))}
+              onChange={(event) => setAccForm((form) => ({ ...form, account_number: event.target.value }))}
               placeholder="Opcional"
               maxLength={64}
             />
@@ -264,19 +300,21 @@ export default function AccountsScreen() {
               id="acc-currency"
               options={CURRENCY_OPTIONS}
               value={accForm.currency}
-              onValueChange={(v) => setAccForm((f) => ({ ...f, currency: v }))}
+              onValueChange={(value) => setAccForm((form) => ({ ...form, currency: value }))}
             />
             <NumberField
               label="Saldo inicial"
               id="acc-balance"
               value={accForm.opening_balance}
-              onChange={(e) => setAccForm((f) => ({ ...f, opening_balance: e.target.value }))}
+              onChange={(event) => setAccForm((form) => ({ ...form, opening_balance: event.target.value }))}
               placeholder="0.00"
               min={0}
               step="0.01"
             />
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="ghost" size="sm" onClick={() => { setNewAccOpen(false); setAccForm(EMPTY_ACCOUNT) }}>Cancelar</Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => { setNewAccOpen(false); setAccForm(EMPTY_ACCOUNT) }}>
+                Cancelar
+              </Button>
               <Button type="submit" variant="primary" size="sm" disabled={accSaving || !accForm.name.trim() || !accForm.bank.trim()}>
                 {accSaving ? 'Guardando...' : 'Crear cuenta'}
               </Button>
@@ -285,8 +323,15 @@ export default function AccountsScreen() {
         </SheetContent>
       </Sheet>
 
-      {/* Nuevo grupo Dialog */}
-      <Dialog open={newGrpOpen} onOpenChange={(v) => { if (!v) { setNewGrpOpen(false); setNewGrpName('') } }}>
+      <Dialog
+        open={newGrpOpen && !offlineLedgerView}
+        onOpenChange={(open) => {
+          if (!open) {
+            setNewGrpOpen(false)
+            setNewGrpName('')
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Nuevo grupo</DialogTitle>
@@ -297,13 +342,15 @@ export default function AccountsScreen() {
               id="grp-name"
               required
               value={newGrpName}
-              onChange={(e) => setNewGrpName(e.target.value)}
+              onChange={(event) => setNewGrpName(event.target.value)}
               placeholder="Ej. Finanzas Q2"
               autoFocus
               maxLength={128}
             />
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" size="sm" onClick={() => { setNewGrpOpen(false); setNewGrpName('') }}>Cancelar</Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => { setNewGrpOpen(false); setNewGrpName('') }}>
+                Cancelar
+              </Button>
               <Button type="submit" variant="primary" size="sm" disabled={grpSaving || !newGrpName.trim()}>
                 {grpSaving ? 'Creando...' : 'Crear'}
               </Button>
@@ -321,6 +368,7 @@ function AccountGrid({ accounts, onSelect }) {
       {accounts.map((account) => (
         <button
           key={account.id}
+          type="button"
           onClick={() => onSelect(account.id)}
           className="text-left p-4 rounded-xl border border-[hsl(var(--border))] hover:border-[hsl(var(--ring))] hover:bg-[hsl(var(--muted)/0.4)] transition-colors"
         >
@@ -334,7 +382,9 @@ function AccountGrid({ accounts, onSelect }) {
           )}
           <div className="mt-2 font-mono text-sm font-semibold">
             {Number(account.current_balance ?? 0).toLocaleString('es-MX', {
-              style: 'currency', currency: account.currency ?? 'MXN', minimumFractionDigits: 2,
+              style: 'currency',
+              currency: account.currency ?? 'MXN',
+              minimumFractionDigits: 2,
             })}
           </div>
           {account.role && (

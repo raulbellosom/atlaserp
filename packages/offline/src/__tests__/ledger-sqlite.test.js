@@ -15,6 +15,12 @@ function makeDbMock() {
     },
     async select(sql, params = []) {
       selects.push({ sql, params })
+      if (sql.includes('FROM ledger_transaction_type')) {
+        return [{ id: 'type-1', code: 'DEP', name: 'Deposito' }]
+      }
+      if (sql.includes('FROM ledger_category') && sql.includes('ORDER BY name ASC')) {
+        return [{ id: 'cat-1', name: 'Ingresos', color: '#22c55e', kind: 'both' }]
+      }
       if (sql.includes('AS balance')) {
         return [{ balance: 110 }]
       }
@@ -22,32 +28,50 @@ function makeDbMock() {
         return [
           {
             id: 'acc-1',
-            companyId: 'company-1',
+            company_id: 'company-1',
             name: 'Caja',
             bank: 'Atlas',
+            account_number: '1234',
             currency: 'MXN',
-            openingBalance: 100,
+            opening_balance: 100,
+            owner_id: 'user-1',
+            group_id: null,
+            current_balance: 110,
           },
         ]
       }
-      if (sql.includes('FROM ledger_transaction') && sql.includes('ORDER BY fecha DESC')) {
+      if (sql.includes('FROM ledger_transaction') && sql.includes('COUNT(*) OVER()')) {
         return [
           {
             id: 'tx-1',
-            companyId: 'company-1',
-            accountId: 'acc-1',
+            company_id: 'company-1',
+            account_id: 'acc-1',
+            category_id: 'cat-1',
+            tipo_id: 'type-1',
             nombre: 'Deposito',
             fecha: '2026-06-07',
             deposito: 10,
             retiro: null,
+            tipo_code: 'DEP',
+            tipo_name: 'Deposito',
+            category_name: 'Ingresos',
+            category_color: '#22c55e',
+            consecutive: 1,
+            saldo_actual: 110,
           },
         ]
       }
       if (sql.includes(`strftime('%m', fecha)`)) {
         return [{ month: '06', depositTotal: 10, withdrawalTotal: 2 }]
       }
-      if (sql.includes('GROUP BY c.id, c.name, c.color')) {
-        return [{ categoryId: 'cat-1', categoryName: 'Ingresos', categoryColor: '#22c55e', total: 10 }]
+      if (sql.includes('ROW_NUMBER() OVER (PARTITION BY fecha')) {
+        return [{ fecha: '2026-06-07', balance: 110 }]
+      }
+      if (sql.includes('COALESCE(SUM(COALESCE(deposito, 0)), 0) AS total_deposito')) {
+        return [{ total_deposito: 10, total_retiro: 2 }]
+      }
+      if (sql.includes('GROUP BY c.name, c.color')) {
+        return [{ category_name: 'Ingresos', color: '#22c55e', deposito: 10, retiro: 2 }]
       }
       return []
     },
@@ -105,7 +129,7 @@ describe('LedgerSQLiteStore', () => {
     const insert = db.executes.find((entry) => entry.sql.includes('INSERT OR REPLACE INTO ledger_account'))
     assert.ok(insert)
     assert.equal(insert.params[0], 'acc-1')
-    assert.equal(insert.params[5], 'MXN')
+    assert.equal(insert.params[7], 'MXN')
   })
 
   it('deletes rows when a record is marked deleted', async () => {
@@ -116,10 +140,34 @@ describe('LedgerSQLiteStore', () => {
 
   it('runs account and reporting queries', async () => {
     await store.open()
-    assert.equal((await store.getAccountList()).length, 1)
-    assert.equal((await store.queryTransactions('acc-1', { start: '2026-06-01', end: '2026-06-30' })).length, 1)
+    const accounts = await store.getAccountList()
+    assert.equal(accounts.length, 1)
+    assert.equal(accounts[0].current_balance, 110)
+    assert.equal(accounts[0].owner_id, 'user-1')
+
+    const account = await store.getAccount('acc-1')
+    assert.equal(account.id, 'acc-1')
+    assert.equal(account.current_balance, 110)
+
+    assert.equal((await store.getTransactionTypes()).length, 1)
+    assert.equal((await store.getCategories()).length, 1)
+
+    const transactions = await store.queryTransactions('acc-1', { start: '2026-06-01', end: '2026-06-30' })
+    assert.equal(transactions.length, 1)
+    assert.equal(transactions[0].saldo_actual, 110)
+    assert.equal(transactions[0].tipo_code, 'DEP')
+
     assert.equal(await store.getRunningBalance('acc-1', '2026-06-30'), 110)
     assert.equal((await store.getMonthlySummary('acc-1', 2026)).length, 1)
-    assert.equal((await store.getCategoryBreakdown('acc-1', { start: '2026-06-01', end: '2026-06-30' })).length, 1)
+
+    const breakdown = await store.getCategoryBreakdown('acc-1', { start: '2026-06-01', end: '2026-06-30' })
+    assert.equal(breakdown.length, 1)
+    assert.equal(breakdown[0].deposito, 10)
+
+    const summary = await store.getAccountSummary('acc-1', { start: '2026-06-01', end: '2026-06-30' })
+    assert.deepEqual(Object.keys(summary), ['kpis', 'balance_series', 'by_category'])
+    assert.equal(summary.kpis.current_balance, 110)
+    assert.equal(summary.balance_series.length, 1)
+    assert.equal(summary.by_category.length, 1)
   })
 })

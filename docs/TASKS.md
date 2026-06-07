@@ -77,6 +77,20 @@ Verified: 2026-05-25 (`pnpm.cmd db:migrate`, `pnpm.cmd db:seed`, DB query on `in
 
 Verified: 2026-05-25 (`rg -n "packages/maps|SSH tunnel|Prisma is pinned to \\`\\^6\\`|Four core modules|4 core modules seeded" AGENTS.md README.md CLAUDE.md docs/00_project_status.md docs/02_module_system.md docs/03_core_modules.md docs/TASKS.md`)
 
+## Offline Phase 5 - Ledger SQLite Read Cache
+
+Spec: `docs/superpowers/specs/2026-06-07-offline-phase5-tauri-sqlite.md`  
+Phase 5C Spec: `docs/superpowers/specs/2026-06-07-offline-phase5c-ledger-hooks.md`  
+Plan: `docs/superpowers/plans/2026-06-07-offline-phase5c-ledger-hooks.md`
+
+- [x] Phase 5A - `/sync/pull` supports `atlas.ledger` records (`account`, `transaction`, `category`, `transaction_type`)
+- [x] Phase 5B - Tauri SQLite cache, `LedgerSQLiteStore`, `LedgerSyncAdapter`, and guarded dual-pull orchestration
+- [x] Phase 5C - Desktop ledger reads use SQLite offline for accounts, account detail, transaction history, and summary charts
+- [x] Ledger write actions stay online-only and the desktop UI explains read-only offline behavior
+- [x] Offline documentation and status tracking updated to reflect final Phase 5 behavior
+
+Verified: 2026-06-07 (`node --test packages/offline/src/__tests__/ledger-sqlite.test.js apps/desktop/src/modules/atlas.ledger/lib/__tests__/ledger-data-client.test.js`, `pnpm.cmd --filter @atlas/desktop build:web`, `npx.cmd -y react-doctor@latest . --verbose --diff` in `apps/desktop`)
+
 ## Phase 0 - Repository and environment cleanup
 
 - [x] Remove docker-compose.local-lite.yml

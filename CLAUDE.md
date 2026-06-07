@@ -55,6 +55,8 @@ pnpm tauri dev     # Native window with hot-reload
 
 Tauri requires Rust toolchain + Windows SDK. For development without Tauri, use `pnpm dev:frontend` (Vite web preview only).
 
+`atlas.ledger` desktop offline mode is Tier 2.5: in Tauri builds the account list, account detail, transaction history, and summary charts read from the local SQLite cache when the app is offline; writes, groups/access management, import, and export remain online-only.
+
 ## Architecture
 
 ### Monorepo structure

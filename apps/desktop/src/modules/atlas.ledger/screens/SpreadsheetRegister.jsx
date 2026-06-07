@@ -1,24 +1,26 @@
 // apps/desktop/src/modules/atlas.ledger/screens/SpreadsheetRegister.jsx
-import { useState, useRef } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useRef, useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useOfflineStatus } from '@atlas/offline'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 import { Button } from '@atlas/ui'
 import { useAuth } from '../../../auth/AuthProvider'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { useAccountTransactions } from '../hooks/use-ledger-queries.js'
 
-const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
+const API_BASE = getApiUrl()
 
-// Editable columns in tab order (excludes # and Saldo which are read-only)
 const EDITABLE_COLS = ['fecha', 'tipo_id', 'numero', 'nombre', 'referencia', 'concepto', 'deposito', 'retiro', 'category_id']
 
-function fmtDecimal(val) {
-  if (val == null || val === '') return ''
-  const n = Number(val)
-  return Number.isFinite(n) ? n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''
+function fmtDecimal(value) {
+  if (value == null || value === '') return ''
+  const amount = Number(value)
+  return Number.isFinite(amount)
+    ? amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : ''
 }
 
-// PostgreSQL date columns arrive as ISO timestamps ("2026-05-27T00:00:00.000Z").
-// Slice to YYYY-MM-DD for <input type="date"> and API payloads.
 function toDateValue(value) {
   if (!value) return ''
   return String(value).slice(0, 10)
@@ -44,29 +46,16 @@ function emptyRow(accountId) {
 
 export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types = [], categories = [] }) {
   const { session } = useAuth()
+  const { isOnline } = useOfflineStatus()
   const token = session?.access_token ?? null
   const queryClient = useQueryClient()
-  const [editingRows, setEditingRows] = useState({}) // rowId/index -> draft values
+  const [editingRows, setEditingRows] = useState({})
   const [newRow, setNewRow] = useState(null)
   const tableRef = useRef(null)
+  const canEdit = isOnline && !!token
 
-  const queryKey = ['ledger-transactions', accountId, dateFrom, dateTo]
-
-  const { data, isLoading, isError } = useQuery({
-    queryKey,
-    queryFn: async () => {
-      const params = new URLSearchParams({ pageSize: 500 })
-      if (dateFrom) params.set('from', dateFrom)
-      if (dateTo)   params.set('to', dateTo)
-      const res = await fetch(
-        `${API_BASE}/ledger/accounts/${accountId}/transactions?${params}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      )
-      if (!res.ok) throw new Error('No se pudieron cargar los movimientos.')
-      return res.json()
-    },
-    enabled: !!accountId && !!token,
-  })
+  const queryKey = ['ledger-transactions', accountId, dateFrom ?? null, dateTo ?? null, 'remote']
+  const { data, isLoading, isError } = useAccountTransactions(accountId, { dateFrom, dateTo })
 
   const saveMutation = useMutation({
     mutationFn: async ({ isNew, id, payload }) => {
@@ -84,9 +73,6 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
       }
       return res.json()
     },
-    // Optimistic update: show changes immediately in the UI while the
-    // request is in flight. The balance column and consecutive # will be
-    // corrected when the background refetch completes.
     onMutate: async ({ isNew, id, payload }) => {
       await queryClient.cancelQueries({ queryKey })
       const previousData = queryClient.getQueryData(queryKey)
@@ -105,19 +91,18 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
         }
         return {
           ...old,
-          data: old.data.map((r) =>
-            r.id === id ? { ...r, ...payload, _pending: true } : r,
-          ),
+          data: old.data.map((row) => (
+            row.id === id ? { ...row, ...payload, _pending: true } : row
+          )),
         }
       })
       return { previousData }
     },
-    onError: (err, _vars, context) => {
+    onError: (error, _vars, context) => {
       if (context?.previousData) queryClient.setQueryData(queryKey, context.previousData)
-      toast.error(err.message)
+      toast.error(error.message)
     },
     onSettled: () => {
-      // Always refetch so balances, consecutive numbers, and account header are correct
       queryClient.invalidateQueries({ queryKey })
       queryClient.invalidateQueries({ queryKey: ['ledger-account', accountId] })
     },
@@ -139,10 +124,8 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
       queryClient.invalidateQueries({ queryKey })
       queryClient.invalidateQueries({ queryKey: ['ledger-account', accountId] })
     },
-    onError: (err) => { toast.error(err.message) },
+    onError: (error) => { toast.error(error.message) },
   })
-
-  // ── Row edit helpers ──────────────────────────────────────────────────────────
 
   function getDraft(row, rowIdx) {
     const key = row.id ?? `new-${rowIdx}`
@@ -150,32 +133,47 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
   }
 
   function setDraft(row, rowIdx, field, value) {
+    if (!canEdit) return
     const key = row.id ?? `new-${rowIdx}`
-    setEditingRows((prev) => ({ ...prev, [key]: { ...(prev[key] ?? row), [field]: value, _dirty: true } }))
+    setEditingRows((prev) => ({
+      ...prev,
+      [key]: { ...(prev[key] ?? row), [field]: value, _dirty: true },
+    }))
   }
 
   function clearDraft(row, rowIdx) {
     const key = row.id ?? `new-${rowIdx}`
-    setEditingRows((prev) => { const next = { ...prev }; delete next[key]; return next })
+    setEditingRows((prev) => {
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
   }
 
   function saveRow(row, rowIdx) {
+    if (!canEdit) return
     const draft = getDraft(row, rowIdx)
     if (!draft._dirty && !draft._isNew) return
 
     const deposito = draft.deposito !== '' && draft.deposito != null ? Number(draft.deposito) : null
-    const retiro   = draft.retiro   !== '' && draft.retiro   != null ? Number(draft.retiro)   : null
+    const retiro = draft.retiro !== '' && draft.retiro != null ? Number(draft.retiro) : null
 
-    if (!draft.nombre?.trim()) { toast.error('El campo Nombre es obligatorio.'); return }
-    if (!deposito && !retiro)  { toast.error('Se requiere deposito o retiro mayor a cero.'); return }
+    if (!draft.nombre?.trim()) {
+      toast.error('El campo Nombre es obligatorio.')
+      return
+    }
+    if (!deposito && !retiro) {
+      toast.error('Se requiere deposito o retiro mayor a cero.')
+      return
+    }
 
     const payload = {
-      fecha:       toDateValue(draft.fecha),
-      tipo_id:     draft.tipo_id    || null,
-      numero:      draft.numero     || null,
-      nombre:      draft.nombre.trim(),
-      referencia:  draft.referencia || null,
-      concepto:    draft.concepto   || null,
+      fecha: toDateValue(draft.fecha),
+      tipo_id: draft.tipo_id || null,
+      numero: draft.numero || null,
+      nombre: draft.nombre.trim(),
+      referencia: draft.referencia || null,
+      concepto: draft.concepto || null,
       deposito,
       retiro,
       category_id: draft.category_id || null,
@@ -186,24 +184,22 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
     if (draft._isNew) setNewRow(null)
   }
 
-  // ── Keyboard navigation ───────────────────────────────────────────────────────
-
-  function handleKeyDown(e, row, rowIdx, colName) {
+  function handleKeyDown(event, row, rowIdx, colName) {
     const rows = data?.data ?? []
 
-    if (e.key === 'Escape') {
-      e.preventDefault()
+    if (event.key === 'Escape') {
+      event.preventDefault()
       clearDraft(row, rowIdx)
     }
 
-    if (e.key === 'Enter' || (e.ctrlKey && e.key === 'Enter')) {
-      e.preventDefault()
+    if (event.key === 'Enter' || (event.ctrlKey && event.key === 'Enter')) {
+      event.preventDefault()
       saveRow(row, rowIdx)
     }
 
-    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-      e.preventDefault()
-      const direction = e.key === 'ArrowUp' ? -1 : 1
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault()
+      const direction = event.key === 'ArrowUp' ? -1 : 1
       const nextIdx = rowIdx + direction
       if (nextIdx < 0 || nextIdx >= rows.length) return
       const colIdx = EDITABLE_COLS.indexOf(colName)
@@ -212,65 +208,60 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
     }
   }
 
-  // ── Row blur — save on leaving entire row ─────────────────────────────────────
-
-  function handleRowBlur(e, row, rowIdx) {
-    const nextFocused = e.relatedTarget
-    const rowEl = e.currentTarget
+  function handleRowBlur(event, row, rowIdx) {
+    const nextFocused = event.relatedTarget
+    const rowEl = event.currentTarget
     if (rowEl.contains(nextFocused)) return
     saveRow(row, rowIdx)
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────────
-
   const rows = data?.data ?? []
 
   const colClass = 'px-2 py-0 h-8 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))] rounded w-full'
-  const thClass  = 'px-2 py-1.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] text-left whitespace-nowrap border-b border-r border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)] select-none last:border-r-0'
-  const tdClass  = 'border-b border-r border-[hsl(var(--border)/0.5)] p-0 align-middle last:border-r-0'
+  const thClass = 'px-2 py-1.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] text-left whitespace-nowrap border-b border-r border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)] select-none last:border-r-0'
+  const tdClass = 'border-b border-r border-[hsl(var(--border)/0.5)] p-0 align-middle last:border-r-0'
 
-  if (isLoading) return (
-    <div className="flex flex-col h-full">
-      {/* Toolbar skeleton */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[hsl(var(--border))]">
-        <div className="h-3.5 w-24 rounded bg-[hsl(var(--muted))] animate-pulse" />
-        <div className="h-7 w-20 rounded-lg bg-[hsl(var(--muted))] animate-pulse" />
-      </div>
-      {/* Spreadsheet skeleton */}
-      <div className="flex-1 overflow-hidden">
-        <table className="w-full border-collapse text-xs">
-          <thead>
-            <tr className="bg-[hsl(var(--muted)/0.3)]">
-              {[16, 64, 56, 80, 72, 96, 112, 72, 72, 72, 64].map((w, i) => (
-                <th key={i} className="px-2 py-1.5 border-b border-[hsl(var(--border))]">
-                  <div className="h-3 rounded bg-[hsl(var(--muted))] animate-pulse" style={{ width: w }} />
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: 12 }).map((_, rowIdx) => (
-              <tr key={rowIdx} className={rowIdx % 2 === 1 ? 'bg-[hsl(var(--muted)/0.15)]' : ''}>
-                {[16, 64, 56, 80, 72, 96, 112, 72, 72, 72, 64].map((w, colIdx) => (
-                  <td key={colIdx} className="border-b border-[hsl(var(--border)/0.5)] px-2 py-1 align-middle">
-                    <div
-                      className="h-3 rounded bg-[hsl(var(--muted))] animate-pulse"
-                      style={{ width: w }}
-                    />
-                  </td>
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-[hsl(var(--border))]">
+          <div className="h-3.5 w-24 rounded bg-[hsl(var(--muted))] animate-pulse" />
+          <div className="h-7 w-20 rounded-lg bg-[hsl(var(--muted))] animate-pulse" />
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <table className="w-full border-collapse text-xs">
+            <thead>
+              <tr className="bg-[hsl(var(--muted)/0.3)]">
+                {[16, 64, 56, 80, 72, 96, 112, 72, 72, 72, 64].map((width, index) => (
+                  <th key={index} className="px-2 py-1.5 border-b border-[hsl(var(--border))]">
+                    <div className="h-3 rounded bg-[hsl(var(--muted))] animate-pulse" style={{ width }} />
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {Array.from({ length: 12 }).map((_, rowIdx) => (
+                <tr key={rowIdx} className={rowIdx % 2 === 1 ? 'bg-[hsl(var(--muted)/0.15)]' : ''}>
+                  {[16, 64, 56, 80, 72, 96, 112, 72, 72, 72, 64].map((width, colIdx) => (
+                    <td key={colIdx} className="border-b border-[hsl(var(--border)/0.5)] px-2 py-1 align-middle">
+                      <div className="h-3 rounded bg-[hsl(var(--muted))] animate-pulse" style={{ width }} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  )
-  if (isError)   return <div className="p-4 text-sm text-red-500">No se pudieron cargar los movimientos.</div>
+    )
+  }
+
+  if (isError) {
+    return <div className="p-4 text-sm text-red-500">No se pudieron cargar los movimientos.</div>
+  }
 
   return (
     <div className="flex flex-col h-full">
-      {/* Toolbar */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-[hsl(var(--border))]">
         <span className="text-xs text-[hsl(var(--muted-foreground))]">
           {rows.length} movimiento{rows.length !== 1 ? 's' : ''}
@@ -279,14 +270,19 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
           variant="ghost"
           size="sm"
           onClick={() => setNewRow(emptyRow(accountId))}
-          disabled={!!newRow}
+          disabled={!!newRow || !canEdit}
         >
           <Plus size={13} className="mr-1" />
           Agregar
         </Button>
       </div>
 
-      {/* Table */}
+      {!canEdit && (
+        <div className="border-b border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.2)] px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">
+          Viendo movimientos en modo solo lectura offline. Para agregar, editar o eliminar reconecta la app.
+        </div>
+      )}
+
       <div className="flex-1 overflow-auto">
         <table ref={tableRef} className="w-full border-collapse text-sm">
           <thead className="sticky top-0 z-10">
@@ -302,7 +298,7 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
               <th className={`${thClass} w-28 text-right`}>Egreso</th>
               <th className={`${thClass} w-24`}>Categoria</th>
               <th className={`${thClass} w-28 text-right`}>Saldo</th>
-              <th className={`${thClass} w-8`}></th>
+              <th className={`${thClass} w-8`} />
             </tr>
           </thead>
           <tbody>
@@ -311,128 +307,146 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
               return (
                 <tr
                   key={row.id}
-                  onBlur={(e) => handleRowBlur(e, row, rowIdx)}
+                  onBlur={(event) => handleRowBlur(event, row, rowIdx)}
                   className="hover:bg-[hsl(var(--muted)/0.2)]"
                 >
-                  {/* # */}
                   <td className={`${tdClass} text-center text-xs text-[hsl(var(--muted-foreground))]`}>
                     {row.consecutive}
                   </td>
-                  {/* Fecha */}
                   <td className={tdClass}>
                     <input
                       type="date"
+                      aria-label={`Fecha movimiento ${row.consecutive ?? rowIdx + 1}`}
                       className={colClass}
-                      data-row={rowIdx} data-col="fecha"
+                      data-row={rowIdx}
+                      data-col="fecha"
+                      disabled={!canEdit}
                       value={toDateValue(draft.fecha)}
-                      onChange={(e) => setDraft(row, rowIdx, 'fecha', e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, row, rowIdx, 'fecha')}
+                      onChange={(event) => setDraft(row, rowIdx, 'fecha', event.target.value)}
+                      onKeyDown={(event) => handleKeyDown(event, row, rowIdx, 'fecha')}
                     />
                   </td>
-                  {/* Tipo */}
                   <td className={tdClass}>
                     <select
+                      aria-label={`Tipo movimiento ${row.consecutive ?? rowIdx + 1}`}
                       className={colClass}
-                      data-row={rowIdx} data-col="tipo_id"
+                      data-row={rowIdx}
+                      data-col="tipo_id"
+                      disabled={!canEdit}
                       value={draft.tipo_id ?? ''}
-                      onChange={(e) => setDraft(row, rowIdx, 'tipo_id', e.target.value || null)}
-                      onKeyDown={(e) => handleKeyDown(e, row, rowIdx, 'tipo_id')}
+                      onChange={(event) => setDraft(row, rowIdx, 'tipo_id', event.target.value || null)}
+                      onKeyDown={(event) => handleKeyDown(event, row, rowIdx, 'tipo_id')}
                     >
                       <option value="">—</option>
-                      {types.map((t) => <option key={t.id} value={t.id}>{t.code}</option>)}
+                      {types.map((type) => <option key={type.id} value={type.id}>{type.code}</option>)}
                     </select>
                   </td>
-                  {/* Numero */}
                   <td className={tdClass}>
                     <input
                       type="text"
+                      aria-label={`Numero movimiento ${row.consecutive ?? rowIdx + 1}`}
                       className={colClass}
-                      data-row={rowIdx} data-col="numero"
+                      data-row={rowIdx}
+                      data-col="numero"
+                      disabled={!canEdit}
                       value={draft.numero ?? ''}
-                      onChange={(e) => setDraft(row, rowIdx, 'numero', e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, row, rowIdx, 'numero')}
+                      onChange={(event) => setDraft(row, rowIdx, 'numero', event.target.value)}
+                      onKeyDown={(event) => handleKeyDown(event, row, rowIdx, 'numero')}
                     />
                   </td>
-                  {/* Nombre */}
                   <td className={tdClass}>
                     <input
                       type="text"
+                      aria-label={`Nombre movimiento ${row.consecutive ?? rowIdx + 1}`}
                       className={colClass}
-                      data-row={rowIdx} data-col="nombre"
+                      data-row={rowIdx}
+                      data-col="nombre"
+                      disabled={!canEdit}
                       value={draft.nombre ?? ''}
-                      onChange={(e) => setDraft(row, rowIdx, 'nombre', e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, row, rowIdx, 'nombre')}
+                      onChange={(event) => setDraft(row, rowIdx, 'nombre', event.target.value)}
+                      onKeyDown={(event) => handleKeyDown(event, row, rowIdx, 'nombre')}
                     />
                   </td>
-                  {/* Referencia */}
                   <td className={tdClass}>
                     <input
                       type="text"
+                      aria-label={`Referencia movimiento ${row.consecutive ?? rowIdx + 1}`}
                       className={colClass}
-                      data-row={rowIdx} data-col="referencia"
+                      data-row={rowIdx}
+                      data-col="referencia"
+                      disabled={!canEdit}
                       value={draft.referencia ?? ''}
-                      onChange={(e) => setDraft(row, rowIdx, 'referencia', e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, row, rowIdx, 'referencia')}
+                      onChange={(event) => setDraft(row, rowIdx, 'referencia', event.target.value)}
+                      onKeyDown={(event) => handleKeyDown(event, row, rowIdx, 'referencia')}
                     />
                   </td>
-                  {/* Concepto */}
                   <td className={tdClass}>
                     <input
                       type="text"
+                      aria-label={`Concepto movimiento ${row.consecutive ?? rowIdx + 1}`}
                       className={colClass}
-                      data-row={rowIdx} data-col="concepto"
+                      data-row={rowIdx}
+                      data-col="concepto"
+                      disabled={!canEdit}
                       value={draft.concepto ?? ''}
-                      onChange={(e) => setDraft(row, rowIdx, 'concepto', e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, row, rowIdx, 'concepto')}
+                      onChange={(event) => setDraft(row, rowIdx, 'concepto', event.target.value)}
+                      onKeyDown={(event) => handleKeyDown(event, row, rowIdx, 'concepto')}
                     />
                   </td>
-                  {/* Deposito */}
                   <td className={tdClass}>
                     <input
                       type="number"
+                      aria-label={`Ingreso movimiento ${row.consecutive ?? rowIdx + 1}`}
                       min="0"
                       step="0.01"
                       className={`${colClass} text-right`}
-                      data-row={rowIdx} data-col="deposito"
+                      data-row={rowIdx}
+                      data-col="deposito"
+                      disabled={!canEdit}
                       value={draft.deposito ?? ''}
-                      onChange={(e) => setDraft(row, rowIdx, 'deposito', e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, row, rowIdx, 'deposito')}
+                      onChange={(event) => setDraft(row, rowIdx, 'deposito', event.target.value)}
+                      onKeyDown={(event) => handleKeyDown(event, row, rowIdx, 'deposito')}
                     />
                   </td>
-                  {/* Retiro */}
                   <td className={tdClass}>
                     <input
                       type="number"
+                      aria-label={`Egreso movimiento ${row.consecutive ?? rowIdx + 1}`}
                       min="0"
                       step="0.01"
                       className={`${colClass} text-right`}
-                      data-row={rowIdx} data-col="retiro"
+                      data-row={rowIdx}
+                      data-col="retiro"
+                      disabled={!canEdit}
                       value={draft.retiro ?? ''}
-                      onChange={(e) => setDraft(row, rowIdx, 'retiro', e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, row, rowIdx, 'retiro')}
+                      onChange={(event) => setDraft(row, rowIdx, 'retiro', event.target.value)}
+                      onKeyDown={(event) => handleKeyDown(event, row, rowIdx, 'retiro')}
                     />
                   </td>
-                  {/* Categoria */}
                   <td className={tdClass}>
                     <select
+                      aria-label={`Categoria movimiento ${row.consecutive ?? rowIdx + 1}`}
                       className={colClass}
-                      data-row={rowIdx} data-col="category_id"
+                      data-row={rowIdx}
+                      data-col="category_id"
+                      disabled={!canEdit}
                       value={draft.category_id ?? ''}
-                      onChange={(e) => setDraft(row, rowIdx, 'category_id', e.target.value || null)}
-                      onKeyDown={(e) => handleKeyDown(e, row, rowIdx, 'category_id')}
+                      onChange={(event) => setDraft(row, rowIdx, 'category_id', event.target.value || null)}
+                      onKeyDown={(event) => handleKeyDown(event, row, rowIdx, 'category_id')}
                     >
                       <option value="">—</option>
-                      {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                      {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
                     </select>
                   </td>
-                  {/* Saldo — read-only */}
                   <td className={`${tdClass} text-right pr-3 text-xs font-mono font-semibold`}>
                     {fmtDecimal(row.saldo_actual)}
                   </td>
-                  {/* Delete */}
                   <td className={`${tdClass} text-center`}>
                     <button
-                      className="text-[hsl(var(--muted-foreground))] hover:text-red-500 text-xs px-1"
+                      type="button"
+                      aria-label={`Eliminar movimiento ${row.consecutive ?? rowIdx + 1}`}
+                      className="text-[hsl(var(--muted-foreground))] hover:text-red-500 text-xs px-1 disabled:opacity-40"
+                      disabled={!canEdit}
                       onClick={() => deleteMutation.mutate(row.id)}
                       title="Eliminar"
                     >
@@ -443,81 +457,122 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
               )
             })}
 
-            {/* New row */}
             {newRow && (
               <tr
-                onBlur={(e) => {
-                  const nextFocused = e.relatedTarget
-                  if (e.currentTarget.contains(nextFocused)) return
+                onBlur={(event) => {
+                  const nextFocused = event.relatedTarget
+                  if (event.currentTarget.contains(nextFocused)) return
                   saveRow(newRow, rows.length)
                 }}
                 className="bg-[hsl(var(--muted)/0.3)]"
               >
                 <td className={`${tdClass} text-center text-xs text-[hsl(var(--muted-foreground))]`}>*</td>
                 <td className={tdClass}>
-                  <input type="date" className={colClass} autoFocus
+                  <input
+                    type="date"
+                    aria-label="Fecha nuevo movimiento"
+                    className={colClass}
+                    autoFocus
+                    disabled={!canEdit}
                     value={newRow.fecha}
-                    onChange={(e) => setNewRow((r) => ({ ...r, fecha: e.target.value, _dirty: true }))}
-                    onKeyDown={(e) => { if (e.key === 'Escape') setNewRow(null) }}
+                    onChange={(event) => setNewRow((row) => ({ ...row, fecha: event.target.value, _dirty: true }))}
+                    onKeyDown={(event) => { if (event.key === 'Escape') setNewRow(null) }}
                   />
                 </td>
                 <td className={tdClass}>
-                  <select className={colClass}
+                  <select
+                    aria-label="Tipo nuevo movimiento"
+                    className={colClass}
+                    disabled={!canEdit}
                     value={newRow.tipo_id ?? ''}
-                    onChange={(e) => setNewRow((r) => ({ ...r, tipo_id: e.target.value || null, _dirty: true }))}
+                    onChange={(event) => setNewRow((row) => ({ ...row, tipo_id: event.target.value || null, _dirty: true }))}
                   >
                     <option value="">—</option>
-                    {types.map((t) => <option key={t.id} value={t.id}>{t.code}</option>)}
+                    {types.map((type) => <option key={type.id} value={type.id}>{type.code}</option>)}
                   </select>
                 </td>
                 <td className={tdClass}>
-                  <input type="text" className={colClass}
+                  <input
+                    type="text"
+                    aria-label="Numero nuevo movimiento"
+                    className={colClass}
+                    disabled={!canEdit}
                     value={newRow.numero}
-                    onChange={(e) => setNewRow((r) => ({ ...r, numero: e.target.value, _dirty: true }))}
+                    onChange={(event) => setNewRow((row) => ({ ...row, numero: event.target.value, _dirty: true }))}
                   />
                 </td>
                 <td className={tdClass}>
-                  <input type="text" className={colClass} placeholder="Nombre *"
+                  <input
+                    type="text"
+                    aria-label="Nombre nuevo movimiento"
+                    className={colClass}
+                    placeholder="Nombre *"
+                    disabled={!canEdit}
                     value={newRow.nombre}
-                    onChange={(e) => setNewRow((r) => ({ ...r, nombre: e.target.value, _dirty: true }))}
+                    onChange={(event) => setNewRow((row) => ({ ...row, nombre: event.target.value, _dirty: true }))}
                   />
                 </td>
                 <td className={tdClass}>
-                  <input type="text" className={colClass}
+                  <input
+                    type="text"
+                    aria-label="Referencia nuevo movimiento"
+                    className={colClass}
+                    disabled={!canEdit}
                     value={newRow.referencia}
-                    onChange={(e) => setNewRow((r) => ({ ...r, referencia: e.target.value, _dirty: true }))}
+                    onChange={(event) => setNewRow((row) => ({ ...row, referencia: event.target.value, _dirty: true }))}
                   />
                 </td>
                 <td className={tdClass}>
-                  <input type="text" className={colClass}
+                  <input
+                    type="text"
+                    aria-label="Concepto nuevo movimiento"
+                    className={colClass}
+                    disabled={!canEdit}
                     value={newRow.concepto}
-                    onChange={(e) => setNewRow((r) => ({ ...r, concepto: e.target.value, _dirty: true }))}
+                    onChange={(event) => setNewRow((row) => ({ ...row, concepto: event.target.value, _dirty: true }))}
                   />
                 </td>
                 <td className={tdClass}>
-                  <input type="number" min="0" step="0.01" className={`${colClass} text-right`}
+                  <input
+                    type="number"
+                    aria-label="Ingreso nuevo movimiento"
+                    min="0"
+                    step="0.01"
+                    className={`${colClass} text-right`}
+                    disabled={!canEdit}
                     value={newRow.deposito}
-                    onChange={(e) => setNewRow((r) => ({ ...r, deposito: e.target.value, _dirty: true }))}
+                    onChange={(event) => setNewRow((row) => ({ ...row, deposito: event.target.value, _dirty: true }))}
                   />
                 </td>
                 <td className={tdClass}>
-                  <input type="number" min="0" step="0.01" className={`${colClass} text-right`}
+                  <input
+                    type="number"
+                    aria-label="Egreso nuevo movimiento"
+                    min="0"
+                    step="0.01"
+                    className={`${colClass} text-right`}
+                    disabled={!canEdit}
                     value={newRow.retiro}
-                    onChange={(e) => setNewRow((r) => ({ ...r, retiro: e.target.value, _dirty: true }))}
+                    onChange={(event) => setNewRow((row) => ({ ...row, retiro: event.target.value, _dirty: true }))}
                   />
                 </td>
                 <td className={tdClass}>
-                  <select className={colClass}
+                  <select
+                    aria-label="Categoria nuevo movimiento"
+                    className={colClass}
+                    disabled={!canEdit}
                     value={newRow.category_id ?? ''}
-                    onChange={(e) => setNewRow((r) => ({ ...r, category_id: e.target.value || null, _dirty: true }))}
+                    onChange={(event) => setNewRow((row) => ({ ...row, category_id: event.target.value || null, _dirty: true }))}
                   >
                     <option value="">—</option>
-                    {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                    {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
                   </select>
                 </td>
                 <td className={`${tdClass} text-right pr-3 text-xs`}>—</td>
                 <td className={`${tdClass} text-center`}>
-                  <button className="text-xs px-1 hover:text-red-500" onClick={() => setNewRow(null)}>×</button>
+                  <button type="button" aria-label="Cancelar nuevo movimiento" className="text-xs px-1 hover:text-red-500 disabled:opacity-40" disabled={!canEdit} onClick={() => setNewRow(null)}>
+                    ×
+                  </button>
                 </td>
               </tr>
             )}
