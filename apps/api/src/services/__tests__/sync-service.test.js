@@ -57,6 +57,22 @@ function makePrisma(overrides = {}) {
       findMany: async () => [],
       ...(overrides.catalogCategory ?? {}),
     },
+    ledgerAccount: {
+      findMany: async () => [],
+      ...(overrides.ledgerAccount ?? {}),
+    },
+    ledgerTransaction: {
+      findMany: async () => [],
+      ...(overrides.ledgerTransaction ?? {}),
+    },
+    ledgerCategory: {
+      findMany: async () => [],
+      ...(overrides.ledgerCategory ?? {}),
+    },
+    ledgerTransactionType: {
+      findMany: async () => [],
+      ...(overrides.ledgerTransactionType ?? {}),
+    },
     syncCursor: {
       findMany: async () => [],
       ...(overrides.syncCursor ?? {}),
@@ -280,6 +296,86 @@ describe('sync-service', () => {
         }),
       })
       await svc.pull({ authUserId: USER_ID, modules: ['atlas.catalog'], cursor: null })
+      assert.equal(capturedWhere?.companyId, COMPANY_ID)
+    })
+  })
+
+  describe('atlas.ledger module', () => {
+    it('returns account, transaction, category, transaction_type records', async () => {
+      const account = {
+        id: 'acc-1', companyId: COMPANY_ID, name: 'BBVA Principal', bank: 'BBVA',
+        accountNumber: '1234', currency: 'MXN', openingBalance: 0,
+        enabled: true, createdAt: past, updatedAt: now,
+      }
+      const transaction = {
+        id: 'tx-1', companyId: COMPANY_ID, accountId: 'acc-1',
+        categoryId: null, tipoId: null, fecha: now, numero: '001',
+        nombre: 'Deposito inicial', referencia: null, concepto: null,
+        deposito: 1000, retiro: null, enabled: true, createdAt: past, updatedAt: now,
+      }
+      const category = {
+        id: 'cat-1', companyId: COMPANY_ID, name: 'Ingresos',
+        color: '#22c55e', kind: 'income', enabled: true, createdAt: past, updatedAt: now,
+      }
+      const txType = {
+        id: 'typ-1', companyId: COMPANY_ID, code: 'DEP', name: 'Deposito',
+        enabled: true, createdAt: past, updatedAt: now,
+      }
+      const svc = createSyncService({
+        prisma: makePrisma({
+          ledgerAccount:          { findMany: async () => [account] },
+          ledgerTransaction:      { findMany: async () => [transaction] },
+          ledgerCategory:         { findMany: async () => [category] },
+          ledgerTransactionType:  { findMany: async () => [txType] },
+        }),
+      })
+      const result = await svc.pull({ authUserId: USER_ID, modules: ['atlas.ledger'], cursor: null })
+      const types = result.records.map((r) => r.entityType)
+      assert.ok(types.includes('account'),          'must include account')
+      assert.ok(types.includes('transaction'),      'must include transaction')
+      assert.ok(types.includes('category'),         'must include category')
+      assert.ok(types.includes('transaction_type'), 'must include transaction_type')
+      assert.equal(result.records.find((r) => r.entityType === 'account').id, 'acc-1')
+      assert.equal(result.records.find((r) => r.entityType === 'transaction').id, 'tx-1')
+    })
+
+    it('account handler filters by companyId (not ownerId)', async () => {
+      let capturedWhere = null
+      const svc = createSyncService({
+        prisma: makePrisma({
+          ledgerAccount: {
+            findMany: async ({ where }) => { capturedWhere = where; return [] },
+          },
+        }),
+      })
+      await svc.pull({ authUserId: USER_ID, modules: ['atlas.ledger'], cursor: null })
+      assert.equal(capturedWhere?.companyId, COMPANY_ID)
+      assert.equal(capturedWhere?.ownerId, undefined, 'ledger account must NOT filter by ownerId')
+    })
+
+    it('transaction handler filters by companyId', async () => {
+      let capturedWhere = null
+      const svc = createSyncService({
+        prisma: makePrisma({
+          ledgerTransaction: {
+            findMany: async ({ where }) => { capturedWhere = where; return [] },
+          },
+        }),
+      })
+      await svc.pull({ authUserId: USER_ID, modules: ['atlas.ledger'], cursor: null })
+      assert.equal(capturedWhere?.companyId, COMPANY_ID)
+    })
+
+    it('category handler filters by companyId', async () => {
+      let capturedWhere = null
+      const svc = createSyncService({
+        prisma: makePrisma({
+          ledgerCategory: {
+            findMany: async ({ where }) => { capturedWhere = where; return [] },
+          },
+        }),
+      })
+      await svc.pull({ authUserId: USER_ID, modules: ['atlas.ledger'], cursor: null })
       assert.equal(capturedWhere?.companyId, COMPANY_ID)
     })
   })

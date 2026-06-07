@@ -95,6 +95,14 @@ const SYNC_MODULE_REGISTRY = {
       makeHandler('category', 'catalogCategory'),
     ],
   },
+  'atlas.ledger': {
+    handlers: [
+      makeHandler('account',          'ledgerAccount'),
+      makeHandler('transaction',      'ledgerTransaction'),
+      makeHandler('category',         'ledgerCategory'),
+      makeHandler('transaction_type', 'ledgerTransactionType'),
+    ],
+  },
 }
 
 export function createSyncService({ prisma }) {
