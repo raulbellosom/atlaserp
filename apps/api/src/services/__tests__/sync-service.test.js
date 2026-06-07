@@ -378,5 +378,18 @@ describe('sync-service', () => {
       await svc.pull({ authUserId: USER_ID, modules: ['atlas.ledger'], cursor: null })
       assert.equal(capturedWhere?.companyId, COMPANY_ID)
     })
+
+    it('transaction_type handler filters by companyId', async () => {
+      let capturedWhere = null
+      const svc = createSyncService({
+        prisma: makePrisma({
+          ledgerTransactionType: {
+            findMany: async ({ where }) => { capturedWhere = where; return [] },
+          },
+        }),
+      })
+      await svc.pull({ authUserId: USER_ID, modules: ['atlas.ledger'], cursor: null })
+      assert.equal(capturedWhere?.companyId, COMPANY_ID)
+    })
   })
 })
