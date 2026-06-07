@@ -7,7 +7,6 @@ Atlas ERP is a module engine. Each ERP capability is modeled as a module that de
 | Directory | Namespace | Owner |
 |---|---|---|
 | `modules/custom/<moduleKey>/` | `custom.*`, `community.*` | Partners/community |
-| `modules/official/<moduleKey>/` | `atlas.*` | Optional curated distributions |
 | `apps/api/src/manifests/official/` | `atlas.*` | Internal official manifest snapshots (seed/runtime baseline) |
 
 `packages/maps/` was decommissioned and removed on 2026-05-25.

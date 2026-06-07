@@ -88,9 +88,6 @@ const SCREEN_MAP = {
   "atlas.identity:/": lazy(
     () => import("../modules/atlas.identity/screens/IdentityOverview.jsx"),
   ),
-  // --- Transitional module screens ---
-  // atlas.ledger keeps a few custom screens while table/form/detail routes
-  // are rendered by BlueprintCrudScreen.
   "atlas.ledger:/accounts": lazy(
     () => import("../modules/atlas.ledger/screens/AccountsScreen.jsx"),
   ),
