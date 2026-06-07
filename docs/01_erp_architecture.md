@@ -27,20 +27,18 @@ apps/
   worker/      Background job handler
 packages/
   core/        Module registry, event bus, manifest contract, time utilities
-  maps/        [DEPRECATED] Legacy module manifests — transitional only
   ui/          Shared React components
   sdk/         Atlas API client (createAtlasClient factory)
   validators/  Zod schemas shared between API and frontend
   module-engine/  @atlas/module-engine — defineAtlasModule, defineModel, defineView, definePage
 modules/
-  official/    Atlas team modules (migration target for Phase 5)
   custom/      Community and partner modules
 prisma/
   schema.prisma   Single source of truth for Atlas Core data models only
   seed.js         Seeds core modules, permissions, roles
 ```
 
-`packages/maps/` is deprecated. Its contents are the old manifest source for official modules. It remains only while official modules are migrated into `modules/official/`. It will be deleted in Phase 7.
+`packages/maps/` was decommissioned and removed. All core module manifests live in `apps/api/src/manifests/official/`.
 
 ## Layer responsibilities
 
@@ -52,9 +50,7 @@ prisma/
 
 **apps/worker** — Background jobs: reports, file processing, scheduled tasks. Connects to Prisma directly. No public endpoints.
 
-**modules/official/** — Official Atlas ERP modules (Phase 5 migration target). Each module is a self-contained directory with manifest, models, views, pages, API routes, and optional components.
-
-**modules/custom/** — Community and partner modules. Same structure as official modules. Namespace must be `custom.*` or `community.*`.
+**modules/custom/** — Community and partner modules. Self-contained directory with manifest, models, API routes, and optional components. Namespace must be `custom.*` or `community.*`.
 
 **Supabase (external, self-hosted)** — PostgreSQL (Atlas tables via Prisma), Auth (sessions, JWTs, user creation), Storage (physical files), Realtime (future).
 
