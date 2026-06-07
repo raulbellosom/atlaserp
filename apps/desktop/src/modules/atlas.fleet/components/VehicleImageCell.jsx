@@ -1,20 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileViewer } from "@atlas/ui";
-
-function getBaseUrl(apiBaseUrl) {
-  return String(apiBaseUrl ?? "").trim().replace(/\/+$/, "");
-}
-
-async function resolveSignedUrl({ apiBaseUrl, token, fileAssetId }) {
-  if (!fileAssetId) return null;
-  const response = await fetch(`${getBaseUrl(apiBaseUrl)}/files/${encodeURIComponent(fileAssetId)}/signed-url`, {
-    method: "GET",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!response.ok) return null;
-  const payload = await response.json();
-  return payload?.data?.signedUrl ?? payload?.data?.url ?? null;
-}
+import { atlas } from '../../../lib/atlas'
 
 function mapViewerFiles(items) {
   return items.map((item) => ({
@@ -51,12 +37,13 @@ export default function VehicleImageCell({ value, row, token, apiBaseUrl }) {
     async (fileAssetId) => {
       if (!fileAssetId) return null;
       if (signedUrlCache[fileAssetId]) return signedUrlCache[fileAssetId];
-      const url = await resolveSignedUrl({ apiBaseUrl, token, fileAssetId });
+      const payload = await atlas.files.getSignedUrl(fileAssetId, token).catch(() => null);
+      const url = payload?.data?.signedUrl ?? payload?.data?.url ?? null;
       if (!url) return null;
       setSignedUrlCache((prev) => ({ ...prev, [fileAssetId]: url }));
       return url;
     },
-    [apiBaseUrl, signedUrlCache, token],
+    [signedUrlCache, token],
   );
 
   useEffect(() => {
@@ -82,18 +69,14 @@ export default function VehicleImageCell({ value, row, token, apiBaseUrl }) {
     return () => {
       cancelled = true;
     };
-  }, [apiBaseUrl, coverImageAssetId, getSignedUrl]);
+  }, [coverImageAssetId, getSignedUrl]);
 
   const openVehicleViewer = useCallback(async () => {
     if (!vehicleId || !apiBaseUrl || !hasAnyImage) return;
     setViewerLoading(true);
     try {
-      const response = await fetch(`${getBaseUrl(apiBaseUrl)}/fleet/vehicles/${encodeURIComponent(vehicleId)}/documents`, {
-        method: "GET",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!response.ok) return;
-      const payload = await response.json();
+      const payload = await atlas.fleet.getVehicleDocuments(vehicleId, token).catch(() => null);
+      if (!payload) return;
       const rows = Array.isArray(payload?.data) ? payload.data : [];
       const files = mapViewerFiles(rows);
       const effectiveFiles = files;
@@ -123,7 +106,7 @@ export default function VehicleImageCell({ value, row, token, apiBaseUrl }) {
     } finally {
       setViewerLoading(false);
     }
-  }, [apiBaseUrl, coverImageAssetId, hasAnyImage, token, vehicleId]);
+  }, [coverImageAssetId, hasAnyImage, token, vehicleId]);
 
   const currentViewerFile = useMemo(() => {
     if (!Array.isArray(viewerFiles) || viewerFiles.length === 0) return null;
