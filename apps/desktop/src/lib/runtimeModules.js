@@ -2,10 +2,7 @@
 // This ensures navigation (including children) is always read from the source file,
 // not from the stale DB-cached manifest. Takes priority over apiRow?.manifest.
 const _ame3ModuleFiles = import.meta.glob(
-  [
-    "../../../../modules/custom/*/module.manifest.js",
-    "../../../../modules/official/*/module.manifest.js",
-  ],
+  "../../../../modules/custom/*/module.manifest.js",
   { eager: true },
 );
 const _ame3Manifests = Object.values(_ame3ModuleFiles)
@@ -55,7 +52,7 @@ function normalizeLayoutMode(value) {
 
 function normalizeModuleNavigationPath(moduleKey, path) {
   const rawPath = String(path ?? "").trim();
-  if (!rawPath) return "/";
+  if (!rawPath) return "";
   if (rawPath === "/") return "/";
 
   const withSlash = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;

@@ -109,6 +109,49 @@ const SCREEN_MAP = {
   "atlas.ledger:/memberships": lazy(
     () => import("../modules/atlas.ledger/screens/MembershipsScreen.jsx"),
   ),
+  "atlas.ledger:/categories": lazy(
+    () => import("../modules/atlas.ledger/screens/CategoriesScreen.jsx"),
+  ),
+  "atlas.ledger:/categories/:id": lazy(
+    () => import("../modules/atlas.ledger/screens/CategoriesScreen.jsx"),
+  ),
+  "atlas.ledger:/types": lazy(
+    () => import("../modules/atlas.ledger/screens/TypesScreen.jsx"),
+  ),
+  "atlas.ledger:/types/:id": lazy(
+    () => import("../modules/atlas.ledger/screens/TypesScreen.jsx"),
+  ),
+  // atlas.fleet custom screens
+  "atlas.fleet:/vehicles": lazy(
+    () => import("../modules/atlas.fleet/screens/VehiclesScreen.jsx"),
+  ),
+  "atlas.fleet:/vehicles/:id": lazy(
+    () => import("../modules/atlas.fleet/screens/VehiclesScreen.jsx"),
+  ),
+  "atlas.fleet:/drivers": lazy(
+    () => import("../modules/atlas.fleet/screens/DriversScreen.jsx"),
+  ),
+  "atlas.fleet:/drivers/:id": lazy(
+    () => import("../modules/atlas.fleet/screens/DriversScreen.jsx"),
+  ),
+  "atlas.fleet:/insurance": lazy(
+    () => import("../modules/atlas.fleet/screens/InsuranceScreen.jsx"),
+  ),
+  "atlas.fleet:/insurance/:id": lazy(
+    () => import("../modules/atlas.fleet/screens/InsuranceScreen.jsx"),
+  ),
+  "atlas.fleet:/reports/:type": lazy(
+    () => import("../modules/atlas.fleet/screens/ReportsScreen.jsx"),
+  ),
+  "atlas.fleet:/reports/:type/new": lazy(
+    () => import("../modules/atlas.fleet/screens/ReportFormPage.jsx"),
+  ),
+  "atlas.fleet:/reports/:id": lazy(
+    () => import("../modules/atlas.fleet/screens/ReportDetailScreen.jsx"),
+  ),
+  "atlas.fleet:/catalogs/:section": lazy(
+    () => import("../modules/atlas.fleet/screens/CatalogsScreen.jsx"),
+  ),
   "atlas.website:/": lazy(
     () => import("../modules/atlas.website/screens/WebsiteOverviewScreen.jsx"),
   ),
@@ -307,31 +350,32 @@ function resolveScreen(moduleKey, subPath) {
   if (moduleKey === "atlas.hr" && subPath.startsWith("/hr/employees/")) {
     return SCREEN_MAP["atlas.hr:/hr/employees/:id"] ?? null;
   }
+  if (moduleKey === "atlas.fleet") {
+    if (subPath === "/vehicles" || subPath === "/vehicles/new") return SCREEN_MAP["atlas.fleet:/vehicles"] ?? null;
+    if (subPath.startsWith("/vehicles/")) return SCREEN_MAP["atlas.fleet:/vehicles/:id"] ?? null;
+    if (subPath === "/drivers" || subPath === "/drivers/new") return SCREEN_MAP["atlas.fleet:/drivers"] ?? null;
+    if (subPath.startsWith("/drivers/")) return SCREEN_MAP["atlas.fleet:/drivers/:id"] ?? null;
+    if (subPath === "/insurance" || subPath === "/insurance/new") return SCREEN_MAP["atlas.fleet:/insurance"] ?? null;
+    if (subPath.startsWith("/insurance/")) return SCREEN_MAP["atlas.fleet:/insurance/:id"] ?? null;
+    if (/^\/reports\/(maintenance|service|repair|other)\/new$/.test(subPath)) return SCREEN_MAP["atlas.fleet:/reports/:type/new"] ?? null;
+    if (/^\/reports\/(maintenance|service|repair|other)$/.test(subPath)) return SCREEN_MAP["atlas.fleet:/reports/:type"] ?? null;
+    if (/^\/reports\/[^/]+$/.test(subPath)) return SCREEN_MAP["atlas.fleet:/reports/:id"] ?? null;
+    if (/^\/catalogs\/(vehicle-types|vehicle-brands|vehicle-models)$/.test(subPath)) return SCREEN_MAP["atlas.fleet:/catalogs/:section"] ?? null;
+    if (subPath === "/catalogs") return SCREEN_MAP["atlas.fleet:/catalogs/:section"] ?? null;
+    return null;
+  }
   if (moduleKey === "atlas.ledger") {
-    // Subpaths arrive as "/accounts", "/categories", "/types" — the module prefix
-    // (/app/m/atlas.ledger) is already stripped by normalizeModuleNavigationPath.
-    if (subPath === "/accounts") {
-      return SCREEN_MAP["atlas.ledger:/accounts"] ?? null;
-    }
-    if (subPath.endsWith("/import")) {
-      return SCREEN_MAP["atlas.ledger:/accounts/:id/import"] ?? null;
-    }
-    // /accounts/:id — but let /accounts/new fall through to BlueprintCrudScreen (create form)
-    if (subPath.startsWith("/accounts/") && !subPath.endsWith("/new")) {
-      return SCREEN_MAP["atlas.ledger:/accounts/:id"] ?? null;
-    }
-    // /groups/:id — UUID segment after /groups/
-    if (/^\/groups\/[^/]+$/.test(subPath)) {
-      return SCREEN_MAP["atlas.ledger:/groups/:id"] ?? null;
-    }
-    if (subPath === "/groups") {
-      return SCREEN_MAP["atlas.ledger:/groups"] ?? null;
-    }
-    if (subPath === "/memberships") {
-      return SCREEN_MAP["atlas.ledger:/memberships"] ?? null;
-    }
-    // /accounts/new, /categories/*, /types/* → BlueprintCrudScreen (table + form + detail)
-    return BlueprintCrudScreen;
+    if (subPath === "/accounts" || subPath === "/accounts/new") return SCREEN_MAP["atlas.ledger:/accounts"] ?? null;
+    if (subPath.endsWith("/import")) return SCREEN_MAP["atlas.ledger:/accounts/:id/import"] ?? null;
+    if (subPath.startsWith("/accounts/") && !subPath.endsWith("/new")) return SCREEN_MAP["atlas.ledger:/accounts/:id"] ?? null;
+    if (/^\/groups\/[^/]+$/.test(subPath)) return SCREEN_MAP["atlas.ledger:/groups/:id"] ?? null;
+    if (subPath === "/groups") return SCREEN_MAP["atlas.ledger:/groups"] ?? null;
+    if (subPath === "/memberships") return SCREEN_MAP["atlas.ledger:/memberships"] ?? null;
+    if (subPath === "/categories" || subPath === "/categories/new") return SCREEN_MAP["atlas.ledger:/categories"] ?? null;
+    if (subPath.startsWith("/categories/")) return SCREEN_MAP["atlas.ledger:/categories/:id"] ?? null;
+    if (subPath === "/types" || subPath === "/types/new") return SCREEN_MAP["atlas.ledger:/types"] ?? null;
+    if (subPath.startsWith("/types/")) return SCREEN_MAP["atlas.ledger:/types/:id"] ?? null;
+    return null;
   }
   if (moduleKey === "atlas.website") {
     if (/^\/pages\/[^/]+\/editor$/.test(subPath)) {

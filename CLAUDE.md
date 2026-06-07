@@ -99,7 +99,7 @@ All development uses the dedicated self-hosted Supabase instance:
 
 ### Module system (packages/core + AME3 manifests)
 
-Every ERP feature is a **module**. Official manifest snapshots are maintained in `apps/api/src/manifests/official/`, and AME3 modules are declared under `modules/custom/` (and optionally `modules/official/`).
+Every ERP feature is a **module**. Official manifest snapshots are maintained in `apps/api/src/manifests/official/`, and AME3 modules are declared under `modules/custom/`.
 
 A manifest defines: `key`, `name`, `version`, `kind`, `core`, `uninstallable`, `dependencies`, `permissions`, `navigation`, `blueprints`, `exposes`, `consumes`.
 
@@ -144,7 +144,7 @@ apps/api/src/
   permission-catalog.js     granular RBAC permission definitions
 ```
 
-Route Loader behavior: on API boot, `route-loader-service.js` reads all `INSTALLED` + `enabled` modules from DB, looks for `modules/custom/<moduleKey>/api/index.js` (or `modules/official/`), imports it as a Hono router factory, and delegates matching requests at runtime. No `index.js` edits needed when adding a new AME3 module.
+Route Loader behavior: on API boot, `route-loader-service.js` reads all `INSTALLED` + `enabled` modules from DB, looks for `modules/custom/<moduleKey>/api/index.js`, imports it as a Hono router factory, and delegates matching requests at runtime. No `index.js` edits needed when adding a new AME3 module.
 
 Key endpoints:
 

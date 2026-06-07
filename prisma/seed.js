@@ -4,15 +4,6 @@ import { PrismaPg } from '@prisma/adapter-pg'
 const { PrismaClient } = pkg
 import { listOfficialModuleManifests } from '../apps/api/src/services/module-manifests-service.js'
 import { getPermissionPresentation } from '../apps/api/src/permission-catalog.js'
-import * as fleetViews from '../modules/official/atlas.fleet/views/fleet-views.js'
-import * as fleetCatalogs from '../modules/official/atlas.fleet/views/fleet-catalogs.js'
-import * as ledgerViews from '../modules/official/atlas.ledger/views/ledger-views.js'
-
-const OFFICIAL_MODULE_VIEWS = [
-  { moduleKey: 'atlas.fleet',  views: Object.values(fleetViews) },
-  { moduleKey: 'atlas.fleet',  views: Object.values(fleetCatalogs) },
-  { moduleKey: 'atlas.ledger', views: Object.values(ledgerViews) },
-]
 
 const prismaConnectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL
 const prismaAdapter = new PrismaPg({ connectionString: prismaConnectionString })
@@ -51,34 +42,6 @@ async function upsertModule(manifest) {
   })
 }
 
-async function seedAtlasViews() {
-  let count = 0
-  for (const { moduleKey, views } of OFFICIAL_MODULE_VIEWS) {
-    for (const view of views) {
-      if (!view || typeof view !== 'object' || !view.key || !view.kind) continue
-      await prisma.atlasView.upsert({
-        where: { key: view.key },
-        update: {
-          moduleKey,
-          type: view.kind,
-          title: view.schema?.title ?? null,
-          schema: view.schema,
-          enabled: true,
-        },
-        create: {
-          moduleKey,
-          key: view.key,
-          type: view.kind,
-          title: view.schema?.title ?? null,
-          schema: view.schema,
-          enabled: true,
-        },
-      })
-      count++
-    }
-  }
-  return count
-}
 
 async function main() {
   const officialModuleManifests = listOfficialModuleManifests()
@@ -240,8 +203,7 @@ async function main() {
     })
   }
 
-  const viewCount = await seedAtlasViews()
-  console.log(`Atlas modules seeded (${officialModuleManifests.length}), views seeded (${viewCount})`)
+  console.log(`Atlas modules seeded (${officialModuleManifests.length})`)
 }
 
 main().finally(() => prisma.$disconnect())
