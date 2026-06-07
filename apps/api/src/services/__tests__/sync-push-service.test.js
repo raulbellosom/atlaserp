@@ -66,6 +66,18 @@ function makePrisma(overrides = {}) {
       update: async ({ where, data }) => ({ id: where.id, updatedAt: now, ...data }),
       ...(overrides.fleetDriver ?? {}),
     },
+    catalogProduct: {
+      findUnique: async () => null,
+      create: async ({ data }) => ({ id: 'p1', updatedAt: now, ...data }),
+      update: async ({ where, data }) => ({ id: where.id, companyId: COMPANY_ID, updatedAt: now, ...data }),
+      ...(overrides.catalogProduct ?? {}),
+    },
+    catalogCategory: {
+      findUnique: async () => null,
+      create: async ({ data }) => ({ id: 'cat1', updatedAt: now, ...data }),
+      update: async ({ where, data }) => ({ id: where.id, companyId: COMPANY_ID, updatedAt: now, ...data }),
+      ...(overrides.catalogCategory ?? {}),
+    },
   }
 }
 
@@ -298,5 +310,76 @@ describe('conflict-ui strategy', () => {
 
     assert.equal(result.results[0].status, 'OK')
     assert.equal(updateCalled, true)
+  })
+})
+
+describe('atlas.catalog push', () => {
+  const PRODUCT_ID = '01900000-0000-7000-8000-000000000020'
+  const CATEGORY_ID = '01900000-0000-7000-8000-000000000021'
+
+  it('CREATE product returns OK with created record', async () => {
+    let createCalled = false
+    const prisma = makePrisma({
+      catalogProduct: {
+        findUnique: async () => null,
+        create: async ({ data }) => { createCalled = true; return { id: 'p-new', updatedAt: now, ...data } },
+        update: async ({ where, data }) => ({ id: where.id, updatedAt: now, ...data }),
+      },
+    })
+    const svc = createSyncPushService({ prisma })
+    const result = await svc.push({
+      authUserId: USER_ID,
+      mutations: [{ idempotencyKey: IK, moduleKey: 'atlas.catalog', entityType: 'product', operation: 'CREATE', recordId: null, payload: { name: 'Widget', sku: 'W-001' } }],
+    })
+    assert.equal(result.results[0].status, 'OK')
+    assert.ok(result.results[0].record)
+    assert.ok(createCalled)
+  })
+
+  it('CREATE category returns OK with created record', async () => {
+    let createCalled = false
+    const prisma = makePrisma({
+      catalogCategory: {
+        findUnique: async () => null,
+        create: async ({ data }) => { createCalled = true; return { id: 'cat-new', updatedAt: now, ...data } },
+        update: async ({ where, data }) => ({ id: where.id, updatedAt: now, ...data }),
+      },
+    })
+    const svc = createSyncPushService({ prisma })
+    const result = await svc.push({
+      authUserId: USER_ID,
+      mutations: [{ idempotencyKey: IK, moduleKey: 'atlas.catalog', entityType: 'category', operation: 'CREATE', recordId: null, payload: { name: 'Herramientas' } }],
+    })
+    assert.equal(result.results[0].status, 'OK')
+    assert.ok(result.results[0].record)
+    assert.ok(createCalled)
+  })
+
+  it('UPDATE product returns OK with updated record', async () => {
+    let updateCalled = false
+    const prisma = makePrisma({
+      catalogProduct: {
+        findUnique: async ({ where }) => ({ id: where.id, companyId: COMPANY_ID, name: 'Old', sku: 'W-001', updatedAt: now }),
+        create: async ({ data }) => ({ id: 'x', updatedAt: now, ...data }),
+        update: async ({ where, data }) => { updateCalled = true; return { id: where.id, companyId: COMPANY_ID, updatedAt: now, ...data } },
+      },
+    })
+    const svc = createSyncPushService({ prisma })
+    const result = await svc.push({
+      authUserId: USER_ID,
+      mutations: [{ idempotencyKey: IK, moduleKey: 'atlas.catalog', entityType: 'product', operation: 'UPDATE', recordId: PRODUCT_ID, payload: { name: 'Widget Pro' } }],
+    })
+    assert.equal(result.results[0].status, 'OK')
+    assert.equal(result.results[0].record.name, 'Widget Pro')
+    assert.ok(updateCalled)
+  })
+
+  it('unknown entityType for atlas.catalog returns ERROR', async () => {
+    const svc = createSyncPushService({ prisma: makePrisma() })
+    const result = await svc.push({
+      authUserId: USER_ID,
+      mutations: [{ idempotencyKey: IK, moduleKey: 'atlas.catalog', entityType: 'widget', operation: 'CREATE', recordId: null, payload: {} }],
+    })
+    assert.equal(result.results[0].status, 'ERROR')
   })
 })

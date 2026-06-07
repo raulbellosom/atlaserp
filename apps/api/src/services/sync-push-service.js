@@ -48,6 +48,13 @@ const PUSH_MODULE_REGISTRY = {
       driver: makePushHandler('driver', 'fleetDriver'),
     },
   },
+  'atlas.catalog': {
+    strategy: 'last-write-wins',
+    handlers: {
+      product: makePushHandler('product', 'catalogProduct'),
+      category: makePushHandler('category', 'catalogCategory'),
+    },
+  },
 }
 
 export function createSyncPushService({ prisma, registry }) {

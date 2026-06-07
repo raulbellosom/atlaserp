@@ -89,6 +89,12 @@ const SYNC_MODULE_REGISTRY = {
       },
     ],
   },
+  'atlas.catalog': {
+    handlers: [
+      makeHandler('product', 'catalogProduct'),
+      makeHandler('category', 'catalogCategory'),
+    ],
+  },
 }
 
 export function createSyncService({ prisma }) {

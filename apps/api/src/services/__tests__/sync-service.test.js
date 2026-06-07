@@ -49,6 +49,14 @@ function makePrisma(overrides = {}) {
       findMany: async () => [],
       ...(overrides.calendarEvent ?? {}),
     },
+    catalogProduct: {
+      findMany: async () => [],
+      ...(overrides.catalogProduct ?? {}),
+    },
+    catalogCategory: {
+      findMany: async () => [],
+      ...(overrides.catalogCategory ?? {}),
+    },
     syncCursor: {
       findMany: async () => [],
       ...(overrides.syncCursor ?? {}),
@@ -231,6 +239,48 @@ describe('sync-service', () => {
       const result = await svc.pull({ authUserId: 'auth-u1', modules: ['atlas.calendar'], cursor: null })
       assert.equal(result.records.filter((r) => r.entityType === 'event').length, 0)
       assert.equal(eventFetchCalled, false, 'event query must be skipped when no owned calendars')
+    })
+  })
+
+  describe('atlas.catalog module', () => {
+    it('returns product and category records for atlas.catalog', async () => {
+      const product = { id: 'p1', companyId: COMPANY_ID, name: 'Widget', sku: 'W-001', enabled: true, updatedAt: now, createdAt: past }
+      const category = { id: 'cat1', companyId: COMPANY_ID, name: 'Herramientas', enabled: true, updatedAt: now, createdAt: past }
+      const svc = createSyncService({
+        prisma: makePrisma({
+          catalogProduct: { findMany: async () => [product] },
+          catalogCategory: { findMany: async () => [category] },
+        }),
+      })
+      const result = await svc.pull({ authUserId: USER_ID, modules: ['atlas.catalog'], cursor: null })
+      const types = result.records.map((r) => r.entityType)
+      assert.ok(types.includes('product'), 'must include product entityType')
+      assert.ok(types.includes('category'), 'must include category entityType')
+      assert.equal(result.records.find((r) => r.entityType === 'product').id, 'p1')
+      assert.equal(result.records.find((r) => r.entityType === 'category').id, 'cat1')
+    })
+
+    it('product handler filters by companyId (not userId)', async () => {
+      let capturedWhere = null
+      const svc = createSyncService({
+        prisma: makePrisma({
+          catalogProduct: { findMany: async ({ where }) => { capturedWhere = where; return [] } },
+        }),
+      })
+      await svc.pull({ authUserId: USER_ID, modules: ['atlas.catalog'], cursor: null })
+      assert.equal(capturedWhere?.companyId, COMPANY_ID)
+      assert.equal(capturedWhere?.ownerId, undefined, 'product must NOT filter by ownerId')
+    })
+
+    it('category handler filters by companyId', async () => {
+      let capturedWhere = null
+      const svc = createSyncService({
+        prisma: makePrisma({
+          catalogCategory: { findMany: async ({ where }) => { capturedWhere = where; return [] } },
+        }),
+      })
+      await svc.pull({ authUserId: USER_ID, modules: ['atlas.catalog'], cursor: null })
+      assert.equal(capturedWhere?.companyId, COMPANY_ID)
     })
   })
 })
