@@ -222,3 +222,4 @@ export { UserSearchModal } from "./components/UserSearchModal.jsx";
 export { OfflineIndicator } from "./components/OfflineIndicator.jsx";
 export { SyncStatusBar } from "./components/SyncStatusBar.jsx";
 export { PendingMutationsPanel } from "./components/PendingMutationsPanel.jsx";
+export { ConflictDialog } from "./components/ConflictDialog.jsx";
