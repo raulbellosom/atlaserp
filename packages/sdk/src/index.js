@@ -1013,6 +1013,102 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
         }),
     },
+    calendar: {
+      listCalendars: (token) =>
+        request('/calendar/calendars', { headers: withAuthHeaders(token) }),
+      createCalendar: (data, token) =>
+        request('/calendar/calendars', {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateCalendar: (id, data, token) =>
+        request(`/calendar/calendars/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      deleteCalendar: (id, token) =>
+        request(`/calendar/calendars/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          headers: withAuthHeaders(token),
+        }),
+      shareCalendar: (calendarId, data, token) =>
+        request(`/calendar/calendars/${encodeURIComponent(calendarId)}/share`, {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateShare: (calendarId, shareId, data, token) =>
+        request(`/calendar/calendars/${encodeURIComponent(calendarId)}/share/${encodeURIComponent(shareId)}`, {
+          method: 'PATCH',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      deleteShare: (calendarId, shareId, token) =>
+        request(`/calendar/calendars/${encodeURIComponent(calendarId)}/share/${encodeURIComponent(shareId)}`, {
+          method: 'DELETE',
+          headers: withAuthHeaders(token),
+        }),
+      listEvents: (token, query = {}) => {
+        const params = new URLSearchParams()
+        if (query.start) params.set('start', query.start)
+        if (query.end) params.set('end', query.end)
+        if (Array.isArray(query.calendar_ids)) {
+          query.calendar_ids.forEach((id) => params.append('calendar_ids', id))
+        }
+        const qs = params.toString()
+        return request(qs ? `/calendar/events?${qs}` : '/calendar/events', {
+          headers: withAuthHeaders(token),
+        })
+      },
+      getEvent: (id, token) =>
+        request(`/calendar/events/${encodeURIComponent(id)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      createEvent: (data, token) =>
+        request('/calendar/events', {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateEvent: (id, data, token) =>
+        request(`/calendar/events/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      deleteEvent: (id, token) =>
+        request(`/calendar/events/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          headers: withAuthHeaders(token),
+        }),
+      createReminder: (eventId, data, token) =>
+        request(`/calendar/events/${encodeURIComponent(eventId)}/reminders`, {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      deleteReminder: (eventId, reminderId, token) =>
+        request(`/calendar/events/${encodeURIComponent(eventId)}/reminders/${encodeURIComponent(reminderId)}`, {
+          method: 'DELETE',
+          headers: withAuthHeaders(token),
+        }),
+      listNotifications: (token, query = {}) =>
+        request(`/calendar/notifications${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      markNotificationRead: (id, token) =>
+        request(`/calendar/notifications/${encodeURIComponent(id)}/read`, {
+          method: 'PATCH',
+          headers: withAuthHeaders(token),
+        }),
+      markAllNotificationsRead: (token) =>
+        request('/calendar/notifications/read-all', {
+          method: 'PATCH',
+          headers: withAuthHeaders(token),
+        }),
+    },
     setOfflineTransport(transport) {
       _offlineTransport = transport;
     },
