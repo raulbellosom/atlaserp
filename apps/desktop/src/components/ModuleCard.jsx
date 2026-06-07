@@ -1,4 +1,4 @@
-import { Star } from "lucide-react";
+import { Star, WifiOff } from "lucide-react";
 import {
   Box,
   Layers,
@@ -167,7 +167,7 @@ export function ModuleIcon({ module, size = "md" }) {
 }
 
 // ---- ModuleCardGrid: grid card for navigation (HomeScreen) ----
-export function ModuleCardGrid({ module, onClick, onContextMenu, isFavorite }) {
+export function ModuleCardGrid({ module, onClick, onContextMenu, isFavorite, isOfflineBlocked }) {
   const visuals = resolveModuleVisuals(module);
   const { color, accentColor } = visuals;
 
@@ -175,7 +175,13 @@ export function ModuleCardGrid({ module, onClick, onContextMenu, isFavorite }) {
     <button
       onClick={onClick}
       onContextMenu={onContextMenu}
-      className="group relative flex flex-col rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden cursor-pointer text-left transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]"
+      disabled={isOfflineBlocked}
+      className={cn(
+        "group relative flex flex-col rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden text-left transition-all duration-200",
+        isOfflineBlocked
+          ? "opacity-40 cursor-not-allowed pointer-events-none"
+          : "cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]",
+      )}
     >
       {/* Gradient header */}
       <div
@@ -192,10 +198,16 @@ export function ModuleCardGrid({ module, onClick, onContextMenu, isFavorite }) {
           className="absolute right-8 top-2 h-8 w-8 rounded-full opacity-[0.08]"
           style={{ background: color }}
         />
-        {isFavorite && (
+        {isFavorite && !isOfflineBlocked && (
           <Star
             size={11}
             className="absolute top-3 right-3 text-amber-400 fill-amber-400"
+          />
+        )}
+        {isOfflineBlocked && (
+          <WifiOff
+            size={11}
+            className="absolute top-3 right-3 text-[hsl(var(--muted-foreground))]"
           />
         )}
       </div>
@@ -219,12 +231,18 @@ export function ModuleCardGrid({ module, onClick, onContextMenu, isFavorite }) {
 }
 
 // ---- ModuleListRow: list row for navigation (HomeScreen) ----
-export function ModuleListRow({ module, onClick, onContextMenu, isFavorite }) {
+export function ModuleListRow({ module, onClick, onContextMenu, isFavorite, isOfflineBlocked }) {
   return (
     <button
       onClick={onClick}
       onContextMenu={onContextMenu}
-      className="flex items-center gap-4 w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:shadow-sm hover:border-[hsl(var(--muted-foreground))]/30 transition-all duration-200 cursor-pointer px-4 py-3 text-left active:scale-[0.99]"
+      disabled={isOfflineBlocked}
+      className={cn(
+        "flex items-center gap-4 w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-all duration-200 px-4 py-3 text-left",
+        isOfflineBlocked
+          ? "opacity-40 cursor-not-allowed pointer-events-none"
+          : "cursor-pointer hover:shadow-sm hover:border-[hsl(var(--muted-foreground))]/30 active:scale-[0.99]",
+      )}
     >
       <ModuleIcon module={module} size="sm" />
       <div className="flex-1 min-w-0">
@@ -235,8 +253,11 @@ export function ModuleListRow({ module, onClick, onContextMenu, isFavorite }) {
           {module.summary || module.description}
         </p>
       </div>
-      {isFavorite && (
+      {isFavorite && !isOfflineBlocked && (
         <Star size={13} className="text-amber-400 fill-amber-400 shrink-0" />
+      )}
+      {isOfflineBlocked && (
+        <WifiOff size={13} className="text-[hsl(var(--muted-foreground))]/60 shrink-0" />
       )}
     </button>
   );
