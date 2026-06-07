@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Star, WifiOff, Zap } from "lucide-react";
-import { Skeleton, Separator } from "@atlas/ui";
+import { Skeleton, Separator, cn } from "@atlas/ui";
+import { useOfflineStore, OFFLINE_MODULES } from "@atlas/offline";
 import { useAuth } from "../auth/AuthProvider";
 import { getModuleLaunchPath, getSortedDisplay } from "../lib/runtimeModules";
 import { useRuntimeModules } from "./useRuntimeModules";
@@ -57,6 +58,9 @@ export function HomeScreen() {
   const { sortMode, viewMode, favorites, favoritesFirst, isFavorite } =
     useAppViewPrefs();
 
+  const isOnline = useOfflineStore((s) => s.isOnline)
+  const isOfflineBlocked = (module) => !isOnline && !OFFLINE_MODULES.includes(module.key)
+
   const favoriteModules = useMemo(
     () => availableModules.filter((m) => favorites.includes(m.key)),
     [availableModules, favorites],
@@ -87,6 +91,7 @@ export function HomeScreen() {
   );
 
   function handleModuleClick(module) {
+    if (isOfflineBlocked(module)) return
     trackModuleVisit(module.key);
     navigate(getModuleLaunchPath(module));
   }
@@ -136,7 +141,13 @@ export function HomeScreen() {
                     key={module.key}
                     onClick={() => handleModuleClick(module)}
                     onContextMenu={(e) => handleContextMenu(e, module.key)}
-                    className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all duration-150 cursor-pointer px-3 py-2.5 text-left active:scale-[0.98]"
+                    disabled={isOfflineBlocked(module)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 transition-all duration-150 px-3 py-2.5 text-left",
+                      isOfflineBlocked(module)
+                        ? "opacity-40 cursor-not-allowed pointer-events-none"
+                        : "hover:bg-amber-500/10 hover:border-amber-500/30 cursor-pointer active:scale-[0.98]",
+                    )}
                   >
                     <div
                       className="rounded-lg flex items-center justify-center shrink-0"
@@ -175,7 +186,13 @@ export function HomeScreen() {
                     key={m.key}
                     onClick={() => handleModuleClick(m)}
                     onContextMenu={(e) => handleContextMenu(e, m.key)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:bg-[hsl(var(--muted))] text-xs font-medium text-[hsl(var(--foreground))] transition-all duration-150 cursor-pointer"
+                    disabled={isOfflineBlocked(m)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-xs font-medium text-[hsl(var(--foreground))] transition-all duration-150",
+                      isOfflineBlocked(m)
+                        ? "opacity-40 cursor-not-allowed pointer-events-none"
+                        : "hover:bg-[hsl(var(--muted))] cursor-pointer",
+                    )}
                   >
                     <span
                       className="h-2 w-2 rounded-full shrink-0"
@@ -224,6 +241,7 @@ export function HomeScreen() {
                         onClick={() => handleModuleClick(module)}
                         onContextMenu={(e) => handleContextMenu(e, module.key)}
                         isFavorite={isFavorite(module.key)}
+                        isOfflineBlocked={isOfflineBlocked(module)}
                       />
                     ))}
                   </div>
@@ -236,6 +254,7 @@ export function HomeScreen() {
                         onClick={() => handleModuleClick(module)}
                         onContextMenu={(e) => handleContextMenu(e, module.key)}
                         isFavorite={isFavorite(module.key)}
+                        isOfflineBlocked={isOfflineBlocked(module)}
                       />
                     ))}
                   </div>
