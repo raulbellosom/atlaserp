@@ -396,4 +396,65 @@ describe('SyncEngine', () => {
     const result = await engine.push()
     assert.deepEqual(result, { pushed: 1, failed: 1 })
   })
+
+  it('CONFLICT result writes entry to conflicts table with localData and serverData', async () => {
+    await db.offline_records.put({
+      moduleKey: 'atlas.contacts',
+      entityType: 'contact',
+      id: 'c1',
+      data: { id: 'c1', name: 'Local Name', companyId: COMPANY_ID, updatedAt: '2026-06-06T09:00:00.000Z' },
+      version: '2026-06-06T09:00:00.000Z',
+      pulledAt: '2026-06-06T09:00:00.000Z',
+      companyId: COMPANY_ID,
+      dirty: true,
+    })
+    await db.mutation_queue.put({
+      id: 'mut-conflict-1',
+      idempotencyKey: 'ik-conflict-1',
+      moduleKey: 'atlas.contacts',
+      entityType: 'contact',
+      recordId: 'c1',
+      operation: 'UPDATE',
+      payload: { name: 'Local Name' },
+      status: 'PENDING',
+      queuedAt: '2026-06-06T10:00:00.000Z',
+      attempts: 0,
+      lastError: null,
+      companyId: COMPANY_ID,
+      userId: 'u1',
+      clientUpdatedAt: '2026-06-06T09:00:00.000Z',
+    })
+
+    const serverRecord = { id: 'c1', name: 'Server Name', companyId: COMPANY_ID, updatedAt: '2026-06-06T10:30:00.000Z' }
+
+    const engine = new SyncEngine({
+      db,
+      apiBaseUrl: 'http://localhost:4010',
+      getToken: async () => 'tok',
+      fetchImpl: async () => ({
+        ok: true,
+        json: async () => ({
+          results: [{ idempotencyKey: 'ik-conflict-1', status: 'CONFLICT', record: serverRecord }],
+        }),
+      }),
+    })
+
+    const result = await engine.push()
+    assert.deepEqual(result, { pushed: 0, failed: 1 })
+
+    const mut = await db.mutation_queue.get('mut-conflict-1')
+    assert.equal(mut.status, 'CONFLICT')
+
+    const conflicts = await db.conflicts.where('status').equals('PENDING').toArray()
+    assert.equal(conflicts.length, 1)
+    assert.equal(conflicts[0].mutationId, 'mut-conflict-1')
+    assert.equal(conflicts[0].recordId, 'c1')
+    assert.equal(conflicts[0].moduleKey, 'atlas.contacts')
+    assert.ok(conflicts[0].localData, 'localData must be present')
+    assert.equal(conflicts[0].localData.name, 'Local Name')
+    assert.ok(conflicts[0].serverData, 'serverData must be present')
+    assert.equal(conflicts[0].serverData.name, 'Server Name')
+    assert.equal(conflicts[0].status, 'PENDING')
+    assert.ok(conflicts[0].detectedAt)
+  })
 })

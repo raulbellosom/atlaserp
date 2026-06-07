@@ -119,6 +119,7 @@ export class SyncEngine {
         recordId: item.recordId ?? null,
         payload: item.payload,
         queuedAt: item.queuedAt,
+        clientUpdatedAt: item.clientUpdatedAt ?? null,
       }))
 
       const response = await this.#fetchImpl(`${this.#apiBaseUrl}/sync/push`, {
@@ -141,35 +142,53 @@ export class SyncEngine {
       let pushed = 0
       let failed = 0
 
-      await this.#db.transaction('rw', [this.#db.mutation_queue, this.#db.offline_records], async () => {
-        for (const result of results) {
-          const item = pending.find((p) => p.idempotencyKey === result.idempotencyKey)
-          if (!item) continue
+      await this.#db.transaction(
+        'rw',
+        [this.#db.mutation_queue, this.#db.offline_records, this.#db.conflicts],
+        async () => {
+          for (const result of results) {
+            const item = pending.find((p) => p.idempotencyKey === result.idempotencyKey)
+            if (!item) continue
 
-          if (result.status === 'OK') {
-            await this.#mutationQueue.markDone(item.id)
-            if (result.record) {
-              await this.#db.offline_records.put({
+            if (result.status === 'OK') {
+              await this.#mutationQueue.markDone(item.id)
+              if (result.record) {
+                await this.#db.offline_records.put({
+                  moduleKey: item.moduleKey,
+                  entityType: item.entityType,
+                  id: result.record.id,
+                  data: result.record,
+                  version: result.record.updatedAt ?? new Date().toISOString(),
+                  pulledAt: new Date().toISOString(),
+                  companyId: result.record.companyId ?? item.companyId ?? null,
+                  dirty: false,
+                })
+              }
+              pushed++
+            } else if (result.status === 'CONFLICT') {
+              const localRecord = await this.#db.offline_records.get(
+                [item.moduleKey, item.entityType, item.recordId]
+              )
+              await this.#db.conflicts.put({
+                id: crypto.randomUUID(),
+                mutationId: item.id,
                 moduleKey: item.moduleKey,
                 entityType: item.entityType,
-                id: result.record.id,
-                data: result.record,
-                version: result.record.updatedAt ?? new Date().toISOString(),
-                pulledAt: new Date().toISOString(),
-                companyId: result.record.companyId ?? item.companyId ?? null,
-                dirty: false,
+                recordId: item.recordId,
+                localData: localRecord?.data ?? item.payload,
+                serverData: result.record ?? null,
+                detectedAt: new Date().toISOString(),
+                status: 'PENDING',
               })
+              await this.#mutationQueue.markConflict(item.id, 'Conflicto detectado en el servidor')
+              failed++
+            } else {
+              await this.#mutationQueue.markFailed(item.id, result.status ?? 'Error')
+              failed++
             }
-            pushed++
-          } else if (result.status === 'CONFLICT') {
-            await this.#mutationQueue.markConflict(item.id, JSON.stringify(result))
-            failed++
-          } else {
-            await this.#mutationQueue.markFailed(item.id, result.status ?? 'Error')
-            failed++
           }
-        }
-      })
+        },
+      )
 
       return { pushed, failed }
     } finally {
