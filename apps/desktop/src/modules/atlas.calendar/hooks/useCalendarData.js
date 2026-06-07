@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig'
-import { useOfflineContext } from '@atlas/offline'
+import { useOfflineContext, useOfflineStore } from '@atlas/offline'
 
 function useToken() {
   const { session } = useAuth()
@@ -29,16 +29,18 @@ async function apiFetch(path, token, options = {}) {
 export function useCalendars() {
   const token = useToken()
   const ctx = useOfflineContext()
+  const isOnline = useOfflineStore((s) => s.isOnline)
   return useQuery({
     queryKey: ['calendar', 'calendars'],
     queryFn: async () => {
-      if (!navigator.onLine) {
+      if (!isOnline) {
         const db = ctx?.dbRef?.current
         if (!db) return { owned: [], shared: [] }
         const records = await db.offline_records
           .where('moduleKey').equals('atlas.calendar')
           .filter((r) => r.entityType === 'calendar')
           .toArray()
+        // Shared calendars are not cached in Tier 2; only owned calendars are pulled
         return { owned: records.map((r) => r.data), shared: [] }
       }
       return apiFetch('/calendar/calendars', token)
@@ -110,6 +112,7 @@ export function useDeleteShare() {
 export function useCalendarEvents({ start, end, calendarIds = [] }) {
   const token = useToken()
   const ctx = useOfflineContext()
+  const isOnline = useOfflineStore((s) => s.isOnline)
   const params = new URLSearchParams()
   if (start) params.set('start', start)
   if (end) params.set('end', end)
@@ -117,7 +120,7 @@ export function useCalendarEvents({ start, end, calendarIds = [] }) {
   return useQuery({
     queryKey: ['calendar', 'events', start, end, calendarIds.join(',')],
     queryFn: async () => {
-      if (!navigator.onLine) {
+      if (!isOnline) {
         const db = ctx?.dbRef?.current
         if (!db) return []
         const startMs = start ? new Date(start).getTime() : null
@@ -147,6 +150,7 @@ export function useCalendarEvents({ start, end, calendarIds = [] }) {
 export function useYearEvents(year, calendarIds = [], enabled = true) {
   const token = useToken()
   const ctx = useOfflineContext()
+  const isOnline = useOfflineStore((s) => s.isOnline)
   const params = new URLSearchParams()
   const yearStart = new Date(year, 0, 1)
   const yearEnd = new Date(year, 11, 31, 23, 59, 59)
@@ -156,7 +160,7 @@ export function useYearEvents(year, calendarIds = [], enabled = true) {
   return useQuery({
     queryKey: ['calendar', 'events', 'year', year, calendarIds.join(',')],
     queryFn: async () => {
-      if (!navigator.onLine) {
+      if (!isOnline) {
         const db = ctx?.dbRef?.current
         if (!db) return []
         const startMs = yearStart.getTime()
