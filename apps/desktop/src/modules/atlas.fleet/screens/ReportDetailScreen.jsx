@@ -169,15 +169,17 @@ export default function ReportDetailScreen() {
   if (!recordId) return null
 
   return (
-    <AtlasCrudView
-      tableBlueprint={REPORT_TABLE_STUB}
-      detailBlueprint={detailBlueprint}
-      token={token}
-      apiBaseUrl={API_BASE}
-      initialMode="detail"
-      recordId={recordId}
-      onNavigate={handleNavigate}
-      componentRegistry={componentRegistry}
-    />
+    <div className="p-4 md:p-6 min-h-dvh">
+      <AtlasCrudView
+        tableBlueprint={REPORT_TABLE_STUB}
+        detailBlueprint={detailBlueprint}
+        token={token}
+        apiBaseUrl={API_BASE}
+        initialMode="detail"
+        recordId={recordId}
+        onNavigate={handleNavigate}
+        componentRegistry={componentRegistry}
+      />
+    </div>
   )
 }

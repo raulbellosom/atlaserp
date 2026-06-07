@@ -175,16 +175,18 @@ export default function InsuranceScreen() {
   }, [navigate])
 
   return (
-    <AtlasCrudView
-      tableBlueprint={INSURANCE_TABLE}
-      formBlueprint={INSURANCE_FORM}
-      detailBlueprint={INSURANCE_DETAIL}
-      token={token}
-      apiBaseUrl={API_BASE}
-      initialMode={initialMode}
-      recordId={recordId}
-      onNavigate={handleNavigate}
-      componentRegistry={componentRegistry}
-    />
+    <div className="p-4 md:p-6 min-h-dvh">
+      <AtlasCrudView
+        tableBlueprint={INSURANCE_TABLE}
+        formBlueprint={INSURANCE_FORM}
+        detailBlueprint={INSURANCE_DETAIL}
+        token={token}
+        apiBaseUrl={API_BASE}
+        initialMode={initialMode}
+        recordId={recordId}
+        onNavigate={handleNavigate}
+        componentRegistry={componentRegistry}
+      />
+    </div>
   )
 }

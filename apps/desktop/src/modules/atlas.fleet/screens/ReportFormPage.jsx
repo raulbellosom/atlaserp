@@ -150,16 +150,18 @@ export default function ReportFormPage() {
   }, [navigate, reportType])
 
   return (
-    <AtlasCrudView
-      tableBlueprint={REPORT_TABLE_STUB}
-      formBlueprint={formBlueprint}
-      token={token}
-      apiBaseUrl={API_BASE}
-      initialMode={mode}
-      recordId={recordId}
-      onNavigate={handleNavigate}
-      onCreateSuccess={handleCreateSuccess}
-      componentRegistry={componentRegistry}
-    />
+    <div className="p-4 md:p-6 min-h-dvh">
+      <AtlasCrudView
+        tableBlueprint={REPORT_TABLE_STUB}
+        formBlueprint={formBlueprint}
+        token={token}
+        apiBaseUrl={API_BASE}
+        initialMode={mode}
+        recordId={recordId}
+        onNavigate={handleNavigate}
+        onCreateSuccess={handleCreateSuccess}
+        componentRegistry={componentRegistry}
+      />
+    </div>
   )
 }

@@ -104,15 +104,17 @@ export default function CategoriesScreen() {
   }, [navigate])
 
   return (
-    <AtlasCrudView
-      tableBlueprint={CATEGORIES_TABLE}
-      formBlueprint={CATEGORIES_FORM}
-      detailBlueprint={CATEGORIES_DETAIL}
-      token={token}
-      apiBaseUrl={API_BASE}
-      initialMode={initialMode}
-      recordId={recordId}
-      onNavigate={handleNavigate}
-    />
+    <div className="p-4 md:p-6 min-h-dvh">
+      <AtlasCrudView
+        tableBlueprint={CATEGORIES_TABLE}
+        formBlueprint={CATEGORIES_FORM}
+        detailBlueprint={CATEGORIES_DETAIL}
+        token={token}
+        apiBaseUrl={API_BASE}
+        initialMode={initialMode}
+        recordId={recordId}
+        onNavigate={handleNavigate}
+      />
+    </div>
   )
 }

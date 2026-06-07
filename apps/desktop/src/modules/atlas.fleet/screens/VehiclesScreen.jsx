@@ -318,16 +318,18 @@ export default function VehiclesScreen() {
   }, [navigate])
 
   return (
-    <AtlasCrudView
-      tableBlueprint={VEHICLE_TABLE}
-      formBlueprint={VEHICLE_FORM}
-      detailBlueprint={VEHICLE_DETAIL}
-      token={token}
-      apiBaseUrl={API_BASE}
-      initialMode={initialMode}
-      recordId={recordId}
-      onNavigate={handleNavigate}
-      componentRegistry={componentRegistry}
-    />
+    <div className="p-4 md:p-6 min-h-dvh">
+      <AtlasCrudView
+        tableBlueprint={VEHICLE_TABLE}
+        formBlueprint={VEHICLE_FORM}
+        detailBlueprint={VEHICLE_DETAIL}
+        token={token}
+        apiBaseUrl={API_BASE}
+        initialMode={initialMode}
+        recordId={recordId}
+        onNavigate={handleNavigate}
+        componentRegistry={componentRegistry}
+      />
+    </div>
   )
 }
