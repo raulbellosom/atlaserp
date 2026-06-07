@@ -257,7 +257,7 @@ export function ModuleListRow({ module, onClick, onContextMenu, isFavorite, isOf
         <Star size={13} className="text-amber-400 fill-amber-400 shrink-0" />
       )}
       {isOfflineBlocked && (
-        <WifiOff size={13} className="text-[hsl(var(--muted-foreground))]/60 shrink-0" />
+        <WifiOff size={13} className="text-[hsl(var(--muted-foreground))] shrink-0" />
       )}
     </button>
   );
