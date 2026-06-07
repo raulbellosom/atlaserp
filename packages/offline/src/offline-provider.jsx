@@ -6,10 +6,7 @@ import { SessionVault } from './session-vault.js'
 import { SyncEngine } from './sync-engine.js'
 import { createOfflineTransport } from './offline-transport.js'
 import { useOfflineStore } from './offline-store.js'
-
-// Tier 1 modules synced on every cycle.
-// Phase 4 will derive this list from installed module manifests with offline.enabled = true.
-const OFFLINE_MODULES = ['atlas.contacts', 'atlas.hr', 'custom.fleet', 'atlas.calendar', 'atlas.catalog']
+import { OFFLINE_MODULES } from './offline-modules.js'
 
 const PULL_INTERVAL_MS = 10 * 60 * 1000 // 10 minutes
 
