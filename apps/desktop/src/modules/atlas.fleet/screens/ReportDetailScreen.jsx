@@ -4,6 +4,7 @@ import { AtlasCrudView } from '@atlas/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry'
+import { atlas } from '../../../lib/atlas'
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
 
@@ -149,13 +150,7 @@ export default function ReportDetailScreen() {
 
   const { data: reportData } = useQuery({
     queryKey: ['fleet-report-type', recordId, token],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE}/fleet/reports/${recordId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) return null
-      return res.json()
-    },
+    queryFn: () => atlas.fleet.getReport(recordId, token).catch(() => null),
     enabled: Boolean(recordId && token),
   })
 
