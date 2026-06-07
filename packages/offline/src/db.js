@@ -12,6 +12,10 @@ export class AtlasOfflineDatabase extends Dexie {
       conflicts: 'id, status, moduleKey, entityType, recordId, detectedAt',
       _query_cache: 'id',
     })
+
+    this.version(2).stores({
+      conflicts: 'id, status, moduleKey, entityType, recordId, detectedAt, mutationId',
+    })
   }
 }
 
