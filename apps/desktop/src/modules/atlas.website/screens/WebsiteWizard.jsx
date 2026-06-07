@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { defineTheme, defaultTheme, serializePage } from '@raulbellosom/atlas-web-builder'
-import { Globe } from 'lucide-react'
+import { Globe, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -217,6 +217,14 @@ export default function WebsiteWizard() {
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-background flex items-center justify-center p-6">
+      <button
+        type="button"
+        onClick={() => navigate('/app/m/atlas.website')}
+        className="fixed top-4 right-4 z-10 p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        aria-label="Cerrar"
+      >
+        <X className="w-5 h-5" />
+      </button>
       <div className="relative w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-10">

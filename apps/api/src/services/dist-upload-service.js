@@ -75,6 +75,14 @@ export function createDistUploadService({ prisma, supabaseAdmin }) {
     const hasPrerender = detectPrerender(relativePaths)
     const now = new Date()
 
+    // Save original zip for build history / download
+    const safeFileName = (fileName ?? 'build.zip').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80)
+    const zipKey = `dist/${companySlug}/builds/${now.toISOString().replace(/[:.]/g, '-')}_${safeFileName}`
+    await supabaseAdmin.storage
+      .from(BUCKET)
+      .upload(zipKey, Buffer.from(fileBuffer), { contentType: 'application/zip', upsert: false })
+      .catch(() => {})
+
     await prisma.$executeRaw`
       UPDATE website_site
       SET source_type        = 'dist',
@@ -109,5 +117,30 @@ export function createDistUploadService({ prisma, supabaseAdmin }) {
     `
   }
 
-  return { uploadDist, deleteDist }
+  async function listBuilds({ companySlug }) {
+    const prefix = `dist/${companySlug}/builds`
+    const { data, error } = await supabaseAdmin.storage
+      .from(BUCKET)
+      .list(prefix, { limit: 20, sortBy: { column: 'created_at', order: 'desc' } })
+    if (error || !data) return []
+    const publicBase = `${process.env.SUPABASE_URL}/storage/v1/object/public/${BUCKET}`
+    return data
+      .filter((f) => !f.id?.endsWith('/') && f.name.endsWith('.zip'))
+      .map((f) => ({
+        key:         `${prefix}/${f.name}`,
+        name:        f.name,
+        displayName: f.name.replace(/^\d{4}-\d{2}-\d{2}T[\d-]+Z_/, ''),
+        size:        f.metadata?.size ?? null,
+        uploadedAt:  f.created_at ?? null,
+        downloadUrl: `${publicBase}/${prefix}/${encodeURIComponent(f.name)}`,
+      }))
+  }
+
+  async function deleteBuildZip({ companySlug, buildName }) {
+    const key = `dist/${companySlug}/builds/${buildName}`
+    const { error } = await supabaseAdmin.storage.from(BUCKET).remove([key])
+    if (error) throw Object.assign(new Error(error.message), { status: 500 })
+  }
+
+  return { uploadDist, deleteDist, listBuilds, deleteBuildZip }
 }

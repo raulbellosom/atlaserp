@@ -9,6 +9,53 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
   const uploadService = createDistUploadService({ prisma, supabaseAdmin })
 
   app.get(
+    '/website/sites/:siteId/dist/builds',
+    requirePermission('website.site.read'),
+    async (c) => {
+      try {
+        const { siteId } = c.req.param()
+        const companyId = c.get('companyId')
+        const site = await prisma.$queryRaw`
+          SELECT ws.id, c.slug as company_slug
+          FROM website_site ws
+          JOIN company c ON c.id = ws.company_id
+          WHERE ws.id = ${siteId}::uuid AND ws.company_id = ${companyId}::uuid AND ws.enabled = true
+          LIMIT 1
+        `
+        if (!site[0]) return c.json({ error: 'Sitio no encontrado' }, 404)
+        const builds = await uploadService.listBuilds({ companySlug: site[0].company_slug })
+        return c.json({ data: builds })
+      } catch (err) {
+        return c.json({ error: err.message }, 500)
+      }
+    }
+  )
+
+  app.delete(
+    '/website/sites/:siteId/dist/builds/:buildName',
+    requirePermission('website.dist.upload'),
+    async (c) => {
+      try {
+        const { siteId, buildName } = c.req.param()
+        const companyId = c.get('companyId')
+        const site = await prisma.$queryRaw`
+          SELECT ws.id, c.slug as company_slug
+          FROM website_site ws
+          JOIN company c ON c.id = ws.company_id
+          WHERE ws.id = ${siteId}::uuid AND ws.company_id = ${companyId}::uuid AND ws.enabled = true
+          LIMIT 1
+        `
+        if (!site[0]) return c.json({ error: 'Sitio no encontrado' }, 404)
+        if (!buildName.endsWith('.zip')) return c.json({ error: 'Nombre de build invalido' }, 422)
+        await uploadService.deleteBuildZip({ companySlug: site[0].company_slug, buildName })
+        return c.json({ data: { success: true } })
+      } catch (err) {
+        return c.json({ error: err.message }, err.status ?? 500)
+      }
+    }
+  )
+
+  app.get(
     '/website/sites/:siteId',
     requirePermission('website.site.read'),
     async (c) => {

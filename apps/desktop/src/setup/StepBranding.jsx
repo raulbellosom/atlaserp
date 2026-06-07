@@ -3,10 +3,9 @@ import {
   useImperativeHandle,
   useState,
   useEffect,
-  useRef,
-  useCallback,
 } from "react";
-import { Upload, X, Palette } from "lucide-react";
+import { X, Palette } from "lucide-react";
+import { DistDropZone } from "@atlas/ui";
 
 const MAX_LOGO_BYTES = 10 * 1024 * 1024;
 
@@ -94,9 +93,6 @@ export const StepBranding = forwardRef(function StepBranding(
 ) {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [suggestedColors, setSuggestedColors] = useState(FALLBACK_COLORS);
-  const [isDragging, setIsDragging] = useState(false);
-  const [sizeError, setSizeError] = useState("");
-  const inputRef = useRef(null);
 
   useImperativeHandle(ref, () => ({
     validate() {
@@ -118,33 +114,6 @@ export const StepBranding = forwardRef(function StepBranding(
     return () => URL.revokeObjectURL(url);
   }, [data.logo]);
 
-  const handleFile = useCallback(
-    (file) => {
-      setSizeError("");
-      if (!file) return;
-      if (file.size > MAX_LOGO_BYTES) {
-        setSizeError(
-          `Archivo demasiado grande. Máximo ${formatBytes(MAX_LOGO_BYTES)}`,
-        );
-        return;
-      }
-      onChange({ logo: file });
-    },
-    [onChange],
-  );
-
-  function handleDrop(e) {
-    e.preventDefault();
-    setIsDragging(false);
-    handleFile(e.dataTransfer.files?.[0] ?? null);
-  }
-
-  function removeLogo() {
-    onChange({ logo: null });
-    setSizeError("");
-    if (inputRef.current) inputRef.current.value = "";
-  }
-
   return (
     <div>
       <div className="space-y-6">
@@ -155,58 +124,13 @@ export const StepBranding = forwardRef(function StepBranding(
           </span>
 
           {!data.logo ? (
-            /* Drop zone */
-            <div
-              role="button"
-              tabIndex={0}
-              aria-label="Zona de carga del logotipo"
-              onClick={() => inputRef.current?.click()}
-              onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={handleDrop}
-              className={[
-                "flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-8 text-center",
-                "transition-all duration-150 cursor-pointer select-none",
-                isDragging
-                  ? "border-primary bg-primary/5"
-                  : sizeError
-                    ? "border-destructive/40 bg-destructive/5"
-                    : "border-border bg-muted/30 hover:border-primary/40 hover:bg-primary/3",
-              ].join(" ")}
-            >
-              <div
-                className={[
-                  "w-10 h-10 rounded-lg flex items-center justify-center transition-colors duration-150",
-                  isDragging ? "bg-primary/15" : "bg-muted",
-                ].join(" ")}
-              >
-                <Upload
-                  size={17}
-                  className={
-                    isDragging ? "text-primary" : "text-muted-foreground"
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-foreground/80">
-                  Arrastra tu logotipo aquí
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Opcional · Máximo {formatBytes(MAX_LOGO_BYTES)}
-                </p>
-              </div>
-              <input
-                ref={inputRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
-                className="sr-only"
-              />
-            </div>
+            <DistDropZone
+              accept="image/*"
+              maxSizeMB={10}
+              onFile={(f) => onChange({ logo: f })}
+              emptyLabel="Arrastra tu logotipo aqui"
+              emptyHint={`Opcional · Maximo ${formatBytes(MAX_LOGO_BYTES)}`}
+            />
           ) : (
             /* Preview card */
             <div className="flex items-center gap-3.5 rounded-lg border border-border bg-muted/30 px-3.5 py-3">
@@ -229,8 +153,8 @@ export const StepBranding = forwardRef(function StepBranding(
               </div>
               <button
                 type="button"
-                onClick={removeLogo}
-                className="shrink-0 text-muted-foreground hover:text-destructive transition-colors duration-150"
+                onClick={() => onChange({ logo: null })}
+                className="shrink-0 text-muted-foreground hover:text-destructive transition-colors duration-150 cursor-pointer"
                 aria-label="Eliminar logotipo"
               >
                 <X size={15} />
@@ -238,9 +162,8 @@ export const StepBranding = forwardRef(function StepBranding(
             </div>
           )}
 
-          {sizeError && <p className="text-xs text-destructive">{sizeError}</p>}
           <p className="text-xs text-muted-foreground">
-            Se mostrará en el encabezado del sistema.
+            Se mostrara en el encabezado del sistema.
           </p>
         </div>
 
@@ -282,7 +205,7 @@ export const StepBranding = forwardRef(function StepBranding(
             <p className="text-[11px] text-muted-foreground mb-2 flex items-center gap-1">
               <Palette size={11} />
               {data.logo
-                ? "Colores extraídos del logotipo"
+                ? "Colores extraidos del logotipo"
                 : "Colores sugeridos"}
             </p>
             <div className="flex gap-2 flex-wrap">
@@ -292,7 +215,7 @@ export const StepBranding = forwardRef(function StepBranding(
                   type="button"
                   onClick={() => onChange({ primaryColor: color })}
                   className={[
-                    "w-7 h-7 rounded-lg border-2 transition-all duration-150 hover:scale-110 active:scale-95",
+                    "w-7 h-7 rounded-lg border-2 transition-all duration-150 hover:scale-110 active:scale-95 cursor-pointer",
                     data.primaryColor === color
                       ? "border-foreground ring-2 ring-foreground/20 scale-110"
                       : "border-border hover:border-foreground/40",

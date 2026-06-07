@@ -63,7 +63,7 @@ packages/offline/
   },
   "devDependencies": {
     "fake-indexeddb": "^4.0.2",
-    "zustand": "workspace:*"
+    "zustand": "^5.0.0"
   }
 }
 ```

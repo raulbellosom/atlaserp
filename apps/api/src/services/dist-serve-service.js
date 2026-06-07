@@ -27,6 +27,41 @@ export function resolveHtmlCandidates(companySlug, urlPath) {
   ]
 }
 
+const ATLAS_PATH_RE = /^\/(app|api|public|p|auth)\//i
+const ASSET_ATTR_RE = /\b(href|src|content)="(\/(?!\/)[^"]*\.[a-zA-Z0-9]{1,10}[^"]*)"/g
+// Matches href="/path" or href="/path?q=1" but NOT hrefs with file extensions (those are assets)
+const NAV_LINK_RE  = /\bhref="(\/(?!\/|#)[^"#?]*)([^"]*)"/g
+const HAS_EXT_RE   = /\.[a-zA-Z0-9]{1,10}(\?|$)/
+
+export function rewriteDistHtml(html, storageBase, basePath = '/public/site') {
+  // Step 1: rewrite root-relative ASSET paths (js/css/svg/png…) to full CDN URLs
+  const withAssets = html.replace(ASSET_ATTR_RE, (match, attr, path) => {
+    if (ATLAS_PATH_RE.test(path)) return match
+    return `${attr}="${storageBase}${path}"`
+  })
+
+  // Step 2: rewrite root-relative NAVIGATION links (no extension = HTML routes like /about-us)
+  // After step 1, asset hrefs are already CDN absolute so they won't match the extension guard.
+  const withNavLinks = withAssets.replace(NAV_LINK_RE, (match, path, rest) => {
+    if (ATLAS_PATH_RE.test(path)) return match
+    if (HAS_EXT_RE.test(path)) return match   // still an asset that slipped through
+    return `href="${basePath}${path}${rest}"`
+  })
+
+  // Step 3: inject importmap so dynamic import('/_astro/…') inside loaded modules
+  // resolves to CDN instead of the API origin.
+  const importMap = JSON.stringify({
+    imports: {
+      '/_astro/': `${storageBase}/_astro/`,
+      // Next.js / React static export chunks live at /_next/
+      '/_next/':  `${storageBase}/_next/`,
+    },
+  })
+  const importMapTag = `<script type="importmap">${importMap}</script>`
+
+  return withNavLinks.replace(/(<head(?:[^>]*)>)/i, `$1\n  ${importMapTag}`)
+}
+
 export function injectSeoTags(html, seoDefaults) {
   if (!seoDefaults) return html
   const tags = []
@@ -168,11 +203,13 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
       return c.json({ error: 'Pagina no encontrada' }, 404)
     }
 
+    const storageBase = `${process.env.SUPABASE_URL}/storage/v1/object/public/${BUCKET}/dist/${site.company_slug}`
     const injected = injectSeoTags(html, site.seo_defaults)
-    setCache(cacheKey, injected)
+    const final = rewriteDistHtml(injected, storageBase)
+    setCache(cacheKey, final)
 
     c.header('Cache-Control', 'public, max-age=300')
-    return c.html(injected)
+    return c.html(final)
   }
 
   return { serve, invalidatePrimaryCache }

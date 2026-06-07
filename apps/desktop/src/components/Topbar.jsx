@@ -23,12 +23,10 @@ export function Topbar({
   const { openCommand } = useCommandStore();
   const navigate = useNavigate();
   const token = session?.access_token;
-  const { isOnline, pendingCount, isSyncing, lastSyncAt } = useOfflineStore((s) => ({
-    isOnline: s.isOnline,
-    pendingCount: s.pendingCount,
-    isSyncing: s.isSyncing,
-    lastSyncAt: s.lastSyncAt,
-  }));
+  const isOnline     = useOfflineStore((s) => s.isOnline);
+  const pendingCount = useOfflineStore((s) => s.pendingCount);
+  const isSyncing    = useOfflineStore((s) => s.isSyncing);
+  const lastSyncAt   = useOfflineStore((s) => s.lastSyncAt);
   const canReadNotifications = Boolean(
     userProfile?.isAdmin ||
     (userProfile?.permissions ?? []).includes("notifications.read"),

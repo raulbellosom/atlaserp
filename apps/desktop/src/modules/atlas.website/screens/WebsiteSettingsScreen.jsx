@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Button,
   Card,
@@ -60,6 +60,7 @@ export default function WebsiteSettingsScreen() {
   const { session } = useAuth()
   const token = session?.access_token
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const [smtpForm, setSmtpForm] = useState(SMTP_EMPTY)
   const [passChanged, setPassChanged] = useState(false)
@@ -146,6 +147,7 @@ export default function WebsiteSettingsScreen() {
     onSuccess: (res) => {
       toast.success(`Build subido: ${res.data.fileCount} archivos`)
       sourceQuery.refetch()
+      queryClient.invalidateQueries({ queryKey: ['website-builds', siteId] })
     },
     onError: (err) => toast.error(err.message ?? 'Error al subir el build'),
   })
@@ -247,6 +249,8 @@ export default function WebsiteSettingsScreen() {
                         <p className="text-sm font-medium mb-3">Archivos del build</p>
                         <DistUploadPanel
                           site={sourceQuery.data?.data}
+                          token={token}
+                          siteId={siteId}
                           onUpload={(file) => uploadDistMutation.mutate(file)}
                           onDelete={() => deleteDistMutation.mutate()}
                           isUploading={uploadDistMutation.isPending || deleteDistMutation.isPending}

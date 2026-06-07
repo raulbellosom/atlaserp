@@ -1,10 +1,10 @@
 // apps/desktop/src/modules/atlas.ledger/screens/ImportWizard.jsx
-import { useState, useRef, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button } from '@atlas/ui'
-import { Upload, ArrowLeft, ArrowRight, Check } from 'lucide-react'
+import { Button, DistDropZone } from '@atlas/ui'
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider'
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_URL || 'http://localhost:4010'
@@ -46,7 +46,6 @@ export default function ImportWizard() {
   const [headers, setHeaders] = useState([])
   const [mapping, setMapping] = useState({})
   const [preview, setPreview] = useState(null)
-  const fileRef = useRef(null)
 
   // Load account details for the context header
   const { data: accountData } = useQuery({
@@ -242,30 +241,12 @@ export default function ImportWizard() {
             <p className="text-sm text-[hsl(var(--muted-foreground))] mb-6">
               Sube un archivo CSV con tus movimientos bancarios. La primera fila debe contener los encabezados de columna.
             </p>
-            <div
-              className="border-2 border-dashed border-[hsl(var(--border))] rounded-2xl py-16 px-8 text-center cursor-pointer hover:border-[hsl(var(--ring))] hover:bg-[hsl(var(--muted))]/30 transition-colors"
-              onClick={() => fileRef.current?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]) }}
-            >
-              <div className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-[hsl(var(--muted))] flex items-center justify-center">
-                <Upload size={24} className="text-[hsl(var(--muted-foreground))]" />
-              </div>
-              <p className="text-base font-semibold text-[hsl(var(--foreground))]">Arrastra tu archivo aqui</p>
-              <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-                o{' '}
-                <span className="text-[hsl(var(--primary))] hover:underline">haz clic para seleccionar</span>
-              </p>
-              <p className="text-xs text-[hsl(var(--muted-foreground))] mt-3 px-4 py-1.5 rounded-full bg-[hsl(var(--muted))] inline-block">
-                CSV — primera fila debe ser encabezados
-              </p>
-            </div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".csv"
-              className="hidden"
-              onChange={(e) => handleFile(e.target.files[0])}
+            <DistDropZone
+              accept=".csv,.xlsx"
+              maxSizeMB={20}
+              onFile={handleFile}
+              emptyLabel="Arrastra tu archivo aqui"
+              emptyHint="CSV — primera fila debe ser encabezados"
             />
           </div>
         )}

@@ -1,5 +1,6 @@
 // apps/desktop/src/modules/atlas.website/screens/wizard/WizardStepIdentity.jsx
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { DistDropZone } from '@atlas/ui'
 import { extractColorsFromFile, extractColorsFromBlobUrl, PRESET_COLORS } from '../../lib/colorExtract.js'
 
 const FONTS = [
@@ -13,22 +14,7 @@ const FONTS = [
 const FIVE_MB = 5 * 1024 * 1024
 
 function LogoZone({ logoFile, logoPreviewUrl, companyLogoUrl, useCompanyLogo, onFile, onUseCompany, onRemove }) {
-  const [isDragging, setIsDragging] = useState(false)
-  const [sizeError, setSizeError]   = useState('')
   const inputRef = useRef(null)
-
-  const handleFile = useCallback((file) => {
-    setSizeError('')
-    if (!file) return
-    if (file.size > FIVE_MB) { setSizeError('Archivo demasiado grande. Maximo 5 MB'); return }
-    onFile(file)
-  }, [onFile])
-
-  function handleDrop(e) {
-    e.preventDefault()
-    setIsDragging(false)
-    handleFile(e.dataTransfer.files?.[0] ?? null)
-  }
 
   const displayUrl = logoPreviewUrl ?? (useCompanyLogo ? companyLogoUrl : null)
 
@@ -47,18 +33,19 @@ function LogoZone({ logoFile, logoPreviewUrl, companyLogoUrl, useCompanyLogo, on
           </p>
           <div className="flex items-center gap-3 mt-2">
             <button type="button" onClick={() => inputRef.current?.click()}
-              className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors">
+              className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors cursor-pointer">
               Cambiar logo
             </button>
             <span className="text-muted-foreground">|</span>
             <button type="button" onClick={onRemove}
-              className="text-xs font-semibold text-destructive hover:text-destructive/80 transition-colors">
+              className="text-xs font-semibold text-destructive hover:text-destructive/80 transition-colors cursor-pointer">
               Quitar
             </button>
           </div>
         </div>
         <input ref={inputRef} type="file" accept="image/*"
-          onChange={(e) => handleFile(e.target.files?.[0] ?? null)} className="sr-only"/>
+          onChange={(e) => { const f = e.target.files?.[0]; if (f && f.size <= FIVE_MB) onFile(f) }}
+          className="sr-only"/>
       </div>
     )
   }
@@ -67,7 +54,7 @@ function LogoZone({ logoFile, logoPreviewUrl, companyLogoUrl, useCompanyLogo, on
     <div className="space-y-3">
       {companyLogoUrl && (
         <button type="button" onClick={onUseCompany}
-          className="w-full flex items-center gap-3 p-3 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left">
+          className="w-full flex items-center gap-3 p-3 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left cursor-pointer">
           <div className="w-10 h-10 rounded-lg border border-border bg-background flex items-center justify-center overflow-hidden shrink-0">
             <img src={companyLogoUrl} alt="Logo empresa" className="max-w-full max-h-full object-contain p-0.5"/>
           </div>
@@ -77,30 +64,13 @@ function LogoZone({ logoFile, logoPreviewUrl, companyLogoUrl, useCompanyLogo, on
           </div>
         </button>
       )}
-      <div
-        role="button" tabIndex={0}
-        onClick={() => inputRef.current?.click()}
-        onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-        className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed py-6 px-4 text-center cursor-pointer transition-all select-none ${
-          isDragging ? 'border-primary bg-primary/5' : 'border-border bg-muted/30 hover:border-primary/40 hover:bg-muted/50'
-        }`}
-      >
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${isDragging ? 'bg-primary/10' : 'bg-muted'}`}>
-          <svg viewBox="0 0 24 24" fill="none" className={`w-5 h-5 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`}>
-            <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M16 8l-4-4-4 4M12 4v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-foreground">Subir logo propio</p>
-          <p className="text-xs text-muted-foreground">PNG, SVG o WebP · Max 5 MB</p>
-        </div>
-        <input ref={inputRef} type="file" accept="image/*"
-          onChange={(e) => handleFile(e.target.files?.[0] ?? null)} className="sr-only"/>
-      </div>
-      {sizeError && <p className="text-xs text-destructive">{sizeError}</p>}
+      <DistDropZone
+        accept="image/*"
+        maxSizeMB={5}
+        onFile={onFile}
+        emptyLabel="Subir logo propio"
+        emptyHint="PNG, SVG o WebP · Max 5 MB"
+      />
     </div>
   )
 }

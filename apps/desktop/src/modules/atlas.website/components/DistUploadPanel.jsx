@@ -1,10 +1,75 @@
-import { useState, useRef } from 'react'
-import { Button, ConfirmDialog } from '@atlas/ui'
-import { Upload, FileArchive, X, Trash2, CheckCircle2 } from 'lucide-react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Button, ConfirmDialog, DistDropZone } from '@atlas/ui'
+import {
+  Upload, FileArchive, Trash2, CheckCircle2,
+  Download, ChevronDown, ChevronRight, ExternalLink, Copy, Clock,
+} from 'lucide-react'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { toast } from 'sonner'
 
 const MAX_SIZE_MB = 100
-const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
 
+// ---- Framework SVG icons ----
+function ReactIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="2.2" fill="#61DAFB"/>
+      <ellipse cx="12" cy="12" rx="10.5" ry="4" stroke="#61DAFB" strokeWidth="1.4"/>
+      <ellipse cx="12" cy="12" rx="10.5" ry="4" stroke="#61DAFB" strokeWidth="1.4" transform="rotate(60 12 12)"/>
+      <ellipse cx="12" cy="12" rx="10.5" ry="4" stroke="#61DAFB" strokeWidth="1.4" transform="rotate(120 12 12)"/>
+    </svg>
+  )
+}
+
+function AstroIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path fill="#FF5D01" d="M17 5.5C15.3 3.2 12 2.5 9.5 3.8L5.8 6C3.3 7.4 2.4 10.6 3.8 13l.2.4C3.5 14.3 3.4 15.2 3.7 16l.3 1.2c.5 1.8 1.8 3.2 3.6 3.8l3.8 2.2c2.6 1.5 6 .5 7.6-2 1.6-2.4 1-5.6-1.3-7.2.6-1 .7-2.2.3-3.3L17.7 9C17 7.5 17 6.3 17 5.5z"/>
+    </svg>
+  )
+}
+
+function NextJsIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="10" fill="currentColor" className="text-foreground"/>
+      <path
+        d="M7.5 8.5h2.2L17 16.5h-2.2V10.5L8.8 16.5H7.5V8.5z"
+        fill="white"
+        style={{ fill: 'var(--nextjs-icon-fg, white)' }}
+      />
+    </svg>
+  )
+}
+
+function SvelteKitIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path fill="#FF3E00" d="M19.7 4.6c-1.8-2.6-5.4-3.4-8.1-1.9L7.5 5.1C4.9 6.6 3.9 10 5.3 12.7c-.6 1-.8 2.2-.5 3.3l.3 1.2c.5 1.8 1.9 3.3 3.7 3.9l4.1 2.4c2.7 1.5 6.1.6 7.9-2 1.7-2.5 1.3-5.8-1-7.6.6-1 .7-2.3.3-3.4L19.8 9C19 7.4 19 5.8 19.7 4.6z"/>
+      <path fill="#FFA500" d="M11.5 7c1.5-.5 3.2.2 3.8 1.6.5 1.2.1 2.5-.9 3.2.8.3 1.4 1 1.5 1.9.2 1.4-.7 2.8-2.1 3.2-1.5.5-3.2-.2-3.8-1.6-.5-1.2-.1-2.5.9-3.2-.8-.3-1.4-1-1.5-1.9-.2-1.4.7-2.8 2.1-3.2z"/>
+    </svg>
+  )
+}
+
+function ViteIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path fill="#BD34FE" d="M13.5 2L4 13.5h5.5L8 22l12-12h-5.5L13.5 2z"/>
+      <path fill="#646CFF" d="M21 3L13.5 2l-1 8h5.5L21 3z"/>
+    </svg>
+  )
+}
+
+const FRAMEWORKS = [
+  { name: 'React',      Icon: ReactIcon },
+  { name: 'Astro',      Icon: AstroIcon },
+  { name: 'Next.js',    Icon: NextJsIcon },
+  { name: 'SvelteKit',  Icon: SvelteKitIcon },
+  { name: 'Vite',       Icon: ViteIcon },
+]
+
+// ---- Helpers ----
 function formatDate(iso) {
   if (!iso) return ''
   return new Date(iso).toLocaleDateString('es-MX', {
@@ -14,172 +79,242 @@ function formatDate(iso) {
 }
 
 function formatBytes(bytes) {
+  if (!bytes) return ''
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function DistUploadPanel({ site, onUpload, onDelete, isUploading, uploadError }) {
-  const [file, setFile]               = useState(null)
-  const [fileError, setFileError]     = useState(null)
-  const [isDragging, setIsDragging]   = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const inputRef = useRef(null)
+// ---- Main component ----
+export function DistUploadPanel({ site, token, siteId, onUpload, onDelete, isUploading, uploadError }) {
+  const [file, setFile]                         = useState(null)
+  const [showDeleteActive, setShowDeleteActive] = useState(false)
+  const [historyOpen, setHistoryOpen]           = useState(false)
+  const [deletingBuild, setDeletingBuild]       = useState(null)
+  const queryClient = useQueryClient()
 
   const hasExistingDist = Boolean(site?.distUploadedAt)
+  const previewUrl      = `${getApiUrl()}/public/site`
 
-  function validate(f) {
-    if (!f.name.endsWith('.zip')) return 'Solo se aceptan archivos .zip'
-    if (f.size > MAX_SIZE_BYTES) return `El archivo supera el limite de ${MAX_SIZE_MB} MB`
-    return null
-  }
-
-  function pick(f) {
-    if (!f) return
-    const err = validate(f)
-    if (err) { setFileError(err); setFile(null); return }
-    setFileError(null)
-    setFile(f)
-  }
-
-  function handleInputChange(e) { pick(e.target.files?.[0] ?? null) }
-
-  function handleDrop(e) {
-    e.preventDefault()
-    setIsDragging(false)
-    pick(e.dataTransfer.files?.[0] ?? null)
-  }
+  // Build history query — only fetches when panel is opened
+  const buildsQuery = useQuery({
+    queryKey: ['website-builds', siteId],
+    queryFn: async () => {
+      const res = await fetch(`${getApiUrl()}/website/sites/${siteId}/dist/builds`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return { data: [] }
+      return res.json()
+    },
+    enabled: Boolean(token) && Boolean(siteId) && historyOpen,
+    staleTime: 30_000,
+  })
 
   function handleUpload() {
     if (!file || isUploading) return
     onUpload(file)
     setFile(null)
-    if (inputRef.current) inputRef.current.value = ''
   }
 
-  function clearFile() {
-    setFile(null)
-    setFileError(null)
-    if (inputRef.current) inputRef.current.value = ''
+  async function handleDeleteBuildFromHistory(build) {
+    try {
+      const res = await fetch(
+        `${getApiUrl()}/website/sites/${siteId}/dist/builds/${encodeURIComponent(build.name)}`,
+        { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
+      )
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || 'Error al eliminar')
+      }
+      toast.success('Build eliminado del historial')
+      queryClient.invalidateQueries({ queryKey: ['website-builds', siteId] })
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setDeletingBuild(null)
+    }
   }
 
   return (
-    <div className="space-y-4">
+    <>
+      <div className="space-y-4">
 
-      {/* Existing build info */}
-      {hasExistingDist && (
-        <div className="flex items-start gap-3 rounded-2xl border border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/30 p-4">
-          <CheckCircle2 className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
+        {/* Framework compatibility strip */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground shrink-0">Compatible:</span>
+          {FRAMEWORKS.map(({ name, Icon }) => (
+            <span
+              key={name}
+              className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border border-border bg-muted/40 text-foreground"
+            >
+              <Icon />
+              {name}
+            </span>
+          ))}
+        </div>
+
+        {/* Preview / sandbox URL bar */}
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted/40 border border-border">
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-300">Build activo</p>
-            <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5">
-              Desplegado el {formatDate(site.distUploadedAt)} &middot; {site.distFileCount ?? 0} archivo{(site.distFileCount ?? 0) !== 1 ? 's' : ''}
-              {site.distHasPrerender ? ' · Prerenderizado' : ' · SPA'}
-            </p>
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Vista previa (sandbox)</p>
+            <p className="text-xs font-mono truncate text-foreground">{previewUrl}</p>
           </div>
           <button
             type="button"
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={isUploading}
-            className="shrink-0 flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-red-700 transition-colors disabled:opacity-40"
+            title="Abrir en nueva pestana"
+            onClick={() => window.open(previewUrl, '_blank', 'noopener,noreferrer')}
+            className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer shrink-0"
           >
-            <Trash2 className="w-3.5 h-3.5" />
-            Eliminar
+            <ExternalLink className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            title="Copiar URL"
+            onClick={() => { navigator.clipboard.writeText(previewUrl); toast.success('URL copiada') }}
+            className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer shrink-0"
+          >
+            <Copy className="w-3.5 h-3.5" />
           </button>
         </div>
-      )}
 
-      {/* Drop zone */}
-      <div
-        onClick={() => !isUploading && inputRef.current?.click()}
-        onDragOver={(e) => { e.preventDefault(); if (!isUploading) setIsDragging(true) }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-        className={[
-          'flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-8 px-4 text-center select-none transition-all duration-200',
-          isUploading
-            ? 'opacity-50 cursor-not-allowed border-border bg-muted/30'
-            : isDragging
-              ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30 cursor-copy'
-              : file
-                ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50/50 dark:bg-indigo-950/20 cursor-pointer'
-                : 'border-border bg-muted/30 hover:border-primary/40 hover:bg-muted/50 cursor-pointer',
-        ].join(' ')}
-      >
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".zip"
-          onChange={handleInputChange}
-          disabled={isUploading}
-          className="sr-only"
-        />
-
-        {file ? (
-          <>
-            <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
-              <FileArchive className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-300">{file.name}</p>
-              <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-0.5">{formatBytes(file.size)} · listo para subir</p>
+        {/* Active build card */}
+        {hasExistingDist && (
+          <div className="flex items-start gap-3 rounded-2xl border border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/30 p-4">
+            <CheckCircle2 className="w-4.5 h-4.5 text-indigo-500 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-300">Build activo</p>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 font-medium">
+                  {site.distHasPrerender ? 'SSG / Prerenderizado' : 'SPA'}
+                </span>
+              </div>
+              <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5">
+                {formatDate(site.distUploadedAt)} &middot; {site.distFileCount ?? 0} archivo{(site.distFileCount ?? 0) !== 1 ? 's' : ''}
+              </p>
             </div>
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); clearFile() }}
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+              onClick={() => setShowDeleteActive(true)}
+              disabled={isUploading}
+              className="shrink-0 flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors disabled:opacity-40 cursor-pointer"
             >
-              <X className="w-3 h-3" /> Cambiar archivo
+              <Trash2 className="w-3.5 h-3.5" />
+              Eliminar
             </button>
-          </>
-        ) : (
-          <>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isDragging ? 'bg-indigo-100 dark:bg-indigo-900/40' : 'bg-muted'}`}>
-              <Upload className={`w-5 h-5 transition-colors ${isDragging ? 'text-indigo-600 dark:text-indigo-400' : 'text-muted-foreground'}`} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">
-                {isDragging ? 'Suelta el archivo aqui' : 'Arrastra tu .zip aqui'}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">o haz clic para seleccionar · max {MAX_SIZE_MB} MB</p>
-            </div>
-          </>
+          </div>
         )}
+
+        {/* Drop zone */}
+        <DistDropZone
+          accept=".zip"
+          maxSizeMB={MAX_SIZE_MB}
+          fullScreenOverlay
+          overlayLabel="Suelta tu build aqui"
+          overlayHint={`Archivo .zip · max ${MAX_SIZE_MB} MB`}
+          isUploading={isUploading}
+          file={file}
+          onFile={setFile}
+          onClear={() => setFile(null)}
+          error={uploadError}
+          emptyLabel="Arrastra tu .zip aqui"
+          emptyHint={`o haz clic para seleccionar · max ${MAX_SIZE_MB} MB`}
+          dragActiveLabel="Suelta el archivo aqui"
+        />
+
+        {/* Upload action */}
+        {file && (
+          <Button onClick={handleUpload} disabled={isUploading} className="w-full">
+            <Upload className="w-4 h-4 mr-2" />
+            {isUploading ? 'Subiendo...' : `Subir ${file.name}`}
+          </Button>
+        )}
+
+        {/* Build history */}
+        <div className="rounded-2xl border border-border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setHistoryOpen((h) => !h)}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/40 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2 text-foreground">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              Historial de builds
+            </div>
+            {historyOpen
+              ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              : <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            }
+          </button>
+
+          {historyOpen && (
+            <div className="border-t border-border">
+              {buildsQuery.isPending ? (
+                <div className="px-4 py-6 text-center text-sm text-muted-foreground">Cargando historial...</div>
+              ) : !buildsQuery.data?.data?.length ? (
+                <div className="px-4 py-6 text-center">
+                  <p className="text-sm text-muted-foreground">No hay builds guardados</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">
+                    Los proximos uploads se guardaran aqui para descarga
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {buildsQuery.data.data.map((build) => (
+                    <div key={build.key} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors">
+                      <FileArchive className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate text-foreground">{build.displayName || build.name}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {formatDate(build.uploadedAt)}{build.size ? ` · ${formatBytes(build.size)}` : ''}
+                        </p>
+                      </div>
+                      <a
+                        href={build.downloadUrl}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                        title="Descargar .zip"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setDeletingBuild(build)}
+                        className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer shrink-0"
+                        title="Eliminar del historial"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {(fileError || uploadError) && (
-        <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
-          <X className="w-3 h-3" /> {fileError || uploadError}
-        </p>
-      )}
-
-      {/* Actions */}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={handleUpload}
-          disabled={!file || isUploading}
-          className={[
-            'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200',
-            'disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-md hover:-translate-y-0.5 active:translate-y-0',
-            file && !isUploading
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-              : 'bg-muted text-muted-foreground',
-          ].join(' ')}
-        >
-          <Upload className="w-4 h-4" />
-          {isUploading ? 'Subiendo...' : 'Subir build'}
-        </button>
-      </div>
-
+      {/* Confirm: delete active build */}
       <ConfirmDialog
-        open={showDeleteConfirm}
-        onOpenChange={setShowDeleteConfirm}
-        title="Eliminar build"
-        description="Se eliminaran todos los archivos del build actual. El sitio volvera al constructor de paginas hasta que subas un nuevo build. Esta accion no se puede deshacer."
+        open={showDeleteActive}
+        onOpenChange={setShowDeleteActive}
+        title="Eliminar build activo"
+        description="Se eliminaran todos los archivos del build. El sitio volvera al constructor de paginas hasta que subas un nuevo build. Esta accion no se puede deshacer."
         confirmLabel="Eliminar"
-        onConfirm={() => { setShowDeleteConfirm(false); onDelete() }}
+        onConfirm={() => { setShowDeleteActive(false); onDelete() }}
       />
-    </div>
+
+      {/* Confirm: delete individual build from history */}
+      <ConfirmDialog
+        open={Boolean(deletingBuild)}
+        onOpenChange={(open) => { if (!open) setDeletingBuild(null) }}
+        title="Eliminar build del historial"
+        description={`Se eliminara ${deletingBuild?.displayName || deletingBuild?.name || 'este build'} del historial de forma permanente.`}
+        confirmLabel="Eliminar"
+        onConfirm={() => deletingBuild && handleDeleteBuildFromHistory(deletingBuild)}
+      />
+    </>
   )
 }

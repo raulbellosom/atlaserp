@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, FileViewer, PageHeader, Skeleton } from "@atlas/ui";
+import { Button, Card, DistDropZone, FileViewer, PageHeader, Skeleton } from "@atlas/ui";
 import { Palette, Upload, ZoomIn } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -122,7 +122,6 @@ function LogoZone({
   onRemove,
   onViewCurrent,
 }) {
-  const [isDragging, setIsDragging] = useState(false);
   const [sizeError, setSizeError] = useState("");
   const inputRef = useRef(null);
 
@@ -140,13 +139,6 @@ function LogoZone({
     },
     [onFile],
   );
-
-  function handleDrop(e) {
-    e.preventDefault();
-    setIsDragging(false);
-    if (disabled) return;
-    handleFile(e.dataTransfer.files?.[0] ?? null);
-  }
 
   const displayUrl = logoPreviewUrl ?? currentLogoUrl;
   const hasLogo = Boolean(displayUrl);
@@ -233,69 +225,14 @@ function LogoZone({
   }
 
   return (
-    <div className="space-y-1.5">
-      <div
-        role="button"
-        tabIndex={disabled ? -1 : 0}
-        aria-label="Zona de carga del logotipo"
-        onClick={() => !disabled && inputRef.current?.click()}
-        onKeyDown={(e) =>
-          !disabled && e.key === "Enter" && inputRef.current?.click()
-        }
-        onDragOver={(e) => {
-          e.preventDefault();
-          if (!disabled) setIsDragging(true);
-        }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-        className={[
-          "flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-8 text-center",
-          "transition-all duration-150 select-none",
-          disabled ? "opacity-50 cursor-default" : "cursor-pointer",
-          isDragging
-            ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5"
-            : sizeError
-              ? "border-[hsl(var(--destructive))]/40 bg-[hsl(var(--destructive))]/5"
-              : "border-[hsl(var(--border))] bg-[hsl(var(--muted))]/30 hover:border-[hsl(var(--primary))]/40 hover:bg-[hsl(var(--primary))]/3",
-        ].join(" ")}
-      >
-        <div
-          className={[
-            "w-10 h-10 rounded-lg flex items-center justify-center transition-colors duration-150",
-            isDragging
-              ? "bg-[hsl(var(--primary))]/15"
-              : "bg-[hsl(var(--muted))]",
-          ].join(" ")}
-        >
-          <Upload
-            size={17}
-            className={
-              isDragging
-                ? "text-[hsl(var(--primary))]"
-                : "text-[hsl(var(--muted-foreground))]"
-            }
-          />
-        </div>
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-[hsl(var(--foreground))]/80">
-            Arrastra tu logotipo aqui
-          </p>
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            PNG, JPG o WebP · Maximo {formatBytes(FIVE_MB)}
-          </p>
-        </div>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
-          className="sr-only"
-        />
-      </div>
-      {sizeError && (
-        <p className="text-xs text-[hsl(var(--destructive))]">{sizeError}</p>
-      )}
-    </div>
+    <DistDropZone
+      accept="image/*"
+      maxSizeMB={5}
+      isUploading={disabled}
+      onFile={onFile}
+      emptyLabel="Arrastra tu logotipo aqui"
+      emptyHint={`PNG, JPG o WebP · Maximo ${formatBytes(FIVE_MB)}`}
+    />
   );
 }
 
