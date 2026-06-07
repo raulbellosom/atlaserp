@@ -374,6 +374,25 @@ describe('atlas.catalog push', () => {
     assert.ok(updateCalled)
   })
 
+  it('UPDATE category returns OK with updated record', async () => {
+    let updateCalled = false
+    const prisma = makePrisma({
+      catalogCategory: {
+        findUnique: async ({ where }) => ({ id: where.id, companyId: COMPANY_ID, name: 'Old', updatedAt: now }),
+        create: async ({ data }) => ({ id: 'x', updatedAt: now, ...data }),
+        update: async ({ where, data }) => { updateCalled = true; return { id: where.id, companyId: COMPANY_ID, updatedAt: now, ...data } },
+      },
+    })
+    const svc = createSyncPushService({ prisma })
+    const result = await svc.push({
+      authUserId: USER_ID,
+      mutations: [{ idempotencyKey: IK, moduleKey: 'atlas.catalog', entityType: 'category', operation: 'UPDATE', recordId: CATEGORY_ID, payload: { name: 'Herramientas Pro' } }],
+    })
+    assert.equal(result.results[0].status, 'OK')
+    assert.equal(result.results[0].record.name, 'Herramientas Pro')
+    assert.ok(updateCalled)
+  })
+
   it('unknown entityType for atlas.catalog returns ERROR', async () => {
     const svc = createSyncPushService({ prisma: makePrisma() })
     const result = await svc.push({
