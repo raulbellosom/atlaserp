@@ -1109,6 +1109,16 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
         }),
     },
+    fleet: {
+      getVehicleDocuments: (vehicleId, token) =>
+        request(`/fleet/vehicles/${encodeURIComponent(vehicleId)}/documents`, {
+          headers: withAuthHeaders(token),
+        }),
+      getReport: (id, token) =>
+        request(`/fleet/reports/${encodeURIComponent(id)}`, {
+          headers: withAuthHeaders(token),
+        }),
+    },
     setOfflineTransport(transport) {
       _offlineTransport = transport;
     },
