@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig'
+import { useOfflineContext } from '@atlas/offline'
 
 function useToken() {
   const { session } = useAuth()
@@ -27,9 +28,21 @@ async function apiFetch(path, token, options = {}) {
 
 export function useCalendars() {
   const token = useToken()
+  const ctx = useOfflineContext()
   return useQuery({
     queryKey: ['calendar', 'calendars'],
-    queryFn: () => apiFetch('/calendar/calendars', token),
+    queryFn: async () => {
+      if (!navigator.onLine) {
+        const db = ctx?.dbRef?.current
+        if (!db) return { owned: [], shared: [] }
+        const records = await db.offline_records
+          .where('moduleKey').equals('atlas.calendar')
+          .filter((r) => r.entityType === 'calendar')
+          .toArray()
+        return { owned: records.map((r) => r.data), shared: [] }
+      }
+      return apiFetch('/calendar/calendars', token)
+    },
     enabled: Boolean(token),
     staleTime: 2 * 60 * 1000,
   })
@@ -96,13 +109,35 @@ export function useDeleteShare() {
 
 export function useCalendarEvents({ start, end, calendarIds = [] }) {
   const token = useToken()
+  const ctx = useOfflineContext()
   const params = new URLSearchParams()
   if (start) params.set('start', start)
   if (end) params.set('end', end)
   calendarIds.forEach((id) => params.append('calendar_ids', id))
   return useQuery({
     queryKey: ['calendar', 'events', start, end, calendarIds.join(',')],
-    queryFn: () => apiFetch(`/calendar/events?${params}`, token),
+    queryFn: async () => {
+      if (!navigator.onLine) {
+        const db = ctx?.dbRef?.current
+        if (!db) return []
+        const startMs = start ? new Date(start).getTime() : null
+        const endMs = end ? new Date(end).getTime() : null
+        const records = await db.offline_records
+          .where('moduleKey').equals('atlas.calendar')
+          .filter((r) => r.entityType === 'event')
+          .toArray()
+        return records
+          .map((r) => r.data)
+          .filter((ev) => {
+            if (calendarIds.length && !calendarIds.includes(ev.calendarId)) return false
+            const evMs = new Date(ev.startAt).getTime()
+            if (startMs !== null && evMs < startMs) return false
+            if (endMs !== null && evMs > endMs) return false
+            return true
+          })
+      }
+      return apiFetch(`/calendar/events?${params}`, token)
+    },
     enabled: Boolean(token && start && end),
     staleTime: 60 * 1000,
   })
@@ -111,13 +146,35 @@ export function useCalendarEvents({ start, end, calendarIds = [] }) {
 // Year-level events — stable query key prevents cache misses when navigating months
 export function useYearEvents(year, calendarIds = [], enabled = true) {
   const token = useToken()
+  const ctx = useOfflineContext()
   const params = new URLSearchParams()
-  params.set('start', new Date(year, 0, 1).toISOString())
-  params.set('end', new Date(year, 11, 31, 23, 59, 59).toISOString())
+  const yearStart = new Date(year, 0, 1)
+  const yearEnd = new Date(year, 11, 31, 23, 59, 59)
+  params.set('start', yearStart.toISOString())
+  params.set('end', yearEnd.toISOString())
   calendarIds.forEach((id) => params.append('calendar_ids', id))
   return useQuery({
     queryKey: ['calendar', 'events', 'year', year, calendarIds.join(',')],
-    queryFn: () => apiFetch(`/calendar/events?${params}`, token),
+    queryFn: async () => {
+      if (!navigator.onLine) {
+        const db = ctx?.dbRef?.current
+        if (!db) return []
+        const startMs = yearStart.getTime()
+        const endMs = yearEnd.getTime()
+        const records = await db.offline_records
+          .where('moduleKey').equals('atlas.calendar')
+          .filter((r) => r.entityType === 'event')
+          .toArray()
+        return records
+          .map((r) => r.data)
+          .filter((ev) => {
+            if (calendarIds.length && !calendarIds.includes(ev.calendarId)) return false
+            const evMs = new Date(ev.startAt).getTime()
+            return evMs >= startMs && evMs <= endMs
+          })
+      }
+      return apiFetch(`/calendar/events?${params}`, token)
+    },
     enabled: Boolean(token && enabled),
     staleTime: 5 * 60 * 1000,
     placeholderData: keepPreviousData,
