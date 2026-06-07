@@ -1,27 +1,11 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider'
-import { getApiUrl } from '../../../lib/runtimeConfig'
 import { useOfflineContext, useOfflineStore } from '@atlas/offline'
+import { atlas } from '../../../lib/atlas'
 
 function useToken() {
   const { session } = useAuth()
   return session?.access_token
-}
-
-async function apiFetch(path, token, options = {}) {
-  const res = await fetch(`${getApiUrl()}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...options.headers,
-    },
-  })
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    throw new Error(body.error || `HTTP ${res.status}`)
-  }
-  return res.json()
 }
 
 // ── Calendars ─────────────────────────────────────────────────────────────────
@@ -43,7 +27,7 @@ export function useCalendars() {
         // Shared calendars are not cached in Tier 2; only owned calendars are pulled
         return { owned: records.map((r) => r.data), shared: [] }
       }
-      return apiFetch('/calendar/calendars', token)
+      return atlas.calendar.listCalendars(token)
     },
     enabled: Boolean(token),
     staleTime: 2 * 60 * 1000,
@@ -54,7 +38,7 @@ export function useCreateCalendar() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => apiFetch('/calendar/calendars', token, { method: 'POST', body: JSON.stringify(data) }),
+    mutationFn: (data) => atlas.calendar.createCalendar(data, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar', 'calendars'] }),
   })
 }
@@ -63,7 +47,7 @@ export function useUpdateCalendar() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }) => apiFetch(`/calendar/calendars/${id}`, token, { method: 'PATCH', body: JSON.stringify(data) }),
+    mutationFn: ({ id, ...data }) => atlas.calendar.updateCalendar(id, data, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar', 'calendars'] }),
   })
 }
@@ -72,7 +56,7 @@ export function useDeleteCalendar() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id) => apiFetch(`/calendar/calendars/${id}`, token, { method: 'DELETE' }),
+    mutationFn: (id) => atlas.calendar.deleteCalendar(id, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar', 'calendars'] }),
   })
 }
@@ -82,7 +66,7 @@ export function useShareCalendar() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ calendarId, ...data }) =>
-      apiFetch(`/calendar/calendars/${calendarId}/share`, token, { method: 'POST', body: JSON.stringify(data) }),
+      atlas.calendar.shareCalendar(calendarId, data, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar', 'calendars'] }),
   })
 }
@@ -92,7 +76,7 @@ export function useUpdateShare() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ calendarId, shareId, ...data }) =>
-      apiFetch(`/calendar/calendars/${calendarId}/share/${shareId}`, token, { method: 'PATCH', body: JSON.stringify(data) }),
+      atlas.calendar.updateShare(calendarId, shareId, data, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar', 'calendars'] }),
   })
 }
@@ -102,7 +86,7 @@ export function useDeleteShare() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ calendarId, shareId }) =>
-      apiFetch(`/calendar/calendars/${calendarId}/share/${shareId}`, token, { method: 'DELETE' }),
+      atlas.calendar.deleteShare(calendarId, shareId, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar', 'calendars'] }),
   })
 }
@@ -113,10 +97,6 @@ export function useCalendarEvents({ start, end, calendarIds = [] }) {
   const token = useToken()
   const ctx = useOfflineContext()
   const isOnline = useOfflineStore((s) => s.isOnline)
-  const params = new URLSearchParams()
-  if (start) params.set('start', start)
-  if (end) params.set('end', end)
-  calendarIds.forEach((id) => params.append('calendar_ids', id))
   return useQuery({
     queryKey: ['calendar', 'events', start, end, calendarIds.join(',')],
     queryFn: async () => {
@@ -139,7 +119,7 @@ export function useCalendarEvents({ start, end, calendarIds = [] }) {
             return true
           })
       }
-      return apiFetch(`/calendar/events?${params}`, token)
+      return atlas.calendar.listEvents(token, { start, end, calendar_ids: calendarIds })
     },
     enabled: Boolean(token && start && end),
     staleTime: 60 * 1000,
@@ -151,12 +131,8 @@ export function useYearEvents(year, calendarIds = [], enabled = true) {
   const token = useToken()
   const ctx = useOfflineContext()
   const isOnline = useOfflineStore((s) => s.isOnline)
-  const params = new URLSearchParams()
   const yearStart = new Date(year, 0, 1)
   const yearEnd = new Date(year, 11, 31, 23, 59, 59)
-  params.set('start', yearStart.toISOString())
-  params.set('end', yearEnd.toISOString())
-  calendarIds.forEach((id) => params.append('calendar_ids', id))
   return useQuery({
     queryKey: ['calendar', 'events', 'year', year, calendarIds.join(',')],
     queryFn: async () => {
@@ -177,7 +153,11 @@ export function useYearEvents(year, calendarIds = [], enabled = true) {
             return evMs >= startMs && evMs <= endMs
           })
       }
-      return apiFetch(`/calendar/events?${params}`, token)
+      return atlas.calendar.listEvents(token, {
+        start: yearStart.toISOString(),
+        end: yearEnd.toISOString(),
+        calendar_ids: calendarIds,
+      })
     },
     enabled: Boolean(token && enabled),
     staleTime: 5 * 60 * 1000,
@@ -191,7 +171,7 @@ export function useUserSearch(query) {
   const q = query.trim()
   return useQuery({
     queryKey: ['identity', 'users', 'search', q],
-    queryFn: () => apiFetch(`/identity/users?search=${encodeURIComponent(q)}&pageSize=10&enabled=true`, token),
+    queryFn: () => atlas.identity.listUsers(token, { search: q, pageSize: 10, enabled: true }),
     enabled: Boolean(token && q.length >= 2),
     staleTime: 30 * 1000,
   })
@@ -201,7 +181,7 @@ export function useCreateEvent() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => apiFetch('/calendar/events', token, { method: 'POST', body: JSON.stringify(data) }),
+    mutationFn: (data) => atlas.calendar.createEvent(data, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar', 'events'] }),
   })
 }
@@ -210,7 +190,7 @@ export function useCalendarEvent(eventId, enabled = true) {
   const token = useToken()
   return useQuery({
     queryKey: ['calendar', 'event', eventId],
-    queryFn: () => apiFetch(`/calendar/events/${eventId}`, token),
+    queryFn: () => atlas.calendar.getEvent(eventId, token),
     enabled: Boolean(token && eventId && enabled),
     staleTime: 30 * 1000,
   })
@@ -220,7 +200,7 @@ export function useUpdateEvent() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }) => apiFetch(`/calendar/events/${id}`, token, { method: 'PATCH', body: JSON.stringify(data) }),
+    mutationFn: ({ id, ...data }) => atlas.calendar.updateEvent(id, data, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar', 'events'] }),
   })
 }
@@ -229,7 +209,7 @@ export function useDeleteEvent() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id) => apiFetch(`/calendar/events/${id}`, token, { method: 'DELETE' }),
+    mutationFn: (id) => atlas.calendar.deleteEvent(id, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar', 'events'] }),
   })
 }
@@ -239,10 +219,7 @@ export function useAddEventReminder() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ eventId, minutesBefore }) =>
-      apiFetch(`/calendar/events/${eventId}/reminders`, token, {
-        method: 'POST',
-        body: JSON.stringify({ minutes_before: minutesBefore }),
-      }),
+      atlas.calendar.createReminder(eventId, { minutes_before: minutesBefore }, token),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['calendar', 'events'] })
       qc.invalidateQueries({ queryKey: ['calendar', 'event', vars?.eventId] })
@@ -255,9 +232,7 @@ export function useDeleteEventReminder() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ eventId, reminderId }) =>
-      apiFetch(`/calendar/events/${eventId}/reminders/${reminderId}`, token, {
-        method: 'DELETE',
-      }),
+      atlas.calendar.deleteReminder(eventId, reminderId, token),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['calendar', 'events'] })
       qc.invalidateQueries({ queryKey: ['calendar', 'event', vars?.eventId] })
@@ -271,7 +246,7 @@ export function useCalendarNotifications() {
   const token = useToken()
   return useQuery({
     queryKey: ['calendar', 'notifications'],
-    queryFn: () => apiFetch('/calendar/notifications?unread_only=true', token),
+    queryFn: () => atlas.calendar.listNotifications(token, { unread_only: true }),
     enabled: Boolean(token),
     refetchInterval: 60 * 1000,
     staleTime: 30 * 1000,
@@ -282,7 +257,7 @@ export function useMarkNotificationRead() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id) => apiFetch(`/calendar/notifications/${id}/read`, token, { method: 'PATCH' }),
+    mutationFn: (id) => atlas.calendar.markNotificationRead(id, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar', 'notifications'] }),
   })
 }
@@ -291,7 +266,7 @@ export function useMarkAllNotificationsRead() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => apiFetch('/calendar/notifications/read-all', token, { method: 'PATCH' }),
+    mutationFn: () => atlas.calendar.markAllNotificationsRead(token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar', 'notifications'] }),
   })
 }
