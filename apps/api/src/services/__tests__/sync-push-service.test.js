@@ -213,3 +213,90 @@ describe('sync-push-service', () => {
     assert.equal(result.results[1].status, 'OK')
   })
 })
+
+describe('conflict-ui strategy', () => {
+  const CONFLICT_REGISTRY = {
+    'atlas.contacts': {
+      strategy: 'conflict-ui',
+      handlers: {
+        contact: {
+          entityType: 'contact',
+          async findById({ prisma, id }) { return prisma.contact.findUnique({ where: { id } }) },
+          async create({ prisma, companyId, recordId, payload }) {
+            const data = { ...payload, companyId }
+            if (recordId) data.id = recordId
+            return prisma.contact.create({ data })
+          },
+          async update({ prisma, recordId, payload }) {
+            return prisma.contact.update({ where: { id: recordId }, data: payload })
+          },
+        },
+      },
+    },
+  }
+
+  it('returns CONFLICT when clientUpdatedAt differs from server updatedAt', async () => {
+    const serverUpdatedAt = new Date('2026-06-06T10:00:00.000Z')
+    let updateCalled = false
+    const prisma = makePrisma({
+      contact: {
+        findUnique: async ({ where }) => ({
+          id: where.id, companyId: COMPANY_ID, name: 'Server Name', updatedAt: serverUpdatedAt,
+        }),
+        update: async () => { updateCalled = true; return {} },
+      },
+    })
+
+    const svc = createSyncPushService({ prisma, registry: CONFLICT_REGISTRY })
+    const result = await svc.push({
+      authUserId: 'auth-u1',
+      mutations: [{
+        idempotencyKey: IK,
+        moduleKey: 'atlas.contacts',
+        entityType: 'contact',
+        operation: 'UPDATE',
+        recordId: RECORD_ID,
+        payload: { name: 'My Version' },
+        clientUpdatedAt: '2026-06-06T09:00:00.000Z', // older than server
+      }],
+    })
+
+    assert.equal(result.results[0].status, 'CONFLICT')
+    assert.ok(result.results[0].record, 'server record must be included')
+    assert.equal(result.results[0].record.name, 'Server Name')
+    assert.equal(updateCalled, false, 'update must not be called on CONFLICT')
+  })
+
+  it('applies UPDATE normally when clientUpdatedAt matches server updatedAt', async () => {
+    const serverUpdatedAt = new Date('2026-06-06T10:00:00.000Z')
+    let updateCalled = false
+    const prisma = makePrisma({
+      contact: {
+        findUnique: async ({ where }) => ({
+          id: where.id, companyId: COMPANY_ID, name: 'Server Name', updatedAt: serverUpdatedAt,
+        }),
+        update: async ({ where, data }) => {
+          updateCalled = true
+          return { id: where.id, companyId: COMPANY_ID, updatedAt: serverUpdatedAt, ...data }
+        },
+      },
+    })
+
+    const svc = createSyncPushService({ prisma, registry: CONFLICT_REGISTRY })
+    const result = await svc.push({
+      authUserId: 'auth-u1',
+      mutations: [{
+        idempotencyKey: IK,
+        moduleKey: 'atlas.contacts',
+        entityType: 'contact',
+        operation: 'UPDATE',
+        recordId: RECORD_ID,
+        payload: { name: 'My Version' },
+        clientUpdatedAt: serverUpdatedAt.toISOString(), // exact match
+      }],
+    })
+
+    assert.equal(result.results[0].status, 'OK')
+    assert.equal(updateCalled, true)
+  })
+})

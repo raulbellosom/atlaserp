@@ -28,11 +28,13 @@ function makePushHandler(entityType, prismaKey) {
 
 const PUSH_MODULE_REGISTRY = {
   'atlas.contacts': {
+    strategy: 'last-write-wins',
     handlers: {
       contact: makePushHandler('contact', 'contact'),
     },
   },
   'atlas.hr': {
+    strategy: 'last-write-wins',
     handlers: {
       employee: makePushHandler('employee', 'hrEmployee'),
       department: makePushHandler('department', 'hrDepartment'),
@@ -40,6 +42,7 @@ const PUSH_MODULE_REGISTRY = {
     },
   },
   'custom.fleet': {
+    strategy: 'last-write-wins',
     handlers: {
       vehicle: makePushHandler('vehicle', 'fleetVehicle'),
       driver: makePushHandler('driver', 'fleetDriver'),
@@ -47,7 +50,8 @@ const PUSH_MODULE_REGISTRY = {
   },
 }
 
-export function createSyncPushService({ prisma }) {
+export function createSyncPushService({ prisma, registry }) {
+  const moduleRegistry = registry ?? PUSH_MODULE_REGISTRY
   async function resolveContext(authUserId) {
     const profile = await prisma.userProfile.findUnique({
       where: { authUserId },
@@ -76,12 +80,12 @@ export function createSyncPushService({ prisma }) {
     const results = []
 
     for (const mutation of mutations) {
-      const { idempotencyKey, moduleKey, entityType, operation, recordId, payload } = mutation
+      const { idempotencyKey, moduleKey, entityType, operation, recordId, payload, clientUpdatedAt } = mutation
 
       // 1. Idempotency check — if already applied, return OK
       const existingLog = await prisma.syncMutationLog.findUnique({ where: { idempotencyKey } })
       if (existingLog) {
-        const mod = PUSH_MODULE_REGISTRY[moduleKey]
+        const mod = moduleRegistry[moduleKey]
         let record = null
         if (mod) {
           const handler = mod.handlers[entityType]
@@ -95,7 +99,7 @@ export function createSyncPushService({ prisma }) {
       }
 
       // 2. Resolve module + handler
-      const mod = PUSH_MODULE_REGISTRY[moduleKey]
+      const mod = moduleRegistry[moduleKey]
       if (!mod) {
         results.push({ idempotencyKey, status: 'ERROR', record: null })
         continue
@@ -122,6 +126,18 @@ export function createSyncPushService({ prisma }) {
             results.push({ idempotencyKey, status: 'PERMISSION_DENIED', record: null })
             continue
           }
+
+          // Conflict detection for conflict-ui modules
+          if (mod.strategy === 'conflict-ui' && clientUpdatedAt != null && existing.updatedAt != null) {
+            const serverTs = existing.updatedAt instanceof Date
+              ? existing.updatedAt.toISOString()
+              : String(existing.updatedAt)
+            if (serverTs !== clientUpdatedAt) {
+              results.push({ idempotencyKey, status: 'CONFLICT', record: existing })
+              continue
+            }
+          }
+
           record = await handler.update({ prisma, recordId, payload: payload ?? {} })
         } else {
           results.push({ idempotencyKey, status: 'ERROR', record: null })
