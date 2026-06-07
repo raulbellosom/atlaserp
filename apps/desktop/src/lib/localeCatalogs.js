@@ -103,7 +103,22 @@ export const CURRENCY_OPTIONS = [
   { value: "HKD", label: "HKD - Dólar de Hong Kong" },
 ];
 
-export const TIME_ZONE_OPTIONS = CURATED_TIME_ZONES.map((value) => ({
-  value,
-  label: value.replaceAll("_", " "),
-}));
+function tzOffsetLabel(tz) {
+  try {
+    const raw = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      timeZoneName: "shortOffset",
+    })
+      .formatToParts(new Date())
+      .find((p) => p.type === "timeZoneName")?.value ?? "UTC"
+    return raw.replace(/^GMT/, "UTC")
+  } catch {
+    return "UTC"
+  }
+}
+
+export const TIME_ZONE_OPTIONS = CURATED_TIME_ZONES.map((value) => {
+  const offset = tzOffsetLabel(value)
+  const city = value.split("/").pop().replaceAll("_", " ")
+  return { value, label: `(${offset}) ${city}` }
+});

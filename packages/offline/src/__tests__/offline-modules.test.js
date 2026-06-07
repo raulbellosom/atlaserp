@@ -8,12 +8,13 @@ describe('OFFLINE_MODULES', () => {
     assert.ok(OFFLINE_MODULES.length > 0)
   })
 
-  it('contains the five expected offline-capable module keys', () => {
+  it('contains the expected offline-capable module keys, including atlas.ledger', () => {
     assert.ok(OFFLINE_MODULES.includes('atlas.contacts'))
     assert.ok(OFFLINE_MODULES.includes('atlas.hr'))
     assert.ok(OFFLINE_MODULES.includes('custom.fleet'))
     assert.ok(OFFLINE_MODULES.includes('atlas.calendar'))
     assert.ok(OFFLINE_MODULES.includes('atlas.catalog'))
+    assert.ok(OFFLINE_MODULES.includes('atlas.ledger'))
   })
 
   it('contains no duplicate keys', () => {

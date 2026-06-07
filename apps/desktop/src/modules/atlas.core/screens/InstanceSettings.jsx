@@ -73,6 +73,7 @@ export default function InstanceSettings() {
     mutationFn: () => atlas.instanceConfig.update(form, token),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["instance-config"] });
+      if (form.instanceName) document.title = `${form.instanceName} — Atlas ERP`
       toast.success("Configuración guardada");
     },
     onError: () => toast.error("No se pudo guardar la configuración"),
@@ -96,8 +97,8 @@ export default function InstanceSettings() {
           </div>
         )}
 
-        <Card className="p-0 overflow-hidden">
-          <div className="px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40">
+        <Card className="p-0">
+          <div className="px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 rounded-t-2xl">
             <p className="text-sm font-semibold">Ajustes generales</p>
           </div>
           <div className="p-4 space-y-4">

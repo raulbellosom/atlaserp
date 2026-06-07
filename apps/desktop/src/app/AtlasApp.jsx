@@ -1,6 +1,6 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { useIsFetching, useIsMutating, useQueryClient } from "@tanstack/react-query";
+import { useIsFetching, useIsMutating, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ModuleSidebar, BrandFooter } from "@atlas/ui";
 import { OfflineProvider } from "@atlas/offline";
 import { useThemeStore } from "../stores/theme";
@@ -80,6 +80,18 @@ export function AtlasApp() {
   const queryClient = useQueryClient();
   const { session } = useAuth();
   const { openLauncher } = useLauncherStore();
+
+  const { data: instanceConfigData } = useQuery({
+    queryKey: ['instance-config'],
+    queryFn: () => atlas.instanceConfig.get(session?.access_token),
+    enabled: Boolean(session?.access_token),
+    staleTime: 10 * 60 * 1000,
+  })
+
+  useEffect(() => {
+    const name = instanceConfigData?.data?.instanceName
+    document.title = name ? `${name} — Atlas ERP` : 'Atlas ERP'
+  }, [instanceConfigData?.data?.instanceName])
   const { moduleMap, isPending: modulesLoading } = useRuntimeModules();
   const seenRealtimeNotificationIds = useRef(new Set());
   const apiBaseUrl = import.meta.env.VITE_ATLAS_API_URL ?? '';

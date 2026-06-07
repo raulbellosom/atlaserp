@@ -11,3 +11,5 @@ export { createOfflineTransport, parseMutationRoute } from './offline-transport.
 export { usePendingMutations } from './use-pending-mutations.js'
 export { useConflicts } from './use-conflicts.js'
 export { OFFLINE_MODULES } from './offline-modules.js'
+export { LedgerSQLiteStore, isTauriAvailable } from './ledger-sqlite.js'
+export { LedgerSyncAdapter } from './ledger-sync-adapter.js'

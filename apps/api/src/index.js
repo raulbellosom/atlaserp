@@ -942,6 +942,23 @@ app.post("/setup/initialize", async (c) => {
           update: { value: now },
           create: { key: "completed_at", value: now },
         });
+        // Seed defaults so these keys always exist after initialization.
+        // Users can override them later from Settings → General.
+        await tx.instanceConfig.upsert({
+          where: { key: "instance_name" },
+          update: {},
+          create: { key: "instance_name", value: fields.companyName },
+        });
+        await tx.instanceConfig.upsert({
+          where: { key: "instance_time_zone" },
+          update: {},
+          create: { key: "instance_time_zone", value: "America/Mexico_City" },
+        });
+        await tx.instanceConfig.upsert({
+          where: { key: "instance_currency" },
+          update: {},
+          create: { key: "instance_currency", value: "MXN" },
+        });
       });
       await syncAdminRolesPermissions(prisma);
 

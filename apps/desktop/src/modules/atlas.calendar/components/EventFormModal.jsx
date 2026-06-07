@@ -242,14 +242,24 @@ export default function EventFormModal({ event, defaultDate, defaultCalendarId, 
             label="Todo el dia"
             description="El evento dura todo el dia sin hora especifica"
             checked={form.allDay}
-            onChange={(v) => set('allDay', v)}
+            onChange={(v) => {
+              setForm(f => {
+                const dateOnly = f.startAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)
+                return {
+                  ...f,
+                  allDay: v,
+                  startAt: v ? `${dateOnly}T09:00` : f.startAt,
+                  endAt:   v ? (f.endAt?.slice(0, 10) ? `${f.endAt.slice(0,10)}T23:59` : null) : f.endAt,
+                }
+              })
+            }}
           />
 
           <div className="grid grid-cols-2 gap-3">
             {form.allDay ? (
               <>
-                <DateField label="Inicio" required value={form.startAt?.slice(0,10) ?? ''} onChange={(e) => set('startAt', e.target.value)} />
-                <DateField label="Fin"             value={form.endAt?.slice(0,10) ?? ''}   onChange={(e) => set('endAt',   e.target.value)} />
+                <DateField label="Inicio" required value={form.startAt?.slice(0,10) ?? ''} onChange={(e) => set('startAt', `${e.target.value}T09:00`)} />
+                <DateField label="Fin"             value={form.endAt?.slice(0,10) ?? ''}   onChange={(e) => set('endAt',   `${e.target.value}T23:59`)} />
               </>
             ) : (
               <>

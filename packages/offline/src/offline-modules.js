@@ -6,4 +6,5 @@ export const OFFLINE_MODULES = [
   'custom.fleet',
   'atlas.calendar',
   'atlas.catalog',
+  'atlas.ledger',
 ]

@@ -106,6 +106,31 @@ function reminderLeadText(minutesBefore) {
   return `${minutes} minutos antes`;
 }
 
+const EVENT_TYPE_LABELS = {
+  "calendar.event.reminder": "Recordatorio de evento",
+  "calendar.event.created": "Evento creado",
+  "calendar.event.updated": "Evento actualizado",
+  "calendar.event.deleted": "Evento eliminado",
+  "general": "General",
+};
+
+const PRIORITY_LABELS = {
+  critical: "Critica",
+  high: "Alta",
+  medium: "Media",
+  low: "Baja",
+};
+
+const SOURCE_TYPE_LABELS = {
+  CalendarEvent: "Evento de calendario",
+  Contact: "Contacto",
+  HrEmployee: "Empleado",
+  FileAsset: "Archivo",
+  Company: "Empresa",
+  Invoice: "Factura",
+  FinanceDocument: "Documento financiero",
+};
+
 function buildNotificationEmail({ notification, appBaseUrl }) {
   const title = notification?.title ?? "Notificacion de Atlas";
   const body = notification?.body ?? "";
@@ -118,14 +143,18 @@ function buildNotificationEmail({ notification, appBaseUrl }) {
   const reminderLead = reminderLeadText(notification?.metadata?.minutesBefore);
   const titleEsc = escapeHtml(title);
   const bodyEsc = escapeHtml(body);
-  const eventTypeEsc = escapeHtml(notification?.eventType ?? "general");
-  const priorityEsc = escapeHtml(notification?.priority ?? "medium");
+  const rawEventType = notification?.eventType ?? "general";
+  const eventTypeEsc = escapeHtml(EVENT_TYPE_LABELS[rawEventType] ?? rawEventType);
+  const rawPriority = notification?.priority ?? "medium";
+  const priorityEsc = escapeHtml(PRIORITY_LABELS[rawPriority] ?? rawPriority);
 
   const details = [
     createdAt ? `Generado: ${createdAt}` : null,
     eventStart ? `Evento: ${eventStart}` : null,
     reminderLead ? `Recordatorio: ${reminderLead}` : null,
-    notification?.sourceType ? `Origen: ${notification.sourceType}` : null,
+    notification?.sourceType
+      ? `Origen: ${SOURCE_TYPE_LABELS[notification.sourceType] ?? notification.sourceType}`
+      : null,
   ].filter(Boolean);
 
   const html = `
@@ -134,7 +163,7 @@ function buildNotificationEmail({ notification, appBaseUrl }) {
     <tr>
       <td style="padding:20px 24px;border-bottom:1px solid #eef2ff;background:#f8fafc">
         ${logoUrl ? `<img src="${logoUrl}" alt="Atlas ERP" style="height:26px;display:block;margin-bottom:10px" />` : ""}
-        <div style="font-size:12px;color:#6b7280;letter-spacing:.06em;text-transform:uppercase">Atlas Notifications</div>
+        <div style="font-size:12px;color:#6b7280;letter-spacing:.06em;text-transform:uppercase">Notificaciones Atlas</div>
         <h1 style="margin:6px 0 0 0;font-size:24px;line-height:1.25;color:#0f172a">${titleEsc}</h1>
       </td>
     </tr>
