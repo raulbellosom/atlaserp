@@ -140,4 +140,17 @@ describe('createOfflineTransport.queue', () => {
     assert.equal(items.length, 1)
     assert.equal(items[0].clientUpdatedAt, null)
   })
+
+  it('UPDATE mutation with no matching offline record stores clientUpdatedAt as null', async () => {
+    await transport.queue('/contacts/nonexistent-id', {
+      method: 'PUT',
+      body: JSON.stringify({ name: 'X' }),
+    })
+    const items = await db.mutation_queue.toArray()
+    assert.equal(items.length, 1)
+    assert.equal(items[0].clientUpdatedAt, null)
+    // Optimistic write must not fire — offline_records stays empty
+    const records = await db.offline_records.toArray()
+    assert.equal(records.length, 0)
+  })
 })
