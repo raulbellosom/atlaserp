@@ -2618,6 +2618,111 @@ app.post(
 );
 
 app.post(
+  "/identity/users/export/pdf",
+  authMiddleware,
+  requirePermission("identity.users.read"),
+  async (c) => {
+    try {
+      const body = await c.req.json().catch(() => ({}));
+      const ids = parseIdentityUserIds(body?.ids);
+      const normalizedQuery = normalizeIdentityUsersQuery(c.req.query());
+      const where = buildIdentityUsersWhere(normalizedQuery);
+      if (ids.length) where.id = { in: ids };
+
+      const users = await prisma.userProfile.findMany({
+        where,
+        include: {
+          memberships: {
+            include: { role: true, company: true },
+            where: { enabled: true },
+          },
+        },
+        orderBy: toIdentitySortOrder(normalizedQuery.sortBy, normalizedQuery.sortDir),
+      });
+
+      const authUserId = c.get("userId");
+      const membership = await prisma.membership.findFirst({ where: { userId: authUserId, enabled: true } });
+      const companyId = membership?.companyId ?? null;
+
+      const { resolvePdfDocumentCtor, resolveCompanyBranding, drawPdfHeader, drawPdfFooter, formatDateEs, toSafeText } =
+        await import("./services/pdf-branding-service.js");
+      const PDFDocument = await resolvePdfDocumentCtor();
+      const branding = await resolveCompanyBranding({ prisma, companyId });
+
+      const doc = new PDFDocument({ margin: 40, size: "A4", bufferPages: true });
+      const chunks = [];
+      doc.on("data", (c) => chunks.push(c));
+
+      const HEADER_H = 90;
+      const FOOTER_H = 36;
+      const pageW = doc.page.width;
+      const pageH = doc.page.height;
+      const bodyTop = 40 + HEADER_H + 10;
+      const bodyBottom = pageH - 40 - FOOTER_H - 10;
+
+      function drawTableHeader(y) {
+        doc.rect(40, y, pageW - 80, 20).fill(branding.primaryColor || "#2563eb");
+        doc.fillColor("#ffffff").fontSize(8).font("Helvetica-Bold");
+        doc.text("Nombre completo", 48, y + 6, { width: 130 });
+        doc.text("Correo", 184, y + 6, { width: 130 });
+        doc.text("Rol", 320, y + 6, { width: 90 });
+        doc.text("Estado", 416, y + 6, { width: 55 });
+        doc.text("Ingreso", 476, y + 6, { width: 80 });
+        doc.fillColor("#000000").font("Helvetica");
+        return y + 20;
+      }
+
+      let page = 0;
+      let y = bodyTop;
+
+      drawPdfHeader(doc, branding, { title: "Directorio de usuarios", subtitle: `${users.length} registro${users.length !== 1 ? "s" : ""}`, folio: `RPT-USR-${new Date().getFullYear()}` });
+      y = drawTableHeader(y);
+
+      for (let i = 0; i < users.length; i++) {
+        const u = users[i];
+        const m = u.memberships?.[0] ?? null;
+        const rowH = 18;
+
+        if (y + rowH > bodyBottom) {
+          drawPdfFooter(doc, branding, { pageNum: ++page });
+          doc.addPage();
+          drawPdfHeader(doc, branding, { title: "Directorio de usuarios", subtitle: `${users.length} registro${users.length !== 1 ? "s" : ""}`, folio: `RPT-USR-${new Date().getFullYear()}` });
+          y = bodyTop;
+          y = drawTableHeader(y);
+        }
+
+        const bg = i % 2 === 0 ? "#ffffff" : "#f8f9fb";
+        doc.rect(40, y, pageW - 80, rowH).fill(bg);
+        doc.fillColor("#1a1a1a").fontSize(8).font("Helvetica");
+        doc.text(toSafeText(u.displayName || `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim()), 48, y + 5, { width: 130, ellipsis: true });
+        doc.text(toSafeText(u.email ?? ""), 184, y + 5, { width: 130, ellipsis: true });
+        doc.text(toSafeText(m?.role?.name ?? "—"), 320, y + 5, { width: 90, ellipsis: true });
+        doc.text(u.enabled ? "Activo" : "Inactivo", 416, y + 5, { width: 55 });
+        doc.text(u.createdAt ? formatDateEs(u.createdAt) : "—", 476, y + 5, { width: 80 });
+        y += rowH;
+      }
+
+      drawPdfFooter(doc, branding, { pageNum: ++page });
+      doc.end();
+
+      const buffer = await new Promise((resolve, reject) => {
+        doc.on("end", () => resolve(Buffer.concat(chunks)));
+        doc.on("error", reject);
+      });
+
+      const filename = `usuarios-${new Date().toISOString().slice(0, 10)}.pdf`;
+      c.header("Content-Type", "application/pdf");
+      c.header("Content-Disposition", `attachment; filename="${filename}"`);
+      c.header("X-Atlas-Export-Count", String(users.length));
+      return c.body(buffer);
+    } catch (err) {
+      console.error("[identity/export/pdf]", err);
+      return c.json({ error: "No se pudo generar el PDF." }, 500);
+    }
+  },
+);
+
+app.post(
   "/identity/users/:id/avatar",
   authMiddleware,
   requirePermission("identity.users.update"),

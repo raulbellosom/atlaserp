@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ActivityTimeline,
   Avatar,
   AvatarFallback,
   AvatarImage,
@@ -15,8 +16,10 @@ import {
   ConfirmDialog,
   DatePickerField,
   DistDropZone,
+  ErrorState,
   ImageViewer,
   MarkdownField,
+  PageHeader,
   PhoneField,
   SelectField,
   Skeleton,
@@ -234,64 +237,48 @@ export default function UserEditorScreen() {
   }
 
   return (
-    <div className={`p-6 space-y-6${draft ? " pb-24" : ""}`}>
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-[hsl(var(--muted-foreground))]">
-            Atlas Identity
-          </p>
-          <h1 className="text-2xl font-semibold mt-1">
-            {isEditRoute ? "Editar usuario" : "Detalle de usuario"}
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => navigate("/app/m/atlas.identity/identity/users")}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Volver a usuarios
-          </Button>
-          {canManageUsers &&
-            user &&
-            (isEditRoute ? (
-              <Button
-                variant="outline"
-                onClick={() =>
-                  navigate(`/app/m/atlas.identity/identity/users/${user.id}`)
-                }
-              >
-                Ver detalle
-              </Button>
-            ) : (
-              <Button
-                onClick={() =>
-                  navigate(
-                    `/app/m/atlas.identity/identity/users/${user.id}/edit`,
-                  )
-                }
-              >
-                <Pencil className="h-4 w-4" />
-                Editar
-              </Button>
-            ))}
-          {canDeleteUsers && user && !isSelf && (
-            <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
-              <Trash2 className="h-4 w-4" />
-              Eliminar usuario
+    <div className={`p-4 md:p-6 space-y-6${draft ? " pb-24" : ""}`}>
+      <PageHeader
+        eyebrow="Atlas Identity"
+        title={isEditRoute ? "Editar usuario" : "Detalle de usuario"}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/app/m/atlas.identity/identity/users")}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Volver a usuarios
             </Button>
-          )}
-        </div>
-      </div>
+            {canManageUsers &&
+              user &&
+              (isEditRoute ? (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/app/m/atlas.identity/identity/users/${user.id}`)}
+                >
+                  Ver detalle
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => navigate(`/app/m/atlas.identity/identity/users/${user.id}/edit`)}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Editar
+                </Button>
+              ))}
+            {canDeleteUsers && user && !isSelf && (
+              <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+                <Trash2 className="h-4 w-4" />
+                Eliminar usuario
+              </Button>
+            )}
+          </div>
+        }
+      />
 
       {!canReadUsers && (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-[hsl(var(--muted-foreground))]">
-              No tienes permisos para consultar usuarios.
-            </p>
-          </CardContent>
-        </Card>
+        <ErrorState message="No tienes permisos para consultar usuarios." />
       )}
 
       {canReadUsers && (usersQuery.isLoading || rolesQuery.isLoading) && (
@@ -306,27 +293,12 @@ export default function UserEditorScreen() {
       )}
 
       {canReadUsers && usersQuery.isError && (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-red-600">
-              No se pudo cargar el usuario.
-            </p>
-          </CardContent>
-        </Card>
+        <ErrorState title="Error al cargar usuario" message="No se pudo cargar la informacion del usuario." onRetry={() => usersQuery.refetch()} />
       )}
 
-      {canReadUsers &&
-        !usersQuery.isLoading &&
-        !usersQuery.isError &&
-        !user && (
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                Usuario no encontrado.
-              </p>
-            </CardContent>
-          </Card>
-        )}
+      {canReadUsers && !usersQuery.isLoading && !usersQuery.isError && !user && (
+        <ErrorState message="Usuario no encontrado." />
+      )}
 
       {canReadUsers && user && !rolesQuery.isLoading && (
         <Card>
@@ -662,6 +634,25 @@ export default function UserEditorScreen() {
                 editar.
               </p>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {canReadUsers && user && !isEditRoute && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Actividad reciente</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <ActivityTimeline
+              sdk={atlas}
+              token={token}
+              entityType="UserProfile"
+              entityId={user.id}
+              limit={20}
+              heightClass="max-h-[320px]"
+              emptyMessage="Sin actividad registrada para este usuario."
+            />
           </CardContent>
         </Card>
       )}

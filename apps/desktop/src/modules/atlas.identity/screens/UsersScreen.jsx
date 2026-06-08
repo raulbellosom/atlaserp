@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
-import { AtlasTable, Button, ConfirmDialog, PageHeader } from "@atlas/ui";
+import { AtlasTable, Button, ConfirmDialog, ErrorState, PageHeader } from "@atlas/ui";
 import {
   FileSpreadsheet,
+  FileText,
   Power,
   PowerOff,
   Trash2,
@@ -186,6 +187,22 @@ export default function UsersScreen() {
       },
     });
 
+    actions.push({
+      label: "Exportar PDF",
+      icon: FileText,
+      onClick: async (selectedRows) => {
+        try {
+          const ids = selectedRows.map((row) => row.id).filter(Boolean);
+          if (!ids.length) return;
+          const blob = await atlas.identity.exportUsersPdf(ids, token);
+          downloadBlob(blob, `usuarios-${new Date().toISOString().slice(0, 10)}.pdf`);
+          toast.success("PDF generado");
+        } catch {
+          toast.error("No se pudo generar el PDF");
+        }
+      },
+    });
+
     if (canUpdateUsers) {
       actions.push((selectedRows) => {
         const mode = getUniformStatusMode(selectedRows);
@@ -334,9 +351,7 @@ export default function UsersScreen() {
       />
 
       {!canReadUsers && (
-        <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
-          No tienes permisos para consultar usuarios.
-        </div>
+        <ErrorState message="No tienes permisos para consultar usuarios." />
       )}
     </div>
   );

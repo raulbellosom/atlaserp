@@ -318,6 +318,12 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
           body: JSON.stringify({ ids }),
         }),
+      exportUsersPdf: (ids, token) =>
+        requestBlob("/identity/users/export/pdf", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ ids }),
+        }),
       uploadUserAvatar: (id, file, token) => {
         const formData = new FormData();
         formData.append("avatar", file);

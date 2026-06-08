@@ -518,9 +518,7 @@ export default function RolesScreen() {
         />
 
         {!canReadRoles ? (
-          <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 text-sm px-4 py-3 text-[hsl(var(--muted-foreground))]">
-            No tienes permisos para consultar roles.
-          </div>
+          <ErrorState message="No tienes permisos para consultar roles." />
         ) : (
           <>
             {/* Toolbar */}
