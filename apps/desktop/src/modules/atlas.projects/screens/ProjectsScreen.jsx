@@ -58,7 +58,7 @@ export default function ProjectsScreen() {
   return (
     <div className="flex h-full min-h-0">
       {/* Left sidebar */}
-      <aside className="w-52 shrink-0 border-r border-border flex flex-col">
+      <aside className="w-60 shrink-0 border-r border-border flex flex-col">
         <div className="px-3 pt-4 pb-2">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Proyectos
