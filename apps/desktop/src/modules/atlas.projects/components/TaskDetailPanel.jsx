@@ -106,7 +106,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
   const statusOptions = (statuses?.data ?? statuses ?? []).map((s) => ({ value: s.id, label: s.name }))
   const userOptions = [
     { value: '', label: 'Sin asignar' },
-    ...users.map((u) => ({ value: u.id, label: u.displayName ?? [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || u.id })),
+    ...users.map((u) => ({ value: u.id, label: (u.displayName ?? [u.firstName, u.lastName].filter(Boolean).join(' ')) || u.email || u.id })),
   ]
   const subtasks = task?.subtasks ?? []
 
