@@ -4,7 +4,7 @@ import { ChevronRight } from 'lucide-react'
 import { useStatuses, useTasks } from '../hooks/useProjectsData'
 
 const PRIORITY_OPTIONS = [
-  { value: '', label: 'Todas' },
+  { value: '__all__', label: 'Todas' },
   { value: 'URGENT', label: 'Urgente' },
   { value: 'HIGH', label: 'Alta' },
   { value: 'MEDIUM', label: 'Media' },
@@ -37,8 +37,8 @@ export default function ListView({ projectId, onTaskClick }) {
   const tasks = tasksData?.data ?? tasksData ?? []
 
   const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState('')
-  const [filterPriority, setFilterPriority] = useState('')
+  const [filterStatus, setFilterStatus] = useState('__all__')
+  const [filterPriority, setFilterPriority] = useState('__all__')
 
   const statusMap = useMemo(() => {
     const m = {}
@@ -52,8 +52,8 @@ export default function ListView({ projectId, onTaskClick }) {
       const q = search.toLowerCase()
       list = list.filter((t) => t.title.toLowerCase().includes(q))
     }
-    if (filterStatus) list = list.filter((t) => t.statusId === filterStatus)
-    if (filterPriority) list = list.filter((t) => t.priority === filterPriority)
+    if (filterStatus && filterStatus !== '__all__') list = list.filter((t) => t.statusId === filterStatus)
+    if (filterPriority && filterPriority !== '__all__') list = list.filter((t) => t.priority === filterPriority)
     return list.sort((a, b) => {
       const sA = statusMap[a.statusId]?.position ?? 0
       const sB = statusMap[b.statusId]?.position ?? 0
@@ -74,12 +74,12 @@ export default function ListView({ projectId, onTaskClick }) {
         <SelectField
           value={filterStatus}
           onValueChange={setFilterStatus}
-          options={[{ value: '', label: 'Estado: Todos' }, ...statuses.map((s) => ({ value: s.id, label: s.name }))]}
+          options={[{ value: '__all__', label: 'Estado: Todos' }, ...statuses.map((s) => ({ value: s.id, label: s.name }))]}
         />
         <SelectField
           value={filterPriority}
           onValueChange={setFilterPriority}
-          options={PRIORITY_OPTIONS.map((o) => ({ value: o.value, label: o.value ? `Prioridad: ${o.label}` : 'Prioridad: Todas' }))}
+          options={PRIORITY_OPTIONS.map((o) => ({ value: o.value, label: o.value !== '__all__' ? `Prioridad: ${o.label}` : 'Prioridad: Todas' }))}
         />
       </div>
 

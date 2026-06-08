@@ -74,7 +74,7 @@ export function createTasksService({ prisma }) {
   async function updateTask(taskId, data) {
     const task = await prisma.task.findFirst({ where: { id: taskId } })
     if (!task) throw new TaskServiceError('Tarea no encontrada.', 404)
-    const { title, description, assigneeId, priority, startDate, dueDate, statusId } = data
+    const { title, description, assigneeId, priority, startDate, dueDate, statusId, isDone } = data
     return prisma.task.update({
       where: { id: taskId },
       data: {
@@ -85,6 +85,7 @@ export function createTasksService({ prisma }) {
         ...(startDate !== undefined ? { startDate: startDate ? new Date(startDate) : null } : {}),
         ...(dueDate !== undefined ? { dueDate: dueDate ? new Date(dueDate) : null } : {}),
         ...(statusId ? { statusId } : {}),
+        ...(isDone !== undefined ? { isDone } : {}),
       },
     })
   }
