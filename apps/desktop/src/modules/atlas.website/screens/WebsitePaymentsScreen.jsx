@@ -91,10 +91,11 @@ export default function WebsitePaymentsScreen() {
   const keysConfigured = Boolean(site?.stripePublishableKey && site?.stripeSecretKeySet)
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <PageHeader
+        eyebrow="Atlas Website"
         title="Pagos"
-        description="Configura pasarelas de pago para tu tienda"
+        description="Configura pasarelas de pago para tu tienda."
       />
 
       {siteQuery.isPending ? (

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import { Button, Input, Label, Switch } from '@atlas/ui'
+import { Button, Label, PageHeader, Skeleton, Switch, TextField } from '@atlas/ui'
 import { toast } from 'sonner'
 
 async function apiFetch(path, token, options = {}) {
@@ -79,86 +79,108 @@ export default function SmtpSettingsScreen() {
   const configured = configQuery.data?.data?.configured ?? false
 
   return (
-    <div className="p-8 max-w-lg space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-[hsl(var(--foreground))]">Configuracion SMTP</h1>
-        <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-          Credenciales para el envio de emails desde la plataforma (formularios, notificaciones, etc.)
-        </p>
-      </div>
+    <div className="flex flex-col min-h-full">
+      <div className="flex-1 p-4 md:p-6 space-y-6 max-w-3xl mx-auto w-full">
+        <PageHeader
+          eyebrow="Configuracion"
+          title="SMTP"
+          description="Credenciales para el envio de emails desde la plataforma."
+        />
 
-      {configured && (
-        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded-lg">
-          <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
-          SMTP configurado
-        </div>
-      )}
-
-      {configQuery.isPending ? (
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">Cargando...</p>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1 col-span-2 sm:col-span-1">
-              <Label htmlFor="smtp-host">Servidor (host)</Label>
-              <Input id="smtp-host" placeholder="smtp.gmail.com" value={form.host} onChange={(e) => setForm((f) => ({ ...f, host: e.target.value }))} required />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="smtp-port">Puerto</Label>
-              <Input id="smtp-port" type="number" value={form.port} onChange={(e) => setForm((f) => ({ ...f, port: e.target.value }))} required />
-            </div>
+        {configured && (
+          <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded-lg">
+            <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+            SMTP configurado
           </div>
+        )}
 
-          <div className="space-y-1">
-            <Label htmlFor="smtp-user">Usuario</Label>
-            <Input id="smtp-user" type="email" placeholder="usuario@dominio.com" value={form.user} onChange={(e) => setForm((f) => ({ ...f, user: e.target.value }))} required />
+        {configQuery.isPending ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Skeleton className="h-11 col-span-1 rounded-lg" />
+              <Skeleton className="h-11 rounded-lg" />
+            </div>
+            <Skeleton className="h-11 w-full rounded-lg" />
+            <Skeleton className="h-11 w-full rounded-lg" />
+            <Skeleton className="h-11 w-full rounded-lg" />
+            <Skeleton className="h-11 w-full rounded-lg" />
           </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2 sm:col-span-1">
+                <TextField
+                  label="Servidor (host)"
+                  placeholder="smtp.gmail.com"
+                  value={form.host}
+                  onChange={(e) => setForm((f) => ({ ...f, host: e.target.value }))}
+                  required
+                />
+              </div>
+              <TextField
+                label="Puerto"
+                type="number"
+                value={form.port}
+                onChange={(e) => setForm((f) => ({ ...f, port: e.target.value }))}
+                required
+              />
+            </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="smtp-pass">
-              Contrasena {configured && !passChanged && <span className="text-[hsl(var(--muted-foreground))] font-normal">(dejar en blanco para mantener)</span>}
-            </Label>
-            <Input
-              id="smtp-pass"
+            <TextField
+              label="Usuario"
+              type="email"
+              placeholder="usuario@dominio.com"
+              value={form.user}
+              onChange={(e) => setForm((f) => ({ ...f, user: e.target.value }))}
+              required
+            />
+
+            <TextField
+              label="Contrasena"
               type="password"
+              description={configured && !passChanged ? "(dejar en blanco para mantener)" : undefined}
               placeholder={configured ? '••••••••' : ''}
               value={form.pass}
               onChange={(e) => { setForm((f) => ({ ...f, pass: e.target.value })); setPassChanged(true) }}
             />
-          </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="smtp-from-name">Nombre del remitente</Label>
-            <Input id="smtp-from-name" placeholder="Atlas ERP" value={form.from_name} onChange={(e) => setForm((f) => ({ ...f, from_name: e.target.value }))} />
-          </div>
+            <TextField
+              label="Nombre del remitente"
+              placeholder="Atlas ERP"
+              value={form.from_name}
+              onChange={(e) => setForm((f) => ({ ...f, from_name: e.target.value }))}
+            />
 
-          <div className="space-y-1">
-            <Label htmlFor="smtp-from-email">Email del remitente</Label>
-            <Input id="smtp-from-email" type="email" value={form.from_email} onChange={(e) => setForm((f) => ({ ...f, from_email: e.target.value }))} />
-          </div>
+            <TextField
+              label="Email del remitente"
+              type="email"
+              value={form.from_email}
+              onChange={(e) => setForm((f) => ({ ...f, from_email: e.target.value }))}
+            />
 
-          <div className="flex items-center gap-2">
-            <Switch id="smtp-tls" checked={form.tls} onCheckedChange={(v) => setForm((f) => ({ ...f, tls: v }))} />
-            <Label htmlFor="smtp-tls">Usar TLS / SSL</Label>
-          </div>
+            <div className="flex items-center gap-2">
+              <Switch id="smtp-tls" checked={form.tls} onCheckedChange={(v) => setForm((f) => ({ ...f, tls: v }))} />
+              <Label htmlFor="smtp-tls">Usar TLS / SSL</Label>
+            </div>
 
-          <div className="flex gap-2 pt-2">
-            <Button type="submit" disabled={saveMutation.isPending} className="flex-1">
-              {saveMutation.isPending ? 'Guardando...' : 'Guardar configuracion'}
-            </Button>
-            {configured && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => testMutation.mutate()}
-                disabled={testMutation.isPending}
-              >
-                {testMutation.isPending ? 'Enviando...' : 'Enviar prueba'}
+            <div className="flex gap-2 pt-2 border-t border-[hsl(var(--border))]">
+              <Button type="submit" disabled={saveMutation.isPending} className="flex-1">
+                {saveMutation.isPending ? 'Guardando...' : 'Guardar configuracion'}
               </Button>
-            )}
-          </div>
-        </form>
-      )}
+              {configured && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => testMutation.mutate()}
+                  disabled={testMutation.isPending}
+                >
+                  {testMutation.isPending ? 'Enviando...' : 'Enviar prueba'}
+                </Button>
+              )}
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   )
 }

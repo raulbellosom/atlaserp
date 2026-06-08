@@ -1,4 +1,6 @@
-const FONT_OPTIONS = [
+import { SelectField } from '@atlas/ui'
+
+const FONT_RAW = [
   'Inter, sans-serif',
   'Roboto, sans-serif',
   'Poppins, sans-serif',
@@ -11,14 +13,15 @@ const FONT_OPTIONS = [
   'Fira Code, monospace',
 ]
 
-const SIZE_OPTIONS = ['14px', '15px', '16px', '17px', '18px']
-const WEIGHT_OPTIONS = ['400', '500', '600', '700', '800']
+const FONT_OPTIONS    = FONT_RAW.map((f) => ({ value: f, label: f.split(',')[0] }))
+const SIZE_OPTIONS    = ['14px', '15px', '16px', '17px', '18px'].map((s) => ({ value: s, label: s }))
+const WEIGHT_OPTIONS  = ['400', '500', '600', '700', '800'].map((w) => ({ value: w, label: w }))
 
 const DEFAULTS = {
-  bodyFont:       'Inter, sans-serif',
-  headingFont:    'Inter, sans-serif',
-  baseFontSize:   '16px',
-  headingWeight:  '700',
+  bodyFont:      'Inter, sans-serif',
+  headingFont:   'Inter, sans-serif',
+  baseFontSize:  '16px',
+  headingWeight: '700',
 }
 
 export default function ThemeTypographyEditor({ typography = {}, onChange }) {
@@ -35,49 +38,30 @@ export default function ThemeTypographyEditor({ typography = {}, onChange }) {
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-[hsl(var(--foreground))]">Fuente del cuerpo</label>
-          <select
-            value={merged.bodyFont}
-            onChange={(e) => handleChange('bodyFont', e.target.value)}
-            className="flex h-9 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
-          >
-            {FONT_OPTIONS.map((f) => <option key={f} value={f}>{f.split(',')[0]}</option>)}
-          </select>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-[hsl(var(--foreground))]">Fuente de titulos</label>
-          <select
-            value={merged.headingFont}
-            onChange={(e) => handleChange('headingFont', e.target.value)}
-            className="flex h-9 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
-          >
-            {FONT_OPTIONS.map((f) => <option key={f} value={f}>{f.split(',')[0]}</option>)}
-          </select>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-[hsl(var(--foreground))]">Tamano base</label>
-          <select
-            value={merged.baseFontSize}
-            onChange={(e) => handleChange('baseFontSize', e.target.value)}
-            className="flex h-9 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
-          >
-            {SIZE_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-[hsl(var(--foreground))]">Peso de titulos</label>
-          <select
-            value={merged.headingWeight}
-            onChange={(e) => handleChange('headingWeight', e.target.value)}
-            className="flex h-9 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
-          >
-            {WEIGHT_OPTIONS.map((w) => <option key={w} value={w}>{w}</option>)}
-          </select>
-        </div>
+        <SelectField
+          label="Fuente del cuerpo"
+          value={merged.bodyFont}
+          onChange={(v) => handleChange('bodyFont', v)}
+          options={FONT_OPTIONS}
+        />
+        <SelectField
+          label="Fuente de titulos"
+          value={merged.headingFont}
+          onChange={(v) => handleChange('headingFont', v)}
+          options={FONT_OPTIONS}
+        />
+        <SelectField
+          label="Tamano base"
+          value={merged.baseFontSize}
+          onChange={(v) => handleChange('baseFontSize', v)}
+          options={SIZE_OPTIONS}
+        />
+        <SelectField
+          label="Peso de titulos"
+          value={merged.headingWeight}
+          onChange={(v) => handleChange('headingWeight', v)}
+          options={WEIGHT_OPTIONS}
+        />
       </div>
 
       <div className="rounded-xl border border-[hsl(var(--border))] p-5 space-y-2">

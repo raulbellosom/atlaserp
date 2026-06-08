@@ -4,7 +4,7 @@ import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-  Button, Input, Label,
+  Button, TextField,
   PageHeader, EmptyState, ConfirmDialog,
   Tabs, TabsList, TabsTrigger, TabsContent,
 } from '@atlas/ui'
@@ -100,8 +100,9 @@ export default function WebsiteFormsScreen() {
 
   if (!siteId) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
         <PageHeader
+          eyebrow="Atlas Website"
           title="Formularios"
           description="Crea formularios de contacto y captura envios desde el sitio publico."
         />
@@ -114,8 +115,9 @@ export default function WebsiteFormsScreen() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <PageHeader
+        eyebrow="Atlas Website"
         title="Formularios"
         description="Crea formularios de contacto y captura envios desde el sitio publico."
         actions={
@@ -214,28 +216,39 @@ export default function WebsiteFormsScreen() {
             onSubmit={(e) => { e.preventDefault(); createFormMutation.mutate(newFormData) }}
             className="space-y-4 py-2"
           >
-            <div className="space-y-1">
-              <Label htmlFor="form-name">Nombre</Label>
-              <Input id="form-name" value={newFormData.name} onChange={(e) => setNewFormData((f) => ({ ...f, name: e.target.value }))} placeholder="Contacto" required autoFocus />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="form-desc">Descripcion (opcional)</Label>
-              <Input id="form-desc" value={newFormData.description} onChange={(e) => setNewFormData((f) => ({ ...f, description: e.target.value }))} />
-            </div>
+            <TextField
+              label="Nombre"
+              value={newFormData.name}
+              onChange={(e) => setNewFormData((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Contacto"
+              required
+              autoFocus
+            />
+            <TextField
+              label="Descripcion (opcional)"
+              value={newFormData.description}
+              onChange={(e) => setNewFormData((f) => ({ ...f, description: e.target.value }))}
+            />
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="form-btn">Texto del boton</Label>
-                <Input id="form-btn" value={newFormData.submitLabel} onChange={(e) => setNewFormData((f) => ({ ...f, submitLabel: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="form-notify">Notificar por email (opcional)</Label>
-                <Input id="form-notify" type="email" value={newFormData.notifyEmail} onChange={(e) => setNewFormData((f) => ({ ...f, notifyEmail: e.target.value }))} placeholder="tu@empresa.com" />
-              </div>
+              <TextField
+                label="Texto del boton"
+                value={newFormData.submitLabel}
+                onChange={(e) => setNewFormData((f) => ({ ...f, submitLabel: e.target.value }))}
+              />
+              <TextField
+                label="Notificar por email (opcional)"
+                type="email"
+                value={newFormData.notifyEmail}
+                onChange={(e) => setNewFormData((f) => ({ ...f, notifyEmail: e.target.value }))}
+                placeholder="tu@empresa.com"
+              />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="form-success">Mensaje de exito (opcional)</Label>
-              <Input id="form-success" value={newFormData.successMessage} onChange={(e) => setNewFormData((f) => ({ ...f, successMessage: e.target.value }))} placeholder="Gracias, nos pondremos en contacto pronto." />
-            </div>
+            <TextField
+              label="Mensaje de exito (opcional)"
+              value={newFormData.successMessage}
+              onChange={(e) => setNewFormData((f) => ({ ...f, successMessage: e.target.value }))}
+              placeholder="Gracias, nos pondremos en contacto pronto."
+            />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setNewFormOpen(false)}>Cancelar</Button>
               <Button type="submit" disabled={createFormMutation.isPending || !newFormData.name.trim()}>

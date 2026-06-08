@@ -4,9 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
-  Button, Input, Label, Switch, StatCard, PageHeader,
+  Button, SelectField, Switch, StatCard, PageHeader, TextField,
   Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
-  Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
 } from '@atlas/ui'
 import { Globe, FileText, BookOpen, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
@@ -143,9 +142,10 @@ export default function WebsiteOverviewScreen() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       {/* Page header with status toggle */}
       <PageHeader
+        eyebrow="Atlas Website"
         title={site.name}
         description={site.domain ? `https://${site.domain}` : 'Dominio no configurado'}
         actions={
@@ -216,38 +216,27 @@ export default function WebsiteOverviewScreen() {
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="site-name">Nombre</Label>
-              <Input
-                id="site-name"
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-                placeholder="Mi sitio web"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="site-domain">Dominio</Label>
-              <Input
-                id="site-domain"
-                value={formDomain}
-                onChange={(e) => setFormDomain(e.target.value)}
-                placeholder="misitioweb.com"
-              />
-            </div>
+            <TextField
+              label="Nombre"
+              value={formName}
+              onChange={(e) => setFormName(e.target.value)}
+              placeholder="Mi sitio web"
+            />
+            <TextField
+              label="Dominio"
+              value={formDomain}
+              onChange={(e) => setFormDomain(e.target.value)}
+              placeholder="misitioweb.com"
+            />
           </div>
 
-          <div className="space-y-1.5 max-w-xs">
-            <Label>Tipo de sitio</Label>
-            <Select value={formSiteType} onValueChange={setFormSiteType}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SITE_TYPES.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="max-w-xs">
+            <SelectField
+              label="Tipo de sitio"
+              value={formSiteType}
+              onChange={setFormSiteType}
+              options={SITE_TYPES}
+            />
           </div>
 
           <div className="flex justify-end">
@@ -280,12 +269,9 @@ export default function WebsiteOverviewScreen() {
               formularios, menus y temas del sitio <strong>{site.name}</strong>.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-2 space-y-2">
-            <Label>
-              Escribe el nombre del sitio para confirmar:{' '}
-              <strong>{site.name}</strong>
-            </Label>
-            <Input
+          <div className="py-2">
+            <TextField
+              label={`Escribe el nombre del sitio para confirmar: ${site.name}`}
               value={deleteText}
               onChange={(e) => setDeleteText(e.target.value)}
               placeholder={site.name}

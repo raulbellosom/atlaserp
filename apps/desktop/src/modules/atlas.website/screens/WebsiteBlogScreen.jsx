@@ -8,6 +8,7 @@ import {
   PageHeader,
   EmptyState,
   ConfirmDialog,
+  SelectField,
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from '@atlas/ui'
 import { toast } from 'sonner'
@@ -92,8 +93,9 @@ export default function WebsiteBlogScreen() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <PageHeader
+        eyebrow="Atlas Website"
         title="Blog"
         description="Gestiona las entradas del blog publico."
         actions={
@@ -111,18 +113,16 @@ export default function WebsiteBlogScreen() {
       ) : (
         <>
           {categories.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[hsl(var(--muted-foreground))]">Filtrar:</span>
-              <select
+            <div className="max-w-xs">
+              <SelectField
+                label="Categoria"
                 value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="h-8 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] text-[hsl(var(--foreground))] px-2 py-0 text-sm focus:outline-none"
-              >
-                <option value="">Todas las categorias</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
+                onChange={setCategoryFilter}
+                options={[
+                  { value: '', label: 'Todas las categorias' },
+                  ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
+                ]}
+              />
             </div>
           )}
 

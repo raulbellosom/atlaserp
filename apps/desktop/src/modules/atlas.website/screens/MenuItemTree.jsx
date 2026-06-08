@@ -19,6 +19,7 @@ import { GripVertical, Pencil, Trash2, ChevronRight } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { ConfirmDialog } from '@atlas/ui'
 import { toast } from 'sonner'
 import MenuItemDialog from './MenuItemDialog.jsx'
 
@@ -102,6 +103,7 @@ export default function MenuItemTree({ menuId, items = [], onReorder, onRefresh 
   const [editItem, setEditItem] = useState(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
+  const [confirmItem, setConfirmItem] = useState(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -133,8 +135,8 @@ export default function MenuItemTree({ menuId, items = [], onReorder, onRefresh 
       })
       if (!res.ok) throw new Error('Error al eliminar')
     },
-    onSuccess: () => { toast.success('Elemento eliminado'); onRefresh() },
-    onError: () => toast.error('Error al eliminar elemento'),
+    onSuccess: () => { toast.success('Elemento eliminado'); setConfirmItem(null); onRefresh() },
+    onError: () => { toast.error('Error al eliminar elemento'); setConfirmItem(null) },
   })
 
   function handleDragEnd(event) {
@@ -153,8 +155,7 @@ export default function MenuItemTree({ menuId, items = [], onReorder, onRefresh 
   }
 
   function handleDelete(item) {
-    if (!window.confirm(`Eliminar "${item.label}"?`)) return
-    deleteMutation.mutate(item.id)
+    setConfirmItem(item)
   }
 
   if (rootItems.length === 0 && childItems.length === 0) {
@@ -223,6 +224,16 @@ export default function MenuItemTree({ menuId, items = [], onReorder, onRefresh 
         onOpenChange={(v) => { setDialogOpen(v); if (!v) setEditItem(null) }}
         onSaved={onRefresh}
         rootItems={rootItems}
+      />
+
+      <ConfirmDialog
+        open={Boolean(confirmItem)}
+        onOpenChange={(open) => { if (!open) setConfirmItem(null) }}
+        title="Eliminar elemento"
+        description={`Se eliminara permanentemente el elemento "${confirmItem?.label}". Esta accion no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate(confirmItem?.id)}
       />
     </div>
   )

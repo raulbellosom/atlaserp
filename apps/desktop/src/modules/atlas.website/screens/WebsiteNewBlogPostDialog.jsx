@@ -3,9 +3,9 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
+  Button, SelectField, TextareaField, TextField,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@atlas/ui'
-import { Button, Input, Label } from '@atlas/ui'
 import { toast } from 'sonner'
 
 function toSlug(text) {
@@ -81,6 +81,11 @@ export default function WebsiteNewBlogPostDialog({ siteId, open, onOpenChange, o
     })
   }
 
+  const categoryOptions = [
+    { value: '', label: '— Sin categoria —' },
+    ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
+  ]
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
@@ -88,22 +93,18 @@ export default function WebsiteNewBlogPostDialog({ siteId, open, onOpenChange, o
           <DialogTitle>Nueva entrada de blog</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          <div className="space-y-1">
-            <Label htmlFor="post-title">Titulo</Label>
-            <Input
-              id="post-title"
-              value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              placeholder="Mi primera entrada"
-              required
-              autoFocus
-            />
-          </div>
+          <TextField
+            label="Titulo"
+            value={form.title}
+            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+            placeholder="Mi primera entrada"
+            required
+            autoFocus
+          />
 
           <div className="space-y-1">
-            <Label htmlFor="post-slug">Slug</Label>
-            <Input
-              id="post-slug"
+            <TextField
+              label="Slug"
               value={form.slug}
               onChange={(e) => { setSlugTouched(true); setForm((f) => ({ ...f, slug: e.target.value })) }}
               placeholder="mi-primera-entrada"
@@ -113,33 +114,21 @@ export default function WebsiteNewBlogPostDialog({ siteId, open, onOpenChange, o
           </div>
 
           {categories.length > 0 && (
-            <div className="space-y-1">
-              <Label htmlFor="post-category">Categoria (opcional)</Label>
-              <select
-                id="post-category"
-                value={form.categoryId}
-                onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
-              >
-                <option value="">— Sin categoria —</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-            </div>
+            <SelectField
+              label="Categoria (opcional)"
+              value={form.categoryId}
+              onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))}
+              options={categoryOptions}
+            />
           )}
 
-          <div className="space-y-1">
-            <Label htmlFor="post-excerpt">Resumen (opcional)</Label>
-            <textarea
-              id="post-excerpt"
-              value={form.excerpt}
-              onChange={(e) => setForm((f) => ({ ...f, excerpt: e.target.value }))}
-              rows={2}
-              placeholder="Breve descripcion de la entrada..."
-              className="flex w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))] resize-none"
-            />
-          </div>
+          <TextareaField
+            label="Resumen (opcional)"
+            value={form.excerpt}
+            onChange={(e) => setForm((f) => ({ ...f, excerpt: e.target.value }))}
+            rows={2}
+            placeholder="Breve descripcion de la entrada..."
+          />
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>

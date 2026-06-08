@@ -3,10 +3,15 @@ import { useMutation } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
+  Button, SelectField, TextField,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@atlas/ui'
-import { Button, Input, Label } from '@atlas/ui'
 import { toast } from 'sonner'
+
+const TARGET_OPTIONS = [
+  { value: '_self',  label: 'Misma ventana' },
+  { value: '_blank', label: 'Nueva ventana' },
+]
 
 export default function MenuItemDialog({ menuId, item, open, onOpenChange, onSaved, rootItems = [] }) {
   const { session } = useAuth()
@@ -72,6 +77,10 @@ export default function MenuItemDialog({ menuId, item, open, onOpenChange, onSav
 
   const isSaving = createMutation.isPending || updateMutation.isPending
   const parentOptions = rootItems.filter((r) => !item || r.id !== item.id)
+  const parentSelectOptions = [
+    { value: '', label: '— Elemento raiz —' },
+    ...parentOptions.map((r) => ({ value: r.id, label: r.label })),
+  ]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -80,68 +89,44 @@ export default function MenuItemDialog({ menuId, item, open, onOpenChange, onSav
           <DialogTitle>{item ? 'Editar elemento' : 'Agregar elemento'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          <div className="space-y-1">
-            <Label htmlFor="item-label">Etiqueta</Label>
-            <Input
-              id="item-label"
-              value={form.label}
-              onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
-              placeholder="Inicio"
-              required
-              autoFocus
-            />
-          </div>
+          <TextField
+            label="Etiqueta"
+            value={form.label}
+            onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+            placeholder="Inicio"
+            required
+            autoFocus
+          />
 
-          <div className="space-y-1">
-            <Label htmlFor="item-url">URL (opcional)</Label>
-            <Input
-              id="item-url"
-              value={form.url}
-              onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
-              placeholder="https://... o /ruta"
-            />
-          </div>
+          <TextField
+            label="URL (opcional)"
+            value={form.url}
+            onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+            placeholder="https://... o /ruta"
+          />
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="item-target">Abrir en</Label>
-              <select
-                id="item-target"
-                value={form.target}
-                onChange={(e) => setForm((f) => ({ ...f, target: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
-              >
-                <option value="_self">Misma ventana</option>
-                <option value="_blank">Nueva ventana</option>
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="item-icon">Icono (opcional)</Label>
-              <Input
-                id="item-icon"
-                value={form.icon}
-                onChange={(e) => setForm((f) => ({ ...f, icon: e.target.value }))}
-                placeholder="Home"
-              />
-            </div>
+            <SelectField
+              label="Abrir en"
+              value={form.target}
+              onChange={(v) => setForm((f) => ({ ...f, target: v }))}
+              options={TARGET_OPTIONS}
+            />
+            <TextField
+              label="Icono (opcional)"
+              value={form.icon}
+              onChange={(e) => setForm((f) => ({ ...f, icon: e.target.value }))}
+              placeholder="Home"
+            />
           </div>
 
           {parentOptions.length > 0 && (
-            <div className="space-y-1">
-              <Label htmlFor="item-parent">Subelemento de (opcional)</Label>
-              <select
-                id="item-parent"
-                value={form.parentId}
-                onChange={(e) => setForm((f) => ({ ...f, parentId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
-              >
-                <option value="">— Elemento raiz —</option>
-                {parentOptions.map((r) => (
-                  <option key={r.id} value={r.id}>{r.label}</option>
-                ))}
-              </select>
-            </div>
+            <SelectField
+              label="Subelemento de (opcional)"
+              value={form.parentId}
+              onChange={(v) => setForm((f) => ({ ...f, parentId: v }))}
+              options={parentSelectOptions}
+            />
           )}
 
           <DialogFooter>

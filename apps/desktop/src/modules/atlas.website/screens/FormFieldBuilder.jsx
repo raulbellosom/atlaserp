@@ -12,21 +12,23 @@ import { useMutation } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
+  Button, ConfirmDialog, SelectField, TextField,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@atlas/ui'
-import { Button, Input, Label } from '@atlas/ui'
 import { toast } from 'sonner'
 
 const FIELD_TYPES = [
-  { value: 'text',     label: 'Texto corto',   Icon: Type },
-  { value: 'email',    label: 'Email',          Icon: Mail },
-  { value: 'phone',    label: 'Telefono',       Icon: Phone },
-  { value: 'textarea', label: 'Texto largo',    Icon: AlignLeft },
+  { value: 'text',     label: 'Texto corto',      Icon: Type },
+  { value: 'email',    label: 'Email',             Icon: Mail },
+  { value: 'phone',    label: 'Telefono',          Icon: Phone },
+  { value: 'textarea', label: 'Texto largo',       Icon: AlignLeft },
   { value: 'select',   label: 'Lista desplegable', Icon: List },
-  { value: 'checkbox', label: 'Casilla',        Icon: CheckSquare },
-  { value: 'number',   label: 'Numero',         Icon: Hash },
-  { value: 'date',     label: 'Fecha',          Icon: Calendar },
+  { value: 'checkbox', label: 'Casilla',           Icon: CheckSquare },
+  { value: 'number',   label: 'Numero',            Icon: Hash },
+  { value: 'date',     label: 'Fecha',             Icon: Calendar },
 ]
+
+const FIELD_TYPE_OPTIONS = FIELD_TYPES.map(({ value, label }) => ({ value, label }))
 
 function toFieldName(label) {
   return label
@@ -105,42 +107,40 @@ function FieldDialog({ formId, field, open, onOpenChange, onSaved }) {
           <DialogTitle>{isEdit ? 'Editar campo' : 'Agregar campo'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          <div className="space-y-1">
-            <Label htmlFor="fl-label">Etiqueta</Label>
-            <Input id="fl-label" value={form.label} onChange={handleLabelChange} required autoFocus />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="fl-name">Nombre del campo (clave)</Label>
-            <Input
-              id="fl-name"
-              value={form.name}
-              onChange={(e) => { setNameTouched(true); setForm((f) => ({ ...f, name: e.target.value })) }}
-              placeholder="nombre_campo"
-              required
+          <TextField
+            label="Etiqueta"
+            value={form.label}
+            onChange={handleLabelChange}
+            required
+            autoFocus
+          />
+          <TextField
+            label="Nombre del campo (clave)"
+            value={form.name}
+            onChange={(e) => { setNameTouched(true); setForm((f) => ({ ...f, name: e.target.value })) }}
+            placeholder="nombre_campo"
+            required
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <SelectField
+              label="Tipo"
+              value={form.fieldType}
+              onChange={(v) => setForm((f) => ({ ...f, fieldType: v }))}
+              options={FIELD_TYPE_OPTIONS}
+            />
+            <TextField
+              label="Placeholder"
+              value={form.placeholder}
+              onChange={(e) => setForm((f) => ({ ...f, placeholder: e.target.value }))}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="fl-type">Tipo</Label>
-              <select
-                id="fl-type"
-                value={form.fieldType}
-                onChange={(e) => setForm((f) => ({ ...f, fieldType: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
-              >
-                {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="fl-placeholder">Placeholder</Label>
-              <Input id="fl-placeholder" value={form.placeholder} onChange={(e) => setForm((f) => ({ ...f, placeholder: e.target.value }))} />
-            </div>
-          </div>
           {form.fieldType === 'select' && (
-            <div className="space-y-1">
-              <Label htmlFor="fl-options">Opciones (separadas por coma)</Label>
-              <Input id="fl-options" value={form.options} onChange={(e) => setForm((f) => ({ ...f, options: e.target.value }))} placeholder="Opcion 1, Opcion 2" />
-            </div>
+            <TextField
+              label="Opciones (separadas por coma)"
+              value={form.options}
+              onChange={(e) => setForm((f) => ({ ...f, options: e.target.value }))}
+              placeholder="Opcion 1, Opcion 2"
+            />
           )}
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input type="checkbox" checked={form.required} onChange={(e) => setForm((f) => ({ ...f, required: e.target.checked }))} className="rounded" />
@@ -192,6 +192,7 @@ export default function FormFieldBuilder({ formId, fields = [], onRefresh }) {
   const [editField, setEditField] = useState(null)
   const [editOpen, setEditOpen] = useState(false)
   const [localFields, setLocalFields] = useState(fields)
+  const [confirmField, setConfirmField] = useState(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -217,8 +218,8 @@ export default function FormFieldBuilder({ formId, fields = [], onRefresh }) {
       })
       if (!res.ok) throw new Error('Error al eliminar')
     },
-    onSuccess: () => { toast.success('Campo eliminado'); onRefresh() },
-    onError: () => toast.error('Error al eliminar campo'),
+    onSuccess: () => { toast.success('Campo eliminado'); setConfirmField(null); onRefresh() },
+    onError: () => { toast.error('Error al eliminar campo'); setConfirmField(null) },
   })
 
   function handleDragEnd({ active, over }) {
@@ -247,7 +248,7 @@ export default function FormFieldBuilder({ formId, fields = [], onRefresh }) {
                   key={field.id}
                   field={field}
                   onEdit={(f) => { setEditField(f); setEditOpen(true) }}
-                  onDelete={(f) => { if (window.confirm(`Eliminar "${f.label}"?`)) deleteMutation.mutate(f.id) }}
+                  onDelete={setConfirmField}
                 />
               ))}
             </div>
@@ -264,6 +265,16 @@ export default function FormFieldBuilder({ formId, fields = [], onRefresh }) {
 
       <FieldDialog formId={formId} field={null} open={addOpen} onOpenChange={setAddOpen} onSaved={() => { setLocalFields([]); onRefresh() }} />
       <FieldDialog formId={formId} field={editField} open={editOpen} onOpenChange={(v) => { setEditOpen(v); if (!v) setEditField(null) }} onSaved={() => { setLocalFields([]); onRefresh() }} />
+
+      <ConfirmDialog
+        open={Boolean(confirmField)}
+        onOpenChange={(open) => { if (!open) setConfirmField(null) }}
+        title="Eliminar campo"
+        description={`Se eliminara permanentemente el campo "${confirmField?.label}". Esta accion no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate(confirmField?.id)}
+      />
     </div>
   )
 }

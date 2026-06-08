@@ -4,10 +4,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-  PageHeader,
+  Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  EmptyState, PageHeader, TextField,
 } from '@atlas/ui'
-import { Button, Input, Label } from '@atlas/ui'
 import { toast } from 'sonner'
 import ThemeColorEditor from './ThemeColorEditor.jsx'
 import ThemeTypographyEditor from './ThemeTypographyEditor.jsx'
@@ -134,19 +133,24 @@ export default function WebsiteThemeScreen() {
 
   if (!siteId) {
     return (
-      <div className="p-8">
-        <div className="rounded-xl border border-border p-10 text-center">
-          <p className="text-muted-foreground text-sm">
-            Configura tu sitio web primero desde la seccion &quot;Sitio web&quot;.
-          </p>
-        </div>
+      <div className="p-4 md:p-6 space-y-6">
+        <PageHeader
+          eyebrow="Atlas Website"
+          title="Tema"
+          description="Personaliza los colores y tipografia del sitio publico."
+        />
+        <EmptyState
+          title="Sitio web no configurado"
+          description='Configura tu sitio web primero desde la seccion "Sitio web".'
+        />
       </div>
     )
   }
 
   return (
-    <div className="p-6 space-y-6 h-full">
+    <div className="p-4 md:p-6 space-y-6 h-full">
       <PageHeader
+        eyebrow="Atlas Website"
         title="Tema"
         description="Personaliza los colores y tipografia del sitio publico."
         actions={
@@ -250,7 +254,7 @@ export default function WebsiteThemeScreen() {
 
           {/* Right: preview panel */}
           <div
-            className="rounded-xl border border-border bg-muted overflow-hidden sticky top-6 min-h-[300px]"
+            className="rounded-xl border border-border bg-muted overflow-hidden sticky top-6 min-h-75"
           >
             <div className="flex items-center justify-center h-full p-8 text-center text-muted-foreground">
               <div>
@@ -275,17 +279,14 @@ export default function WebsiteThemeScreen() {
             onSubmit={(e) => { e.preventDefault(); createThemeMutation.mutate(newThemeName) }}
             className="space-y-4 py-2"
           >
-            <div className="space-y-1">
-              <Label htmlFor="theme-name">Nombre del tema</Label>
-              <Input
-                id="theme-name"
-                value={newThemeName}
-                onChange={(e) => setNewThemeName(e.target.value)}
-                placeholder="Predeterminado"
-                required
-                autoFocus
-              />
-            </div>
+            <TextField
+              label="Nombre del tema"
+              value={newThemeName}
+              onChange={(e) => setNewThemeName(e.target.value)}
+              placeholder="Predeterminado"
+              required
+              autoFocus
+            />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setNewThemeOpen(false)}>
                 Cancelar

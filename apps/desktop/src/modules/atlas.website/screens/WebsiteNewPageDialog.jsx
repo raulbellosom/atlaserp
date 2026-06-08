@@ -5,7 +5,7 @@ import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@atlas/ui'
-import { Button, Input, Label } from '@atlas/ui'
+import { Button, SelectField, TextField } from '@atlas/ui'
 import { Home } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -176,34 +176,24 @@ export default function WebsiteNewPageDialog({ siteId, open, onOpenChange, onCre
             )}
           </label>
 
-          <div className="space-y-1">
-            <Label htmlFor="page-title">Titulo</Label>
-            <Input
-              id="page-title"
-              value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              placeholder={isHomepage ? 'Inicio' : 'Mi pagina'}
-              required
-              autoFocus
-            />
-          </div>
+          <TextField
+            label="Titulo"
+            value={form.title}
+            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+            placeholder={isHomepage ? 'Inicio' : 'Mi pagina'}
+            required
+            autoFocus
+          />
 
           {!isHomepage && (
             <div className="space-y-1">
-              <Label htmlFor="page-slug">Slug (URL)</Label>
-              <div className="flex items-center">
-                <span className="flex items-center h-9 px-3 rounded-l-md border border-r-0 border-[hsl(var(--border))] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] text-sm select-none">
-                  /
-                </span>
-                <Input
-                  id="page-slug"
-                  value={form.slug}
-                  onChange={handleSlugChange}
-                  placeholder="mi-pagina"
-                  className="rounded-l-none"
-                  required
-                />
-              </div>
+              <TextField
+                label="Slug (URL)"
+                value={form.slug}
+                onChange={handleSlugChange}
+                placeholder="mi-pagina"
+                required
+              />
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
                 URL completa:{' '}
                 <span className="font-mono">
@@ -223,33 +213,18 @@ export default function WebsiteNewPageDialog({ siteId, open, onOpenChange, onCre
           )}
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="page-type">Tipo</Label>
-              <select
-                id="page-type"
-                value={form.pageType}
-                onChange={(e) => setForm((f) => ({ ...f, pageType: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
-              >
-                {PAGE_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="page-visibility">Visibilidad</Label>
-              <select
-                id="page-visibility"
-                value={form.visibility}
-                onChange={(e) => setForm((f) => ({ ...f, visibility: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
-              >
-                {VISIBILITY_OPTIONS.map((v) => (
-                  <option key={v.value} value={v.value}>{v.label}</option>
-                ))}
-              </select>
-            </div>
+            <SelectField
+              label="Tipo"
+              value={form.pageType}
+              onChange={(v) => setForm((f) => ({ ...f, pageType: v }))}
+              options={PAGE_TYPES}
+            />
+            <SelectField
+              label="Visibilidad"
+              value={form.visibility}
+              onChange={(v) => setForm((f) => ({ ...f, visibility: v }))}
+              options={VISIBILITY_OPTIONS}
+            />
           </div>
 
           <DialogFooter>

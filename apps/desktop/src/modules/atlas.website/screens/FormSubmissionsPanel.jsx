@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import { Button } from '@atlas/ui'
+import { Button, ConfirmDialog } from '@atlas/ui'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -61,6 +61,7 @@ export default function FormSubmissionsPanel({ formId }) {
   const token = session?.access_token
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
+  const [confirmId, setConfirmId] = useState(null)
 
   const subsQuery = useQuery({
     queryKey: ['form-submissions', formId, page, token],
@@ -84,14 +85,11 @@ export default function FormSubmissionsPanel({ formId }) {
     },
     onSuccess: () => {
       toast.success('Envio eliminado')
+      setConfirmId(null)
       queryClient.invalidateQueries({ queryKey: ['form-submissions', formId] })
     },
-    onError: () => toast.error('Error al eliminar el envio'),
+    onError: () => { toast.error('Error al eliminar el envio'); setConfirmId(null) },
   })
-
-  function handleDelete(subId) {
-    if (window.confirm('Eliminar este envio permanentemente?')) deleteMutation.mutate(subId)
-  }
 
   const { data, total, pageSize } = subsQuery.data ?? {}
   const submissions = data ?? []
@@ -116,7 +114,7 @@ export default function FormSubmissionsPanel({ formId }) {
       </div>
       <div className="rounded-xl border border-[hsl(var(--border))] overflow-hidden">
         {submissions.map((sub) => (
-          <SubmissionRow key={sub.id} sub={sub} onDelete={handleDelete} />
+          <SubmissionRow key={sub.id} sub={sub} onDelete={setConfirmId} />
         ))}
       </div>
       {totalPages > 1 && (
@@ -130,6 +128,16 @@ export default function FormSubmissionsPanel({ formId }) {
           </Button>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(confirmId)}
+        onOpenChange={(open) => { if (!open) setConfirmId(null) }}
+        title="Eliminar envio"
+        description="Este envio sera eliminado permanentemente. Esta accion no se puede deshacer."
+        confirmLabel="Eliminar"
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate(confirmId)}
+      />
     </div>
   )
 }
