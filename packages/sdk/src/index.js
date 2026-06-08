@@ -1057,6 +1057,21 @@ export function createAtlasClient({ baseUrl }) {
         request('/calendar/google/calendars', {
           headers: withAuthHeaders(token),
         }),
+      listGoogleSources: (token) =>
+        request('/calendar/google/sources', {
+          headers: withAuthHeaders(token),
+        }),
+      saveGoogleSources: (data, token) =>
+        request('/calendar/google/sources', {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      disconnectGoogleCalendar: (token) =>
+        request('/calendar/google/disconnect', {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+        }),
       listCalendars: (token) =>
         request('/calendar/calendars', { headers: withAuthHeaders(token) }),
       createCalendar: (data, token) =>
@@ -1151,6 +1166,46 @@ export function createAtlasClient({ baseUrl }) {
           method: 'PATCH',
           headers: withAuthHeaders(token),
         }),
+    },
+    projects: {
+      listProjects: (token) =>
+        request('/projects', { headers: withAuthHeaders(token) }),
+      createProject: (data, token) =>
+        request('/projects', { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      getProject: (id, token) =>
+        request(`/projects/${encodeURIComponent(id)}`, { headers: withAuthHeaders(token) }),
+      updateProject: (id, data, token) =>
+        request(`/projects/${encodeURIComponent(id)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      archiveProject: (id, token) =>
+        request(`/projects/${encodeURIComponent(id)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+      listMembers: (projectId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/members`, { headers: withAuthHeaders(token) }),
+      addMember: (projectId, data, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/members`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      updateMember: (projectId, userId, data, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/members/${encodeURIComponent(userId)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      removeMember: (projectId, userId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/members/${encodeURIComponent(userId)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+      listStatuses: (projectId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/statuses`, { headers: withAuthHeaders(token) }),
+      createStatus: (projectId, data, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/statuses`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      updateStatus: (projectId, statusId, data, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/statuses/${encodeURIComponent(statusId)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      deleteStatus: (projectId, statusId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/statuses/${encodeURIComponent(statusId)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+      listTasks: (projectId, query, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+      createTask: (projectId, data, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      getTask: (projectId, taskId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}`, { headers: withAuthHeaders(token) }),
+      updateTask: (projectId, taskId, data, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      deleteTask: (projectId, taskId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+      moveTask: (projectId, taskId, data, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/move`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
     },
     fleet: {
       getVehicleDocuments: (vehicleId, token) =>
