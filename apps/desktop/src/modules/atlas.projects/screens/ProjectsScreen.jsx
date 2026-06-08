@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FolderKanban, Plus, LayoutGrid, List, Calendar, Settings2 } from 'lucide-react'
+import { FolderKanban, Plus, LayoutGrid, List, Calendar, Settings2, Users } from 'lucide-react'
 import {
   Button, Badge, EmptyState, ErrorState,
 } from '@atlas/ui'
@@ -11,6 +11,7 @@ import TaskDetailPanel from '../components/TaskDetailPanel.jsx'
 import ProjectFormModal from '../components/ProjectFormModal.jsx'
 import TaskFormModal from '../components/TaskFormModal.jsx'
 import StatusEditor from '../components/StatusEditor.jsx'
+import MembersPanel from '../components/MembersPanel.jsx'
 
 const VIEWS = [
   { key: 'kanban', label: 'Kanban', Icon: LayoutGrid },
@@ -33,6 +34,7 @@ export default function ProjectsScreen() {
   const [editingProject, setEditingProject] = useState(null)
   const [statusEditorOpen, setStatusEditorOpen] = useState(false)
   const [taskFormOpen, setTaskFormOpen] = useState(false)
+  const [membersOpen, setMembersOpen] = useState(false)
 
   const projectList = projects?.data ?? projects ?? []
   const selectedProject = projectList.find((p) => p.id === selectedId) ?? projectList[0] ?? null
@@ -128,6 +130,14 @@ export default function ProjectsScreen() {
               <Button
                 variant="ghost"
                 size="icon"
+                title="Miembros"
+                onClick={() => setMembersOpen(true)}
+              >
+                <Users size={16} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
                 title="Gestionar columnas"
                 onClick={() => setStatusEditorOpen(true)}
               >
@@ -216,6 +226,15 @@ export default function ProjectsScreen() {
         <StatusEditor
           open={statusEditorOpen}
           onOpenChange={setStatusEditorOpen}
+          projectId={effectiveId}
+        />
+      )}
+
+      {/* Members panel */}
+      {selectedProject && (
+        <MembersPanel
+          open={membersOpen}
+          onOpenChange={setMembersOpen}
           projectId={effectiveId}
         />
       )}

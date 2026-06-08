@@ -523,8 +523,8 @@ export const projectsMap = createModuleManifest({
   kind: 'FEATURE',
   core: false,
   uninstallable: true,
-  icon: 'FolderKanban',
-  color: '#6366f1',
+  icon: 'SquareKanban',
+  color: '#09090b',
   category: 'productividad',
   summary: 'Proyectos y tareas con Kanban, Lista y Timeline',
   dependencies: [
@@ -545,7 +545,7 @@ export const projectsMap = createModuleManifest({
     {
       label: 'Proyectos',
       path: '/',
-      icon: 'FolderKanban',
+      icon: 'SquareKanban',
       layout: 'main',
       permissionKey: 'projects.access',
     },
