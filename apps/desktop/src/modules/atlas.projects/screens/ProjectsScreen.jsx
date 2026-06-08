@@ -80,7 +80,7 @@ export default function ProjectsScreen() {
               ].join(' ')}
             >
               <span
-                className="inline-block w-2 h-2 rounded-full mr-2 flex-shrink-0"
+                className="inline-block w-2 h-2 rounded-full mr-2 shrink-0"
                 style={{ background: p.color ?? '#6366f1' }}
               />
               {p.name}
@@ -107,12 +107,10 @@ export default function ProjectsScreen() {
             icon={FolderKanban}
             title="Sin proyectos"
             description="Crea tu primer proyecto para empezar a gestionar tareas."
-            action={
-              <Button onClick={() => { setEditingProject(null); setProjectFormOpen(true) }}>
-                <Plus size={16} className="mr-2" />
-                Nuevo proyecto
-              </Button>
-            }
+            action={{
+              label: 'Nuevo proyecto',
+              onClick: () => { setEditingProject(null); setProjectFormOpen(true) },
+            }}
           />
         ) : (
           <>
