@@ -56,6 +56,7 @@ import { createUsersRouter } from './routes/users-routes.js'
 import { createFleetRouter } from "./routes/fleet/index.js";
 import { createCatalogRouter } from "./routes/catalog/index.js";
 import { createCalendarRouter } from "./routes/calendar/index.js";
+import { createProjectsRouter } from "./routes/projects/index.js";
 import { createSettingsRouter } from "./routes/settings-routes.js";
 import { createActivityRouter } from "./routes/activity.js";
 import { createNotificationsRouter } from "./routes/notifications.js";
@@ -3095,14 +3096,56 @@ app.route("/public/website", publicCheckoutRouter);
 const storefrontRouter = createStorefrontRouter({ prisma, supabaseAdmin, supabaseAnon });
 app.route("/public/storefront", storefrontRouter);
 
+app.get("/public", (c) => {
+  return c.json({
+    api: "Atlas ERP Public API",
+    version: "1.0",
+    docs: "https://github.com/raulbellosom/atlaserp",
+    endpoints: [
+      // Discovery
+      { method: "GET",  path: "/public",                                auth: "none",       description: "This index — lists all public endpoints" },
+      { method: "GET",  path: "/public/modules",                        auth: "none",       description: "Installed and enabled modules (key, name, version, navigation)" },
+      { method: "GET",  path: "/public/blueprints",                     auth: "none",       description: "Public custom views declared by modules (schema, component path)" },
+      // Storefront auth
+      { method: "POST", path: "/public/storefront/auth/register",       auth: "none",       description: "Register a storefront user account" },
+      { method: "POST", path: "/public/storefront/auth/login",          auth: "none",       description: "Login and obtain access + refresh tokens" },
+      { method: "POST", path: "/public/storefront/auth/refresh",        auth: "none",       description: "Refresh an expired access token" },
+      { method: "GET",  path: "/public/storefront/auth/me",             auth: "storefront", description: "Get the authenticated storefront user profile" },
+      { method: "POST", path: "/public/storefront/auth/logout",         auth: "storefront", description: "Invalidate the current session" },
+      // Storefront config & realtime
+      { method: "GET",  path: "/public/storefront/config",              auth: "none",       description: "Public instance configuration (company name, branding, features)" },
+      { method: "GET",  path: "/public/storefront/realtime-config",     auth: "none",       description: "Supabase realtime connection credentials for live updates" },
+      // Storefront files
+      { method: "POST", path: "/public/storefront/files/upload",        auth: "storefront", description: "Upload a file as an authenticated storefront user" },
+      { method: "GET",  path: "/public/storefront/files/:id/url",       auth: "none",       description: "Get a signed download URL for a public file" },
+      { method: "DELETE", path: "/public/storefront/files/:id",         auth: "storefront", description: "Delete an owned file" },
+      // Catalog
+      { method: "GET",  path: "/public/catalog/categories",             auth: "none",       description: "Published product categories" },
+      { method: "GET",  path: "/public/catalog/products",               auth: "none",       description: "Published products list (supports ?q, ?category, ?limit)" },
+      { method: "GET",  path: "/public/catalog/products/:slug",         auth: "none",       description: "Single product detail by slug" },
+      // Website / CMS
+      { method: "GET",  path: "/public/website/resolve",                auth: "none",       description: "Resolve a website by domain or slug" },
+      { method: "GET",  path: "/public/website/blog",                   auth: "none",       description: "Published blog posts" },
+      { method: "POST", path: "/public/website/forms/:formId/submit",   auth: "none",       description: "Submit a website form" },
+      { method: "POST", path: "/public/website/bookings",               auth: "none",       description: "Create a booking" },
+      { method: "POST", path: "/public/website/checkout",               auth: "none",       description: "Initiate a checkout (Stripe)" },
+      // Static site
+      { method: "GET",  path: "/public/site/*",                         auth: "none",       description: "Serve the compiled static website" },
+    ],
+    auth: {
+      storefront: "Bearer <token> obtained from /public/storefront/auth/login, plus header X-Atlas-Company: <company-slug>",
+    },
+  });
+});
+
 // Public site catch-all — must be registered last among public routes
 app.get("/public/site/*", async (c) => {
   const fullPath = c.req.path.replace(/^\/public\/site/, '') || '/'
   const result = await distServeService.serve(c, fullPath)
   if (result === null) {
-    // Builder mode: delegate to existing public-website handler
-    const builderPath = `/public/website/resolve${fullPath === '/' ? '' : '?path=' + encodeURIComponent(fullPath)}`
-    return c.redirect(builderPath, 307)
+    // Builder mode: return 404 so nginx falls back to the React SPA,
+    // which loads PublicWebsiteEntry and renders the builder client-side.
+    return c.notFound()
   }
   return result
 })
@@ -3140,6 +3183,44 @@ app.get("/public/blueprints", async (c) => {
       console.error("[public/blueprints]", err?.message);
     }
     return c.json({ error: "No se pudieron cargar las vistas públicas." }, 500);
+  }
+});
+
+app.get("/public/modules", async (c) => {
+  try {
+    const cacheKey = "public:modules:raw";
+    let modulesRaw = cacheGet(cacheKey);
+    if (!modulesRaw) {
+      modulesRaw = await prisma.atlasModule.findMany({
+        where: { status: "INSTALLED", enabled: true },
+        orderBy: [{ core: "desc" }, { name: "asc" }],
+        select: {
+          key: true,
+          name: true,
+          version: true,
+          kind: true,
+          enabled: true,
+          manifest: true,
+        },
+      });
+      cacheSet(cacheKey, modulesRaw, TTL.BLUEPRINTS);
+    }
+    return c.json({
+      data: modulesRaw.map((m) => ({
+        key: m.key,
+        name: m.name,
+        version: m.version,
+        kind: m.kind,
+        enabled: m.enabled,
+        navigation: m.manifest?.navigation ?? [],
+        exposes: m.manifest?.exposes ?? [],
+      })),
+    });
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[public/modules]", err?.message);
+    }
+    return c.json({ error: "No se pudieron cargar los modulos." }, 500);
   }
 });
 
@@ -4343,6 +4424,7 @@ mountWithAuth(app, createUsersRouter({ prisma, requirePermission }));
 mountWithAuth(app, createFleetRouter({ prisma, requirePermission }));
 mountWithAuth(app, createCatalogRouter({ prisma, requirePermission }));
 mountWithAuth(app, createCalendarRouter({ prisma, requirePermission }));
+mountWithAuth(app, createProjectsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createSyncRouter({ prisma }));
@@ -4389,7 +4471,7 @@ app.post("/internal/notifications/process-deliveries", async (c) => {
 // Wildcard fallback: handle SPA client-side route navigations and direct URL access for dist sites.
 // Fires only when no earlier API route matched and the request looks like a browser page load
 // (Accept: text/html). Skips known API prefixes to avoid masking real 404 API errors.
-const API_PREFIX_RE = /^\/(modules|blueprints|files|contacts|company|identity|finance|hr|website|ledger|calendar|catalog|storefront|activity|notifications|public|auth|health|p)\b/i
+const API_PREFIX_RE = /^\/(modules|blueprints|files|contacts|company|identity|finance|hr|website|ledger|calendar|projects|catalog|storefront|activity|notifications|public|auth|health|p)\b/i
 app.get('*', async (c) => {
   const path = c.req.path
   if (API_PREFIX_RE.test(path)) return c.json({ error: 'Not found' }, 404)
