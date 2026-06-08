@@ -59,7 +59,7 @@ export default function WebsiteTemplateDetailScreen() {
     : `Se crearan ${tpl.pages.length} pagina${tpl.pages.length !== 1 ? 's' : ''} con la plantilla "${tpl.label}".`
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-4 md:p-6 space-y-4">
       <div>
         <Button variant="ghost" size="sm" onClick={() => navigate('/app/m/atlas.website/templates')}>
           <ArrowLeft size={14} className="mr-1"/>
@@ -67,6 +67,7 @@ export default function WebsiteTemplateDetailScreen() {
         </Button>
       </div>
       <PageHeader
+        eyebrow="Atlas Website"
         title={tpl.label}
         description={tpl.description}
         actions={

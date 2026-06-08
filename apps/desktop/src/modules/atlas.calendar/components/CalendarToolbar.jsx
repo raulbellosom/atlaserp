@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus } from 'lucide-react'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@atlas/ui'
 import { useCalendarStore } from '../stores/useCalendarStore'
 
 const VIEWS = [
@@ -81,15 +82,16 @@ export default function CalendarToolbar({ onNewEvent }) {
       </div>
 
       {/* View switcher — compact select on narrow */}
-      <select
-        value={activeView}
-        onChange={(e) => setActiveView(e.target.value)}
-        className="sm:hidden text-xs border border-[hsl(var(--border))] rounded-md px-2 py-1 bg-[hsl(var(--card))] text-[hsl(var(--foreground))] shrink-0 cursor-pointer"
-      >
-        {VIEWS.map((v) => (
-          <option key={v.key} value={v.key}>{v.label}</option>
-        ))}
-      </select>
+      <Select value={activeView} onValueChange={setActiveView}>
+        <SelectTrigger className="sm:hidden text-xs w-auto px-2 py-1 rounded-md h-auto">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {VIEWS.map((v) => (
+            <SelectItem key={v.key} value={v.key}>{v.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
       {/* New event — icon only on narrow, icon+label on desktop */}
       <button

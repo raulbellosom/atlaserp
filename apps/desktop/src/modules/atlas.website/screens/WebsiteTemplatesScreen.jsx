@@ -8,8 +8,9 @@ export default function WebsiteTemplatesScreen() {
   const navigate = useNavigate()
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <PageHeader
+        eyebrow="Atlas Website"
         title="Plantillas"
         description="Selecciona una plantilla para previsualizarla y elegir las paginas que deseas crear."
       />

@@ -134,7 +134,7 @@ export default function WebsitePagesScreen() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
         <PageHeader
           eyebrow="Sitio web"
           title="Paginas"
