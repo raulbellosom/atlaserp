@@ -105,7 +105,7 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
           <MarkdownField
             label="Descripcion"
             value={description}
-            onChange={setDescription}
+            onChange={(e) => setDescription(e.target.value)}
             placeholder="Descripcion opcional..."
           />
           <div>

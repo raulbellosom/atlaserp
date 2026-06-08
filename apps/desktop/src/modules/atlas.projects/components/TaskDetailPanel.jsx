@@ -169,7 +169,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
               <MarkdownField
                 label="Descripcion"
                 value={description}
-                onChange={setDescription}
+                onChange={(e) => setDescription(e.target.value)}
                 onBlur={handleDescriptionBlur}
                 placeholder="Agrega una descripcion..."
               />
