@@ -126,8 +126,12 @@ export default function CatalogsScreen() {
   }, [navigate])
 
   return (
-    <div className="flex flex-col gap-4 p-6">
-      <PageHeader title="Catalogos de Flota" />
+    <div className="p-4 md:p-6 space-y-4">
+      <PageHeader
+        eyebrow="Atlas Fleet"
+        title="Catalogos de Flota"
+        description="Tipos de vehiculo, marcas y modelos disponibles."
+      />
       <div className="flex gap-2 border-b border-[hsl(var(--border))] pb-0">
         {CATALOG_TABS.map((tab) => (
           <button
@@ -136,7 +140,7 @@ export default function CatalogsScreen() {
             className={[
               'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
               catalogKey === tab.key
-                ? 'border-[var(--module-accent,hsl(var(--primary)))] text-[hsl(var(--foreground))]'
+                ? 'border-(--module-accent,hsl(var(--primary))) text-[hsl(var(--foreground))]'
                 : 'border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
             ].join(' ')}
           >

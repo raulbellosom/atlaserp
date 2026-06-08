@@ -154,8 +154,18 @@ export default function ReportsScreen() {
   }, [navigate, reportType])
 
   return (
-    <div className="flex flex-col gap-4 p-6">
-      <PageHeader title="Reportes de Flota" />
+    <div className="p-4 md:p-6 space-y-4">
+      <PageHeader
+        eyebrow="Atlas Fleet"
+        title="Reportes de Flota"
+        description="Reportes de mantenimiento, servicio y reparacion de la flota."
+        actions={
+          <Button onClick={handleCreate} size="sm">
+            <Plus className="mr-1 h-4 w-4" />
+            {CREATE_LABELS[reportType]}
+          </Button>
+        }
+      />
       <div className="flex gap-2 border-b border-[hsl(var(--border))] pb-0">
         {REPORT_TABS.map((tab) => (
           <button
@@ -164,19 +174,13 @@ export default function ReportsScreen() {
             className={[
               'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
               reportType === tab.key
-                ? 'border-[var(--module-accent,hsl(var(--primary)))] text-[hsl(var(--foreground))]'
+                ? 'border-(--module-accent,hsl(var(--primary))) text-[hsl(var(--foreground))]'
                 : 'border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
             ].join(' ')}
           >
             {tab.label}
           </button>
         ))}
-      </div>
-      <div className="flex justify-end">
-        <Button onClick={handleCreate} size="sm">
-          <Plus className="mr-1 h-4 w-4" />
-          {CREATE_LABELS[reportType]}
-        </Button>
       </div>
       <AtlasTable
         blueprint={currentBlueprint}
