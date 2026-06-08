@@ -403,9 +403,6 @@ function resolveScreen(moduleKey, subPath) {
     // Any remaining subpath like /:id is the product detail screen
     return SCREEN_MAP["atlas.catalog:/:id"] ?? null;
   }
-  if (moduleKey === "atlas.projects") {
-    return SCREEN_MAP["atlas.projects:/"] ?? null;
-  }
   if (subPath === "/") return SCREEN_MAP[`${moduleKey}:/`] ?? null;
   if (!SCREEN_MODULE_KEYS.has(moduleKey)) return BlueprintCrudScreen;
   return null;
