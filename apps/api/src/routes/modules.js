@@ -45,6 +45,14 @@ const CORE_KEYS = new Set([
   "atlas.company",
   "atlas.contacts",
   "atlas.hr",
+  "atlas.fleet",
+  "atlas.ledger",
+  "atlas.calendar",
+  "atlas.catalog",
+  "atlas.website",
+  "atlas.activity",
+  "atlas.notifications",
+  "atlas.projects",
 ]);
 const __routesDir = path.dirname(fileURLToPath(import.meta.url));
 const BUNDLES_DIR_SERVE = path.resolve(__routesDir, "..", "..", "bundles");
@@ -794,6 +802,7 @@ export function createModulesRouter({
         await safeBuildBundle(moduleKey);
         cacheDel("blueprints:raw");
         cacheDel("runtime:modules:raw");
+        cacheDel("public:modules:raw");
         const { actorName } = getActivityContext(c);
         await publishActivityFromContext(prisma, c, {
           type: "core.module.install",
@@ -1564,6 +1573,7 @@ export function createModulesRouter({
 
         cacheDel("blueprints:raw");
         cacheDel("runtime:modules:raw");
+        cacheDel("public:modules:raw");
         return c.json({ data: payload });
       } catch (err) {
         return handleLifecycleError(
@@ -1720,6 +1730,7 @@ export function createModulesRouter({
         const rlStatus = await safeRouteReload(key);
         cacheDel("blueprints:raw");
         cacheDel("runtime:modules:raw");
+        cacheDel("public:modules:raw");
         return c.json({ data: result, routeLoader: rlStatus });
       } catch (err) {
         const stage = classifyInstallStage(err);
@@ -1796,6 +1807,7 @@ export function createModulesRouter({
         safeRouteUnload(key);
         cacheDel("blueprints:raw");
         cacheDel("runtime:modules:raw");
+        cacheDel("public:modules:raw");
         return c.json({ data: result });
       } catch (err) {
         return handleLifecycleError(c, err, "No se pudo restaurar el modulo.");
@@ -1858,6 +1870,7 @@ export function createModulesRouter({
         safeRouteUnload(key);
         cacheDel("blueprints:raw");
         cacheDel("runtime:modules:raw");
+        cacheDel("public:modules:raw");
         return c.json({ data: result });
       } catch (err) {
         return handleLifecycleError(
@@ -1881,6 +1894,7 @@ export function createModulesRouter({
         const rlUnloaded = safeRouteUnload(key);
         cacheDel("blueprints:raw");
         cacheDel("runtime:modules:raw");
+        cacheDel("public:modules:raw");
         const { actorName } = getActivityContext(c);
         await publishActivityFromContext(prisma, c, {
           type: "core.module.disable",
@@ -1917,6 +1931,7 @@ export function createModulesRouter({
         const rlStatus = await safeRouteReload(key);
         cacheDel("blueprints:raw");
         cacheDel("runtime:modules:raw");
+        cacheDel("public:modules:raw");
         const { actorName } = getActivityContext(c);
         await publishActivityFromContext(prisma, c, {
           type: "core.module.enable",
@@ -1954,6 +1969,7 @@ export function createModulesRouter({
         await safeDeleteBundle(key);
         cacheDel("blueprints:raw");
         cacheDel("runtime:modules:raw");
+        cacheDel("public:modules:raw");
         const { actorName } = getActivityContext(c);
         await publishActivityFromContext(prisma, c, {
           type: "core.module.uninstall",
@@ -2036,6 +2052,7 @@ export function createModulesRouter({
         await safeDeleteBundle(key);
         cacheDel("blueprints:raw");
         cacheDel("runtime:modules:raw");
+        cacheDel("public:modules:raw");
         const { actorName } = getActivityContext(c);
         await publishActivityFromContext(prisma, c, {
           type: "core.module.uninstall",
@@ -2105,6 +2122,7 @@ export function createModulesRouter({
         await safeBuildBundle(key, { force: true });
         cacheDel("blueprints:raw");
         cacheDel("runtime:modules:raw");
+        cacheDel("public:modules:raw");
         const { actorName } = getActivityContext(c);
         await publishActivityFromContext(prisma, c, {
           type: "core.module.reset",
