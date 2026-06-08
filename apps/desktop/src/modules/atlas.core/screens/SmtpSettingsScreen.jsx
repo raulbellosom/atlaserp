@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Button, Card, Input, Label, PageHeader, Skeleton, Switch } from "@atlas/ui";
+import { Button, Card, Label, PageHeader, Skeleton, Switch, TextField } from "@atlas/ui";
 import { BellRing, Mail, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider.jsx";
@@ -145,80 +145,58 @@ export default function SmtpSettingsScreen() {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1 col-span-2 sm:col-span-1">
-                    <Label htmlFor="smtp-host">Servidor (host)</Label>
-                    <Input
-                      id="smtp-host"
+                  <div className="col-span-2 sm:col-span-1">
+                    <TextField
+                      label="Servidor (host)"
                       placeholder="smtp.gmail.com"
                       value={form.host}
                       onChange={(e) => setForm((f) => ({ ...f, host: e.target.value }))}
                       required
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="smtp-port">Puerto</Label>
-                    <Input
-                      id="smtp-port"
-                      type="number"
-                      value={form.port}
-                      onChange={(e) => setForm((f) => ({ ...f, port: e.target.value }))}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="smtp-user">Usuario</Label>
-                  <Input
-                    id="smtp-user"
-                    type="email"
-                    placeholder="usuario@dominio.com"
-                    value={form.user}
-                    onChange={(e) => setForm((f) => ({ ...f, user: e.target.value }))}
+                  <TextField
+                    label="Puerto"
+                    type="number"
+                    value={form.port}
+                    onChange={(e) => setForm((f) => ({ ...f, port: e.target.value }))}
                     required
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="smtp-pass">
-                    Contrasena{" "}
-                    {configured && !passChanged && (
-                      <span className="text-[hsl(var(--muted-foreground))] font-normal">
-                        (dejar en blanco para mantener)
-                      </span>
-                    )}
-                  </Label>
-                  <Input
-                    id="smtp-pass"
-                    type="password"
-                    placeholder={configured ? "••••••••" : ""}
-                    value={form.pass}
-                    onChange={(e) => {
-                      setForm((f) => ({ ...f, pass: e.target.value }));
-                      setPassChanged(true);
-                    }}
-                  />
-                </div>
+                <TextField
+                  label="Usuario"
+                  type="email"
+                  placeholder="usuario@dominio.com"
+                  value={form.user}
+                  onChange={(e) => setForm((f) => ({ ...f, user: e.target.value }))}
+                  required
+                />
 
-                <div className="space-y-1">
-                  <Label htmlFor="smtp-from-name">Nombre del remitente</Label>
-                  <Input
-                    id="smtp-from-name"
-                    placeholder="Atlas ERP"
-                    value={form.from_name}
-                    onChange={(e) => setForm((f) => ({ ...f, from_name: e.target.value }))}
-                  />
-                </div>
+                <TextField
+                  label="Contrasena"
+                  type="password"
+                  description={configured && !passChanged ? "(dejar en blanco para mantener)" : undefined}
+                  placeholder={configured ? "••••••••" : ""}
+                  value={form.pass}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, pass: e.target.value }));
+                    setPassChanged(true);
+                  }}
+                />
 
-                <div className="space-y-1">
-                  <Label htmlFor="smtp-from-email">Email del remitente</Label>
-                  <Input
-                    id="smtp-from-email"
-                    type="email"
-                    value={form.from_email}
-                    onChange={(e) => setForm((f) => ({ ...f, from_email: e.target.value }))}
-                  />
-                </div>
+                <TextField
+                  label="Nombre del remitente"
+                  placeholder="Atlas ERP"
+                  value={form.from_name}
+                  onChange={(e) => setForm((f) => ({ ...f, from_name: e.target.value }))}
+                />
+
+                <TextField
+                  label="Email del remitente"
+                  type="email"
+                  value={form.from_email}
+                  onChange={(e) => setForm((f) => ({ ...f, from_email: e.target.value }))}
+                />
 
                 <div className="flex items-center gap-2">
                   <Switch

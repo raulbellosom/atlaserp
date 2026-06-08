@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   ComboboxField,
+  ErrorState,
   PageHeader,
   Skeleton,
   TextareaField,
@@ -94,9 +95,7 @@ export default function InstanceSettings() {
         <SettingsTabs />
 
         {!canManage && (
-          <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 text-sm px-4 py-3 text-[hsl(var(--muted-foreground))]">
-            Necesitas permiso core.manage para modificar la configuración de la instancia.
-          </div>
+          <ErrorState message="Necesitas permiso core.manage para modificar la configuracion de la instancia." />
         )}
 
         <Card className="p-0">

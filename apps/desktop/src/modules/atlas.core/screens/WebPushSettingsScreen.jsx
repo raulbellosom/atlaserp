@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Button, Card, Input, Label, PageHeader, Skeleton } from "@atlas/ui";
+import { Button, Card, PageHeader, Skeleton, TextField } from "@atlas/ui";
 import { BellRing, Mail, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider.jsx";
@@ -159,47 +159,32 @@ export default function WebPushSettingsScreen() {
               </>
             ) : (
               <form onSubmit={handleSave} className="space-y-4">
-                <div className="space-y-1">
-                  <Label htmlFor="vapid-subject">VAPID Subject</Label>
-                  <Input
-                    id="vapid-subject"
-                    value={form.subject}
-                    onChange={(e) => setForm((prev) => ({ ...prev, subject: e.target.value }))}
-                    placeholder="mailto:admin@tu-dominio.com"
-                    required
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="vapid-public-key">Llave publica</Label>
-                  <Input
-                    id="vapid-public-key"
-                    value={form.publicKey}
-                    onChange={(e) => setForm((prev) => ({ ...prev, publicKey: e.target.value }))}
-                    placeholder="BEl...."
-                    required
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="vapid-private-key">
-                    Llave privada{" "}
-                    {configured && !privateKeyChanged && (
-                      <span className="text-[hsl(var(--muted-foreground))] font-normal">
-                        (captura de nuevo para actualizar)
-                      </span>
-                    )}
-                  </Label>
-                  <Input
-                    id="vapid-private-key"
-                    type="password"
-                    value={form.privateKey}
-                    onChange={(e) => {
-                      setForm((prev) => ({ ...prev, privateKey: e.target.value }));
-                      setPrivateKeyChanged(true);
-                    }}
-                    placeholder={configured ? "••••••••••••••••" : ""}
-                    required={!configured}
-                  />
-                </div>
+                <TextField
+                  label="VAPID Subject"
+                  value={form.subject}
+                  onChange={(e) => setForm((prev) => ({ ...prev, subject: e.target.value }))}
+                  placeholder="mailto:admin@tu-dominio.com"
+                  required
+                />
+                <TextField
+                  label="Llave publica"
+                  value={form.publicKey}
+                  onChange={(e) => setForm((prev) => ({ ...prev, publicKey: e.target.value }))}
+                  placeholder="BEl...."
+                  required
+                />
+                <TextField
+                  label="Llave privada"
+                  type="password"
+                  description={configured && !privateKeyChanged ? "(captura de nuevo para actualizar)" : undefined}
+                  value={form.privateKey}
+                  onChange={(e) => {
+                    setForm((prev) => ({ ...prev, privateKey: e.target.value }));
+                    setPrivateKeyChanged(true);
+                  }}
+                  placeholder={configured ? "••••••••••••••••" : ""}
+                  required={!configured}
+                />
                 <div className="flex flex-wrap gap-2 pt-2 border-t border-[hsl(var(--border))]">
                   <Button
                     type="button"
