@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
   ComboboxField,
+  ConfirmDialog,
   CreatableComboboxField,
   DatePickerField,
   DistDropZone,
@@ -306,37 +307,15 @@ function FilesPanel({ employeeId, token }) {
         }}
       />
 
-      {/* delete confirm */}
-      {deleteTarget && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-          onClick={() => setDeleteTarget(null)}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 shadow-2xl space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="font-semibold text-[hsl(var(--foreground))]">
-              Eliminar archivo
-            </p>
-            <p className="text-sm text-[hsl(var(--muted-foreground))]">
-              ¿Eliminar <strong>{deleteTarget.originalName}</strong>?
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-                Cancelar
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={deleteMutation.isPending}
-                onClick={() => deleteMutation.mutate(deleteTarget.id)}
-              >
-                {deleteMutation.isPending ? "Eliminando..." : "Eliminar"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Eliminar archivo"
+        description={`¿Eliminar ${deleteTarget?.originalName}?`}
+        confirmLabel="Eliminar"
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
+      />
 
       <SectionCard title="Documentos" className="border-dashed">
         <DistDropZone
