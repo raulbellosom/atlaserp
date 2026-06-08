@@ -1,7 +1,7 @@
 // apps/desktop/src/modules/atlas.catalog/components/VariantMatrix.jsx
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, Input, cn } from '@atlas/ui'
+import { Button, ConfirmDialog, Input, cn } from '@atlas/ui'
 import { Plus, Save, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { atlas } from '../../../lib/atlas.js'
@@ -9,6 +9,7 @@ import { atlas } from '../../../lib/atlas.js'
 export default function VariantMatrix({ token, productId, variants = [] }) {
   const queryClient  = useQueryClient()
   const [edits, setEdits] = useState({})
+  const [confirmDelete, setConfirmDelete] = useState(null)
 
   const updateMutation = useMutation({
     mutationFn: ({ variantId, data }) => atlas.catalog.updateVariant(productId, variantId, data, token),
@@ -103,7 +104,7 @@ export default function VariantMatrix({ token, productId, variants = [] }) {
                         )}
                         <button
                           type="button"
-                          onClick={() => { if (window.confirm('Eliminar esta variante?')) deleteMutation.mutate(v.id) }}
+                          onClick={() => setConfirmDelete(v)}
                           className="flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-red-100 hover:text-red-600 transition-colors"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -121,6 +122,15 @@ export default function VariantMatrix({ token, productId, variants = [] }) {
       <Button variant="outline" size="sm" onClick={() => createMutation.mutate({ option_values: {}, price: 0, stock: 0 })} disabled={createMutation.isPending}>
         <Plus className="h-4 w-4 mr-1" /> Agregar variante
       </Button>
+
+      <ConfirmDialog
+        open={Boolean(confirmDelete)}
+        onOpenChange={v => { if (!v) setConfirmDelete(null) }}
+        onConfirm={() => { deleteMutation.mutate(confirmDelete.id); setConfirmDelete(null) }}
+        title="Eliminar variante"
+        description="La variante sera eliminada. Esta accion no se puede deshacer."
+        confirmLabel="Eliminar"
+      />
     </div>
   )
 }

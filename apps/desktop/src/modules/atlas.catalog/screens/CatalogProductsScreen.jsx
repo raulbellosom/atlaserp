@@ -2,7 +2,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AtlasTable, Button, ConfirmDialog, PageHeader } from '@atlas/ui'
+import {
+  AtlasTable, Button, ConfirmDialog, Dialog, DialogContent,
+  DialogHeader, DialogTitle, PageHeader, TextField,
+} from '@atlas/ui'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
@@ -81,6 +84,8 @@ export default function CatalogProductsScreen() {
 
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [refreshSignal, setRefreshSignal] = useState(0)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [newName, setNewName] = useState('')
 
   const deleteMutation = useMutation({
     mutationFn: id => atlas.catalog.deleteProduct(id, token),
@@ -103,10 +108,16 @@ export default function CatalogProductsScreen() {
   })
 
   function handleCreate() {
-    const name = prompt('Nombre del producto:')
-    if (!name?.trim()) return
-    const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-    createMutation.mutate({ name: name.trim(), slug, price: 0 })
+    setNewName('')
+    setCreateOpen(true)
+  }
+
+  function handleSubmitCreate(e) {
+    e.preventDefault()
+    if (!newName.trim()) return
+    const slug = newName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+    createMutation.mutate({ name: newName.trim(), slug, price: 0 })
+    setCreateOpen(false)
   }
 
   return (
@@ -145,6 +156,33 @@ export default function CatalogProductsScreen() {
         onConfirm={() => deleteMutation.mutate(confirmDelete.id)}
         loading={deleteMutation.isPending}
       />
+
+      <Dialog open={createOpen} onOpenChange={v => { if (!v) setCreateOpen(false) }}>
+        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Nuevo producto</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmitCreate} className="space-y-4 pt-2">
+            <TextField
+              label="Nombre del producto"
+              required
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              placeholder="Ej. Camiseta basica"
+              autoFocus
+              maxLength={255}
+            />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setCreateOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" size="sm" disabled={!newName.trim() || createMutation.isPending}>
+                {createMutation.isPending ? 'Creando...' : 'Crear producto'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
