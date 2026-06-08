@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
-  Button, Textarea, ConfirmDialog, DatePickerField, SelectField,
+  Button, Textarea, ConfirmDialog, DatePickerField, SelectField, Checkbox,
 } from '@atlas/ui'
 import { Trash2, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -22,11 +22,9 @@ function SubtaskRow({ task, projectId, onDelete }) {
   const [checked, setChecked] = useState(false)
   return (
     <div className="flex items-center gap-2 py-1">
-      <input
-        type="checkbox"
+      <Checkbox
         checked={checked}
-        onChange={() => setChecked((v) => !v)}
-        className="rounded"
+        onCheckedChange={(v) => setChecked(Boolean(v))}
       />
       <span className={`flex-1 text-sm ${checked ? 'line-through text-muted-foreground' : ''}`}>
         {task.title}
@@ -84,7 +82,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
     const t = newSubtask.trim()
     if (!t || !task) return
     createSubtask.mutate(
-      { title: t, status_id: task.status_id, parent_task_id: task.id },
+      { title: t, statusId: task.statusId, parentTaskId: task.id },
       {
         onSuccess: () => setNewSubtask(''),
         onError: () => toast.error('No se pudo crear la subtarea'),
@@ -108,7 +106,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
   const statusOptions = (statuses?.data ?? statuses ?? []).map((s) => ({ value: s.id, label: s.name }))
   const userOptions = [
     { value: '', label: 'Sin asignar' },
-    ...users.map((u) => ({ value: u.id, label: u.full_name ?? u.email ?? u.id })),
+    ...users.map((u) => ({ value: u.id, label: u.displayName ?? [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || u.id })),
   ]
   const subtasks = task?.subtasks ?? []
 
@@ -117,6 +115,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
       <Sheet open onOpenChange={(open) => { if (!open) onClose() }}>
         <SheetContent className="w-[420px] sm:w-[480px] overflow-y-auto flex flex-col gap-0 p-0">
           <SheetHeader className="px-6 py-4 border-b border-border">
+            <SheetTitle className="sr-only">Detalles de tarea</SheetTitle>
             <div className="flex items-start gap-2">
               <input
                 value={title}
@@ -141,8 +140,8 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
             <div className="flex flex-col gap-4 p-6">
               <SelectField
                 label="Estado"
-                value={task.status_id}
-                onChange={(v) => saveField('status_id', v)}
+                value={task.statusId}
+                onChange={(v) => saveField('statusId', v)}
                 options={statusOptions}
               />
               <SelectField
@@ -153,19 +152,19 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
               />
               <SelectField
                 label="Asignado a"
-                value={task.assignee_id ?? ''}
-                onChange={(v) => saveField('assignee_id', v || null)}
+                value={task.assigneeId ?? ''}
+                onChange={(v) => saveField('assigneeId', v || null)}
                 options={userOptions}
               />
               <DatePickerField
                 label="Fecha inicio"
-                value={task.start_date ? new Date(task.start_date) : null}
-                onChange={(d) => saveField('start_date', d ? d.toISOString() : null)}
+                value={task.startDate ? new Date(task.startDate) : null}
+                onChange={(d) => saveField('startDate', d ? d.toISOString() : null)}
               />
               <DatePickerField
                 label="Fecha vencimiento"
-                value={task.due_date ? new Date(task.due_date) : null}
-                onChange={(d) => saveField('due_date', d ? d.toISOString() : null)}
+                value={task.dueDate ? new Date(task.dueDate) : null}
+                onChange={(d) => saveField('dueDate', d ? d.toISOString() : null)}
               />
               <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1 block">

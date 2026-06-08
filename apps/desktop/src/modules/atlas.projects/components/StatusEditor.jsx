@@ -47,18 +47,18 @@ function StatusRow({ status, projectId, onDelete }) {
         }}
         className="flex-1 text-sm bg-transparent border-b border-transparent hover:border-border focus:border-accent outline-none py-0.5"
       />
-      {status.is_done && (
+      {status.isDone && (
         <span className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">
           Completado
         </span>
       )}
       <button
-        onClick={() => !status.is_default && onDelete(status)}
+        onClick={() => !status.isDefault && onDelete(status)}
         className={[
           'transition-colors opacity-0 group-hover:opacity-100',
-          status.is_default ? 'cursor-not-allowed text-muted-foreground/30' : 'text-muted-foreground hover:text-destructive',
+          status.isDefault ? 'cursor-not-allowed text-muted-foreground/30' : 'text-muted-foreground hover:text-destructive',
         ].join(' ')}
-        title={status.is_default ? 'No se puede eliminar la columna por defecto' : 'Eliminar columna'}
+        title={status.isDefault ? 'No se puede eliminar la columna por defecto' : 'Eliminar columna'}
       >
         <Trash2 size={14} />
       </button>

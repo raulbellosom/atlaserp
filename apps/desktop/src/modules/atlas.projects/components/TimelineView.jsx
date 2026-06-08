@@ -26,31 +26,39 @@ function msToPercent(ms, totalMs) {
 }
 
 export default function TimelineView({ projectId, onTaskClick }) {
-  const { data: tasksData, isLoading } = useTasks(projectId, { parent_task_id: 'null' })
+  const { data: tasksData, isLoading } = useTasks(projectId, { parentTaskId: 'null' })
   const tasks = tasksData?.data ?? tasksData ?? []
 
-  const datedTasks = tasks.filter((t) => t.start_date || t.due_date)
-  const undatedTasks = tasks.filter((t) => !t.start_date && !t.due_date)
-
-  const { weeks, timelineStart, totalMs } = useMemo(() => {
-    if (datedTasks.length === 0) return { weeks: [], timelineStart: new Date(), totalMs: 1 }
-    const dates = datedTasks
-      .flatMap((t) => [t.start_date, t.due_date].filter(Boolean).map((d) => new Date(d)))
+  const { datedTasks, undatedTasks, weeks, timelineStart, totalMs } = useMemo(() => {
+    const dated = tasks.filter((t) => t.startDate || t.dueDate)
+    const undated = tasks.filter((t) => !t.startDate && !t.dueDate)
+    if (dated.length === 0) return { datedTasks: dated, undatedTasks: undated, weeks: [], timelineStart: new Date(), totalMs: 1 }
+    const dates = dated.flatMap((t) => [t.startDate, t.dueDate].filter(Boolean).map((d) => new Date(d)))
     const min = new Date(Math.min(...dates))
     const max = new Date(Math.max(...dates))
     min.setDate(min.getDate() - 7)
     max.setDate(max.getDate() + 7)
-    return { weeks: getWeeks(min, max), timelineStart: min, totalMs: max - min }
-  }, [datedTasks])
+    return { datedTasks: dated, undatedTasks: undated, weeks: getWeeks(min, max), timelineStart: min, totalMs: max - min }
+  }, [tasks])
 
   if (isLoading) return <p className="text-sm text-muted-foreground p-6">Cargando...</p>
+
+  if (tasks.length === 0) {
+    return (
+      <EmptyState
+        icon={CalendarOff}
+        title="Sin tareas"
+        description="Este proyecto no tiene tareas todavia."
+      />
+    )
+  }
 
   if (datedTasks.length === 0) {
     return (
       <EmptyState
         icon={CalendarOff}
         title="Sin fechas"
-        description="Agrega start_date o due_date a las tareas para verlas en el timeline."
+        description="Agrega startDate o dueDate a las tareas para verlas en el timeline."
       />
     )
   }
@@ -105,9 +113,9 @@ export default function TimelineView({ projectId, onTaskClick }) {
           </div>
 
           {datedTasks.map((task) => {
-            const start = task.start_date ? new Date(task.start_date) : new Date(task.due_date)
-            const end = task.due_date ? new Date(task.due_date) : new Date(task.start_date)
-            const isMilestone = !task.start_date || task.start_date === task.due_date
+            const start = task.startDate ? new Date(task.startDate) : new Date(task.dueDate)
+            const end = task.dueDate ? new Date(task.dueDate) : new Date(task.startDate)
+            const isMilestone = !task.startDate && Boolean(task.dueDate)
 
             const leftPct = msToPercent(start - timelineStart, totalMs)
             const widthPct = isMilestone ? 0 : msToPercent(end - start, totalMs)

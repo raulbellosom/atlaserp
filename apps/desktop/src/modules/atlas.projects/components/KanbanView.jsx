@@ -66,15 +66,15 @@ function TaskCard({ task, onClick, isDragging }) {
             {PRIORITY_LABELS[task.priority]}
           </span>
         )}
-        {task.assignee_profile && (
+        {task.assignee && (
           <span className="w-4 h-4 rounded-full bg-accent text-accent-foreground text-[9px] flex items-center justify-center font-medium">
-            {task.assignee_profile.full_name?.[0] ?? '?'}
+            {task.assignee.firstName?.[0] ?? '?'}
           </span>
         )}
-        {task.due_date && (
-          <span className={`text-xs ml-auto ${isOverdue(task.due_date) ? 'text-red-400' : 'text-muted-foreground'}`}>
-            {isOverdue(task.due_date) && <AlertCircle size={10} className="inline mr-0.5" />}
-            {formatDate(task.due_date)}
+        {task.dueDate && (
+          <span className={`text-xs ml-auto ${isOverdue(task.dueDate) ? 'text-red-400' : 'text-muted-foreground'}`}>
+            {isOverdue(task.dueDate) && <AlertCircle size={10} className="inline mr-0.5" />}
+            {formatDate(task.dueDate)}
           </span>
         )}
       </div>
@@ -89,7 +89,7 @@ function QuickCreateInput({ statusId, projectId, onDone }) {
     e.preventDefault()
     const title = value.trim()
     if (!title) return
-    createTask.mutate({ title, status_id: statusId }, {
+    createTask.mutate({ title, statusId }, {
       onSuccess: () => { setValue(''); onDone() },
       onError: () => toast.error('No se pudo crear la tarea'),
     })
@@ -110,7 +110,7 @@ function QuickCreateInput({ statusId, projectId, onDone }) {
 
 export default function KanbanView({ projectId, onTaskClick }) {
   const { data: statusesData } = useStatuses(projectId)
-  const { data: tasksData } = useTasks(projectId, { parent_task_id: 'null' })
+  const { data: tasksData } = useTasks(projectId, { parentTaskId: 'null' })
   const statuses = statusesData?.data ?? statusesData ?? []
   const tasks = tasksData?.data ?? tasksData ?? []
   const moveTask = useMoveTask(projectId)
@@ -125,7 +125,7 @@ export default function KanbanView({ projectId, onTaskClick }) {
   const tasksByStatus = {}
   for (const s of statuses) {
     tasksByStatus[s.id] = tasks
-      .filter((t) => t.status_id === s.id)
+      .filter((t) => t.statusId === s.id)
       .sort((a, b) => a.position - b.position)
   }
 
@@ -140,7 +140,7 @@ export default function KanbanView({ projectId, onTaskClick }) {
     if (!task) return
 
     const overTask = tasks.find((t) => t.id === over.id)
-    const targetStatusId = overTask ? overTask.status_id : over.id
+    const targetStatusId = overTask ? overTask.statusId : over.id
     const targetTasks = tasksByStatus[targetStatusId] ?? []
     const position = overTask
       ? targetTasks.findIndex((t) => t.id === over.id)

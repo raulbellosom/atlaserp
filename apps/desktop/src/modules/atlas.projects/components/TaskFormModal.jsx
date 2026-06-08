@@ -21,7 +21,7 @@ export default function TaskFormModal({ open, onOpenChange, projectId, defaultSt
   const users = usersData?.users ?? usersData?.data ?? usersData ?? []
   const createTask = useCreateTask(projectId)
 
-  const defaultStatus = defaultStatusId ?? statuses.find((s) => s.is_default)?.id ?? statuses[0]?.id ?? ''
+  const defaultStatus = defaultStatusId ?? statuses.find((s) => s.isDefault)?.id ?? statuses[0]?.id ?? ''
 
   const [title, setTitle] = useState('')
   const [statusId, setStatusId] = useState(defaultStatus)
@@ -40,7 +40,7 @@ export default function TaskFormModal({ open, onOpenChange, projectId, defaultSt
 
   useEffect(() => {
     if (statuses.length && !statusId) {
-      setStatusId(defaultStatusId ?? statuses.find((s) => s.is_default)?.id ?? statuses[0]?.id ?? '')
+      setStatusId(defaultStatusId ?? statuses.find((s) => s.isDefault)?.id ?? statuses[0]?.id ?? '')
     }
   }, [statuses.length, defaultStatusId])
 
@@ -51,10 +51,10 @@ export default function TaskFormModal({ open, onOpenChange, projectId, defaultSt
     createTask.mutate(
       {
         title: trimmed,
-        status_id: statusId,
+        statusId,
         priority,
-        assignee_id: assigneeId || null,
-        due_date: dueDate ? dueDate.toISOString() : null,
+        assigneeId: assigneeId || null,
+        dueDate: dueDate ? dueDate.toISOString() : null,
       },
       {
         onSuccess: () => {
@@ -69,7 +69,7 @@ export default function TaskFormModal({ open, onOpenChange, projectId, defaultSt
   const statusOptions = statuses.map((s) => ({ value: s.id, label: s.name }))
   const userOptions = [
     { value: '', label: 'Sin asignar' },
-    ...users.map((u) => ({ value: u.id, label: u.full_name ?? u.email ?? u.id })),
+    ...users.map((u) => ({ value: u.id, label: u.displayName ?? [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || u.id })),
   ]
 
   return (

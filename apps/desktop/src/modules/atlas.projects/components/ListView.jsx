@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { SearchInput, EmptyState } from '@atlas/ui'
+import { SearchInput, EmptyState, SelectField } from '@atlas/ui'
 import { ChevronRight } from 'lucide-react'
 import { useStatuses, useTasks } from '../hooks/useProjectsData'
 
@@ -32,7 +32,7 @@ function formatDate(d) {
 
 export default function ListView({ projectId, onTaskClick }) {
   const { data: statusesData } = useStatuses(projectId)
-  const { data: tasksData, isLoading } = useTasks(projectId, { parent_task_id: 'null' })
+  const { data: tasksData, isLoading } = useTasks(projectId, { parentTaskId: 'null' })
   const statuses = statusesData?.data ?? statusesData ?? []
   const tasks = tasksData?.data ?? tasksData ?? []
 
@@ -52,11 +52,11 @@ export default function ListView({ projectId, onTaskClick }) {
       const q = search.toLowerCase()
       list = list.filter((t) => t.title.toLowerCase().includes(q))
     }
-    if (filterStatus) list = list.filter((t) => t.status_id === filterStatus)
+    if (filterStatus) list = list.filter((t) => t.statusId === filterStatus)
     if (filterPriority) list = list.filter((t) => t.priority === filterPriority)
     return list.sort((a, b) => {
-      const sA = statusMap[a.status_id]?.position ?? 0
-      const sB = statusMap[b.status_id]?.position ?? 0
+      const sA = statusMap[a.statusId]?.position ?? 0
+      const sB = statusMap[b.statusId]?.position ?? 0
       if (sA !== sB) return sA - sB
       return a.position - b.position
     })
@@ -71,27 +71,16 @@ export default function ListView({ projectId, onTaskClick }) {
           placeholder="Buscar tareas..."
           className="w-48"
         />
-        <select
+        <SelectField
           value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="text-sm border border-border bg-background rounded px-2 py-1.5 text-muted-foreground"
-        >
-          <option value="">Estado: Todos</option>
-          {statuses.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-        <select
+          onChange={setFilterStatus}
+          options={[{ value: '', label: 'Estado: Todos' }, ...statuses.map((s) => ({ value: s.id, label: s.name }))]}
+        />
+        <SelectField
           value={filterPriority}
-          onChange={(e) => setFilterPriority(e.target.value)}
-          className="text-sm border border-border bg-background rounded px-2 py-1.5 text-muted-foreground"
-        >
-          {PRIORITY_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.value ? `Prioridad: ${o.label}` : 'Prioridad: Todas'}
-            </option>
-          ))}
-        </select>
+          onChange={setFilterPriority}
+          options={PRIORITY_OPTIONS.map((o) => ({ value: o.value, label: o.value ? `Prioridad: ${o.label}` : 'Prioridad: Todas' }))}
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -114,9 +103,9 @@ export default function ListView({ projectId, onTaskClick }) {
             </thead>
             <tbody>
               {filtered.map((task) => {
-                const status = statusMap[task.status_id]
+                const status = statusMap[task.statusId]
                 const priority = PRIORITY_BADGE[task.priority] ?? PRIORITY_BADGE.NONE
-                const overdue = isOverdue(task.due_date)
+                const overdue = isOverdue(task.dueDate)
                 return (
                   <tr
                     key={task.id}
@@ -133,7 +122,7 @@ export default function ListView({ projectId, onTaskClick }) {
                       </div>
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground">
-                      {task.assignee_profile?.full_name ?? '—'}
+                      {task.assignee ? [task.assignee.firstName, task.assignee.lastName].filter(Boolean).join(' ') : '—'}
                     </td>
                     <td className="px-3 py-2.5">
                       <span className={`text-xs rounded-full px-2 py-0.5 ${priority.cls}`}>
@@ -141,7 +130,7 @@ export default function ListView({ projectId, onTaskClick }) {
                       </span>
                     </td>
                     <td className={`px-3 py-2.5 text-xs ${overdue ? 'text-red-400 font-medium' : 'text-muted-foreground'}`}>
-                      {formatDate(task.due_date)}
+                      {formatDate(task.dueDate)}
                     </td>
                     <td className="px-3 py-2.5">
                       {status && (

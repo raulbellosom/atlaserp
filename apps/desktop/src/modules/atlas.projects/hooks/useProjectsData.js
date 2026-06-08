@@ -179,7 +179,7 @@ export function useMoveTask(projectId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ taskId, statusId, position }) =>
-      atlas.projects.moveTask(projectId, taskId, { status_id: statusId, position }, token),
+      atlas.projects.moveTask(projectId, taskId, { statusId, position }, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] }),
   })
 }
