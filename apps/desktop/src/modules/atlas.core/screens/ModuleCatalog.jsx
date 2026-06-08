@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Badge,
   Button,
+  Checkbox,
   PageHeader,
   SearchInput,
   FilterBar,
@@ -23,6 +24,7 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
+  TextField,
   cn,
 } from "@atlas/ui";
 import {
@@ -1609,12 +1611,15 @@ export default function ModuleCatalog() {
         loading={lifecycleMutation.isPending}
       >
         {confirmUninstall?.manifest?.lifecycle?.supportsDataPurge && (
-          <label className="flex items-start gap-3 rounded-md border border-[hsl(var(--border))] p-3 cursor-pointer hover:bg-[hsl(var(--muted)/0.4)] transition-colors">
-            <input
-              type="checkbox"
-              className="mt-0.5 accent-red-500"
+          <div
+            className="flex items-start gap-3 rounded-md border border-[hsl(var(--border))] p-3 cursor-pointer hover:bg-[hsl(var(--muted)/0.4)] transition-colors"
+            onClick={() => setPurgeOnUninstall((v) => !v)}
+          >
+            <Checkbox
+              className="mt-0.5"
               checked={purgeOnUninstall}
-              onChange={(e) => setPurgeOnUninstall(e.target.checked)}
+              onCheckedChange={(v) => setPurgeOnUninstall(Boolean(v))}
+              onClick={(e) => e.stopPropagation()}
             />
             <span className="text-sm leading-snug">
               <span className="font-medium text-[hsl(var(--foreground))]">
@@ -1627,7 +1632,7 @@ export default function ModuleCatalog() {
                   : "Se borrarán permanentemente todos los registros de este módulo."}
               </span>
             </span>
-          </label>
+          </div>
         )}
       </ConfirmDialog>
 
@@ -1655,16 +1660,12 @@ export default function ModuleCatalog() {
         }}
         loading={lifecycleMutation.isPending}
       >
-        <label className="block text-sm text-[hsl(var(--muted-foreground))]">
-          Confirmación
-          <input
-            type="text"
-            value={cleanupConfirmation}
-            onChange={(e) => setCleanupConfirmation(e.target.value)}
-            placeholder='Escribe "ACEPTO"'
-            className="mt-1 w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-red-500/50"
-          />
-        </label>
+        <TextField
+          label="Confirmación"
+          value={cleanupConfirmation}
+          onChange={(e) => setCleanupConfirmation(e.target.value)}
+          placeholder='Escribe "ACEPTO"'
+        />
       </ConfirmDialog>
 
       <ConfirmDialog

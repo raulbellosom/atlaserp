@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button, DistDropZone } from '@atlas/ui'
+import { Button, DistDropZone, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@atlas/ui'
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -269,26 +269,20 @@ export default function ImportWizard() {
                   <label className="w-36 text-sm shrink-0 text-[hsl(var(--foreground))]">
                     {label}
                   </label>
-                  <select
-                    className={[
-                      'flex-1 text-sm rounded-lg px-3 py-1.5 transition-colors',
-                      'border border-[hsl(var(--border))] bg-[hsl(var(--background))]',
-                      'text-[hsl(var(--foreground))]',
-                      'focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]',
-                      required && !mapping[key]
-                        ? 'border-amber-400 dark:border-amber-600'
-                        : '',
-                    ].join(' ')}
+                  <Select
                     value={mapping[key] ?? ''}
-                    onChange={(e) =>
-                      setMapping((m) => ({ ...m, [key]: e.target.value || undefined }))
-                    }
+                    onValueChange={(v) => setMapping((m) => ({ ...m, [key]: v || undefined }))}
                   >
-                    <option value="">— sin mapear —</option>
-                    {headers.map((h) => (
-                      <option key={h} value={h}>{h}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger className={`flex-1 text-sm ${required && !mapping[key] ? 'border-amber-400 dark:border-amber-600' : ''}`}>
+                      <SelectValue placeholder="— sin mapear —" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">— sin mapear —</SelectItem>
+                      {headers.map((h) => (
+                        <SelectItem key={h} value={h}>{h}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               ))}
             </div>
