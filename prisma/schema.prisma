@@ -40,6 +40,29 @@ enum FileVisibility {
   @@map("file_visibility")
 }
 
+enum ProjectLifecycleStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+  @@map("project_lifecycle_status")
+}
+
+enum ProjectMemberRole {
+  OWNER
+  MEMBER
+  VIEWER
+  @@map("project_member_role")
+}
+
+enum TaskPriority {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+  @@map("task_priority")
+}
+
 model AtlasModule {
   id String @id @default(uuid(7)) @db.Uuid
   key            String   @unique
@@ -246,6 +269,11 @@ model UserProfile {
   calendarAttendees      CalendarEventAttendee[]  @relation("CalendarAttendee")
   calendarReminders      CalendarReminder[]       @relation("CalendarReminder")
   calendarNotifications  CalendarNotification[]   @relation("CalendarNotificationUser")
+
+  projectsOwned      Project[]       @relation("ProjectOwner")
+  projectMemberships ProjectMember[] @relation("ProjectMemberUser")
+  tasksAssigned      Task[]          @relation("TaskAssignee")
+  tasksCreated       Task[]          @relation("TaskCreator")
 
   @@map("user_profile")
 }
@@ -1193,6 +1221,15 @@ enum GoogleCalendarConnectionStatus {
   @@map("google_calendar_connection_status")
 }
 
+enum GoogleCalendarSourceStatus {
+  PENDING_INITIAL_SYNC
+  ACTIVE
+  DISABLED
+  ERROR
+  NEEDS_RESYNC
+  @@map("google_calendar_source_status")
+}
+
 model GoogleCalendarConnection {
   id                    String   @id @default(uuid(7)) @db.Uuid
   userId                String   @unique @db.Uuid @map("user_id")
@@ -1209,10 +1246,63 @@ model GoogleCalendarConnection {
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 
-  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  UserProfile            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sources               GoogleCalendarSource[]
 
   @@index([status])
   @@map("google_calendar_connection")
+}
+
+model GoogleCalendarSource {
+  id                     String                     @id @default(uuid(7)) @db.Uuid
+  connectionId           String                     @db.Uuid @map("connection_id")
+  googleCalendarId       String                     @map("google_calendar_id")
+  googleCalendarName     String                     @map("google_calendar_name")
+  googleCalendarTimeZone String?                    @map("google_calendar_time_zone")
+  atlasCalendarId        String                     @unique @db.Uuid @map("atlas_calendar_id")
+  syncToken              String?                    @map("sync_token")
+  syncStatus             GoogleCalendarSourceStatus @default(PENDING_INITIAL_SYNC) @map("sync_status")
+  lastFullSyncAt         DateTime?                  @map("last_full_sync_at")
+  lastIncrementalSyncAt  DateTime?                  @map("last_incremental_sync_at")
+  lastErrorAt            DateTime?                  @map("last_error_at")
+  lastErrorMessage       String?                    @map("last_error_message")
+  enabled                Boolean                    @default(true)
+  createdAt              DateTime                   @default(now()) @map("created_at")
+  updatedAt              DateTime                   @updatedAt @map("updated_at")
+
+  connection    GoogleCalendarConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  atlasCalendar CalendarCalendar         @relation(fields: [atlasCalendarId], references: [id], onDelete: Restrict)
+  eventLinks    GoogleCalendarEventLink[]
+
+  @@unique([connectionId, googleCalendarId])
+  @@index([connectionId, enabled])
+  @@map("google_calendar_source")
+}
+
+model GoogleCalendarEventLink {
+  id                     String    @id @default(uuid(7)) @db.Uuid
+  sourceId               String    @db.Uuid @map("source_id")
+  atlasEventId           String    @unique @db.Uuid @map("atlas_event_id")
+  googleEventId          String    @map("google_event_id")
+  googleICalUID          String?   @map("google_ical_uid")
+  googleRecurringEventId String?   @map("google_recurring_event_id")
+  googleOriginalStartAt  DateTime? @map("google_original_start_at")
+  googleUpdatedAt        DateTime? @map("google_updated_at")
+  googleStatus           String?   @map("google_status")
+  isDetached             Boolean   @default(false) @map("is_detached")
+  detachedAt             DateTime? @map("detached_at")
+  cancelledInGoogleAt    DateTime? @map("cancelled_in_google_at")
+  lastSeenAt             DateTime? @map("last_seen_at")
+  rawSnapshot            Json?     @map("raw_snapshot")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  source     GoogleCalendarSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  atlasEvent CalendarEvent        @relation(fields: [atlasEventId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, googleEventId])
+  @@index([sourceId, googleRecurringEventId, googleOriginalStartAt])
+  @@map("google_calendar_event_link")
 }
 
 model CalendarCalendar {
@@ -1226,9 +1316,10 @@ model CalendarCalendar {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  owner  UserProfile     @relation("CalendarOwner", fields: [ownerId], references: [id])
-  shares CalendarShare[]
-  events CalendarEvent[]
+  owner        UserProfile           @relation("CalendarOwner", fields: [ownerId], references: [id])
+  shares       CalendarShare[]
+  events       CalendarEvent[]
+  googleSource GoogleCalendarSource?
 
   @@index([ownerId])
   @@map("calendar_calendar")
@@ -1271,6 +1362,7 @@ model CalendarEvent {
   reminders     CalendarReminder[]
   notifications CalendarNotification[]
   files         CalendarEventFile[]
+  googleLink    GoogleCalendarEventLink?
 
   @@index([calendarId])
   @@index([startAt])
@@ -1496,4 +1588,90 @@ model SyncMutationLog {
   @@index([idempotencyKey])
   @@index([companyId, appliedAt])
   @@map("sync_mutation_log")
+}
+
+model Project {
+  id          String                 @id @default(uuid(7)) @db.Uuid
+  companyId   String                 @db.Uuid @map("company_id")
+  name        String
+  description String?
+  color       String?
+  icon        String?
+  ownerId     String                 @db.Uuid @map("owner_id")
+  startDate   DateTime?              @map("start_date")
+  dueDate     DateTime?              @map("due_date")
+  calendarId  String?                @db.Uuid @map("calendar_id")
+  status      ProjectLifecycleStatus @default(ACTIVE)
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+
+  owner    UserProfile     @relation("ProjectOwner", fields: [ownerId], references: [id])
+  members  ProjectMember[]
+  statuses TaskStatus[]
+  tasks    Task[]
+
+  @@index([companyId])
+  @@index([ownerId])
+  @@map("project")
+}
+
+model ProjectMember {
+  id        String            @id @default(uuid(7)) @db.Uuid
+  projectId String            @db.Uuid @map("project_id")
+  userId    String            @db.Uuid @map("user_id")
+  role      ProjectMemberRole @default(MEMBER)
+  joinedAt  DateTime          @default(now()) @map("joined_at")
+
+  project Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    UserProfile @relation("ProjectMemberUser", fields: [userId], references: [id])
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@map("project_member")
+}
+
+model TaskStatus {
+  id        String  @id @default(uuid(7)) @db.Uuid
+  projectId String  @db.Uuid @map("project_id")
+  name      String
+  color     String  @default("#64748b")
+  position  Int
+  isDefault Boolean @default(false) @map("is_default")
+  isDone    Boolean @default(false) @map("is_done")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+
+  @@index([projectId, position])
+  @@map("task_status")
+}
+
+model Task {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  projectId       String       @db.Uuid @map("project_id")
+  statusId        String       @db.Uuid @map("status_id")
+  parentTaskId    String?      @db.Uuid @map("parent_task_id")
+  title           String
+  description     String?
+  assigneeId      String?      @db.Uuid @map("assignee_id")
+  priority        TaskPriority @default(NONE)
+  startDate       DateTime?    @map("start_date")
+  dueDate         DateTime?    @map("due_date")
+  calendarEventId String?      @db.Uuid @map("calendar_event_id")
+  position        Int
+  createdBy       String       @db.Uuid @map("created_by")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  project  Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status   TaskStatus   @relation(fields: [statusId], references: [id], onDelete: Restrict)
+  assignee UserProfile? @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creator  UserProfile  @relation("TaskCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  subtasks Task[]       @relation("TaskSubtasks")
+  parent   Task?        @relation("TaskSubtasks", fields: [parentTaskId], references: [id])
+
+  @@index([projectId, statusId, position])
+  @@index([assigneeId])
+  @@index([dueDate])
+  @@map("task")
 }
