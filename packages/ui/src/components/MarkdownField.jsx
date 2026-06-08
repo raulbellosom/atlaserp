@@ -1,4 +1,10 @@
-import { useRef, useEffect, useState, forwardRef } from "react";
+import {
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useState,
+  forwardRef,
+} from "react";
 import {
   MDXEditor,
   headingsPlugin,
@@ -27,7 +33,15 @@ import "@mdxeditor/editor/style.css";
 import { AlertCircle } from "lucide-react";
 import { cn } from "../lib/utils.js";
 
-function FieldWrapper({ label, labelFor, required, error, hint, children, className }) {
+function FieldWrapper({
+  label,
+  labelFor,
+  required,
+  error,
+  hint,
+  children,
+  className,
+}) {
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       {label && (
@@ -37,13 +51,21 @@ function FieldWrapper({ label, labelFor, required, error, hint, children, classN
         >
           {label}
           {required && (
-            <span className="text-destructive ml-1 text-[11px]" aria-hidden="true">*</span>
+            <span
+              className="text-destructive ml-1 text-[11px]"
+              aria-hidden="true"
+            >
+              *
+            </span>
           )}
         </label>
       )}
       {children}
       {error ? (
-        <p role="alert" className="flex items-center gap-1.5 text-xs text-destructive leading-none">
+        <p
+          role="alert"
+          className="flex items-center gap-1.5 text-xs text-destructive leading-none"
+        >
           <AlertCircle size={11} className="shrink-0" />
           {error}
         </p>
@@ -112,8 +134,52 @@ export const MarkdownField = forwardRef(function MarkdownField(
   _ref,
 ) {
   const editorRef = useRef(null);
+  const containerRef = useRef(null);
   const lastPushed = useRef(value ?? "");
   const [charCount, setCharCount] = useState((value ?? "").length);
+
+  // MDXEditor (via its internal Radix Select for BlockTypeSelect) sets aria-hidden
+  // on its popup container while a focused descendant is inside it, triggering a
+  // browser accessibility warning. We intercept setAttribute synchronously on the
+  // popup container element so the attribute is never written in the first place.
+  // useLayoutEffect runs after children mount (bottom-up), so MDXEditor's popup
+  // container already exists in the DOM when this runs.
+  useLayoutEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+
+    function patchPopupContainer(el) {
+      if (el._ariaHiddenPatched) return;
+      el._ariaHiddenPatched = true;
+      const origSetAttr = el.setAttribute.bind(el);
+      el.setAttribute = function (name, value) {
+        if (name === "aria-hidden") return;
+        return origSetAttr(name, value);
+      };
+    }
+
+    // Patch popup containers already in the DOM (MDXEditor creates them on mount).
+    root
+      .querySelectorAll(".mdxeditor-popup-container")
+      .forEach(patchPopupContainer);
+
+    // Watch for popup containers added lazily (e.g. link dialog portal).
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node instanceof Element) {
+            if (node.classList.contains("mdxeditor-popup-container"))
+              patchPopupContainer(node);
+            node
+              .querySelectorAll?.(".mdxeditor-popup-container")
+              .forEach(patchPopupContainer);
+          }
+        }
+      }
+    });
+    observer.observe(root, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
 
   // Sync external value (e.g. form reset or initial load after data fetch)
   useEffect(() => {
@@ -136,7 +202,13 @@ export const MarkdownField = forwardRef(function MarkdownField(
 
   if (readOnlyPlain || (readOnly && readOnlyPlain)) {
     return (
-      <FieldWrapper label={label} labelFor={id} error={error} hint={hint} required={required}>
+      <FieldWrapper
+        label={label}
+        labelFor={id}
+        error={error}
+        hint={hint}
+        required={required}
+      >
         <MDXEditor
           ref={editorRef}
           markdown={value ?? ""}
@@ -150,12 +222,21 @@ export const MarkdownField = forwardRef(function MarkdownField(
   }
 
   return (
-    <FieldWrapper label={label} labelFor={id} error={error} hint={hint} required={required} className={className}>
+    <FieldWrapper
+      label={label}
+      labelFor={id}
+      error={error}
+      hint={hint}
+      required={required}
+      className={className}
+    >
       <div
+        ref={containerRef}
         className={cn(
           "rounded-lg border bg-card overflow-hidden transition-colors",
           error ? "border-destructive" : "border-border",
-          !isReadOnly && "focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary",
+          !isReadOnly &&
+            "focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary",
           disabled && "opacity-60 cursor-not-allowed pointer-events-none",
         )}
       >

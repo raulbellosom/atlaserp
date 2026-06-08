@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, forwardRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Eye,
   EyeOff,
@@ -41,13 +42,19 @@ function fieldCls(error, extra) {
 // new containing block for `position:fixed` descendants (CSS spec). In that case
 // the browser treats the fixed element's top/left as relative to that ancestor,
 // so we subtract the ancestor's getBoundingClientRect offsets.
-function computeDropdownStyle(containerEl, dropHeight = 320, minWidth = 220) {
+function computeDropdownStyle(containerEl, dropHeight = 320, minWidth = 220, forPortal = false) {
   const r = containerEl.getBoundingClientRect();
   const spaceBelow = window.innerHeight - r.bottom;
   const viewportTop =
     spaceBelow >= dropHeight ? r.bottom + 4 : Math.max(0, r.top - dropHeight - 4);
   const viewportLeft = r.left;
   const width = Math.max(r.width, minWidth);
+
+  // When rendering via createPortal (at document.body), position:fixed is always
+  // relative to the viewport — no ancestor adjustment needed.
+  if (forPortal) {
+    return { top: viewportTop, left: viewportLeft, width };
+  }
 
   // Walk up the DOM and look for the nearest ancestor that acts as the containing
   // block for fixed-positioned children (backdrop-filter or active transform).
@@ -1490,11 +1497,10 @@ export function ComboboxField({
   function handleOpen() {
     const willOpen = !open;
     if (willOpen && containerRef.current) {
-      setDropdownStyle(computeDropdownStyle(containerRef.current, 260, 220));
+      setDropdownStyle(computeDropdownStyle(containerRef.current, 260, 220, true));
     }
     setOpen((o) => !o);
     if (willOpen && options.length === 0 && !loading) {
-      // Lazy-load remote options when the dropdown opens for the first time.
       onSearchChange?.("");
     }
     setTimeout(() => searchRef.current?.focus(), 50);
@@ -1550,7 +1556,7 @@ export function ComboboxField({
           />
         </button>
 
-        {open && (
+        {open && createPortal(
           <div
             ref={dropdownRef}
             style={{ position: "fixed", top: dropdownStyle.top, left: dropdownStyle.left, width: dropdownStyle.width, zIndex: 9999, pointerEvents: "auto" }}
@@ -1608,7 +1614,8 @@ export function ComboboxField({
                 ))
               )}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </FieldWrapper>
@@ -1669,9 +1676,7 @@ export function RelationSelectField({
 
   function handleOpen() {
     if (!open && containerRef.current) {
-      setDropdownStyle(computeDropdownStyle(containerRef.current, 260, 220));
-      // If there are no options yet and we're not already loading, request a fresh load.
-      // Covers the case where the form was just reset/remounted before the preload effect ran.
+      setDropdownStyle(computeDropdownStyle(containerRef.current, 260, 220, true));
       if (options.length === 0 && !loading) {
         onSearchChange?.("");
       }
@@ -1781,7 +1786,7 @@ export function RelationSelectField({
           </span>
         </button>
 
-        {open && (
+        {open && createPortal(
           <div
             ref={dropdownRef}
             style={{ position: "fixed", top: dropdownStyle.top, left: dropdownStyle.left, width: dropdownStyle.width, zIndex: 9999, pointerEvents: "auto" }}
@@ -1902,7 +1907,8 @@ export function RelationSelectField({
                 </>
               )}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </FieldWrapper>
@@ -2158,7 +2164,7 @@ export function CarColorPickerField({
 
   function handleOpen() {
     if (!open && containerRef.current) {
-      setDropdownStyle(computeDropdownStyle(containerRef.current, 320, 260));
+      setDropdownStyle(computeDropdownStyle(containerRef.current, 320, 260, true));
     }
     setOpen((o) => !o);
     setTimeout(() => searchRef.current?.focus(), 50);
@@ -2223,7 +2229,7 @@ export function CarColorPickerField({
           </span>
         </button>
 
-        {open && (
+        {open && createPortal(
           <div
             ref={dropdownRef}
             style={{ position: "fixed", top: dropdownStyle.top, left: dropdownStyle.left, width: dropdownStyle.width, zIndex: 9999 }}
@@ -2288,7 +2294,8 @@ export function CarColorPickerField({
                 ))
               )}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </FieldWrapper>

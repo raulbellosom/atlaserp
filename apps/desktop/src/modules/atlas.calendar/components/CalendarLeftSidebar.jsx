@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Plus, MoreHorizontal, Check, Pencil, Users } from 'lucide-react'
 import {
+  Button,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator,
 } from '@atlas/ui'
@@ -7,6 +9,8 @@ import MiniCalendar from './MiniCalendar'
 import { useCalendarStore } from '../stores/useCalendarStore'
 import { useCalendars } from '../hooks/useCalendarData'
 import { CalendarIcon } from '../calendarIcons'
+import GoogleCalendarConnectionCard from './GoogleCalendarConnectionCard'
+import GoogleCalendarCalendarPickerDialog from './GoogleCalendarCalendarPickerDialog'
 
 function CalendarColorToggle({ color, checked, onChange }) {
   return (
@@ -45,12 +49,14 @@ function CalendarItem({ cal, isActive, allIds, onToggle, onEdit, onManage }) {
       <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button
-              className="p-0.5 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="text-[hsl(var(--muted-foreground))]"
               title="Opciones"
             >
               <MoreHorizontal size={12} />
-            </button>
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuItem onClick={() => onEdit(cal)}>
@@ -92,6 +98,7 @@ function SharedCalendarItem({ cal, isActive, allIds, onToggle }) {
 }
 
 export default function CalendarLeftSidebar({ onNewCalendar, onEditCalendar, onShareCalendar }) {
+  const [googlePickerOpen, setGooglePickerOpen] = useState(false)
   const { selectedDate, setSelectedDate, activeCalendarIds, toggleCalendarFilter } = useCalendarStore()
   const { data, isLoading } = useCalendars()
   const owned = data?.owned ?? []
@@ -111,17 +118,23 @@ export default function CalendarLeftSidebar({ onNewCalendar, onEditCalendar, onS
 
       <div className="flex-1 px-3 pt-3 space-y-4 pb-4">
         <section>
+          <GoogleCalendarConnectionCard onSelectCalendars={() => setGooglePickerOpen(true)} />
+        </section>
+
+        <section>
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
               Mis calendarios
             </span>
-            <button
+            <Button
               onClick={onNewCalendar}
-              className="p-0.5 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
+              variant="ghost"
+              size="icon-sm"
+              className="text-[hsl(var(--muted-foreground))]"
               title="Nuevo calendario"
             >
               <Plus size={12} />
-            </button>
+            </Button>
           </div>
 
           {isLoading && (
@@ -158,6 +171,11 @@ export default function CalendarLeftSidebar({ onNewCalendar, onEditCalendar, onS
           </section>
         )}
       </div>
+
+      <GoogleCalendarCalendarPickerDialog
+        open={googlePickerOpen}
+        onClose={() => setGooglePickerOpen(false)}
+      />
     </aside>
   )
 }

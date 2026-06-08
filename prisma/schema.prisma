@@ -240,6 +240,7 @@ model UserProfile {
   tablePreferences UserTablePreference[]
   preferences  UserPreference[]
 
+  googleCalendarConnection GoogleCalendarConnection?
   calendarOwner          CalendarCalendar[]       @relation("CalendarOwner")
   calendarShares         CalendarShare[]          @relation("CalendarShareUser")
   calendarAttendees      CalendarEventAttendee[]  @relation("CalendarAttendee")
@@ -1184,6 +1185,34 @@ enum CalendarAttendeeStatus {
   ACCEPTED
   DECLINED
   @@map("calendar_attendee_status")
+}
+
+enum GoogleCalendarConnectionStatus {
+  ACTIVE
+  REVOKED
+  @@map("google_calendar_connection_status")
+}
+
+model GoogleCalendarConnection {
+  id                    String   @id @default(uuid(7)) @db.Uuid
+  userId                String   @unique @db.Uuid @map("user_id")
+  googleSubject         String   @map("google_subject")
+  googleEmail           String   @map("google_email")
+  accessTokenEncrypted  String?  @map("access_token_encrypted")
+  refreshTokenEncrypted String?  @map("refresh_token_encrypted")
+  tokenExpiresAt        DateTime @map("token_expires_at")
+  scopes                Json
+  status                GoogleCalendarConnectionStatus @default(ACTIVE)
+  connectedAt           DateTime @default(now()) @map("connected_at")
+  lastSyncAt            DateTime? @map("last_sync_at")
+  revokedAt             DateTime? @map("revoked_at")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("google_calendar_connection")
 }
 
 model CalendarCalendar {

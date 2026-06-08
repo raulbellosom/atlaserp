@@ -10,7 +10,56 @@ function makeFetch(status = 200) {
   }))
 }
 
-describe('atlas SDK — calendar namespace', () => {
+describe('atlas SDK â€” calendar namespace', () => {
+  it('getGoogleStatus GETs /calendar/google/status', async () => {
+    const fetchMock = makeFetch()
+    const { createAtlasClient } = await import('../index.js')
+    const client = createAtlasClient({ baseUrl: 'http://api' })
+    globalThis.fetch = fetchMock
+    await client.calendar.getGoogleStatus('tok')
+    const [url, opts] = fetchMock.mock.calls[0].arguments
+    assert.equal(url, 'http://api/calendar/google/status')
+    assert.equal(opts.headers.Authorization, 'Bearer tok')
+    fetchMock.mock.restore()
+  })
+
+  it('startGoogleConnect POSTs /calendar/google/connect/start', async () => {
+    const fetchMock = makeFetch()
+    const { createAtlasClient } = await import('../index.js')
+    const client = createAtlasClient({ baseUrl: 'http://api' })
+    globalThis.fetch = fetchMock
+    await client.calendar.startGoogleConnect('tok')
+    const [url, opts] = fetchMock.mock.calls[0].arguments
+    assert.equal(url, 'http://api/calendar/google/connect/start')
+    assert.equal(opts.method, 'POST')
+    assert.equal(opts.headers.Authorization, 'Bearer tok')
+    fetchMock.mock.restore()
+  })
+
+  it('finishGoogleConnect GETs /calendar/google/connect/callback with code', async () => {
+    const fetchMock = makeFetch()
+    const { createAtlasClient } = await import('../index.js')
+    const client = createAtlasClient({ baseUrl: 'http://api' })
+    globalThis.fetch = fetchMock
+    await client.calendar.finishGoogleConnect({ code: 'code-123' }, 'tok')
+    const [url, opts] = fetchMock.mock.calls[0].arguments
+    assert.equal(url, 'http://api/calendar/google/connect/callback?code=code-123')
+    assert.equal(opts.headers.Authorization, 'Bearer tok')
+    fetchMock.mock.restore()
+  })
+
+  it('listGoogleCalendars GETs /calendar/google/calendars', async () => {
+    const fetchMock = makeFetch()
+    const { createAtlasClient } = await import('../index.js')
+    const client = createAtlasClient({ baseUrl: 'http://api' })
+    globalThis.fetch = fetchMock
+    await client.calendar.listGoogleCalendars('tok')
+    const [url, opts] = fetchMock.mock.calls[0].arguments
+    assert.equal(url, 'http://api/calendar/google/calendars')
+    assert.equal(opts.headers.Authorization, 'Bearer tok')
+    fetchMock.mock.restore()
+  })
+
   it('listCalendars GETs /calendar/calendars', async () => {
     const fetchMock = makeFetch()
     const { createAtlasClient } = await import('../index.js')

@@ -5,6 +5,11 @@ import {
 } from "./calendar-service.js";
 import { createCalendarEventService } from "./calendar-event-service.js";
 import { createCalendarNotificationService } from "./calendar-notification-service.js";
+import { resolveGoogleCalendarConfig } from "./google/google-config.js";
+import { createGoogleTokenCrypto } from "./google/google-token-crypto.js";
+import { createGoogleCalendarConnectionService } from "./google/google-connection-service.js";
+import { createGoogleOAuthService } from "./google/google-oauth-service.js";
+import { createGoogleCalendarDiscoveryService } from "./google/google-calendar-discovery-service.js";
 import {
   publishActivityFromContext,
   getActivityContext,
@@ -18,6 +23,13 @@ function getUserId(c) {
 function handleError(c, err, fallback) {
   if (err instanceof CalendarServiceError)
     return c.json({ error: err.message }, err.status);
+  if (
+    Number.isInteger(err?.status) &&
+    err.status >= 400 &&
+    err.status < 600
+  ) {
+    return c.json({ error: err.message || fallback }, err.status);
+  }
   if (process.env.NODE_ENV !== "production")
     console.error("[atlas.calendar]", err);
   return c.json({ error: fallback }, 500);
@@ -33,11 +45,81 @@ function toAttendeeUserIds(event, excludeUserId = null) {
   return unique.filter((id) => id !== excludeUserId);
 }
 
-export function createCalendarRouter({ prisma, requirePermission }) {
+function hasUsableAccessToken(connection, now = new Date()) {
+  if (!connection?.accessTokenEncrypted) return false;
+
+  const tokenExpiresAt = connection.tokenExpiresAt
+    ? new Date(connection.tokenExpiresAt)
+    : null;
+
+  if (!tokenExpiresAt || Number.isNaN(tokenExpiresAt.getTime())) return false;
+
+  return tokenExpiresAt.getTime() > now.getTime();
+}
+
+function createGoogleRouteDependencies({ prisma, google = {} }) {
+  function getConfig() {
+    const resolveConfig = google.resolveConfig ?? resolveGoogleCalendarConfig;
+    return resolveConfig(process.env);
+  }
+
+  function requireConfig() {
+    const config = getConfig();
+    if (!config?.configured) {
+      throw new CalendarServiceError(
+        "Google Calendar no esta configurado en esta instancia.",
+        503,
+      );
+    }
+    return config;
+  }
+
+  function getTokenCrypto() {
+    return (
+      google.tokenCrypto ??
+      createGoogleTokenCrypto({ key: requireConfig().encryptionKey })
+    );
+  }
+
+  function getConnectionService() {
+    return (
+      google.connectionService ??
+      createGoogleCalendarConnectionService({
+        prisma,
+        tokenCrypto: getTokenCrypto(),
+      })
+    );
+  }
+
+  function getOAuthService() {
+    return (
+      google.oauthService ??
+      createGoogleOAuthService({
+        config: requireConfig(),
+      })
+    );
+  }
+
+  function getDiscoveryService() {
+    return google.discoveryService ?? createGoogleCalendarDiscoveryService();
+  }
+
+  return {
+    getConfig,
+    requireConfig,
+    getTokenCrypto,
+    getConnectionService,
+    getOAuthService,
+    getDiscoveryService,
+  };
+}
+
+export function createCalendarRouter({ prisma, requirePermission, google }) {
   const app = new Hono();
   const svc = createCalendarService({ prisma });
   const eventSvc = createCalendarEventService({ prisma });
   const notifSvc = createCalendarNotificationService({ prisma });
+  const googleDeps = createGoogleRouteDependencies({ prisma, google });
 
   // ── Calendars ──────────────────────────────────────────────────────────────
 
@@ -171,6 +253,146 @@ export function createCalendarRouter({ prisma, requirePermission }) {
         return c.json({ ok: true });
       } catch (err) {
         return handleError(c, err, "No se pudo revocar el acceso.");
+      }
+    },
+  );
+
+  app.get(
+    "/calendar/google/status",
+    requirePermission("calendar.calendars.read"),
+    async (c) => {
+      try {
+        const userId = getUserId(c);
+        const config = googleDeps.getConfig();
+        const connection =
+          config?.configured && userId
+            ? await googleDeps.getConnectionService().getConnectionByUserId(userId)
+            : null;
+
+        return c.json({
+          configured: Boolean(config?.configured),
+          missing: Array.isArray(config?.missing) ? config.missing : [],
+          redirectUri: config?.configured ? config.redirectUri : null,
+          connection: connection
+            ? {
+                googleEmail: connection.googleEmail ?? null,
+                status: connection.status ?? null,
+                connectedAt: connection.connectedAt ?? null,
+              }
+            : null,
+        });
+      } catch (err) {
+        return handleError(
+          c,
+          err,
+          "No se pudo obtener el estado de Google Calendar.",
+        );
+      }
+    },
+  );
+
+  app.post(
+    "/calendar/google/connect/start",
+    requirePermission("calendar.calendars.read"),
+    async (c) => {
+      try {
+        googleDeps.requireConfig();
+        const userId = getUserId(c);
+        const authUrl = googleDeps
+          .getOAuthService()
+          .buildAuthorizationUrl({ state: userId });
+        return c.json({ authUrl });
+      } catch (err) {
+        return handleError(
+          c,
+          err,
+          "No se pudo iniciar la conexion con Google Calendar.",
+        );
+      }
+    },
+  );
+
+  app.get(
+    "/calendar/google/connect/callback",
+    requirePermission("calendar.calendars.read"),
+    async (c) => {
+      try {
+        googleDeps.requireConfig();
+        const userId = getUserId(c);
+        const code = c.req.query("code");
+
+        if (!String(code ?? "").trim()) {
+          throw new CalendarServiceError("code es requerido.", 400);
+        }
+
+        const tokenPayload = await googleDeps
+          .getOAuthService()
+          .exchangeCodeForTokens({ code });
+        const connection = await googleDeps.getConnectionService().saveConnection({
+          userId,
+          ...tokenPayload,
+        });
+
+        return c.json({
+          ok: true,
+          connection: {
+            googleEmail: connection.googleEmail ?? null,
+            status: connection.status ?? null,
+          },
+        });
+      } catch (err) {
+        return handleError(
+          c,
+          err,
+          "No se pudo completar la conexion con Google Calendar.",
+        );
+      }
+    },
+  );
+
+  app.get(
+    "/calendar/google/calendars",
+    requirePermission("calendar.calendars.read"),
+    async (c) => {
+      try {
+        googleDeps.requireConfig();
+        const userId = getUserId(c);
+        const connection = await googleDeps
+          .getConnectionService()
+          .getConnectionByUserId(userId);
+
+        if (
+          !connection ||
+          connection.status !== "ACTIVE" ||
+          !connection.accessTokenEncrypted
+        ) {
+          throw new CalendarServiceError(
+            "No hay una cuenta Google conectada.",
+            409,
+          );
+        }
+
+        if (!hasUsableAccessToken(connection)) {
+          throw new CalendarServiceError(
+            "La conexion de Google Calendar expiro. Reconecta la cuenta para continuar.",
+            409,
+          );
+        }
+
+        const accessToken = googleDeps
+          .getTokenCrypto()
+          .decrypt(connection.accessTokenEncrypted);
+        const items = await googleDeps
+          .getDiscoveryService()
+          .listCalendars({ accessToken });
+
+        return c.json({ items });
+      } catch (err) {
+        return handleError(
+          c,
+          err,
+          "No se pudieron obtener los calendarios de Google.",
+        );
       }
     },
   );

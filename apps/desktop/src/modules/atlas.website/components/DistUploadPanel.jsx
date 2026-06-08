@@ -179,16 +179,16 @@ export function DistUploadPanel({ site, token, siteId, onUpload, onDelete, isUpl
 
         {/* Active build card */}
         {hasExistingDist && (
-          <div className="flex items-start gap-3 rounded-2xl border border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/30 p-4">
-            <CheckCircle2 className="w-4.5 h-4.5 text-indigo-500 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 p-4">
+            <CheckCircle2 className="w-4.5 h-4.5 text-green-600 dark:text-green-500 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-300">Build activo</p>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 font-medium">
+                <p className="text-sm font-semibold text-foreground">Build activo</p>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border font-medium">
                   {site.distHasPrerender ? 'SSG / Prerenderizado' : 'SPA'}
                 </span>
               </div>
-              <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {formatDate(site.distUploadedAt)} &middot; {site.distFileCount ?? 0} archivo{(site.distFileCount ?? 0) !== 1 ? 's' : ''}
               </p>
             </div>

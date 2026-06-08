@@ -1040,6 +1040,23 @@ export function createAtlasClient({ baseUrl }) {
         }),
     },
     calendar: {
+      getGoogleStatus: (token) =>
+        request('/calendar/google/status', {
+          headers: withAuthHeaders(token),
+        }),
+      startGoogleConnect: (token) =>
+        request('/calendar/google/connect/start', {
+          method: 'POST',
+          headers: withAuthHeaders(token),
+        }),
+      finishGoogleConnect: (query, token) =>
+        request(`/calendar/google/connect/callback${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      listGoogleCalendars: (token) =>
+        request('/calendar/google/calendars', {
+          headers: withAuthHeaders(token),
+        }),
       listCalendars: (token) =>
         request('/calendar/calendars', { headers: withAuthHeaders(token) }),
       createCalendar: (data, token) =>
