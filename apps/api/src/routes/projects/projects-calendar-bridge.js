@@ -60,12 +60,19 @@ export function createProjectsCalendarBridge({ prisma }) {
       return null
     }
     try {
+      // Use date-only (midnight UTC) to avoid timezone shift in all-day event display
+      const toDateUTC = (d) => {
+        const s = new Date(d).toISOString().split('T')[0]
+        return new Date(s + 'T00:00:00.000Z')
+      }
+      const startAt = toDateUTC(task.startDate ?? task.dueDate)
+      const endAt = toDateUTC(task.dueDate)
       const eventData = {
         calendarId,
         title: task.title,
-        startAt: task.startDate ?? task.dueDate,
-        endAt: task.dueDate,
-        allDay: false,
+        startAt,
+        endAt,
+        allDay: true,
         sourceModule: 'atlas.projects',
         sourceEntityId: task.id,
       }

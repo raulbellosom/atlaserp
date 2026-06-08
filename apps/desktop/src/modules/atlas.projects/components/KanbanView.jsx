@@ -12,6 +12,7 @@ import { Plus, GripVertical, AlertCircle } from 'lucide-react'
 import { EmptyState } from '@atlas/ui'
 import { toast } from 'sonner'
 import { useStatuses, useTasks, useMoveTask, useCreateTask } from '../hooks/useProjectsData'
+import { AssigneeAvatar } from '../lib/AssigneeChip.jsx'
 
 const PRIORITY_COLORS = {
   URGENT: 'bg-red-500/20 text-red-400 border-red-500/30',
@@ -66,17 +67,21 @@ function TaskCard({ task, onClick, isDragging }) {
             {PRIORITY_LABELS[task.priority]}
           </span>
         )}
-        {task.assignee && (
-          <span className="w-4 h-4 rounded-full bg-accent text-accent-foreground text-[9px] flex items-center justify-center font-medium">
-            {task.assignee.firstName?.[0] ?? '?'}
-          </span>
-        )}
-        {task.dueDate && (
-          <span className={`text-xs ml-auto ${isOverdue(task.dueDate) ? 'text-red-400' : 'text-muted-foreground'}`}>
-            {isOverdue(task.dueDate) && <AlertCircle size={10} className="inline mr-0.5" />}
-            {formatDate(task.dueDate)}
-          </span>
-        )}
+        {task.assignee && <AssigneeAvatar user={task.assignee} />}
+        <div className="flex items-center gap-1 ml-auto">
+          {task.startDate && (
+            <span className="text-xs text-muted-foreground">{formatDate(task.startDate)}</span>
+          )}
+          {task.startDate && task.dueDate && (
+            <span className="text-xs text-muted-foreground">→</span>
+          )}
+          {task.dueDate && (
+            <span className={`text-xs ${isOverdue(task.dueDate) ? 'text-red-400 font-medium' : 'text-muted-foreground'}`}>
+              {isOverdue(task.dueDate) && <AlertCircle size={10} className="inline mr-0.5" />}
+              {formatDate(task.dueDate)}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )

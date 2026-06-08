@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { SearchInput, EmptyState, SelectField } from '@atlas/ui'
 import { ChevronRight } from 'lucide-react'
 import { useStatuses, useTasks } from '../hooks/useProjectsData'
+import { AssigneeChip } from '../lib/AssigneeChip.jsx'
 
 const PRIORITY_OPTIONS = [
   { value: '__all__', label: 'Todas' },
@@ -64,7 +65,7 @@ export default function ListView({ projectId, onTaskClick }) {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border flex-shrink-0 flex-wrap">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0 flex-wrap">
         <SearchInput
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -95,10 +96,11 @@ export default function ListView({ projectId, onTaskClick }) {
             <thead className="sticky top-0 bg-background border-b border-border">
               <tr>
                 <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">Tarea</th>
-                <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-28">Asignado</th>
+                <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36">Asignado</th>
                 <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-24">Prioridad</th>
+                <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-24">Inicio</th>
                 <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-24">Vence</th>
-                <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-28">Estado</th>
+                <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-40">Estado</th>
               </tr>
             </thead>
             <tbody>
@@ -114,20 +116,23 @@ export default function ListView({ projectId, onTaskClick }) {
                   >
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
-                        <span className="truncate max-w-xs">{task.title}</span>
+                        <span className="truncate max-w-sm">{task.title}</span>
                         {task._count?.subtasks > 0 && (
-                          <span className="text-xs text-muted-foreground">({task._count.subtasks})</span>
+                          <span className="text-xs text-muted-foreground shrink-0">({task._count.subtasks})</span>
                         )}
-                        <ChevronRight size={14} className="ml-auto text-muted-foreground" />
+                        <ChevronRight size={14} className="ml-auto text-muted-foreground shrink-0" />
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 text-muted-foreground">
-                      {task.assignee ? [task.assignee.firstName, task.assignee.lastName].filter(Boolean).join(' ') : '—'}
+                    <td className="px-3 py-2.5">
+                      <AssigneeChip user={task.assignee} />
                     </td>
                     <td className="px-3 py-2.5">
                       <span className={`text-xs rounded-full px-2 py-0.5 ${priority.cls}`}>
                         {priority.label}
                       </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-muted-foreground">
+                      {formatDate(task.startDate)}
                     </td>
                     <td className={`px-3 py-2.5 text-xs ${overdue ? 'text-red-400 font-medium' : 'text-muted-foreground'}`}>
                       {formatDate(task.dueDate)}
@@ -135,7 +140,7 @@ export default function ListView({ projectId, onTaskClick }) {
                     <td className="px-3 py-2.5">
                       {status && (
                         <span
-                          className="text-xs rounded-full px-2 py-0.5 border"
+                          className="text-xs rounded-full px-2 py-0.5 border whitespace-nowrap"
                           style={{ borderColor: `${status.color}50`, color: status.color }}
                         >
                           {status.name}
