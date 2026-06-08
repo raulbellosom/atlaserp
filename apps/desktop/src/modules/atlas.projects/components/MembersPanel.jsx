@@ -139,7 +139,7 @@ export default function MembersPanel({ open, onOpenChange, projectId }) {
                 <SelectField
                   label="Rol"
                   value={selectedRole}
-                  onChange={setSelectedRole}
+                  onValueChange={setSelectedRole}
                   options={ROLE_OPTIONS}
                 />
                 <Button

@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-  Button, TextField, SelectField, ConfirmDialog,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
+  Button, TextField, SelectField, MarkdownField, ConfirmDialog,
 } from '@atlas/ui'
-import { Textarea } from '@atlas/ui'
 import { toast } from 'sonner'
 import { useCreateProject, useUpdateProject, useArchiveProject } from '../hooks/useProjectsData'
 
@@ -91,6 +90,9 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Editar proyecto' : 'Nuevo proyecto'}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {isEdit ? 'Editar los datos del proyecto' : 'Crear un nuevo proyecto'}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <TextField
@@ -100,18 +102,12 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
             placeholder="Nombre del proyecto"
             required
           />
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1 block">
-              Descripcion
-            </label>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Descripcion opcional..."
-              rows={2}
-              className="resize-none text-sm"
-            />
-          </div>
+          <MarkdownField
+            label="Descripcion"
+            value={description}
+            onChange={setDescription}
+            placeholder="Descripcion opcional..."
+          />
           <div>
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
               Color
@@ -135,7 +131,7 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
             <SelectField
               label="Plantilla de columnas"
               value={template}
-              onChange={setTemplate}
+              onValueChange={setTemplate}
               options={TEMPLATE_OPTIONS}
             />
           )}

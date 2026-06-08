@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
-  Button, Textarea, ConfirmDialog, DatePickerField, SelectField, Checkbox,
+  Button, MarkdownField, ConfirmDialog, DatePickerField, SelectField, Checkbox,
 } from '@atlas/ui'
 import { Trash2, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -141,19 +141,19 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
               <SelectField
                 label="Estado"
                 value={task.statusId}
-                onChange={(v) => saveField('statusId', v)}
+                onValueChange={(v) => saveField('statusId', v)}
                 options={statusOptions}
               />
               <SelectField
                 label="Prioridad"
                 value={task.priority}
-                onChange={(v) => saveField('priority', v)}
+                onValueChange={(v) => saveField('priority', v)}
                 options={PRIORITY_OPTIONS}
               />
               <SelectField
                 label="Asignado a"
                 value={task.assigneeId ?? ''}
-                onChange={(v) => saveField('assigneeId', v || null)}
+                onValueChange={(v) => saveField('assigneeId', v || null)}
                 options={userOptions}
               />
               <DatePickerField
@@ -166,19 +166,13 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
                 value={task.dueDate ? new Date(task.dueDate) : null}
                 onChange={(d) => saveField('dueDate', d ? d.toISOString() : null)}
               />
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1 block">
-                  Descripcion
-                </label>
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  onBlur={handleDescriptionBlur}
-                  placeholder="Agrega una descripcion..."
-                  rows={4}
-                  className="resize-none text-sm"
-                />
-              </div>
+              <MarkdownField
+                label="Descripcion"
+                value={description}
+                onChange={setDescription}
+                onBlur={handleDescriptionBlur}
+                placeholder="Agrega una descripcion..."
+              />
               <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
                   Subtareas ({subtasks.length})

@@ -90,19 +90,19 @@ export default function TaskFormModal({ open, onOpenChange, projectId, defaultSt
           <SelectField
             label="Estado"
             value={statusId}
-            onChange={setStatusId}
+            onValueChange={setStatusId}
             options={statusOptions}
           />
           <SelectField
             label="Prioridad"
             value={priority}
-            onChange={setPriority}
+            onValueChange={setPriority}
             options={PRIORITY_OPTIONS}
           />
           <SelectField
             label="Asignado a"
             value={assigneeId}
-            onChange={setAssigneeId}
+            onValueChange={setAssigneeId}
             options={userOptions}
           />
           <DatePickerField

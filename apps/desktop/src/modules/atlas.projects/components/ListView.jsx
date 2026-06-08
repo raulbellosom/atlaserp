@@ -73,12 +73,12 @@ export default function ListView({ projectId, onTaskClick }) {
         />
         <SelectField
           value={filterStatus}
-          onChange={setFilterStatus}
+          onValueChange={setFilterStatus}
           options={[{ value: '', label: 'Estado: Todos' }, ...statuses.map((s) => ({ value: s.id, label: s.name }))]}
         />
         <SelectField
           value={filterPriority}
-          onChange={setFilterPriority}
+          onValueChange={setFilterPriority}
           options={PRIORITY_OPTIONS.map((o) => ({ value: o.value, label: o.value ? `Prioridad: ${o.label}` : 'Prioridad: Todas' }))}
         />
       </div>

@@ -36,7 +36,7 @@ export function createTasksService({ prisma }) {
         assignee: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } },
         status: true,
         subtasks: {
-          include: { assignee: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } } },
+          include: { assignee: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } } },
           orderBy: { position: 'asc' },
         },
       },
