@@ -193,6 +193,10 @@ const SCREEN_MAP = {
   "atlas.calendar:/": lazy(
     () => import("../modules/atlas.calendar/screens/CalendarScreen.jsx"),
   ),
+  // atlas.projects
+  "atlas.projects:/": lazy(
+    () => import("../modules/atlas.projects/screens/ProjectsScreen.jsx"),
+  ),
   "atlas.catalog:/": lazy(
     () => import("../modules/atlas.catalog/screens/CatalogProductsScreen.jsx"),
   ),
@@ -398,6 +402,9 @@ function resolveScreen(moduleKey, subPath) {
       return SCREEN_MAP["atlas.catalog:/inventory"] ?? null;
     // Any remaining subpath like /:id is the product detail screen
     return SCREEN_MAP["atlas.catalog:/:id"] ?? null;
+  }
+  if (moduleKey === "atlas.projects") {
+    return SCREEN_MAP["atlas.projects:/"] ?? null;
   }
   if (subPath === "/") return SCREEN_MAP[`${moduleKey}:/`] ?? null;
   if (!SCREEN_MODULE_KEYS.has(moduleKey)) return BlueprintCrudScreen;
