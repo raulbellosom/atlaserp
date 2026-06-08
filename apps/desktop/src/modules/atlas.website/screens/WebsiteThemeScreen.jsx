@@ -128,7 +128,7 @@ export default function WebsiteThemeScreen() {
   }
 
   if (siteQuery.isPending) {
-    return <div className="p-8 text-muted-foreground text-sm">Cargando...</div>
+    return <div className="p-4 md:p-6 text-muted-foreground text-sm">Cargando...</div>
   }
 
   if (!siteId) {

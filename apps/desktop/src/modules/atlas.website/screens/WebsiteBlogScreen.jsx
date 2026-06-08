@@ -89,7 +89,7 @@ export default function WebsiteBlogScreen() {
   })
 
   if (siteQuery.isPending) {
-    return <div className="p-6 text-[hsl(var(--muted-foreground))] text-sm">Cargando...</div>
+    return <div className="p-4 md:p-6 text-[hsl(var(--muted-foreground))] text-sm">Cargando...</div>
   }
 
   return (
