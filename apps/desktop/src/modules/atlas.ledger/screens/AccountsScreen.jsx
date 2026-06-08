@@ -161,6 +161,7 @@ export default function AccountsScreen() {
     <div className="flex flex-col h-full">
       <div className="px-6 pt-5">
         <PageHeader
+          eyebrow="Atlas Ledger"
           title="Cuentas bancarias"
           description="Registro de saldos y movimientos por cuenta bancaria."
           actions={

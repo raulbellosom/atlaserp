@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { PageHeader, Button, EmptyState, ErrorState } from '@atlas/ui'
+import { PageHeader, Button, EmptyState, ErrorState, TextField } from '@atlas/ui'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@atlas/ui'
 import { Plus, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
@@ -66,6 +66,7 @@ export default function GroupsScreen() {
     <div className="flex flex-col h-full">
       <div className="px-6 pt-5">
         <PageHeader
+          eyebrow="Atlas Ledger"
           title="Grupos"
           description="Espacios compartidos para colaborar en cuentas bancarias."
           actions={
@@ -110,18 +111,15 @@ export default function GroupsScreen() {
             <DialogTitle>Nuevo grupo</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 pt-2">
-            <div>
-              <label className="block text-sm font-medium mb-1">Nombre del grupo</label>
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Ej. Finanzas Q2"
-                className="w-full px-3 py-2 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] text-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
-                autoFocus
-                maxLength={128}
-              />
-            </div>
+            <TextField
+              label="Nombre del grupo"
+              required
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Ej. Finanzas Q2"
+              autoFocus
+              maxLength={128}
+            />
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" size="sm" onClick={() => setCreateOpen(false)}>Cancelar</Button>
               <Button type="submit" variant="primary" size="sm" disabled={!newName.trim()}>Crear</Button>

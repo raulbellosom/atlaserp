@@ -71,6 +71,7 @@ export default function MembershipsScreen() {
     <div className="flex flex-col h-full">
       <div className="px-6 pt-5">
         <PageHeader
+          eyebrow="Atlas Ledger"
           title="Mis membresías"
           description="Grupos y cuentas a los que fuiste invitado."
         />

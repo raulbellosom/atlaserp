@@ -220,6 +220,7 @@ export default function GroupScreen() {
           <ArrowLeft size={14} /> Cuentas
         </button>
         <PageHeader
+          eyebrow="Atlas Ledger"
           title={group.name}
           description={`${members.length} miembro${members.length !== 1 ? 's' : ''} · ${accounts.length} cuenta${accounts.length !== 1 ? 's' : ''}`}
           actions={
