@@ -113,10 +113,13 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
   return (
     <>
       <Sheet open onOpenChange={(open) => { if (!open) onClose() }}>
-        <SheetContent className="w-full sm:w-150 lg:w-170 overflow-y-auto flex flex-col gap-0 p-0">
-          <SheetHeader className="px-6 py-4 border-b border-border">
+        <SheetContent
+          className="w-full overflow-y-auto flex flex-col gap-0 p-0"
+          style={{ maxWidth: '680px' }}
+        >
+          <SheetHeader className="pl-6 pr-20 py-4 border-b border-border">
             <SheetTitle className="sr-only">Detalles de tarea</SheetTitle>
-            <div className="flex items-start gap-2">
+            <div className="flex items-center gap-2">
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -126,7 +129,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
               />
               <button
                 onClick={() => setDeleteOpen(true)}
-                className="text-muted-foreground hover:text-destructive transition-colors mt-0.5 flex-shrink-0"
+                className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
                 title="Eliminar tarea"
               >
                 <Trash2 size={16} />
