@@ -74,7 +74,10 @@ function formatDetailDate(value, includeTime = false) {
 function formatDetailCurrency(value) {
   const amount = Number(value ?? 0);
   if (!Number.isFinite(amount)) return "—";
-  return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(amount);
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+  }).format(amount);
 }
 
 const ICON_MAP = {
@@ -106,6 +109,22 @@ const ICON_ALIAS_MAP = {
   usercheck: UserCheck,
 };
 
+function matchesFieldRule(rule, record) {
+  if (!rule || typeof rule !== "object") return true;
+  const fieldName = String(rule.field ?? "").trim();
+  if (!fieldName) return true;
+  const value = record?.[fieldName];
+  if (Object.prototype.hasOwnProperty.call(rule, "equals"))
+    return value === rule.equals;
+  if (Object.prototype.hasOwnProperty.call(rule, "notEquals"))
+    return value !== rule.notEquals;
+  if (Array.isArray(rule.in)) return rule.in.includes(value);
+  if (Array.isArray(rule.notIn)) return !rule.notIn.includes(value);
+  if (Object.prototype.hasOwnProperty.call(rule, "truthy"))
+    return Boolean(value) === Boolean(rule.truthy);
+  return true;
+}
+
 function normalizeField(fieldLike) {
   if (!fieldLike || typeof fieldLike !== "object") return null;
   const name = fieldLike.name ?? fieldLike.key ?? fieldLike.field ?? null;
@@ -119,6 +138,8 @@ function normalizeField(fieldLike) {
         ? fieldLike.icon.trim()
         : null,
     options: Array.isArray(fieldLike.options) ? fieldLike.options : null,
+    visibleWhen: fieldLike.visibleWhen ?? null,
+    hiddenWhen: fieldLike.hiddenWhen ?? null,
   };
 }
 
@@ -150,12 +171,15 @@ function normalizeFieldMap(fields) {
 
 function normalizeRelationCardConfig(config, sectionTitle) {
   if (!config || typeof config !== "object") return null;
-  const subtitleFields = (Array.isArray(config.subtitleFields)
-    ? config.subtitleFields
-    : []
+  const subtitleFields = (
+    Array.isArray(config.subtitleFields) ? config.subtitleFields : []
   )
     .map((field) => (typeof field === "string" ? field.trim() : ""))
     .filter(Boolean);
+
+  const subtitleTypes = Array.isArray(config.subtitleTypes)
+    ? config.subtitleTypes.map((t) => (typeof t === "string" ? t.trim() : ""))
+    : [];
 
   return {
     idField:
@@ -167,8 +191,10 @@ function normalizeRelationCardConfig(config, sectionTitle) {
         ? config.titleField.trim()
         : null,
     subtitleFields,
+    subtitleTypes,
     fallbackTitle: normalizeSpanishLabel(
-      config.fallbackTitle ?? `No hay ${sectionTitle?.toLowerCase() ?? "relación"}.`,
+      config.fallbackTitle ??
+        `No hay ${sectionTitle?.toLowerCase() ?? "relación"}.`,
     ),
     hrefTemplate:
       typeof config.hrefTemplate === "string" && config.hrefTemplate.trim()
@@ -183,9 +209,8 @@ function normalizeRelationCardConfig(config, sectionTitle) {
 
 function normalizeRelationListConfig(config) {
   if (!config || typeof config !== "object") return null;
-  const subtitleFields = (Array.isArray(config.subtitleFields)
-    ? config.subtitleFields
-    : []
+  const subtitleFields = (
+    Array.isArray(config.subtitleFields) ? config.subtitleFields : []
   )
     .map((field) => (typeof field === "string" ? field.trim() : ""))
     .filter(Boolean);
@@ -234,7 +259,11 @@ function normalizeSections(schema, fieldMap) {
   // When no sections are defined (e.g. a TABLE blueprint used as detail fallback),
   // auto-generate a flat section from the `columns` definition so the detail renders
   // something meaningful instead of showing the "Detalle sin secciones" warning.
-  if (rawSections.length === 0 && Array.isArray(schema?.columns) && schema.columns.length > 0) {
+  if (
+    rawSections.length === 0 &&
+    Array.isArray(schema?.columns) &&
+    schema.columns.length > 0
+  ) {
     rawSections = [
       {
         fields: schema.columns
@@ -256,18 +285,21 @@ function normalizeSections(schema, fieldMap) {
           ? entry.type.trim().toLowerCase()
           : "fields";
 
-      const sectionTitle = (entry.title ?? entry.label)
-        ? normalizeSpanishLabel(entry.title ?? entry.label)
-        : null;
+      const sectionTitle =
+        (entry.title ?? entry.label)
+          ? normalizeSpanishLabel(entry.title ?? entry.label)
+          : null;
 
       const sectionIcon =
-        typeof entry.icon === "string" && entry.icon.trim() ? entry.icon.trim() : null;
+        typeof entry.icon === "string" && entry.icon.trim()
+          ? entry.icon.trim()
+          : null;
 
       if (sectionType === "documents" || sectionType === "attachments") {
         const attachmentsConfig =
           sectionType === "attachments"
-            ? entry.attachments ?? null
-            : entry.documents ?? null;
+            ? (entry.attachments ?? null)
+            : (entry.documents ?? null);
         return {
           id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
           title: sectionTitle,
@@ -283,7 +315,10 @@ function normalizeSections(schema, fieldMap) {
           title: sectionTitle,
           type: "relation-card",
           icon: sectionIcon,
-          relationCard: normalizeRelationCardConfig(entry.relationCard, sectionTitle),
+          relationCard: normalizeRelationCardConfig(
+            entry.relationCard,
+            sectionTitle,
+          ),
         };
       }
 
@@ -360,7 +395,7 @@ function renderValue(field, value) {
   if (field?.type === "color") {
     const colorStr = String(value);
     const hex = resolveColorHex(colorStr);
-    const displayName = colorStr.startsWith("#") ? (colorStr) : colorStr;
+    const displayName = colorStr.startsWith("#") ? colorStr : colorStr;
     return (
       <span className="inline-flex items-center gap-2">
         {hex && (
@@ -400,7 +435,9 @@ function gridClass(columns) {
 }
 
 function joinUrl(baseUrl, apiPath) {
-  const base = String(baseUrl ?? "").trim().replace(/\/+$/, "");
+  const base = String(baseUrl ?? "")
+    .trim()
+    .replace(/\/+$/, "");
   const path = String(apiPath ?? "").trim();
   if (!path) return base;
   if (!path.startsWith("/")) return `${base}/${path}`;
@@ -439,9 +476,11 @@ function getByPath(value, path) {
   if (!path || typeof path !== "string") return undefined;
   return path
     .split(".")
-    .reduce((cursor, segment) =>
-      cursor && typeof cursor === "object" ? cursor[segment] : undefined,
-    value);
+    .reduce(
+      (cursor, segment) =>
+        cursor && typeof cursor === "object" ? cursor[segment] : undefined,
+      value,
+    );
 }
 
 function normalizeIconName(name) {
@@ -564,7 +603,9 @@ function RelationListSection({ section, data, apiBaseUrl, token }) {
       setLoading(true);
       setError("");
       try {
-        const endpointPath = replacePathTokens(relationList.apiPath, { id: recordId });
+        const endpointPath = replacePathTokens(relationList.apiPath, {
+          id: recordId,
+        });
         const response = await fetch(joinUrl(apiBaseUrl, endpointPath), {
           method: "GET",
           headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -654,7 +695,10 @@ function RelationListSection({ section, data, apiBaseUrl, token }) {
             } else if (type === "currency") {
               const n = Number(raw);
               formatted = Number.isFinite(n)
-                ? new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n)
+                ? new Intl.NumberFormat("es-MX", {
+                    style: "currency",
+                    currency: "MXN",
+                  }).format(n)
                 : String(raw);
             } else if (type === "integer" || type === "number") {
               const n = Number(raw);
@@ -673,27 +717,36 @@ function RelationListSection({ section, data, apiBaseUrl, token }) {
             ? replacePathTokens(relationList.hrefTemplate, { id: itemId })
             : null;
 
-        const hasLabeledGrid = Array.isArray(relationList.subtitleLabels) && relationList.subtitleLabels.length > 0;
+        const hasLabeledGrid =
+          Array.isArray(relationList.subtitleLabels) &&
+          relationList.subtitleLabels.length > 0;
         const labeledPairs = hasLabeledGrid
-          ? relationList.subtitleFields.map((fieldKey, idx) => {
-              const raw = getByPath(item, fieldKey);
-              const label = relationList.subtitleLabels?.[idx] ?? null;
-              const type = relationList.subtitleTypes?.[idx] ?? null;
-              let formatted;
-              if (raw === undefined || raw === null || raw === "") {
-                formatted = null;
-              } else if (type === "date") {
-                formatted = formatDetailDate(raw, false);
-              } else if (type === "datetime") {
-                formatted = formatDetailDate(raw, true);
-              } else if (type === "currency") {
-                const n = Number(raw);
-                formatted = Number.isFinite(n) ? new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n) : String(raw);
-              } else {
-                formatted = normalizeTextValue(raw) || null;
-              }
-              return formatted ? { label, value: formatted } : null;
-            }).filter(Boolean)
+          ? relationList.subtitleFields
+              .map((fieldKey, idx) => {
+                const raw = getByPath(item, fieldKey);
+                const label = relationList.subtitleLabels?.[idx] ?? null;
+                const type = relationList.subtitleTypes?.[idx] ?? null;
+                let formatted;
+                if (raw === undefined || raw === null || raw === "") {
+                  formatted = null;
+                } else if (type === "date") {
+                  formatted = formatDetailDate(raw, false);
+                } else if (type === "datetime") {
+                  formatted = formatDetailDate(raw, true);
+                } else if (type === "currency") {
+                  const n = Number(raw);
+                  formatted = Number.isFinite(n)
+                    ? new Intl.NumberFormat("es-MX", {
+                        style: "currency",
+                        currency: "MXN",
+                      }).format(n)
+                    : String(raw);
+                } else {
+                  formatted = normalizeTextValue(raw) || null;
+                }
+                return formatted ? { label, value: formatted } : null;
+              })
+              .filter(Boolean)
           : [];
 
         const content = (
@@ -709,9 +762,18 @@ function RelationListSection({ section, data, apiBaseUrl, token }) {
                 {hasLabeledGrid && labeledPairs.length > 0 ? (
                   <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
                     {labeledPairs.map((pair, i) => (
-                      <div key={i} className="flex items-baseline gap-1 text-xs">
-                        {pair.label && <span className="shrink-0 font-medium text-[hsl(var(--foreground))]/60">{pair.label}</span>}
-                        <span className="truncate text-[hsl(var(--muted-foreground))]">{pair.value}</span>
+                      <div
+                        key={i}
+                        className="flex items-baseline gap-1 text-xs"
+                      >
+                        {pair.label && (
+                          <span className="shrink-0 font-medium text-[hsl(var(--foreground))]/60">
+                            {pair.label}
+                          </span>
+                        )}
+                        <span className="truncate text-[hsl(var(--muted-foreground))]">
+                          {pair.value}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -772,7 +834,9 @@ export function AtlasDetail({
     return (
       <Alert variant="warning">
         <AlertTitle>Sin información</AlertTitle>
-        <AlertDescription>No hay datos para mostrar en el detalle.</AlertDescription>
+        <AlertDescription>
+          No hay datos para mostrar en el detalle.
+        </AlertDescription>
       </Alert>
     );
   }
@@ -804,14 +868,13 @@ export function AtlasDetail({
       )}
 
       {sections.map((section) => (
-        <div
-          key={section.id}
-          className="space-y-4"
-        >
+        <div key={section.id} className="space-y-4">
           {section.title ? (
             <div className="pb-3 border-b border-[hsl(var(--border))] flex items-center gap-2">
               {(() => {
-                const SectionIcon = section.icon ? LucideIcons[section.icon] : null;
+                const SectionIcon = section.icon
+                  ? LucideIcons[section.icon]
+                  : null;
                 return SectionIcon ? (
                   <SectionIcon className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
                 ) : null;
@@ -853,11 +916,25 @@ export function AtlasDetail({
                 {section.fields.map((fieldName) => {
                   const field = fieldMap.get(fieldName);
                   if (!field) return null;
+                  if (
+                    field.visibleWhen &&
+                    !matchesFieldRule(field.visibleWhen, data)
+                  )
+                    return null;
+                  if (
+                    field.hiddenWhen &&
+                    matchesFieldRule(field.hiddenWhen, data)
+                  )
+                    return null;
                   const value = data[field.name];
                   const isMarkdown = field.type === "markdown";
-                  const strValue = value != null && value !== "" ? String(value) : null;
+                  const strValue =
+                    value != null && value !== "" ? String(value) : null;
                   return (
-                    <div key={field.name} className={`space-y-1.5${isMarkdown ? " col-span-full" : ""}`}>
+                    <div
+                      key={field.name}
+                      className={`space-y-1.5${isMarkdown ? " col-span-full" : ""}`}
+                    >
                       <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
                         <FieldLabel field={field} />
                       </dt>
@@ -866,7 +943,9 @@ export function AtlasDetail({
                           strValue ? (
                             <MarkdownViewer value={strValue} />
                           ) : (
-                            <span className="text-[hsl(var(--muted-foreground))]">—</span>
+                            <span className="text-[hsl(var(--muted-foreground))]">
+                              —
+                            </span>
                           )
                         ) : (
                           renderValue(field, value)
@@ -877,8 +956,8 @@ export function AtlasDetail({
                 })}
               </dl>
               {section.fields.includes("labor_cost") &&
-                section.fields.includes("parts_cost") &&
-                section.fields.includes("total_cost") ? (
+              section.fields.includes("parts_cost") &&
+              section.fields.includes("total_cost") ? (
                 <CostsSummaryPanel
                   laborCost={data.labor_cost ?? 0}
                   partsCost={data.parts_cost ?? 0}

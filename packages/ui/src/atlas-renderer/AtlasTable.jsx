@@ -286,6 +286,7 @@ export function AtlasTable({
   canDeleteRow = null,
   refreshSignal = 0,
   bulkActions = [],
+  onExportExcel = null,
 }) {
   const schema = blueprint?.schema ?? {};
   const apiPath =
@@ -1208,6 +1209,7 @@ export function AtlasTable({
         visibleColumns={visibleColumns}
         onClear={() => setSelectedIds(new Set())}
         bulkActions={bulkActions}
+        onExportExcel={onExportExcel}
       />
     </>
   );

@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "tauri dev",
     "dev:web": "vite",
-    "build": "tauri build",
+    "build": "tauri build && node scripts/rename-installer.mjs",
+    "publish:release": "node scripts/publish-release.mjs",
+    "release": "pnpm build && pnpm publish:release",
     "build:web": "vite build",
     "preview": "vite preview",
     "lint": "echo lint-pending"

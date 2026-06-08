@@ -40,6 +40,7 @@ import {
   CompanyServiceError,
 } from "./services/company-service.js";
 import { createHrService, HrServiceError } from "./services/hr-service.js";
+import { buildEmployeesExcelBuffer } from "./services/hr-export-service.js";
 import { createModulesRouter } from "./routes/modules.js";
 import {
   createPublicWebsiteRouter,
@@ -3353,6 +3354,37 @@ app.delete(
         return c.json({ error: err.message }, err.status);
       }
       return c.json({ error: "No se pudo eliminar el contacto." }, 500);
+    }
+  },
+);
+
+app.get(
+  "/hr/employees/export",
+  authMiddleware,
+  requirePermission("hr.employee.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const idsParam = c.req.query("ids");
+      const ids = idsParam
+        ? idsParam.split(",").map((s) => s.trim()).filter(Boolean)
+        : null;
+      const rows = await hrService.listEmployeesForExport({ authUserId, ids });
+      const buffer = await buildEmployeesExcelBuffer({ rows });
+      c.header(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      c.header(
+        "Content-Disposition",
+        `attachment; filename="colaboradores-${new Date().toISOString().slice(0, 10)}.xlsx"`,
+      );
+      return new Response(buffer, { status: 200, headers: c.res.headers });
+    } catch (err) {
+      if (err instanceof HrServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo exportar los colaboradores." }, 500);
     }
   },
 );

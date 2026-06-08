@@ -341,12 +341,24 @@ export function createHrService({ prisma, activityBridge }) {
           rows: rows.map((r) => ({
             id: r.id,
             full_name: `${r.firstName} ${r.lastName}`.trim(),
+            first_name: r.firstName ?? "",
+            last_name: r.lastName ?? "",
             employee_code: r.employeeCode ?? "",
             job_title: r.jobTitle ?? "",
             department: r.department ?? "",
             status: r.status,
             employment_type: r.employmentType ?? "",
             hire_date: r.hireDate ? r.hireDate.toISOString().slice(0, 10) : "",
+            work_email: r.workEmail ?? "",
+            personal_email: r.personalEmail ?? "",
+            phone: r.phone ?? "",
+            work_location: r.workLocation ?? "",
+            manager_name: r.managerName ?? "",
+            termination_date: r.terminationDate
+              ? r.terminationDate.toISOString().slice(0, 10)
+              : "",
+            emergency_contact_name: r.emergencyContactName ?? "",
+            emergency_contact_phone: r.emergencyContactPhone ?? "",
           })),
           total,
         };
@@ -369,6 +381,16 @@ export function createHrService({ prisma, activityBridge }) {
         },
         orderBy: [{ updatedAt: "desc" }],
         take,
+      });
+    },
+
+    async listEmployeesForExport({ authUserId, ids }) {
+      const { companyId } = await getUserContext(authUserId);
+      const where = { companyId, enabled: true };
+      if (ids?.length) where.id = { in: ids };
+      return prisma.hrEmployee.findMany({
+        where,
+        orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
       });
     },
 

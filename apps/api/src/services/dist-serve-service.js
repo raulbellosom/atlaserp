@@ -62,6 +62,14 @@ export function rewriteDistHtml(html, storageBase, basePath = '/public/site') {
   return withNavLinks.replace(/(<head(?:[^>]*)>)/i, `$1\n  ${importMapTag}`)
 }
 
+export function injectErpBadge(html, erpPath = '/app/') {
+  const badge = `<div id="atlas-erp-badge" style="position:fixed;bottom:20px;right:20px;z-index:2147483647;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><a href="${erpPath}" style="display:inline-flex;align-items:center;gap:8px;background:rgba(15,15,30,0.88);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#e2e8f0;padding:9px 16px;border-radius:100px;text-decoration:none;font-size:12px;font-weight:600;letter-spacing:0.03em;box-shadow:0 4px 20px rgba(0,0,0,0.45),0 0 0 1px rgba(255,255,255,0.08);" onmouseover="this.style.background='rgba(99,102,241,0.92)';this.style.boxShadow='0 4px 24px rgba(99,102,241,0.55),0 0 0 1px rgba(99,102,241,0.4)'" onmouseout="this.style.background='rgba(15,15,30,0.88)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.45),0 0 0 1px rgba(255,255,255,0.08)'"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0"><rect width="14" height="14" rx="3.5" fill="#6366f1"/><path d="M3.5 7h7M7 3.5v7" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>Atlas ERP</a></div>`
+  if (html.includes('</body>')) {
+    return html.replace('</body>', `${badge}\n</body>`)
+  }
+  return html + badge
+}
+
 export function injectSeoTags(html, seoDefaults) {
   if (!seoDefaults) return html
   const tags = []
@@ -205,7 +213,8 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
 
     const storageBase = `${process.env.SUPABASE_URL}/storage/v1/object/public/${BUCKET}/dist/${site.company_slug}`
     const injected = injectSeoTags(html, site.seo_defaults)
-    const final = rewriteDistHtml(injected, storageBase)
+    const rewritten = rewriteDistHtml(injected, storageBase)
+    const final = injectErpBadge(rewritten)
     setCache(cacheKey, final)
 
     c.header('Cache-Control', 'public, max-age=300')

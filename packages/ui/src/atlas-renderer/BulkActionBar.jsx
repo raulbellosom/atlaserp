@@ -9,13 +9,34 @@ function getByPath(input, path) {
     .reduce((acc, key) => (acc == null ? undefined : acc[key]), input);
 }
 
+function formatCsvValue(value, col) {
+  if (value === undefined || value === null || value === "") return "";
+  if (col.type === "select" && Array.isArray(col.options)) {
+    const opt = col.options.find((o) => String(o.value) === String(value));
+    if (opt) return opt.label;
+  }
+  if (col.type === "date" || col.type === "datetime") {
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString("es-MX", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    }
+  }
+  if (col.type === "boolean") return value ? "Si" : "No";
+  return String(value);
+}
+
 function exportCsv(rows, columns) {
   const headers = columns.map((c) => c.label);
   const body = rows.map((row) =>
     columns
       .map((col) => {
         const v = getByPath(row, col.field) ?? "";
-        return `"${String(v).replace(/"/g, '""')}"`;
+        const formatted = formatCsvValue(v, col);
+        return `"${formatted.replace(/"/g, '""')}"`;
       })
       .join(","),
   );
@@ -35,6 +56,7 @@ export function BulkActionBar({
   visibleColumns,
   onClear,
   bulkActions = [],
+  onExportExcel,
 }) {
   if (selectedCount === 0) return null;
 
@@ -66,6 +88,18 @@ export function BulkActionBar({
           <Download className="h-3.5 w-3.5" />
           Exportar CSV
         </Button>
+
+        {onExportExcel && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1.5 px-2 text-xs"
+            onClick={() => onExportExcel(selectedRows, visibleColumns)}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Exportar Excel
+          </Button>
+        )}
 
         {resolvedActions.map((action, i) => {
           const Icon = action.icon ?? null;

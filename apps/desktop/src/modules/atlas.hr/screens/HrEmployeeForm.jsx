@@ -5,7 +5,8 @@ import {
   Button,
   ComboboxField,
   CreatableComboboxField,
-  DateField,
+  DatePickerField,
+  DistDropZone,
   MarkdownField,
   SelectField,
   Skeleton,
@@ -19,7 +20,6 @@ import {
   Briefcase,
   Building2,
   Calendar,
-  Camera,
   Download,
   Eye,
   File,
@@ -36,7 +36,6 @@ import {
   Save,
   Shield,
   Trash2,
-  Upload,
   User,
   Users,
   X,
@@ -152,7 +151,8 @@ function getFileKind(mimeType = "") {
   const v = String(mimeType || "").toLowerCase();
   if (v.startsWith("image/")) return "image";
   if (v === "application/pdf") return "pdf";
-  if (v.includes("spreadsheet") || v.includes("excel") || v.includes("csv")) return "sheet";
+  if (v.includes("spreadsheet") || v.includes("excel") || v.includes("csv"))
+    return "sheet";
   if (v.includes("word") || v.includes("document")) return "doc";
   if (v.startsWith("text/") || v.includes("json")) return "text";
   return "generic";
@@ -167,7 +167,16 @@ function formatBytes(bytes = 0) {
 
 function FileKindIcon({ mimeType, className = "h-4 w-4" }) {
   const kind = getFileKind(mimeType);
-  const Icon = kind === "image" ? FileImage : kind === "pdf" ? FileType2 : kind === "sheet" ? FileSpreadsheet : kind === "doc" || kind === "text" ? FileText : File;
+  const Icon =
+    kind === "image"
+      ? FileImage
+      : kind === "pdf"
+        ? FileType2
+        : kind === "sheet"
+          ? FileSpreadsheet
+          : kind === "doc" || kind === "text"
+            ? FileText
+            : File;
   return <Icon className={className} />;
 }
 
@@ -175,19 +184,24 @@ function FileKindIcon({ mimeType, className = "h-4 w-4" }) {
 
 function FilesPanel({ employeeId, token }) {
   const queryClient = useQueryClient();
-  const [isDragOver, setIsDragOver] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [previewMap, setPreviewMap] = useState(() => new Map());
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
   const signedUrlCache = useRef(new Map());
-  const dragCounter = useRef(0);
-  const fileInputRef = useRef(null);
 
   const filesQuery = useQuery({
     queryKey: ["hr-employee-files", employeeId],
     queryFn: () =>
-      atlas.files.list({ moduleKey: "atlas.hr", entityType: "HrEmployee", sourceEntityId: employeeId, pageSize: 100 }, token),
+      atlas.files.list(
+        {
+          moduleKey: "atlas.hr",
+          entityType: "HrEmployee",
+          sourceEntityId: employeeId,
+          pageSize: 100,
+        },
+        token,
+      ),
     enabled: Boolean(token && employeeId),
   });
 
@@ -195,7 +209,9 @@ function FilesPanel({ employeeId, token }) {
     mutationFn: async (filesToUpload) => {
       for (const file of filesToUpload) {
         if (file.size > MAX_FILE_MB * 1024 * 1024) {
-          throw new Error(`"${file.name}" supera el límite de ${MAX_FILE_MB} MB.`);
+          throw new Error(
+            `"${file.name}" supera el límite de ${MAX_FILE_MB} MB.`,
+          );
         }
         const fd = new FormData();
         fd.append("file", file);
@@ -208,18 +224,28 @@ function FilesPanel({ employeeId, token }) {
     onMutate: () => toast.loading("Subiendo archivo(s)..."),
     onSuccess: (_data, _vars, toastId) => {
       toast.success("Archivos subidos", { id: toastId });
-      queryClient.invalidateQueries({ queryKey: ["hr-employee-files", employeeId] });
-      queryClient.invalidateQueries({ queryKey: ["hr-employee-audit", employeeId] });
+      queryClient.invalidateQueries({
+        queryKey: ["hr-employee-files", employeeId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["hr-employee-audit", employeeId],
+      });
     },
     onError: (err, _vars, toastId) =>
-      toast.error(err?.message || "No se pudieron subir los archivos", { id: toastId }),
+      toast.error(err?.message || "No se pudieron subir los archivos", {
+        id: toastId,
+      }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (fileId) => atlas.files.delete(fileId, token),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["hr-employee-files", employeeId] });
-      queryClient.invalidateQueries({ queryKey: ["hr-employee-audit", employeeId] });
+      queryClient.invalidateQueries({
+        queryKey: ["hr-employee-files", employeeId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["hr-employee-audit", employeeId],
+      });
       toast.success("Archivo eliminado");
       setDeleteTarget(null);
     },
@@ -227,52 +253,33 @@ function FilesPanel({ employeeId, token }) {
   });
 
   useEffect(() => {
-    if (!token || !employeeId) return;
-    function onDragEnter(e) {
-      if (!e.dataTransfer?.types?.includes("Files")) return;
-      dragCounter.current++;
-      setIsDragOver(true);
-    }
-    function onDragLeave() {
-      dragCounter.current = Math.max(0, dragCounter.current - 1);
-      if (dragCounter.current === 0) setIsDragOver(false);
-    }
-    function onDrop(e) {
-      e.preventDefault();
-      dragCounter.current = 0;
-      setIsDragOver(false);
-      const dropped = Array.from(e.dataTransfer?.files || []);
-      if (dropped.length) uploadMutation.mutate(dropped);
-    }
-    function onDragOver(e) { e.preventDefault(); }
-    window.addEventListener("dragenter", onDragEnter);
-    window.addEventListener("dragleave", onDragLeave);
-    window.addEventListener("drop", onDrop);
-    window.addEventListener("dragover", onDragOver);
-    return () => {
-      window.removeEventListener("dragenter", onDragEnter);
-      window.removeEventListener("dragleave", onDragLeave);
-      window.removeEventListener("drop", onDrop);
-      window.removeEventListener("dragover", onDragOver);
-    };
-  }, [token, employeeId, uploadMutation]);
-
-  useEffect(() => {
     if (!token) return;
     const files = filesQuery.data?.data ?? [];
     const uncached = files
-      .filter((f) => getFileKind(f.mimeType) === "image" && !previewMap.has(f.id) && !signedUrlCache.current.has(f.id))
+      .filter(
+        (f) =>
+          getFileKind(f.mimeType) === "image" &&
+          !previewMap.has(f.id) &&
+          !signedUrlCache.current.has(f.id),
+      )
       .map((f) => f.id);
     if (uncached.length === 0) return;
-    atlas.files.batchSignedUrls(uncached, token).then((res) => {
-      const urlMap = res?.data ?? {};
-      uncached.forEach((id) => { if (urlMap[id]) signedUrlCache.current.set(id, urlMap[id]); });
-      setPreviewMap((prev) => {
-        const next = new Map(prev);
-        uncached.forEach((id) => { if (urlMap[id]) next.set(id, urlMap[id]); });
-        return next;
-      });
-    }).catch(() => {});
+    atlas.files
+      .batchSignedUrls(uncached, token)
+      .then((res) => {
+        const urlMap = res?.data ?? {};
+        uncached.forEach((id) => {
+          if (urlMap[id]) signedUrlCache.current.set(id, urlMap[id]);
+        });
+        setPreviewMap((prev) => {
+          const next = new Map(prev);
+          uncached.forEach((id) => {
+            if (urlMap[id]) next.set(id, urlMap[id]);
+          });
+          return next;
+        });
+      })
+      .catch(() => {});
   }, [filesQuery.data, token, previewMap]);
 
   const files = filesQuery.data?.data ?? [];
@@ -309,12 +316,16 @@ function FilesPanel({ employeeId, token }) {
             className="w-full max-w-sm rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 shadow-2xl space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="font-semibold text-[hsl(var(--foreground))]">Eliminar archivo</p>
+            <p className="font-semibold text-[hsl(var(--foreground))]">
+              Eliminar archivo
+            </p>
             <p className="text-sm text-[hsl(var(--muted-foreground))]">
               ¿Eliminar <strong>{deleteTarget.originalName}</strong>?
             </p>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+              <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+                Cancelar
+              </Button>
               <Button
                 variant="destructive"
                 disabled={deleteMutation.isPending}
@@ -328,39 +339,19 @@ function FilesPanel({ employeeId, token }) {
       )}
 
       <SectionCard title="Documentos" className="border-dashed">
-        <div
-          className={cn(
-            "rounded-xl border-2 border-dashed px-4 py-4 text-center transition-colors cursor-pointer",
-            isDragOver ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5" : "border-[hsl(var(--border))] hover:border-[hsl(var(--primary))]/40 hover:bg-[hsl(var(--muted))]/30",
-            uploadMutation.isPending && "pointer-events-none opacity-60",
-          )}
-          onClick={() => !uploadMutation.isPending && fileInputRef.current?.click()}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="sr-only"
-            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
-            onChange={(e) => {
-              const picked = Array.from(e.target.files || []);
-              if (picked.length) uploadMutation.mutate(picked);
-              e.target.value = "";
-            }}
-          />
-          {uploadMutation.isPending ? (
-            <div className="flex items-center justify-center gap-2">
-              <span className="h-4 w-4 rounded-full border-2 border-[hsl(var(--primary))] border-t-transparent animate-spin" />
-              <span className="text-sm text-[hsl(var(--muted-foreground))]">Subiendo...</span>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-1 text-[hsl(var(--muted-foreground))]">
-              <Upload className="h-5 w-5" />
-              <span className="text-sm">Arrastra archivos o clic para subir</span>
-              <span className="text-xs">Imágenes, PDF, documentos · Máx {MAX_FILE_MB} MB</span>
-            </div>
-          )}
-        </div>
+        <DistDropZone
+          multiple
+          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+          maxSizeMB={MAX_FILE_MB}
+          fullScreenOverlay
+          overlayLabel="Suelta los archivos aqui"
+          overlayHint="Imágenes, PDF, documentos"
+          isUploading={uploadMutation.isPending}
+          onFiles={(files) => uploadMutation.mutate(files)}
+          emptyLabel="Arrastra archivos o clic para subir"
+          emptyHint={`Imágenes, PDF, documentos · Máx ${MAX_FILE_MB} MB`}
+          dragActiveLabel="Suelta los archivos aqui"
+        />
 
         <div className="space-y-1.5 max-h-64 overflow-auto pr-0.5">
           {filesQuery.isLoading && (
@@ -370,7 +361,9 @@ function FilesPanel({ employeeId, token }) {
             </>
           )}
           {!filesQuery.isLoading && files.length === 0 && (
-            <p className="text-xs text-center text-[hsl(var(--muted-foreground))] py-3">Sin documentos adjuntos.</p>
+            <p className="text-xs text-center text-[hsl(var(--muted-foreground))] py-3">
+              Sin documentos adjuntos.
+            </p>
           )}
           {files.map((file) => {
             const kind = getFileKind(file.mimeType);
@@ -382,17 +375,31 @@ function FilesPanel({ employeeId, token }) {
               >
                 <button
                   type="button"
-                  onClick={() => kind === "image" ? handleOpenViewer(file) : undefined}
+                  onClick={() =>
+                    kind === "image" ? handleOpenViewer(file) : undefined
+                  }
                   className={cn(
                     "h-9 w-9 shrink-0 flex items-center justify-center rounded-lg border border-[hsl(var(--border))]/60 bg-[hsl(var(--background))] overflow-hidden",
-                    kind === "image" && "cursor-pointer"
+                    kind === "image" && "cursor-pointer",
                   )}
                 >
-                  {preview ? <img src={preview} alt="" className="h-full w-full object-cover" /> : <FileKindIcon mimeType={file.mimeType} />}
+                  {preview ? (
+                    <img
+                      src={preview}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <FileKindIcon mimeType={file.mimeType} />
+                  )}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-[hsl(var(--foreground))] truncate">{file.originalName}</p>
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">{formatBytes(file.sizeBytes)}</p>
+                  <p className="text-xs font-medium text-[hsl(var(--foreground))] truncate">
+                    {file.originalName}
+                  </p>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                    {formatBytes(file.sizeBytes)}
+                  </p>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   {kind === "image" && (
@@ -407,9 +414,17 @@ function FilesPanel({ employeeId, token }) {
                   <button
                     type="button"
                     onClick={async () => {
-                      const res = await atlas.files.getSignedUrl(file.id, token);
+                      const res = await atlas.files.getSignedUrl(
+                        file.id,
+                        token,
+                      );
                       const url = res?.data?.signedUrl;
-                      if (url) { const a = document.createElement("a"); a.href = url; a.download = file.originalName; a.click(); }
+                      if (url) {
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = file.originalName;
+                        a.click();
+                      }
                     }}
                     className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
                   >
@@ -447,7 +462,12 @@ function IL({ icon: Icon, children }) {
 
 function SectionCard({ title, children, className }) {
   return (
-    <div className={cn("rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-4", className)}>
+    <div
+      className={cn(
+        "rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-4",
+        className,
+      )}
+    >
       <h3 className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
         {title}
       </h3>
@@ -458,62 +478,45 @@ function SectionCard({ title, children, className }) {
 
 // ── AvatarUploadZone ──────────────────────────────────────────────────────────
 
-function AvatarUploadZone({ profileImageUrl, uploading, onUpload, status, disabled }) {
-  const inputRef = useRef(null);
+function AvatarUploadZone({
+  profileImageUrl,
+  uploading,
+  onUpload,
+  status,
+  disabled,
+}) {
   const ring = STATUS_RING[status] ?? STATUS_RING.active;
-
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative">
-        <button
-          type="button"
-          disabled={disabled || uploading}
-          onClick={() => inputRef.current?.click()}
-          className={cn(
-            "group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl",
-            "bg-[hsl(var(--muted))] ring-2",
-            ring,
-            "transition-all hover:ring-[hsl(var(--primary))]",
-            (disabled || uploading) && "cursor-not-allowed",
-          )}
-        >
-          {profileImageUrl ? (
-            <img
-              src={profileImageUrl}
-              alt="Foto de perfil"
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <User className="h-8 w-8 text-[hsl(var(--muted-foreground))]" />
-          )}
-          {!disabled && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-              {uploading ? (
-                <span className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-              ) : (
-                <Camera className="h-5 w-5 text-white" />
-              )}
-            </div>
-          )}
-        </button>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          className="sr-only"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onUpload(file);
-            e.target.value = "";
-          }}
-        />
+  if (disabled) {
+    return (
+      <div
+        className={cn(
+          "relative w-24 h-24 rounded-2xl overflow-hidden bg-muted ring-2 shrink-0",
+          ring,
+        )}
+      >
+        {profileImageUrl ? (
+          <img
+            src={profileImageUrl}
+            alt="Foto de perfil"
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <User className="absolute inset-0 m-auto h-8 w-8 text-muted-foreground" />
+        )}
       </div>
-      {!disabled && (
-        <p className="text-xs text-[hsl(var(--muted-foreground))] text-center">
-          {uploading ? "Subiendo..." : "Clic para cambiar"}
-        </p>
-      )}
-    </div>
+    );
+  }
+  return (
+    <DistDropZone
+      variant="avatar"
+      accept="image/*"
+      maxSizeMB={10}
+      src={profileImageUrl}
+      isUploading={uploading}
+      onFile={onUpload}
+      emptyLabel="Clic para cambiar"
+      className={cn("bg-muted ring-2 shrink-0", ring)}
+    />
   );
 }
 
@@ -525,7 +528,8 @@ export default function HrEmployeeForm({ employeeId }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const permissions = userProfile?.permissions ?? [];
-  const hasPermission = (k) => Boolean(userProfile?.isAdmin || permissions.includes(k));
+  const hasPermission = (k) =>
+    Boolean(userProfile?.isAdmin || permissions.includes(k));
   const canCreate = hasPermission("hr.employee.create");
   const canUpdate = hasPermission("hr.employee.update");
 
@@ -545,7 +549,10 @@ export default function HrEmployeeForm({ employeeId }) {
   const profileImageQuery = useQuery({
     queryKey: ["hr-profile-image-url", selected?.profileImageFileId],
     queryFn: async () => {
-      const res = await atlas.files.getSignedUrl(selected.profileImageFileId, token);
+      const res = await atlas.files.getSignedUrl(
+        selected.profileImageFileId,
+        token,
+      );
       return res?.data?.signedUrl ?? "";
     },
     enabled: Boolean(token && selected?.profileImageFileId),
@@ -566,7 +573,8 @@ export default function HrEmployeeForm({ employeeId }) {
   });
   const departmentsQuery = useQuery({
     queryKey: ["hr-departments"],
-    queryFn: () => atlas.hr.listDepartments(token, { limit: 200, enabled: true }),
+    queryFn: () =>
+      atlas.hr.listDepartments(token, { limit: 200, enabled: true }),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
   });
@@ -631,22 +639,28 @@ export default function HrEmployeeForm({ employeeId }) {
       if (isNew) return atlas.hr.createEmployee(payload, token);
       return atlas.hr.updateEmployee(selected.id, payload, token);
     },
-    onMutate: () => toast.loading(isNew ? "Creando colaborador..." : "Guardando cambios..."),
+    onMutate: () =>
+      toast.loading(isNew ? "Creando colaborador..." : "Guardando cambios..."),
     onSuccess: (res, _vars, toastId) => {
       const savedId = res?.data?.id ?? selected?.id;
-      toast.success(isNew ? "Colaborador creado" : "Cambios guardados", { id: toastId });
+      toast.success(isNew ? "Colaborador creado" : "Cambios guardados", {
+        id: toastId,
+      });
       queryClient.invalidateQueries({ queryKey: ["hr-employees"] });
       queryClient.invalidateQueries({ queryKey: ["hr-employee", employeeId] });
       navigate(`/app/m/atlas.hr/hr/employees/${savedId}`);
     },
     onError: (err, _vars, toastId) => {
-      toast.error(err?.message || "No se pudo guardar el colaborador", { id: toastId });
+      toast.error(err?.message || "No se pudo guardar el colaborador", {
+        id: toastId,
+      });
     },
   });
 
   const uploadProfileImageMutation = useMutation({
     mutationFn: async (file) => {
-      if (!selected?.id) throw new Error("Primero guarda el colaborador para cargar la foto.");
+      if (!selected?.id)
+        throw new Error("Primero guarda el colaborador para cargar la foto.");
       const fd = new FormData();
       fd.append("file", file);
       fd.append("moduleKey", "atlas.hr");
@@ -657,7 +671,10 @@ export default function HrEmployeeForm({ employeeId }) {
       if (!fileId) throw new Error("No se pudo procesar la foto.");
       await atlas.hr.updateEmployee(
         selected.id,
-        normalizeForApi({ ...fromEmployee(selected), profileImageFileId: fileId }),
+        normalizeForApi({
+          ...fromEmployee(selected),
+          profileImageFileId: fileId,
+        }),
         token,
       );
       return fileId;
@@ -670,21 +687,29 @@ export default function HrEmployeeForm({ employeeId }) {
       queryClient.invalidateQueries({ queryKey: ["hr-profile-image-url"] });
     },
     onError: (err, _vars, toastId) => {
-      toast.error(err?.message || "No se pudo actualizar la foto", { id: toastId });
+      toast.error(err?.message || "No se pudo actualizar la foto", {
+        id: toastId,
+      });
     },
   });
 
   const createDepartmentMutation = useMutation({
-    mutationFn: (name) => atlas.hr.createDepartment({ name: name.trim() }, token),
+    mutationFn: (name) =>
+      atlas.hr.createDepartment({ name: name.trim() }, token),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["hr-departments"] });
       const created = res?.data;
       if (created?.id) {
-        setForm((prev) => ({ ...prev, departmentId: created.id, department: created.name ?? prev.department }));
+        setForm((prev) => ({
+          ...prev,
+          departmentId: created.id,
+          department: created.name ?? prev.department,
+        }));
       }
       toast.success("Departamento creado");
     },
-    onError: (err) => toast.error(err?.message || "No se pudo crear el departamento"),
+    onError: (err) =>
+      toast.error(err?.message || "No se pudo crear el departamento"),
   });
 
   const createJobTitleMutation = useMutation({
@@ -693,7 +718,11 @@ export default function HrEmployeeForm({ employeeId }) {
       queryClient.invalidateQueries({ queryKey: ["hr-job-titles"] });
       const created = res?.data;
       if (created?.id) {
-        setForm((prev) => ({ ...prev, jobTitleId: created.id, jobTitle: created.name ?? prev.jobTitle }));
+        setForm((prev) => ({
+          ...prev,
+          jobTitleId: created.id,
+          jobTitle: created.name ?? prev.jobTitle,
+        }));
       }
       toast.success("Puesto creado");
     },
@@ -706,8 +735,8 @@ export default function HrEmployeeForm({ employeeId }) {
   const title = isNew
     ? "Nuevo colaborador"
     : selected
-    ? `Editar: ${selected.firstName} ${selected.lastName}`.trim()
-    : "Editar colaborador";
+      ? `Editar: ${selected.firstName} ${selected.lastName}`.trim()
+      : "Editar colaborador";
 
   function setField(key) {
     return (e) => setForm((p) => ({ ...p, [key]: e.target.value }));
@@ -749,7 +778,9 @@ export default function HrEmployeeForm({ employeeId }) {
             Colaboradores
           </button>
           <span className="text-[hsl(var(--muted-foreground))]">/</span>
-          <h1 className="text-base font-semibold text-[hsl(var(--foreground))]">{title}</h1>
+          <h1 className="text-base font-semibold text-[hsl(var(--foreground))]">
+            {title}
+          </h1>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={handleCancel} disabled={isBusy}>
@@ -820,20 +851,29 @@ export default function HrEmployeeForm({ employeeId }) {
           <ComboboxField
             label={<IL icon={Link2}>Cuenta de usuario vinculada</IL>}
             value={form.userProfileId || "__none__"}
-            options={[{ value: "__none__", label: "Sin vincular" }, ...userOptions]}
+            options={[
+              { value: "__none__", label: "Sin vincular" },
+              ...userOptions,
+            ]}
             onChange={(v) =>
-              setForm((p) => ({ ...p, userProfileId: v === "__none__" ? "" : v }))
+              setForm((p) => ({
+                ...p,
+                userProfileId: v === "__none__" ? "" : v,
+              }))
             }
             placeholder="Seleccionar cuenta..."
             searchPlaceholder="Buscar usuario..."
             disabled={isBusy}
           />
           <p className="mt-1.5 text-xs text-[hsl(var(--muted-foreground))]">
-            Vinculacion opcional con cuenta de usuario para trazabilidad y permisos.{" "}
+            Vinculacion opcional con cuenta de usuario para trazabilidad y
+            permisos.{" "}
             <button
               type="button"
               className="font-medium text-[hsl(var(--primary))] hover:underline"
-              onClick={() => navigate("/app/m/atlas.identity/identity/users/new")}
+              onClick={() =>
+                navigate("/app/m/atlas.identity/identity/users/new")
+              }
             >
               Crear usuario
             </button>
@@ -847,7 +887,10 @@ export default function HrEmployeeForm({ employeeId }) {
           <CreatableComboboxField
             label={<IL icon={Briefcase}>Puesto</IL>}
             value={form.jobTitleId || "__none__"}
-            options={[{ value: "__none__", label: "Sin asignar" }, ...jobTitleOptions]}
+            options={[
+              { value: "__none__", label: "Sin asignar" },
+              ...jobTitleOptions,
+            ]}
             onChange={(v) => {
               const opt = jobTitleOptions.find((o) => o.value === v);
               setForm((p) => ({
@@ -865,13 +908,17 @@ export default function HrEmployeeForm({ employeeId }) {
           <CreatableComboboxField
             label={<IL icon={Building2}>Departamento</IL>}
             value={form.departmentId || "__none__"}
-            options={[{ value: "__none__", label: "Sin asignar" }, ...departmentOptions]}
+            options={[
+              { value: "__none__", label: "Sin asignar" },
+              ...departmentOptions,
+            ]}
             onChange={(v) => {
               const opt = departmentOptions.find((o) => o.value === v);
               setForm((p) => ({
                 ...p,
                 departmentId: v === "__none__" ? "" : v,
-                department: v === "__none__" ? "" : (opt?.label ?? p.department),
+                department:
+                  v === "__none__" ? "" : (opt?.label ?? p.department),
               }));
             }}
             onCreate={(name) => createDepartmentMutation.mutate(name)}
@@ -883,13 +930,17 @@ export default function HrEmployeeForm({ employeeId }) {
           <ComboboxField
             label={<IL icon={Users}>Supervisor</IL>}
             value={form.supervisorEmployeeId || "__none__"}
-            options={[{ value: "__none__", label: "Sin supervisor" }, ...supervisorOptions]}
+            options={[
+              { value: "__none__", label: "Sin supervisor" },
+              ...supervisorOptions,
+            ]}
             onChange={(v) => {
               const opt = supervisorOptions.find((o) => o.value === v);
               setForm((p) => ({
                 ...p,
                 supervisorEmployeeId: v === "__none__" ? "" : v,
-                managerName: v === "__none__" ? "" : (opt?.label ?? p.managerName),
+                managerName:
+                  v === "__none__" ? "" : (opt?.label ?? p.managerName),
               }));
             }}
             placeholder="Seleccionar supervisor..."
@@ -899,9 +950,15 @@ export default function HrEmployeeForm({ employeeId }) {
           <SelectField
             label={<IL icon={User}>Tipo de empleo</IL>}
             value={form.employmentType || "__none__"}
-            options={[{ value: "__none__", label: "Sin especificar" }, ...EMPLOYMENT_TYPE_OPTIONS]}
+            options={[
+              { value: "__none__", label: "Sin especificar" },
+              ...EMPLOYMENT_TYPE_OPTIONS,
+            ]}
             onValueChange={(v) =>
-              setForm((p) => ({ ...p, employmentType: v === "__none__" ? "" : v }))
+              setForm((p) => ({
+                ...p,
+                employmentType: v === "__none__" ? "" : v,
+              }))
             }
             disabled={isBusy}
           />
@@ -912,16 +969,18 @@ export default function HrEmployeeForm({ employeeId }) {
             disabled={isBusy}
             className="sm:col-span-2"
           />
-          <DateField
+          <DatePickerField
             label={<IL icon={Calendar}>Fecha de ingreso</IL>}
             value={form.hireDate}
-            onChange={setField("hireDate")}
+            onChange={(val) => setForm((p) => ({ ...p, hireDate: val ?? "" }))}
             disabled={isBusy}
           />
-          <DateField
+          <DatePickerField
             label={<IL icon={Calendar}>Fecha de baja</IL>}
             value={form.terminationDate}
-            onChange={setField("terminationDate")}
+            onChange={(val) =>
+              setForm((p) => ({ ...p, terminationDate: val ?? "" }))
+            }
             disabled={isBusy}
           />
         </div>
@@ -975,7 +1034,9 @@ export default function HrEmployeeForm({ employeeId }) {
         <MarkdownField
           label={<IL icon={MessageSquare}>Observaciones</IL>}
           value={form.notesMarkdown}
-          onChange={(e) => setForm((p) => ({ ...p, notesMarkdown: e.target.value }))}
+          onChange={(e) =>
+            setForm((p) => ({ ...p, notesMarkdown: e.target.value }))
+          }
           maxLength={10000}
           disabled={isBusy}
         />

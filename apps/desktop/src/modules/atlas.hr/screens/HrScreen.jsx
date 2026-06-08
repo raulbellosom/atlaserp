@@ -1,6 +1,8 @@
+import { useCallback, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AtlasTable, Button, PageHeader } from "@atlas/ui";
 import { Plus } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 
@@ -10,6 +12,20 @@ import HrOrgChartScreen from "./HrOrgChartScreen";
 import HrCatalogsScreen from "./HrCatalogsScreen";
 
 const API_BASE_URL = getApiUrl();
+
+const EMPLOYMENT_TYPE_OPTIONS = [
+  { value: "full_time", label: "Tiempo completo" },
+  { value: "part_time", label: "Medio tiempo" },
+  { value: "contractor", label: "Contratista" },
+  { value: "intern", label: "Practicante" },
+];
+
+const STATUS_OPTIONS = [
+  { value: "active", label: "Activo" },
+  { value: "vacation", label: "Vacaciones" },
+  { value: "inactive", label: "Inactivo" },
+  { value: "terminated", label: "Baja" },
+];
 
 const HR_EMPLOYEES_BLUEPRINT = {
   key: "hr.employees.table",
@@ -23,21 +39,71 @@ const HR_EMPLOYEES_BLUEPRINT = {
       { field: "employee_code", label: "Codigo", sortable: false },
       { field: "job_title", label: "Puesto", sortable: false },
       { field: "department", label: "Departamento", sortable: false },
-      { field: "status", label: "Estado", sortable: true },
-      { field: "employment_type", label: "Tipo", sortable: false },
-      { field: "hire_date", label: "Ingreso", sortable: true },
+      {
+        field: "status",
+        label: "Estado",
+        sortable: true,
+        type: "select",
+        options: STATUS_OPTIONS,
+      },
+      {
+        field: "employment_type",
+        label: "Tipo",
+        sortable: false,
+        type: "select",
+        options: EMPLOYMENT_TYPE_OPTIONS,
+      },
+      { field: "hire_date", label: "Ingreso", sortable: true, type: "date" },
+      {
+        field: "work_email",
+        label: "Email trabajo",
+        sortable: false,
+        defaultVisible: false,
+      },
+      {
+        field: "phone",
+        label: "Telefono",
+        sortable: false,
+        defaultVisible: false,
+      },
+      {
+        field: "work_location",
+        label: "Ubicacion",
+        sortable: false,
+        defaultVisible: false,
+      },
+      {
+        field: "manager_name",
+        label: "Manager",
+        sortable: false,
+        defaultVisible: false,
+      },
+      {
+        field: "termination_date",
+        label: "Fecha baja",
+        sortable: false,
+        type: "date",
+        defaultVisible: false,
+      },
+      {
+        field: "personal_email",
+        label: "Email personal",
+        sortable: false,
+        defaultVisible: false,
+      },
     ],
     filters: [
       {
         key: "status",
         label: "Estado",
         type: "select",
-        options: [
-          { value: "active", label: "Activo" },
-          { value: "vacation", label: "Vacaciones" },
-          { value: "inactive", label: "Inactivo" },
-          { value: "terminated", label: "Baja" },
-        ],
+        options: STATUS_OPTIONS,
+      },
+      {
+        key: "employment_type",
+        label: "Tipo de empleo",
+        type: "select",
+        options: EMPLOYMENT_TYPE_OPTIONS,
       },
     ],
     emptyState: { message: "No hay colaboradores registrados." },
@@ -50,11 +116,13 @@ export default function HrScreen() {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const permissions = userProfile?.permissions ?? [];
-  const hasPermission = (key) => Boolean(userProfile?.isAdmin || permissions.includes(key));
+  const hasPermission = (key) =>
+    Boolean(userProfile?.isAdmin || permissions.includes(key));
   const canReadEmployees = hasPermission("hr.employee.read");
   const canCreateEmployees = hasPermission("hr.employee.create");
   const { "*": wildcard } = useParams();
   const navigate = useNavigate();
+  const [exporting, setExporting] = useState(false);
 
   const isOrgChartRoute = wildcard === "hr/org-chart";
   const isCatalogsRoute = wildcard === "hr/catalogs";
@@ -63,8 +131,35 @@ export default function HrScreen() {
   const editMatch = wildcard?.match(/^hr\/employees\/([^/]+)\/edit$/);
   const editEmployeeId = editMatch?.[1] ?? null;
 
-  const detailMatch = !editMatch && wildcard?.match(/^hr\/employees\/([^/]+)$/);
+  const detailMatch =
+    !editMatch && wildcard?.match(/^hr\/employees\/([^/]+)$/);
   const detailEmployeeId = detailMatch?.[1] ?? null;
+
+  const handleExportExcel = useCallback(
+    async (selectedRows) => {
+      if (!token || exporting) return;
+      setExporting(true);
+      try {
+        const ids = selectedRows.map((r) => r.id).join(",");
+        const url = `${API_BASE_URL}/hr/employees/export?ids=${ids}`;
+        const resp = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!resp.ok) throw new Error("Error al exportar");
+        const blob = await resp.blob();
+        const anchor = document.createElement("a");
+        anchor.href = URL.createObjectURL(blob);
+        anchor.download = `colaboradores-${new Date().toISOString().slice(0, 10)}.xlsx`;
+        anchor.click();
+        URL.revokeObjectURL(anchor.href);
+      } catch {
+        toast.error("No se pudo exportar el archivo Excel.");
+      } finally {
+        setExporting(false);
+      }
+    },
+    [token, exporting],
+  );
 
   if (isOrgChartRoute) return <HrOrgChartScreen />;
   if (isCatalogsRoute) return <HrCatalogsScreen />;
@@ -101,7 +196,9 @@ export default function HrScreen() {
           title="Colaboradores"
           description="Directorio y expedientes del equipo."
         />
-        <p className="text-sm text-muted-foreground">No tienes permisos para ver los colaboradores.</p>
+        <p className="text-sm text-muted-foreground">
+          No tienes permisos para ver los colaboradores.
+        </p>
       </div>
     );
   }
@@ -121,7 +218,9 @@ export default function HrScreen() {
               Organigrama
             </Button>
             {canCreateEmployees && (
-              <Button onClick={() => navigate("/app/m/atlas.hr/hr/employees/new")}>
+              <Button
+                onClick={() => navigate("/app/m/atlas.hr/hr/employees/new")}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Nuevo colaborador
               </Button>
@@ -134,6 +233,7 @@ export default function HrScreen() {
         token={token}
         apiBaseUrl={API_BASE_URL}
         onView={(row) => navigate(`/app/m/atlas.hr/hr/employees/${row.id}`)}
+        onExportExcel={handleExportExcel}
       />
     </div>
   );

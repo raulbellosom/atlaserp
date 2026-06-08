@@ -13,7 +13,7 @@ import {
   CardTitle,
   ComboboxField,
   ConfirmDialog,
-  DateField,
+  DatePickerField,
   DistDropZone,
   ImageViewer,
   MarkdownField,
@@ -169,7 +169,10 @@ export default function UserEditorScreen() {
 
   const countryOptions = useMemo(
     () =>
-      Country.getAllCountries().map((c) => ({ value: c.isoCode, label: c.name })),
+      Country.getAllCountries().map((c) => ({
+        value: c.isoCode,
+        label: c.name,
+      })),
     [],
   );
 
@@ -249,8 +252,9 @@ export default function UserEditorScreen() {
             <ArrowLeft className="h-4 w-4" />
             Volver a usuarios
           </Button>
-          {canManageUsers && user && (
-            isEditRoute ? (
+          {canManageUsers &&
+            user &&
+            (isEditRoute ? (
               <Button
                 variant="outline"
                 onClick={() =>
@@ -262,14 +266,15 @@ export default function UserEditorScreen() {
             ) : (
               <Button
                 onClick={() =>
-                  navigate(`/app/m/atlas.identity/identity/users/${user.id}/edit`)
+                  navigate(
+                    `/app/m/atlas.identity/identity/users/${user.id}/edit`,
+                  )
                 }
               >
                 <Pencil className="h-4 w-4" />
                 Editar
               </Button>
-            )
-          )}
+            ))}
           {canDeleteUsers && user && !isSelf && (
             <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
               <Trash2 className="h-4 w-4" />
@@ -310,15 +315,18 @@ export default function UserEditorScreen() {
         </Card>
       )}
 
-      {canReadUsers && !usersQuery.isLoading && !usersQuery.isError && !user && (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-[hsl(var(--muted-foreground))]">
-              Usuario no encontrado.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      {canReadUsers &&
+        !usersQuery.isLoading &&
+        !usersQuery.isError &&
+        !user && (
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                Usuario no encontrado.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
       {canReadUsers && user && !rolesQuery.isLoading && (
         <Card>
@@ -334,7 +342,10 @@ export default function UserEditorScreen() {
                 onClick={() => user?.avatarUrl && setImageViewerOpen(true)}
               >
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src={user?.avatarUrl ?? ""} alt={user?.displayName || "Usuario"} />
+                  <AvatarImage
+                    src={user?.avatarUrl ?? ""}
+                    alt={user?.displayName || "Usuario"}
+                  />
                   <AvatarFallback className="bg-[hsl(var(--muted))]">
                     <UserRound className="h-9 w-9 text-[hsl(var(--muted-foreground))]" />
                   </AvatarFallback>
@@ -439,7 +450,8 @@ export default function UserEditorScreen() {
 
             {!canEditForm && (
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                Modo lectura: necesitas permiso identity.users.update para editar.
+                Modo lectura: necesitas permiso identity.users.update para
+                editar.
               </p>
             )}
           </CardContent>
@@ -459,18 +471,20 @@ export default function UserEditorScreen() {
                 value={effective.phone}
                 disabled={!canEditForm}
                 onChange={(e) =>
-                  setDraft((prev) => ({ ...(prev ?? {}), phone: e.target.value }))
-                }
-              />
-              <DateField
-                label="Fecha de nacimiento"
-                icon={CalendarDays}
-                value={effective.birthDate}
-                disabled={!canEditForm}
-                onChange={(e) =>
                   setDraft((prev) => ({
                     ...(prev ?? {}),
-                    birthDate: e.target.value,
+                    phone: e.target.value,
+                  }))
+                }
+              />
+              <DatePickerField
+                label="Fecha de nacimiento"
+                value={effective.birthDate}
+                disabled={!canEditForm}
+                onChange={(val) =>
+                  setDraft((prev) => ({
+                    ...(prev ?? {}),
+                    birthDate: val ?? "",
                   }))
                 }
               />
@@ -644,7 +658,8 @@ export default function UserEditorScreen() {
 
             {!canEditForm && (
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                Modo lectura: necesitas permiso identity.users.update para editar.
+                Modo lectura: necesitas permiso identity.users.update para
+                editar.
               </p>
             )}
           </CardContent>
@@ -675,7 +690,9 @@ export default function UserEditorScreen() {
                   !effective.lastName
                 }
               >
-                {updateUserMutation.isPending ? "Guardando..." : "Guardar cambios"}
+                {updateUserMutation.isPending
+                  ? "Guardando..."
+                  : "Guardar cambios"}
               </Button>
             </div>
           </div>

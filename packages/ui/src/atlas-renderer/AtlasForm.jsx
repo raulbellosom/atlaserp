@@ -375,10 +375,10 @@ export function AtlasForm({
       }
       return next;
     });
-  // Only re-run when the form structure or initial data meaningfully changes.
-  // formStructureToken encodes blueprint key + field names + section layout.
-  // resetInitialDataToken encodes the initial data payload.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Only re-run when the form structure or initial data meaningfully changes.
+    // formStructureToken encodes blueprint key + field names + section layout.
+    // resetInitialDataToken encodes the initial data payload.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formStructureToken, resetInitialDataToken]);
 
   useEffect(() => {
@@ -418,11 +418,13 @@ export function AtlasForm({
       const labelFields = Array.isArray(descriptor.labelField)
         ? descriptor.labelField
         : typeof descriptor.labelField === "string"
-        ? [descriptor.labelField]
-        : [];
+          ? [descriptor.labelField]
+          : [];
 
       const labelParts = labelFields
-        .map((f) => (initialData[f] != null ? String(initialData[f]).trim() : ""))
+        .map((f) =>
+          initialData[f] != null ? String(initialData[f]).trim() : "",
+        )
         .filter(Boolean);
 
       if (labelParts.length === 0) continue;
@@ -435,19 +437,27 @@ export function AtlasForm({
       };
 
       setRelationState((prev) => {
-        const current = prev[fieldName] ?? { options: [], loading: false, error: null };
-        if (current.options.some((o) => o.value === seedOption.value)) return prev;
+        const current = prev[fieldName] ?? {
+          options: [],
+          loading: false,
+          error: null,
+        };
+        if (current.options.some((o) => o.value === seedOption.value))
+          return prev;
         return {
           ...prev,
           [fieldName]: {
             ...current,
-            options: [seedOption, ...current.options.filter((o) => o.value !== seedOption.value)],
+            options: [
+              seedOption,
+              ...current.options.filter((o) => o.value !== seedOption.value),
+            ],
           },
         };
       });
     }
-  // Re-seed whenever the initial data token changes (i.e. a different record is opened).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Re-seed whenever the initial data token changes (i.e. a different record is opened).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetInitialDataToken, fieldMap]);
 
   if (!apiPath) {
@@ -859,7 +869,10 @@ export function AtlasForm({
 
       onSuccess?.(nextResult);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "No se pudo guardar la información.";
+      const message =
+        err instanceof Error
+          ? err.message
+          : "No se pudo guardar la información.";
       setSubmitError(message);
       toast.error(message);
     } finally {
@@ -883,7 +896,10 @@ export function AtlasForm({
       } else if (field.type === "currency" || field.type === "decimal") {
         const amount = Number(value ?? 0);
         displayValue = Number.isFinite(amount)
-          ? new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(amount)
+          ? new Intl.NumberFormat("es-MX", {
+              style: "currency",
+              currency: "MXN",
+            }).format(amount)
           : "—";
       } else if (field.type === "date") {
         const str = String(value);
@@ -1018,9 +1034,10 @@ export function AtlasForm({
 
       case "color": {
         // Normalize legacy hex values to color names on first render
-        const colorValue = value && String(value).startsWith("#")
-          ? (resolveColorName(String(value)) ?? value)
-          : value;
+        const colorValue =
+          value && String(value).startsWith("#")
+            ? (resolveColorName(String(value)) ?? value)
+            : value;
         return (
           <CarColorPickerField
             key={field.name}
@@ -1040,7 +1057,8 @@ export function AtlasForm({
       // hex-color: native browser color picker — stores a #rrggbb hex string.
       // Use this instead of "color" when a vehicle palette is not appropriate.
       case "hex-color": {
-        const hexValue = value && String(value).startsWith("#") ? String(value) : "#000000";
+        const hexValue =
+          value && String(value).startsWith("#") ? String(value) : "#000000";
         return (
           <FieldWrapper
             label={field.label}
@@ -1247,7 +1265,9 @@ export function AtlasForm({
           {section.fields.map((fieldName) => {
             const field = fieldMap.get(fieldName);
             if (!field || !isFieldVisible(field, formValues)) return null;
-            const isFullWidth = ["textarea", "markdown"].includes(field.type);
+            const isFullWidth =
+              ["textarea", "markdown"].includes(field.type) ||
+              field.fullWidth === true;
             return (
               <div
                 key={field.name}

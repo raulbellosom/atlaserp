@@ -42,8 +42,8 @@
 
 ### Task 1: Nginx config — split /app/ and / routing
 
-- [ ] Read `infra/nginx/spa.conf` to confirm current content (currently a single `location /` block with `try_files`).
-- [ ] Replace `infra/nginx/spa.conf` entirely with the new split-routing config:
+- [x] Read `infra/nginx/spa.conf` to confirm current content (currently a single `location /` block with `try_files`). Verified: 2026-06-07
+- [x] Replace `infra/nginx/spa.conf` entirely with the new split-routing config: Verified: 2026-06-07 (adapted — kept /shims/, /brand/, /module-logos/ blocks; updated catch-all / to proxy to API)
 
 ```nginx
 server {
@@ -128,7 +128,7 @@ The `.replace(/\/$/, '')` strips the trailing slash from `/app/` to give `/app`,
 
 - [ ] Verify that the existing route paths in `main.jsx` do NOT need to change — they are all already absolute paths (`/app`, `/login`, `/setup`, `/acceso`, `/p`) relative to the basename. React Router handles the prefix automatically.
 - [ ] Also add `VITE_BASE_PATH` to `.env.example` if it exists in the repo root:
-  - Check if `d:\RacoonDevs\atlaserp-v2\.env.example` exists.
+  - Check if `.env.example` exists at the repository root.
   - If it does, add `VITE_BASE_PATH=/app/` after the last `VITE_` line.
 - [ ] Commit: `git add apps/desktop/src/main.jsx && git commit -m "feat(router): add basename from VITE_BASE_PATH for /app/ production routing"`
 

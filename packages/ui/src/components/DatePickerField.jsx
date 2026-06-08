@@ -7,8 +7,18 @@ import { FieldWrapper } from "./FormFields.jsx";
 import { cn } from "../lib/utils.js";
 
 const MONTHS = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
 ];
 
 const DAYS_HEADER = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"];
@@ -47,19 +57,27 @@ function Calendar({ value, onChange, onClose }) {
   const today = new Date();
   const selected = parseDate(value);
 
-  const [viewYear, setViewYear] = useState(selected?.getFullYear() ?? today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(selected?.getMonth() ?? today.getMonth());
+  const [viewYear, setViewYear] = useState(
+    selected?.getFullYear() ?? today.getFullYear(),
+  );
+  const [viewMonth, setViewMonth] = useState(
+    selected?.getMonth() ?? today.getMonth(),
+  );
 
   const cells = buildCalendarGrid(viewYear, viewMonth);
 
   function prevMonth() {
-    if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1); }
-    else setViewMonth((m) => m - 1);
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear((y) => y - 1);
+    } else setViewMonth((m) => m - 1);
   }
 
   function nextMonth() {
-    if (viewMonth === 11) { setViewMonth(0); setViewYear((y) => y + 1); }
-    else setViewMonth((m) => m + 1);
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear((y) => y + 1);
+    } else setViewMonth((m) => m + 1);
   }
 
   function selectDay(day) {
@@ -68,19 +86,29 @@ function Calendar({ value, onChange, onClose }) {
     onClose();
   }
 
-  const isToday = useCallback((day) => {
-    return day &&
-      today.getFullYear() === viewYear &&
-      today.getMonth() === viewMonth &&
-      today.getDate() === day;
-  }, [viewYear, viewMonth]);
+  const isToday = useCallback(
+    (day) => {
+      return (
+        day &&
+        today.getFullYear() === viewYear &&
+        today.getMonth() === viewMonth &&
+        today.getDate() === day
+      );
+    },
+    [viewYear, viewMonth],
+  );
 
-  const isSelected = useCallback((day) => {
-    return day &&
-      selected?.getFullYear() === viewYear &&
-      selected?.getMonth() === viewMonth &&
-      selected?.getDate() === day;
-  }, [selected, viewYear, viewMonth]);
+  const isSelected = useCallback(
+    (day) => {
+      return (
+        day &&
+        selected?.getFullYear() === viewYear &&
+        selected?.getMonth() === viewMonth &&
+        selected?.getDate() === day
+      );
+    },
+    [selected, viewYear, viewMonth],
+  );
 
   return (
     <div className="select-none">
@@ -110,7 +138,10 @@ function Calendar({ value, onChange, onClose }) {
       {/* Day header */}
       <div className="grid grid-cols-7 mb-1">
         {DAYS_HEADER.map((d) => (
-          <div key={d} className="text-center text-[10px] font-medium text-[hsl(var(--muted-foreground))] py-1">
+          <div
+            key={d}
+            className="text-center text-[10px] font-medium text-[hsl(var(--muted-foreground))] py-1"
+          >
             {d}
           </div>
         ))}
@@ -130,9 +161,13 @@ function Calendar({ value, onChange, onClose }) {
               className={cn(
                 "h-8 w-full rounded-md text-sm transition-colors",
                 !day && "invisible",
-                day && !sel && !tod && "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
+                day &&
+                  !sel &&
+                  !tod &&
+                  "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
                 tod && !sel && "font-semibold text-[hsl(var(--primary))]",
-                sel && "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold hover:bg-[hsl(var(--primary))]/90",
+                sel &&
+                  "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold hover:bg-[hsl(var(--primary))]/90",
               )}
             >
               {day}
@@ -156,6 +191,7 @@ export function DatePickerField({
   placeholder = "Seleccionar fecha",
   className,
   disabled,
+  compact = false,
   id: externalId,
 }) {
   const autoId = useId();
@@ -164,50 +200,72 @@ export function DatePickerField({
 
   const displayValue = formatDisplay(value);
 
-  return (
-    <FieldWrapper label={label} labelFor={id} required={required} error={error} hint={hint} className={className}>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            id={id}
-            type="button"
-            disabled={disabled}
-            aria-label={label ?? "Seleccionar fecha"}
-            className={cn(
-              "h-11 w-full rounded-lg border px-3.5 text-sm glass-subtle text-left",
-              "bg-card transition-all duration-150 outline-none flex items-center justify-between gap-2",
-              "focus:ring-2 focus:ring-primary/20 focus:border-primary",
-              "disabled:cursor-not-allowed disabled:opacity-50",
-              error
-                ? "border-destructive focus:ring-destructive/20 focus:border-destructive"
-                : "border-border",
-            )}
-          >
-            <span className={cn(!displayValue && "text-muted-foreground/70")}>
-              {displayValue || placeholder}
-            </span>
-            <CalendarDays size={14} className="text-muted-foreground/70 shrink-0" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-64 p-3">
-          <Calendar
-            value={value}
-            onChange={onChange}
-            onClose={() => setOpen(false)}
-          />
-          {value && (
-            <div className="mt-2 pt-2 border-t border-[hsl(var(--border))]">
-              <button
-                type="button"
-                onClick={() => { onChange(undefined); setOpen(false); }}
-                className="w-full text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors py-1"
-              >
-                Limpiar fecha
-              </button>
-            </div>
+  const trigger = (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          id={compact ? undefined : id}
+          type="button"
+          disabled={disabled}
+          aria-label={label ?? "Seleccionar fecha"}
+          className={cn(
+            compact
+              ? "h-7 rounded-md border px-2 text-xs text-left flex items-center gap-1.5 bg-[hsl(var(--background))] transition-colors"
+              : "h-11 w-full rounded-lg border px-3.5 text-sm glass-subtle text-left",
+            "outline-none transition-all duration-150 flex items-center justify-between gap-2",
+            "focus:ring-2 focus:ring-primary/20 focus:border-primary",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+            error
+              ? "border-destructive focus:ring-destructive/20 focus:border-destructive"
+              : "border-border",
+            compact ? "" : "bg-card",
           )}
-        </PopoverContent>
-      </Popover>
+        >
+          <span className={cn(!displayValue && "text-muted-foreground/70")}>
+            {displayValue || placeholder}
+          </span>
+          <CalendarDays
+            size={compact ? 12 : 14}
+            className="text-muted-foreground/70 shrink-0"
+          />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64 p-3">
+        <Calendar
+          value={value}
+          onChange={onChange}
+          onClose={() => setOpen(false)}
+        />
+        {value && (
+          <div className="mt-2 pt-2 border-t border-[hsl(var(--border))]">
+            <button
+              type="button"
+              onClick={() => {
+                onChange(undefined);
+                setOpen(false);
+              }}
+              className="w-full text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors py-1"
+            >
+              Limpiar fecha
+            </button>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+
+  if (compact) return trigger;
+
+  return (
+    <FieldWrapper
+      label={label}
+      labelFor={id}
+      required={required}
+      error={error}
+      hint={hint}
+      className={className}
+    >
+      {trigger}
     </FieldWrapper>
   );
 }

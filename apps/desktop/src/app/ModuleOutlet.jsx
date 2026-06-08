@@ -307,8 +307,12 @@ function isPathAllowedByNavigation(module, subPath) {
     const rel = navPath.startsWith(modulePrefix)
       ? (navPath.slice(modulePrefix.length) || '/')
       : navPath;
-    // Root items never authorise sub-paths (root subPath is handled by the early return above)
-    if (rel === '/') return false;
+    // Root nav items authorize direct single-segment children (e.g. /:id detail pages).
+    // Deeper paths (e.g. /categories/sub) are covered by their own nav entries.
+    if (rel === '/') {
+      const extra = subPath.slice(1); // strip leading /
+      return extra.length > 0 && !extra.includes('/');
+    }
     return subPath === rel || subPath.startsWith(`${rel}/`);
   }
 

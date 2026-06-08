@@ -64,7 +64,7 @@ modules/custom/custom.fleet/components/index.js      — register InsuranceBadge
 - [ ] **Step 1: Delete legacy model files**
 
 ```bash
-cd d:/RacoonDevs/atlaserp-v2
+cd atlaserp
 rm modules/custom/custom.fleet/models/maintenance.model.js
 rm modules/custom/custom.fleet/models/maintenance-type.model.js
 rm modules/custom/custom.fleet/models/maintenance-document.model.js

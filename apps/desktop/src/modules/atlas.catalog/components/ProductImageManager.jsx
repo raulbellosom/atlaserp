@@ -1,8 +1,8 @@
 // apps/desktop/src/modules/atlas.catalog/components/ProductImageManager.jsx
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { cn } from '@atlas/ui'
-import { ImagePlus, Star, Trash2 } from 'lucide-react'
+import { DistDropZone } from '@atlas/ui'
+import { Star, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { atlas } from '../../../lib/atlas.js'
 
@@ -14,8 +14,6 @@ import { atlas } from '../../../lib/atlas.js'
  *   onChange    ({ coverId, imageIds }) => void
  */
 export default function ProductImageManager({ token, coverId, imageIds = [], onChange }) {
-  const coverInputRef   = useRef(null)
-  const galleryInputRef = useRef(null)
   const [signedUrls, setSignedUrls] = useState({})
 
   const allIds = [...new Set([coverId, ...imageIds].filter(Boolean))]
@@ -45,8 +43,7 @@ export default function ProductImageManager({ token, coverId, imageIds = [], onC
     },
   })
 
-  async function handleCoverUpload(e) {
-    const file = e.target.files?.[0]
+  async function handleCoverFile(file) {
     if (!file) return
     try {
       const asset = await uploadMutation.mutateAsync(file)
@@ -54,26 +51,18 @@ export default function ProductImageManager({ token, coverId, imageIds = [], onC
       toast.success('Imagen de portada actualizada')
     } catch (err) {
       toast.error(err?.message ?? 'Error al subir imagen')
-    } finally { e.target.value = '' }
+    }
   }
 
-  async function handleGalleryUpload(e) {
-    const files = Array.from(e.target.files ?? [])
-    if (!files.length) return
-    const uploaded = []
-    for (const file of files) {
-      try {
-        const asset = await uploadMutation.mutateAsync(file)
-        uploaded.push(asset.id)
-      } catch (err) {
-        toast.error(`Error subiendo ${file.name}: ${err?.message}`)
-      }
+  async function handleGalleryFile(file) {
+    if (!file) return
+    try {
+      const asset = await uploadMutation.mutateAsync(file)
+      onChange({ coverId, imageIds: [...imageIds, asset.id] })
+      toast.success('Imagen agregada a la galería')
+    } catch (err) {
+      toast.error(err?.message ?? 'Error al subir imagen')
     }
-    if (uploaded.length) {
-      onChange({ coverId, imageIds: [...imageIds, ...uploaded] })
-      toast.success(`${uploaded.length} imagen(es) agregada(s)`)
-    }
-    e.target.value = ''
   }
 
   function removeCover() { onChange({ coverId: null, imageIds }) }
@@ -86,29 +75,19 @@ export default function ProductImageManager({ token, coverId, imageIds = [], onC
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))] mb-3">Imagen de portada</p>
         <div className="flex items-start gap-4">
-          <button
-            type="button"
-            onClick={() => coverInputRef.current?.click()}
-            className={cn(
-              'relative h-32 w-32 rounded-2xl border-2 border-dashed border-[hsl(var(--border))] overflow-hidden',
-              'bg-[hsl(var(--muted))]/40 transition-colors hover:bg-[hsl(var(--muted))]/60 hover:border-[hsl(var(--foreground))]/30',
-              'flex flex-col items-center justify-center gap-1',
-            )}
-          >
-            {coverId && signedUrls[coverId] ? (
-              <>
-                <img src={signedUrls[coverId]} alt="Portada" className="absolute inset-0 h-full w-full object-cover" />
-                <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <p className="text-white text-xs font-medium">Cambiar</p>
-                </div>
-              </>
-            ) : (
-              <>
-                <ImagePlus className="h-6 w-6 text-[hsl(var(--muted-foreground))]" />
-                <p className="text-xs text-[hsl(var(--muted-foreground))]">Subir portada</p>
-              </>
-            )}
-          </button>
+          <DistDropZone
+            variant="avatar"
+            accept="image/*"
+            maxSizeMB={10}
+            src={coverId ? signedUrls[coverId] : undefined}
+            onFile={handleCoverFile}
+            isUploading={uploadMutation.isPending}
+            fullScreenOverlay
+            overlayLabel="Suelta la imagen aqui"
+            overlayHint="Imagen de portada del producto"
+            emptyLabel="Subir portada"
+            className="w-32! h-32! rounded-2xl bg-[hsl(var(--muted))]/40 border-2 border-dashed border-[hsl(var(--border))]"
+          />
           {coverId && (
             <button
               type="button"
@@ -119,7 +98,6 @@ export default function ProductImageManager({ token, coverId, imageIds = [], onC
             </button>
           )}
         </div>
-        <input ref={coverInputRef} type="file" accept="image/*" className="sr-only" onChange={handleCoverUpload} />
       </div>
 
       {/* Gallery */}
@@ -147,16 +125,16 @@ export default function ProductImageManager({ token, coverId, imageIds = [], onC
               </div>
             </div>
           ))}
-          <button
-            type="button"
-            onClick={() => galleryInputRef.current?.click()}
-            className="h-24 w-24 rounded-xl border-2 border-dashed border-[hsl(var(--border))] flex flex-col items-center justify-center gap-1 text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--foreground))]/30 hover:bg-[hsl(var(--muted))]/40 transition-colors"
-          >
-            <ImagePlus className="h-5 w-5" />
-            <span className="text-xs">Agregar</span>
-          </button>
+          <DistDropZone
+            variant="avatar"
+            accept="image/*"
+            maxSizeMB={10}
+            onFile={handleGalleryFile}
+            isUploading={uploadMutation.isPending}
+            emptyLabel="Agregar"
+            className="w-24 h-24 rounded-xl bg-muted/40 border-2 border-dashed border-border"
+          />
         </div>
-        <input ref={galleryInputRef} type="file" accept="image/*" multiple className="sr-only" onChange={handleGalleryUpload} />
       </div>
     </div>
   )

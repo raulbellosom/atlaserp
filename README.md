@@ -119,6 +119,16 @@ Open `http://localhost:5173` or run `pnpm dev:tauri` for the native window.
 
 | Command               | What it does |
 | --------------------- | ------------ |
+| `pnpm --filter @atlas/desktop build` | Build desktop app and leave the installer as `Atlas-ERP-Setup.exe` |
+| `pnpm --filter @atlas/desktop publish:release` | Upload `Atlas-ERP-Setup.exe` to the GitHub release matching `apps/desktop/src-tauri/tauri.conf.json` |
+| `pnpm --filter @atlas/desktop release` | Build the installer, create/update the matching GitHub release, and mark it as `latest` |
+
+### Desktop release
+
+- The public download URL is always `https://github.com/raulbellosom/atlaserp/releases/latest/download/Atlas-ERP-Setup.exe`
+- `pnpm --filter @atlas/desktop release` reads the version from `apps/desktop/src-tauri/tauri.conf.json`, uploads `apps/desktop/src-tauri/target/release/bundle/nsis/Atlas-ERP-Setup.exe`, and marks that release as `latest`
+- If the tag does not exist, the script creates it; if it already exists, the script replaces the asset with `--clobber`
+| --------------------- | ------------ |
 | `pnpm build`          | Build all apps and packages |
 | `pnpm icons:generate` | Regenerate Tauri app icons |
 | `pnpm brand:build`    | Regenerate desktop/web branding assets |

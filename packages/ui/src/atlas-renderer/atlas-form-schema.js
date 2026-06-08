@@ -10,8 +10,12 @@ export function normalizeField(fieldLike) {
     type: fieldLike.type ?? "text",
     required: Boolean(fieldLike.required),
     readonly: Boolean(fieldLike.readonly),
+    fullWidth: Boolean(fieldLike.fullWidth),
     default: fieldLike.default,
-    hint: typeof fieldLike.hint === "string" && fieldLike.hint.trim() ? fieldLike.hint.trim() : null,
+    hint:
+      typeof fieldLike.hint === "string" && fieldLike.hint.trim()
+        ? fieldLike.hint.trim()
+        : null,
     options: fieldLike.options,
     relation: fieldLike.relation,
     visibleWhen: fieldLike.visibleWhen ?? null,
@@ -28,23 +32,38 @@ function normalizeSectionField(item) {
     if (!key) return null;
     return {
       name: key,
-      field: { name: key, label: key, type: "text", required: false, readonly: false, options: [], visibleWhen: null, hiddenWhen: null },
+      field: {
+        name: key,
+        label: key,
+        type: "text",
+        required: false,
+        readonly: false,
+        options: [],
+        visibleWhen: null,
+        hiddenWhen: null,
+      },
     };
   }
   const normalized = normalizeField(item);
   if (!normalized) return null;
-  return { name: normalized.name, field: { ...normalized, options: normalized.options ?? [] } };
+  return {
+    name: normalized.name,
+    field: { ...normalized, options: normalized.options ?? [] },
+  };
 }
 
 function normalizeAttachmentsPlacement(value) {
-  const placement = String(value ?? "embedded").trim().toLowerCase();
+  const placement = String(value ?? "embedded")
+    .trim()
+    .toLowerCase();
   return placement === "aside" ? "aside" : "embedded";
 }
 
 function toSectionMeta(entry) {
   return {
     description:
-      typeof entry?.description === "string" && entry.description.trim().length > 0
+      typeof entry?.description === "string" &&
+      entry.description.trim().length > 0
         ? entry.description.trim()
         : null,
     collapsible: Boolean(entry?.collapsible),
@@ -69,16 +88,24 @@ export function normalizeSections(schema, fieldMap) {
       if (sectionType === "attachments" || sectionType === "documents") {
         const attachmentsConfig =
           sectionType === "attachments"
-            ? entry.attachments ?? {}
-            : { ...(entry.documents ?? {}), placement: entry.placement ?? "embedded" };
+            ? (entry.attachments ?? {})
+            : {
+                ...(entry.documents ?? {}),
+                placement: entry.placement ?? "embedded",
+              };
         return {
           id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
-          title: normalizeSpanishLabel(entry.title ?? entry.label ?? "Documentos"),
+          title: normalizeSpanishLabel(
+            entry.title ?? entry.label ?? "Documentos",
+          ),
           type: "attachments",
           placement: normalizeAttachmentsPlacement(
             entry.placement ?? attachmentsConfig?.placement,
           ),
-          icon: typeof entry.icon === "string" && entry.icon.trim() ? entry.icon.trim() : null,
+          icon:
+            typeof entry.icon === "string" && entry.icon.trim()
+              ? entry.icon.trim()
+              : null,
           ...toSectionMeta(entry),
           attachments: attachmentsConfig,
         };
@@ -87,12 +114,17 @@ export function normalizeSections(schema, fieldMap) {
       if (sectionType === "parts" || sectionType === "parts-editor") {
         return {
           id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
-          title: normalizeSpanishLabel(entry.title ?? entry.label ?? "Refacciones / Partes"),
+          title: normalizeSpanishLabel(
+            entry.title ?? entry.label ?? "Refacciones / Partes",
+          ),
           type: "parts",
           minItems: Number.isFinite(Number(entry.minItems))
             ? Math.max(0, Number(entry.minItems))
             : 0,
-          icon: typeof entry.icon === "string" && entry.icon.trim() ? entry.icon.trim() : null,
+          icon:
+            typeof entry.icon === "string" && entry.icon.trim()
+              ? entry.icon.trim()
+              : null,
           ...toSectionMeta(entry),
         };
       }
@@ -119,12 +151,16 @@ export function normalizeSections(schema, fieldMap) {
                 ? fieldDef.field.default
                 : existing?.default,
             options:
-              Array.isArray(fieldDef.field.options) && fieldDef.field.options.length > 0
+              Array.isArray(fieldDef.field.options) &&
+              fieldDef.field.options.length > 0
                 ? fieldDef.field.options
-                : existing?.options ?? [],
-            relation: fieldDef.field.relation ?? existing?.relation ?? undefined,
-            visibleWhen: fieldDef.field.visibleWhen ?? existing?.visibleWhen ?? null,
-            hiddenWhen: fieldDef.field.hiddenWhen ?? existing?.hiddenWhen ?? null,
+                : (existing?.options ?? []),
+            relation:
+              fieldDef.field.relation ?? existing?.relation ?? undefined,
+            visibleWhen:
+              fieldDef.field.visibleWhen ?? existing?.visibleWhen ?? null,
+            hiddenWhen:
+              fieldDef.field.hiddenWhen ?? existing?.hiddenWhen ?? null,
           });
         }
         if (!uniqueFields.includes(name)) uniqueFields.push(name);
@@ -134,13 +170,17 @@ export function normalizeSections(schema, fieldMap) {
         id: entry.id ?? entry.key ?? `section-${sectionIndex}`,
         // Keep null when no title is provided — renderSectionHeader checks for this
         // and skips rendering the header bar for untitled sections.
-        title: (entry.title ?? entry.label)
-          ? normalizeSpanishLabel(entry.title ?? entry.label)
-          : null,
+        title:
+          (entry.title ?? entry.label)
+            ? normalizeSpanishLabel(entry.title ?? entry.label)
+            : null,
         type: "fields",
-        columns: entry.columns === 1 ? 1 : Number(entry.columns) === 2 ? 2 : "auto",
+        columns:
+          entry.columns === 1 ? 1 : Number(entry.columns) === 2 ? 2 : "auto",
         icon:
-          typeof entry.icon === "string" && entry.icon.trim() ? entry.icon.trim() : null,
+          typeof entry.icon === "string" && entry.icon.trim()
+            ? entry.icon.trim()
+            : null,
         ...toSectionMeta(entry),
         fields: uniqueFields,
       };
