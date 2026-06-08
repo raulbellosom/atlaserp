@@ -229,15 +229,13 @@ export default function NotificationSettingsScreen() {
 
   if (!canRead) {
     return (
-      <div className="p-4 md:p-6">
+      <div className="p-4 md:p-6 space-y-6">
         <PageHeader
           eyebrow="Atlas Notifications"
           title="Configuracion de notificaciones"
           description="Define por que canales quieres recibir alertas."
         />
-        <div className="mt-4 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
-          No tienes permisos para configurar notificaciones.
-        </div>
+        <ErrorState message="No tienes permisos para configurar notificaciones." />
       </div>
     );
   }
