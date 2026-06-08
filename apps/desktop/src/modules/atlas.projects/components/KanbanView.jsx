@@ -1,0 +1,231 @@
+import { useState } from 'react'
+import {
+  DndContext, closestCenter, PointerSensor, KeyboardSensor,
+  useSensor, useSensors, DragOverlay,
+} from '@dnd-kit/core'
+import {
+  SortableContext, verticalListSortingStrategy,
+  useSortable, sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { Plus, GripVertical, AlertCircle } from 'lucide-react'
+import { EmptyState } from '@atlas/ui'
+import { toast } from 'sonner'
+import { useStatuses, useTasks, useMoveTask, useCreateTask } from '../hooks/useProjectsData'
+
+const PRIORITY_COLORS = {
+  URGENT: 'bg-red-500/20 text-red-400 border-red-500/30',
+  HIGH: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  MEDIUM: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  LOW: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
+  NONE: '',
+}
+
+const PRIORITY_LABELS = {
+  URGENT: 'Urgente', HIGH: 'Alta', MEDIUM: 'Media', LOW: 'Baja', NONE: '',
+}
+
+function isOverdue(dueDate) {
+  if (!dueDate) return false
+  return new Date(dueDate) < new Date()
+}
+
+function formatDate(d) {
+  if (!d) return null
+  return new Date(d).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+}
+
+function TaskCard({ task, onClick, isDragging }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="group bg-background border border-border rounded p-2.5 cursor-pointer hover:border-accent-foreground/20 transition-colors"
+      onClick={() => onClick(task.id)}
+    >
+      <div className="flex items-start gap-1.5">
+        <span
+          {...attributes}
+          {...listeners}
+          className="mt-0.5 opacity-0 group-hover:opacity-100 cursor-grab text-muted-foreground"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical size={12} />
+        </span>
+        <span className="flex-1 text-sm leading-snug">{task.title}</span>
+      </div>
+      <div className="flex items-center gap-1.5 mt-2 ml-4">
+        {task.priority !== 'NONE' && (
+          <span className={`text-xs border rounded px-1 ${PRIORITY_COLORS[task.priority]}`}>
+            {PRIORITY_LABELS[task.priority]}
+          </span>
+        )}
+        {task.assignee_profile && (
+          <span className="w-4 h-4 rounded-full bg-accent text-accent-foreground text-[9px] flex items-center justify-center font-medium">
+            {task.assignee_profile.full_name?.[0] ?? '?'}
+          </span>
+        )}
+        {task.due_date && (
+          <span className={`text-xs ml-auto ${isOverdue(task.due_date) ? 'text-red-400' : 'text-muted-foreground'}`}>
+            {isOverdue(task.due_date) && <AlertCircle size={10} className="inline mr-0.5" />}
+            {formatDate(task.due_date)}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function QuickCreateInput({ statusId, projectId, onDone }) {
+  const [value, setValue] = useState('')
+  const createTask = useCreateTask(projectId)
+  function submit(e) {
+    e.preventDefault()
+    const title = value.trim()
+    if (!title) return
+    createTask.mutate({ title, status_id: statusId }, {
+      onSuccess: () => { setValue(''); onDone() },
+      onError: () => toast.error('No se pudo crear la tarea'),
+    })
+  }
+  return (
+    <form onSubmit={submit} className="mt-2">
+      <input
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => e.key === 'Escape' && onDone()}
+        placeholder="Nombre de la tarea..."
+        className="w-full text-sm bg-muted border border-border rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-accent"
+      />
+    </form>
+  )
+}
+
+export default function KanbanView({ projectId, onTaskClick }) {
+  const { data: statusesData } = useStatuses(projectId)
+  const { data: tasksData } = useTasks(projectId, { parent_task_id: 'null' })
+  const statuses = statusesData?.data ?? statusesData ?? []
+  const tasks = tasksData?.data ?? tasksData ?? []
+  const moveTask = useMoveTask(projectId)
+  const [activeId, setActiveId] = useState(null)
+  const [quickCreate, setQuickCreate] = useState(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const tasksByStatus = {}
+  for (const s of statuses) {
+    tasksByStatus[s.id] = tasks
+      .filter((t) => t.status_id === s.id)
+      .sort((a, b) => a.position - b.position)
+  }
+
+  function handleDragStart({ active }) {
+    setActiveId(active.id)
+  }
+
+  function handleDragEnd({ active, over }) {
+    setActiveId(null)
+    if (!over || active.id === over.id) return
+    const task = tasks.find((t) => t.id === active.id)
+    if (!task) return
+
+    const overTask = tasks.find((t) => t.id === over.id)
+    const targetStatusId = overTask ? overTask.status_id : over.id
+    const targetTasks = tasksByStatus[targetStatusId] ?? []
+    const position = overTask
+      ? targetTasks.findIndex((t) => t.id === over.id)
+      : targetTasks.length
+
+    moveTask.mutate(
+      { taskId: task.id, statusId: targetStatusId, position },
+      { onError: () => toast.error('No se pudo mover la tarea') },
+    )
+  }
+
+  const activeTask = activeId ? tasks.find((t) => t.id === activeId) : null
+
+  if (statuses.length === 0) {
+    return (
+      <EmptyState
+        title="Sin columnas"
+        description="Este proyecto no tiene columnas de estado. Usa el icono de configuracion para agregar columnas."
+      />
+    )
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="flex gap-4 p-4 h-full overflow-x-auto">
+        {statuses.map((status) => {
+          const colTasks = tasksByStatus[status.id] ?? []
+          return (
+            <div key={status.id} className="flex-shrink-0 w-64 flex flex-col">
+              <div className="flex items-center gap-2 mb-2 px-1">
+                <span
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ background: status.color }}
+                />
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground truncate flex-1">
+                  {status.name}
+                </span>
+                <span className="text-xs text-muted-foreground">{colTasks.length}</span>
+              </div>
+              <div className="flex-1 bg-muted/50 rounded-lg p-2 space-y-2 min-h-[120px] overflow-y-auto">
+                <SortableContext
+                  items={colTasks.map((t) => t.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {colTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onClick={onTaskClick}
+                      isDragging={task.id === activeId}
+                    />
+                  ))}
+                </SortableContext>
+                {quickCreate === status.id ? (
+                  <QuickCreateInput
+                    statusId={status.id}
+                    projectId={projectId}
+                    onDone={() => setQuickCreate(null)}
+                  />
+                ) : (
+                  <button
+                    onClick={() => setQuickCreate(status.id)}
+                    className="w-full text-left text-xs text-muted-foreground hover:text-foreground py-1 px-1 rounded transition-colors flex items-center gap-1"
+                  >
+                    <Plus size={12} />
+                    Agregar tarea
+                  </button>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <DragOverlay>
+        {activeTask && (
+          <div className="bg-background border border-accent-foreground/30 rounded p-2.5 shadow-xl text-sm w-64">
+            {activeTask.title}
+          </div>
+        )}
+      </DragOverlay>
+    </DndContext>
+  )
+}
