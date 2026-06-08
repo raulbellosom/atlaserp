@@ -514,3 +514,56 @@ export const notificationsMap = createModuleManifest({
   },
   blueprints: [],
 });
+
+export const projectsMap = createModuleManifest({
+  key: 'atlas.projects',
+  name: 'Proyectos',
+  description: 'Gestion de proyectos y tareas con vistas Kanban, Lista y Timeline.',
+  version: '1.0.0',
+  kind: 'FEATURE',
+  core: false,
+  uninstallable: true,
+  icon: 'FolderKanban',
+  color: '#6366f1',
+  category: 'productividad',
+  summary: 'Proyectos y tareas con Kanban, Lista y Timeline',
+  dependencies: [
+    { key: 'atlas.identity' },
+    { key: 'atlas.company' },
+    { key: 'atlas.calendar', optional: true },
+  ],
+  lifecycle: {
+    installable: true,
+    uninstallable: true,
+    resettable: true,
+    supportsDataPurge: true,
+    defaultUninstallPolicy: 'purge-owned-tables',
+    ownedEntities: ['Project', 'ProjectMember', 'TaskStatus', 'Task'],
+    sharedEntities: ['UserProfile', 'Company'],
+  },
+  navigation: [
+    {
+      label: 'Proyectos',
+      path: '/',
+      icon: 'FolderKanban',
+      layout: 'main',
+      permissionKey: 'projects.access',
+    },
+  ],
+  permissions: [
+    { key: 'projects.access',          name: 'Acceder a Proyectos' },
+    { key: 'projects.project.read',    name: 'Ver proyectos' },
+    { key: 'projects.project.create',  name: 'Crear proyectos' },
+    { key: 'projects.project.update',  name: 'Editar proyectos' },
+    { key: 'projects.project.delete',  name: 'Archivar proyectos' },
+    { key: 'projects.task.read',       name: 'Ver tareas' },
+    { key: 'projects.task.create',     name: 'Crear tareas' },
+    { key: 'projects.task.update',     name: 'Editar tareas' },
+    { key: 'projects.task.delete',     name: 'Eliminar tareas' },
+    { key: 'projects.member.manage',   name: 'Gestionar miembros' },
+  ],
+  exposes: {
+    createTask: 'function',
+  },
+  blueprints: [],
+});

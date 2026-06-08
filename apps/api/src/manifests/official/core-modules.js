@@ -5,6 +5,7 @@ import {
   atlasWebsiteManifest,
   activityMap,
   notificationsMap,
+  projectsMap,
 } from "./feature-modules.js";
 
 export const atlasCoreMap = createModuleManifest({
@@ -1045,4 +1046,5 @@ export const coreModules = [
   activityMap,
   notificationsMap,
   atlasCatalogManifest,
+  projectsMap,
 ];
