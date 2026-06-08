@@ -21,7 +21,7 @@ export function createTasksService({ prisma }) {
     return prisma.task.findMany({
       where,
       include: {
-        assignee: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+        assignee: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } },
         status: true,
         _count: { select: { subtasks: true } },
       },
@@ -33,7 +33,7 @@ export function createTasksService({ prisma }) {
     const task = await prisma.task.findFirst({
       where: { id: taskId },
       include: {
-        assignee: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+        assignee: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } },
         status: true,
         subtasks: {
           include: { assignee: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } } },

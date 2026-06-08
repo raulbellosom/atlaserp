@@ -51,7 +51,7 @@ export function createProjectsService({ prisma }) {
       include: {
         members: {
           include: {
-            user: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+            user: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } },
           },
         },
         _count: { select: { tasks: { where: { parentTaskId: null } } } },
@@ -66,7 +66,7 @@ export function createProjectsService({ prisma }) {
       include: {
         members: {
           include: {
-            user: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+            user: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } },
           },
         },
         statuses: { orderBy: { position: 'asc' } },
