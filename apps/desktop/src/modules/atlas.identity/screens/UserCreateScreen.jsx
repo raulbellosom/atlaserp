@@ -7,6 +7,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  PageHeader,
   PasswordField,
   SelectField,
   TextField,
@@ -94,22 +95,17 @@ export default function UserCreateScreen() {
     form.password === form.confirmPassword;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-[hsl(var(--muted-foreground))]">
-            Atlas Identity
-          </p>
-          <h1 className="text-2xl font-semibold mt-1">Nuevo usuario</h1>
-        </div>
-        <Button
-          variant="outline"
-          onClick={() => navigate("/app/m/atlas.identity/identity/users")}
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Volver a usuarios
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-6">
+      <PageHeader
+        eyebrow="Atlas Identity"
+        title="Nuevo usuario"
+        actions={
+          <Button variant="outline" onClick={() => navigate("/app/m/atlas.identity/identity/users")}>
+            <ArrowLeft className="h-4 w-4" />
+            Volver a usuarios
+          </Button>
+        }
+      />
 
       {!canManageUsers && (
         <Card>
