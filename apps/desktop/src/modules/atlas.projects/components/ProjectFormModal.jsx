@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-  Button, TextField, SelectField,
+  Button, TextField, SelectField, ConfirmDialog,
 } from '@atlas/ui'
 import { Textarea } from '@atlas/ui'
 import { toast } from 'sonner'
-import { useCreateProject, useUpdateProject } from '../hooks/useProjectsData'
+import { useCreateProject, useUpdateProject, useArchiveProject } from '../hooks/useProjectsData'
 
 const TEMPLATE_OPTIONS = [
   { value: 'general',    label: 'General' },
@@ -19,15 +19,17 @@ const PRESET_COLORS = [
   '#ef4444', '#a855f7', '#ec4899', '#64748b',
 ]
 
-export default function ProjectFormModal({ open, onOpenChange, project, onCreated }) {
+export default function ProjectFormModal({ open, onOpenChange, project, onCreated, onArchived }) {
   const isEdit = Boolean(project)
   const createProject = useCreateProject()
   const updateProject = useUpdateProject(project?.id)
+  const archiveProject = useArchiveProject()
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [color, setColor] = useState('#6366f1')
   const [template, setTemplate] = useState('general')
+  const [archiveOpen, setArchiveOpen] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -69,9 +71,22 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
     }
   }
 
+  function handleArchive() {
+    archiveProject.mutate(project.id, {
+      onSuccess: () => {
+        toast.success('Proyecto archivado')
+        setArchiveOpen(false)
+        onOpenChange(false)
+        onArchived?.()
+      },
+      onError: () => toast.error('No se pudo archivar el proyecto'),
+    })
+  }
+
   const isPending = createProject.isPending || updateProject.isPending
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -124,7 +139,17 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
               options={TEMPLATE_OPTIONS}
             />
           )}
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            {isEdit && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-destructive hover:text-destructive mr-auto"
+                onClick={() => setArchiveOpen(true)}
+              >
+                Archivar
+              </Button>
+            )}
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
@@ -135,5 +160,15 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
         </form>
       </DialogContent>
     </Dialog>
+
+    <ConfirmDialog
+      open={archiveOpen}
+      onOpenChange={setArchiveOpen}
+      title="Archivar proyecto"
+      description={`El proyecto "${project?.name ?? ''}" se marcara como archivado. Podras restaurarlo desde la configuracion.`}
+      confirmLabel="Archivar"
+      onConfirm={handleArchive}
+    />
+    </>
   )
 }

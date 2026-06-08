@@ -9,6 +9,7 @@ import ListView from '../components/ListView.jsx'
 import TimelineView from '../components/TimelineView.jsx'
 import TaskDetailPanel from '../components/TaskDetailPanel.jsx'
 import ProjectFormModal from '../components/ProjectFormModal.jsx'
+import TaskFormModal from '../components/TaskFormModal.jsx'
 import StatusEditor from '../components/StatusEditor.jsx'
 
 const VIEWS = [
@@ -31,6 +32,7 @@ export default function ProjectsScreen() {
   const [projectFormOpen, setProjectFormOpen] = useState(false)
   const [editingProject, setEditingProject] = useState(null)
   const [statusEditorOpen, setStatusEditorOpen] = useState(false)
+  const [taskFormOpen, setTaskFormOpen] = useState(false)
 
   const projectList = projects?.data ?? projects ?? []
   const selectedProject = projectList.find((p) => p.id === selectedId) ?? projectList[0] ?? null
@@ -132,6 +134,13 @@ export default function ProjectsScreen() {
                 <Settings2 size={16} />
               </Button>
               <Button
+                size="sm"
+                onClick={() => setTaskFormOpen(true)}
+              >
+                <Plus size={14} className="mr-1" />
+                Nueva tarea
+              </Button>
+              <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => { setEditingProject(selectedProject); setProjectFormOpen(true) }}
@@ -190,7 +199,17 @@ export default function ProjectsScreen() {
         onOpenChange={setProjectFormOpen}
         project={editingProject}
         onCreated={(p) => setSelectedId(p.id)}
+        onArchived={() => setSelectedId(null)}
       />
+
+      {/* Task form modal */}
+      {effectiveId && (
+        <TaskFormModal
+          open={taskFormOpen}
+          onOpenChange={setTaskFormOpen}
+          projectId={effectiveId}
+        />
+      )}
 
       {/* Status editor */}
       {selectedProject && (
