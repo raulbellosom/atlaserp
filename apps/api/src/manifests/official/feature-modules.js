@@ -541,6 +541,7 @@ export const projectsMap = createModuleManifest({
     ownedEntities: ['Project', 'ProjectMember', 'TaskStatus', 'Task'],
     sharedEntities: ['UserProfile', 'Company'],
   },
+  fullscreenPaths: ['/'],
   navigation: [
     {
       label: 'Proyectos',

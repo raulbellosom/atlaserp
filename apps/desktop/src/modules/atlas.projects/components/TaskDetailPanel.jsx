@@ -105,7 +105,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
 
   const statusOptions = (statuses?.data ?? statuses ?? []).map((s) => ({ value: s.id, label: s.name }))
   const userOptions = [
-    { value: '', label: 'Sin asignar' },
+    { value: '__none__', label: 'Sin asignar' },
     ...users.map((u) => ({ value: u.id, label: (u.displayName ?? [u.firstName, u.lastName].filter(Boolean).join(' ')) || u.email || u.id })),
   ]
   const subtasks = task?.subtasks ?? []
@@ -152,8 +152,8 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
               />
               <SelectField
                 label="Asignado a"
-                value={task.assigneeId ?? ''}
-                onValueChange={(v) => saveField('assigneeId', v || null)}
+                value={task.assigneeId ?? '__none__'}
+                onValueChange={(v) => saveField('assigneeId', v === '__none__' ? null : v)}
                 options={userOptions}
               />
               <DatePickerField

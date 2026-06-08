@@ -33,7 +33,7 @@ export default function TaskFormModal({ open, onOpenChange, projectId, defaultSt
     if (open) {
       setTitle('')
       setPriority('NONE')
-      setAssigneeId('')
+      setAssigneeId('__none__')
       setDueDate(null)
     }
   }, [open])
@@ -53,7 +53,7 @@ export default function TaskFormModal({ open, onOpenChange, projectId, defaultSt
         title: trimmed,
         statusId,
         priority,
-        assigneeId: assigneeId || null,
+        assigneeId: assigneeId === '__none__' ? null : assigneeId || null,
         dueDate: dueDate ? dueDate.toISOString() : null,
       },
       {
@@ -68,7 +68,7 @@ export default function TaskFormModal({ open, onOpenChange, projectId, defaultSt
 
   const statusOptions = statuses.map((s) => ({ value: s.id, label: s.name }))
   const userOptions = [
-    { value: '', label: 'Sin asignar' },
+    { value: '__none__', label: 'Sin asignar' },
     ...users.map((u) => ({ value: u.id, label: (u.displayName ?? [u.firstName, u.lastName].filter(Boolean).join(' ')) || u.email || u.id })),
   ]
 

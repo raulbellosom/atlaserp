@@ -52,6 +52,7 @@ import {
   UsersRound,
   ShieldCheck,
   LayoutTemplate,
+  SquareKanban,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "../lib/utils.js";
@@ -108,6 +109,7 @@ const ICON_MAP = {
   UsersRound,
   ShieldCheck,
   LayoutTemplate,
+  SquareKanban,
 };
 
 const ICON_ALIAS_MAP = {
