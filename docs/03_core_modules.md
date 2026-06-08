@@ -2,6 +2,10 @@
 
 Six core modules. All have `core: true`, `uninstallable: false`. None can be removed or disabled from module lifecycle endpoints.
 
+## Quality standards
+
+All core modules must comply with the [Module Quality Standards](module-quality-standards.md). Criteria marked **REQUIRED** in that document are non-negotiable for any core module. CONDITIONAL criteria apply based on whether the module's design includes the relevant surface (list views, entity attachments, push events, etc.). Run a full 17-point audit before marking any core module update as production-ready.
+
 ## atlas.core
 
 Owns module registry/lifecycle, dashboard shell entry, system config, and audit-level platform controls.

@@ -17,9 +17,11 @@ import { toast } from "sonner";
 import { useAuth } from "../../auth/AuthProvider";
 import { atlas } from "../../lib/atlas";
 import {
+  getCurrentWebPushSubscription,
   getStoredWebPushSubscriptionId,
   isWebPushSupported,
   subscribeCurrentDeviceToWebPush,
+  syncCurrentDeviceWebPushSubscription,
   unsubscribeCurrentDeviceFromWebPush,
 } from "../../lib/webPush";
 
@@ -90,9 +92,15 @@ export default function NotificationSettingsScreen() {
   const [pushSupported, setPushSupported] = useState(false);
   const [pushPermission, setPushPermission] = useState("default");
   const [pushSubscriptionId, setPushSubscriptionId] = useState(null);
+  const [hasBrowserPushSubscription, setHasBrowserPushSubscription] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
 
-  const preferencesQuery = useQuery({
+  const {
+    data: preferencesData,
+    isError: isPreferencesError,
+    isLoading: isPreferencesLoading,
+    refetch: refetchPreferences,
+  } = useQuery({
     queryKey: ["notification-preferences", token],
     queryFn: () => atlas.notifications.listPreferences(token),
     enabled: Boolean(token) && canRead,
@@ -109,9 +117,9 @@ export default function NotificationSettingsScreen() {
   });
 
   const preferencesMap = useMemo(() => {
-    const rows = preferencesQuery.data?.data ?? [];
+    const rows = preferencesData?.data ?? [];
     return new Map(rows.map((row) => [row.eventType, row]));
-  }, [preferencesQuery.data]);
+  }, [preferencesData]);
 
   const catalogRows = useMemo(() => {
     const known = new Set(EVENT_CATALOG.map((item) => item.eventType));
@@ -127,12 +135,41 @@ export default function NotificationSettingsScreen() {
   }, [preferencesMap]);
 
   useEffect(() => {
-    const supported = isWebPushSupported();
-    setPushSupported(supported);
-    if (!supported) return;
-    setPushPermission(Notification.permission);
-    setPushSubscriptionId(getStoredWebPushSubscriptionId());
-  }, []);
+    let cancelled = false;
+
+    async function loadPushState() {
+      const supported = isWebPushSupported();
+      if (cancelled) return;
+      setPushSupported(supported);
+      if (!supported) return;
+
+      setPushPermission(Notification.permission);
+
+      const subscription = await getCurrentWebPushSubscription().catch(() => null);
+      if (cancelled) return;
+
+      setHasBrowserPushSubscription(Boolean(subscription));
+      setPushSubscriptionId(getStoredWebPushSubscriptionId());
+
+      if (!subscription || !token) return;
+
+      const response = await syncCurrentDeviceWebPushSubscription({
+        token,
+        deviceLabel: "Dispositivo web",
+      }).catch(() => null);
+      if (cancelled) return;
+
+      setPushSubscriptionId(
+        response?.data?.id ?? getStoredWebPushSubscriptionId() ?? null,
+      );
+    }
+
+    loadPushState();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   function getPreference(eventType) {
     return {
@@ -162,6 +199,7 @@ export default function NotificationSettingsScreen() {
         deviceLabel: "Dispositivo web",
       });
       setPushPermission(Notification.permission);
+      setHasBrowserPushSubscription(true);
       setPushSubscriptionId(response?.data?.id ?? getStoredWebPushSubscriptionId());
       toast.success("Push web activado en este dispositivo.");
     } catch (err) {
@@ -176,6 +214,7 @@ export default function NotificationSettingsScreen() {
     setPushBusy(true);
     try {
       await unsubscribeCurrentDeviceFromWebPush({ token });
+      setHasBrowserPushSubscription(false);
       setPushSubscriptionId(null);
       setPushPermission(
         typeof Notification === "undefined" ? "default" : Notification.permission,
@@ -232,9 +271,19 @@ export default function NotificationSettingsScreen() {
                     ? "Permitido"
                     : pushPermission === "denied"
                       ? "Bloqueado"
-                      : "Pendiente"}
+                    : "Pendiente"}
+                </span>
+                <span className="mx-2">·</span>
+                Suscripcion del navegador:{" "}
+                <span className="font-medium text-[hsl(var(--foreground))]">
+                  {hasBrowserPushSubscription ? "Activa" : "No activa"}
                 </span>
               </div>
+              {pushPermission === "granted" && !hasBrowserPushSubscription ? (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
+                  Este Chrome tiene permiso, pero no una suscripcion push activa. Vuelve a suscribirte en este dispositivo.
+                </div>
+              ) : null}
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
@@ -247,7 +296,9 @@ export default function NotificationSettingsScreen() {
                   type="button"
                   variant="outline"
                   onClick={handleUnsubscribeCurrentDevice}
-                  disabled={pushBusy || !pushSubscriptionId}
+                  disabled={
+                    pushBusy || (!hasBrowserPushSubscription && !pushSubscriptionId)
+                  }
                 >
                   {pushBusy ? "Procesando..." : "Desuscribirme"}
                 </Button>
@@ -262,12 +313,12 @@ export default function NotificationSettingsScreen() {
           <CardTitle>Preferencias por evento</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {preferencesQuery.isLoading ? (
+          {isPreferencesLoading ? (
             <PreferencesSkeleton />
-          ) : preferencesQuery.isError ? (
+          ) : isPreferencesError ? (
             <ErrorState
               title="No se pudieron cargar las preferencias"
-              onRetry={() => preferencesQuery.refetch()}
+              onRetry={() => refetchPreferences()}
             />
           ) : catalogRows.length === 0 ? (
             <EmptyState

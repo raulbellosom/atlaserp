@@ -1,4 +1,4 @@
-import { atlas } from "./atlas";
+import { atlas } from "./atlas.js";
 
 const STORAGE_KEY = "atlas.notifications.webpush.subscriptionId";
 
@@ -38,6 +38,44 @@ export async function registerNotificationServiceWorker() {
   return registration;
 }
 
+export async function getCurrentWebPushSubscription() {
+  if (!isWebPushSupported()) return null;
+  const registration =
+    (await navigator.serviceWorker.getRegistration("/")) ??
+    (await navigator.serviceWorker.getRegistration()) ??
+    null;
+  const subscription = await registration?.pushManager?.getSubscription?.();
+  if (!subscription) {
+    clearStoredWebPushSubscriptionId();
+    return null;
+  }
+  return subscription;
+}
+
+export async function syncCurrentDeviceWebPushSubscription({
+  token,
+  deviceLabel = "Dispositivo web",
+}) {
+  const subscription = await getCurrentWebPushSubscription();
+  if (!subscription) return { data: null };
+
+  const json = subscription.toJSON();
+  const response = await atlas.notifications.subscribeWebPush(token, {
+    endpoint: json.endpoint,
+    keys: {
+      p256dh: json.keys?.p256dh,
+      auth: json.keys?.auth,
+    },
+    deviceLabel,
+  });
+
+  const subscriptionId = response?.data?.id ?? null;
+  if (subscriptionId) {
+    window.localStorage.setItem(STORAGE_KEY, subscriptionId);
+  }
+  return response;
+}
+
 export async function subscribeCurrentDeviceToWebPush({
   token,
   deviceLabel = "Dispositivo web",
@@ -68,21 +106,7 @@ export async function subscribeCurrentDeviceToWebPush({
     });
   }
 
-  const json = subscription.toJSON();
-  const response = await atlas.notifications.subscribeWebPush(token, {
-    endpoint: json.endpoint,
-    keys: {
-      p256dh: json.keys?.p256dh,
-      auth: json.keys?.auth,
-    },
-    deviceLabel,
-  });
-
-  const subscriptionId = response?.data?.id ?? null;
-  if (subscriptionId) {
-    window.localStorage.setItem(STORAGE_KEY, subscriptionId);
-  }
-  return response;
+  return syncCurrentDeviceWebPushSubscription({ token, deviceLabel });
 }
 
 export async function unsubscribeCurrentDeviceFromWebPush({ token }) {
@@ -101,4 +125,3 @@ export async function unsubscribeCurrentDeviceFromWebPush({ token }) {
   clearStoredWebPushSubscriptionId();
   return { deleted: true };
 }
-

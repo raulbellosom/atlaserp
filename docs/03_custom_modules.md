@@ -37,6 +37,14 @@ If any step reveals a deviation from the approved spec or plan, stop and revise 
 
 ---
 
+## Quality standards
+
+Custom modules are evaluated against the same [Module Quality Standards](module-quality-standards.md) used for core modules. For custom modules, criteria marked REQUIRED in that document are still mandatory (layout, UI components, dialogs, loading states, empty/error states, toast notifications). Criteria marked RECOMMENDED are strong guidelines — follow them unless your module's design explicitly does not include the relevant surface.
+
+Run the 17-point audit checklist before submitting a custom module for review or deploying to a production instance.
+
+---
+
 ## The core rule
 
 A custom module must never require editing any of the following files:
