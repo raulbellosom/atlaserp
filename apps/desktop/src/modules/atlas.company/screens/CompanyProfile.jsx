@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   ComboboxField,
+  ErrorState,
   PageHeader,
   SelectField,
   Skeleton,
@@ -237,9 +238,7 @@ export default function CompanyProfile() {
           />
 
           {!canManage && (
-            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
-              Necesitas permiso company.profile.update para editar el perfil de la empresa.
-            </div>
+            <ErrorState message="Necesitas permiso company.profile.update para editar el perfil de la empresa." />
           )}
 
           <form

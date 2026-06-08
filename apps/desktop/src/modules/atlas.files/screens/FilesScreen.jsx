@@ -10,6 +10,7 @@ import {
   CardTitle,
   ConfirmDialog,
   EmptyState,
+  ErrorState,
   FileUploader,
   PageHeader,
 } from "@atlas/ui";
@@ -413,7 +414,7 @@ export default function FilesScreen() {
             title="Explorador de archivos"
             description="Visualiza, organiza, renombra y descarga archivos por lote o individualmente."
           />
-          <p className="text-sm text-muted-foreground">No tienes permisos para ver los archivos.</p>
+          <ErrorState message="No tienes permisos para ver los archivos." />
         </div>
       </div>
     );
@@ -490,14 +491,10 @@ export default function FilesScreen() {
             <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--muted-foreground))]" />
           </div>
         ) : filesQuery.isError ? (
-          <EmptyState
-            icon={SearchX}
-            title="No se pudieron cargar archivos"
-            description="Reintenta la carga para continuar."
-            action={{
-              label: "Reintentar",
-              onClick: () => filesQuery.refetch(),
-            }}
+          <ErrorState
+            title="No se pudieron cargar los archivos"
+            message="Reintenta la carga para continuar."
+            onRetry={() => filesQuery.refetch()}
           />
         ) : explorer.filteredFiles.length === 0 ? (
           <EmptyState

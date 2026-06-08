@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, DistDropZone, FileViewer, PageHeader, Skeleton } from "@atlas/ui";
+import { Button, Card, DistDropZone, ErrorState, FileViewer, PageHeader, Skeleton } from "@atlas/ui";
 import { Palette, Upload, ZoomIn } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -470,9 +470,7 @@ export default function CompanyBranding() {
           />
 
           {!canManage && (
-            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
-              Necesitas permiso company.branding.update para editar la marca visual.
-            </div>
+            <ErrorState message="Necesitas permiso company.branding.update para editar la marca visual." />
           )}
 
           <form
