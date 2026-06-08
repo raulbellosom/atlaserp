@@ -113,7 +113,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
   return (
     <>
       <Sheet open onOpenChange={(open) => { if (!open) onClose() }}>
-        <SheetContent className="w-[420px] sm:w-[480px] overflow-y-auto flex flex-col gap-0 p-0">
+        <SheetContent className="w-full sm:w-150 lg:w-170 overflow-y-auto flex flex-col gap-0 p-0">
           <SheetHeader className="px-6 py-4 border-b border-border">
             <SheetTitle className="sr-only">Detalles de tarea</SheetTitle>
             <div className="flex items-start gap-2">
@@ -158,13 +158,13 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
               />
               <DatePickerField
                 label="Fecha inicio"
-                value={task.startDate ? new Date(task.startDate) : null}
-                onChange={(d) => saveField('startDate', d ? d.toISOString() : null)}
+                value={task.startDate ?? null}
+                onChange={(d) => saveField('startDate', d ?? null)}
               />
               <DatePickerField
                 label="Fecha vencimiento"
-                value={task.dueDate ? new Date(task.dueDate) : null}
-                onChange={(d) => saveField('dueDate', d ? d.toISOString() : null)}
+                value={task.dueDate ?? null}
+                onChange={(d) => saveField('dueDate', d ?? null)}
               />
               <MarkdownField
                 label="Descripcion"
