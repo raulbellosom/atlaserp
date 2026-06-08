@@ -1,12 +1,14 @@
 import {
+  ActivityTimeline,
   Button,
+  DynamicForm,
   Sheet,
   SheetContent,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
-  SheetFooter,
-  DynamicForm,
 } from "@atlas/ui";
+import { atlas } from "../../../lib/atlas";
 import { TYPE_OPTIONS, CONTACTS_BLUEPRINT_FALLBACK } from "../constants";
 
 function withNotesField(blueprint) {
@@ -45,6 +47,7 @@ export function ContactFormSheet({
   blueprint,
   onSubmit,
   isMutating,
+  token,
 }) {
   const isEditing = Boolean(contact);
 
@@ -81,7 +84,7 @@ export function ContactFormSheet({
             {isEditing ? "Editar contacto" : "Nuevo contacto"}
           </SheetTitle>
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto py-4">
+        <div className="flex-1 overflow-y-auto py-4 space-y-6">
           <DynamicForm
             key={contact?.id ?? "new"}
             formId="contact-form"
@@ -100,6 +103,23 @@ export function ContactFormSheet({
             ]}
             fieldOptions={{ type: TYPE_OPTIONS }}
           />
+
+          {isEditing && contact?.id && (
+            <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden">
+              <div className="px-4 py-3 border-b border-[hsl(var(--border))]">
+                <h3 className="text-sm font-semibold">Actividad reciente</h3>
+              </div>
+              <ActivityTimeline
+                sdk={atlas}
+                token={token}
+                entityType="Contact"
+                entityId={contact.id}
+                limit={20}
+                heightClass="max-h-[280px]"
+                emptyMessage="Sin actividad registrada para este contacto."
+              />
+            </div>
+          )}
         </div>
         <SheetFooter className="gap-2">
           <Button

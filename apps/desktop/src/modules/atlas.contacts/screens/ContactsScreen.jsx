@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AtlasTable, Button, ConfirmDialog, PageHeader } from "@atlas/ui";
-import { FileSpreadsheet, Power, PowerOff, Trash2, UserPlus } from "lucide-react";
+import { AtlasTable, Button, ConfirmDialog, ErrorState, PageHeader } from "@atlas/ui";
+import { FileSpreadsheet, FileText, Power, PowerOff, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
@@ -203,6 +203,21 @@ export default function ContactsScreen() {
         }
       },
     },
+    {
+      label: "Exportar PDF",
+      icon: FileText,
+      onClick: async (selectedRows) => {
+        try {
+          const ids = selectedRows.map((row) => row.id).filter(Boolean);
+          if (!ids.length) return;
+          const blob = await atlas.contacts.exportContactsPdf(ids, token);
+          downloadBlob(blob, `contactos-${new Date().toISOString().slice(0, 10)}.pdf`);
+          toast.success("PDF generado");
+        } catch {
+          toast.error("No se pudo generar el PDF");
+        }
+      },
+    },
     canUpdateContacts && ((selectedRows) => {
       const mode = getUniformStatusMode(selectedRows);
       if (mode === "mixed") {
@@ -249,7 +264,7 @@ export default function ContactsScreen() {
           title="Contactos"
           description="Clientes, proveedores y personas vinculadas a tu empresa."
         />
-        <p className="text-sm text-muted-foreground">No tienes permisos para ver los contactos.</p>
+        <ErrorState message="No tienes permisos para ver los contactos." />
       </div>
     );
   }
@@ -293,6 +308,7 @@ export default function ContactsScreen() {
         blueprint={formBlueprint}
         onSubmit={handleFormSubmit}
         isMutating={isMutating}
+        token={token}
       />
 
       <ConfirmDialog

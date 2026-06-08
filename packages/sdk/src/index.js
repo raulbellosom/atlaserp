@@ -553,6 +553,12 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
           body: JSON.stringify({ ids }),
         }),
+      exportContactsPdf: (ids, token) =>
+        requestBlob("/contacts/export/pdf", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ ids }),
+        }),
     },
     files: {
       upload: (formData, token) =>
