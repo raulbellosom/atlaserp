@@ -3526,6 +3526,145 @@ app.get(
 );
 
 app.get(
+  "/hr/employees/export/pdf",
+  authMiddleware,
+  requirePermission("hr.employee.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const idsParam = c.req.query("ids");
+      const ids = idsParam
+        ? idsParam.split(",").map((s) => s.trim()).filter(Boolean)
+        : null;
+      const rows = await hrService.listEmployeesForExport({ authUserId, ids });
+      const {
+        resolveCompanyBranding, resolvePdfDocumentCtor,
+        toSafeText, compact, normalizeHexColor, lightenHex,
+        drawPdfHeader, drawPdfFooter,
+      } = await import("./services/pdf-branding-service.js");
+      const membership = await prisma.membership.findFirst({ where: { userId: authUserId } });
+      const branding = await resolveCompanyBranding({ prisma, companyId: membership?.companyId ?? "" });
+      const PDFDocument = await resolvePdfDocumentCtor();
+      if (typeof PDFDocument !== "function") {
+        return c.json({ error: "PDF no disponible." }, 503);
+      }
+
+      const brandColor = normalizeHexColor(branding.primaryColor, "#0F766E");
+      const brandLight = lightenHex(brandColor, 0.9);
+      const C_DARK = "#0F172A";
+      const C_MID = "#334155";
+      const C_MUTED = "#64748B";
+      const C_BORDER = "#E2E8F0";
+      const MARGIN = 44;
+
+      const STATUS_LABELS = { active: "Activo", vacation: "Vacaciones", inactive: "Inactivo", terminated: "Baja" };
+      const TYPE_LABELS = { full_time: "T. completo", part_time: "Medio tiempo", contractor: "Contratista", intern: "Practicante" };
+
+      const doc = new PDFDocument({ margin: 0, size: "LETTER", layout: "portrait", bufferPages: true });
+      const chunks = [];
+      const done = new Promise((resolve, reject) => {
+        doc.on("data", (chunk) => chunks.push(chunk));
+        doc.on("end", () => resolve(Buffer.concat(chunks)));
+        doc.on("error", reject);
+      });
+
+      const pageWidth = doc.page.width;
+      const right = pageWidth - MARGIN;
+      const contentWidth = right - MARGIN;
+      const date = new Date().toLocaleDateString("es-MX");
+
+      let y = drawPdfHeader(doc, {
+        branding,
+        title: "Directorio de Colaboradores",
+        subtitle: `${rows.length} colaborador${rows.length !== 1 ? "es" : ""}`,
+        folio: date,
+      });
+
+      const COL = { name: 150, code: 65, title: 110, dept: 100, status: 60, type: 75 };
+      const headers = [
+        { key: "full_name", label: "Nombre", w: COL.name },
+        { key: "employee_code", label: "Codigo", w: COL.code },
+        { key: "job_title", label: "Puesto", w: COL.title },
+        { key: "department", label: "Depto.", w: COL.dept },
+        { key: "status", label: "Estado", w: COL.status },
+        { key: "employment_type", label: "Tipo", w: COL.type },
+      ];
+
+      const HEADER_ROW_H = 20;
+      const ROW_H = 18;
+
+      function drawTableHeader(doc, y) {
+        doc.rect(MARGIN, y, contentWidth, HEADER_ROW_H).fill(brandColor);
+        let cx = MARGIN + 6;
+        for (const h of headers) {
+          doc.font("Helvetica-Bold").fontSize(7.5).fillColor("#FFFFFF")
+            .text(h.label, cx, y + 6, { width: h.w - 8, lineBreak: false });
+          cx += h.w;
+        }
+        return y + HEADER_ROW_H;
+      }
+
+      y = drawTableHeader(doc, y);
+
+      for (let i = 0; i < rows.length; i++) {
+        const emp = rows[i];
+        if (y + ROW_H > doc.page.height - 44) {
+          drawPdfFooter(doc, { branding, pageNumber: doc.bufferedPageRange().count, totalPages: 0 });
+          doc.addPage();
+          y = drawPdfHeader(doc, { branding, title: "Directorio de Colaboradores", subtitle: "Continuacion", folio: date });
+          y = drawTableHeader(doc, y);
+        }
+        const rowBg = i % 2 === 0 ? "#FFFFFF" : brandLight;
+        doc.rect(MARGIN, y, contentWidth, ROW_H).fill(rowBg);
+        doc.lineWidth(0.3).rect(MARGIN, y, contentWidth, ROW_H).stroke(C_BORDER);
+
+        const values = [
+          toSafeText(emp.full_name ?? `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim()),
+          toSafeText(emp.employee_code),
+          toSafeText(emp.job_title),
+          toSafeText(emp.department),
+          STATUS_LABELS[emp.status] ?? toSafeText(emp.status),
+          TYPE_LABELS[emp.employment_type] ?? toSafeText(emp.employment_type),
+        ];
+
+        let cx = MARGIN + 6;
+        for (let j = 0; j < headers.length; j++) {
+          const color = j === 0 ? C_DARK : j === 4 ? brandColor : C_MID;
+          const weight = j === 0 ? "Helvetica-Bold" : "Helvetica";
+          doc.font(weight).fontSize(7.5).fillColor(color)
+            .text(values[j], cx, y + 5, { width: headers[j].w - 10, lineBreak: false, ellipsis: true });
+          cx += headers[j].w;
+        }
+        y += ROW_H;
+      }
+
+      if (rows.length === 0) {
+        doc.font("Helvetica").fontSize(9).fillColor(C_MUTED)
+          .text("No hay colaboradores para mostrar.", MARGIN, y + 12, { width: contentWidth, align: "center" });
+      }
+
+      const range = doc.bufferedPageRange();
+      for (let p = range.start; p < range.start + range.count; p++) {
+        doc.switchToPage(p);
+        drawPdfFooter(doc, { branding, pageNumber: p - range.start + 1, totalPages: range.count });
+      }
+
+      doc.end();
+      const buffer = await done;
+      const filename = `colaboradores-${new Date().toISOString().slice(0, 10)}.pdf`;
+      c.header("Content-Type", "application/pdf");
+      c.header("Content-Disposition", `attachment; filename="${filename}"`);
+      c.header("X-Atlas-Export-Count", String(rows.length));
+      return new Response(buffer, { status: 200, headers: c.res.headers });
+    } catch (err) {
+      console.error("[hr/employees/export/pdf]", err);
+      if (err instanceof HrServiceError) return c.json({ error: err.message }, err.status);
+      return c.json({ error: "No se pudo generar el PDF." }, 500);
+    }
+  },
+);
+
+app.get(
   "/hr/employees",
   authMiddleware,
   requirePermission("hr.employee.read"),

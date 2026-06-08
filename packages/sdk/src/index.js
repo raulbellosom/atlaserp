@@ -494,6 +494,18 @@ export function createAtlasClient({ baseUrl }) {
         const path = query ? `/hr/user-options?${query}` : "/hr/user-options";
         return request(path, { headers: withAuthHeaders(token) });
       },
+      exportEmployeesExcel: (ids, token) => {
+        const query = ids?.length ? `?ids=${ids.join(",")}` : "";
+        return requestBlob(`/hr/employees/export${query}`, {
+          headers: withAuthHeaders(token),
+        });
+      },
+      exportEmployeesPdf: (ids, token) => {
+        const query = ids?.length ? `?ids=${ids.join(",")}` : "";
+        return requestBlob(`/hr/employees/export/pdf${query}`, {
+          headers: withAuthHeaders(token),
+        });
+      },
     },
     contacts: {
       list: (token, options = {}) => {

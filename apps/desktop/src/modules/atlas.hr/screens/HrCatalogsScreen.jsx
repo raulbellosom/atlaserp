@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Badge, Button, ConfirmDialog, Skeleton, cn } from "@atlas/ui";
+import { Badge, Button, ConfirmDialog, Input, PageHeader, Skeleton, cn } from "@atlas/ui";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
 import {
@@ -85,13 +85,12 @@ function CatalogRow({ item, onUpdate, onToggleEnabled, isToggling, canManage }) 
       >
         {editing ? (
           <>
-            <input
+            <Input
               ref={inputRef}
-              type="text"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="flex-1 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-1.5 text-sm text-[hsl(var(--foreground))] outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30"
+              className="flex-1 h-8 text-sm"
               aria-label="Editar nombre"
             />
             <button
@@ -194,14 +193,13 @@ function CreateRow({ onAdd, isCreating }) {
 
   return (
     <div className="flex items-center gap-2 px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/30">
-      <input
+      <Input
         ref={inputRef}
-        type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Nombre del nuevo registro..."
-        className="flex-1 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-1.5 text-sm text-[hsl(var(--foreground))] outline-none placeholder:text-[hsl(var(--muted-foreground))] focus:ring-2 focus:ring-[hsl(var(--primary))]/30"
+        className="flex-1 h-8 text-sm"
         disabled={isCreating}
         aria-label="Nombre del nuevo registro"
       />
@@ -368,18 +366,11 @@ export default function HrCatalogsScreen() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 min-h-dvh">
-      {/* header */}
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
-          Atlas HR
-        </p>
-        <h1 className="text-2xl font-bold tracking-tight text-[hsl(var(--foreground))]">
-          Catálogos
-        </h1>
-        <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
-          Gestiona departamentos y puestos disponibles para los colaboradores.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Atlas HR"
+        title="Catalogos"
+        description="Gestiona departamentos y puestos disponibles para los colaboradores."
+      />
 
       {/* tabs */}
       <div className="flex items-center gap-1 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 p-1 w-fit">
