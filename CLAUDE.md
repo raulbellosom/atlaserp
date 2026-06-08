@@ -254,6 +254,7 @@ Before adding a new feature, read:
 - `docs/08_blueprints.md` - blueprint field types and rendering rules
 - `docs/architecture/atlas-module-engine-v3.md` - AME3 full architecture, roadmap, and required spec sections
 - `docs/TASKS.md` - current phase status and roadmap
+- `docs/ai-context/ui-screen-audit-checklist.md` - 14-aspect UI checklist for all module screens; run before marking any screen complete
 
 ## Spec-Driven Development
 
