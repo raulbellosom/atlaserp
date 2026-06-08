@@ -13,6 +13,7 @@ const GROUPS = {
   audit: "Bitacora",
   activity: "Actividad",
   notifications: "Notificaciones",
+  projects: "Proyectos",
 };
 
 const MODULE_LABELS = {
@@ -29,6 +30,7 @@ const MODULE_LABELS = {
   audit: "Bitacora",
   activity: "Actividad",
   notifications: "Notificaciones",
+  projects: "Proyectos",
 };
 
 const FEATURE_LABELS = {
@@ -854,6 +856,67 @@ export const PERMISSION_CATALOG = {
     descriptionEs: "Permite subir y eliminar el dist/ compilado del sitio publico.",
     groupKey: "website",
     order: 13,
+  },
+
+  "projects.access": {
+    displayNameEs: "Acceder a Proyectos",
+    descriptionEs: "Permite ver el modulo de proyectos en la navegacion.",
+    groupKey: "projects",
+    order: 10,
+  },
+  "projects.project.read": {
+    displayNameEs: "Ver proyectos",
+    descriptionEs: "Permite leer proyectos donde el usuario es miembro.",
+    groupKey: "projects",
+    order: 20,
+  },
+  "projects.project.create": {
+    displayNameEs: "Crear proyectos",
+    descriptionEs: "Permite crear nuevos proyectos.",
+    groupKey: "projects",
+    order: 30,
+  },
+  "projects.project.update": {
+    displayNameEs: "Editar proyectos",
+    descriptionEs: "Permite editar datos y columnas del proyecto.",
+    groupKey: "projects",
+    order: 40,
+  },
+  "projects.project.delete": {
+    displayNameEs: "Archivar proyectos",
+    descriptionEs: "Permite archivar o eliminar proyectos.",
+    groupKey: "projects",
+    order: 50,
+  },
+  "projects.task.read": {
+    displayNameEs: "Ver tareas",
+    descriptionEs: "Permite leer tareas dentro de un proyecto.",
+    groupKey: "projects",
+    order: 60,
+  },
+  "projects.task.create": {
+    displayNameEs: "Crear tareas",
+    descriptionEs: "Permite crear nuevas tareas en un proyecto.",
+    groupKey: "projects",
+    order: 70,
+  },
+  "projects.task.update": {
+    displayNameEs: "Editar tareas",
+    descriptionEs: "Permite editar tareas existentes.",
+    groupKey: "projects",
+    order: 80,
+  },
+  "projects.task.delete": {
+    displayNameEs: "Eliminar tareas",
+    descriptionEs: "Permite eliminar tareas y sus subtareas.",
+    groupKey: "projects",
+    order: 90,
+  },
+  "projects.member.manage": {
+    displayNameEs: "Gestionar miembros",
+    descriptionEs: "Permite agregar o remover miembros del proyecto.",
+    groupKey: "projects",
+    order: 100,
   },
 };
 
