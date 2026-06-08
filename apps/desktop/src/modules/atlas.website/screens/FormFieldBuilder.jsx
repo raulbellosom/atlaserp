@@ -12,7 +12,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
-  Button, ConfirmDialog, SelectField, TextField,
+  Button, Checkbox, ConfirmDialog, SelectField, TextField,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@atlas/ui'
 import { toast } from 'sonner'
@@ -142,10 +142,17 @@ function FieldDialog({ formId, field, open, onOpenChange, onSaved }) {
               placeholder="Opcion 1, Opcion 2"
             />
           )}
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={form.required} onChange={(e) => setForm((f) => ({ ...f, required: e.target.checked }))} className="rounded" />
+          <div
+            className="flex items-center gap-2 text-sm cursor-pointer"
+            onClick={() => setForm((f) => ({ ...f, required: !f.required }))}
+          >
+            <Checkbox
+              checked={form.required}
+              onCheckedChange={(v) => setForm((f) => ({ ...f, required: Boolean(v) }))}
+              onClick={(e) => e.stopPropagation()}
+            />
             Campo obligatorio
-          </label>
+          </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={mutation.isPending || !form.label.trim() || !form.name.trim()}>

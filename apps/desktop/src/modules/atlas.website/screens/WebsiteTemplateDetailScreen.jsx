@@ -48,7 +48,7 @@ export default function WebsiteTemplateDetailScreen() {
 
   if (!tpl) {
     return (
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <p className="text-muted-foreground">Plantilla no encontrada.</p>
       </div>
     )

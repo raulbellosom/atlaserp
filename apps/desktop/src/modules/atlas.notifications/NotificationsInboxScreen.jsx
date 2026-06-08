@@ -10,15 +10,10 @@ import {
   Button,
   EmptyState,
   ErrorState,
-  Input,
-  Label,
   PageHeader,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  SelectField,
   Skeleton,
+  TextField,
 } from "@atlas/ui";
 import {
   Bell,
@@ -215,71 +210,42 @@ export default function NotificationsInboxScreen() {
 
       <div className="rounded-2xl border border-[hsl(var(--border))] p-4 space-y-3 bg-[hsl(var(--card))]">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="notifications-q">Buscar</Label>
-            <Input
-              id="notifications-q"
-              value={filters.q}
-              onChange={(event) =>
-                setFilters((prev) => ({ ...prev, q: event.target.value }))
-              }
-              placeholder="Título, cuerpo o tipo..."
-            />
-          </div>
+          <TextField
+            label="Buscar"
+            value={filters.q}
+            onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))}
+            placeholder="Título, cuerpo o tipo..."
+          />
 
-          <div className="space-y-1.5">
-            <Label>Estado</Label>
-            <Select
-              value={filters.unreadOnly}
-              onValueChange={(value) =>
-                setFilters((prev) => ({ ...prev, unreadOnly: value }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="false">Todas</SelectItem>
-                <SelectItem value="true">Solo no leídas</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <SelectField
+            label="Estado"
+            value={filters.unreadOnly}
+            onValueChange={(value) => setFilters((prev) => ({ ...prev, unreadOnly: value }))}
+            options={[
+              { value: "false", label: "Todas" },
+              { value: "true", label: "Solo no leídas" },
+            ]}
+          />
 
-          <div className="space-y-1.5">
-            <Label>Prioridad</Label>
-            <Select
-              value={filters.priority}
-              onValueChange={(value) =>
-                setFilters((prev) => ({ ...prev, priority: value }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="low">Baja</SelectItem>
-                <SelectItem value="medium">Media</SelectItem>
-                <SelectItem value="high">Alta</SelectItem>
-                <SelectItem value="critical">Crítica</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <SelectField
+            label="Prioridad"
+            value={filters.priority}
+            onValueChange={(value) => setFilters((prev) => ({ ...prev, priority: value }))}
+            options={[
+              { value: "all", label: "Todas" },
+              { value: "low", label: "Baja" },
+              { value: "medium", label: "Media" },
+              { value: "high", label: "Alta" },
+              { value: "critical", label: "Crítica" },
+            ]}
+          />
 
-          <div className="space-y-1.5">
-            <Label htmlFor="notifications-event-type">Tipo de evento</Label>
-            <Input
-              id="notifications-event-type"
-              value={filters.eventType}
-              onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  eventType: event.target.value,
-                }))
-              }
-              placeholder="Ej: calendar.event.reminder"
-            />
-          </div>
+          <TextField
+            label="Tipo de evento"
+            value={filters.eventType}
+            onChange={(e) => setFilters((prev) => ({ ...prev, eventType: e.target.value }))}
+            placeholder="Ej: calendar.event.reminder"
+          />
         </div>
       </div>
 

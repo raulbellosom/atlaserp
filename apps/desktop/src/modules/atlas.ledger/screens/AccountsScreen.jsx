@@ -145,7 +145,7 @@ export default function AccountsScreen() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-3">
+      <div className="p-4 md:p-6 space-y-3">
         {[1, 2, 3].map((i) => (
           <div key={i} className="h-16 rounded-lg bg-[hsl(var(--muted))] animate-pulse" />
         ))}
