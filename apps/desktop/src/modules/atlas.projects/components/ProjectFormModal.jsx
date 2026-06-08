@@ -5,6 +5,7 @@ import {
 } from '@atlas/ui'
 import { toast } from 'sonner'
 import { useCreateProject, useUpdateProject, useArchiveProject } from '../hooks/useProjectsData'
+import { PROJECT_ICONS, getProjectIcon } from '../lib/projectIcons.js'
 
 const TEMPLATE_OPTIONS = [
   { value: 'general',    label: 'General' },
@@ -27,6 +28,7 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [color, setColor] = useState('#6366f1')
+  const [icon, setIcon] = useState('FolderKanban')
   const [template, setTemplate] = useState('general')
   const [archiveOpen, setArchiveOpen] = useState(false)
 
@@ -35,6 +37,7 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
       setName(project?.name ?? '')
       setDescription(project?.description ?? '')
       setColor(project?.color ?? '#6366f1')
+      setIcon(project?.icon ?? 'FolderKanban')
       setTemplate('general')
     }
   }, [open, project])
@@ -46,7 +49,7 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
 
     if (isEdit) {
       updateProject.mutate(
-        { name: trimmed, description: description.trim() || null, color },
+        { name: trimmed, description: description.trim() || null, color, icon },
         {
           onSuccess: () => {
             toast.success('Proyecto actualizado')
@@ -57,7 +60,7 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
       )
     } else {
       createProject.mutate(
-        { name: trimmed, description: description.trim() || null, color, template },
+        { name: trimmed, description: description.trim() || null, color, icon, template },
         {
           onSuccess: (data) => {
             toast.success('Proyecto creado')
@@ -83,11 +86,12 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
   }
 
   const isPending = createProject.isPending || updateProject.isPending
+  const SelectedIcon = getProjectIcon(icon)
 
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Editar proyecto' : 'Nuevo proyecto'}</DialogTitle>
           <DialogDescription className="sr-only">
@@ -95,38 +99,79 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <TextField
-            label="Nombre"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Nombre del proyecto"
-            required
-          />
+          {/* Preview badge + Name */}
+          <div className="flex items-center gap-3">
+            <span
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: color }}
+            >
+              <SelectedIcon size={18} className="text-white" />
+            </span>
+            <TextField
+              label="Nombre"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nombre del proyecto"
+              required
+              className="flex-1"
+            />
+          </div>
+
+          {/* Color + Icon side by side */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
+                Color
+              </label>
+              <div className="flex gap-2 flex-wrap">
+                {PRESET_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    className={[
+                      'w-7 h-7 rounded-full border-2 transition-all',
+                      color === c ? 'border-foreground scale-110' : 'border-transparent',
+                    ].join(' ')}
+                    style={{ background: c }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
+                Icono
+              </label>
+              <div className="grid grid-cols-8 gap-0.5 max-h-28 overflow-y-auto rounded-lg border border-border p-1">
+                {PROJECT_ICONS.map(({ name: iName, Icon: Ic }) => (
+                  <button
+                    key={iName}
+                    type="button"
+                    onClick={() => setIcon(iName)}
+                    title={iName}
+                    className={[
+                      'w-7 h-7 rounded flex items-center justify-center transition-all',
+                      icon === iName
+                        ? 'text-white'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                    ].join(' ')}
+                    style={icon === iName ? { background: color } : {}}
+                  >
+                    <Ic size={13} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
           <MarkdownField
             label="Descripcion"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Descripcion opcional..."
           />
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
-              Color
-            </label>
-            <div className="flex gap-2 flex-wrap">
-              {PRESET_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setColor(c)}
-                  className={[
-                    'w-7 h-7 rounded-full border-2 transition-all',
-                    color === c ? 'border-foreground scale-110' : 'border-transparent',
-                  ].join(' ')}
-                  style={{ background: c }}
-                />
-              ))}
-            </div>
-          </div>
+
           {!isEdit && (
             <SelectField
               label="Plantilla de columnas"
@@ -135,6 +180,7 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
               options={TEMPLATE_OPTIONS}
             />
           )}
+
           <DialogFooter className="flex-col sm:flex-row gap-2">
             {isEdit && (
               <Button
