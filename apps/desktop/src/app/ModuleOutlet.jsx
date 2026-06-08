@@ -9,9 +9,6 @@ import { applyBrandTheme } from "../lib/brandTheme.js";
 import { useBrandingStore } from "../stores/branding.js";
 
 const SCREEN_MAP = {
-  "atlas.core:/": lazy(
-    () => import("../modules/atlas.core/screens/Overview.jsx"),
-  ),
   "atlas.core:/modules": lazy(
     () => import("../modules/atlas.core/screens/ModuleCatalog.jsx"),
   ),

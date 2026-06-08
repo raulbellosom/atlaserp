@@ -22,13 +22,6 @@ export const atlasCoreMap = createModuleManifest({
   summary: "Modulos, permisos, bitacora y configuracion del sistema",
   navigation: [
     {
-      label: "Dashboard",
-      path: "/",
-      icon: "LayoutDashboard",
-      layout: "main",
-      permissionKey: "core.access",
-    },
-    {
       label: "Modulos",
       path: "/modules",
       icon: "Puzzle",
