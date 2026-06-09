@@ -112,40 +112,59 @@ function hasEnvKey(content, key) {
   });
 }
 
-const GOOGLE_OPTIONAL_VARS = [
-  { key: "GOOGLE_OAUTH_CLIENT_ID",     placeholder: "<YOUR_GOOGLE_OAUTH_CLIENT_ID>",     comment: null },
-  { key: "GOOGLE_OAUTH_CLIENT_SECRET", placeholder: "<YOUR_GOOGLE_OAUTH_CLIENT_SECRET>", comment: null },
-  { key: "GOOGLE_OAUTH_REDIRECT_URI",  placeholder: "https://your-atlas-domain.com/app/google/calendar/callback", comment: null },
+const OPTIONAL_VAR_GROUPS = [
   {
-    key: "GOOGLE_OAUTH_ENCRYPTION_KEY",
-    placeholder: "<YOUR_GOOGLE_OAUTH_ENCRYPTION_KEY>",
-    comment: "# Generate: node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"",
+    header: [
+      "# ── Deployment (CORS) ────────────────────────────────────────────────────────",
+      "# Set CORS_ORIGIN to the public URL of your Atlas web app.",
+    ],
+    vars: [
+      { key: "CORS_ORIGIN", placeholder: "http://localhost:5173", comment: null },
+    ],
+  },
+  {
+    header: [
+      "# ── Google Calendar integration (optional) ───────────────────────────────────",
+      "# Register OAuth credentials at: https://console.cloud.google.com → APIs & Services → Credentials",
+      "# Leave placeholders to disable Google Calendar sync.",
+    ],
+    vars: [
+      { key: "GOOGLE_OAUTH_CLIENT_ID",     placeholder: "<YOUR_GOOGLE_OAUTH_CLIENT_ID>",     comment: null },
+      { key: "GOOGLE_OAUTH_CLIENT_SECRET", placeholder: "<YOUR_GOOGLE_OAUTH_CLIENT_SECRET>", comment: null },
+      { key: "GOOGLE_OAUTH_REDIRECT_URI",  placeholder: "https://your-atlas-domain.com/app/google/calendar/callback", comment: null },
+      {
+        key: "GOOGLE_OAUTH_ENCRYPTION_KEY",
+        placeholder: "<YOUR_GOOGLE_OAUTH_ENCRYPTION_KEY>",
+        comment: "# Generate: node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"",
+      },
+    ],
   },
 ];
 
 async function appendMissingOptionalVars(filePath) {
   const content = await fs.readFile(filePath, "utf8");
-  const missing = GOOGLE_OPTIONAL_VARS.filter((v) => !hasEnvKey(content, v.key));
-  if (missing.length === 0) return;
+  const addedKeys = [];
+  const lines = [];
 
-  const lines = [
-    "",
-    "# ── Google Calendar integration (optional) ───────────────────────────────────",
-    "# Register OAuth credentials at: https://console.cloud.google.com → APIs & Services → Credentials",
-    "# Leave placeholders to disable Google Calendar sync.",
-  ];
-  for (const { key, placeholder, comment } of missing) {
-    if (comment) lines.push(comment);
-    lines.push(`${key}=${placeholder}`);
+  for (const group of OPTIONAL_VAR_GROUPS) {
+    const missingVars = group.vars.filter((v) => !hasEnvKey(content, v.key));
+    if (missingVars.length === 0) continue;
+    lines.push("", ...group.header);
+    for (const { key, placeholder, comment } of missingVars) {
+      if (comment) lines.push(comment);
+      lines.push(`${key}=${placeholder}`);
+      addedKeys.push(key);
+    }
   }
-  lines.push("");
 
+  if (addedKeys.length === 0) return;
+  lines.push("");
   await fs.appendFile(filePath, lines.join("\n"), "utf8");
 
   console.warn("");
-  console.warn("[setup-external] New optional variables appended to .env.external:");
-  for (const { key } of missing) console.warn(`  ${key}`);
-  console.warn("  Fill them in before starting containers if you want Google Calendar sync.");
+  console.warn("[setup-external] New variables appended to .env.external:");
+  for (const key of addedKeys) console.warn(`  ${key}`);
+  console.warn("  Review and fill them in before starting containers.");
 }
 
 async function downloadTextFile(url) {
