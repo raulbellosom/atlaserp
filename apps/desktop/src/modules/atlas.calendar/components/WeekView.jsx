@@ -17,6 +17,11 @@ function dateKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
 
+function dateKeyUTC(d) {
+  const dt = new Date(d)
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`
+}
+
 export default function WeekView({ onEventClick }) {
   const { selectedDate, setSelectedDate, activeCalendarIds } = useCalendarStore()
   const days = getWeekDays(selectedDate || new Date().toISOString().slice(0,10))
@@ -43,7 +48,13 @@ export default function WeekView({ onEventClick }) {
 
   function allDayEventsForDay(day) {
     const dk = dateKey(day)
-    return events.filter(ev => ev.allDay && dateKey(new Date(ev.startAt)) === dk)
+    return events.filter(ev => {
+      if (!ev.allDay) return false
+      // Use UTC dates for allDay events to avoid timezone offset on midnight-stored values
+      const startKey = dateKeyUTC(ev.startAt)
+      const endKey = ev.endAt ? dateKeyUTC(ev.endAt) : startKey
+      return dk >= startKey && dk <= endKey
+    })
   }
 
   return (

@@ -79,7 +79,7 @@ export function createProjectsCalendarBridge({ prisma }) {
       if (task.calendarEventId) {
         await prisma.calendarEvent.update({
           where: { id: task.calendarEventId },
-          data: { title: eventData.title, startAt: eventData.startAt, endAt: eventData.endAt },
+          data: { title: eventData.title, startAt: eventData.startAt, endAt: eventData.endAt, allDay: true },
         })
         return task.calendarEventId
       }

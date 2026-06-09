@@ -48,12 +48,32 @@ function dateKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
 
+// All-day events are stored as UTC midnight — use UTC date parts to avoid local-tz shift
+function dateKeyUTC(d) {
+  const dt = new Date(d)
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`
+}
+
 function groupEventsByDate(events) {
   const map = {}
   for (const ev of events) {
-    const k = dateKey(new Date(ev.startAt))
-    if (!map[k]) map[k] = []
-    map[k].push(ev)
+    // allDay events: use UTC date to avoid timezone offset on midnight-stored dates
+    const startKey = ev.allDay ? dateKeyUTC(ev.startAt) : dateKey(new Date(ev.startAt))
+    if (!map[startKey]) map[startKey] = []
+    map[startKey].push(ev)
+
+    // Expand multi-day allDay events to every day in the range
+    if (ev.allDay && ev.endAt) {
+      const start = new Date(ev.startAt)
+      const end = new Date(ev.endAt)
+      const cur = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate() + 1))
+      while (cur <= end) {
+        const k = dateKeyUTC(cur)
+        if (!map[k]) map[k] = []
+        map[k].push(ev)
+        cur.setUTCDate(cur.getUTCDate() + 1)
+      }
+    }
   }
   return map
 }
