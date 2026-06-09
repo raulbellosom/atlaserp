@@ -8,11 +8,11 @@ import {
   useSortable, sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, GripVertical, AlertCircle } from 'lucide-react'
+import { Plus, GripVertical, AlertCircle, CornerDownRight } from 'lucide-react'
 import { EmptyState } from '@atlas/ui'
 import { toast } from 'sonner'
 import { useStatuses, useTasks, useMoveTask, useCreateTask } from '../hooks/useProjectsData'
-import { AssigneeAvatar } from '../lib/AssigneeChip.jsx'
+import { AssigneeAvatar, StackedAssignees } from '../lib/AssigneeChip.jsx'
 
 const PRIORITY_COLORS = {
   URGENT: 'bg-red-500/20 text-red-400 border-red-500/30',
@@ -47,7 +47,10 @@ function TaskCard({ task, onClick, isDragging }) {
     <div
       ref={setNodeRef}
       style={style}
-      className="group bg-background border border-border rounded p-2.5 cursor-pointer hover:border-accent-foreground/20 transition-colors"
+      className={[
+        'group bg-background border border-border rounded p-2.5 cursor-pointer hover:border-accent-foreground/20 transition-colors',
+        task.parentTaskId ? 'border-l-2 border-l-indigo-400/60' : '',
+      ].filter(Boolean).join(' ')}
       onClick={() => onClick(task.id)}
     >
       <div className="flex items-start gap-1.5">
@@ -59,6 +62,9 @@ function TaskCard({ task, onClick, isDragging }) {
         >
           <GripVertical size={12} />
         </span>
+        {task.parentTaskId && (
+          <CornerDownRight size={10} className="text-indigo-400/70 mt-0.5 shrink-0" />
+        )}
         <span className="flex-1 text-sm leading-snug">{task.title}</span>
       </div>
       <div className="flex items-center gap-1.5 mt-2 ml-4">
@@ -67,7 +73,7 @@ function TaskCard({ task, onClick, isDragging }) {
             {PRIORITY_LABELS[task.priority]}
           </span>
         )}
-        {task.assignee && <AssigneeAvatar user={task.assignee} />}
+        <StackedAssignees assignees={task.assignees} fallback={task.assignee} />
         <div className="flex items-center gap-1 ml-auto">
           {task.startDate && (
             <span className="text-xs text-muted-foreground">{formatDate(task.startDate)}</span>
@@ -113,9 +119,11 @@ function QuickCreateInput({ statusId, projectId, onDone }) {
   )
 }
 
-export default function KanbanView({ projectId, onTaskClick }) {
+export default function KanbanView({ projectId, onTaskClick, showSubtasks = false }) {
   const { data: statusesData } = useStatuses(projectId)
-  const { data: tasksData } = useTasks(projectId, { parentTaskId: 'null' })
+  const { data: tasksData } = useTasks(projectId, {
+    ...(showSubtasks ? { include_subtasks: 'true' } : { parentTaskId: 'null' }),
+  })
   const statuses = statusesData?.data ?? statusesData ?? []
   const tasks = tasksData?.data ?? tasksData ?? []
   const moveTask = useMoveTask(projectId)

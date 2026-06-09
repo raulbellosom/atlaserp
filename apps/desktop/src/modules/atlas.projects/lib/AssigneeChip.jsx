@@ -40,3 +40,26 @@ export function AssigneeChip({ user, maxChars = 14 }) {
     </TooltipProvider>
   )
 }
+
+export function StackedAssignees({ assignees, fallback }) {
+  const list = assignees?.length
+    ? assignees.map((r) => r.user).filter(Boolean)
+    : fallback ? [fallback] : []
+  if (!list.length) return null
+  const shown = list.slice(0, 3)
+  const extra = list.length - shown.length
+  return (
+    <div className="flex items-center -space-x-1.5">
+      {shown.map((u, i) => (
+        <span key={u.id ?? i} title={[u.firstName, u.lastName].filter(Boolean).join(' ')}>
+          <AssigneeAvatar user={u} size="sm" />
+        </span>
+      ))}
+      {extra > 0 && (
+        <span className="w-5 h-5 rounded-full bg-muted border border-border flex items-center justify-center text-[9px] text-muted-foreground font-medium">
+          +{extra}
+        </span>
+      )}
+    </div>
+  )
+}

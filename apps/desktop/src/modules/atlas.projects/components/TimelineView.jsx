@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { EmptyState } from '@atlas/ui'
-import { CalendarOff } from 'lucide-react'
+import { CalendarOff, CornerDownRight } from 'lucide-react'
 import { useTasks } from '../hooks/useProjectsData'
 
 const COL_WIDTH = 120
@@ -25,8 +25,10 @@ function msToPercent(ms, totalMs) {
   return Math.max(0, Math.min(100, (ms / totalMs) * 100))
 }
 
-export default function TimelineView({ projectId, onTaskClick }) {
-  const { data: tasksData, isLoading } = useTasks(projectId, { parentTaskId: 'null' })
+export default function TimelineView({ projectId, onTaskClick, showSubtasks = false }) {
+  const { data: tasksData, isLoading } = useTasks(projectId, {
+    ...(showSubtasks ? { include_subtasks: 'true' } : { parentTaskId: 'null' }),
+  })
   const tasks = tasksData?.data ?? tasksData ?? []
 
   const { datedTasks, undatedTasks, weeks, timelineStart, totalMs } = useMemo(() => {
@@ -38,7 +40,21 @@ export default function TimelineView({ projectId, onTaskClick }) {
     const max = new Date(Math.max(...dates))
     min.setDate(min.getDate() - 7)
     max.setDate(max.getDate() + 7)
-    return { datedTasks: dated, undatedTasks: undated, weeks: getWeeks(min, max), timelineStart: min, totalMs: max - min }
+    function sortWithSubtasks(list) {
+      const parents = list.filter((t) => !t.parentTaskId)
+      const children = list.filter((t) => t.parentTaskId)
+      const result = []
+      for (const p of parents) {
+        result.push(p)
+        result.push(...children.filter((c) => c.parentTaskId === p.id))
+      }
+      const inResult = new Set(result.map((t) => t.id))
+      result.push(...children.filter((c) => !inResult.has(c.id)))
+      return result
+    }
+    const datedSorted = sortWithSubtasks(dated)
+    const undatedSorted = sortWithSubtasks(undated)
+    return { datedTasks: datedSorted, undatedTasks: undatedSorted, weeks: getWeeks(min, max), timelineStart: min, totalMs: max - min }
   }, [tasks])
 
   if (isLoading) return <p className="text-sm text-muted-foreground p-6">Cargando...</p>
@@ -74,9 +90,13 @@ export default function TimelineView({ projectId, onTaskClick }) {
             key={task.id}
             onClick={() => onTaskClick(task.id)}
             style={{ height: ROW_HEIGHT }}
-            className="flex items-center px-3 text-sm truncate border-b border-border hover:bg-muted/50 cursor-pointer"
+            className={[
+              'flex items-center px-3 text-sm truncate border-b border-border hover:bg-muted/50 cursor-pointer',
+              task.parentTaskId ? 'border-l-2 border-l-indigo-400/60 pl-2' : '',
+            ].join(' ')}
           >
-            {task.title}
+            {task.parentTaskId && <CornerDownRight size={10} className="text-indigo-400/70 mr-1 shrink-0" />}
+            <span className="truncate">{task.title}</span>
           </div>
         ))}
         {undatedTasks.length > 0 && (
@@ -89,9 +109,13 @@ export default function TimelineView({ projectId, onTaskClick }) {
                 key={task.id}
                 onClick={() => onTaskClick(task.id)}
                 style={{ height: ROW_HEIGHT }}
-                className="flex items-center px-3 text-sm truncate border-b border-border text-muted-foreground hover:bg-muted/50 cursor-pointer"
+                className={[
+                  'flex items-center px-3 text-sm truncate border-b border-border text-muted-foreground hover:bg-muted/50 cursor-pointer',
+                  task.parentTaskId ? 'border-l-2 border-l-indigo-400/60 pl-2' : '',
+                ].join(' ')}
               >
-                {task.title}
+                {task.parentTaskId && <CornerDownRight size={10} className="text-indigo-400/70 mr-1 shrink-0" />}
+                <span className="truncate">{task.title}</span>
               </div>
             ))}
           </>
