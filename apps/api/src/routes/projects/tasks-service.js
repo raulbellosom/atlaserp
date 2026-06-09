@@ -7,7 +7,7 @@ export class TaskServiceError extends Error {
 }
 
 export function createTasksService({ prisma }) {
-  async function listTasks(projectId, { statusId, assigneeId, priority, dueDateFrom, dueDateTo, parentTaskId } = {}) {
+  async function listTasks(projectId, { statusId, assigneeId, priority, dueDateFrom, dueDateTo, parentTaskId, includeSubtasks } = {}) {
     const where = { projectId }
     if (statusId) where.statusId = statusId
     if (assigneeId) where.assigneeId = assigneeId
@@ -17,12 +17,19 @@ export function createTasksService({ prisma }) {
       if (dueDateFrom) where.dueDate.gte = new Date(dueDateFrom)
       if (dueDateTo) where.dueDate.lte = new Date(dueDateTo)
     }
-    where.parentTaskId = parentTaskId === undefined ? null : parentTaskId
+    if (!includeSubtasks) {
+      where.parentTaskId = parentTaskId === undefined ? null : parentTaskId
+    }
     return prisma.task.findMany({
       where,
       include: {
         assignee: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } },
+        assignees: {
+          include: { user: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } } },
+          orderBy: { assignedAt: 'asc' },
+        },
         status: true,
+        parent: { select: { id: true, title: true } },
         _count: { select: { subtasks: true } },
       },
       orderBy: [{ statusId: 'asc' }, { position: 'asc' }],
@@ -34,15 +41,36 @@ export function createTasksService({ prisma }) {
       where: { id: taskId },
       include: {
         assignee: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } },
+        assignees: {
+          include: { user: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } } },
+          orderBy: { assignedAt: 'asc' },
+        },
         status: true,
         subtasks: {
-          include: { assignee: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } } },
+          include: {
+            assignee: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } },
+            assignees: {
+              include: { user: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } } },
+            },
+          },
           orderBy: { position: 'asc' },
         },
+        comments: {
+          include: { author: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } } },
+          orderBy: { createdAt: 'asc' },
+          take: 20,
+        },
+        parent: { select: { id: true, title: true } },
       },
     })
     if (!task) throw new TaskServiceError('Tarea no encontrada.', 404)
-    return task
+
+    const attachments = await prisma.fileAsset.findMany({
+      where: { entityType: 'Task', entityId: taskId },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    return { ...task, attachments }
   }
 
   async function createTask(projectId, createdBy, { title, description, statusId, assigneeId, priority = 'NONE', startDate, dueDate, parentTaskId }) {
@@ -108,5 +136,114 @@ export function createTasksService({ prisma }) {
     return task
   }
 
-  return { listTasks, getTask, createTask, updateTask, moveTask, deleteTask }
+  async function addAssignee(taskId, userId) {
+    const task = await prisma.task.findFirst({ where: { id: taskId } })
+    if (!task) throw new TaskServiceError('Tarea no encontrada.', 404)
+    const existing = await prisma.projectTaskAssignee.findFirst({ where: { taskId, userId } })
+    if (existing) throw new TaskServiceError('El usuario ya esta asignado a esta tarea.', 409)
+    const row = await prisma.projectTaskAssignee.create({
+      data: { taskId, userId },
+      include: { user: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } } },
+    })
+    if (!task.assigneeId) {
+      await prisma.task.update({ where: { id: taskId }, data: { assigneeId: userId } })
+    }
+    return row
+  }
+
+  async function removeAssignee(taskId, userId) {
+    const task = await prisma.task.findFirst({ where: { id: taskId } })
+    if (!task) throw new TaskServiceError('Tarea no encontrada.', 404)
+    const existing = await prisma.projectTaskAssignee.findFirst({ where: { taskId, userId } })
+    if (!existing) throw new TaskServiceError('El usuario no esta asignado a esta tarea.', 404)
+    await prisma.projectTaskAssignee.delete({ where: { taskId_userId: { taskId, userId } } })
+    if (task.assigneeId === userId) {
+      const next = await prisma.projectTaskAssignee.findFirst({
+        where: { taskId },
+        orderBy: { assignedAt: 'asc' },
+      })
+      await prisma.task.update({ where: { id: taskId }, data: { assigneeId: next?.userId ?? null } })
+    }
+  }
+
+  async function listAssignees(taskId) {
+    return prisma.projectTaskAssignee.findMany({
+      where: { taskId },
+      include: { user: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } } },
+      orderBy: { assignedAt: 'asc' },
+    })
+  }
+
+  async function createComment(taskId, authorId, body) {
+    if (!body?.trim()) throw new TaskServiceError('El comentario no puede estar vacio.', 400)
+    if (body.trim().length > 5000) throw new TaskServiceError('El comentario no puede tener mas de 5000 caracteres.', 400)
+    return prisma.taskComment.create({
+      data: { taskId, authorId, body: body.trim() },
+      include: { author: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } } },
+    })
+  }
+
+  async function listComments(taskId, { limit = 50, cursor } = {}) {
+    return prisma.taskComment.findMany({
+      where: { taskId, ...(cursor ? { id: { lt: cursor } } : {}) },
+      include: { author: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } } },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+    })
+  }
+
+  async function updateComment(commentId, requesterId, body) {
+    if (!body?.trim()) throw new TaskServiceError('El comentario no puede estar vacio.', 400)
+    if (body.trim().length > 5000) throw new TaskServiceError('El comentario no puede tener mas de 5000 caracteres.', 400)
+    const comment = await prisma.taskComment.findFirst({ where: { id: commentId } })
+    if (!comment) throw new TaskServiceError('Comentario no encontrado.', 404)
+    if (comment.authorId !== requesterId) throw new TaskServiceError('Solo el autor puede editar este comentario.', 403)
+    return prisma.taskComment.update({
+      where: { id: commentId },
+      data: { body: body.trim(), editedAt: new Date() },
+      include: { author: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } } },
+    })
+  }
+
+  async function deleteComment(commentId, requesterId) {
+    const comment = await prisma.taskComment.findFirst({
+      where: { id: commentId },
+      include: { task: { include: { project: { include: { members: { where: { userId: requesterId } } } } } } },
+    })
+    if (!comment) throw new TaskServiceError('Comentario no encontrado.', 404)
+    const isAuthor = comment.authorId === requesterId
+    const isAdmin = comment.task?.project?.members?.some((m) => m.role === 'ADMIN')
+    if (!isAuthor && !isAdmin) throw new TaskServiceError('No tienes permiso para eliminar este comentario.', 403)
+    await prisma.taskComment.delete({ where: { id: commentId } })
+  }
+
+  async function bulkUpdateTasks(projectId, taskIds, patch) {
+    if (!taskIds?.length) throw new TaskServiceError('Se requiere al menos una tarea.', 400)
+    const { statusId, assigneeId, priority } = patch
+    if (!statusId && assigneeId === undefined && !priority)
+      throw new TaskServiceError('Se requiere al menos un campo para actualizar.', 400)
+    await prisma.task.updateMany({
+      where: { id: { in: taskIds }, projectId },
+      data: {
+        ...(statusId ? { statusId } : {}),
+        ...(assigneeId !== undefined ? { assigneeId: assigneeId || null } : {}),
+        ...(priority ? { priority } : {}),
+      },
+    })
+    return { updated: taskIds.length }
+  }
+
+  async function bulkDeleteTasks(projectId, taskIds) {
+    if (!taskIds?.length) throw new TaskServiceError('Se requiere al menos una tarea.', 400)
+    await prisma.task.deleteMany({ where: { parentTaskId: { in: taskIds }, projectId } })
+    const result = await prisma.task.deleteMany({ where: { id: { in: taskIds }, projectId } })
+    return { deleted: result.count }
+  }
+
+  return {
+    listTasks, getTask, createTask, updateTask, moveTask, deleteTask,
+    addAssignee, removeAssignee, listAssignees,
+    createComment, listComments, updateComment, deleteComment,
+    bulkUpdateTasks, bulkDeleteTasks,
+  }
 }
