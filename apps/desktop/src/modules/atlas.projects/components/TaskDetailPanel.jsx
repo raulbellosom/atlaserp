@@ -1,14 +1,23 @@
 import { useState, useEffect } from 'react'
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
-  Button, MarkdownField, ConfirmDialog, DatePickerField, SelectField, Checkbox,
+  Button, MarkdownField, ConfirmDialog, DatePickerField, SelectField, ComboboxField,
+  AttachmentsPanel,
 } from '@atlas/ui'
 import { Trash2, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuth } from '../../../auth/AuthProvider'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
   useTask, useUpdateTask, useDeleteTask, useCreateTask,
   useStatuses, useProjectMembers,
+  useAddAssignee, useRemoveAssignee,
+  useCreateComment, useUpdateComment, useDeleteComment,
 } from '../hooks/useProjectsData'
+import { SubtaskRow } from './SubtaskRow.jsx'
+import { AssigneeAvatar } from '../lib/AssigneeChip.jsx'
+
+const API_BASE_URL = getApiUrl()
 
 const PRIORITY_OPTIONS = [
   { value: 'NONE',   label: 'Normal' },
@@ -18,68 +27,51 @@ const PRIORITY_OPTIONS = [
   { value: 'URGENT', label: 'Urgente' },
 ]
 
-function SubtaskRow({ task, projectId, onDelete }) {
-  const updateSubtask = useUpdateTask(projectId)
-  const [title, setTitle] = useState(task.title)
-  const [editing, setEditing] = useState(false)
+function AssigneeAdder({ currentAssigneeIds, onAdd, members }) {
+  const [open, setOpen] = useState(false)
 
-  function handleBlur() {
-    setEditing(false)
-    const trimmed = title.trim()
-    if (!trimmed) { setTitle(task.title); return }
-    if (trimmed !== task.title) {
-      updateSubtask.mutate({ taskId: task.id, title: trimmed }, {
-        onError: () => { setTitle(task.title); toast.error('No se pudo guardar') },
-      })
-    }
-  }
+  const available = members.filter((m) => {
+    const uid = m.userId ?? m.user?.id ?? m.id
+    return !currentAssigneeIds.includes(uid)
+  }).map((m) => {
+    const u = m.user ?? m
+    const uid = m.userId ?? u.id
+    return { value: uid, label: [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || uid }
+  })
 
-  function handleKeyDown(e) {
-    if (e.key === 'Enter') e.target.blur()
-    if (e.key === 'Escape') { setTitle(task.title); setEditing(false) }
-  }
-
-  function toggleDone(v) {
-    updateSubtask.mutate({ taskId: task.id, isDone: Boolean(v) }, {
-      onError: () => toast.error('No se pudo actualizar'),
-    })
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+      >
+        <Plus size={11} />
+        Agregar miembro
+      </button>
+    )
   }
 
   return (
-    <div className="flex items-center gap-2 py-1.5 group">
-      <Checkbox
-        checked={task.isDone ?? false}
-        onCheckedChange={toggleDone}
+    <div className="w-52">
+      <ComboboxField
+        options={available}
+        value=""
+        onChange={(uid) => {
+          if (uid) { onAdd(uid); setOpen(false) }
+        }}
+        placeholder="Buscar miembro..."
+        autoFocus
+        onBlur={() => setOpen(false)}
       />
-      {editing ? (
-        <input
-          autoFocus
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          className="flex-1 text-sm bg-transparent border-b border-border outline-none focus:border-primary"
-        />
-      ) : (
-        <span
-          onClick={() => setEditing(true)}
-          className={`flex-1 text-sm cursor-text select-none ${task.isDone ? 'line-through text-muted-foreground' : ''}`}
-        >
-          {title}
-        </span>
-      )}
-      <button
-        onClick={() => onDelete(task.id)}
-        className="text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-        tabIndex={-1}
-      >
-        <X size={12} />
-      </button>
     </div>
   )
 }
 
 export default function TaskDetailPanel({ projectId, taskId, onClose }) {
+  const { session } = useAuth()
+  const token = session?.access_token
+  const userId = session?.user?.id
+
   const { data: task, isLoading } = useTask(projectId, taskId)
   const { data: statuses = [] } = useStatuses(projectId)
   const { data: membersData } = useProjectMembers(projectId)
@@ -88,11 +80,20 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
   const updateTask = useUpdateTask(projectId)
   const deleteTask = useDeleteTask(projectId)
   const createSubtask = useCreateTask(projectId)
+  const addAssignee = useAddAssignee(projectId, taskId)
+  const removeAssignee = useRemoveAssignee(projectId, taskId)
+  const createComment = useCreateComment(projectId, taskId)
+  const updateComment = useUpdateComment(projectId, taskId)
+  const deleteComment = useDeleteComment(projectId, taskId)
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [newSubtask, setNewSubtask] = useState('')
+  const [commentBody, setCommentBody] = useState('')
+  const [editingCommentId, setEditingCommentId] = useState(null)
+  const [editingBody, setEditingBody] = useState('')
+  const [deleteCommentId, setDeleteCommentId] = useState(null)
 
   useEffect(() => {
     if (task) {
@@ -143,17 +144,40 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
     })
   }
 
+  function handleSubmitComment(e) {
+    e.preventDefault()
+    const body = commentBody.trim()
+    if (!body) return
+    createComment.mutate({ body }, {
+      onSuccess: () => setCommentBody(''),
+      onError: () => toast.error('No se pudo enviar el comentario'),
+    })
+  }
+
+  function handleEditComment(comment) {
+    setEditingCommentId(comment.id)
+    setEditingBody(comment.body)
+  }
+
+  function handleSaveEdit() {
+    updateComment.mutate({ commentId: editingCommentId, body: editingBody }, {
+      onSuccess: () => { setEditingCommentId(null); setEditingBody('') },
+      onError: () => toast.error('No se pudo editar el comentario'),
+    })
+  }
+
+  function handleDeleteComment() {
+    deleteComment.mutate({ commentId: deleteCommentId }, {
+      onSuccess: () => setDeleteCommentId(null),
+      onError: () => toast.error('No se pudo eliminar el comentario'),
+    })
+  }
+
   const statusOptions = (statuses?.data ?? statuses ?? []).map((s) => ({ value: s.id, label: s.name }))
-  const memberOptions = [
-    { value: '__none__', label: 'Sin asignar' },
-    ...members.map((m) => {
-      const u = m.user ?? m
-      const label = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || u.id
-      return { value: m.userId ?? u.id, label }
-    }),
-  ]
   const subtasks = task?.subtasks ?? []
   const isPending = updateTask.isPending || createSubtask.isPending || deleteTask.isPending
+    || addAssignee.isPending || removeAssignee.isPending
+    || createComment.isPending || updateComment.isPending || deleteComment.isPending
 
   return (
     <>
@@ -204,12 +228,43 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
                   onValueChange={(v) => saveField('priority', v)}
                   options={PRIORITY_OPTIONS}
                 />
-                <SelectField
-                  label="Asignado a"
-                  value={task.assigneeId ?? '__none__'}
-                  onValueChange={(v) => saveField('assigneeId', v === '__none__' ? null : v)}
-                  options={memberOptions}
-                />
+
+                {/* Multi-assignee manager */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
+                    Asignado a
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {(task.assignees ?? []).map((row) => {
+                      const u = row.user
+                      const name = [u?.firstName, u?.lastName].filter(Boolean).join(' ').trim() || u?.email || ''
+                      return (
+                        <span
+                          key={row.userId ?? u?.id}
+                          className="flex items-center gap-1 bg-muted border border-border rounded-full px-2 py-0.5 text-xs"
+                        >
+                          <AssigneeAvatar user={u ?? {}} size="sm" />
+                          <span className="max-w-22.5 truncate">{name}</span>
+                          <button
+                            onClick={() => removeAssignee.mutate({ userId: row.userId ?? u?.id }, {
+                              onError: () => toast.error('No se pudo quitar asignado'),
+                            })}
+                            className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors"
+                            tabIndex={-1}
+                          >
+                            <X size={10} />
+                          </button>
+                        </span>
+                      )
+                    })}
+                  </div>
+                  <AssigneeAdder
+                    currentAssigneeIds={(task.assignees ?? []).map((r) => r.userId ?? r.user?.id)}
+                    onAdd={(uid) => addAssignee.mutate({ userId: uid }, { onError: () => toast.error('No se pudo asignar') })}
+                    members={members}
+                  />
+                </div>
+
                 <DatePickerField
                   label="Fecha inicio"
                   value={task.startDate ?? null}
@@ -227,6 +282,8 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
                   onBlur={handleDescriptionBlur}
                   placeholder="Agrega una descripcion..."
                 />
+
+                {/* Subtareas */}
                 <div>
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
                     Subtareas ({subtasks.length})
@@ -253,6 +310,110 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
                     </Button>
                   </form>
                 </div>
+
+                {/* Archivos */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
+                    Archivos
+                  </label>
+                  <AttachmentsPanel
+                    apiBaseUrl={API_BASE_URL}
+                    token={token}
+                    recordId={task.id}
+                    config={{
+                      label: 'Archivos',
+                      listPath: `/projects/${projectId}/tasks/:id/attachments`,
+                      addPath: `/projects/${projectId}/tasks/:id/attachments`,
+                      removePath: `/projects/${projectId}/tasks/:id/attachments/:docId`,
+                      upload: {
+                        endpoint: '/files',
+                        moduleKey: 'atlas.projects',
+                        entityType: 'Task',
+                      },
+                    }}
+                    context="detail"
+                    showHeading={false}
+                  />
+                </div>
+
+                {/* Actividad / Comentarios */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3 block">
+                    Actividad
+                  </label>
+                  <div className="space-y-3 mb-3">
+                    {(task.comments ?? []).map((comment) => {
+                      const authorName = [comment.author?.firstName, comment.author?.lastName].filter(Boolean).join(' ') || comment.author?.email || 'Usuario'
+                      const isAuthor = comment.authorId === userId
+                      const isEditing = editingCommentId === comment.id
+                      return (
+                        <div key={comment.id} className="flex gap-2 group">
+                          <AssigneeAvatar user={comment.author ?? {}} size="sm" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className="text-xs font-medium">{authorName}</span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {new Date(comment.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              {comment.editedAt && <span className="text-[10px] text-muted-foreground">(editado)</span>}
+                            </div>
+                            {isEditing ? (
+                              <div className="space-y-1.5">
+                                <textarea
+                                  value={editingBody}
+                                  onChange={(e) => setEditingBody(e.target.value)}
+                                  rows={2}
+                                  className="w-full text-sm bg-muted border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+                                />
+                                <div className="flex gap-1.5">
+                                  <Button size="sm" onClick={handleSaveEdit} disabled={!editingBody.trim()}>Guardar</Button>
+                                  <Button size="sm" variant="ghost" onClick={() => setEditingCommentId(null)}>Cancelar</Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-foreground whitespace-pre-wrap">{comment.body}</p>
+                            )}
+                          </div>
+                          {!isEditing && (
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                              {isAuthor && (
+                                <button
+                                  onClick={() => handleEditComment(comment)}
+                                  className="text-muted-foreground hover:text-foreground text-xs px-1"
+                                  title="Editar"
+                                >
+                                  Editar
+                                </button>
+                              )}
+                              {isAuthor && (
+                                <button
+                                  onClick={() => setDeleteCommentId(comment.id)}
+                                  className="text-muted-foreground hover:text-destructive text-xs px-1"
+                                  title="Eliminar"
+                                >
+                                  <Trash2 size={11} />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <form onSubmit={handleSubmitComment} className="flex gap-2">
+                    <textarea
+                      value={commentBody}
+                      onChange={(e) => setCommentBody(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSubmitComment(e) }}
+                      placeholder="Escribe un comentario... (Ctrl+Enter para enviar)"
+                      rows={2}
+                      className="flex-1 text-sm bg-muted border border-border rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+                    />
+                    <Button size="sm" type="submit" disabled={!commentBody.trim() || createComment.isPending}>
+                      Comentar
+                    </Button>
+                  </form>
+                </div>
               </div>
             ) : null}
           </div>
@@ -266,6 +427,14 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
         description="Se eliminara la tarea y todas sus subtareas. Esta accion no se puede deshacer."
         confirmLabel="Eliminar"
         onConfirm={handleDelete}
+      />
+      <ConfirmDialog
+        open={Boolean(deleteCommentId)}
+        onOpenChange={(open) => { if (!open) setDeleteCommentId(null) }}
+        title="Eliminar comentario"
+        description="Esta accion no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={handleDeleteComment}
       />
     </>
   )
