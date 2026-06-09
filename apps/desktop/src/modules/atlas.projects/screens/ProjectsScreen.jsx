@@ -35,6 +35,7 @@ export default function ProjectsScreen() {
   const [taskFormOpen, setTaskFormOpen] = useState(false)
   const [membersOpen, setMembersOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showSubtasks, setShowSubtasks] = useState(false)
 
   const projectList = projects?.data ?? projects ?? []
   const selectedProject = projectList.find((p) => p.id === selectedId) ?? projectList[0] ?? null
@@ -206,13 +207,26 @@ export default function ProjectsScreen() {
                   </button>
                 ))}
               </div>
+
+              <button
+                onClick={() => setShowSubtasks((v) => !v)}
+                title={showSubtasks ? 'Ocultar subtareas' : 'Mostrar subtareas'}
+                className={[
+                  'text-xs px-2 py-1 rounded border transition-colors',
+                  showSubtasks
+                    ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-400'
+                    : 'border-border text-muted-foreground hover:text-foreground',
+                ].join(' ')}
+              >
+                Subtareas
+              </button>
             </div>
 
             {/* Active view */}
             <div className="flex-1 min-h-0 overflow-hidden">
-              {activeView === 'kanban'   && <KanbanView   projectId={effectiveId} onTaskClick={openTask} />}
-              {activeView === 'list'     && <ListView     projectId={effectiveId} onTaskClick={openTask} />}
-              {activeView === 'timeline' && <TimelineView projectId={effectiveId} onTaskClick={openTask} />}
+              {activeView === 'kanban'   && <KanbanView   projectId={effectiveId} onTaskClick={openTask} showSubtasks={showSubtasks} />}
+              {activeView === 'list'     && <ListView     projectId={effectiveId} onTaskClick={openTask} showSubtasks={showSubtasks} />}
+              {activeView === 'timeline' && <TimelineView projectId={effectiveId} onTaskClick={openTask} showSubtasks={showSubtasks} />}
             </div>
           </>
         )}
