@@ -8,7 +8,7 @@ import {
   useSortable, sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, GripVertical, AlertCircle, CornerDownRight, MessageSquare, Layers } from 'lucide-react'
+import { Plus, GripVertical, AlertCircle, CornerDownRight, MessageSquare, Layers, Lock, RefreshCw } from 'lucide-react'
 import { EmptyState } from '@atlas/ui'
 import { toast } from 'sonner'
 import { useStatuses, useTasks, useMoveTask, useCreateTask } from '../hooks/useProjectsData'
@@ -26,31 +26,37 @@ const PRIORITY_LABELS = {
   URGENT: 'Urgente', HIGH: 'Alta', MEDIUM: 'Media', LOW: 'Baja', NONE: '',
 }
 
+function parseDateSafe(d) {
+  if (!d) return null
+  const str = String(d)
+  const part = str.includes('T') ? str.slice(0, 10) : str
+  return new Date(`${part}T12:00:00`)
+}
+
 function isOverdue(dueDate) {
   if (!dueDate) return false
-  return new Date(dueDate) < new Date()
+  return parseDateSafe(dueDate) < new Date()
 }
 
 function formatDate(d) {
   if (!d) return null
-  return new Date(d).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+  return parseDateSafe(d).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
 }
 
-function TaskCard({ task, onClick, isDragging }) {
+function TaskCard({ task, statusColor, onClick, isDragging }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id })
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
+    borderLeftColor: statusColor ? `${statusColor}99` : undefined,
+    borderLeftWidth: statusColor ? '3px' : undefined,
   }
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={[
-        'group bg-background border border-border rounded p-2.5 cursor-pointer hover:border-accent-foreground/20 transition-colors',
-        task.parentTaskId ? 'border-l-2 border-l-indigo-400/60' : '',
-      ].filter(Boolean).join(' ')}
+      className="group bg-background border border-border rounded p-2.5 cursor-pointer hover:border-accent-foreground/20 transition-colors"
       onClick={() => onClick(task.id)}
     >
       <div className="flex items-start gap-1.5">
@@ -69,7 +75,7 @@ function TaskCard({ task, onClick, isDragging }) {
           {task.taskNumber != null && (
             <span className="text-[10px] text-muted-foreground font-mono block mb-0.5">T-{task.taskNumber}</span>
           )}
-          <span className="text-sm leading-snug">{task.title}</span>
+          <span className="text-sm leading-snug line-clamp-2">{task.title}</span>
         </div>
       </div>
       <div className="flex items-center gap-1.5 mt-2 ml-4">
@@ -88,6 +94,16 @@ function TaskCard({ task, onClick, isDragging }) {
           <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
             <MessageSquare size={12} />
             {task._count.comments}
+          </span>
+        )}
+        {task.blockedBy?.length > 0 && (
+          <span className="flex items-center gap-0.5 text-xs text-amber-500" title="Tarea bloqueada">
+            <Lock size={11} />
+          </span>
+        )}
+        {task.rrule && (
+          <span className="flex items-center gap-0.5 text-xs text-indigo-400" title="Tarea recurrente">
+            <RefreshCw size={11} />
           </span>
         )}
         <StackedAssignees assignees={task.assignees} fallback={task.assignee} />
@@ -224,6 +240,7 @@ export default function KanbanView({ projectId, onTaskClick, showSubtasks = fals
                     <TaskCard
                       key={task.id}
                       task={task}
+                      statusColor={status.color}
                       onClick={onTaskClick}
                       isDragging={task.id === activeId}
                     />

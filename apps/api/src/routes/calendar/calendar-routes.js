@@ -10,6 +10,10 @@ import { createGoogleTokenCrypto } from "./google/google-token-crypto.js";
 import { createGoogleCalendarConnectionService } from "./google/google-connection-service.js";
 import { createGoogleOAuthService } from "./google/google-oauth-service.js";
 import { createGoogleCalendarDiscoveryService } from "./google/google-calendar-discovery-service.js";
+import { createGoogleCalendarSourceService } from "./google/google-source-service.js";
+import { createGoogleCalendarEventsService } from "./google/google-calendar-events-service.js";
+import { createGoogleCalendarEventLinkService } from "./google/google-calendar-event-link-service.js";
+import { createGoogleCalendarInitialImportService } from "./google/google-calendar-initial-import-service.js";
 import {
   publishActivityFromContext,
   getActivityContext,
@@ -23,11 +27,7 @@ function getUserId(c) {
 function handleError(c, err, fallback) {
   if (err instanceof CalendarServiceError)
     return c.json({ error: err.message }, err.status);
-  if (
-    Number.isInteger(err?.status) &&
-    err.status >= 400 &&
-    err.status < 600
-  ) {
+  if (Number.isInteger(err?.status) && err.status >= 400 && err.status < 600) {
     return c.json({ error: err.message || fallback }, err.status);
   }
   if (process.env.NODE_ENV !== "production")
@@ -104,6 +104,39 @@ function createGoogleRouteDependencies({ prisma, google = {} }) {
     return google.discoveryService ?? createGoogleCalendarDiscoveryService();
   }
 
+  function getSourceService() {
+    return (
+      google.sourceService ??
+      createGoogleCalendarSourceService({
+        prisma,
+      })
+    );
+  }
+
+  function getEventsService() {
+    return google.eventsService ?? createGoogleCalendarEventsService();
+  }
+
+  function getEventLinkService() {
+    return (
+      google.eventLinkService ??
+      createGoogleCalendarEventLinkService({
+        prisma,
+      })
+    );
+  }
+
+  function getInitialImportService() {
+    return (
+      google.initialImportService ??
+      createGoogleCalendarInitialImportService({
+        prisma,
+        eventsService: getEventsService(),
+        linkService: getEventLinkService(),
+      })
+    );
+  }
+
   return {
     getConfig,
     requireConfig,
@@ -111,6 +144,10 @@ function createGoogleRouteDependencies({ prisma, google = {} }) {
     getConnectionService,
     getOAuthService,
     getDiscoveryService,
+    getSourceService,
+    getEventsService,
+    getEventLinkService,
+    getInitialImportService,
   };
 }
 
@@ -120,6 +157,40 @@ export function createCalendarRouter({ prisma, requirePermission, google }) {
   const eventSvc = createCalendarEventService({ prisma });
   const notifSvc = createCalendarNotificationService({ prisma });
   const googleDeps = createGoogleRouteDependencies({ prisma, google });
+
+  async function requireActiveGoogleConnection(
+    userId,
+    { requireUsableAccessToken = false } = {},
+  ) {
+    const connection = await googleDeps
+      .getConnectionService()
+      .getConnectionByUserId(userId);
+
+    if (!connection || connection.status !== "ACTIVE") {
+      throw new CalendarServiceError(
+        "No hay una cuenta Google conectada.",
+        409,
+      );
+    }
+
+    if (!requireUsableAccessToken) return connection;
+
+    if (!connection.accessTokenEncrypted) {
+      throw new CalendarServiceError(
+        "No hay una cuenta Google conectada.",
+        409,
+      );
+    }
+
+    if (!hasUsableAccessToken(connection)) {
+      throw new CalendarServiceError(
+        "La conexion de Google Calendar expiro. Reconecta la cuenta para continuar.",
+        409,
+      );
+    }
+
+    return connection;
+  }
 
   // ── Calendars ──────────────────────────────────────────────────────────────
 
@@ -266,7 +337,9 @@ export function createCalendarRouter({ prisma, requirePermission, google }) {
         const config = googleDeps.getConfig();
         const connection =
           config?.configured && userId
-            ? await googleDeps.getConnectionService().getConnectionByUserId(userId)
+            ? await googleDeps
+                .getConnectionService()
+                .getConnectionByUserId(userId)
             : null;
 
         return c.json({
@@ -298,9 +371,12 @@ export function createCalendarRouter({ prisma, requirePermission, google }) {
       try {
         googleDeps.requireConfig();
         const userId = getUserId(c);
+        const state = googleDeps
+          .getOAuthService()
+          .createAuthorizationState({ userId });
         const authUrl = googleDeps
           .getOAuthService()
-          .buildAuthorizationUrl({ state: userId });
+          .buildAuthorizationUrl({ state });
         return c.json({ authUrl });
       } catch (err) {
         return handleError(
@@ -320,18 +396,28 @@ export function createCalendarRouter({ prisma, requirePermission, google }) {
         googleDeps.requireConfig();
         const userId = getUserId(c);
         const code = c.req.query("code");
+        const state = c.req.query("state");
 
         if (!String(code ?? "").trim()) {
           throw new CalendarServiceError("code es requerido.", 400);
         }
+        if (!String(state ?? "").trim()) {
+          throw new CalendarServiceError("state es requerido.", 400);
+        }
+
+        googleDeps
+          .getOAuthService()
+          .verifyAuthorizationState({ state, userId });
 
         const tokenPayload = await googleDeps
           .getOAuthService()
           .exchangeCodeForTokens({ code });
-        const connection = await googleDeps.getConnectionService().saveConnection({
-          userId,
-          ...tokenPayload,
-        });
+        const connection = await googleDeps
+          .getConnectionService()
+          .saveConnection({
+            userId,
+            ...tokenPayload,
+          });
 
         return c.json({
           ok: true,
@@ -357,27 +443,9 @@ export function createCalendarRouter({ prisma, requirePermission, google }) {
       try {
         googleDeps.requireConfig();
         const userId = getUserId(c);
-        const connection = await googleDeps
-          .getConnectionService()
-          .getConnectionByUserId(userId);
-
-        if (
-          !connection ||
-          connection.status !== "ACTIVE" ||
-          !connection.accessTokenEncrypted
-        ) {
-          throw new CalendarServiceError(
-            "No hay una cuenta Google conectada.",
-            409,
-          );
-        }
-
-        if (!hasUsableAccessToken(connection)) {
-          throw new CalendarServiceError(
-            "La conexion de Google Calendar expiro. Reconecta la cuenta para continuar.",
-            409,
-          );
-        }
+        const connection = await requireActiveGoogleConnection(userId, {
+          requireUsableAccessToken: true,
+        });
 
         const accessToken = googleDeps
           .getTokenCrypto()
@@ -398,6 +466,136 @@ export function createCalendarRouter({ prisma, requirePermission, google }) {
   );
 
   // ── Events ─────────────────────────────────────────────────────────────────
+
+  app.get(
+    "/calendar/google/sources",
+    requirePermission("calendar.calendars.read"),
+    async (c) => {
+      try {
+        googleDeps.requireConfig();
+        const userId = getUserId(c);
+        const connection = await requireActiveGoogleConnection(userId);
+        const items = await googleDeps
+          .getSourceService()
+          .listSourcesForConnection(connection.id);
+
+        return c.json({ items });
+      } catch (err) {
+        return handleError(
+          c,
+          err,
+          "No se pudieron obtener los calendarios sincronizados de Google.",
+        );
+      }
+    },
+  );
+
+  app.post(
+    "/calendar/google/sources",
+    requirePermission("calendar.calendars.create"),
+    async (c) => {
+      try {
+        googleDeps.requireConfig();
+        const userId = getUserId(c);
+        const connection = await requireActiveGoogleConnection(userId);
+        const body = await c.req.json();
+        const result = await googleDeps.getSourceService().saveSelectedSources({
+          connectionId: connection.id,
+          ownerId: userId,
+          calendars: body?.calendars,
+        });
+
+        if (
+          Array.isArray(result.importTargets) &&
+          result.importTargets.length > 0
+        ) {
+          const accessToken = googleDeps
+            .getTokenCrypto()
+            .decrypt(connection.accessTokenEncrypted);
+
+          queueMicrotask(() => {
+            Promise.allSettled(
+              result.importTargets.map((source) =>
+                googleDeps
+                  .getInitialImportService()
+                  .importSource({ source, accessToken }),
+              ),
+            ).catch((error) => {
+              if (process.env.NODE_ENV !== "production") {
+                console.error(
+                  "[atlas.calendar] google initial import dispatch failed",
+                  error,
+                );
+              }
+            });
+          });
+        }
+
+        return c.json({ items: result.items }, 201);
+      } catch (err) {
+        return handleError(
+          c,
+          err,
+          "No se pudieron guardar los calendarios seleccionados de Google.",
+        );
+      }
+    },
+  );
+
+  app.post(
+    "/calendar/google/disconnect",
+    requirePermission("calendar.calendars.read"),
+    async (c) => {
+      try {
+        googleDeps.requireConfig();
+        const userId = getUserId(c);
+        const connection = await googleDeps
+          .getConnectionService()
+          .getConnectionByUserId(userId);
+
+        if (!connection || connection.status !== "ACTIVE") {
+          return c.json({ ok: true });
+        }
+
+        // Optionally delete all imported Google calendars and their events
+        const body = await c.req.json().catch(() => ({}));
+        if (body.deleteEvents === true) {
+          const sources = await prisma.googleCalendarSource.findMany({
+            where: { connectionId: connection.id },
+            select: { id: true, atlasCalendarId: true },
+          });
+          if (sources.length > 0) {
+            const sourceIds = sources.map((s) => s.id);
+            const atlasCalendarIds = sources.map((s) => s.atlasCalendarId);
+
+            // 1. Delete sources first — they hold a Restrict FK to CalendarCalendar
+            //    Cascade removes GoogleCalendarEventLink rows as well
+            await prisma.googleCalendarSource.deleteMany({
+              where: { id: { in: sourceIds } },
+            });
+
+            // 2. Delete the Atlas calendars — cascade removes CalendarEvent rows
+            await prisma.calendarCalendar.deleteMany({
+              where: { id: { in: atlasCalendarIds } },
+            });
+          }
+        }
+
+        await googleDeps
+          .getSourceService()
+          .disableSourcesForConnection(connection.id);
+        await googleDeps.getConnectionService().disconnect(userId);
+
+        return c.json({ ok: true });
+      } catch (err) {
+        return handleError(
+          c,
+          err,
+          "No se pudo desconectar la cuenta de Google Calendar.",
+        );
+      }
+    },
+  );
 
   app.get(
     "/calendar/events",
@@ -542,9 +740,9 @@ export function createCalendarRouter({ prisma, requirePermission, google }) {
         const attendeeUserIds = toAttendeeUserIds(event, userId);
         const scheduleChanged = Boolean(
           changes.startDate ||
-            changes.endDate ||
-            changes.calendarId ||
-            changes.location,
+          changes.endDate ||
+          changes.calendarId ||
+          changes.location,
         );
         if (scheduleChanged && attendeeUserIds.length > 0) {
           await publishNotificationFromContext(prisma, c, {

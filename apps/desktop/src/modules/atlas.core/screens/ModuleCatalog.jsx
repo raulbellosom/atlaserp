@@ -26,6 +26,7 @@ import {
   TabsTrigger,
   TextField,
   cn,
+  LoadingState,
 } from "@atlas/ui";
 import {
   Home,
@@ -128,7 +129,8 @@ function isLocked(module) {
 
 function getModuleErrorSummary(module) {
   if (module?.status !== "ERROR") return null;
-  const lastError = module.lastError ?? module.lifecycleConfig?.lastError ?? null;
+  const lastError =
+    module.lastError ?? module.lifecycleConfig?.lastError ?? null;
   if (!lastError) {
     return {
       message: "No hay detalle de error disponible para este módulo.",
@@ -143,7 +145,7 @@ function getModuleErrorSummary(module) {
         ? `${message.slice(0, 220)}...`
         : message || "No hay detalle de error disponible para este módulo.",
     stageLabel: lastError.stage
-      ? ERROR_STAGE_LABEL[lastError.stage] ?? String(lastError.stage)
+      ? (ERROR_STAGE_LABEL[lastError.stage] ?? String(lastError.stage))
       : null,
     code: lastError.code ? String(lastError.code) : null,
   };
@@ -160,7 +162,7 @@ function buildModuleErrorDetail(module, lastError) {
   }
 
   const stage = lastError?.stage ? String(lastError.stage) : null;
-  const stageLabel = stage ? ERROR_STAGE_LABEL[stage] ?? stage : null;
+  const stageLabel = stage ? (ERROR_STAGE_LABEL[stage] ?? stage) : null;
   const code = lastError?.code ? String(lastError.code) : null;
   const requestId = lastError?.requestId ? String(lastError.requestId) : null;
   const failedAt = lastError?.failedAt ? String(lastError.failedAt) : null;
@@ -218,7 +220,7 @@ function StatusPill({ module, className }) {
     module.status === "INSTALLED" && module.enabled && !module.updateAvailable;
   const dotColor = module.updateAvailable
     ? "#0ea5e9"
-    : STATUS_DOT[module.status] ?? "#94a3b8";
+    : (STATUS_DOT[module.status] ?? "#94a3b8");
   return (
     <div className={cn("flex items-center gap-1.5", className)}>
       <span
@@ -443,8 +445,7 @@ export default function ModuleCatalog() {
       }
       if (action === "uninstall") {
         if (purge) {
-          const policy =
-            module?.manifest?.lifecycle?.defaultUninstallPolicy;
+          const policy = module?.manifest?.lifecycle?.defaultUninstallPolicy;
           const uninstallMode =
             policy === "purge-owned-tables"
               ? "purge-owned-tables"
@@ -459,7 +460,12 @@ export default function ModuleCatalog() {
         return atlas.modules.uninstall(key, token);
       }
       if (action === "purge-orphaned-tables") {
-        return atlas.modules.uninstallExplicit(key, "purge-owned-tables", "ACEPTO", token);
+        return atlas.modules.uninstallExplicit(
+          key,
+          "purge-owned-tables",
+          "ACEPTO",
+          token,
+        );
       }
       if (action === "seed") return atlas.modules.seed(key, token);
     },
@@ -485,7 +491,9 @@ export default function ModuleCatalog() {
       await queryClient.invalidateQueries({ queryKey: ["modules"] });
       await queryClient.invalidateQueries({ queryKey: ["runtime-modules"] });
       await queryClient.invalidateQueries({ queryKey: ["blueprints"] });
-      await queryClient.invalidateQueries({ queryKey: ["module-orphan-tables"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["module-orphan-tables"],
+      });
       setConfirmUninstall(null);
       setPurgeOnUninstall(false);
       setConfirmCleanup(null);
@@ -519,7 +527,8 @@ export default function ModuleCatalog() {
   });
 
   const syncCatalogMutation = useMutation({
-    mutationFn: (vars) => atlas.modules.sync(token, { autoRepair: true, ...(vars ?? {}) }),
+    mutationFn: (vars) =>
+      atlas.modules.sync(token, { autoRepair: true, ...(vars ?? {}) }),
     onMutate: (vars) => {
       const toastId = toast.loading(
         vars?.moduleKey
@@ -619,7 +628,8 @@ export default function ModuleCatalog() {
     try {
       const response = await atlas.modules.getError(module.key, token);
       const err = response?.data?.lastError;
-      const fallback = module?.lastError ?? module?.lifecycleConfig?.lastError ?? null;
+      const fallback =
+        module?.lastError ?? module?.lifecycleConfig?.lastError ?? null;
       const detail = buildModuleErrorDetail(module, err ?? fallback);
       setErrorDialog({
         open: true,
@@ -628,7 +638,8 @@ export default function ModuleCatalog() {
         detail,
       });
     } catch {
-      const fallback = module?.lastError ?? module?.lifecycleConfig?.lastError ?? null;
+      const fallback =
+        module?.lastError ?? module?.lifecycleConfig?.lastError ?? null;
       setErrorDialog({
         open: true,
         module,
@@ -741,7 +752,8 @@ export default function ModuleCatalog() {
       lifecycleMutation.variables?.module?.key === module.key;
     const locked = isLocked(module);
     const canOpen = isModuleAvailable(module);
-    const canSyncModule = canOpen && module.updateAvailable && canInstallModules;
+    const canSyncModule =
+      canOpen && module.updateAvailable && canInstallModules;
     const canInstall = module.status === "UNINSTALLED";
     const canDisable =
       module.status === "INSTALLED" && module.enabled && !locked;
@@ -761,21 +773,23 @@ export default function ModuleCatalog() {
       module.status === "UNINSTALLED" &&
       !locked &&
       canUninstallModules &&
-      (
-        (Array.isArray(module?.lifecycleConfig?.ownedTables) && module.lifecycleConfig.ownedTables.length > 0) ||
-        module?.manifest?.lifecycle?.defaultUninstallPolicy === "purge-owned-tables"
-      );
+      ((Array.isArray(module?.lifecycleConfig?.ownedTables) &&
+        module.lifecycleConfig.ownedTables.length > 0) ||
+        module?.manifest?.lifecycle?.defaultUninstallPolicy ===
+          "purge-owned-tables");
 
     const orphanQuery = useQuery({
       queryKey: ["module-orphan-tables", module.key],
-      queryFn: () => atlas.modules.uninstallDryRun(module.key, token, "purge-owned-tables"),
+      queryFn: () =>
+        atlas.modules.uninstallDryRun(module.key, token, "purge-owned-tables"),
       enabled: Boolean(couldHaveOrphanedTables && token),
       staleTime: 60000,
       retry: false,
     });
 
-    const hasOrphanedTables =
-      (orphanQuery.data?.data?.ownedTablePurge?.tableChecks ?? []).some((t) => t.exists);
+    const hasOrphanedTables = (
+      orphanQuery.data?.data?.ownedTablePurge?.tableChecks ?? []
+    ).some((t) => t.exists);
     const canPurgeOrphanedTables = couldHaveOrphanedTables && hasOrphanedTables;
     return (
       <div className="space-y-2">
@@ -809,9 +823,7 @@ export default function ModuleCatalog() {
             className="w-full"
             variant="outline"
             disabled={inFlight}
-            onClick={() =>
-              lifecycleMutation.mutate({ action: "seed", module })
-            }
+            onClick={() => lifecycleMutation.mutate({ action: "seed", module })}
           >
             <Sprout className="h-4 w-4" />
             {inFlight ? "Ejecutando..." : "Ejecutar seed"}
@@ -929,7 +941,9 @@ export default function ModuleCatalog() {
             }}
           >
             <Database className="h-4 w-4 text-red-500" />
-            <span className="text-red-600 dark:text-red-400">Purgar tablas de base de datos</span>
+            <span className="text-red-600 dark:text-red-400">
+              Purgar tablas de base de datos
+            </span>
           </Button>
         )}
         {locked && !canOpen && (
@@ -967,7 +981,9 @@ export default function ModuleCatalog() {
             <Button
               variant="default"
               className="bg-(--brand-primary) text-(--brand-primary-foreground) hover:bg-(--brand-primary-hover) shadow-sm"
-              disabled={syncCatalogMutation.isPending || !canReadModules || !token}
+              disabled={
+                syncCatalogMutation.isPending || !canReadModules || !token
+              }
               onClick={() => syncCatalogMutation.mutate()}
             >
               <RefreshCw
@@ -1073,7 +1089,7 @@ export default function ModuleCatalog() {
           />
         ) : isLoading ? (
           viewMode === "grid" ? (
-            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
               {skeletons.map((_, i) => (
                 <Skeleton key={i} className="h-56 w-full rounded-2xl" />
               ))}
@@ -1108,7 +1124,7 @@ export default function ModuleCatalog() {
           />
         ) : viewMode === "grid" ? (
           // ---- GRID VIEW ----
-          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
             {filteredModules.map((module) => {
               const visuals = resolveModuleVisuals(module);
               const color = visuals.color;
@@ -1542,20 +1558,21 @@ export default function ModuleCatalog() {
           <DialogHeader>
             <DialogTitle>Detalle del error del módulo</DialogTitle>
             <DialogDescription>
-              {errorDialog?.module?.name ?? "Módulo"} · {errorDialog?.module?.key ?? "-"}
+              {errorDialog?.module?.name ?? "Módulo"} ·{" "}
+              {errorDialog?.module?.key ?? "-"}
             </DialogDescription>
           </DialogHeader>
           {errorDialog.loading ? (
-            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-4 text-sm text-[hsl(var(--muted-foreground))]">
-              Cargando diagnóstico...
-            </div>
+            <LoadingState message="Cargando diagnóstico..." />
           ) : (
             <div className="space-y-3">
               {errorDialog?.detail?.raw && (
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   {errorDialog.detail.raw.stage && (
                     <span className="rounded-full border border-[hsl(var(--border))] px-2 py-0.5">
-                      Etapa: {ERROR_STAGE_LABEL[errorDialog.detail.raw.stage] ?? String(errorDialog.detail.raw.stage)}
+                      Etapa:{" "}
+                      {ERROR_STAGE_LABEL[errorDialog.detail.raw.stage] ??
+                        String(errorDialog.detail.raw.stage)}
                     </span>
                   )}
                   {errorDialog.detail.raw.code && (
@@ -1572,7 +1589,8 @@ export default function ModuleCatalog() {
               )}
               <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/30">
                 <pre className="max-h-80 overflow-auto p-3 text-xs leading-relaxed whitespace-pre-wrap break-words font-mono">
-                  {errorDialog?.detail?.copyText ?? "No hay detalle de error disponible."}
+                  {errorDialog?.detail?.copyText ??
+                    "No hay detalle de error disponible."}
                 </pre>
               </div>
               <div className="flex justify-end">
@@ -1670,7 +1688,9 @@ export default function ModuleCatalog() {
 
       <ConfirmDialog
         open={Boolean(confirmDbPurge)}
-        onOpenChange={(v) => { if (!v) setConfirmDbPurge(null); }}
+        onOpenChange={(v) => {
+          if (!v) setConfirmDbPurge(null);
+        }}
         title="¿Purgar tablas de la base de datos?"
         description="El módulo está desinstalado pero puede tener tablas residuales en la base de datos. Esta acción las eliminará permanentemente junto con todos sus datos. No se puede deshacer."
         detail={confirmDbPurge?.name}
@@ -1686,7 +1706,8 @@ export default function ModuleCatalog() {
         <div className="flex items-start gap-2 rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-3">
           <Database className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
           <p className="text-xs text-red-700 dark:text-red-300 leading-relaxed">
-            Se eliminarán todas las tablas propias del módulo y sus registros asociados en la base de datos.
+            Se eliminarán todas las tablas propias del módulo y sus registros
+            asociados en la base de datos.
           </p>
         </div>
       </ConfirmDialog>

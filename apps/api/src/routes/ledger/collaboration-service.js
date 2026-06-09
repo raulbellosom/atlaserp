@@ -87,6 +87,31 @@ export function createCollaborationService({ prisma }) {
 
   // ── Account members (personal accounts only) ──────────────────────────────
 
+  async function listAccountMembers({ companyId, accountId, actorId }) {
+    // Verify the actor has access to this account before listing members
+    const accRows = await prisma.$queryRaw`
+      SELECT id FROM ledger_account
+      WHERE id = ${accountId}::uuid AND company_id = ${companyId}::uuid AND enabled = true
+        AND (owner_id IS NULL OR owner_id = ${actorId}::uuid
+          OR EXISTS (
+            SELECT 1 FROM ledger_account_member m
+            WHERE m.account_id = ledger_account.id AND m.user_id = ${actorId}::uuid AND m.status = 'active'
+          )
+        )
+    `
+    if (!firstRow(accRows)) throw new CollaborationServiceError('Cuenta no encontrada.', 404)
+
+    const rows = await prisma.$queryRaw`
+      SELECT am.id, am.user_id, am.role, am.status, am.invited_at,
+        p.display_name, p.email
+      FROM ledger_account_member am
+      JOIN user_profile p ON p.id = am.user_id
+      WHERE am.account_id = ${accountId}::uuid AND am.status = 'active'
+      ORDER BY p.display_name
+    `
+    return { data: rows }
+  }
+
   async function inviteAccountMember({ companyId, accountId, actorId, actorName, data }) {
     const account = await getAccountOwned({ companyId, accountId, actorId })
     if (account.group_id) {
@@ -264,6 +289,7 @@ export function createCollaborationService({ prisma }) {
   return {
     moveAccountToGroup,
     moveAccountFromGroup,
+    listAccountMembers,
     inviteAccountMember,
     updateAccountMemberRole,
     removeAccountMember,

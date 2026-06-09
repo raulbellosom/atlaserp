@@ -20,7 +20,7 @@ pnpm add @raulbellosom/atlas-sdk
 4. [sdk.auth](#4-sdkauth)
 5. [sdk.files](#5-sdkfiles)
 6. [sdk.catalog](#6-sdkcatalog)
-7. [sdk.discovery](#7-sdkdiscovery)
+7. [sdk.discovery](#7-sdkdiscovery) — `blueprints`, `modules`, `hasModule`, `introspect`
 8. [sdk.realtime](#8-sdkrealtime)
 9. [sdk.request — generic escape hatch](#9-sdkrequest--generic-escape-hatch)
 10. [StorefrontError — complete error reference](#10-storefront-error--complete-error-reference)
@@ -658,39 +658,86 @@ for (const category of result.data) {
 
 ## 7. sdk.discovery
 
-The discovery namespace lets you query which modules (features) are installed and enabled on the ERP instance.
+The discovery namespace lets you query which modules (features) are installed and enabled on the ERP instance, what data structures they expose, and how to reach their endpoints.
 
-**Caching:** Results are cached in memory for 30 seconds. Concurrent calls while a fetch is in-flight share a single promise — the network request is made only once. The cache resets on client instantiation.
+**Caching:** All results are cached in memory for 30 seconds. Concurrent calls while a fetch is in-flight share a single promise — the network request is made only once. The cache resets on client instantiation.
 
-**What is a blueprint?** A blueprint is a JSON schema object describing a data entity registered by an installed ERP module. Each blueprint has at minimum: `{ id, key, moduleKey, kind, name, fields }`. Blueprints are the machine-readable contract for what data structures exist and how they should be rendered.
+**Quick discovery via `GET /public`:** Any running Atlas ERP instance exposes a meta-endpoint at `GET /public` (no auth required) that lists every available public endpoint with its method, path, auth requirement, and description. This is the fastest way for a developer, tool, or AI agent to discover what the instance supports without reading documentation:
+
+```bash
+curl https://erp.tudominio.mx/public
+```
+
+**What is a blueprint?** A blueprint is a JSON schema object describing a data view registered by an installed ERP module (e.g. a custom screen component, a public entity view). Each blueprint has at minimum: `{ key, moduleKey, kind, schema }`.
+
+**What is a module?** A module is an installable ERP feature (e.g. `atlas.catalog`, `custom.bookings`). The `modules()` method returns the list of modules currently installed and enabled on the running instance, including their navigation structure and what they expose publicly.
+
+---
+
+### `sdk.discovery.modules()`
+
+**Description:** Returns all installed and enabled modules on this ERP instance. Results are cached for 30 seconds. Use this to know which features are active before building module-specific UI or making module-specific API calls.
+
+**Parameters:** None
+
+**Returns:** `Promise<Array<module>>`
+
+Each module object:
+
+| Field | Type | Description |
+|---|---|---|
+| `key` | `string` | Unique module identifier, e.g. `'atlas.catalog'`, `'custom.bookings'` |
+| `name` | `string` | Human-readable module name |
+| `version` | `string` | Installed version string |
+| `kind` | `string` | Module kind: `'CORE'`, `'FEATURE'`, or `'CUSTOM'` |
+| `enabled` | `boolean` | Always `true` in this response (only enabled modules are returned) |
+| `navigation` | `Array` | Navigation items declared by this module (label, path, icon) |
+| `exposes` | `Array` | Public routes or capabilities this module exposes |
+
+**Example:**
+
+```js
+const mods = await sdk.discovery.modules()
+console.log(`Modulos activos: ${mods.length}`)
+
+for (const mod of mods) {
+  console.log(`${mod.key} v${mod.version} — ${mod.name}`)
+}
+
+// Check if a specific module is active
+const hasBookings = mods.some(m => m.key === 'custom.bookings')
+if (hasBookings) {
+  // Show bookings UI
+}
+```
 
 ---
 
 ### `sdk.discovery.blueprints()`
 
-**Description:** Returns all blueprints for all enabled modules on this ERP instance. Results are cached for 30 seconds.
+**Description:** Returns all public custom views (blueprints) registered by enabled modules on this ERP instance. Results are cached for 30 seconds. Blueprints describe UI components that modules declare as publicly renderable.
 
 **Parameters:** None
 
 **Returns:** `Promise<Array<blueprint>>`
 
-Each blueprint object includes: `{ id, key, moduleKey, kind, name, module: { key, name } }`.
+Each blueprint object includes: `{ key, moduleKey, kind, schema: { component, path, title, public } }`.
 
 **Example:**
 
 ```js
 const blueprints = await sdk.discovery.blueprints()
-console.log(`Modulos activos: ${blueprints.length} blueprints`)
+console.log(`Vistas publicas registradas: ${blueprints.length}`)
 
-const bookingBlueprints = blueprints.filter(bp => bp.module?.key === 'custom.bookings')
-console.log('Blueprints de reservaciones:', bookingBlueprints.map(bp => bp.name))
+const bookingViews = blueprints.filter(bp => bp.moduleKey === 'custom.bookings')
+console.log('Vistas de reservaciones:', bookingViews.map(bp => bp.key))
 ```
 
 ---
 
 ### `sdk.discovery.hasModule(moduleKey)`
 
-**Description:** Returns `true` if the given module key has at least one blueprint registered on this ERP instance. Uses the cached blueprints result.
+**Description:** Returns `true` if the given module key is installed and enabled on this ERP instance. Uses the cached `modules()` result.
 
 **Parameters:**
 
@@ -707,10 +754,57 @@ const hasCatalog = await sdk.discovery.hasModule('atlas.catalog')
 if (!hasCatalog) {
   console.warn('El modulo de catalogo no esta disponible en este servidor')
 }
+```
 
-const hasBookings = await sdk.discovery.hasModule('custom.bookings')
-if (hasBookings) {
-  // Show bookings UI
+---
+
+### `sdk.discovery.introspect()`
+
+**Description:** Fetches modules and blueprints in parallel and returns a unified schema object. This is the primary method for an external project or AI agent to build a complete picture of what an Atlas ERP instance supports — which modules are active, what they expose, and what views they declare.
+
+**Parameters:** None
+
+**Returns:** `Promise<{ modules, blueprints, byModuleKey }>`
+
+| Field | Type | Description |
+|---|---|---|
+| `modules` | `Array<module>` | Same as `sdk.discovery.modules()` |
+| `blueprints` | `Array<blueprint>` | Same as `sdk.discovery.blueprints()` |
+| `byModuleKey` | `object` | Each key is a module key; each value is the module object extended with a `blueprints` array containing that module's views |
+
+**Example:**
+
+```js
+const { modules, blueprints, byModuleKey } = await sdk.discovery.introspect()
+
+console.log(`Modulos activos: ${modules.length}`)
+console.log(`Vistas publicas: ${blueprints.length}`)
+
+// Access a specific module and all its views
+const catalog = byModuleKey['atlas.catalog']
+if (catalog) {
+  console.log(`Catalogo v${catalog.version}, vistas: ${catalog.blueprints.length}`)
+  console.log('Navegacion:', catalog.navigation.map(n => n.label))
+}
+
+// Enumerate everything — useful for AI agents or integration tools
+for (const [key, mod] of Object.entries(byModuleKey)) {
+  console.log(`${key}: ${mod.blueprints.length} vistas`)
+}
+```
+
+**Recommended use case — AI agent or integration bootstrap:**
+
+```js
+// Call once at startup to understand what this ERP instance supports
+const schema = await sdk.discovery.introspect()
+
+// Now you can make informed decisions:
+if (schema.byModuleKey['custom.reservations']) {
+  loadReservationsModule(schema.byModuleKey['custom.reservations'])
+}
+if (schema.byModuleKey['atlas.catalog']) {
+  loadCatalogModule(schema.byModuleKey['atlas.catalog'])
 }
 ```
 
@@ -1201,7 +1295,7 @@ function InstalledModules() {
 
 | Field | Type | Description |
 |---|---|---|
-| `hasModule` | `boolean` | `true` if the given module is installed and has blueprints |
+| `hasModule` | `boolean` | `true` if the given module is installed and enabled |
 | `isLoading` | `boolean` | `true` while checking |
 
 **Example:**

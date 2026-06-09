@@ -1,144 +1,166 @@
-import { useState, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../../auth/AuthProvider.jsx'
-import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../../auth/AuthProvider.jsx";
+import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import {
-  Button, SelectField, Switch, StatCard, PageHeader, TextField,
-  Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
-} from '@atlas/ui'
-import { Globe, FileText, BookOpen, MessageSquare } from 'lucide-react'
-import { toast } from 'sonner'
-import WebsiteWizard from './WebsiteWizard.jsx'
+  Button,
+  SelectField,
+  Switch,
+  StatCard,
+  PageHeader,
+  TextField,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+  LoadingState,
+} from "@atlas/ui";
+import { Globe, FileText, BookOpen, MessageSquare } from "lucide-react";
+import { toast } from "sonner";
+import WebsiteWizard from "./WebsiteWizard.jsx";
 
 const SITE_TYPES = [
-  { value: 'website',   label: 'Sitio informativo' },
-  { value: 'ecommerce', label: 'Tienda online' },
-  { value: 'blog',      label: 'Blog / Contenido' },
-  { value: 'landing',   label: 'Landing page' },
-]
+  { value: "website", label: "Sitio informativo" },
+  { value: "ecommerce", label: "Tienda online" },
+  { value: "blog", label: "Blog / Contenido" },
+  { value: "landing", label: "Landing page" },
+];
 
 async function apiFetch(path, token, options = {}) {
   const res = await fetch(`${getApiUrl()}${path}`, {
     ...options,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...options.headers },
-  })
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || `HTTP ${res.status}`)
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
   }
-  if (res.status === 204) return null
-  return res.json()
+  if (res.status === 204) return null;
+  return res.json();
 }
 
 export default function WebsiteOverviewScreen() {
-  const { session } = useAuth()
-  const token = session?.access_token
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
+  const { session } = useAuth();
+  const token = session?.access_token;
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [deleteOpen, setDeleteOpen]     = useState(false)
-  const [deleteText, setDeleteText]     = useState('')
-  const [formName, setFormName]         = useState('')
-  const [formDomain, setFormDomain]     = useState('')
-  const [formSiteType, setFormSiteType] = useState('website')
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
+  const [formName, setFormName] = useState("");
+  const [formDomain, setFormDomain] = useState("");
+  const [formSiteType, setFormSiteType] = useState("website");
 
   const siteQuery = useQuery({
-    queryKey: ['website-site', token],
-    queryFn:  () => apiFetch('/website/site', token),
-    enabled:  Boolean(token),
+    queryKey: ["website-site", token],
+    queryFn: () => apiFetch("/website/site", token),
+    enabled: Boolean(token),
     staleTime: 60_000,
-  })
+  });
 
-  const site = siteQuery.data?.data ?? null
+  const site = siteQuery.data?.data ?? null;
 
   useEffect(() => {
     if (site) {
-      setFormName(site.name ?? '')
-      setFormDomain(site.domain ?? '')
-      setFormSiteType(site.siteType ?? 'website')
+      setFormName(site.name ?? "");
+      setFormDomain(site.domain ?? "");
+      setFormSiteType(site.siteType ?? "website");
     }
-  }, [site])
+  }, [site]);
 
   const publishedPagesQuery = useQuery({
-    queryKey: ['website-pages-stats', 'published', site?.id],
-    queryFn:  () => apiFetch(`/website/pages?siteId=${site.id}&status=published&pageSize=1`, token),
-    enabled:  Boolean(token) && Boolean(site?.id),
+    queryKey: ["website-pages-stats", "published", site?.id],
+    queryFn: () =>
+      apiFetch(
+        `/website/pages?siteId=${site.id}&status=published&pageSize=1`,
+        token,
+      ),
+    enabled: Boolean(token) && Boolean(site?.id),
     staleTime: 60_000,
-  })
+  });
 
   const draftPagesQuery = useQuery({
-    queryKey: ['website-pages-stats', 'draft', site?.id],
-    queryFn:  () => apiFetch(`/website/pages?siteId=${site.id}&status=draft&pageSize=1`, token),
-    enabled:  Boolean(token) && Boolean(site?.id),
+    queryKey: ["website-pages-stats", "draft", site?.id],
+    queryFn: () =>
+      apiFetch(
+        `/website/pages?siteId=${site.id}&status=draft&pageSize=1`,
+        token,
+      ),
+    enabled: Boolean(token) && Boolean(site?.id),
     staleTime: 60_000,
-  })
+  });
 
   const blogQuery = useQuery({
-    queryKey: ['website-blog-stats', site?.id],
-    queryFn:  () => apiFetch(`/website/blog/posts?siteId=${site.id}&pageSize=1`, token),
-    enabled:  Boolean(token) && Boolean(site?.id),
+    queryKey: ["website-blog-stats", site?.id],
+    queryFn: () =>
+      apiFetch(`/website/blog/posts?siteId=${site.id}&pageSize=1`, token),
+    enabled: Boolean(token) && Boolean(site?.id),
     staleTime: 60_000,
-  })
+  });
 
   const formsQuery = useQuery({
-    queryKey: ['website-forms-stats', site?.id],
-    queryFn:  () => apiFetch(`/website/forms?siteId=${site.id}`, token),
-    enabled:  Boolean(token) && Boolean(site?.id),
+    queryKey: ["website-forms-stats", site?.id],
+    queryFn: () => apiFetch(`/website/forms?siteId=${site.id}`, token),
+    enabled: Boolean(token) && Boolean(site?.id),
     staleTime: 60_000,
-  })
+  });
 
   const updateMutation = useMutation({
-    mutationFn: (data) => apiFetch(`/website/site/${site.id}`, token, {
-      method: 'PATCH',
-      body:   JSON.stringify(data),
-    }),
+    mutationFn: (data) =>
+      apiFetch(`/website/site/${site.id}`, token, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['website-site'] })
-      toast.success('Sitio actualizado')
+      queryClient.invalidateQueries({ queryKey: ["website-site"] });
+      toast.success("Sitio actualizado");
     },
     onError: (err) => toast.error(err.message),
-  })
+  });
 
   const deleteMutation = useMutation({
-    mutationFn: () => apiFetch(`/website/site/${site.id}`, token, { method: 'DELETE' }),
+    mutationFn: () =>
+      apiFetch(`/website/site/${site.id}`, token, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['website-site'] })
-      setDeleteOpen(false)
-      setDeleteText('')
-      toast.success('Sitio web eliminado')
+      queryClient.invalidateQueries({ queryKey: ["website-site"] });
+      setDeleteOpen(false);
+      setDeleteText("");
+      toast.success("Sitio web eliminado");
     },
     onError: (err) => toast.error(err.message),
-  })
+  });
 
-  if (siteQuery.isPending) {
-    return (
-      <div className="flex items-center justify-center h-full text-sm text-[hsl(var(--muted-foreground))]">
-        Cargando...
-      </div>
-    )
-  }
+  if (siteQuery.isPending) return <LoadingState variant="page" />;
 
-  if (!site) return <WebsiteWizard />
+  if (!site) return <WebsiteWizard />;
 
-  const submissionsTotal = (formsQuery.data?.data ?? [])
-    .reduce((sum, f) => sum + (f._count?.submissions ?? 0), 0)
+  const submissionsTotal = (formsQuery.data?.data ?? []).reduce(
+    (sum, f) => sum + (f._count?.submissions ?? 0),
+    0,
+  );
 
   function handleSaveConfig() {
     updateMutation.mutate({
-      name:     formName.trim() || undefined,
-      domain:   formDomain.trim() || null,
+      name: formName.trim() || undefined,
+      domain: formDomain.trim() || null,
       siteType: formSiteType,
-    })
+    });
   }
 
   function handleStatusToggle(checked) {
-    updateMutation.mutate({ status: checked ? 'published' : 'draft' })
+    updateMutation.mutate({ status: checked ? "published" : "draft" });
   }
 
   function closeDeleteDialog() {
-    setDeleteOpen(false)
-    setDeleteText('')
+    setDeleteOpen(false);
+    setDeleteText("");
   }
 
   return (
@@ -147,18 +169,22 @@ export default function WebsiteOverviewScreen() {
       <PageHeader
         eyebrow="Atlas Website"
         title={site.name}
-        description={site.domain ? `https://${site.domain}` : 'Dominio no configurado'}
+        description={
+          site.domain ? `https://${site.domain}` : "Dominio no configurado"
+        }
         actions={
           <div className="flex items-center gap-3">
-            <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
-              site.status === 'published'
-                ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800'
-                : 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
-            }`}>
-              {site.status === 'published' ? 'Publicado' : 'Borrador'}
+            <span
+              className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+                site.status === "published"
+                  ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800"
+                  : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+              }`}
+            >
+              {site.status === "published" ? "Publicado" : "Borrador"}
             </span>
             <Switch
-              checked={site.status === 'published'}
+              checked={site.status === "published"}
               onCheckedChange={handleStatusToggle}
               disabled={updateMutation.isPending}
             />
@@ -172,34 +198,46 @@ export default function WebsiteOverviewScreen() {
           Resumen
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="cursor-pointer" onClick={() => navigate('/app/m/atlas.website/pages')}>
+          <div
+            className="cursor-pointer"
+            onClick={() => navigate("/app/m/atlas.website/pages")}
+          >
             <StatCard
               label="Pag. publicadas"
-              value={publishedPagesQuery.data?.total ?? '—'}
+              value={publishedPagesQuery.data?.total ?? "—"}
               icon={Globe}
               loading={publishedPagesQuery.isPending}
             />
           </div>
-          <div className="cursor-pointer" onClick={() => navigate('/app/m/atlas.website/pages')}>
+          <div
+            className="cursor-pointer"
+            onClick={() => navigate("/app/m/atlas.website/pages")}
+          >
             <StatCard
               label="Borradores"
-              value={draftPagesQuery.data?.total ?? '—'}
+              value={draftPagesQuery.data?.total ?? "—"}
               icon={FileText}
               loading={draftPagesQuery.isPending}
             />
           </div>
-          <div className="cursor-pointer" onClick={() => navigate('/app/m/atlas.website/blog')}>
+          <div
+            className="cursor-pointer"
+            onClick={() => navigate("/app/m/atlas.website/blog")}
+          >
             <StatCard
               label="Posts de blog"
-              value={blogQuery.data?.total ?? '—'}
+              value={blogQuery.data?.total ?? "—"}
               icon={BookOpen}
               loading={blogQuery.isPending}
             />
           </div>
-          <div className="cursor-pointer" onClick={() => navigate('/app/m/atlas.website/forms')}>
+          <div
+            className="cursor-pointer"
+            onClick={() => navigate("/app/m/atlas.website/forms")}
+          >
             <StatCard
               label="Envios de formulario"
-              value={formsQuery.isPending ? '—' : submissionsTotal}
+              value={formsQuery.isPending ? "—" : submissionsTotal}
               icon={MessageSquare}
               loading={formsQuery.isPending}
             />
@@ -240,18 +278,24 @@ export default function WebsiteOverviewScreen() {
           </div>
 
           <div className="flex justify-end">
-            <Button onClick={handleSaveConfig} disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
+            <Button
+              onClick={handleSaveConfig}
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? "Guardando..." : "Guardar cambios"}
             </Button>
           </div>
         </section>
 
         {/* Danger zone */}
         <section className="rounded-xl border border-red-200 p-6 space-y-3">
-          <h2 className="text-base font-semibold text-red-700">Zona de peligro</h2>
+          <h2 className="text-base font-semibold text-red-700">
+            Zona de peligro
+          </h2>
           <p className="text-sm text-[hsl(var(--muted-foreground))]">
-            Eliminar el sitio web borra de forma permanente todas las paginas, posts de blog,
-            formularios, menus y temas. Esta accion no se puede deshacer.
+            Eliminar el sitio web borra de forma permanente todas las paginas,
+            posts de blog, formularios, menus y temas. Esta accion no se puede
+            deshacer.
           </p>
           <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
             Eliminar sitio web
@@ -260,13 +304,19 @@ export default function WebsiteOverviewScreen() {
       </div>
 
       {/* Delete confirmation dialog */}
-      <Dialog open={deleteOpen} onOpenChange={(open) => { if (!open) closeDeleteDialog() }}>
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDeleteDialog();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Eliminar sitio web</DialogTitle>
             <DialogDescription>
-              Esta accion es irreversible. Se eliminaran todas las paginas, posts de blog,
-              formularios, menus y temas del sitio <strong>{site.name}</strong>.
+              Esta accion es irreversible. Se eliminaran todas las paginas,
+              posts de blog, formularios, menus y temas del sitio{" "}
+              <strong>{site.name}</strong>.
             </DialogDescription>
           </DialogHeader>
           <div className="py-2">
@@ -286,11 +336,11 @@ export default function WebsiteOverviewScreen() {
               disabled={deleteText !== site.name || deleteMutation.isPending}
               onClick={() => deleteMutation.mutate()}
             >
-              {deleteMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+              {deleteMutation.isPending ? "Eliminando..." : "Eliminar"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

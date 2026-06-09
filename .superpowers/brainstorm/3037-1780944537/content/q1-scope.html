@@ -1,0 +1,79 @@
+<h2>Pregunta 1: Enfoque del modulo</h2>
+<p class="subtitle">La respuesta define la estructura de navegacion, los modelos de datos, y que tan complejo es el MVP.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="projects-first" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0f172a;padding:16px;font-family:monospace;font-size:12px;color:#94a3b8;border-radius:6px;min-height:160px">
+      <div style="color:#38bdf8;margin-bottom:8px;font-weight:bold">atlas.projects</div>
+      <div style="display:flex;gap:12px">
+        <div style="flex:0 0 140px;background:#1e293b;border-radius:4px;padding:10px">
+          <div style="color:#64748b;font-size:10px;text-transform:uppercase;margin-bottom:6px">Proyectos</div>
+          <div style="background:#334155;border-radius:3px;padding:4px 8px;margin-bottom:4px;color:#e2e8f0;font-size:11px">Website Rediseno</div>
+          <div style="background:#334155;border-radius:3px;padding:4px 8px;margin-bottom:4px;color:#e2e8f0;font-size:11px">Migracion DB</div>
+          <div style="background:#1e293b;border:1px dashed #475569;border-radius:3px;padding:4px 8px;color:#475569;font-size:11px">+ Nuevo proyecto</div>
+        </div>
+        <div style="flex:1;background:#1e293b;border-radius:4px;padding:10px">
+          <div style="color:#64748b;font-size:10px;text-transform:uppercase;margin-bottom:6px">Website Rediseno &rsaquo; Kanban</div>
+          <div style="display:flex;gap:6px">
+            <div style="flex:1;background:#0f172a;border-radius:3px;padding:6px">
+              <div style="color:#64748b;font-size:10px;margin-bottom:4px">PENDIENTE</div>
+              <div style="background:#1e3a5f;border-radius:2px;padding:4px;font-size:10px;color:#93c5fd;margin-bottom:3px">Disenar wireframes</div>
+            </div>
+            <div style="flex:1;background:#0f172a;border-radius:3px;padding:6px">
+              <div style="color:#64748b;font-size:10px;margin-bottom:4px">EN PROGRESO</div>
+              <div style="background:#1e3a5f;border-radius:2px;padding:4px;font-size:10px;color:#93c5fd;margin-bottom:3px">Revision contenido</div>
+            </div>
+            <div style="flex:1;background:#0f172a;border-radius:3px;padding:6px">
+              <div style="color:#64748b;font-size:10px;margin-bottom:4px">LISTO</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Orientado a proyectos</h3>
+      <p>Las tareas siempre pertenecen a un proyecto. El proyecto tiene nombre, descripcion, fechas, progreso y sus propias vistas (Kanban, Timeline, Lista). Hay un proyecto &ldquo;General&rdquo; o &ldquo;Inbox&rdquo; por defecto para tareas sueltas.</p>
+      <p style="margin-top:8px;font-size:13px;color:#64748b"><strong>Como Asana, Plane, Linear.</strong> Mas estructurado, ideal para un ERP donde cada tarea tiene contexto de negocio.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="tasks-first" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0f172a;padding:16px;font-family:monospace;font-size:12px;color:#94a3b8;border-radius:6px;min-height:160px">
+      <div style="color:#38bdf8;margin-bottom:8px;font-weight:bold">atlas.tasks</div>
+      <div style="background:#1e293b;border-radius:4px;padding:10px">
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <div style="color:#64748b;font-size:10px;cursor:pointer;border-bottom:2px solid #38bdf8;padding-bottom:2px">Todas</div>
+          <div style="color:#64748b;font-size:10px;cursor:pointer">Mis tareas</div>
+          <div style="color:#64748b;font-size:10px;cursor:pointer">Esta semana</div>
+          <div style="color:#64748b;font-size:10px;cursor:pointer">Pendiente</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e293b">
+          <div style="width:10px;height:10px;border-radius:50%;border:1.5px solid #475569;flex-shrink:0"></div>
+          <div style="font-size:11px;color:#e2e8f0">Llamar al cliente Martinez</div>
+          <div style="margin-left:auto;background:#1e3a5f;border-radius:10px;padding:2px 7px;font-size:10px;color:#93c5fd">Hoy</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e293b">
+          <div style="width:10px;height:10px;border-radius:50%;border:1.5px solid #475569;flex-shrink:0"></div>
+          <div style="font-size:11px;color:#e2e8f0">Revisar contrato de flota</div>
+          <div style="margin-left:auto;background:#1e3a5f;border-radius:10px;padding:2px 7px;font-size:10px;color:#93c5fd">Manana</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0">
+          <div style="width:10px;height:10px;background:#22c55e;border-radius:50%;flex-shrink:0"></div>
+          <div style="font-size:11px;color:#94a3b8;text-decoration:line-through">Actualizar póliza de seguro</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Orientado a tareas</h3>
+      <p>La tarea es la unidad central. Las tareas pueden tener etiquetas, asignados, fechas y estados. Los &ldquo;proyectos&rdquo; son solo agrupaciones opcionales (como carpetas).</p>
+      <p style="margin-top:8px;font-size:13px;color:#64748b"><strong>Como Todoist, ClickUp en modo simple.</strong> Mas rapido de usar, menos estructura forzada.</p>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:20px;padding:12px 16px;background:#1e293b;border-radius:6px;border-left:3px solid #38bdf8">
+  <div class="label">Mi recomendacion</div>
+  <p style="margin-top:6px;font-size:14px;color:#cbd5e1"><strong>Orientado a proyectos.</strong> En un ERP, las tareas sueltas son la excepcion. Los clientes tienen proyectos, RRHH tiene campanas de contratacion, flota tiene planes de mantenimiento. El proyecto da contexto y permite vincular tareas a entidades del sistema.</p>
+</div>

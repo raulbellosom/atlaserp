@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Checkbox, ComboboxField } from '@atlas/ui'
+import { Checkbox } from '@atlas/ui'
 import { X, CornerDownRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { useUpdateTask, useAddAssignee, useRemoveAssignee, useProjectMembers } from '../hooks/useProjectsData'
 import { AssigneeAvatar } from '../lib/AssigneeChip.jsx'
+import { UserPickerDropdown } from '../lib/UserPickerDropdown.jsx'
 
 export function SubtaskRow({ task, projectId, onDelete }) {
   const updateSubtask = useUpdateTask(projectId)
@@ -40,10 +41,7 @@ export function SubtaskRow({ task, projectId, onDelete }) {
 
   const primaryAssignee = task.assignees?.[0]?.user ?? task.assignee ?? null
 
-  const memberOptions = members.map((m) => {
-    const u = m.user ?? m
-    return { value: m.userId ?? u.id, label: [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || u.id }
-  })
+  const memberUsers = members.map((m) => ({ ...(m.user ?? m), id: m.userId ?? m.user?.id ?? m.id }))
 
   function handleAssigneeChange(userId) {
     if (!userId) return
@@ -80,12 +78,14 @@ export function SubtaskRow({ task, projectId, onDelete }) {
         </span>
       )}
       {showAssignPicker ? (
-        <div className="w-40 shrink-0">
-          <ComboboxField
-            options={memberOptions}
+        <div className="w-52 shrink-0">
+          <UserPickerDropdown
+            users={memberUsers}
             value={primaryAssignee?.id ?? ''}
             onChange={handleAssigneeChange}
             placeholder="Asignar..."
+            emptyMessage="Sin miembros"
+            compact
             autoFocus
             onBlur={() => setShowAssignPicker(false)}
           />

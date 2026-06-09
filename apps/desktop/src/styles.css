@@ -2,7 +2,7 @@
 @source "../../../packages/ui/src";
 
 @theme {
-  --color-primary: var(--brand-primary);
+  --color-primary: var(--brand-primary-computed, var(--brand-primary));
   --color-primary-foreground: var(--brand-primary-foreground);
   --color-accent: hsl(212 100% 52%);
   --color-destructive: hsl(0 72% 51%);
@@ -29,6 +29,10 @@
   --radius-lg: 0.875rem;
   --radius-xl: 1.125rem;
   --radius-2xl: 1.5rem;
+}
+
+:root {
+  --brand-primary-computed: var(--brand-primary);
 }
 
 :root,
@@ -92,6 +96,7 @@ html {
 }
 
 .dark {
+  --brand-primary-computed: var(--brand-primary-on-dark, var(--brand-primary));
   --background: 222 47% 5%;
   --foreground: 210 40% 95%;
   --card: 222 47% 8%;

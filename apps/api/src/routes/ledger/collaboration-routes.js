@@ -40,6 +40,18 @@ export function createCollaborationRouter({ prisma, requirePermission }) {
 
   // ── Account members ───────────────────────────────────────────────────────
 
+  app.get('/ledger/accounts/:id/members', requirePermission('ledger.accounts.read'), async (c) => {
+    try {
+      return c.json(await service.listAccountMembers({
+        companyId: getCompanyId(c),
+        accountId: c.req.param('id'),
+        actorId: getActorId(c),
+      }))
+    } catch (err) {
+      return handleError(c, err, 'No se pudieron listar los colaboradores.')
+    }
+  })
+
   app.post('/ledger/accounts/:id/members', requirePermission('ledger.members.write'), async (c) => {
     try {
       const parsed = inviteAccountMemberSchema.safeParse(await c.req.json())

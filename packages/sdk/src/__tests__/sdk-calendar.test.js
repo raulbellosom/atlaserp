@@ -36,14 +36,14 @@ describe('atlas SDK â€” calendar namespace', () => {
     fetchMock.mock.restore()
   })
 
-  it('finishGoogleConnect GETs /calendar/google/connect/callback with code', async () => {
+  it('finishGoogleConnect GETs /calendar/google/connect/callback with code and state', async () => {
     const fetchMock = makeFetch()
     const { createAtlasClient } = await import('../index.js')
     const client = createAtlasClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
-    await client.calendar.finishGoogleConnect({ code: 'code-123' }, 'tok')
+    await client.calendar.finishGoogleConnect({ code: 'code-123', state: 'state-123' }, 'tok')
     const [url, opts] = fetchMock.mock.calls[0].arguments
-    assert.equal(url, 'http://api/calendar/google/connect/callback?code=code-123')
+    assert.equal(url, 'http://api/calendar/google/connect/callback?code=code-123&state=state-123')
     assert.equal(opts.headers.Authorization, 'Bearer tok')
     fetchMock.mock.restore()
   })
@@ -56,6 +56,49 @@ describe('atlas SDK â€” calendar namespace', () => {
     await client.calendar.listGoogleCalendars('tok')
     const [url, opts] = fetchMock.mock.calls[0].arguments
     assert.equal(url, 'http://api/calendar/google/calendars')
+    assert.equal(opts.headers.Authorization, 'Bearer tok')
+    fetchMock.mock.restore()
+  })
+
+  it('listGoogleSources GETs /calendar/google/sources', async () => {
+    const fetchMock = makeFetch()
+    const { createAtlasClient } = await import('../index.js')
+    const client = createAtlasClient({ baseUrl: 'http://api' })
+    globalThis.fetch = fetchMock
+    await client.calendar.listGoogleSources('tok')
+    const [url, opts] = fetchMock.mock.calls[0].arguments
+    assert.equal(url, 'http://api/calendar/google/sources')
+    assert.equal(opts.headers.Authorization, 'Bearer tok')
+    fetchMock.mock.restore()
+  })
+
+  it('saveGoogleSources POSTs /calendar/google/sources with body', async () => {
+    const fetchMock = makeFetch()
+    const { createAtlasClient } = await import('../index.js')
+    const client = createAtlasClient({ baseUrl: 'http://api' })
+    globalThis.fetch = fetchMock
+    await client.calendar.saveGoogleSources({
+      calendars: [{ id: 'primary', summary: 'Principal' }],
+    }, 'tok')
+    const [url, opts] = fetchMock.mock.calls[0].arguments
+    assert.equal(url, 'http://api/calendar/google/sources')
+    assert.equal(opts.method, 'POST')
+    assert.deepEqual(JSON.parse(opts.body), {
+      calendars: [{ id: 'primary', summary: 'Principal' }],
+    })
+    assert.equal(opts.headers.Authorization, 'Bearer tok')
+    fetchMock.mock.restore()
+  })
+
+  it('disconnectGoogleCalendar POSTs /calendar/google/disconnect', async () => {
+    const fetchMock = makeFetch()
+    const { createAtlasClient } = await import('../index.js')
+    const client = createAtlasClient({ baseUrl: 'http://api' })
+    globalThis.fetch = fetchMock
+    await client.calendar.disconnectGoogleCalendar('tok')
+    const [url, opts] = fetchMock.mock.calls[0].arguments
+    assert.equal(url, 'http://api/calendar/google/disconnect')
+    assert.equal(opts.method, 'POST')
     assert.equal(opts.headers.Authorization, 'Bearer tok')
     fetchMock.mock.restore()
   })

@@ -164,7 +164,7 @@ function DefaultZone({
               : isDraggingZone
                 ? 'border-primary bg-primary/5 cursor-copy'
                 : file
-                  ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50/50 dark:bg-indigo-950/20 cursor-pointer'
+                  ? 'border-primary/40 bg-muted/40 cursor-pointer'
                   : 'border-border bg-muted/20 hover:border-primary/40 hover:bg-muted/40 cursor-pointer',
           ].join(' ')}
         >
@@ -180,12 +180,12 @@ function DefaultZone({
 
           {file ? (
             <>
-              <div className="w-11 h-11 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
-                <FileArchive className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center">
+                <FileArchive className="w-5 h-5 text-foreground/70" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-300">{file.name}</p>
-                <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-0.5">{formatBytes(file.size)} &middot; listo para subir</p>
+                <p className="text-sm font-semibold text-foreground">{file.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{formatBytes(file.size)} &middot; listo para subir</p>
               </div>
               {onClear && (
                 <button
@@ -295,7 +295,7 @@ function CompactZone({
               : isDraggingZone
                 ? 'border-primary bg-primary/5 cursor-copy'
                 : file
-                  ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50/50 dark:bg-indigo-950/20 cursor-pointer'
+                  ? 'border-primary/40 bg-muted/40 cursor-pointer'
                   : 'border-border bg-muted/20 hover:border-primary/40 hover:bg-muted/40 cursor-pointer',
           ].join(' ')}
         >
@@ -311,12 +311,12 @@ function CompactZone({
 
           {file ? (
             <>
-              <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0">
-                <FileArchive className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                <FileArchive className="w-4 h-4 text-foreground/70" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-300 truncate">{file.name}</p>
-                <p className="text-xs text-indigo-500 dark:text-indigo-400">{formatBytes(file.size)}</p>
+                <p className="text-sm font-semibold text-foreground truncate">{file.name}</p>
+                <p className="text-xs text-muted-foreground">{formatBytes(file.size)}</p>
               </div>
               {onClear && (
                 <button

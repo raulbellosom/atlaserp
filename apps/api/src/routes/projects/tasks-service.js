@@ -6,6 +6,28 @@ export class TaskServiceError extends Error {
   }
 }
 
+function toNoonUTC(val) {
+  const str = String(val)
+  const part = str.includes('T') ? str.slice(0, 10) : str
+  return new Date(`${part}T12:00:00.000Z`)
+}
+
+const RRULE_PRESETS = {
+  'FREQ=DAILY': (now) => new Date(now.getTime() + 24 * 60 * 60 * 1000),
+  'FREQ=WEEKLY': (now) => new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+  'FREQ=WEEKLY;INTERVAL=2': (now) => new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000),
+  'FREQ=MONTHLY': (now) => {
+    const d = new Date(now)
+    d.setMonth(d.getMonth() + 1)
+    return d
+  },
+}
+
+export function computeRruleNextAt(rrule) {
+  const fn = RRULE_PRESETS[rrule]
+  return fn ? fn(new Date()) : null
+}
+
 export function createTasksService({ prisma }) {
   async function listTasks(projectId, { statusId, assigneeId, priority, dueDateFrom, dueDateTo, parentTaskId, includeSubtasks } = {}) {
     const where = { projectId }
@@ -61,6 +83,15 @@ export function createTasksService({ prisma }) {
           take: 20,
         },
         parent: { select: { id: true, title: true } },
+        fieldValues: { include: { field: true }, orderBy: { field: { position: 'asc' } } },
+        blockedBy: {
+          include: { blocker: { select: { id: true, title: true, taskNumber: true, statusId: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
+        blocking: {
+          include: { blocked: { select: { id: true, title: true, taskNumber: true, statusId: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
       },
     })
     if (!task) throw new TaskServiceError('Tarea no encontrada.', 404)
@@ -101,8 +132,8 @@ export function createTasksService({ prisma }) {
           description: description?.trim() || null,
           assigneeId: assigneeId || null,
           priority,
-          startDate: startDate ? new Date(startDate) : null,
-          dueDate: dueDate ? new Date(dueDate) : null,
+          startDate: startDate ? toNoonUTC(startDate) : null,
+          dueDate: dueDate ? toNoonUTC(dueDate) : null,
           position,
           createdBy,
           ...(taskNumber !== null ? { taskNumber } : {}),
@@ -114,7 +145,10 @@ export function createTasksService({ prisma }) {
   async function updateTask(taskId, data) {
     const task = await prisma.task.findFirst({ where: { id: taskId } })
     if (!task) throw new TaskServiceError('Tarea no encontrada.', 404)
-    const { title, description, assigneeId, priority, startDate, dueDate, statusId, isDone } = data
+    const { title, description, assigneeId, priority, startDate, dueDate, statusId, rrule } = data
+    const rruleNextAt = rrule !== undefined
+      ? (rrule ? computeRruleNextAt(rrule) : null)
+      : undefined
     return prisma.task.update({
       where: { id: taskId },
       data: {
@@ -122,10 +156,11 @@ export function createTasksService({ prisma }) {
         ...(description !== undefined ? { description: description?.trim() || null } : {}),
         ...(assigneeId !== undefined ? { assigneeId: assigneeId || null } : {}),
         ...(priority ? { priority } : {}),
-        ...(startDate !== undefined ? { startDate: startDate ? new Date(startDate) : null } : {}),
-        ...(dueDate !== undefined ? { dueDate: dueDate ? new Date(dueDate) : null } : {}),
+        ...(startDate !== undefined ? { startDate: startDate ? toNoonUTC(startDate) : null } : {}),
+        ...(dueDate !== undefined ? { dueDate: dueDate ? toNoonUTC(dueDate) : null } : {}),
         ...(statusId ? { statusId } : {}),
-        ...(isDone !== undefined ? { isDone } : {}),
+        ...(rrule !== undefined ? { rrule: rrule || null } : {}),
+        ...(rruleNextAt !== undefined ? { rruleNextAt } : {}),
       },
     })
   }

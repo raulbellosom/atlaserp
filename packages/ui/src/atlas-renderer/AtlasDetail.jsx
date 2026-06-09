@@ -22,6 +22,7 @@ import {
   Wrench,
 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
+import { LoadingState } from "../components/LoadingState.jsx";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
@@ -647,12 +648,7 @@ function RelationListSection({ section, data, apiBaseUrl, token }) {
   }
 
   if (loading) {
-    return (
-      <div className="inline-flex items-center gap-2 text-sm text-[hsl(var(--muted-foreground))]">
-        <Loader2 size={16} className="animate-spin" />
-        Cargando relaciones...
-      </div>
-    );
+    return <LoadingState variant="inline" message="Cargando relaciones..." />;
   }
 
   if (error) {

@@ -1,4 +1,11 @@
-import { useState, useRef, useEffect, useCallback, forwardRef } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  forwardRef,
+  useMemo,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   Eye,
@@ -16,6 +23,7 @@ import {
 } from "lucide-react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { cn } from "../lib/utils.js";
+import { LoadingState } from "./LoadingState.jsx";
 
 // ─── Base styles ──────────────────────────────────────────────────────────────
 
@@ -42,11 +50,18 @@ function fieldCls(error, extra) {
 // new containing block for `position:fixed` descendants (CSS spec). In that case
 // the browser treats the fixed element's top/left as relative to that ancestor,
 // so we subtract the ancestor's getBoundingClientRect offsets.
-function computeDropdownStyle(containerEl, dropHeight = 320, minWidth = 220, forPortal = false) {
+function computeDropdownStyle(
+  containerEl,
+  dropHeight = 320,
+  minWidth = 220,
+  forPortal = false,
+) {
   const r = containerEl.getBoundingClientRect();
   const spaceBelow = window.innerHeight - r.bottom;
   const viewportTop =
-    spaceBelow >= dropHeight ? r.bottom + 4 : Math.max(0, r.top - dropHeight - 4);
+    spaceBelow >= dropHeight
+      ? r.bottom + 4
+      : Math.max(0, r.top - dropHeight - 4);
   const viewportLeft = r.left;
   const width = Math.max(r.width, minWidth);
 
@@ -63,10 +78,7 @@ function computeDropdownStyle(containerEl, dropHeight = 320, minWidth = 220, for
     const cs = window.getComputedStyle(el);
     const bf = cs.backdropFilter || cs.webkitBackdropFilter || "none";
     const tf = cs.transform || "none";
-    if (
-      bf !== "none" ||
-      (tf !== "none" && tf !== "matrix(1, 0, 0, 1, 0, 0)")
-    ) {
+    if (bf !== "none" || (tf !== "none" && tf !== "matrix(1, 0, 0, 1, 0, 0)")) {
       const pr = el.getBoundingClientRect();
       return { top: viewportTop - pr.top, left: viewportLeft - pr.left, width };
     }
@@ -543,7 +555,14 @@ export const CurrencyField = forwardRef(function CurrencyField(
   }, [value]);
 
   function handleKeyDown(e) {
-    const allowed = ["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab", "Enter"];
+    const allowed = [
+      "Backspace",
+      "Delete",
+      "ArrowLeft",
+      "ArrowRight",
+      "Tab",
+      "Enter",
+    ];
     if (allowed.includes(e.key)) return;
     if (allowNegative && e.key === "-") {
       e.preventDefault();
@@ -576,7 +595,13 @@ export const CurrencyField = forwardRef(function CurrencyField(
   const displayValue = (negative && cents > 0 ? "-" : "") + formatCents(cents);
 
   return (
-    <FieldWrapper label={label} labelFor={id} error={error} hint={hint} required={required}>
+    <FieldWrapper
+      label={label}
+      labelFor={id}
+      error={error}
+      hint={hint}
+      required={required}
+    >
       <div className="relative flex items-center">
         {icon ? (
           <InputIcon icon={icon} />
@@ -801,6 +826,18 @@ export const SelectField = forwardRef(function SelectField(
   const [localError, setLocalError] = useState("");
   const error = externalError || localError;
 
+  // Explicitly compute the label for the current value so Radix Select doesn't
+  // have to rely on its DocumentFragment portal mechanism (unreliable with
+  // programmatically-set values in React 19).
+  const selectedLabel = useMemo(() => {
+    if (!value) return null;
+    const opt = options.find((o) =>
+      typeof o === "string" ? o === value : o.value === value,
+    );
+    if (!opt) return null;
+    return typeof opt === "string" ? opt : opt.label;
+  }, [value, options]);
+
   function handleOpenChange(open) {
     if (!open && validate) {
       setLocalError(validate(value) || "");
@@ -841,12 +878,14 @@ export const SelectField = forwardRef(function SelectField(
             <span
               className={cn(
                 "flex-1 truncate text-sm",
-                !value && "text-muted-foreground/70",
+                !value && "text-muted-foreground",
               )}
             >
               <SelectPrimitive.Value
                 placeholder={placeholder || "Seleccionar..."}
-              />
+              >
+                {selectedLabel ?? undefined}
+              </SelectPrimitive.Value>
             </span>
             <SelectPrimitive.Icon asChild>
               <ChevronDown
@@ -863,7 +902,7 @@ export const SelectField = forwardRef(function SelectField(
               sideOffset={5}
               className={cn(
                 "z-50 min-w-(--radix-select-trigger-width) overflow-hidden rounded-lg",
-                "border border-border bg-card shadow-xl",
+                "border border-border bg-card text-foreground shadow-xl",
                 "data-[state=open]:animate-in data-[state=closed]:animate-out",
                 "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
                 "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
@@ -886,8 +925,8 @@ export const SelectField = forwardRef(function SelectField(
                         "relative flex w-full cursor-default select-none items-center",
                         "rounded-md py-2 pl-8 pr-3 text-sm outline-none",
                         "transition-colors duration-100",
-                        "focus:bg-primary/8 focus:text-foreground",
-                        "data-[state=checked]:text-primary data-[state=checked]:font-medium",
+                        "focus:bg-muted focus:text-foreground",
+                        "data-[state=checked]:text-primary data-[state=checked]:bg-primary/10 data-[state=checked]:font-medium",
                         "data-disabled:pointer-events-none data-disabled:opacity-50",
                       )}
                     >
@@ -1059,7 +1098,9 @@ export function SwitchField({
               htmlFor={id}
               className={cn(
                 "text-sm font-medium select-none",
-                disabled ? "text-muted-foreground cursor-not-allowed" : "text-foreground/80 cursor-pointer",
+                disabled
+                  ? "text-muted-foreground cursor-not-allowed"
+                  : "text-foreground/80 cursor-pointer",
               )}
             >
               {label}
@@ -1485,7 +1526,10 @@ export function ComboboxField({
 
   useEffect(() => {
     function handleOutside(e) {
-      if (!containerRef.current?.contains(e.target) && !dropdownRef.current?.contains(e.target)) {
+      if (
+        !containerRef.current?.contains(e.target) &&
+        !dropdownRef.current?.contains(e.target)
+      ) {
         setOpen(false);
         setSearch("");
       }
@@ -1497,7 +1541,9 @@ export function ComboboxField({
   function handleOpen() {
     const willOpen = !open;
     if (willOpen && containerRef.current) {
-      setDropdownStyle(computeDropdownStyle(containerRef.current, 260, 220, true));
+      setDropdownStyle(
+        computeDropdownStyle(containerRef.current, 260, 220, true),
+      );
     }
     setOpen((o) => !o);
     if (willOpen && options.length === 0 && !loading) {
@@ -1556,67 +1602,78 @@ export function ComboboxField({
           />
         </button>
 
-        {open && createPortal(
-          <div
-            ref={dropdownRef}
-            style={{ position: "fixed", top: dropdownStyle.top, left: dropdownStyle.left, width: dropdownStyle.width, zIndex: 9999, pointerEvents: "auto" }}
-            className="rounded-xl border border-border/80 bg-card shadow-xl overflow-hidden"
-          >
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
-              <Search size={13} className="text-muted-foreground/50 shrink-0" />
-              <input
-                ref={searchRef}
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={searchPlaceholder}
-                className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch("")}
-                  className="flex items-center justify-center h-4 w-4 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                >
-                  <X size={10} />
-                </button>
-              )}
-            </div>
-            <div className="max-h-52 overflow-y-auto" role="listbox">
-              {search.length < minSearchLength ? (
-                <p className="px-3 py-4 text-xs text-muted-foreground text-center">
-                  Escribe al menos {minSearchLength} letras para buscar
-                </p>
-              ) : filtered.length === 0 ? (
-                <p className="px-3 py-4 text-sm text-muted-foreground text-center">
-                  {emptyText}
-                </p>
-              ) : (
-                filtered.map((opt) => (
+        {open &&
+          createPortal(
+            <div
+              ref={dropdownRef}
+              style={{
+                position: "fixed",
+                top: dropdownStyle.top,
+                left: dropdownStyle.left,
+                width: dropdownStyle.width,
+                zIndex: 9999,
+                pointerEvents: "auto",
+              }}
+              className="rounded-xl border border-border/80 bg-card text-foreground shadow-xl overflow-hidden"
+            >
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+                <Search
+                  size={13}
+                  className="text-muted-foreground/50 shrink-0"
+                />
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+                />
+                {search && (
                   <button
-                    key={opt.value}
                     type="button"
-                    role="option"
-                    aria-selected={opt.value === value}
-                    onClick={() => handleSelect(opt)}
-                    className={cn(
-                      "w-full text-left px-3 py-2 text-sm transition-colors duration-100 flex items-center gap-2",
-                      opt.value === value
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-foreground hover:bg-muted/50",
-                    )}
+                    onClick={() => setSearch("")}
+                    className="flex items-center justify-center h-4 w-4 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors shrink-0"
                   >
-                    <span className="flex-1 truncate">{opt.label}</span>
-                    {opt.value === value && (
-                      <Check size={13} className="shrink-0 text-primary" />
-                    )}
+                    <X size={10} />
                   </button>
-                ))
-              )}
-            </div>
-          </div>,
-          document.body
-        )}
+                )}
+              </div>
+              <div className="max-h-52 overflow-y-auto" role="listbox">
+                {search.length < minSearchLength ? (
+                  <p className="px-3 py-4 text-xs text-muted-foreground text-center">
+                    Escribe al menos {minSearchLength} letras para buscar
+                  </p>
+                ) : filtered.length === 0 ? (
+                  <p className="px-3 py-4 text-sm text-muted-foreground text-center">
+                    {emptyText}
+                  </p>
+                ) : (
+                  filtered.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="option"
+                      aria-selected={opt.value === value}
+                      onClick={() => handleSelect(opt)}
+                      className={cn(
+                        "w-full text-left px-3 py-2 text-sm transition-colors duration-100 flex items-center gap-2",
+                        opt.value === value
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-foreground hover:bg-muted/50",
+                      )}
+                    >
+                      <span className="flex-1 truncate">{opt.label}</span>
+                      {opt.value === value && (
+                        <Check size={13} className="shrink-0 text-primary" />
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>,
+            document.body,
+          )}
       </div>
     </FieldWrapper>
   );
@@ -1656,9 +1713,10 @@ export function RelationSelectField({
   const dropdownRef = useRef(null);
   const searchRef = useRef(null);
 
-  const selected = (value != null && value !== "")
-    ? options.find((o) => String(o.value) === String(value))
-    : undefined;
+  const selected =
+    value != null && value !== ""
+      ? options.find((o) => String(o.value) === String(value))
+      : undefined;
 
   useEffect(() => {
     function handleOutside(e) {
@@ -1676,7 +1734,9 @@ export function RelationSelectField({
 
   function handleOpen() {
     if (!open && containerRef.current) {
-      setDropdownStyle(computeDropdownStyle(containerRef.current, 260, 220, true));
+      setDropdownStyle(
+        computeDropdownStyle(containerRef.current, 260, 220, true),
+      );
       if (options.length === 0 && !loading) {
         onSearchChange?.("");
       }
@@ -1711,13 +1771,15 @@ export function RelationSelectField({
       ? selected
         ? selected.label
         : !loading
-        ? "Registro no disponible"
-        : null
+          ? "Registro no disponible"
+          : null
       : null;
   const selectedMeta = selected?.meta ?? null;
 
   const filtered = search
-    ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
+    ? options.filter((o) =>
+        o.label.toLowerCase().includes(search.toLowerCase()),
+      )
     : options;
 
   const trimmedSearch = search.trim();
@@ -1727,12 +1789,19 @@ export function RelationSelectField({
       (createActionMode === "empty-search" && trimmedSearch.length === 0) ||
       (createActionMode === "has-search" && trimmedSearch.length > 0));
   const createLabel = (() => {
-    if (createFromSearch && trimmedSearch.length > 0) return `Crear "${trimmedSearch}"`;
+    if (createFromSearch && trimmedSearch.length > 0)
+      return `Crear "${trimmedSearch}"`;
     return createActionLabel || "Crear nuevo";
   })();
 
   return (
-    <FieldWrapper label={label} labelFor={id} error={externalError} hint={hint} required={required}>
+    <FieldWrapper
+      label={label}
+      labelFor={id}
+      error={externalError}
+      hint={hint}
+      required={required}
+    >
       <div ref={containerRef} className={cn("relative", className)}>
         <button
           type="button"
@@ -1741,7 +1810,10 @@ export function RelationSelectField({
           className={cn(
             fieldCls(
               externalError,
-              cn("flex items-center justify-between text-left cursor-pointer gap-2", icon && "pl-9"),
+              cn(
+                "flex items-center justify-between text-left cursor-pointer gap-2",
+                icon && "pl-9",
+              ),
             ),
           )}
           aria-haspopup="listbox"
@@ -1752,12 +1824,13 @@ export function RelationSelectField({
             className={cn(
               "flex-1 truncate text-sm",
               !displayLabel && !loading && "text-muted-foreground",
-              displayLabel === "Registro no disponible" && "text-muted-foreground italic",
+              displayLabel === "Registro no disponible" &&
+                "text-muted-foreground italic",
             )}
           >
             {loading && value != null && value !== ""
               ? "Cargando opciones..."
-              : displayLabel ?? placeholder}
+              : (displayLabel ?? placeholder)}
           </span>
           <span className="flex items-center gap-0.5 shrink-0">
             {clearable && value != null && value !== "" && !loading && (
@@ -1786,130 +1859,153 @@ export function RelationSelectField({
           </span>
         </button>
 
-        {open && createPortal(
-          <div
-            ref={dropdownRef}
-            style={{ position: "fixed", top: dropdownStyle.top, left: dropdownStyle.left, width: dropdownStyle.width, zIndex: 9999, pointerEvents: "auto" }}
-            className="rounded-xl border border-border/80 bg-card shadow-xl overflow-hidden"
-          >
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
-              <Search size={13} className="text-muted-foreground/50 shrink-0" />
-              <input
-                ref={searchRef}
-                type="text"
-                value={search}
-                onChange={handleSearchChange}
-                placeholder="Buscar..."
-                className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearch("");
-                    onSearchChange?.("");
-                  }}
-                  className="flex items-center justify-center h-4 w-4 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                >
-                  <X size={10} />
-                </button>
-              )}
-            </div>
-            <div className="max-h-52 overflow-y-auto" role="listbox">
-              {loading ? (
-                <p className="px-3 py-4 text-sm text-muted-foreground text-center">
-                  Cargando opciones...
-                </p>
-              ) : loadError ? (
-                <div className="px-3 py-4 text-center space-y-2">
-                  <p className="text-xs text-destructive">No se pudieron cargar las opciones</p>
-                  {onRetry && (
-                    <button
-                      type="button"
-                      onClick={onRetry}
-                      className="text-xs text-primary underline underline-offset-2 hover:opacity-80"
-                    >
-                      Reintentar
-                    </button>
-                  )}
-                </div>
-              ) : filtered.length === 0 ? (
-                <p className="px-3 py-4 text-sm text-muted-foreground text-center">
-                  {options.length === 0 ? "Sin opciones disponibles" : "Sin resultados"}
-                </p>
-              ) : (
-                filtered.map((opt) => {
-                  const isSelected = String(opt.value) === String(value);
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      role="option"
-                      aria-selected={isSelected}
-                      onClick={() => handleSelect(opt)}
-                      disabled={opt.disabled}
-                      className={cn(
-                        "w-full text-left px-3 transition-colors duration-100 flex items-center gap-2",
-                        opt.meta ? "py-2.5" : "py-2",
-                        isSelected
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "text-foreground hover:bg-muted/50",
-                        opt.disabled && "opacity-50 cursor-not-allowed pointer-events-none",
-                      )}
-                    >
-                      {opt.meta ? (
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {opt.meta.badge ? (
-                              <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary shrink-0">
-                                {opt.meta.badge}
-                              </span>
-                            ) : null}
-                            {opt.meta.title ? (
-                              <span className={cn("text-sm font-medium truncate", isSelected ? "text-primary" : "text-foreground")}>
-                                {opt.meta.title}
-                              </span>
-                            ) : null}
-                          </div>
-                          {opt.meta.subtitle ? (
-                            <p className="text-xs text-[hsl(var(--muted-foreground))] truncate mt-0.5">
-                              {opt.meta.subtitle}
-                            </p>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <span className="flex-1 truncate text-sm">{opt.label}</span>
-                      )}
-                      {isSelected && (
-                        <Check size={13} className="shrink-0 text-primary" />
-                      )}
-                    </button>
-                  );
-                })
-              )}
-              {canShowCreate && (
-                <>
-                  <div className="mx-3 my-1 border-t border-border" />
+        {open &&
+          createPortal(
+            <div
+              ref={dropdownRef}
+              style={{
+                position: "fixed",
+                top: dropdownStyle.top,
+                left: dropdownStyle.left,
+                width: dropdownStyle.width,
+                zIndex: 9999,
+                pointerEvents: "auto",
+              }}
+              className="rounded-xl border border-border/80 bg-card text-foreground shadow-xl overflow-hidden"
+            >
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+                <Search
+                  size={13}
+                  className="text-muted-foreground/50 shrink-0"
+                />
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={search}
+                  onChange={handleSearchChange}
+                  placeholder="Buscar..."
+                  className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+                />
+                {search && (
                   <button
                     type="button"
-                    role="option"
-                    onClick={handleCreate}
-                    disabled={createDisabled}
-                    className={cn(
-                      "w-full text-left px-3 py-2 text-sm transition-colors duration-100 flex items-center gap-2",
-                      "text-primary hover:bg-primary/5",
-                      createDisabled && "opacity-50 cursor-not-allowed",
-                    )}
+                    onClick={() => {
+                      setSearch("");
+                      onSearchChange?.("");
+                    }}
+                    className="flex items-center justify-center h-4 w-4 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors shrink-0"
                   >
-                    <Plus size={14} className="shrink-0" />
-                    <span className="font-medium">{createLabel}</span>
+                    <X size={10} />
                   </button>
-                </>
-              )}
-            </div>
-          </div>,
-          document.body
-        )}
+                )}
+              </div>
+              <div className="max-h-52 overflow-y-auto" role="listbox">
+                {loading ? (
+                  <LoadingState size="sm" message="Cargando opciones..." />
+                ) : loadError ? (
+                  <div className="px-3 py-4 text-center space-y-2">
+                    <p className="text-xs text-destructive">
+                      No se pudieron cargar las opciones
+                    </p>
+                    {onRetry && (
+                      <button
+                        type="button"
+                        onClick={onRetry}
+                        className="text-xs text-primary underline underline-offset-2 hover:opacity-80"
+                      >
+                        Reintentar
+                      </button>
+                    )}
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <p className="px-3 py-4 text-sm text-muted-foreground text-center">
+                    {options.length === 0
+                      ? "Sin opciones disponibles"
+                      : "Sin resultados"}
+                  </p>
+                ) : (
+                  filtered.map((opt) => {
+                    const isSelected = String(opt.value) === String(value);
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => handleSelect(opt)}
+                        disabled={opt.disabled}
+                        className={cn(
+                          "w-full text-left px-3 transition-colors duration-100 flex items-center gap-2",
+                          opt.meta ? "py-2.5" : "py-2",
+                          isSelected
+                            ? "bg-primary/10 text-primary font-medium"
+                            : "text-foreground hover:bg-muted/50",
+                          opt.disabled &&
+                            "opacity-50 cursor-not-allowed pointer-events-none",
+                        )}
+                      >
+                        {opt.meta ? (
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {opt.meta.badge ? (
+                                <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary shrink-0">
+                                  {opt.meta.badge}
+                                </span>
+                              ) : null}
+                              {opt.meta.title ? (
+                                <span
+                                  className={cn(
+                                    "text-sm font-medium truncate",
+                                    isSelected
+                                      ? "text-primary"
+                                      : "text-foreground",
+                                  )}
+                                >
+                                  {opt.meta.title}
+                                </span>
+                              ) : null}
+                            </div>
+                            {opt.meta.subtitle ? (
+                              <p className="text-xs text-[hsl(var(--muted-foreground))] truncate mt-0.5">
+                                {opt.meta.subtitle}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="flex-1 truncate text-sm">
+                            {opt.label}
+                          </span>
+                        )}
+                        {isSelected && (
+                          <Check size={13} className="shrink-0 text-primary" />
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+                {canShowCreate && (
+                  <>
+                    <div className="mx-3 my-1 border-t border-border" />
+                    <button
+                      type="button"
+                      role="option"
+                      onClick={handleCreate}
+                      disabled={createDisabled}
+                      className={cn(
+                        "w-full text-left px-3 py-2 text-sm transition-colors duration-100 flex items-center gap-2",
+                        "text-primary hover:bg-primary/5",
+                        createDisabled && "opacity-50 cursor-not-allowed",
+                      )}
+                    >
+                      <Plus size={14} className="shrink-0" />
+                      <span className="font-medium">{createLabel}</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>,
+            document.body,
+          )}
       </div>
     </FieldWrapper>
   );
@@ -2027,7 +2123,7 @@ export function CreatableComboboxField({
         </button>
 
         {open && (
-          <div className="absolute z-50 w-full mt-1 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
+          <div className="absolute z-50 w-full mt-1 rounded-lg border border-border bg-card text-foreground shadow-lg overflow-hidden">
             <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
               <input
                 ref={searchRef}
@@ -2148,12 +2244,19 @@ export function CarColorPickerField({
   const groups = [...new Set(colors.map((c) => c.group))];
   const term = search.trim().toLowerCase();
   const filtered = term
-    ? colors.filter((c) => c.name.toLowerCase().includes(term) || c.group.toLowerCase().includes(term))
+    ? colors.filter(
+        (c) =>
+          c.name.toLowerCase().includes(term) ||
+          c.group.toLowerCase().includes(term),
+      )
     : null;
 
   useEffect(() => {
     function handleOutside(e) {
-      if (!containerRef.current?.contains(e.target) && !dropdownRef.current?.contains(e.target)) {
+      if (
+        !containerRef.current?.contains(e.target) &&
+        !dropdownRef.current?.contains(e.target)
+      ) {
         setOpen(false);
         setSearch("");
       }
@@ -2164,7 +2267,9 @@ export function CarColorPickerField({
 
   function handleOpen() {
     if (!open && containerRef.current) {
-      setDropdownStyle(computeDropdownStyle(containerRef.current, 320, 260, true));
+      setDropdownStyle(
+        computeDropdownStyle(containerRef.current, 320, 260, true),
+      );
     }
     setOpen((o) => !o);
     setTimeout(() => searchRef.current?.focus(), 50);
@@ -2186,14 +2291,23 @@ export function CarColorPickerField({
   }
 
   return (
-    <FieldWrapper label={label} labelFor={id} error={externalError} hint={hint} required={required}>
+    <FieldWrapper
+      label={label}
+      labelFor={id}
+      error={externalError}
+      hint={hint}
+      required={required}
+    >
       <div ref={containerRef} className={cn("relative", className)}>
         <button
           type="button"
           id={id}
           onClick={handleOpen}
           className={cn(
-            fieldCls(externalError, "flex items-center gap-2.5 text-left cursor-pointer pr-3"),
+            fieldCls(
+              externalError,
+              "flex items-center gap-2.5 text-left cursor-pointer pr-3",
+            ),
           )}
           aria-haspopup="listbox"
           aria-expanded={open}
@@ -2206,8 +2320,17 @@ export function CarColorPickerField({
           ) : (
             <span className="h-5 w-5 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/30" />
           )}
-          <span className={cn("flex-1 truncate text-sm", selected || value ? "text-foreground" : "text-muted-foreground")}>
-            {selected ? selected.name : value && !value.startsWith("#") ? value : placeholder}
+          <span
+            className={cn(
+              "flex-1 truncate text-sm",
+              selected || value ? "text-foreground" : "text-muted-foreground",
+            )}
+          >
+            {selected
+              ? selected.name
+              : value && !value.startsWith("#")
+                ? value
+                : placeholder}
           </span>
           <span className="ml-auto flex items-center gap-1">
             {clearable && value && (
@@ -2224,79 +2347,110 @@ export function CarColorPickerField({
             <ChevronDown
               size={14}
               strokeWidth={1.75}
-              className={cn("text-muted-foreground/60 transition-transform duration-150", open && "rotate-180")}
+              className={cn(
+                "text-muted-foreground/60 transition-transform duration-150",
+                open && "rotate-180",
+              )}
             />
           </span>
         </button>
 
-        {open && createPortal(
-          <div
-            ref={dropdownRef}
-            style={{ position: "fixed", top: dropdownStyle.top, left: dropdownStyle.left, width: dropdownStyle.width, zIndex: 9999 }}
-            className="rounded-xl border border-border/80 bg-card shadow-xl overflow-hidden"
-          >
-            {/* Search */}
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
-              <Search size={13} className="text-muted-foreground/50 shrink-0" />
-              <input
-                ref={searchRef}
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar color..."
-                className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch("")}
-                  className="flex items-center justify-center h-4 w-4 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                >
-                  <X size={10} />
-                </button>
-              )}
-            </div>
+        {open &&
+          createPortal(
+            <div
+              ref={dropdownRef}
+              style={{
+                position: "fixed",
+                top: dropdownStyle.top,
+                left: dropdownStyle.left,
+                width: dropdownStyle.width,
+                zIndex: 9999,
+              }}
+              className="rounded-xl border border-border/80 bg-card text-foreground shadow-xl overflow-hidden"
+            >
+              {/* Search */}
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+                <Search
+                  size={13}
+                  className="text-muted-foreground/50 shrink-0"
+                />
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar color..."
+                  className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="flex items-center justify-center h-4 w-4 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  >
+                    <X size={10} />
+                  </button>
+                )}
+              </div>
 
-            <div className="max-h-72 overflow-y-auto" role="listbox">
-              {/* Clear option */}
-              {clearable && value && !term && (
-                <button
-                  type="button"
-                  role="option"
-                  onClick={() => { onChange(null); setOpen(false); setSearch(""); }}
-                  className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:bg-muted/50 transition-colors flex items-center gap-2 border-b border-border/50"
-                >
-                  <X size={11} />
-                  Sin color
-                </button>
-              )}
+              <div className="max-h-72 overflow-y-auto" role="listbox">
+                {/* Clear option */}
+                {clearable && value && !term && (
+                  <button
+                    type="button"
+                    role="option"
+                    onClick={() => {
+                      onChange(null);
+                      setOpen(false);
+                      setSearch("");
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:bg-muted/50 transition-colors flex items-center gap-2 border-b border-border/50"
+                  >
+                    <X size={11} />
+                    Sin color
+                  </button>
+                )}
 
-              {/* Filtered flat list */}
-              {term ? (
-                filtered.length === 0 ? (
-                  <p className="px-3 py-4 text-sm text-muted-foreground text-center">Sin resultados</p>
-                ) : (
-                  filtered.map((color) => (
-                    <ColorOption key={color.name} color={color} selected={isSelected(color)} onSelect={handleSelect} />
-                  ))
-                )
-              ) : (
-                /* Grouped list */
-                groups.map((group) => (
-                  <div key={group}>
-                    <p className="px-3 pt-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 select-none">
-                      {group}
+                {/* Filtered flat list */}
+                {term ? (
+                  filtered.length === 0 ? (
+                    <p className="px-3 py-4 text-sm text-muted-foreground text-center">
+                      Sin resultados
                     </p>
-                    {colors.filter((c) => c.group === group).map((color) => (
-                      <ColorOption key={color.name} color={color} selected={isSelected(color)} onSelect={handleSelect} />
-                    ))}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>,
-          document.body
-        )}
+                  ) : (
+                    filtered.map((color) => (
+                      <ColorOption
+                        key={color.name}
+                        color={color}
+                        selected={isSelected(color)}
+                        onSelect={handleSelect}
+                      />
+                    ))
+                  )
+                ) : (
+                  /* Grouped list */
+                  groups.map((group) => (
+                    <div key={group}>
+                      <p className="px-3 pt-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 select-none">
+                        {group}
+                      </p>
+                      {colors
+                        .filter((c) => c.group === group)
+                        .map((color) => (
+                          <ColorOption
+                            key={color.name}
+                            color={color}
+                            selected={isSelected(color)}
+                            onSelect={handleSelect}
+                          />
+                        ))}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>,
+            document.body,
+          )}
       </div>
     </FieldWrapper>
   );
@@ -2312,7 +2466,9 @@ function ColorOption({ color, selected, onSelect }) {
       onClick={() => onSelect(color)}
       className={cn(
         "w-full text-left px-3 py-1.5 text-sm transition-colors duration-100 flex items-center gap-2.5",
-        selected ? "bg-primary/10 text-primary font-medium" : "text-foreground hover:bg-muted/50",
+        selected
+          ? "bg-primary/10 text-primary font-medium"
+          : "text-foreground hover:bg-muted/50",
       )}
     >
       <span

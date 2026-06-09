@@ -1,7 +1,7 @@
 # Google Calendar Sync Design
 
 Fecha: 2026-06-07
-Estado: Draft validado para revision
+Estado: Fase 3A implementada; Fase 3B pendiente
 Alcance: `atlas.calendar`
 
 ## 1. Objetivo
@@ -9,6 +9,24 @@ Alcance: `atlas.calendar`
 Integrar Google Calendar en `atlas.calendar` para que cada usuario de Atlas pueda conectar una sola cuenta de Google, seleccionar calendarios de Google y sincronizar sus eventos hacia Atlas sin duplicados.
 
 La V1 sera de solo lectura desde Google hacia Atlas a nivel de origen, pero los eventos importados se copiaran a eventos normales de Atlas. Si un usuario edita o mueve un evento importado dentro de Atlas, ese evento quedara desacoplado de Google y dejara de recibir actualizaciones remotas.
+
+## 1.1 Estado actual
+
+Hoy Atlas ya soporta:
+
+- configuracion OAuth por instancia
+- una cuenta Google por usuario Atlas
+- descubrimiento de calendarios Google
+- seleccion persistente de calendarios Google
+- creacion inmediata de un calendario interno Atlas por cada calendario Google seleccionado
+- desconexion de Google deshabilitando los origenes sincronizados sin borrar los calendarios Atlas creados
+
+Todavia no soporta:
+
+- importacion de eventos
+- sincronizacion incremental por `syncToken`
+- `GoogleCalendarEventLink`
+- resincronizacion completa o manual
 
 ## 2. Objetivos funcionales
 
@@ -50,6 +68,8 @@ Cada instalacion de Atlas necesitara su propia aplicacion OAuth de Google o una 
 - `GOOGLE_OAUTH_ENCRYPTION_KEY`
 - `GOOGLE_CALENDAR_SYNC_INTERVAL_MINUTES` (opcional)
 
+`GOOGLE_OAUTH_REDIRECT_URI` debe ser una URL de navegador que reciba `code` y `state` de Google y luego los entregue al callback autenticado de Atlas. No debe asumirse que Google llamara directamente a un endpoint API con sesion Atlas activa.
+
 ### 5.2 Comportamiento sin configuracion
 
 Si las variables no existen:
@@ -79,6 +99,8 @@ Cuando el usuario seleccione calendarios Google:
 - Atlas crea un calendario interno por cada calendario Google seleccionado.
 - cada calendario interno queda vinculado a un calendario Google de origen
 - el calendario interno se marca como sincronizado con Google
+- si el mismo calendario Google se vuelve a seleccionar, Atlas reutiliza el mismo calendario interno
+- si un calendario antes seleccionado se omite del payload mas reciente, el origen se deshabilita
 
 ### 6.3 Eventos importados
 
@@ -103,9 +125,10 @@ Si el usuario edita un evento importado o lo mueve a otro calendario Atlas:
 
 Al conectar la cuenta y seleccionar calendarios:
 
-- se importa el historial completo de cada calendario seleccionado
-- se pagina hasta consumir todos los eventos del calendario
-- se almacena un `syncToken` por calendario Google
+- Fase 3A: se crea el origen `GoogleCalendarSource` y el calendario Atlas interno
+- Fase 3B: se importara el historial completo de cada calendario seleccionado
+- Fase 3B: se paginara hasta consumir todos los eventos del calendario
+- Fase 3B: se almacenara un `syncToken` por calendario Google
 
 ### 7.2 Sincronizacion incremental
 
@@ -235,6 +258,7 @@ Para instancias canceladas de recurrentes, se conserva la referencia tecnica nec
 - `syncStatus`
 - `lastErrorAt`
 - `lastErrorMessage`
+- `enabled`
 
 ### 11.3 Nueva entidad: link evento Google -> evento Atlas
 
@@ -256,6 +280,12 @@ Para instancias canceladas de recurrentes, se conserva la referencia tecnica nec
 - `rawSnapshot`
 
 ### 11.4 Justificacion
+
+En la Fase 3A, `GoogleCalendarSource` ya es la pieza canonica para representar la seleccion del usuario. Cada source:
+
+- identifica el calendario Google origen por `connectionId + googleCalendarId`
+- apunta al calendario interno Atlas ya creado
+- queda listo para que Fase 3B agregue `syncToken`, importacion inicial e incremental
 
 Se propone un modelo separado del `CalendarEvent` base porque:
 
@@ -296,10 +326,10 @@ El servicio actual de eventos en `apps/api/src/routes/calendar/calendar-event-se
 - `POST /calendar/google/connect/start`
   - genera URL OAuth
 - `GET /calendar/google/connect/callback`
-  - procesa `code`
+  - endpoint API autenticado por bearer token
+  - recibe `code` desde una ruta/browser callback intermedia
   - intercambia tokens
   - guarda credenciales cifradas
-  - consulta `calendarList`
 
 ### 13.3 Seleccion de calendarios origen
 
@@ -337,10 +367,16 @@ No se propondran formularios de captura de `client_secret` para usuarios finales
 1. Abrir `atlas.calendar`
 2. Ver CTA `Conectar Google`
 3. Autorizar cuenta Google
-4. Ver lista de calendarios Google disponibles
-5. Seleccionar calendarios a importar
-6. Confirmar creacion de calendarios internos
-7. Ejecutar primera sync
+4. La ruta de navegador configurada recibe `code` y `state` y llama al callback API autenticado
+5. Ver lista de calendarios Google disponibles
+6. Seleccionar calendarios a importar
+7. Confirmar creacion de calendarios internos
+8. Ejecutar primera sync
+
+Ruta recomendada de navegador para V1:
+
+- local: `/app/google/calendar/callback`
+- produccion: `/app/google/calendar/callback`
 
 ### 14.3 Estados visibles
 

@@ -1,128 +1,172 @@
-import { useState, useMemo } from 'react'
-import { SearchInput, EmptyState, SelectField, ConfirmDialog, Checkbox } from '@atlas/ui'
-import { ChevronRight, CornerDownRight, Trash2, X } from 'lucide-react'
-import { toast } from 'sonner'
-import { useStatuses, useTasks, useBulkUpdateTasks, useBulkDeleteTasks, useProjectMembers } from '../hooks/useProjectsData'
-import { AssigneeChip, StackedAssignees } from '../lib/AssigneeChip.jsx'
+import { useState, useMemo } from "react";
+import {
+  SearchInput,
+  EmptyState,
+  SelectField,
+  ConfirmDialog,
+  Checkbox,
+  LoadingState,
+} from "@atlas/ui";
+import { ChevronRight, CornerDownRight, Trash2, X, Lock, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+import {
+  useStatuses,
+  useTasks,
+  useBulkUpdateTasks,
+  useBulkDeleteTasks,
+  useProjectMembers,
+} from "../hooks/useProjectsData";
+import { AssigneeChip, StackedAssignees } from "../lib/AssigneeChip.jsx";
 
 const PRIORITY_OPTIONS = [
-  { value: '__all__', label: 'Todas' },
-  { value: 'URGENT', label: 'Urgente' },
-  { value: 'HIGH', label: 'Alta' },
-  { value: 'MEDIUM', label: 'Media' },
-  { value: 'LOW', label: 'Baja' },
-  { value: 'NONE', label: 'Normal' },
-]
+  { value: "__all__", label: "Todas" },
+  { value: "URGENT", label: "Urgente" },
+  { value: "HIGH", label: "Alta" },
+  { value: "MEDIUM", label: "Media" },
+  { value: "LOW", label: "Baja" },
+  { value: "NONE", label: "Normal" },
+];
 
 const PRIORITY_BADGE = {
-  URGENT: { label: 'Urgente', cls: 'bg-red-500/20 text-red-400' },
-  HIGH:   { label: 'Alta',    cls: 'bg-orange-500/20 text-orange-400' },
-  MEDIUM: { label: 'Media',   cls: 'bg-blue-500/20 text-blue-400' },
-  LOW:    { label: 'Baja',    cls: 'bg-slate-500/20 text-slate-400' },
-  NONE:   { label: 'Normal',  cls: 'bg-muted text-muted-foreground' },
+  URGENT: { label: "Urgente", cls: "bg-red-500/20 text-red-400" },
+  HIGH: { label: "Alta", cls: "bg-orange-500/20 text-orange-400" },
+  MEDIUM: { label: "Media", cls: "bg-blue-500/20 text-blue-400" },
+  LOW: { label: "Baja", cls: "bg-slate-500/20 text-slate-400" },
+  NONE: { label: "Normal", cls: "bg-muted text-muted-foreground" },
+};
+
+function parseDateSafe(d) {
+  if (!d) return null;
+  const str = String(d);
+  const part = str.includes("T") ? str.slice(0, 10) : str;
+  return new Date(`${part}T12:00:00`);
 }
 
 function isOverdue(dueDate) {
-  if (!dueDate) return false
-  return new Date(dueDate) < new Date()
+  if (!dueDate) return false;
+  return parseDateSafe(dueDate) < new Date();
 }
 
 function formatDate(d) {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+  if (!d) return "—";
+  return parseDateSafe(d).toLocaleDateString("es-MX", {
+    day: "numeric",
+    month: "short",
+  });
 }
 
-export default function ListView({ projectId, onTaskClick, showSubtasks = false }) {
-  const { data: statusesData } = useStatuses(projectId)
+export default function ListView({
+  projectId,
+  onTaskClick,
+  showSubtasks = false,
+}) {
+  const { data: statusesData } = useStatuses(projectId);
   const { data: tasksData, isLoading } = useTasks(projectId, {
-    ...(showSubtasks ? { include_subtasks: 'true' } : { parentTaskId: 'null' }),
-  })
-  const statuses = statusesData?.data ?? statusesData ?? []
-  const tasks = tasksData?.data ?? tasksData ?? []
+    ...(showSubtasks ? { include_subtasks: "true" } : { parentTaskId: "null" }),
+  });
+  const statuses = statusesData?.data ?? statusesData ?? [];
+  const tasks = tasksData?.data ?? tasksData ?? [];
 
-  const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState('__all__')
-  const [filterPriority, setFilterPriority] = useState('__all__')
-  const { data: membersData } = useProjectMembers(projectId)
-  const members = membersData?.data ?? membersData ?? []
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("__all__");
+  const [filterPriority, setFilterPriority] = useState("__all__");
+  const { data: membersData } = useProjectMembers(projectId);
+  const members = membersData?.data ?? membersData ?? [];
 
-  const [selectedIds, setSelectedIds] = useState(new Set())
-  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
-  const bulkUpdate = useBulkUpdateTasks(projectId)
-  const bulkDelete = useBulkDeleteTasks(projectId)
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const bulkUpdate = useBulkUpdateTasks(projectId);
+  const bulkDelete = useBulkDeleteTasks(projectId);
 
   const statusMap = useMemo(() => {
-    const m = {}
-    for (const s of statuses) m[s.id] = s
-    return m
-  }, [statuses])
+    const m = {};
+    for (const s of statuses) m[s.id] = s;
+    return m;
+  }, [statuses]);
 
   const filtered = useMemo(() => {
-    let list = tasks
+    let list = tasks;
     if (search) {
-      const q = search.toLowerCase()
-      list = list.filter((t) => t.title.toLowerCase().includes(q))
+      const q = search.toLowerCase();
+      list = list.filter((t) => t.title.toLowerCase().includes(q));
     }
-    if (filterStatus && filterStatus !== '__all__') list = list.filter((t) => t.statusId === filterStatus)
-    if (filterPriority && filterPriority !== '__all__') list = list.filter((t) => t.priority === filterPriority)
+    if (filterStatus && filterStatus !== "__all__")
+      list = list.filter((t) => t.statusId === filterStatus);
+    if (filterPriority && filterPriority !== "__all__")
+      list = list.filter((t) => t.priority === filterPriority);
     return list.sort((a, b) => {
-      const sA = statusMap[a.statusId]?.position ?? 0
-      const sB = statusMap[b.statusId]?.position ?? 0
-      if (sA !== sB) return sA - sB
-      return a.position - b.position
-    })
-  }, [tasks, search, filterStatus, filterPriority, statusMap])
+      const sA = statusMap[a.statusId]?.position ?? 0;
+      const sB = statusMap[b.statusId]?.position ?? 0;
+      if (sA !== sB) return sA - sB;
+      return a.position - b.position;
+    });
+  }, [tasks, search, filterStatus, filterPriority, statusMap]);
 
   function toggleRow(id) {
     setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   function toggleAll() {
     if (selectedIds.size === filtered.length) {
-      setSelectedIds(new Set())
+      setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filtered.map((t) => t.id)))
+      setSelectedIds(new Set(filtered.map((t) => t.id)));
     }
   }
 
   function clearSelection() {
-    setSelectedIds(new Set())
+    setSelectedIds(new Set());
   }
 
   function handleBulkDelete() {
-    bulkDelete.mutate({ taskIds: [...selectedIds] }, {
-      onSuccess: () => { clearSelection(); setBulkDeleteOpen(false) },
-      onError: () => toast.error('No se pudo eliminar las tareas'),
-    })
+    bulkDelete.mutate(
+      { taskIds: [...selectedIds] },
+      {
+        onSuccess: () => {
+          clearSelection();
+          setBulkDeleteOpen(false);
+        },
+        onError: () => toast.error("No se pudo eliminar las tareas"),
+      },
+    );
   }
 
   function handleBulkStatus(statusId) {
-    if (!statusId || statusId === '') return
-    bulkUpdate.mutate({ taskIds: [...selectedIds], patch: { statusId } }, {
-      onSuccess: clearSelection,
-      onError: () => toast.error('No se pudo actualizar las tareas'),
-    })
+    if (!statusId || statusId === "") return;
+    bulkUpdate.mutate(
+      { taskIds: [...selectedIds], patch: { statusId } },
+      {
+        onSuccess: clearSelection,
+        onError: () => toast.error("No se pudo actualizar las tareas"),
+      },
+    );
   }
 
   function handleBulkAssign(assigneeId) {
-    if (!assigneeId || assigneeId === '') return
-    bulkUpdate.mutate({ taskIds: [...selectedIds], patch: { assigneeId } }, {
-      onSuccess: clearSelection,
-      onError: () => toast.error('No se pudo asignar las tareas'),
-    })
+    if (!assigneeId || assigneeId === "") return;
+    bulkUpdate.mutate(
+      { taskIds: [...selectedIds], patch: { assigneeId } },
+      {
+        onSuccess: clearSelection,
+        onError: () => toast.error("No se pudo asignar las tareas"),
+      },
+    );
   }
 
   function handleBulkPriority(priority) {
-    if (!priority || priority === '') return
-    bulkUpdate.mutate({ taskIds: [...selectedIds], patch: { priority } }, {
-      onSuccess: clearSelection,
-      onError: () => toast.error('No se pudo cambiar la prioridad'),
-    })
+    if (!priority || priority === "") return;
+    bulkUpdate.mutate(
+      { taskIds: [...selectedIds], patch: { priority } },
+      {
+        onSuccess: clearSelection,
+        onError: () => toast.error("No se pudo cambiar la prioridad"),
+      },
+    );
   }
 
   return (
@@ -138,21 +182,31 @@ export default function ListView({ projectId, onTaskClick, showSubtasks = false 
           <SelectField
             value={filterStatus}
             onValueChange={setFilterStatus}
-            options={[{ value: '__all__', label: 'Estado: Todos' }, ...statuses.map((s) => ({ value: s.id, label: s.name }))]}
+            options={[
+              { value: "__all__", label: "Estado: Todos" },
+              ...statuses.map((s) => ({ value: s.id, label: s.name })),
+            ]}
           />
           <SelectField
             value={filterPriority}
             onValueChange={setFilterPriority}
-            options={PRIORITY_OPTIONS.map((o) => ({ value: o.value, label: o.value !== '__all__' ? `Prioridad: ${o.label}` : 'Prioridad: Todas' }))}
+            options={PRIORITY_OPTIONS.map((o) => ({
+              value: o.value,
+              label:
+                o.value !== "__all__"
+                  ? `Prioridad: ${o.label}`
+                  : "Prioridad: Todas",
+            }))}
           />
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {isLoading && (
-            <p className="text-sm text-muted-foreground p-6">Cargando tareas...</p>
-          )}
+          {isLoading && <LoadingState message="Cargando tareas..." />}
           {!isLoading && filtered.length === 0 && (
-            <EmptyState title="Sin tareas" description="No hay tareas que coincidan con los filtros." />
+            <EmptyState
+              title="Sin tareas"
+              description="No hay tareas que coincidan con los filtros."
+            />
           )}
           {filtered.length > 0 && (
             <table className="w-full text-sm">
@@ -160,82 +214,137 @@ export default function ListView({ projectId, onTaskClick, showSubtasks = false 
                 <tr>
                   <th className="px-3 py-2 w-8">
                     <Checkbox
-                      checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                      checked={
+                        filtered.length > 0 &&
+                        selectedIds.size === filtered.length
+                      }
                       onCheckedChange={toggleAll}
                     />
                   </th>
-                  <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">Tarea</th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36">Asignado</th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-24">Prioridad</th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-24">Inicio</th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-24">Vence</th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-40">Estado</th>
+                  <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Tarea
+                  </th>
+                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36">
+                    Asignado
+                  </th>
+                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-24">
+                    Prioridad
+                  </th>
+                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-24">
+                    Inicio
+                  </th>
+                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-24">
+                    Vence
+                  </th>
+                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-40">
+                    Estado
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((task) => {
-                  const status = statusMap[task.statusId]
-                  const priority = PRIORITY_BADGE[task.priority] ?? PRIORITY_BADGE.NONE
-                  const overdue = isOverdue(task.dueDate)
+                  const status = statusMap[task.statusId];
+                  const priority =
+                    PRIORITY_BADGE[task.priority] ?? PRIORITY_BADGE.NONE;
+                  const overdue = isOverdue(task.dueDate);
                   return (
                     <tr
                       key={task.id}
                       onClick={() => onTaskClick(task.id)}
                       className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors"
                     >
-                      <td className="px-3 py-2.5 w-8" onClick={(e) => e.stopPropagation()}>
+                      <td
+                        className="px-3 py-2.5 w-8"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <Checkbox
                           checked={selectedIds.has(task.id)}
                           onCheckedChange={() => toggleRow(task.id)}
                         />
                       </td>
                       <td className="px-4 py-2.5">
-                        <div className={[
-                          'flex items-center gap-2',
-                          task.parentTaskId ? 'pl-3 border-l-2 border-indigo-400/50' : '',
-                        ].join(' ')}>
-                          {task.parentTaskId && <CornerDownRight size={10} className="text-indigo-400/70 shrink-0" />}
+                        <div
+                          className={[
+                            "flex items-center gap-2",
+                            task.parentTaskId
+                              ? "pl-3 border-l-2 border-indigo-400/50"
+                              : "",
+                          ].join(" ")}
+                        >
+                          {task.parentTaskId && (
+                            <CornerDownRight
+                              size={10}
+                              className="text-indigo-400/70 shrink-0"
+                            />
+                          )}
                           <div className="min-w-0">
                             {task.taskNumber != null && (
-                              <span className="text-[10px] text-muted-foreground font-mono block">T-{task.taskNumber}</span>
+                              <span className="text-[10px] text-muted-foreground font-mono block">
+                                T-{task.taskNumber}
+                              </span>
                             )}
-                            <span className="truncate max-w-sm block">{task.title}</span>
+                            <span className="truncate max-w-sm block">
+                              {task.title}
+                            </span>
                             {task.parent && (
-                              <span className="text-[10px] text-muted-foreground truncate block">{task.parent.title}</span>
+                              <span className="text-[10px] text-muted-foreground truncate block">
+                                {task.parent.title}
+                              </span>
                             )}
                           </div>
                           {task._count?.subtasks > 0 && (
-                            <span className="text-xs text-muted-foreground shrink-0">({task._count.subtasks})</span>
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              ({task._count.subtasks})
+                            </span>
                           )}
-                          <ChevronRight size={14} className="ml-auto text-muted-foreground shrink-0" />
+                          {task.blockedBy?.length > 0 && (
+                            <Lock size={11} className="text-amber-500 shrink-0" title="Tarea bloqueada" />
+                          )}
+                          {task.rrule && (
+                            <RefreshCw size={11} className="text-indigo-400 shrink-0" title="Tarea recurrente" />
+                          )}
+                          <ChevronRight
+                            size={14}
+                            className="ml-auto text-muted-foreground shrink-0"
+                          />
                         </div>
                       </td>
                       <td className="px-3 py-2.5">
-                        <StackedAssignees assignees={task.assignees} fallback={task.assignee} />
+                        <StackedAssignees
+                          assignees={task.assignees}
+                          fallback={task.assignee}
+                        />
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className={`text-xs rounded-full px-2 py-0.5 ${priority.cls}`}>
+                        <span
+                          className={`text-xs rounded-full px-2 py-0.5 ${priority.cls}`}
+                        >
                           {priority.label}
                         </span>
                       </td>
                       <td className="px-3 py-2.5 text-xs text-muted-foreground">
                         {formatDate(task.startDate)}
                       </td>
-                      <td className={`px-3 py-2.5 text-xs ${overdue ? 'text-red-400 font-medium' : 'text-muted-foreground'}`}>
+                      <td
+                        className={`px-3 py-2.5 text-xs ${overdue ? "text-red-400 font-medium" : "text-muted-foreground"}`}
+                      >
                         {formatDate(task.dueDate)}
                       </td>
                       <td className="px-3 py-2.5">
                         {status && (
                           <span
                             className="text-xs rounded-full px-2 py-0.5 border whitespace-nowrap"
-                            style={{ borderColor: `${status.color}50`, color: status.color }}
+                            style={{
+                              borderColor: `${status.color}50`,
+                              color: status.color,
+                            }}
                           >
                             {status.name}
                           </span>
                         )}
                       </td>
                     </tr>
-                  )
+                  );
                 })}
               </tbody>
             </table>
@@ -246,13 +355,13 @@ export default function ListView({ projectId, onTaskClick, showSubtasks = false 
         {selectedIds.size > 0 && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-background border border-border rounded-lg shadow-lg px-4 py-2.5 text-sm">
             <span className="text-muted-foreground mr-1 shrink-0">
-              {selectedIds.size} tarea{selectedIds.size !== 1 ? 's' : ''}
+              {selectedIds.size} tarea{selectedIds.size !== 1 ? "s" : ""}
             </span>
             <SelectField
               value=""
               onValueChange={handleBulkStatus}
               options={[
-                { value: '', label: 'Cambiar estado' },
+                { value: "", label: "Cambiar estado" },
                 ...statuses.map((s) => ({ value: s.id, label: s.name })),
               ]}
             />
@@ -260,10 +369,16 @@ export default function ListView({ projectId, onTaskClick, showSubtasks = false 
               value=""
               onValueChange={handleBulkAssign}
               options={[
-                { value: '', label: 'Asignar' },
+                { value: "", label: "Asignar" },
                 ...members.map((m) => {
-                  const u = m.user ?? m
-                  return { value: m.userId ?? u.id, label: [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || u.id }
+                  const u = m.user ?? m;
+                  return {
+                    value: m.userId ?? u.id,
+                    label:
+                      [u.firstName, u.lastName].filter(Boolean).join(" ") ||
+                      u.email ||
+                      u.id,
+                  };
                 }),
               ]}
             />
@@ -271,12 +386,12 @@ export default function ListView({ projectId, onTaskClick, showSubtasks = false 
               value=""
               onValueChange={handleBulkPriority}
               options={[
-                { value: '', label: 'Prioridad' },
-                { value: 'URGENT', label: 'Urgente' },
-                { value: 'HIGH', label: 'Alta' },
-                { value: 'MEDIUM', label: 'Media' },
-                { value: 'LOW', label: 'Baja' },
-                { value: 'NONE', label: 'Normal' },
+                { value: "", label: "Prioridad" },
+                { value: "URGENT", label: "Urgente" },
+                { value: "HIGH", label: "Alta" },
+                { value: "MEDIUM", label: "Media" },
+                { value: "LOW", label: "Baja" },
+                { value: "NONE", label: "Normal" },
               ]}
             />
             <button
@@ -299,11 +414,11 @@ export default function ListView({ projectId, onTaskClick, showSubtasks = false 
       <ConfirmDialog
         open={bulkDeleteOpen}
         onOpenChange={setBulkDeleteOpen}
-        title={`Eliminar ${selectedIds.size} tarea${selectedIds.size !== 1 ? 's' : ''}`}
+        title={`Eliminar ${selectedIds.size} tarea${selectedIds.size !== 1 ? "s" : ""}`}
         description="Esta accion eliminara las tareas seleccionadas y sus subtareas. No se puede deshacer."
         confirmLabel="Eliminar"
         onConfirm={handleBulkDelete}
       />
     </>
-  )
+  );
 }

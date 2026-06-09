@@ -35,7 +35,7 @@ async function readJsonResponse(response, message) {
   return payload
 }
 
-export function createGoogleCalendarDiscoveryService({ fetchImpl = fetch }) {
+export function createGoogleCalendarDiscoveryService({ fetchImpl = fetch } = {}) {
   async function listCalendars({ accessToken }) {
     const response = await fetchImpl(GOOGLE_CALENDAR_LIST_URL, {
       headers: {

@@ -54,7 +54,7 @@ export default function TaskFormModal({ open, onOpenChange, projectId, defaultSt
         statusId,
         priority,
         assigneeId: assigneeId === '__none__' ? null : assigneeId || null,
-        dueDate: dueDate ? dueDate.toISOString() : null,
+        dueDate: dueDate || null,
       },
       {
         onSuccess: () => {

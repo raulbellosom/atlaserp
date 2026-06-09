@@ -174,12 +174,12 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
 
     const sourceType = site.source_type
 
-    if (sourceType === 'none') {
+    if (!sourceType || sourceType === 'none') {
       return c.json({ error: 'Sitio no disponible' }, 404)
     }
 
     if (sourceType === 'builder') {
-      return null // signal to caller: delegate to existing builder handler
+      return null // signal to caller: nginx will fall back to React SPA
     }
 
     // source_type === 'dist'

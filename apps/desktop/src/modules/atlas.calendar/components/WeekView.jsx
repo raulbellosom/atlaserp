@@ -1,5 +1,5 @@
 import { useCalendarStore } from '../stores/useCalendarStore'
-import { useCalendarEvents } from '../hooks/useCalendarData'
+import { useYearEvents } from '../hooks/useCalendarData'
 import EventChip from './EventChip'
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
@@ -25,14 +25,27 @@ function dateKeyUTC(d) {
 export default function WeekView({ onEventClick }) {
   const { selectedDate, setSelectedDate, activeCalendarIds } = useCalendarStore()
   const days = getWeekDays(selectedDate || new Date().toISOString().slice(0,10))
-  const rangeStart = new Date(days[0]); rangeStart.setHours(0,0,0,0)
-  const rangeEnd = new Date(days[6]); rangeEnd.setHours(23,59,59,999)
 
-  const { data: events = [] } = useCalendarEvents({
-    start: rangeStart.toISOString(),
-    end: rangeEnd.toISOString(),
-    calendarIds: activeCalendarIds,
-  })
+  const firstDay = days[0]
+  const lastDay = days[6]
+  const firstYear = firstDay.getFullYear()
+  const lastYear = lastDay.getFullYear()
+  const crossYear = lastYear !== firstYear
+
+  // Pre-load adjacent year at month boundaries for seamless week navigation
+  const needsPrevYear = firstDay.getMonth() === 0
+  const needsNextYear = lastDay.getMonth() === 11
+
+  const { data: yearEvents = [] } = useYearEvents(firstYear, activeCalendarIds)
+  // Always fetch next year when the week spans a year boundary; conditionally at December
+  const { data: nextYearEvents = [] } = useYearEvents(firstYear + 1, activeCalendarIds, crossYear || needsNextYear)
+  const { data: prevYearEvents = [] } = useYearEvents(firstYear - 1, activeCalendarIds, needsPrevYear)
+
+  const events = [
+    ...yearEvents,
+    ...(crossYear || needsNextYear ? nextYearEvents : []),
+    ...(needsPrevYear ? prevYearEvents : []),
+  ]
 
   const today = new Date()
   const todayKey = dateKey(today)

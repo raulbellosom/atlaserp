@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@atlas/ui'
+import { useUserAvatarUrl } from './UserAvatarContext'
 
 function getInitials(user) {
   return [user.firstName?.[0], user.lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?'
@@ -8,11 +10,34 @@ function getFullName(user) {
   return [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email || 'Usuario'
 }
 
+const SIZE_CLASSES = {
+  sm: 'w-5 h-5 text-[9px]',
+  md: 'w-6 h-6 text-[10px]',
+  lg: 'w-8 h-8 text-xs',
+}
+
 export function AssigneeAvatar({ user, size = 'sm' }) {
+  const [imgError, setImgError] = useState(false)
+  const contextAvatarUrl = useUserAvatarUrl(user?.id)
+  const avatarUrl = user?.avatarUrl ?? contextAvatarUrl
   const initials = getInitials(user)
-  const sizeClass = size === 'sm' ? 'w-5 h-5 text-[9px]' : 'w-6 h-6 text-[10px]'
+  const sizeClass = SIZE_CLASSES[size] ?? SIZE_CLASSES.md
+
+  if (avatarUrl && !imgError) {
+    return (
+      <span className={`${sizeClass} rounded-full shrink-0 select-none overflow-hidden inline-flex`}>
+        <img
+          src={avatarUrl}
+          alt={getFullName(user)}
+          onError={() => setImgError(true)}
+          className="w-full h-full object-cover"
+        />
+      </span>
+    )
+  }
+
   return (
-    <span className={`${sizeClass} rounded-full bg-indigo-500 text-white flex items-center justify-center font-medium shrink-0 select-none`}>
+    <span className={`${sizeClass} aspect-square rounded-full bg-indigo-500 text-white inline-flex items-center justify-center font-medium shrink-0 select-none`}>
       {initials}
     </span>
   )
@@ -51,12 +76,12 @@ export function StackedAssignees({ assignees, fallback }) {
   return (
     <div className="flex items-center -space-x-1.5">
       {shown.map((u, i) => (
-        <span key={u.id ?? i} title={[u.firstName, u.lastName].filter(Boolean).join(' ')}>
+        <span key={u.id ?? i} title={[u.firstName, u.lastName].filter(Boolean).join(' ')} className="shrink-0 inline-flex">
           <AssigneeAvatar user={u} size="sm" />
         </span>
       ))}
       {extra > 0 && (
-        <span className="w-5 h-5 rounded-full bg-muted border border-border flex items-center justify-center text-[9px] text-muted-foreground font-medium">
+        <span className="w-5 h-5 rounded-full bg-muted border border-border flex items-center justify-center text-[9px] text-muted-foreground font-medium shrink-0">
           +{extra}
         </span>
       )}

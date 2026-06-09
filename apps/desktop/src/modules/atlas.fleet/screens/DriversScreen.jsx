@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { AtlasCrudView } from '@atlas/ui'
+import { AtlasCrudView, Button, PageHeader } from '@atlas/ui'
+import { Plus } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -161,8 +162,9 @@ function parseModeAndId(wildcard) {
 export default function DriversScreen() {
   const { '*': wildcard } = useParams()
   const navigate = useNavigate()
-  const { session } = useAuth()
+  const { session, userProfile } = useAuth()
   const token = session?.access_token ?? null
+  const canCreate = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes('fleet.drivers.create'))
 
   const { initialMode, recordId } = useMemo(() => parseModeAndId(wildcard), [wildcard])
 
@@ -176,7 +178,22 @@ export default function DriversScreen() {
   }, [navigate])
 
   return (
-    <div className="p-4 md:p-6 min-h-dvh">
+    <div className="p-4 md:p-6 space-y-6 min-h-dvh">
+      {initialMode === 'list' && (
+        <PageHeader
+          eyebrow="Atlas Fleet"
+          title="Choferes"
+          description="Conductores asignados a las unidades de la flota."
+          actions={
+            canCreate && (
+              <Button onClick={() => navigate(`${BASE_PATH}/new`)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nuevo chofer
+              </Button>
+            )
+          }
+        />
+      )}
       <AtlasCrudView
         tableBlueprint={DRIVER_TABLE}
         formBlueprint={DRIVER_FORM}
@@ -187,6 +204,7 @@ export default function DriversScreen() {
         recordId={recordId}
         onNavigate={handleNavigate}
         componentRegistry={componentRegistry}
+        suppressToolbarCreate
       />
     </div>
   )

@@ -1,12 +1,120 @@
 import {
-  Calendar, Briefcase, Home, Heart, Star,
-  GraduationCap, Globe, Music, Camera, ShoppingBag,
-  Dumbbell, Coffee, Plane, Baby, Stethoscope,
-  BookOpen, Zap, Target, Users, Gift,
-  Sun, Leaf, Dog, Car,
-} from 'lucide-react'
+  Anchor,
+  Activity,
+  Baby,
+  BarChart3,
+  Bell,
+  Bike,
+  BookOpen,
+  Briefcase,
+  Building2,
+  Calendar,
+  Camera,
+  Car,
+  ClipboardList,
+  Clock,
+  Code2,
+  Coffee,
+  Compass,
+  Cpu,
+  CreditCard,
+  Database,
+  Dog,
+  DollarSign,
+  Dumbbell,
+  FileText,
+  Film,
+  Flag,
+  Flame,
+  Flower2,
+  FolderKanban,
+  Gamepad2,
+  Gift,
+  GitBranch,
+  Globe,
+  GraduationCap,
+  Heart,
+  Home,
+  Landmark,
+  Laptop,
+  Layers,
+  LayoutDashboard,
+  Leaf,
+  Lightbulb,
+  Mail,
+  Map,
+  MapPin,
+  MessageSquare,
+  Moon,
+  Music,
+  Network,
+  Package,
+  Palette,
+  Pen,
+  Phone,
+  Pizza,
+  Plane,
+  Rocket,
+  Server,
+  Settings,
+  Shield,
+  ShoppingBag,
+  ShoppingCart,
+  Snowflake,
+  Sparkles,
+  SquareKanban,
+  Star,
+  Stethoscope,
+  Sun,
+  Sunset,
+  Tag,
+  Target,
+  Tent,
+  Terminal,
+  TrendingUp,
+  Trophy,
+  Truck,
+  Tv,
+  UserCheck,
+  Users,
+  UsersRound,
+  Wallet,
+  Waves,
+  Wrench,
+  Zap,
+} from "lucide-react";
+
+function GoogleCalendarIcon({ size = 14, className }) {
+  return (
+    <svg
+      viewBox="0 0 18 18"
+      width={size}
+      height={size}
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M16.27 9.2c0-.58-.05-1.13-.15-1.66H9v3.14h4.08a3.5 3.5 0 0 1-1.52 2.3v1.91h2.46c1.44-1.33 2.25-3.3 2.25-5.69Z"
+        fill="#4285F4"
+      />
+      <path
+        d="M9 16.58c2.04 0 3.75-.67 5-1.82l-2.46-1.91c-.68.46-1.55.73-2.54.73-1.96 0-3.62-1.32-4.2-3.08H2.26v1.97A7.55 7.55 0 0 0 9 16.58Z"
+        fill="#34A853"
+      />
+      <path
+        d="M4.8 10.5A4.54 4.54 0 0 1 4.57 9c0-.52.08-1.01.23-1.5V5.53H2.26A7.57 7.57 0 0 0 1.42 9c0 1.2.29 2.33.84 3.47L4.8 10.5Z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M9 4.42c1.1 0 2.09.38 2.87 1.12l2.15-2.15C12.74 2.18 11.04 1.42 9 1.42A7.55 7.55 0 0 0 2.26 5.53L4.8 7.5C5.38 5.74 7.04 4.42 9 4.42Z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
 
 export const CALENDAR_ICONS = {
+  // Calendar-specific icons
   Calendar,
   Briefcase,
   Home,
@@ -31,10 +139,71 @@ export const CALENDAR_ICONS = {
   Leaf,
   Dog,
   Car,
-}
+  Bell,
+  Clock,
+  Wallet,
+  Gamepad2,
+  Bike,
+  Film,
+  Palette,
+  Pizza,
+  Tent,
+  Sunset,
+  Moon,
+  Sparkles,
+  Trophy,
+  Laptop,
+  Phone,
+  Tv,
+  Map,
+  Compass,
+  Flower2,
+  Anchor,
+  Waves,
+  Snowflake,
+  Flame,
+  // Project icons (so project calendars render their icon correctly)
+  FolderKanban,
+  SquareKanban,
+  Code2,
+  Terminal,
+  GitBranch,
+  Database,
+  Server,
+  Cpu,
+  Network,
+  Pen,
+  Layers,
+  LayoutDashboard,
+  Building2,
+  TrendingUp,
+  BarChart3,
+  DollarSign,
+  Landmark,
+  CreditCard,
+  UserCheck,
+  UsersRound,
+  Mail,
+  MessageSquare,
+  ShoppingCart,
+  Package,
+  Truck,
+  Tag,
+  Flag,
+  Rocket,
+  Lightbulb,
+  Activity,
+  FileText,
+  ClipboardList,
+  Wrench,
+  Settings,
+  MapPin,
+  Shield,
+  Google: GoogleCalendarIcon,
+};
 
 export function CalendarIcon({ name, size = 14, color, className }) {
-  const Icon = name ? CALENDAR_ICONS[name] : null
-  if (!Icon) return null
-  return <Icon size={size} color={color} className={className} />
+  const Icon = name ? CALENDAR_ICONS[name] : null;
+  if (!Icon) return null;
+  return <Icon size={size} color={color} className={className} />;
 }

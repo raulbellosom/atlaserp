@@ -91,10 +91,16 @@ export function applyBrandTheme(primaryColor) {
   const hsl = rgbToHsl(rgb);
   const hover = adjustLightness(hsl, -8);
 
+  // Dark-mode-safe variant: guarantee minimum lightness so the primary color
+  // stays visible against dark backgrounds regardless of the module's color.
+  const DARK_MIN_L = 55;
+  const darkHsl = { ...hsl, l: Math.max(hsl.l, DARK_MIN_L) };
+
   root.style.setProperty(
     "--brand-primary",
     `#${((rgb.r << 16) | (rgb.g << 8) | rgb.b).toString(16).padStart(6, "0")}`,
   );
+  root.style.setProperty("--brand-primary-on-dark", hslToCss(darkHsl));
   root.style.setProperty("--brand-primary-hover", hslToCss(hover));
   root.style.setProperty("--brand-primary-foreground", pickForeground(rgb));
   root.style.setProperty("--ring", `${hsl.h} ${hsl.s}% ${hsl.l}%`);

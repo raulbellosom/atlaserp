@@ -1,6 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 import { atlas } from '../../../lib/atlas'
+
+function loadingMutation(msg) {
+  return {
+    onMutate: () => ({ toastId: toast.loading(msg) }),
+    onSuccess: (_, __, ctx) => toast.dismiss(ctx?.toastId),
+    onError:   (_, __, ctx) => toast.dismiss(ctx?.toastId),
+  }
+}
 
 function useToken() {
   const { session } = useAuth()
@@ -29,12 +38,30 @@ export function useProject(projectId) {
   })
 }
 
+export function useSyncProjectCalendar(projectId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => atlas.projects.syncProjectCalendar(projectId, token),
+    ...loadingMutation('Sincronizando calendario...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      qc.invalidateQueries({ queryKey: ['projects'] })
+      qc.invalidateQueries({ queryKey: ['projects', projectId] })
+    },
+  })
+}
+
 export function useCreateProject() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data) => atlas.projects.createProject(data, token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
+    ...loadingMutation('Creando proyecto...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      qc.invalidateQueries({ queryKey: ['projects'] })
+    },
   })
 }
 
@@ -43,7 +70,9 @@ export function useUpdateProject(projectId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data) => atlas.projects.updateProject(projectId, data, token),
-    onSuccess: () => {
+    ...loadingMutation('Guardando proyecto...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
       qc.invalidateQueries({ queryKey: ['projects'] })
       qc.invalidateQueries({ queryKey: ['projects', projectId] })
     },
@@ -55,7 +84,11 @@ export function useArchiveProject() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id) => atlas.projects.archiveProject(id, token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
+    ...loadingMutation('Archivando proyecto...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      qc.invalidateQueries({ queryKey: ['projects'] })
+    },
   })
 }
 
@@ -76,7 +109,11 @@ export function useAddMember(projectId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data) => atlas.projects.addMember(projectId, data, token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'members'] }),
+    ...loadingMutation('Agregando miembro...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'members'] })
+    },
   })
 }
 
@@ -85,7 +122,11 @@ export function useRemoveMember(projectId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (userId) => atlas.projects.removeMember(projectId, userId, token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'members'] }),
+    ...loadingMutation('Eliminando miembro...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'members'] })
+    },
   })
 }
 
@@ -106,7 +147,11 @@ export function useCreateStatus(projectId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data) => atlas.projects.createStatus(projectId, data, token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'statuses'] }),
+    ...loadingMutation('Creando estado...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'statuses'] })
+    },
   })
 }
 
@@ -115,7 +160,11 @@ export function useUpdateStatus(projectId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ statusId, ...data }) => atlas.projects.updateStatus(projectId, statusId, data, token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'statuses'] }),
+    ...loadingMutation('Guardando estado...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'statuses'] })
+    },
   })
 }
 
@@ -124,7 +173,9 @@ export function useDeleteStatus(projectId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (statusId) => atlas.projects.deleteStatus(projectId, statusId, token),
-    onSuccess: () => {
+    ...loadingMutation('Eliminando estado...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
       qc.invalidateQueries({ queryKey: ['projects', projectId, 'statuses'] })
       qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
     },
@@ -158,7 +209,11 @@ export function useCreateTask(projectId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data) => atlas.projects.createTask(projectId, data, token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] }),
+    ...loadingMutation('Creando tarea...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
+    },
   })
 }
 
@@ -167,7 +222,9 @@ export function useUpdateTask(projectId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ taskId, ...data }) => atlas.projects.updateTask(projectId, taskId, data, token),
-    onSuccess: (_, { taskId }) => {
+    ...loadingMutation('Guardando...'),
+    onSuccess: (_, { taskId }, ctx) => {
+      toast.dismiss(ctx?.toastId)
       qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
       qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] })
     },
@@ -180,7 +237,11 @@ export function useMoveTask(projectId) {
   return useMutation({
     mutationFn: ({ taskId, statusId, position }) =>
       atlas.projects.moveTask(projectId, taskId, { statusId, position }, token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] }),
+    ...loadingMutation('Moviendo tarea...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
+    },
   })
 }
 
@@ -189,7 +250,11 @@ export function useDeleteTask(projectId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (taskId) => atlas.projects.deleteTask(projectId, taskId, token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] }),
+    ...loadingMutation('Eliminando tarea...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
+    },
   })
 }
 
@@ -212,7 +277,9 @@ export function useAddAssignee(projectId, taskId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ userId }) => atlas.projects.addTaskAssignee(projectId, taskId, { userId }, token),
-    onSuccess: () => {
+    ...loadingMutation('Asignando...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
       qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
       qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] })
     },
@@ -224,7 +291,9 @@ export function useRemoveAssignee(projectId, taskId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ userId }) => atlas.projects.removeTaskAssignee(projectId, taskId, userId, token),
-    onSuccess: () => {
+    ...loadingMutation('Quitando asignado...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
       qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
       qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] })
     },
@@ -238,7 +307,11 @@ export function useCreateComment(projectId, taskId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ body }) => atlas.projects.createTaskComment(projectId, taskId, { body }, token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] }),
+    ...loadingMutation('Enviando comentario...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] })
+    },
   })
 }
 
@@ -247,7 +320,11 @@ export function useUpdateComment(projectId, taskId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ commentId, body }) => atlas.projects.updateTaskComment(projectId, taskId, commentId, { body }, token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] }),
+    ...loadingMutation('Guardando comentario...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] })
+    },
   })
 }
 
@@ -256,7 +333,119 @@ export function useDeleteComment(projectId, taskId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ commentId }) => atlas.projects.deleteTaskComment(projectId, taskId, commentId, token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] }),
+    ...loadingMutation('Eliminando comentario...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] })
+    },
+  })
+}
+
+// ── Task Dependencies ─────────────────────────────────────────────────────────
+
+export function useTaskDependencies(projectId, taskId) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['projects', projectId, 'tasks', taskId, 'dependencies'],
+    queryFn: () => atlas.projects.listTaskDependencies(projectId, taskId, token),
+    enabled: Boolean(token) && Boolean(projectId) && Boolean(taskId),
+    staleTime: 15 * 1000,
+  })
+}
+
+export function useAddDependency(projectId, taskId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => atlas.projects.addTaskDependency(projectId, taskId, data, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId, 'dependencies'] }),
+    onError: () => toast.error('No se pudo agregar la dependencia'),
+  })
+}
+
+export function useRemoveDependency(projectId, taskId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (depId) => atlas.projects.removeTaskDependency(projectId, taskId, depId, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId, 'dependencies'] }),
+    onError: () => toast.error('No se pudo eliminar la dependencia'),
+  })
+}
+
+// ── Project Custom Fields ─────────────────────────────────────────────────────
+
+export function useProjectFields(projectId) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['projects', projectId, 'fields'],
+    queryFn: () => atlas.projects.listProjectFields(projectId, token),
+    enabled: Boolean(token) && Boolean(projectId),
+    staleTime: 60 * 1000,
+  })
+}
+
+export function useCreateField(projectId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => atlas.projects.createProjectField(projectId, data, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'fields'] }),
+    onError: () => toast.error('No se pudo crear el campo'),
+  })
+}
+
+export function useUpdateField(projectId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ fieldId, ...data }) => atlas.projects.updateProjectField(projectId, fieldId, data, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'fields'] }),
+    onError: () => toast.error('No se pudo actualizar el campo'),
+  })
+}
+
+export function useDeleteField(projectId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (fieldId) => atlas.projects.deleteProjectField(projectId, fieldId, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'fields'] }),
+    onError: () => toast.error('No se pudo eliminar el campo'),
+  })
+}
+
+// ── Task Field Values ─────────────────────────────────────────────────────────
+
+export function useTaskFieldValues(projectId, taskId) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['projects', projectId, 'tasks', taskId, 'field-values'],
+    queryFn: () => atlas.projects.getTaskFieldValues(projectId, taskId, token),
+    enabled: Boolean(token) && Boolean(projectId) && Boolean(taskId),
+    staleTime: 15 * 1000,
+  })
+}
+
+export function useUpsertFieldValues(projectId, taskId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (entries) => atlas.projects.upsertTaskFieldValues(projectId, taskId, entries, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId, 'field-values'] }),
+    onError: () => toast.error('No se pudo guardar el valor'),
+  })
+}
+
+// ── Task Activity feed ────────────────────────────────────────────────────────
+
+export function useTaskActivity(taskId, limit = 50) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['activity', 'Task', taskId],
+    queryFn: () => atlas.activity.listForEntity('Task', taskId, token, limit),
+    enabled: Boolean(token) && Boolean(taskId),
+    staleTime: 15 * 1000,
   })
 }
 
@@ -267,7 +456,11 @@ export function useBulkUpdateTasks(projectId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ taskIds, patch }) => atlas.projects.bulkUpdateTasks(projectId, { taskIds, patch }, token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] }),
+    ...loadingMutation('Actualizando tareas...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
+    },
   })
 }
 
@@ -276,6 +469,10 @@ export function useBulkDeleteTasks(projectId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ taskIds }) => atlas.projects.bulkDeleteTasks(projectId, { taskIds }, token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] }),
+    ...loadingMutation('Eliminando tareas...'),
+    onSuccess: (data, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
+    },
   })
 }

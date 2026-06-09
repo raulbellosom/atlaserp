@@ -11,6 +11,8 @@ const buttonVariants = cva(
       variant: {
         default:
           "bg-(--brand-primary) text-(--brand-primary-foreground) shadow-sm hover:bg-(--brand-primary-hover) active:scale-[0.98]",
+        primary:
+          "bg-(--brand-primary) text-(--brand-primary-foreground) shadow-sm hover:bg-(--brand-primary-hover) active:scale-[0.98]",
         secondary:
           "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]/80 active:scale-[0.98]",
         ghost:

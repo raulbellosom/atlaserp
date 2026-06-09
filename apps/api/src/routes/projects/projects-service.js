@@ -76,7 +76,19 @@ export function createProjectsService({ prisma }) {
     const isMember =
       project.ownerId === userId || project.members.some((m) => m.userId === userId)
     if (!isMember) throw new ProjectServiceError('Proyecto no encontrado.', 404)
-    return project
+    let calendarLinked = false
+    if (project.calendarId) {
+      try {
+        const cal = await prisma.calendarCalendar.findFirst({
+          where: { id: project.calendarId, enabled: true },
+          select: { id: true },
+        })
+        calendarLinked = Boolean(cal)
+      } catch {
+        // Calendar module may not be available
+      }
+    }
+    return { ...project, calendarLinked }
   }
 
   async function createProject(companyId, ownerId, { name, description, color, icon, template = 'general' }) {

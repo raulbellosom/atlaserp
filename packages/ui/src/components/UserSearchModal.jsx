@@ -4,7 +4,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from './Dialog.jsx'
 import { Button } from './Button.jsx'
-import { Search, User } from 'lucide-react'
+import { SelectField } from './FormFields.jsx'
+import { Search, User, X } from 'lucide-react'
 
 export function UserSearchModal({ open, onClose, onConfirm, roles = [], excludeIds = [], apiBase, token }) {
   const [query, setQuery]       = useState('')
@@ -59,19 +60,21 @@ export function UserSearchModal({ open, onClose, onConfirm, roles = [], excludeI
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => { setQuery(e.target.value); setSelected(null) }}
-              placeholder="Nombre o correo electrónico..."
-              className="w-full pl-8 pr-3 py-2 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] text-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
-              autoFocus
-            />
-          </div>
+          {!selected && (
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Nombre o correo electrónico..."
+                className="w-full pl-8 pr-3 py-2 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] text-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
+                autoFocus
+              />
+            </div>
+          )}
 
-          {query.length >= 2 && (
+          {!selected && query.length >= 2 && (
             <div className="max-h-52 overflow-y-auto rounded-md border border-[hsl(var(--border))]">
               {loading && (
                 <div className="p-3 text-sm text-[hsl(var(--muted-foreground))]">Buscando...</div>
@@ -84,10 +87,7 @@ export function UserSearchModal({ open, onClose, onConfirm, roles = [], excludeI
                   key={user.id}
                   type="button"
                   onClick={() => setSelected(user)}
-                  className={[
-                    'w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-[hsl(var(--muted)/0.5)] transition-colors',
-                    selected?.id === user.id ? 'bg-[hsl(var(--muted))]' : '',
-                  ].join(' ')}
+                  className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-[hsl(var(--muted)/0.5)] transition-colors"
                 >
                   <div className="shrink-0 w-7 h-7 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center">
                     <User size={12} className="text-[hsl(var(--muted-foreground))]" />
@@ -101,19 +101,34 @@ export function UserSearchModal({ open, onClose, onConfirm, roles = [], excludeI
             </div>
           )}
 
-          {selected && roles.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium mb-1">Rol</label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full px-3 py-2 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] text-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
+          {selected && (
+            <div className="flex items-center gap-3 rounded-md border border-[hsl(var(--border))] px-3 py-2">
+              <div className="shrink-0 w-7 h-7 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center">
+                <User size={12} className="text-[hsl(var(--muted-foreground))]" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium truncate">{selected.display_name}</div>
+                <div className="text-xs text-[hsl(var(--muted-foreground))] truncate">{selected.email}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setSelected(null); setQuery('') }}
+                className="shrink-0 rounded p-0.5 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
+                aria-label="Quitar usuario seleccionado"
               >
-                {roles.map((r) => (
-                  <option key={r.value} value={r.value}>{r.label}</option>
-                ))}
-              </select>
+                <X size={14} />
+              </button>
             </div>
+          )}
+
+          {selected && roles.length > 0 && (
+            <SelectField
+              label="Rol"
+              id="user-search-role"
+              value={role}
+              onValueChange={setRole}
+              options={roles.map((r) => ({ value: r.value, label: r.label }))}
+            />
           )}
 
           <div className="flex justify-end gap-2 pt-1">

@@ -14,6 +14,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { LoadingState } from "./LoadingState.jsx";
 import { Alert, AlertDescription, AlertTitle } from "./Alert.jsx";
 import { Input } from "./Input.jsx";
 import { FileViewer } from "./FileViewer.jsx";
@@ -44,45 +45,61 @@ function formatBytes(sizeBytes) {
 }
 
 function normalizePlacement(value) {
-  const placement = String(value ?? "embedded").trim().toLowerCase();
+  const placement = String(value ?? "embedded")
+    .trim()
+    .toLowerCase();
   return placement === "aside" ? "aside" : "embedded";
 }
 
 const FILE_TYPE_STYLES = {
   image: {
     icon: FileImage,
-    iconClass: "bg-sky-500/10 text-sky-600 dark:bg-sky-500/20 dark:text-sky-300",
-    labelClass: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-300",
+    iconClass:
+      "bg-sky-500/10 text-sky-600 dark:bg-sky-500/20 dark:text-sky-300",
+    labelClass:
+      "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-300",
   },
   pdf: {
     icon: FileType2,
-    iconClass: "bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300",
-    labelClass: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-300",
+    iconClass:
+      "bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300",
+    labelClass:
+      "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-300",
   },
   word: {
     icon: FileText,
-    iconClass: "bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300",
-    labelClass: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300",
+    iconClass:
+      "bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300",
+    labelClass:
+      "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300",
   },
   spreadsheet: {
     icon: FileSpreadsheet,
-    iconClass: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300",
-    labelClass: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300",
+    iconClass:
+      "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300",
+    labelClass:
+      "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300",
   },
   text: {
     icon: FileText,
-    iconClass: "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300",
-    labelClass: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300",
+    iconClass:
+      "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300",
+    labelClass:
+      "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300",
   },
   archive: {
     icon: FileArchive,
-    iconClass: "bg-fuchsia-500/10 text-fuchsia-600 dark:bg-fuchsia-500/20 dark:text-fuchsia-300",
-    labelClass: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-500/40 dark:bg-fuchsia-500/10 dark:text-fuchsia-300",
+    iconClass:
+      "bg-fuchsia-500/10 text-fuchsia-600 dark:bg-fuchsia-500/20 dark:text-fuchsia-300",
+    labelClass:
+      "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-500/40 dark:bg-fuchsia-500/10 dark:text-fuchsia-300",
   },
   file: {
     icon: File,
-    iconClass: "bg-slate-500/10 text-slate-600 dark:bg-slate-500/20 dark:text-slate-300",
-    labelClass: "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/40 dark:bg-slate-500/10 dark:text-slate-300",
+    iconClass:
+      "bg-slate-500/10 text-slate-600 dark:bg-slate-500/20 dark:text-slate-300",
+    labelClass:
+      "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/40 dark:bg-slate-500/10 dark:text-slate-300",
   },
 };
 
@@ -93,7 +110,10 @@ function getTypeStyle(item) {
     mimeType: item?.mimeType,
     fileName: item?.fileName,
   });
-  return { ...typeInfo, ...(FILE_TYPE_STYLES[typeInfo.kind] ?? FILE_TYPE_STYLES.file) };
+  return {
+    ...typeInfo,
+    ...(FILE_TYPE_STYLES[typeInfo.kind] ?? FILE_TYPE_STYLES.file),
+  };
 }
 
 function FileTypeBadge({ typeStyle }) {
@@ -128,7 +148,13 @@ function FileVisual({ item, typeStyle }) {
   );
 }
 
-function IconAction({ label, onClick, disabled, destructive = false, children }) {
+function IconAction({
+  label,
+  onClick,
+  disabled,
+  destructive = false,
+  children,
+}) {
   return (
     <button
       type="button"
@@ -161,15 +187,22 @@ function PendingCard({ item, hasRecord, onOpen, onRetry, onRemove, busy }) {
       <FileVisual item={item} typeStyle={typeStyle} />
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-[hsl(var(--foreground))]" title={item.fileName}>
+        <p
+          className="truncate text-sm font-medium text-[hsl(var(--foreground))]"
+          title={item.fileName}
+        >
           {item.fileName ?? "Archivo"}
         </p>
         <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
           <FileTypeBadge typeStyle={typeStyle} />
           {sizeText && (
-            <span className="text-[11px] text-[hsl(var(--muted-foreground))]">{sizeText}</span>
+            <span className="text-[11px] text-[hsl(var(--muted-foreground))]">
+              {sizeText}
+            </span>
           )}
-          {isActive && <Loader2 className="h-3 w-3 animate-spin text-[hsl(var(--muted-foreground))]" />}
+          {isActive && (
+            <Loader2 className="h-3 w-3 animate-spin text-[hsl(var(--muted-foreground))]" />
+          )}
           {isError && (
             <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-1.5 py-px text-[10px] font-semibold leading-4 text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-400">
               Error
@@ -177,7 +210,10 @@ function PendingCard({ item, hasRecord, onOpen, onRetry, onRemove, busy }) {
           )}
         </div>
         {item.error && (
-          <p className="mt-0.5 truncate text-[11px] text-rose-500 dark:text-rose-400" title={item.error}>
+          <p
+            className="mt-0.5 truncate text-[11px] text-rose-500 dark:text-rose-400"
+            title={item.error}
+          >
             {item.error}
           </p>
         )}
@@ -185,8 +221,16 @@ function PendingCard({ item, hasRecord, onOpen, onRetry, onRemove, busy }) {
 
       <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
         {canOpen && (
-          <IconAction label="Vista previa" onClick={() => onOpen(item)} disabled={busy}>
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+          <IconAction
+            label="Vista previa"
+            onClick={() => onOpen(item)}
+            disabled={busy}
+          >
+            {busy ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Eye className="h-3.5 w-3.5" />
+            )}
           </IconAction>
         )}
         {isError && hasRecord && (
@@ -194,7 +238,12 @@ function PendingCard({ item, hasRecord, onOpen, onRetry, onRemove, busy }) {
             <RotateCcw className="h-3.5 w-3.5" />
           </IconAction>
         )}
-        <IconAction label="Quitar" onClick={() => onRemove(item.id)} disabled={busy} destructive>
+        <IconAction
+          label="Quitar"
+          onClick={() => onRemove(item.id)}
+          disabled={busy}
+          destructive
+        >
           <X className="h-3.5 w-3.5" />
         </IconAction>
       </div>
@@ -234,30 +283,62 @@ function AssociatedCard({
       )}
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-[hsl(var(--foreground))]" title={item.fileName}>
+        <p
+          className="truncate text-sm font-medium text-[hsl(var(--foreground))]"
+          title={item.fileName}
+        >
           {item.fileName ?? "Archivo"}
         </p>
         <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
           <FileTypeBadge typeStyle={typeStyle} />
           {sizeText && (
-            <span className="text-[11px] text-[hsl(var(--muted-foreground))]">{sizeText}</span>
+            <span className="text-[11px] text-[hsl(var(--muted-foreground))]">
+              {sizeText}
+            </span>
           )}
           {dateText && (
-            <span className="text-[11px] text-[hsl(var(--muted-foreground))]">{dateText}</span>
+            <span className="text-[11px] text-[hsl(var(--muted-foreground))]">
+              {dateText}
+            </span>
           )}
         </div>
       </div>
 
       <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-        <IconAction label="Vista previa" onClick={() => onOpen(item)} disabled={opening}>
-          {opening ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+        <IconAction
+          label="Vista previa"
+          onClick={() => onOpen(item)}
+          disabled={opening}
+        >
+          {opening ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Eye className="h-3.5 w-3.5" />
+          )}
         </IconAction>
-        <IconAction label="Descargar" onClick={() => onDownload(item)} disabled={downloading}>
-          {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+        <IconAction
+          label="Descargar"
+          onClick={() => onDownload(item)}
+          disabled={downloading}
+        >
+          {downloading ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Download className="h-3.5 w-3.5" />
+          )}
         </IconAction>
         {canWrite && (
-          <IconAction label="Quitar" onClick={() => onRemove(item)} disabled={removing} destructive>
-            {removing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+          <IconAction
+            label="Quitar"
+            onClick={() => onRemove(item)}
+            disabled={removing}
+            destructive
+          >
+            {removing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
           </IconAction>
         )}
       </div>
@@ -309,15 +390,22 @@ export function AttachmentsPanel({
     return () => onControllerReady(null);
   }, [controller, onControllerReady]);
 
-  const heading = useMemo(() => String(config?.label ?? "Documentos"), [config?.label]);
+  const heading = useMemo(
+    () => String(config?.label ?? "Documentos"),
+    [config?.label],
+  );
   const showTypeInput = Boolean(config?.metadataInputs?.showDocumentTypeInput);
   const showLabelInput = Boolean(config?.metadataInputs?.showLabelInput);
   const showMetadataInputs = showTypeInput || showLabelInput;
 
   const hasRecord = Boolean(recordId);
   const canChooseFiles =
-    controller.canUpload && !disabled && !readOnly && (context !== "detail" || hasRecord);
-  const canManageAssociations = hasRecord && Boolean(config?.addPath && config?.removePath);
+    controller.canUpload &&
+    !disabled &&
+    !readOnly &&
+    (context !== "detail" || hasRecord);
+  const canManageAssociations =
+    hasRecord && Boolean(config?.addPath && config?.removePath);
 
   const viewerFiles = useMemo(
     () =>
@@ -327,7 +415,9 @@ export function AttachmentsPanel({
         originalName: item.fileName ?? "Archivo",
         signedUrl:
           item.signedUrl ??
-          (item.fileAssetId ? thumbUrlsByAssetId[item.fileAssetId] ?? null : null),
+          (item.fileAssetId
+            ? (thumbUrlsByAssetId[item.fileAssetId] ?? null)
+            : null),
       })),
     [controller.associatedItems, thumbUrlsByAssetId],
   );
@@ -360,7 +450,11 @@ export function AttachmentsPanel({
     return () => {
       cancelled = true;
     };
-  }, [controller.associatedItems, controller.resolveSignedUrl, thumbUrlsByAssetId]);
+  }, [
+    controller.associatedItems,
+    controller.resolveSignedUrl,
+    thumbUrlsByAssetId,
+  ]);
 
   const handleFilesPicked = async (filesLike) => {
     await controller.queueFiles(filesLike, {
@@ -395,7 +489,9 @@ export function AttachmentsPanel({
       const files = e.dataTransfer?.files;
       if (files?.length) handleFilesPickedRef.current(files);
     }
-    function onDragOver(e) { e.preventDefault(); }
+    function onDragOver(e) {
+      e.preventDefault();
+    }
 
     window.addEventListener("dragenter", onDragEnter);
     window.addEventListener("dragleave", onDragLeave);
@@ -417,10 +513,12 @@ export function AttachmentsPanel({
 
   const handleOpenAssociated = async (item) => {
     setOpeningId(item.id);
-    const index = controller.associatedItems.findIndex((entry) => entry.id === item.id);
+    const index = controller.associatedItems.findIndex(
+      (entry) => entry.id === item.id,
+    );
     if (index >= 0) setViewerIndex(index);
     const preloadedUrl = item.fileAssetId
-      ? thumbUrlsByAssetId[item.fileAssetId] ?? null
+      ? (thumbUrlsByAssetId[item.fileAssetId] ?? null)
       : null;
     await controller.openAssociated(
       preloadedUrl ? { ...item, signedUrl: preloadedUrl } : item,
@@ -454,7 +552,9 @@ export function AttachmentsPanel({
             <span className="flex h-20 w-20 items-center justify-center rounded-3xl border border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/15">
               <Upload className="h-10 w-10 text-[hsl(var(--primary))]" />
             </span>
-            <p className="text-base font-semibold text-[hsl(var(--primary))]">Suelta para adjuntar</p>
+            <p className="text-base font-semibold text-[hsl(var(--primary))]">
+              Suelta para adjuntar
+            </p>
             <p className="text-sm text-[hsl(var(--primary))]/70">{heading}</p>
           </div>
         </div>
@@ -462,7 +562,11 @@ export function AttachmentsPanel({
 
       <div className="space-y-4">
         <div className="space-y-0.5">
-          {showHeading && <h4 className="text-sm font-semibold text-[hsl(var(--foreground))]">{heading}</h4>}
+          {showHeading && (
+            <h4 className="text-sm font-semibold text-[hsl(var(--foreground))]">
+              {heading}
+            </h4>
+          )}
           {!hasRecord && context !== "detail" && (
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
               Los archivos se guardarán después de crear el registro.
@@ -474,7 +578,8 @@ export function AttachmentsPanel({
           <Alert variant="warning">
             <AlertTitle>Documentos</AlertTitle>
             <AlertDescription>
-              Este registro no tiene un identificador válido para gestionar documentos.
+              Este registro no tiene un identificador válido para gestionar
+              documentos.
             </AlertDescription>
           </Alert>
         )}
@@ -572,10 +677,11 @@ export function AttachmentsPanel({
         )}
 
         {controller.loading && (
-          <div className="inline-flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Cargando documentos...
-          </div>
+          <LoadingState
+            variant="inline"
+            size="sm"
+            message="Cargando documentos..."
+          />
         )}
 
         {controller.associatedItems.length > 0 && (
@@ -589,7 +695,9 @@ export function AttachmentsPanel({
                   key={item.id}
                   item={item}
                   previewUrl={
-                    item.fileAssetId ? thumbUrlsByAssetId[item.fileAssetId] ?? null : null
+                    item.fileAssetId
+                      ? (thumbUrlsByAssetId[item.fileAssetId] ?? null)
+                      : null
                   }
                   onOpen={handleOpenAssociated}
                   onDownload={handleDownloadAssociated}

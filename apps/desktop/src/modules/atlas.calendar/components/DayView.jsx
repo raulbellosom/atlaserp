@@ -1,18 +1,42 @@
 import { useCalendarStore } from '../stores/useCalendarStore'
-import { useCalendarEvents } from '../hooks/useCalendarData'
+import { useYearEvents } from '../hooks/useCalendarData'
 import EventChip from './EventChip'
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
 
+function dateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
+function dateKeyUTC(d) {
+  const dt = new Date(d)
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,'0')}-${String(dt.getUTCDate()).padStart(2,'0')}`
+}
+
 export default function DayView({ onEventClick }) {
   const { selectedDate, activeCalendarIds } = useCalendarStore()
-  const dateStr = selectedDate || new Date().toISOString().slice(0,10)
-  const start = new Date(dateStr + 'T00:00:00').toISOString()
-  const end = new Date(dateStr + 'T23:59:59').toISOString()
+  const dateStr = selectedDate || new Date().toISOString().slice(0, 10)
+  const d = new Date(dateStr + 'T12:00:00')
+  const year = d.getFullYear()
+  const month = d.getMonth()
 
-  const { data: events = [] } = useCalendarEvents({ start, end, calendarIds: activeCalendarIds })
-  const allDayEvents = events.filter(ev => ev.allDay)
-  const timedEvents = events.filter(ev => !ev.allDay)
+  // Pre-load adjacent years at year boundaries for seamless day navigation
+  const needsPrevYear = month === 0
+  const needsNextYear = month === 11
+
+  const { data: yearEvents = [] } = useYearEvents(year, activeCalendarIds)
+  const { data: prevYearEvents = [] } = useYearEvents(year - 1, activeCalendarIds, needsPrevYear)
+  const { data: nextYearEvents = [] } = useYearEvents(year + 1, activeCalendarIds, needsNextYear)
+
+  const events = [
+    ...yearEvents,
+    ...(needsPrevYear ? prevYearEvents : []),
+    ...(needsNextYear ? nextYearEvents : []),
+  ]
+
+  // All-day events: match by UTC date; timed events: match by local date
+  const allDayEvents = events.filter(ev => ev.allDay && dateKeyUTC(ev.startAt) === dateStr)
+  const timedEvents = events.filter(ev => !ev.allDay && dateKey(new Date(ev.startAt)) === dateStr)
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

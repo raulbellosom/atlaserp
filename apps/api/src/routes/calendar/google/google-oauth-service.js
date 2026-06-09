@@ -1,6 +1,9 @@
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const GOOGLE_USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo'
+const GOOGLE_OAUTH_STATE_TTL_MS = 10 * 60 * 1000
 
 function createGoogleError(message, response, payload) {
   const details = payload && typeof payload === 'object'
@@ -65,7 +68,94 @@ function resolveRefreshToken(tokenPayload, response) {
   return refreshToken
 }
 
+function createInvalidStateError() {
+  const error = new Error('Invalid OAuth state.')
+  error.status = 401
+  return error
+}
+
+function resolveStateSigningKey(config) {
+  const decodedKey = Buffer.from(String(config?.encryptionKey ?? ''), 'base64')
+
+  if (decodedKey.length !== 32) {
+    throw new Error('GOOGLE_OAUTH_ENCRYPTION_KEY must decode to 32 bytes.')
+  }
+
+  return decodedKey
+}
+
+function signStatePayload(encodedPayload, signingKey) {
+  return createHmac('sha256', signingKey).update(encodedPayload).digest()
+}
+
 export function createGoogleOAuthService({ config, fetchImpl = fetch }) {
+  function createAuthorizationState({ userId, now = new Date() }) {
+    const normalizedUserId = String(userId ?? '').trim()
+
+    if (!normalizedUserId) {
+      throw new Error('userId is required to build the Google OAuth state.')
+    }
+
+    const payload = {
+      userId: normalizedUserId,
+      issuedAt: new Date(now).toISOString(),
+      nonce: randomBytes(16).toString('base64url'),
+    }
+    const encodedPayload = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url')
+    const signature = signStatePayload(encodedPayload, resolveStateSigningKey(config))
+
+    return `${encodedPayload}.${Buffer.from(signature).toString('base64url')}`
+  }
+
+  function verifyAuthorizationState({ state, userId, now = new Date() }) {
+    const normalizedState = String(state ?? '').trim()
+    const normalizedUserId = String(userId ?? '').trim()
+
+    if (!normalizedState || !normalizedUserId) {
+      throw createInvalidStateError()
+    }
+
+    const [encodedPayload, encodedSignature, extraPart] = normalizedState.split('.')
+
+    if (!encodedPayload || !encodedSignature || extraPart) {
+      throw createInvalidStateError()
+    }
+
+    const expectedSignature = signStatePayload(
+      encodedPayload,
+      resolveStateSigningKey(config)
+    )
+    const actualSignature = Buffer.from(encodedSignature, 'base64url')
+
+    if (
+      actualSignature.length !== expectedSignature.length ||
+      !timingSafeEqual(actualSignature, expectedSignature)
+    ) {
+      throw createInvalidStateError()
+    }
+
+    let payload
+    try {
+      payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'))
+    } catch {
+      throw createInvalidStateError()
+    }
+
+    const issuedAt = new Date(payload?.issuedAt)
+    const ageMs = now.getTime() - issuedAt.getTime()
+
+    if (
+      payload?.userId !== normalizedUserId ||
+      Number.isNaN(issuedAt.getTime()) ||
+      ageMs < 0 ||
+      ageMs > GOOGLE_OAUTH_STATE_TTL_MS
+    ) {
+      throw createInvalidStateError()
+    }
+
+    return payload
+  }
+
   function buildAuthorizationUrl({ state }) {
     const params = new URLSearchParams({
       client_id: config.clientId,
@@ -145,6 +235,8 @@ export function createGoogleOAuthService({ config, fetchImpl = fetch }) {
   }
 
   return {
+    createAuthorizationState,
+    verifyAuthorizationState,
     buildAuthorizationUrl,
     exchangeCodeForTokens,
   }

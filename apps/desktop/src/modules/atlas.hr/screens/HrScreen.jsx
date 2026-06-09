@@ -1,10 +1,12 @@
 import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AtlasTable, Button, ErrorState, PageHeader } from "@atlas/ui";
+import { AtlasTable, Button, ErrorState, LoadingState, PageHeader } from "@atlas/ui";
 import { FileSpreadsheet, FileText, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
+import { buildHrEmployeesTableProps } from "../lib/hr-employees-table-props.js";
+import { resolveHrScreenAccess } from "../lib/hr-screen-access.js";
 
 import HrEmployeeDetail from "./HrEmployeeDetail";
 import HrEmployeeForm from "./HrEmployeeForm";
@@ -88,7 +90,7 @@ export default function HrScreen() {
   const permissions = userProfile?.permissions ?? [];
   const hasPermission = (key) =>
     Boolean(userProfile?.isAdmin || permissions.includes(key));
-  const canReadEmployees = hasPermission("hr.employee.read");
+  const screenAccess = resolveHrScreenAccess({ token, userProfile });
   const canCreateEmployees = hasPermission("hr.employee.create");
   const { "*": wildcard } = useParams();
   const navigate = useNavigate();
@@ -161,7 +163,23 @@ export default function HrScreen() {
     );
   }
 
-  if (!canReadEmployees) {
+  if (screenAccess === "loading") {
+    return (
+      <div className="p-4 md:p-6 space-y-6 min-h-dvh">
+        <PageHeader
+          eyebrow="Atlas HR"
+          title="Colaboradores"
+          description="Directorio y expedientes del equipo."
+        />
+        <LoadingState
+          title="Cargando colaboradores"
+          description="Preparando permisos y datos del modulo."
+        />
+      </div>
+    );
+  }
+
+  if (screenAccess === "forbidden") {
     return (
       <div className="p-4 md:p-6 space-y-6 min-h-dvh">
         <PageHeader
@@ -198,10 +216,12 @@ export default function HrScreen() {
         }
       />
       <AtlasTable
-        blueprint={HR_EMPLOYEES_BLUEPRINT}
-        token={token}
-        onView={(row) => navigate(`/app/m/atlas.hr/hr/employees/${row.id}`)}
-        bulkActions={bulkActions}
+        {...buildHrEmployeesTableProps({
+          blueprint: HR_EMPLOYEES_BLUEPRINT,
+          token,
+          onView: (row) => navigate(`/app/m/atlas.hr/hr/employees/${row.id}`),
+          bulkActions,
+        })}
       />
     </div>
   );

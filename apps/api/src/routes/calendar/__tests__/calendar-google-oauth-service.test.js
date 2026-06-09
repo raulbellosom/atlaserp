@@ -48,6 +48,64 @@ describe('google-oauth-service', () => {
     )
   })
 
+  it('creates and verifies a signed authorization state for the same user', () => {
+    const svc = createGoogleOAuthService({
+      config: {
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        redirectUri: 'https://atlas.example.com/api/calendar/google/connect/callback',
+        encryptionKey: Buffer.alloc(32, 7).toString('base64'),
+        scopes: ['openid', 'email'],
+      },
+      fetchImpl: async () => {
+        throw new Error('not used')
+      },
+    })
+
+    const state = svc.createAuthorizationState({
+      userId: 'user-1',
+      now: new Date('2026-06-08T12:00:00.000Z'),
+    })
+
+    const result = svc.verifyAuthorizationState({
+      state,
+      userId: 'user-1',
+      now: new Date('2026-06-08T12:05:00.000Z'),
+    })
+
+    assert.equal(result.userId, 'user-1')
+  })
+
+  it('rejects a signed authorization state for a different user', () => {
+    const svc = createGoogleOAuthService({
+      config: {
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        redirectUri: 'https://atlas.example.com/api/calendar/google/connect/callback',
+        encryptionKey: Buffer.alloc(32, 7).toString('base64'),
+        scopes: ['openid', 'email'],
+      },
+      fetchImpl: async () => {
+        throw new Error('not used')
+      },
+    })
+
+    const state = svc.createAuthorizationState({
+      userId: 'user-1',
+      now: new Date('2026-06-08T12:00:00.000Z'),
+    })
+
+    assert.throws(
+      () =>
+        svc.verifyAuthorizationState({
+          state,
+          userId: 'user-2',
+          now: new Date('2026-06-08T12:05:00.000Z'),
+        }),
+      /invalid oauth state/i
+    )
+  })
+
   it('exchanges code for tokens and account identity', async () => {
     const fetchCalls = []
     const fetchImpl = async (url, options = {}) => {
@@ -339,6 +397,34 @@ describe('google-oauth-service', () => {
 })
 
 describe('google-calendar-discovery-service', () => {
+  it('can be created without passing options', async () => {
+    const originalFetch = globalThis.fetch
+    const fetchCalls = []
+
+    globalThis.fetch = async (url, options = {}) => {
+      fetchCalls.push({ url, options })
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          items: [],
+        }),
+      }
+    }
+
+    try {
+      const discoverySvc = createGoogleCalendarDiscoveryService()
+      const result = await discoverySvc.listCalendars({ accessToken: 'access-1' })
+
+      assert.deepEqual(result, [])
+      assert.equal(fetchCalls.length, 1)
+      assert.equal(fetchCalls[0].url, 'https://www.googleapis.com/calendar/v3/users/me/calendarList')
+      assert.equal(fetchCalls[0].options.headers.Authorization, 'Bearer access-1')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
   it('lists normalized Google calendars for the connected account', async () => {
     const fetchCalls = []
     const discoverySvc = createGoogleCalendarDiscoveryService({

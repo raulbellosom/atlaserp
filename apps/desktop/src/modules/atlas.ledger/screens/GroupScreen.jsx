@@ -5,9 +5,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   PageHeader, Button, EmptyState, ErrorState, ConfirmDialog, UserSearchModal,
   Sheet, SheetContent, SheetHeader, SheetTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
   TextField, NumberField, SelectField,
 } from '@atlas/ui'
-import { ArrowLeft, Plus, UserPlus, Trash2, Landmark, Link2, Unlink2 } from 'lucide-react'
+import { ArrowLeft, Plus, UserPlus, Trash2, Landmark, Link2, Unlink2, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -51,6 +52,10 @@ export default function GroupScreen() {
   const [assignTarget, setAssignTarget]     = useState(null)
   const [assigning, setAssigning]           = useState(false)
 
+  const [renameOpen, setRenameOpen]   = useState(false)
+  const [renameValue, setRenameValue] = useState('')
+  const [renameSaving, setRenameSaving] = useState(false)
+
   // Quitar cuenta Confirm
   const [unassignTarget, setUnassignTarget] = useState(null)
 
@@ -87,7 +92,7 @@ export default function GroupScreen() {
 
   // Own accounts not yet assigned to any group
   const assignableAccounts = (allAccountsData?.data ?? []).filter(
-    (a) => a.owner_id === actorId && (a.group_id == null || a.group_id === undefined || a.group_id === '')
+    (a) => a.group_id == null || a.group_id === undefined || a.group_id === ''
   )
 
   async function handleInvite(userId, role) {
@@ -198,6 +203,30 @@ export default function GroupScreen() {
     }
   }
 
+  async function handleRename(e) {
+    e.preventDefault()
+    if (!renameValue.trim()) return
+    setRenameSaving(true)
+    try {
+      const res = await fetch(`${API_BASE}/ledger/groups/${groupId}`, {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: renameValue.trim() }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err.error ?? 'No se pudo renombrar el grupo.')
+        return
+      }
+      toast.success('Grupo renombrado.')
+      setRenameOpen(false)
+      queryClient.invalidateQueries({ queryKey: ['ledger-group', groupId] })
+      queryClient.invalidateQueries({ queryKey: ['ledger-groups'] })
+    } finally {
+      setRenameSaving(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="p-4 md:p-6 space-y-3">
@@ -224,24 +253,28 @@ export default function GroupScreen() {
           title={group.name}
           description={`${members.length} miembro${members.length !== 1 ? 's' : ''} · ${accounts.length} cuenta${accounts.length !== 1 ? 's' : ''}`}
           actions={
-            activeTab === 'cuentas' ? (
-              canWrite ? (
-                <div className="flex gap-2">
+            <div className="flex gap-2">
+              {myRole === 'admin' && (
+                <Button variant="outline" size="sm" onClick={() => { setRenameValue(group.name); setRenameOpen(true) }}>
+                  <Pencil size={14} className="mr-1" /> Renombrar
+                </Button>
+              )}
+              {activeTab === 'cuentas' && canWrite && (
+                <>
                   <Button variant="outline" size="sm" onClick={() => setAssignOpen(true)}>
                     <Link2 size={14} className="mr-1" /> Asignar cuenta
                   </Button>
                   <Button variant="primary" size="sm" onClick={() => setNewAccOpen(true)}>
                     <Plus size={14} className="mr-1" /> Nueva cuenta
                   </Button>
-                </div>
-              ) : null
-            ) : (
-              myRole === 'admin' ? (
+                </>
+              )}
+              {activeTab === 'miembros' && myRole === 'admin' && (
                 <Button variant="primary" size="sm" onClick={() => setInviteOpen(true)}>
                   <UserPlus size={14} className="mr-1" /> Invitar
                 </Button>
-              ) : null
-            )
+              )}
+            </div>
           }
         />
 
@@ -306,7 +339,7 @@ export default function GroupScreen() {
                       <button
                         onClick={() => setUnassignTarget(account)}
                         title="Quitar del grupo"
-                        className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity p-1 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--destructive))]"
+                        className="absolute top-3 right-3 opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 transition-opacity p-1 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--destructive))]"
                       >
                         <Unlink2 size={14} />
                       </button>
@@ -481,6 +514,33 @@ export default function GroupScreen() {
         description={`¿Quitar "${unassignTarget?.name}" de este grupo? La cuenta quedará como personal sin grupo.`}
         confirmLabel="Quitar"
       />
+
+      <Dialog open={renameOpen} onOpenChange={(v) => { if (!v) setRenameOpen(false) }}>
+        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Renombrar grupo</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleRename} className="space-y-4 pt-2">
+            <TextField
+              label="Nombre del grupo"
+              id="rename-grp"
+              required
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              autoFocus
+              maxLength={128}
+            />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setRenameOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" variant="primary" size="sm" disabled={renameSaving || !renameValue.trim()}>
+                {renameSaving ? 'Guardando...' : 'Guardar'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

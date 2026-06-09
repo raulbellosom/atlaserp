@@ -65,8 +65,8 @@ If the AME3 layer needed to avoid these edits is not yet available, wait for it.
 
 | Prefix | Who | Example |
 |---|---|---|
-| `atlas.*` | Atlas core team only | `atlas.finance` |
-| `custom.*` | Private / company modules | `custom.fleet` |
+| `atlas.*` | Atlas core team only | `atlas.catalog` |
+| `custom.*` | Private / company modules | `custom.deliveries` |
 | `community.*` | Open-source community modules | `community.crm` |
 | `atlas.*`, `core.*`, `system.*`, `identity.*` | Reserved — rejected by discovery | — |
 
@@ -76,26 +76,26 @@ If the AME3 layer needed to avoid these edits is not yet available, wait for it.
 
 ```
 modules/custom/<moduleKey>/
-  module.manifest.js     ← REQUIRED — defineAtlasModule export
+  module.manifest.js       ← REQUIRED — defineAtlasModule export
   models/
-    vehicle.model.js     ← defineModel declarations
-    driver.model.js
+    shipment.model.js      ← defineModel declarations
+    carrier.model.js
   views/
-    vehicle.list.view.js ← defineView declarations (TABLE, FORM, DETAIL, etc.)
-    vehicle.form.view.js
+    shipment.list.view.js  ← defineView declarations (TABLE, FORM, DETAIL, etc.)
+    shipment.form.view.js
   pages/
-    fleet.page.js        ← definePage declarations (full page layouts)
+    deliveries.page.js     ← definePage declarations (full page layouts)
   api/
-    index.js             ← Hono router factory (optional)
-    fleet-service.js     ← business logic
-    fleet-cleanup.js     ← data purge handler
+    index.js               ← Hono router factory (optional)
+    deliveries-service.js  ← business logic
+    deliveries-cleanup.js  ← data purge handler
   components/
-    VehicleStatusBadge.jsx
-    index.js             ← Component Registry entries
+    ShipmentStatusBadge.jsx
+    index.js               ← Component Registry entries
   validators/
-    index.js             ← Zod schemas for this module
+    index.js               ← Zod schemas for this module
   migrations/
-    0001_create_vehicle.sql  ← module-local forward migrations (Phase 3+)
+    0001_create_shipment.sql  ← module-local forward migrations (Phase 3+)
 ```
 
 ---
@@ -105,16 +105,16 @@ modules/custom/<moduleKey>/
 `module.manifest.js` must use `defineAtlasModule` from `@atlas/module-engine`. This is the only supported manifest API for new modules.
 
 ```js
-// modules/custom/custom.fleet/module.manifest.js
+// modules/custom/custom.deliveries/module.manifest.js
 import { defineAtlasModule } from '@atlas/module-engine'
 
 export default defineAtlasModule({
-  key: 'custom.fleet',
-  name: 'Flota',
-  description: 'Gestion de vehiculos, conductores y mantenimiento.',
+  key: 'custom.deliveries',
+  name: 'Envios',
+  description: 'Gestion de envios, transportistas y seguimiento de entregas.',
   version: '0.1.0',
   kind: 'FEATURE',
-  icon: 'Truck',
+  icon: 'Package',
   color: '#0f766e',
   category: 'operaciones',
 
@@ -130,62 +130,62 @@ export default defineAtlasModule({
     resettable: true,
     supportsDataPurge: true,
     defaultUninstallPolicy: 'preserve-data',
-    ownedEntities: ['Vehicle', 'Driver'],
+    ownedEntities: ['Shipment', 'Carrier'],
     sharedEntities: ['Company', 'UserProfile', 'FileAsset', 'AuditLog'],
     purgeStrategy: 'service-defined',
     resetStrategy: 'service-defined',
   },
 
   permissions: [
-    { key: 'fleet.access',          name: 'Access Fleet' },
-    { key: 'fleet.vehicles.read',   name: 'Read Vehicles' },
-    { key: 'fleet.vehicles.create', name: 'Create Vehicles' },
-    { key: 'fleet.vehicles.update', name: 'Update Vehicles' },
-    { key: 'fleet.vehicles.delete', name: 'Delete Vehicles' },
-    { key: 'fleet.drivers.read',    name: 'Read Drivers' },
-    { key: 'fleet.drivers.manage',  name: 'Manage Drivers' },
+    { key: 'deliveries.access',           name: 'Access Deliveries' },
+    { key: 'deliveries.shipments.read',   name: 'Read Shipments' },
+    { key: 'deliveries.shipments.create', name: 'Create Shipments' },
+    { key: 'deliveries.shipments.update', name: 'Update Shipments' },
+    { key: 'deliveries.shipments.delete', name: 'Delete Shipments' },
+    { key: 'deliveries.carriers.read',    name: 'Read Carriers' },
+    { key: 'deliveries.carriers.manage',  name: 'Manage Carriers' },
   ],
 
   acl: {
-    module: 'fleet.access',
+    module: 'deliveries.access',
     actions: {
-      'fleet.vehicles.read':   'fleet.vehicles.read',
-      'fleet.vehicles.create': 'fleet.vehicles.create',
-      'fleet.vehicles.update': 'fleet.vehicles.update',
-      'fleet.vehicles.delete': 'fleet.vehicles.delete',
-      'fleet.drivers.read':    'fleet.drivers.read',
-      'fleet.drivers.manage':  'fleet.drivers.manage',
+      'deliveries.shipments.read':   'deliveries.shipments.read',
+      'deliveries.shipments.create': 'deliveries.shipments.create',
+      'deliveries.shipments.update': 'deliveries.shipments.update',
+      'deliveries.shipments.delete': 'deliveries.shipments.delete',
+      'deliveries.carriers.read':    'deliveries.carriers.read',
+      'deliveries.carriers.manage':  'deliveries.carriers.manage',
     },
     models: {
-      Vehicle: {
-        read:   'fleet.vehicles.read',
-        create: 'fleet.vehicles.create',
-        update: 'fleet.vehicles.update',
-        delete: 'fleet.vehicles.delete',
+      Shipment: {
+        read:   'deliveries.shipments.read',
+        create: 'deliveries.shipments.create',
+        update: 'deliveries.shipments.update',
+        delete: 'deliveries.shipments.delete',
       },
-      Driver: {
-        read:   'fleet.drivers.read',
-        create: 'fleet.drivers.manage',
-        update: 'fleet.drivers.manage',
-        delete: 'fleet.drivers.manage',
+      Carrier: {
+        read:   'deliveries.carriers.read',
+        create: 'deliveries.carriers.manage',
+        update: 'deliveries.carriers.manage',
+        delete: 'deliveries.carriers.manage',
       },
     },
   },
 
   navigation: [
     {
-      label: 'Vehiculos',
-      path: '/fleet/vehicles',
-      icon: 'Truck',
+      label: 'Envios',
+      path: '/deliveries/shipments',
+      icon: 'Package',
       layout: 'main',
-      permissionKey: 'fleet.vehicles.read',
+      permissionKey: 'deliveries.shipments.read',
     },
     {
-      label: 'Conductores',
-      path: '/fleet/drivers',
-      icon: 'Users',
+      label: 'Transportistas',
+      path: '/deliveries/carriers',
+      icon: 'Truck',
       layout: 'main',
-      permissionKey: 'fleet.drivers.read',
+      permissionKey: 'deliveries.carriers.read',
     },
   ],
 })
@@ -200,33 +200,32 @@ export default defineAtlasModule({
 Models define the entities owned by the module. The Atlas ORM reads these and provisions the physical tables, with no Prisma migration authored by the module developer.
 
 ```js
-// modules/custom/custom.fleet/models/vehicle.model.js
+// modules/custom/custom.deliveries/models/shipment.model.js
 import { defineModel } from '@atlas/module-engine'
 
 export default defineModel({
-  key: 'vehicle',
-  label: 'Vehiculo',
-  tableName: 'atlas_fleet_vehicle',
+  key: 'shipment',
+  label: 'Envio',
+  tableName: 'atlas_deliveries_shipment',
   companyScoped: true,
   softDelete: true,
   fields: [
-    { name: 'plate',    type: 'text',    required: true, maxLength: 20,  label: 'Placa' },
-    { name: 'brand',    type: 'text',    required: true, maxLength: 100, label: 'Marca' },
-    { name: 'model',    type: 'text',    required: true, maxLength: 100, label: 'Modelo' },
-    { name: 'year',     type: 'number',  required: true, label: 'Anio' },
+    { name: 'tracking_number', type: 'text',    required: true, maxLength: 50,  label: 'No. seguimiento' },
+    { name: 'origin',          type: 'text',    required: true, maxLength: 200, label: 'Origen' },
+    { name: 'destination',     type: 'text',    required: true, maxLength: 200, label: 'Destino' },
     {
       name: 'status',
       type: 'select',
       required: true,
       label: 'Estado',
-      options: ['active', 'maintenance', 'retired'],
-      default: 'active',
+      options: ['pending', 'in_transit', 'delivered', 'returned'],
+      default: 'pending',
     },
-    { name: 'driverId', type: 'relation', relatedModel: 'driver', label: 'Conductor asignado' },
-    { name: 'notes',    type: 'textarea', label: 'Notas' },
+    { name: 'carrierId', type: 'relation', relatedModel: 'carrier', label: 'Transportista' },
+    { name: 'notes',     type: 'textarea', label: 'Notas' },
   ],
   indexes: [
-    { fields: ['companyId', 'plate'], unique: true },
+    { fields: ['companyId', 'tracking_number'], unique: true },
     { fields: ['companyId', 'status'] },
   ],
 })
@@ -241,59 +240,59 @@ Available in Phase 3. In Phase 1–2, module-owned tables must be added as trans
 Views are blueprint definitions that describe how to render an entity. They replace manually written React screens for standard CRUD.
 
 ```js
-// modules/custom/custom.fleet/views/vehicle.list.view.js
+// modules/custom/custom.deliveries/views/shipment.list.view.js
 import { defineView } from '@atlas/module-engine'
 
 export default defineView({
-  key: 'fleet.vehicle.list',
+  key: 'deliveries.shipment.list',
   kind: 'TABLE',
   version: '0.1.0',
   schema: {
-    entity: 'vehicle',
-    label: 'Vehiculos',
+    entity: 'shipment',
+    label: 'Envios',
     shell: 'atlas.dashboardShell',
     layout: 'atlas.crudLayout',
     component: 'AtlasTable',
-    columns: ['plate', 'brand', 'model', 'year', 'status'],
-    defaultSort: { field: 'plate', direction: 'asc' },
+    columns: ['tracking_number', 'origin', 'destination', 'status'],
+    defaultSort: { field: 'tracking_number', direction: 'asc' },
     filters: [
       { field: 'status', type: 'select', label: 'Estado' },
     ],
     actions: [
-      { key: 'create', label: 'Agregar vehiculo', permissionKey: 'fleet.vehicles.create' },
+      { key: 'create', label: 'Nuevo envio', permissionKey: 'deliveries.shipments.create' },
     ],
   },
 })
 ```
 
 ```js
-// modules/custom/custom.fleet/views/vehicle.form.view.js
+// modules/custom/custom.deliveries/views/shipment.form.view.js
 import { defineView } from '@atlas/module-engine'
 
 export default defineView({
-  key: 'fleet.vehicle.form',
+  key: 'deliveries.shipment.form',
   kind: 'FORM',
   version: '0.1.0',
   schema: {
-    entity: 'vehicle',
-    label: 'Vehiculo',
+    entity: 'shipment',
+    label: 'Envio',
     layout: 'atlas.crudLayout',
     component: 'AtlasForm',
     sections: [
       {
         title: 'Identificacion',
         columns: 2,
-        fields: ['plate', 'brand', 'model', 'year'],
+        fields: ['tracking_number', 'carrierId'],
       },
       {
-        title: 'Estado y asignacion',
+        title: 'Ruta',
         columns: 2,
-        fields: ['status', 'driverId'],
+        fields: ['origin', 'destination'],
       },
       {
-        title: 'Notas',
-        columns: 1,
-        fields: ['notes'],
+        title: 'Estado y notas',
+        columns: 2,
+        fields: ['status', 'notes'],
       },
     ],
   },
@@ -309,15 +308,15 @@ Available from Phase 3. In Phase 1–2, write standard React screens.
 Pages compose views and components into a full routed screen.
 
 ```js
-// modules/custom/custom.fleet/pages/fleet.page.js
+// modules/custom/custom.deliveries/pages/deliveries.page.js
 import { definePage } from '@atlas/module-engine'
 
 export default definePage({
-  key: 'fleet.vehicles.index',
-  path: '/fleet/vehicles',
-  title: 'Vehiculos',
-  permissionKey: 'fleet.vehicles.read',
-  view: 'fleet.vehicle.list',
+  key: 'deliveries.shipments.index',
+  path: '/deliveries/shipments',
+  title: 'Envios',
+  permissionKey: 'deliveries.shipments.read',
+  view: 'deliveries.shipment.list',
 })
 ```
 
@@ -330,28 +329,28 @@ Available from Phase 3. In Phase 1–2, register screens manually in `apps/deskt
 `api/index.js` exports a default factory function that returns a Hono router. The Route Loader mounts this automatically in Phase 4. In Phase 1–2, import and mount it manually in `apps/api/src/index.js`.
 
 ```js
-// modules/custom/custom.fleet/api/index.js
+// modules/custom/custom.deliveries/api/index.js
 import { Hono } from 'hono'
 import { requirePermission } from '@atlas/api/middleware'
-import { fleetService } from './fleet-service.js'
+import { deliveriesService } from './deliveries-service.js'
 import { registerModuleHandler } from '@atlas/api/services/module-cleanup-registry'
-import { fleetCleanupHandler } from './fleet-cleanup.js'
+import { deliveriesCleanupHandler } from './deliveries-cleanup.js'
 
-registerModuleHandler('custom.fleet', fleetCleanupHandler)
+registerModuleHandler('custom.deliveries', deliveriesCleanupHandler)
 
-export default function createFleetRouter() {
+export default function createDeliveriesRouter() {
   const app = new Hono()
 
-  app.get('/fleet/vehicles', requirePermission('fleet.vehicles.read'), async (c) => {
+  app.get('/deliveries/shipments', requirePermission('deliveries.shipments.read'), async (c) => {
     const user = c.get('user')
-    const data = await fleetService.listVehicles(user.companyId)
+    const data = await deliveriesService.listShipments(user.companyId)
     return c.json({ data })
   })
 
-  app.post('/fleet/vehicles', requirePermission('fleet.vehicles.create'), async (c) => {
+  app.post('/deliveries/shipments', requirePermission('deliveries.shipments.create'), async (c) => {
     const user = c.get('user')
     const body = await c.req.json()
-    const data = await fleetService.createVehicle(user.companyId, body)
+    const data = await deliveriesService.createShipment(user.companyId, body)
     return c.json({ data }, 201)
   })
 
@@ -369,19 +368,18 @@ export default function createFleetRouter() {
 ## Validators
 
 ```js
-// modules/custom/custom.fleet/validators/index.js
+// modules/custom/custom.deliveries/validators/index.js
 import { z } from 'zod'
 
-export const createVehicleSchema = z.object({
-  plate:  z.string().min(1).max(20),
-  brand:  z.string().min(1).max(100),
-  model:  z.string().min(1).max(100),
-  year:   z.number().int().min(1900).max(2100),
-  status: z.enum(['active', 'maintenance', 'retired']).default('active'),
-  notes:  z.string().max(5000).optional(),
+export const createShipmentSchema = z.object({
+  tracking_number: z.string().min(1).max(50),
+  origin:          z.string().min(1).max(200),
+  destination:     z.string().min(1).max(200),
+  status:          z.enum(['pending', 'in_transit', 'delivered', 'returned']).default('pending'),
+  notes:           z.string().max(5000).optional(),
 })
 
-export const updateVehicleSchema = createVehicleSchema.partial()
+export const updateShipmentSchema = createShipmentSchema.partial()
 ```
 
 ---
@@ -390,23 +388,33 @@ export const updateVehicleSchema = createVehicleSchema.partial()
 
 Required when `resettable: true` or `supportsDataPurge: true`. Must scope all deletes to the active company. Delete child rows before parent rows to respect FK constraints.
 
-```js
-// modules/custom/custom.fleet/api/fleet-cleanup.js
+AME3 tables are not Prisma models — use `prisma.$queryRaw` tagged template literals, never `prisma.<model>` accessors.
 
-export const fleetCleanupHandler = {
+```js
+// modules/custom/custom.deliveries/api/deliveries-cleanup.js
+
+export const deliveriesCleanupHandler = {
   async count({ prisma, companyId }) {
-    const vehicles = await prisma.vehicle.count({ where: { companyId } })
-    const drivers  = await prisma.driver.count({ where: { companyId } })
+    const [shipmentRows] = await prisma.$queryRaw`
+      SELECT COUNT(*)::int AS count FROM atlas_deliveries_shipment WHERE company_id = ${companyId}
+    `
+    const [carrierRows] = await prisma.$queryRaw`
+      SELECT COUNT(*)::int AS count FROM atlas_deliveries_carrier WHERE company_id = ${companyId}
+    `
     return [
-      { entity: 'Vehicle', rows: vehicles, companyScoped: true },
-      { entity: 'Driver',  rows: drivers,  companyScoped: true },
+      { entity: 'Shipment', rows: shipmentRows.count, companyScoped: true },
+      { entity: 'Carrier',  rows: carrierRows.count,  companyScoped: true },
     ]
   },
 
-  async purge({ tx, companyId }) {
-    const { count: driversDeleted }  = await tx.driver.deleteMany({ where: { companyId } })
-    const { count: vehiclesDeleted } = await tx.vehicle.deleteMany({ where: { companyId } })
-    return driversDeleted + vehiclesDeleted
+  async purge({ prisma, companyId }) {
+    const [{ count: shipmentsDeleted }] = await prisma.$queryRaw`
+      DELETE FROM atlas_deliveries_shipment WHERE company_id = ${companyId} RETURNING COUNT(*)::int AS count
+    `
+    const [{ count: carriersDeleted }] = await prisma.$queryRaw`
+      DELETE FROM atlas_deliveries_carrier WHERE company_id = ${companyId} RETURNING COUNT(*)::int AS count
+    `
+    return shipmentsDeleted + carriersDeleted
   },
 }
 ```
@@ -422,28 +430,28 @@ Modules can include React components compiled at install time by esbuild. No web
 ```
 modules/custom/<moduleKey>/
   components/
-    index.js          ← required entry point — exports register()
-    VehicleStatusBadge.jsx
-    VehicleDetailScreen.jsx
+    index.js                  ← required entry point — exports register()
+    ShipmentStatusBadge.jsx
+    ShipmentDetailScreen.jsx
 ```
 
 ### `components/index.js` contract
 
 ```js
-// modules/custom/custom.fleet/components/index.js
+// modules/custom/custom.deliveries/components/index.js
 export async function register(registry) {
   if (typeof window === 'undefined') return
 
   const [
-    { default: VehicleStatusBadge },
-    { default: VehicleDetailScreen },
+    { default: ShipmentStatusBadge },
+    { default: ShipmentDetailScreen },
   ] = await Promise.all([
-    import('./VehicleStatusBadge.jsx'),
-    import('./VehicleDetailScreen.jsx'),
+    import('./ShipmentStatusBadge.jsx'),
+    import('./ShipmentDetailScreen.jsx'),
   ])
 
-  registry.register('custom.fleet:VehicleStatusBadge',   VehicleStatusBadge)
-  registry.register('custom.fleet:VehicleDetailScreen',  VehicleDetailScreen)
+  registry.register('custom.deliveries:ShipmentStatusBadge',  ShipmentStatusBadge)
+  registry.register('custom.deliveries:ShipmentDetailScreen', ShipmentDetailScreen)
 }
 ```
 
@@ -477,15 +485,15 @@ See `docs/ai-context/ame3-runtime-capabilities.md` for the full `@atlas/ui` comp
 When a module needs a full custom screen, declare it as a CUSTOM kind view. No SCREEN_MAP entry needed.
 
 ```js
-// modules/custom/custom.fleet/views/vehicle-detail.custom.js
+// modules/custom/custom.deliveries/views/shipment-detail.custom.js
 import { defineView } from '@atlas/module-engine'
 
-export default defineView('custom.fleet.vehicle-detail', {
+export default defineView('custom.deliveries.shipment-detail', {
   kind: 'CUSTOM',
   schema: {
-    path: '/fleet/vehicles/:id',
-    component: 'custom.fleet:VehicleDetailScreen',
-    title: 'Detalle de vehiculo',
+    path: '/deliveries/shipments/:id',
+    component: 'custom.deliveries:ShipmentDetailScreen',
+    title: 'Detalle de envio',
   },
 })
 ```
@@ -532,6 +540,7 @@ Use this checklist after completing the 13-step SDD workflow above. An item is c
 - [ ] Business logic in `api/*-service.js`, not in route handlers
 - [ ] Module-local validators in `validators/index.js`
 - [ ] Cleanup handler registered if `resettable: true` or `supportsDataPurge: true`
+- [ ] Cleanup handler uses `prisma.$queryRaw` — never `prisma.<model>` accessors for AME3 tables
 - [ ] If module has components: `components/index.js` exports async `register(registry)` function
 - [ ] If module has components: CUSTOM kind views declared in `views/*.custom.js` for full screens
 - [ ] Call `POST /modules/sync` after placing the module directory
@@ -571,7 +580,7 @@ module.feature.update
 module.feature.delete
 ```
 
-Only add non-CRUD keys when strictly required (e.g., `fleet.reports.export`).
+Only add non-CRUD keys when strictly required (e.g., `deliveries.reports.export`).
 
 ---
 
@@ -596,32 +605,32 @@ From Phase 3 onwards: steps 3–5 are eliminated.
 ### Preserve-data (default)
 
 ```
-DELETE /modules/custom.fleet
+DELETE /modules/custom.deliveries
 ```
 
 or
 
 ```json
-POST /modules/custom.fleet/uninstall
+POST /modules/custom.deliveries/uninstall
 { "mode": "preserve-data" }
 ```
 
 ### Purge-data
 
 ```json
-POST /modules/custom.fleet/uninstall/dry-run
+POST /modules/custom.deliveries/uninstall/dry-run
 { "mode": "purge-data" }
 
-POST /modules/custom.fleet/uninstall
+POST /modules/custom.deliveries/uninstall
 { "mode": "purge-data", "confirmation": "ACEPTO" }
 ```
 
 ### Reset (stay installed, wipe data)
 
 ```json
-POST /modules/custom.fleet/reset/dry-run
+POST /modules/custom.deliveries/reset/dry-run
 
-POST /modules/custom.fleet/reset
+POST /modules/custom.deliveries/reset
 { "confirmation": "ACEPTO" }
 ```
 

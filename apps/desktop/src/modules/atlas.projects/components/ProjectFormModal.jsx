@@ -3,8 +3,9 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
   Button, TextField, SelectField, MarkdownField, ConfirmDialog,
 } from '@atlas/ui'
+import { CalendarCheck, CalendarX, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
-import { useCreateProject, useUpdateProject, useArchiveProject } from '../hooks/useProjectsData'
+import { useCreateProject, useUpdateProject, useArchiveProject, useProject, useSyncProjectCalendar } from '../hooks/useProjectsData'
 import { PROJECT_ICONS, getProjectIcon } from '../lib/projectIcons.js'
 
 const TEMPLATE_OPTIONS = [
@@ -15,8 +16,10 @@ const TEMPLATE_OPTIONS = [
 ]
 
 const PRESET_COLORS = [
-  '#6366f1', '#3b82f6', '#22c55e', '#f59e0b',
-  '#ef4444', '#a855f7', '#ec4899', '#64748b',
+  '#6366f1', '#2563eb', '#0ea5e9', '#0891b2',
+  '#14b8a6', '#22c55e', '#84cc16', '#f59e0b',
+  '#f97316', '#ef4444', '#ec4899', '#db2777',
+  '#a855f7', '#7c3aed', '#64748b', '#1e293b',
 ]
 
 export default function ProjectFormModal({ open, onOpenChange, project, onCreated, onArchived }) {
@@ -24,6 +27,8 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
   const createProject = useCreateProject()
   const updateProject = useUpdateProject(project?.id)
   const archiveProject = useArchiveProject()
+  const { data: projectDetail } = useProject(isEdit && open ? project?.id : null)
+  const syncCalendar = useSyncProjectCalendar(project?.id)
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -31,6 +36,8 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
   const [icon, setIcon] = useState('FolderKanban')
   const [template, setTemplate] = useState('general')
   const [archiveOpen, setArchiveOpen] = useState(false)
+
+  const calendarLinked = projectDetail?.calendarLinked ?? (project?.calendarId != null)
 
   useEffect(() => {
     if (open) {
@@ -91,21 +98,21 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Editar proyecto' : 'Nuevo proyecto'}</DialogTitle>
           <DialogDescription className="sr-only">
             {isEdit ? 'Editar los datos del proyecto' : 'Crear un nuevo proyecto'}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {/* Preview badge + Name */}
           <div className="flex items-center gap-3">
             <span
-              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
               style={{ background: color }}
             >
-              <SelectedIcon size={18} className="text-white" />
+              <SelectedIcon size={20} className="text-white" />
             </span>
             <TextField
               label="Nombre"
@@ -117,51 +124,54 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
             />
           </div>
 
-          {/* Color + Icon side by side */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
-                Color
-              </label>
-              <div className="flex gap-2 flex-wrap">
-                {PRESET_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setColor(c)}
-                    className={[
-                      'w-7 h-7 rounded-full border-2 transition-all',
-                      color === c ? 'border-foreground scale-110' : 'border-transparent',
-                    ].join(' ')}
-                    style={{ background: c }}
-                  />
-                ))}
-              </div>
+          {/* Color picker */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
+              Color
+            </label>
+            <div className="grid grid-cols-8 gap-2">
+              {PRESET_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setColor(c)}
+                  className="w-8 h-8 rounded-full transition-all focus-visible:outline-none"
+                  style={{
+                    backgroundColor: c,
+                    border: color === c ? '2px solid white' : '2px solid transparent',
+                    transform: color === c ? 'scale(1.18)' : 'scale(1)',
+                    boxShadow: color === c ? `0 0 0 2px ${c}` : 'none',
+                  }}
+                />
+              ))}
             </div>
+          </div>
 
-            <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
-                Icono
-              </label>
-              <div className="grid grid-cols-8 gap-0.5 max-h-28 overflow-y-auto rounded-lg border border-border p-1">
-                {PROJECT_ICONS.map(({ name: iName, Icon: Ic }) => (
-                  <button
-                    key={iName}
-                    type="button"
-                    onClick={() => setIcon(iName)}
-                    title={iName}
-                    className={[
-                      'w-7 h-7 rounded flex items-center justify-center transition-all',
-                      icon === iName
-                        ? 'text-white'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-                    ].join(' ')}
-                    style={icon === iName ? { background: color } : {}}
-                  >
-                    <Ic size={13} />
-                  </button>
-                ))}
-              </div>
+          {/* Icon picker */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
+              Icono
+            </label>
+            <div className="grid grid-cols-9 gap-1 max-h-52 overflow-y-auto rounded-lg border border-border p-1.5">
+              {PROJECT_ICONS.map(({ name: iName, Icon: Ic }) => (
+                <button
+                  key={iName}
+                  type="button"
+                  onClick={() => setIcon(iName)}
+                  title={iName}
+                  className="w-10 h-10 rounded-lg flex items-center justify-center transition-all focus-visible:outline-none"
+                  style={
+                    icon === iName
+                      ? { backgroundColor: color + '22', color }
+                      : {}
+                  }
+                >
+                  <Ic
+                    size={17}
+                    className={icon === iName ? '' : 'text-muted-foreground hover:text-foreground'}
+                  />
+                </button>
+              ))}
             </div>
           </div>
 
@@ -179,6 +189,36 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
               onValueChange={setTemplate}
               options={TEMPLATE_OPTIONS}
             />
+          )}
+
+          {isEdit && (
+            <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5 text-sm">
+              <div className="flex items-center gap-2">
+                {calendarLinked
+                  ? <CalendarCheck size={15} className="text-green-500 shrink-0" />
+                  : <CalendarX size={15} className="text-amber-500 shrink-0" />
+                }
+                <span className={calendarLinked ? 'text-muted-foreground' : 'text-amber-600 dark:text-amber-400'}>
+                  {calendarLinked ? 'Calendario vinculado' : 'Calendario desvinculado'}
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 text-xs"
+                disabled={syncCalendar.isPending}
+                onClick={() =>
+                  syncCalendar.mutate(undefined, {
+                    onSuccess: () => toast.success(calendarLinked ? 'Calendario sincronizado' : 'Calendario recreado'),
+                    onError: () => toast.error('No se pudo sincronizar el calendario'),
+                  })
+                }
+              >
+                <RefreshCw size={12} className={syncCalendar.isPending ? 'animate-spin' : ''} />
+                {calendarLinked ? 'Sincronizar' : 'Reconectar'}
+              </Button>
+            </div>
           )}
 
           <DialogFooter className="flex-col sm:flex-row gap-2">

@@ -1,117 +1,137 @@
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuth } from '../../../auth/AuthProvider.jsx'
-import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "../../../auth/AuthProvider.jsx";
+import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import {
-  Button, ConfirmDialog, EmptyState, PageHeader, SelectField, TextField,
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@atlas/ui'
-import { toast } from 'sonner'
-import MenuItemTree from './MenuItemTree.jsx'
+  Button,
+  ConfirmDialog,
+  EmptyState,
+  PageHeader,
+  SelectField,
+  TextField,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  LoadingState,
+} from "@atlas/ui";
+import { toast } from "sonner";
+import MenuItemTree from "./MenuItemTree.jsx";
 
 const LOCATION_LABELS = {
-  header:  'Encabezado',
-  footer:  'Pie de pagina',
-  sidebar: 'Barra lateral',
-}
+  header: "Encabezado",
+  footer: "Pie de pagina",
+  sidebar: "Barra lateral",
+};
 
 const LOCATION_OPTIONS = [
-  { value: 'header',  label: 'Encabezado' },
-  { value: 'footer',  label: 'Pie de pagina' },
-  { value: 'sidebar', label: 'Barra lateral' },
-]
+  { value: "header", label: "Encabezado" },
+  { value: "footer", label: "Pie de pagina" },
+  { value: "sidebar", label: "Barra lateral" },
+];
 
 async function apiGet(path, token) {
   const res = await fetch(`${getApiUrl()}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
 }
 
 export default function WebsiteMenusScreen() {
-  const { session } = useAuth()
-  const token = session?.access_token
-  const queryClient = useQueryClient()
+  const { session } = useAuth();
+  const token = session?.access_token;
+  const queryClient = useQueryClient();
 
-  const [selectedMenuId, setSelectedMenuId] = useState(null)
-  const [newMenuOpen, setNewMenuOpen] = useState(false)
-  const [newMenuForm, setNewMenuForm] = useState({ name: '', location: 'header' })
-  const [confirmDelete, setConfirmDelete] = useState(null)
+  const [selectedMenuId, setSelectedMenuId] = useState(null);
+  const [newMenuOpen, setNewMenuOpen] = useState(false);
+  const [newMenuForm, setNewMenuForm] = useState({
+    name: "",
+    location: "header",
+  });
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   const siteQuery = useQuery({
-    queryKey: ['website-site', token],
-    queryFn: () => apiGet('/website/site', token),
+    queryKey: ["website-site", token],
+    queryFn: () => apiGet("/website/site", token),
     enabled: Boolean(token),
     staleTime: 60_000,
-  })
-  const siteId = siteQuery.data?.data?.id ?? null
+  });
+  const siteId = siteQuery.data?.data?.id ?? null;
 
   const menusQuery = useQuery({
-    queryKey: ['website-menus', siteId, token],
+    queryKey: ["website-menus", siteId, token],
     queryFn: () => apiGet(`/website/menus?siteId=${siteId}`, token),
     enabled: Boolean(token) && Boolean(siteId),
     staleTime: 15_000,
-  })
+  });
 
-  const menus = menusQuery.data?.data ?? []
-  const activeId = selectedMenuId ?? menus[0]?.id ?? null
-  const selectedMenu = menus.find((m) => m.id === activeId) ?? null
+  const menus = menusQuery.data?.data ?? [];
+  const activeId = selectedMenuId ?? menus[0]?.id ?? null;
+  const selectedMenu = menus.find((m) => m.id === activeId) ?? null;
 
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
 
   const createMenuMutation = useMutation({
     mutationFn: async (data) => {
       const res = await fetch(`${getApiUrl()}/website/menus`, {
-        method: 'POST', headers, body: JSON.stringify({ ...data, siteId }),
-      })
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`)
-      return res.json()
+        method: "POST",
+        headers,
+        body: JSON.stringify({ ...data, siteId }),
+      });
+      if (!res.ok)
+        throw new Error(
+          (await res.json().catch(() => ({}))).error || `HTTP ${res.status}`,
+        );
+      return res.json();
     },
     onSuccess: (menu) => {
-      toast.success('Menu creado')
-      queryClient.invalidateQueries({ queryKey: ['website-menus', siteId] })
-      setSelectedMenuId(menu.id)
-      setNewMenuOpen(false)
-      setNewMenuForm({ name: '', location: 'header' })
+      toast.success("Menu creado");
+      queryClient.invalidateQueries({ queryKey: ["website-menus", siteId] });
+      setSelectedMenuId(menu.id);
+      setNewMenuOpen(false);
+      setNewMenuForm({ name: "", location: "header" });
     },
-    onError: (err) => toast.error(err.message || 'Error al crear menu'),
-  })
+    onError: (err) => toast.error(err.message || "Error al crear menu"),
+  });
 
   const deleteMenuMutation = useMutation({
     mutationFn: async (menuId) => {
       const res = await fetch(`${getApiUrl()}/website/menus/${menuId}`, {
-        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) throw new Error('Error al eliminar')
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Error al eliminar");
     },
     onSuccess: () => {
-      toast.success('Menu eliminado')
-      setSelectedMenuId(null)
-      setConfirmDelete(null)
-      queryClient.invalidateQueries({ queryKey: ['website-menus', siteId] })
+      toast.success("Menu eliminado");
+      setSelectedMenuId(null);
+      setConfirmDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["website-menus", siteId] });
     },
     onError: () => {
-      toast.error('Error al eliminar el menu')
-      setConfirmDelete(null)
+      toast.error("Error al eliminar el menu");
+      setConfirmDelete(null);
     },
-  })
+  });
 
   function handleReorder(reorderedItems) {
-    queryClient.setQueryData(['website-menus', siteId, token], (prev) => {
-      if (!prev?.data) return prev
+    queryClient.setQueryData(["website-menus", siteId, token], (prev) => {
+      if (!prev?.data) return prev;
       return {
         ...prev,
         data: prev.data.map((m) =>
-          m.id === activeId ? { ...m, items: reorderedItems } : m
+          m.id === activeId ? { ...m, items: reorderedItems } : m,
         ),
-      }
-    })
+      };
+    });
   }
 
-  if (siteQuery.isPending) {
-    return <div className="p-4 md:p-6 text-[hsl(var(--muted-foreground))] text-sm">Cargando...</div>
-  }
+  if (siteQuery.isPending) return <LoadingState variant="page" />;
 
   if (!siteId) {
     return (
@@ -126,7 +146,7 @@ export default function WebsiteMenusScreen() {
           description='Configura tu sitio web primero desde la seccion "Sitio web".'
         />
       </div>
-    )
+    );
   }
 
   return (
@@ -135,16 +155,21 @@ export default function WebsiteMenusScreen() {
         eyebrow="Atlas Website"
         title="Menus"
         description="Configura la navegacion del sitio publico."
-        actions={<Button onClick={() => setNewMenuOpen(true)}>Nuevo menu</Button>}
+        actions={
+          <Button onClick={() => setNewMenuOpen(true)}>Nuevo menu</Button>
+        }
       />
 
       {menusQuery.isPending ? (
-        <div className="text-sm text-[hsl(var(--muted-foreground))]">Cargando menus...</div>
+        <LoadingState message="Cargando menús..." />
       ) : menus.length === 0 ? (
         <EmptyState
           title="Sin menus"
           description="Crea tu primer menu para configurar la navegacion del sitio."
-          action={{ label: 'Crear primer menu', onClick: () => setNewMenuOpen(true) }}
+          action={{
+            label: "Crear primer menu",
+            onClick: () => setNewMenuOpen(true),
+          }}
         />
       ) : (
         <div className="flex gap-6">
@@ -155,12 +180,14 @@ export default function WebsiteMenusScreen() {
                 onClick={() => setSelectedMenuId(menu.id)}
                 className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   activeId === menu.id
-                    ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-medium'
-                    : 'text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]'
+                    ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-medium"
+                    : "text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]"
                 }`}
               >
                 <div className="font-medium truncate">{menu.name}</div>
-                <div className={`text-xs mt-0.5 ${activeId === menu.id ? 'opacity-70' : 'text-[hsl(var(--muted-foreground))]'}`}>
+                <div
+                  className={`text-xs mt-0.5 ${activeId === menu.id ? "opacity-70" : "text-[hsl(var(--muted-foreground))]"}`}
+                >
                   {LOCATION_LABELS[menu.location] ?? menu.location}
                 </div>
               </button>
@@ -174,7 +201,10 @@ export default function WebsiteMenusScreen() {
                   <h2 className="text-base font-medium text-[hsl(var(--foreground))]">
                     {selectedMenu.name}
                     <span className="ml-2 text-xs text-[hsl(var(--muted-foreground))] font-normal">
-                      ({LOCATION_LABELS[selectedMenu.location] ?? selectedMenu.location})
+                      (
+                      {LOCATION_LABELS[selectedMenu.location] ??
+                        selectedMenu.location}
+                      )
                     </span>
                   </h2>
                   <button
@@ -188,7 +218,11 @@ export default function WebsiteMenusScreen() {
                   menuId={selectedMenu.id}
                   items={selectedMenu.items ?? []}
                   onReorder={handleReorder}
-                  onRefresh={() => queryClient.invalidateQueries({ queryKey: ['website-menus', siteId] })}
+                  onRefresh={() =>
+                    queryClient.invalidateQueries({
+                      queryKey: ["website-menus", siteId],
+                    })
+                  }
                 />
               </>
             ) : null}
@@ -202,13 +236,18 @@ export default function WebsiteMenusScreen() {
             <DialogTitle>Nuevo menu</DialogTitle>
           </DialogHeader>
           <form
-            onSubmit={(e) => { e.preventDefault(); createMenuMutation.mutate(newMenuForm) }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              createMenuMutation.mutate(newMenuForm);
+            }}
             className="space-y-4 py-2"
           >
             <TextField
               label="Nombre"
               value={newMenuForm.name}
-              onChange={(e) => setNewMenuForm((f) => ({ ...f, name: e.target.value }))}
+              onChange={(e) =>
+                setNewMenuForm((f) => ({ ...f, name: e.target.value }))
+              }
               placeholder="Principal"
               required
               autoFocus
@@ -220,11 +259,20 @@ export default function WebsiteMenusScreen() {
               options={LOCATION_OPTIONS}
             />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setNewMenuOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setNewMenuOpen(false)}
+              >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={createMenuMutation.isPending || !newMenuForm.name.trim()}>
-                {createMenuMutation.isPending ? 'Creando...' : 'Crear'}
+              <Button
+                type="submit"
+                disabled={
+                  createMenuMutation.isPending || !newMenuForm.name.trim()
+                }
+              >
+                {createMenuMutation.isPending ? "Creando..." : "Crear"}
               </Button>
             </DialogFooter>
           </form>
@@ -233,7 +281,9 @@ export default function WebsiteMenusScreen() {
 
       <ConfirmDialog
         open={Boolean(confirmDelete)}
-        onOpenChange={(open) => { if (!open) setConfirmDelete(null) }}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDelete(null);
+        }}
         title="Eliminar menu"
         description={`Se eliminara permanentemente el menu "${confirmDelete?.name}". Esta accion no se puede deshacer.`}
         confirmLabel="Eliminar"
@@ -241,5 +291,5 @@ export default function WebsiteMenusScreen() {
         onConfirm={() => deleteMenuMutation.mutate(confirmDelete?.id)}
       />
     </div>
-  )
+  );
 }

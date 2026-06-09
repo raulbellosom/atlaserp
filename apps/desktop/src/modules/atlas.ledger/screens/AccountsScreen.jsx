@@ -9,7 +9,7 @@ import {
   TextField, NumberField, SelectField,
 } from '@atlas/ui'
 import { useOfflineStatus } from '@atlas/offline'
-import { Plus, Landmark, Users, FolderOpen } from 'lucide-react'
+import { Plus, Landmark, Users, FolderOpen, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -47,6 +47,14 @@ export default function AccountsScreen() {
   const [newGrpName, setNewGrpName] = useState('')
   const [grpSaving, setGrpSaving] = useState(false)
 
+  const [editAccount, setEditAccount] = useState(null)
+  const [editForm, setEditForm] = useState({ name: '', bank: '', account_number: '', currency: 'MXN' })
+  const [editSaving, setEditSaving] = useState(false)
+
+  const [renameGroup, setRenameGroup] = useState(null)
+  const [renameGroupValue, setRenameGroupValue] = useState('')
+  const [renameGroupSaving, setRenameGroupSaving] = useState(false)
+
   const headers = { Authorization: `Bearer ${token}` }
   const { data: allData, isLoading: allLoading, isError: allError } = useAccountList()
 
@@ -76,7 +84,7 @@ export default function AccountsScreen() {
     : TABS
   const effectiveTab = offlineLedgerView ? 'offline' : activeTab
 
-  const ownAccounts = (allData?.data ?? []).filter((account) => account.owner_id != null && account.group_id == null)
+  const ownAccounts = (allData?.data ?? []).filter((account) => account.group_id == null)
   const sharedAccounts = membershipData?.data?.accounts ?? []
   const groups = groupsData?.data ?? []
   const offlineAccounts = allData?.data ?? []
@@ -140,6 +148,72 @@ export default function AccountsScreen() {
       queryClient.invalidateQueries({ queryKey: ['ledger-groups'] })
     } finally {
       setGrpSaving(false)
+    }
+  }
+
+  function openRenameGroup(group) {
+    setRenameGroupValue(group.name ?? '')
+    setRenameGroup(group)
+  }
+
+  async function handleRenameGroup(e) {
+    e.preventDefault()
+    if (!renameGroupValue.trim()) return
+    setRenameGroupSaving(true)
+    try {
+      const res = await fetch(`${API_BASE}/ledger/groups/${renameGroup.id}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: renameGroupValue.trim() }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err.error ?? 'No se pudo renombrar el grupo.')
+        return
+      }
+      toast.success('Grupo renombrado.')
+      setRenameGroup(null)
+      queryClient.invalidateQueries({ queryKey: ['ledger-groups'] })
+    } finally {
+      setRenameGroupSaving(false)
+    }
+  }
+
+  function openEdit(account) {
+    setEditForm({
+      name: account.name ?? '',
+      bank: account.bank ?? '',
+      account_number: account.account_number ?? '',
+      currency: account.currency ?? 'MXN',
+    })
+    setEditAccount(account)
+  }
+
+  async function handleEditAccount(e) {
+    e.preventDefault()
+    if (!editForm.name.trim() || !editForm.bank.trim()) return
+    setEditSaving(true)
+    try {
+      const res = await fetch(`${API_BASE}/ledger/accounts/${editAccount.id}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          bank: editForm.bank.trim(),
+          account_number: editForm.account_number.trim() || null,
+          currency: editForm.currency,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err.error ?? 'No se pudo actualizar la cuenta.')
+        return
+      }
+      toast.success('Cuenta actualizada.')
+      setEditAccount(null)
+      queryClient.invalidateQueries({ queryKey: ['ledger-accounts'] })
+    } finally {
+      setEditSaving(false)
     }
   }
 
@@ -220,7 +294,7 @@ export default function AccountsScreen() {
         {effectiveTab === 'own' && (
           ownAccounts.length === 0
             ? <EmptyState icon={Landmark} title="Sin cuentas personales" description="Crea una cuenta para registrar tus movimientos." action={{ label: 'Nueva cuenta', onClick: () => setNewAccOpen(true) }} />
-            : <AccountGrid accounts={ownAccounts} onSelect={(id) => navigate(`/app/m/atlas.ledger/accounts/${id}`)} />
+            : <AccountGrid accounts={ownAccounts} onSelect={(id) => navigate(`/app/m/atlas.ledger/accounts/${id}`)} onEdit={openEdit} />
         )}
 
         {effectiveTab === 'shared' && (
@@ -235,21 +309,33 @@ export default function AccountsScreen() {
             : (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {groups.map((group) => (
-                    <button
+                    <div
                       key={group.id}
-                      type="button"
+                      className="relative group p-4 rounded-xl border border-[hsl(var(--border))] hover:border-[hsl(var(--ring))] hover:bg-[hsl(var(--muted)/0.4)] transition-colors cursor-pointer"
                       onClick={() => navigate(`/app/m/atlas.ledger/groups/${group.id}`)}
-                      className="text-left p-4 rounded-xl border border-[hsl(var(--border))] hover:border-[hsl(var(--ring))] hover:bg-[hsl(var(--muted)/0.4)] transition-colors"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && navigate(`/app/m/atlas.ledger/groups/${group.id}`)}
                     >
+                      {group.my_role === 'admin' && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openRenameGroup(group) }}
+                          className="absolute top-2 right-2 p-1 rounded-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                          title="Renombrar grupo"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      )}
                       <div className="flex items-center gap-2 mb-1">
                         <FolderOpen size={14} className="text-[hsl(var(--muted-foreground))]" />
-                        <span className="text-xs text-[hsl(var(--muted-foreground))] capitalize">{group.my_role}</span>
+                        <span className={`text-xs text-[hsl(var(--muted-foreground))] capitalize ${group.my_role === 'admin' ? 'pr-6' : ''}`}>{group.my_role}</span>
                       </div>
                       <div className="font-semibold text-sm truncate">{group.name}</div>
                       <div className="text-xs text-[hsl(var(--muted-foreground))] mt-1">
                         {group.member_count} miembro{Number(group.member_count) !== 1 ? 's' : ''} · {group.account_count} cuenta{Number(group.account_count) !== 1 ? 's' : ''}
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )
@@ -359,23 +445,110 @@ export default function AccountsScreen() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <Sheet open={!!renameGroup} onOpenChange={(open) => { if (!open) setRenameGroup(null) }}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Renombrar grupo</SheetTitle>
+          </SheetHeader>
+          <form onSubmit={handleRenameGroup} className="space-y-4 pt-4">
+            <TextField
+              label="Nombre del grupo"
+              id="rename-grp-name"
+              required
+              value={renameGroupValue}
+              onChange={(e) => setRenameGroupValue(e.target.value)}
+              maxLength={255}
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setRenameGroup(null)}>
+                Cancelar
+              </Button>
+              <Button type="submit" variant="primary" size="sm" disabled={renameGroupSaving || !renameGroupValue.trim()}>
+                {renameGroupSaving ? 'Guardando...' : 'Guardar cambios'}
+              </Button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={!!editAccount} onOpenChange={(open) => { if (!open) setEditAccount(null) }}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Editar cuenta</SheetTitle>
+          </SheetHeader>
+          <form onSubmit={handleEditAccount} className="space-y-4 pt-4">
+            <TextField
+              label="Nombre"
+              id="list-edit-acc-name"
+              required
+              value={editForm.name}
+              onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+              maxLength={255}
+            />
+            <TextField
+              label="Banco"
+              id="list-edit-acc-bank"
+              required
+              value={editForm.bank}
+              onChange={(e) => setEditForm((f) => ({ ...f, bank: e.target.value }))}
+              maxLength={255}
+            />
+            <TextField
+              label="Número de cuenta"
+              id="list-edit-acc-number"
+              value={editForm.account_number}
+              onChange={(e) => setEditForm((f) => ({ ...f, account_number: e.target.value }))}
+              placeholder="Opcional"
+              maxLength={64}
+            />
+            <SelectField
+              label="Moneda"
+              id="list-edit-acc-currency"
+              options={CURRENCY_OPTIONS}
+              value={editForm.currency}
+              onValueChange={(val) => setEditForm((f) => ({ ...f, currency: val }))}
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setEditAccount(null)}>
+                Cancelar
+              </Button>
+              <Button type="submit" variant="primary" size="sm" disabled={editSaving || !editForm.name.trim() || !editForm.bank.trim()}>
+                {editSaving ? 'Guardando...' : 'Guardar cambios'}
+              </Button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
 
-function AccountGrid({ accounts, onSelect }) {
+function AccountGrid({ accounts, onSelect, onEdit }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {accounts.map((account) => (
-        <button
+        <div
           key={account.id}
-          type="button"
+          className="relative group p-4 rounded-xl border border-[hsl(var(--border))] hover:border-[hsl(var(--ring))] hover:bg-[hsl(var(--muted)/0.4)] transition-colors cursor-pointer"
           onClick={() => onSelect(account.id)}
-          className="text-left p-4 rounded-xl border border-[hsl(var(--border))] hover:border-[hsl(var(--ring))] hover:bg-[hsl(var(--muted)/0.4)] transition-colors"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && onSelect(account.id)}
         >
+          {onEdit && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onEdit(account) }}
+              className="absolute top-2 right-2 p-1 rounded-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+              title="Editar cuenta"
+            >
+              <Pencil size={13} />
+            </button>
+          )}
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-[hsl(var(--muted-foreground))] truncate">{account.bank}</span>
-            <span className="text-xs text-[hsl(var(--muted-foreground))]">{account.currency}</span>
+            <span className={`text-xs text-[hsl(var(--muted-foreground))] ${onEdit ? 'pr-6' : ''}`}>{account.currency}</span>
           </div>
           <div className="font-semibold text-sm truncate">{account.name}</div>
           {account.account_number && (
@@ -391,7 +564,7 @@ function AccountGrid({ accounts, onSelect }) {
           {account.role && (
             <div className="mt-1 text-xs text-[hsl(var(--muted-foreground))] capitalize">{account.role}</div>
           )}
-        </button>
+        </div>
       ))}
     </div>
   )

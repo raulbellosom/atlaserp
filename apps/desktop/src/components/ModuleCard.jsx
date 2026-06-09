@@ -29,9 +29,27 @@ import {
   Menu,
   Activity,
   ShoppingBag,
+  ShoppingCart,
   Tag,
   Bell,
   Calendar,
+  SquareKanban,
+  Network,
+  MapPin,
+  SlidersHorizontal,
+  LayoutTemplate,
+  Wrench,
+  Library,
+  Boxes,
+  Store,
+  ListOrdered,
+  ListTree,
+  NotebookPen,
+  ArrowRightLeft,
+  HandCoins,
+  Receipt,
+  CalendarDays,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@atlas/ui";
 
@@ -69,9 +87,27 @@ export const MODULE_ICON_REGISTRY = {
   Menu,
   Activity,
   ShoppingBag,
+  ShoppingCart,
   Tag,
   Bell,
   Calendar,
+  SquareKanban,
+  Network,
+  MapPin,
+  SlidersHorizontal,
+  LayoutTemplate,
+  Wrench,
+  Library,
+  Boxes,
+  Store,
+  ListOrdered,
+  ListTree,
+  NotebookPen,
+  ArrowRightLeft,
+  HandCoins,
+  Receipt,
+  CalendarDays,
+  TrendingUp,
 };
 
 // ---- Helpers ----
@@ -167,7 +203,13 @@ export function ModuleIcon({ module, size = "md" }) {
 }
 
 // ---- ModuleCardGrid: grid card for navigation (HomeScreen) ----
-export function ModuleCardGrid({ module, onClick, onContextMenu, isFavorite, isOfflineBlocked }) {
+export function ModuleCardGrid({
+  module,
+  onClick,
+  onContextMenu,
+  isFavorite,
+  isOfflineBlocked,
+}) {
   const visuals = resolveModuleVisuals(module);
   const { color, accentColor } = visuals;
 
@@ -231,7 +273,13 @@ export function ModuleCardGrid({ module, onClick, onContextMenu, isFavorite, isO
 }
 
 // ---- ModuleListRow: list row for navigation (HomeScreen) ----
-export function ModuleListRow({ module, onClick, onContextMenu, isFavorite, isOfflineBlocked }) {
+export function ModuleListRow({
+  module,
+  onClick,
+  onContextMenu,
+  isFavorite,
+  isOfflineBlocked,
+}) {
   return (
     <button
       onClick={onClick}
@@ -257,7 +305,10 @@ export function ModuleListRow({ module, onClick, onContextMenu, isFavorite, isOf
         <Star size={13} className="text-amber-400 fill-amber-400 shrink-0" />
       )}
       {isOfflineBlocked && (
-        <WifiOff size={13} className="text-[hsl(var(--muted-foreground))] shrink-0" />
+        <WifiOff
+          size={13}
+          className="text-[hsl(var(--muted-foreground))] shrink-0"
+        />
       )}
     </button>
   );

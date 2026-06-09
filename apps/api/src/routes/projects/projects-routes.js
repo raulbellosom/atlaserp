@@ -1,7 +1,11 @@
 import { Hono } from 'hono'
 import { createProjectsService, ProjectServiceError } from './projects-service.js'
 import { createTasksService, TaskServiceError } from './tasks-service.js'
+import { createDependenciesService, DependencyServiceError } from './projects-dependencies-service.js'
+import { createFieldsService, FieldServiceError } from './projects-fields-service.js'
 import { createProjectsCalendarBridge } from './projects-calendar-bridge.js'
+import { createProjectsNotificationService } from './projects-notification-service.js'
+import { publishActivityFromContext } from '../../services/activity-publisher.js'
 
 function getUserId(c) {
   return c.get('userContext')?.profile?.id ?? null
@@ -11,20 +15,42 @@ function getCompanyId(c) {
   return c.get('companyId') ?? c.get('userContext')?.memberships?.[0]?.companyId ?? null
 }
 
+function getActorName(c) {
+  const p = c.get('userContext')?.profile
+  if (!p) return 'Sistema'
+  return [p.firstName, p.lastName].filter(Boolean).join(' ').trim() || p.email || 'Sistema'
+}
+
+function parseMentionIds(body) {
+  if (!body) return []
+  const regex = /@\[([a-f0-9-]{36}):[^\]]+\]/g
+  const ids = []
+  let m
+  while ((m = regex.exec(body)) !== null) ids.push(m[1])
+  return [...new Set(ids)]
+}
+
 function handleError(c, err, fallback) {
-  if (err instanceof ProjectServiceError || err instanceof TaskServiceError)
-    return c.json({ error: err.message }, err.status)
+  if (
+    err instanceof ProjectServiceError ||
+    err instanceof TaskServiceError ||
+    err instanceof DependencyServiceError ||
+    err instanceof FieldServiceError
+  ) return c.json({ error: err.message }, err.status)
   if (Number.isInteger(err?.status) && err.status >= 400 && err.status < 600)
     return c.json({ error: err.message || fallback }, err.status)
   if (process.env.NODE_ENV !== 'production') console.error('[atlas.projects]', err)
   return c.json({ error: fallback }, 500)
 }
 
-export function createProjectsRouter({ prisma, requirePermission }) {
+export function createProjectsRouter({ prisma, requirePermission, notificationService }) {
   const app = new Hono()
   const projectsSvc = createProjectsService({ prisma })
   const tasksSvc = createTasksService({ prisma })
+  const depsSvc = createDependenciesService({ prisma })
+  const fieldsSvc = createFieldsService({ prisma })
   const bridge = createProjectsCalendarBridge({ prisma })
+  const notifSvc = createProjectsNotificationService({ prisma, notificationService })
 
   // --- Projects ---
   app.get('/projects', requirePermission('projects.project.read'), async (c) => {
@@ -66,6 +92,19 @@ export function createProjectsRouter({ prisma, requirePermission }) {
     } catch (err) { return handleError(c, err, 'Error al archivar proyecto.') }
   })
 
+  app.post('/projects/:id/calendar/sync', requirePermission('projects.project.update'), async (c) => {
+    try {
+      const project = await projectsSvc.getProject(c.req.param('id'), getUserId(c))
+      const calendarId = await bridge.syncProjectCalendar(project)
+      if (calendarId) {
+        for (const m of project.members ?? []) {
+          await bridge.grantMemberCalendarAccess(calendarId, m.userId)
+        }
+      }
+      return c.json({ calendarId, calendarLinked: Boolean(calendarId) })
+    } catch (err) { return handleError(c, err, 'Error al sincronizar calendario del proyecto.') }
+  })
+
   // --- Members ---
   app.get('/projects/:id/members', requirePermission('projects.project.read'), async (c) => {
     try {
@@ -81,6 +120,7 @@ export function createProjectsRouter({ prisma, requirePermission }) {
       const member = await projectsSvc.addMember(projectId, getUserId(c), body)
       const project = await prisma.project.findFirst({ where: { id: projectId } })
       if (project?.calendarId) await bridge.grantMemberCalendarAccess(project.calendarId, body.userId)
+      notifSvc.notifyMemberAdded({ companyId: getCompanyId(c), actorId: getUserId(c), projectId, addedUserId: body.userId })
       return c.json(member, 201)
     } catch (err) { return handleError(c, err, 'Error al agregar miembro.') }
   })
@@ -195,10 +235,37 @@ export function createProjectsRouter({ prisma, requirePermission }) {
     try {
       const taskId = c.req.param('tid')
       const body = await c.req.json()
+      let oldStatusId = null
+      if (body.statusId) {
+        const current = await prisma.task.findFirst({ where: { id: taskId }, select: { statusId: true } })
+        oldStatusId = current?.statusId ?? null
+      }
       const task = await tasksSvc.updateTask(taskId, body)
       if (body.dueDate !== undefined) {
         const project = await prisma.project.findFirst({ where: { id: task.projectId } })
         await bridge.syncTaskEvent(task, project?.calendarId)
+      }
+      if (body.statusId && oldStatusId && oldStatusId !== body.statusId) {
+        notifSvc.notifyTaskStatusChanged({
+          companyId: getCompanyId(c),
+          actorId: getUserId(c),
+          taskId,
+          oldStatusId,
+          newStatusId: body.statusId,
+        })
+        prisma.taskStatus.findMany({
+          where: { id: { in: [oldStatusId, body.statusId] } },
+          select: { id: true, name: true },
+        }).then((statuses) => {
+          const oldS = statuses.find((s) => s.id === oldStatusId)
+          const newS = statuses.find((s) => s.id === body.statusId)
+          publishActivityFromContext(prisma, c, {
+            type: 'projects.task.status_changed',
+            summary: `${getActorName(c)} cambió estado de ${oldS?.name ?? '—'} → ${newS?.name ?? '—'}`,
+            entityType: 'Task',
+            entityId: taskId,
+          })
+        }).catch(() => {})
       }
       return c.json(task)
     } catch (err) { return handleError(c, err, 'Error al actualizar tarea.') }
@@ -231,13 +298,34 @@ export function createProjectsRouter({ prisma, requirePermission }) {
     try {
       const { userId } = await c.req.json()
       const row = await tasksSvc.addAssignee(c.req.param('tid'), userId)
+      notifSvc.notifyTaskAssigned({ companyId: getCompanyId(c), actorId: getUserId(c), taskId: c.req.param('tid'), assignedUserId: userId })
+      const assigneeName = [row.user?.firstName, row.user?.lastName].filter(Boolean).join(' ') || row.user?.email || 'Usuario'
+      publishActivityFromContext(prisma, c, {
+        type: 'projects.task.assigned',
+        summary: `${getActorName(c)} asignó a ${assigneeName}`,
+        entityType: 'Task',
+        entityId: c.req.param('tid'),
+      })
       return c.json(row, 201)
     } catch (err) { return handleError(c, err, 'Error al asignar usuario.') }
   })
 
   app.delete('/projects/:id/tasks/:tid/assignees/:uid', requirePermission('projects.task.update'), async (c) => {
     try {
-      await tasksSvc.removeAssignee(c.req.param('tid'), c.req.param('uid'))
+      const removedUserId = c.req.param('uid')
+      const removedUser = await prisma.userProfile.findFirst({
+        where: { id: removedUserId },
+        select: { firstName: true, lastName: true, email: true },
+      })
+      await tasksSvc.removeAssignee(c.req.param('tid'), removedUserId)
+      notifSvc.notifyTaskUnassigned({ companyId: getCompanyId(c), actorId: getUserId(c), taskId: c.req.param('tid'), removedUserId })
+      const removedName = [removedUser?.firstName, removedUser?.lastName].filter(Boolean).join(' ') || removedUser?.email || 'Usuario'
+      publishActivityFromContext(prisma, c, {
+        type: 'projects.task.unassigned',
+        summary: `${getActorName(c)} removió a ${removedName}`,
+        entityType: 'Task',
+        entityId: c.req.param('tid'),
+      })
       return c.json({ ok: true })
     } catch (err) { return handleError(c, err, 'Error al quitar asignado.') }
   })
@@ -258,6 +346,19 @@ export function createProjectsRouter({ prisma, requirePermission }) {
     try {
       const { body } = await c.req.json()
       const comment = await tasksSvc.createComment(c.req.param('tid'), getUserId(c), body)
+      const mentionedIds = parseMentionIds(body)
+      if (mentionedIds.length > 0) {
+        await prisma.taskMention.createMany({
+          data: mentionedIds.map((userId) => ({ commentId: comment.id, userId })),
+          skipDuplicates: true,
+        })
+      }
+      notifSvc.notifyTaskComment({
+        companyId: getCompanyId(c),
+        authorId: getUserId(c),
+        taskId: c.req.param('tid'),
+        mentionedUserIds: mentionedIds,
+      })
       return c.json(comment, 201)
     } catch (err) { return handleError(c, err, 'Error al crear comentario.') }
   })
@@ -305,6 +406,132 @@ export function createProjectsRouter({ prisma, requirePermission }) {
       await prisma.fileAsset.update({ where: { id: c.req.param('fid') }, data: { enabled: false } })
       return c.json({ ok: true })
     } catch (err) { return handleError(c, err, 'Error al eliminar archivo.') }
+  })
+
+  // --- Task Dependencies ---
+  app.get('/projects/:id/tasks/:tid/dependencies', requirePermission('projects.task.read'), async (c) => {
+    try {
+      return c.json(await depsSvc.listDependencies(c.req.param('tid')))
+    } catch (err) { return handleError(c, err, 'Error al listar dependencias.') }
+  })
+
+  app.post('/projects/:id/tasks/:tid/dependencies', requirePermission('projects.task.update'), async (c) => {
+    try {
+      const { blockerId } = await c.req.json()
+      const dep = await depsSvc.addDependency(c.req.param('tid'), blockerId)
+      return c.json(dep, 201)
+    } catch (err) { return handleError(c, err, 'Error al agregar dependencia.') }
+  })
+
+  app.delete('/projects/:id/tasks/:tid/dependencies/:depId', requirePermission('projects.task.update'), async (c) => {
+    try {
+      await depsSvc.removeDependency(c.req.param('depId'), c.req.param('tid'))
+      return c.json({ ok: true })
+    } catch (err) { return handleError(c, err, 'Error al eliminar dependencia.') }
+  })
+
+  // --- Project Custom Fields ---
+  app.get('/projects/:id/fields', requirePermission('projects.project.read'), async (c) => {
+    try {
+      return c.json(await fieldsSvc.listFields(c.req.param('id')))
+    } catch (err) { return handleError(c, err, 'Error al listar campos.') }
+  })
+
+  app.post('/projects/:id/fields', requirePermission('projects.project.update'), async (c) => {
+    try {
+      const body = await c.req.json()
+      const field = await fieldsSvc.createField(c.req.param('id'), body)
+      return c.json(field, 201)
+    } catch (err) { return handleError(c, err, 'Error al crear campo.') }
+  })
+
+  app.patch('/projects/:id/fields/:fid', requirePermission('projects.project.update'), async (c) => {
+    try {
+      const body = await c.req.json()
+      return c.json(await fieldsSvc.updateField(c.req.param('fid'), c.req.param('id'), body))
+    } catch (err) { return handleError(c, err, 'Error al actualizar campo.') }
+  })
+
+  app.delete('/projects/:id/fields/:fid', requirePermission('projects.project.update'), async (c) => {
+    try {
+      await fieldsSvc.deleteField(c.req.param('fid'), c.req.param('id'))
+      return c.json({ ok: true })
+    } catch (err) { return handleError(c, err, 'Error al eliminar campo.') }
+  })
+
+  // --- Task Field Values ---
+  app.get('/projects/:id/tasks/:tid/field-values', requirePermission('projects.task.read'), async (c) => {
+    try {
+      return c.json(await fieldsSvc.getFieldValues(c.req.param('tid'), c.req.param('id')))
+    } catch (err) { return handleError(c, err, 'Error al obtener valores de campos.') }
+  })
+
+  app.put('/projects/:id/tasks/:tid/field-values', requirePermission('projects.task.update'), async (c) => {
+    try {
+      const entries = await c.req.json()
+      return c.json(await fieldsSvc.upsertFieldValues(c.req.param('tid'), c.req.param('id'), entries))
+    } catch (err) { return handleError(c, err, 'Error al guardar valores de campos.') }
+  })
+
+  // --- CSV Export ---
+  app.get('/projects/:id/export', requirePermission('projects.project.read'), async (c) => {
+    try {
+      const projectId = c.req.param('id')
+      const [tasks, fields] = await Promise.all([
+        prisma.task.findMany({
+          where: { projectId },
+          include: {
+            status: { select: { name: true } },
+            assignees: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
+            fieldValues: true,
+          },
+          orderBy: [{ taskNumber: 'asc' }, { position: 'asc' }],
+        }),
+        prisma.projectField.findMany({
+          where: { projectId },
+          orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+        }),
+      ])
+
+      const PRIORITY_LABELS = { URGENT: 'Urgente', HIGH: 'Alta', MEDIUM: 'Media', LOW: 'Baja', NONE: '' }
+      const baseHeaders = ['#', 'Titulo', 'Estado', 'Prioridad', 'Asignados', 'Fecha inicio', 'Fecha vencimiento', 'Descripcion']
+      const customHeaders = fields.map((f) => f.name)
+      const headers = [...baseHeaders, ...customHeaders]
+
+      function esc(v) {
+        if (v === null || v === undefined) return ''
+        const s = String(v)
+        return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
+      }
+
+      const rows = tasks.map((t) => {
+        const assigneeNames = (t.assignees ?? [])
+          .map((a) => [a.user?.firstName, a.user?.lastName].filter(Boolean).join(' ') || a.user?.email || '')
+          .filter(Boolean)
+          .join('; ')
+        const valueMap = new Map((t.fieldValues ?? []).map((v) => [v.fieldId, v.value]))
+        const base = [
+          t.taskNumber != null ? `T-${t.taskNumber}` : '',
+          t.title,
+          t.status?.name ?? '',
+          PRIORITY_LABELS[t.priority] ?? '',
+          assigneeNames,
+          t.startDate ? new Date(t.startDate).toISOString().slice(0, 10) : '',
+          t.dueDate ? new Date(t.dueDate).toISOString().slice(0, 10) : '',
+          t.description ?? '',
+        ]
+        const custom = fields.map((f) => valueMap.get(f.id) ?? '')
+        return [...base, ...custom].map(esc).join(',')
+      })
+
+      const csv = [headers.map(esc).join(','), ...rows].join('\n')
+      return new Response(csv, {
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="project-tasks.csv"`,
+        },
+      })
+    } catch (err) { return handleError(c, err, 'Error al exportar proyecto.') }
   })
 
   return app

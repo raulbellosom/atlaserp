@@ -7,6 +7,9 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { createNotificationDeliveryWorker } from '../../api/src/services/notification-delivery-worker.js'
 import { createCalendarNotificationService } from '../../api/src/routes/calendar/calendar-notification-service.js'
 import { createSyncLogCleanupWorker } from '../../api/src/services/sync-cleanup-worker.js'
+import { createNotificationService } from '../../api/src/services/notification-service.js'
+import { createProjectsNotificationService } from '../../api/src/routes/projects/projects-notification-service.js'
+import { createRecurringTasksService } from '../../api/src/routes/projects/projects-recurring-service.js'
 
 const { PrismaClient } = pkg
 
@@ -36,6 +39,13 @@ const calendarNotificationService = createCalendarNotificationService({ prisma }
 const DELIVERY_INTERVAL_MS = Number(process.env.ATLAS_NOTIFICATION_DELIVERY_INTERVAL_MS ?? 30000)
 const syncCleanupWorker = createSyncLogCleanupWorker({ prisma })
 const SYNC_CLEANUP_INTERVAL_MS = syncCleanupWorker.SYNC_CLEANUP_INTERVAL_MS
+const projectsNotifService = createProjectsNotificationService({
+  prisma,
+  notificationService: createNotificationService({ prisma }),
+})
+const DUE_SOON_INTERVAL_MS = 60 * 60 * 1000
+const recurringTasksService = createRecurringTasksService({ prisma })
+const RECURRING_INTERVAL_MS = 60 * 60 * 1000
 
 function isConnectionError(err) {
   const msg = err?.message ?? ''
@@ -107,6 +117,20 @@ async function runSyncCleanupTick() {
   }
 }
 
+async function runTasksDueSoonTick() {
+  try {
+    const result = await projectsNotifService.processTasksDueSoon()
+    if ((result?.published ?? 0) > 0) {
+      console.log(
+        `[worker] tasks due soon ${formatLogTimestamp()} processed=${result.processed} published=${result.published}`,
+      )
+    }
+  } catch (err) {
+    console.error('[worker] tasks due soon tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  }
+}
+
 console.log('Atlas Worker started')
 runCalendarReminderTick()
 runDeliveryTick()
@@ -123,6 +147,29 @@ runSyncCleanupTick()
 setInterval(() => {
   runSyncCleanupTick()
 }, SYNC_CLEANUP_INTERVAL_MS)
+runTasksDueSoonTick()
+setInterval(() => {
+  runTasksDueSoonTick()
+}, DUE_SOON_INTERVAL_MS)
+
+async function runRecurringTasksTick() {
+  try {
+    const result = await recurringTasksService.processRecurringTasks()
+    if ((result?.created ?? 0) > 0) {
+      console.log(
+        `[worker] recurring tasks ${formatLogTimestamp()} processed=${result.processed} created=${result.created}`,
+      )
+    }
+  } catch (err) {
+    console.error('[worker] recurring tasks tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  }
+}
+
+runRecurringTasksTick()
+setInterval(() => {
+  runRecurringTasksTick()
+}, RECURRING_INTERVAL_MS)
 
 process.on('SIGTERM', async () => {
   await prisma.$disconnect().catch(() => {})

@@ -12,7 +12,7 @@ import {
   Skeleton,
   Switch,
 } from "@atlas/ui";
-import { BellRing, CalendarClock, Globe2, ShieldAlert } from "lucide-react";
+import { BellRing, CalendarClock, CheckSquare2, Globe2, ShieldAlert, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../auth/AuthProvider";
 import { atlas } from "../../lib/atlas";
@@ -32,12 +32,57 @@ const DEFAULT_PREFS = {
 };
 
 const EVENT_CATALOG = [
+  // atlas.projects
+  {
+    eventType: "projects.member.added",
+    title: "Nuevo miembro en proyecto",
+    description: "Cuando te agregan como miembro a un proyecto.",
+    icon: Users,
+  },
+  {
+    eventType: "projects.task.assigned",
+    title: "Tarea asignada",
+    description: "Cuando te asignan una tarea.",
+    icon: CheckSquare2,
+  },
+  {
+    eventType: "projects.task.unassigned",
+    title: "Removido de tarea",
+    description: "Cuando te quitan de una tarea asignada.",
+    icon: CheckSquare2,
+  },
+  {
+    eventType: "projects.task.comment",
+    title: "Comentario en tarea",
+    description: "Nuevo comentario en una tarea asignada a ti.",
+    icon: CheckSquare2,
+  },
+  {
+    eventType: "projects.task.mention",
+    title: "Mencion en comentario",
+    description: "Alguien te menciono con @ en un comentario.",
+    icon: CheckSquare2,
+  },
+  {
+    eventType: "projects.task.due_soon",
+    title: "Tarea por vencer",
+    description: "Una tarea tuya vence en menos de 24 horas.",
+    icon: CheckSquare2,
+  },
+  {
+    eventType: "projects.task.status_changed",
+    title: "Cambio de estado en tarea",
+    description: "El estado de una tarea asignada a ti cambio.",
+    icon: CheckSquare2,
+  },
+  // atlas.calendar
   {
     eventType: "calendar.event.reminder",
     title: "Recordatorio de calendario",
     description: "Alerta cuando un evento esta por comenzar.",
     icon: CalendarClock,
   },
+  // atlas.website
   {
     eventType: "website.sale.confirmed",
     title: "Venta confirmada",
@@ -50,6 +95,7 @@ const EVENT_CATALOG = [
     description: "Avisa si una transaccion falla en checkout.",
     icon: Globe2,
   },
+  // sistema
   {
     eventType: "system.alert",
     title: "Alerta de sistema",

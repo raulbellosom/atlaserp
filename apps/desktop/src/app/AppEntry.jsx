@@ -22,6 +22,7 @@ import { AtlasApp } from "./AtlasApp";
 import { HomeScreen } from "./HomeScreen";
 import { ModuleOutlet } from "./ModuleOutlet";
 import { ProfileScreen } from "./ProfileScreen";
+import { GoogleCalendarCallbackScreen } from "./GoogleCalendarCallbackScreen";
 import { atlas } from "../lib/atlas";
 import { applyBrandTheme } from "../lib/brandTheme";
 import { registerNotificationServiceWorker } from "../lib/webPush";
@@ -219,6 +220,10 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
               <Route path="/app/setup" element={<SetupRouteGuard />} />
               <Route path="/app/login" element={<LoginRouteGuard />} />
               <Route path="/app/acceso" element={<PublicClientLogin />} />
+              <Route
+                path="/app/google/calendar/callback"
+                element={<GoogleCalendarCallbackScreen />}
+              />
               <Route element={<AppAccessGuard />}>
                 <Route path="/app" element={<AtlasApp />}>
                   <Route index element={<Navigate to="home" replace />} />

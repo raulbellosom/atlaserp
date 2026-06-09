@@ -214,6 +214,10 @@ export function createCalendarEventService({ prisma }) {
     if (data.color !== undefined) updateData.color = data.color ?? null
     if (data.recurrenceRule !== undefined) updateData.recurrenceRule = data.recurrenceRule ?? null
 
+    const importedLink = await prisma.googleCalendarEventLink.findFirst({
+      where: { atlasEventId: eventId },
+    })
+
     await prisma.calendarEvent.update({ where: { id: eventId }, data: updateData })
 
     const startAtChanged =
@@ -227,6 +231,17 @@ export function createCalendarEventService({ prisma }) {
         data: { sentAt: null },
       })
     }
+
+    if (importedLink && !importedLink.isDetached && Object.keys(updateData).length > 0) {
+      await prisma.googleCalendarEventLink.update({
+        where: { id: importedLink.id },
+        data: {
+          isDetached: true,
+          detachedAt: new Date(),
+        },
+      })
+    }
+
     return getEvent(userId, eventId)
   }
 

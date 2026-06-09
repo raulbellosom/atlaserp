@@ -78,7 +78,7 @@ const SelectContent = forwardRef(function SelectContent(
       <SelectPrimitive.Content
         ref={ref}
         className={cn(
-          "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-xl glass",
+          "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-xl glass text-foreground",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
@@ -133,6 +133,7 @@ const SelectItem = forwardRef(function SelectItem(
       className={cn(
         "relative flex w-full cursor-default select-none items-center rounded-lg py-1.5 pl-8 pr-2 text-sm outline-none",
         "focus:bg-[hsl(var(--muted))] focus:text-[hsl(var(--foreground))]",
+        "data-[state=checked]:text-indigo-400 data-[state=checked]:bg-indigo-500/10 data-[state=checked]:font-medium",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className,
       )}

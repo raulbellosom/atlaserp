@@ -64,6 +64,8 @@ const DialogContent = forwardRef(function DialogContent(
       <DialogOverlay />
       <DialogPrimitive.Content
         ref={ref}
+        aria-describedby={undefined}
+        {...props}
         className={cn(
           "fixed z-50 glass shadow-xl",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
@@ -86,7 +88,6 @@ const DialogContent = forwardRef(function DialogContent(
           "md:duration-200",
           className,
         )}
-        {...props}
       >
         {/* Drag handle — mobile only; handles swipe-to-dismiss */}
         <div

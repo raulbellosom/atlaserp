@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
-  Button, Badge, ComboboxField, SelectField, ConfirmDialog,
+  Button, Badge, SelectField, ConfirmDialog,
 } from '@atlas/ui'
 import { UserMinus } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   useProjectMembers, useAddMember, useRemoveMember, useWorkspaceUsers,
 } from '../hooks/useProjectsData'
+import { AssigneeAvatar } from '../lib/AssigneeChip'
+import { UserPickerDropdown } from '../lib/UserPickerDropdown'
 
 const ROLE_OPTIONS = [
   { value: 'MEMBER', label: 'Miembro' },
@@ -40,10 +42,6 @@ export default function MembersPanel({ open, onOpenChange, projectId }) {
 
   const memberUserIds = new Set(members.map((m) => m.userId))
   const availableUsers = allUsers.filter((u) => !memberUserIds.has(u.id))
-  const userOptions = availableUsers.map((u) => ({
-    value: u.id,
-    label: memberDisplayName(u),
-  }))
 
   function handleAdd() {
     if (!selectedUserId) return
@@ -95,9 +93,7 @@ export default function MembersPanel({ open, onOpenChange, projectId }) {
                       key={m.id}
                       className="flex items-center gap-3 py-2 group"
                     >
-                      <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-xs font-semibold flex-shrink-0 text-accent-foreground">
-                        {memberDisplayName(m.user)?.[0]?.toUpperCase() ?? '?'}
-                      </div>
+                      <AssigneeAvatar user={m.user} size="lg" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{memberDisplayName(m.user)}</p>
                       </div>
@@ -128,11 +124,11 @@ export default function MembersPanel({ open, onOpenChange, projectId }) {
                 Agregar miembro
               </p>
               <div className="space-y-3">
-                <ComboboxField
+                <UserPickerDropdown
                   label="Usuario"
+                  users={availableUsers}
                   value={selectedUserId}
                   onChange={setSelectedUserId}
-                  options={userOptions}
                   placeholder="Buscar usuario..."
                   emptyMessage="No hay usuarios disponibles"
                 />

@@ -525,6 +525,13 @@ export const atlasLedgerManifest = createModuleManifest({
       permissionKey: "ledger.accounts.read",
     },
     {
+      label: "Grupos",
+      path: "/app/m/atlas.ledger/groups",
+      icon: "FolderOpen",
+      layout: "main",
+      permissionKey: "ledger.groups.read",
+    },
+    {
       label: "Categorias",
       path: "/app/m/atlas.ledger/categories",
       icon: "Tag",

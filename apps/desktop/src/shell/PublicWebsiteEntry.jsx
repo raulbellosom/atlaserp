@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams, Navigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider.jsx'
 import { getApiUrl } from '../lib/runtimeConfig.js'
@@ -55,294 +55,275 @@ async function fetchEditorCheck(token) {
 // ── "En construccion" screen for anonymous visitors ───────────────────────────
 
 const CS_CSS = `
-  @keyframes _cs_fadeUp {
-    from { opacity: 0; transform: translateY(28px) }
+  @keyframes _cs_up {
+    from { opacity: 0; transform: translateY(22px) }
     to   { opacity: 1; transform: translateY(0) }
   }
-  @keyframes _cs_lineGrow {
+  @keyframes _cs_lineExpand {
     from { transform: scaleX(0) }
     to   { transform: scaleX(1) }
   }
-  @keyframes _cs_float {
-    0%, 100% { transform: translateY(0) }
-    50%       { transform: translateY(-20px) }
+  @keyframes _cs_fadein {
+    from { opacity: 0 }
+    to   { opacity: 1 }
   }
-  @keyframes _cs_grain {
-    0%,100%{ transform:translate(0,0) }
-    10%    { transform:translate(-2%,-3%) }
-    20%    { transform:translate(-4%,2%) }
-    30%    { transform:translate(3%,-4%) }
-    40%    { transform:translate(2%,3%) }
-    50%    { transform:translate(-1%,-2%) }
-    60%    { transform:translate(4%,1%) }
-    70%    { transform:translate(-3%,4%) }
-    80%    { transform:translate(1%,-1%) }
-    90%    { transform:translate(-2%,2%) }
+  @keyframes _cs_ping {
+    0%  { box-shadow: 0 0 0 0 rgba(27,101,240,.55) }
+    70% { box-shadow: 0 0 0 7px rgba(27,101,240,0) }
+    100%{ box-shadow: 0 0 0 0 rgba(27,101,240,0) }
   }
-  @keyframes _cs_glow {
-    0%,100% { opacity: 0.35 }
-    50%      { opacity: 0.65 }
-  }
-  ._cs1 { animation: _cs_fadeUp .9s cubic-bezier(.16,1,.3,1) .05s both }
-  ._cs2 { animation: _cs_fadeUp .9s cubic-bezier(.16,1,.3,1) .2s  both }
-  ._cs3 { animation: _cs_fadeUp .9s cubic-bezier(.16,1,.3,1) .35s both }
-  ._cs4 { animation: _cs_fadeUp .9s cubic-bezier(.16,1,.3,1) .5s  both }
-  ._cs5 { animation: _cs_fadeUp .9s cubic-bezier(.16,1,.3,1) .65s both }
-  ._csLine  { animation: _cs_lineGrow 1.4s cubic-bezier(.16,1,.3,1) .55s both; transform-origin: left }
-  ._csFloat { animation: _cs_float 7s ease-in-out infinite }
-  ._csGlow  { animation: _cs_glow  5s ease-in-out infinite }
-  ._csGrain { animation: _cs_grain 9s steps(1) infinite }
+
+  ._csa { animation: _cs_up .85s cubic-bezier(.16,1,.3,1) .05s both }
+  ._csb { animation: _cs_up .85s cubic-bezier(.16,1,.3,1) .17s both }
+  ._csc { animation: _cs_up .85s cubic-bezier(.16,1,.3,1) .29s both }
+  ._csd { animation: _cs_up .85s cubic-bezier(.16,1,.3,1) .41s both }
+  ._cse { animation: _cs_up .85s cubic-bezier(.16,1,.3,1) .53s both }
+  ._csf { animation: _cs_fadein .7s ease .9s both }
+  ._csLine { animation: _cs_lineExpand 1.3s cubic-bezier(.16,1,.3,1) .46s both; transform-origin: left }
+  ._csDot  { animation: _cs_ping 2.2s ease-in-out infinite }
 `
 
-function ComingSoonScreen({ siteName, onLoginClick }) {
+function ComingSoonScreen({ siteName, onLoginClick, isLoggedIn, onGoToApp }) {
+  const handlePrimaryAction = isLoggedIn ? onGoToApp : onLoginClick
+
   return (
     <>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;0,700;1,300;1,400&family=Syne:wght@500;600;700;800&display=swap" rel="stylesheet" />
       <style>{CS_CSS}</style>
       <div style={{
         minHeight: '100vh',
-        background: '#07090f',
+        background: '#F5F3EF',
         position: 'relative',
         overflow: 'hidden',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'flex-start',
-        fontFamily: "'DM Sans', system-ui, sans-serif",
+        flexDirection: 'column',
+        fontFamily: "'Syne', system-ui, sans-serif",
       }}>
 
-        {/* ── Navbar ── */}
+        {/* Left blue accent stripe */}
         <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 clamp(24px, 5vw, 56px)',
-          height: 64,
-          background: 'rgba(7,9,15,0.72)',
-          backdropFilter: 'blur(16px)',
-          borderBottom: '1px solid rgba(255,255,255,0.05)',
-        }}>
-          {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 30, height: 30, borderRadius: 8,
-              background: 'linear-gradient(135deg, #d2a03c 0%, #b8832a 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <svg viewBox="0 0 20 20" fill="none" style={{ width: 16, height: 16 }}>
-                <rect x="3" y="3" width="6" height="6" rx="1.5" fill="white" opacity="0.9"/>
-                <rect x="11" y="3" width="6" height="6" rx="1.5" fill="white" opacity="0.6"/>
-                <rect x="3" y="11" width="6" height="6" rx="1.5" fill="white" opacity="0.6"/>
-                <rect x="11" y="11" width="6" height="6" rx="1.5" fill="white" opacity="0.3"/>
-              </svg>
-            </div>
-            <span style={{
-              color: '#ede8df', fontWeight: 700, fontSize: 15,
-              letterSpacing: '-0.01em',
-            }}>
-              Atlas ERP
-            </span>
-          </div>
+          position: 'fixed', top: 0, left: 0, bottom: 0, width: 3,
+          background: '#1B65F0', zIndex: 100, pointerEvents: 'none',
+        }} />
 
-          {/* Login button */}
+        {/* Dot grid background */}
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          backgroundImage: 'radial-gradient(rgba(17,16,16,.08) 1px, transparent 1px)',
+          backgroundSize: '28px 28px',
+        }} />
+
+        {/* Soft blue glow top-right */}
+        <div style={{
+          position: 'absolute', top: '-15%', right: '-8%', pointerEvents: 'none',
+          width: '55vw', height: '55vw',
+          background: 'radial-gradient(circle, rgba(27,101,240,.07) 0%, transparent 60%)',
+        }} />
+
+        {/* NAVBAR */}
+        <nav style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 clamp(40px, 6vw, 80px)',
+          height: 64,
+          background: 'rgba(245,243,239,.9)',
+          backdropFilter: 'blur(18px)',
+          borderBottom: '1px solid rgba(17,16,16,.07)',
+        }}>
+          <img
+            src="/brand/atlas-logo-monochrome-dark.png"
+            alt="Atlas ERP"
+            style={{ height: 28, width: 'auto', display: 'block', objectFit: 'contain' }}
+          />
+
           <button
-            onClick={onLoginClick}
+            onClick={handlePrimaryAction}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 7,
-              background: 'linear-gradient(135deg, #d2a03c 0%, #b8832a 100%)',
-              color: '#07090f', border: 'none', borderRadius: 8,
-              padding: '8px 18px', fontSize: 13, fontWeight: 700,
-              letterSpacing: '0.01em', cursor: 'pointer',
+              background: isLoggedIn ? '#1B65F0' : '#111010',
+              color: '#F5F3EF',
+              border: 'none', borderRadius: 8,
+              padding: '8px 18px', fontSize: 12.5, fontWeight: 600,
+              letterSpacing: '0.02em', cursor: 'pointer',
               transition: 'opacity 150ms, transform 150ms',
-              boxShadow: '0 2px 12px rgba(210,160,60,0.25)',
             }}
-            onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.82'; e.currentTarget.style.transform = 'translateY(-1px)' }}
             onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)' }}
           >
-            <svg viewBox="0 0 16 16" fill="none" style={{ width: 13, height: 13 }}>
-              <path d="M8 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6zm0 8c-3.3 0-6 1.3-6 3v.5h12V13c0-1.7-2.7-3-6-3z" fill="currentColor"/>
-            </svg>
-            Iniciar sesion
+            {isLoggedIn ? (
+              <>
+                Ir a Atlas ERP
+                <svg viewBox="0 0 14 14" fill="none" style={{ width: 11, height: 11 }}>
+                  <path d="M2.5 7h9M8 3.5l3.5 3.5L8 10.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </>
+            ) : (
+              <>
+                <svg viewBox="0 0 14 14" fill="none" style={{ width: 11, height: 11 }}>
+                  <circle cx="7" cy="4.5" r="2" stroke="currentColor" strokeWidth="1.4"/>
+                  <path d="M2.5 12c0-2 2-3.5 4.5-3.5S11.5 10 11.5 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                </svg>
+                Iniciar sesion
+              </>
+            )}
           </button>
-        </div>
+        </nav>
 
-        {/* ── Diagonal grid ── */}
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none',
-          backgroundImage: `
-            repeating-linear-gradient(-45deg,
-              rgba(255,255,255,.018) 0px, rgba(255,255,255,.018) 1px,
-              transparent 1px, transparent 64px)
-          `,
-        }} />
-
-        {/* ── Ambient glow — gold left ── */}
-        <div className="_csFloat _csGlow" style={{
-          position: 'absolute', top: '-25%', left: '-18%',
-          width: '72vw', height: '72vw',
-          background: 'radial-gradient(circle, rgba(210,160,60,.14) 0%, transparent 65%)',
-          zIndex: 0, pointerEvents: 'none',
-        }} />
-
-        {/* ── Ambient glow — indigo right ── */}
-        <div style={{
-          position: 'absolute', bottom: '-20%', right: '-12%',
-          width: '55vw', height: '55vw',
-          background: 'radial-gradient(circle, rgba(99,102,241,.1) 0%, transparent 65%)',
-          zIndex: 0, pointerEvents: 'none',
-        }} />
-
-        {/* ── Top scan line ── */}
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: 2, zIndex: 2,
-          background: 'linear-gradient(90deg, transparent 0%, rgba(210,160,60,.7) 30%, rgba(210,160,60,1) 50%, rgba(210,160,60,.7) 70%, transparent 100%)',
-        }} />
-
-        {/* ── SVG grain overlay ── */}
-        <div className="_csGrain" style={{
-          position: 'absolute', inset: '-50%', width: '200%', height: '200%',
-          zIndex: 1, opacity: .45, pointerEvents: 'none',
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.07'/%3E%3C/svg%3E")`,
-        }} />
-
-        {/* ── Ghost year — far right ── */}
-        <div style={{
-          position: 'absolute', right: '-3%', top: '50%',
-          transform: 'translateY(-50%)',
-          fontFamily: "'Playfair Display', Georgia, serif",
-          fontSize: 'clamp(140px, 22vw, 320px)',
-          fontWeight: 700, lineHeight: 1,
-          color: 'transparent',
-          WebkitTextStroke: '1px rgba(255,255,255,.035)',
-          userSelect: 'none', zIndex: 0, letterSpacing: '-0.05em',
-          whiteSpace: 'nowrap',
-        }}>
-          {new Date().getFullYear()}
-        </div>
-
-        {/* ── Vertical label — far left edge ── */}
-        <div style={{
-          position: 'absolute', left: 24, top: '50%',
-          transform: 'translateY(-50%) rotate(-90deg)',
-          transformOrigin: 'center center',
-          color: 'rgba(255,255,255,.12)',
-          fontSize: 10, fontWeight: 700, letterSpacing: '0.25em',
-          textTransform: 'uppercase', whiteSpace: 'nowrap',
-          zIndex: 2,
-        }}>
-          Atlas ERP · Sitio web
-        </div>
-
-        {/* ── Main content ── */}
-        <div style={{
-          position: 'relative', zIndex: 3,
-          padding: 'clamp(40px, 8vw, 100px)',
-          paddingTop: 'clamp(100px, 14vw, 160px)',
+        {/* MAIN CONTENT */}
+        <main style={{
+          flex: 1,
+          display: 'flex', alignItems: 'center',
+          paddingTop: 'clamp(104px, 14vw, 160px)',
+          paddingBottom: 'clamp(80px, 10vw, 120px)',
           paddingLeft: 'clamp(64px, 10vw, 140px)',
-          maxWidth: 900, width: '100%',
+          paddingRight: 'clamp(44px, 6vw, 80px)',
+          position: 'relative', zIndex: 5,
+          minHeight: '100vh',
         }}>
 
-          {/* Badge */}
-          <div className="_cs1" style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            background: 'rgba(210,160,60,.1)',
-            border: '1px solid rgba(210,160,60,.28)',
-            borderRadius: 100, padding: '5px 14px 5px 10px',
-            marginBottom: 36,
+          {/* Ghost "PRONTO" background text */}
+          <div style={{
+            position: 'absolute', right: '-3%', top: '50%',
+            transform: 'translateY(-50%)',
+            fontFamily: "'Cormorant Garamond', Georgia, serif",
+            fontSize: 'clamp(140px, 22vw, 340px)',
+            fontWeight: 700, lineHeight: 1,
+            color: 'transparent',
+            WebkitTextStroke: '1px rgba(17,16,16,.055)',
+            userSelect: 'none', letterSpacing: '-0.05em',
+            whiteSpace: 'nowrap', pointerEvents: 'none',
           }}>
-            <div style={{
-              width: 7, height: 7, borderRadius: '50%',
-              background: '#d2a03c',
-              boxShadow: '0 0 10px #d2a03c, 0 0 20px rgba(210,160,60,.4)',
-            }} />
-            <span style={{ color: '#d2a03c', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-              Proximamente
-            </span>
+            PRONTO
           </div>
 
-          {/* Company name */}
-          <h1 className="_cs2" style={{
-            fontFamily: "'Playfair Display', Georgia, serif",
-            fontSize: 'clamp(42px, 8.5vw, 104px)',
-            fontWeight: 700, color: '#ede8df',
-            lineHeight: 1.0, letterSpacing: '-0.025em',
-            margin: 0, marginBottom: 8,
+          {/* Vertical label */}
+          <div style={{
+            position: 'absolute', left: 'clamp(14px, 2vw, 26px)', top: '50%',
+            transform: 'translateY(-50%) rotate(-90deg)',
+            transformOrigin: 'center center',
+            color: 'rgba(17,16,16,.14)', fontSize: 9,
+            fontWeight: 700, letterSpacing: '0.28em',
+            textTransform: 'uppercase', whiteSpace: 'nowrap',
           }}>
-            {siteName || 'Nuevo sitio web'}
-          </h1>
+            Atlas ERP · Sitio web
+          </div>
 
-          {/* Subheader */}
-          <p className="_cs3" style={{
-            fontFamily: "'Playfair Display', Georgia, serif",
-            fontSize: 'clamp(16px, 2.2vw, 24px)',
-            fontWeight: 400, fontStyle: 'italic',
-            color: 'rgba(255,255,255,.28)',
-            margin: 0, marginBottom: 40,
+          {/* Corner lines — bottom right */}
+          <div style={{
+            position: 'absolute', bottom: 52, right: 60,
+            display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5,
+            opacity: .13,
           }}>
-            en construccion
-          </p>
+            {[96, 64, 32].map((w, i) => (
+              <div key={i} style={{ width: w, height: 1.5, background: '#1B65F0', borderRadius: 1 }} />
+            ))}
+          </div>
 
-          {/* Gold divider line */}
-          <div className="_csLine" style={{
-            width: 'min(520px, 80vw)', height: 1, marginBottom: 40,
-            background: 'linear-gradient(90deg, rgba(210,160,60,.9) 0%, rgba(210,160,60,.15) 100%)',
-          }} />
+          {/* Content */}
+          <div style={{ maxWidth: 740, width: '100%' }}>
 
-          {/* Description */}
-          <p className="_cs4" style={{
-            color: 'rgba(255,255,255,.38)',
-            fontSize: 'clamp(13px, 1.4vw, 16px)',
-            lineHeight: 1.8, maxWidth: 460,
-            margin: 0, marginBottom: 52,
-          }}>
-            Estamos construyendo algo especial para ti.<br />
-            Vuelve pronto para descubrir el resultado.
-          </p>
+            {/* Badge */}
+            <div className="_csa" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 9,
+              marginBottom: 30,
+            }}>
+              <div className="_csDot" style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: '#1B65F0', flexShrink: 0,
+              }} />
+              <span style={{
+                color: '#111010', fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.22em', textTransform: 'uppercase',
+              }}>
+                Proximamente
+              </span>
+            </div>
 
-          {/* Admin link */}
-          <button className="_cs5" onClick={onLoginClick} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 10,
-            color: 'rgba(255,255,255,.25)',
-            fontSize: 11, fontWeight: 600,
-            letterSpacing: '0.08em', textTransform: 'uppercase',
-            background: 'none', border: 'none', padding: 0,
-            transition: 'color 200ms, gap 200ms',
-            cursor: 'pointer',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = 'rgba(255,255,255,.55)'
-            e.currentTarget.style.gap = '14px'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'rgba(255,255,255,.25)'
-            e.currentTarget.style.gap = '10px'
-          }}
-          >
-            <svg viewBox="0 0 16 16" fill="none" style={{ width: 13, height: 13 }}>
-              <path d="M10 12l-4-4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Panel de administracion
-          </button>
-        </div>
+            {/* Site name */}
+            <h1 className="_csb" style={{
+              fontFamily: "'Cormorant Garamond', Georgia, serif",
+              fontSize: 'clamp(50px, 9.5vw, 120px)',
+              fontWeight: 700, color: '#111010',
+              lineHeight: .93, letterSpacing: '-0.03em',
+              margin: 0, marginBottom: 6,
+            }}>
+              {siteName || 'Nuevo sitio web'}
+            </h1>
 
-        {/* ── Decorative corner lines — bottom right ── */}
-        <div style={{
-          position: 'absolute', bottom: 44, right: 56,
-          display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5,
-          zIndex: 2, opacity: .18,
+            {/* Italic subtitle */}
+            <p className="_csc" style={{
+              fontFamily: "'Cormorant Garamond', Georgia, serif",
+              fontSize: 'clamp(17px, 2.5vw, 28px)',
+              fontWeight: 300, fontStyle: 'italic',
+              color: 'rgba(17,16,16,.34)',
+              margin: 0, marginBottom: 34,
+            }}>
+              en construccion
+            </p>
+
+            {/* Rule */}
+            <div className="_csLine" style={{
+              width: 'min(500px, 78vw)', height: 1.5,
+              background: '#111010',
+              marginBottom: 34,
+            }} />
+
+            {/* Description */}
+            <p className="_csd" style={{
+              color: 'rgba(17,16,16,.46)',
+              fontSize: 'clamp(12.5px, 1.25vw, 14.5px)',
+              lineHeight: 1.9, maxWidth: 390,
+              margin: 0, marginBottom: 50,
+            }}>
+              Estamos construyendo algo especial para ti.<br />
+              Vuelve pronto para descubrir el resultado.
+            </p>
+
+            {/* Secondary CTA */}
+            <button className="_cse" onClick={handlePrimaryAction} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 10,
+              color: 'rgba(17,16,16,.28)',
+              fontSize: 10.5, fontWeight: 700,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              background: 'none', border: 'none', padding: 0,
+              cursor: 'pointer',
+              transition: 'color 200ms, gap 200ms',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#1B65F0'
+              e.currentTarget.style.gap = '14px'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'rgba(17,16,16,.28)'
+              e.currentTarget.style.gap = '10px'
+            }}
+            >
+              {isLoggedIn ? 'Ir a Atlas ERP' : 'Panel de administracion'}
+              <svg viewBox="0 0 16 16" fill="none" style={{ width: 12, height: 12 }}>
+                <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </main>
+
+        {/* FOOTER strip */}
+        <div className="_csf" style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 clamp(40px, 6vw, 80px)',
+          height: 40,
+          background: 'rgba(245,243,239,.9)',
+          backdropFilter: 'blur(18px)',
+          borderTop: '1px solid rgba(17,16,16,.06)',
         }}>
-          {[108, 72, 36].map((w, i) => (
-            <div key={i} style={{ width: w, height: 1, background: '#d2a03c', borderRadius: 1 }} />
-          ))}
-        </div>
-
-        {/* ── Decorative dot grid — top right ── */}
-        <div style={{
-          position: 'absolute', top: 48, right: 56,
-          display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10,
-          zIndex: 2, opacity: .12,
-        }}>
-          {Array.from({ length: 15 }).map((_, i) => (
-            <div key={i} style={{ width: 3, height: 3, borderRadius: '50%', background: '#d2a03c' }} />
-          ))}
+          <span style={{ color: 'rgba(17,16,16,.25)', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+            Atlas ERP
+          </span>
+          <span style={{ color: 'rgba(17,16,16,.2)', fontSize: 10, fontWeight: 500 }}>
+            {new Date().getFullYear()} — Todos los derechos reservados
+          </span>
         </div>
       </div>
     </>
@@ -820,16 +801,20 @@ export function PublicWebsiteEntry() {
 
   // source_type = 'none': no public site — go to login
   if (sourceType === 'none') {
-    navigate('/app/login', { replace: true })
-    return <PublicPageLoader />
+    return <Navigate to="/app/login" replace />
   }
 
-  // source_type = 'dist': in dev, redirect to the API which serves the dist files
+  // source_type = 'dist': nginx serves the dist HTML directly when uploaded.
+  // If the React SPA is running here, nginx fell through (dist not ready yet) → coming soon.
   if (sourceType === 'dist') {
-    const apiUrl = getApiUrl()
-    const target = `${apiUrl}/public/site${location.pathname}${window.location.search}`
-    window.location.replace(target)
-    return <PublicPageLoader />
+    return (
+      <ComingSoonScreen
+        siteName={resolveData?.site?.name}
+        onLoginClick={() => navigate('/app/login')}
+        isLoggedIn={Boolean(session)}
+        onGoToApp={() => navigate('/app')}
+      />
+    )
   }
 
   // ── Shared values ─────────────────────────────────────────────────────────
@@ -878,9 +863,13 @@ export function PublicWebsiteEntry() {
     }
 
     // Anonymous visitor: coming soon
-    const handleLogin = () => navigate('/app/login')
-    if (!resolveData?.site) return <ComingSoonScreen siteName={null} onLoginClick={handleLogin} />
-    return <ComingSoonScreen siteName={resolveData.site?.name} onLoginClick={handleLogin} />
+    const csProps = {
+      onLoginClick: () => navigate('/app/login'),
+      isLoggedIn: Boolean(session),
+      onGoToApp: () => navigate('/app'),
+    }
+    if (!resolveData?.site) return <ComingSoonScreen siteName={null} {...csProps} />
+    return <ComingSoonScreen siteName={resolveData.site?.name} {...csProps} />
   }
 
   // ── Page exists (published or draft for editors) ───────────────────────────

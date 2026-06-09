@@ -69,6 +69,7 @@ import { createModuleBundlerService } from "./services/module-bundler-service.js
 import { createRouteLoaderService } from "./services/route-loader-service.js";
 import { createDistServeService } from "./services/dist-serve-service.js";
 import { createNotificationDeliveryWorker } from "./services/notification-delivery-worker.js";
+import { createNotificationService } from "./services/notification-service.js";
 import {
   get as cacheGet,
   set as cacheSet,
@@ -124,6 +125,7 @@ const companyService = createCompanyService({ prisma, supabaseAdmin });
 const bundlerService = createModuleBundlerService({ prisma, supabaseAdmin });
 const hrService = createHrService({ prisma });
 const notificationDeliveryWorker = createNotificationDeliveryWorker({ prisma });
+const notificationService = createNotificationService({ prisma });
 const distServeService = createDistServeService({ prisma, supabaseAdmin });
 
 function toSlug(name) {
@@ -640,21 +642,13 @@ async function ensureBuckets() {
   await supabaseAdmin.storage
     .createBucket(STOREFRONT_BUCKET_NAME, { public: true, fileSizeLimit: 104857600, allowedMimeTypes: ['image/*', 'audio/*', 'video/*', 'application/pdf'] })
     .catch(() => {});
-  const WEBSITE_BUCKET_OPTS = {
-    public: true,
-    fileSizeLimit: 104857600,
-    allowedMimeTypes: null,
-  };
-  await supabaseAdmin.storage.createBucket(WEBSITE_BUCKET_NAME, { ...WEBSITE_BUCKET_OPTS, allowedMimeTypes: [] }).catch(() => {});
-  const { error: bucketUpdateError } = await supabaseAdmin.storage.updateBucket(WEBSITE_BUCKET_NAME, WEBSITE_BUCKET_OPTS);
-  if (bucketUpdateError) {
-    console.warn('[ensureBuckets] updateBucket failed, falling back to direct SQL:', bucketUpdateError.message);
-    await prisma.$executeRaw`
-      UPDATE storage.buckets
-      SET allowed_mime_types = NULL, file_size_limit = 104857600
-      WHERE id = ${WEBSITE_BUCKET_NAME}
-    `.catch((e) => console.error('[ensureBuckets] SQL fallback failed:', e.message));
-  }
+  await supabaseAdmin.storage.createBucket(WEBSITE_BUCKET_NAME, { public: true, fileSizeLimit: 104857600, allowedMimeTypes: [] }).catch(() => {});
+  // updateBucket with allowedMimeTypes:null is rejected by self-hosted Supabase Storage — use SQL directly
+  await prisma.$executeRaw`
+    UPDATE storage.buckets
+    SET public = TRUE, allowed_mime_types = NULL, file_size_limit = 104857600
+    WHERE id = ${WEBSITE_BUCKET_NAME}
+  `.catch((e) => console.error('[ensureBuckets] SQL update failed:', e.message));
 }
 
 function serializeModulesForResponse(modules, context, options = {}) {
@@ -4424,7 +4418,7 @@ mountWithAuth(app, createUsersRouter({ prisma, requirePermission }));
 mountWithAuth(app, createFleetRouter({ prisma, requirePermission }));
 mountWithAuth(app, createCatalogRouter({ prisma, requirePermission }));
 mountWithAuth(app, createCalendarRouter({ prisma, requirePermission }));
-mountWithAuth(app, createProjectsRouter({ prisma, requirePermission }));
+mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createSyncRouter({ prisma }));

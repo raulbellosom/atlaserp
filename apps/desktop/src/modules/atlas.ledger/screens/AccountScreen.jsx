@@ -7,6 +7,13 @@ import {
   DatePickerField,
   UserSearchModal,
   ConfirmDialog,
+  EmptyState,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  TextField,
+  SelectField,
 } from "@atlas/ui";
 import { toast } from "sonner";
 import {
@@ -18,6 +25,7 @@ import {
   UserPlus,
   Trash2,
   FolderOpen,
+  Pencil,
 } from "lucide-react";
 import SpreadsheetRegister from "./SpreadsheetRegister.jsx";
 import AccountSummary from "./AccountSummary.jsx";
@@ -59,6 +67,14 @@ export default function AccountScreen() {
   const [dateTo, setDateTo] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    bank: "",
+    account_number: "",
+    currency: "MXN",
+  });
+  const [editSaving, setEditSaving] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -85,7 +101,8 @@ export default function AccountScreen() {
 
   const members = membersData?.data ?? [];
   const account = accountData?.data ?? null;
-  const isOwner = !!account?.owner_id;
+  const canEdit =
+    !isUsingLocalLedger && account != null && account.group_id == null;
   const types = typesData?.data ?? [];
   const categories = categoriesData?.data ?? [];
 
@@ -154,6 +171,50 @@ export default function AccountScreen() {
     refetchMembers();
   }
 
+  function openEdit() {
+    setEditForm({
+      name: account?.name ?? "",
+      bank: account?.bank ?? "",
+      account_number: account?.account_number ?? "",
+      currency: account?.currency ?? "MXN",
+    });
+    setEditOpen(true);
+  }
+
+  async function handleEditAccount(e) {
+    e.preventDefault();
+    if (!editForm.name.trim() || !editForm.bank.trim()) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/ledger/accounts/${accountId}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          bank: editForm.bank.trim(),
+          account_number: editForm.account_number.trim() || null,
+          currency: editForm.currency,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error ?? "No se pudo actualizar la cuenta.");
+        return;
+      }
+      toast.success("Cuenta actualizada.");
+      setEditOpen(false);
+      queryClient.invalidateQueries({
+        queryKey: ["ledger-account", accountId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["ledger-accounts"] });
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   async function handleMoveGroup(groupId) {
     const res = await fetch(`${API_BASE}/ledger/accounts/${accountId}/group`, {
       method: "PATCH",
@@ -216,48 +277,55 @@ export default function AccountScreen() {
           )}
         </div>
 
-        {activeTab === "registro" && (
-          <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleExport("pdf")}
-              disabled={isUsingLocalLedger}
-            >
-              <FileText size={12} />
-              PDF
+        <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+          {canEdit && (
+            <Button variant="outline" size="sm" onClick={openEdit}>
+              <Pencil size={12} /> Editar
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleExport("xlsx")}
-              disabled={isUsingLocalLedger}
-            >
-              <Table size={12} />
-              Excel
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleExport("csv")}
-              disabled={isUsingLocalLedger}
-            >
-              <Download size={12} />
-              CSV
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isUsingLocalLedger}
-              onClick={() =>
-                navigate(`/app/m/atlas.ledger/accounts/${accountId}/import`)
-              }
-            >
-              <Upload size={12} />
-              Importar
-            </Button>
-          </div>
-        )}
+          )}
+          {activeTab === "registro" && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport("pdf")}
+                disabled={isUsingLocalLedger}
+              >
+                <FileText size={12} />
+                PDF
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport("xlsx")}
+                disabled={isUsingLocalLedger}
+              >
+                <Table size={12} />
+                Excel
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport("csv")}
+                disabled={isUsingLocalLedger}
+              >
+                <Download size={12} />
+                CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isUsingLocalLedger}
+                onClick={() =>
+                  navigate(`/app/m/atlas.ledger/accounts/${accountId}/import`)
+                }
+              >
+                <Upload size={12} />
+                Importar
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-6 shrink-0">
@@ -335,7 +403,7 @@ export default function AccountScreen() {
         )}
 
         {activeTab === "acceso" && account && (
-          <div className="px-6 pb-6 space-y-6 max-w-2xl">
+          <div className="px-6 pb-6 space-y-6 max-w-2xl mx-auto">
             {isUsingLocalLedger ? (
               <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.25)] p-4 text-sm text-[hsl(var(--muted-foreground))]">
                 Los accesos, invitaciones y movimientos entre grupos siguen
@@ -350,7 +418,7 @@ export default function AccountScreen() {
                   El acceso a esta cuenta está controlado por el grupo. Para
                   gestionar miembros ve al grupo.
                 </p>
-                {isOwner && (
+                {canEdit && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -364,7 +432,7 @@ export default function AccountScreen() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold">Colaboradores</h3>
-                  {isOwner && (
+                  {canEdit && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -375,9 +443,19 @@ export default function AccountScreen() {
                   )}
                 </div>
                 {members.length === 0 ? (
-                  <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                    Esta cuenta no tiene colaboradores.
-                  </p>
+                  <EmptyState
+                    icon={UserPlus}
+                    title="Sin colaboradores"
+                    description="Invita a otros usuarios para compartir esta cuenta."
+                    action={
+                      canEdit
+                        ? {
+                            label: "Invitar colaborador",
+                            onClick: () => setInviteOpen(true),
+                          }
+                        : undefined
+                    }
+                  />
                 ) : (
                   <div className="space-y-2">
                     {members.map((member) => (
@@ -393,7 +471,7 @@ export default function AccountScreen() {
                             {member.email} · {member.role}
                           </div>
                         </div>
-                        {isOwner && (
+                        {canEdit && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -439,6 +517,83 @@ export default function AccountScreen() {
           </div>
         )}
       </div>
+
+      <Sheet
+        open={editOpen}
+        onOpenChange={(open) => {
+          if (!open) setEditOpen(false);
+        }}
+      >
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Editar cuenta</SheetTitle>
+          </SheetHeader>
+          <form onSubmit={handleEditAccount} className="space-y-4 pt-4">
+            <TextField
+              label="Nombre"
+              id="edit-acc-name"
+              required
+              value={editForm.name}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, name: e.target.value }))
+              }
+              maxLength={255}
+            />
+            <TextField
+              label="Banco"
+              id="edit-acc-bank"
+              required
+              value={editForm.bank}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, bank: e.target.value }))
+              }
+              maxLength={255}
+            />
+            <TextField
+              label="Número de cuenta"
+              id="edit-acc-number"
+              value={editForm.account_number}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, account_number: e.target.value }))
+              }
+              placeholder="Opcional"
+              maxLength={64}
+            />
+            <SelectField
+              label="Moneda"
+              id="edit-acc-currency"
+              options={[
+                { value: "MXN", label: "MXN — Peso mexicano" },
+                { value: "USD", label: "USD — Dólar estadounidense" },
+              ]}
+              value={editForm.currency}
+              onValueChange={(val) =>
+                setEditForm((f) => ({ ...f, currency: val }))
+              }
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                disabled={
+                  editSaving || !editForm.name.trim() || !editForm.bank.trim()
+                }
+              >
+                {editSaving ? "Guardando..." : "Guardar cambios"}
+              </Button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
