@@ -2,6 +2,10 @@ import { BellRing, Calendar, Plus } from "lucide-react";
 import { useCalendarStore } from "../stores/useCalendarStore";
 import { useCalendarEvents } from "../hooks/useCalendarData";
 import {
+  filterEventsForHour,
+  formatHourRangeLabel,
+} from "../lib/calendar-overflow";
+import {
   formatReminderLead,
   getPrimaryReminderMinutes,
 } from "../lib/reminder-utils";
@@ -31,7 +35,12 @@ const MONTHS = [
 ];
 
 export default function CalendarRightSidebar({ onNewEvent }) {
-  const { selectedDate, activeCalendarIds } = useCalendarStore();
+  const {
+    selectedDate,
+    activeCalendarIds,
+    selectedSlotHour,
+    clearSelectedSlot,
+  } = useCalendarStore();
   const d = selectedDate ? new Date(selectedDate + "T12:00:00") : new Date();
 
   const dayStart = new Date(d);
@@ -44,6 +53,13 @@ export default function CalendarRightSidebar({ onNewEvent }) {
     end: dayEnd.toISOString(),
     calendarIds: activeCalendarIds,
   });
+  const sortedEvents = events.toSorted(
+    (left, right) => new Date(left.startAt) - new Date(right.startAt),
+  );
+  const visibleEvents =
+    selectedSlotHour === null
+      ? sortedEvents
+      : filterEventsForHour(sortedEvents, selectedSlotHour);
 
   const today = new Date();
   const isToday = d.toDateString() === today.toDateString();
@@ -62,27 +78,43 @@ export default function CalendarRightSidebar({ onNewEvent }) {
         <div className="text-xs text-[hsl(var(--muted-foreground))] mt-1 capitalize">
           {WEEKDAYS[d.getDay()]}, {MONTHS[d.getMonth()]} {d.getFullYear()}
         </div>
+        {selectedSlotHour !== null && (
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <div className="text-[10px] font-medium uppercase tracking-wide text-violet-300">
+              {formatHourRangeLabel(selectedSlotHour)}
+            </div>
+            <button
+              type="button"
+              onClick={clearSelectedSlot}
+              className="text-[10px] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+            >
+              Ver día
+            </button>
+          </div>
+        )}
         {isToday && (
           <div className="text-xs text-violet-500 font-medium mt-0.5">Hoy</div>
         )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {events.length === 0 ? (
+        {visibleEvents.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
             <Calendar
               size={28}
               className="text-[hsl(var(--muted-foreground))] opacity-40"
             />
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
-              Sin eventos
+              {selectedSlotHour === null ? "Sin eventos" : "Sin eventos en esta hora"}
             </p>
             <p className="text-[10px] text-[hsl(var(--muted-foreground))] opacity-60">
-              No hay eventos programados
+              {selectedSlotHour === null
+                ? "No hay eventos programados"
+                : "No hay eventos programados en este bloque horario"}
             </p>
           </div>
         ) : (
-          events.map((ev) => {
+          visibleEvents.map((ev) => {
             const color = ev.color || ev.calendar?.color || "#6B46C1";
             const reminderMinutes = getPrimaryReminderMinutes(ev);
             return (
@@ -122,6 +154,7 @@ export default function CalendarRightSidebar({ onNewEvent }) {
 
       <div className="p-3 border-t border-[hsl(var(--border))]">
         <button
+          type="button"
           onClick={onNewEvent}
           className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-dashed border-[hsl(var(--border))] text-xs text-[hsl(var(--muted-foreground))] hover:border-violet-500 hover:text-violet-500 transition-colors"
         >

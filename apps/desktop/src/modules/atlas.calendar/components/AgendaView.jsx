@@ -149,7 +149,7 @@ export default function AgendaView({ onEventClick }) {
                 {MONTHS[date.getMonth()].slice(0, 3)}
               </div>
             </div>
-            <div className="flex-1 space-y-1.5 border-l border-[hsl(var(--border))] pl-4">
+            <div className="min-w-0 flex-1 space-y-1.5 border-l border-[hsl(var(--border))] pl-4">
               {dayEvents.map((ev) => (
                 <EventChip key={ev.id} event={ev} onClick={onEventClick} />
               ))}

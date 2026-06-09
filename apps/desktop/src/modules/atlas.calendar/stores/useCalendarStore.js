@@ -10,12 +10,24 @@ export const useCalendarStore = create(
     (set, get) => ({
       activeView: 'month',
       selectedDate: todayDateString(),
+      selectedSlotHour: null,
       leftSidebarOpen: true,
       rightSidebarOpen: true,
       activeCalendarIds: [],
 
       setActiveView: (view) => set({ activeView: view }),
-      setSelectedDate: (date) => set({ selectedDate: date }),
+      setSelectedDate: (date) => set({ selectedDate: date, selectedSlotHour: null }),
+      focusDate: (date) => set({
+        selectedDate: date,
+        selectedSlotHour: null,
+        rightSidebarOpen: true,
+      }),
+      focusTimeSlot: (date, hour) => set({
+        selectedDate: date,
+        selectedSlotHour: hour,
+        rightSidebarOpen: true,
+      }),
+      clearSelectedSlot: () => set({ selectedSlotHour: null }),
       toggleLeftSidebar: () => set((s) => ({ leftSidebarOpen: !s.leftSidebarOpen })),
       toggleRightSidebar: () => set((s) => ({ rightSidebarOpen: !s.rightSidebarOpen })),
 
@@ -42,7 +54,7 @@ export const useCalendarStore = create(
         else if (activeView === 'week') d.setDate(d.getDate() - 7)
         else if (activeView === 'month') d.setMonth(d.getMonth() - 1)
         else if (activeView === 'agenda') d.setDate(d.getDate() - 7)
-        set({ selectedDate: d.toISOString().slice(0, 10) })
+        set({ selectedDate: d.toISOString().slice(0, 10), selectedSlotHour: null })
       },
 
       navigateNext: () => {
@@ -52,10 +64,10 @@ export const useCalendarStore = create(
         else if (activeView === 'week') d.setDate(d.getDate() + 7)
         else if (activeView === 'month') d.setMonth(d.getMonth() + 1)
         else if (activeView === 'agenda') d.setDate(d.getDate() + 7)
-        set({ selectedDate: d.toISOString().slice(0, 10) })
+        set({ selectedDate: d.toISOString().slice(0, 10), selectedSlotHour: null })
       },
 
-      navigateToday: () => set({ selectedDate: todayDateString() }),
+      navigateToday: () => set({ selectedDate: todayDateString(), selectedSlotHour: null }),
     }),
     {
       name: 'atlas-calendar-prefs',

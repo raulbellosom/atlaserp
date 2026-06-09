@@ -103,6 +103,51 @@ async function exists(p) {
   try { await fs.access(p); return true; } catch { return false; }
 }
 
+function hasEnvKey(content, key) {
+  return content.split(/\r?\n/).some((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) return false;
+    const eqIdx = trimmed.indexOf("=");
+    return eqIdx > 0 && trimmed.slice(0, eqIdx).trim() === key;
+  });
+}
+
+const GOOGLE_OPTIONAL_VARS = [
+  { key: "GOOGLE_OAUTH_CLIENT_ID",     placeholder: "<YOUR_GOOGLE_OAUTH_CLIENT_ID>",     comment: null },
+  { key: "GOOGLE_OAUTH_CLIENT_SECRET", placeholder: "<YOUR_GOOGLE_OAUTH_CLIENT_SECRET>", comment: null },
+  { key: "GOOGLE_OAUTH_REDIRECT_URI",  placeholder: "https://your-atlas-domain.com/app/google/calendar/callback", comment: null },
+  {
+    key: "GOOGLE_OAUTH_ENCRYPTION_KEY",
+    placeholder: "<YOUR_GOOGLE_OAUTH_ENCRYPTION_KEY>",
+    comment: "# Generate: node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"",
+  },
+];
+
+async function appendMissingOptionalVars(filePath) {
+  const content = await fs.readFile(filePath, "utf8");
+  const missing = GOOGLE_OPTIONAL_VARS.filter((v) => !hasEnvKey(content, v.key));
+  if (missing.length === 0) return;
+
+  const lines = [
+    "",
+    "# ── Google Calendar integration (optional) ───────────────────────────────────",
+    "# Register OAuth credentials at: https://console.cloud.google.com → APIs & Services → Credentials",
+    "# Leave placeholders to disable Google Calendar sync.",
+  ];
+  for (const { key, placeholder, comment } of missing) {
+    if (comment) lines.push(comment);
+    lines.push(`${key}=${placeholder}`);
+  }
+  lines.push("");
+
+  await fs.appendFile(filePath, lines.join("\n"), "utf8");
+
+  console.warn("");
+  console.warn("[setup-external] New optional variables appended to .env.external:");
+  for (const { key } of missing) console.warn(`  ${key}`);
+  console.warn("  Fill them in before starting containers if you want Google Calendar sync.");
+}
+
 async function downloadTextFile(url) {
   const response = await fetch(url, {
     headers: { "User-Agent": "atlaserp-installer" },
@@ -171,6 +216,7 @@ async function main() {
       process.exit(1);
     }
     console.log("  .env.external found.");
+    await appendMissingOptionalVars(envFile);
   }
 
   // ── 2. Validate Docker ─────────────────────────────────────────────────────
