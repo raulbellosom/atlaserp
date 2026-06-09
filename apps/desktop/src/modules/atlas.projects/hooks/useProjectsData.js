@@ -204,3 +204,78 @@ export function useWorkspaceUsers() {
     staleTime: 5 * 60 * 1000,
   })
 }
+
+// ── Task Assignees ────────────────────────────────────────────────────────────
+
+export function useAddAssignee(projectId, taskId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ userId }) => atlas.projects.addTaskAssignee(projectId, taskId, { userId }, token),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] })
+    },
+  })
+}
+
+export function useRemoveAssignee(projectId, taskId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ userId }) => atlas.projects.removeTaskAssignee(projectId, taskId, userId, token),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] })
+    },
+  })
+}
+
+// ── Task Comments ─────────────────────────────────────────────────────────────
+
+export function useCreateComment(projectId, taskId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ body }) => atlas.projects.createTaskComment(projectId, taskId, { body }, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] }),
+  })
+}
+
+export function useUpdateComment(projectId, taskId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ commentId, body }) => atlas.projects.updateTaskComment(projectId, taskId, commentId, { body }, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] }),
+  })
+}
+
+export function useDeleteComment(projectId, taskId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ commentId }) => atlas.projects.deleteTaskComment(projectId, taskId, commentId, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] }),
+  })
+}
+
+// ── Bulk ──────────────────────────────────────────────────────────────────────
+
+export function useBulkUpdateTasks(projectId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ taskIds, patch }) => atlas.projects.bulkUpdateTasks(projectId, { taskIds, patch }, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] }),
+  })
+}
+
+export function useBulkDeleteTasks(projectId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ taskIds }) => atlas.projects.bulkDeleteTasks(projectId, { taskIds }, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] }),
+  })
+}
