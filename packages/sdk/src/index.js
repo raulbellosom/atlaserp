@@ -1206,6 +1206,30 @@ export function createAtlasClient({ baseUrl }) {
         request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
       moveTask: (projectId, taskId, data, token) =>
         request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/move`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      listTaskAssignees: (projectId, taskId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/assignees`, { headers: withAuthHeaders(token) }),
+      addTaskAssignee: (projectId, taskId, data, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/assignees`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      removeTaskAssignee: (projectId, taskId, userId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/assignees/${encodeURIComponent(userId)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+      listTaskComments: (projectId, taskId, query, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/comments${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+      createTaskComment: (projectId, taskId, data, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/comments`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      updateTaskComment: (projectId, taskId, commentId, data, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/comments/${encodeURIComponent(commentId)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      deleteTaskComment: (projectId, taskId, commentId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/comments/${encodeURIComponent(commentId)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+      listTaskAttachments: (projectId, taskId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/attachments`, { headers: withAuthHeaders(token) }),
+      addTaskAttachment: (projectId, taskId, data, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/attachments`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      deleteTaskAttachment: (projectId, taskId, fileAssetId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/attachments/${encodeURIComponent(fileAssetId)}`, { method: 'DELETE', headers: withAuthHeaders(token) }),
+      bulkUpdateTasks: (projectId, data, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/bulk`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      bulkDeleteTasks: (projectId, data, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/bulk`, { method: 'DELETE', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
     },
     fleet: {
       getVehicleDocuments: (vehicleId, token) =>
