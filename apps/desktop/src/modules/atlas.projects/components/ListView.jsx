@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { SearchInput, EmptyState, SelectField, ConfirmDialog, Checkbox } from '@atlas/ui'
 import { ChevronRight, CornerDownRight, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { useStatuses, useTasks, useBulkUpdateTasks, useBulkDeleteTasks } from '../hooks/useProjectsData'
+import { useStatuses, useTasks, useBulkUpdateTasks, useBulkDeleteTasks, useProjectMembers } from '../hooks/useProjectsData'
 import { AssigneeChip, StackedAssignees } from '../lib/AssigneeChip.jsx'
 
 const PRIORITY_OPTIONS = [
@@ -43,6 +43,9 @@ export default function ListView({ projectId, onTaskClick, showSubtasks = false 
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('__all__')
   const [filterPriority, setFilterPriority] = useState('__all__')
+  const { data: membersData } = useProjectMembers(projectId)
+  const members = membersData?.data ?? membersData ?? []
+
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const bulkUpdate = useBulkUpdateTasks(projectId)
@@ -103,6 +106,22 @@ export default function ListView({ projectId, onTaskClick, showSubtasks = false 
     bulkUpdate.mutate({ taskIds: [...selectedIds], patch: { statusId } }, {
       onSuccess: clearSelection,
       onError: () => toast.error('No se pudo actualizar las tareas'),
+    })
+  }
+
+  function handleBulkAssign(assigneeId) {
+    if (!assigneeId || assigneeId === '') return
+    bulkUpdate.mutate({ taskIds: [...selectedIds], patch: { assigneeId } }, {
+      onSuccess: clearSelection,
+      onError: () => toast.error('No se pudo asignar las tareas'),
+    })
+  }
+
+  function handleBulkPriority(priority) {
+    if (!priority || priority === '') return
+    bulkUpdate.mutate({ taskIds: [...selectedIds], patch: { priority } }, {
+      onSuccess: clearSelection,
+      onError: () => toast.error('No se pudo cambiar la prioridad'),
     })
   }
 
@@ -232,6 +251,29 @@ export default function ListView({ projectId, onTaskClick, showSubtasks = false 
               options={[
                 { value: '', label: 'Cambiar estado' },
                 ...statuses.map((s) => ({ value: s.id, label: s.name })),
+              ]}
+            />
+            <SelectField
+              value=""
+              onValueChange={handleBulkAssign}
+              options={[
+                { value: '', label: 'Asignar' },
+                ...members.map((m) => {
+                  const u = m.user ?? m
+                  return { value: m.userId ?? u.id, label: [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || u.id }
+                }),
+              ]}
+            />
+            <SelectField
+              value=""
+              onValueChange={handleBulkPriority}
+              options={[
+                { value: '', label: 'Prioridad' },
+                { value: 'URGENT', label: 'Urgente' },
+                { value: 'HIGH', label: 'Alta' },
+                { value: 'MEDIUM', label: 'Media' },
+                { value: 'LOW', label: 'Baja' },
+                { value: 'NONE', label: 'Normal' },
               ]}
             />
             <button
