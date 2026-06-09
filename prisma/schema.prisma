@@ -273,7 +273,9 @@ model UserProfile {
   projectsOwned      Project[]       @relation("ProjectOwner")
   projectMemberships ProjectMember[] @relation("ProjectMemberUser")
   tasksAssigned      Task[]          @relation("TaskAssignee")
-  tasksCreated       Task[]          @relation("TaskCreator")
+  tasksCreated         Task[]                @relation("TaskCreator")
+  projectTaskAssignees ProjectTaskAssignee[] @relation("TaskAssigneeUser")
+  taskComments         TaskComment[]         @relation("TaskCommentAuthor")
 
   @@map("user_profile")
 }
@@ -1667,11 +1669,40 @@ model Task {
   status   TaskStatus   @relation(fields: [statusId], references: [id], onDelete: Restrict)
   assignee UserProfile? @relation("TaskAssignee", fields: [assigneeId], references: [id])
   creator  UserProfile  @relation("TaskCreator", fields: [createdBy], references: [id], onDelete: Restrict)
-  subtasks Task[]       @relation("TaskSubtasks")
-  parent   Task?        @relation("TaskSubtasks", fields: [parentTaskId], references: [id])
+  subtasks  Task[]                @relation("TaskSubtasks")
+  parent    Task?                 @relation("TaskSubtasks", fields: [parentTaskId], references: [id])
+  assignees ProjectTaskAssignee[] @relation("TaskAssignees")
+  comments  TaskComment[]         @relation("TaskComments")
 
   @@index([projectId, statusId, position])
   @@index([assigneeId])
   @@index([dueDate])
   @@map("task")
+}
+
+model ProjectTaskAssignee {
+  id         String      @id @default(uuid(7)) @db.Uuid
+  taskId     String      @db.Uuid @map("task_id")
+  userId     String      @db.Uuid @map("user_id")
+  assignedAt DateTime    @default(now()) @map("assigned_at")
+
+  task       Task        @relation("TaskAssignees", fields: [taskId], references: [id], onDelete: Cascade)
+  user       UserProfile @relation("TaskAssigneeUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@map("project_task_assignee")
+}
+
+model TaskComment {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  taskId    String      @db.Uuid @map("task_id")
+  authorId  String      @db.Uuid @map("author_id")
+  body      String      @db.VarChar(5000)
+  createdAt DateTime    @default(now()) @map("created_at")
+  editedAt  DateTime?   @map("edited_at")
+
+  task      Task        @relation("TaskComments", fields: [taskId], references: [id], onDelete: Cascade)
+  author    UserProfile @relation("TaskCommentAuthor", fields: [authorId], references: [id])
+
+  @@map("task_comment")
 }
