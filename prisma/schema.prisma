@@ -1687,7 +1687,7 @@ model ProjectTaskAssignee {
   assignedAt DateTime    @default(now()) @map("assigned_at")
 
   task       Task        @relation("TaskAssignees", fields: [taskId], references: [id], onDelete: Cascade)
-  user       UserProfile @relation("TaskAssigneeUser", fields: [userId], references: [id], onDelete: Cascade)
+  user       UserProfile @relation("TaskAssigneeUser", fields: [userId], references: [id], onDelete: Restrict)
 
   @@unique([taskId, userId])
   @@map("project_task_assignee")
@@ -1704,5 +1704,6 @@ model TaskComment {
   task      Task        @relation("TaskComments", fields: [taskId], references: [id], onDelete: Cascade)
   author    UserProfile @relation("TaskCommentAuthor", fields: [authorId], references: [id])
 
+  @@index([taskId])
   @@map("task_comment")
 }
