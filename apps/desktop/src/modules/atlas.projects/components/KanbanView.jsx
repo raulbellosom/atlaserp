@@ -79,14 +79,14 @@ function TaskCard({ task, onClick, isDragging }) {
           </span>
         )}
         {task._count?.subtasks > 0 && (
-          <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-            <Layers size={10} />
+          <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+            <Layers size={12} />
             {task._count.subtasks}
           </span>
         )}
         {task._count?.comments > 0 && (
-          <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-            <MessageSquare size={10} />
+          <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+            <MessageSquare size={12} />
             {task._count.comments}
           </span>
         )}
@@ -204,7 +204,7 @@ export default function KanbanView({ projectId, onTaskClick, showSubtasks = fals
         {statuses.map((status) => {
           const colTasks = tasksByStatus[status.id] ?? []
           return (
-            <div key={status.id} className="flex-shrink-0 w-64 flex flex-col">
+            <div key={status.id} className="flex-shrink-0 w-72 flex flex-col">
               <div className="flex items-center gap-2 mb-2 px-1">
                 <span
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
