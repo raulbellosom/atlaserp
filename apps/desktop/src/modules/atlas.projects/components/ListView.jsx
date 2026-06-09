@@ -196,6 +196,9 @@ export default function ListView({ projectId, onTaskClick, showSubtasks = false 
                         ].join(' ')}>
                           {task.parentTaskId && <CornerDownRight size={10} className="text-indigo-400/70 shrink-0" />}
                           <div className="min-w-0">
+                            {task.taskNumber != null && (
+                              <span className="text-[10px] text-muted-foreground font-mono block">T-{task.taskNumber}</span>
+                            )}
                             <span className="truncate max-w-sm block">{task.title}</span>
                             {task.parent && (
                               <span className="text-[10px] text-muted-foreground truncate block">{task.parent.title}</span>

@@ -8,7 +8,7 @@ import {
   useSortable, sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, GripVertical, AlertCircle, CornerDownRight } from 'lucide-react'
+import { Plus, GripVertical, AlertCircle, CornerDownRight, MessageSquare, Layers } from 'lucide-react'
 import { EmptyState } from '@atlas/ui'
 import { toast } from 'sonner'
 import { useStatuses, useTasks, useMoveTask, useCreateTask } from '../hooks/useProjectsData'
@@ -65,12 +65,29 @@ function TaskCard({ task, onClick, isDragging }) {
         {task.parentTaskId && (
           <CornerDownRight size={10} className="text-indigo-400/70 mt-0.5 shrink-0" />
         )}
-        <span className="flex-1 text-sm leading-snug">{task.title}</span>
+        <div className="flex-1 min-w-0">
+          {task.taskNumber != null && (
+            <span className="text-[10px] text-muted-foreground font-mono block mb-0.5">T-{task.taskNumber}</span>
+          )}
+          <span className="text-sm leading-snug">{task.title}</span>
+        </div>
       </div>
       <div className="flex items-center gap-1.5 mt-2 ml-4">
         {task.priority !== 'NONE' && (
           <span className={`text-xs border rounded px-1 ${PRIORITY_COLORS[task.priority]}`}>
             {PRIORITY_LABELS[task.priority]}
+          </span>
+        )}
+        {task._count?.subtasks > 0 && (
+          <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+            <Layers size={10} />
+            {task._count.subtasks}
+          </span>
+        )}
+        {task._count?.comments > 0 && (
+          <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+            <MessageSquare size={10} />
+            {task._count.comments}
           </span>
         )}
         <StackedAssignees assignees={task.assignees} fallback={task.assignee} />

@@ -194,6 +194,11 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
           <SheetHeader className="pl-6 pr-20 py-4 border-b border-border shrink-0">
             <SheetTitle className="sr-only">Detalles de tarea</SheetTitle>
             <div className="flex items-center gap-2">
+              {task?.taskNumber != null && (
+                <span className="text-xs text-muted-foreground font-mono shrink-0 bg-muted px-1.5 py-0.5 rounded">
+                  T-{task.taskNumber}
+                </span>
+              )}
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}

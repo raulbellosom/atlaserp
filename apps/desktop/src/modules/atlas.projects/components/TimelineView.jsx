@@ -96,7 +96,12 @@ export default function TimelineView({ projectId, onTaskClick, showSubtasks = fa
             ].join(' ')}
           >
             {task.parentTaskId && <CornerDownRight size={10} className="text-indigo-400/70 mr-1 shrink-0" />}
-            <span className="truncate">{task.title}</span>
+            <div className="truncate min-w-0">
+              {task.taskNumber != null && (
+                <span className="text-[10px] text-muted-foreground font-mono block leading-none mb-0.5">T-{task.taskNumber}</span>
+              )}
+              <span className="truncate">{task.title}</span>
+            </div>
           </div>
         ))}
         {undatedTasks.length > 0 && (
@@ -115,7 +120,12 @@ export default function TimelineView({ projectId, onTaskClick, showSubtasks = fa
                 ].join(' ')}
               >
                 {task.parentTaskId && <CornerDownRight size={10} className="text-indigo-400/70 mr-1 shrink-0" />}
-                <span className="truncate">{task.title}</span>
+                <div className="truncate min-w-0">
+                  {task.taskNumber != null && (
+                    <span className="text-[10px] text-muted-foreground font-mono block leading-none mb-0.5">T-{task.taskNumber}</span>
+                  )}
+                  <span className="truncate">{task.title}</span>
+                </div>
               </div>
             ))}
           </>
