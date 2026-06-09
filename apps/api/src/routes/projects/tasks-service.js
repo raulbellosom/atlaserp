@@ -30,7 +30,7 @@ export function createTasksService({ prisma }) {
         },
         status: true,
         parent: { select: { id: true, title: true } },
-        _count: { select: { subtasks: true } },
+        _count: { select: { subtasks: true, comments: true } },
       },
       orderBy: [{ statusId: 'asc' }, { position: 'asc' }],
     })
@@ -82,20 +82,32 @@ export function createTasksService({ prisma }) {
       orderBy: { position: 'desc' },
     })
     const position = (last?.position ?? -1) + 1
-    return prisma.task.create({
-      data: {
-        projectId,
-        statusId,
-        parentTaskId: parentTaskId || null,
-        title: title.trim(),
-        description: description?.trim() || null,
-        assigneeId: assigneeId || null,
-        priority,
-        startDate: startDate ? new Date(startDate) : null,
-        dueDate: dueDate ? new Date(dueDate) : null,
-        position,
-        createdBy,
-      },
+    return prisma.$transaction(async (tx) => {
+      let taskNumber = null
+      if (!parentTaskId) {
+        const updated = await tx.project.update({
+          where: { id: projectId },
+          data: { taskCounter: { increment: 1 } },
+          select: { taskCounter: true },
+        })
+        taskNumber = updated.taskCounter
+      }
+      return tx.task.create({
+        data: {
+          projectId,
+          statusId,
+          parentTaskId: parentTaskId || null,
+          title: title.trim(),
+          description: description?.trim() || null,
+          assigneeId: assigneeId || null,
+          priority,
+          startDate: startDate ? new Date(startDate) : null,
+          dueDate: dueDate ? new Date(dueDate) : null,
+          position,
+          createdBy,
+          ...(taskNumber !== null ? { taskNumber } : {}),
+        },
+      })
     })
   }
 

@@ -1606,6 +1606,7 @@ model Project {
   status      ProjectLifecycleStatus @default(ACTIVE)
   createdAt   DateTime               @default(now()) @map("created_at")
   updatedAt   DateTime               @updatedAt @map("updated_at")
+  taskCounter Int                    @default(0) @map("task_counter")
 
   owner    UserProfile     @relation("ProjectOwner", fields: [ownerId], references: [id])
   members  ProjectMember[]
@@ -1661,6 +1662,7 @@ model Task {
   dueDate         DateTime?    @map("due_date")
   calendarEventId String?      @db.Uuid @map("calendar_event_id")
   position        Int
+  taskNumber      Int?         @map("task_number")
   createdBy       String       @db.Uuid @map("created_by")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
@@ -1674,6 +1676,7 @@ model Task {
   assignees ProjectTaskAssignee[] @relation("TaskAssignees")
   comments  TaskComment[]         @relation("TaskComments")
 
+  @@unique([projectId, taskNumber])
   @@index([projectId, statusId, position])
   @@index([assigneeId])
   @@index([dueDate])
