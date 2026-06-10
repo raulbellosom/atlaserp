@@ -139,6 +139,7 @@ export function useStatuses(projectId) {
     queryFn: () => atlas.projects.listStatuses(projectId, token),
     enabled: Boolean(token) && Boolean(projectId),
     staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -191,6 +192,7 @@ export function useTasks(projectId, filters = {}) {
     queryFn: () => atlas.projects.listTasks(projectId, filters, token),
     enabled: Boolean(token) && Boolean(projectId),
     staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -201,6 +203,7 @@ export function useTask(projectId, taskId) {
     queryFn: () => atlas.projects.getTask(projectId, taskId, token),
     enabled: Boolean(token) && Boolean(projectId) && Boolean(taskId),
     staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
   })
 }
 
