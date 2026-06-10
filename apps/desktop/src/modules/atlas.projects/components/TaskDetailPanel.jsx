@@ -133,6 +133,16 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
     [allTasksData, taskId],
   );
 
+  const attachmentsConfig = useMemo(() => ({
+    label: "Archivos",
+    listPath: `/projects/${projectId}/tasks/:id/attachments`,
+    addPath: `/projects/${projectId}/tasks/:id/attachments`,
+    removePath: `/projects/${projectId}/tasks/:id/attachments/:docId`,
+    upload: { endpoint: "/files/upload", moduleKey: "atlas.projects", entityType: "Task" },
+    fields: { fileAssetId: "id" },
+    signedUrl: { endpointTemplate: "/files/:fileId/signed-url" },
+  }), [projectId]);
+
   const updateTask = useUpdateTask(projectId);
   const deleteTask = useDeleteTask(projectId);
   const createSubtask = useCreateTask(projectId);
@@ -701,17 +711,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
                     apiBaseUrl={API_BASE_URL}
                     token={token}
                     recordId={task.id}
-                    config={{
-                      label: "Archivos",
-                      listPath: `/projects/${projectId}/tasks/:id/attachments`,
-                      addPath: `/projects/${projectId}/tasks/:id/attachments`,
-                      removePath: `/projects/${projectId}/tasks/:id/attachments/:docId`,
-                      upload: {
-                        endpoint: "/files",
-                        moduleKey: "atlas.projects",
-                        entityType: "Task",
-                      },
-                    }}
+                    config={attachmentsConfig}
                     context="detail"
                     showHeading={false}
                   />

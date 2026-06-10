@@ -42,7 +42,7 @@ export function createTasksService({ prisma }) {
     if (!includeSubtasks) {
       where.parentTaskId = parentTaskId === undefined ? null : parentTaskId
     }
-    return prisma.task.findMany({
+    const tasks = await prisma.task.findMany({
       where,
       include: {
         assignee: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } },
@@ -56,6 +56,16 @@ export function createTasksService({ prisma }) {
       },
       orderBy: [{ statusId: 'asc' }, { position: 'asc' }],
     })
+
+    if (tasks.length === 0) return tasks
+    const taskIds = tasks.map(t => t.id)
+    const attachmentCounts = await prisma.fileAsset.groupBy({
+      by: ['entityId'],
+      where: { entityType: 'Task', entityId: { in: taskIds }, enabled: true },
+      _count: { id: true },
+    })
+    const countById = Object.fromEntries(attachmentCounts.map(r => [r.entityId, r._count.id]))
+    return tasks.map(t => ({ ...t, _count: { ...t._count, attachments: countById[t.id] ?? 0 } }))
   }
 
   async function getTask(taskId) {

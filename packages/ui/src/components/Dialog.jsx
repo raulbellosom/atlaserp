@@ -67,7 +67,7 @@ const DialogContent = forwardRef(function DialogContent(
         aria-describedby={undefined}
         {...props}
         className={cn(
-          "fixed z-50 glass shadow-xl",
+          "fixed z-50 glass-strong shadow-xl",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           // ── Mobile: full-width bottom sheet ──────────────────────────────

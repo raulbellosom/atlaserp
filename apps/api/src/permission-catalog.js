@@ -204,6 +204,13 @@ export const PERMISSION_CATALOG = {
     order: 40,
   },
 
+  "platform.erp.access": {
+    displayNameEs: "Acceder al ERP",
+    descriptionEs:
+      "Permite iniciar sesion y usar la aplicacion Atlas ERP. Sin este permiso el usuario solo puede acceder al sitio web publico.",
+    groupKey: "platform",
+    order: 1,
+  },
   "platform.settings.manage": {
     displayNameEs: "Administrar configuracion de plataforma",
     descriptionEs:

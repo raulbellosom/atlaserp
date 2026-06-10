@@ -107,10 +107,30 @@ function reminderLeadText(minutesBefore) {
 }
 
 const EVENT_TYPE_LABELS = {
+  // Calendar
   "calendar.event.reminder": "Recordatorio de evento",
   "calendar.event.created": "Evento creado",
   "calendar.event.updated": "Evento actualizado",
   "calendar.event.deleted": "Evento eliminado",
+  "calendar.event.invite": "Invitacion a evento",
+  "calendar.event.reschedule": "Evento reprogramado",
+  "calendar.event.cancel": "Evento cancelado",
+  // Projects
+  "projects.member.added": "Agregado a proyecto",
+  "projects.task.assigned": "Tarea asignada",
+  "projects.task.unassigned": "Removido de tarea",
+  "projects.task.comment": "Comentario en tarea",
+  "projects.task.mention": "Mencion en comentario",
+  "projects.task.status_changed": "Estado de tarea actualizado",
+  "projects.task.due_soon": "Tarea por vencer",
+  // Ledger
+  "ledger.account_invite": "Invitacion a cuenta",
+  "ledger.group_invite": "Invitacion a grupo",
+  "ledger.access_revoked": "Acceso revocado",
+  // Website / storefront
+  "website.sale.confirmed": "Venta confirmada",
+  // System
+  "system.alert": "Alerta del sistema",
   "general": "General",
 };
 
@@ -129,6 +149,10 @@ const SOURCE_TYPE_LABELS = {
   Company: "Empresa",
   Invoice: "Factura",
   FinanceDocument: "Documento financiero",
+  Project: "Proyecto",
+  Task: "Tarea",
+  LedgerAccount: "Cuenta contable",
+  LedgerGroup: "Grupo contable",
 };
 
 function buildNotificationEmail({ notification, appBaseUrl }) {

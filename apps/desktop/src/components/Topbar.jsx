@@ -1,4 +1,4 @@
-import { LayoutGrid, Menu, Search } from "lucide-react";
+import { LayoutGrid, Menu, Search, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { Breadcrumbs } from "./Breadcrumbs";
@@ -18,6 +18,9 @@ export function Topbar({
   onMobileMenuToggle,
   onModuleMenuToggle,
   networkBusy = false,
+  activeModuleKey = null,
+  canInstall = false,
+  onInstall,
 }) {
   const { session, userProfile } = useAuth();
   const { openCommand } = useCommandStore();
@@ -171,7 +174,17 @@ export function Topbar({
               onSeeAll={() => navigate("/app/m/atlas.notifications")}
             />
           )}
-          <UserMenu />
+          {canInstall && activeModuleKey && (
+            <button
+              onClick={onInstall}
+              title="Instalar como app"
+              className="h-9 w-9 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer"
+              aria-label="Instalar modulo como app"
+            >
+              <Download size={16} />
+            </button>
+          )}
+          <UserMenu canInstall={canInstall} onInstall={onInstall} />
         </div>
       </div>
     </header>

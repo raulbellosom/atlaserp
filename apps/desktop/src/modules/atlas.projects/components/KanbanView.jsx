@@ -8,7 +8,7 @@ import {
   useSortable, sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, GripVertical, AlertCircle, CornerDownRight, MessageSquare, Layers, Lock, RefreshCw } from 'lucide-react'
+import { Plus, GripVertical, AlertCircle, CornerDownRight, MessageSquare, Layers, Lock, RefreshCw, Paperclip } from 'lucide-react'
 import { EmptyState } from '@atlas/ui'
 import { toast } from 'sonner'
 import { useStatuses, useTasks, useMoveTask, useCreateTask } from '../hooks/useProjectsData'
@@ -94,6 +94,12 @@ function TaskCard({ task, statusColor, onClick, isDragging }) {
           <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
             <MessageSquare size={12} />
             {task._count.comments}
+          </span>
+        )}
+        {task._count?.attachments > 0 && (
+          <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+            <Paperclip size={12} />
+            {task._count.attachments}
           </span>
         )}
         {task.blockedBy?.length > 0 && (

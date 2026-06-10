@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, SearchInput, Switch } from "@atlas/ui";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronsDownUp, ChevronsUpDown, ChevronDown, ChevronRight } from "lucide-react";
 
 const MODULE_LABELS = {
   core: "Core",
@@ -18,6 +18,12 @@ const MODULE_LABELS = {
   ledger: "Libro de cuentas",
   website: "Sitio web",
   audit: "Bitacora",
+  activity: "Actividad",
+  notifications: "Notificaciones",
+  projects: "Proyectos",
+  platform: "Plataforma",
+  calendar: "Calendario",
+  catalog: "Catalogo",
 };
 
 const FEATURE_LABELS = {
@@ -350,6 +356,14 @@ export default function PermissionFeatureTree({
     });
   }
 
+  function expandAll() {
+    setOpenedModules(new Set(modules.map((m) => m.key)));
+  }
+
+  function collapseAll() {
+    setOpenedModules(new Set());
+  }
+
   const totalPerms = allModuleKeys.length;
   const totalAssigned = allModuleKeys.filter((k) => pendingKeys.has(k)).length;
 
@@ -365,6 +379,27 @@ export default function PermissionFeatureTree({
           className="flex-1 min-w-0 sm:max-w-xs"
         />
         <FilterPills value={filter} onChange={setFilter} />
+        <div className="flex items-center rounded-xl border border-[hsl(var(--border))] overflow-hidden text-xs font-medium shrink-0">
+          <button
+            type="button"
+            onClick={expandAll}
+            title="Expandir todo"
+            className="flex items-center gap-1.5 px-3 py-2 hover:bg-[hsl(var(--muted))]/60 text-[hsl(var(--muted-foreground))] transition-colors whitespace-nowrap"
+          >
+            <ChevronsUpDown className="h-3.5 w-3.5" />
+            Expandir todo
+          </button>
+          <div className="w-px h-4 bg-[hsl(var(--border))]" />
+          <button
+            type="button"
+            onClick={collapseAll}
+            title="Colapsar todo"
+            className="flex items-center gap-1.5 px-3 py-2 hover:bg-[hsl(var(--muted))]/60 text-[hsl(var(--muted-foreground))] transition-colors whitespace-nowrap"
+          >
+            <ChevronsDownUp className="h-3.5 w-3.5" />
+            Colapsar todo
+          </button>
+        </div>
       </div>
 
       {/* Summary bar */}

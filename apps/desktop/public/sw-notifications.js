@@ -1,3 +1,11 @@
+// Minimal fetch handler — required by Chrome for PWA installability criteria.
+// Navigation requests are passed through normally; no caching is performed.
+self.addEventListener("fetch", (event) => {
+  if (event.request.mode === "navigate") {
+    event.respondWith(fetch(event.request));
+  }
+});
+
 function broadcastToClients(message) {
   return clients
     .matchAll({ type: "window", includeUncontrolled: true })

@@ -13,6 +13,8 @@ import { getLayoutMode, matchesFullscreenPath } from "../lib/runtimeModules";
 import { ModuleBundleLoader } from '../shell/ModuleBundleLoader.jsx'
 import { getApiUrl } from "../lib/runtimeConfig.js";
 import { useAuth } from "../auth/AuthProvider";
+import { usePwaManifest } from "../hooks/usePwaManifest.js";
+import { usePwaInstall } from "../hooks/usePwaInstall.js";
 import { toast } from "sonner";
 import { atlas } from '../lib/atlas.js'
 
@@ -236,6 +238,9 @@ export function AtlasApp() {
     [activeModule, normalizedSubPath],
   );
 
+  usePwaManifest(moduleKeyFromPath, activeModule);
+  const { canInstall, install } = usePwaInstall();
+
   const showSidebar =
     !isFullscreen &&
     Boolean(moduleKeyFromPath) &&
@@ -259,6 +264,9 @@ export function AtlasApp() {
             : undefined
         }
         networkBusy={networkBusy}
+        activeModuleKey={moduleKeyFromPath}
+        canInstall={canInstall}
+        onInstall={install}
       />
 
       {/* Mobile backdrop */}
@@ -285,6 +293,8 @@ export function AtlasApp() {
                 onCollapse={toggleCollapsed}
                 mobileOpen={mobileOpen}
                 onMobileClose={() => setMobileOpen(false)}
+                canInstall={canInstall}
+                onInstall={install}
               />
             ))}
 
@@ -327,6 +337,8 @@ export function AtlasApp() {
               onCollapse={() => setSidebarOverlayOpen(false)}
               mobileOpen={false}
               onMobileClose={() => setSidebarOverlayOpen(false)}
+              canInstall={canInstall}
+              onInstall={install}
             />
           </aside>
         </>

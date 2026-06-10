@@ -53,6 +53,7 @@ import {
   ShieldCheck,
   LayoutTemplate,
   SquareKanban,
+  Download,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "../lib/utils.js";
@@ -153,6 +154,8 @@ export function ModuleSidebar({
   onCollapse,
   mobileOpen = false,
   onMobileClose,
+  canInstall = false,
+  onInstall,
 }) {
   if (!module) return null;
 
@@ -267,14 +270,39 @@ export function ModuleSidebar({
             Módulo
           </p>
         </div>
+        {/* Install as app button — shown when browser supports PWA install */}
+        {canInstall && !collapsed && (
+          <button
+            className="hidden lg:flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors shrink-0 cursor-pointer ml-auto"
+            onClick={onInstall}
+            title="Instalar como app"
+            aria-label="Instalar modulo como app"
+          >
+            <Download size={13} />
+          </button>
+        )}
         {/* Mobile-only close button */}
         <button
-          className="lg:hidden ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors shrink-0 cursor-pointer"
+          className={cn(
+            "lg:hidden flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors shrink-0 cursor-pointer",
+            canInstall ? "" : "ml-auto",
+          )}
           onClick={onMobileClose}
           aria-label="Cerrar menu"
         >
           <X size={15} />
         </button>
+        {/* Mobile install button — shown next to close when installable */}
+        {canInstall && (
+          <button
+            className="lg:hidden flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors shrink-0 cursor-pointer"
+            onClick={onInstall}
+            title="Instalar como app"
+            aria-label="Instalar modulo como app"
+          >
+            <Download size={13} />
+          </button>
+        )}
       </div>
 
       {/* Navigation items */}

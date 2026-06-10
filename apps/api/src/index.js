@@ -61,6 +61,7 @@ import { createSettingsRouter } from "./routes/settings-routes.js";
 import { createActivityRouter } from "./routes/activity.js";
 import { createNotificationsRouter } from "./routes/notifications.js";
 import { createSyncRouter } from "./routes/sync.js";
+import { createPwaRouter } from "./routes/pwa.js";
 import {
   publishActivityFromContext,
   getActivityContext,
@@ -3090,6 +3091,9 @@ app.route("/public/website", publicCheckoutRouter);
 const storefrontRouter = createStorefrontRouter({ prisma, supabaseAdmin, supabaseAnon });
 app.route("/public/storefront", storefrontRouter);
 
+const pwaRouter = createPwaRouter({ prisma });
+app.route("/pwa", pwaRouter);
+
 app.get("/public", (c) => {
   return c.json({
     api: "Atlas ERP Public API",
@@ -3124,6 +3128,7 @@ app.get("/public", (c) => {
       { method: "POST", path: "/public/website/bookings",               auth: "none",       description: "Create a booking" },
       { method: "POST", path: "/public/website/checkout",               auth: "none",       description: "Initiate a checkout (Stripe)" },
       // Static site
+      { method: "GET",  path: "/public/site/erp-badge-check",           auth: "optional",   description: "Check if the current session has ERP access (used by the injected beacon)" },
       { method: "GET",  path: "/public/site/*",                         auth: "none",       description: "Serve the compiled static website" },
     ],
     auth: {
@@ -3131,6 +3136,24 @@ app.get("/public", (c) => {
     },
   });
 });
+
+// ERP beacon check — called client-side by the injected badge script.
+// Returns { show: true } only when the request carries a valid Atlas session
+// with platform.erp.access. No auth middleware: missing/invalid tokens return false.
+app.get("/public/site/erp-badge-check", async (c) => {
+  c.header("Cache-Control", "no-store")
+  const authHeader = c.req.header("Authorization")
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null
+  if (!token) return c.json({ show: false })
+  const { data, error } = await supabaseAdmin.auth.getUser(token)
+  if (error || !data.user) return c.json({ show: false })
+  try {
+    const context = await getUserContextByAuthId(data.user.id)
+    return c.json({ show: Boolean(context?.permissionSet.has("platform.erp.access")) })
+  } catch {
+    return c.json({ show: false })
+  }
+})
 
 // Public site catch-all — must be registered last among public routes
 app.get("/public/site/*", async (c) => {

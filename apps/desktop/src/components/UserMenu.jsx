@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, User, Settings, LogOut, Monitor, Download, X } from "lucide-react";
+import { ChevronDown, User, Settings, LogOut, Monitor, Download, X, Smartphone, Share } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -33,6 +33,25 @@ function dismissDesktopReminder() {
   } catch { /* ignore */ }
 }
 
+function getDevicePlatform() {
+  if (typeof navigator === "undefined") return "unknown";
+  const ua = navigator.userAgent;
+  if (/iPhone|iPod/i.test(ua)) return "ios";
+  if (/iPad/i.test(ua) || (/Mac/i.test(ua) && navigator.maxTouchPoints > 1)) return "ios";
+  if (/Android/i.test(ua)) return "android";
+  if (/webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return "mobile";
+  if (/Windows NT/i.test(ua)) return "windows";
+  return "desktop";
+}
+
+function isStandaloneMode() {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true
+  );
+}
+
 function getInitials(firstName, lastName) {
   const f = (firstName ?? "").charAt(0).toUpperCase();
   const l = (lastName ?? "").charAt(0).toUpperCase();
@@ -40,10 +59,15 @@ function getInitials(firstName, lastName) {
   return result || (firstName ?? "").charAt(0).toUpperCase() || "U";
 }
 
-export function UserMenu() {
+export function UserMenu({ canInstall = false, onInstall }) {
   const { userProfile, logout } = useAuth();
   const navigate = useNavigate();
   const [showReminder, setShowReminder] = useState(() => shouldShowDesktopReminder());
+
+  const platform = getDevicePlatform();
+  const standalone = isStandaloneMode();
+  const isMobile = platform === "ios" || platform === "android" || platform === "mobile";
+  const isWindows = platform === "windows";
 
   function handleDesktopDownload() {
     window.open(ATLAS_DESKTOP_DOWNLOAD_URL, "_blank", "noopener,noreferrer");
@@ -64,6 +88,12 @@ export function UserMenu() {
     "Usuario";
   const email = userProfile?.email ?? "";
   const firstName = userProfile?.firstName ?? "Usuario";
+
+  // Show install section:
+  // - Mobile: always (unless already in standalone), show platform-appropriate UI
+  // - Windows desktop: show if reminder not dismissed
+  const showMobileInstall = isMobile && !standalone;
+  const showWindowsApp = isWindows && showReminder;
 
   return (
     <DropdownMenu>
@@ -92,8 +122,8 @@ export function UserMenu() {
           />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        {/* Non-clickable user info header */}
+      <DropdownMenuContent align="end" className="w-60">
+        {/* User info header */}
         <div className="px-2 py-2.5 border-b border-[hsl(var(--border))] mb-1">
           <p className="text-sm font-semibold text-[hsl(var(--foreground))] truncate">
             {displayName}
@@ -104,6 +134,7 @@ export function UserMenu() {
             </p>
           )}
         </div>
+
         <DropdownMenuItem
           onClick={() => navigate("/app/profile")}
           className="gap-2 cursor-pointer"
@@ -121,7 +152,45 @@ export function UserMenu() {
             Configuración
           </DropdownMenuItem>
         )}
-        {showReminder && (
+
+        {/* ── Mobile PWA install section ── */}
+        {showMobileInstall && (
+          <>
+            <DropdownMenuSeparator />
+            <div className="px-2 py-2 space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <Smartphone size={12} className="text-[hsl(var(--muted-foreground))] shrink-0" />
+                <p className="text-xs font-medium text-[hsl(var(--foreground))]">Instalar app</p>
+              </div>
+
+              {canInstall ? (
+                /* Android Chrome — browser offered install prompt */
+                <button
+                  onClick={onInstall}
+                  className="flex items-center gap-1.5 w-full rounded-md px-2 py-1.5 text-xs font-medium bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:opacity-90 transition-opacity"
+                >
+                  <Download size={11} />
+                  Agregar a pantalla de inicio
+                </button>
+              ) : platform === "ios" ? (
+                /* iOS Safari — manual flow */
+                <p className="text-xs text-[hsl(var(--muted-foreground))] leading-snug">
+                  En Safari, toca <Share size={10} className="inline-block align-middle mx-0.5" /> y selecciona{" "}
+                  <span className="font-medium text-[hsl(var(--foreground))]">Añadir a pantalla de inicio</span>.
+                </p>
+              ) : (
+                /* Android Chrome — criteria not met yet */
+                <p className="text-xs text-[hsl(var(--muted-foreground))] leading-snug">
+                  En Chrome, toca{" "}
+                  <span className="font-medium text-[hsl(var(--foreground))]">⋮ → Añadir a pantalla de inicio</span>.
+                </p>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ── Windows desktop app section ── */}
+        {showWindowsApp && (
           <>
             <DropdownMenuSeparator />
             <div className="px-2 py-2 space-y-1.5">
@@ -151,6 +220,7 @@ export function UserMenu() {
             </div>
           </>
         )}
+
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => logout()}
@@ -163,4 +233,3 @@ export function UserMenu() {
     </DropdownMenu>
   );
 }
-

@@ -33,20 +33,23 @@ const ASSET_ATTR_RE = /\b(href|src|content)="(\/(?!\/)[^"]*\.[a-zA-Z0-9]{1,10}[^
 const NAV_LINK_RE  = /\bhref="(\/(?!\/|#)[^"#?]*)([^"]*)"/g
 const HAS_EXT_RE   = /\.[a-zA-Z0-9]{1,10}(\?|$)/
 
-export function rewriteDistHtml(html, storageBase, basePath = '/public/site') {
+export function rewriteDistHtml(html, storageBase, basePath = '') {
   // Step 1: rewrite root-relative ASSET paths (js/css/svg/png…) to full CDN URLs
   const withAssets = html.replace(ASSET_ATTR_RE, (match, attr, path) => {
     if (ATLAS_PATH_RE.test(path)) return match
     return `${attr}="${storageBase}${path}"`
   })
 
-  // Step 2: rewrite root-relative NAVIGATION links (no extension = HTML routes like /about-us)
-  // After step 1, asset hrefs are already CDN absolute so they won't match the extension guard.
-  const withNavLinks = withAssets.replace(NAV_LINK_RE, (match, path, rest) => {
-    if (ATLAS_PATH_RE.test(path)) return match
-    if (HAS_EXT_RE.test(path)) return match   // still an asset that slipped through
-    return `href="${basePath}${path}${rest}"`
-  })
+  // Step 2: rewrite root-relative NAVIGATION links only when a non-empty basePath is set.
+  // By default basePath is '' — Nginx already maps root-relative URLs to the correct API
+  // path transparently, so prefixing here would cause a double-prefix on navigation clicks.
+  const withNavLinks = basePath
+    ? withAssets.replace(NAV_LINK_RE, (match, path, rest) => {
+        if (ATLAS_PATH_RE.test(path)) return match
+        if (HAS_EXT_RE.test(path)) return match
+        return `href="${basePath}${path}${rest}"`
+      })
+    : withAssets
 
   // Step 3: inject importmap so dynamic import('/_astro/…') inside loaded modules
   // resolves to CDN instead of the API origin.
@@ -63,11 +66,44 @@ export function rewriteDistHtml(html, storageBase, basePath = '/public/site') {
 }
 
 export function injectErpBadge(html, erpPath = '/app/') {
-  const badge = `<div id="atlas-erp-badge" style="position:fixed;bottom:20px;right:20px;z-index:2147483647;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><a href="${erpPath}" style="display:inline-flex;align-items:center;gap:8px;background:rgba(15,15,30,0.88);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#e2e8f0;padding:9px 16px;border-radius:100px;text-decoration:none;font-size:12px;font-weight:600;letter-spacing:0.03em;box-shadow:0 4px 20px rgba(0,0,0,0.45),0 0 0 1px rgba(255,255,255,0.08);" onmouseover="this.style.background='rgba(99,102,241,0.92)';this.style.boxShadow='0 4px 24px rgba(99,102,241,0.55),0 0 0 1px rgba(99,102,241,0.4)'" onmouseout="this.style.background='rgba(15,15,30,0.88)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.45),0 0 0 1px rgba(255,255,255,0.08)'"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0"><rect width="14" height="14" rx="3.5" fill="#6366f1"/><path d="M3.5 7h7M7 3.5v7" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>Atlas ERP</a></div>`
+  // Script checks session at runtime — only shows the beacon if the visitor
+  // has an active Atlas session with platform.erp.access permission.
+  const safePath = erpPath.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+  const script = [
+    '<script>(function(){',
+    'function gt(){try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);',
+    "if(k&&k.startsWith('sb-')&&k.endsWith('-auth-token')){",
+    "var d=JSON.parse(localStorage.getItem(k)||'{}');",
+    'return d.access_token||(d.session&&d.session.access_token)||null;',
+    '}}return null;}catch(e){return null;}}',
+    'function show(){',
+    "if(document.getElementById('_atlas_erp_beacon'))return;",
+    "var w=document.createElement('div');w.id='_atlas_erp_beacon';",
+    "w.style.cssText='position:fixed;bottom:24px;right:24px;z-index:2147483647;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;';",
+    "var a=document.createElement('a');a.href='" + safePath + "';",
+    "a.style.cssText='display:flex;align-items:center;gap:0;background:rgba(8,8,20,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#e2e8f0;padding:10px;border-radius:100px;text-decoration:none;font-size:12px;font-weight:600;overflow:hidden;max-width:40px;transition:max-width .25s,padding .25s,gap .25s;box-shadow:0 4px 20px rgba(0,0,0,0.45),0 0 0 1px rgba(255,255,255,0.08);';",
+    "var s=document.createElementNS('http://www.w3.org/2000/svg','svg');s.setAttribute('width','20');s.setAttribute('height','20');s.setAttribute('viewBox','0 0 20 20');s.setAttribute('fill','none');s.style.flexShrink='0';",
+    "var r=document.createElementNS('http://www.w3.org/2000/svg','rect');r.setAttribute('width','20');r.setAttribute('height','20');r.setAttribute('rx','6');r.setAttribute('fill','#6366f1');",
+    "var p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d','M6 10h8M10 6v8');p.setAttribute('stroke','#fff');p.setAttribute('stroke-width','1.5');p.setAttribute('stroke-linecap','round');",
+    's.appendChild(r);s.appendChild(p);',
+    "var l=document.createElement('span');l.textContent='Atlas ERP';l.style.cssText='white-space:nowrap;transition:opacity .15s;opacity:0;';",
+    'a.appendChild(s);a.appendChild(l);',
+    "a.addEventListener('mouseover',function(){a.style.maxWidth='160px';a.style.padding='9px 14px 9px 10px';a.style.gap='8px';l.style.opacity='1';});",
+    "a.addEventListener('mouseout',function(){a.style.maxWidth='40px';a.style.padding='10px';a.style.gap='0';l.style.opacity='0';});",
+    'w.appendChild(a);document.body.appendChild(w);}',
+    'function chk(){var t=gt();if(!t)return;',
+    "fetch('/erp-badge-check',{headers:{'Authorization':'Bearer '+t},cache:'no-store'})",
+    '.then(function(r){return r.ok?r.json():null;})',
+    '.then(function(d){if(d&&d.show)show();})',
+    '.catch(function(){});}',
+    "if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',chk);}else{setTimeout(chk,0);}",
+    '})()',
+    '<' + '/script>',
+  ].join('')
   if (html.includes('</body>')) {
-    return html.replace('</body>', `${badge}\n</body>`)
+    return html.replace('</body>', `${script}\n</body>`)
   }
-  return html + badge
+  return html + script
 }
 
 export function injectSeoTags(html, seoDefaults) {

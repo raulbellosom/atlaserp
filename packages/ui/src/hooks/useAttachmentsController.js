@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const DEFAULT_FIELDS = {
   id: "id",
@@ -267,6 +267,8 @@ export function useAttachmentsController({
 }) {
   const [associatedItems, setAssociatedItems] = useState([]);
   const [pendingItems, setPendingItems] = useState([]);
+  const pendingItemsRef = useRef(pendingItems);
+  useEffect(() => { pendingItemsRef.current = pendingItems; }, [pendingItems]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -326,7 +328,7 @@ export function useAttachmentsController({
           normalizeAssociatedItem(item, normalizedFields),
         );
         setAssociatedItems(normalized);
-        onChange?.({ associated: normalized, pending: pendingItems });
+        onChange?.({ associated: normalized, pending: pendingItemsRef.current });
         return normalized;
       } catch (err) {
         const message =
@@ -342,7 +344,6 @@ export function useAttachmentsController({
       config?.listPath,
       normalizedFields,
       onChange,
-      pendingItems,
       recordId,
       setGlobalError,
       token,

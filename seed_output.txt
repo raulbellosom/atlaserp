@@ -1,5 +1,0 @@
-
-> atlas-erp-starter@0.1.0 db:seed D:\RacoonDevs\atlaserp-v2
-> node prisma/seed.js
-
-Atlas modules seeded (14)

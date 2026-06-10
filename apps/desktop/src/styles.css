@@ -75,23 +75,37 @@ html {
   --surface-3: 210 16% 95%;
 
   --glass-blur: 20px;
-  --glass-bg: rgba(255, 255, 255, 0.65);
-  --glass-bg-strong: rgba(255, 255, 255, 0.88);
-  --glass-border: rgba(255, 255, 255, 0.78);
-  --glass-border-subtle: rgba(0, 0, 0, 0.06);
+  --glass-bg: rgba(255, 255, 255, 0.82);
+  --glass-bg-strong: rgba(255, 255, 255, 0.96);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-border-subtle: rgba(0, 0, 0, 0.04);
   --glass-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.07),
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 0 0 1px rgba(0, 0, 0, 0.05);
-  --glass-tint: rgba(33, 199, 255, 0.11);
-  --glass-glow: rgba(33, 199, 255, 0.3);
+    0 4px 20px rgba(0, 0, 0, 0.08),
+    0 1px 4px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --glass-tint: rgba(33, 199, 255, 0.08);
+  --glass-glow: rgba(33, 199, 255, 0.25);
   --topbar-height: 3.5rem;
 }
 
-/* ── Mobile: reduce glass blur for performance ───────────────────── */
+/* ── Mobile: near-opaque glass in light mode (backdrop-filter unreliable on some phones) ── */
 @media (max-width: 767px) {
   :root {
-    --glass-blur: 12px;
+    --glass-blur: 8px;
+    --glass-bg: rgba(255, 255, 255, 0.97);
+    --glass-bg-strong: rgba(255, 255, 255, 1);
+    --glass-shadow:
+      0 4px 20px rgba(0, 0, 0, 0.1),
+      0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+
+  /* Dark mode on mobile: keep glass feel but more opaque too */
+  .dark {
+    --glass-bg: rgba(15, 23, 42, 0.92);
+    --glass-bg-strong: rgba(15, 23, 42, 0.98);
+    --glass-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.07);
   }
 }
 

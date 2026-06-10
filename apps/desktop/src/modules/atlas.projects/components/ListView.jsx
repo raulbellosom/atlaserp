@@ -7,7 +7,7 @@ import {
   Checkbox,
   LoadingState,
 } from "@atlas/ui";
-import { ChevronRight, CornerDownRight, Trash2, X, Lock, RefreshCw } from "lucide-react";
+import { ChevronRight, CornerDownRight, Trash2, X, Lock, RefreshCw, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import {
   useStatuses,
@@ -295,6 +295,12 @@ export default function ListView({
                           {task._count?.subtasks > 0 && (
                             <span className="text-xs text-muted-foreground shrink-0">
                               ({task._count.subtasks})
+                            </span>
+                          )}
+                          {task._count?.attachments > 0 && (
+                            <span className="flex items-center gap-0.5 text-xs text-muted-foreground shrink-0">
+                              <Paperclip size={11} />
+                              {task._count.attachments}
                             </span>
                           )}
                           {task.blockedBy?.length > 0 && (
