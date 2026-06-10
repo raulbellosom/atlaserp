@@ -56,15 +56,14 @@ function TaskCard({ task, statusColor, onClick, isDragging }) {
     <div
       ref={setNodeRef}
       style={style}
+      {...attributes}
+      {...listeners}
       className="group bg-background border border-border rounded p-2.5 cursor-pointer hover:border-accent-foreground/20 transition-colors"
       onClick={() => onClick(task.id)}
     >
       <div className="flex items-start gap-1.5">
         <span
-          {...attributes}
-          {...listeners}
-          className="mt-0.5 opacity-30 md:opacity-0 md:group-hover:opacity-100 cursor-grab text-muted-foreground"
-          onClick={(e) => e.stopPropagation()}
+          className="mt-0.5 opacity-30 md:opacity-0 md:group-hover:opacity-100 cursor-grab text-muted-foreground pointer-events-none"
         >
           <GripVertical size={12} />
         </span>
