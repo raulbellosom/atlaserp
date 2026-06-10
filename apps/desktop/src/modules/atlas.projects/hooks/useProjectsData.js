@@ -209,9 +209,48 @@ export function useCreateTask(projectId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data) => atlas.projects.createTask(projectId, data, token),
-    ...loadingMutation('Creando tarea...'),
-    onSuccess: (data, vars, ctx) => {
-      toast.dismiss(ctx?.toastId)
+    onMutate: async ({ title, statusId, parentTaskId }) => {
+      if (parentTaskId) return undefined
+      await qc.cancelQueries({ queryKey: ['projects', projectId, 'tasks'] })
+      const tempTask = {
+        id: `temp-${Date.now()}`,
+        title,
+        statusId,
+        priority: 'NONE',
+        position: 9999,
+        assignees: [],
+        assignee: null,
+        _count: { subtasks: 0, comments: 0, attachments: 0 },
+        dueDate: null,
+        startDate: null,
+        taskNumber: null,
+        parentTaskId: null,
+        blockedBy: [],
+        blocking: [],
+        rrule: null,
+        status: null,
+        createdAt: new Date().toISOString(),
+      }
+      const snapshots = qc.getQueriesData({ queryKey: ['projects', projectId, 'tasks'], exact: false })
+      for (const [queryKey] of snapshots) {
+        qc.setQueryData(queryKey, (old) => {
+          if (!old) return old
+          const tasks = old?.data ?? old
+          if (!Array.isArray(tasks)) return old
+          const filters = queryKey[3] ?? {}
+          if (filters.statusId && filters.statusId !== statusId) return old
+          return Array.isArray(old) ? [...tasks, tempTask] : { ...old, data: [...tasks, tempTask] }
+        })
+      }
+      return { snapshots }
+    },
+    onError: (_, __, ctx) => {
+      for (const [queryKey, data] of ctx?.snapshots ?? []) {
+        qc.setQueryData(queryKey, data)
+      }
+      toast.error('No se pudo crear la tarea')
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
     },
   })
