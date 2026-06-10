@@ -237,9 +237,27 @@ export function useMoveTask(projectId) {
   return useMutation({
     mutationFn: ({ taskId, statusId, position }) =>
       atlas.projects.moveTask(projectId, taskId, { statusId, position }, token),
-    ...loadingMutation('Moviendo tarea...'),
-    onSuccess: (data, vars, ctx) => {
-      toast.dismiss(ctx?.toastId)
+    onMutate: async ({ taskId, statusId }) => {
+      await qc.cancelQueries({ queryKey: ['projects', projectId, 'tasks'] })
+      const snapshots = qc.getQueriesData({ queryKey: ['projects', projectId, 'tasks'], exact: false })
+      for (const [queryKey] of snapshots) {
+        qc.setQueryData(queryKey, (old) => {
+          if (!old) return old
+          const tasks = old?.data ?? old
+          if (!Array.isArray(tasks)) return old
+          const updated = tasks.map((t) => (t.id === taskId ? { ...t, statusId } : t))
+          return Array.isArray(old) ? updated : { ...old, data: updated }
+        })
+      }
+      return { snapshots }
+    },
+    onError: (_, __, ctx) => {
+      for (const [queryKey, data] of ctx?.snapshots ?? []) {
+        qc.setQueryData(queryKey, data)
+      }
+      toast.error('No se pudo mover la tarea')
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
     },
   })
