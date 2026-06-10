@@ -107,7 +107,7 @@ export function createTasksService({ prisma }) {
     if (!task) throw new TaskServiceError('Tarea no encontrada.', 404)
 
     const attachments = await prisma.fileAsset.findMany({
-      where: { entityType: 'Task', entityId: taskId },
+      where: { entityType: 'Task', entityId: taskId, enabled: true },
       orderBy: { createdAt: 'asc' },
     })
 

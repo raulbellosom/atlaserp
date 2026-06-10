@@ -381,9 +381,12 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   // --- Task Attachments ---
   app.get('/projects/:id/tasks/:tid/attachments', requirePermission('projects.task.read'), async (c) => {
     try {
+      const projectId = c.req.param('id')
       const taskId = c.req.param('tid')
+      const task = await prisma.task.findFirst({ where: { id: taskId, projectId } })
+      if (!task) return c.json({ error: 'Tarea no encontrada.' }, 404)
       const attachments = await prisma.fileAsset.findMany({
-        where: { entityType: 'Task', entityId: taskId },
+        where: { entityType: 'Task', entityId: taskId, enabled: true },
         orderBy: { createdAt: 'asc' },
       })
       return c.json(attachments)

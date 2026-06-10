@@ -213,6 +213,8 @@ export function useCreateTask(projectId) {
   return useMutation({
     mutationFn: (data) => atlas.projects.createTask(projectId, data, token),
     onMutate: async ({ title, statusId, parentTaskId }) => {
+      // Subtasks skip the optimistic pre-write; their error handling
+      // is handled by the call-site onError callback in TaskDetailPanel.
       if (parentTaskId) return undefined
       await qc.cancelQueries({ queryKey: ['projects', projectId, 'tasks'] })
       const tempTask = {
