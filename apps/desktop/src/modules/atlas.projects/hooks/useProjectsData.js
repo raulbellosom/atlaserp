@@ -560,3 +560,14 @@ export function useBulkDeleteTasks(projectId) {
     },
   })
 }
+
+export function useAllTasksForPicker(projectId, enabled = false) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['projects', projectId, 'tasks', '__picker__'],
+    queryFn: () => atlas.projects.listTasks(projectId, {}, token),
+    enabled: Boolean(token) && Boolean(projectId) && enabled,
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  })
+}

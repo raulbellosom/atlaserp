@@ -36,7 +36,7 @@ import {
   useRemoveDependency,
   useTaskFieldValues,
   useUpsertFieldValues,
-  useTasks,
+  useAllTasksForPicker,
 } from "../hooks/useProjectsData";
 import { SubtaskRow } from "./SubtaskRow.jsx";
 import { AssigneeAvatar } from "../lib/AssigneeChip.jsx";
@@ -123,7 +123,8 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
   const { data: activityData } = useTaskActivity(taskId);
   const { data: depsData } = useTaskDependencies(projectId, taskId);
   const { data: fieldValuesData } = useTaskFieldValues(projectId, taskId);
-  const { data: allTasksData } = useTasks(projectId, {});
+  const [depsExpanded, setDepsExpanded] = useState(false);
+  const { data: allTasksData } = useAllTasksForPicker(projectId, depsExpanded);
   const members = useMemo(() => membersData?.data ?? membersData ?? [], [membersData]);
   const activityEvents = useMemo(() => activityData?.data ?? activityData ?? [], [activityData]);
   const deps = useMemo(() => depsData ?? { blockedBy: [], blocking: [] }, [depsData]);
@@ -464,9 +465,13 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
                 {/* Dependencias */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    <button
+                      type="button"
+                      onClick={() => setDepsExpanded(true)}
+                      className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block w-full text-left"
+                    >
                       Dependencias
-                    </label>
+                    </button>
                     <button
                       onClick={() => {
                         setDepPickerOpen((o) => !o);
