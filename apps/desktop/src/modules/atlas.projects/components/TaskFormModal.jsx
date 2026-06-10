@@ -32,6 +32,7 @@ export default function TaskFormModal({ open, onOpenChange, projectId, defaultSt
   useEffect(() => {
     if (open) {
       setTitle('')
+      setStatusId(defaultStatusId ?? statuses.find((s) => s.isDefault)?.id ?? statuses[0]?.id ?? '')
       setPriority('NONE')
       setAssigneeId('__none__')
       setDueDate(null)
