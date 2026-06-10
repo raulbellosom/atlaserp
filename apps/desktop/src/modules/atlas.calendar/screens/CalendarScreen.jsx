@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   PanelLeftClose,
   PanelLeftOpen,
@@ -19,7 +20,7 @@ import EventDetailModal from "../components/EventDetailModal";
 import EventFormModal from "../components/EventFormModal";
 import CalendarFormModal from "../components/CalendarFormModal";
 import CalendarShareModal from "../components/CalendarShareModal";
-import { useDeleteCalendar } from "../hooks/useCalendarData";
+import { useDeleteCalendar, useCalendarEvent } from "../hooks/useCalendarData";
 
 function useNarrow(breakpoint = 640) {
   const [narrow, setNarrow] = useState(
@@ -46,6 +47,42 @@ export default function CalendarScreen() {
   } = useCalendarStore();
 
   const isNarrow = useNarrow();
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Capture the deep-link event ID before clearing the URL param.
+  const [deepLinkEventId] = useState(() => {
+    const open = searchParams.get("open");
+    if (typeof open === "string" && open.startsWith("event:")) {
+      return open.slice("event:".length) || null;
+    }
+    return null;
+  });
+
+  // Clear ?open from the URL immediately so back-navigation doesn't re-trigger the modal.
+  useEffect(() => {
+    if (searchParams.has("open")) {
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const { data: deepLinkEventData, isError: deepLinkEventError } = useCalendarEvent(deepLinkEventId);
+
+  // Open EventDetailModal once the event data arrives.
+  useEffect(() => {
+    if (!deepLinkEventId || !deepLinkEventData) return;
+    const event = deepLinkEventData?.data ?? deepLinkEventData;
+    if (event?.id) {
+      setDetailEvent(event);
+    }
+  }, [deepLinkEventId, deepLinkEventData]);
+
+  // Show an error toast if the event no longer exists.
+  useEffect(() => {
+    if (!deepLinkEventId || !deepLinkEventError) return;
+    toast.error("El evento no existe o ya fue eliminado.");
+  }, [deepLinkEventId, deepLinkEventError]);
 
   // Close both sidebars when the window becomes narrow
   const prevNarrow = useRef(isNarrow);
