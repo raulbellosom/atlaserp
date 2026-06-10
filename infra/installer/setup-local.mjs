@@ -426,7 +426,7 @@ async function main() {
   console.log("[8/8] Starting Atlas local profile...");
   run(
     "docker",
-    ["compose", ...composeFiles, "--profile", "local", "up", "-d"],
+    ["compose", ...composeFiles, "--profile", "local", "up", "-d", "--force-recreate"],
     {
       env: {
         ...process.env,
