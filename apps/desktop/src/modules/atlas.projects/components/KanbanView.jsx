@@ -56,7 +56,6 @@ function TaskCard({ task, statusColor, onClick, isDragging }) {
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
       {...listeners}
       className="group bg-background border border-border rounded p-2.5 cursor-pointer hover:border-accent-foreground/20 transition-colors"
       onClick={() => onClick(task.id)}
