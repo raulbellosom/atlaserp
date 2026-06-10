@@ -13,7 +13,6 @@ import {
   Copy,
   Clock,
 } from "lucide-react";
-import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import { toast } from "sonner";
 
 const MAX_SIZE_MB = 100;
@@ -177,7 +176,7 @@ export function DistUploadPanel({
   const queryClient = useQueryClient();
 
   const hasExistingDist = Boolean(site?.distUploadedAt);
-  const previewUrl = `${getApiUrl()}/public/site`;
+  const previewUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   // Build history query — only fetches when panel is opened
   const buildsQuery = useQuery({
