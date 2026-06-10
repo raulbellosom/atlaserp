@@ -1,23 +1,29 @@
 #!/usr/bin/env node
 // infra/docker/build-push.mjs
 //
+// Builds multi-platform images (linux/amd64 + linux/arm64) via docker buildx.
+//
 // Usage (from repo root):
-//   node infra/docker/build-push.mjs              # build + push all 3 images
-//   node infra/docker/build-push.mjs --build      # build only (all)
-//   node infra/docker/build-push.mjs --push       # push only (all, images must exist)
+//   node infra/docker/build-push.mjs              # build + push all 3 images (multi-platform)
+//   node infra/docker/build-push.mjs --build      # local single-platform build only (no push)
+//   node infra/docker/build-push.mjs --push       # multi-platform build + push (same as default)
 //   node infra/docker/build-push.mjs --web        # build + push web image only
 //   node infra/docker/build-push.mjs --api        # build + push api image only
 //   node infra/docker/build-push.mjs --worker     # build + push worker image only
-//   node infra/docker/build-push.mjs --web --build   # build web only, no push
-//   node infra/docker/build-push.mjs --web --push    # push web only (image must exist)
+//   node infra/docker/build-push.mjs --web --build   # local build web only (no push)
+//   node infra/docker/build-push.mjs --web --push    # multi-platform build + push web only
 //
 // Via pnpm:
-//   pnpm docker:build          # build all
-//   pnpm docker:push           # push all
-//   pnpm docker:release        # build + push all
-//   pnpm docker:release:web    # build + push web only
-//   pnpm docker:release:api    # build + push api only
-//   pnpm docker:release:worker # build + push worker only
+//   pnpm docker:build          # local build all (single-platform, for testing)
+//   pnpm docker:push           # multi-platform build + push all
+//   pnpm docker:release        # multi-platform build + push all
+//   pnpm docker:release:web    # multi-platform build + push web only
+//   pnpm docker:release:api    # multi-platform build + push api only
+//   pnpm docker:release:worker # multi-platform build + push worker only
+//
+// NOTE: Multi-platform builds (--push / default) use docker buildx and require
+// you to be logged in to Docker Hub (`docker login`). Building for linux/arm64
+// from an amd64 host uses QEMU emulation and takes significantly longer.
 
 import { spawnSync } from "node:child_process";
 import path from "node:path";
@@ -28,12 +34,13 @@ const repoRoot = path.resolve(__dirname, "../..");
 const isWindows = process.platform === "win32";
 
 const argv = new Set(process.argv.slice(2));
-const buildOnly = argv.has("--build");
-const pushOnly  = argv.has("--push");
-const doBuild   = !pushOnly;
-const doPush    = !buildOnly;
+// --build → local single-platform build only (loads to local Docker, no push)
+// default or --push → docker buildx multi-platform build + push to registry
+const localBuildMode = argv.has("--build");
 
-const REGISTRY = "raulbellosom/atlaserp";
+const REGISTRY  = "raulbellosom/atlaserp";
+const PLATFORMS = "linux/amd64,linux/arm64";
+const BUILDER   = "atlas-multiplatform";
 
 const ALL_IMAGES = [
   {
@@ -73,20 +80,56 @@ function run(command, args) {
   if (result.status !== 0) process.exit(result.status);
 }
 
-if (doBuild) {
-  console.log(`=== Building image(s): ${images.map((i) => i.label).join(", ")} ===`);
+function tryRun(command, args) {
+  const result = spawnSync(command, args, {
+    cwd: repoRoot,
+    stdio: "pipe",
+    shell: isWindows,
+  });
+  return !result.error && result.status === 0;
+}
+
+function ensureBuildxBuilder() {
+  // Check if the named builder already exists.
+  const exists = tryRun("docker", ["buildx", "inspect", BUILDER]);
+  if (!exists) {
+    console.log(`\n[buildx] Creating multi-platform builder "${BUILDER}"...`);
+    run("docker", ["buildx", "create", "--name", BUILDER, "--driver", "docker-container", "--bootstrap"]);
+  }
+  // Switch to it.
+  run("docker", ["buildx", "use", BUILDER]);
+}
+
+if (localBuildMode) {
+  // --build only: single-platform local build for quick testing/inspection.
+  // Loads the image into the local Docker daemon (current host platform only).
+  console.log(`=== Local build (single-platform): ${images.map((i) => i.label).join(", ")} ===`);
+  console.log("NOTE: Local builds are single-platform (current host arch). Use the default");
+  console.log("      command without --build to produce multi-platform images for release.\n");
   for (const { tag, dockerfile, label } of images) {
     console.log(`\n--- Building ${label} (${tag}) ---`);
     run("docker", ["build", "-f", dockerfile, "-t", tag, "."]);
   }
-  console.log("\nBuild done.");
-}
+  console.log("\nLocal build done. Images are loaded into your local Docker daemon.");
+} else {
+  // Default / --push: multi-platform build + push via buildx.
+  console.log(`=== Multi-platform build + push (${PLATFORMS}): ${images.map((i) => i.label).join(", ")} ===`);
+  console.log("NOTE: This uses docker buildx. Building linux/arm64 from an amd64 host");
+  console.log("      uses QEMU emulation and may take 10-30 min per image.\n");
 
-if (doPush) {
-  console.log(`\n=== Pushing image(s): ${images.map((i) => i.label).join(", ")} ===`);
-  for (const { tag, label } of images) {
-    console.log(`\n--- Pushing ${label} (${tag}) ---`);
-    run("docker", ["push", tag]);
+  ensureBuildxBuilder();
+
+  for (const { tag, dockerfile, label } of images) {
+    console.log(`\n--- Building + pushing ${label} (${tag}) for ${PLATFORMS} ---`);
+    run("docker", [
+      "buildx", "build",
+      "--platform", PLATFORMS,
+      "-f", dockerfile,
+      "-t", tag,
+      "--push",
+      ".",
+    ]);
   }
-  console.log("\nPush done.");
+  console.log("\nMulti-platform build + push done.");
+  console.log(`Images are available on Docker Hub for both linux/amd64 and linux/arm64.`);
 }
