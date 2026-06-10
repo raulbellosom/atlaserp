@@ -153,9 +153,7 @@ export default function NotificationSettingsScreen() {
   });
 
   // Checks whether the server has VAPID keys configured.
-  // To generate VAPID keys: run `npx web-push generate-vapid-keys` and set
-  // VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (mailto:you@example.com)
-  // in apps/api/.env (or the VPS env). Restart the API after adding them.
+  // VAPID keys are managed from Atlas Core → Settings → Web Push (not env vars).
   // The endpoint returns 409 with code "web_push_not_configured" when keys are absent.
   const {
     data: vapidConfig,
