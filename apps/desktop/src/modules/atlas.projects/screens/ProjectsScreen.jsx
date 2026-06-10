@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Plus,
   LayoutGrid,
@@ -64,6 +65,43 @@ export default function ProjectsScreen() {
   const [membersOpen, setMembersOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [fieldsSheetOpen, setFieldsSheetOpen] = useState(false);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Capture the deep-link value on first render before clearing the URL.
+  const initialOpenRef = useRef(searchParams.get("open") ?? null);
+
+  // Clear ?open from the URL immediately so back-navigation doesn't re-trigger.
+  useEffect(() => {
+    if (searchParams.has("open")) {
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Process deep link: tasks open immediately; projects wait for the list to load.
+  useEffect(() => {
+    const open = initialOpenRef.current;
+    if (!open) return;
+
+    if (open.startsWith("task:")) {
+      const taskId = open.slice("task:".length);
+      if (taskId) {
+        initialOpenRef.current = null;
+        openTask(taskId);
+      }
+      return;
+    }
+
+    if (open.startsWith("project:") && !isLoading) {
+      const projectId = open.slice("project:".length);
+      if (projectId) {
+        initialOpenRef.current = null;
+        setSelectedId(projectId);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
 
   const { session } = useAuth();
 
