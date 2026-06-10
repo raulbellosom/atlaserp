@@ -152,6 +152,27 @@ export default function NotificationSettingsScreen() {
     enabled: Boolean(token) && canRead,
   });
 
+  // Checks whether the server has VAPID keys configured.
+  // To generate VAPID keys: run `npx web-push generate-vapid-keys` and set
+  // VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (mailto:you@example.com)
+  // in apps/api/.env (or the VPS env). Restart the API after adding them.
+  // The endpoint returns 409 with code "web_push_not_configured" when keys are absent.
+  const {
+    data: vapidConfig,
+    isError: vapidError,
+    error: vapidErr,
+    isLoading: vapidLoading,
+  } = useQuery({
+    queryKey: ["notifications-webpush-public-key", token],
+    queryFn: () => atlas.notifications.getWebPushPublicKey(token),
+    enabled: Boolean(token) && canRead,
+    retry: false,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const vapidNotConfigured = vapidError && vapidErr?.status === 409;
+  const vapidConfigured = Boolean(vapidConfig?.data?.publicKey);
+
   const upsertMutation = useMutation({
     mutationFn: (payload) => atlas.notifications.upsertPreference(token, payload),
     onSuccess: () =>
@@ -302,7 +323,13 @@ export default function NotificationSettingsScreen() {
           <p className="text-sm text-[hsl(var(--muted-foreground))]">
             Activa notificaciones para recibir alertas en segundo plano cuando uses la PWA.
           </p>
-          {!pushSupported ? (
+          {vapidLoading ? (
+            <Skeleton className="h-10 w-full rounded-lg" />
+          ) : vapidNotConfigured ? (
+            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-sm text-[hsl(var(--muted-foreground))]">
+              Push no disponible en este servidor — contacta al administrador para configurar VAPID.
+            </div>
+          ) : !pushSupported ? (
             <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-sm text-[hsl(var(--muted-foreground))]">
               Este navegador no soporta Web Push.
             </div>
