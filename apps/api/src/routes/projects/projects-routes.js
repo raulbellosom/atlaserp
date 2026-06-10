@@ -392,15 +392,27 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
 
   app.post('/projects/:id/tasks/:tid/attachments', requirePermission('projects.task.update'), async (c) => {
     try {
+      const projectId = c.req.param('id')
+      const taskId = c.req.param('tid')
       const { file_asset_id } = await c.req.json()
+      const task = await prisma.task.findFirst({ where: { id: taskId, projectId } })
+      if (!task) return c.json({ error: 'Tarea no encontrada.' }, 404)
       const asset = await prisma.fileAsset.findFirst({ where: { id: file_asset_id } })
       if (!asset) return c.json({ error: 'Archivo no encontrado.' }, 404)
-      return c.json(asset, 201)
+      const updated = await prisma.fileAsset.update({
+        where: { id: file_asset_id },
+        data: { entityId: taskId, entityType: 'Task' },
+      })
+      return c.json(updated, 201)
     } catch (err) { return handleError(c, err, 'Error al adjuntar archivo.') }
   })
 
   app.delete('/projects/:id/tasks/:tid/attachments/:fid', requirePermission('projects.task.update'), async (c) => {
     try {
+      const projectId = c.req.param('id')
+      const taskId = c.req.param('tid')
+      const task = await prisma.task.findFirst({ where: { id: taskId, projectId } })
+      if (!task) return c.json({ error: 'Tarea no encontrada.' }, 404)
       const asset = await prisma.fileAsset.findFirst({ where: { id: c.req.param('fid') } })
       if (!asset) return c.json({ error: 'Archivo no encontrado.' }, 404)
       await prisma.fileAsset.update({ where: { id: c.req.param('fid') }, data: { enabled: false } })
