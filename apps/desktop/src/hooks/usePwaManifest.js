@@ -1,5 +1,27 @@
 import { useEffect, useRef } from "react";
 
+// Render an SVG data URI onto a 180x180 canvas and return a PNG data URI.
+// iOS Safari requires a raster image for <link rel="apple-touch-icon">;
+// SVG data URIs are not accepted. Returns null on any failure.
+function svgDataUriToPng(svgDataUri) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = 180;
+        canvas.height = 180;
+        canvas.getContext("2d").drawImage(img, 0, 0, 180, 180);
+        resolve(canvas.toDataURL("image/png"));
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = svgDataUri;
+  });
+}
+
 // Static SVG path data extracted from lucide-react v1.17.0 (ISC license).
 // Maps PascalCase icon name to Lucide __iconNode array.
 // Only includes icons actually referenced as module-level icons in Atlas manifests.
@@ -234,51 +256,113 @@ function buildManifest(moduleKey, activeModule) {
   };
 }
 
-// Swaps <link rel="manifest"> to a module-specific manifest (as a blob URL)
-// when the user is on a module page, so "Add to Home Screen" installs that
-// module as its own standalone app with the correct name, color, and icon.
+// Swaps <link rel="manifest"> to a module-specific manifest (as a blob URL,
+// for Chrome/Android) AND updates Apple-specific DOM tags (for iOS Safari,
+// which ignores blob: manifest URLs and reads apple-touch-icon / apple-mobile-
+// web-app-title directly from the HTML head at "Add to Home Screen" time).
 export function usePwaManifest(moduleKey, activeModule) {
-  const originalHrefRef = useRef(null);
+  const originalManifestHrefRef = useRef(null);
   const blobUrlRef = useRef(null);
 
-  useEffect(() => {
-    const link = document.querySelector('link[rel="manifest"]');
-    if (!link) return;
+  // Apple meta restore state — saved on first module activation, never overwritten
+  // until the user leaves all modules, so we always restore to the pre-module values.
+  const appleTitleMetaRef = useRef(null);   // the <meta name="apple-mobile-web-app-title"> element
+  const appleTitlePrevRef = useRef(null);   // its content before we changed it
+  const touchIconLinkRef = useRef(null);    // the <link rel="apple-touch-icon"> element
+  const touchIconPrevRef = useRef(null);    // its href before we changed it
 
+  useEffect(() => {
+    const manifestLink = document.querySelector('link[rel="manifest"]');
+    if (!manifestLink) return;
+
+    // Revoke any previous blob URL before issuing a new one
     if (blobUrlRef.current) {
       URL.revokeObjectURL(blobUrlRef.current);
       blobUrlRef.current = null;
     }
 
     if (!moduleKey) {
-      if (originalHrefRef.current !== null) {
-        link.href = originalHrefRef.current;
-        originalHrefRef.current = null;
+      // Restore manifest href
+      if (originalManifestHrefRef.current !== null) {
+        manifestLink.href = originalManifestHrefRef.current;
+        originalManifestHrefRef.current = null;
+      }
+      // Restore Apple title meta
+      if (appleTitleMetaRef.current) {
+        appleTitleMetaRef.current.content = appleTitlePrevRef.current ?? "Atlas ERP";
+        appleTitleMetaRef.current = null;
+        appleTitlePrevRef.current = null;
+      }
+      // Restore apple-touch-icon href
+      if (touchIconLinkRef.current && touchIconPrevRef.current !== null) {
+        touchIconLinkRef.current.setAttribute("href", touchIconPrevRef.current);
+        touchIconLinkRef.current = null;
+        touchIconPrevRef.current = null;
       }
       return;
     }
 
-    if (originalHrefRef.current === null) {
-      originalHrefRef.current = link.href;
+    // Save original manifest href (once — don't overwrite on module-to-module navigation)
+    if (originalManifestHrefRef.current === null) {
+      originalManifestHrefRef.current = manifestLink.href;
     }
 
     const manifest = buildManifest(moduleKey, activeModule);
     const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
     const blobUrl = URL.createObjectURL(blob);
     blobUrlRef.current = blobUrl;
-    link.href = blobUrl;
+    manifestLink.href = blobUrl;
+
+    // --- iOS Safari: update Apple-specific head tags ---
+    // iOS reads these at "Add to Home Screen" time, not the manifest.
+    const name = activeModule?.name ?? moduleKey;
+    const color = /^#[0-9a-fA-F]{3,8}$/.test(activeModule?.color ?? "") ? activeModule.color : "#0A7BFF";
+    const lucideIconName = activeModule?.icon ?? null;
+
+    // Update <meta name="apple-mobile-web-app-title">
+    const titleMeta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (titleMeta) {
+      if (appleTitleMetaRef.current === null) {
+        appleTitleMetaRef.current = titleMeta;
+        appleTitlePrevRef.current = titleMeta.content;
+      }
+      titleMeta.content = name;
+    }
+
+    // Update <link rel="apple-touch-icon"> with a canvas-rendered PNG.
+    // The canvas conversion is async — cancel if the module changes before it finishes.
+    let cancelled = false;
+    const svgUri = generateIconDataUri(name, color, lucideIconName);
+    svgDataUriToPng(svgUri).then((pngUri) => {
+      if (cancelled || !pngUri) return;
+      const touchIcon = document.querySelector('link[rel="apple-touch-icon"]');
+      if (!touchIcon) return;
+      if (touchIconLinkRef.current === null) {
+        touchIconLinkRef.current = touchIcon;
+        touchIconPrevRef.current = touchIcon.getAttribute("href");
+      }
+      touchIcon.setAttribute("href", pngUri);
+    });
+
+    return () => { cancelled = true; };
   }, [moduleKey, activeModule]);
 
+  // Cleanup on unmount: restore everything
   useEffect(() => {
     return () => {
       if (blobUrlRef.current) {
         URL.revokeObjectURL(blobUrlRef.current);
         blobUrlRef.current = null;
       }
-      if (originalHrefRef.current !== null) {
-        const link = document.querySelector('link[rel="manifest"]');
-        if (link) link.href = originalHrefRef.current;
-        originalHrefRef.current = null;
+      const manifestLink = document.querySelector('link[rel="manifest"]');
+      if (manifestLink && originalManifestHrefRef.current !== null) {
+        manifestLink.href = originalManifestHrefRef.current;
+      }
+      if (appleTitleMetaRef.current) {
+        appleTitleMetaRef.current.content = appleTitlePrevRef.current ?? "Atlas ERP";
+      }
+      if (touchIconLinkRef.current && touchIconPrevRef.current !== null) {
+        touchIconLinkRef.current.setAttribute("href", touchIconPrevRef.current);
       }
     };
   }, []);
