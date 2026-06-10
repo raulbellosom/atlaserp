@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
-  DndContext, closestCenter, PointerSensor, KeyboardSensor,
-  useSensor, useSensors, DragOverlay,
+  DndContext, closestCenter, PointerSensor, TouchSensor, KeyboardSensor,
+  useSensor, useSensors, DragOverlay, useDroppable,
 } from '@dnd-kit/core'
 import {
   SortableContext, verticalListSortingStrategy,
@@ -63,7 +63,7 @@ function TaskCard({ task, statusColor, onClick, isDragging }) {
         <span
           {...attributes}
           {...listeners}
-          className="mt-0.5 opacity-0 group-hover:opacity-100 cursor-grab text-muted-foreground"
+          className="mt-0.5 opacity-30 md:opacity-0 md:group-hover:opacity-100 cursor-grab text-muted-foreground"
           onClick={(e) => e.stopPropagation()}
         >
           <GripVertical size={12} />
@@ -158,6 +158,15 @@ function QuickCreateInput({ statusId, projectId, onDone }) {
   )
 }
 
+function DroppableColumn({ id, children }) {
+  const { setNodeRef } = useDroppable({ id })
+  return (
+    <div ref={setNodeRef} className="flex-1 bg-muted/50 rounded-lg p-2 space-y-2 min-h-30 overflow-y-auto">
+      {children}
+    </div>
+  )
+}
+
 export default function KanbanView({ projectId, onTaskClick, showSubtasks = false }) {
   const { data: statusesData } = useStatuses(projectId)
   const { data: tasksData } = useTasks(projectId, {
@@ -171,6 +180,7 @@ export default function KanbanView({ projectId, onTaskClick, showSubtasks = fals
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
@@ -237,7 +247,7 @@ export default function KanbanView({ projectId, onTaskClick, showSubtasks = fals
                 </span>
                 <span className="text-xs text-muted-foreground">{colTasks.length}</span>
               </div>
-              <div className="flex-1 bg-muted/50 rounded-lg p-2 space-y-2 min-h-[120px] overflow-y-auto">
+              <DroppableColumn id={status.id}>
                 <SortableContext
                   items={colTasks.map((t) => t.id)}
                   strategy={verticalListSortingStrategy}
@@ -267,7 +277,7 @@ export default function KanbanView({ projectId, onTaskClick, showSubtasks = fals
                     Agregar tarea
                   </button>
                 )}
-              </div>
+              </DroppableColumn>
             </div>
           )
         })}
