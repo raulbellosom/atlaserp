@@ -161,8 +161,8 @@ export default function MentionTextarea({
     function handleClick(e) {
       if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false)
     }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+    document.addEventListener('pointerdown', handleClick)
+    return () => document.removeEventListener('pointerdown', handleClick)
   }, [open])
 
   return (
@@ -191,7 +191,7 @@ export default function MentionTextarea({
                 i === activeIdx ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'
               }`}
               onMouseEnter={() => setActiveIdx(i)}
-              onMouseDown={(e) => {
+              onPointerDown={(e) => {
                 e.preventDefault()
                 insertMention(m)
               }}
