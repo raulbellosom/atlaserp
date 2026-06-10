@@ -261,9 +261,36 @@ export function useUpdateTask(projectId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ taskId, ...data }) => atlas.projects.updateTask(projectId, taskId, data, token),
-    ...loadingMutation('Guardando...'),
-    onSuccess: (_, { taskId }, ctx) => {
-      toast.dismiss(ctx?.toastId)
+    onMutate: async ({ taskId, ...patch }) => {
+      await qc.cancelQueries({ queryKey: ['projects', projectId, 'tasks'] })
+      await qc.cancelQueries({ queryKey: ['projects', projectId, 'tasks', taskId] })
+      const listSnapshots = qc.getQueriesData({ queryKey: ['projects', projectId, 'tasks'], exact: false })
+      const detailSnapshot = qc.getQueryData(['projects', projectId, 'tasks', taskId])
+      for (const [queryKey] of listSnapshots) {
+        qc.setQueryData(queryKey, (old) => {
+          if (!old) return old
+          const tasks = old?.data ?? old
+          if (!Array.isArray(tasks)) return old
+          const updated = tasks.map((t) => (t.id === taskId ? { ...t, ...patch } : t))
+          return Array.isArray(old) ? updated : { ...old, data: updated }
+        })
+      }
+      if (detailSnapshot) {
+        qc.setQueryData(['projects', projectId, 'tasks', taskId], (old) =>
+          old ? { ...old, ...patch } : old,
+        )
+      }
+      return { listSnapshots, detailSnapshot }
+    },
+    onError: (_, { taskId }, ctx) => {
+      for (const [queryKey, data] of ctx?.listSnapshots ?? []) {
+        qc.setQueryData(queryKey, data)
+      }
+      if (ctx?.detailSnapshot !== undefined) {
+        qc.setQueryData(['projects', projectId, 'tasks', taskId], ctx.detailSnapshot)
+      }
+    },
+    onSettled: (_, __, { taskId }) => {
       qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
       qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] })
     },
