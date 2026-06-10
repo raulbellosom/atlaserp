@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { isAssetPath, resolveHtmlCandidates, injectSeoTags } from '../dist-serve-service.js'
+import { isAssetPath, resolveHtmlCandidates, injectSeoTags, rewriteDistHtml } from '../dist-serve-service.js'
 
 describe('isAssetPath', () => {
   it('returns true for .js files', () => assert.equal(isAssetPath('/assets/main.js'), true))
@@ -29,6 +29,37 @@ describe('resolveHtmlCandidates', () => {
       'dist/myco/index.html',
       'dist/myco/index.html',
     ])
+  })
+})
+
+describe('rewriteDistHtml', () => {
+  const base = 'https://cdn.example.com/dist/myco'
+
+  it('replaces localhost:PORT with siteOrigin in href attributes', () => {
+    const html = '<html><head></head><body><a href="http://localhost:4321/about">Link</a></body></html>'
+    const result = rewriteDistHtml(html, base, '', 'https://mysite.com')
+    assert.ok(result.includes('href="https://mysite.com/about"'))
+    assert.ok(!result.includes('localhost'))
+  })
+
+  it('replaces localhost:PORT in meta og:url content', () => {
+    const html = '<html><head><meta property="og:url" content="http://localhost:4321/" /></head><body></body></html>'
+    const result = rewriteDistHtml(html, base, '', 'https://mysite.com')
+    assert.ok(result.includes('https://mysite.com/'))
+    assert.ok(!result.includes('localhost'))
+  })
+
+  it('replaces localhost in inline script strings (e.g. Astro router config)', () => {
+    const html = '<html><head><script>var base="http://localhost:4321";</script></head><body></body></html>'
+    const result = rewriteDistHtml(html, base, '', 'https://mysite.com')
+    assert.ok(result.includes('"https://mysite.com"'))
+    assert.ok(!result.includes('localhost'))
+  })
+
+  it('leaves html unchanged when siteOrigin is empty', () => {
+    const html = '<html><head></head><body><a href="http://localhost:4321/">x</a></body></html>'
+    const result = rewriteDistHtml(html, base, '', '')
+    assert.ok(result.includes('localhost:4321'))
   })
 })
 

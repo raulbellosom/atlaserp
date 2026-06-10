@@ -33,9 +33,18 @@ const ASSET_ATTR_RE = /\b(href|src|content)="(\/(?!\/)[^"]*\.[a-zA-Z0-9]{1,10}[^
 const NAV_LINK_RE  = /\bhref="(\/(?!\/|#)[^"#?]*)([^"]*)"/g
 const HAS_EXT_RE   = /\.[a-zA-Z0-9]{1,10}(\?|$)/
 
-export function rewriteDistHtml(html, storageBase, basePath = '') {
+export function rewriteDistHtml(html, storageBase, basePath = '', siteOrigin = '') {
+  // Step 0: replace any localhost:PORT occurrences with the actual site origin.
+  // Frameworks like Astro and Next.js embed the dev-server URL (e.g. localhost:4321)
+  // in the build output when the `site` / base-URL option is not set for production.
+  // At runtime the client-side router calls history.replaceState with that URL, which
+  // makes the browser address bar show localhost instead of the real domain.
+  const normalised = siteOrigin
+    ? html.replace(/https?:\/\/localhost:\d+/g, siteOrigin)
+    : html
+
   // Step 1: rewrite root-relative ASSET paths (js/css/svg/png…) to full CDN URLs
-  const withAssets = html.replace(ASSET_ATTR_RE, (match, attr, path) => {
+  const withAssets = normalised.replace(ASSET_ATTR_RE, (match, attr, path) => {
     if (ATLAS_PATH_RE.test(path)) return match
     return `${attr}="${storageBase}${path}"`
   })
@@ -248,8 +257,11 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
     }
 
     const storageBase = `${process.env.SUPABASE_URL}/storage/v1/object/public/${BUCKET}/dist/${site.company_slug}`
+    const proto = c.req.header('x-forwarded-proto') || 'http'
+    const hostHeader = c.req.header('x-forwarded-host') || c.req.header('host') || ''
+    const siteOrigin = hostHeader ? `${proto}://${hostHeader}` : ''
     const injected = injectSeoTags(html, site.seo_defaults)
-    const rewritten = rewriteDistHtml(injected, storageBase)
+    const rewritten = rewriteDistHtml(injected, storageBase, '', siteOrigin)
     const final = injectErpBadge(rewritten)
     setCache(cacheKey, final)
 
