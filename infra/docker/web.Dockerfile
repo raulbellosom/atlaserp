@@ -1,5 +1,8 @@
 # check=skip=SecretsUsedInArgOrEnv
-FROM node:22-alpine AS build
+# Build stage always runs on the host platform (amd64) — Vite output is
+# platform-agnostic static files so there is no need to emulate arm64 here.
+# Only the final nginx stage produces the platform-specific image layer.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 WORKDIR /app
 RUN corepack enable
 # Copy workspace manifests and lockfile for deterministic install
