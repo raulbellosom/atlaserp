@@ -43,6 +43,8 @@ export const atlasCoreMap = createModuleManifest({
     { key: "core.modules.create", name: "Install Core Modules" },
     { key: "core.modules.update", name: "Enable or Disable Core Modules" },
     { key: "core.modules.delete", name: "Uninstall Core Modules" },
+    { key: "core.modules.upload", name: "Upload Custom Module ZIP" },
+    { key: "core.modules.purge", name: "Purge Custom Module from Server" },
     { key: "core.instance.read", name: "Read Core Instance" },
     { key: "core.instance.create", name: "Create Core Instance Config" },
     { key: "core.instance.update", name: "Update Core Instance Config" },

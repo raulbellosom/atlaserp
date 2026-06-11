@@ -121,6 +121,18 @@ export const PERMISSION_CATALOG = {
     groupKey: "core",
     order: 70,
   },
+  "core.modules.upload": {
+    displayNameEs: "Subir modulo custom (ZIP)",
+    descriptionEs: "Permite subir un modulo custom como archivo ZIP al servidor.",
+    groupKey: "core",
+    order: 75,
+  },
+  "core.modules.purge": {
+    displayNameEs: "Purgar modulo custom del servidor",
+    descriptionEs: "Permite eliminar permanentemente un modulo custom del servidor y la base de datos.",
+    groupKey: "core",
+    order: 76,
+  },
   "core.instance.read": {
     displayNameEs: "Ver configuracion de instancia",
     descriptionEs: "Permite consultar la configuracion de la instancia.",
