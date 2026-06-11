@@ -9,6 +9,7 @@ services:
       - ./.env.external
     environment:
       ATLAS_PROJECT_ROOT: /app
+      ATLAS_MODULES_DIR: /app/modules/custom
     ports:
       - "4010:4010"
     volumes:
@@ -53,6 +54,7 @@ services:
       - ./.env.local
     environment:
       ATLAS_PROJECT_ROOT: /app
+      ATLAS_MODULES_DIR: /app/modules/custom
     ports:
       - "4010:4010"
     volumes:
