@@ -120,6 +120,16 @@ export function injectErpBadge(html, erpPath = '/app/') {
   return html + script
 }
 
+export function injectAtlasConfig(html, { supabaseUrl, supabaseAnonKey, apiUrl }) {
+  if (!supabaseUrl) return html
+  const projectRef = new URL(supabaseUrl).hostname.split('.')[0]
+  const storageKey = `sb-${projectRef}-auth-token`
+  const raw  = JSON.stringify({ supabaseUrl, supabaseAnonKey, apiUrl, storageKey })
+  const safe = raw.replace(/<\//g, '<\\/')
+  const tag  = `<script>window.ATLAS_CONFIG=${safe};<\/script>`
+  return html.replace(/(<head(?:[^>]*)>)/i, `$1\n  ${tag}`)
+}
+
 export function injectSeoTags(html, seoDefaults) {
   if (!seoDefaults) return html
   const tags = []
@@ -265,9 +275,14 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
     const proto = c.req.header('x-forwarded-proto') || 'http'
     const hostHeader = c.req.header('x-forwarded-host') || c.req.header('host') || ''
     const siteOrigin = hostHeader ? `${proto}://${hostHeader}` : ''
-    const injected = injectSeoTags(html, site.seo_defaults)
-    const rewritten = rewriteDistHtml(injected, storageBase, '', siteOrigin)
-    const final = injectErpBadge(rewritten)
+    const injected   = injectSeoTags(html, site.seo_defaults)
+    const rewritten  = rewriteDistHtml(injected, storageBase, '', siteOrigin)
+    const withConfig = injectAtlasConfig(rewritten, {
+      supabaseUrl:     process.env.SUPABASE_URL    ?? '',
+      supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? '',
+      apiUrl: '/',
+    })
+    const final = injectErpBadge(withConfig)
     setCache(cacheKey, final)
 
     c.header('Cache-Control', 'public, max-age=300')

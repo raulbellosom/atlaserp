@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { isAssetPath, resolveHtmlCandidates, injectSeoTags, rewriteDistHtml } from '../dist-serve-service.js'
+import { isAssetPath, resolveHtmlCandidates, injectSeoTags, rewriteDistHtml, injectAtlasConfig } from '../dist-serve-service.js'
 
 describe('isAssetPath', () => {
   it('returns true for .js files', () => assert.equal(isAssetPath('/assets/main.js'), true))
@@ -84,6 +84,49 @@ describe('injectSeoTags', () => {
   it('returns html unchanged when seoDefaults is null', () => {
     const html = '<html><head></head><body></body></html>'
     const result = injectSeoTags(html, null)
+    assert.equal(result, html)
+  })
+})
+
+describe('injectAtlasConfig', () => {
+  const cfg = {
+    supabaseUrl: 'https://supabase.racoondevs.com',
+    supabaseAnonKey: 'eyJtest',
+    apiUrl: '/',
+  }
+
+  it('injects window.ATLAS_CONFIG script into <head>', () => {
+    const html = '<html><head></head><body></body></html>'
+    const result = injectAtlasConfig(html, cfg)
+    assert.ok(result.includes('window.ATLAS_CONFIG='))
+    assert.ok(result.includes('supabase.racoondevs.com'))
+    assert.ok(result.includes('eyJtest'))
+  })
+
+  it('computes storageKey from hostname', () => {
+    const html = '<html><head></head><body></body></html>'
+    const result = injectAtlasConfig(html, cfg)
+    assert.ok(result.includes('"storageKey":"sb-supabase-auth-token"'))
+  })
+
+  it('places script tag immediately after <head>', () => {
+    const html = '<html><head><title>X</title></head><body></body></html>'
+    const result = injectAtlasConfig(html, cfg)
+    const headIdx   = result.indexOf('<head>')
+    const scriptIdx = result.indexOf('<script>window.ATLAS_CONFIG')
+    assert.ok(scriptIdx > headIdx && scriptIdx < result.indexOf('<title>'))
+  })
+
+  it('escapes </script> sequences in values', () => {
+    const tricky = { ...cfg, supabaseAnonKey: 'a</script>b' }
+    const html = '<html><head></head><body></body></html>'
+    const result = injectAtlasConfig(html, tricky)
+    assert.ok(!result.includes('</script>b'))
+  })
+
+  it('returns html unchanged when supabaseUrl is missing', () => {
+    const html = '<html><head></head><body></body></html>'
+    const result = injectAtlasConfig(html, { supabaseUrl: '', supabaseAnonKey: 'k', apiUrl: '/' })
     assert.equal(result, html)
   })
 })
