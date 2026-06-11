@@ -3137,6 +3137,23 @@ app.get("/public", (c) => {
   });
 });
 
+// Atlas client SDK — served at /atlas-sdk.js via nginx rewrite (/ → /public/site$uri)
+app.get("/public/site/atlas-sdk.js", async (c) => {
+  const { readFile } = await import('node:fs/promises')
+  const { fileURLToPath } = await import('node:url')
+  const { dirname, join } = await import('node:path')
+  const __dir   = dirname(fileURLToPath(import.meta.url))
+  const sdkPath = join(__dir, 'public', 'atlas-sdk.js')
+  try {
+    const code = await readFile(sdkPath, 'utf8')
+    c.header('Content-Type', 'application/javascript; charset=utf-8')
+    c.header('Cache-Control', 'public, max-age=3600')
+    return c.text(code)
+  } catch {
+    return c.text('/* atlas-sdk not found */', 404)
+  }
+})
+
 // ERP beacon check — called client-side by the injected badge script.
 // Returns { show: true } only when the request carries a valid Atlas session
 // with platform.erp.access. No auth middleware: missing/invalid tokens return false.
