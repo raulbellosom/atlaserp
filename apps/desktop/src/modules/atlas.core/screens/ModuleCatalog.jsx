@@ -774,6 +774,39 @@ export default function ModuleCatalog() {
     const canUninstall =
       (module.status === "INSTALLED" || module.status === "DISABLED") &&
       !locked;
+    const canPurge =
+      canPurgeModules &&
+      (module.status === "UNINSTALLED" || module.status === "DISABLED") &&
+      !module.core;
+    const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
+    const [isPurging, setIsPurging] = useState(false);
+
+    async function handlePurge() {
+      if (!token) return;
+      setIsPurging(true);
+      const toastId = toast.loading(`Purgando ${module.name}...`);
+      try {
+        const result = await atlas.modules.purgeModule(module.key, token);
+        if (result?.error) {
+          toast.error(result.error, { id: toastId });
+          return;
+        }
+        toast.success(`Módulo ${module.name} eliminado del servidor`, {
+          id: toastId,
+        });
+        setSelectedModule(null);
+        queryClient.invalidateQueries({ queryKey: ["modules"] });
+        queryClient.invalidateQueries({ queryKey: ["runtime-modules"] });
+      } catch (err) {
+        toast.error("Error al purgar el módulo", {
+          id: toastId,
+          description: err?.message ?? "Error desconocido",
+        });
+      } finally {
+        setIsPurging(false);
+        setPurgeDialogOpen(false);
+      }
+    }
     const couldHaveOrphanedTables =
       module.status === "UNINSTALLED" &&
       !locked &&
@@ -956,6 +989,33 @@ export default function ModuleCatalog() {
             <Lock className="h-3.5 w-3.5 shrink-0" />
             Módulo core protegido — no puede modificarse.
           </div>
+        )}
+        {canPurge && (
+          <>
+            <div className="border-t border-[hsl(var(--border))] pt-3 mt-1">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))] mb-2">
+                Zona de peligro
+              </p>
+              <Button
+                className="w-full border-red-500/50 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                variant="outline"
+                disabled={isPurging || inFlight}
+                onClick={() => setPurgeDialogOpen(true)}
+              >
+                Eliminar módulo del servidor
+              </Button>
+            </div>
+            <ConfirmDialog
+              open={purgeDialogOpen}
+              onOpenChange={setPurgeDialogOpen}
+              title="Eliminar módulo del servidor"
+              description={`Esta acción elimina permanentemente todos los archivos de "${module.name}" del servidor y su registro en la base de datos. No se puede deshacer.`}
+              confirmLabel="Eliminar permanentemente"
+              cancelLabel="Cancelar"
+              loading={isPurging}
+              onConfirm={handlePurge}
+            />
+          </>
         )}
         <Button
           className="w-full"
