@@ -281,6 +281,18 @@ export function createAtlasClient({ baseUrl }) {
           method: "POST",
           headers: withAuthHeaders(token),
         }),
+      uploadModuleZip: (key, formData, token) =>
+        request(`/modules/${encodeURIComponent(key)}/upload`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          // Do NOT set Content-Type — fetch sets the multipart boundary automatically
+          body: formData,
+        }),
+      purgeModule: (key, token) =>
+        request(`/modules/${encodeURIComponent(key)}/purge`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
     },
     runtime: {
       modules: (token) =>
