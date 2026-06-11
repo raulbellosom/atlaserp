@@ -144,22 +144,24 @@ export default function WebsiteSettingsScreen() {
         body: formData,
       })
     },
-    onSuccess: (res) => {
-      toast.success(`Build subido: ${res.data.fileCount} archivos`)
+    onMutate: () => ({ toastId: toast.loading('Subiendo build...') }),
+    onSuccess: (res, _vars, ctx) => {
+      toast.success(`Build subido: ${res.data.fileCount} archivos`, { id: ctx.toastId })
       sourceQuery.refetch()
       queryClient.invalidateQueries({ queryKey: ['website-builds', siteId] })
     },
-    onError: (err) => toast.error(err.message ?? 'Error al subir el build'),
+    onError: (err, _vars, ctx) => toast.error(err.message ?? 'Error al subir el build', { id: ctx.toastId }),
   })
 
   const deleteDistMutation = useMutation({
     mutationFn: () =>
       apiFetchForm(`/website/sites/${siteId}/dist`, token, { method: 'DELETE' }),
-    onSuccess: () => {
-      toast.success('Build eliminado. El sitio volvera al constructor de paginas.')
+    onMutate: () => ({ toastId: toast.loading('Eliminando build...') }),
+    onSuccess: (_res, _vars, ctx) => {
+      toast.success('Build eliminado. El sitio volvera al constructor de paginas.', { id: ctx.toastId })
       sourceQuery.refetch()
     },
-    onError: (err) => toast.error(err.message ?? 'Error al eliminar el build'),
+    onError: (err, _vars, ctx) => toast.error(err.message ?? 'Error al eliminar el build', { id: ctx.toastId }),
   })
 
   function handleSmtpSubmit(e) {

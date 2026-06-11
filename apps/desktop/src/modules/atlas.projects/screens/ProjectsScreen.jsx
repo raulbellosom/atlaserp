@@ -163,10 +163,10 @@ export default function ProjectsScreen() {
           className={[
             "w-60 shrink-0 border-r border-border flex flex-col bg-background",
             "transition-transform duration-200 ease-in-out",
-            // Mobile: absolute drawer sliding from left
-            "absolute inset-y-0 left-0 z-20",
-            // Desktop: always visible inline (no absolute)
-            "lg:relative lg:z-auto lg:translate-x-0",
+            // Mobile: fixed drawer — avoids overflow-x-clip clipping on the main scroll container
+            "fixed top-14 left-0 bottom-0 z-20",
+            // Desktop: always visible as a normal flex child
+            "lg:static lg:z-auto lg:translate-x-0",
             sidebarOpen
               ? "translate-x-0"
               : "-translate-x-full lg:translate-x-0",

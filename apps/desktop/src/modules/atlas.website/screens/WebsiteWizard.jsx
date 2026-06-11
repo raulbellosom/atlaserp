@@ -79,6 +79,7 @@ export default function WebsiteWizard() {
   const companyLogoUrl = brandingQuery.data?.data?.logoUrl ?? null;
 
   const createMutation = useMutation({
+    onMutate: () => ({ toastId: toast.loading('Creando sitio...') }),
     mutationFn: async (finalData) => {
       // 1. Create site
       const siteRes = await apiFetch("/website/site", token, {
@@ -203,8 +204,8 @@ export default function WebsiteWizard() {
 
       return { siteId: site.id, firstPageId, mode: "web_builder" };
     },
-    onSuccess: ({ firstPageId, mode }) => {
-      toast.success("Sitio creado correctamente");
+    onSuccess: ({ firstPageId, mode }, _vars, ctx) => {
+      toast.success("Sitio creado correctamente", { id: ctx.toastId });
       queryClient.invalidateQueries({ queryKey: ["website-site"] });
       if (mode === "zip") {
         navigate("/app/m/atlas.website/settings");
@@ -214,7 +215,7 @@ export default function WebsiteWizard() {
         navigate("/app/m/atlas.website/pages");
       }
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err, _vars, ctx) => toast.error(err.message, { id: ctx.toastId }),
   });
 
   function advance(stepData) {

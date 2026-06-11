@@ -313,15 +313,18 @@ export function AtlasApp() {
           {/* Backdrop */}
           {sidebarOverlayOpen && (
             <div
-              className="fixed inset-0 z-40 bg-black/25 backdrop-blur-[1px]"
+              className="fixed inset-0 z-30 bg-black/25 backdrop-blur-[1px]"
               onClick={() => setSidebarOverlayOpen(false)}
             />
           )}
 
-          {/* Slide-in sidebar panel */}
+          {/* Slide-in sidebar panel.
+              ModuleSidebar uses fixed+transform on mobile, so passing mobileOpen={true}
+              keeps it in the visible state; the outer aside handles the slide animation.
+              On desktop (lg:static) the outer aside constrains it inside the fixed box. */}
           <aside
             className={[
-              "fixed left-0 top-14 bottom-0 z-50 w-60 shadow-2xl",
+              "fixed left-0 top-14 bottom-0 z-50 w-72 overflow-hidden shadow-2xl",
               "transition-transform duration-200 ease-out",
               sidebarOverlayOpen ? "translate-x-0" : "-translate-x-full pointer-events-none",
             ].join(" ")}
@@ -335,7 +338,7 @@ export function AtlasApp() {
               }}
               collapsed={false}
               onCollapse={() => setSidebarOverlayOpen(false)}
-              mobileOpen={false}
+              mobileOpen={true}
               onMobileClose={() => setSidebarOverlayOpen(false)}
               canInstall={canInstall}
               onInstall={install}
