@@ -29,6 +29,7 @@ pnpm add @raulbellosom/atlas-sdk
 13. [Common patterns for module-specific data](#13-common-patterns-for-module-specific-data)
 14. [Environment variables for Vite projects](#14-environment-variables-for-vite-projects)
 15. [Roles system](#15-roles-system)
+16. [Deploying to Atlas Website (source\_type=dist)](#16-deploying-to-atlas-website-source_typedist)
 
 ---
 
@@ -1790,6 +1791,10 @@ function CancelBookingButton({ bookingId, onCancelled }) {
 
 ## 14. Environment variables for Vite projects
 
+There are two initialization patterns depending on how your frontend is deployed.
+
+### Pattern A — standalone Vite project (hardcoded URL)
+
 Create a `.env` file in the root of your Vite project:
 
 ```
@@ -1798,8 +1803,6 @@ VITE_ERP_COMPANY=tu-empresa
 ```
 
 **Important:** In Vite, only variables prefixed with `VITE_` are exposed to the browser bundle. Never put secrets (service role keys, admin passwords) in `VITE_` variables.
-
-Use them in your client setup:
 
 ```js
 // src/sdk.js
@@ -1818,6 +1821,45 @@ export const sdk = createStorefrontClient({
   initialSession: JSON.parse(localStorage.getItem('sf_session') ?? 'null'),
 })
 ```
+
+### Pattern B — deployed as Atlas Website dist (runtime config)
+
+If you upload your built dist to Atlas Website (`source_type=dist`), Atlas automatically injects `window.ATLAS_CONFIG` into every HTML response at serve time. No `.env` file or hardcoded URLs needed — the config adapts to whichever Atlas instance is serving the site.
+
+```js
+// src/sdk.js
+import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
+
+const cfg = window.ATLAS_CONFIG ?? {}
+
+export const sdk = createStorefrontClient({
+  baseUrl: cfg.apiUrl ?? import.meta.env.VITE_ERP_URL ?? '',
+  company: cfg.company ?? import.meta.env.VITE_ERP_COMPANY ?? '',
+  onSessionChange: (session) => {
+    if (session) {
+      localStorage.setItem('sf_session', JSON.stringify(session))
+    } else {
+      localStorage.removeItem('sf_session')
+    }
+  },
+  initialSession: JSON.parse(localStorage.getItem('sf_session') ?? 'null'),
+})
+```
+
+Fields available in `window.ATLAS_CONFIG`:
+
+| Field | Description |
+|---|---|
+| `apiUrl` | Full URL of the Atlas ERP server — pass as `baseUrl` |
+| `company` | Company slug — pass as `company` |
+| `siteName` | Display name of the site configured in Atlas |
+| `stripePublishableKey` | Stripe publishable key, if configured on the site |
+| `currency` | Site currency (`'usd'`, `'mxn'`, etc.) |
+| `supabaseUrl` | Supabase URL (advanced — for ERP session detection) |
+| `supabaseAnonKey` | Supabase anon key (advanced) |
+| `storageKey` | localStorage key for the ERP session (advanced) |
+
+The two-fallback pattern (`cfg.apiUrl ?? import.meta.env.VITE_ERP_URL`) lets the same `src/sdk.js` work in both local development (env vars) and in production as an Atlas dist (injected config).
 
 Then import the singleton wherever needed:
 
@@ -1868,3 +1910,76 @@ function VendorOnlyButton() {
   return <button>Panel de vendedor</button>
 }
 ```
+
+---
+
+## 16. Deploying to Atlas Website (source\_type=dist)
+
+Atlas Website supports uploading a compiled frontend (React, Astro, Next.js static export, SvelteKit, plain Vite) as a ZIP and serving it through the ERP instance. This section covers how the SDK integrates with that workflow.
+
+### How it works
+
+1. You build your frontend: `vite build`, `next build`, `astro build`, etc.
+2. You ZIP the `dist/` output and upload it in Atlas Website settings.
+3. Atlas serves the HTML through its CDN and **automatically injects `window.ATLAS_CONFIG`** into every HTML response with the runtime values for that instance.
+
+No `.env` file is bundled into the ZIP. The config is injected at serve time, so the same dist ZIP works across multiple Atlas instances or environments.
+
+### Recommended `src/sdk.js` for Atlas dists
+
+```js
+import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
+
+// window.ATLAS_CONFIG is injected by Atlas at serve time.
+// Fall back to env vars for local development.
+const cfg = (typeof window !== 'undefined' && window.ATLAS_CONFIG) ? window.ATLAS_CONFIG : {}
+
+export const sdk = createStorefrontClient({
+  baseUrl: cfg.apiUrl ?? import.meta.env.VITE_ERP_URL ?? '',
+  company: cfg.company ?? import.meta.env.VITE_ERP_COMPANY ?? '',
+  onSessionChange: (session) => {
+    if (session) {
+      localStorage.setItem('sf_session', JSON.stringify(session))
+    } else {
+      localStorage.removeItem('sf_session')
+    }
+  },
+  initialSession: JSON.parse(localStorage.getItem('sf_session') ?? 'null'),
+})
+```
+
+### Stripe in Atlas dists
+
+If a Stripe publishable key is configured on the site, it is available in `window.ATLAS_CONFIG.stripePublishableKey`:
+
+```js
+// src/stripe.js
+export const stripe = window.ATLAS_CONFIG?.stripePublishableKey
+  ? Stripe(window.ATLAS_CONFIG.stripePublishableKey)
+  : null
+```
+
+### ERP admin session detection
+
+Atlas also injects a lightweight beacon script that detects whether the current visitor has an active Atlas ERP session. You can read that session via `window.AtlasERP`:
+
+```js
+// Detect an Atlas ERP admin/employee visiting the public site
+const erpSession = await window.AtlasERP?.auth.getSession()
+if (erpSession) {
+  console.log('ERP user visiting:', erpSession.user?.email)
+}
+```
+
+Note: `window.AtlasERP` is for **ERP users** (admins, employees). `sdk.auth` is for **storefront users** (customers, vendors). They use separate auth systems and sessions do not overlap.
+
+### Build tips
+
+- For Vite/React: no special config needed — root-relative asset paths are rewritten automatically by Atlas.
+- For Astro: set `output: 'static'` and `site: '/'` in `astro.config.mjs`. Atlas corrects localhost URLs at serve time.
+- For Next.js: use `output: 'export'` in `next.config.js`. Set `basePath: ''`.
+- For SvelteKit: use `@sveltejs/adapter-static`. Assets are rewritten by Atlas.
+
+### Local development
+
+Run your dev server normally with `.env` variables (`VITE_ERP_URL`, `VITE_ERP_COMPANY`). The two-fallback pattern in `src/sdk.js` ensures the SDK uses env vars when `window.ATLAS_CONFIG` is not present.
