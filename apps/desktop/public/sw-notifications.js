@@ -1,3 +1,13 @@
+// Take control of all open pages immediately on activation so the fetch handler
+// is live from the very first load — no page reload required.
+self.addEventListener("install", (event) => {
+  event.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(clients.claim());
+});
+
 // In-memory cache of module info sent from the page via postMessage.
 // Keyed by module key (e.g. "atlas.contacts"). Survives page navigation but
 // resets if the SW restarts — we fall back to a key-only manifest in that case.

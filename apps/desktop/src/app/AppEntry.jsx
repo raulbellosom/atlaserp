@@ -25,7 +25,7 @@ import { ProfileScreen } from "./ProfileScreen";
 import { GoogleCalendarCallbackScreen } from "./GoogleCalendarCallbackScreen";
 import { atlas } from "../lib/atlas";
 import { applyBrandTheme } from "../lib/brandTheme";
-import { registerNotificationServiceWorker } from "../lib/webPush";
+import { registerServiceWorker } from "../lib/webPush";
 import { AppLoader } from "../components/AppLoader";
 import { ApiErrorScreen } from "../components/ApiErrorScreen";
 import { ErrorBoundary } from "../components/ErrorBoundary";
@@ -186,7 +186,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
 
   useEffect(() => {
     if (requiresServerSetup) return undefined
-    registerNotificationServiceWorker().catch(() => {});
+    registerServiceWorker().catch(() => {});
     return undefined
   }, [requiresServerSetup]);
 

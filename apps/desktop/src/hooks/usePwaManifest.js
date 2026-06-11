@@ -182,8 +182,6 @@ function generateIconDataUri(name, color, lucideIconName) {
 
   let innerContent;
   if (iconNodes) {
-    // Lucide icons are drawn on a 24×24 canvas.
-    // Scale to 336px and center in the 512×512 PWA icon canvas (88px margin each side).
     const scale = 14;
     const offset = (512 - 24 * scale) / 2;
     innerContent =
@@ -209,27 +207,71 @@ function generateIconDataUri(name, color, lucideIconName) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
+// Build the full manifest object for a given module.
+// Using absolute start_url ensures iOS respects it regardless of current path.
+function buildModuleManifest(moduleKey, name, color, shortName, description, logoUrl, svgUri) {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
 
-// Updates <link rel="manifest"> to a module-specific URL served by the Service
-// Worker, which allows "Add to Home Screen" on both iOS and Android to install
-// the module at its own start_url. Also updates Apple-specific head tags for
-// iOS Safari, which reads those directly instead of using the manifest icons/name.
+  const icons = [];
+  if (logoUrl) {
+    const logoSrc = logoUrl.startsWith("http") ? logoUrl : `${origin}${logoUrl}`;
+    icons.push({ src: logoSrc, sizes: "128x128", type: "image/webp" });
+  }
+  if (svgUri) {
+    icons.push({ src: svgUri, sizes: "any", type: "image/svg+xml", purpose: "any maskable" });
+  }
+  if (icons.length === 0) {
+    icons.push({ src: `${origin}/icon-512.png`, sizes: "512x512", type: "image/png" });
+  }
+
+  return {
+    name: `${name} — Atlas`,
+    short_name: shortName,
+    description: description ?? "",
+    // Absolute URLs ensure iOS Safari honours start_url even on first install.
+    id: `${origin}/app/m/${moduleKey}`,
+    start_url: `${origin}/app/m/${moduleKey}`,
+    scope: `${origin}/`,
+    display: "standalone",
+    orientation: "portrait-primary",
+    background_color: "#0A1D44",
+    theme_color: color,
+    lang: "es-MX",
+    categories: ["business", "productivity"],
+    prefer_related_applications: false,
+    icons,
+  };
+}
+
+// Updates <link rel="manifest"> to an in-memory Blob URL containing the
+// module-specific manifest. Using a Blob URL bypasses the service worker
+// timing dependency and nginx static-file routing, which is critical on iOS
+// Safari where "Add to Home Screen" fetches the manifest at the OS level and
+// may not go through the service worker fetch handler.
+//
+// Also updates Apple-specific head tags for iOS Safari, which reads those
+// directly instead of (or in addition to) the manifest icons/name.
 export function usePwaManifest(moduleKey, activeModule) {
   const originalManifestHrefRef = useRef(null);
+  const blobUrlRef = useRef(null);
 
   // Apple meta restore state — saved on first module activation, never overwritten
   // until the user leaves all modules, so we always restore to the pre-module values.
-  const appleTitleMetaRef = useRef(null);   // the <meta name="apple-mobile-web-app-title"> element
-  const appleTitlePrevRef = useRef(null);   // its content before we changed it
-  const touchIconLinkRef = useRef(null);    // the <link rel="apple-touch-icon"> element
-  const touchIconPrevRef = useRef(null);    // its href before we changed it
+  const appleTitleMetaRef = useRef(null);
+  const appleTitlePrevRef = useRef(null);
+  const touchIconLinkRef = useRef(null);
+  const touchIconPrevRef = useRef(null);
 
   useEffect(() => {
     const manifestLink = document.querySelector('link[rel="manifest"]');
     if (!manifestLink) return;
 
     if (!moduleKey) {
-      // Restore manifest href
+      // Revoke blob URL and restore the original static manifest href.
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
       if (originalManifestHrefRef.current !== null) {
         manifestLink.href = originalManifestHrefRef.current;
         originalManifestHrefRef.current = null;
@@ -249,23 +291,40 @@ export function usePwaManifest(moduleKey, activeModule) {
       return;
     }
 
-    // Save original manifest href (once — don't overwrite on module-to-module navigation)
+    // Save original manifest href once — don't overwrite on module-to-module navigation.
     if (originalManifestHrefRef.current === null) {
       originalManifestHrefRef.current = manifestLink.href;
     }
 
     const name = activeModule?.name ?? moduleKey;
     const color = /^#[0-9a-fA-F]{3,8}$/.test(activeModule?.color ?? "") ? activeModule.color : "#0A7BFF";
+    const shortName = name.length <= 14 ? name : name.slice(0, 14);
     const lucideIconName = activeModule?.icon ?? null;
     const svgUri = generateIconDataUri(name, color, lucideIconName);
 
-    // Point the manifest link to a real URL that the Service Worker intercepts.
-    // This works on both iOS Safari and Android Chrome — no blob: URL needed.
-    manifestLink.href = `/site.webmanifest?m=${encodeURIComponent(moduleKey)}`;
+    // Build the module manifest and serve it as a Blob URL.
+    // This avoids the service worker fetch handler entirely, which fixes iOS Safari
+    // where the "Add to Home Screen" manifest fetch may bypass the SW.
+    const manifestObj = buildModuleManifest(
+      moduleKey,
+      name,
+      color,
+      shortName,
+      activeModule?.description ?? "",
+      activeModule?.logoUrl ?? null,
+      svgUri,
+    );
 
-    // Notify the Service Worker so it can serve the full manifest (name, icon, color).
-    // Falls back gracefully: if the SW hasn't started yet, the SW builds a minimal
-    // manifest from the module key alone (still has the correct start_url).
+    // Revoke the previous blob URL before creating a new one.
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+    }
+    const blob = new Blob([JSON.stringify(manifestObj)], { type: "application/manifest+json" });
+    blobUrlRef.current = URL.createObjectURL(blob);
+    manifestLink.href = blobUrlRef.current;
+
+    // Also notify the Service Worker so Android Chrome's install flow sees the
+    // module-specific name/icon (SW caches it for the beforeinstallprompt path).
     const swController = navigator.serviceWorker?.controller;
     if (swController) {
       swController.postMessage({
@@ -273,7 +332,7 @@ export function usePwaManifest(moduleKey, activeModule) {
         key: moduleKey,
         name,
         color,
-        shortName: name.length <= 14 ? name : name.slice(0, 14),
+        shortName,
         description: activeModule?.description ?? "",
         logoUrl: activeModule?.logoUrl ?? null,
         iconSvgDataUri: svgUri,
@@ -308,9 +367,13 @@ export function usePwaManifest(moduleKey, activeModule) {
     return () => { cancelled = true; };
   }, [moduleKey, activeModule]);
 
-  // Cleanup on unmount: restore everything
+  // Cleanup on unmount: revoke blob URL and restore everything.
   useEffect(() => {
     return () => {
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
       const manifestLink = document.querySelector('link[rel="manifest"]');
       if (manifestLink && originalManifestHrefRef.current !== null) {
         manifestLink.href = originalManifestHrefRef.current;
