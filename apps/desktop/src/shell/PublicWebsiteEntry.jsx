@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useSearchParams, Navigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider.jsx'
@@ -621,6 +621,56 @@ function EditorEmptyRoute({ routePath, onCreatePage, isCreating }) {
   )
 }
 
+// ── ERP beacon — floating shortcut for logged-in Atlas ERP users ──────────────
+
+function ErpBeacon({ erpPath = '/app/' }) {
+  const [expanded, setExpanded] = useState(false)
+  const isTouchDevice = useRef(false)
+
+  useEffect(() => {
+    isTouchDevice.current = navigator.maxTouchPoints > 0 || ('ontouchstart' in window)
+    if (isTouchDevice.current) setExpanded(true)
+  }, [])
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 24, right: 24, zIndex: 2147483647,
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    }}>
+      <a
+        href={erpPath}
+        onMouseEnter={() => { if (!isTouchDevice.current) setExpanded(true) }}
+        onMouseLeave={() => { if (!isTouchDevice.current) setExpanded(false) }}
+        style={{
+          display: 'flex', alignItems: 'center',
+          gap: expanded ? 8 : 0,
+          background: 'rgba(8,8,20,0.85)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          color: '#e2e8f0',
+          padding: expanded ? '9px 14px 9px 10px' : '10px',
+          borderRadius: 100,
+          textDecoration: 'none',
+          fontSize: 12, fontWeight: 600,
+          overflow: 'hidden',
+          maxWidth: expanded ? 160 : 40,
+          transition: 'max-width .25s, padding .25s, gap .25s',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.08)',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0 }}>
+          <rect width="20" height="20" rx="6" fill="#6366f1" />
+          <path d="M6 10h8M10 6v8" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+        <span style={{ whiteSpace: 'nowrap', transition: 'opacity .15s', opacity: expanded ? 1 : 0 }}>
+          Atlas ERP
+        </span>
+      </a>
+    </div>
+  )
+}
+
 // ── Main entry ─────────────────────────────────────────────────────────────────
 
 export function PublicWebsiteEntry() {
@@ -693,6 +743,22 @@ export function PublicWebsiteEntry() {
   const site        = editorCheckQuery.data?.data ?? null
   const isEditor    = Boolean(token) && Boolean(site)
   const siteId      = site?.id ?? null
+
+  const erpCheckQuery = useQuery({
+    queryKey: ['erp-badge-check', token],
+    queryFn: async () => {
+      const res = await fetch('/erp-badge-check', {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      })
+      if (!res.ok) return { show: false }
+      return res.json()
+    },
+    enabled: Boolean(token),
+    staleTime: 5 * 60_000,
+    retry: 0,
+  })
+  const showErpBeacon = erpCheckQuery.data?.show === true
 
   // All pages list (for the bar combobox)
   const pagesQuery = useQuery({
@@ -868,8 +934,13 @@ export function PublicWebsiteEntry() {
       isLoggedIn: Boolean(session),
       onGoToApp: () => navigate('/app'),
     }
-    if (!resolveData?.site) return <ComingSoonScreen siteName={null} {...csProps} />
-    return <ComingSoonScreen siteName={resolveData.site?.name} {...csProps} />
+    const csName = resolveData?.site?.name ?? null
+    return (
+      <>
+        <ComingSoonScreen siteName={csName} {...csProps} />
+        {showErpBeacon && <ErpBeacon />}
+      </>
+    )
   }
 
   // ── Page exists (published or draft for editors) ───────────────────────────
@@ -903,6 +974,7 @@ export function PublicWebsiteEntry() {
   return (
     <>
       {bar}
+      {showErpBeacon && <ErpBeacon />}
       <div style={{ paddingTop: topOffset }}>
         {publishedPage ? (
           <WebsitePageRenderer page={publishedPage} theme={resolveData.theme} />

@@ -174,8 +174,6 @@ function serializeIconNodes(nodes) {
     .join("");
 }
 
-const LOGO_MIME = { svg: "image/svg+xml", webp: "image/webp", png: "image/png", jpg: "image/jpeg" };
-
 // Generates a PWA icon as an inline SVG data URI — no network request, no CORS, works offline.
 // Uses the actual Lucide icon shape when available, falls back to first letter.
 function generateIconDataUri(name, color, lucideIconName) {
@@ -211,58 +209,13 @@ function generateIconDataUri(name, color, lucideIconName) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-function buildManifest(moduleKey, activeModule) {
-  const name = activeModule?.name ?? moduleKey;
-  const color = /^#[0-9a-fA-F]{3,8}$/.test(activeModule?.color ?? "") ? activeModule.color : "#0A7BFF";
-  const shortName = name.length <= 14 ? name : name.slice(0, 14);
-  const appOrigin = typeof window !== "undefined" ? window.location.origin : "";
-  const lucideIconName = activeModule?.icon ?? null;
 
-  const icons = [];
-
-  // Use the module's real logo image when available (fleet, calendar, catalog…).
-  // Absolute URL required so the browser resolves it correctly from the blob manifest.
-  const logoUrl = activeModule?.logoUrl;
-  if (typeof logoUrl === "string" && logoUrl.trim()) {
-    const ext = logoUrl.split(".").pop().toLowerCase().split("?")[0];
-    const type = LOGO_MIME[ext] ?? "image/png";
-    const absoluteSrc = logoUrl.startsWith("http") ? logoUrl : `${appOrigin}${logoUrl}`;
-    icons.push({ src: absoluteSrc, sizes: "128x128", type });
-  }
-
-  // Inline SVG data URI using the actual Lucide icon shape — no network request needed.
-  icons.push({
-    src: generateIconDataUri(name, color, lucideIconName),
-    sizes: "any",
-    type: "image/svg+xml",
-    purpose: "any maskable",
-  });
-
-  return {
-    name: `${name} — Atlas`,
-    short_name: shortName,
-    description: activeModule?.description ?? "",
-    id: `${appOrigin}/app/m/${moduleKey}`,
-    start_url: `${appOrigin}/app/m/${moduleKey}`,
-    scope: `${appOrigin}/`,
-    display: "standalone",
-    orientation: "portrait-primary",
-    background_color: "#0A1D44",
-    theme_color: color,
-    lang: "es-MX",
-    categories: ["business", "productivity"],
-    prefer_related_applications: false,
-    icons,
-  };
-}
-
-// Swaps <link rel="manifest"> to a module-specific manifest (as a blob URL,
-// for Chrome/Android) AND updates Apple-specific DOM tags (for iOS Safari,
-// which ignores blob: manifest URLs and reads apple-touch-icon / apple-mobile-
-// web-app-title directly from the HTML head at "Add to Home Screen" time).
+// Updates <link rel="manifest"> to a module-specific URL served by the Service
+// Worker, which allows "Add to Home Screen" on both iOS and Android to install
+// the module at its own start_url. Also updates Apple-specific head tags for
+// iOS Safari, which reads those directly instead of using the manifest icons/name.
 export function usePwaManifest(moduleKey, activeModule) {
   const originalManifestHrefRef = useRef(null);
-  const blobUrlRef = useRef(null);
 
   // Apple meta restore state — saved on first module activation, never overwritten
   // until the user leaves all modules, so we always restore to the pre-module values.
@@ -274,12 +227,6 @@ export function usePwaManifest(moduleKey, activeModule) {
   useEffect(() => {
     const manifestLink = document.querySelector('link[rel="manifest"]');
     if (!manifestLink) return;
-
-    // Revoke any previous blob URL before issuing a new one
-    if (blobUrlRef.current) {
-      URL.revokeObjectURL(blobUrlRef.current);
-      blobUrlRef.current = null;
-    }
 
     if (!moduleKey) {
       // Restore manifest href
@@ -307,19 +254,34 @@ export function usePwaManifest(moduleKey, activeModule) {
       originalManifestHrefRef.current = manifestLink.href;
     }
 
-    const manifest = buildManifest(moduleKey, activeModule);
-    const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
-    const blobUrl = URL.createObjectURL(blob);
-    blobUrlRef.current = blobUrl;
-    manifestLink.href = blobUrl;
-
-    // --- iOS Safari: update Apple-specific head tags ---
-    // iOS reads these at "Add to Home Screen" time, not the manifest.
     const name = activeModule?.name ?? moduleKey;
     const color = /^#[0-9a-fA-F]{3,8}$/.test(activeModule?.color ?? "") ? activeModule.color : "#0A7BFF";
     const lucideIconName = activeModule?.icon ?? null;
+    const svgUri = generateIconDataUri(name, color, lucideIconName);
 
-    // Update <meta name="apple-mobile-web-app-title">
+    // Point the manifest link to a real URL that the Service Worker intercepts.
+    // This works on both iOS Safari and Android Chrome — no blob: URL needed.
+    manifestLink.href = `/site.webmanifest?m=${encodeURIComponent(moduleKey)}`;
+
+    // Notify the Service Worker so it can serve the full manifest (name, icon, color).
+    // Falls back gracefully: if the SW hasn't started yet, the SW builds a minimal
+    // manifest from the module key alone (still has the correct start_url).
+    const swController = navigator.serviceWorker?.controller;
+    if (swController) {
+      swController.postMessage({
+        type: "SET_MODULE",
+        key: moduleKey,
+        name,
+        color,
+        shortName: name.length <= 14 ? name : name.slice(0, 14),
+        description: activeModule?.description ?? "",
+        logoUrl: activeModule?.logoUrl ?? null,
+        iconSvgDataUri: svgUri,
+      });
+    }
+
+    // --- iOS Safari: update Apple-specific head tags ---
+    // iOS reads these at "Add to Home Screen" time rather than the manifest icons/name.
     const titleMeta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
     if (titleMeta) {
       if (appleTitleMetaRef.current === null) {
@@ -332,7 +294,6 @@ export function usePwaManifest(moduleKey, activeModule) {
     // Update <link rel="apple-touch-icon"> with a canvas-rendered PNG.
     // The canvas conversion is async — cancel if the module changes before it finishes.
     let cancelled = false;
-    const svgUri = generateIconDataUri(name, color, lucideIconName);
     svgDataUriToPng(svgUri).then((pngUri) => {
       if (cancelled || !pngUri) return;
       const touchIcon = document.querySelector('link[rel="apple-touch-icon"]');
@@ -350,10 +311,6 @@ export function usePwaManifest(moduleKey, activeModule) {
   // Cleanup on unmount: restore everything
   useEffect(() => {
     return () => {
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
-        blobUrlRef.current = null;
-      }
       const manifestLink = document.querySelector('link[rel="manifest"]');
       if (manifestLink && originalManifestHrefRef.current !== null) {
         manifestLink.href = originalManifestHrefRef.current;
