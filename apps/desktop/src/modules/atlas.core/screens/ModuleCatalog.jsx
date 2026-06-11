@@ -47,6 +47,7 @@ import {
   RefreshCw,
   Database,
   Sprout,
+  Upload,
 } from "lucide-react";
 import {
   ModuleIcon,
@@ -56,6 +57,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
+import { UploadModuleSheet } from "./UploadModuleSheet";
 import {
   CATEGORY_LABELS,
   getModuleLaunchPath,
@@ -388,6 +390,8 @@ export default function ModuleCatalog() {
   const canInstallModules = hasPermission("core.modules.create");
   const canDisableModules = hasPermission("core.modules.update");
   const canUninstallModules = hasPermission("core.modules.delete");
+  const canUploadModules = hasPermission("core.modules.upload");
+  const canPurgeModules = hasPermission("core.modules.purge");
 
   const modulesQuery = useQuery({
     queryKey: ["modules", token],
@@ -402,6 +406,7 @@ export default function ModuleCatalog() {
   const isLoading = modulesQuery.isLoading;
   const isError = modulesQuery.isError;
 
+  const [uploadSheetOpen, setUploadSheetOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [filterValues, setFilterValues] = useState({});
@@ -978,24 +983,35 @@ export default function ModuleCatalog() {
           title="Catálogo de módulos"
           description="Gestiona el ciclo de vida de los módulos de tu instancia Atlas."
           actions={
-            <Button
-              variant="default"
-              className="bg-(--brand-primary) text-(--brand-primary-foreground) hover:bg-(--brand-primary-hover) shadow-sm"
-              disabled={
-                syncCatalogMutation.isPending || !canReadModules || !token
-              }
-              onClick={() => syncCatalogMutation.mutate()}
-            >
-              <RefreshCw
-                className={cn(
-                  "h-4 w-4",
-                  syncCatalogMutation.isPending && "animate-spin",
-                )}
-              />
-              {syncCatalogMutation.isPending
-                ? "Sincronizando..."
-                : "Sincronizar módulos"}
-            </Button>
+            <div className="flex items-center gap-2">
+              {canUploadModules && (
+                <Button
+                  variant="outline"
+                  onClick={() => setUploadSheetOpen(true)}
+                >
+                  <Upload className="h-4 w-4" />
+                  Subir módulo
+                </Button>
+              )}
+              <Button
+                variant="default"
+                className="bg-(--brand-primary) text-(--brand-primary-foreground) hover:bg-(--brand-primary-hover) shadow-sm"
+                disabled={
+                  syncCatalogMutation.isPending || !canReadModules || !token
+                }
+                onClick={() => syncCatalogMutation.mutate()}
+              >
+                <RefreshCw
+                  className={cn(
+                    "h-4 w-4",
+                    syncCatalogMutation.isPending && "animate-spin",
+                  )}
+                />
+                {syncCatalogMutation.isPending
+                  ? "Sincronizando..."
+                  : "Sincronizar módulos"}
+              </Button>
+            </div>
           }
         />
 
@@ -1711,6 +1727,12 @@ export default function ModuleCatalog() {
           </p>
         </div>
       </ConfirmDialog>
+
+      <UploadModuleSheet
+        open={uploadSheetOpen}
+        onOpenChange={setUploadSheetOpen}
+        onSuccess={() => syncCatalogMutation.mutate()}
+      />
     </div>
   );
 }
