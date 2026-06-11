@@ -144,6 +144,16 @@ const OPTIONAL_VAR_GROUPS = [
   },
   {
     header: [
+      "# ── Custom module ZIP upload ─────────────────────────────────────────────────",
+      "# Container-side path where custom-modules/ is mounted (matches docker-compose volume).",
+      "# Required for POST /modules/:key/upload and DELETE /modules/:key/purge.",
+    ],
+    vars: [
+      { key: "ATLAS_MODULES_DIR", placeholder: "/app/modules/custom", comment: null },
+    ],
+  },
+  {
+    header: [
       "# ── Google Calendar integration (optional) ───────────────────────────────────",
       "# Register OAuth credentials at: https://console.cloud.google.com → APIs & Services → Credentials",
       "# Leave placeholders to disable Google Calendar sync.",

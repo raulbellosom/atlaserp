@@ -319,6 +319,11 @@ VITE_SUPABASE_ANON_KEY=${envMap.get("ANON_KEY")}
 VITE_ATLAS_API_URL=http://localhost:4010
 CORS_ORIGIN=${corsOrigin}
 
+# ── Custom module ZIP upload ──────────────────────────────────────────────────
+# Container-side path where custom-modules/ is mounted (matches docker-compose volume).
+# Required for POST /modules/:key/upload and DELETE /modules/:key/purge.
+ATLAS_MODULES_DIR=/app/modules/custom
+
 # ── Google Calendar integration (optional) ───────────────────────────────────
 # Register OAuth credentials at: https://console.cloud.google.com → APIs & Services → Credentials
 # Leave placeholders to disable Google Calendar sync.
