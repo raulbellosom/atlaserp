@@ -120,11 +120,14 @@ export function injectErpBadge(html, erpPath = '/app/') {
   return html + script
 }
 
-export function injectAtlasConfig(html, { supabaseUrl, supabaseAnonKey, apiUrl }) {
+export function injectAtlasConfig(html, { supabaseUrl, supabaseAnonKey, apiUrl, company, siteName, stripePublishableKey, currency }) {
   if (!supabaseUrl) return html
   const projectRef = new URL(supabaseUrl).hostname.split('.')[0]
   const storageKey = `sb-${projectRef}-auth-token`
-  const raw  = JSON.stringify({ supabaseUrl, supabaseAnonKey, apiUrl, storageKey })
+  const payload = { supabaseUrl, supabaseAnonKey, apiUrl, storageKey, company: company || '', siteName: siteName || '' }
+  if (stripePublishableKey) payload.stripePublishableKey = stripePublishableKey
+  if (currency) payload.currency = currency
+  const raw  = JSON.stringify(payload)
   const safe = raw.replace(/<\//g, '<\\/')
   const tag  = `<script>window.ATLAS_CONFIG=${safe};<\/script>`
   return html.replace(/(<head(?:[^>]*)>)/i, `$1\n  ${tag}`)
@@ -212,6 +215,8 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
 
     const rows = await prisma.$queryRaw`
       SELECT ws.id, ws.source_type, ws.seo_defaults, ws.company_id,
+             ws.name as site_name, ws.domain,
+             ws.stripe_publishable_key, ws.stripe_currency,
              c.slug as company_slug
       FROM website_site ws
       JOIN company c ON c.id = ws.company_id
@@ -277,10 +282,17 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
     const siteOrigin = hostHeader ? `${proto}://${hostHeader}` : ''
     const injected   = injectSeoTags(html, site.seo_defaults)
     const rewritten  = rewriteDistHtml(injected, storageBase, '', siteOrigin)
+    const domainUrl = site.domain
+      ? (site.domain.startsWith('http') ? site.domain.replace(/\/$/, '') : `https://${site.domain}`)
+      : siteOrigin
     const withConfig = injectAtlasConfig(rewritten, {
-      supabaseUrl:     process.env.SUPABASE_URL    ?? '',
-      supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? '',
-      apiUrl: '/',
+      supabaseUrl:          process.env.SUPABASE_URL    ?? '',
+      supabaseAnonKey:      process.env.SUPABASE_ANON_KEY ?? '',
+      apiUrl:               domainUrl || siteOrigin,
+      company:              site.company_slug ?? '',
+      siteName:             site.site_name    ?? '',
+      stripePublishableKey: site.stripe_publishable_key ?? '',
+      currency:             site.stripe_currency        ?? '',
     })
     const final = injectErpBadge(withConfig)
     setCache(cacheKey, final)

@@ -92,7 +92,11 @@ describe('injectAtlasConfig', () => {
   const cfg = {
     supabaseUrl: 'https://supabase.racoondevs.com',
     supabaseAnonKey: 'eyJtest',
-    apiUrl: '/',
+    apiUrl: 'https://mysite.com',
+    company: 'acme',
+    siteName: 'Acme Store',
+    stripePublishableKey: 'pk_test_123',
+    currency: 'usd',
   }
 
   it('injects window.ATLAS_CONFIG script into <head>', () => {
@@ -107,6 +111,27 @@ describe('injectAtlasConfig', () => {
     const html = '<html><head></head><body></body></html>'
     const result = injectAtlasConfig(html, cfg)
     assert.ok(result.includes('"storageKey":"sb-supabase-auth-token"'))
+  })
+
+  it('injects company and siteName fields', () => {
+    const html = '<html><head></head><body></body></html>'
+    const result = injectAtlasConfig(html, cfg)
+    assert.ok(result.includes('"company":"acme"'))
+    assert.ok(result.includes('"siteName":"Acme Store"'))
+  })
+
+  it('injects stripePublishableKey and currency when provided', () => {
+    const html = '<html><head></head><body></body></html>'
+    const result = injectAtlasConfig(html, cfg)
+    assert.ok(result.includes('"stripePublishableKey":"pk_test_123"'))
+    assert.ok(result.includes('"currency":"usd"'))
+  })
+
+  it('omits stripePublishableKey when not provided', () => {
+    const { stripePublishableKey: _, ...rest } = cfg
+    const html = '<html><head></head><body></body></html>'
+    const result = injectAtlasConfig(html, rest)
+    assert.ok(!result.includes('stripePublishableKey'))
   })
 
   it('places script tag immediately after <head>', () => {
@@ -126,7 +151,7 @@ describe('injectAtlasConfig', () => {
 
   it('returns html unchanged when supabaseUrl is missing', () => {
     const html = '<html><head></head><body></body></html>'
-    const result = injectAtlasConfig(html, { supabaseUrl: '', supabaseAnonKey: 'k', apiUrl: '/' })
+    const result = injectAtlasConfig(html, { supabaseUrl: '', supabaseAnonKey: 'k', apiUrl: '/', company: '' })
     assert.equal(result, html)
   })
 })

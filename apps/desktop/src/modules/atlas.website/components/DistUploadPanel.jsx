@@ -172,7 +172,7 @@ export function DistUploadPanel({
   const [file, setFile] = useState(null);
   const [showDeleteActive, setShowDeleteActive] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
-  const [guideTab, setGuideTab] = useState("react");
+  const [guideTab, setGuideTab] = useState("sdk");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deletingBuild, setDeletingBuild] = useState(null);
   const queryClient = useQueryClient();
@@ -198,138 +198,156 @@ export function DistUploadPanel({
   });
 
   const GUIDE_TABS = [
-    { key: "react",   label: "React" },
-    { key: "astro",   label: "Astro" },
-    { key: "nextjs",  label: "Next.js" },
-    { key: "svelte",  label: "SvelteKit" },
-    { key: "vite",    label: "Vite" },
-    { key: "manual",  label: "Manual" },
+    { key: "sdk",    label: "SDK" },
+    { key: "react",  label: "React" },
+    { key: "nextjs", label: "Next.js" },
+    { key: "astro",  label: "Astro" },
+    { key: "erp",    label: "Sesion ERP" },
+    { key: "config", label: "Config" },
   ];
 
   const GUIDE_SNIPPETS = {
-    react: `// 1. Agrega en el <head> de tu index.html:
-// <script src="/atlas-sdk.js"></script>
+    sdk: `// npm install @raulbellosom/atlas-sdk
+// Atlas inyecta window.ATLAS_CONFIG automaticamente en tu HTML.
 
-// 2. Hook para detectar sesion existente
-import { useEffect, useState, useRef } from 'react'
+import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
 
-export function useAtlasSession() {
-  const [session, setSession] = useState(undefined)
-  useEffect(() => {
-    window.AtlasERP.auth.getSession().then(setSession)
-    return window.AtlasERP.auth.onAuthStateChange((_, s) => setSession(s))
-  }, [])
-  return session  // undefined=cargando, null=no logeado, objeto=logeado
+const sdk = createStorefrontClient({
+  baseUrl: window.ATLAS_CONFIG.apiUrl,
+  company: window.ATLAS_CONFIG.company,
+})
+
+// Auth de clientes storefront
+const { data, error } = await sdk.auth.login({ email, password })
+const user = await sdk.auth.me()
+await sdk.auth.logout()
+
+// Pagos con Stripe (si configuraste la clave en el sitio)
+const stripe = Stripe(window.ATLAS_CONFIG.stripePublishableKey)`,
+
+    react: `// npm install @raulbellosom/atlas-sdk
+import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
+import { useEffect, useState, useMemo } from 'react'
+
+// Crea el cliente una vez — lee config inyectada por Atlas al servir el HTML
+function useSdk() {
+  return useMemo(() => createStorefrontClient({
+    baseUrl: window.ATLAS_CONFIG?.apiUrl ?? '',
+    company: window.ATLAS_CONFIG?.company ?? '',
+  }), [])
 }
 
-// 3. Login embebido
-export function Login() {
-  const ref = useRef(null)
+export function useStorefrontUser() {
+  const sdk = useSdk()
+  const [user, setUser] = useState(undefined)
   useEffect(() => {
-    if (ref.current) {
-      window.AtlasERP.renderLogin(ref.current, {
-        onSuccess: (session) => console.log('logeado', session.user.email),
-      })
-    }
-  }, [])
-  return <div ref={ref} />
+    sdk.auth.me().then(setUser).catch(() => setUser(null))
+  }, [sdk])
+  return { sdk, user }  // undefined=cargando, null=no logeado, objeto=logeado
 }`,
 
-    astro: `<!-- 1. Agrega en <head> de tu layout base -->
-<script src="/atlas-sdk.js"></script>
-
-<!-- 2. Login embebido en cualquier pagina -->
-<div id="atlas-login"></div>
-<script>
-  window.AtlasERP.renderLogin('#atlas-login', {
-    onSuccess: () => { window.location.href = '/dashboard' }
-  })
-</script>
-
-<!-- 3. Leer sesion en scripts de cliente -->
-<script>
-  const session = await window.AtlasERP.auth.getSession()
-  if (session) console.log('usuario:', session.user.email)
-</script>`,
-
-    nextjs: `// 1. Agrega en app/layout.tsx (static export)
-import Script from 'next/script'
-// Dentro del layout:
-// <Script src="/atlas-sdk.js" strategy="beforeInteractive" />
-
-// 2. Pagina de login (client component)
+    nextjs: `// npm install @raulbellosom/atlas-sdk
+// app/lib/sdk.ts — inicializa el cliente una vez
 'use client'
-import { useEffect, useRef } from 'react'
+import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
+
+export const sdk = createStorefrontClient({
+  baseUrl: typeof window !== 'undefined' ? window.ATLAS_CONFIG?.apiUrl ?? '' : '',
+  company: typeof window !== 'undefined' ? window.ATLAS_CONFIG?.company ?? '' : '',
+})
+
+// app/login/page.tsx
+'use client'
+import { sdk } from '@/lib/sdk'
 import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
-  const ref = useRef(null)
   const router = useRouter()
-  useEffect(() => {
-    if (ref.current) {
-      window.AtlasERP.renderLogin(ref.current, {
-        onSuccess: () => router.push('/'),
-      })
-    }
-  }, [])
-  return <div ref={ref} />
+  async function handleLogin(e) {
+    e.preventDefault()
+    const fd = new FormData(e.target)
+    const { data, error } = await sdk.auth.login({
+      email: fd.get('email'),
+      password: fd.get('password'),
+    })
+    if (!error) router.push('/')
+  }
+  return <form onSubmit={handleLogin}>{/* tus campos */}</form>
 }`,
 
-    svelte: `<!-- 1. Agrega en src/app.html <head> -->
-<script src="/atlas-sdk.js"></script>
+    astro: `---
+// src/pages/login.astro
+---
+<div id="login-root"></div>
 
-<!-- 2. src/routes/login/+page.svelte -->
 <script>
-  import { onMount } from 'svelte'
-  import { goto } from '$app/navigation'
-  let container
+import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
 
-  onMount(() => {
-    window.AtlasERP.renderLogin(container, {
-      onSuccess: () => goto('/')
-    })
-  })
-</script>
-
-<div bind:this={container} />`,
-
-    vite: `// 1. Agrega en index.html <head>:
-// <script src="/atlas-sdk.js"></script>
-
-// 2. main.js — detectar sesion y mostrar login si es necesario
-window.AtlasERP.auth.getSession().then((session) => {
-  if (session) {
-    initApp(session)
-  } else {
-    window.AtlasERP.renderLogin('#login-container', {
-      onSuccess: (s) => {
-        document.getElementById('login-container').remove()
-        initApp(s)
-      },
-    })
-  }
+const sdk = createStorefrontClient({
+  baseUrl: window.ATLAS_CONFIG.apiUrl,
+  company: window.ATLAS_CONFIG.company,
 })
 
-function initApp(session) {
-  console.log('App lista para', session.user.email)
-}`,
+document.getElementById('login-root').innerHTML = \`
+  <form id="sf-login">
+    <input name="email" type="email" placeholder="Correo" />
+    <input name="password" type="password" placeholder="Contrasena" />
+    <button type="submit">Entrar</button>
+  </form>
+\`
 
-    manual: `// window.ATLAS_CONFIG se inyecta automaticamente por Atlas
-// cuando sirve tu dist. Puedes usarlo con tu propio cliente Supabase.
+document.getElementById('sf-login').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const fd = new FormData(e.target)
+  const { data, error } = await sdk.auth.login({
+    email: fd.get('email'), password: fd.get('password'),
+  })
+  if (!error) window.location.href = '/'
+})
+</script>`,
 
-// Opcion A — Usar @supabase/supabase-js directamente
+    erp: `// Detecta si el visitante tiene sesion activa como usuario de Atlas ERP
+// (ej. un admin o empleado que navega el sitio publico)
+// window.AtlasERP esta disponible automaticamente — no requiere instalacion.
+
+const erpSession = await window.AtlasERP.auth.getSession()
+if (erpSession) {
+  console.log('Visitante autenticado en ERP:', erpSession.user?.email)
+  // Puedes mostrar contenido especial para admins, etc.
+}
+
+// Escuchar cambios de sesion ERP
+const unsub = window.AtlasERP.auth.onAuthStateChange((event, session) => {
+  console.log(event, session)  // SIGNED_IN | SIGNED_OUT | TOKEN_REFRESHED
+})
+// Llamar unsub() para dejar de escuchar
+
+// O usa @supabase/supabase-js directamente con los datos inyectados
 import { createClient } from '@supabase/supabase-js'
-
 const { supabaseUrl, supabaseAnonKey } = window.ATLAS_CONFIG
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
+const { data: { session } } = await supabase.auth.getSession()`,
 
-// La sesion se comparte con Atlas ERP (misma localStorage key)
-const { data: { session } } = await supabase.auth.getSession()
+    config: `// window.ATLAS_CONFIG es inyectado por Atlas en cada respuesta HTML del dist.
+// Todos los campos disponibles:
 
-// Opcion B — Leer token raw (avanzado)
-const { storageKey } = window.ATLAS_CONFIG
-const raw   = JSON.parse(localStorage.getItem(storageKey) || '{}')
-const token = raw.access_token ?? null`,
+{
+  apiUrl:               // URL del servidor Atlas — usa como baseUrl en el SDK
+  company:              // slug de la empresa — requerido por createStorefrontClient
+  siteName:             // nombre del sitio configurado en Atlas Website
+  supabaseUrl:          // URL de Supabase (para sesion ERP o cliente @supabase/supabase-js)
+  supabaseAnonKey:      // clave anon de Supabase
+  storageKey:           // clave de localStorage donde vive la sesion ERP
+  stripePublishableKey: // clave publica de Stripe (si esta configurada en el sitio)
+  currency:             // moneda del sitio (ej. 'usd', 'mxn')
+}
+
+// Uso rapido con el SDK:
+import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
+const sdk = createStorefrontClient({
+  baseUrl: window.ATLAS_CONFIG.apiUrl,
+  company: window.ATLAS_CONFIG.company,
+})`,
   };
 
   function copyToClipboard(text) {
@@ -556,7 +574,7 @@ const token = raw.access_token ?? null`,
           onClick={() => setGuideOpen((o) => !o)}
           className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/40 transition-colors cursor-pointer"
         >
-          <span className="text-foreground">Integracion de auth</span>
+          <span className="text-foreground">Integracion con el SDK</span>
           {guideOpen
             ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
             : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
@@ -565,15 +583,14 @@ const token = raw.access_token ?? null`,
         {guideOpen && (
           <div className="border-t border-border">
             <p className="px-4 pt-3 pb-2 text-xs text-muted-foreground leading-relaxed">
-              Agrega{" "}
-              <code className="bg-muted px-1 py-0.5 rounded text-[11px] font-mono">
-                &lt;script src="/atlas-sdk.js"&gt;&lt;/script&gt;
-              </code>{" "}
-              al <code className="bg-muted px-1 py-0.5 rounded text-[11px] font-mono">&lt;head&gt;</code> de tu
-              frontend. Atlas inyecta{" "}
+              Usa{" "}
+              <code className="bg-muted px-1 py-0.5 rounded text-[11px] font-mono">@raulbellosom/atlas-sdk</code>{" "}
+              en tu frontend. Atlas inyecta{" "}
               <code className="bg-muted px-1 py-0.5 rounded text-[11px] font-mono">window.ATLAS_CONFIG</code>{" "}
-              automaticamente con las credenciales de Supabase — la sesion se comparte con Atlas ERP a traves del mismo{" "}
-              <code className="bg-muted px-1 py-0.5 rounded text-[11px] font-mono">localStorage</code>.
+              automaticamente con{" "}
+              <code className="bg-muted px-1 py-0.5 rounded text-[11px] font-mono">apiUrl</code>,{" "}
+              <code className="bg-muted px-1 py-0.5 rounded text-[11px] font-mono">company</code>{" "}
+              y otros datos del sitio — no necesitas hardcodear nada en tu build.
             </p>
 
             {/* Tab strip */}
