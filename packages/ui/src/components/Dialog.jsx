@@ -65,13 +65,14 @@ const DialogContent = forwardRef(function DialogContent(
       <DialogPrimitive.Content
         ref={ref}
         aria-describedby={undefined}
+        onOpenAutoFocus={(e) => e.preventDefault()}
         {...props}
         className={cn(
           "fixed z-50 glass-strong shadow-xl",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           // ── Mobile: full-width bottom sheet ──────────────────────────────
-          "inset-x-0 bottom-0 w-full max-h-[85dvh] overflow-y-auto",
+          "inset-x-0 bottom-0 w-full max-h-[85dvh] overflow-y-auto overscroll-contain touch-pan-y",
           "rounded-t-2xl p-5",
           "data-[state=open]:slide-in-from-bottom-full",
           "data-[state=closed]:slide-out-to-bottom-full",
@@ -80,7 +81,7 @@ const DialogContent = forwardRef(function DialogContent(
           "md:inset-x-auto md:bottom-auto",
           "md:left-1/2 md:top-1/2",
           "md:-translate-x-1/2 md:-translate-y-1/2",
-          "md:w-full md:max-w-2xl md:max-h-[90dvh] md:overflow-y-auto",
+          "md:w-full md:max-w-2xl md:max-h-[90dvh] md:overflow-y-auto md:overscroll-contain",
           "md:rounded-2xl md:p-8",
           "md:data-[state=open]:slide-in-from-top-2",
           "md:data-[state=closed]:slide-out-to-top-2",

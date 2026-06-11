@@ -112,9 +112,10 @@ const SheetContent = forwardRef(function SheetContent(
       <SheetPrimitive.Content
         ref={ref}
         aria-describedby={ariaDescribedby}
+        onOpenAutoFocus={(e) => e.preventDefault()}
         className={cn(
           sheetVariants({ side: effectiveSide }),
-          effectiveSide === "bottom" && "max-h-[85dvh] overflow-y-auto",
+          effectiveSide === "bottom" && "max-h-[85dvh] overflow-y-auto overscroll-contain touch-pan-y",
           // On non-bottom panels (right/left/top) clip overflow so children can
           // use flex-1 / min-h-0 to fill the panel height without causing scroll
           // on the panel itself.

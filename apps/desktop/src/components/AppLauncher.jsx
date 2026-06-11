@@ -102,7 +102,6 @@ export function AppLauncher() {
             <div className="flex items-center gap-3 px-4 py-3 border-b border-[hsl(var(--border))] shrink-0">
               <Search size={15} className="text-[hsl(var(--muted-foreground))] shrink-0" />
               <input
-                autoFocus
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -130,7 +129,7 @@ export function AppLauncher() {
             )}
 
             {/* Module list */}
-            <div className="overflow-y-auto flex-1 px-4 py-4 space-y-5">
+            <div className="overflow-y-auto overscroll-contain touch-pan-y flex-1 px-4 py-4 space-y-5">
               {sections.length === 0 ? (
                 <p className="text-sm text-center text-[hsl(var(--muted-foreground))] py-8">
                   Sin resultados para "{query}"
