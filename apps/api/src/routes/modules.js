@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   moduleInstallSchema,
@@ -37,6 +38,12 @@ import {
   normalizeManifestDependencies,
 } from "../services/module-dependency-utils.js";
 import { del as cacheDel } from "../lib/cache.js";
+import {
+  resolveModulesDir,
+  validateAndExtractZip,
+  purgeModuleFiles,
+  purgeModuleFromDb,
+} from "../services/module-upload-service.js";
 
 const CORE_KEYS = new Set([
   "atlas.core",
@@ -2216,6 +2223,88 @@ export function createModulesRouter({
     );
     return c.body(content);
   });
+
+  // POST /modules/:key/upload — extract a custom module ZIP to ATLAS_MODULES_DIR
+  app.post(
+    "/:key/upload",
+    authMiddleware,
+    requirePermission("core.modules.upload"),
+    async (c) => {
+      const key = c.req.param("key");
+
+      const modulesDir = resolveModulesDir();
+      if (!modulesDir || !existsSync(modulesDir)) {
+        return c.json({ error: "MODULES_DIR_NOT_CONFIGURED" }, 503);
+      }
+
+      const body = await c.req.parseBody();
+      const file = body.file;
+      if (!file || typeof file.arrayBuffer !== "function") {
+        return c.json({ error: 'Campo "file" requerido' }, 422);
+      }
+      if (!file.name?.toLowerCase().endsWith(".zip")) {
+        return c.json({ error: "El archivo debe ser un ZIP" }, 422);
+      }
+
+      const buffer = Buffer.from(await file.arrayBuffer());
+
+      try {
+        const { fileCount } = await validateAndExtractZip(key, buffer, modulesDir);
+
+        // Trigger a sync scoped to this module key so it appears in the catalog
+        const discoveryRootInfo = await getDiscoveryRootInfo();
+        const discoveredAll = await discoverModules({
+          rootDir: discoveryRootInfo.projectRoot,
+        });
+        const discovered = discoveredAll.filter((r) => r?.key === key);
+        const actorId = await resolveSyncActorId(prisma, c.get("userContext"));
+        const syncResult = await syncDiscoveredModuleDependencies({
+          prisma,
+          discovered,
+          actorId,
+          autoRepairEnabled: false,
+        });
+
+        return c.json({ data: { moduleKey: key, fileCount, syncResult } });
+      } catch (err) {
+        return c.json(
+          { error: err.message, details: err.details ?? null },
+          err.statusCode ?? 500,
+        );
+      }
+    },
+  );
+
+  // DELETE /modules/:key/purge — hard-delete filesystem files + all DB records for a module
+  app.delete(
+    "/:key/purge",
+    authMiddleware,
+    requirePermission("core.modules.purge"),
+    async (c) => {
+      const key = c.req.param("key");
+      const modulesDir = resolveModulesDir();
+
+      try {
+        await purgeModuleFromDb(key, prisma);
+
+        let fsDeleted = false;
+        if (modulesDir) {
+          fsDeleted = await purgeModuleFiles(key, modulesDir);
+          if (!fsDeleted) {
+            console.warn(
+              `[module-purge] Directory not found on filesystem for ${key}`,
+            );
+          }
+        }
+
+        await cacheDel("modules:list").catch(() => {});
+
+        return c.json({ data: { moduleKey: key, deleted: true, fsDeleted } });
+      } catch (err) {
+        return c.json({ error: err.message }, err.statusCode ?? 500);
+      }
+    },
+  );
 
   return app;
 }
