@@ -346,7 +346,16 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     try {
       const { body } = await c.req.json()
       const comment = await tasksSvc.createComment(c.req.param('tid'), getUserId(c), body)
-      const mentionedIds = parseMentionIds(body)
+      const rawMentionedIds = parseMentionIds(body)
+      // Validate mentions are project members — prevents notification spam from injected UUIDs
+      let mentionedIds = []
+      if (rawMentionedIds.length > 0) {
+        const members = await prisma.projectMember.findMany({
+          where: { projectId: c.req.param('id'), userId: { in: rawMentionedIds } },
+          select: { userId: true },
+        })
+        mentionedIds = members.map((m) => m.userId)
+      }
       if (mentionedIds.length > 0) {
         await prisma.taskMention.createMany({
           data: mentionedIds.map((userId) => ({ commentId: comment.id, userId })),

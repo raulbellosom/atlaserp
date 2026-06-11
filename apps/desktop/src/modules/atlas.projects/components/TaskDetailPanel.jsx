@@ -14,6 +14,7 @@ import {
   Input,
   MarkdownField,
 } from "@atlas/ui";
+import { Skeleton } from "@atlas/ui";
 import { Trash2, Plus, X, Activity, Lock, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -112,7 +113,7 @@ function AssigneeAdder({ currentAssigneeIds, onAdd, members }) {
   );
 }
 
-export default function TaskDetailPanel({ projectId, taskId, onClose }) {
+export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask }) {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const userId = userProfile?.id ?? session?.user?.id;
@@ -338,33 +339,42 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
           <SheetHeader className="pl-6 pr-20 py-4 border-b border-border shrink-0">
             <SheetTitle className="sr-only">Detalles de tarea</SheetTitle>
             <div className="flex items-center gap-2">
-              {task?.taskNumber != null && (
-                <span className="text-xs text-muted-foreground font-mono shrink-0 bg-muted px-1.5 py-0.5 rounded">
-                  T-{task.taskNumber}
-                </span>
+              {isLoading && !task ? (
+                <>
+                  <Skeleton className="h-5 w-10 rounded shrink-0" />
+                  <Skeleton className="h-6 flex-1 rounded" />
+                </>
+              ) : (
+                <>
+                  {task?.taskNumber != null && (
+                    <span className="text-xs text-muted-foreground font-mono shrink-0 bg-muted px-1.5 py-0.5 rounded">
+                      T-{task.taskNumber}
+                    </span>
+                  )}
+                  <textarea
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    onBlur={handleTitleBlur}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.currentTarget.blur();
+                      }
+                    }}
+                    rows={1}
+                    className="flex-1 text-base font-semibold bg-transparent border-none outline-none focus:ring-0 resize-none leading-snug"
+                    style={{ fieldSizing: "content" }}
+                    placeholder="Nombre de la tarea"
+                  />
+                  <button
+                    onClick={() => setDeleteOpen(true)}
+                    className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                    title="Eliminar tarea"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </>
               )}
-              <textarea
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={handleTitleBlur}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    e.currentTarget.blur();
-                  }
-                }}
-                rows={1}
-                className="flex-1 text-base font-semibold bg-transparent border-none outline-none focus:ring-0 resize-none leading-snug"
-                style={{ fieldSizing: "content" }}
-                placeholder="Nombre de la tarea"
-              />
-              <button
-                onClick={() => setDeleteOpen(true)}
-                className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                title="Eliminar tarea"
-              >
-                <Trash2 size={16} />
-              </button>
             </div>
           </SheetHeader>
 
@@ -687,6 +697,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose }) {
                         task={sub}
                         projectId={projectId}
                         onDelete={handleDeleteSubtask}
+                        onOpen={onOpenTask}
                       />
                     ))}
                   </div>

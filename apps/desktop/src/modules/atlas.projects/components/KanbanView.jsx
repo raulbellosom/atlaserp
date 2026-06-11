@@ -8,8 +8,11 @@ import {
   useSortable, sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, GripVertical, AlertCircle, CornerDownRight, MessageSquare, Layers, Lock, RefreshCw, Paperclip } from 'lucide-react'
-import { EmptyState } from '@atlas/ui'
+import { Plus, GripVertical, AlertCircle, CornerDownRight, MessageSquare, Layers, Lock, RefreshCw, Paperclip, ArrowRight } from 'lucide-react'
+import {
+  EmptyState,
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
+} from '@atlas/ui'
 import { toast } from 'sonner'
 import { useStatuses, useTasks, useMoveTask, useCreateTask } from '../hooks/useProjectsData'
 import { AssigneeAvatar, StackedAssignees } from '../lib/AssigneeChip.jsx'
@@ -43,8 +46,8 @@ function formatDate(d) {
   return parseDateSafe(d).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
 }
 
-function TaskCard({ task, statusColor, onClick, isDragging }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id })
+function TaskCard({ task, statusColor, onClick, isDragging, statuses, currentStatusId, onMove }) {
+  const { listeners, setNodeRef, transform, transition } = useSortable({ id: task.id })
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -52,19 +55,22 @@ function TaskCard({ task, statusColor, onClick, isDragging }) {
     borderLeftColor: statusColor ? `${statusColor}99` : undefined,
     borderLeftWidth: statusColor ? '3px' : undefined,
   }
+  const otherStatuses = statuses?.filter((s) => s.id !== currentStatusId) ?? []
   return (
     <div
       ref={setNodeRef}
       style={style}
-      {...listeners}
       className="group bg-background border border-border rounded p-2.5 cursor-pointer hover:border-accent-foreground/20 transition-colors"
       onClick={() => onClick(task.id)}
     >
       <div className="flex items-start gap-1.5">
+        {/* Grip handle: listeners only here so the card body stays scrollable on mobile */}
         <span
-          className="mt-0.5 opacity-30 md:opacity-0 md:group-hover:opacity-100 cursor-grab text-muted-foreground pointer-events-none"
+          {...listeners}
+          className="mt-0.5 opacity-30 md:opacity-0 md:group-hover:opacity-100 cursor-grab active:cursor-grabbing text-muted-foreground touch-none p-0.5 -m-0.5 shrink-0"
+          onClick={(e) => e.stopPropagation()}
         >
-          <GripVertical size={12} />
+          <GripVertical size={14} />
         </span>
         {task.parentTaskId && (
           <CornerDownRight size={10} className="text-indigo-400/70 mt-0.5 shrink-0" />
@@ -123,6 +129,33 @@ function TaskCard({ task, statusColor, onClick, isDragging }) {
               {isOverdue(task.dueDate) && <AlertCircle size={10} className="inline mr-0.5" />}
               {formatDate(task.dueDate)}
             </span>
+          )}
+          {otherStatuses.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="md:hidden flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Mover a columna"
+                >
+                  <ArrowRight size={12} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuLabel className="text-xs">Mover a</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {otherStatuses.map((s) => (
+                  <DropdownMenuItem
+                    key={s.id}
+                    onSelect={() => onMove(task.id, s.id)}
+                    className="text-sm gap-2"
+                  >
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
+                    {s.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>
@@ -234,10 +267,10 @@ export default function KanbanView({ projectId, onTaskClick, showSubtasks = fals
         {statuses.map((status) => {
           const colTasks = tasksByStatus[status.id] ?? []
           return (
-            <div key={status.id} className="flex-shrink-0 w-72 flex flex-col">
+            <div key={status.id} className="shrink-0 w-72 flex flex-col">
               <div className="flex items-center gap-2 mb-2 px-1">
                 <span
-                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
                   style={{ background: status.color }}
                 />
                 <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground truncate flex-1">
@@ -257,6 +290,14 @@ export default function KanbanView({ projectId, onTaskClick, showSubtasks = fals
                       statusColor={status.color}
                       onClick={onTaskClick}
                       isDragging={task.id === activeId}
+                      statuses={statuses}
+                      currentStatusId={status.id}
+                      onMove={(taskId, targetStatusId) =>
+                        moveTask.mutate(
+                          { taskId, statusId: targetStatusId, position: (tasksByStatus[targetStatusId]?.length ?? 0) },
+                          { onError: () => toast.error('No se pudo mover la tarea') },
+                        )
+                      }
                     />
                   ))}
                 </SortableContext>

@@ -50,8 +50,9 @@ export function NotificationBell({
     queryKey: ["notifications", token],
     queryFn: () => atlas.notifications.list(token, { unreadOnly: false, limit: 20 }),
     enabled: Boolean(token),
-    refetchInterval: 60000,
-    staleTime: 30000,
+    refetchInterval: 15000,
+    staleTime: 10000,
+    refetchOnWindowFocus: true,
   });
 
   const notifications = Array.isArray(data) ? data : (data?.data ?? []);

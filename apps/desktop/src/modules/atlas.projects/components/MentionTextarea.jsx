@@ -1,14 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 
-const TOKEN_RE = /@\[([a-f0-9-]{36}):([^\]]+)\]/g
+// Stored format:  @[uuid:DisplayName]
+// Display format: @[DisplayName]   (no UUID visible in textarea)
+const STORED_TOKEN_RE = /@\[([a-f0-9-]{36}):([^\]]+)\]/g
+const DISPLAY_TOKEN_RE = /@\[([^\]]+)\]/g
 
 export function renderMentionText(text) {
   if (!text) return null
   const parts = []
   let last = 0
   let match
-  TOKEN_RE.lastIndex = 0
-  while ((match = TOKEN_RE.exec(text)) !== null) {
+  STORED_TOKEN_RE.lastIndex = 0
+  while ((match = STORED_TOKEN_RE.exec(text)) !== null) {
     if (match.index > last) parts.push(text.slice(last, match.index))
     parts.push(
       <span
@@ -24,22 +27,41 @@ export function renderMentionText(text) {
   return parts.length === 0 ? text : parts
 }
 
-// Extracts all mentioned userIds from a text string
 export function parseMentionIds(text) {
   if (!text) return []
   const ids = []
-  TOKEN_RE.lastIndex = 0
+  STORED_TOKEN_RE.lastIndex = 0
   let match
-  while ((match = TOKEN_RE.exec(text)) !== null) {
+  while ((match = STORED_TOKEN_RE.exec(text)) !== null) {
     ids.push(match[1])
   }
   return [...new Set(ids)]
 }
 
+// Converts stored @[uuid:name] → display @[name], populating mentionMap
+function toDisplay(serialized, mentionMap) {
+  if (!serialized) return ''
+  STORED_TOKEN_RE.lastIndex = 0
+  return serialized.replace(STORED_TOKEN_RE, (_, uuid, name) => {
+    mentionMap.set(name, uuid)
+    return `@[${name}]`
+  })
+}
+
+// Converts display @[name] → stored @[uuid:name] using mentionMap
+function toSerialized(display, mentionMap) {
+  if (!display) return ''
+  DISPLAY_TOKEN_RE.lastIndex = 0
+  return display.replace(DISPLAY_TOKEN_RE, (match, name) => {
+    const uuid = mentionMap.get(name)
+    return uuid ? `@[${uuid}:${name}]` : match
+  })
+}
+
 /**
  * Textarea with @mention support.
  * Props:
- *   value, onChange(newValue) — controlled
+ *   value, onChange(newValue) — controlled (serialized @[uuid:name] format)
  *   members — array of { id, displayName } for the mention picker
  *   placeholder, rows, className
  *   disabled
@@ -55,6 +77,20 @@ export default function MentionTextarea({
   className = '',
   disabled = false,
 }) {
+  const mentionMap = useRef(new Map())
+  // Internal state uses display format (@[name]); external value is stored format (@[uuid:name])
+  const [displayValue, setDisplayValue] = useState(() => toDisplay(value, mentionMap.current))
+  const lastSerializedRef = useRef(value)
+
+  // Sync from outside only when value truly changed from an external source
+  useEffect(() => {
+    if (value !== lastSerializedRef.current) {
+      lastSerializedRef.current = value
+      const newDisplay = toDisplay(value, mentionMap.current)
+      setDisplayValue(newDisplay)
+    }
+  }, [value])
+
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [triggerPos, setTriggerPos] = useState(0)
@@ -83,17 +119,22 @@ export default function MentionTextarea({
     document.body.appendChild(div)
     const rect = span.getBoundingClientRect()
     document.body.removeChild(div)
-    return rect // viewport-relative DOMRect
+    return rect
   }
 
   const handleChange = useCallback(
     (e) => {
-      const newValue = e.target.value
-      onChange(newValue)
+      const newDisplay = e.target.value
+      setDisplayValue(newDisplay)
+      const serialized = toSerialized(newDisplay, mentionMap.current)
+      lastSerializedRef.current = serialized
+      onChange(serialized)
+
       const caret = e.target.selectionStart
-      const before = newValue.slice(0, caret)
-      const atMatch = before.match(/@([^\s@]*)$/)
-      if (atMatch) {
+      const before = newDisplay.slice(0, caret)
+      const atMatch = before.match(/@([^\s@\[]*)$/)
+      if (atMatch && !before.match(/@\[[^\]]*$/)) {
+        // Only open picker for bare @ (not inside an already-inserted @[name] token)
         const atIdx = before.lastIndexOf('@')
         setTriggerPos(atIdx)
         setQuery(atMatch[1])
@@ -119,11 +160,15 @@ export default function MentionTextarea({
       const ta = textareaRef.current
       if (!ta) return
       const caret = ta.selectionStart
-      const before = value.slice(0, triggerPos)
-      const after = value.slice(caret)
-      const token = `@[${member.id}:${member.displayName}]`
-      const newValue = `${before}${token} ${after}`
-      onChange(newValue)
+      const before = displayValue.slice(0, triggerPos)
+      const after = displayValue.slice(caret)
+      mentionMap.current.set(member.displayName, member.id)
+      const token = `@[${member.displayName}]`
+      const newDisplay = `${before}${token} ${after}`
+      setDisplayValue(newDisplay)
+      const serialized = toSerialized(newDisplay, mentionMap.current)
+      lastSerializedRef.current = serialized
+      onChange(serialized)
       setOpen(false)
       setQuery('')
       requestAnimationFrame(() => {
@@ -132,7 +177,7 @@ export default function MentionTextarea({
         ta.focus()
       })
     },
-    [value, triggerPos, onChange]
+    [displayValue, triggerPos, onChange]
   )
 
   function handleKeyDown(e) {
@@ -169,7 +214,7 @@ export default function MentionTextarea({
     <div ref={containerRef} className="relative">
       <textarea
         ref={textareaRef}
-        value={value}
+        value={displayValue}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         onBlur={onBlur}

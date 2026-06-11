@@ -76,6 +76,7 @@ const SheetContent = forwardRef(function SheetContent(
 
   const closeRef = useRef(null);
   const [dragY, setDragY] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const dragStartY = useRef(null);
   const isDragging = useRef(false);
 
@@ -83,6 +84,7 @@ const SheetContent = forwardRef(function SheetContent(
     e.currentTarget.setPointerCapture(e.pointerId);
     dragStartY.current = e.clientY;
     isDragging.current = true;
+    setDragging(true);
   }
 
   function handleDragPointerMove(e) {
@@ -94,6 +96,7 @@ const SheetContent = forwardRef(function SheetContent(
   function handleDragPointerUp() {
     if (!isDragging.current) return;
     isDragging.current = false;
+    setDragging(false);
     if (dragY > 80) {
       setDragY(0);
       closeRef.current?.click();
@@ -119,8 +122,11 @@ const SheetContent = forwardRef(function SheetContent(
           className,
         )}
         style={
-          effectiveSide === "bottom" && dragY > 0
-            ? { transform: `translateY(${dragY}px)`, transition: "none" }
+          effectiveSide === "bottom"
+            ? {
+                transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
+                transition: dragging ? "none" : "transform 280ms cubic-bezier(0.32, 0.72, 0, 1)",
+              }
             : undefined
         }
         {...props}

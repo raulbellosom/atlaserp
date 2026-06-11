@@ -309,7 +309,8 @@ export function useMoveTask(projectId) {
     mutationFn: ({ taskId, statusId, position }) =>
       atlas.projects.moveTask(projectId, taskId, { statusId, position }, token),
     onMutate: async ({ taskId, statusId }) => {
-      await qc.cancelQueries({ queryKey: ['projects', projectId, 'tasks'] })
+      // Capture snapshot and apply optimistic update SYNCHRONOUSLY before any await,
+      // so the UI reflects the new column immediately when drag ends (no snap-back flash).
       const snapshots = qc.getQueriesData({ queryKey: ['projects', projectId, 'tasks'], exact: false })
       for (const [queryKey] of snapshots) {
         qc.setQueryData(queryKey, (old) => {
@@ -320,6 +321,7 @@ export function useMoveTask(projectId) {
           return Array.isArray(old) ? updated : { ...old, data: updated }
         })
       }
+      await qc.cancelQueries({ queryKey: ['projects', projectId, 'tasks'] })
       return { snapshots }
     },
     onError: (_, __, ctx) => {
@@ -400,6 +402,8 @@ export function useCreateComment(projectId, taskId) {
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
       qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] })
+      // Refresh notifications so the bell reflects any new mentions quickly
+      qc.invalidateQueries({ queryKey: ['notifications'] })
     },
   })
 }

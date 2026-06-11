@@ -350,7 +350,7 @@ export default function ProjectsScreen() {
                       className={[
                         "flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors",
                         activeView === key
-                          ? "bg-accent text-accent-foreground"
+                          ? "bg-background text-foreground shadow-sm ring-1 ring-border/60 font-medium"
                           : "text-muted-foreground hover:text-foreground",
                       ].join(" ")}
                     >
@@ -395,6 +395,7 @@ export default function ProjectsScreen() {
             projectId={effectiveId}
             taskId={taskPanelId}
             onClose={closeTask}
+            onOpenTask={openTask}
           />
         )}
 
