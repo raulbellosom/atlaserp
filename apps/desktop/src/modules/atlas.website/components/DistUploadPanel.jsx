@@ -171,6 +171,8 @@ export function DistUploadPanel({
 }) {
   const [file, setFile] = useState(null);
   const [showDeleteActive, setShowDeleteActive] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideTab, setGuideTab] = useState("react");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deletingBuild, setDeletingBuild] = useState(null);
   const queryClient = useQueryClient();
@@ -194,6 +196,145 @@ export function DistUploadPanel({
     enabled: Boolean(token) && Boolean(siteId) && historyOpen,
     staleTime: 30_000,
   });
+
+  const GUIDE_TABS = [
+    { key: "react",   label: "React" },
+    { key: "astro",   label: "Astro" },
+    { key: "nextjs",  label: "Next.js" },
+    { key: "svelte",  label: "SvelteKit" },
+    { key: "vite",    label: "Vite" },
+    { key: "manual",  label: "Manual" },
+  ];
+
+  const GUIDE_SNIPPETS = {
+    react: `// 1. Agrega en el <head> de tu index.html:
+// <script src="/atlas-sdk.js"></script>
+
+// 2. Hook para detectar sesion existente
+import { useEffect, useState, useRef } from 'react'
+
+export function useAtlasSession() {
+  const [session, setSession] = useState(undefined)
+  useEffect(() => {
+    window.AtlasERP.auth.getSession().then(setSession)
+    return window.AtlasERP.auth.onAuthStateChange((_, s) => setSession(s))
+  }, [])
+  return session  // undefined=cargando, null=no logeado, objeto=logeado
+}
+
+// 3. Login embebido
+export function Login() {
+  const ref = useRef(null)
+  useEffect(() => {
+    if (ref.current) {
+      window.AtlasERP.renderLogin(ref.current, {
+        onSuccess: (session) => console.log('logeado', session.user.email),
+      })
+    }
+  }, [])
+  return <div ref={ref} />
+}`,
+
+    astro: `<!-- 1. Agrega en <head> de tu layout base -->
+<script src="/atlas-sdk.js"></script>
+
+<!-- 2. Login embebido en cualquier pagina -->
+<div id="atlas-login"></div>
+<script>
+  window.AtlasERP.renderLogin('#atlas-login', {
+    onSuccess: () => { window.location.href = '/dashboard' }
+  })
+</script>
+
+<!-- 3. Leer sesion en scripts de cliente -->
+<script>
+  const session = await window.AtlasERP.auth.getSession()
+  if (session) console.log('usuario:', session.user.email)
+</script>`,
+
+    nextjs: `// 1. Agrega en app/layout.tsx (static export)
+import Script from 'next/script'
+// Dentro del layout:
+// <Script src="/atlas-sdk.js" strategy="beforeInteractive" />
+
+// 2. Pagina de login (client component)
+'use client'
+import { useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+
+export default function LoginPage() {
+  const ref = useRef(null)
+  const router = useRouter()
+  useEffect(() => {
+    if (ref.current) {
+      window.AtlasERP.renderLogin(ref.current, {
+        onSuccess: () => router.push('/'),
+      })
+    }
+  }, [])
+  return <div ref={ref} />
+}`,
+
+    svelte: `<!-- 1. Agrega en src/app.html <head> -->
+<script src="/atlas-sdk.js"></script>
+
+<!-- 2. src/routes/login/+page.svelte -->
+<script>
+  import { onMount } from 'svelte'
+  import { goto } from '$app/navigation'
+  let container
+
+  onMount(() => {
+    window.AtlasERP.renderLogin(container, {
+      onSuccess: () => goto('/')
+    })
+  })
+</script>
+
+<div bind:this={container} />`,
+
+    vite: `// 1. Agrega en index.html <head>:
+// <script src="/atlas-sdk.js"></script>
+
+// 2. main.js — detectar sesion y mostrar login si es necesario
+window.AtlasERP.auth.getSession().then((session) => {
+  if (session) {
+    initApp(session)
+  } else {
+    window.AtlasERP.renderLogin('#login-container', {
+      onSuccess: (s) => {
+        document.getElementById('login-container').remove()
+        initApp(s)
+      },
+    })
+  }
+})
+
+function initApp(session) {
+  console.log('App lista para', session.user.email)
+}`,
+
+    manual: `// window.ATLAS_CONFIG se inyecta automaticamente por Atlas
+// cuando sirve tu dist. Puedes usarlo con tu propio cliente Supabase.
+
+// Opcion A — Usar @supabase/supabase-js directamente
+import { createClient } from '@supabase/supabase-js'
+
+const { supabaseUrl, supabaseAnonKey } = window.ATLAS_CONFIG
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// La sesion se comparte con Atlas ERP (misma localStorage key)
+const { data: { session } } = await supabase.auth.getSession()
+
+// Opcion B — Leer token raw (avanzado)
+const { storageKey } = window.ATLAS_CONFIG
+const raw   = JSON.parse(localStorage.getItem(storageKey) || '{}')
+const token = raw.access_token ?? null`,
+  };
+
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => toast.success("Copiado"));
+  }
 
   function handleUpload() {
     if (!file || isUploading) return;
@@ -406,6 +547,70 @@ export function DistUploadPanel({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Integration guide */}
+      <div className="rounded-2xl border border-border overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setGuideOpen((o) => !o)}
+          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/40 transition-colors cursor-pointer"
+        >
+          <span className="text-foreground">Integracion de auth</span>
+          {guideOpen
+            ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+        </button>
+
+        {guideOpen && (
+          <div className="border-t border-border">
+            <p className="px-4 pt-3 pb-2 text-xs text-muted-foreground leading-relaxed">
+              Agrega{" "}
+              <code className="bg-muted px-1 py-0.5 rounded text-[11px] font-mono">
+                &lt;script src="/atlas-sdk.js"&gt;&lt;/script&gt;
+              </code>{" "}
+              al <code className="bg-muted px-1 py-0.5 rounded text-[11px] font-mono">&lt;head&gt;</code> de tu
+              frontend. Atlas inyecta{" "}
+              <code className="bg-muted px-1 py-0.5 rounded text-[11px] font-mono">window.ATLAS_CONFIG</code>{" "}
+              automaticamente con las credenciales de Supabase — la sesion se comparte con Atlas ERP a traves del mismo{" "}
+              <code className="bg-muted px-1 py-0.5 rounded text-[11px] font-mono">localStorage</code>.
+            </p>
+
+            {/* Tab strip */}
+            <div className="flex gap-1 px-4 pb-2 overflow-x-auto">
+              {GUIDE_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setGuideTab(tab.key)}
+                  className={[
+                    "shrink-0 px-3 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer",
+                    guideTab === tab.key
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted",
+                  ].join(" ")}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Code block */}
+            <div className="mx-4 mb-4 relative">
+              <pre className="text-[11px] font-mono bg-muted/60 border border-border rounded-xl p-4 overflow-x-auto leading-relaxed whitespace-pre-wrap wrap-break-word text-foreground">
+                {GUIDE_SNIPPETS[guideTab]}
+              </pre>
+              <button
+                type="button"
+                onClick={() => copyToClipboard(GUIDE_SNIPPETS[guideTab])}
+                className="absolute top-2 right-2 h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                title="Copiar"
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Confirm: delete active build */}
