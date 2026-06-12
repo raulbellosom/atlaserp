@@ -21,6 +21,7 @@ import {
   Globe,
   Briefcase,
   Link,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -279,13 +280,31 @@ export default function CompanyProfile() {
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <TextField
-                        label="Slug de empresa"
-                        value={data?.data?.slug ?? ""}
-                        disabled
-                        icon={Link}
-                        hint="Identificador unico usado en el SDK de tienda. Solo lectura."
-                      />
+                      <div className="flex items-end gap-2">
+                        <div className="flex-1">
+                          <TextField
+                            label="Slug de empresa"
+                            value={data?.data?.slug ?? ""}
+                            disabled
+                            icon={Link}
+                            hint="Identificador unico para el SDK de tienda. Solo lectura."
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          disabled={!data?.data?.slug}
+                          onClick={() => {
+                            navigator.clipboard.writeText(data?.data?.slug ?? "");
+                            toast.success("Slug copiado al portapapeles.");
+                          }}
+                          className="shrink-0 mb-4.5"
+                          title="Copiar slug"
+                        >
+                          <Copy size={14} />
+                        </Button>
+                      </div>
                     </div>
                     <TextField
                       label="Razon social"
