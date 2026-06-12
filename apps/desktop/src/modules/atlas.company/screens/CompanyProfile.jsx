@@ -20,6 +20,7 @@ import {
   Phone,
   Globe,
   Briefcase,
+  Link,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -275,6 +276,15 @@ export default function CompanyProfile() {
                         required
                         placeholder="Ej. Atlas ERP"
                         icon={Building2}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <TextField
+                        label="Slug de empresa"
+                        value={data?.data?.slug ?? ""}
+                        disabled
+                        icon={Link}
+                        hint="Identificador unico usado en el SDK de tienda. Solo lectura."
                       />
                     </div>
                     <TextField

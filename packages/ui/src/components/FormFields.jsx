@@ -878,14 +878,16 @@ export const SelectField = forwardRef(function SelectField(
             <span
               className={cn(
                 "flex-1 truncate text-sm",
-                !value && "text-muted-foreground",
+                selectedLabel == null && "text-muted-foreground",
               )}
             >
-              <SelectPrimitive.Value
-                placeholder={placeholder || "Seleccionar..."}
-              >
-                {selectedLabel ?? undefined}
-              </SelectPrimitive.Value>
+              {selectedLabel != null ? (
+                selectedLabel
+              ) : (
+                <SelectPrimitive.Value
+                  placeholder={placeholder || "Seleccionar..."}
+                />
+              )}
             </span>
             <SelectPrimitive.Icon asChild>
               <ChevronDown

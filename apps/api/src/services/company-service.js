@@ -126,6 +126,7 @@ export function createCompanyService({ prisma, supabaseAdmin }) {
       });
       return {
         companyId,
+        slug: company?.slug ?? "",
         name: company?.name ?? "",
         legalName: company?.legalName ?? "",
         rfc: company?.rfc ?? "",

@@ -255,7 +255,7 @@ export default function CompanyOverview() {
                   <h1 className="text-2xl md:text-3xl font-bold text-[hsl(var(--foreground))] leading-tight truncate">
                     {companyName}
                   </h1>
-                  {profile?.legalName && (
+                  {profile?.legalName && profile.legalName !== profile.name && (
                     <p className="text-sm text-[hsl(var(--muted-foreground))] leading-snug">
                       {profile.legalName}
                     </p>
