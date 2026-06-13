@@ -175,6 +175,7 @@ export { ErrorState } from "./components/ErrorState.jsx";
 export { StatCard } from "./components/StatCard.jsx";
 export { SearchInput } from "./components/SearchInput.jsx";
 export { FilterBar } from "./components/FilterBar.jsx";
+export { IconPickerField } from "./components/IconPickerField.jsx";
 export { DynamicTable } from "./components/DynamicTable.jsx";
 export { DynamicForm } from "./components/DynamicForm.jsx";
 export { ActionMenu } from "./components/ActionMenu.jsx";
