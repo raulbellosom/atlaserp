@@ -4510,7 +4510,7 @@ app.post("/internal/notifications/process-deliveries", async (c) => {
 // Items
 app.get('/inventory/items', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { search, categoryId, brandId, locationId, status, assignedToId, page, limit } = c.req.query();
     const result = await inventoryService.listItems({ companyId, search, categoryId, brandId, locationId, status, assignedToId, page: Number(page) || 1, limit: Number(limit) || 50 });
     return c.json(result);
@@ -4522,7 +4522,8 @@ app.get('/inventory/items', authMiddleware, requirePermission('inventory.item.re
 
 app.post('/inventory/items', authMiddleware, requirePermission('inventory.item.create'), async (c) => {
   try {
-    const { companyId, authUserId } = c.get('auth');
+    const companyId  = c.get('companyId');
+    const authUserId = c.get('authUserId');
     const data = await c.req.json();
     const item = await inventoryService.createItem(data, companyId, authUserId);
     return c.json({ data: item }, 201);
@@ -4534,7 +4535,7 @@ app.post('/inventory/items', authMiddleware, requirePermission('inventory.item.c
 
 app.get('/inventory/items/by-employee/:empId', authMiddleware, requirePermission('inventory.assignment.read'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { empId } = c.req.param();
     const items = await inventoryService.getItemsByEmployee(empId, companyId);
     return c.json({ data: items });
@@ -4546,7 +4547,7 @@ app.get('/inventory/items/by-employee/:empId', authMiddleware, requirePermission
 
 app.get('/inventory/items/:id', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { id } = c.req.param();
     const item = await inventoryService.getItem(id, companyId);
     return c.json({ data: item });
@@ -4558,7 +4559,7 @@ app.get('/inventory/items/:id', authMiddleware, requirePermission('inventory.ite
 
 app.put('/inventory/items/:id', authMiddleware, requirePermission('inventory.item.update'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { id } = c.req.param();
     const data = await c.req.json();
     const item = await inventoryService.updateItem(id, data, companyId);
@@ -4571,7 +4572,7 @@ app.put('/inventory/items/:id', authMiddleware, requirePermission('inventory.ite
 
 app.delete('/inventory/items/:id', authMiddleware, requirePermission('inventory.item.delete'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { id } = c.req.param();
     await inventoryService.deleteItem(id, companyId);
     return c.json({ success: true });
@@ -4583,7 +4584,8 @@ app.delete('/inventory/items/:id', authMiddleware, requirePermission('inventory.
 
 app.post('/inventory/items/:id/assign', authMiddleware, requirePermission('inventory.assignment.manage'), async (c) => {
   try {
-    const { companyId, authUserId } = c.get('auth');
+    const companyId  = c.get('companyId');
+    const authUserId = c.get('authUserId');
     const { id } = c.req.param();
     const { employeeId, notes } = await c.req.json();
     const result = await inventoryService.assignItem(id, employeeId, authUserId, notes, companyId);
@@ -4596,7 +4598,8 @@ app.post('/inventory/items/:id/assign', authMiddleware, requirePermission('inven
 
 app.post('/inventory/items/:id/return', authMiddleware, requirePermission('inventory.assignment.manage'), async (c) => {
   try {
-    const { companyId, authUserId } = c.get('auth');
+    const companyId  = c.get('companyId');
+    const authUserId = c.get('authUserId');
     const { id } = c.req.param();
     const body = await c.req.json().catch(() => ({}));
     const result = await inventoryService.returnItem(id, authUserId, body.notes, companyId);
@@ -4609,7 +4612,7 @@ app.post('/inventory/items/:id/return', authMiddleware, requirePermission('inven
 
 app.get('/inventory/items/:id/assignments', authMiddleware, requirePermission('inventory.assignment.read'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { id } = c.req.param();
     const history = await inventoryService.getAssignmentHistory(id, companyId);
     return c.json({ data: history });
@@ -4622,7 +4625,7 @@ app.get('/inventory/items/:id/assignments', authMiddleware, requirePermission('i
 // Comments
 app.get('/inventory/items/:id/comments', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { id } = c.req.param();
     const comments = await inventoryService.listComments(id, companyId);
     return c.json({ data: comments });
@@ -4632,9 +4635,10 @@ app.get('/inventory/items/:id/comments', authMiddleware, requirePermission('inve
   }
 });
 
-app.post('/inventory/items/:id/comments', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
+app.post('/inventory/items/:id/comments', authMiddleware, requirePermission('inventory.item.update'), async (c) => {
   try {
-    const { companyId, authUserId } = c.get('auth');
+    const companyId  = c.get('companyId');
+    const authUserId = c.get('authUserId');
     const { id } = c.req.param();
     const { body } = await c.req.json();
     const comment = await inventoryService.createComment(id, authUserId, body, companyId);
@@ -4645,9 +4649,9 @@ app.post('/inventory/items/:id/comments', authMiddleware, requirePermission('inv
   }
 });
 
-app.patch('/inventory/items/:id/comments/:cid', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
+app.patch('/inventory/items/:id/comments/:cid', authMiddleware, requirePermission('inventory.item.update'), async (c) => {
   try {
-    const { authUserId } = c.get('auth');
+    const authUserId = c.get('authUserId');
     const { cid } = c.req.param();
     const { body } = await c.req.json();
     const comment = await inventoryService.updateComment(cid, authUserId, body);
@@ -4658,9 +4662,10 @@ app.patch('/inventory/items/:id/comments/:cid', authMiddleware, requirePermissio
   }
 });
 
-app.delete('/inventory/items/:id/comments/:cid', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
+app.delete('/inventory/items/:id/comments/:cid', authMiddleware, requirePermission('inventory.item.update'), async (c) => {
   try {
-    const { companyId, authUserId } = c.get('auth');
+    const companyId  = c.get('companyId');
+    const authUserId = c.get('authUserId');
     const { cid } = c.req.param();
     await inventoryService.deleteComment(cid, authUserId, companyId);
     return c.json({ success: true });
@@ -4670,9 +4675,9 @@ app.delete('/inventory/items/:id/comments/:cid', authMiddleware, requirePermissi
   }
 });
 
-app.post('/inventory/items/:id/comments/:cid/reactions', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
+app.post('/inventory/items/:id/comments/:cid/reactions', authMiddleware, requirePermission('inventory.item.update'), async (c) => {
   try {
-    const { authUserId } = c.get('auth');
+    const authUserId = c.get('authUserId');
     const { cid } = c.req.param();
     const { emoji } = await c.req.json();
     const result = await inventoryService.toggleReaction(cid, authUserId, emoji);
@@ -4686,7 +4691,7 @@ app.post('/inventory/items/:id/comments/:cid/reactions', authMiddleware, require
 // Assignments list
 app.get('/inventory/assignments', authMiddleware, requirePermission('inventory.assignment.read'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { employeeId, itemId, active, page, limit } = c.req.query();
     const result = await inventoryService.listAllAssignments({ companyId, employeeId, itemId, active: active === 'true', page: Number(page) || 1, limit: Number(limit) || 50 });
     return c.json(result);
@@ -4699,7 +4704,7 @@ app.get('/inventory/assignments', authMiddleware, requirePermission('inventory.a
 // Categories
 app.get('/inventory/categories', authMiddleware, requirePermission('inventory.catalog.read'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const categories = await inventoryService.listCategories(companyId);
     return c.json({ data: categories });
   } catch (err) {
@@ -4710,7 +4715,7 @@ app.get('/inventory/categories', authMiddleware, requirePermission('inventory.ca
 
 app.post('/inventory/categories', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const data = await c.req.json();
     const category = await inventoryService.createCategory(data, companyId);
     return c.json({ data: category }, 201);
@@ -4722,7 +4727,7 @@ app.post('/inventory/categories', authMiddleware, requirePermission('inventory.c
 
 app.put('/inventory/categories/:id', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { id } = c.req.param();
     const data = await c.req.json();
     const category = await inventoryService.updateCategory(id, data, companyId);
@@ -4735,7 +4740,7 @@ app.put('/inventory/categories/:id', authMiddleware, requirePermission('inventor
 
 app.delete('/inventory/categories/:id', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { id } = c.req.param();
     await inventoryService.deleteCategory(id, companyId);
     return c.json({ success: true });
@@ -4748,7 +4753,7 @@ app.delete('/inventory/categories/:id', authMiddleware, requirePermission('inven
 // Brands
 app.get('/inventory/brands', authMiddleware, requirePermission('inventory.catalog.read'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const brands = await inventoryService.listBrands(companyId);
     return c.json({ data: brands });
   } catch (err) {
@@ -4759,7 +4764,7 @@ app.get('/inventory/brands', authMiddleware, requirePermission('inventory.catalo
 
 app.post('/inventory/brands', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const data = await c.req.json();
     const brand = await inventoryService.createBrand(data, companyId);
     return c.json({ data: brand }, 201);
@@ -4771,7 +4776,7 @@ app.post('/inventory/brands', authMiddleware, requirePermission('inventory.catal
 
 app.put('/inventory/brands/:id', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { id } = c.req.param();
     const data = await c.req.json();
     const brand = await inventoryService.updateBrand(id, data, companyId);
@@ -4784,7 +4789,7 @@ app.put('/inventory/brands/:id', authMiddleware, requirePermission('inventory.ca
 
 app.delete('/inventory/brands/:id', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { id } = c.req.param();
     await inventoryService.deleteBrand(id, companyId);
     return c.json({ success: true });
@@ -4797,7 +4802,7 @@ app.delete('/inventory/brands/:id', authMiddleware, requirePermission('inventory
 // Locations
 app.get('/inventory/locations', authMiddleware, requirePermission('inventory.catalog.read'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const locations = await inventoryService.listLocations(companyId);
     return c.json({ data: locations });
   } catch (err) {
@@ -4808,7 +4813,7 @@ app.get('/inventory/locations', authMiddleware, requirePermission('inventory.cat
 
 app.post('/inventory/locations', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const data = await c.req.json();
     const location = await inventoryService.createLocation(data, companyId);
     return c.json({ data: location }, 201);
@@ -4820,7 +4825,7 @@ app.post('/inventory/locations', authMiddleware, requirePermission('inventory.ca
 
 app.put('/inventory/locations/:id', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { id } = c.req.param();
     const data = await c.req.json();
     const location = await inventoryService.updateLocation(id, data, companyId);
@@ -4833,7 +4838,7 @@ app.put('/inventory/locations/:id', authMiddleware, requirePermission('inventory
 
 app.delete('/inventory/locations/:id', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { id } = c.req.param();
     await inventoryService.deleteLocation(id, companyId);
     return c.json({ success: true });
@@ -4846,7 +4851,7 @@ app.delete('/inventory/locations/:id', authMiddleware, requirePermission('invent
 // Custom Fields
 app.get('/inventory/custom-fields', authMiddleware, requirePermission('inventory.catalog.read'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { categoryId } = c.req.query();
     const fields = await inventoryService.listCustomFields(companyId, categoryId);
     return c.json({ data: fields });
@@ -4858,7 +4863,7 @@ app.get('/inventory/custom-fields', authMiddleware, requirePermission('inventory
 
 app.post('/inventory/custom-fields', authMiddleware, requirePermission('inventory.customfield.manage'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const data = await c.req.json();
     const field = await inventoryService.createCustomField(data, companyId);
     return c.json({ data: field }, 201);
@@ -4870,7 +4875,7 @@ app.post('/inventory/custom-fields', authMiddleware, requirePermission('inventor
 
 app.put('/inventory/custom-fields/:id', authMiddleware, requirePermission('inventory.customfield.manage'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { id } = c.req.param();
     const data = await c.req.json();
     const field = await inventoryService.updateCustomField(id, data, companyId);
@@ -4883,7 +4888,7 @@ app.put('/inventory/custom-fields/:id', authMiddleware, requirePermission('inven
 
 app.delete('/inventory/custom-fields/:id', authMiddleware, requirePermission('inventory.customfield.manage'), async (c) => {
   try {
-    const { companyId } = c.get('auth');
+    const companyId = c.get('companyId');
     const { id } = c.req.param();
     await inventoryService.deleteCustomField(id, companyId);
     return c.json({ success: true });
