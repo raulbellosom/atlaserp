@@ -66,19 +66,27 @@ const SheetContent = forwardRef(function SheetContent(
     className,
     children,
     "aria-describedby": ariaDescribedby,
+    onOpenAutoFocus,
     ...props
   },
-  ref,
+  forwardedRef,
 ) {
   const isMobile = useIsMobile();
   const effectiveSide =
     isMobile && (side === "right" || side === "left") ? "bottom" : side;
 
+  const contentRef = useRef(null);
   const closeRef = useRef(null);
   const [dragY, setDragY] = useState(0);
   const [dragging, setDragging] = useState(false);
   const dragStartY = useRef(null);
   const isDragging = useRef(false);
+
+  function setRef(node) {
+    contentRef.current = node;
+    if (typeof forwardedRef === "function") forwardedRef(node);
+    else if (forwardedRef) forwardedRef.current = node;
+  }
 
   function handleDragPointerDown(e) {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -110,9 +118,17 @@ const SheetContent = forwardRef(function SheetContent(
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content
-        ref={ref}
+        ref={setRef}
         aria-describedby={ariaDescribedby}
-        onOpenAutoFocus={(e) => e.preventDefault()}
+        tabIndex={-1}
+        onOpenAutoFocus={(e) => {
+          if (onOpenAutoFocus) {
+            onOpenAutoFocus(e);
+          } else {
+            e.preventDefault();
+            contentRef.current?.focus();
+          }
+        }}
         className={cn(
           sheetVariants({ side: effectiveSide }),
           effectiveSide === "bottom" && "max-h-[85dvh] overflow-y-auto overscroll-contain touch-pan-y",

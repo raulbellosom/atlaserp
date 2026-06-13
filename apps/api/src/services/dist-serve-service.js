@@ -282,13 +282,14 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
     const siteOrigin = hostHeader ? `${proto}://${hostHeader}` : ''
     const injected   = injectSeoTags(html, site.seo_defaults)
     const rewritten  = rewriteDistHtml(injected, storageBase, '', siteOrigin)
-    const domainUrl = site.domain
-      ? (site.domain.startsWith('http') ? site.domain.replace(/\/$/, '') : `https://${site.domain}`)
-      : siteOrigin
+    // ATLAS_APP_URL is the ERP instance's root URL (e.g. https://atlas.racoondevs.com).
+    // The storefront SDK uses it as baseUrl for /public/storefront/* requests.
+    // site.domain is the storefront's public domain — it is NOT the ERP API.
+    const erpApiUrl = (process.env.ATLAS_APP_URL ?? '').replace(/\/$/, '') || siteOrigin
     const withConfig = injectAtlasConfig(rewritten, {
       supabaseUrl:          process.env.SUPABASE_URL    ?? '',
       supabaseAnonKey:      process.env.SUPABASE_ANON_KEY ?? '',
-      apiUrl:               domainUrl || siteOrigin,
+      apiUrl:               erpApiUrl,
       company:              site.company_slug ?? '',
       siteName:             site.site_name    ?? '',
       stripePublishableKey: site.stripe_publishable_key ?? '',
