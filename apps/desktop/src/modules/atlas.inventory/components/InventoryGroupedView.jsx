@@ -1,16 +1,14 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, LayoutList, Table2, LayoutGrid } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import {
   Input,
   EmptyState,
   LoadingState,
-  SelectField,
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from '@atlas/ui'
 import { GROUP_BY_OPTIONS } from '../lib/inventory-constants.js'
 import { buildGroups } from '../lib/inventory-grouping.js'
@@ -87,40 +85,6 @@ function TreeView({ groups, expandedGroups, onToggleGroup, onItemClick }) {
   )
 }
 
-function FlatTableView({ items, onItemClick }) {
-  return (
-    <div className="rounded-lg border border-[hsl(var(--border))]">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Tag</TableHead>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Categoria</TableHead>
-            <TableHead>Marca</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead>Responsable</TableHead>
-            <TableHead>Actualizado</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map(item => (
-            <TableRow key={item.id} onClick={() => onItemClick(item)} className="cursor-pointer">
-              <TableCell className="font-mono text-xs text-[hsl(var(--muted-foreground))]">{item.assetTag ?? '—'}</TableCell>
-              <TableCell className="font-medium">{item.name}</TableCell>
-              <TableCell>{item.categoryName ?? '—'}</TableCell>
-              <TableCell>{item.brandName ?? '—'}</TableCell>
-              <TableCell><InventoryStatusBadge status={item.status} /></TableCell>
-              <TableCell>{item.assignedToName ?? '—'}</TableCell>
-              <TableCell className="text-xs text-[hsl(var(--muted-foreground))]">
-                {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('es-MX') : '—'}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  )
-}
 
 function CardsView({ items, onItemClick }) {
   return (
@@ -146,24 +110,6 @@ function CardsView({ items, onItemClick }) {
   )
 }
 
-function ViewModeButton({ icon: Icon, label, active, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      className={[
-        'flex items-center justify-center rounded p-1.5 transition-colors',
-        active
-          ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]'
-          : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]',
-      ].join(' ')}
-    >
-      <Icon className="h-4 w-4" />
-    </button>
-  )
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function InventoryGroupedView({
@@ -174,7 +120,6 @@ export function InventoryGroupedView({
   groupBy = 'category',
   onGroupByChange,
   viewMode = 'tree',
-  onViewModeChange,
   search = '',
   onSearchChange,
   onItemClick,
@@ -195,27 +140,25 @@ export function InventoryGroupedView({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="flex-1 min-w-50">
           <Input
             placeholder="Buscar item..."
             value={search}
             onChange={e => onSearchChange(e.target.value)}
+            className="h-9"
           />
         </div>
-        <div className="w-44">
-          <SelectField
-            value={groupBy}
-            onValueChange={onGroupByChange}
-            options={GROUP_BY_OPTIONS}
-            placeholder="Agrupar por..."
-          />
-        </div>
-        <div className="flex items-center gap-1 rounded-md border border-[hsl(var(--border))] p-1">
-          <ViewModeButton icon={LayoutList} label="Arbol" active={viewMode === 'tree'} onClick={() => onViewModeChange('tree')} />
-          <ViewModeButton icon={Table2} label="Tabla" active={viewMode === 'table'} onClick={() => onViewModeChange('table')} />
-          <ViewModeButton icon={LayoutGrid} label="Tarjetas" active={viewMode === 'cards'} onClick={() => onViewModeChange('cards')} />
-        </div>
+        <Select value={groupBy} onValueChange={onGroupByChange}>
+          <SelectTrigger className="w-44 h-9">
+            <SelectValue placeholder="Agrupar por..." />
+          </SelectTrigger>
+          <SelectContent>
+            {GROUP_BY_OPTIONS.map(opt => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading ? (
@@ -233,8 +176,6 @@ export function InventoryGroupedView({
           onToggleGroup={toggleGroup}
           onItemClick={onItemClick}
         />
-      ) : viewMode === 'table' ? (
-        <FlatTableView items={items} onItemClick={onItemClick} />
       ) : (
         <CardsView items={items} onItemClick={onItemClick} />
       )}
