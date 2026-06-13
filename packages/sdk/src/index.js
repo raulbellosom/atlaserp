@@ -1456,6 +1456,184 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
         }),
     },
+    inventory: {
+      // Items
+      listItems: (params, token) =>
+        request(`/inventory/items${toQueryString(params)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      getItem: (id, token) =>
+        request(`/inventory/items/${encodeURIComponent(id)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      createItem: (data, token) =>
+        request("/inventory/items", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateItem: (id, data, token) =>
+        request(`/inventory/items/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      deleteItem: (id, token) =>
+        request(`/inventory/items/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
+      assignItem: (id, data, token) =>
+        request(`/inventory/items/${encodeURIComponent(id)}/assign`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      returnItem: (id, data, token) =>
+        request(`/inventory/items/${encodeURIComponent(id)}/return`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      getItemAssignments: (id, token) =>
+        request(`/inventory/items/${encodeURIComponent(id)}/assignments`, {
+          headers: withAuthHeaders(token),
+        }),
+      getItemsByEmployee: (empId, token) =>
+        request(`/inventory/items/by-employee/${encodeURIComponent(empId)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      // Comments
+      listComments: (itemId, token) =>
+        request(`/inventory/items/${encodeURIComponent(itemId)}/comments`, {
+          headers: withAuthHeaders(token),
+        }),
+      createComment: (itemId, data, token) =>
+        request(`/inventory/items/${encodeURIComponent(itemId)}/comments`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateComment: (itemId, commentId, data, token) =>
+        request(
+          `/inventory/items/${encodeURIComponent(itemId)}/comments/${encodeURIComponent(commentId)}`,
+          {
+            method: "PATCH",
+            headers: withAuthHeaders(token),
+            body: JSON.stringify(data),
+          },
+        ),
+      deleteComment: (itemId, commentId, token) =>
+        request(
+          `/inventory/items/${encodeURIComponent(itemId)}/comments/${encodeURIComponent(commentId)}`,
+          {
+            method: "DELETE",
+            headers: withAuthHeaders(token),
+          },
+        ),
+      toggleReaction: (itemId, commentId, data, token) =>
+        request(
+          `/inventory/items/${encodeURIComponent(itemId)}/comments/${encodeURIComponent(commentId)}/reactions`,
+          {
+            method: "POST",
+            headers: withAuthHeaders(token),
+            body: JSON.stringify(data),
+          },
+        ),
+      // Assignments list
+      listAssignments: (params, token) =>
+        request(`/inventory/assignments${toQueryString(params)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      // Categories
+      listCategories: (token) =>
+        request("/inventory/categories", {
+          headers: withAuthHeaders(token),
+        }),
+      createCategory: (data, token) =>
+        request("/inventory/categories", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateCategory: (id, data, token) =>
+        request(`/inventory/categories/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      deleteCategory: (id, token) =>
+        request(`/inventory/categories/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
+      // Brands
+      listBrands: (token) =>
+        request("/inventory/brands", {
+          headers: withAuthHeaders(token),
+        }),
+      createBrand: (data, token) =>
+        request("/inventory/brands", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateBrand: (id, data, token) =>
+        request(`/inventory/brands/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      deleteBrand: (id, token) =>
+        request(`/inventory/brands/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
+      // Locations
+      listLocations: (token) =>
+        request("/inventory/locations", {
+          headers: withAuthHeaders(token),
+        }),
+      createLocation: (data, token) =>
+        request("/inventory/locations", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateLocation: (id, data, token) =>
+        request(`/inventory/locations/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      deleteLocation: (id, token) =>
+        request(`/inventory/locations/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
+      // Custom fields
+      listCustomFields: (params, token) =>
+        request(`/inventory/custom-fields${toQueryString(params)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      createCustomField: (data, token) =>
+        request("/inventory/custom-fields", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateCustomField: (id, data, token) =>
+        request(`/inventory/custom-fields/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      deleteCustomField: (id, token) =>
+        request(`/inventory/custom-fields/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
+    },
     setOfflineTransport(transport) {
       _offlineTransport = transport;
     },
