@@ -58,18 +58,24 @@ function computeDropdownStyle(
 ) {
   const r = containerEl.getBoundingClientRect();
   const spaceBelow = window.innerHeight - r.bottom;
-  const viewportTop =
-    spaceBelow >= dropHeight
-      ? r.bottom + 4
-      : Math.max(0, r.top - dropHeight - 4);
+  const flipped = spaceBelow < dropHeight;
   const viewportLeft = r.left;
   const width = Math.max(r.width, minWidth);
 
   // When rendering via createPortal (at document.body), position:fixed is always
   // relative to the viewport — no ancestor adjustment needed.
   if (forPortal) {
-    return { top: viewportTop, left: viewportLeft, width };
+    if (flipped) {
+      // Anchor the dropdown's bottom edge 4px above the trigger so the
+      // search input stays adjacent regardless of actual dropdown height.
+      return { bottom: window.innerHeight - r.top + 4, left: viewportLeft, width, flipped: true };
+    }
+    return { top: r.bottom + 4, left: viewportLeft, width, flipped: false };
   }
+
+  const viewportTop = flipped
+    ? Math.max(0, r.top - dropHeight - 4)
+    : r.bottom + 4;
 
   // Walk up the DOM and look for the nearest ancestor that acts as the containing
   // block for fixed-positioned children (backdrop-filter or active transform).
@@ -818,6 +824,7 @@ export const SelectField = forwardRef(function SelectField(
     placeholder,
     value,
     onValueChange,
+    onChange,
     disabled,
     className,
   },
@@ -825,6 +832,8 @@ export const SelectField = forwardRef(function SelectField(
 ) {
   const [localError, setLocalError] = useState("");
   const error = externalError || localError;
+
+  const handleValueChange = onValueChange ?? onChange;
 
   // Explicitly compute the label for the current value so Radix Select doesn't
   // have to rely on its DocumentFragment portal mechanism (unreliable with
@@ -856,7 +865,7 @@ export const SelectField = forwardRef(function SelectField(
         <InputIcon icon={icon} />
         <SelectPrimitive.Root
           value={value || ""}
-          onValueChange={onValueChange}
+          onValueChange={handleValueChange}
           onOpenChange={handleOpenChange}
           disabled={disabled}
         >
@@ -1548,7 +1557,7 @@ export function ComboboxField({
       );
     }
     setOpen((o) => !o);
-    if (willOpen && options.length === 0 && !loading) {
+    if (willOpen && options.length === 0) {
       onSearchChange?.("");
     }
     setTimeout(() => searchRef.current?.focus(), 50);
@@ -1610,15 +1619,23 @@ export function ComboboxField({
               ref={dropdownRef}
               style={{
                 position: "fixed",
-                top: dropdownStyle.top,
+                ...(dropdownStyle.flipped
+                  ? { bottom: dropdownStyle.bottom }
+                  : { top: dropdownStyle.top }),
                 left: dropdownStyle.left,
                 width: dropdownStyle.width,
                 zIndex: 9999,
                 pointerEvents: "auto",
               }}
-              className="rounded-xl border border-border/80 bg-card text-foreground shadow-xl overflow-hidden"
+              className={cn(
+                "rounded-xl border border-border/80 bg-card text-foreground shadow-xl overflow-hidden",
+                dropdownStyle.flipped && "flex flex-col-reverse",
+              )}
             >
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+              <div className={cn(
+                "flex items-center gap-2 px-3 py-2",
+                dropdownStyle.flipped ? "border-t border-border" : "border-b border-border",
+              )}>
                 <Search
                   size={13}
                   className="text-muted-foreground/50 shrink-0"
@@ -1867,15 +1884,23 @@ export function RelationSelectField({
               ref={dropdownRef}
               style={{
                 position: "fixed",
-                top: dropdownStyle.top,
+                ...(dropdownStyle.flipped
+                  ? { bottom: dropdownStyle.bottom }
+                  : { top: dropdownStyle.top }),
                 left: dropdownStyle.left,
                 width: dropdownStyle.width,
                 zIndex: 9999,
                 pointerEvents: "auto",
               }}
-              className="rounded-xl border border-border/80 bg-card text-foreground shadow-xl overflow-hidden"
+              className={cn(
+                "rounded-xl border border-border/80 bg-card text-foreground shadow-xl overflow-hidden",
+                dropdownStyle.flipped && "flex flex-col-reverse",
+              )}
             >
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+              <div className={cn(
+                "flex items-center gap-2 px-3 py-2",
+                dropdownStyle.flipped ? "border-t border-border" : "border-b border-border",
+              )}>
                 <Search
                   size={13}
                   className="text-muted-foreground/50 shrink-0"
@@ -2036,7 +2061,9 @@ export function CreatableComboboxField({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [dropdownStyle, setDropdownStyle] = useState({});
   const containerRef = useRef(null);
+  const dropdownRef = useRef(null);
   const searchRef = useRef(null);
 
   const selected = options.find((o) => o.value === value);
@@ -2053,7 +2080,10 @@ export function CreatableComboboxField({
 
   useEffect(() => {
     function handleOutside(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+      if (
+        !containerRef.current?.contains(e.target) &&
+        !dropdownRef.current?.contains(e.target)
+      ) {
         setOpen(false);
         setSearch("");
       }
@@ -2063,6 +2093,10 @@ export function CreatableComboboxField({
   }, []);
 
   function handleOpen() {
+    const willOpen = !open;
+    if (willOpen && containerRef.current) {
+      setDropdownStyle(computeDropdownStyle(containerRef.current, 260, 220, true));
+    }
     setOpen((o) => !o);
     setTimeout(() => searchRef.current?.focus(), 50);
   }
@@ -2124,85 +2158,106 @@ export function CreatableComboboxField({
           />
         </button>
 
-        {open && (
-          <div className="absolute z-50 w-full mt-1 rounded-lg border border-border bg-card text-foreground shadow-lg overflow-hidden">
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
-              <input
-                ref={searchRef}
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && showCreate) {
-                    e.preventDefault();
-                    handleCreate();
-                  }
-                }}
-                placeholder={searchPlaceholder}
-                className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch("")}
-                  className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                >
-                  <X size={12} />
-                </button>
+        {open &&
+          createPortal(
+            <div
+              ref={dropdownRef}
+              style={{
+                position: "fixed",
+                ...(dropdownStyle.flipped
+                  ? { bottom: dropdownStyle.bottom }
+                  : { top: dropdownStyle.top }),
+                left: dropdownStyle.left,
+                width: dropdownStyle.width,
+                zIndex: 9999,
+                pointerEvents: "auto",
+              }}
+              className={cn(
+                "rounded-xl border border-border/80 bg-card text-foreground shadow-xl overflow-hidden",
+                dropdownStyle.flipped && "flex flex-col-reverse",
               )}
-            </div>
-            <div className="max-h-52 overflow-y-auto" role="listbox">
-              {filtered.length === 0 && !showCreate && (
-                <p className="px-3 py-4 text-sm text-muted-foreground text-center">
-                  {emptyText}
-                </p>
-              )}
-              {filtered.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  role="option"
-                  aria-selected={opt.value === value}
-                  onClick={() => handleSelect(opt)}
-                  className={cn(
-                    "w-full text-left px-3 py-2 text-sm transition-colors duration-100",
-                    opt.value === value
-                      ? "bg-primary/10 text-primary font-medium"
-                      : "text-foreground hover:bg-muted/50",
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-              {showCreate && (
-                <>
-                  {filtered.length > 0 && (
-                    <div className="mx-3 my-1 border-t border-border" />
-                  )}
+            >
+              <div className={cn(
+                "flex items-center gap-2 px-3 py-2",
+                dropdownStyle.flipped ? "border-t border-border" : "border-b border-border",
+              )}>
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && showCreate) {
+                      e.preventDefault();
+                      handleCreate();
+                    }
+                  }}
+                  placeholder={searchPlaceholder}
+                  className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+                />
+                {search && (
                   <button
                     type="button"
-                    role="option"
-                    disabled={isCreating}
-                    onClick={handleCreate}
-                    className="w-full text-left px-3 py-2 text-sm transition-colors duration-100 flex items-center gap-2 text-primary hover:bg-primary/5 disabled:opacity-50 disabled:cursor-wait font-medium"
+                    onClick={() => setSearch("")}
+                    className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
                   >
-                    <span className="text-base leading-none">+</span>
-                    {isCreating ? (
-                      <span>Creando...</span>
-                    ) : (
-                      <span>
-                        Crear{" "}
-                        <span className="text-foreground font-semibold">
-                          &ldquo;{trimmed}&rdquo;
-                        </span>
-                      </span>
-                    )}
+                    <X size={12} />
                   </button>
-                </>
-              )}
-            </div>
-          </div>
-        )}
+                )}
+              </div>
+              <div className="max-h-52 overflow-y-auto" role="listbox">
+                {filtered.length === 0 && !showCreate && (
+                  <p className="px-3 py-4 text-sm text-muted-foreground text-center">
+                    {emptyText}
+                  </p>
+                )}
+                {filtered.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="option"
+                    aria-selected={opt.value === value}
+                    onClick={() => handleSelect(opt)}
+                    className={cn(
+                      "w-full text-left px-3 py-2 text-sm transition-colors duration-100",
+                      opt.value === value
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-foreground hover:bg-muted/50",
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+                {showCreate && (
+                  <>
+                    {filtered.length > 0 && (
+                      <div className="mx-3 my-1 border-t border-border" />
+                    )}
+                    <button
+                      type="button"
+                      role="option"
+                      disabled={isCreating}
+                      onClick={handleCreate}
+                      className="w-full text-left px-3 py-2 text-sm transition-colors duration-100 flex items-center gap-2 text-primary hover:bg-primary/5 disabled:opacity-50 disabled:cursor-wait font-medium"
+                    >
+                      <span className="text-base leading-none">+</span>
+                      {isCreating ? (
+                        <span>Creando...</span>
+                      ) : (
+                        <span>
+                          Crear{" "}
+                          <span className="text-foreground font-semibold">
+                            &ldquo;{trimmed}&rdquo;
+                          </span>
+                        </span>
+                      )}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>,
+            document.body,
+          )}
       </div>
     </FieldWrapper>
   );
@@ -2363,15 +2418,23 @@ export function CarColorPickerField({
               ref={dropdownRef}
               style={{
                 position: "fixed",
-                top: dropdownStyle.top,
+                ...(dropdownStyle.flipped
+                  ? { bottom: dropdownStyle.bottom }
+                  : { top: dropdownStyle.top }),
                 left: dropdownStyle.left,
                 width: dropdownStyle.width,
                 zIndex: 9999,
               }}
-              className="rounded-xl border border-border/80 bg-card text-foreground shadow-xl overflow-hidden"
+              className={cn(
+                "rounded-xl border border-border/80 bg-card text-foreground shadow-xl overflow-hidden",
+                dropdownStyle.flipped && "flex flex-col-reverse",
+              )}
             >
               {/* Search */}
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+              <div className={cn(
+                "flex items-center gap-2 px-3 py-2",
+                dropdownStyle.flipped ? "border-t border-border" : "border-b border-border",
+              )}>
                 <Search
                   size={13}
                   className="text-muted-foreground/50 shrink-0"

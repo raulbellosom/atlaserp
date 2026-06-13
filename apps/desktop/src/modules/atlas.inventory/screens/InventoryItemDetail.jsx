@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Button,
@@ -7,11 +7,23 @@ import {
   LoadingState,
   ErrorState,
   ConfirmDialog,
+  MarkdownViewer,
+  AttachmentsPanel,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
 } from '@atlas/ui'
-import { Pencil, Trash2, AlertTriangle } from 'lucide-react'
+import { Pencil, Trash2, AlertTriangle, MoreHorizontal, Maximize2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuth } from '../../../auth/AuthProvider'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import { useInventoryItem, useDeleteInventoryItem } from '../hooks/useInventoryItems.js'
 import { InventoryStatusBadge } from '../components/InventoryStatusBadge.jsx'
+import { ITEM_TYPES } from '../lib/inventory-constants.js'
+import { InventoryAssignmentPanel } from '../components/InventoryAssignmentPanel.jsx'
+import { InventoryCommentThread } from '../components/InventoryCommentThread.jsx'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -54,12 +66,26 @@ function isWarrantyExpiringSoon(expiryDateStr) {
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function InventoryItemDetail() {
-  const { id } = useParams()
+  const { "*": wildcard } = useParams()
+  const id = useMemo(() => (wildcard ?? '').split('/')[1] ?? null, [wildcard])
   const navigate = useNavigate()
   const [deleteOpen, setDeleteOpen] = useState(false)
 
+  const { session } = useAuth()
+  const token = session?.access_token
+
   const { data, isLoading } = useInventoryItem(id)
   const deleteItem = useDeleteInventoryItem()
+
+  const attachmentsConfig = useMemo(() => ({
+    label: 'Archivos',
+    listPath: '/inventory/items/:id/files',
+    addPath: '/inventory/items/:id/files',
+    removePath: '/inventory/items/:id/files/:docId',
+    upload: { endpoint: '/files/upload', moduleKey: 'atlas.inventory', entityType: 'InvItem' },
+    fields: { fileAssetId: 'fileAssetId' },
+    signedUrl: { endpointTemplate: '/files/:fileId/signed-url' },
+  }), [])
 
   if (isLoading) {
     return (
@@ -108,15 +134,36 @@ export default function InventoryItemDetail() {
               <Pencil className="mr-1.5 h-3.5 w-3.5" />
               Editar
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-destructive hover:bg-destructive/10"
-              onClick={() => setDeleteOpen(true)}
-            >
-              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-              Eliminar
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="h-8 w-8">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => {
+                    const el = document.documentElement
+                    if (!document.fullscreenElement) {
+                      el.requestFullscreen?.()
+                    } else {
+                      document.exitFullscreen?.()
+                    }
+                  }}
+                >
+                  <Maximize2 className="mr-2 h-4 w-4" />
+                  Pantalla completa
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar activo
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         }
       />
@@ -135,8 +182,9 @@ export default function InventoryItemDetail() {
                 <code className="text-sm font-mono">{item.assetTag}</code>
               </div>
               <DetailRow label="Nombre" value={item.name} />
-              <DetailRow label="Categoria" value={item.category} />
-              <DetailRow label="Marca" value={item.brand} />
+              <DetailRow label="Tipo" value={ITEM_TYPES.find(t => t.value === item.itemType)?.label ?? item.itemType} />
+              <DetailRow label="Categoria" value={item.category?.name} />
+              <DetailRow label="Marca" value={item.brand?.name} />
               <DetailRow label="Modelo" value={item.model} />
               <DetailRow label="Numero de serie" value={item.serialNumber} />
             </div>
@@ -146,7 +194,7 @@ export default function InventoryItemDetail() {
           <Card className="p-4 space-y-3">
             <h3 className="text-sm font-medium">Ubicacion y compra</h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <DetailRow label="Ubicacion" value={item.location} />
+              <DetailRow label="Ubicacion" value={item.location?.name} />
               <DetailRow label="Fecha de compra" value={formatDate(item.purchaseDate)} />
               <DetailRow label="Precio de compra" value={formatCurrency(item.purchasePrice)} />
               <DetailRow label="Proveedor" value={item.vendorName} />
@@ -168,9 +216,9 @@ export default function InventoryItemDetail() {
             <div className="grid grid-cols-2 gap-3">
               <DetailRow label="Vencimiento de garantia" value={formatDate(item.warrantyExpiry)} />
               {item.warrantyNotes && (
-                <div className="col-span-2 flex flex-col gap-0.5">
+                <div className="col-span-2 flex flex-col gap-1">
                   <span className="text-xs text-[hsl(var(--muted-foreground))]">Notas de garantia</span>
-                  <p className="text-sm whitespace-pre-wrap">{item.warrantyNotes}</p>
+                  <MarkdownViewer value={item.warrantyNotes} />
                 </div>
               )}
             </div>
@@ -180,7 +228,7 @@ export default function InventoryItemDetail() {
           {item.notes && (
             <Card className="p-4 space-y-3">
               <h3 className="text-sm font-medium">Notas</h3>
-              <p className="text-sm whitespace-pre-wrap text-[hsl(var(--foreground))]">{item.notes}</p>
+              <MarkdownViewer value={item.notes} />
             </Card>
           )}
 
@@ -195,18 +243,27 @@ export default function InventoryItemDetail() {
               </div>
             </Card>
           )}
+
+          {/* Section 6 — Files (read-only, grid/list toggle) */}
+          <Card className="p-4">
+            <AttachmentsPanel
+              apiBaseUrl={getApiUrl()}
+              token={token}
+              recordId={item.id}
+              config={attachmentsConfig}
+              context="detail"
+              readOnly
+              showHeading
+              showViewToggle
+              defaultViewMode="grid"
+            />
+          </Card>
         </div>
 
-        {/* Right panel — Phase 2A placeholders (1/3) */}
+        {/* Right panel — assignment + comments (1/3) */}
         <div className="space-y-4">
-          <Card className="p-4">
-            <h3 className="text-sm font-medium mb-3">Asignacion</h3>
-            <p className="text-sm text-[hsl(var(--muted-foreground))]">Panel de asignacion disponible en la siguiente fase.</p>
-          </Card>
-          <Card className="p-4">
-            <h3 className="text-sm font-medium mb-3">Comentarios</h3>
-            <p className="text-sm text-[hsl(var(--muted-foreground))]">Comentarios disponibles en la siguiente fase.</p>
-          </Card>
+          <InventoryAssignmentPanel item={item} />
+          <InventoryCommentThread itemId={item.id} />
         </div>
       </div>
 

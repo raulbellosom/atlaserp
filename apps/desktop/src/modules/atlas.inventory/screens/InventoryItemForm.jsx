@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronDown, ChevronUp } from 'lucide-react'
@@ -8,12 +8,15 @@ import {
   TextField,
   SelectField,
   DateField,
-  TextareaField,
-  ComboboxField,
+  MarkdownField,
+  CreatableComboboxField,
+  AttachmentsPanel,
   ErrorState,
   LoadingState,
 } from '@atlas/ui'
 import { toast } from 'sonner'
+import { useAuth } from '../../../auth/AuthProvider'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
   useInventoryItem,
   useCreateInventoryItem,
@@ -24,20 +27,24 @@ import {
   useInventoryBrands,
   useInventoryLocations,
   useInventoryCustomFields,
+  useCreateInventoryCategory,
+  useCreateInventoryBrand,
+  useCreateInventoryLocation,
 } from '../hooks/useInventoryCatalogs.js'
 import { InventoryCustomFieldsForm } from '../components/InventoryCustomFieldsForm.jsx'
-import { ITEM_STATUSES } from '../lib/inventory-constants.js'
+import { InventoryCommentThread } from '../components/InventoryCommentThread.jsx'
+import { ITEM_STATUSES, ITEM_TYPES } from '../lib/inventory-constants.js'
 
 // ── CollapsibleSection ────────────────────────────────────────────────────────
 
 function CollapsibleSection({ title, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="border border-[hsl(var(--border))] rounded-lg overflow-hidden">
+    <div className="border border-[hsl(var(--border))] rounded-lg">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium bg-[hsl(var(--muted))] hover:bg-[hsl(var(--accent))]"
+        className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium bg-[hsl(var(--muted))] hover:bg-[hsl(var(--accent))] ${open ? 'rounded-t-lg' : 'rounded-lg'}`}
       >
         {title}
         {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -52,6 +59,7 @@ function CollapsibleSection({ title, children, defaultOpen = true }) {
 const defaultValues = {
   name: '',
   assetTag: '',
+  itemType: '',
   categoryId: '',
   brandId: '',
   locationId: '',
@@ -81,6 +89,7 @@ function mapItemToForm(item) {
   return {
     name: item.name ?? '',
     assetTag: item.assetTag ?? '',
+    itemType: item.itemType ?? '',
     categoryId: item.categoryId ?? '',
     brandId: item.brandId ?? '',
     locationId: item.locationId ?? '',
@@ -124,9 +133,16 @@ function buildApiPayload(formData, customFields) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function InventoryItemForm() {
-  const { id } = useParams()
+  const { "*": wildcard } = useParams()
+  const id = useMemo(() => {
+    const parts = (wildcard ?? '').split('/')
+    return parts[2] === 'edit' ? parts[1] : null
+  }, [wildcard])
   const navigate = useNavigate()
-  const isEdit = Boolean(id) && id !== 'new'
+  const isEdit = Boolean(id)
+
+  const { session } = useAuth()
+  const token = session?.access_token
 
   const itemQuery = useInventoryItem(isEdit ? id : null)
   const editItem = itemQuery.data?.data ?? itemQuery.data ?? null
@@ -135,11 +151,14 @@ export default function InventoryItemForm() {
   const brandsQuery = useInventoryBrands()
   const locationsQuery = useInventoryLocations()
 
+  const createCategory = useCreateInventoryCategory()
+  const createBrand = useCreateInventoryBrand()
+  const createLocation = useCreateInventoryLocation()
+
   const { control, handleSubmit, watch, reset, formState: { errors, isSubmitting } } = useForm({
     defaultValues,
   })
 
-  // Reset form when edit item loads
   useEffect(() => {
     if (isEdit && editItem) {
       reset(mapItemToForm(editItem))
@@ -167,6 +186,16 @@ export default function InventoryItemForm() {
     value: l.id,
     label: l.name,
   }))
+
+  const attachmentsConfig = useMemo(() => ({
+    label: 'Archivos',
+    listPath: '/inventory/items/:id/files',
+    addPath: '/inventory/items/:id/files',
+    removePath: '/inventory/items/:id/files/:docId',
+    upload: { endpoint: '/files/upload', moduleKey: 'atlas.inventory', entityType: 'InvItem' },
+    fields: { fileAssetId: 'fileAssetId' },
+    signedUrl: { endpointTemplate: '/files/:fileId/signed-url' },
+  }), [])
 
   async function onSubmit(formData) {
     try {
@@ -201,13 +230,14 @@ export default function InventoryItemForm() {
   const busy = isSubmitting || createItem.isPending || updateItem.isPending
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-4 pb-16">
+    <div className="p-4 md:p-6 pb-24">
       <PageHeader
         title={title}
         subtitle={isEdit ? (editItem?.name ?? '') : 'Completa la informacion del activo'}
       />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className={isEdit ? 'mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start' : 'mt-6 max-w-3xl'}>
+      <form id="item-form" onSubmit={handleSubmit(onSubmit)} className={`space-y-4 ${isEdit ? 'lg:col-span-2' : ''}`}>
         <CollapsibleSection title="Identificacion" defaultOpen>
           <div className="grid gap-4 sm:grid-cols-2">
             <Controller
@@ -237,6 +267,18 @@ export default function InventoryItemForm() {
               )}
             />
             <Controller
+              name="itemType"
+              control={control}
+              render={({ field }) => (
+                <SelectField
+                  label="Tipo"
+                  value={field.value || '__none__'}
+                  onChange={v => field.onChange(v === '__none__' ? '' : v)}
+                  options={[{ value: '__none__', label: 'Sin tipo' }, ...ITEM_TYPES]}
+                />
+              )}
+            />
+            <Controller
               name="serialNumber"
               control={control}
               render={({ field }) => (
@@ -247,13 +289,24 @@ export default function InventoryItemForm() {
               name="categoryId"
               control={control}
               render={({ field }) => (
-                <ComboboxField
+                <CreatableComboboxField
                   label="Categoria"
                   options={categoryOptions}
                   value={field.value || ''}
                   onChange={field.onChange}
-                  placeholder="Seleccionar categoria"
+                  placeholder="Buscar o crear categoria..."
                   searchPlaceholder="Buscar categoria..."
+                  onCreate={async (name) => {
+                    try {
+                      const result = await createCategory.mutateAsync({ name })
+                      const newId = result?.data?.id ?? result?.id
+                      if (newId) field.onChange(newId)
+                      toast.success(`Categoria "${name}" creada`)
+                    } catch {
+                      toast.error('No se pudo crear la categoria')
+                    }
+                  }}
+                  isCreating={createCategory.isPending}
                 />
               )}
             />
@@ -261,13 +314,24 @@ export default function InventoryItemForm() {
               name="brandId"
               control={control}
               render={({ field }) => (
-                <ComboboxField
+                <CreatableComboboxField
                   label="Marca"
                   options={brandOptions}
                   value={field.value || ''}
                   onChange={field.onChange}
-                  placeholder="Seleccionar marca"
+                  placeholder="Buscar o crear marca..."
                   searchPlaceholder="Buscar marca..."
+                  onCreate={async (name) => {
+                    try {
+                      const result = await createBrand.mutateAsync({ name })
+                      const newId = result?.data?.id ?? result?.id
+                      if (newId) field.onChange(newId)
+                      toast.success(`Marca "${name}" creada`)
+                    } catch {
+                      toast.error('No se pudo crear la marca')
+                    }
+                  }}
+                  isCreating={createBrand.isPending}
                 />
               )}
             />
@@ -294,13 +358,24 @@ export default function InventoryItemForm() {
               name="locationId"
               control={control}
               render={({ field }) => (
-                <ComboboxField
+                <CreatableComboboxField
                   label="Ubicacion"
                   options={locationOptions}
                   value={field.value || ''}
                   onChange={field.onChange}
-                  placeholder="Seleccionar ubicacion"
+                  placeholder="Buscar o crear ubicacion..."
                   searchPlaceholder="Buscar ubicacion..."
+                  onCreate={async (name) => {
+                    try {
+                      const result = await createLocation.mutateAsync({ name })
+                      const newId = result?.data?.id ?? result?.id
+                      if (newId) field.onChange(newId)
+                      toast.success(`Ubicacion "${name}" creada`)
+                    } catch {
+                      toast.error('No se pudo crear la ubicacion')
+                    }
+                  }}
+                  isCreating={createLocation.isPending}
                 />
               )}
             />
@@ -385,11 +460,12 @@ export default function InventoryItemForm() {
               name="warrantyNotes"
               control={control}
               render={({ field }) => (
-                <TextareaField
-                  {...field}
+                <MarkdownField
                   label="Notas de garantia"
+                  value={field.value ?? ''}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  onBlur={field.onBlur}
                   placeholder="Condiciones, numero de caso, etc."
-                  rows={3}
                 />
               )}
             />
@@ -411,17 +487,42 @@ export default function InventoryItemForm() {
             name="notes"
             control={control}
             render={({ field }) => (
-              <TextareaField
-                {...field}
+              <MarkdownField
                 label="Notas adicionales"
+                value={field.value ?? ''}
+                onChange={(e) => field.onChange(e.target.value)}
+                onBlur={field.onBlur}
                 placeholder="Informacion adicional sobre el activo..."
-                rows={4}
               />
             )}
           />
         </CollapsibleSection>
 
-        <div className="flex items-center justify-end gap-3 pt-2">
+        {isEdit && editItem?.id && (
+          <CollapsibleSection title="Archivos" defaultOpen={false}>
+            <AttachmentsPanel
+              apiBaseUrl={getApiUrl()}
+              token={token}
+              recordId={editItem.id}
+              config={attachmentsConfig}
+              context="detail"
+              showHeading={false}
+            />
+          </CollapsibleSection>
+        )}
+
+      </form>
+
+      {isEdit && editItem?.id && (
+        <div className="space-y-4 lg:sticky lg:top-6">
+          <InventoryCommentThread itemId={editItem.id} />
+        </div>
+      )}
+      </div>
+
+      {/* Fixed action bar — always visible during scroll; sidebar (z-40) overlaps left naturally */}
+      <div className="fixed bottom-0 inset-x-0 z-30 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 backdrop-blur-sm">
+        <div className="flex items-center justify-end gap-3 px-4 md:px-6 py-3 safe-bottom">
           <Button
             type="button"
             variant="outline"
@@ -430,11 +531,11 @@ export default function InventoryItemForm() {
           >
             Cancelar
           </Button>
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" form="item-form" disabled={busy}>
             {busy ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear activo'}
           </Button>
         </div>
-      </form>
+      </div>
     </div>
   )
 }

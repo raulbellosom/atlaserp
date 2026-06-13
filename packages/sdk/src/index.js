@@ -1355,6 +1355,15 @@ export function createAtlasClient({ baseUrl }) {
           `/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/comments/${encodeURIComponent(commentId)}`,
           { method: "DELETE", headers: withAuthHeaders(token) },
         ),
+      toggleTaskCommentReaction: (projectId, taskId, commentId, emoji, token) =>
+        request(
+          `/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/comments/${encodeURIComponent(commentId)}/reactions`,
+          {
+            method: "POST",
+            headers: withAuthHeaders(token),
+            body: JSON.stringify({ emoji }),
+          },
+        ),
       listTaskAttachments: (projectId, taskId, token) =>
         request(
           `/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/attachments`,

@@ -8,6 +8,8 @@ import {
   FileSpreadsheet,
   FileText,
   FileType2,
+  LayoutGrid,
+  List,
   Loader2,
   RotateCcw,
   Trash2,
@@ -251,6 +253,39 @@ function PendingCard({ item, hasRecord, onOpen, onRetry, onRemove, busy }) {
   );
 }
 
+function ImageGridTile({ item, previewUrl, loading, onClick }) {
+  const [imgErr, setImgErr] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="relative group aspect-square rounded-xl overflow-hidden border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] hover:border-[hsl(var(--primary)/0.6)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+      title={item.fileName}
+    >
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--muted-foreground))]" />
+        </div>
+      )}
+      {previewUrl && !imgErr ? (
+        <img
+          src={previewUrl}
+          alt={item.fileName}
+          onError={() => setImgErr(true)}
+          className="w-full h-full object-cover"
+        />
+      ) : !loading ? (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <FileImage className="h-8 w-8 text-[hsl(var(--muted-foreground))]" />
+        </div>
+      ) : null}
+      <div className="absolute inset-x-0 bottom-0 bg-black/60 px-2 py-1 translate-y-full group-hover:translate-y-0 transition-transform">
+        <p className="text-xs text-white truncate">{item.fileName}</p>
+      </div>
+    </button>
+  );
+}
+
 function AssociatedCard({
   item,
   previewUrl = null,
@@ -346,6 +381,95 @@ function AssociatedCard({
   );
 }
 
+function AssociatedFilesList({
+  items,
+  localView,
+  thumbUrlsByAssetId,
+  onOpen,
+  onDownload,
+  onRemove,
+  openingId,
+  downloadingId,
+  removingId,
+  canWrite,
+}) {
+  if (localView === "grid") {
+    const images = items.filter((i) => String(i.mimeType ?? "").startsWith("image/"));
+    const others = items.filter((i) => !String(i.mimeType ?? "").startsWith("image/"));
+    return (
+      <div className="space-y-3">
+        {images.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))] mb-2">
+              Imagenes ({images.length})
+            </p>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {images.map((item) => (
+                <ImageGridTile
+                  key={item.id}
+                  item={item}
+                  previewUrl={item.fileAssetId ? (thumbUrlsByAssetId[item.fileAssetId] ?? null) : null}
+                  loading={!thumbUrlsByAssetId[item.fileAssetId] && Boolean(item.fileAssetId)}
+                  onClick={() => onOpen(item)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+        {others.length > 0 && (
+          <div>
+            {images.length > 0 && (
+              <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))] mb-2">
+                Archivos ({others.length})
+              </p>
+            )}
+            <div className="space-y-1.5">
+              {others.map((item) => (
+                <AssociatedCard
+                  key={item.id}
+                  item={item}
+                  previewUrl={null}
+                  onOpen={onOpen}
+                  onDownload={onDownload}
+                  onRemove={onRemove}
+                  opening={openingId === item.id}
+                  downloading={downloadingId === item.id}
+                  removing={removingId === item.id}
+                  canWrite={canWrite}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+        Archivos asociados
+      </p>
+      <div className="space-y-1.5">
+        {items.map((item) => (
+          <AssociatedCard
+            key={item.id}
+            item={item}
+            previewUrl={item.fileAssetId ? (thumbUrlsByAssetId[item.fileAssetId] ?? null) : null}
+            onOpen={onOpen}
+            onDownload={onDownload}
+            onRemove={onRemove}
+            opening={openingId === item.id}
+            downloading={downloadingId === item.id}
+            removing={removingId === item.id}
+            canWrite={canWrite}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function AttachmentsPanel({
   apiBaseUrl,
   token,
@@ -355,6 +479,8 @@ export function AttachmentsPanel({
   disabled = false,
   readOnly = false,
   showHeading = true,
+  showViewToggle = false,
+  defaultViewMode = "list",
   className = "",
   onError,
   onChange,
@@ -381,6 +507,7 @@ export function AttachmentsPanel({
   const [isDragOver, setIsDragOver] = useState(false);
   const [thumbUrlsByAssetId, setThumbUrlsByAssetId] = useState({});
   const [viewerIndex, setViewerIndex] = useState(0);
+  const [localView, setLocalView] = useState(defaultViewMode);
   const fileInputRef = useRef(null);
   const dropzonePlacement = normalizePlacement(config?.placement);
 
@@ -561,18 +688,40 @@ export function AttachmentsPanel({
       )}
 
       <div className="space-y-4">
-        <div className="space-y-0.5">
-          {showHeading && (
-            <h4 className="text-sm font-semibold text-[hsl(var(--foreground))]">
-              {heading}
-            </h4>
+        <div className="flex items-center justify-between gap-2">
+          <div className="space-y-0.5">
+            {showHeading && (
+              <h4 className="text-sm font-semibold text-[hsl(var(--foreground))]">
+                {heading}
+              </h4>
+            )}
+          </div>
+          {showViewToggle && controller.associatedItems.length > 0 && (
+            <div className="flex items-center gap-0.5 rounded-lg border border-[hsl(var(--border))] p-0.5">
+              <button
+                type="button"
+                onClick={() => setLocalView("list")}
+                className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors ${localView === "list" ? "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"}`}
+                title="Vista de lista"
+              >
+                <List className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setLocalView("grid")}
+                className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors ${localView === "grid" ? "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"}`}
+                title="Vista de cuadricula"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </button>
+            </div>
           )}
+        </div>
           {!hasRecord && context !== "detail" && (
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
               Los archivos se guardarán después de crear el registro.
             </p>
           )}
-        </div>
 
         {!canManageAssociations && context === "detail" && (
           <Alert variant="warning">
@@ -685,31 +834,18 @@ export function AttachmentsPanel({
         )}
 
         {controller.associatedItems.length > 0 && (
-          <div className="space-y-1.5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-              Archivos asociados
-            </p>
-            <div className="space-y-1.5">
-              {controller.associatedItems.map((item) => (
-                <AssociatedCard
-                  key={item.id}
-                  item={item}
-                  previewUrl={
-                    item.fileAssetId
-                      ? (thumbUrlsByAssetId[item.fileAssetId] ?? null)
-                      : null
-                  }
-                  onOpen={handleOpenAssociated}
-                  onDownload={handleDownloadAssociated}
-                  onRemove={handleRemoveAssociated}
-                  opening={openingId === item.id}
-                  downloading={downloadingId === item.id}
-                  removing={removingId === item.id}
-                  canWrite={controller.canWrite}
-                />
-              ))}
-            </div>
-          </div>
+          <AssociatedFilesList
+            items={controller.associatedItems}
+            localView={localView}
+            thumbUrlsByAssetId={thumbUrlsByAssetId}
+            onOpen={handleOpenAssociated}
+            onDownload={handleDownloadAssociated}
+            onRemove={handleRemoveAssociated}
+            openingId={openingId}
+            downloadingId={downloadingId}
+            removingId={removingId}
+            canWrite={controller.canWrite}
+          />
         )}
       </div>
 

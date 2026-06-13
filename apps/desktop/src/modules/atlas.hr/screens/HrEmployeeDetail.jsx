@@ -40,6 +40,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 import { AdvancedFileViewer } from "../../atlas.files/components/AdvancedFileViewer";
 import HrEmployeeActivityPanel from "../components/HrEmployeeActivityPanel";
+import { InventoryEmployeeWidget } from "../../atlas.inventory/components/InventoryEmployeeWidget.jsx";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1237,6 +1238,7 @@ export default function HrEmployeeDetail({ employeeId }) {
           <OrgChartPanel employee={employee} />
           {/* Files - key forces remount on employee change to clear cache */}
           <FilesPanel key={employeeId} employeeId={employeeId} token={token} />
+          <InventoryEmployeeWidget employeeId={employeeId} />
           <HrEmployeeActivityPanel employeeId={employeeId} token={token} />
           <AuditPanel employeeId={employeeId} token={token} />
         </div>

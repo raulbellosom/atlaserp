@@ -42,7 +42,7 @@ const SheetOverlay = forwardRef(function SheetOverlay(
 });
 
 const sheetVariants = cva(
-  "fixed z-50 glass-strong flex flex-col gap-4 p-6 shadow-lg transition ease-in-out data-[state=closed]:duration-200 data-[state=open]:duration-300",
+  "fixed z-50 glass-strong flex flex-col gap-4 p-6 shadow-lg transition ease-in-out data-[state=closed]:duration-200 data-[state=open]:duration-300 focus:outline-none",
   {
     variants: {
       side: {

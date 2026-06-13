@@ -387,6 +387,14 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al eliminar comentario.') }
   })
 
+  app.post('/projects/:id/tasks/:tid/comments/:cid/reactions', requirePermission('projects.task.update'), async (c) => {
+    try {
+      const { emoji } = await c.req.json()
+      const result = await tasksSvc.toggleTaskReaction(c.req.param('cid'), getUserId(c), emoji)
+      return c.json(result)
+    } catch (err) { return handleError(c, err, 'Error al actualizar reaccion.') }
+  })
+
   // --- Task Attachments ---
   app.get('/projects/:id/tasks/:tid/attachments', requirePermission('projects.task.read'), async (c) => {
     try {

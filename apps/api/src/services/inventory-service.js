@@ -31,6 +31,16 @@ function normalizePage(page) {
 }
 
 export function createInventoryService({ prisma }) {
+  // ── Resolve Supabase auth UUID → UserProfile.id ───────────────────────────
+  async function resolveProfileId(authUserId) {
+    if (!authUserId) return null;
+    const profile = await prisma.userProfile.findFirst({
+      where: { authUserId },
+      select: { id: true },
+    });
+    return profile?.id ?? null;
+  }
+
   // ── Items ──────────────────────────────────────────────────────────────────
 
   async function listItems({
@@ -81,16 +91,26 @@ export function createInventoryService({ prisma }) {
       prisma.invItem.count({ where }),
     ]);
 
-    return { data, total, page: normalizePage(page), limit: take };
+    const enriched = data.map(item => ({
+      ...item,
+      categoryName: item.category?.name ?? null,
+      brandName: item.brand?.name ?? null,
+      locationName: item.location?.name ?? null,
+      assignedToName: item.assignedTo
+        ? [item.assignedTo.firstName, item.assignedTo.lastName].filter(Boolean).join(' ')
+        : null,
+    }));
+
+    return { data: enriched, total, page: normalizePage(page), limit: take };
   }
 
   async function getItem(id, companyId) {
     const item = await prisma.invItem.findFirst({
       where: { id, companyId, enabled: true },
       include: {
-        category: true,
-        brand: true,
-        location: true,
+        category: { select: { id: true, name: true, icon: true, color: true, description: true } },
+        brand:    { select: { id: true, name: true, website: true } },
+        location: { select: { id: true, name: true, address: true } },
         assignedTo: {
           select: { id: true, firstName: true, lastName: true, employeeCode: true, userProfileId: true },
         },
@@ -100,11 +120,7 @@ export function createInventoryService({ prisma }) {
             field: { select: { id: true, label: true, fieldKey: true, fieldType: true, options: true } },
           },
         },
-        files: {
-          include: {
-            fileAsset: { select: { id: true, fileName: true, mimeType: true, fileSize: true } },
-          },
-        },
+        // files intentionally omitted — fetched separately by /items/:id/files
       },
     });
     if (!item) throw new InventoryServiceError('Item not found', 404);
@@ -112,6 +128,7 @@ export function createInventoryService({ prisma }) {
   }
 
   async function createItem(data, companyId, creatorId) {
+    const creatorProfileId = await resolveProfileId(creatorId);
     let assetTag = data.assetTag;
     if (!assetTag) {
       const year = new Date().getFullYear();
@@ -122,6 +139,7 @@ export function createInventoryService({ prisma }) {
     const {
       name,
       description,
+      itemType,
       categoryId,
       brandId,
       locationId,
@@ -147,8 +165,9 @@ export function createInventoryService({ prisma }) {
       assetTag,
       name,
       status: status ?? 'available',
-      createdById: creatorId,
+      createdById: creatorProfileId ?? undefined,
     };
+    if (itemType !== undefined) itemData.itemType = itemType || null;
     if (description !== undefined) itemData.description = description;
     if (categoryId !== undefined) itemData.categoryId = categoryId;
     if (brandId !== undefined) itemData.brandId = brandId;
@@ -237,6 +256,7 @@ export function createInventoryService({ prisma }) {
       name,
       assetTag,
       description,
+      itemType,
       categoryId,
       brandId,
       locationId,
@@ -261,6 +281,7 @@ export function createInventoryService({ prisma }) {
     if (name !== undefined) updateData.name = name;
     if (assetTag !== undefined) updateData.assetTag = assetTag;
     if (description !== undefined) updateData.description = description;
+    if (itemType !== undefined) updateData.itemType = itemType || null;
     if (categoryId !== undefined) updateData.categoryId = categoryId;
     if (brandId !== undefined) updateData.brandId = brandId;
     if (locationId !== undefined) updateData.locationId = locationId;
@@ -320,14 +341,16 @@ export function createInventoryService({ prisma }) {
 
   // ── Assignments ────────────────────────────────────────────────────────────
 
-  async function assignItem(itemId, employeeId, assignedById, notes, companyId) {
+  async function assignItem(itemId, employeeId, assignedByAuthId, notes, companyId) {
+    const actorProfileId = await resolveProfileId(assignedByAuthId);
+    if (!actorProfileId) throw new InventoryServiceError('Usuario no encontrado.', 400);
     const item = await prisma.invItem.findFirst({ where: { id: itemId, companyId, enabled: true } });
     if (!item) throw new InventoryServiceError('Item not found', 404);
-    if (item.status === 'assigned') throw new InventoryServiceError('Item is already assigned', 409);
+    if (item.assignedToId || item.status === 'assigned') throw new InventoryServiceError('Item is already assigned', 409);
 
     return prisma.$transaction(async (tx) => {
       const assignment = await tx.invAssignment.create({
-        data: { itemId, employeeId, assignedById, notes: notes ?? null },
+        data: { itemId, employeeId, assignedById: actorProfileId, notes: notes ?? null },
       });
       const updatedItem = await tx.invItem.update({
         where: { id: itemId },
@@ -346,7 +369,7 @@ export function createInventoryService({ prisma }) {
   async function returnItem(itemId, assignedById, notes, companyId) {
     const item = await prisma.invItem.findFirst({ where: { id: itemId, companyId, enabled: true } });
     if (!item) throw new InventoryServiceError('Item not found', 404);
-    if (item.status !== 'assigned') throw new InventoryServiceError('Item is not currently assigned', 409);
+    if (!item.assignedToId && item.status !== 'assigned') throw new InventoryServiceError('Item is not currently assigned', 409);
 
     return prisma.$transaction(async (tx) => {
       const activeAssignment = await tx.invAssignment.findFirst({
@@ -611,7 +634,9 @@ export function createInventoryService({ prisma }) {
     });
   }
 
-  async function createComment(itemId, authorId, body, companyId) {
+  async function createComment(itemId, authorAuthId, body, companyId) {
+    const authorProfileId = await resolveProfileId(authorAuthId);
+    if (!authorProfileId) throw new InventoryServiceError('Usuario no encontrado.', 400);
     const item = await prisma.invItem.findFirst({ where: { id: itemId, companyId, enabled: true } });
     if (!item) throw new InventoryServiceError('Item not found', 404);
 
@@ -623,7 +648,7 @@ export function createInventoryService({ prisma }) {
 
     return prisma.$transaction(async (tx) => {
       const comment = await tx.invComment.create({
-        data: { itemId, authorId, body: trimmedBody },
+        data: { itemId, authorId: authorProfileId, body: trimmedBody },
         include: {
           author: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } },
         },
@@ -641,13 +666,16 @@ export function createInventoryService({ prisma }) {
     });
   }
 
-  async function updateComment(commentId, authorId, body) {
+  async function updateComment(commentId, authorAuthId, body) {
     if (!body?.trim()) throw new InventoryServiceError('El comentario no puede estar vacio.', 400);
     if (body.trim().length > 5000) throw new InventoryServiceError('El comentario no puede tener mas de 5000 caracteres.', 400);
 
+    const authorProfileId = await resolveProfileId(authorAuthId);
+    if (!authorProfileId) throw new InventoryServiceError('Usuario no encontrado.', 400);
+
     const comment = await prisma.invComment.findFirst({ where: { id: commentId } });
     if (!comment) throw new InventoryServiceError('Comment not found', 404);
-    if (comment.authorId !== authorId) throw new InventoryServiceError('Solo el autor puede editar este comentario.', 403);
+    if (comment.authorId !== authorProfileId) throw new InventoryServiceError('Solo el autor puede editar este comentario.', 403);
 
     return prisma.invComment.update({
       where: { id: commentId },
@@ -658,32 +686,64 @@ export function createInventoryService({ prisma }) {
     });
   }
 
-  async function deleteComment(commentId, requesterId, companyId) {
+  async function deleteComment(commentId, requesterAuthId, companyId) {
+    const requesterProfileId = await resolveProfileId(requesterAuthId);
+    if (!requesterProfileId) throw new InventoryServiceError('Usuario no encontrado.', 400);
     const comment = await prisma.invComment.findFirst({
       where: { id: commentId },
       include: { item: { select: { id: true, companyId: true } } },
     });
     if (!comment) throw new InventoryServiceError('Comment not found', 404);
     if (comment.item?.companyId !== companyId) throw new InventoryServiceError('Comment not found', 404);
-    if (comment.authorId !== requesterId) throw new InventoryServiceError('No tienes permiso para eliminar este comentario.', 403);
+    if (comment.authorId !== requesterProfileId) throw new InventoryServiceError('No tienes permiso para eliminar este comentario.', 403);
 
     await prisma.invComment.delete({ where: { id: commentId } });
   }
 
-  async function toggleReaction(commentId, userId, emoji) {
+  async function toggleReaction(commentId, userAuthId, emoji) {
+    const userProfileId = await resolveProfileId(userAuthId);
+    if (!userProfileId) throw new InventoryServiceError('Usuario no encontrado.', 400);
     const existing = await prisma.invCommentReaction.findUnique({
-      where: { commentId_userId_emoji: { commentId, userId, emoji } },
+      where: { commentId_userId_emoji: { commentId, userId: userProfileId, emoji } },
     });
 
     if (existing) {
       await prisma.invCommentReaction.delete({
-        where: { commentId_userId_emoji: { commentId, userId, emoji } },
+        where: { commentId_userId_emoji: { commentId, userId: userProfileId, emoji } },
       });
       return { action: 'removed' };
     }
 
-    await prisma.invCommentReaction.create({ data: { commentId, userId, emoji } });
+    await prisma.invCommentReaction.create({ data: { commentId, userId: userProfileId, emoji } });
     return { action: 'added' };
+  }
+
+  async function listItemFiles(itemId, companyId) {
+    const item = await prisma.invItem.findFirst({ where: { id: itemId, companyId, enabled: true }, select: { id: true } });
+    if (!item) throw new InventoryServiceError('Item not found', 404);
+    return prisma.invItemFile.findMany({
+      where: { itemId },
+      include: { fileAsset: { select: { id: true, originalName: true, mimeType: true, sizeBytes: true, bucket: true, objectKey: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async function addItemFile(itemId, fileAssetId, companyId, label) {
+    const item = await prisma.invItem.findFirst({ where: { id: itemId, companyId, enabled: true }, select: { id: true } });
+    if (!item) throw new InventoryServiceError('Item not found', 404);
+    return prisma.invItemFile.create({
+      data: { itemId, fileAssetId, label: label ?? null },
+      include: { fileAsset: { select: { id: true, originalName: true, mimeType: true, sizeBytes: true } } },
+    });
+  }
+
+  async function removeItemFile(itemId, docId, companyId) {
+    const item = await prisma.invItem.findFirst({ where: { id: itemId, companyId, enabled: true }, select: { id: true } });
+    if (!item) throw new InventoryServiceError('Item not found', 404);
+    const row = await prisma.invItemFile.findFirst({ where: { id: docId, itemId } });
+    if (!row) throw new InventoryServiceError('File association not found', 404);
+    await prisma.invItemFile.delete({ where: { id: docId } });
+    return { success: true };
   }
 
   return {
@@ -693,6 +753,10 @@ export function createInventoryService({ prisma }) {
     createItem,
     updateItem,
     deleteItem,
+    // Files
+    listItemFiles,
+    addItemFile,
+    removeItemFile,
     // Assignments
     assignItem,
     returnItem,

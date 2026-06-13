@@ -239,6 +239,12 @@ const SCREEN_MAP = {
   "atlas.inventory:/inventory/:id": lazy(
     () => import("../modules/atlas.inventory/screens/InventoryItemDetail.jsx"),
   ),
+  "atlas.inventory:/inventory/catalogs": lazy(
+    () => import("../modules/atlas.inventory/screens/InventoryCatalogsScreen.jsx"),
+  ),
+  "atlas.inventory:/inventory/assignments": lazy(
+    () => import("../modules/atlas.inventory/screens/InventoryAssignmentsScreen.jsx"),
+  ),
 };
 const SCREEN_MODULE_KEYS = new Set(
   Object.keys(SCREEN_MAP).map((entry) => entry.split(":")[0]),
@@ -419,9 +425,8 @@ function resolveScreen(moduleKey, subPath) {
   if (moduleKey === "atlas.inventory") {
     if (subPath === "/" || subPath === "/inventory") return SCREEN_MAP["atlas.inventory:/inventory"] ?? null;
     if (subPath === "/inventory/new") return SCREEN_MAP["atlas.inventory:/inventory/new"] ?? null;
-    // Static sub-routes without screens yet — show placeholder until Phase 2A
-    if (subPath === "/inventory/assignments") return null;
-    if (subPath === "/inventory/catalogs") return null;
+    if (subPath === "/inventory/assignments") return SCREEN_MAP["atlas.inventory:/inventory/assignments"] ?? null;
+    if (subPath === "/inventory/catalogs") return SCREEN_MAP["atlas.inventory:/inventory/catalogs"] ?? null;
     // Parameterized routes — must come after all static path checks
     if (/^\/inventory\/[^/]+\/edit$/.test(subPath)) return SCREEN_MAP["atlas.inventory:/inventory/new"] ?? null;
     if (/^\/inventory\/[^/]+$/.test(subPath)) return SCREEN_MAP["atlas.inventory:/inventory/:id"] ?? null;

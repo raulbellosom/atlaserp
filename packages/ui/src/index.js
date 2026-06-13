@@ -199,7 +199,7 @@ export {
 } from "./components/ViewModeSwitch.jsx";
 export { MobileFiltersSheet } from "./components/MobileFiltersSheet.jsx";
 export { ListLayout } from "./components/ListLayout.jsx";
-export { useAttachmentsController } from "./hooks/useAttachmentsController.js";
+export { useAttachmentsController, resolveAttachmentFileType } from "./hooks/useAttachmentsController.js";
 
 // atlas.activity
 export { ActivityTimeline } from "./components/ActivityTimeline.jsx";

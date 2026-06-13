@@ -8,6 +8,17 @@ export const ITEM_STATUSES = [
   { value: 'disposed',    label: 'Desechado',     color: '#374151', bgColor: '#f9fafb' },
 ]
 
+export const ITEM_TYPES = [
+  { value: 'hardware',    label: 'Hardware' },
+  { value: 'software',    label: 'Software' },
+  { value: 'license',     label: 'Licencia' },
+  { value: 'equipment',   label: 'Equipo / Maquinaria' },
+  { value: 'furniture',   label: 'Mobiliario' },
+  { value: 'vehicle',     label: 'Vehiculo' },
+  { value: 'consumable',  label: 'Consumible' },
+  { value: 'other',       label: 'Otro' },
+]
+
 export const GROUP_BY_OPTIONS = [
   { value: 'category',  label: 'Categoria' },
   { value: 'brand',     label: 'Marca' },

@@ -18,6 +18,7 @@ const ALLOWED_FILE_ENTITY_TYPES = [
   "FleetMaintenance",
   "FleetReport",
   "Task",
+  "InvItem",
 ];
 const ALLOWED_EXACT_MIME_TYPES = new Set([
   "application/pdf",

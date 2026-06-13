@@ -65,15 +65,14 @@ const DialogContent = forwardRef(function DialogContent(
       <DialogPrimitive.Content
         ref={ref}
         aria-describedby={undefined}
-        onOpenAutoFocus={(e) => e.preventDefault()}
         {...props}
         className={cn(
-          "fixed z-50 glass-strong shadow-xl",
+          "fixed z-50 glass-strong shadow-xl focus:outline-none",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           // ── Mobile: full-width bottom sheet ──────────────────────────────
-          "inset-x-0 bottom-0 w-full max-h-[85dvh] overflow-y-auto overscroll-contain touch-pan-y",
-          "rounded-t-2xl p-5",
+          "inset-x-0 bottom-0 w-full min-h-[50dvh] max-h-[85dvh] overflow-y-auto overscroll-contain touch-pan-y",
+          "rounded-t-2xl px-5 pt-5 pb-8",
           "data-[state=open]:slide-in-from-bottom-full",
           "data-[state=closed]:slide-out-to-bottom-full",
           "duration-300",
@@ -129,7 +128,7 @@ const DialogFooter = function DialogFooter({ className, ...props }) {
   return (
     <div
       className={cn(
-        "flex flex-col gap-2 sm:flex-row sm:justify-end mt-6 safe-bottom",
+        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-6",
         className,
       )}
       {...props}

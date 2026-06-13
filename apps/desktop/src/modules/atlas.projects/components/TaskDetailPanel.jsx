@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Sheet,
   SheetContent,
@@ -13,9 +14,13 @@ import {
   ComboboxField,
   Input,
   MarkdownField,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
 } from "@atlas/ui";
 import { Skeleton } from "@atlas/ui";
-import { Trash2, Plus, X, Activity, Lock, RefreshCw } from "lucide-react";
+import { Trash2, Plus, X, Activity, Lock, SmilePlus } from "lucide-react";
+import EmojiPickerLib from "emoji-picker-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
@@ -38,6 +43,7 @@ import {
   useTaskFieldValues,
   useUpsertFieldValues,
   useAllTasksForPicker,
+  useToggleTaskReaction,
 } from "../hooks/useProjectsData";
 import { SubtaskRow } from "./SubtaskRow.jsx";
 import { AssigneeAvatar } from "../lib/AssigneeChip.jsx";
@@ -45,6 +51,93 @@ import { UserPickerDropdown } from "../lib/UserPickerDropdown.jsx";
 import MentionTextarea, { renderMentionText } from "./MentionTextarea.jsx";
 
 const API_BASE_URL = getApiUrl();
+
+const PICKER_H = 420;
+const PICKER_W = 300;
+
+function groupReactions(reactions = [], currentUserId = null) {
+  const map = new Map();
+  for (const r of reactions) {
+    if (!map.has(r.emoji)) map.set(r.emoji, { emoji: r.emoji, count: 0, users: [], isMine: false });
+    const entry = map.get(r.emoji);
+    entry.count++;
+    const name = r.user
+      ? [r.user.firstName, r.user.lastName].filter(Boolean).join(" ") || "?"
+      : "?";
+    entry.users.push(name);
+    if (currentUserId && r.userId === currentUserId) entry.isMine = true;
+  }
+  return [...map.values()];
+}
+
+function EmojiPicker({ onSelect, container }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0, width: PICKER_W });
+  const buttonRef = useRef(null);
+  const pickerRef = useRef(null);
+
+  function handleToggle() {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const w = Math.min(PICKER_W, vw - 16);
+      const spaceAbove = rect.top - 8;
+      const top = spaceAbove >= PICKER_H
+        ? rect.top - PICKER_H - 6
+        : Math.min(rect.bottom + 6, vh - PICKER_H - 8);
+      let left = rect.left;
+      if (left + w > vw - 8) left = vw - w - 8;
+      if (left < 8) left = 8;
+      setPos({ top, left, width: w });
+    }
+    setOpen((o) => !o);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    function handleOutside(e) {
+      const inButton = buttonRef.current?.contains(e.target);
+      const inPicker = pickerRef.current?.contains(e.target);
+      if (!inButton && !inPicker) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("touchstart", handleOutside, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("touchstart", handleOutside);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={handleToggle}
+        className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted active:bg-muted transition-colors"
+      >
+        <SmilePlus className="h-3 w-3" />
+      </button>
+      {open && createPortal(
+        <div
+          ref={pickerRef}
+          style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999 }}
+          className="shadow-2xl rounded-xl overflow-hidden"
+        >
+          <EmojiPickerLib
+            onEmojiClick={(data) => { onSelect(data.emoji); setOpen(false); }}
+            height={PICKER_H}
+            width={pos.width}
+            searchPlaceholder="Buscar emoji..."
+            lazyLoadEmojis
+          />
+        </div>,
+        container ?? document.body,
+      )}
+    </>
+  );
+}
 
 const PRIORITY_OPTIONS = [
   { value: "NONE", label: "Normal" },
@@ -117,6 +210,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const userId = userProfile?.id ?? session?.user?.id;
+  const [floatingLayer, setFloatingLayer] = useState(null);
 
   const { data: task, isLoading } = useTask(projectId, taskId);
   const { data: statuses = [] } = useStatuses(projectId);
@@ -156,6 +250,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
   const createComment = useCreateComment(projectId, taskId);
   const updateComment = useUpdateComment(projectId, taskId);
   const deleteComment = useDeleteComment(projectId, taskId);
+  const toggleReaction = useToggleTaskReaction(projectId, taskId);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -268,13 +363,8 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
     e?.preventDefault();
     const body = commentBody.trim();
     if (!body) return;
-    createComment.mutate(
-      { body },
-      {
-        onSuccess: () => setCommentBody(""),
-        onError: () => toast.error("No se pudo enviar el comentario"),
-      },
-    );
+    setCommentBody("");
+    createComment.mutate({ body });
   }
 
   function handleEditComment(comment) {
@@ -330,8 +420,18 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
       >
         <SheetContent
           className="w-full flex flex-col gap-0 p-0"
-          style={{ maxWidth: "860px" }}
+          style={{
+            maxWidth: "860px",
+            backdropFilter: "none",
+            WebkitBackdropFilter: "none",
+            background: "hsl(var(--background))",
+          }}
         >
+          {/* Portal container for floating UI (emoji picker, mention dropdown).
+              Rendering portals here — inside the Radix dialog tree — prevents
+              the dialog's DismissableLayer from intercepting pointer events on
+              those overlays. */}
+          <div ref={setFloatingLayer} className="contents" />
           <div
             className={`h-0.5 shrink-0 transition-opacity duration-200 bg-primary ${isPending ? "opacity-100 animate-pulse" : "opacity-0"}`}
           />
@@ -378,7 +478,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
             </div>
           </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 md:overflow-y-auto">
             {isLoading ? (
               <LoadingState />
             ) : task ? (
@@ -782,10 +882,11 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
                       const isAuthor = comment.authorId === userId;
                       const isEditing = editingCommentId === comment.id;
 
+                      const commentReactions = groupReactions(comment.reactions ?? [], userId);
                       return (
                         <div
                           key={`cm-${comment.id}`}
-                          className="flex gap-2 group"
+                          className={`flex gap-2 group transition-opacity${comment._pending ? " opacity-60" : ""}`}
                         >
                           <AssigneeAvatar
                             user={comment.author ?? {}}
@@ -796,10 +897,14 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
                               <span className="text-xs font-medium">
                                 {authorName}
                               </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                {formatDate(comment.createdAt)}
-                              </span>
-                              {comment.editedAt && (
+                              {comment._pending ? (
+                                <span className="text-[10px] text-muted-foreground">Enviando...</span>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground">
+                                  {formatDate(comment.createdAt)}
+                                </span>
+                              )}
+                              {!comment._pending && comment.editedAt && (
                                 <span className="text-[10px] text-muted-foreground">
                                   (editado)
                                 </span>
@@ -812,6 +917,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
                                   onChange={setEditingBody}
                                   members={mentionMembers}
                                   rows={2}
+                                  portalContainer={floatingLayer}
                                 />
                                 <div className="flex gap-1.5">
                                   <Button
@@ -835,27 +941,51 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
                                 {renderMentionText(comment.body)}
                               </p>
                             )}
+                            {/* Reactions */}
+                            {!isEditing && (
+                              <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                                {commentReactions.map((r) => (
+                                  <Tooltip key={r.emoji}>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleReaction.mutate({ commentId: comment.id, emoji: r.emoji })}
+                                        disabled={toggleReaction.isPending}
+                                        className={[
+                                          "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs transition-colors",
+                                          "disabled:cursor-not-allowed disabled:opacity-60",
+                                          r.isMine
+                                            ? "border-indigo-500/60 bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/25"
+                                            : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
+                                        ].join(" ")}
+                                      >
+                                        <span>{r.emoji}</span>
+                                        <span>{r.count}</span>
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                      <p className="text-xs">{r.users.join(", ")}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ))}
+                                <EmojiPicker container={floatingLayer} onSelect={(emoji) => toggleReaction.mutate({ commentId: comment.id, emoji })} />
+                              </div>
+                            )}
                           </div>
-                          {!isEditing && (
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                              {isAuthor && (
-                                <button
-                                  onClick={() => handleEditComment(comment)}
-                                  className="text-muted-foreground hover:text-foreground text-xs px-1"
-                                >
-                                  Editar
-                                </button>
-                              )}
-                              {isAuthor && (
-                                <button
-                                  onClick={() =>
-                                    setDeleteCommentId(comment.id)
-                                  }
-                                  className="text-muted-foreground hover:text-destructive text-xs px-1"
-                                >
-                                  <Trash2 size={11} />
-                                </button>
-                              )}
+                          {!isEditing && isAuthor && (
+                            <div className="flex gap-1 opacity-30 md:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
+                              <button
+                                onClick={() => handleEditComment(comment)}
+                                className="text-muted-foreground hover:text-foreground text-xs px-1"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => setDeleteCommentId(comment.id)}
+                                className="text-muted-foreground hover:text-destructive text-xs px-1"
+                              >
+                                <Trash2 size={11} />
+                              </button>
                             </div>
                           )}
                         </div>
@@ -874,6 +1004,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
                       members={mentionMembers}
                       rows={2}
                       placeholder="Escribe un comentario... (@ para mencionar, Ctrl+Enter para enviar)"
+                      portalContainer={floatingLayer}
                     />
                     <div className="flex justify-end">
                       <Button

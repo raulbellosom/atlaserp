@@ -1,98 +1,87 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AtlasTable, Button, PageHeader } from '@atlas/ui'
-import { LayoutGrid, LayoutList, Plus, RefreshCw, Table2 } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { Plus } from 'lucide-react'
+import { AtlasTable, Button, ConfirmDialog, PageHeader } from '@atlas/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import { useInventoryItems } from '../hooks/useInventoryItems.js'
-import {
-  useInventoryCategories,
-  useInventoryBrands,
-  useInventoryLocations,
-} from '../hooks/useInventoryCatalogs.js'
-import { InventoryGroupedView } from '../components/InventoryGroupedView.jsx'
+import { atlas } from '../../../lib/atlas.js'
+import { useInventoryCategories, useInventoryBrands, useInventoryLocations } from '../hooks/useInventoryCatalogs.js'
 import { ITEM_STATUSES } from '../lib/inventory-constants.js'
 
-const INVENTORY_TABLE_BLUEPRINT = {
-  key: 'inventory.items.table',
-  schema: {
-    apiPath: '/inventory/items',
-    primaryField: 'name',
-    searchable: true,
-    searchPlaceholder: 'Buscar item...',
-    columns: [
-      { field: 'assetTag',       label: 'Tag',         sortable: true,  link: false },
-      { field: 'name',           label: 'Nombre',      sortable: true,  link: true },
-      { field: 'categoryName',   label: 'Categoria',   sortable: false },
-      { field: 'brandName',      label: 'Marca',       sortable: false },
-      {
-        field: 'status', label: 'Estado', sortable: true, type: 'select',
-        options: ITEM_STATUSES.map(s => ({ value: s.value, label: s.label })),
-      },
-      { field: 'assignedToName', label: 'Responsable', sortable: false },
-      { field: 'locationName',   label: 'Ubicacion',   sortable: false, defaultVisible: false },
-      { field: 'serialNumber',   label: 'No. Serie',   sortable: false, defaultVisible: false },
-      { field: 'model',          label: 'Modelo',      sortable: false, defaultVisible: false },
-      { field: 'purchaseDate',   label: 'Compra',      sortable: true,  type: 'date', defaultVisible: false },
-      { field: 'warrantyExpiry', label: 'Garantia',    sortable: true,  type: 'date', defaultVisible: false },
-      { field: 'updatedAt',      label: 'Actualizado', sortable: true,  type: 'date', defaultVisible: false },
-    ],
-    filters: [
-      {
-        key: 'status', label: 'Estado', type: 'select',
-        options: ITEM_STATUSES.map(s => ({ value: s.value, label: s.label })),
-      },
-    ],
-    emptyState: { message: 'No hay items en el inventario.' },
-  },
-}
-
-function ViewToggle({ viewMode, onChange }) {
-  const modes = [
-    { value: 'tree',  icon: LayoutList, label: 'Arbol' },
-    { value: 'table', icon: Table2,     label: 'Tabla' },
-    { value: 'cards', icon: LayoutGrid, label: 'Tarjetas' },
-  ]
-  return (
-    <div className="flex items-center gap-0.5 rounded-md border border-[hsl(var(--border))] p-1">
-      {modes.map(({ value, icon: Icon, label }) => (
-        <button
-          key={value}
-          type="button"
-          title={label}
-          onClick={() => onChange(value)}
-          className={[
-            'flex items-center justify-center rounded p-1.5 transition-colors',
-            viewMode === value
-              ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]'
-              : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]',
-          ].join(' ')}
-        >
-          <Icon className="h-4 w-4" />
-        </button>
-      ))}
-    </div>
-  )
-}
+const STATUS_OPTIONS = ITEM_STATUSES.map(s => ({ value: s.value, label: s.label }))
 
 export default function InventoryScreen() {
   const navigate = useNavigate()
   const { session } = useAuth()
   const token = session?.access_token
+  const queryClient = useQueryClient()
 
-  const [groupBy, setGroupBy] = useState('category')
-  const [viewMode, setViewMode] = useState('tree')
-  const [search, setSearch] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(null)
+  const [refreshSignal, setRefreshSignal] = useState(0)
 
-  const { data: itemsData, isLoading, refetch, isFetching } = useInventoryItems({ search })
   const { data: categoriesData } = useInventoryCategories()
   const { data: brandsData } = useInventoryBrands()
   const { data: locationsData } = useInventoryLocations()
 
-  const items = itemsData?.data ?? []
-  const categories = categoriesData?.data ?? []
-  const brands = brandsData?.data ?? []
-  const locations = locationsData?.data ?? []
+  const categoryOptions = useMemo(
+    () => (categoriesData?.data ?? []).map(c => ({ value: c.id, label: c.name })),
+    [categoriesData?.data],
+  )
+  const brandOptions = useMemo(
+    () => (brandsData?.data ?? []).map(b => ({ value: b.id, label: b.name })),
+    [brandsData?.data],
+  )
+  const locationOptions = useMemo(
+    () => (locationsData?.data ?? []).map(l => ({ value: l.id, label: l.name })),
+    [locationsData?.data],
+  )
+
+  const blueprint = useMemo(() => ({
+    key: 'inventory.items.table',
+    schema: {
+      apiPath: '/inventory/items',
+      primaryField: 'name',
+      searchable: true,
+      searchPlaceholder: 'Buscar item...',
+      columns: [
+        { field: 'assetTag',       label: 'Tag',         sortable: true  },
+        { field: 'name',           label: 'Nombre',      sortable: true,  link: true },
+        { field: 'categoryName',   label: 'Categoria',   sortable: false },
+        { field: 'brandName',      label: 'Marca',       sortable: false },
+        {
+          field: 'status', label: 'Estado', sortable: true, type: 'select',
+          options: STATUS_OPTIONS,
+        },
+        { field: 'assignedToName', label: 'Responsable', sortable: false },
+        { field: 'locationName',   label: 'Ubicacion',   sortable: false, defaultVisible: false },
+        { field: 'serialNumber',   label: 'No. Serie',   sortable: false, defaultVisible: false },
+        { field: 'model',          label: 'Modelo',      sortable: false, defaultVisible: false },
+        { field: 'purchaseDate',   label: 'Compra',      sortable: true,  type: 'date', defaultVisible: false },
+        { field: 'warrantyExpiry', label: 'Garantia',    sortable: true,  type: 'date', defaultVisible: false },
+        { field: 'updatedAt',      label: 'Actualizado', sortable: true,  type: 'date', defaultVisible: false },
+      ],
+      filters: [
+        { key: 'status',     label: 'Estado',    type: 'select', options: STATUS_OPTIONS },
+        { key: 'categoryId', label: 'Categoria', type: 'select', options: categoryOptions },
+        { key: 'brandId',    label: 'Marca',     type: 'select', options: brandOptions },
+        { key: 'locationId', label: 'Ubicacion', type: 'select', options: locationOptions },
+      ],
+      emptyState: { message: 'No hay activos registrados.' },
+    },
+  }), [categoryOptions, brandOptions, locationOptions])
+
+  const deleteMutation = useMutation({
+    mutationFn: id => atlas.inventory.deleteItem(id, token),
+    onSuccess: () => {
+      setConfirmDelete(null)
+      setRefreshSignal(s => s + 1)
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'items'] })
+      toast.success('Activo eliminado')
+    },
+    onError: err => toast.error(err?.message ?? 'No se pudo eliminar el activo'),
+  })
 
   return (
     <div className="p-4 md:p-6 space-y-6 min-h-dvh">
@@ -101,44 +90,40 @@ export default function InventoryScreen() {
         title="Inventario"
         description="Gestiona y rastrea todos los activos de la empresa"
         actions={
-          <div className="flex items-center gap-2">
-            <ViewToggle viewMode={viewMode} onChange={setViewMode} />
-            {viewMode !== 'table' && (
-              <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching} title="Actualizar">
-                <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-              </Button>
-            )}
-            <Button onClick={() => navigate('/app/m/atlas.inventory/inventory/new')}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo item
-            </Button>
-          </div>
+          <Button onClick={() => navigate('/app/m/atlas.inventory/inventory/new')}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo item
+          </Button>
         }
       />
 
-      {viewMode === 'table' ? (
-        <AtlasTable
-          blueprint={INVENTORY_TABLE_BLUEPRINT}
-          token={token}
-          apiBaseUrl={getApiUrl()}
-          onView={(row) => navigate(`/app/m/atlas.inventory/inventory/${row.id}`)}
-        />
-      ) : (
-        <InventoryGroupedView
-          items={items}
-          categories={categories}
-          brands={brands}
-          locations={locations}
-          groupBy={groupBy}
-          onGroupByChange={setGroupBy}
-          viewMode={viewMode}
-          search={search}
-          onSearchChange={setSearch}
-          onItemClick={(item) => navigate(`/app/m/atlas.inventory/inventory/${item.id}`)}
-          onCreateItem={() => navigate('/app/m/atlas.inventory/inventory/new')}
-          isLoading={isLoading}
-        />
-      )}
+      <AtlasTable
+        blueprint={blueprint}
+        token={token}
+        apiBaseUrl={getApiUrl()}
+        onView={row => {
+          queryClient.prefetchQuery({
+            queryKey: ['inventory', 'items', row.id],
+            queryFn: () => atlas.inventory.getItem(row.id, token),
+            staleTime: 5 * 60 * 1000,
+          })
+          navigate(`/app/m/atlas.inventory/inventory/${row.id}`)
+        }}
+        onEdit={row => navigate(`/app/m/atlas.inventory/inventory/${row.id}/edit`)}
+        onDelete={row => setConfirmDelete(row)}
+        refreshSignal={refreshSignal}
+      />
+
+      <ConfirmDialog
+        open={Boolean(confirmDelete)}
+        onOpenChange={v => !v && setConfirmDelete(null)}
+        title="Eliminar activo"
+        description="El activo sera desactivado. Esta accion no se puede deshacer facilmente."
+        detail={confirmDelete ? `${confirmDelete.assetTag} — ${confirmDelete.name}` : ''}
+        confirmLabel="Eliminar"
+        onConfirm={() => deleteMutation.mutate(confirmDelete.id)}
+        loading={deleteMutation.isPending}
+      />
     </div>
   )
 }

@@ -24,7 +24,8 @@ export function useInventoryItems(params = {}) {
     queryKey: ['inventory', 'items', params],
     queryFn: () => atlas.inventory.listItems(params, token),
     enabled: Boolean(token),
-    staleTime: 30 * 1000,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   })
 }
 
@@ -36,7 +37,7 @@ export function useInventoryItem(id) {
     queryKey: ['inventory', 'items', id],
     queryFn: () => atlas.inventory.getItem(id, token),
     enabled: Boolean(token) && Boolean(id),
-    staleTime: 30 * 1000,
+    staleTime: 5 * 60 * 1000,
   })
 }
 
@@ -132,7 +133,8 @@ export function useInventoryItemAssignments(itemId) {
     queryKey: ['inventory', 'items', itemId, 'assignments'],
     queryFn: () => atlas.inventory.getItemAssignments(itemId, token),
     enabled: Boolean(token) && Boolean(itemId),
-    staleTime: 30 * 1000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   })
 }
 
@@ -144,7 +146,8 @@ export function useInventoryItemsByEmployee(employeeId) {
     queryKey: ['inventory', 'items', 'by-employee', employeeId],
     queryFn: () => atlas.inventory.getItemsByEmployee(employeeId, token),
     enabled: Boolean(token) && Boolean(employeeId),
-    staleTime: 30 * 1000,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   })
 }
 
@@ -156,6 +159,7 @@ export function useInventoryAssignments(params = {}) {
     queryKey: ['inventory', 'assignments', params],
     queryFn: () => atlas.inventory.listAssignments(params, token),
     enabled: Boolean(token),
-    staleTime: 30 * 1000,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   })
 }

@@ -4622,6 +4622,46 @@ app.get('/inventory/items/:id/assignments', authMiddleware, requirePermission('i
   }
 });
 
+// Item files
+app.get('/inventory/items/:id/files', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
+  try {
+    const companyId = c.get('companyId');
+    const { id } = c.req.param();
+    const files = await inventoryService.listItemFiles(id, companyId);
+    return c.json({ data: files });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudieron cargar los archivos.' }, 500);
+  }
+});
+
+app.post('/inventory/items/:id/files', authMiddleware, requirePermission('inventory.item.update'), async (c) => {
+  try {
+    const companyId = c.get('companyId');
+    const { id } = c.req.param();
+    const body = await c.req.json();
+    const fileAssetId = body.file_asset_id ?? body.fileAssetId;
+    if (!fileAssetId) return c.json({ error: 'file_asset_id is required' }, 400);
+    const record = await inventoryService.addItemFile(id, fileAssetId, companyId, body.label ?? null);
+    return c.json({ data: record }, 201);
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo asociar el archivo.' }, 500);
+  }
+});
+
+app.delete('/inventory/items/:id/files/:docId', authMiddleware, requirePermission('inventory.item.update'), async (c) => {
+  try {
+    const companyId = c.get('companyId');
+    const { id, docId } = c.req.param();
+    await inventoryService.removeItemFile(id, docId, companyId);
+    return c.json({ success: true });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo eliminar el archivo.' }, 500);
+  }
+});
+
 // Comments
 app.get('/inventory/items/:id/comments', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
   try {

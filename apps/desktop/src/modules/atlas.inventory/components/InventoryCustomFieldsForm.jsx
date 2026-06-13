@@ -1,11 +1,11 @@
 import { Controller } from 'react-hook-form'
 import {
   TextField,
-  TextareaField,
   NumberField,
   DateField,
   SelectField,
   CheckboxField,
+  MarkdownField,
 } from '@atlas/ui'
 
 /**
@@ -49,12 +49,11 @@ function FieldRenderer({ definition, formField, error }) {
 
     case 'textarea':
       return (
-        <TextareaField
+        <MarkdownField
           {...commonProps}
           value={formField.value ?? ''}
           onChange={formField.onChange}
           onBlur={formField.onBlur}
-          name={formField.name}
         />
       )
 
@@ -78,8 +77,8 @@ function FieldRenderer({ definition, formField, error }) {
       return (
         <CheckboxField
           {...commonProps}
-          checked={!!formField.value}
-          onCheckedChange={formField.onChange}
+          checked={formField.value === true || formField.value === 'true'}
+          onChange={(e) => formField.onChange(e.target.checked)}
           onBlur={formField.onBlur}
           name={formField.name}
         />

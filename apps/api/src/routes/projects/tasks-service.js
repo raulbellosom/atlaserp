@@ -243,10 +243,26 @@ export function createTasksService({ prisma }) {
   async function listComments(taskId, { limit = 50, cursor } = {}) {
     return prisma.taskComment.findMany({
       where: { taskId, ...(cursor ? { id: { lt: cursor } } : {}) },
-      include: { author: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } } },
+      include: {
+        author: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } },
+        reactions: { include: { user: { select: { id: true, firstName: true, lastName: true } } } },
+      },
       orderBy: { createdAt: 'asc' },
       take: limit,
     })
+  }
+
+  async function toggleTaskReaction(commentId, requesterId, emoji) {
+    if (!emoji?.trim()) throw new TaskServiceError('Emoji requerido.', 400)
+    const existing = await prisma.taskCommentReaction.findUnique({
+      where: { commentId_userId_emoji: { commentId, userId: requesterId, emoji } },
+    })
+    if (existing) {
+      await prisma.taskCommentReaction.delete({ where: { commentId_userId_emoji: { commentId, userId: requesterId, emoji } } })
+      return { action: 'removed' }
+    }
+    await prisma.taskCommentReaction.create({ data: { commentId, userId: requesterId, emoji } })
+    return { action: 'added' }
   }
 
   async function updateComment(commentId, requesterId, body) {
@@ -300,7 +316,7 @@ export function createTasksService({ prisma }) {
   return {
     listTasks, getTask, createTask, updateTask, moveTask, deleteTask,
     addAssignee, removeAssignee, listAssignees,
-    createComment, listComments, updateComment, deleteComment,
+    createComment, listComments, updateComment, deleteComment, toggleTaskReaction,
     bulkUpdateTasks, bulkDeleteTasks,
   }
 }
