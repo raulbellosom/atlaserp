@@ -9,3 +9,5 @@ dist
 coverage
 **/coverage
 .DS_Store
+# Tauri/Rust build artifacts — not needed in any Docker image (adds ~1.7 GB)
+apps/desktop/src-tauri/target/
