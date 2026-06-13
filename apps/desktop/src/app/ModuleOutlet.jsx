@@ -419,6 +419,10 @@ function resolveScreen(moduleKey, subPath) {
   if (moduleKey === "atlas.inventory") {
     if (subPath === "/" || subPath === "/inventory") return SCREEN_MAP["atlas.inventory:/inventory"] ?? null;
     if (subPath === "/inventory/new") return SCREEN_MAP["atlas.inventory:/inventory/new"] ?? null;
+    // Static sub-routes without screens yet — show placeholder until Phase 2A
+    if (subPath === "/inventory/assignments") return null;
+    if (subPath === "/inventory/catalogs") return null;
+    // Parameterized routes — must come after all static path checks
     if (/^\/inventory\/[^/]+\/edit$/.test(subPath)) return SCREEN_MAP["atlas.inventory:/inventory/new"] ?? null;
     if (/^\/inventory\/[^/]+$/.test(subPath)) return SCREEN_MAP["atlas.inventory:/inventory/:id"] ?? null;
     return null;
