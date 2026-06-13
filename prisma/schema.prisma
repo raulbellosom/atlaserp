@@ -225,6 +225,12 @@ model Company {
   hrDepartments  HrDepartment[]
   hrJobTitles    HrJobTitle[]
 
+  invCategories   InvCategory[]    @relation("CompanyInvCategories")
+  invBrands       InvBrand[]       @relation("CompanyInvBrands")
+  invLocations    InvLocation[]    @relation("CompanyInvLocations")
+  invItems        InvItem[]        @relation("CompanyInvItems")
+  invCustomFields InvCustomField[] @relation("CompanyInvCustomFields")
+
   @@map("company")
 }
 
@@ -277,6 +283,12 @@ model UserProfile {
   projectTaskAssignees ProjectTaskAssignee[] @relation("TaskAssigneeUser")
   taskComments         TaskComment[]         @relation("TaskCommentAuthor")
   taskMentions         TaskMention[]         @relation("TaskMentionUser")
+
+  invComments     InvComment[]         @relation("UserInvComments")
+  invMentions     InvMention[]         @relation("UserInvMentions")
+  invReactions    InvCommentReaction[] @relation("UserInvReactions")
+  invAssignedBy   InvAssignment[]      @relation("UserInvAssignments")
+  createdInvItems InvItem[]            @relation("UserCreatedInvItems")
 
   @@map("user_profile")
 }
@@ -379,6 +391,7 @@ model FileAsset {
   updatedAt DateTime @updatedAt @map("updated_at")
   hrProfileEmployees HrEmployee[] @relation("HrEmployeeProfileImage")
   calendarFiles      CalendarEventFile[]
+  invItemFiles       InvItemFile[] @relation("FileAssetInvItems")
 
   @@index([moduleKey, entityType, entityId])
   @@map("file_asset")
@@ -483,6 +496,9 @@ model HrEmployee {
   departmentRef  HrDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   jobTitleRef    HrJobTitle? @relation(fields: [jobTitleId], references: [id], onDelete: SetNull)
   profileImageFile FileAsset? @relation("HrEmployeeProfileImage", fields: [profileImageFileId], references: [id], onDelete: SetNull)
+
+  assignedInvItems InvItem[]       @relation("EmployeeAssignedItems")
+  invAssignments   InvAssignment[] @relation("EmployeeInvAssignments")
 
   @@index([companyId, enabled])
   @@index([companyId, lastName, firstName])
@@ -1779,4 +1795,231 @@ model TaskFieldValue {
   @@unique([taskId, fieldId])
   @@index([taskId])
   @@map("task_field_value")
+}
+
+// ─── atlas.inventory ──────────────────────────────────────────────────────────
+
+model InvCategory {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  companyId   String   @db.Uuid @map("company_id")
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(500)
+  icon        String?  @db.VarChar(50)
+  color       String?  @db.VarChar(7)
+  parentId    String?  @db.Uuid @map("parent_id")
+  sortOrder   Int      @default(0) @map("sort_order")
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company      Company       @relation("CompanyInvCategories", fields: [companyId], references: [id])
+  parent       InvCategory?  @relation("InvCategoryChildren", fields: [parentId], references: [id])
+  children     InvCategory[] @relation("InvCategoryChildren")
+  items        InvItem[]
+  customFields InvCustomField[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@map("inv_category")
+}
+
+model InvBrand {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  companyId   String   @db.Uuid @map("company_id")
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(500)
+  website     String?  @db.VarChar(255)
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company Company   @relation("CompanyInvBrands", fields: [companyId], references: [id])
+  items   InvItem[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@map("inv_brand")
+}
+
+model InvLocation {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  companyId   String   @db.Uuid @map("company_id")
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(500)
+  address     String?  @db.VarChar(500)
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company Company   @relation("CompanyInvLocations", fields: [companyId], references: [id])
+  items   InvItem[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@map("inv_location")
+}
+
+model InvItem {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  companyId     String    @db.Uuid @map("company_id")
+  assetTag      String    @db.VarChar(100) @map("asset_tag")
+  name          String    @db.VarChar(255)
+  description   String?   @db.VarChar(2000)
+  categoryId    String?   @db.Uuid @map("category_id")
+  brandId       String?   @db.Uuid @map("brand_id")
+  locationId    String?   @db.Uuid @map("location_id")
+  serialNumber  String?   @db.VarChar(255) @map("serial_number")
+  model         String?   @db.VarChar(255)
+  partNumber    String?   @db.VarChar(255) @map("part_number")
+  status        String    @default("available") @db.VarChar(50)
+  purchaseDate  DateTime? @db.Date @map("purchase_date")
+  purchasePrice Decimal?  @db.Decimal(12, 2) @map("purchase_price")
+  vendorName    String?   @db.VarChar(255) @map("vendor_name")
+  invoiceNumber String?   @db.VarChar(100) @map("invoice_number")
+  warrantyExpiry DateTime? @db.Date @map("warranty_expiry")
+  warrantyNotes  String?   @db.VarChar(500) @map("warranty_notes")
+  licenseKey    String?   @db.VarChar(500) @map("license_key")
+  licenseExpiry DateTime? @db.Date @map("license_expiry")
+  licenseSeats  Int?      @map("license_seats")
+  assignedToId  String?   @db.Uuid @map("assigned_to_id")
+  assignedAt    DateTime? @map("assigned_at")
+  notes         String?   @db.VarChar(2000)
+  enabled       Boolean   @default(true)
+  createdById   String?   @db.Uuid @map("created_by_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  company      Company        @relation("CompanyInvItems", fields: [companyId], references: [id])
+  category     InvCategory?   @relation(fields: [categoryId], references: [id])
+  brand        InvBrand?      @relation(fields: [brandId], references: [id])
+  location     InvLocation?   @relation(fields: [locationId], references: [id])
+  assignedTo   HrEmployee?    @relation("EmployeeAssignedItems", fields: [assignedToId], references: [id])
+  createdBy    UserProfile?   @relation("UserCreatedInvItems", fields: [createdById], references: [id])
+  assignments  InvAssignment[]
+  comments     InvComment[]
+  customValues InvCustomFieldValue[]
+  files        InvItemFile[]
+
+  @@unique([companyId, assetTag])
+  @@index([companyId])
+  @@index([categoryId])
+  @@index([assignedToId])
+  @@index([status])
+  @@map("inv_item")
+}
+
+model InvAssignment {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  itemId       String    @db.Uuid @map("item_id")
+  employeeId   String    @db.Uuid @map("employee_id")
+  assignedById String    @db.Uuid @map("assigned_by_id")
+  assignedAt   DateTime  @default(now()) @map("assigned_at")
+  returnedAt   DateTime? @map("returned_at")
+  notes        String?   @db.VarChar(500)
+
+  item       InvItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  employee   HrEmployee  @relation("EmployeeInvAssignments", fields: [employeeId], references: [id])
+  assignedBy UserProfile @relation("UserInvAssignments", fields: [assignedById], references: [id])
+
+  @@index([itemId])
+  @@index([employeeId])
+  @@map("inv_assignment")
+}
+
+model InvCustomField {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  companyId  String   @db.Uuid @map("company_id")
+  categoryId String?  @db.Uuid @map("category_id")
+  label      String   @db.VarChar(100)
+  fieldKey   String   @db.VarChar(50) @map("field_key")
+  fieldType  String   @db.VarChar(30) @map("field_type")
+  options    Json?
+  required   Boolean  @default(false)
+  sortOrder  Int      @default(0) @map("sort_order")
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  company  Company       @relation("CompanyInvCustomFields", fields: [companyId], references: [id])
+  category InvCategory?  @relation(fields: [categoryId], references: [id])
+  values   InvCustomFieldValue[]
+
+  @@unique([companyId, fieldKey, categoryId])
+  @@index([companyId])
+  @@index([categoryId])
+  @@map("inv_custom_field")
+}
+
+model InvCustomFieldValue {
+  id      String  @id @default(uuid(7)) @db.Uuid
+  itemId  String  @db.Uuid @map("item_id")
+  fieldId String  @db.Uuid @map("field_id")
+  value   String? @db.VarChar(2000)
+
+  item  InvItem        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  field InvCustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, fieldId])
+  @@index([itemId])
+  @@map("inv_custom_field_value")
+}
+
+model InvComment {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  itemId    String    @db.Uuid @map("item_id")
+  authorId  String    @db.Uuid @map("author_id")
+  body      String    @db.VarChar(5000)
+  createdAt DateTime  @default(now()) @map("created_at")
+  editedAt  DateTime? @map("edited_at")
+
+  item      InvItem              @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  author    UserProfile          @relation("UserInvComments", fields: [authorId], references: [id])
+  mentions  InvMention[]
+  reactions InvCommentReaction[]
+
+  @@index([itemId])
+  @@map("inv_comment")
+}
+
+model InvMention {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  commentId String   @db.Uuid @map("comment_id")
+  userId    String   @db.Uuid @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  comment InvComment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    UserProfile @relation("UserInvMentions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@index([userId])
+  @@map("inv_mention")
+}
+
+model InvCommentReaction {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  commentId String   @db.Uuid @map("comment_id")
+  userId    String   @db.Uuid @map("user_id")
+  emoji     String   @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  comment InvComment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    UserProfile @relation("UserInvReactions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId, emoji])
+  @@index([commentId])
+  @@map("inv_comment_reaction")
+}
+
+model InvItemFile {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  itemId      String   @db.Uuid @map("item_id")
+  fileAssetId String   @db.Uuid @map("file_asset_id")
+  label       String?  @db.VarChar(100)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  item      InvItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  fileAsset FileAsset @relation("FileAssetInvItems", fields: [fileAssetId], references: [id])
+
+  @@index([itemId])
+  @@map("inv_item_file")
 }
