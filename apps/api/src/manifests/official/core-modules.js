@@ -1041,6 +1041,73 @@ export const atlasCatalogManifest = createModuleManifest({
   ],
 });
 
+export const inventoryMap = createModuleManifest({
+  key: 'atlas.inventory',
+  name: 'Inventario',
+  description: 'Gestion de inventario y activos de la empresa',
+  version: '1.0.0',
+  kind: MODULE_KINDS.CORE,
+  core: true,
+  uninstallable: false,
+  icon: 'Boxes',
+  color: '#7c3aed',
+  category: 'operaciones',
+  summary: 'Gestion de inventario y activos de la empresa',
+  dependencies: [{ key: 'atlas.core' }, { key: 'atlas.hr' }],
+  navigation: [
+    {
+      label: 'Inventario',
+      path: '/inventory',
+      icon: 'Boxes',
+      layout: 'main',
+      permissionKey: 'inventory.item.read',
+    },
+    {
+      label: 'Asignaciones',
+      path: '/inventory/assignments',
+      icon: 'UserCheck',
+      layout: 'main',
+      permissionKey: 'inventory.assignment.read',
+    },
+    {
+      label: 'Catalogos',
+      path: '/inventory/catalogs',
+      icon: 'FolderOpen',
+      layout: 'main',
+      permissionKey: 'inventory.catalog.manage',
+    },
+  ],
+  permissions: [
+    { key: 'inventory.access',             name: 'Acceder al modulo de inventario' },
+    { key: 'inventory.item.read',          name: 'Ver items del inventario' },
+    { key: 'inventory.item.create',        name: 'Crear items de inventario' },
+    { key: 'inventory.item.update',        name: 'Editar items de inventario' },
+    { key: 'inventory.item.delete',        name: 'Eliminar items de inventario' },
+    { key: 'inventory.assignment.read',    name: 'Ver asignaciones de inventario' },
+    { key: 'inventory.assignment.manage',  name: 'Gestionar asignaciones de inventario' },
+    { key: 'inventory.catalog.read',       name: 'Ver catalogos de inventario' },
+    { key: 'inventory.catalog.manage',     name: 'Gestionar catalogos de inventario' },
+    { key: 'inventory.customfield.manage', name: 'Gestionar campos personalizados de inventario' },
+  ],
+  acl: {
+    module: 'inventory.access',
+    actions: {
+      'inventory.item.read':          'inventory.item.read',
+      'inventory.item.create':        'inventory.item.create',
+      'inventory.item.update':        'inventory.item.update',
+      'inventory.item.delete':        'inventory.item.delete',
+      'inventory.assignment.read':    'inventory.assignment.read',
+      'inventory.assignment.manage':  'inventory.assignment.manage',
+      'inventory.catalog.read':       'inventory.catalog.read',
+      'inventory.catalog.manage':     'inventory.catalog.manage',
+      'inventory.customfield.manage': 'inventory.customfield.manage',
+    },
+  },
+  blueprints: [],
+  exposes: [],
+  consumes: [],
+});
+
 export const coreModules = [
   atlasCoreMap,
   identityMap,
@@ -1056,4 +1123,5 @@ export const coreModules = [
   notificationsMap,
   atlasCatalogManifest,
   projectsMap,
+  inventoryMap,
 ];
