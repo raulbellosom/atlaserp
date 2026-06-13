@@ -2251,18 +2251,16 @@ export function createModulesRouter({
       try {
         const { fileCount } = await validateAndExtractZip(key, buffer, modulesDir);
 
-        // Trigger a sync scoped to this module key so it appears in the catalog
+        // Trigger a dependency sync for the uploaded module so it appears in the catalog
         const discoveryRootInfo = await getDiscoveryRootInfo();
         const discoveredAll = await discoverModules({
           rootDir: discoveryRootInfo.projectRoot,
         });
-        const discovered = discoveredAll.filter((r) => r?.key === key);
-        const actorId = await resolveSyncActorId(prisma, c.get("userContext"));
+        const uploadedRecord = discoveredAll.find((r) => r?.key === key);
         const syncResult = await syncDiscoveredModuleDependencies({
           prisma,
-          discovered,
-          actorId,
-          autoRepairEnabled: false,
+          moduleKey: key,
+          dependencies: uploadedRecord?.manifest?.dependencies ?? [],
         });
 
         return c.json({ data: { moduleKey: key, fileCount, syncResult } });

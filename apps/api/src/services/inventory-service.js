@@ -1,6 +1,12 @@
 // inventory-service.js — business logic layer for atlas.inventory module
 
-const MENTION_REGEX = /@\[([a-f0-9-]{36}):[^\]]+\]/g;
+class InventoryServiceError extends Error {
+  constructor(message, status = 500) {
+    super(message);
+    this.name = 'InventoryServiceError';
+    this.status = status;
+  }
+}
 
 function parseMentionIds(body) {
   const ids = [];
@@ -101,7 +107,7 @@ export function createInventoryService({ prisma }) {
         },
       },
     });
-    if (!item) throw { status: 404, message: 'Item not found' };
+    if (!item) throw new InventoryServiceError('Item not found', 404);
     return item;
   }
 
@@ -136,7 +142,7 @@ export function createInventoryService({ prisma }) {
       customValues,
     } = data;
 
-    const itemData = {
+    let itemData = {
       companyId,
       assetTag,
       name,
@@ -162,38 +168,70 @@ export function createInventoryService({ prisma }) {
     if (notes !== undefined) itemData.notes = notes;
 
     if (customValues && Array.isArray(customValues) && customValues.length > 0) {
-      return prisma.$transaction(async (tx) => {
-        const item = await tx.invItem.create({ data: itemData });
-        for (const cv of customValues) {
-          await tx.invCustomFieldValue.create({
-            data: { itemId: item.id, fieldId: cv.fieldId, value: cv.value ?? null },
+      let created;
+      let tagAttempt = 0;
+      while (!created) {
+        try {
+          created = await prisma.$transaction(async (tx) => {
+            const item = await tx.invItem.create({ data: itemData });
+            for (const cv of customValues) {
+              await tx.invCustomFieldValue.create({
+                data: { itemId: item.id, fieldId: cv.fieldId, value: cv.value ?? null },
+              });
+            }
+            return tx.invItem.findFirst({
+              where: { id: item.id },
+              include: {
+                category: { select: { id: true, name: true, icon: true, color: true } },
+                brand: { select: { id: true, name: true } },
+                location: { select: { id: true, name: true } },
+                customValues: { include: { field: { select: { id: true, label: true, fieldKey: true, fieldType: true, options: true } } } },
+              },
+            });
           });
+        } catch (err) {
+          if (err.code === 'P2002' && err.meta?.target?.includes('asset_tag') && tagAttempt < 5) {
+            tagAttempt++;
+            const year = new Date().getFullYear();
+            const count = await prisma.invItem.count({ where: { companyId } });
+            itemData = { ...itemData, assetTag: `INV-${year}-${String(count + tagAttempt).padStart(4, '0')}` };
+          } else {
+            throw err;
+          }
         }
-        return tx.invItem.findFirst({
-          where: { id: item.id },
+      }
+      return created;
+    }
+
+    let created;
+    let tagAttempt = 0;
+    while (!created) {
+      try {
+        created = await prisma.invItem.create({
+          data: itemData,
           include: {
             category: { select: { id: true, name: true, icon: true, color: true } },
             brand: { select: { id: true, name: true } },
             location: { select: { id: true, name: true } },
-            customValues: { include: { field: { select: { id: true, label: true, fieldKey: true, fieldType: true, options: true } } } },
           },
         });
-      });
+      } catch (err) {
+        if (err.code === 'P2002' && err.meta?.target?.includes('asset_tag') && tagAttempt < 5) {
+          tagAttempt++;
+          const year = new Date().getFullYear();
+          const count = await prisma.invItem.count({ where: { companyId } });
+          itemData = { ...itemData, assetTag: `INV-${year}-${String(count + tagAttempt).padStart(4, '0')}` };
+        } else {
+          throw err;
+        }
+      }
     }
-
-    return prisma.invItem.create({
-      data: itemData,
-      include: {
-        category: { select: { id: true, name: true, icon: true, color: true } },
-        brand: { select: { id: true, name: true } },
-        location: { select: { id: true, name: true } },
-      },
-    });
+    return created;
   }
 
   async function updateItem(id, data, companyId) {
     const existing = await prisma.invItem.findFirst({ where: { id, companyId, enabled: true } });
-    if (!existing) throw { status: 404, message: 'Item not found' };
+    if (!existing) throw new InventoryServiceError('Item not found', 404);
 
     const {
       name,
@@ -276,7 +314,7 @@ export function createInventoryService({ prisma }) {
 
   async function deleteItem(id, companyId) {
     const existing = await prisma.invItem.findFirst({ where: { id, companyId, enabled: true } });
-    if (!existing) throw { status: 404, message: 'Item not found' };
+    if (!existing) throw new InventoryServiceError('Item not found', 404);
     return prisma.invItem.update({ where: { id }, data: { enabled: false } });
   }
 
@@ -284,8 +322,8 @@ export function createInventoryService({ prisma }) {
 
   async function assignItem(itemId, employeeId, assignedById, notes, companyId) {
     const item = await prisma.invItem.findFirst({ where: { id: itemId, companyId, enabled: true } });
-    if (!item) throw { status: 404, message: 'Item not found' };
-    if (item.status === 'assigned') throw { status: 409, message: 'Item is already assigned' };
+    if (!item) throw new InventoryServiceError('Item not found', 404);
+    if (item.status === 'assigned') throw new InventoryServiceError('Item is already assigned', 409);
 
     return prisma.$transaction(async (tx) => {
       const assignment = await tx.invAssignment.create({

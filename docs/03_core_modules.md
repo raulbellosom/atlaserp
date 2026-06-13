@@ -1,6 +1,6 @@
 # Atlas ERP - Core Modules
 
-Thirteen core modules. All have `core: true`, `uninstallable: false`. None can be removed or disabled from module lifecycle endpoints.
+Fourteen official modules. All have `core: true`, `uninstallable: false`. None can be removed or disabled from module lifecycle endpoints.
 
 ## Quality standards
 
@@ -145,6 +145,18 @@ Depends on: `atlas.core`
 Permissions: `catalog.access`, `catalog.products.read|create|update|delete`, `catalog.categories.read|create|update|delete`, `catalog.inventory.adjust`
 
 Navigation: Productos (`/app/m/atlas.catalog`), Categorias (`/app/m/atlas.catalog/categories`), Inventario (`/app/m/atlas.catalog/inventory`)
+
+## atlas.projects
+
+Owns project management: projects, task boards (kanban), tasks, statuses, members, file attachments, and task dependencies.
+
+Depends on: `atlas.core`, `atlas.company`, `atlas.calendar` (optional)
+
+Permissions: `projects.access`, `projects.project.read|create|update|delete`, `projects.task.read|create|update|delete`, `projects.member.manage`
+
+Navigation: Proyectos (`/app/m/atlas.projects`)
+
+Kanban boards with drag-and-drop (desktop + touch), inline @mention for members, optimistic updates, and mobile-first UX. Tasks support file attachments, dependency linking, and push notifications for assignments.
 
 ## Source of truth
 
