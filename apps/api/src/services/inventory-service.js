@@ -1,6 +1,6 @@
 // inventory-service.js — business logic layer for atlas.inventory module
 
-class InventoryServiceError extends Error {
+export class InventoryServiceError extends Error {
   constructor(message, status = 500) {
     super(message);
     this.name = 'InventoryServiceError';

@@ -40,6 +40,7 @@ import {
   CompanyServiceError,
 } from "./services/company-service.js";
 import { createHrService, HrServiceError } from "./services/hr-service.js";
+import { createInventoryService, InventoryServiceError } from "./services/inventory-service.js";
 import { buildEmployeesExcelBuffer } from "./services/hr-export-service.js";
 import { createModulesRouter } from "./routes/modules.js";
 import {
@@ -117,6 +118,7 @@ const CORE_MODULE_KEYS = new Set([
   "atlas.calendar",
   "atlas.catalog",
   "atlas.notifications",
+  "atlas.inventory",
 ]);
 const STORAGE_BUCKET_NAME = "atlas-files";
 const STOREFRONT_BUCKET_NAME = "atlas-storefront";
@@ -128,6 +130,7 @@ const hrService = createHrService({ prisma });
 const notificationDeliveryWorker = createNotificationDeliveryWorker({ prisma });
 const notificationService = createNotificationService({ prisma });
 const distServeService = createDistServeService({ prisma, supabaseAdmin });
+const inventoryService = createInventoryService({ prisma });
 
 function toSlug(name) {
   return name
@@ -4502,10 +4505,398 @@ app.post("/internal/notifications/process-deliveries", async (c) => {
   }
 });
 
+// ─── atlas.inventory ───────────────────────────────────────────────────────
+
+// Items
+app.get('/inventory/items', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { search, categoryId, brandId, locationId, status, assignedToId, page, limit } = c.req.query();
+    const result = await inventoryService.listItems({ companyId, search, categoryId, brandId, locationId, status, assignedToId, page: Number(page) || 1, limit: Number(limit) || 50 });
+    return c.json(result);
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudieron cargar los items.' }, 500);
+  }
+});
+
+app.post('/inventory/items', authMiddleware, requirePermission('inventory.item.create'), async (c) => {
+  try {
+    const { companyId, authUserId } = c.get('auth');
+    const data = await c.req.json();
+    const item = await inventoryService.createItem(data, companyId, authUserId);
+    return c.json({ data: item }, 201);
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo crear el item.' }, 500);
+  }
+});
+
+app.get('/inventory/items/by-employee/:empId', authMiddleware, requirePermission('inventory.assignment.read'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { empId } = c.req.param();
+    const items = await inventoryService.getItemsByEmployee(empId, companyId);
+    return c.json({ data: items });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudieron cargar los items del colaborador.' }, 500);
+  }
+});
+
+app.get('/inventory/items/:id', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { id } = c.req.param();
+    const item = await inventoryService.getItem(id, companyId);
+    return c.json({ data: item });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo cargar el item.' }, 500);
+  }
+});
+
+app.put('/inventory/items/:id', authMiddleware, requirePermission('inventory.item.update'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { id } = c.req.param();
+    const data = await c.req.json();
+    const item = await inventoryService.updateItem(id, data, companyId);
+    return c.json({ data: item });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo actualizar el item.' }, 500);
+  }
+});
+
+app.delete('/inventory/items/:id', authMiddleware, requirePermission('inventory.item.delete'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { id } = c.req.param();
+    await inventoryService.deleteItem(id, companyId);
+    return c.json({ success: true });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo eliminar el item.' }, 500);
+  }
+});
+
+app.post('/inventory/items/:id/assign', authMiddleware, requirePermission('inventory.assignment.manage'), async (c) => {
+  try {
+    const { companyId, authUserId } = c.get('auth');
+    const { id } = c.req.param();
+    const { employeeId, notes } = await c.req.json();
+    const result = await inventoryService.assignItem(id, employeeId, authUserId, notes, companyId);
+    return c.json({ data: result }, 201);
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo asignar el item.' }, 500);
+  }
+});
+
+app.post('/inventory/items/:id/return', authMiddleware, requirePermission('inventory.assignment.manage'), async (c) => {
+  try {
+    const { companyId, authUserId } = c.get('auth');
+    const { id } = c.req.param();
+    const body = await c.req.json().catch(() => ({}));
+    const result = await inventoryService.returnItem(id, authUserId, body.notes, companyId);
+    return c.json({ data: result });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo registrar la devolucion del item.' }, 500);
+  }
+});
+
+app.get('/inventory/items/:id/assignments', authMiddleware, requirePermission('inventory.assignment.read'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { id } = c.req.param();
+    const history = await inventoryService.getAssignmentHistory(id, companyId);
+    return c.json({ data: history });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo cargar el historial de asignaciones.' }, 500);
+  }
+});
+
+// Comments
+app.get('/inventory/items/:id/comments', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { id } = c.req.param();
+    const comments = await inventoryService.listComments(id, companyId);
+    return c.json({ data: comments });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudieron cargar los comentarios.' }, 500);
+  }
+});
+
+app.post('/inventory/items/:id/comments', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
+  try {
+    const { companyId, authUserId } = c.get('auth');
+    const { id } = c.req.param();
+    const { body } = await c.req.json();
+    const comment = await inventoryService.createComment(id, authUserId, body, companyId);
+    return c.json({ data: comment }, 201);
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo crear el comentario.' }, 500);
+  }
+});
+
+app.patch('/inventory/items/:id/comments/:cid', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
+  try {
+    const { authUserId } = c.get('auth');
+    const { cid } = c.req.param();
+    const { body } = await c.req.json();
+    const comment = await inventoryService.updateComment(cid, authUserId, body);
+    return c.json({ data: comment });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo actualizar el comentario.' }, 500);
+  }
+});
+
+app.delete('/inventory/items/:id/comments/:cid', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
+  try {
+    const { companyId, authUserId } = c.get('auth');
+    const { cid } = c.req.param();
+    await inventoryService.deleteComment(cid, authUserId, companyId);
+    return c.json({ success: true });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo eliminar el comentario.' }, 500);
+  }
+});
+
+app.post('/inventory/items/:id/comments/:cid/reactions', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
+  try {
+    const { authUserId } = c.get('auth');
+    const { cid } = c.req.param();
+    const { emoji } = await c.req.json();
+    const result = await inventoryService.toggleReaction(cid, authUserId, emoji);
+    return c.json({ data: result });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo registrar la reaccion.' }, 500);
+  }
+});
+
+// Assignments list
+app.get('/inventory/assignments', authMiddleware, requirePermission('inventory.assignment.read'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { employeeId, itemId, active, page, limit } = c.req.query();
+    const result = await inventoryService.listAllAssignments({ companyId, employeeId, itemId, active: active === 'true', page: Number(page) || 1, limit: Number(limit) || 50 });
+    return c.json(result);
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudieron cargar las asignaciones.' }, 500);
+  }
+});
+
+// Categories
+app.get('/inventory/categories', authMiddleware, requirePermission('inventory.catalog.read'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const categories = await inventoryService.listCategories(companyId);
+    return c.json({ data: categories });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudieron cargar las categorias.' }, 500);
+  }
+});
+
+app.post('/inventory/categories', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const data = await c.req.json();
+    const category = await inventoryService.createCategory(data, companyId);
+    return c.json({ data: category }, 201);
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo crear la categoria.' }, 500);
+  }
+});
+
+app.put('/inventory/categories/:id', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { id } = c.req.param();
+    const data = await c.req.json();
+    const category = await inventoryService.updateCategory(id, data, companyId);
+    return c.json({ data: category });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo actualizar la categoria.' }, 500);
+  }
+});
+
+app.delete('/inventory/categories/:id', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { id } = c.req.param();
+    await inventoryService.deleteCategory(id, companyId);
+    return c.json({ success: true });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo eliminar la categoria.' }, 500);
+  }
+});
+
+// Brands
+app.get('/inventory/brands', authMiddleware, requirePermission('inventory.catalog.read'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const brands = await inventoryService.listBrands(companyId);
+    return c.json({ data: brands });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudieron cargar las marcas.' }, 500);
+  }
+});
+
+app.post('/inventory/brands', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const data = await c.req.json();
+    const brand = await inventoryService.createBrand(data, companyId);
+    return c.json({ data: brand }, 201);
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo crear la marca.' }, 500);
+  }
+});
+
+app.put('/inventory/brands/:id', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { id } = c.req.param();
+    const data = await c.req.json();
+    const brand = await inventoryService.updateBrand(id, data, companyId);
+    return c.json({ data: brand });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo actualizar la marca.' }, 500);
+  }
+});
+
+app.delete('/inventory/brands/:id', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { id } = c.req.param();
+    await inventoryService.deleteBrand(id, companyId);
+    return c.json({ success: true });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo eliminar la marca.' }, 500);
+  }
+});
+
+// Locations
+app.get('/inventory/locations', authMiddleware, requirePermission('inventory.catalog.read'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const locations = await inventoryService.listLocations(companyId);
+    return c.json({ data: locations });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudieron cargar las ubicaciones.' }, 500);
+  }
+});
+
+app.post('/inventory/locations', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const data = await c.req.json();
+    const location = await inventoryService.createLocation(data, companyId);
+    return c.json({ data: location }, 201);
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo crear la ubicacion.' }, 500);
+  }
+});
+
+app.put('/inventory/locations/:id', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { id } = c.req.param();
+    const data = await c.req.json();
+    const location = await inventoryService.updateLocation(id, data, companyId);
+    return c.json({ data: location });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo actualizar la ubicacion.' }, 500);
+  }
+});
+
+app.delete('/inventory/locations/:id', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { id } = c.req.param();
+    await inventoryService.deleteLocation(id, companyId);
+    return c.json({ success: true });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo eliminar la ubicacion.' }, 500);
+  }
+});
+
+// Custom Fields
+app.get('/inventory/custom-fields', authMiddleware, requirePermission('inventory.catalog.read'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { categoryId } = c.req.query();
+    const fields = await inventoryService.listCustomFields(companyId, categoryId);
+    return c.json({ data: fields });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudieron cargar los campos personalizados.' }, 500);
+  }
+});
+
+app.post('/inventory/custom-fields', authMiddleware, requirePermission('inventory.customfield.manage'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const data = await c.req.json();
+    const field = await inventoryService.createCustomField(data, companyId);
+    return c.json({ data: field }, 201);
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo crear el campo personalizado.' }, 500);
+  }
+});
+
+app.put('/inventory/custom-fields/:id', authMiddleware, requirePermission('inventory.customfield.manage'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { id } = c.req.param();
+    const data = await c.req.json();
+    const field = await inventoryService.updateCustomField(id, data, companyId);
+    return c.json({ data: field });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo actualizar el campo personalizado.' }, 500);
+  }
+});
+
+app.delete('/inventory/custom-fields/:id', authMiddleware, requirePermission('inventory.customfield.manage'), async (c) => {
+  try {
+    const { companyId } = c.get('auth');
+    const { id } = c.req.param();
+    await inventoryService.deleteCustomField(id, companyId);
+    return c.json({ success: true });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo eliminar el campo personalizado.' }, 500);
+  }
+});
+
 // Wildcard fallback: handle SPA client-side route navigations and direct URL access for dist sites.
 // Fires only when no earlier API route matched and the request looks like a browser page load
 // (Accept: text/html). Skips known API prefixes to avoid masking real 404 API errors.
-const API_PREFIX_RE = /^\/(modules|blueprints|files|contacts|company|identity|finance|hr|website|ledger|calendar|projects|catalog|storefront|activity|notifications|public|auth|health|p)\b/i
+const API_PREFIX_RE = /^\/(modules|blueprints|files|contacts|company|identity|finance|hr|website|ledger|calendar|projects|catalog|storefront|activity|notifications|inventory|public|auth|health|p)\b/i
 app.get('*', async (c) => {
   const path = c.req.path
   if (API_PREFIX_RE.test(path)) return c.json({ error: 'Not found' }, 404)
