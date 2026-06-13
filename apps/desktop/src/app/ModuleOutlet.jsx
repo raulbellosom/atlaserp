@@ -226,6 +226,19 @@ const SCREEN_MAP = {
         "../modules/atlas.notifications/NotificationSettingsScreen.jsx"
       ),
   ),
+  // atlas.inventory
+  "atlas.inventory:/": lazy(
+    () => import("../modules/atlas.inventory/screens/InventoryScreen.jsx"),
+  ),
+  "atlas.inventory:/inventory": lazy(
+    () => import("../modules/atlas.inventory/screens/InventoryScreen.jsx"),
+  ),
+  "atlas.inventory:/inventory/new": lazy(
+    () => import("../modules/atlas.inventory/screens/InventoryItemForm.jsx"),
+  ),
+  "atlas.inventory:/inventory/:id": lazy(
+    () => import("../modules/atlas.inventory/screens/InventoryItemDetail.jsx"),
+  ),
 };
 const SCREEN_MODULE_KEYS = new Set(
   Object.keys(SCREEN_MAP).map((entry) => entry.split(":")[0]),
@@ -402,6 +415,13 @@ function resolveScreen(moduleKey, subPath) {
       return SCREEN_MAP["atlas.catalog:/inventory"] ?? null;
     // Any remaining subpath like /:id is the product detail screen
     return SCREEN_MAP["atlas.catalog:/:id"] ?? null;
+  }
+  if (moduleKey === "atlas.inventory") {
+    if (subPath === "/" || subPath === "/inventory") return SCREEN_MAP["atlas.inventory:/inventory"] ?? null;
+    if (subPath === "/inventory/new") return SCREEN_MAP["atlas.inventory:/inventory/new"] ?? null;
+    if (/^\/inventory\/[^/]+\/edit$/.test(subPath)) return SCREEN_MAP["atlas.inventory:/inventory/new"] ?? null;
+    if (/^\/inventory\/[^/]+$/.test(subPath)) return SCREEN_MAP["atlas.inventory:/inventory/:id"] ?? null;
+    return null;
   }
   if (subPath === "/") return SCREEN_MAP[`${moduleKey}:/`] ?? null;
   if (!SCREEN_MODULE_KEYS.has(moduleKey)) return BlueprintCrudScreen;
