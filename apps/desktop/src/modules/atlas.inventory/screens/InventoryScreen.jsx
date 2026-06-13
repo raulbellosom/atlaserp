@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, PageHeader } from '@atlas/ui'
-import { Plus } from 'lucide-react'
+import { Plus, RefreshCw } from 'lucide-react'
 import { useInventoryItems } from '../hooks/useInventoryItems.js'
 import {
   useInventoryCategories,
@@ -16,7 +16,7 @@ export default function InventoryScreen() {
   const [viewMode, setViewMode] = useState('tree')
   const [search, setSearch] = useState('')
 
-  const { data: itemsData, isLoading } = useInventoryItems({ search })
+  const { data: itemsData, isLoading, refetch, isFetching } = useInventoryItems({ search })
   const { data: categoriesData } = useInventoryCategories()
   const { data: brandsData } = useInventoryBrands()
   const { data: locationsData } = useInventoryLocations()
@@ -30,11 +30,17 @@ export default function InventoryScreen() {
     <div className="p-6 space-y-4">
       <PageHeader
         title="Inventario"
+        description="Gestiona y rastrea todos los activos de la empresa"
         actions={
-          <Button onClick={() => navigate('/app/m/atlas.inventory/inventory/new')}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo item
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching} title="Actualizar">
+              <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button onClick={() => navigate('/app/m/atlas.inventory/inventory/new')}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo item
+            </Button>
+          </div>
         }
       />
       <InventoryGroupedView

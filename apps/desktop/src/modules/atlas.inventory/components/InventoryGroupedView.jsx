@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Plus, LayoutList, Table2, LayoutGrid } from 'lucide-react'
+import { ChevronDown, ChevronRight, LayoutList, Table2, LayoutGrid } from 'lucide-react'
 import {
-  Button,
   Input,
   EmptyState,
   LoadingState,
@@ -217,10 +216,6 @@ export function InventoryGroupedView({
           <ViewModeButton icon={Table2} label="Tabla" active={viewMode === 'table'} onClick={() => onViewModeChange('table')} />
           <ViewModeButton icon={LayoutGrid} label="Tarjetas" active={viewMode === 'cards'} onClick={() => onViewModeChange('cards')} />
         </div>
-        <Button onClick={onCreateItem}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo item
-        </Button>
       </div>
 
       {isLoading ? (
