@@ -345,8 +345,8 @@ export function createInventoryService({ prisma }) {
 
   async function returnItem(itemId, assignedById, notes, companyId) {
     const item = await prisma.invItem.findFirst({ where: { id: itemId, companyId, enabled: true } });
-    if (!item) throw { status: 404, message: 'Item not found' };
-    if (item.status !== 'assigned') throw { status: 409, message: 'Item is not currently assigned' };
+    if (!item) throw new InventoryServiceError('Item not found', 404);
+    if (item.status !== 'assigned') throw new InventoryServiceError('Item is not currently assigned', 409);
 
     return prisma.$transaction(async (tx) => {
       const activeAssignment = await tx.invAssignment.findFirst({
@@ -375,7 +375,7 @@ export function createInventoryService({ prisma }) {
 
   async function getAssignmentHistory(itemId, companyId) {
     const item = await prisma.invItem.findFirst({ where: { id: itemId, companyId, enabled: true } });
-    if (!item) throw { status: 404, message: 'Item not found' };
+    if (!item) throw new InventoryServiceError('Item not found', 404);
 
     return prisma.invAssignment.findMany({
       where: { itemId },
@@ -462,7 +462,7 @@ export function createInventoryService({ prisma }) {
 
   async function updateCategory(id, data, companyId) {
     const existing = await prisma.invCategory.findFirst({ where: { id, companyId, enabled: true } });
-    if (!existing) throw { status: 404, message: 'Category not found' };
+    if (!existing) throw new InventoryServiceError('Category not found', 404);
     const { name, description, icon, color, parentId, sortOrder } = data;
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -476,7 +476,7 @@ export function createInventoryService({ prisma }) {
 
   async function deleteCategory(id, companyId) {
     const existing = await prisma.invCategory.findFirst({ where: { id, companyId, enabled: true } });
-    if (!existing) throw { status: 404, message: 'Category not found' };
+    if (!existing) throw new InventoryServiceError('Category not found', 404);
     return prisma.invCategory.update({ where: { id }, data: { enabled: false } });
   }
 
@@ -499,13 +499,19 @@ export function createInventoryService({ prisma }) {
 
   async function updateBrand(id, data, companyId) {
     const existing = await prisma.invBrand.findFirst({ where: { id, companyId, enabled: true } });
-    if (!existing) throw { status: 404, message: 'Brand not found' };
+    if (!existing) throw new InventoryServiceError('Brand not found', 404);
     const { name, description, website } = data;
     const updateData = {};
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (website !== undefined) updateData.website = website;
     return prisma.invBrand.update({ where: { id }, data: updateData });
+  }
+
+  async function deleteBrand(id, companyId) {
+    const brand = await prisma.invBrand.findFirst({ where: { id, companyId, enabled: true } });
+    if (!brand) throw new InventoryServiceError('Brand not found', 404);
+    return prisma.invBrand.update({ where: { id }, data: { enabled: false } });
   }
 
   // ── Catalog — Locations ────────────────────────────────────────────────────
@@ -527,13 +533,19 @@ export function createInventoryService({ prisma }) {
 
   async function updateLocation(id, data, companyId) {
     const existing = await prisma.invLocation.findFirst({ where: { id, companyId, enabled: true } });
-    if (!existing) throw { status: 404, message: 'Location not found' };
+    if (!existing) throw new InventoryServiceError('Location not found', 404);
     const { name, description, address } = data;
     const updateData = {};
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (address !== undefined) updateData.address = address;
     return prisma.invLocation.update({ where: { id }, data: updateData });
+  }
+
+  async function deleteLocation(id, companyId) {
+    const location = await prisma.invLocation.findFirst({ where: { id, companyId, enabled: true } });
+    if (!location) throw new InventoryServiceError('Location not found', 404);
+    return prisma.invLocation.update({ where: { id }, data: { enabled: false } });
   }
 
   // ── Custom Fields ──────────────────────────────────────────────────────────
@@ -563,7 +575,7 @@ export function createInventoryService({ prisma }) {
 
   async function updateCustomField(id, data, companyId) {
     const existing = await prisma.invCustomField.findFirst({ where: { id, companyId, enabled: true } });
-    if (!existing) throw { status: 404, message: 'Custom field not found' };
+    if (!existing) throw new InventoryServiceError('Custom field not found', 404);
     const { label, fieldKey, fieldType, categoryId, options, required, sortOrder } = data;
     const updateData = {};
     if (label !== undefined) updateData.label = label;
@@ -578,7 +590,7 @@ export function createInventoryService({ prisma }) {
 
   async function deleteCustomField(id, companyId) {
     const existing = await prisma.invCustomField.findFirst({ where: { id, companyId, enabled: true } });
-    if (!existing) throw { status: 404, message: 'Custom field not found' };
+    if (!existing) throw new InventoryServiceError('Custom field not found', 404);
     return prisma.invCustomField.update({ where: { id }, data: { enabled: false } });
   }
 
@@ -586,7 +598,7 @@ export function createInventoryService({ prisma }) {
 
   async function listComments(itemId, companyId) {
     const item = await prisma.invItem.findFirst({ where: { id: itemId, companyId, enabled: true } });
-    if (!item) throw { status: 404, message: 'Item not found' };
+    if (!item) throw new InventoryServiceError('Item not found', 404);
 
     return prisma.invComment.findMany({
       where: { itemId },
@@ -601,10 +613,10 @@ export function createInventoryService({ prisma }) {
 
   async function createComment(itemId, authorId, body, companyId) {
     const item = await prisma.invItem.findFirst({ where: { id: itemId, companyId, enabled: true } });
-    if (!item) throw { status: 404, message: 'Item not found' };
+    if (!item) throw new InventoryServiceError('Item not found', 404);
 
-    if (!body?.trim()) throw { status: 400, message: 'El comentario no puede estar vacio.' };
-    if (body.trim().length > 5000) throw { status: 400, message: 'El comentario no puede tener mas de 5000 caracteres.' };
+    if (!body?.trim()) throw new InventoryServiceError('El comentario no puede estar vacio.', 400);
+    if (body.trim().length > 5000) throw new InventoryServiceError('El comentario no puede tener mas de 5000 caracteres.', 400);
 
     const trimmedBody = body.trim();
     const mentionIds = parseMentionIds(trimmedBody);
@@ -620,8 +632,8 @@ export function createInventoryService({ prisma }) {
       for (const userId of mentionIds) {
         try {
           await tx.invMention.create({ data: { commentId: comment.id, userId } });
-        } catch (_) {
-          // skip if user doesn't exist or duplicate mention
+        } catch (err) {
+          if (err.code !== 'P2003' && err.code !== 'P2002') throw err;
         }
       }
 
@@ -630,12 +642,12 @@ export function createInventoryService({ prisma }) {
   }
 
   async function updateComment(commentId, authorId, body) {
-    if (!body?.trim()) throw { status: 400, message: 'El comentario no puede estar vacio.' };
-    if (body.trim().length > 5000) throw { status: 400, message: 'El comentario no puede tener mas de 5000 caracteres.' };
+    if (!body?.trim()) throw new InventoryServiceError('El comentario no puede estar vacio.', 400);
+    if (body.trim().length > 5000) throw new InventoryServiceError('El comentario no puede tener mas de 5000 caracteres.', 400);
 
     const comment = await prisma.invComment.findFirst({ where: { id: commentId } });
-    if (!comment) throw { status: 404, message: 'Comment not found' };
-    if (comment.authorId !== authorId) throw { status: 403, message: 'Solo el autor puede editar este comentario.' };
+    if (!comment) throw new InventoryServiceError('Comment not found', 404);
+    if (comment.authorId !== authorId) throw new InventoryServiceError('Solo el autor puede editar este comentario.', 403);
 
     return prisma.invComment.update({
       where: { id: commentId },
@@ -651,9 +663,9 @@ export function createInventoryService({ prisma }) {
       where: { id: commentId },
       include: { item: { select: { id: true, companyId: true } } },
     });
-    if (!comment) throw { status: 404, message: 'Comment not found' };
-    if (comment.item?.companyId !== companyId) throw { status: 404, message: 'Comment not found' };
-    if (comment.authorId !== requesterId) throw { status: 403, message: 'No tienes permiso para eliminar este comentario.' };
+    if (!comment) throw new InventoryServiceError('Comment not found', 404);
+    if (comment.item?.companyId !== companyId) throw new InventoryServiceError('Comment not found', 404);
+    if (comment.authorId !== requesterId) throw new InventoryServiceError('No tienes permiso para eliminar este comentario.', 403);
 
     await prisma.invComment.delete({ where: { id: commentId } });
   }
@@ -696,10 +708,12 @@ export function createInventoryService({ prisma }) {
     listBrands,
     createBrand,
     updateBrand,
+    deleteBrand,
     // Locations
     listLocations,
     createLocation,
     updateLocation,
+    deleteLocation,
     // Custom Fields
     listCustomFields,
     createCustomField,
