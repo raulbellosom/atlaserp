@@ -1813,7 +1813,7 @@ model InvCategory {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   company      Company       @relation("CompanyInvCategories", fields: [companyId], references: [id])
-  parent       InvCategory?  @relation("InvCategoryChildren", fields: [parentId], references: [id])
+  parent       InvCategory?  @relation("InvCategoryChildren", fields: [parentId], references: [id], onDelete: SetNull)
   children     InvCategory[] @relation("InvCategoryChildren")
   items        InvItem[]
   customFields InvCustomField[]
@@ -1893,7 +1893,7 @@ model InvItem {
   category     InvCategory?   @relation(fields: [categoryId], references: [id])
   brand        InvBrand?      @relation(fields: [brandId], references: [id])
   location     InvLocation?   @relation(fields: [locationId], references: [id])
-  assignedTo   HrEmployee?    @relation("EmployeeAssignedItems", fields: [assignedToId], references: [id])
+  assignedTo   HrEmployee?    @relation("EmployeeAssignedItems", fields: [assignedToId], references: [id], onDelete: SetNull)
   createdBy    UserProfile?   @relation("UserCreatedInvItems", fields: [createdById], references: [id])
   assignments  InvAssignment[]
   comments     InvComment[]
@@ -1901,10 +1901,9 @@ model InvItem {
   files        InvItemFile[]
 
   @@unique([companyId, assetTag])
-  @@index([companyId])
+  @@index([companyId, status])
   @@index([categoryId])
   @@index([assignedToId])
-  @@index([status])
   @@map("inv_item")
 }
 
@@ -1918,8 +1917,8 @@ model InvAssignment {
   notes        String?   @db.VarChar(500)
 
   item       InvItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  employee   HrEmployee  @relation("EmployeeInvAssignments", fields: [employeeId], references: [id])
-  assignedBy UserProfile @relation("UserInvAssignments", fields: [assignedById], references: [id])
+  employee   HrEmployee  @relation("EmployeeInvAssignments", fields: [employeeId], references: [id], onDelete: Restrict)
+  assignedBy UserProfile @relation("UserInvAssignments", fields: [assignedById], references: [id], onDelete: Restrict)
 
   @@index([itemId])
   @@index([employeeId])
@@ -1943,8 +1942,7 @@ model InvCustomField {
   category InvCategory?  @relation(fields: [categoryId], references: [id])
   values   InvCustomFieldValue[]
 
-  @@unique([companyId, fieldKey, categoryId])
-  @@index([companyId])
+  @@index([companyId, fieldKey])
   @@index([categoryId])
   @@map("inv_custom_field")
 }
@@ -1960,6 +1958,7 @@ model InvCustomFieldValue {
 
   @@unique([itemId, fieldId])
   @@index([itemId])
+  @@index([fieldId])
   @@map("inv_custom_field_value")
 }
 
@@ -2018,8 +2017,9 @@ model InvItemFile {
   createdAt   DateTime @default(now()) @map("created_at")
 
   item      InvItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  fileAsset FileAsset @relation("FileAssetInvItems", fields: [fileAssetId], references: [id])
+  fileAsset FileAsset @relation("FileAssetInvItems", fields: [fileAssetId], references: [id], onDelete: Cascade)
 
   @@index([itemId])
+  @@index([fileAssetId])
   @@map("inv_item_file")
 }
