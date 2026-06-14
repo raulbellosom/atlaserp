@@ -1022,6 +1022,8 @@ model GrowthLead {
   attribution       Json?
   assigneeUserId    String?   @db.Uuid @map("assignee_user_id")
   contactId         String?   @db.Uuid @map("contact_id")
+  discardReason     String?   @map("discard_reason")
+  notesSummary      String?   @map("notes_summary")
   firstSubmissionAt DateTime  @default(now()) @map("first_submission_at")
   lastSubmissionAt  DateTime  @default(now()) @map("last_submission_at")
   firstSeenAt       DateTime  @default(now()) @map("first_seen_at")
