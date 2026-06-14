@@ -6,7 +6,7 @@ import vm from 'node:vm'
 const scriptPath = new URL('../../../public/pwa-bootstrap.js', import.meta.url)
 const indexPath = new URL('../../../index.html', import.meta.url)
 
-async function runBootstrap(pathname) {
+async function runBootstrap(pathname, search = '') {
   const source = await readFile(scriptPath, 'utf8')
   const appended = []
   const touchIcon = { href: '/apple-touch-icon.png' }
@@ -24,11 +24,11 @@ async function runBootstrap(pathname) {
     },
   }
   const window = {
-    location: { pathname },
+    location: { pathname, search },
   }
 
-  vm.runInNewContext(source, { document, window })
-  return { manifest: appended[0], touchIcon }
+  vm.runInNewContext(source, { document, window, URLSearchParams })
+  return { manifest: appended[0], touchIcon, window }
 }
 
 test('selects a module manifest before React for deep module URLs', async () => {
@@ -49,6 +49,16 @@ test('uses the base Atlas manifest outside module routes', async () => {
   assert.equal(link.href, '/site.webmanifest')
   assert.equal(link.dataset.moduleKey, '')
   assert.equal(touchIcon.href, '/apple-touch-icon.png')
+})
+
+test('exposes the immutable module identity selected before React', async () => {
+  const { window } = await runBootstrap(
+    '/app/m/atlas.calendar/calendar',
+    '?view=month&pwa-install=1',
+  )
+
+  assert.equal(window.__ATLAS_PWA_BOOTSTRAP__.moduleKey, 'atlas.calendar')
+  assert.equal(window.__ATLAS_PWA_BOOTSTRAP__.installRequested, true)
 })
 
 test('loads the manifest bootstrap before the React entry point', async () => {

@@ -1,7 +1,13 @@
 (function bootstrapPwaManifest() {
   var match = window.location.pathname.match(/^\/app\/m\/([^/]+)/);
   var moduleKey = match ? match[1] : "";
+  var searchParams = new URLSearchParams(window.location.search || "");
   var link = document.createElement("link");
+
+  window.__ATLAS_PWA_BOOTSTRAP__ = {
+    moduleKey: moduleKey,
+    installRequested: searchParams.get("pwa-install") === "1",
+  };
 
   if (!link.dataset) link.dataset = {};
   link.rel = "manifest";

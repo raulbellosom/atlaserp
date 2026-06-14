@@ -1,6 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createPwaInstallController } from '../usePwaInstall.js'
+import {
+  clearPwaInstallMarker,
+  createPwaInstallController,
+  createPwaInstallReloadUrl,
+} from '../usePwaInstall.js'
 
 function createPromptEvent() {
   return {
@@ -44,4 +48,59 @@ test('prompts only for the module that captured the event', async () => {
 
   assert.equal(event.prompted, 1)
   assert.equal(controller.canInstall(), false)
+})
+
+test('reloads the document before installing a different SPA module', async () => {
+  const navigations = []
+  const controller = createPwaInstallController({
+    moduleKey: 'atlas.calendar',
+    documentModuleKey: 'atlas.projects',
+    onAvailabilityChange() {},
+    onManualReadyChange() {},
+    navigateForInstall: (url) => navigations.push(url),
+    currentUrl:
+      'https://atlas.example.com/app/m/atlas.calendar/calendar?view=month#today',
+  })
+
+  const result = await controller.install()
+
+  assert.deepEqual(result, { outcome: 'reload' })
+  assert.equal(
+    navigations[0],
+    'https://atlas.example.com/app/m/atlas.calendar/calendar?view=month&pwa-install=1#today',
+  )
+})
+
+test('marks manual installation ready when the document identity matches', async () => {
+  const manualReadiness = []
+  const controller = createPwaInstallController({
+    moduleKey: 'atlas.calendar',
+    documentModuleKey: 'atlas.calendar',
+    onAvailabilityChange() {},
+    onManualReadyChange: (value) => manualReadiness.push(value),
+    navigateForInstall() {
+      throw new Error('matching identities must not reload')
+    },
+    currentUrl: 'https://atlas.example.com/app/m/atlas.calendar/calendar',
+  })
+
+  const result = await controller.install()
+
+  assert.deepEqual(result, { outcome: 'manual' })
+  assert.deepEqual(manualReadiness, [true])
+})
+
+test('adds and removes only the temporary install marker', () => {
+  const source =
+    'https://atlas.example.com/app/m/atlas.calendar/calendar?view=month#today'
+  const prepared = createPwaInstallReloadUrl(source)
+
+  assert.equal(
+    prepared,
+    'https://atlas.example.com/app/m/atlas.calendar/calendar?view=month&pwa-install=1#today',
+  )
+  assert.equal(
+    clearPwaInstallMarker(prepared),
+    '/app/m/atlas.calendar/calendar?view=month#today',
+  )
 })
