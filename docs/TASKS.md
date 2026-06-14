@@ -34,7 +34,7 @@ Plan: `docs/superpowers/plans/2026-06-14-growth-lead-inbox.md`
 - [ ] Apply the forward migration in the target environment.
 - [ ] Verify authenticated RBAC, notifications, attachments, and both conversion modes against a live installation.
 
-Verified: 2026-06-14 (automated scope: Growth/API/SDK/UI suites 42 passed; `pnpm.cmd --filter @atlas/desktop build:web` passed; React Doctor scanned 7 changed files with no diagnostics. Live migration and authenticated browser workflows remain pending. See `docs/superpowers/verifications/2026-06-14-growth-lead-inbox.md`.)
+Verified: 2026-06-14 (automated scope: Growth/API/SDK/UI suites 42 passed; Prisma validation and UUID policy passed; `pnpm.cmd build` produced the web build, Windows executable, MSI, and NSIS installer; React Doctor scanned 7 changed files with no diagnostics. Live migration and authenticated browser workflows remain pending. See `docs/superpowers/verifications/2026-06-14-growth-lead-inbox.md`.)
 
 ## atlas.activity (CORE Activity Feed)
 

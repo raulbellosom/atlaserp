@@ -6,9 +6,16 @@ Branch: `feature/growth-lead-inbox`
 ## Automated evidence
 
 - Growth routes, service, files contract, SDK domains, and UI helpers: 42 tests passed.
-- Desktop production web build: passed with Vite.
+- Prisma schema validation and UUID policy: passed.
+- Full monorepo build: passed; produced the Vite web bundle, Windows executable, MSI, and NSIS installer.
 - React Doctor: scanned 7 changed React files; `diagnostics.json` was empty.
 - JavaScript syntax checks and `git diff --check`: passed.
+
+## Known baseline issue
+
+`pnpm.cmd rbac:verify-catalog` still reports 30 missing catalog entries from
+Calendar, Catalog, and Inventory, plus two legacy platform extras. No Growth
+permission is missing.
 
 ## Covered behavior
 
