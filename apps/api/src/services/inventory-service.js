@@ -654,7 +654,7 @@ export function createInventoryService({ prisma }) {
         }
       }
 
-      return comment;
+      return { comment, mentionIds };
     });
   }
 

@@ -459,3 +459,41 @@ describe('createComment', () => {
     )
   })
 })
+
+// ---------------------------------------------------------------------------
+// createComment return shape
+// ---------------------------------------------------------------------------
+
+describe('createComment return shape', () => {
+  const COMMENT_ID = '01900000-0000-7000-8000-000000000005'
+  const USER_ID    = '01900000-0000-7000-8000-000000000002'
+  const ITEM_ID    = '01900000-0000-7000-8000-000000000003'
+  const COMPANY_ID = '01900000-0000-7000-8000-000000000001'
+
+  it('returns { comment, mentionIds } with empty mentionIds when body has no mentions', async () => {
+    const prisma = buildPrismaMock({
+      invItem: { findFirst: async () => ({ id: ITEM_ID }) },
+      _root: { userProfile: { findFirst: async () => ({ id: USER_ID }) } },
+    })
+    const svc = createInventoryService({ prisma })
+    const result = await svc.createComment(ITEM_ID, 'auth-user-id', 'plain comment', COMPANY_ID)
+
+    assert.ok(result.comment, 'has comment property')
+    assert.deepEqual(result.mentionIds, [], 'mentionIds is empty array')
+    assert.equal(result.comment.id, COMMENT_ID)
+  })
+
+  it('returns mentionIds extracted from comment body', async () => {
+    const MENTION_ID = '01900000-0000-7000-8000-000000000099'
+    const prisma = buildPrismaMock({
+      invItem: { findFirst: async () => ({ id: ITEM_ID }) },
+      _root: { userProfile: { findFirst: async () => ({ id: USER_ID }) } },
+    })
+    const svc = createInventoryService({ prisma })
+    const body = `Hello @[${MENTION_ID}:Someone]`
+    const result = await svc.createComment(ITEM_ID, 'auth-user-id', body, COMPANY_ID)
+
+    assert.ok(result.comment, 'has comment property')
+    assert.deepEqual(result.mentionIds, [MENTION_ID])
+  })
+})
