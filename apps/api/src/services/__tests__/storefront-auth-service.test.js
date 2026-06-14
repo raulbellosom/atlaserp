@@ -47,3 +47,23 @@ describe('buildStorefrontUserProfile', () => {
     })
   })
 })
+
+describe('buildStorefrontUserProfile with non-storefront role', () => {
+  it('returns profile with ERP role when role is not storefront', () => {
+    const profile = {
+      id: 'erp-user-1',
+      displayName: 'Admin User',
+      firstName: 'Admin',
+      lastName: 'User',
+      email: 'admin@example.com',
+      phone: null,
+      bio: null,
+      enabled: true,
+    }
+    const role = { key: 'admin', name: 'Administrador' }
+    const result = buildStorefrontUserProfile(profile, role)
+    assert.equal(result.role, 'admin')
+    assert.equal(result.displayName, 'Admin User')
+    assert.equal(result.id, 'erp-user-1')
+  })
+})

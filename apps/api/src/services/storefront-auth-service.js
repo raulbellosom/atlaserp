@@ -123,9 +123,9 @@ export function createStorefrontAuthService({ prisma, supabaseAdmin, supabaseAno
     if (!profile) {
       throw Object.assign(new Error('Perfil no encontrado'), { code: 'NOT_FOUND', status: 404 })
     }
-    const allowedRoles = await getRegistrableRoles()
+    // Find membership for this company regardless of role (ERP users are welcome)
     const membership = profile.memberships.find(
-      m => m.role != null && m.company.slug === companySlug && allowedRoles.includes(m.role.key)
+      m => m.role != null && m.company.slug === companySlug
     )
     if (!membership) {
       throw Object.assign(new Error('Sin acceso'), { code: 'FORBIDDEN', status: 403 })

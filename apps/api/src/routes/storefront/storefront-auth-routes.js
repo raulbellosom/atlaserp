@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 
-export function createStorefrontAuthRoutes({ authService, storefrontAuthMiddleware }) {
+export function createStorefrontAuthRoutes({ authService, storefrontAuthMiddleware, anyAuthMiddleware }) {
   const app = new Hono()
 
   app.post('/register', async (c) => {
@@ -56,7 +56,8 @@ export function createStorefrontAuthRoutes({ authService, storefrontAuthMiddlewa
     }
   })
 
-  app.get('/me', storefrontAuthMiddleware, async (c) => {
+  // Changed: anyAuthMiddleware instead of storefrontAuthMiddleware
+  app.get('/me', anyAuthMiddleware, async (c) => {
     const { profile, companySlug } = c.get('storefrontUser')
     try {
       const user = await authService.me(profile.authUserId, companySlug)

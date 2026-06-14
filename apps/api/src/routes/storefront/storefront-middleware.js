@@ -49,5 +49,48 @@ export function createStorefrontMiddleware({ prisma, supabaseAdmin }) {
     await next()
   }
 
-  return { storefrontAuthMiddleware }
+  // Validates Supabase token and finds ANY active membership — no role restriction.
+  // Used for /me so ERP users can also retrieve their profile.
+  async function anyAuthMiddleware(c, next) {
+    const authHeader = c.req.header('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'No autorizado' }, 401)
+    }
+    const token = authHeader.replace('Bearer ', '')
+
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
+    if (error || !user) {
+      return c.json({ error: 'Token inválido o expirado' }, 401)
+    }
+
+    const companySlug = c.req.header('X-Atlas-Company')
+    if (!companySlug) {
+      return c.json({ error: 'Cabecera X-Atlas-Company requerida' }, 400)
+    }
+
+    const profile = await prisma.userProfile.findUnique({
+      where: { authUserId: user.id },
+      include: {
+        memberships: {
+          where: { enabled: true },
+          include: { role: true, company: { select: { id: true, slug: true } } },
+        },
+      },
+    })
+    if (!profile) {
+      return c.json({ error: 'Perfil no encontrado' }, 401)
+    }
+
+    const membership = profile.memberships.find(
+      m => m.role != null && m.company.slug === companySlug
+    )
+    if (!membership) {
+      return c.json({ error: 'Sin membresía activa en esta empresa' }, 403)
+    }
+
+    c.set('storefrontUser', { profile, membership, role: membership.role, companySlug })
+    await next()
+  }
+
+  return { storefrontAuthMiddleware, anyAuthMiddleware }
 }

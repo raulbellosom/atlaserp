@@ -9,11 +9,11 @@ import { createStorefrontFilesService } from '../../services/storefront-files-se
 export function createStorefrontRouter({ prisma, supabaseAdmin, supabaseAnon }) {
   const app = new Hono()
 
-  const { storefrontAuthMiddleware } = createStorefrontMiddleware({ prisma, supabaseAdmin })
+  const { storefrontAuthMiddleware, anyAuthMiddleware } = createStorefrontMiddleware({ prisma, supabaseAdmin })
   const authService = createStorefrontAuthService({ prisma, supabaseAdmin, supabaseAnon })
   const filesService = createStorefrontFilesService({ prisma, supabaseAdmin })
 
-  app.route('/auth', createStorefrontAuthRoutes({ authService, storefrontAuthMiddleware }))
+  app.route('/auth', createStorefrontAuthRoutes({ authService, storefrontAuthMiddleware, anyAuthMiddleware }))
   app.route('/files', createStorefrontFilesRoutes({ filesService, storefrontAuthMiddleware }))
   app.route('/', createStorefrontConfigRoutes({ prisma }))
 
