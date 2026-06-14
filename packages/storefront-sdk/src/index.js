@@ -67,7 +67,7 @@ export function createStorefrontClient({ baseUrl, company, supabaseUrl, supabase
         !options._retry
       ) {
         const { data, error } = await _doRefreshOnce().catch(() => ({ data: null, error: true }))
-        if (error || !data?.session) {
+        if (error || !data?.session || !session.get()) {
           try { await supabase.auth.signOut() } catch { /* best-effort */ }
           throw err
         }
