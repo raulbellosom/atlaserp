@@ -128,7 +128,7 @@ export function createStorefrontAuthService({ prisma, supabaseAdmin, supabaseAno
       m => m.role != null && m.company.slug === companySlug
     )
     if (!membership) {
-      throw Object.assign(new Error('Sin acceso'), { code: 'FORBIDDEN', status: 403 })
+      throw Object.assign(new Error('Sin membresía en esta empresa'), { code: 'FORBIDDEN', status: 403 })
     }
     return buildStorefrontUserProfile(profile, membership.role)
   }

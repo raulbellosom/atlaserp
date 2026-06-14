@@ -7,7 +7,7 @@ export function createStorefrontMiddleware({ prisma, supabaseAdmin }) {
     try { return JSON.parse(config.value) } catch { return [] }
   }
 
-  async function storefrontAuthMiddleware(c, next) {
+  async function _baseAuthMiddleware(c, next, { requireStorefrontRole }) {
     const authHeader = c.req.header('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       return c.json({ error: 'No autorizado' }, 401)
@@ -37,59 +37,34 @@ export function createStorefrontMiddleware({ prisma, supabaseAdmin }) {
       return c.json({ error: 'Perfil no encontrado' }, 401)
     }
 
-    const allowedRoles = await getRegistrableRoles()
-    const membership = profile.memberships.find(
-      m => m.role != null && m.company.slug === companySlug && allowedRoles.includes(m.role.key)
-    )
+    let membership
+    if (requireStorefrontRole) {
+      const allowedRoles = await getRegistrableRoles()
+      membership = profile.memberships.find(
+        m => m.role != null && m.company.slug === companySlug && allowedRoles.includes(m.role.key)
+      )
+    } else {
+      membership = profile.memberships.find(
+        m => m.role != null && m.company.slug === companySlug
+      )
+    }
+
     if (!membership) {
-      return c.json({ error: 'Sin acceso a esta plataforma' }, 403)
+      return c.json({ error: 'Sin membresía en esta empresa' }, 403)
     }
 
     c.set('storefrontUser', { profile, membership, role: membership.role, companySlug })
     await next()
   }
 
-  // Validates Supabase token and finds ANY active membership — no role restriction.
-  // Used for /me so ERP users can also retrieve their profile.
-  async function anyAuthMiddleware(c, next) {
-    const authHeader = c.req.header('Authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return c.json({ error: 'No autorizado' }, 401)
-    }
-    const token = authHeader.replace('Bearer ', '')
+  // Requires the user to have a storefront role (storefront_client, storefront_vendor).
+  function storefrontAuthMiddleware(c, next) {
+    return _baseAuthMiddleware(c, next, { requireStorefrontRole: true })
+  }
 
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
-    if (error || !user) {
-      return c.json({ error: 'Token inválido o expirado' }, 401)
-    }
-
-    const companySlug = c.req.header('X-Atlas-Company')
-    if (!companySlug) {
-      return c.json({ error: 'Cabecera X-Atlas-Company requerida' }, 400)
-    }
-
-    const profile = await prisma.userProfile.findUnique({
-      where: { authUserId: user.id },
-      include: {
-        memberships: {
-          where: { enabled: true },
-          include: { role: true, company: { select: { id: true, slug: true } } },
-        },
-      },
-    })
-    if (!profile) {
-      return c.json({ error: 'Perfil no encontrado' }, 401)
-    }
-
-    const membership = profile.memberships.find(
-      m => m.role != null && m.company.slug === companySlug
-    )
-    if (!membership) {
-      return c.json({ error: 'Sin membresía activa en esta empresa' }, 403)
-    }
-
-    c.set('storefrontUser', { profile, membership, role: membership.role, companySlug })
-    await next()
+  // Accepts any authenticated user with an active membership — used for /me.
+  function anyAuthMiddleware(c, next) {
+    return _baseAuthMiddleware(c, next, { requireStorefrontRole: false })
   }
 
   return { storefrontAuthMiddleware, anyAuthMiddleware }

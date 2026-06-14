@@ -56,7 +56,6 @@ export function createStorefrontAuthRoutes({ authService, storefrontAuthMiddlewa
     }
   })
 
-  // Changed: anyAuthMiddleware instead of storefrontAuthMiddleware
   app.get('/me', anyAuthMiddleware, async (c) => {
     const { profile, companySlug } = c.get('storefrontUser')
     try {
