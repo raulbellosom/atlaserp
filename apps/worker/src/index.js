@@ -10,7 +10,7 @@ import { createSyncLogCleanupWorker } from '../../api/src/services/sync-cleanup-
 import { createNotificationService } from '../../api/src/services/notification-service.js'
 import { createProjectsNotificationService } from '../../api/src/routes/projects/projects-notification-service.js'
 import { createRecurringTasksService } from '../../api/src/routes/projects/projects-recurring-service.js'
-import { createGrowthRetentionWorker } from '../../api/src/services/growth-retention-worker.js'
+import { createGrowthAggregationWorker } from '../../api/src/services/growth-aggregation-worker.js'
 
 const { PrismaClient } = pkg
 
@@ -47,9 +47,11 @@ const projectsNotifService = createProjectsNotificationService({
 const DUE_SOON_INTERVAL_MS = 60 * 60 * 1000
 const recurringTasksService = createRecurringTasksService({ prisma })
 const RECURRING_INTERVAL_MS = 60 * 60 * 1000
-const growthRetentionWorker = createGrowthRetentionWorker({ prisma })
-const GROWTH_RETENTION_INTERVAL_MS = Number(
-  process.env.ATLAS_GROWTH_RETENTION_INTERVAL_MS ?? 60 * 60 * 1000,
+const growthAggregationWorker = createGrowthAggregationWorker({ prisma })
+const GROWTH_AGGREGATION_INTERVAL_MS = Number(
+  process.env.ATLAS_GROWTH_AGGREGATION_INTERVAL_MS ??
+    process.env.ATLAS_GROWTH_RETENTION_INTERVAL_MS ??
+    60 * 60 * 1000,
 )
 
 function isConnectionError(err) {
@@ -138,18 +140,18 @@ async function runTasksDueSoonTick() {
 
 async function runGrowthRetentionTick() {
   try {
-    const result = await growthRetentionWorker.runOnce()
+    const result = await growthAggregationWorker.runOnce()
     const purged =
       result.purged.events +
       result.purged.sessions +
       result.purged.metrics
     if (result.aggregatedDays > 0 || purged > 0) {
       console.log(
-        `[worker] growth retention ${formatLogTimestamp()} days=${result.aggregatedDays} sites=${result.aggregatedSites} purged=${purged} watermark=${result.watermark ?? 'none'}`,
+        `[worker] growth analytics ${formatLogTimestamp()} days=${result.aggregatedDays} dimensions=${result.aggregatedDimensions} purged=${purged} watermark=${result.watermark ?? 'none'}`,
       )
     }
   } catch (err) {
-    console.error('[worker] growth retention tick failed:', err?.message ?? err)
+  console.error('[worker] growth analytics tick failed:', err?.message ?? err)
     if (isConnectionError(err)) await reconnect()
   }
 }
@@ -177,7 +179,7 @@ setInterval(() => {
 runGrowthRetentionTick()
 setInterval(() => {
   runGrowthRetentionTick()
-}, GROWTH_RETENTION_INTERVAL_MS)
+}, GROWTH_AGGREGATION_INTERVAL_MS)
 
 async function runRecurringTasksTick() {
   try {
