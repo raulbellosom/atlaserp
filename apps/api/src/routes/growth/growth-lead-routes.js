@@ -111,6 +111,21 @@ export function createGrowthLeadRoutes({ service, requirePermission }) {
   );
 
   app.get(
+    "/growth/leads/assignees",
+    requirePermission("growth.leads.assign"),
+    async (c) => {
+      try {
+        const data = await service.listAssignees({
+          companyId: companyId(c),
+        });
+        return c.json({ data });
+      } catch (error) {
+        return handleError(c, error);
+      }
+    },
+  );
+
+  app.get(
     "/growth/leads/:id",
     requirePermission("growth.leads.read"),
     async (c) => {
@@ -118,6 +133,65 @@ export function createGrowthLeadRoutes({ service, requirePermission }) {
         const data = await service.getLead({
           companyId: companyId(c),
           id: c.req.param("id"),
+        });
+        return c.json({ data });
+      } catch (error) {
+        return handleError(c, error);
+      }
+    },
+  );
+
+  app.get(
+    "/growth/leads/:id/files",
+    requirePermission("growth.leads.read"),
+    async (c) => {
+      try {
+        const data = await service.listLeadFiles({
+          companyId: companyId(c),
+          id: c.req.param("id"),
+        });
+        return c.json({ data });
+      } catch (error) {
+        return handleError(c, error);
+      }
+    },
+  );
+
+  app.post(
+    "/growth/leads/:id/files",
+    requirePermission("growth.leads.update"),
+    async (c) => {
+      try {
+        const body = await c.req.json();
+        const fileAssetId = String(
+          body?.file_asset_id ?? body?.fileAssetId ?? "",
+        ).trim();
+        if (!fileAssetId) {
+          return c.json({ error: "file_asset_id es obligatorio." }, 400);
+        }
+        const data = await service.associateLeadFile({
+          companyId: companyId(c),
+          actorId: actorId(c),
+          id: c.req.param("id"),
+          fileAssetId,
+        });
+        return c.json({ data }, 201);
+      } catch (error) {
+        return handleError(c, error);
+      }
+    },
+  );
+
+  app.delete(
+    "/growth/leads/:id/files/:fileAssetId",
+    requirePermission("growth.leads.update"),
+    async (c) => {
+      try {
+        const data = await service.removeLeadFile({
+          companyId: companyId(c),
+          actorId: actorId(c),
+          id: c.req.param("id"),
+          fileAssetId: c.req.param("fileAssetId"),
         });
         return c.json({ data });
       } catch (error) {

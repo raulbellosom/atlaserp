@@ -42,6 +42,10 @@ function buildService() {
     addLeadNote: async (input) => (calls.push(["note", input]), result),
     convertLead: async (input) => (calls.push(["convert", input]), result),
     setLeadEnabled: async (input) => (calls.push(["enabled", input]), result),
+    listAssignees: async (input) => (calls.push(["assignees", input]), [result]),
+    listLeadFiles: async (input) => (calls.push(["files", input]), [result]),
+    associateLeadFile: async (input) => (calls.push(["file-add", input]), result),
+    removeLeadFile: async (input) => (calls.push(["file-remove", input]), result),
   };
 }
 
@@ -63,6 +67,7 @@ function request(app, path, {
 const cases = [
   ["GET", "/growth/leads/summary", "growth.leads.read"],
   ["GET", "/growth/leads", "growth.leads.read"],
+  ["GET", "/growth/leads/assignees", "growth.leads.assign"],
   ["POST", "/growth/leads", "growth.leads.create", {
     siteId: "01900000-0000-7000-8000-000000000003",
     name: "Ana",
@@ -85,6 +90,11 @@ const cases = [
     enabled: false,
     updatedAt: NOW,
   }],
+  ["GET", `/growth/leads/${LEAD_ID}/files`, "growth.leads.read"],
+  ["POST", `/growth/leads/${LEAD_ID}/files`, "growth.leads.update", {
+    file_asset_id: "file-1",
+  }],
+  ["DELETE", `/growth/leads/${LEAD_ID}/files/file-1`, "growth.leads.update"],
 ];
 
 describe("Growth lead routes", () => {
@@ -121,7 +131,7 @@ describe("Growth lead routes", () => {
       assert.ok(response.status >= 200 && response.status < 300, `${method} ${path}`);
       assert.equal(service.calls.length, 1);
       assert.equal(service.calls[0][1].companyId, "company-1");
-      if (!["summary", "list", "get"].includes(service.calls[0][0])) {
+      if (!["summary", "list", "get", "files", "assignees"].includes(service.calls[0][0])) {
         assert.equal(service.calls[0][1].actorId, "actor-1");
       }
     }

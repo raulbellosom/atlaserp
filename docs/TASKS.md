@@ -21,6 +21,21 @@ Plan: `docs/superpowers/plans/2026-06-14-storefront-capture-foundation.md`
 
 Verified: 2026-06-14 (automated implementation scope: `pnpm.cmd exec prisma validate`, `pnpm.cmd db:generate`, and `pnpm.cmd check:uuid-policy` passed; API/IIFE/worker suites: 58 passed; npm SDK suites: 65 passed; `pnpm.cmd --filter @atlas/desktop build:web` passed; `pnpm.cmd build` produced the web build and Windows MSI/NSIS bundles; React Doctor diagnostics were empty. Target migration, live Builder/`dist`, npm publication, and production-load observation remain pending. See `docs/superpowers/verifications/2026-06-14-storefront-capture-foundation.md`.)
 
+## Atlas Growth - Lead Inbox
+
+Spec: `docs/superpowers/specs/2026-06-14-growth-lead-inbox-design.md`
+Plan: `docs/superpowers/plans/2026-06-14-growth-lead-inbox.md`
+
+- [x] Add the protected Growth lead service, state machine, notes, ownership, notifications, and optimistic conflict checks.
+- [x] Convert leads transactionally to existing or new Contacts with cross-company and permission checks.
+- [x] Add the internal Growth SDK domain and preserve the extracted Website domain contract.
+- [x] Add responsive lead inbox/detail screens, manual creation, filters, timeline, conversion, and attachments.
+- [x] Add Growth navigation, ACL, file allowlist, and company-scoped assignee/file routes.
+- [ ] Apply the forward migration in the target environment.
+- [ ] Verify authenticated RBAC, notifications, attachments, and both conversion modes against a live installation.
+
+Verified: 2026-06-14 (automated scope: Growth/API/SDK/UI suites 42 passed; `pnpm.cmd --filter @atlas/desktop build:web` passed; React Doctor scanned 7 changed files with no diagnostics. Live migration and authenticated browser workflows remain pending. See `docs/superpowers/verifications/2026-06-14-growth-lead-inbox.md`.)
+
 ## atlas.activity (CORE Activity Feed)
 
 - [x] Spec: `docs/superpowers/specs/2026-05-31-atlas-activity-design.md` (28 sections, status Approved).

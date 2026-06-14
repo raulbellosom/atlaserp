@@ -257,6 +257,27 @@ export function createGrowthLeadService({
     };
   }
 
+  async function listAssignees({ companyId }) {
+    const memberships = await prisma.membership.findMany({
+      where: {
+        companyId,
+        enabled: true,
+        user: { enabled: true },
+      },
+      orderBy: { user: { displayName: "asc" } },
+      select: {
+        user: {
+          select: {
+            id: true,
+            displayName: true,
+            email: true,
+          },
+        },
+      },
+    });
+    return memberships.map((membership) => membership.user);
+  }
+
   async function getLead({ companyId, id }) {
     const lead = await getLeadRecord({ companyId, id });
     const [activities, submissions] = await Promise.all([
@@ -275,6 +296,106 @@ export function createGrowthLeadService({
       }),
     ]);
     return { ...lead, activities, submissions };
+  }
+
+  function leadFileWhere({ companyId, id, fileAssetId, enabled }) {
+    return {
+      ...(fileAssetId ? { id: fileAssetId } : {}),
+      entityId: companyId,
+      moduleKey: "atlas.growth",
+      entityType: "GrowthLead",
+      ...(enabled === undefined ? {} : { enabled }),
+      metadata: {
+        path: ["sourceEntityId"],
+        equals: id,
+      },
+    };
+  }
+
+  async function listLeadFiles({ companyId, id }) {
+    await getLeadRecord({ companyId, id });
+    return prisma.fileAsset.findMany({
+      where: leadFileWhere({ companyId, id, enabled: true }),
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async function associateLeadFile({ companyId, id, fileAssetId }) {
+    await getLeadRecord({ companyId, id });
+    const file = await prisma.fileAsset.findFirst({
+      where: leadFileWhere({
+        companyId,
+        id,
+        fileAssetId,
+        enabled: true,
+      }),
+    });
+    if (!file) {
+      throw new GrowthLeadServiceError(
+        "Archivo del lead no encontrado.",
+        404,
+        "lead_file_not_found",
+      );
+    }
+    return file;
+  }
+
+  async function removeLeadFile({
+    companyId,
+    actorId,
+    id,
+    fileAssetId,
+  }) {
+    const lead = await getLeadRecord({ companyId, id });
+    const file = await prisma.fileAsset.findFirst({
+      where: leadFileWhere({
+        companyId,
+        id,
+        fileAssetId,
+        enabled: true,
+      }),
+    });
+    if (!file) {
+      throw new GrowthLeadServiceError(
+        "Archivo del lead no encontrado.",
+        404,
+        "lead_file_not_found",
+      );
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const updated = await tx.fileAsset.update({
+        where: { id: file.id },
+        data: { enabled: false },
+      });
+      await tx.growthLeadActivity.create({
+        data: {
+          companyId,
+          siteId: lead.siteId,
+          leadId: lead.id,
+          activityType: "file_removed",
+          actorUserId: actorId ?? null,
+          payload: {
+            fileAssetId: file.id,
+            originalName: file.originalName,
+          },
+          occurredAt: now(),
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: actorId ?? null,
+          moduleKey: "atlas.growth",
+          entityType: "growth.lead",
+          entityId: lead.id,
+          action: "growth.lead.file.remove",
+          before: { fileAssetId: file.id, enabled: true },
+          after: { fileAssetId: file.id, enabled: false },
+          metadata: { companyId, originalName: file.originalName },
+        },
+      });
+      return updated;
+    });
   }
 
   async function createLead({ companyId, actorId, data }) {
@@ -701,7 +822,11 @@ export function createGrowthLeadService({
   return {
     listLeads,
     getLeadSummary,
+    listAssignees,
     getLead,
+    listLeadFiles,
+    associateLeadFile,
+    removeLeadFile,
     createLead,
     updateLead,
     addLeadNote,

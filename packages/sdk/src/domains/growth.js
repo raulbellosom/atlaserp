@@ -12,6 +12,11 @@ export function createGrowthDomain({ request, withAuthHeaders, toQueryString }) 
         headers: withAuthHeaders(token),
       }),
 
+    listLeadAssignees: (token) =>
+      request("/growth/leads/assignees", {
+        headers: withAuthHeaders(token),
+      }),
+
     getLead: (leadId, token) =>
       request(leadPath(leadId), {
         headers: withAuthHeaders(token),

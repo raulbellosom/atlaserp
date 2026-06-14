@@ -26,6 +26,7 @@ describe("atlas SDK - growth domain", () => {
       "createLead",
       "getLead",
       "getLeadSummary",
+      "listLeadAssignees",
       "listLeads",
       "setLeadEnabled",
       "updateLead",
@@ -40,6 +41,7 @@ describe("atlas SDK - growth domain", () => {
 
     await client.growth.getLeadSummary(token, { from: "2026-06-01" });
     await client.growth.listLeads(token, { status: "new", page: 2 });
+    await client.growth.listLeadAssignees(token);
     await client.growth.getLead("lead/1", token);
     await client.growth.createLead({ name: "Ana" }, token);
     await client.growth.updateLead("lead/1", { priority: "high" }, token);
@@ -68,16 +70,17 @@ describe("atlas SDK - growth domain", () => {
       calls[1][0],
       "http://api/growth/leads?status=new&page=2",
     );
-    assert.equal(calls[2][0], "http://api/growth/leads/lead%2F1");
-    assert.equal(calls[3][1].method, "POST");
-    assert.deepEqual(JSON.parse(calls[3][1].body), { name: "Ana" });
-    assert.equal(calls[4][1].method, "PATCH");
-    assert.equal(calls[5][0], "http://api/growth/leads/lead%2F1/notes");
-    assert.equal(calls[5][1].method, "POST");
-    assert.equal(calls[6][0], "http://api/growth/leads/lead%2F1/convert");
+    assert.equal(calls[2][0], "http://api/growth/leads/assignees");
+    assert.equal(calls[3][0], "http://api/growth/leads/lead%2F1");
+    assert.equal(calls[4][1].method, "POST");
+    assert.deepEqual(JSON.parse(calls[4][1].body), { name: "Ana" });
+    assert.equal(calls[5][1].method, "PATCH");
+    assert.equal(calls[6][0], "http://api/growth/leads/lead%2F1/notes");
     assert.equal(calls[6][1].method, "POST");
-    assert.equal(calls[7][0], "http://api/growth/leads/lead%2F1/enabled");
-    assert.equal(calls[7][1].method, "PATCH");
+    assert.equal(calls[7][0], "http://api/growth/leads/lead%2F1/convert");
+    assert.equal(calls[7][1].method, "POST");
+    assert.equal(calls[8][0], "http://api/growth/leads/lead%2F1/enabled");
+    assert.equal(calls[8][1].method, "PATCH");
     for (const [, options] of calls) {
       assert.equal(options.headers.Authorization, "Bearer tok");
     }

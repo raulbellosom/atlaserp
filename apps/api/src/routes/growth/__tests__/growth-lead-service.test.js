@@ -45,6 +45,26 @@ function buildPrisma({ lead: leadOverride } = {}) {
   };
   const state = {
     leads: [lead],
+    files: [
+      {
+        id: "file-1",
+        entityId: COMPANY_ID,
+        moduleKey: "atlas.growth",
+        entityType: "GrowthLead",
+        metadata: { sourceEntityId: LEAD_ID },
+        enabled: true,
+        originalName: "brief.pdf",
+      },
+      {
+        id: "file-other-company",
+        entityId: OTHER_COMPANY_ID,
+        moduleKey: "atlas.growth",
+        entityType: "GrowthLead",
+        metadata: { sourceEntityId: LEAD_ID },
+        enabled: true,
+        originalName: "private.pdf",
+      },
+    ],
     activities: [],
     audits: [],
     notifications: [],
@@ -74,6 +94,18 @@ function buildPrisma({ lead: leadOverride } = {}) {
         where.companyId === COMPANY_ID && where.userId === USER_ID
           ? { id: "membership-1" }
           : null,
+      findMany: async ({ where }) =>
+        where.companyId === COMPANY_ID
+          ? [
+              {
+                user: {
+                  id: USER_ID,
+                  displayName: "Ana Ventas",
+                  email: "ana@atlas.test",
+                },
+              },
+            ]
+          : [],
     },
     growthLead: {
       findFirst: async ({ where }) =>
@@ -141,6 +173,31 @@ function buildPrisma({ lead: leadOverride } = {}) {
     websiteFormSubmission: {
       findMany: async () => [],
     },
+    fileAsset: {
+      findMany: async ({ where }) =>
+        state.files.filter(
+          (row) =>
+            row.entityId === where.entityId &&
+            row.moduleKey === where.moduleKey &&
+            row.entityType === where.entityType &&
+            row.enabled === where.enabled &&
+            row.metadata.sourceEntityId === where.metadata.equals,
+        ),
+      findFirst: async ({ where }) =>
+        state.files.find(
+          (row) =>
+            row.id === where.id &&
+            row.entityId === where.entityId &&
+            row.moduleKey === where.moduleKey &&
+            row.entityType === where.entityType &&
+            row.metadata.sourceEntityId === where.metadata.equals,
+        ) ?? null,
+      update: async ({ where, data }) => {
+        const row = state.files.find((item) => item.id === where.id);
+        Object.assign(row, data);
+        return row;
+      },
+    },
     contact: {
       findFirst: async ({ where }) =>
         state.contacts.find(
@@ -192,6 +249,60 @@ function buildService(prisma) {
 }
 
 describe("createGrowthLeadService", () => {
+  it("lists, associates, and removes only files owned by the lead company", async () => {
+    const prisma = buildPrisma();
+    const service = buildService(prisma);
+
+    const files = await service.listLeadFiles({
+      companyId: COMPANY_ID,
+      id: LEAD_ID,
+    });
+    assert.deepEqual(files.map((file) => file.id), ["file-1"]);
+
+    const associated = await service.associateLeadFile({
+      companyId: COMPANY_ID,
+      id: LEAD_ID,
+      fileAssetId: "file-1",
+    });
+    assert.equal(associated.id, "file-1");
+
+    await assert.rejects(
+      () =>
+        service.associateLeadFile({
+          companyId: COMPANY_ID,
+          id: LEAD_ID,
+          fileAssetId: "file-other-company",
+        }),
+      (error) =>
+        error instanceof GrowthLeadServiceError &&
+        error.code === "lead_file_not_found",
+    );
+
+    const removed = await service.removeLeadFile({
+      companyId: COMPANY_ID,
+      id: LEAD_ID,
+      fileAssetId: "file-1",
+    });
+    assert.equal(removed.enabled, false);
+  });
+
+  it("lists only active assignee candidates from the current company", async () => {
+    const prisma = buildPrisma();
+    const service = buildService(prisma);
+
+    const assignees = await service.listAssignees({
+      companyId: COMPANY_ID,
+    });
+
+    assert.deepEqual(assignees, [
+      {
+        id: USER_ID,
+        displayName: "Ana Ventas",
+        email: "ana@atlas.test",
+      },
+    ]);
+  });
+
   it("scopes list queries to the company and applies inbox filters", async () => {
     const prisma = buildPrisma();
     const service = buildService(prisma);

@@ -187,6 +187,15 @@ const SCREEN_MAP = {
   "atlas.website:/payments": lazy(
     () => import("../modules/atlas.website/screens/WebsitePaymentsScreen.jsx"),
   ),
+  "atlas.growth:/": lazy(
+    () => import("../modules/atlas.growth/screens/GrowthLeadsScreen.jsx"),
+  ),
+  "atlas.growth:/leads": lazy(
+    () => import("../modules/atlas.growth/screens/GrowthLeadsScreen.jsx"),
+  ),
+  "atlas.growth:/leads/:id": lazy(
+    () => import("../modules/atlas.growth/screens/GrowthLeadDetailScreen.jsx"),
+  ),
   "atlas.calendar:/calendar": lazy(
     () => import("../modules/atlas.calendar/screens/CalendarScreen.jsx"),
   ),
@@ -412,6 +421,15 @@ function resolveScreen(moduleKey, subPath) {
       return SCREEN_MAP["atlas.website:/templates/:id/preview"] ?? null;
     }
     return SCREEN_MAP[`atlas.website:${subPath}`] ?? null;
+  }
+  if (moduleKey === "atlas.growth") {
+    if (subPath === "/" || subPath === "/leads") {
+      return SCREEN_MAP["atlas.growth:/leads"] ?? null;
+    }
+    if (/^\/leads\/[^/]+$/.test(subPath)) {
+      return SCREEN_MAP["atlas.growth:/leads/:id"] ?? null;
+    }
+    return null;
   }
   if (moduleKey === "atlas.catalog") {
     if (subPath === "/") return SCREEN_MAP["atlas.catalog:/"] ?? null;

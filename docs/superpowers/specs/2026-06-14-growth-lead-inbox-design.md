@@ -1,7 +1,7 @@
 # Growth Lead Inbox
 
 Date: 2026-06-14
-Status: Proposed
+Status: Implemented
 Author: Codex
 Spec file: `docs/superpowers/specs/2026-06-14-growth-lead-inbox-design.md`
 Plan file: `docs/superpowers/plans/2026-06-14-growth-lead-inbox.md`
@@ -14,7 +14,7 @@ Growth Lead Inbox
 
 ## 2. Status
 
-Proposed
+Implemented
 
 ## 3. Context
 
@@ -91,6 +91,9 @@ All endpoints require authentication and company context.
 - `POST /growth/leads/:id/notes` guarded by `growth.leads.update`.
 - `POST /growth/leads/:id/convert` guarded by `growth.leads.convert`.
 - `PATCH /growth/leads/:id/enabled` guarded by `growth.leads.delete`.
+- `GET /growth/leads/assignees` guarded by `growth.leads.assign`.
+- `GET|POST /growth/leads/:id/files` guarded by lead read/update permissions.
+- `DELETE /growth/leads/:id/files/:fileAssetId` guarded by `growth.leads.update`.
 
 Conversion body:
 
