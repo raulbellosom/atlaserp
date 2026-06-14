@@ -1,78 +1,69 @@
-/**
- * Factory for the sdk.auth namespace.
- * @param {{ request: Function, session: object }} deps
- * @returns {{ register, login, refresh, me, logout, getSession, onAuthStateChange }}
- */
-export function createAuthNamespace({ request, session }) {
-  /**
-   * Register a new storefront user.
-   * @param {{ email: string, password: string, name: string, role?: string }} params
-   * @returns {Promise<{ id, displayName, firstName, lastName, email, phone, bio, role }>}
-   */
+import { StorefrontError } from './storefront-error.js'
+
+export function createAuthNamespace({ supabase, request, session }) {
   async function register({ email, password, name, role = 'storefront_client' }) {
     const res = await request('POST', '/public/storefront/auth/register', { email, password, name, role })
-    return res.data
+    return res?.data ?? res
   }
 
-  /**
-   * Log in with email and password. Stores session internally.
-   * @param {{ email: string, password: string }} params
-   * @returns {Promise<{ user, token, refreshToken, expiresAt }>}
-   */
   async function login({ email, password }) {
-    const res = await request('POST', '/public/storefront/auth/login', { email, password })
-    const { user, token, refreshToken, expiresAt } = res.data
-    session.set({ user, token, refreshToken, expiresAt })
-    return res.data
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error || !data.session) {
+      throw Object.assign(
+        new StorefrontError('Credenciales incorrectas', 'UNAUTHORIZED', 401),
+        { code: 'UNAUTHORIZED', status: 401 }
+      )
+    }
+    // Fetch Atlas role/profile — best-effort, ERP users may get 403 which is fine
+    let user = null
+    try {
+      const profileRes = await request('GET', '/public/storefront/auth/me')
+      user = profileRes?.data ?? null
+    } catch {
+      // Session is still valid even without profile
+    }
+    session.setUser(user)
+    return { ...session.get(), user }
   }
 
-  /**
-   * Refresh the access token using the stored refreshToken.
-   * @returns {Promise<{ token, refreshToken, expiresAt }>}
-   */
+  async function logout() {
+    // Supabase fires SIGNED_OUT → onAuthStateChange → session adapter clears _cached
+    await supabase.auth.signOut()
+  }
+
   async function refresh() {
     const current = session.get()
-    if (!current?.refreshToken) throw new Error('No hay sesión activa para refrescar')
-    const res = await request('POST', '/public/storefront/auth/refresh', { refreshToken: current.refreshToken })
-    const { token, refreshToken, expiresAt } = res.data
-    session.set({ ...current, token, refreshToken, expiresAt })
-    return res.data
+    if (!current?.refreshToken) {
+      throw new Error('No hay sesión activa para refrescar')
+    }
+    const { data, error } = await supabase.auth.refreshSession({ refresh_token: current.refreshToken })
+    if (error || !data.session) {
+      // Force sign-out so the SIGNED_OUT event clears the adapter
+      await supabase.auth.signOut()
+      throw Object.assign(
+        new StorefrontError('Token expirado, inicia sesión de nuevo', 'UNAUTHORIZED', 401),
+        { code: 'UNAUTHORIZED', status: 401 }
+      )
+    }
+    return {
+      token: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+      expiresAt: data.session.expires_at,
+    }
   }
 
-  /**
-   * Fetch the authenticated user's profile.
-   * @returns {Promise<{ id, displayName, firstName, lastName, email, phone, bio, role }>}
-   */
   async function me() {
     const res = await request('GET', '/public/storefront/auth/me')
-    return res.data
+    return res?.data ?? null
   }
 
-  /**
-   * Log out and clear the stored session.
-   * @returns {Promise<void>}
-   */
-  async function logout() {
-    await request('POST', '/public/storefront/auth/logout')
-    session.clear()
-  }
-
-  /**
-   * Get current session synchronously.
-   * @returns {{ user, token, refreshToken, expiresAt }|null}
-   */
   function getSession() {
     return session.get()
   }
 
-  /**
-   * Subscribe to session changes.
-   * @param {function} fn - Called with session or null on every change
-   * @returns {function} Unsubscribe function
-   */
   function onAuthStateChange(fn) {
     return session.subscribe(fn)
   }
 
-  return { register, login, refresh, me, logout, getSession, onAuthStateChange }
+  return { register, login, logout, refresh, me, getSession, onAuthStateChange }
 }
