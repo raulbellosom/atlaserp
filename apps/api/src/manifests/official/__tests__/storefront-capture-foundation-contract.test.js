@@ -68,7 +68,7 @@ test("forward migration creates capture tables and idempotency constraints", asy
   assert.match(migration, /DROP COLUMN "submitter_ip"/);
 });
 
-test("atlas.growth is an official core module with the approved lead inbox navigation", () => {
+test("atlas.growth is an official core module with analytics and lead navigation", () => {
   const manifest = featureModules.atlasGrowthManifest;
 
   assert.ok(manifest);
@@ -77,6 +77,13 @@ test("atlas.growth is an official core module with the approved lead inbox navig
   assert.equal(manifest.icon, "TrendingUp");
   assert.equal(manifest.color, "#7C3AED");
   assert.deepEqual(manifest.navigation, [
+    {
+      label: "Analitica",
+      path: "/",
+      icon: "ChartNoAxesCombined",
+      layout: "main",
+      permissionKey: "growth.analytics.read",
+    },
     {
       label: "Leads",
       path: "/leads",

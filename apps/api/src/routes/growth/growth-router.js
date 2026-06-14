@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 
 import { createNotificationService } from "../../services/notification-service.js";
+import { createGrowthAnalyticsRoutes } from "./growth-analytics-routes.js";
+import { createGrowthAnalyticsService } from "./growth-analytics-service.js";
 import { createGrowthLeadRoutes } from "./growth-lead-routes.js";
 import { createGrowthLeadService } from "./growth-lead-service.js";
 
@@ -14,6 +16,15 @@ export function createGrowthRouter({
     prisma,
     notificationService,
   });
+  const analyticsService = createGrowthAnalyticsService({ prisma });
   app.route("", createGrowthLeadRoutes({ service, requirePermission }));
+  app.route(
+    "",
+    createGrowthAnalyticsRoutes({
+      service: analyticsService,
+      prisma,
+      requirePermission,
+    }),
+  );
   return app;
 }

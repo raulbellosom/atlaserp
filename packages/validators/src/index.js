@@ -807,3 +807,58 @@ export const growthLeadQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(25),
 });
+
+const GROWTH_ANALYTICS_MAX_DAYS = 762;
+const GROWTH_ANALYTICS_REPORTS = [
+  "overview",
+  "acquisition",
+  "content",
+  "conversions",
+  "retention",
+];
+
+const growthAnalyticsDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Usa el formato AAAA-MM-DD.")
+  .refine(
+    (value) => !Number.isNaN(Date.parse(`${value}T00:00:00.000Z`)),
+    "Fecha invalida.",
+  );
+
+const growthAnalyticsCompareSchema = z
+  .union([z.boolean(), z.enum(["true", "false"])])
+  .transform((value) =>
+    typeof value === "boolean" ? value : value === "true",
+  )
+  .default(false);
+
+const growthAnalyticsQueryBaseSchema = z.object({
+  from: growthAnalyticsDateSchema.optional(),
+  to: growthAnalyticsDateSchema.optional(),
+  compare: growthAnalyticsCompareSchema,
+  siteId: z.string().uuid().optional(),
+});
+
+function validateGrowthAnalyticsRange(value, context) {
+  if (!value.from || !value.to) return;
+  const from = Date.parse(`${value.from}T00:00:00.000Z`);
+  const to = Date.parse(`${value.to}T00:00:00.000Z`);
+  const days = Math.floor((to - from) / (24 * 60 * 60 * 1000)) + 1;
+  if (days < 1 || days > GROWTH_ANALYTICS_MAX_DAYS) {
+    context.addIssue({
+      code: "custom",
+      path: ["to"],
+      message: "El rango debe contener entre 1 dia y 25 meses.",
+    });
+  }
+}
+
+export const growthAnalyticsQuerySchema =
+  growthAnalyticsQueryBaseSchema.superRefine(validateGrowthAnalyticsRange);
+
+export const growthAnalyticsExportQuerySchema =
+  growthAnalyticsQueryBaseSchema
+    .extend({
+      report: z.enum(GROWTH_ANALYTICS_REPORTS),
+    })
+    .superRefine(validateGrowthAnalyticsRange);
