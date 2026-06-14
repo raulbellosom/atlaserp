@@ -1,4 +1,5 @@
 // inventory-service.js — business logic layer for atlas.inventory module
+import { parseMentionIds } from '../lib/mention-utils.js'
 
 export class InventoryServiceError extends Error {
   constructor(message, status = 500) {
@@ -8,15 +9,6 @@ export class InventoryServiceError extends Error {
   }
 }
 
-function parseMentionIds(body) {
-  const ids = [];
-  let match;
-  const re = /@\[([a-f0-9-]{36}):[^\]]+\]/g;
-  while ((match = re.exec(body)) !== null) {
-    ids.push(match[1]);
-  }
-  return [...new Set(ids)];
-}
 
 function normalizeLimit(limit, fallback = 50, max = 200) {
   const parsed = Number.parseInt(String(limit ?? fallback), 10);

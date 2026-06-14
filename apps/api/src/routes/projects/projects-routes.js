@@ -6,6 +6,7 @@ import { createFieldsService, FieldServiceError } from './projects-fields-servic
 import { createProjectsCalendarBridge } from './projects-calendar-bridge.js'
 import { createProjectsNotificationService } from './projects-notification-service.js'
 import { publishActivityFromContext } from '../../services/activity-publisher.js'
+import { parseMentionIds } from '../../lib/mention-utils.js'
 
 function getUserId(c) {
   return c.get('userContext')?.profile?.id ?? null
@@ -21,14 +22,6 @@ function getActorName(c) {
   return [p.firstName, p.lastName].filter(Boolean).join(' ').trim() || p.email || 'Sistema'
 }
 
-function parseMentionIds(body) {
-  if (!body) return []
-  const regex = /@\[([a-f0-9-]{36}):[^\]]+\]/g
-  const ids = []
-  let m
-  while ((m = regex.exec(body)) !== null) ids.push(m[1])
-  return [...new Set(ids)]
-}
 
 function handleError(c, err, fallback) {
   if (
