@@ -87,4 +87,44 @@ describe('createRequestCore', () => {
     await req('GET', '/anything')
     assert.equal(capturedHeaders['X-Atlas-Company'], 'myco')
   })
+
+  it('supports empty 202 responses and forwards request options', async () => {
+    let capturedOptions = null
+    const signal = new AbortController().signal
+    const req = createRequestCore({
+      baseUrl: 'https://example.com',
+      company: 'myco',
+      getSession: () => null,
+      fetchFn: async (_url, options) => {
+        capturedOptions = options
+        return { ok: true, status: 202, text: async () => '' }
+      },
+    })
+
+    const result = await req('POST', '/events', { ok: true }, {
+      keepalive: true,
+      signal,
+      credentials: 'omit',
+    })
+
+    assert.equal(result, null)
+    assert.equal(capturedOptions.keepalive, true)
+    assert.equal(capturedOptions.signal, signal)
+    assert.equal(capturedOptions.credentials, 'omit')
+  })
+
+  it('can return the raw Response when requested', async () => {
+    const response = { ok: true, status: 204, text: async () => '' }
+    const req = createRequestCore({
+      baseUrl: 'https://example.com',
+      company: 'myco',
+      getSession: () => null,
+      fetchFn: async () => response,
+    })
+
+    assert.equal(
+      await req('GET', '/raw', null, { responseType: 'response' }),
+      response,
+    )
+  })
 })

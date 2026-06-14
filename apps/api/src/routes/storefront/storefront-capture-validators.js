@@ -4,13 +4,19 @@ const FORBIDDEN_PROPERTY_PARTS = [
   "authorization",
   "cookie",
   "email",
-  "form",
   "message",
   "password",
   "phone",
   "token",
   "value",
 ];
+const FORBIDDEN_PROPERTY_KEYS = new Set([
+  "fields",
+  "formdata",
+  "formvalues",
+  "payload",
+  "values",
+]);
 
 const opaqueIdSchema = z.string().trim().min(1).max(200);
 const eventNameSchema = z
@@ -33,6 +39,7 @@ export function filterSafeEventProperties(properties) {
     const normalizedKey = key.toLowerCase();
     if (
       !key ||
+      FORBIDDEN_PROPERTY_KEYS.has(normalizedKey.replace(/[^a-z0-9]/g, "")) ||
       FORBIDDEN_PROPERTY_PARTS.some((part) => normalizedKey.includes(part))
     ) {
       continue;
@@ -60,6 +67,8 @@ export const storefrontEventSchema = z.object({
   occurredAt: z.string().datetime({ offset: true }),
   path: z.string().max(2048).optional(),
   referrer: z.string().max(2048).optional(),
+  formId: z.string().uuid().optional(),
+  submissionId: z.string().uuid().optional(),
   properties: z
     .record(z.string(), z.unknown())
     .optional()

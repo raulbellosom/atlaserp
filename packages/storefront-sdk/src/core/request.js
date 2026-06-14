@@ -27,12 +27,18 @@ export function createRequestCore({ baseUrl, company, getSession, fetchFn = fetc
         method,
         headers,
         body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
+        ...(options.signal ? { signal: options.signal } : {}),
+        ...(options.keepalive !== undefined ? { keepalive: options.keepalive } : {}),
+        ...(options.credentials ? { credentials: options.credentials } : {}),
+        ...(options.mode ? { mode: options.mode } : {}),
+        ...(options.cache ? { cache: options.cache } : {}),
       })
     } catch {
       throw new StorefrontError('No se pudo conectar con el servidor', 'NETWORK_ERROR', 0)
     }
 
     if (response.ok) {
+      if (options.responseType === 'response') return response
       const text = await response.text()
       if (!text) return null
       try { return JSON.parse(text) } catch { return text }

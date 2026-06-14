@@ -295,21 +295,30 @@ export function createStorefrontCaptureService({
 
       const result = pendingEvents.length
         ? await tx.growthEvent.createMany({
-            data: pendingEvents.map((event) => ({
-              companyId: company.id,
-              siteId: site.id,
-              visitorId: visitor.id,
-              sessionId: session.id,
-              eventName: event.name,
-              idempotencyKey: event.id,
-              clientOccurredAt: normalizeClientDate(event.occurredAt),
-              serverReceivedAt: serverNow,
-              path: event.path ?? null,
-              referrer: event.referrer ?? null,
-              properties: event.properties,
-              sourceType: site.sourceType ?? null,
-              consentState: parsed.data.consent,
-            })),
+            data: pendingEvents.map((event) => {
+              const {
+                formId: _formId,
+                submissionId: _submissionId,
+                ...properties
+              } = event.properties ?? {};
+              return {
+                companyId: company.id,
+                siteId: site.id,
+                visitorId: visitor.id,
+                sessionId: session.id,
+                eventName: event.name,
+                idempotencyKey: event.id,
+                clientOccurredAt: normalizeClientDate(event.occurredAt),
+                serverReceivedAt: serverNow,
+                path: event.path ?? null,
+                referrer: event.referrer ?? null,
+                properties,
+                sourceType: site.sourceType ?? null,
+                formId: event.formId ?? null,
+                submissionId: event.submissionId ?? null,
+                consentState: parsed.data.consent,
+              };
+            }),
             skipDuplicates: true,
           })
         : { count: 0 };

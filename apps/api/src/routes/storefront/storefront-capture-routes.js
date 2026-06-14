@@ -99,10 +99,14 @@ export function createTurnstileVerifier({
   };
 }
 
-function requestScope(c) {
+function requestScope(c, { allowQuery = false } = {}) {
   return {
-    companySlug: c.req.header("X-Atlas-Company"),
-    siteId: c.req.header("X-Atlas-Site") || undefined,
+    companySlug:
+      c.req.header("X-Atlas-Company") ||
+      (allowQuery ? c.req.query("company") : undefined),
+    siteId:
+      c.req.header("X-Atlas-Site") ||
+      (allowQuery ? c.req.query("siteId") : undefined),
     origin: c.req.header("Origin") || undefined,
   };
 }
@@ -116,8 +120,10 @@ function clientAddress(c) {
 }
 
 function limiterKey(c, kind) {
-  const company = c.req.header("X-Atlas-Company") || "unknown";
-  const site = c.req.header("X-Atlas-Site") || "default";
+  const company =
+    c.req.header("X-Atlas-Company") || c.req.query("company") || "unknown";
+  const site =
+    c.req.header("X-Atlas-Site") || c.req.query("siteId") || "default";
   return `${kind}:${company}:${site}:${clientAddress(c)}`;
 }
 
@@ -245,7 +251,7 @@ export function createStorefrontCaptureRoutes({
       const payload = await readJsonBody(c, maxBodyBytes);
       const authenticatedProfileId = await resolveAuthenticatedProfile(c);
       const data = await captureService.captureEvents({
-        ...requestScope(c),
+        ...requestScope(c, { allowQuery: true }),
         dnt: c.req.header("DNT") === "1",
         authenticatedProfileId,
         payload,

@@ -298,6 +298,10 @@ describe("storefront capture validators", () => {
       cta: "hero",
       count: 2,
       active: true,
+      formId: FORM_ID,
+      submissionId: SUBMISSION_ID,
+      formValues: { email: "client@example.com" },
+      values: "not allowed",
       email: "client@example.com",
       authorization: "Bearer secret",
       nested: { value: "not allowed" },
@@ -309,8 +313,12 @@ describe("storefront capture validators", () => {
     assert.equal(safe.email, undefined);
     assert.equal(safe.authorization, undefined);
     assert.equal(safe.nested, undefined);
+    assert.equal(safe.formValues, undefined);
+    assert.equal(safe.values, undefined);
     assert.ok(Object.keys(safe).length <= 20);
     assert.equal(safe.cta, "hero");
+    assert.equal(safe.formId, FORM_ID);
+    assert.equal(safe.submissionId, SUBMISSION_ID);
   });
 });
 
@@ -426,8 +434,11 @@ describe("createStorefrontCaptureService", () => {
           name: "page_view",
           occurredAt: "2020-01-01T00:00:00.000Z",
           path: "/productos",
+          formId: FORM_ID,
+          submissionId: SUBMISSION_ID,
           properties: {
             cta: "hero",
+            formId: FORM_ID,
             email: "client@example.com",
             nested: { secret: true },
           },
@@ -463,6 +474,8 @@ describe("createStorefrontCaptureService", () => {
       NOW.toISOString(),
     );
     assert.deepEqual(prisma._state.events[0].properties, { cta: "hero" });
+    assert.equal(prisma._state.events[0].formId, FORM_ID);
+    assert.equal(prisma._state.events[0].submissionId, SUBMISSION_ID);
   });
 
   it("validates configured form fields before creating a submission", async () => {

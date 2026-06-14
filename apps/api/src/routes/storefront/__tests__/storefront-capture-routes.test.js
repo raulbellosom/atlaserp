@@ -137,6 +137,45 @@ describe("storefront capture v1 routes", () => {
     assert.equal(rejected.status, 422);
   });
 
+  it("accepts company and site query scope for sendBeacon requests", async () => {
+    let receivedScope = null;
+    const app = createStorefrontCaptureRoutes({
+      captureService: createCaptureService({
+        captureEvents: async (input) => {
+          receivedScope = input;
+          return { accepted: input.payload.events.length, rejected: [] };
+        },
+      }),
+    });
+
+    const response = await app.request(
+      `http://localhost/events/batch?company=acme&siteId=${SITE_ID}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=UTF-8",
+          Origin: "https://shop.example.com",
+        },
+        body: JSON.stringify({
+          visitorId: "visitor",
+          sessionId: "session",
+          consent: "granted",
+          events: [
+            {
+              id: "event-beacon",
+              name: "page_view",
+              occurredAt: "2026-06-14T18:00:00.000Z",
+            },
+          ],
+        }),
+      },
+    );
+
+    assert.equal(response.status, 202);
+    assert.equal(receivedScope.companySlug, "acme");
+    assert.equal(receivedScope.siteId, SITE_ID);
+  });
+
   it("passes only the optional profile resolved for the request company", async () => {
     let receivedProfileId = null;
     const app = createStorefrontCaptureRoutes({
