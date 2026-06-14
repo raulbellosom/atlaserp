@@ -13,6 +13,7 @@ import {
 } from "@atlas/ui";
 import { useAuth } from "../auth/AuthProvider";
 import { ATLAS_DESKTOP_DOWNLOAD_URL } from "../lib/appConfig.js";
+import { getMobilePwaInstallMode } from "../lib/pwaInstallUi.js";
 
 const DESKTOP_REMINDER_KEY = "atlas_desktop_reminder_dismissed_at";
 const REMINDER_INTERVAL_MS = 2.5 * 24 * 60 * 60 * 1000;
@@ -59,15 +60,26 @@ function getInitials(firstName, lastName) {
   return result || (firstName ?? "").charAt(0).toUpperCase() || "U";
 }
 
-export function UserMenu({ canInstall = false, onInstall }) {
+export function UserMenu({
+  activeModuleKey = null,
+  canInstall = false,
+  manualInstallReady = false,
+  onInstall,
+}) {
   const { userProfile, logout } = useAuth();
   const navigate = useNavigate();
   const [showReminder, setShowReminder] = useState(() => shouldShowDesktopReminder());
 
   const platform = getDevicePlatform();
   const standalone = isStandaloneMode();
-  const isMobile = platform === "ios" || platform === "android" || platform === "mobile";
   const isWindows = platform === "windows";
+  const mobileInstallMode = getMobilePwaInstallMode({
+    platform,
+    standalone,
+    activeModuleKey,
+    canInstall,
+    manualInstallReady,
+  });
 
   function handleDesktopDownload() {
     window.open(ATLAS_DESKTOP_DOWNLOAD_URL, "_blank", "noopener,noreferrer");
@@ -92,7 +104,7 @@ export function UserMenu({ canInstall = false, onInstall }) {
   // Show install section:
   // - Mobile: always (unless already in standalone), show platform-appropriate UI
   // - Windows desktop: show if reminder not dismissed
-  const showMobileInstall = isMobile && !standalone;
+  const showMobileInstall = mobileInstallMode !== null;
   const showWindowsApp = isWindows && showReminder;
 
   return (
@@ -163,14 +175,24 @@ export function UserMenu({ canInstall = false, onInstall }) {
                 <p className="text-xs font-medium text-[hsl(var(--foreground))]">Instalar app</p>
               </div>
 
-              {canInstall ? (
+              {mobileInstallMode === "prompt" ? (
                 /* Android Chrome — browser offered install prompt */
                 <button
+                  type="button"
                   onClick={onInstall}
                   className="flex items-center gap-1.5 w-full rounded-md px-2 py-1.5 text-xs font-medium bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:opacity-90 transition-opacity"
                 >
                   <Download size={11} />
                   Agregar a pantalla de inicio
+                </button>
+              ) : mobileInstallMode === "prepare" ? (
+                <button
+                  type="button"
+                  onClick={onInstall}
+                  className="flex items-center gap-1.5 w-full rounded-md px-2 py-1.5 text-xs font-medium bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:opacity-90 transition-opacity"
+                >
+                  <Download size={11} />
+                  Preparar este módulo
                 </button>
               ) : platform === "ios" ? (
                 /* iOS Safari — manual flow */

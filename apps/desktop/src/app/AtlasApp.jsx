@@ -239,7 +239,8 @@ export function AtlasApp() {
   );
 
   usePwaManifest(moduleKeyFromPath, activeModule);
-  const { canInstall, install } = usePwaInstall(moduleKeyFromPath);
+  const { canInstall, install, manualInstallReady } =
+    usePwaInstall(moduleKeyFromPath);
 
   const showSidebar =
     !isFullscreen &&
@@ -266,6 +267,7 @@ export function AtlasApp() {
         networkBusy={networkBusy}
         activeModuleKey={moduleKeyFromPath}
         canInstall={canInstall}
+        manualInstallReady={manualInstallReady}
         onInstall={install}
       />
 

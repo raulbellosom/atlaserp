@@ -20,6 +20,7 @@ export function Topbar({
   networkBusy = false,
   activeModuleKey = null,
   canInstall = false,
+  manualInstallReady = false,
   onInstall,
 }) {
   const { session, userProfile } = useAuth();
@@ -184,7 +185,12 @@ export function Topbar({
               <Download size={16} />
             </button>
           )}
-          <UserMenu canInstall={canInstall} onInstall={onInstall} />
+          <UserMenu
+            activeModuleKey={activeModuleKey}
+            canInstall={canInstall}
+            manualInstallReady={manualInstallReady}
+            onInstall={onInstall}
+          />
         </div>
       </div>
     </header>
