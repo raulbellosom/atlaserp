@@ -375,7 +375,7 @@ export const atlasGrowthManifest = createModuleManifest({
   uninstallable: false,
   icon: "TrendingUp",
   color: "#7C3AED",
-  pwa: { shortName: "Growth", startPath: "/" },
+  pwa: { shortName: "Growth", startPath: "/leads" },
   category: "comercial",
   summary: "Analitica de storefront y captura de oportunidades.",
   dependencies: [
@@ -414,7 +414,15 @@ export const atlasGrowthManifest = createModuleManifest({
       "WebsiteFormSubmission",
     ],
   },
-  navigation: [],
+  navigation: [
+    {
+      label: "Leads",
+      path: "/leads",
+      icon: "UserRoundSearch",
+      layout: "main",
+      permissionKey: "growth.leads.read",
+    },
+  ],
   permissions: [
     { key: "growth.access", name: "Acceder a Growth" },
     { key: "growth.leads.read", name: "Ver leads" },
