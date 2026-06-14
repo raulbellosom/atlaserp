@@ -56,6 +56,24 @@ the same `sb-<project>-auth-token` localStorage key as Atlas ERP. This means:
 The `window.AtlasERP` object (from the IIFE `atlas-sdk.js`) and `sdk.auth` (from the npm package)
 share the same session. They are NOT separate auth systems.
 
+### `user.hasErpAccess`
+
+The `user` object returned by `sdk.auth.login()`, `sdk.auth.me()`, and `sdk.auth.getSession()`
+includes a `hasErpAccess: boolean` field. It is `true` when the user's role has the
+`platform.erp.access` permission. Use this field — not `user.role` — to decide whether to
+redirect a user to Atlas ERP after login:
+
+```js
+const { user } = await sdk.auth.login({ email, password })
+if (user?.hasErpAccess) {
+  window.location.href = window.ATLAS_CONFIG?.apiUrl ?? '/'
+}
+```
+
+Never hardcode role keys (e.g. `storefront_client`, `storefront_vendor`) to make this decision —
+role keys can be renamed or new roles added. `hasErpAccess` is set server-side from the
+`platform.erp.access` permission and is the authoritative signal.
+
 ---
 
 ## `window.AtlasERP`

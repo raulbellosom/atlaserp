@@ -69,7 +69,7 @@ const { user, token } = await sdk.auth.login({
 console.log('Bienvenido,', user?.displayName ?? 'usuario')
 
 // Redirect ERP users to the ERP app
-if (user && !['storefront_client', 'storefront_vendor'].includes(user.role)) {
+if (user?.hasErpAccess) {
   window.location.href = cfg.apiUrl ?? 'https://erp.tudominio.mx'
 }
 
@@ -229,7 +229,7 @@ The function throws a plain `Error` (not a `StorefrontError`) synchronously if `
 | `name` | `string` | Yes | Display name for the user |
 | `role` | `string` | No | Storefront role to assign. Defaults to `'storefront_client'`. The allowed values depend on which roles the platform admin has made registrable |
 
-**Returns:** `Promise<{ id, displayName, firstName, lastName, email, phone, bio, role }>`
+**Returns:** `Promise<{ id, displayName, firstName, lastName, email, phone, bio, role, hasErpAccess }>`
 
 | Field | Type | Description |
 |---|---|---|
@@ -290,7 +290,7 @@ try {
 
 | Field | Type | Description |
 |---|---|---|
-| `user` | `object` | `{ id, displayName, firstName, lastName, email, phone, bio, role }` |
+| `user` | `object` | `{ id, displayName, firstName, lastName, email, phone, bio, role, hasErpAccess }` |
 | `token` | `string` | JWT access token (short-lived) |
 | `refreshToken` | `string` | Opaque refresh token (long-lived) |
 | `expiresAt` | `string` | ISO 8601 datetime when `token` expires |
@@ -1057,7 +1057,7 @@ function RealtimeListener() {
 **Return value:**
 | Field | Type | Description |
 |---|---|---|
-| `user` | `object` | `{ id, displayName, firstName, lastName, email, phone, bio, role }` |
+| `user` | `object` | `{ id, displayName, firstName, lastName, email, phone, bio, role, hasErpAccess }` |
 | `token` | `string` | Current JWT access token |
 | `refreshToken` | `string` | Current refresh token |
 | `expiresAt` | `string` | ISO 8601 expiry datetime of the access token |
@@ -1959,8 +1959,7 @@ if (erpSession) {
 **Redirect ERP users after login:**
 ```js
 const { user } = await sdk.auth.login({ email, password })
-const isStorefrontRole = ['storefront_client', 'storefront_vendor'].includes(user?.role)
-if (!isStorefrontRole && user) {
+if (user?.hasErpAccess) {
   window.location.href = window.ATLAS_CONFIG?.apiUrl ?? '/'
 }
 ```

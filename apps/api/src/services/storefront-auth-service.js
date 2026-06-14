@@ -3,7 +3,7 @@ export function validateRegistrableRole(role, allowedRoles) {
   return allowedRoles.includes(role)
 }
 
-export function buildStorefrontUserProfile(profile, role) {
+export function buildStorefrontUserProfile(profile, role, rolePermissionKeys = []) {
   return {
     id: profile.id,
     displayName: profile.displayName,
@@ -13,6 +13,7 @@ export function buildStorefrontUserProfile(profile, role) {
     phone: profile.phone ?? null,
     bio: profile.bio ?? null,
     role: role.key,
+    hasErpAccess: rolePermissionKeys.includes('platform.erp.access'),
   }
 }
 
@@ -116,7 +117,17 @@ export function createStorefrontAuthService({ prisma, supabaseAdmin, supabaseAno
       include: {
         memberships: {
           where: { enabled: true },
-          include: { role: true, company: { select: { slug: true } } },
+          include: {
+            role: {
+              include: {
+                permissions: {
+                  where: { permission: { active: true } },
+                  include: { permission: { select: { key: true } } },
+                },
+              },
+            },
+            company: { select: { slug: true } },
+          },
         },
       },
     })
@@ -130,7 +141,8 @@ export function createStorefrontAuthService({ prisma, supabaseAdmin, supabaseAno
     if (!membership) {
       throw Object.assign(new Error('Sin membresía en esta empresa'), { code: 'FORBIDDEN', status: 403 })
     }
-    return buildStorefrontUserProfile(profile, membership.role)
+    const rolePermissionKeys = membership.role.permissions?.map(rp => rp.permission.key) ?? []
+    return buildStorefrontUserProfile(profile, membership.role, rolePermissionKeys)
   }
 
   async function refresh(refreshToken) {
