@@ -11,20 +11,31 @@ export async function runInteractivePrompts() {
   const ask = (question) => new Promise((resolve) => rl.question(question, resolve))
 
   try {
-    console.log('\nAME3 Module Scaffolder')
-    console.log('======================\n')
+    return await collectInteractiveConfig({ ask })
+  } finally {
+    rl.close()
+  }
+}
+
+export async function collectInteractiveConfig({ ask, log = console.log }) {
+    log('\nAME3 Module Scaffolder')
+    log('======================\n')
 
     const key = await askRequired(ask, 'Module key (ej. custom.crm): ')
     const name = await askRequired(ask, 'Nombre para mostrar en UI (español): ')
     const version = await askWithDefault(ask, 'Version', '0.1.0')
     const description = (await ask('Descripcion (opcional): ')).trim()
+    const icon = await askRequired(ask, 'Icono Lucide del modulo (ej. Boxes): ')
+    const color = await askRequired(ask, 'Color hexadecimal del modulo (ej. #6366f1): ')
+    const pwaShortName = await askWithDefault(ask, 'Nombre corto PWA', name.slice(0, 14))
+    const pwaStartPath = await askRequired(ask, 'Ruta inicial PWA relativa al modulo (ej. /items): ')
 
     const entities = []
     let addEntity = true
     let entityIndex = 1
 
     while (addEntity) {
-      console.log(`\n--- Entidad ${entityIndex} ---`)
+      log(`\n--- Entidad ${entityIndex} ---`)
       const entityName = await askRequired(ask, 'Nombre de entidad (snake_case): ')
       const label = await askRequired(ask, 'Etiqueta singular (español): ')
       const labelPluralDefault = label + 's'
@@ -37,7 +48,7 @@ export async function runInteractivePrompts() {
       let fieldIndex = 1
 
       while (addField) {
-        console.log(`\n  -- Campo ${fieldIndex} --`)
+        log(`\n  -- Campo ${fieldIndex} --`)
         const fieldName = await askRequired(ask, '  Nombre del campo (snake_case): ')
         const fieldType = await askFieldType(ask)
         const fieldLabel = await askRequired(ask, '  Etiqueta (español): ')
@@ -68,10 +79,19 @@ export async function runInteractivePrompts() {
       addEntity = await askYesNo(ask, '\nAgregar otra entidad? [Y/n]: ', true)
     }
 
-    return { key, name, version: version || '0.1.0', description, entities }
-  } finally {
-    rl.close()
-  }
+    return {
+      key,
+      name,
+      version: version || '0.1.0',
+      description,
+      icon,
+      color,
+      pwa: {
+        shortName: pwaShortName,
+        startPath: pwaStartPath,
+      },
+      entities,
+    }
 }
 
 async function askRequired(ask, question) {

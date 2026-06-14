@@ -15,6 +15,12 @@ const config = {
   name: 'CRM',
   version: '0.1.0',
   description: 'Test',
+  icon: 'ContactRound',
+  color: '#0f766e',
+  pwa: {
+    shortName: 'CRM',
+    startPath: '/crm-contacts',
+  },
   entities: [
     {
       name: 'contact',
@@ -49,6 +55,13 @@ describe('generateManifest', () => {
   test('contains model path', () => {
     const out = generateManifest(config)
     assert.ok(out.includes('./models/contact.model.js'))
+  })
+  test('contains module PWA identity', () => {
+    const out = generateManifest(config)
+    assert.ok(out.includes("icon: 'ContactRound'"))
+    assert.ok(out.includes("color: '#0f766e'"))
+    assert.ok(out.includes("shortName: 'CRM'"))
+    assert.ok(out.includes("startPath: '/crm-contacts'"))
   })
 })
 

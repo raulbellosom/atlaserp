@@ -6,6 +6,7 @@ import {
   Route,
   Navigate,
   Outlet,
+  useLocation,
 } from "react-router-dom";
 import {
   QueryClient,
@@ -127,6 +128,7 @@ function LoginRouteGuard() {
 
 function AppAccessGuard() {
   const { session, loading: authLoading } = useAuth();
+  const location = useLocation();
   const { data, isPending, isError, error, refetch } = useInstanceStatus();
 
   if (isPending || authLoading) {
@@ -148,7 +150,8 @@ function AppAccessGuard() {
   }
 
   if (!session) {
-    return <Navigate to="/app/login" replace state={{ branding: data.branding }} />;
+    const returnTo = `${location.pathname}${location.search}${location.hash}`;
+    return <LoginScreen returnTo={returnTo} />;
   }
 
   return <Outlet />;

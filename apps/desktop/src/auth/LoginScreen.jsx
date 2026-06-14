@@ -8,6 +8,7 @@ import { clearServerUrl, isTauriRuntime } from '../lib/serverStore.js'
 import { useBrandingStore } from '../stores/branding'
 import { atlas } from '../lib/atlas'
 import { useAuth } from './AuthProvider'
+import { normalizeAuthReturnPath } from './authReturnPath.js'
 
 const SIDEBAR_FEATURES = [
   { icon: Server, label: 'Autoalojado en tu infraestructura' },
@@ -15,8 +16,9 @@ const SIDEBAR_FEATURES = [
   { icon: Building2, label: 'Multi-empresa desde el primer día' },
 ]
 
-export function LoginScreen() {
+export function LoginScreen({ returnTo = '/app' }) {
   const navigate = useNavigate()
+  const destination = normalizeAuthReturnPath(returnTo)
   const { session, loading: authLoading } = useAuth()
   const branding = useBrandingStore((s) => s.branding)
   const [email, setEmail] = useState('')
@@ -43,9 +45,9 @@ export function LoginScreen() {
   useEffect(() => {
     if (authLoading) return
     if (session) {
-      navigate('/app', { replace: true })
+      navigate(destination, { replace: true })
     }
-  }, [authLoading, navigate, session])
+  }, [authLoading, destination, navigate, session])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -62,7 +64,7 @@ export function LoginScreen() {
         }
         return
       }
-      navigate('/app', { replace: true })
+      navigate(destination, { replace: true })
     } catch {
       setError('Sin conexión con el servidor. Intenta de nuevo.')
     } finally {

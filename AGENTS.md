@@ -31,6 +31,11 @@ compiled at install time — no web image rebuild is ever needed for module UI.
 4. **Never generate UUIDs in JavaScript** — the `id` column has `DEFAULT uuidv7()` in
    PostgreSQL. Use `INSERT ... RETURNING *` and let the database produce the ID.
 
+5. **Every new module must declare its PWA identity** — `icon`, six-digit hexadecimal
+   `color`, and `pwa: { shortName, startPath }` are mandatory. `startPath` is relative
+   to `/app/m/<moduleKey>` and must stay inside that module. Use a supported Lucide
+   icon so Atlas can generate the module's 192px and 512px install icons.
+
 ### UI-first rule — mandatory
 
 Before writing any UI element, check `@atlas/ui` first. The full inventory is in

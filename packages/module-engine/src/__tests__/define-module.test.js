@@ -3,7 +3,18 @@ import assert from 'node:assert/strict'
 import { defineAtlasModule, validateManifest } from '../define-module.js'
 import { ModuleEngineError } from '../errors.js'
 
-const VALID = { key: 'custom.fleet', name: 'Flota', version: '0.1.0', kind: 'FEATURE' }
+const VALID = {
+  key: 'custom.fleet',
+  name: 'Flota',
+  version: '0.1.0',
+  kind: 'FEATURE',
+  icon: 'Truck',
+  color: '#2563eb',
+  pwa: {
+    shortName: 'Flota',
+    startPath: '/vehicles',
+  },
+}
 
 test('defineAtlasModule - returns manifest with key preserved', () => {
   const r = defineAtlasModule(VALID)
@@ -124,4 +135,69 @@ test('validateManifest - handles null without throwing', () => {
 
 test('validateManifest - handles non-object without throwing', () => {
   assert.equal(validateManifest('bad').valid, false)
+})
+
+test('validateManifest - requires explicit PWA identity for custom modules', () => {
+  const result = validateManifest({
+    key: 'custom.demo',
+    name: 'Demo',
+    version: '0.1.0',
+  })
+
+  assert.equal(result.valid, false)
+  assert.ok(result.errors.some((error) => error.includes('icon')))
+  assert.ok(result.errors.some((error) => error.includes('color')))
+  assert.ok(result.errors.some((error) => error.includes('pwa.shortName')))
+  assert.ok(result.errors.some((error) => error.includes('pwa.startPath')))
+})
+
+test('validateManifest - rejects unsafe PWA start paths', () => {
+  const result = validateManifest({
+    ...VALID,
+    pwa: { ...VALID.pwa, startPath: '/../admin' },
+  })
+
+  assert.equal(result.valid, false)
+  assert.ok(result.errors.some((error) => error.includes('pwa.startPath')))
+})
+
+test('validateManifest - rejects non-hex module colors', () => {
+  const result = validateManifest({
+    ...VALID,
+    color: 'purple',
+  })
+
+  assert.equal(result.valid, false)
+  assert.ok(result.errors.some((error) => error.includes('color')))
+})
+
+test('defineAtlasModule - derives a relative start path for legacy modules', () => {
+  const module = defineAtlasModule({
+    key: 'custom.legacy',
+    name: 'Legacy',
+    version: '1.0.0',
+    navigation: [
+      {
+        label: 'Inicio',
+        path: '/app/m/custom.legacy/dashboard',
+        permissionKey: 'legacy.read',
+      },
+    ],
+  })
+
+  assert.equal(module.pwa.startPath, '/dashboard')
+})
+
+test('defineAtlasModule - falls back safely for unsupported legacy icons', () => {
+  const module = defineAtlasModule({
+    key: 'custom.legacy',
+    name: 'Legacy',
+    version: '1.0.0',
+    icon: 'OldPrivateIcon',
+    color: 'purple',
+  })
+
+  assert.equal(module.icon, 'Box')
+  assert.equal(module.color, '#6366f1')
+  assert.equal(module.pwa.legacyDerived, true)
 })

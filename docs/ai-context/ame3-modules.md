@@ -40,6 +40,12 @@ Minimal config JSON:
   "key": "custom.crm",
   "name": "CRM",
   "version": "0.1.0",
+  "icon": "Users",
+  "color": "#2563eb",
+  "pwa": {
+    "shortName": "CRM",
+    "startPath": "/crm-contacts"
+  },
   "description": "Gestión de relaciones con clientes",
   "entities": [
     {
@@ -56,6 +62,11 @@ Minimal config JSON:
   ]
 }
 ```
+
+`icon`, `color` and `pwa` are required for every new module. `icon` must be a
+supported Lucide icon, `color` must use six-digit hexadecimal notation, and
+`pwa.startPath` must be an internal path relative to `/app/m/<moduleKey>`.
+Atlas uses these fields to create an independently installable PWA identity.
 
 Use **direct code editing** (not the scaffolder) when:
 - Adding a new field to an existing entity
@@ -369,6 +380,11 @@ export default defineAtlasModule({
   kind: 'FEATURE',
   description: 'Gestión de relaciones con clientes.',
   icon: 'Users',
+  color: '#2563eb',
+  pwa: {
+    shortName: 'CRM',
+    startPath: '/crm-contacts',
+  },
   dependencies: [{ key: 'atlas.core' }],
   models: [
     './models/contact.model.js',

@@ -1,21 +1,79 @@
 import { useEffect, useRef, useState } from "react";
 
-// Captures the browser's beforeinstallprompt event so we can trigger
-// "Add to Home Screen" from a custom UI button instead of the browser default.
-export function usePwaInstall() {
+export function createPwaInstallController({
+  moduleKey = null,
+  onAvailabilityChange,
+}) {
+  let activeModuleKey = moduleKey;
+  let capturedModuleKey = null;
+  let deferredPrompt = null;
+
+  function clear() {
+    deferredPrompt = null;
+    capturedModuleKey = null;
+    onAvailabilityChange(false);
+  }
+
+  return {
+    capture(event) {
+      event.preventDefault();
+      deferredPrompt = event;
+      capturedModuleKey = activeModuleKey;
+      onAvailabilityChange(Boolean(activeModuleKey));
+    },
+    setModuleKey(nextModuleKey) {
+      if (nextModuleKey === activeModuleKey) return;
+      activeModuleKey = nextModuleKey;
+      clear();
+    },
+    clear,
+    canInstall() {
+      return Boolean(
+        deferredPrompt &&
+          activeModuleKey &&
+          capturedModuleKey === activeModuleKey,
+      );
+    },
+    async install() {
+      if (
+        !deferredPrompt ||
+        !activeModuleKey ||
+        capturedModuleKey !== activeModuleKey
+      ) {
+        return null;
+      }
+
+      const prompt = deferredPrompt;
+      await prompt.prompt();
+      const choice = await prompt.userChoice;
+      clear();
+      return choice;
+    },
+  };
+}
+
+export function usePwaInstall(moduleKey) {
   const [canInstall, setCanInstall] = useState(false);
-  const deferredPromptRef = useRef(null);
+  const controllerRef = useRef(null);
+
+  if (!controllerRef.current) {
+    controllerRef.current = createPwaInstallController({
+      moduleKey,
+      onAvailabilityChange: setCanInstall,
+    });
+  }
 
   useEffect(() => {
-    function handleBeforeInstallPrompt(e) {
-      e.preventDefault();
-      deferredPromptRef.current = e;
-      setCanInstall(true);
+    controllerRef.current.setModuleKey(moduleKey);
+  }, [moduleKey]);
+
+  useEffect(() => {
+    function handleBeforeInstallPrompt(event) {
+      controllerRef.current.capture(event);
     }
 
     function handleAppInstalled() {
-      deferredPromptRef.current = null;
-      setCanInstall(false);
+      controllerRef.current.clear();
     }
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -27,15 +85,8 @@ export function usePwaInstall() {
     };
   }, []);
 
-  async function install() {
-    if (!deferredPromptRef.current) return;
-    deferredPromptRef.current.prompt();
-    const { outcome } = await deferredPromptRef.current.userChoice;
-    if (outcome === "accepted") {
-      deferredPromptRef.current = null;
-      setCanInstall(false);
-    }
-  }
-
-  return { canInstall, install };
+  return {
+    canInstall,
+    install: () => controllerRef.current.install(),
+  };
 }

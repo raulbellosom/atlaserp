@@ -35,7 +35,7 @@ export function generateManifest(config) {
         `  {`,
         `    label: '${e.labelPlural || e.label + 's'}',`,
         `    path: '${path}',`,
-        `    icon: 'Box',`,
+        `    icon: '${config.icon}',`,
         `    layout: 'main',`,
         `    permissionKey: '${permKey(slug, e.name, 'read')}',`,
         `  },`,
@@ -59,7 +59,12 @@ export default defineAtlasModule({
   version: '${version}',
   kind: 'FEATURE',
   description: '${description}',
-  icon: 'Box',
+  icon: '${config.icon}',
+  color: '${config.color}',
+  pwa: {
+    shortName: '${config.pwa.shortName}',
+    startPath: '${config.pwa.startPath}',
+  },
   dependencies: [{ key: 'atlas.core' }],
   models: [
 ${modelPaths}

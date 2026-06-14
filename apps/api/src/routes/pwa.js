@@ -1,114 +1,181 @@
-import { Hono } from "hono";
+import { createHash } from 'node:crypto'
+import { Hono } from 'hono'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import * as LucideIcons from 'lucide-react'
+import sharp from 'sharp'
+import { validateModulePwaIdentity } from '@atlas/module-engine'
 
-function escapeXml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+const MODULE_KEY_RE = /^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9_-]*)+$/
+const ICON_SIZES = new Set([192, 512])
+const iconCache = new Map()
+
+function hashIdentity(moduleRow) {
+  return createHash('sha256')
+    .update(JSON.stringify({
+      key: moduleRow.key,
+      version: moduleRow.version,
+      name: moduleRow.manifest?.name,
+      description: moduleRow.manifest?.description,
+      icon: moduleRow.manifest?.icon,
+      color: moduleRow.manifest?.color,
+      pwa: moduleRow.manifest?.pwa,
+    }))
+    .digest('hex')
 }
 
-function generateModuleIcon(name, color) {
-  const initial = escapeXml((name || "A").charAt(0).toUpperCase());
-  const bg = /^#[0-9a-fA-F]{3,8}$/.test(color ?? "") ? color : "#0A7BFF";
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">` +
-    `<rect width="512" height="512" rx="112" fill="${escapeXml(bg)}"/>` +
-    `<text x="256" y="370" text-anchor="middle" fill="white" font-size="300" font-family="Arial,Helvetica,sans-serif" font-weight="bold">${initial}</text>` +
-    `</svg>`;
+function normalizeStartUrl(moduleKey, startPath) {
+  return startPath === '/'
+    ? `/app/m/${moduleKey}/`
+    : `/app/m/${moduleKey}${startPath}`
+}
+
+function isAvailableModule(moduleRow) {
+  if (
+    !moduleRow ||
+    moduleRow.status !== 'INSTALLED' ||
+    moduleRow.enabled === false
+  ) {
+    return false
+  }
+
+  return validateModulePwaIdentity(moduleRow.manifest).valid
+}
+
+async function findPwaModule(prisma, moduleKey) {
+  if (!MODULE_KEY_RE.test(moduleKey)) return null
+
+  const moduleRow = await prisma.atlasModule.findUnique({
+    where: { key: moduleKey },
+    select: {
+      key: true,
+      version: true,
+      status: true,
+      enabled: true,
+      manifest: true,
+    },
+  })
+
+  return isAvailableModule(moduleRow) ? moduleRow : null
+}
+
+function buildWebManifest(moduleRow) {
+  const manifest = moduleRow.manifest
+  const moduleKey = moduleRow.key
+  const identityHash = hashIdentity(moduleRow)
+  const startUrl = normalizeStartUrl(moduleKey, manifest.pwa.startPath)
+
+  return {
+    name: `${manifest.name} — Atlas`,
+    short_name: manifest.pwa.shortName,
+    description: manifest.description ?? '',
+    id: `/pwa/apps/${moduleKey}`,
+    start_url: startUrl,
+    scope: `/app/m/${moduleKey}/`,
+    display: 'standalone',
+    orientation: 'portrait-primary',
+    background_color: '#0A1D44',
+    theme_color: manifest.color,
+    lang: 'es-MX',
+    categories: ['business', 'productivity'],
+    prefer_related_applications: false,
+    icons: [192, 512].map((size) => ({
+      src: `/pwa/icon/${moduleKey}/${size}.png?v=${identityHash.slice(0, 12)}`,
+      sizes: `${size}x${size}`,
+      type: 'image/png',
+      purpose: 'any maskable',
+    })),
+  }
+}
+
+function matchesEtag(c, etag) {
+  return c.req.header('if-none-match') === etag
+}
+
+async function renderModuleIcon(moduleRow, size) {
+  const identityHash = hashIdentity(moduleRow)
+  const cacheKey = `${identityHash}:${size}`
+  const cached = iconCache.get(cacheKey)
+  if (cached) return { buffer: cached, identityHash }
+
+  const manifest = moduleRow.manifest
+  const Icon = LucideIcons[manifest.icon]
+  if (!Icon) return null
+
+  const iconMarkup = renderToStaticMarkup(
+    createElement(Icon, {
+      x: 88,
+      y: 88,
+      width: 336,
+      height: 336,
+      color: '#ffffff',
+      strokeWidth: 1.8,
+    }),
+  )
+  const svg = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">` +
+      `<rect width="512" height="512" rx="112" fill="${manifest.color}"/>` +
+      iconMarkup +
+      `</svg>`,
+  )
+  const buffer = await sharp(svg)
+    .resize(size, size)
+    .png()
+    .toBuffer()
+
+  iconCache.set(cacheKey, buffer)
+  return { buffer, identityHash }
 }
 
 export function createPwaRouter({ prisma }) {
-  const router = new Hono();
+  const router = new Hono()
 
-  // GET /pwa/manifest?module=atlas.contacts
-  // Returns a dynamic Web App Manifest scoped to the given module.
-  // No auth required — browser fetches this during PWA install flow.
-  router.get("/manifest", async (c) => {
-    const moduleKey = c.req.query("module");
-    if (!moduleKey || typeof moduleKey !== "string" || moduleKey.length > 100) {
-      return c.json({ error: "Invalid module parameter" }, 400);
+  router.get('/manifest/:moduleFile', async (c) => {
+    const moduleFile = c.req.param('moduleFile')
+    if (!moduleFile.endsWith('.webmanifest')) {
+      return c.json({ error: 'Manifest no encontrado.' }, 404)
     }
 
-    let mod;
-    try {
-      mod = await prisma.atlasModule.findUnique({
-        where: { key: moduleKey },
-        select: { key: true, manifest: true, status: true },
-      });
-    } catch {
-      return c.json({ error: "Internal error" }, 500);
+    const moduleKey = moduleFile.slice(0, -'.webmanifest'.length)
+    const moduleRow = await findPwaModule(prisma, moduleKey)
+    if (!moduleRow) return c.json({ error: 'Modulo no encontrado.' }, 404)
+
+    const identityHash = hashIdentity(moduleRow)
+    const etag = `"${identityHash}"`
+    c.header('Content-Type', 'application/manifest+json')
+    c.header('Cache-Control', 'public, max-age=300, must-revalidate')
+    c.header('ETag', etag)
+    if (matchesEtag(c, etag)) return c.body(null, 304)
+    return c.body(JSON.stringify(buildWebManifest(moduleRow)))
+  })
+
+  router.get('/icon/:moduleKey/:sizeFile', async (c) => {
+    const moduleKey = c.req.param('moduleKey')
+    const sizeFile = c.req.param('sizeFile')
+    const match = sizeFile.match(/^(\d+)\.png$/)
+    const size = match ? Number(match[1]) : null
+    if (!size || !ICON_SIZES.has(size)) {
+      return c.json({ error: 'Icono no encontrado.' }, 404)
     }
 
-    if (!mod || mod.status === "UNINSTALLED") {
-      return c.json({ error: "Module not found" }, 404);
-    }
+    const moduleRow = await findPwaModule(prisma, moduleKey)
+    if (!moduleRow) return c.json({ error: 'Modulo no encontrado.' }, 404)
 
-    const manifest = mod.manifest ?? {};
-    const name = manifest.name ?? moduleKey;
-    const color = /^#[0-9a-fA-F]{3,8}$/.test(manifest.color ?? "")
-      ? manifest.color
-      : "#0A7BFF";
-    const description = manifest.description ?? "";
-    const shortName = name.length <= 14 ? name : name.slice(0, 14);
+    const rendered = await renderModuleIcon(moduleRow, size)
+    if (!rendered) return c.json({ error: 'Icono no disponible.' }, 404)
 
-    const webManifest = {
-      name: `${name} — Atlas`,
-      short_name: shortName,
-      description,
-      id: `/app/m/${moduleKey}`,
-      start_url: `/app/m/${moduleKey}`,
-      scope: "/",
-      display: "standalone",
-      orientation: "portrait-primary",
-      background_color: "#0A1D44",
-      theme_color: color,
-      lang: "es-MX",
-      categories: ["business", "productivity"],
-      prefer_related_applications: false,
-      icons: [
-        {
-          src: `/pwa/icon?module=${encodeURIComponent(moduleKey)}`,
-          sizes: "any",
-          type: "image/svg+xml",
-          purpose: "any maskable",
-        },
-      ],
-    };
+    const etag = `"${rendered.identityHash}-${size}"`
+    c.header('Content-Type', 'image/png')
+    c.header(
+      'Cache-Control',
+      c.req.query('v')
+        ? 'public, max-age=31536000, immutable'
+        : 'public, max-age=300, must-revalidate',
+    )
+    c.header('ETag', etag)
+    if (matchesEtag(c, etag)) return c.body(null, 304)
+    return c.body(rendered.buffer)
+  })
 
-    c.header("Content-Type", "application/manifest+json");
-    c.header("Cache-Control", "public, max-age=300");
-    return c.json(webManifest);
-  });
-
-  // GET /pwa/icon?module=atlas.contacts
-  // Returns an SVG icon for the module (first letter on module-color background).
-  // No auth required — manifest icon refs are fetched by the browser directly.
-  router.get("/icon", async (c) => {
-    const moduleKey = c.req.query("module");
-    if (!moduleKey || typeof moduleKey !== "string" || moduleKey.length > 100) {
-      return c.text("Invalid module parameter", 400);
-    }
-
-    let manifest = {};
-    try {
-      const mod = await prisma.atlasModule.findUnique({
-        where: { key: moduleKey },
-        select: { manifest: true },
-      });
-      manifest = mod?.manifest ?? {};
-    } catch {
-      // Serve fallback icon even if DB fails
-    }
-
-    const name = manifest.name ?? moduleKey;
-    const color = manifest.color ?? "#0A7BFF";
-    const svg = generateModuleIcon(name, color);
-
-    c.header("Content-Type", "image/svg+xml");
-    c.header("Cache-Control", "public, max-age=3600");
-    return c.text(svg);
-  });
-
-  return router;
+  return router
 }

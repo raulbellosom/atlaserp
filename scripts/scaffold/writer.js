@@ -62,6 +62,9 @@ export function applyDefaults(config) {
     ...config,
     version: config.version || '0.1.0',
     description: config.description || '',
+    icon: config.icon,
+    color: config.color,
+    pwa: config.pwa ? { ...config.pwa } : null,
     entities: (config.entities || []).map((e) => ({
       ...e,
       softDelete: e.softDelete !== false,

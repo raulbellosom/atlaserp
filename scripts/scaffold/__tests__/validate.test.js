@@ -11,6 +11,12 @@ const minimalEntity = {
 const minimalConfig = {
   key: 'custom.demo',
   name: 'Demo',
+  icon: 'Box',
+  color: '#6366f1',
+  pwa: {
+    shortName: 'Demo',
+    startPath: '/demo-items',
+  },
   entities: [minimalEntity],
 }
 
@@ -149,5 +155,36 @@ describe('validateConfig', () => {
       entities: [],
     })
     assert.ok(errors.length >= 3)
+  })
+
+  test('rejects missing PWA identity fields', () => {
+    const errors = validateConfig({
+      key: 'custom.demo',
+      name: 'Demo',
+      entities: [minimalEntity],
+    })
+
+    assert.ok(errors.some((error) => error.includes('icon')))
+    assert.ok(errors.some((error) => error.includes('color')))
+    assert.ok(errors.some((error) => error.includes('pwa.shortName')))
+    assert.ok(errors.some((error) => error.includes('pwa.startPath')))
+  })
+
+  test('rejects unsafe PWA start paths', () => {
+    const errors = validateConfig({
+      ...minimalConfig,
+      pwa: { ...minimalConfig.pwa, startPath: '/../admin' },
+    })
+
+    assert.ok(errors.some((error) => error.includes('pwa.startPath')))
+  })
+
+  test('rejects unsupported module icons', () => {
+    const errors = validateConfig({
+      ...minimalConfig,
+      icon: 'InventedIcon',
+    })
+
+    assert.ok(errors.some((error) => error.includes('icon')))
   })
 })

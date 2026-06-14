@@ -1,13 +1,17 @@
 import { MODULE_KINDS } from './constants.js'
 import { ModuleEngineError } from './errors.js'
+import { isModuleIconName } from './module-icons.js'
 
 const VALID_KINDS = new Set(Object.values(MODULE_KINDS))
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
+const SAFE_START_PATH_RE = /^\/(?:[a-zA-Z0-9._~-]+\/?)*$/
 
 const MANIFEST_DEFAULTS = {
   kind:        'FEATURE',
   description: '',
   icon:        'Box',
   color:       null,
+  pwa:         null,
   category:    'general',
   dependencies: [],
   migrations:   [],
@@ -57,7 +61,106 @@ function validateMigrations(migrations, errors) {
 }
 
 // Returns { valid: boolean, errors: string[] }. Never throws.
-export function validateManifest(manifest) {
+function validatePwaIdentity(manifest, errors, { allowLegacyPwa = false } = {}) {
+  const hasExplicitIcon = typeof manifest.icon === 'string' && manifest.icon.trim()
+  const hasExplicitColor = typeof manifest.color === 'string' && manifest.color.trim()
+  const pwa = manifest.pwa
+  const hasCompleteIdentity = Boolean(
+    hasExplicitIcon &&
+    hasExplicitColor &&
+    pwa &&
+    typeof pwa === 'object' &&
+    !Array.isArray(pwa) &&
+    pwa.shortName &&
+    pwa.startPath,
+  )
+
+  if (allowLegacyPwa && !hasCompleteIdentity) return
+
+  if (!hasExplicitIcon) {
+    if (!allowLegacyPwa) errors.push('icon is required for module PWA identity')
+  } else if (!isModuleIconName(manifest.icon.trim())) {
+    errors.push(`icon must be a supported module icon: ${manifest.icon}`)
+  }
+
+  if (!hasExplicitColor) {
+    if (!allowLegacyPwa) errors.push('color is required for module PWA identity')
+  } else if (!HEX_COLOR_RE.test(manifest.color.trim())) {
+    errors.push('color must be a 6-digit hexadecimal value (e.g. #6366f1)')
+  }
+
+  if (!pwa || typeof pwa !== 'object' || Array.isArray(pwa)) {
+    if (!allowLegacyPwa) {
+      errors.push('pwa.shortName is required')
+      errors.push('pwa.startPath is required')
+    }
+    return
+  }
+
+  if (!pwa.shortName || typeof pwa.shortName !== 'string' || !pwa.shortName.trim()) {
+    errors.push('pwa.shortName is required')
+  } else if (pwa.shortName.trim().length > 14) {
+    errors.push('pwa.shortName must be 14 characters or fewer')
+  }
+
+  if (!pwa.startPath || typeof pwa.startPath !== 'string') {
+    errors.push('pwa.startPath is required')
+  } else {
+    const startPath = pwa.startPath.trim()
+    if (
+      !SAFE_START_PATH_RE.test(startPath) ||
+      startPath.includes('..') ||
+      startPath.includes('?') ||
+      startPath.includes('#') ||
+      startPath === '/app' ||
+      startPath.startsWith('/app/')
+    ) {
+      errors.push('pwa.startPath must be a safe internal path starting with /')
+    }
+  }
+}
+
+export function validateModulePwaIdentity(manifest, options = {}) {
+  const errors = []
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    return { valid: false, errors: ['manifest must be a plain object'] }
+  }
+  validatePwaIdentity(manifest, errors, options)
+  return { valid: errors.length === 0, errors }
+}
+
+function deriveLegacyPwa(manifest) {
+  const firstNavigationPath = Array.isArray(manifest.navigation)
+    ? manifest.navigation.find((item) => typeof item?.path === 'string')?.path
+    : null
+  const modulePrefix = `/app/m/${manifest.key}`
+  const startPath = firstNavigationPath === modulePrefix
+    ? '/'
+    : firstNavigationPath?.startsWith(`${modulePrefix}/`)
+      ? firstNavigationPath.slice(modulePrefix.length)
+      : firstNavigationPath?.startsWith('/')
+        ? firstNavigationPath
+        : '/'
+  const name = typeof manifest.name === 'string' && manifest.name.trim()
+    ? manifest.name.trim()
+    : 'Atlas'
+
+  return {
+    icon: isModuleIconName(manifest.icon?.trim())
+      ? manifest.icon.trim()
+      : MANIFEST_DEFAULTS.icon,
+    color: HEX_COLOR_RE.test(manifest.color ?? '')
+      ? manifest.color
+      : '#6366f1',
+    pwa: {
+      shortName: name.slice(0, 14),
+      startPath,
+      legacyDerived: true,
+    },
+  }
+}
+
+export function validateManifest(manifest, options = {}) {
   const errors = []
 
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
@@ -92,6 +195,8 @@ export function validateManifest(manifest) {
   if (manifest.kind !== undefined && !VALID_KINDS.has(manifest.kind)) {
     errors.push(`kind must be one of: ${[...VALID_KINDS].join(', ')}`)
   }
+
+  validatePwaIdentity(manifest, errors, options)
 
   if (manifest.permissions !== undefined) {
     if (!Array.isArray(manifest.permissions)) {
@@ -133,13 +238,24 @@ export function validateManifest(manifest) {
 
 // Validates and returns the manifest with defaults applied. Throws ModuleEngineError on invalid input.
 export function defineAtlasModule(manifest) {
-  const { valid, errors } = validateManifest(manifest)
+  const { valid, errors } = validateManifest(manifest, { allowLegacyPwa: true })
   if (!valid) {
     throw new ModuleEngineError(`Invalid module manifest: ${errors.join('; ')}`, 'AME_INVALID_MANIFEST')
   }
+  const legacyPwa = deriveLegacyPwa(manifest)
+  const hasExplicitPwa = Boolean(
+    manifest.icon &&
+    manifest.color &&
+    manifest.pwa?.shortName &&
+    manifest.pwa?.startPath,
+  )
+
   return {
     ...MANIFEST_DEFAULTS,
     ...manifest,
+    icon: hasExplicitPwa ? manifest.icon : legacyPwa.icon,
+    color: hasExplicitPwa ? manifest.color : legacyPwa.color,
+    pwa: hasExplicitPwa ? { ...manifest.pwa } : legacyPwa.pwa,
     acl: { ...MANIFEST_DEFAULTS.acl, ...(manifest.acl ?? {}) },
     lifecycle: { ...MANIFEST_DEFAULTS.lifecycle, ...(manifest.lifecycle ?? {}) },
   }

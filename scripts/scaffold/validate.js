@@ -1,9 +1,12 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { isModuleIconName } from '../../packages/module-engine/src/module-icons.js'
 
 const RESERVED_PREFIXES = ['atlas', 'core', 'system', 'identity']
 const MODULE_KEY_REGEX = /^[a-z][a-z0-9]*\.[a-z][a-z0-9_]*$/
 const IDENTIFIER_REGEX = /^[a-z_][a-z0-9_]*$/
+const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/
+const SAFE_START_PATH_REGEX = /^\/(?:[a-zA-Z0-9._~-]+\/?)*$/
 
 const VALID_FIELD_TYPES = new Set([
   'text', 'textarea', 'number', 'decimal', 'boolean',
@@ -33,6 +36,36 @@ export function validateConfig(config) {
   // name
   if (!config.name || typeof config.name !== 'string' || !config.name.trim()) {
     errors.push('name es requerido (nombre para mostrar en UI, en español).')
+  }
+
+  if (!config.icon || typeof config.icon !== 'string' || !config.icon.trim()) {
+    errors.push('icon es requerido (nombre Lucide, ej. "Boxes").')
+  } else if (!isModuleIconName(config.icon.trim())) {
+    errors.push(`icon "${config.icon}" no esta soportado por el catalogo de modulos.`)
+  }
+
+  if (!config.color || typeof config.color !== 'string' || !HEX_COLOR_REGEX.test(config.color)) {
+    errors.push('color es requerido en formato hexadecimal de 6 digitos (ej. "#6366f1").')
+  }
+
+  if (!config.pwa?.shortName || typeof config.pwa.shortName !== 'string' || !config.pwa.shortName.trim()) {
+    errors.push('pwa.shortName es requerido.')
+  } else if (config.pwa.shortName.trim().length > 14) {
+    errors.push('pwa.shortName debe tener 14 caracteres o menos.')
+  }
+
+  const startPath = config.pwa?.startPath
+  if (!startPath || typeof startPath !== 'string') {
+    errors.push('pwa.startPath es requerido.')
+  } else if (
+    !SAFE_START_PATH_REGEX.test(startPath) ||
+    startPath.includes('..') ||
+    startPath.includes('?') ||
+    startPath.includes('#') ||
+    startPath === '/app' ||
+    startPath.startsWith('/app/')
+  ) {
+    errors.push('pwa.startPath debe ser una ruta interna segura que inicie con /.')
   }
 
   // version

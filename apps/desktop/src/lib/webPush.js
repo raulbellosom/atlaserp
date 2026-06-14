@@ -30,10 +30,7 @@ export function clearStoredWebPushSubscriptionId() {
   window.localStorage.removeItem(STORAGE_KEY);
 }
 
-// Register the service worker unconditionally whenever the browser supports it.
-// The SW handles both push notifications AND the dynamic PWA manifest fetch
-// interception, so it must be active even on browsers that don't support push
-// (e.g. iOS Safari < 16.4, which has serviceWorker but not PushManager/Notification).
+// Register the notification service worker whenever the browser supports it.
 export async function registerServiceWorker() {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
   try {

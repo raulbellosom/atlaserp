@@ -37,6 +37,7 @@ import {
   formatDependencyCycle,
   normalizeManifestDependencies,
 } from "../services/module-dependency-utils.js";
+import { validateManifest } from "@atlas/module-engine";
 import { del as cacheDel } from "../lib/cache.js";
 import {
   resolveModulesDir,
@@ -60,6 +61,7 @@ const CORE_KEYS = new Set([
   "atlas.activity",
   "atlas.notifications",
   "atlas.projects",
+  "atlas.inventory",
 ]);
 const __routesDir = path.dirname(fileURLToPath(import.meta.url));
 const BUNDLES_DIR_SERVE = path.resolve(__routesDir, "..", "..", "bundles");
@@ -798,6 +800,14 @@ export function createModulesRouter({
         const body = await c.req.json();
         const parsed = moduleInstallSchema.parse(body);
         moduleKey = parsed.manifest?.key ?? null;
+        const manifestValidation = validateManifest(parsed.manifest);
+        if (!manifestValidation.valid || parsed.manifest?.pwa?.legacyDerived === true) {
+          throw Object.assign(new Error("INVALID_MODULE_PWA_IDENTITY"), {
+            code: "INVALID_MODULE_PWA_IDENTITY",
+            status: 400,
+            detail: manifestValidation.errors.join("; "),
+          });
+        }
         validateManifestAcl(parsed.manifest);
         const actorId = c.get("userContext")?.profile?.id ?? null;
         const result = await svc.installModule({
@@ -855,6 +865,18 @@ export function createModulesRouter({
             {
               error: err.errors?.[0]?.message ?? "El manifiesto es invalido.",
               code: "VALIDATION_ERROR",
+              moduleKey,
+              stage: "validation",
+              requestId,
+            },
+            400,
+          );
+        }
+        if (err?.code === "INVALID_MODULE_PWA_IDENTITY") {
+          return c.json(
+            {
+              error: err.detail || "El modulo requiere icono, color y configuracion PWA propia.",
+              code: err.code,
               moduleKey,
               stage: "validation",
               requestId,

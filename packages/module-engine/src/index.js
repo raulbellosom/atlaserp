@@ -4,7 +4,8 @@
 
 export { ModuleEngineError }             from './errors.js'
 export { defineAtlasModule,
-         validateManifest }              from './define-module.js'
+         validateManifest,
+         validateModulePwaIdentity }     from './define-module.js'
 export { defineModel,
          validateModel }                 from './define-model.js'
 export { FIELD_TYPES }                   from './constants.js'
@@ -24,3 +25,5 @@ export { MODULE_KINDS, BLUEPRINT_KINDS,
          RESERVED_NAMESPACES,
          RESERVED_TABLE_PREFIXES }       from './constants.js'
 export { SQL_TYPE_MAP }                  from './field-types.js'
+export { MODULE_ICON_NAMES,
+         isModuleIconName }              from './module-icons.js'
