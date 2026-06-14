@@ -336,13 +336,20 @@ export function createStorefrontCaptureService({
         const hasConversion = acceptedEvents.some((event) =>
           CONVERSION_EVENTS.has(event.name),
         );
+        const roundedVisibleSeconds = Math.round(visibleSeconds);
+        const engaged =
+          session.engaged ||
+          hasConversion ||
+          (session.pageviewCount ?? 0) + pageviewCount >= 2 ||
+          (session.visibleSeconds ?? 0) + roundedVisibleSeconds >= 10;
         await tx.growthSession.update({
           where: { id: session.id },
           data: {
             eventCount: { increment: acceptedEvents.length },
             pageviewCount: { increment: pageviewCount },
-            visibleSeconds: { increment: Math.round(visibleSeconds) },
-            ...(hasConversion ? { hasConversion: true, engaged: true } : {}),
+            visibleSeconds: { increment: roundedVisibleSeconds },
+            ...(hasConversion ? { hasConversion: true } : {}),
+            ...(engaged ? { engaged: true } : {}),
           },
         });
       }

@@ -478,6 +478,34 @@ describe("createStorefrontCaptureService", () => {
     assert.equal(prisma._state.events[0].submissionId, SUBMISSION_ID);
   });
 
+  it("marks sessions engaged after two pageviews or ten visible seconds", async () => {
+    const prisma = buildPrisma();
+    const service = createService(prisma);
+    await service.captureEvents({
+      ...requestScope,
+      dnt: false,
+      payload: {
+        visitorId: "visitor-engaged",
+        sessionId: "session-engaged",
+        consent: "granted",
+        events: [
+          {
+            id: "event-page-1",
+            name: "page_view",
+            occurredAt: NOW.toISOString(),
+          },
+          {
+            id: "event-page-2",
+            name: "page_view",
+            occurredAt: NOW.toISOString(),
+          },
+        ],
+      },
+    });
+
+    assert.equal(prisma._state.sessions[0].engaged, true);
+  });
+
   it("validates configured form fields before creating a submission", async () => {
     const prisma = buildPrisma();
     const service = createService(prisma);

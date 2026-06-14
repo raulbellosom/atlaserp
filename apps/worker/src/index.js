@@ -10,6 +10,7 @@ import { createSyncLogCleanupWorker } from '../../api/src/services/sync-cleanup-
 import { createNotificationService } from '../../api/src/services/notification-service.js'
 import { createProjectsNotificationService } from '../../api/src/routes/projects/projects-notification-service.js'
 import { createRecurringTasksService } from '../../api/src/routes/projects/projects-recurring-service.js'
+import { createGrowthRetentionWorker } from '../../api/src/services/growth-retention-worker.js'
 
 const { PrismaClient } = pkg
 
@@ -46,6 +47,10 @@ const projectsNotifService = createProjectsNotificationService({
 const DUE_SOON_INTERVAL_MS = 60 * 60 * 1000
 const recurringTasksService = createRecurringTasksService({ prisma })
 const RECURRING_INTERVAL_MS = 60 * 60 * 1000
+const growthRetentionWorker = createGrowthRetentionWorker({ prisma })
+const GROWTH_RETENTION_INTERVAL_MS = Number(
+  process.env.ATLAS_GROWTH_RETENTION_INTERVAL_MS ?? 60 * 60 * 1000,
+)
 
 function isConnectionError(err) {
   const msg = err?.message ?? ''
@@ -131,6 +136,24 @@ async function runTasksDueSoonTick() {
   }
 }
 
+async function runGrowthRetentionTick() {
+  try {
+    const result = await growthRetentionWorker.runOnce()
+    const purged =
+      result.purged.events +
+      result.purged.sessions +
+      result.purged.metrics
+    if (result.aggregatedDays > 0 || purged > 0) {
+      console.log(
+        `[worker] growth retention ${formatLogTimestamp()} days=${result.aggregatedDays} sites=${result.aggregatedSites} purged=${purged} watermark=${result.watermark ?? 'none'}`,
+      )
+    }
+  } catch (err) {
+    console.error('[worker] growth retention tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  }
+}
+
 console.log('Atlas Worker started')
 runCalendarReminderTick()
 runDeliveryTick()
@@ -151,6 +174,10 @@ runTasksDueSoonTick()
 setInterval(() => {
   runTasksDueSoonTick()
 }, DUE_SOON_INTERVAL_MS)
+runGrowthRetentionTick()
+setInterval(() => {
+  runGrowthRetentionTick()
+}, GROWTH_RETENTION_INTERVAL_MS)
 
 async function runRecurringTasksTick() {
   try {
