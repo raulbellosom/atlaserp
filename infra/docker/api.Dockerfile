@@ -19,6 +19,7 @@ RUN pnpm install --frozen-lockfile && \
     pnpm prune --prod
 # Copy API source after install so that source-only changes don't bust the install cache.
 COPY apps/api apps/api
+COPY apps/desktop/public/module-logos apps/desktop/public/module-logos
 COPY infra/docker/api-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 EXPOSE 4010

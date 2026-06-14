@@ -1,8 +1,15 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import { Hono } from 'hono'
 import sharp from 'sharp'
 import { createPwaRouter } from '../pwa.js'
+
+const calendarLogoUrl = new URL(
+  '../../../../desktop/public/module-logos/atlas-calendar-128.svg',
+  import.meta.url,
+)
 
 const modules = new Map([
   [
@@ -43,16 +50,36 @@ const modules = new Map([
       },
     },
   ],
+  [
+    'atlas.calendar',
+    {
+      key: 'atlas.calendar',
+      status: 'INSTALLED',
+      enabled: true,
+      version: '1.0.0',
+      manifest: {
+        name: 'Calendario',
+        description: 'Calendarios y eventos',
+        icon: 'Calendar',
+        color: '#7C3AED',
+        logoUrl: '/module-logos/atlas-calendar-128.svg',
+        pwa: {
+          shortName: 'Calendario',
+          startPath: '/calendar',
+        },
+      },
+    },
+  ],
 ])
 
-function createApp() {
+function createApp({ loadLogo } = {}) {
   const prisma = {
     atlasModule: {
       findUnique: async ({ where }) => modules.get(where.key) ?? null,
     },
   }
   const app = new Hono()
-  app.route('/pwa', createPwaRouter({ prisma }))
+  app.route('/pwa', createPwaRouter({ prisma, loadLogo }))
   return app
 }
 
@@ -103,6 +130,50 @@ test('serves generated PNG icons at the requested size', async () => {
   assert.match(response.headers.get('etag'), /^".+"$/)
 })
 
+test('renders configured module logos instead of the Lucide fallback', async () => {
+  const response = await createApp().request(
+    'https://atlas.example.com/pwa/icon/atlas.calendar/192.png',
+  )
+  const buffer = Buffer.from(await response.arrayBuffer())
+  const calendarLogoBuffer = await readFile(calendarLogoUrl)
+  const expected = await sharp(calendarLogoBuffer)
+    .resize(192, 192)
+    .png()
+    .toBuffer()
+
+  assert.equal(response.status, 200)
+  assert.deepEqual(buffer, expected)
+})
+
+test('changes the manifest icon version when logo contents change', async () => {
+  function createLogoLoader(contents) {
+    const buffer = Buffer.from(contents)
+    return async () => ({
+      buffer,
+      hash: createHash('sha256').update(buffer).digest('hex'),
+    })
+  }
+
+  const firstManifest = await (
+    await createApp({
+      loadLogo: createLogoLoader('<svg xmlns="http://www.w3.org/2000/svg"/>'),
+    }).request(
+      'https://atlas.example.com/pwa/manifest/atlas.calendar.webmanifest',
+    )
+  ).json()
+  const secondManifest = await (
+    await createApp({
+      loadLogo: createLogoLoader(
+        '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>',
+      ),
+    }).request(
+      'https://atlas.example.com/pwa/manifest/atlas.calendar.webmanifest',
+    )
+  ).json()
+
+  assert.notEqual(firstManifest.icons[0].src, secondManifest.icons[0].src)
+})
+
 test('revalidates ETags and only marks versioned icon URLs immutable', async () => {
   const app = createApp()
   const manifestResponse = await app.request(
@@ -150,6 +221,19 @@ test('returns 404 for disabled or invalid module PWA identities', async () => {
       pwa: { shortName: 'Invalid', startPath: '/' },
     },
   })
+  modules.set('custom.external-logo', {
+    key: 'custom.external-logo',
+    status: 'INSTALLED',
+    enabled: true,
+    version: '0.1.0',
+    manifest: {
+      name: 'External logo',
+      icon: 'Box',
+      color: '#6366f1',
+      logoUrl: 'https://example.com/logo.svg',
+      pwa: { shortName: 'External', startPath: '/' },
+    },
+  })
 
   const app = createApp()
   const disabled = await app.request(
@@ -158,7 +242,11 @@ test('returns 404 for disabled or invalid module PWA identities', async () => {
   const invalid = await app.request(
     'https://atlas.example.com/pwa/manifest/custom.invalid.webmanifest',
   )
+  const externalLogo = await app.request(
+    'https://atlas.example.com/pwa/manifest/custom.external-logo.webmanifest',
+  )
 
   assert.equal(disabled.status, 404)
   assert.equal(invalid.status, 404)
+  assert.equal(externalLogo.status, 404)
 })

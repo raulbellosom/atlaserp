@@ -5,12 +5,13 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import * as LucideIcons from 'lucide-react'
 import sharp from 'sharp'
 import { validateModulePwaIdentity } from '@atlas/module-engine'
+import { loadModuleLogo } from './pwa-icon-source.js'
 
 const MODULE_KEY_RE = /^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9_-]*)+$/
 const ICON_SIZES = new Set([192, 512])
 const iconCache = new Map()
 
-function hashIdentity(moduleRow) {
+function hashIdentity(moduleRow, logoHash = null) {
   return createHash('sha256')
     .update(JSON.stringify({
       key: moduleRow.key,
@@ -19,6 +20,8 @@ function hashIdentity(moduleRow) {
       description: moduleRow.manifest?.description,
       icon: moduleRow.manifest?.icon,
       color: moduleRow.manifest?.color,
+      logoUrl: moduleRow.manifest?.logoUrl,
+      logoHash,
       pwa: moduleRow.manifest?.pwa,
     }))
     .digest('hex')
@@ -59,10 +62,9 @@ async function findPwaModule(prisma, moduleKey) {
   return isAvailableModule(moduleRow) ? moduleRow : null
 }
 
-function buildWebManifest(moduleRow) {
+function buildWebManifest(moduleRow, identityHash) {
   const manifest = moduleRow.manifest
   const moduleKey = moduleRow.key
-  const identityHash = hashIdentity(moduleRow)
   const startUrl = normalizeStartUrl(moduleKey, manifest.pwa.startPath)
 
   return {
@@ -92,13 +94,33 @@ function matchesEtag(c, etag) {
   return c.req.header('if-none-match') === etag
 }
 
-async function renderModuleIcon(moduleRow, size) {
-  const identityHash = hashIdentity(moduleRow)
+async function resolveModuleVisual(moduleRow, loadLogo) {
+  const logo = await loadLogo(moduleRow.manifest?.logoUrl)
+  if (logo?.invalid) return null
+
+  return {
+    logo,
+    identityHash: hashIdentity(moduleRow, logo?.hash ?? null),
+  }
+}
+
+async function renderModuleIcon(moduleRow, size, visual) {
+  const { identityHash, logo } = visual
   const cacheKey = `${identityHash}:${size}`
   const cached = iconCache.get(cacheKey)
   if (cached) return { buffer: cached, identityHash }
 
   const manifest = moduleRow.manifest
+  if (logo?.buffer) {
+    const buffer = await sharp(logo.buffer)
+      .resize(size, size)
+      .png()
+      .toBuffer()
+
+    iconCache.set(cacheKey, buffer)
+    return { buffer, identityHash }
+  }
+
   const Icon = LucideIcons[manifest.icon]
   if (!Icon) return null
 
@@ -127,7 +149,10 @@ async function renderModuleIcon(moduleRow, size) {
   return { buffer, identityHash }
 }
 
-export function createPwaRouter({ prisma }) {
+export function createPwaRouter({
+  prisma,
+  loadLogo = loadModuleLogo,
+}) {
   const router = new Hono()
 
   router.get('/manifest/:moduleFile', async (c) => {
@@ -140,13 +165,16 @@ export function createPwaRouter({ prisma }) {
     const moduleRow = await findPwaModule(prisma, moduleKey)
     if (!moduleRow) return c.json({ error: 'Modulo no encontrado.' }, 404)
 
-    const identityHash = hashIdentity(moduleRow)
+    const visual = await resolveModuleVisual(moduleRow, loadLogo)
+    if (!visual) return c.json({ error: 'Icono no disponible.' }, 404)
+
+    const { identityHash } = visual
     const etag = `"${identityHash}"`
     c.header('Content-Type', 'application/manifest+json')
     c.header('Cache-Control', 'public, max-age=300, must-revalidate')
     c.header('ETag', etag)
     if (matchesEtag(c, etag)) return c.body(null, 304)
-    return c.body(JSON.stringify(buildWebManifest(moduleRow)))
+    return c.body(JSON.stringify(buildWebManifest(moduleRow, identityHash)))
   })
 
   router.get('/icon/:moduleKey/:sizeFile', async (c) => {
@@ -161,7 +189,10 @@ export function createPwaRouter({ prisma }) {
     const moduleRow = await findPwaModule(prisma, moduleKey)
     if (!moduleRow) return c.json({ error: 'Modulo no encontrado.' }, 404)
 
-    const rendered = await renderModuleIcon(moduleRow, size)
+    const visual = await resolveModuleVisual(moduleRow, loadLogo)
+    if (!visual) return c.json({ error: 'Icono no disponible.' }, 404)
+
+    const rendered = await renderModuleIcon(moduleRow, size, visual)
     if (!rendered) return c.json({ error: 'Icono no disponible.' }, 404)
 
     const etag = `"${rendered.identityHash}-${size}"`
