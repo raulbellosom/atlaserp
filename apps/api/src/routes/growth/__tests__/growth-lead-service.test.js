@@ -12,6 +12,7 @@ const SITE_ID = "01900000-0000-7000-8000-000000000003";
 const LEAD_ID = "01900000-0000-7000-8000-000000000004";
 const USER_ID = "01900000-0000-7000-8000-000000000005";
 const ACTOR_ID = "01900000-0000-7000-8000-000000000006";
+const CONTACT_ID = "01900000-0000-7000-8000-000000000008";
 const NOW = new Date("2026-06-14T21:30:00.000Z");
 
 function buildPrisma({ lead: leadOverride } = {}) {
@@ -47,6 +48,7 @@ function buildPrisma({ lead: leadOverride } = {}) {
     activities: [],
     audits: [],
     notifications: [],
+    contacts: [],
     calls: {
       listWhere: null,
     },
@@ -105,6 +107,22 @@ function buildPrisma({ lead: leadOverride } = {}) {
         Object.assign(row, data, { updatedAt: NOW });
         return row;
       },
+      updateMany: async ({ where, data }) => {
+        const row = state.leads.find(
+          (item) =>
+            item.id === where.id &&
+            item.companyId === where.companyId &&
+            item.enabled === where.enabled &&
+            item.convertedAt === where.convertedAt &&
+            item.status !== where.status.not &&
+            sameDate(item.updatedAt, where.updatedAt),
+        );
+        if (!row) return { count: 0 };
+        Object.assign(row, data, { updatedAt: NOW });
+        return { count: 1 };
+      },
+      findUnique: async ({ where }) =>
+        state.leads.find((item) => item.id === where.id) ?? null,
     },
     growthLeadActivity: {
       findMany: async ({ where }) =>
@@ -123,6 +141,26 @@ function buildPrisma({ lead: leadOverride } = {}) {
     websiteFormSubmission: {
       findMany: async () => [],
     },
+    contact: {
+      findFirst: async ({ where }) =>
+        state.contacts.find(
+          (row) =>
+            row.id === where.id &&
+            row.companyId === where.companyId &&
+            row.enabled === where.enabled,
+        ) ?? null,
+      create: async ({ data }) => {
+        const row = {
+          id: CONTACT_ID,
+          enabled: true,
+          createdAt: NOW,
+          updatedAt: NOW,
+          ...data,
+        };
+        state.contacts.push(row);
+        return row;
+      },
+    },
     auditLog: {
       create: async ({ data }) => {
         state.audits.push(data);
@@ -133,6 +171,10 @@ function buildPrisma({ lead: leadOverride } = {}) {
   };
 
   return prisma;
+}
+
+function sameDate(left, right) {
+  return new Date(left).getTime() === new Date(right).getTime();
 }
 
 function buildService(prisma) {
@@ -360,5 +402,174 @@ describe("createGrowthLeadService", () => {
     assert.equal(enabled.enabled, true);
     assert.equal(prisma._state.activities.at(-1).activityType, "enabled");
     assert.equal(prisma._state.audits.at(-1).action, "growth.lead.enable");
+  });
+
+  it("links an existing same-company Contact transactionally", async () => {
+    const prisma = buildPrisma();
+    prisma._state.contacts.push({
+      id: CONTACT_ID,
+      companyId: COMPANY_ID,
+      type: "customer",
+      name: "Ana",
+      enabled: true,
+    });
+    const service = buildService(prisma);
+
+    const result = await service.convertLead({
+      companyId: COMPANY_ID,
+      actorId: ACTOR_ID,
+      id: LEAD_ID,
+      permissions: ["contacts.contacts.read"],
+      data: {
+        mode: "existing",
+        contactId: CONTACT_ID,
+        updatedAt: NOW.toISOString(),
+      },
+    });
+
+    assert.equal(result.contact.id, CONTACT_ID);
+    assert.equal(result.lead.status, "converted");
+    assert.equal(result.lead.contactId, CONTACT_ID);
+    assert.equal(prisma._state.activities.at(-1).activityType, "converted");
+    assert.deepEqual(prisma._state.activities.at(-1).payload, {
+      mode: "existing",
+      contactId: CONTACT_ID,
+    });
+    assert.equal(prisma._state.audits.at(-1).action, "growth.lead.convert");
+  });
+
+  it("creates one Contact and converts the lead in the same transaction", async () => {
+    const prisma = buildPrisma();
+    const service = buildService(prisma);
+
+    const result = await service.convertLead({
+      companyId: COMPANY_ID,
+      actorId: ACTOR_ID,
+      id: LEAD_ID,
+      permissions: ["contacts.contacts.create"],
+      data: {
+        mode: "create",
+        updatedAt: NOW.toISOString(),
+        contact: {
+          type: "customer",
+          name: "Ana",
+          email: "ana@example.com",
+          phone: "+52 55 1234 5678",
+        },
+      },
+    });
+
+    assert.equal(prisma._state.contacts.length, 1);
+    assert.equal(result.contact.companyId, COMPANY_ID);
+    assert.equal(result.lead.contactId, CONTACT_ID);
+  });
+
+  it("requires the corresponding Contacts permission for each mode", async () => {
+    const prisma = buildPrisma();
+    const service = buildService(prisma);
+
+    await assert.rejects(
+      () =>
+        service.convertLead({
+          companyId: COMPANY_ID,
+          actorId: ACTOR_ID,
+          id: LEAD_ID,
+          permissions: [],
+          data: {
+            mode: "create",
+            updatedAt: NOW.toISOString(),
+            contact: { type: "customer", name: "Ana" },
+          },
+        }),
+      (error) =>
+        error.status === 403 &&
+        error.code === "contacts_permission_required",
+    );
+    assert.equal(prisma._state.contacts.length, 0);
+  });
+
+  it("rejects cross-company Contacts and concurrent conversion", async () => {
+    const prisma = buildPrisma();
+    prisma._state.contacts.push({
+      id: CONTACT_ID,
+      companyId: OTHER_COMPANY_ID,
+      type: "customer",
+      name: "Otro",
+      enabled: true,
+    });
+    const service = buildService(prisma);
+
+    await assert.rejects(
+      () =>
+        service.convertLead({
+          companyId: COMPANY_ID,
+          actorId: ACTOR_ID,
+          id: LEAD_ID,
+          permissions: ["contacts.contacts.read"],
+          data: {
+            mode: "existing",
+            contactId: CONTACT_ID,
+            updatedAt: NOW.toISOString(),
+          },
+        }),
+      (error) => error.status === 404 && error.code === "contact_not_found",
+    );
+
+    prisma._state.leads[0].status = "converted";
+    prisma._state.leads[0].convertedAt = NOW;
+    await assert.rejects(
+      () =>
+        service.convertLead({
+          companyId: COMPANY_ID,
+          actorId: ACTOR_ID,
+          id: LEAD_ID,
+          permissions: ["contacts.contacts.create"],
+          data: {
+            mode: "create",
+            updatedAt: NOW.toISOString(),
+            contact: { type: "customer", name: "Ana" },
+          },
+        }),
+      (error) => error.status === 409 && error.code === "lead_converted",
+    );
+    assert.equal(prisma._state.contacts.length, 1);
+  });
+
+  it("rolls back Contact creation when conversion activity fails", async () => {
+    const prisma = buildPrisma();
+    const originalTransaction = prisma.$transaction;
+    prisma.$transaction = async (callback) => {
+      const leads = prisma._state.leads.map((row) => ({ ...row }));
+      const contacts = prisma._state.contacts.map((row) => ({ ...row }));
+      try {
+        return await originalTransaction(callback);
+      } catch (error) {
+        prisma._state.leads = leads;
+        prisma._state.contacts = contacts;
+        throw error;
+      }
+    };
+    prisma.growthLeadActivity.create = async () => {
+      throw new Error("activity failed");
+    };
+    const service = buildService(prisma);
+
+    await assert.rejects(() =>
+      service.convertLead({
+        companyId: COMPANY_ID,
+        actorId: ACTOR_ID,
+        id: LEAD_ID,
+        permissions: ["contacts.contacts.create"],
+        data: {
+          mode: "create",
+          updatedAt: NOW.toISOString(),
+          contact: { type: "customer", name: "Ana" },
+        },
+      }),
+    );
+
+    assert.equal(prisma._state.contacts.length, 0);
+    assert.equal(prisma._state.leads[0].status, "new");
+    assert.equal(prisma._state.leads[0].contactId, null);
   });
 });

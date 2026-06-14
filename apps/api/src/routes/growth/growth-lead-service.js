@@ -1,4 +1,5 @@
 import {
+  growthLeadConvertSchema,
   growthLeadCreateSchema,
   growthLeadEnabledSchema,
   growthLeadNoteSchema,
@@ -574,6 +575,129 @@ export function createGrowthLeadService({
     });
   }
 
+  async function convertLead({
+    companyId,
+    actorId,
+    id,
+    data,
+    permissions = [],
+    isAdmin = false,
+  }) {
+    const parsed = growthLeadConvertSchema.parse(data);
+    const requiredPermission =
+      parsed.mode === "existing"
+        ? "contacts.contacts.read"
+        : "contacts.contacts.create";
+    if (!isAdmin && !permissions.includes(requiredPermission)) {
+      throw new GrowthLeadServiceError(
+        "No tienes permiso para usar contactos en esta conversion.",
+        403,
+        "contacts_permission_required",
+      );
+    }
+
+    const lead = await getLeadRecord({ companyId, id });
+    assertMutable(lead);
+    assertVersion(lead, parsed.updatedAt);
+
+    return prisma.$transaction(async (tx) => {
+      let contact;
+      if (parsed.mode === "existing") {
+        contact = await tx.contact.findFirst({
+          where: {
+            id: parsed.contactId,
+            companyId,
+            enabled: true,
+          },
+        });
+        if (!contact) {
+          throw new GrowthLeadServiceError(
+            "Contacto no encontrado.",
+            404,
+            "contact_not_found",
+          );
+        }
+      } else {
+        contact = await tx.contact.create({
+          data: {
+            companyId,
+            type: parsed.contact.type,
+            name: parsed.contact.name,
+            email: normalizeText(parsed.contact.email, 500),
+            phone: normalizeText(parsed.contact.phone, 100),
+            enabled: true,
+          },
+        });
+      }
+
+      const convertedAt = now();
+      const update = await tx.growthLead.updateMany({
+        where: {
+          id: lead.id,
+          companyId,
+          enabled: true,
+          status: { not: "converted" },
+          convertedAt: null,
+          updatedAt: lead.updatedAt,
+        },
+        data: {
+          status: "converted",
+          contactId: contact.id,
+          convertedAt,
+        },
+      });
+      if (update.count !== 1) {
+        throw new GrowthLeadServiceError(
+          "El lead ya fue convertido o cambio durante la operacion.",
+          409,
+          "lead_conversion_conflict",
+        );
+      }
+
+      await tx.growthLeadActivity.create({
+        data: {
+          companyId,
+          siteId: lead.siteId,
+          leadId: lead.id,
+          activityType: "converted",
+          actorUserId: actorId ?? null,
+          payload: {
+            mode: parsed.mode,
+            contactId: contact.id,
+          },
+          occurredAt: convertedAt,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: actorId ?? null,
+          moduleKey: "atlas.growth",
+          entityType: "growth.lead",
+          entityId: lead.id,
+          action: "growth.lead.convert",
+          before: {
+            status: lead.status,
+            contactId: lead.contactId,
+          },
+          after: {
+            status: "converted",
+            contactId: contact.id,
+          },
+          metadata: {
+            companyId,
+            contactId: contact.id,
+            mode: parsed.mode,
+          },
+        },
+      });
+
+      const convertedLead = await tx.growthLead.findUnique({
+        where: { id: lead.id },
+      });
+      return { lead: convertedLead, contact };
+    });
+  }
+
   return {
     listLeads,
     getLeadSummary,
@@ -582,5 +706,6 @@ export function createGrowthLeadService({
     updateLead,
     addLeadNote,
     setLeadEnabled,
+    convertLead,
   };
 }
