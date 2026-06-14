@@ -44,6 +44,18 @@ export function createStorefrontClient({ baseUrl, company, supabaseUrl, supabase
     getSession: () => session.get(),
   })
 
+  // Shared promise to deduplicate concurrent refresh attempts
+  let _refreshPromise = null
+
+  async function _doRefreshOnce() {
+    if (_refreshPromise) return _refreshPromise
+    const current = session.get()
+    if (!current?.refreshToken) return { data: {}, error: new Error('no refresh token') }
+    _refreshPromise = supabase.auth.refreshSession({ refresh_token: current.refreshToken })
+      .finally(() => { _refreshPromise = null })
+    return _refreshPromise
+  }
+
   async function _requestWithRefresh(method, path, body = null, options = {}) {
     try {
       return await _request(method, path, body, options)
@@ -54,19 +66,12 @@ export function createStorefrontClient({ baseUrl, company, supabaseUrl, supabase
         current?.refreshToken &&
         !options._retry
       ) {
-        try {
-          const { data, error } = await supabase.auth.refreshSession({
-            refresh_token: current.refreshToken,
-          })
-          if (error || !data.session) {
-            try { await supabase.auth.signOut() } catch { /* best-effort */ }
-            throw err
-          }
-          return await _request(method, path, body, { ...options, _retry: true })
-        } catch {
+        const { data, error } = await _doRefreshOnce().catch(() => ({ data: null, error: true }))
+        if (error || !data?.session) {
           try { await supabase.auth.signOut() } catch { /* best-effort */ }
           throw err
         }
+        return _request(method, path, body, { ...options, _retry: true })
       }
       throw err
     }
