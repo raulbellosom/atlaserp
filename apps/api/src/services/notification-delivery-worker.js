@@ -121,8 +121,13 @@ const EVENT_TYPE_LABELS = {
   "projects.task.unassigned": "Removido de tarea",
   "projects.task.comment": "Comentario en tarea",
   "projects.task.mention": "Mencion en comentario",
+  "projects.task.reaction": "Reaccion a tu comentario",
   "projects.task.status_changed": "Estado de tarea actualizado",
   "projects.task.due_soon": "Tarea por vencer",
+  // Inventory
+  "inventory.item.mention": "Mencion en inventario",
+  "inventory.item.comment": "Comentario en elemento",
+  "inventory.item.reaction": "Reaccion a tu comentario",
   // Ledger
   "ledger.account_invite": "Invitacion a cuenta",
   "ledger.group_invite": "Invitacion a grupo",
