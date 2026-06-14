@@ -1,6 +1,7 @@
+import { createClient } from '@supabase/supabase-js'
 import { StorefrontError } from './storefront-error.js'
 import { createRequestCore } from './core/request.js'
-import { createSessionStore } from './core/session.js'
+import { createSupabaseSessionAdapter } from './core/session.js'
 import { createAuthNamespace } from './auth.js'
 import { createFilesNamespace } from './files.js'
 import { createCatalogNamespace } from './catalog.js'
@@ -10,31 +11,32 @@ import { createRealtimeNamespace } from './realtime.js'
 export { StorefrontError }
 
 /**
- * Create a stateful storefront SDK client instance.
- *
- * One instance per app. The client manages auth state in memory.
- * Persist session across page loads via `onSessionChange` + `initialSession`.
- *
  * @param {object} options
- * @param {string} options.baseUrl - ERP instance URL (e.g. 'https://erp.acme.mx')
- * @param {string} options.company - Company slug registered in the ERP
- * @param {function} [options.onSessionChange] - Called with session object on login/logout. Use to persist to localStorage.
- * @param {object|null} [options.initialSession] - Previously persisted session to restore on init.
- * @returns {{ auth, files, catalog, discovery, realtime, request }} Frozen SDK client
+ * @param {string} options.baseUrl        - Atlas ERP instance URL
+ * @param {string} options.company        - Company slug (sent as X-Atlas-Company on every request)
+ * @param {string} options.supabaseUrl    - Supabase project URL (window.ATLAS_CONFIG.supabaseUrl in production)
+ * @param {string} options.supabaseAnonKey - Supabase anon key (window.ATLAS_CONFIG.supabaseAnonKey in production)
+ * @param {function} [options.onSessionChange] - Called with session or null on every auth state change
+ * @returns {{ auth, files, catalog, discovery, realtime, request }}
  *
  * @example
+ * const cfg = (typeof window !== 'undefined' && window.ATLAS_CONFIG) ? window.ATLAS_CONFIG : {}
  * const sdk = createStorefrontClient({
- *   baseUrl: 'https://erp.acme.mx',
- *   company: 'acme',
- *   onSessionChange: (s) => localStorage.setItem('sf', JSON.stringify(s)),
- *   initialSession: JSON.parse(localStorage.getItem('sf') ?? 'null'),
+ *   baseUrl:         cfg.apiUrl         ?? import.meta.env.VITE_ERP_URL,
+ *   company:         cfg.company         ?? import.meta.env.VITE_ERP_COMPANY,
+ *   supabaseUrl:     cfg.supabaseUrl     ?? import.meta.env.VITE_SUPABASE_URL,
+ *   supabaseAnonKey: cfg.supabaseAnonKey ?? import.meta.env.VITE_SUPABASE_ANON_KEY,
  * })
  */
-export function createStorefrontClient({ baseUrl, company, onSessionChange, initialSession }) {
-  if (!baseUrl) throw new Error('createStorefrontClient: baseUrl es requerido')
-  if (!company) throw new Error('createStorefrontClient: company es requerido')
+export function createStorefrontClient({ baseUrl, company, supabaseUrl, supabaseAnonKey, onSessionChange }) {
+  if (!baseUrl)         throw new Error('createStorefrontClient: baseUrl es requerido')
+  if (!company)         throw new Error('createStorefrontClient: company es requerido')
+  if (!supabaseUrl)     throw new Error('createStorefrontClient: supabaseUrl es requerido')
+  if (!supabaseAnonKey) throw new Error('createStorefrontClient: supabaseAnonKey es requerido')
 
-  const session = createSessionStore({ initialSession, onSessionChange })
+  const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+  const session = createSupabaseSessionAdapter({ supabase, onSessionChange })
 
   const _request = createRequestCore({
     baseUrl,
@@ -53,17 +55,16 @@ export function createStorefrontClient({ baseUrl, company, onSessionChange, init
         !options._retry
       ) {
         try {
-          const refreshRes = await _request(
-            'POST',
-            '/public/storefront/auth/refresh',
-            { refreshToken: current.refreshToken },
-            { _retry: true }
-          )
-          const { token, refreshToken, expiresAt } = refreshRes.data
-          session.set({ ...current, token, refreshToken, expiresAt })
+          const { data, error } = await supabase.auth.refreshSession({
+            refresh_token: current.refreshToken,
+          })
+          if (error || !data.session) {
+            try { await supabase.auth.signOut() } catch { /* best-effort */ }
+            throw err
+          }
           return await _request(method, path, body, { ...options, _retry: true })
         } catch {
-          session.clear()
+          try { await supabase.auth.signOut() } catch { /* best-effort */ }
           throw err
         }
       }
@@ -71,11 +72,11 @@ export function createStorefrontClient({ baseUrl, company, onSessionChange, init
     }
   }
 
-  const auth = createAuthNamespace({ request: _requestWithRefresh, session })
-  const files = createFilesNamespace({ request: _requestWithRefresh })
-  const catalog = createCatalogNamespace({ request: _requestWithRefresh })
+  const auth      = createAuthNamespace({ supabase, request: _requestWithRefresh, session })
+  const files     = createFilesNamespace({ request: _requestWithRefresh })
+  const catalog   = createCatalogNamespace({ request: _requestWithRefresh })
   const discovery = createDiscoveryNamespace({ request: _requestWithRefresh })
-  const realtime = createRealtimeNamespace({ request: _requestWithRefresh })
+  const realtime  = createRealtimeNamespace({ request: _requestWithRefresh })
 
   async function request(method, path, body = null, options = {}) {
     return _requestWithRefresh(method, path, body, options)
