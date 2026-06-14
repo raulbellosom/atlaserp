@@ -1,53 +1,125 @@
-// apps/api/src/routes/website/forms-public-routes.js
-import { Hono } from 'hono'
-import { createWebsiteSmtpService } from '../../services/smtp-service.js'
+import { createHash, randomBytes } from "node:crypto";
 
-export function createPublicFormsRouter({ prisma }) {
-  const app = new Hono()
+import { Hono } from "hono";
 
-  app.post('/forms/:formId/submit', async (c) => {
-    const { formId } = c.req.param()
-    const body = await c.req.json().catch(() => ({}))
+import {
+  createTokenBucketLimiter,
+  createTurnstileVerifier,
+} from "../storefront/storefront-capture-routes.js";
+import {
+  StorefrontCaptureError,
+  createStorefrontCaptureService,
+} from "../../services/storefront-capture-service.js";
+
+const LEGACY_SUNSET = "Tue, 01 Sep 2026 00:00:00 GMT";
+
+function legacyIdempotencyKey(body) {
+  return createHash("sha256")
+    .update(JSON.stringify(body))
+    .update(String(Date.now()))
+    .update(randomBytes(16))
+    .digest("hex");
+}
+
+function setDeprecationHeaders(c) {
+  c.header("Deprecation", "true");
+  c.header("Sunset", LEGACY_SUNSET);
+  c.header(
+    "Link",
+    '</public/storefront/v1/forms/{formId}/submissions>; rel="successor-version"',
+  );
+}
+
+export function createPublicFormsRouter({
+  prisma,
+  captureService = createStorefrontCaptureService({
+    prisma,
+    verifyTurnstile: createTurnstileVerifier(),
+  }),
+  limiter = createTokenBucketLimiter({
+    capacity: 10,
+    refillPerSecond: 0.2,
+  }),
+}) {
+  const app = new Hono();
+
+  app.post("/forms/:formId/submit", async (c) => {
+    setDeprecationHeaders(c);
+    const formId = c.req.param("formId");
 
     try {
-      const forms = await prisma.$queryRaw`
-        SELECT id, notification_email, fields, site_id, company_id
-        FROM website_form
-        WHERE id = ${formId}::uuid AND enabled = true
-        LIMIT 1
-      `
-      const form = forms[0]
-      if (!form) return c.json({ error: 'Formulario no encontrado' }, 404)
-
-      await prisma.$queryRaw`
-        INSERT INTO website_form_submission (form_id, company_id, data)
-        VALUES (${form.id}::uuid, ${form.company_id}::uuid, ${JSON.stringify(body)}::jsonb)
-      `
-
-      if (form.notification_email) {
-        try {
-          const smtpSvc = createWebsiteSmtpService({ prisma })
-          const rows = Object.entries(body)
-            .map(([k, v]) => `<tr><td style="padding:4px 8px;font-weight:600">${k}</td><td style="padding:4px 8px">${v}</td></tr>`)
-            .join('')
-          await smtpSvc.sendEmail({
-            to:      form.notification_email,
-            subject: 'Nuevo mensaje del formulario de contacto',
-            html:    `<p>Nuevo envio recibido.</p><table border="1" cellpadding="4" style="border-collapse:collapse">${rows}</table>`,
-            text:    Object.entries(body).map(([k, v]) => `${k}: ${v}`).join('\n'),
-          })
-        } catch { /* SMTP not configured or error - submission saved anyway */ }
+      const form = await prisma.websiteForm.findFirst({
+        where: { id: formId, enabled: true },
+        select: { id: true, companyId: true, siteId: true },
+      });
+      if (!form) {
+        throw new StorefrontCaptureError(
+          "form_not_found",
+          "Formulario no encontrado.",
+          404,
+        );
+      }
+      const company = await prisma.company.findUnique({
+        where: { id: form.companyId },
+        select: { slug: true },
+      });
+      if (!company) {
+        throw new StorefrontCaptureError(
+          "company_not_found",
+          "Empresa no encontrada.",
+          404,
+        );
       }
 
-      return c.json({ ok: true })
-    } catch (err) {
-      if (err?.message?.includes('does not exist') || err?.code === '42P01') {
-        return c.json({ error: 'Formulario no disponible' }, 503)
+      const address =
+        c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ||
+        c.req.header("X-Real-IP") ||
+        "unknown";
+      const rate = limiter.consume(
+        `legacy:${form.companyId}:${form.siteId}:${address}`,
+      );
+      if (!rate.allowed) {
+        c.header("Retry-After", String(rate.retryAfter));
+        return c.json({ error: "Demasiadas solicitudes." }, 429);
       }
-      console.error('[public/website/forms/submit]', err?.message)
-      return c.json({ error: 'Error interno' }, 500)
+
+      const body = await c.req.json().catch(() => {
+        throw new StorefrontCaptureError(
+          "invalid_json",
+          "El cuerpo JSON no es valido.",
+          400,
+        );
+      });
+      const idempotencyKey =
+        c.req.header("Idempotency-Key") || legacyIdempotencyKey(body);
+      const result = await captureService.submitForm({
+        companySlug: company.slug,
+        siteId: form.siteId,
+        formId: form.id,
+        origin: c.req.header("Origin") || undefined,
+        idempotencyKey,
+        payload: {
+          values: body,
+          honeypot: "",
+        },
+      });
+
+      return c.json({ data: result, ok: true }, result.replayed ? 200 : 201);
+    } catch (error) {
+      if (error instanceof StorefrontCaptureError) {
+        return c.json(
+          {
+            error: error.message,
+            code: error.code,
+            ...(error.details ? { details: error.details } : {}),
+          },
+          error.status,
+        );
+      }
+      console.error("[public/website/forms/submit]", error);
+      return c.json({ error: "Error interno" }, 500);
     }
-  })
+  });
 
-  return app
+  return app;
 }
