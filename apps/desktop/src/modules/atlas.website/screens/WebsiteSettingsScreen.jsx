@@ -4,10 +4,12 @@ import {
   Button,
   Card,
   EmptyState,
+  ErrorState,
   NumberField,
   PageHeader,
   PasswordField,
   Skeleton,
+  SelectField,
   SwitchField,
   Tabs,
   TabsContent,
@@ -15,7 +17,7 @@ import {
   TabsTrigger,
   TextField,
 } from '@atlas/ui'
-import { Globe, Mail, Server, User } from 'lucide-react'
+import { BarChart3, Globe, Mail, Server, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
@@ -55,6 +57,16 @@ async function apiFetchForm(path, token, options = {}) {
 }
 
 const SMTP_EMPTY = { host: '', port: 587, user: '', pass: '', from_name: '', from_email: '', tls: false }
+const CAPTURE_EMPTY = {
+  analyticsMode: 'off',
+  turnstileSiteKey: '',
+  turnstileSecretKey: '',
+}
+const ANALYTICS_MODE_OPTIONS = [
+  { value: 'off', label: 'Desactivada' },
+  { value: 'anonymous', label: 'Anonima sin banner' },
+  { value: 'consent_required', label: 'Requiere consentimiento' },
+]
 
 export default function WebsiteSettingsScreen() {
   const { session } = useAuth()
@@ -64,6 +76,8 @@ export default function WebsiteSettingsScreen() {
 
   const [smtpForm, setSmtpForm] = useState(SMTP_EMPTY)
   const [passChanged, setPassChanged] = useState(false)
+  const [captureForm, setCaptureForm] = useState(CAPTURE_EMPTY)
+  const [turnstileSecretChanged, setTurnstileSecretChanged] = useState(false)
 
   // --- Site query (same pattern as WebsiteOverviewScreen) ---
   const siteQuery = useQuery({
@@ -73,6 +87,17 @@ export default function WebsiteSettingsScreen() {
     staleTime: 60_000,
   })
   const siteId = siteQuery.data?.data?.id
+
+  useEffect(() => {
+    const site = siteQuery.data?.data
+    if (!site) return
+    setCaptureForm({
+      analyticsMode: site.analyticsMode ?? 'off',
+      turnstileSiteKey: site.turnstileSiteKey ?? '',
+      turnstileSecretKey: '',
+    })
+    setTurnstileSecretChanged(false)
+  }, [siteQuery.data])
 
   // --- Source query ---
   const sourceQuery = useQuery({
@@ -135,6 +160,21 @@ export default function WebsiteSettingsScreen() {
     onError: (err) => toast.error(err.message ?? 'Error al cambiar la fuente'),
   })
 
+  const captureSaveMutation = useMutation({
+    mutationFn: (data) =>
+      apiFetch(`/website/site/${siteId}`, token, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      toast.success('Configuracion de analitica guardada')
+      setTurnstileSecretChanged(false)
+      queryClient.invalidateQueries({ queryKey: ['website-site'] })
+      siteQuery.refetch()
+    },
+    onError: (err) => toast.error(err.message),
+  })
+
   const uploadDistMutation = useMutation({
     mutationFn: (file) => {
       const formData = new FormData()
@@ -178,7 +218,34 @@ export default function WebsiteSettingsScreen() {
     smtpSaveMutation.mutate(payload)
   }
 
+  function handleCaptureSubmit(e) {
+    e.preventDefault()
+    const payload = {
+      analyticsMode: captureForm.analyticsMode,
+      turnstileSiteKey: captureForm.turnstileSiteKey.trim() || null,
+    }
+    if (turnstileSecretChanged) {
+      payload.turnstileSecretKey =
+        captureForm.turnstileSecretKey.trim() || null
+    }
+    captureSaveMutation.mutate(payload)
+  }
+
   const smtpConfigured = configQuery.data?.data?.configured ?? false
+  const turnstileSecretSet =
+    siteQuery.data?.data?.turnstileSecretKeySet ?? false
+
+  if (siteQuery.isError) {
+    return (
+      <div className="p-4 md:p-6">
+        <ErrorState
+          title="No se pudo cargar la configuracion"
+          message={siteQuery.error?.message}
+          onRetry={() => siteQuery.refetch()}
+        />
+      </div>
+    )
+  }
 
   // No site configured yet — show empty state
   if (!siteQuery.isPending && !siteId) {
@@ -220,6 +287,10 @@ export default function WebsiteSettingsScreen() {
             <TabsTrigger value="smtp">
               <Mail className="w-4 h-4 mr-1.5" />
               Correo electronico
+            </TabsTrigger>
+            <TabsTrigger value="analytics">
+              <BarChart3 className="w-4 h-4 mr-1.5" />
+              Analitica
             </TabsTrigger>
           </TabsList>
 
@@ -374,6 +445,70 @@ export default function WebsiteSettingsScreen() {
                   </form>
                 )}
               </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="mt-4">
+            <Card className="p-0 overflow-hidden">
+              <div className="px-4 py-3 border-b border-border bg-muted/40">
+                <p className="text-sm font-semibold">Analitica y proteccion de formularios</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Controla la captura del storefront y las claves publicas de Cloudflare Turnstile.
+                </p>
+              </div>
+              <form onSubmit={handleCaptureSubmit} className="p-4 space-y-4">
+                <SelectField
+                  label="Modo de analitica"
+                  value={captureForm.analyticsMode}
+                  onChange={(value) =>
+                    setCaptureForm((current) => ({
+                      ...current,
+                      analyticsMode: value,
+                    }))
+                  }
+                  options={ANALYTICS_MODE_OPTIONS}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Atlas respeta siempre Do Not Track. El modo con consentimiento no
+                  envia eventos hasta que el visitante lo autoriza.
+                </p>
+                <TextField
+                  label="Turnstile Site Key"
+                  value={captureForm.turnstileSiteKey}
+                  onChange={(event) =>
+                    setCaptureForm((current) => ({
+                      ...current,
+                      turnstileSiteKey: event.target.value,
+                    }))
+                  }
+                  placeholder="Clave publica"
+                />
+                <PasswordField
+                  label={
+                    turnstileSecretSet && !turnstileSecretChanged
+                      ? 'Turnstile Secret Key (dejar en blanco para mantener)'
+                      : 'Turnstile Secret Key'
+                  }
+                  value={captureForm.turnstileSecretKey}
+                  onChange={(event) => {
+                    setCaptureForm((current) => ({
+                      ...current,
+                      turnstileSecretKey: event.target.value,
+                    }))
+                    setTurnstileSecretChanged(true)
+                  }}
+                  placeholder={turnstileSecretSet ? '••••••••' : 'Clave secreta'}
+                />
+                <Button
+                  type="submit"
+                  disabled={captureSaveMutation.isPending}
+                  className="w-full"
+                >
+                  {captureSaveMutation.isPending
+                    ? 'Guardando...'
+                    : 'Guardar analitica'}
+                </Button>
+              </form>
             </Card>
           </TabsContent>
         </Tabs>

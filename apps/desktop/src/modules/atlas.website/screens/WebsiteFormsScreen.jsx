@@ -9,6 +9,8 @@ import {
   DialogTitle,
   DialogFooter,
   Button,
+  Card,
+  ComboboxField,
   TextField,
   PageHeader,
   EmptyState,
@@ -18,6 +20,8 @@ import {
   TabsTrigger,
   TabsContent,
   LoadingState,
+  ErrorState,
+  SwitchField,
 } from "@atlas/ui";
 import { toast } from "sonner";
 import FormFieldBuilder from "./FormFieldBuilder.jsx";
@@ -29,6 +33,201 @@ async function apiGet(path, token) {
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
+}
+
+function FormSettingsPanel({
+  form,
+  token,
+  assignees,
+  turnstileConfigured,
+  onSaved,
+}) {
+  const queryClient = useQueryClient();
+  const [settings, setSettings] = useState({
+    name: form.name ?? "",
+    description: form.description ?? "",
+    submitLabel: form.submitLabel ?? "Enviar",
+    successMessage: form.successMessage ?? "",
+    notifyEmail: form.notifyEmail ?? "",
+    createsLead: form.createsLead ?? true,
+    defaultAssigneeUserId: form.defaultAssigneeUserId ?? "",
+    honeypotEnabled: form.honeypotEnabled ?? true,
+    turnstileRequired: form.turnstileRequired ?? false,
+  });
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(
+        `${getApiUrl()}/website/forms/${form.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...settings,
+            description: settings.description.trim() || undefined,
+            successMessage: settings.successMessage.trim() || undefined,
+            notifyEmail: settings.notifyEmail.trim() || null,
+            defaultAssigneeUserId:
+              settings.defaultAssigneeUserId || null,
+          }),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(
+          (await response.json().catch(() => ({}))).error ||
+            `HTTP ${response.status}`,
+        );
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast.success("Configuracion del formulario guardada");
+      queryClient.invalidateQueries({
+        queryKey: ["website-form-detail", form.id],
+      });
+      queryClient.invalidateQueries({ queryKey: ["website-forms"] });
+      onSaved();
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const assigneeOptions = [
+    { value: "", label: "Sin responsable predeterminado" },
+    ...assignees.map((assignee) => ({
+      value: assignee.id,
+      label: `${assignee.displayName} (${assignee.email})`,
+    })),
+  ];
+
+  return (
+    <Card className="p-4">
+      <form
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          mutation.mutate();
+        }}
+      >
+        <div className="grid md:grid-cols-2 gap-4">
+          <TextField
+            label="Nombre"
+            value={settings.name}
+            onChange={(event) =>
+              setSettings((current) => ({
+                ...current,
+                name: event.target.value,
+              }))
+            }
+            required
+          />
+          <TextField
+            label="Texto del boton"
+            value={settings.submitLabel}
+            onChange={(event) =>
+              setSettings((current) => ({
+                ...current,
+                submitLabel: event.target.value,
+              }))
+            }
+          />
+        </div>
+        <TextField
+          label="Descripcion"
+          value={settings.description}
+          onChange={(event) =>
+            setSettings((current) => ({
+              ...current,
+              description: event.target.value,
+            }))
+          }
+        />
+        <TextField
+          label="Mensaje de exito"
+          value={settings.successMessage}
+          onChange={(event) =>
+            setSettings((current) => ({
+              ...current,
+              successMessage: event.target.value,
+            }))
+          }
+        />
+        <TextField
+          label="Notificar por email"
+          type="email"
+          value={settings.notifyEmail}
+          onChange={(event) =>
+            setSettings((current) => ({
+              ...current,
+              notifyEmail: event.target.value,
+            }))
+          }
+        />
+        <ComboboxField
+          label="Responsable predeterminado"
+          options={assigneeOptions}
+          value={settings.defaultAssigneeUserId}
+          onChange={(value) =>
+            setSettings((current) => ({
+              ...current,
+              defaultAssigneeUserId: value,
+            }))
+          }
+          placeholder="Seleccionar responsable..."
+          searchPlaceholder="Buscar usuario..."
+        />
+        <div className="grid md:grid-cols-3 gap-4">
+          <SwitchField
+            id={`form-${form.id}-lead`}
+            label="Crear lead"
+            checked={settings.createsLead}
+            onChange={(checked) =>
+              setSettings((current) => ({
+                ...current,
+                createsLead: checked,
+              }))
+            }
+          />
+          <SwitchField
+            id={`form-${form.id}-honeypot`}
+            label="Activar honeypot"
+            checked={settings.honeypotEnabled}
+            onChange={(checked) =>
+              setSettings((current) => ({
+                ...current,
+                honeypotEnabled: checked,
+              }))
+            }
+          />
+          <SwitchField
+            id={`form-${form.id}-turnstile`}
+            label="Requerir Turnstile"
+            checked={settings.turnstileRequired}
+            disabled={!turnstileConfigured}
+            onChange={(checked) =>
+              setSettings((current) => ({
+                ...current,
+                turnstileRequired: checked,
+              }))
+            }
+          />
+        </div>
+        {!turnstileConfigured && (
+          <p className="text-xs text-muted-foreground">
+            Configura las claves de Turnstile en Ajustes antes de exigir CAPTCHA.
+          </p>
+        )}
+        <Button
+          type="submit"
+          disabled={mutation.isPending || !settings.name.trim()}
+        >
+          {mutation.isPending ? "Guardando..." : "Guardar configuracion"}
+        </Button>
+      </form>
+    </Card>
+  );
 }
 
 export default function WebsiteFormsScreen() {
@@ -45,6 +244,10 @@ export default function WebsiteFormsScreen() {
     submitLabel: "Enviar",
     successMessage: "",
     notifyEmail: "",
+    createsLead: true,
+    defaultAssigneeUserId: "",
+    honeypotEnabled: true,
+    turnstileRequired: false,
   });
   const [deleteTarget, setDeleteTarget] = useState(null);
 
@@ -79,12 +282,27 @@ export default function WebsiteFormsScreen() {
   });
   const formDetail = formDetailQuery.data ?? null;
 
+  const { data: assigneesData } = useQuery({
+    queryKey: ["website-form-assignees", token],
+    queryFn: () => apiGet("/website/form-assignees", token),
+    enabled: Boolean(token),
+    staleTime: 60_000,
+  });
+  const assignees = assigneesData?.data ?? [];
+
   const createFormMutation = useMutation({
     mutationFn: async (data) => {
       const res = await fetch(`${getApiUrl()}/website/forms`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ ...data, siteId }),
+        body: JSON.stringify({
+          ...data,
+          siteId,
+          description: data.description.trim() || undefined,
+          successMessage: data.successMessage.trim() || undefined,
+          notifyEmail: data.notifyEmail.trim() || null,
+          defaultAssigneeUserId: data.defaultAssigneeUserId || null,
+        }),
       });
       if (!res.ok)
         throw new Error(
@@ -103,6 +321,10 @@ export default function WebsiteFormsScreen() {
         submitLabel: "Enviar",
         successMessage: "",
         notifyEmail: "",
+        createsLead: true,
+        defaultAssigneeUserId: "",
+        honeypotEnabled: true,
+        turnstileRequired: false,
       });
     },
     onError: (err) => toast.error(err.message || "Error al crear formulario"),
@@ -129,6 +351,21 @@ export default function WebsiteFormsScreen() {
   });
 
   if (siteQuery.isPending) return <LoadingState variant="page" />;
+
+  if (siteQuery.isError || formsQuery.isError) {
+    return (
+      <div className="p-4 md:p-6">
+        <ErrorState
+          title="No se pudieron cargar los formularios"
+          message={(siteQuery.error ?? formsQuery.error)?.message}
+          onRetry={() => {
+            siteQuery.refetch();
+            formsQuery.refetch();
+          }}
+        />
+      </div>
+    );
+  }
 
   if (!siteId) {
     return (
@@ -216,6 +453,9 @@ export default function WebsiteFormsScreen() {
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsList>
                     <TabsTrigger value="campos">Campos</TabsTrigger>
+                    <TabsTrigger value="configuracion">
+                      Configuracion
+                    </TabsTrigger>
                     <TabsTrigger value="envios">
                       Envios
                       {(selectedForm._count?.submissions ?? 0) > 0 && (
@@ -238,6 +478,35 @@ export default function WebsiteFormsScreen() {
                             queryKey: ["website-form-detail", selectedForm.id],
                           })
                         }
+                      />
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="configuracion">
+                    {formDetailQuery.isPending ? (
+                      <LoadingState message="Cargando configuracion..." />
+                    ) : formDetailQuery.isError ? (
+                      <ErrorState
+                        title="No se pudo cargar el formulario"
+                        message={formDetailQuery.error?.message}
+                        onRetry={() => formDetailQuery.refetch()}
+                      />
+                    ) : (
+                      <FormSettingsPanel
+                        key={formDetail?.id}
+                        form={formDetail}
+                        token={token}
+                        assignees={assignees}
+                        turnstileConfigured={Boolean(
+                          siteQuery.data?.data?.turnstileSiteKey &&
+                            siteQuery.data?.data?.turnstileSecretKeySet,
+                        )}
+                        onSaved={() => {
+                          formDetailQuery.refetch();
+                          queryClient.invalidateQueries({
+                            queryKey: ["website-forms", siteId],
+                          });
+                        }}
                       />
                     )}
                   </TabsContent>
@@ -316,6 +585,66 @@ export default function WebsiteFormsScreen() {
               }
               placeholder="Gracias, nos pondremos en contacto pronto."
             />
+            <ComboboxField
+              label="Responsable predeterminado"
+              options={[
+                { value: "", label: "Sin responsable predeterminado" },
+                ...assignees.map((assignee) => ({
+                  value: assignee.id,
+                  label: `${assignee.displayName} (${assignee.email})`,
+                })),
+              ]}
+              value={newFormData.defaultAssigneeUserId}
+              onChange={(value) =>
+                setNewFormData((current) => ({
+                  ...current,
+                  defaultAssigneeUserId: value,
+                }))
+              }
+              placeholder="Seleccionar responsable..."
+              searchPlaceholder="Buscar usuario..."
+            />
+            <div className="grid md:grid-cols-3 gap-3">
+              <SwitchField
+                id="new-form-lead"
+                label="Crear lead"
+                checked={newFormData.createsLead}
+                onChange={(checked) =>
+                  setNewFormData((current) => ({
+                    ...current,
+                    createsLead: checked,
+                  }))
+                }
+              />
+              <SwitchField
+                id="new-form-honeypot"
+                label="Activar honeypot"
+                checked={newFormData.honeypotEnabled}
+                onChange={(checked) =>
+                  setNewFormData((current) => ({
+                    ...current,
+                    honeypotEnabled: checked,
+                  }))
+                }
+              />
+              <SwitchField
+                id="new-form-turnstile"
+                label="Requerir Turnstile"
+                checked={newFormData.turnstileRequired}
+                disabled={
+                  !(
+                    siteQuery.data?.data?.turnstileSiteKey &&
+                    siteQuery.data?.data?.turnstileSecretKeySet
+                  )
+                }
+                onChange={(checked) =>
+                  setNewFormData((current) => ({
+                    ...current,
+                    turnstileRequired: checked,
+                  }))
+                }
+              />
+            </div>
             <DialogFooter>
               <Button
                 type="button"

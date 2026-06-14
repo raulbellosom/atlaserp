@@ -97,6 +97,9 @@ describe('injectAtlasConfig', () => {
     siteName: 'Acme Store',
     stripePublishableKey: 'pk_test_123',
     currency: 'usd',
+    siteId: 'site-123',
+    analyticsMode: 'consent_required',
+    turnstileSiteKey: 'turnstile-public',
   }
 
   it('injects window.ATLAS_CONFIG script into <head>', () => {
@@ -118,6 +121,19 @@ describe('injectAtlasConfig', () => {
     const result = injectAtlasConfig(html, cfg)
     assert.ok(result.includes('"company":"acme"'))
     assert.ok(result.includes('"siteName":"Acme Store"'))
+  })
+
+  it('injects public capture settings without a Turnstile secret', () => {
+    const html = '<html><head></head><body></body></html>'
+    const result = injectAtlasConfig(html, {
+      ...cfg,
+      turnstileSecretKey: 'must-not-leak',
+    })
+    assert.ok(result.includes('"siteId":"site-123"'))
+    assert.ok(result.includes('"analyticsMode":"consent_required"'))
+    assert.ok(result.includes('"turnstileSiteKey":"turnstile-public"'))
+    assert.ok(!result.includes('must-not-leak'))
+    assert.ok(!result.includes('turnstileSecretKey'))
   })
 
   it('injects stripePublishableKey and currency when provided', () => {

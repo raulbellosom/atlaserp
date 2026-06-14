@@ -29,6 +29,14 @@ const FIELD_TYPES = [
 ]
 
 const FIELD_TYPE_OPTIONS = FIELD_TYPES.map(({ value, label }) => ({ value, label }))
+const SEMANTIC_OPTIONS = [
+  { value: 'custom', label: 'Campo personalizado' },
+  { value: 'name', label: 'Nombre del lead' },
+  { value: 'email', label: 'Correo del lead' },
+  { value: 'phone', label: 'Telefono del lead' },
+  { value: 'company', label: 'Empresa del lead' },
+  { value: 'message', label: 'Mensaje del lead' },
+]
 
 function toFieldName(label) {
   return label
@@ -48,6 +56,7 @@ function FieldDialog({ formId, field, open, onOpenChange, onSaved }) {
     label:       field?.label       ?? '',
     name:        field?.name        ?? '',
     fieldType:   field?.fieldType   ?? 'text',
+    semanticKey: field?.semanticKey ?? 'custom',
     placeholder: field?.placeholder ?? '',
     required:    field?.required    ?? false,
     options:     Array.isArray(field?.options) ? field.options.join(', ') : '',
@@ -91,6 +100,7 @@ function FieldDialog({ formId, field, open, onOpenChange, onSaved }) {
       label:       form.label.trim(),
       name:        form.name.trim(),
       fieldType:   form.fieldType,
+      semanticKey: form.semanticKey,
       placeholder: form.placeholder.trim() || undefined,
       required:    form.required,
       options:     form.fieldType === 'select' && form.options.trim()
@@ -134,6 +144,17 @@ function FieldDialog({ formId, field, open, onOpenChange, onSaved }) {
               onChange={(e) => setForm((f) => ({ ...f, placeholder: e.target.value }))}
             />
           </div>
+          <SelectField
+            label="Uso para el lead"
+            value={form.semanticKey}
+            onChange={(value) =>
+              setForm((current) => ({
+                ...current,
+                semanticKey: value,
+              }))
+            }
+            options={SEMANTIC_OPTIONS}
+          />
           {form.fieldType === 'select' && (
             <TextField
               label="Opciones (separadas por coma)"
@@ -183,6 +204,11 @@ function SortableField({ field, onEdit, onDelete }) {
       <span className="flex-1 text-sm font-medium">{field.label}</span>
       {field.required && <span className="text-[10px] text-red-500 font-mono">*</span>}
       <span className="text-xs font-mono text-[hsl(var(--muted-foreground))]">{field.fieldType}</span>
+      {field.semanticKey && field.semanticKey !== 'custom' && (
+        <span className="text-[10px] rounded-full bg-[hsl(var(--muted))] px-2 py-0.5 text-[hsl(var(--muted-foreground))]">
+          {SEMANTIC_OPTIONS.find((option) => option.value === field.semanticKey)?.label}
+        </span>
+      )}
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button onClick={() => onEdit(field)} className="p-1 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><Pencil size={12} /></button>
         <button onClick={() => onDelete(field)} className="p-1 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--destructive))]"><Trash2 size={12} /></button>

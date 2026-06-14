@@ -17,6 +17,12 @@ export function createFormsRouter({ websiteSvc, requirePermission }) {
     return c.json({ data: forms })
   })
 
+  app.get('/form-assignees', requirePermission('website.site.update'), async (c) => {
+    const companyId = c.get('companyId')
+    const assignees = await websiteSvc.listFormAssignees({ companyId })
+    return c.json({ data: assignees })
+  })
+
   app.post(
     '/forms',
     requirePermission('website.pages.create'),
