@@ -383,7 +383,15 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   app.post('/projects/:id/tasks/:tid/comments/:cid/reactions', requirePermission('projects.task.update'), async (c) => {
     try {
       const { emoji } = await c.req.json()
-      const result = await tasksSvc.toggleTaskReaction(c.req.param('cid'), getUserId(c), emoji)
+      const commentId = c.req.param('cid')
+      const result = await tasksSvc.toggleTaskReaction(commentId, getUserId(c), emoji)
+      if (result.action === 'added') {
+        notifSvc.notifyTaskReaction({
+          companyId: getCompanyId(c),
+          actorId: getUserId(c),
+          commentId,
+        })
+      }
       return c.json(result)
     } catch (err) { return handleError(c, err, 'Error al actualizar reaccion.') }
   })
