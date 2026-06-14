@@ -110,6 +110,10 @@ if (localBuildMode) {
     console.log(`\n--- Building ${label} (${tag}) ---`);
     run("docker", ["build", "-f", dockerfile, "-t", tag, "."]);
   }
+  // Re-tagging `latest` leaves the previous image dangling. Prune to keep
+  // the local daemon clean after every build cycle.
+  console.log("\nPruning dangling images from previous builds...");
+  tryRun("docker", ["image", "prune", "-f"]);
   console.log("\nLocal build done. Images are loaded into your local Docker daemon.");
 } else {
   // Default / --push: multi-platform build + push via buildx.

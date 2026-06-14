@@ -48,11 +48,12 @@ node .\setup-local.mjs
 ```bash
 mkdir -p ./atlaserp && cd ./atlaserp
 
-curl -fsSLo docker-compose.yml  https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml
-curl -fsSLo setup-local.mjs     https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.mjs
-curl -fsSLo stop-local.mjs      https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-local.mjs
-curl -fsSLo setup-local.sh      https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.sh
-curl -fsSLo stop-local.sh       https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-local.sh
+curl -fsSLo docker-compose.yml       https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml
+curl -fsSLo docker-compose.linux.yml https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.linux.yml
+curl -fsSLo setup-local.mjs          https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.mjs
+curl -fsSLo stop-local.mjs           https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-local.mjs
+curl -fsSLo setup-local.sh           https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.sh
+curl -fsSLo stop-local.sh            https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-local.sh
 chmod +x setup-local.sh stop-local.sh
 
 mkdir -p custom-modules
@@ -61,13 +62,20 @@ mkdir -p custom-modules
 # equivalente: node ./setup-local.mjs
 ```
 
+> `docker-compose.linux.yml` es requerido en Linux: Docker Engine no inyecta
+> `host.docker.internal` automaticamente y este override lo resuelve via `host-gateway`.
+> En Windows y macOS Docker Desktop lo inyecta solo y este archivo se ignora.
+
 ### Que hace `setup-local.mjs`
 
 1. Inicializa Supabase local en `.supabase-local/`.
 2. Levanta Supabase sin `logflare` ni `vector`.
 3. Genera `.env.local` automaticamente con las credenciales del stack local.
-4. Descarga Dev Kit AME3 a `custom-modules/_atlas-devkit/`.
-5. Hace `docker pull` de API, worker y web.
+4. Descarga el Dev Kit AME3 a `custom-modules/_atlas-devkit/` (siempre actualizado
+   desde main): `AGENTS.md`, docs de arquitectura, guias de modulos custom,
+   `atlas-storefront-sdk.md`, `ame3-runtime-capabilities.md` y `TASKS.md`.
+5. Hace `docker pull` de API, worker y web. Luego ejecuta `docker image prune -f`
+   para eliminar layers huerfanos de versiones anteriores.
 6. Ejecuta `pnpm db:migrate` y `pnpm db:seed` dentro del container API.
 7. Levanta `docker compose --profile local up -d`.
 
@@ -112,8 +120,11 @@ nano .env.external   # completar con credenciales de Supabase
 
 1. Valida que `.env.external` existe y tiene las credenciales.
 2. Valida que Docker Compose esta disponible.
-3. Descarga Dev Kit AME3 a `custom-modules/_atlas-devkit/`.
-4. Hace `docker pull` de API, worker y web.
+3. Descarga el Dev Kit AME3 a `custom-modules/_atlas-devkit/` (siempre actualizado
+   desde main): `AGENTS.md`, docs de arquitectura, guias de modulos custom,
+   `atlas-storefront-sdk.md`, `ame3-runtime-capabilities.md` y `TASKS.md`.
+4. Hace `docker pull` de API, worker y web. Luego ejecuta `docker image prune -f`
+   para eliminar layers huerfanos de versiones anteriores y liberar espacio en disco.
 5. Ejecuta `pnpm db:migrate` y `pnpm db:seed` dentro del container API.
 6. Levanta `docker compose --profile external up -d`.
 
@@ -150,6 +161,9 @@ CORS_ORIGIN=http://localhost:5173
 
 ## Iniciar / detener / resetear
 
+Los scripts de stop ejecutan `docker image prune -f` automaticamente al terminar
+para eliminar layers huerfanos sin tocar imagenes de otros proyectos en el mismo host.
+
 ### Local
 
 | Accion | Comando |
@@ -164,6 +178,7 @@ CORS_ORIGIN=http://localhost:5173
 | Accion | Comando |
 |--------|---------|
 | Primera instalacion | `node ./setup-external.mjs` (o `./setup-external.sh`) |
+| Actualizar a la ultima version | `./setup-external.sh` (pull + prune + recreate automatico) |
 | Detener (conserva datos) | `node ./stop-external.mjs` (o `./stop-external.sh`) |
 | Reiniciar rapido | `node ./setup-external.mjs --skip-pull --skip-migrate --up-only` |
 | Reset (borra .env.external) | `node ./stop-external.mjs --reset` |
@@ -265,16 +280,28 @@ Para documentacion completa: `custom-modules/_atlas-devkit/docs/03_custom_module
 
 ## Publicar una nueva version
 
-```bash
-# Desde la raiz del repositorio
-docker build -f infra/docker/api.Dockerfile    -t raulbellosom/atlaserp:api-latest .
-docker build -f infra/docker/worker.Dockerfile -t raulbellosom/atlaserp:worker-latest .
-docker build -f infra/docker/web.Dockerfile    -t raulbellosom/atlaserp:web-latest .
+Desde la raiz del repositorio (requiere `docker login` y Rust/Buildx para arm64):
 
-docker push raulbellosom/atlaserp:api-latest
-docker push raulbellosom/atlaserp:worker-latest
-docker push raulbellosom/atlaserp:web-latest
+```bash
+# Publicar las tres imagenes (multi-platform: linux/amd64 + linux/arm64)
+pnpm docker:release
+
+# Publicar solo la imagen que cambio
+pnpm docker:release:api
+pnpm docker:release:worker
+pnpm docker:release:web
+
+# Build local sin push (para pruebas en tu maquina)
+pnpm docker:build
+pnpm docker:build --api
 ```
+
+Los Dockerfiles usan multi-stage build: el stage `builder` hace el install completo
+y genera el cliente Prisma; el stage `runner` solo instala dependencias de produccion
+(`--prod`), lo que reduce el tamano final de las imagenes.
+
+Despues de un build local (`pnpm docker:build`), el script elimina automaticamente
+los layers huerfanos del build anterior con `docker image prune -f`.
 
 Si el cambio solo afecta al runtime web compartido, publica solo `web`. Si el cambio
 solo afecta CORS/autenticacion/rutas del API, publica solo `api`. No hace falta subir

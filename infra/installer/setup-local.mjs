@@ -2,6 +2,7 @@
 
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -28,7 +29,7 @@ const devKitDir = path.resolve(__dirname, "custom-modules", "_atlas-devkit");
 // via docker-compose.linux.yml override for compose services.
 const isLinux = process.platform === "linux";
 const addHostArgs = isLinux ? ["--add-host", "host.docker.internal:host-gateway"] : [];
-const composeFiles = isLinux
+const composeFiles = isLinux && fsSync.existsSync(linuxComposeOverride)
   ? ["-f", composeFile, "-f", linuxComposeOverride]
   : ["-f", composeFile];
 
@@ -414,6 +415,9 @@ async function main() {
     resolvedApiImage = pullWithRetry(apiImage, "API");
     resolvedWorkerImage = pullWithRetry(workerImage, "Worker");
     resolvedWebImage = pullWithRetry(webImage, "Web");
+    // Remove dangling layers left behind when `latest` tags are re-pulled.
+    console.log("     Pruning dangling images...");
+    tryRun("docker", ["image", "prune", "-f"]);
   }
 
   console.log("[7/8] Running migrations and seed...");

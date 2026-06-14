@@ -74,9 +74,13 @@ if (fs.existsSync(supabaseWorkdir)) {
   }
 }
 
+// Always prune dangling images after stopping — safe, only removes untagged layers.
+console.log("\n[3] Pruning dangling images...");
+run("docker", ["image", "prune", "-f"], { failOk: true });
+
 if (isReset) {
-  // 3. Force-remove any remaining Supabase containers by label
-  console.log("\n[3] Removing Supabase containers...");
+  // 4. Force-remove any remaining Supabase containers by label
+  console.log("\n[4] Removing Supabase containers...");
   const containers = capture("docker", ["ps", "-a", "--filter", "label=com.supabase.cli.project=supabase-local", "-q"]);
   if (containers) {
     containers.split(/\s+/).filter(Boolean).forEach((id) => {
@@ -86,8 +90,8 @@ if (isReset) {
     console.log("  No leftover containers.");
   }
 
-  // 4. Remove networks
-  console.log("\n[4] Removing Supabase networks...");
+  // 5. Remove networks
+  console.log("\n[5] Removing Supabase networks...");
   const networks = capture("docker", ["network", "ls", "--filter", "label=com.supabase.cli.project=supabase-local", "-q"]);
   if (networks) {
     networks.split(/\s+/).filter(Boolean).forEach((id) => {
@@ -97,8 +101,8 @@ if (isReset) {
     console.log("  No leftover networks.");
   }
 
-  // 5. Remove volumes
-  console.log("\n[5] Removing Supabase volumes...");
+  // 6. Remove volumes
+  console.log("\n[6] Removing Supabase volumes...");
   const volumes = capture("docker", ["volume", "ls", "--filter", "label=com.supabase.cli.project=supabase-local", "-q"]);
   if (volumes) {
     volumes.split(/\s+/).filter(Boolean).forEach((id) => {
@@ -108,8 +112,8 @@ if (isReset) {
     console.log("  No leftover volumes.");
   }
 
-  // 6. Remove generated files
-  console.log("\n[6] Removing generated files...");
+  // 7. Remove generated files
+  console.log("\n[7] Removing generated files...");
   removeIfExists(supabaseWorkdir);
   removeIfExists(path.resolve(__dirname, ".env.local"));
   removeIfExists(path.resolve(__dirname, ".env"));

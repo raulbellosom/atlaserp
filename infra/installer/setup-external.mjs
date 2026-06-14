@@ -324,6 +324,10 @@ async function main() {
     resolvedApiImage    = pullWithRetry(apiImage,    "API");
     resolvedWorkerImage = pullWithRetry(workerImage, "Worker");
     resolvedWebImage    = pullWithRetry(webImage,    "Web");
+    // Remove dangling layers left behind when `latest` tags are re-pulled.
+    // This prevents disk accumulation on every deploy without touching other projects.
+    console.log("     Pruning dangling images...");
+    tryRun("docker", ["image", "prune", "-f"]);
   }
 
   // ── 5. Migrate + seed (first install or explicit reset) ───────────────────

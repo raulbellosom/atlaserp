@@ -36,6 +36,11 @@ function removeIfExists(filePath) {
   }
 }
 
+function tryRun(command, args, { cwd = __dirname } = {}) {
+  const result = spawnSync(command, args, { cwd, stdio: "inherit", shell: isWindows });
+  return !result.error && result.status === 0;
+}
+
 console.log(
   isReset
     ? "[stop-external] Stopping and resetting Atlas external..."
@@ -53,8 +58,12 @@ if (fs.existsSync(composeFile)) {
   console.log("[1] docker-compose.yml not found — skipping compose down.");
 }
 
+// Always prune dangling images after stopping — safe, only removes untagged layers.
+console.log("\n[2] Pruning dangling images...");
+tryRun("docker", ["image", "prune", "-f"]);
+
 if (isReset) {
-  console.log("\n[2] Removing generated files...");
+  console.log("\n[3] Removing generated files...");
   removeIfExists(path.resolve(__dirname, ".env.external"));
   removeIfExists(path.resolve(__dirname, ".env"));
   console.log("\nReset complete. Run `node setup-external.mjs` to start fresh.");
