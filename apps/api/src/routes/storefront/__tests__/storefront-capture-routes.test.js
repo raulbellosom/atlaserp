@@ -354,7 +354,10 @@ describe("deprecated website form adapter", () => {
 
     assert.equal(response.status, 201);
     assert.equal(response.headers.get("Deprecation"), "true");
-    assert.ok(response.headers.get("Sunset"));
+    assert.equal(
+      response.headers.get("Sunset"),
+      "Wed, 30 Sep 2026 00:00:00 GMT",
+    );
     assert.match(response.headers.get("Link"), /successor-version/);
     assert.equal(calls.length, 1);
     assert.deepEqual(calls[0].payload.values, {

@@ -11,7 +11,7 @@ import {
   createStorefrontCaptureService,
 } from "../../services/storefront-capture-service.js";
 
-const LEGACY_SUNSET = "Tue, 01 Sep 2026 00:00:00 GMT";
+const LEGACY_SUNSET = "Wed, 30 Sep 2026 00:00:00 GMT";
 
 function legacyIdempotencyKey(body) {
   return createHash("sha256")

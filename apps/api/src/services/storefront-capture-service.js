@@ -630,6 +630,7 @@ export function createStorefrontCaptureService({
 
         let lead = null;
         if (form.createsLead) {
+          let createdLead = false;
           const identities = [
             ...(leadFields.emailNormalized
               ? [{ emailNormalized: leadFields.emailNormalized }]
@@ -659,12 +660,13 @@ export function createStorefrontCaptureService({
             lastSubmissionAt: now(),
             lastSeenAt: now(),
           };
-          lead = lead
-            ? await tx.growthLead.update({
+          if (lead) {
+            lead = await tx.growthLead.update({
                 where: { id: lead.id },
                 data: leadData,
-              })
-            : await tx.growthLead.create({
+              });
+          } else {
+            lead = await tx.growthLead.create({
                 data: {
                   companyId: company.id,
                   siteId: site.id,
@@ -676,11 +678,37 @@ export function createStorefrontCaptureService({
                   firstSeenAt: now(),
                 },
               });
+            createdLead = true;
+          }
 
           await tx.websiteFormSubmission.update({
             where: { id: submission.id },
             data: { leadId: lead.id },
           });
+          if (createdLead) {
+            await tx.auditLog.create({
+              data: {
+                actorId: null,
+                moduleKey: "atlas.growth",
+                entityType: "growth.lead",
+                entityId: lead.id,
+                action: "growth.lead.create",
+                before: null,
+                after: {
+                  status: lead.status,
+                  priority: lead.priority,
+                  source: lead.source,
+                  assigneeUserId: lead.assigneeUserId ?? null,
+                },
+                metadata: {
+                  companyId: company.id,
+                  siteId: site.id,
+                  formId: form.id,
+                  submissionId: submission.id,
+                },
+              },
+            });
+          }
           await tx.growthLeadActivity.create({
             data: {
               companyId: company.id,

@@ -27,6 +27,7 @@ function buildPrisma(overrides = {}) {
     submissions: [],
     leads: [],
     activities: [],
+    audits: [],
   };
 
   const form = {
@@ -240,6 +241,13 @@ function buildPrisma(overrides = {}) {
       create: async ({ data }) => {
         const row = { id: `activity-${state.activities.length + 1}`, ...data };
         state.activities.push(row);
+        return row;
+      },
+    },
+    auditLog: {
+      create: async ({ data }) => {
+        const row = { id: `audit-${state.audits.length + 1}`, ...data };
+        state.audits.push(row);
         return row;
       },
     },
@@ -664,5 +672,28 @@ describe("createStorefrontCaptureService", () => {
     assert.equal(result.submissionId, SUBMISSION_ID);
     assert.equal(result.leadId, LEAD_ID);
     assert.equal(prisma._state.submissions[0].leadId, LEAD_ID);
+    assert.deepEqual(prisma._state.audits, [
+      {
+        id: "audit-1",
+        actorId: null,
+        moduleKey: "atlas.growth",
+        entityType: "growth.lead",
+        entityId: LEAD_ID,
+        action: "growth.lead.create",
+        before: null,
+        after: {
+          status: "new",
+          priority: "normal",
+          source: "website_form",
+          assigneeUserId: null,
+        },
+        metadata: {
+          companyId: COMPANY_ID,
+          siteId: SITE_ID,
+          formId: FORM_ID,
+          submissionId: SUBMISSION_ID,
+        },
+      },
+    ]);
   });
 });
