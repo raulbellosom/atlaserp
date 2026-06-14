@@ -1,7 +1,7 @@
 # Storefront Capture Foundation
 
 Date: 2026-06-14
-Status: Proposed
+Status: Implemented - deployment verification pending
 Author: Codex
 Spec file: `docs/superpowers/specs/2026-06-14-storefront-capture-foundation-design.md`
 Plan file: `docs/superpowers/plans/2026-06-14-storefront-capture-foundation.md`
@@ -14,7 +14,7 @@ Storefront Capture Foundation
 
 ## 2. Status
 
-Proposed
+Implemented - deployment verification pending
 
 ## 3. Context
 

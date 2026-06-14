@@ -8,6 +8,19 @@
 - If a task is implemented but not verified yet, keep it unchecked until validation is done.
 - Prisma migration safety: never edit existing `prisma/migrations/**/migration.sql` after apply; always add a new forward migration.
 
+## Atlas Growth - Storefront Capture Foundation
+
+Spec: `docs/superpowers/specs/2026-06-14-storefront-capture-foundation-design.md`
+Plan: `docs/superpowers/plans/2026-06-14-storefront-capture-foundation.md`
+
+- [ ] Apply and verify the forward Prisma migration in the target environment.
+- [ ] Verify public capture v1 on Builder and uploaded `dist` domains.
+- [ ] Publish `@raulbellosom/atlas-sdk` 0.3.0.
+- [ ] Observe event ingestion, daily aggregation, and retention under production load.
+- [ ] Start `growth-lead-inbox` only after human approval of its spec and plan.
+
+Verified: 2026-06-14 (automated implementation scope: `pnpm.cmd exec prisma validate`, `pnpm.cmd db:generate`, and `pnpm.cmd check:uuid-policy` passed; API/IIFE/worker suites: 58 passed; npm SDK suites: 65 passed; `pnpm.cmd --filter @atlas/desktop build:web` passed; `pnpm.cmd build` produced the web build and Windows MSI/NSIS bundles; React Doctor diagnostics were empty. Target migration, live Builder/`dist`, npm publication, and production-load observation remain pending. See `docs/superpowers/verifications/2026-06-14-storefront-capture-foundation.md`.)
+
 ## atlas.activity (CORE Activity Feed)
 
 - [x] Spec: `docs/superpowers/specs/2026-05-31-atlas-activity-design.md` (28 sections, status Approved).
