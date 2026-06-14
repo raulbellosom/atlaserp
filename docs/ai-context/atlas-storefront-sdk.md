@@ -4,13 +4,19 @@ This document covers the public-facing integration layer of Atlas ERP: the `atla
 
 ## Overview
 
-Atlas ERP exposes a thin browser SDK (`/atlas-sdk.js`) so any external website — React, Astro, Vue, Next.js, or plain HTML — can:
+Atlas ERP exposes a thin browser SDK (`/atlas-sdk.js`) so any external website can detect Atlas
+ERP sessions and show the ERP navigation badge. For building full storefront frontends, use the
+npm package `@raulbellosom/atlas-sdk` (`packages/storefront-sdk/`).
 
-1. Authenticate end-users (storefront clients/vendors) through the ERP's Supabase Auth.
-2. Render a ready-made login form without writing backend code.
-3. Read session state and react to auth changes.
+**Both systems now use the same Supabase session** stored in `sb-<project>-auth-token` in
+localStorage. A user who logs in via the npm SDK is automatically recognized by the injected
+`atlas-sdk.js` beacon, and vice-versa.
 
-The SDK is served directly from the API at `GET /atlas-sdk.js`. It is a self-contained IIFE; no npm install required.
+The npm package exposes:
+- `createStorefrontClient({ baseUrl, company, supabaseUrl, supabaseAnonKey })` — main factory (requires all four)
+- `sdk.auth` — login, register, logout, refresh, me, getSession, onAuthStateChange (Supabase-backed)
+- `sdk.files`, `sdk.catalog`, `sdk.discovery`, `sdk.realtime`, `sdk.request`
+- `@raulbellosom/atlas-sdk/react` — React hooks: `StorefrontProvider`, `useAuth`, `useSession`, `useFileUpload`, `useProducts`, `useCompanyConfig`, etc.
 
 ---
 
@@ -33,6 +39,22 @@ window.ATLAS_CONFIG = {
 ```
 
 `injectAtlasConfig` runs server-side before HTML is sent. It writes into `<head>` as a raw JSON string, not as HTML attributes.
+
+---
+
+## Unified session
+
+The npm SDK uses `@supabase/supabase-js` internally. After login, the session is stored in
+the same `sb-<project>-auth-token` localStorage key as Atlas ERP. This means:
+
+1. A storefront user who logs in via the npm SDK is automatically seen by the `atlas-sdk.js`
+   beacon script — the `erp-badge-check` endpoint is called and the ERP badge appears if the
+   user has `platform.erp.access`.
+2. An ERP user (admin, employee) can log in on the storefront site and be redirected to Atlas ERP
+   without a second login.
+
+The `window.AtlasERP` object (from the IIFE `atlas-sdk.js`) and `sdk.auth` (from the npm package)
+share the same session. They are NOT separate auth systems.
 
 ---
 

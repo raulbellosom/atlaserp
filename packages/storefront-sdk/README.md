@@ -41,7 +41,7 @@ pnpm add @raulbellosom/atlas-sdk
 
 **Storefront role** — a role scoped to public-facing access. The two built-in roles are `storefront_client` (end customer, 5 MB file limit, images only) and `storefront_vendor` (seller/partner, 100 MB file limit, all file types). The set of registrable roles is configured by the platform admin.
 
-**Session** — an object with shape `{ user, token, refreshToken, expiresAt }` stored in memory by the SDK. You are responsible for persisting it (e.g. `localStorage`) and restoring it on page reload via `initialSession`.
+**Session** — an object with shape `{ user, token, refreshToken, expiresAt }` held in memory by the SDK. Session persistence to `localStorage` is handled automatically by `@supabase/supabase-js` — no `initialSession` or manual `localStorage` code needed.
 
 ---
 
@@ -50,26 +50,28 @@ pnpm add @raulbellosom/atlas-sdk
 ```js
 import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
 
-// Create one client per app. Restore any previous session from localStorage.
+// Read from window.ATLAS_CONFIG (injected by Atlas Website) or env vars for local dev.
+const cfg = (typeof window !== 'undefined' && window.ATLAS_CONFIG) ? window.ATLAS_CONFIG : {}
+
 const sdk = createStorefrontClient({
-  baseUrl: 'https://erp.tudominio.mx',
-  company: 'tu-empresa',
-  onSessionChange: (session) => {
-    if (session) {
-      localStorage.setItem('sf_session', JSON.stringify(session))
-    } else {
-      localStorage.removeItem('sf_session')
-    }
-  },
-  initialSession: JSON.parse(localStorage.getItem('sf_session') ?? 'null'),
+  baseUrl:         cfg.apiUrl         ?? 'https://erp.tudominio.mx',
+  company:         cfg.company         ?? 'tu-empresa',
+  supabaseUrl:     cfg.supabaseUrl     ?? 'https://supabase.tudominio.mx',
+  supabaseAnonKey: cfg.supabaseAnonKey ?? '<anon-key>',
 })
 
-// Log in
+// Log in — Supabase stores the session in localStorage automatically.
+// The same session is shared with Atlas ERP.
 const { user, token } = await sdk.auth.login({
   email: 'cliente@ejemplo.mx',
   password: 'contraseña123',
 })
-console.log('Bienvenido,', user.displayName)
+console.log('Bienvenido,', user?.displayName ?? 'usuario')
+
+// Redirect ERP users to the ERP app
+if (user && !['storefront_client', 'storefront_vendor'].includes(user.role)) {
+  window.location.href = cfg.apiUrl ?? 'https://erp.tudominio.mx'
+}
 
 // Make an authenticated request (token is added automatically)
 const { data: bookings } = await sdk.request('GET', '/public/bookings')
@@ -94,17 +96,13 @@ import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
 import { StorefrontProvider } from '@raulbellosom/atlas-sdk/react'
 import App from './App.jsx'
 
+const cfg = (typeof window !== 'undefined' && window.ATLAS_CONFIG) ? window.ATLAS_CONFIG : {}
+
 const sdk = createStorefrontClient({
-  baseUrl: import.meta.env.VITE_ERP_URL,
-  company: import.meta.env.VITE_ERP_COMPANY,
-  onSessionChange: (session) => {
-    if (session) {
-      localStorage.setItem('sf_session', JSON.stringify(session))
-    } else {
-      localStorage.removeItem('sf_session')
-    }
-  },
-  initialSession: JSON.parse(localStorage.getItem('sf_session') ?? 'null'),
+  baseUrl:         cfg.apiUrl         ?? import.meta.env.VITE_ERP_URL,
+  company:         cfg.company         ?? import.meta.env.VITE_ERP_COMPANY,
+  supabaseUrl:     cfg.supabaseUrl     ?? import.meta.env.VITE_SUPABASE_URL,
+  supabaseAnonKey: cfg.supabaseAnonKey ?? import.meta.env.VITE_SUPABASE_ANON_KEY,
 })
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -208,10 +206,11 @@ export function ProductList() {
 |---|---|---|---|---|
 | `baseUrl` | `string` | Yes | Full URL of the ERP instance, no trailing slash | `'https://erp.tudominio.mx'` |
 | `company` | `string` | Yes | Company slug assigned by the platform admin. Sent as `X-Atlas-Company` on every request | `'tu-empresa'` |
-| `onSessionChange` | `function(session \| null)` | No | Called with the full session object after every login, token refresh, or logout. Use to persist to `localStorage` or a cookie | See Quick Start |
-| `initialSession` | `object \| null` | No | A previously saved session object to restore on init. The expected shape is `{ user, token, refreshToken, expiresAt }`. Pass `null` or omit if there is no saved session | `JSON.parse(localStorage.getItem('sf_session') ?? 'null')` |
+| `supabaseUrl` | `string` | Yes | Supabase project URL. Available in `window.ATLAS_CONFIG.supabaseUrl` for Atlas Website dists | `'https://supabase.tudominio.mx'` |
+| `supabaseAnonKey` | `string` | Yes | Supabase anon key. Available in `window.ATLAS_CONFIG.supabaseAnonKey` | `'eyJ...'` |
+| `onSessionChange` | `function(session \| null)` | No | Called on every auth state change. Session is persisted by Supabase automatically — this is optional and mainly useful for debugging or syncing external state | `(s) => console.log('session:', s)` |
 
-The function throws a plain `Error` (not a `StorefrontError`) synchronously if `baseUrl` or `company` is missing.
+The function throws a plain `Error` (not a `StorefrontError`) synchronously if `baseUrl`, `company`, `supabaseUrl`, or `supabaseAnonKey` is missing.
 
 ---
 
@@ -1661,12 +1660,12 @@ function AccountPage() {
 
 Token refresh is fully automatic. When any SDK method receives a 401 response, the SDK:
 
-1. Calls `POST /public/storefront/auth/refresh` with the stored `refreshToken`
-2. Updates the in-memory session with the new `token`, `refreshToken`, and `expiresAt`
-3. Calls `onSessionChange` with the updated session (so your `localStorage` persistence stays in sync)
+1. Calls `supabase.auth.refreshSession()` with the stored `refreshToken`
+2. The session adapter is updated automatically via Supabase's `onAuthStateChange` event
+3. Calls `onSessionChange` with the updated session (if configured)
 4. Retries the original request with the new token
 
-If the refresh itself fails (expired refresh token), the session is cleared and `onSessionChange(null)` is called. No code is required in your application to handle refresh — only a redirect to login when the session becomes `null`.
+Concurrent 401s are deduplicated — only one refresh is made regardless of how many parallel requests fail. If the refresh itself fails (expired refresh token), `supabase.auth.signOut()` is called, the session is cleared, and `onSessionChange(null)` is triggered. No code is required in your application to handle refresh — only a redirect to login when the session becomes `null`.
 
 ### e) Logout with localStorage cleanup
 
@@ -1800,6 +1799,8 @@ Create a `.env` file in the root of your Vite project:
 ```
 VITE_ERP_URL=https://erp.tudominio.mx
 VITE_ERP_COMPANY=tu-empresa
+VITE_SUPABASE_URL=https://supabase.tudominio.mx
+VITE_SUPABASE_ANON_KEY=<anon-key>
 ```
 
 **Important:** In Vite, only variables prefixed with `VITE_` are exposed to the browser bundle. Never put secrets (service role keys, admin passwords) in `VITE_` variables.
@@ -1809,16 +1810,10 @@ VITE_ERP_COMPANY=tu-empresa
 import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
 
 export const sdk = createStorefrontClient({
-  baseUrl: import.meta.env.VITE_ERP_URL,
-  company: import.meta.env.VITE_ERP_COMPANY,
-  onSessionChange: (session) => {
-    if (session) {
-      localStorage.setItem('sf_session', JSON.stringify(session))
-    } else {
-      localStorage.removeItem('sf_session')
-    }
-  },
-  initialSession: JSON.parse(localStorage.getItem('sf_session') ?? 'null'),
+  baseUrl:         import.meta.env.VITE_ERP_URL,
+  company:         import.meta.env.VITE_ERP_COMPANY,
+  supabaseUrl:     import.meta.env.VITE_SUPABASE_URL,
+  supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
 })
 ```
 
@@ -1830,19 +1825,13 @@ If you upload your built dist to Atlas Website (`source_type=dist`), Atlas autom
 // src/sdk.js
 import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
 
-const cfg = window.ATLAS_CONFIG ?? {}
+const cfg = (typeof window !== 'undefined' && window.ATLAS_CONFIG) ? window.ATLAS_CONFIG : {}
 
 export const sdk = createStorefrontClient({
-  baseUrl: cfg.apiUrl ?? import.meta.env.VITE_ERP_URL ?? '',
-  company: cfg.company ?? import.meta.env.VITE_ERP_COMPANY ?? '',
-  onSessionChange: (session) => {
-    if (session) {
-      localStorage.setItem('sf_session', JSON.stringify(session))
-    } else {
-      localStorage.removeItem('sf_session')
-    }
-  },
-  initialSession: JSON.parse(localStorage.getItem('sf_session') ?? 'null'),
+  baseUrl:         cfg.apiUrl         ?? import.meta.env.VITE_ERP_URL         ?? '',
+  company:         cfg.company         ?? import.meta.env.VITE_ERP_COMPANY     ?? '',
+  supabaseUrl:     cfg.supabaseUrl     ?? import.meta.env.VITE_SUPABASE_URL    ?? '',
+  supabaseAnonKey: cfg.supabaseAnonKey ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
 })
 ```
 
@@ -1935,16 +1924,10 @@ import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
 const cfg = (typeof window !== 'undefined' && window.ATLAS_CONFIG) ? window.ATLAS_CONFIG : {}
 
 export const sdk = createStorefrontClient({
-  baseUrl: cfg.apiUrl ?? import.meta.env.VITE_ERP_URL ?? '',
-  company: cfg.company ?? import.meta.env.VITE_ERP_COMPANY ?? '',
-  onSessionChange: (session) => {
-    if (session) {
-      localStorage.setItem('sf_session', JSON.stringify(session))
-    } else {
-      localStorage.removeItem('sf_session')
-    }
-  },
-  initialSession: JSON.parse(localStorage.getItem('sf_session') ?? 'null'),
+  baseUrl:         cfg.apiUrl         ?? import.meta.env.VITE_ERP_URL         ?? '',
+  company:         cfg.company         ?? import.meta.env.VITE_ERP_COMPANY     ?? '',
+  supabaseUrl:     cfg.supabaseUrl     ?? import.meta.env.VITE_SUPABASE_URL    ?? '',
+  supabaseAnonKey: cfg.supabaseAnonKey ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
 })
 ```
 
@@ -1971,7 +1954,16 @@ if (erpSession) {
 }
 ```
 
-Note: `window.AtlasERP` is for **ERP users** (admins, employees). `sdk.auth` is for **storefront users** (customers, vendors). They use separate auth systems and sessions do not overlap.
+`window.AtlasERP` (the beacon IIFE) and `sdk.auth` (the npm package) **share the same Supabase session**. Both read from and write to `sb-<project>-auth-token` in localStorage. An ERP user (admin, employee) who logs in on the storefront site is automatically recognized by the beacon and can navigate to Atlas ERP without logging in again. A storefront user (client, vendor) who navigates to Atlas ERP sees the login screen (they have no ERP permissions). Role determines access, not which auth system was used.
+
+**Redirect ERP users after login:**
+```js
+const { user } = await sdk.auth.login({ email, password })
+const isStorefrontRole = ['storefront_client', 'storefront_vendor'].includes(user?.role)
+if (!isStorefrontRole && user) {
+  window.location.href = window.ATLAS_CONFIG?.apiUrl ?? '/'
+}
+```
 
 ### Build tips
 
