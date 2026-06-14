@@ -1,0 +1,87 @@
+import assert from "node:assert/strict";
+import { describe, it, mock } from "node:test";
+
+import { createGrowthDomain } from "../domains/growth.js";
+import { createAtlasClient } from "../index.js";
+
+function makeFetch() {
+  return mock.fn(async (url) => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ url }),
+    text: async () => "",
+  }));
+}
+
+describe("atlas SDK - growth domain", () => {
+  it("exports all lead inbox methods", () => {
+    const domain = createGrowthDomain({
+      request: async () => ({}),
+      withAuthHeaders: () => ({}),
+      toQueryString: () => "",
+    });
+    assert.deepEqual(Object.keys(domain).sort(), [
+      "addLeadNote",
+      "convertLead",
+      "createLead",
+      "getLead",
+      "getLeadSummary",
+      "listLeads",
+      "setLeadEnabled",
+      "updateLead",
+    ]);
+  });
+
+  it("sends the expected request shape for every method", async () => {
+    const fetchMock = makeFetch();
+    globalThis.fetch = fetchMock;
+    const client = createAtlasClient({ baseUrl: "http://api" });
+    const token = "tok";
+
+    await client.growth.getLeadSummary(token, { from: "2026-06-01" });
+    await client.growth.listLeads(token, { status: "new", page: 2 });
+    await client.growth.getLead("lead/1", token);
+    await client.growth.createLead({ name: "Ana" }, token);
+    await client.growth.updateLead("lead/1", { priority: "high" }, token);
+    await client.growth.addLeadNote(
+      "lead/1",
+      { note: "Llamar", updatedAt: "2026-06-14T21:30:00.000Z" },
+      token,
+    );
+    await client.growth.convertLead(
+      "lead/1",
+      { mode: "existing", contactId: "contact-1" },
+      token,
+    );
+    await client.growth.setLeadEnabled(
+      "lead/1",
+      { enabled: false, updatedAt: "2026-06-14T21:30:00.000Z" },
+      token,
+    );
+
+    const calls = fetchMock.mock.calls.map((call) => call.arguments);
+    assert.equal(
+      calls[0][0],
+      "http://api/growth/leads/summary?from=2026-06-01",
+    );
+    assert.equal(
+      calls[1][0],
+      "http://api/growth/leads?status=new&page=2",
+    );
+    assert.equal(calls[2][0], "http://api/growth/leads/lead%2F1");
+    assert.equal(calls[3][1].method, "POST");
+    assert.deepEqual(JSON.parse(calls[3][1].body), { name: "Ana" });
+    assert.equal(calls[4][1].method, "PATCH");
+    assert.equal(calls[5][0], "http://api/growth/leads/lead%2F1/notes");
+    assert.equal(calls[5][1].method, "POST");
+    assert.equal(calls[6][0], "http://api/growth/leads/lead%2F1/convert");
+    assert.equal(calls[6][1].method, "POST");
+    assert.equal(calls[7][0], "http://api/growth/leads/lead%2F1/enabled");
+    assert.equal(calls[7][1].method, "PATCH");
+    for (const [, options] of calls) {
+      assert.equal(options.headers.Authorization, "Bearer tok");
+    }
+
+    fetchMock.mock.restore();
+  });
+});

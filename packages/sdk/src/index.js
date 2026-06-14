@@ -1,4 +1,5 @@
 import { createWebsiteDomain } from "./domains/website.js";
+import { createGrowthDomain } from "./domains/growth.js";
 
 export function createAtlasClient({ baseUrl }) {
   let _offlineTransport = null;
@@ -1033,6 +1034,7 @@ export function createAtlasClient({ baseUrl }) {
       },
     },
     website: createWebsiteDomain({ request, withAuthHeaders }),
+    growth: createGrowthDomain({ request, withAuthHeaders, toQueryString }),
     calendar: {
       getGoogleStatus: (token) =>
         request("/calendar/google/status", {
