@@ -114,7 +114,145 @@ window.AtlasERP.renderLogin('#login-container', {
 
 ---
 
-## Usage patterns
+## npm SDK auth patterns
+
+Use `@raulbellosom/atlas-sdk` for full storefront frontends (React, Vite, Astro, etc.).
+
+### Instantiate the client
+
+Always read config from `window.ATLAS_CONFIG` at runtime; fall back to env vars for local dev. Both are provided automatically when the site is served by Atlas Website.
+
+```js
+import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
+
+const cfg = (typeof window !== 'undefined' && window.ATLAS_CONFIG) ?? {}
+
+export const sdk = createStorefrontClient({
+  baseUrl:         cfg.apiUrl         ?? import.meta.env.VITE_ERP_URL,
+  company:         cfg.company         ?? import.meta.env.VITE_ERP_COMPANY,
+  supabaseUrl:     cfg.supabaseUrl     ?? import.meta.env.VITE_SUPABASE_URL,
+  supabaseAnonKey: cfg.supabaseAnonKey ?? import.meta.env.VITE_SUPABASE_ANON_KEY,
+})
+```
+
+Create the client once (module-level singleton). Never recreate it on every render.
+
+### Login
+
+```js
+import { StorefrontError } from '@raulbellosom/atlas-sdk'
+
+async function handleLogin(email, password) {
+  try {
+    const { user } = await sdk.auth.login({ email, password })
+
+    // ERP users (admin, employee) have platform.erp.access — redirect them out
+    if (user.hasErpAccess) {
+      window.location.href = window.ATLAS_CONFIG?.apiUrl ?? '/'
+      return
+    }
+
+    // Storefront users continue into the storefront app
+    navigateTo('/dashboard')
+  } catch (err) {
+    if (err instanceof StorefrontError && err.code === 'UNAUTHORIZED') {
+      showError('Correo o contraseña incorrectos')
+    } else {
+      showError('Error al iniciar sesion')
+    }
+  }
+}
+```
+
+`user.hasErpAccess` is `true` when the role has the `platform.erp.access` permission. Never check `user.role` against a hardcoded list — role keys can change.
+
+### Get current user on page load
+
+The session is restored automatically from Supabase's localStorage key on SDK init. Call `getSession()` synchronously right away; it returns the cached session without a network call.
+
+```js
+// Sync — no await needed, returns current in-memory session
+const session = sdk.auth.getSession()
+if (session) {
+  renderApp(session.user)
+} else {
+  renderLoginPage()
+}
+```
+
+For a fresh profile fetch (e.g., after a role change), call `me()`:
+
+```js
+// Async — makes a GET /me request to verify the session server-side
+const profile = await sdk.auth.me()
+renderApp(profile)
+```
+
+### React: subscribe to auth state changes
+
+```jsx
+import { useEffect, useState } from 'react'
+
+function useStorefrontSession() {
+  const [session, setSession] = useState(() => sdk.auth.getSession())
+
+  useEffect(() => {
+    const unsub = sdk.auth.onAuthStateChange((next) => setSession(next))
+    return unsub
+  }, [])
+
+  return session
+}
+```
+
+`onAuthStateChange` fires on login, logout, token refresh, and cross-tab session changes.
+
+### Registration
+
+```js
+async function handleRegister({ email, password, name, role = 'storefront_client' }) {
+  try {
+    await sdk.auth.register({ email, password, name, role })
+    // registration does NOT start a session — log in separately
+    const { user } = await sdk.auth.login({ email, password })
+    navigateTo('/dashboard')
+  } catch (err) {
+    if (err instanceof StorefrontError) {
+      if (err.code === 'VALIDATION_ERROR') showError('Datos invalidos')
+      else if (err.status === 409) showError('Este correo ya esta registrado')
+      else showError(err.message)
+    }
+  }
+}
+```
+
+### Logout
+
+```js
+await sdk.auth.logout()
+// Supabase fires SIGNED_OUT automatically — the SDK clears its session
+// and calls onAuthStateChange(null). No manual localStorage cleanup needed.
+navigateTo('/login')
+```
+
+### Protected route guard
+
+```js
+function requireAuth() {
+  const session = sdk.auth.getSession()
+  if (!session) {
+    window.location.replace('/login')
+    return null
+  }
+  return session
+}
+```
+
+---
+
+## `window.AtlasERP` usage patterns (IIFE beacon)
+
+The IIFE `atlas-sdk.js` beacon is injected automatically on Atlas Website pages. Use it when you only need session detection or the built-in login widget — not for building full storefront apps.
 
 ### Plain HTML
 ```html

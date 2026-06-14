@@ -241,6 +241,7 @@ The function throws a plain `Error` (not a `StorefrontError`) synchronously if `
 | `phone` | `string \| null` | Phone number (null until set by the user) |
 | `bio` | `string \| null` | Short bio (null until set by the user) |
 | `role` | `string` | Assigned storefront role |
+| `hasErpAccess` | `boolean` | `true` if the user's role has the `platform.erp.access` permission (typically `false` for storefront roles) |
 
 **Example:**
 
@@ -330,13 +331,28 @@ try {
 
 **Parameters:** None
 
-**Returns:** `Promise<{ id, displayName, firstName, lastName, email, phone, bio, role }>`
+**Returns:** `Promise<{ id, displayName, firstName, lastName, email, phone, bio, role, hasErpAccess }>`
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | UUID v7 of the user record |
+| `displayName` | `string` | Full display name |
+| `firstName` | `string` | First name |
+| `lastName` | `string` | Last name |
+| `email` | `string` | Email address |
+| `phone` | `string \| null` | Phone number |
+| `bio` | `string \| null` | Short bio |
+| `role` | `string` | Assigned role key |
+| `hasErpAccess` | `boolean` | `true` if the user's role has the `platform.erp.access` permission |
 
 **Example:**
 
 ```js
 const profile = await sdk.auth.me()
 console.log('Perfil:', profile.email, profile.role)
+if (profile.hasErpAccess) {
+  window.location.href = window.ATLAS_CONFIG?.apiUrl ?? '/'
+}
 ```
 
 **Errors thrown:**
@@ -383,8 +399,7 @@ try {
 ```js
 await sdk.auth.logout()
 // Session is now null. onSessionChange was called with null.
-// Remove from localStorage if you were persisting it:
-localStorage.removeItem('sf_session')
+// Supabase clears its localStorage key automatically via the SIGNED_OUT event.
 ```
 
 **Errors thrown:**
