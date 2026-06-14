@@ -18,7 +18,7 @@ import {
   normalizeManifestDependencies,
 } from './module-dependency-utils.js'
 
-const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company', 'atlas.contacts', 'atlas.hr', 'atlas.fleet', 'atlas.ledger', 'atlas.calendar', 'atlas.catalog', 'atlas.website', 'atlas.activity', 'atlas.notifications', 'atlas.projects'])
+const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company', 'atlas.contacts', 'atlas.hr', 'atlas.fleet', 'atlas.ledger', 'atlas.calendar', 'atlas.catalog', 'atlas.website', 'atlas.growth', 'atlas.activity', 'atlas.notifications', 'atlas.projects'])
 const FAILED_INSTALL_CLEAR_MODES = new Set(['metadata-only', 'preserve-data', 'purge-empty-tables'])
 const UNINSTALL_MODES = new Set(['preserve-data', 'purge-data', 'purge-owned-tables'])
 const TABLE_NAME_PATTERN = /^[a-z][a-z0-9_]*$/
@@ -1514,4 +1514,3 @@ export function createModuleLifecycleService({ prisma }) {
     runModuleTeardown,
   }
 }
-

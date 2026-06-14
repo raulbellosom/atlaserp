@@ -365,6 +365,97 @@ export const atlasWebsiteManifest = createModuleManifest({
   ],
 });
 
+export const atlasGrowthManifest = createModuleManifest({
+  key: "atlas.growth",
+  name: "Growth",
+  description: "Telemetria web, formularios y seguimiento de leads.",
+  version: "0.1.0",
+  kind: MODULE_KINDS.CORE,
+  core: true,
+  uninstallable: false,
+  icon: "TrendingUp",
+  color: "#7C3AED",
+  pwa: { shortName: "Growth", startPath: "/" },
+  category: "comercial",
+  summary: "Analitica de storefront y captura de oportunidades.",
+  dependencies: [
+    { key: "atlas.core" },
+    { key: "atlas.website" },
+    { key: "atlas.contacts" },
+  ],
+  lifecycle: {
+    installable: true,
+    uninstallable: false,
+    resettable: false,
+    supportsDataPurge: true,
+    defaultUninstallPolicy: "purge-owned-tables",
+    ownedEntities: [
+      "GrowthVisitor",
+      "GrowthSession",
+      "GrowthEvent",
+      "GrowthLead",
+      "GrowthLeadActivity",
+      "GrowthDailyMetric",
+    ],
+    ownedTables: [
+      "growth_visitor",
+      "growth_session",
+      "growth_event",
+      "growth_lead",
+      "growth_lead_activity",
+      "growth_daily_metric",
+    ],
+    sharedEntities: [
+      "Company",
+      "UserProfile",
+      "Contact",
+      "WebsiteSite",
+      "WebsiteForm",
+      "WebsiteFormSubmission",
+    ],
+  },
+  navigation: [],
+  permissions: [
+    { key: "growth.access", name: "Acceder a Growth" },
+    { key: "growth.leads.read", name: "Ver leads" },
+    { key: "growth.leads.create", name: "Crear leads" },
+    { key: "growth.leads.update", name: "Editar leads" },
+    { key: "growth.leads.delete", name: "Desactivar leads" },
+    { key: "growth.leads.assign", name: "Asignar leads" },
+    { key: "growth.leads.convert", name: "Convertir leads" },
+    { key: "growth.analytics.read", name: "Ver analitica web" },
+    { key: "growth.analytics.export", name: "Exportar analitica web" },
+  ],
+  acl: {
+    module: "growth.access",
+    actions: {
+      "growth.leads.read": "growth.leads.read",
+      "growth.leads.create": "growth.leads.create",
+      "growth.leads.update": "growth.leads.update",
+      "growth.leads.delete": "growth.leads.delete",
+      "growth.leads.assign": "growth.leads.assign",
+      "growth.leads.convert": "growth.leads.convert",
+      "growth.analytics.read": "growth.analytics.read",
+      "growth.analytics.export": "growth.analytics.export",
+    },
+    models: {
+      GrowthLead: {
+        read: "growth.leads.read",
+        create: "growth.leads.create",
+        update: "growth.leads.update",
+        delete: "growth.leads.delete",
+      },
+      GrowthEvent: {
+        read: "growth.analytics.read",
+        create: "growth.analytics.read",
+        update: "growth.analytics.read",
+        delete: "growth.analytics.export",
+      },
+    },
+  },
+  blueprints: [],
+});
+
 export const featureModules = [];
 
 export const activityMap = createModuleManifest({
