@@ -103,6 +103,10 @@ function createPrisma() {
         where.companyId === COMPANY_ID && where.id === SITE_ID
           ? { id: SITE_ID }
           : null,
+      findMany: async ({ where }) =>
+        where.companyId === COMPANY_ID
+          ? [{ id: SITE_ID, name: "Sitio principal", domain: "example.com" }]
+          : [],
     },
     instanceConfig: {
       findUnique: async () => ({ value: "2026-06-13" }),
@@ -122,6 +126,15 @@ function createPrisma() {
 }
 
 describe("createGrowthAnalyticsService", () => {
+  it("lists only enabled sites from the active company", async () => {
+    const service = createGrowthAnalyticsService({ prisma: createPrisma() });
+    const result = await service.listSites({ companyId: COMPANY_ID });
+
+    assert.deepEqual(result, [
+      { id: SITE_ID, name: "Sitio principal", domain: "example.com" },
+    ]);
+  });
+
   it("returns overview totals with preceding-period comparison", async () => {
     const service = createGrowthAnalyticsService({
       prisma: createPrisma(),

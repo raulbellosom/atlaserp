@@ -34,6 +34,7 @@ describe("atlas SDK - growth domain", () => {
       "getAnalyticsRetention",
       "getLead",
       "getLeadSummary",
+      "listAnalyticsSites",
       "listLeadAssignees",
       "listLeads",
       "setLeadEnabled",
@@ -68,6 +69,7 @@ describe("atlas SDK - growth domain", () => {
       { enabled: false, updatedAt: "2026-06-14T21:30:00.000Z" },
       token,
     );
+    await client.growth.listAnalyticsSites(token);
     const analyticsQuery = {
       from: "2026-06-01",
       to: "2026-06-14",
@@ -105,26 +107,30 @@ describe("atlas SDK - growth domain", () => {
     assert.equal(calls[8][1].method, "PATCH");
     assert.equal(
       calls[9][0],
-      "http://api/growth/analytics/overview?from=2026-06-01&to=2026-06-14&compare=true",
+      "http://api/growth/analytics/sites",
     );
     assert.equal(
       calls[10][0],
-      "http://api/growth/analytics/acquisition?from=2026-06-01&to=2026-06-14&compare=true",
+      "http://api/growth/analytics/overview?from=2026-06-01&to=2026-06-14&compare=true",
     );
     assert.equal(
       calls[11][0],
-      "http://api/growth/analytics/content?from=2026-06-01&to=2026-06-14&compare=true",
+      "http://api/growth/analytics/acquisition?from=2026-06-01&to=2026-06-14&compare=true",
     );
     assert.equal(
       calls[12][0],
-      "http://api/growth/analytics/conversions?from=2026-06-01&to=2026-06-14&compare=true",
+      "http://api/growth/analytics/content?from=2026-06-01&to=2026-06-14&compare=true",
     );
     assert.equal(
       calls[13][0],
-      "http://api/growth/analytics/retention?from=2026-06-01&to=2026-06-14&compare=true",
+      "http://api/growth/analytics/conversions?from=2026-06-01&to=2026-06-14&compare=true",
     );
     assert.equal(
       calls[14][0],
+      "http://api/growth/analytics/retention?from=2026-06-01&to=2026-06-14&compare=true",
+    );
+    assert.equal(
+      calls[15][0],
       "http://api/growth/analytics/export.csv?from=2026-06-01&to=2026-06-14&compare=true&report=overview",
     );
     for (const [, options] of calls) {

@@ -30,6 +30,8 @@ function createService() {
   };
   return {
     calls,
+    listSites: async (input) =>
+      (calls.push(["sites", input]), [{ id: "site-1", name: "Principal" }]),
     getOverview: async (input) => (calls.push(["overview", input]), result),
     getAcquisition: async (input) =>
       (calls.push(["acquisition", input]), result),
@@ -56,6 +58,7 @@ describe("Growth analytics routes", () => {
     });
 
     for (const report of [
+      "sites",
       "overview",
       "acquisition",
       "content",
@@ -64,14 +67,12 @@ describe("Growth analytics routes", () => {
     ]) {
       const denied = await request(app, `/growth/analytics/${report}`);
       assert.equal(denied.status, 403);
-      const allowed = await request(
-        app,
-        `/growth/analytics/${report}?from=2026-06-01&to=2026-06-14`,
-        ["growth.analytics.read"],
-      );
+      const allowed = await request(app, `/growth/analytics/${report}${
+        report === "sites" ? "" : "?from=2026-06-01&to=2026-06-14"
+      }`, ["growth.analytics.read"]);
       assert.equal(allowed.status, 200);
     }
-    assert.equal(service.calls.length, 5);
+    assert.equal(service.calls.length, 6);
   });
 
   it("exports BOM CSV and records filter-only audit metadata", async () => {

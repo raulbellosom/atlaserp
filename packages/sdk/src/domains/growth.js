@@ -11,6 +11,11 @@ export function createGrowthDomain({
     });
 
   return {
+    listAnalyticsSites: (token) =>
+      request("/growth/analytics/sites", {
+        headers: withAuthHeaders(token),
+      }),
+
     getAnalyticsOverview: (token, query = {}) =>
       analyticsReport("overview", token, query),
 

@@ -188,7 +188,7 @@ const SCREEN_MAP = {
     () => import("../modules/atlas.website/screens/WebsitePaymentsScreen.jsx"),
   ),
   "atlas.growth:/": lazy(
-    () => import("../modules/atlas.growth/screens/GrowthLeadsScreen.jsx"),
+    () => import("../modules/atlas.growth/screens/GrowthAnalyticsScreen.jsx"),
   ),
   "atlas.growth:/leads": lazy(
     () => import("../modules/atlas.growth/screens/GrowthLeadsScreen.jsx"),
@@ -423,7 +423,10 @@ function resolveScreen(moduleKey, subPath) {
     return SCREEN_MAP[`atlas.website:${subPath}`] ?? null;
   }
   if (moduleKey === "atlas.growth") {
-    if (subPath === "/" || subPath === "/leads") {
+    if (subPath === "/") {
+      return SCREEN_MAP["atlas.growth:/"] ?? null;
+    }
+    if (subPath === "/leads") {
       return SCREEN_MAP["atlas.growth:/leads"] ?? null;
     }
     if (/^\/leads\/[^/]+$/.test(subPath)) {
@@ -523,6 +526,7 @@ export function ModuleOutlet() {
             : "Hubo un problema consultando los módulos en runtime."}
         </p>
         <button
+          type="button"
           onClick={() => window.location.reload()}
           className="text-sm hover:underline cursor-pointer"
           style={{ color: "var(--brand-primary)" }}
@@ -544,6 +548,7 @@ export function ModuleOutlet() {
             No tienes permisos para acceder a este módulo.
           </p>
           <button
+            type="button"
             onClick={() => navigate("/app/home")}
             className="text-sm hover:underline cursor-pointer"
             style={{ color: "var(--brand-primary)" }}
@@ -566,6 +571,7 @@ export function ModuleOutlet() {
           no existe o no está registrado.
         </p>
         <button
+          type="button"
           onClick={() => navigate("/app/home")}
           className="text-sm hover:underline cursor-pointer"
           style={{ color: "var(--brand-primary)" }}
@@ -589,6 +595,7 @@ export function ModuleOutlet() {
           No tienes permisos para abrir esta sección.
         </p>
         <button
+          type="button"
           onClick={() => navigate("/app/home")}
           className="text-sm hover:underline cursor-pointer"
           style={{ color: "var(--brand-primary)" }}

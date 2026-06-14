@@ -173,6 +173,14 @@ export function createGrowthAnalyticsService({
   prisma,
   now = () => new Date(),
 }) {
+  async function listSites({ companyId }) {
+    return prisma.websiteSite.findMany({
+      where: { companyId, enabled: true },
+      select: { id: true, name: true, domain: true },
+      orderBy: [{ name: "asc" }, { createdAt: "asc" }],
+    });
+  }
+
   async function assertSite({ companyId, siteId }) {
     if (!siteId) return;
     const site = await prisma.websiteSite.findFirst({
@@ -472,6 +480,7 @@ export function createGrowthAnalyticsService({
   }
 
   return {
+    listSites,
     getOverview,
     getAcquisition,
     getContent,

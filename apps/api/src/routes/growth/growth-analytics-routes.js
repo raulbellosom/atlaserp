@@ -43,6 +43,19 @@ export function createGrowthAnalyticsRoutes({
 }) {
   const app = new Hono();
 
+  app.get(
+    "/growth/analytics/sites",
+    requirePermission("growth.analytics.read"),
+    async (c) => {
+      try {
+        const data = await service.listSites({ companyId: companyId(c) });
+        return c.json({ data });
+      } catch (error) {
+        return handleError(c, error);
+      }
+    },
+  );
+
   for (const [report, method] of Object.entries(REPORT_METHODS)) {
     app.get(
       `/growth/analytics/${report}`,
