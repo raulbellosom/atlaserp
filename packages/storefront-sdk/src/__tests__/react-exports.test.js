@@ -53,4 +53,10 @@ describe('@raulbellosom/atlas-sdk/react exports', () => {
   it('exports useRequest', () => {
     assert.equal(typeof reactExports.useRequest, 'function')
   })
+
+  it('exports analytics and public form hooks', () => {
+    assert.equal(typeof reactExports.useAnalytics, 'function')
+    assert.equal(typeof reactExports.usePageView, 'function')
+    assert.equal(typeof reactExports.usePublicForm, 'function')
+  })
 })

@@ -58,6 +58,7 @@ const CORE_KEYS = new Set([
   "atlas.calendar",
   "atlas.catalog",
   "atlas.website",
+  "atlas.growth",
   "atlas.activity",
   "atlas.notifications",
   "atlas.projects",

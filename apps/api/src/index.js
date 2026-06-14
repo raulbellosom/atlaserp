@@ -3118,6 +3118,10 @@ app.get("/public", (c) => {
       // Storefront config & realtime
       { method: "GET",  path: "/public/storefront/config",              auth: "none",       description: "Public instance configuration (company name, branding, features)" },
       { method: "GET",  path: "/public/storefront/realtime-config",     auth: "none",       description: "Supabase realtime connection credentials for live updates" },
+      { method: "GET",  path: "/public/storefront/v1/config",           auth: "none",       description: "Storefront capture policy and capabilities" },
+      { method: "POST", path: "/public/storefront/v1/events/batch",     auth: "optional",   description: "Submit a bounded analytics event batch" },
+      { method: "GET",  path: "/public/storefront/v1/forms/:formId",    auth: "none",       description: "Get an enabled public form definition" },
+      { method: "POST", path: "/public/storefront/v1/forms/:formId/submissions", auth: "optional", description: "Submit a public form with idempotency" },
       // Storefront files
       { method: "POST", path: "/public/storefront/files/upload",        auth: "storefront", description: "Upload a file as an authenticated storefront user" },
       { method: "GET",  path: "/public/storefront/files/:id/url",       auth: "none",       description: "Get a signed download URL for a public file" },

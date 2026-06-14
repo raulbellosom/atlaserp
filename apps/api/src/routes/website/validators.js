@@ -29,6 +29,9 @@ export const createSiteSchema = z.object({
   domain:        z.string().optional(),
   defaultLocale: z.string().default('es'),
   siteType:      z.enum(['website', 'ecommerce', 'blog', 'landing']).default('website'),
+  analyticsMode: z.enum(['off', 'anonymous', 'consent_required']).default('off'),
+  turnstileSiteKey: z.string().max(500).optional().nullable(),
+  turnstileSecretKey: z.string().max(500).optional().nullable(),
 })
 
 export const updateSiteSchema = z.object({
@@ -43,6 +46,9 @@ export const updateSiteSchema = z.object({
   stripePublishableKey:  z.string().optional().nullable(),
   stripeSecretKey:       z.string().optional().nullable(),
   stripeSuccessMessage:  z.string().optional().nullable(),
+  analyticsMode:         z.enum(['off', 'anonymous', 'consent_required']).optional(),
+  turnstileSiteKey:      z.string().max(500).optional().nullable(),
+  turnstileSecretKey:    z.string().max(500).optional().nullable(),
 })
 
 export const createMenuSchema = z.object({
@@ -137,6 +143,10 @@ export const createFormSchema = z.object({
   submitLabel:    z.string().optional(),
   successMessage: z.string().optional(),
   notifyEmail:    z.string().email().optional().nullable(),
+  createsLead:    z.boolean().default(true),
+  defaultAssigneeUserId: z.string().uuid().optional().nullable(),
+  honeypotEnabled: z.boolean().default(true),
+  turnstileRequired: z.boolean().default(false),
 })
 
 export const updateFormSchema = z.object({
@@ -145,12 +155,17 @@ export const updateFormSchema = z.object({
   submitLabel:    z.string().optional(),
   successMessage: z.string().optional(),
   notifyEmail:    z.string().email().optional().nullable(),
+  createsLead:    z.boolean().optional(),
+  defaultAssigneeUserId: z.string().uuid().optional().nullable(),
+  honeypotEnabled: z.boolean().optional(),
+  turnstileRequired: z.boolean().optional(),
 })
 
 export const createFormFieldSchema = z.object({
   label:       z.string().min(1).max(255),
   name:        z.string().min(1).max(100).regex(/^[a-z_][a-z0-9_]*$/),
   fieldType:   z.enum(['text', 'email', 'phone', 'textarea', 'select', 'checkbox', 'number', 'date']).default('text'),
+  semanticKey: z.enum(['name', 'email', 'phone', 'company', 'message', 'custom']).default('custom'),
   placeholder: z.string().optional(),
   required:    z.boolean().default(false),
   options:     z.array(z.string()).optional().nullable(),
@@ -161,6 +176,7 @@ export const updateFormFieldSchema = z.object({
   label:       z.string().min(1).max(255).optional(),
   name:        z.string().min(1).max(100).regex(/^[a-z_][a-z0-9_]*$/).optional(),
   fieldType:   z.enum(['text', 'email', 'phone', 'textarea', 'select', 'checkbox', 'number', 'date']).optional(),
+  semanticKey: z.enum(['name', 'email', 'phone', 'company', 'message', 'custom']).optional(),
   placeholder: z.string().optional(),
   required:    z.boolean().optional(),
   options:     z.array(z.string()).optional().nullable(),

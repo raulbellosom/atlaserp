@@ -81,7 +81,7 @@ console.log('Reservaciones:', bookings)
 await sdk.auth.logout()
 ```
 
-The returned SDK object is frozen: `{ auth, files, catalog, discovery, realtime, request }`. Each namespace is documented in its own section below.
+The returned SDK object is frozen: `{ auth, files, catalog, discovery, realtime, analytics, forms, request }`. Each namespace is documented in its own section below.
 
 ---
 
@@ -206,6 +206,7 @@ export function ProductList() {
 |---|---|---|---|---|
 | `baseUrl` | `string` | Yes | Full URL of the ERP instance, no trailing slash | `'https://erp.tudominio.mx'` |
 | `company` | `string` | Yes | Company slug assigned by the platform admin. Sent as `X-Atlas-Company` on every request | `'tu-empresa'` |
+| `siteId` | `string` | No | Website site UUID for analytics and forms. In Atlas Website it is inferred from `window.ATLAS_CONFIG.siteId` | `'019...'` |
 | `supabaseUrl` | `string` | Yes | Supabase project URL. Available in `window.ATLAS_CONFIG.supabaseUrl` for Atlas Website dists | `'https://supabase.tudominio.mx'` |
 | `supabaseAnonKey` | `string` | Yes | Supabase anon key. Available in `window.ATLAS_CONFIG.supabaseAnonKey` | `'eyJ...'` |
 | `onSessionChange` | `function(session \| null)` | No | Called on every auth state change. Session is persisted by Supabase automatically — this is optional and mainly useful for debugging or syncing external state | `(s) => console.log('session:', s)` |
@@ -1857,6 +1858,9 @@ Fields available in `window.ATLAS_CONFIG`:
 | `apiUrl` | Full URL of the Atlas ERP server — pass as `baseUrl` |
 | `company` | Company slug — pass as `company` |
 | `siteName` | Display name of the site configured in Atlas |
+| `siteId` | Website site UUID used by analytics and forms |
+| `analyticsMode` | `off`, `anonymous`, or `consent_required` |
+| `turnstileSiteKey` | Public Cloudflare Turnstile site key, when configured |
 | `stripePublishableKey` | Stripe publishable key, if configured on the site |
 | `currency` | Site currency (`'usd'`, `'mxn'`, etc.) |
 | `supabaseUrl` | Supabase URL (advanced — for ERP session detection) |
@@ -1874,6 +1878,81 @@ import { StorefrontProvider } from '@raulbellosom/atlas-sdk/react'
 
 // ... wrap your app with <StorefrontProvider client={sdk}>
 ```
+
+---
+
+## Storefront capture v1 (SDK 0.3.0)
+
+Public endpoints:
+
+- `GET /public/storefront/v1/config`
+- `POST /public/storefront/v1/events/batch`
+- `GET /public/storefront/v1/forms/:formId`
+- `POST /public/storefront/v1/forms/:formId/submissions`
+
+Requests use `X-Atlas-Company` and optional `X-Atlas-Site`. Event batches accept at most 50 events and 64 KB.
+
+### Analytics
+
+```js
+await sdk.analytics.start()
+sdk.analytics.setConsent('granted')
+sdk.analytics.page({ section: 'pricing' })
+sdk.analytics.track('pricing_cta', { placement: 'hero' })
+await sdk.analytics.flush()
+```
+
+Available methods: `start`, `page`, `track`, `setConsent`, `getConsent`, `flush`, and `stop`.
+
+- DNT always disables analytics.
+- `consent_required` stores nothing until consent is granted.
+- Denying consent clears queued events and local analytics identifiers.
+- Sessions rotate after 30 minutes of inactivity.
+- Automatic capture is limited to pageviews, visible time, form lifecycle, and tagged elements.
+- Event properties reject PII, form values, nested objects, and more than 20 scalar keys.
+
+```html
+<button
+  data-atlas-event="pricing_cta"
+  data-atlas-label="Plan profesional"
+  data-atlas-placement="hero"
+>
+  Cotizar
+</button>
+```
+
+### Public forms
+
+```js
+const definition = await sdk.forms.get(formId)
+const result = await sdk.forms.submit(formId, values, {
+  idempotencyKey: crypto.randomUUID(),
+  turnstileToken,
+  honeypot: '',
+})
+```
+
+Submission values are sent only to the form endpoint. Analytics receives form and submission identifiers, never field values.
+
+React exports: `useAnalytics`, `usePageView`, and `usePublicForm`.
+
+Plain HTML can use the automatically loaded IIFE:
+
+```html
+<div id="contact-form"></div>
+<script>
+  window.AtlasERP.analytics.setConsent('granted')
+  window.AtlasERP.renderForm('#contact-form', {
+    formId: '01900000-0000-7000-8000-000000000003',
+    theme: 'auto',
+    onSuccess: function (result) {
+      console.log(result.submissionId)
+    }
+  })
+</script>
+```
+
+The legacy endpoint `POST /public/website/forms/:formId/submit` is deprecated in 0.3.0. Removal is planned for 0.4.0, not before September 30, 2026.
 
 ---
 
@@ -1925,7 +2004,7 @@ Atlas Website supports uploading a compiled frontend (React, Astro, Next.js stat
 
 1. You build your frontend: `vite build`, `next build`, `astro build`, etc.
 2. You ZIP the `dist/` output and upload it in Atlas Website settings.
-3. Atlas serves the HTML through its CDN and **automatically injects `window.ATLAS_CONFIG`** into every HTML response with the runtime values for that instance.
+3. Atlas serves the HTML through its CDN and **automatically injects `window.ATLAS_CONFIG` and `/atlas-sdk.js`** into every HTML response with the runtime values for that instance.
 
 No `.env` file is bundled into the ZIP. The config is injected at serve time, so the same dist ZIP works across multiple Atlas instances or environments.
 

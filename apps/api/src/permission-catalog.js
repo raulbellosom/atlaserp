@@ -10,6 +10,7 @@ const GROUPS = {
   hr: "Recursos Humanos",
   ledger: "Libro de cuentas",
   website: "Sitio web",
+  growth: "Growth",
   audit: "Bitacora",
   activity: "Actividad",
   notifications: "Notificaciones",
@@ -27,6 +28,7 @@ const MODULE_LABELS = {
   hr: "Recursos Humanos",
   ledger: "Libro de cuentas",
   website: "Sitio web",
+  growth: "Growth",
   audit: "Bitacora",
   activity: "Actividad",
   notifications: "Notificaciones",
@@ -62,6 +64,8 @@ const FEATURE_LABELS = {
   categories: "Categorias",
   types: "Tipos de movimiento",
   notifications: "Notificaciones",
+  leads: "Leads",
+  analytics: "Analitica",
 };
 
 const ACTION_LABELS = {
@@ -875,6 +879,61 @@ export const PERMISSION_CATALOG = {
     descriptionEs: "Permite subir y eliminar el dist/ compilado del sitio publico.",
     groupKey: "website",
     order: 13,
+  },
+
+  "growth.access": {
+    displayNameEs: "Acceder a Growth",
+    descriptionEs: "Permite acceder al modulo de Growth.",
+    groupKey: "growth",
+    order: 1,
+  },
+  "growth.leads.read": {
+    displayNameEs: "Ver leads",
+    descriptionEs: "Permite consultar los leads capturados por el sitio web.",
+    groupKey: "growth",
+    order: 10,
+  },
+  "growth.leads.create": {
+    displayNameEs: "Crear leads",
+    descriptionEs: "Permite registrar leads manualmente.",
+    groupKey: "growth",
+    order: 11,
+  },
+  "growth.leads.update": {
+    displayNameEs: "Editar leads",
+    descriptionEs: "Permite actualizar datos y seguimiento de leads.",
+    groupKey: "growth",
+    order: 12,
+  },
+  "growth.leads.delete": {
+    displayNameEs: "Desactivar leads",
+    descriptionEs: "Permite desactivar leads.",
+    groupKey: "growth",
+    order: 13,
+  },
+  "growth.leads.assign": {
+    displayNameEs: "Asignar leads",
+    descriptionEs: "Permite cambiar el responsable de un lead.",
+    groupKey: "growth",
+    order: 14,
+  },
+  "growth.leads.convert": {
+    displayNameEs: "Convertir leads",
+    descriptionEs: "Permite convertir un lead en contacto.",
+    groupKey: "growth",
+    order: 15,
+  },
+  "growth.analytics.read": {
+    displayNameEs: "Ver analitica web",
+    descriptionEs: "Permite consultar metricas del storefront.",
+    groupKey: "growth",
+    order: 20,
+  },
+  "growth.analytics.export": {
+    displayNameEs: "Exportar analitica web",
+    descriptionEs: "Permite exportar metricas del storefront.",
+    groupKey: "growth",
+    order: 21,
   },
 
   "projects.access": {

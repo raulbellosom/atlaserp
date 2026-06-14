@@ -120,17 +120,32 @@ export function injectErpBadge(html, erpPath = '/app/') {
   return html + script
 }
 
-export function injectAtlasConfig(html, { supabaseUrl, supabaseAnonKey, apiUrl, company, siteName, stripePublishableKey, currency }) {
+export function injectAtlasConfig(html, {
+  supabaseUrl,
+  supabaseAnonKey,
+  apiUrl,
+  company,
+  siteName,
+  siteId,
+  analyticsMode,
+  turnstileSiteKey,
+  stripePublishableKey,
+  currency,
+}) {
   if (!supabaseUrl) return html
   const projectRef = new URL(supabaseUrl).hostname.split('.')[0]
   const storageKey = `sb-${projectRef}-auth-token`
   const payload = { supabaseUrl, supabaseAnonKey, apiUrl, storageKey, company: company || '', siteName: siteName || '' }
+  if (siteId) payload.siteId = siteId
+  if (analyticsMode) payload.analyticsMode = analyticsMode
+  if (turnstileSiteKey) payload.turnstileSiteKey = turnstileSiteKey
   if (stripePublishableKey) payload.stripePublishableKey = stripePublishableKey
   if (currency) payload.currency = currency
   const raw  = JSON.stringify(payload)
   const safe = raw.replace(/<\//g, '<\\/')
   const tag  = `<script>window.ATLAS_CONFIG=${safe};<\/script>`
-  return html.replace(/(<head(?:[^>]*)>)/i, `$1\n  ${tag}`)
+  const sdkTag = '<script src="/atlas-sdk.js" defer></script>'
+  return html.replace(/(<head(?:[^>]*)>)/i, `$1\n  ${tag}\n  ${sdkTag}`)
 }
 
 export function injectSeoTags(html, seoDefaults) {
@@ -216,6 +231,7 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
     const rows = await prisma.$queryRaw`
       SELECT ws.id, ws.source_type, ws.seo_defaults, ws.company_id,
              ws.name as site_name, ws.domain,
+             ws.analytics_mode, ws.turnstile_site_key,
              ws.stripe_publishable_key, ws.stripe_currency,
              c.slug as company_slug
       FROM website_site ws
@@ -292,6 +308,9 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
       apiUrl:               erpApiUrl,
       company:              site.company_slug ?? '',
       siteName:             site.site_name    ?? '',
+      siteId:               site.id           ?? '',
+      analyticsMode:        site.analytics_mode ?? 'off',
+      turnstileSiteKey:     site.turnstile_site_key ?? '',
       stripePublishableKey: site.stripe_publishable_key ?? '',
       currency:             site.stripe_currency        ?? '',
     })

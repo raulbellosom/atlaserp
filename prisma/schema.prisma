@@ -690,6 +690,9 @@ model WebsiteSite {
   stripeSecretKey        String?   @map("stripe_secret_key")
   stripeCurrency         String    @default("usd") @map("stripe_currency")
   stripeSuccessMessage   String?   @map("stripe_success_message")
+  analyticsMode          String    @default("off") @map("analytics_mode")
+  turnstileSiteKey       String?   @map("turnstile_site_key")
+  turnstileSecretKey     String?   @map("turnstile_secret_key")
   enabled                Boolean   @default(true)
   createdAt              DateTime  @default(now()) @map("created_at")
   updatedAt              DateTime  @updatedAt @map("updated_at")
@@ -864,6 +867,10 @@ model WebsiteForm {
   submitLabel    String   @default("Enviar") @map("submit_label")
   successMessage String?  @map("success_message")
   notifyEmail    String?  @map("notify_email")
+  createsLead    Boolean  @default(true) @map("creates_lead")
+  defaultAssigneeUserId String? @db.Uuid @map("default_assignee_user_id")
+  honeypotEnabled Boolean @default(true) @map("honeypot_enabled")
+  turnstileRequired Boolean @default(false) @map("turnstile_required")
   enabled        Boolean  @default(true)
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
@@ -882,6 +889,7 @@ model WebsiteFormField {
   label       String
   name        String
   fieldType   String   @default("text") @map("field_type")
+  semanticKey String?  @map("semantic_key")
   placeholder String?
   required    Boolean  @default(false)
   options     Json?
@@ -897,20 +905,173 @@ model WebsiteFormField {
 }
 
 model WebsiteFormSubmission {
-  id          String   @id @default(uuid(7)) @db.Uuid
-  companyId   String   @db.Uuid @map("company_id")
-  formId      String   @db.Uuid @map("form_id")
-  data        Json
-  submitterIp String?  @map("submitter_ip")
-  submittedAt DateTime @default(now()) @map("submitted_at")
+  id             String   @id @default(uuid(7)) @db.Uuid
+  companyId      String   @db.Uuid @map("company_id")
+  formId         String   @db.Uuid @map("form_id")
+  data           Json
+  idempotencyKey String?  @map("idempotency_key")
+  visitorId      String?  @db.Uuid @map("visitor_id")
+  sessionId      String?  @db.Uuid @map("session_id")
+  leadId         String?  @db.Uuid @map("lead_id")
+  submittedAt    DateTime @default(now()) @map("submitted_at")
 
   form WebsiteForm @relation(fields: [formId], references: [id], onDelete: Cascade)
 
+  @@unique([formId, idempotencyKey])
   @@index([formId, submittedAt])
+  @@index([companyId, submittedAt])
+  @@index([leadId])
   @@map("website_form_submission")
 }
 
 // ─── atlas.ledger ─────────────────────────────────────────────────────────────
+
+model GrowthVisitor {
+  id                     String   @id @default(uuid(7)) @db.Uuid
+  companyId              String   @db.Uuid @map("company_id")
+  siteId                 String   @db.Uuid @map("site_id")
+  visitorKeyHash         String   @map("visitor_key_hash")
+  consentState           String   @default("unknown") @map("consent_state")
+  dnt                    Boolean  @default(false)
+  deviceFamily           String?  @map("device_family")
+  authenticatedProfileId String?  @db.Uuid @map("authenticated_profile_id")
+  firstSource            Json?    @map("first_source")
+  lastSource             Json?    @map("last_source")
+  firstSeenAt            DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt             DateTime @default(now()) @map("last_seen_at")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  @@unique([siteId, visitorKeyHash])
+  @@index([companyId, lastSeenAt])
+  @@index([authenticatedProfileId])
+  @@map("growth_visitor")
+}
+
+model GrowthSession {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  companyId       String    @db.Uuid @map("company_id")
+  siteId          String    @db.Uuid @map("site_id")
+  visitorId       String    @db.Uuid @map("visitor_id")
+  sessionKeyHash  String    @map("session_key_hash")
+  startedAt       DateTime  @default(now()) @map("started_at")
+  lastSeenAt      DateTime  @default(now()) @map("last_seen_at")
+  endedAt         DateTime? @map("ended_at")
+  landingPath     String?   @map("landing_path")
+  exitPath        String?   @map("exit_path")
+  referrerHost    String?   @map("referrer_host")
+  utmSource       String?   @map("utm_source")
+  utmMedium       String?   @map("utm_medium")
+  utmCampaign     String?   @map("utm_campaign")
+  visibleSeconds  Int       @default(0) @map("visible_seconds")
+  pageviewCount   Int       @default(0) @map("pageview_count")
+  eventCount      Int       @default(0) @map("event_count")
+  hasConversion   Boolean   @default(false) @map("has_conversion")
+  engaged         Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@unique([siteId, sessionKeyHash])
+  @@index([companyId, siteId, startedAt])
+  @@index([visitorId, lastSeenAt])
+  @@map("growth_session")
+}
+
+model GrowthEvent {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  companyId      String   @db.Uuid @map("company_id")
+  siteId         String   @db.Uuid @map("site_id")
+  visitorId      String?  @db.Uuid @map("visitor_id")
+  sessionId      String?  @db.Uuid @map("session_id")
+  eventName      String   @map("event_name")
+  idempotencyKey String   @map("idempotency_key")
+  clientOccurredAt DateTime @map("client_occurred_at")
+  serverReceivedAt DateTime @default(now()) @map("server_received_at")
+  path           String?
+  referrer       String?
+  properties     Json?
+  sourceType     String?  @map("source_type")
+  formId         String?  @db.Uuid @map("form_id")
+  submissionId   String?  @db.Uuid @map("submission_id")
+  consentState   String   @default("unknown") @map("consent_state")
+
+  @@unique([siteId, idempotencyKey])
+  @@index([companyId, siteId, serverReceivedAt])
+  @@index([sessionId, serverReceivedAt])
+  @@index([eventName, serverReceivedAt])
+  @@index([formId])
+  @@index([submissionId])
+  @@map("growth_event")
+}
+
+model GrowthLead {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  companyId         String    @db.Uuid @map("company_id")
+  siteId            String    @db.Uuid @map("site_id")
+  formId            String?   @db.Uuid @map("form_id")
+  status            String    @default("new")
+  priority          String    @default("normal")
+  name              String?
+  email             String?
+  emailNormalized   String?   @map("email_normalized")
+  phone             String?
+  phoneNormalized   String?   @map("phone_normalized")
+  companyName       String?   @map("company_name")
+  message           String?
+  source            String?
+  attribution       Json?
+  assigneeUserId    String?   @db.Uuid @map("assignee_user_id")
+  contactId         String?   @db.Uuid @map("contact_id")
+  firstSubmissionAt DateTime  @default(now()) @map("first_submission_at")
+  lastSubmissionAt  DateTime  @default(now()) @map("last_submission_at")
+  firstSeenAt       DateTime  @default(now()) @map("first_seen_at")
+  lastSeenAt        DateTime  @default(now()) @map("last_seen_at")
+  qualifiedAt       DateTime? @map("qualified_at")
+  convertedAt       DateTime? @map("converted_at")
+  enabled           Boolean   @default(true)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([companyId, status, enabled, createdAt])
+  @@index([companyId, emailNormalized, status])
+  @@index([companyId, phoneNormalized, status])
+  @@index([assigneeUserId, status])
+  @@map("growth_lead")
+}
+
+model GrowthLeadActivity {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  companyId    String   @db.Uuid @map("company_id")
+  siteId       String   @db.Uuid @map("site_id")
+  leadId       String   @db.Uuid @map("lead_id")
+  activityType String   @map("activity_type")
+  sourceType   String?  @map("source_type")
+  sourceId     String?  @db.Uuid @map("source_id")
+  actorUserId  String?  @db.Uuid @map("actor_user_id")
+  payload      Json?
+  occurredAt   DateTime @default(now()) @map("occurred_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([leadId, occurredAt])
+  @@index([companyId, occurredAt])
+  @@map("growth_lead_activity")
+}
+
+model GrowthDailyMetric {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  companyId      String   @db.Uuid @map("company_id")
+  siteId         String   @db.Uuid @map("site_id")
+  metricDate     DateTime @db.Date @map("metric_date")
+  dimensionType  String   @default("site") @map("dimension_type")
+  dimensionKey   String   @default("") @map("dimension_key")
+  metrics        Json
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([siteId, metricDate, dimensionType, dimensionKey])
+  @@index([companyId, metricDate])
+  @@map("growth_daily_metric")
+}
 
 model LedgerAccount {
   id             String   @id @default(uuid(7)) @db.Uuid

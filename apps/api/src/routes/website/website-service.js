@@ -1,9 +1,44 @@
 import { WebsiteServiceError, notFound, conflict } from './service-helpers.js'
 import { encryptPassword } from '../../services/smtp-service.js'
+import { invalidateCache, invalidatePrimaryCache } from '../../services/dist-serve-service.js'
 
 export { WebsiteServiceError }
 
 export function createWebsiteService({ prisma }) {
+  function publicSite(site) {
+    if (!site) return null
+    const { stripeSecretKey, turnstileSecretKey, ...rest } = site
+    return {
+      ...rest,
+      stripeSecretKeySet: Boolean(stripeSecretKey),
+      turnstileSecretKeySet: Boolean(turnstileSecretKey),
+    }
+  }
+
+  function encryptedSecret(value) {
+    if (value === null || value === '') return null
+    return encryptPassword(value)
+  }
+
+  async function assertFormAssignee({ companyId, userId }) {
+    if (!userId) return
+    const membership = await prisma.membership.findFirst({
+      where: {
+        companyId,
+        userId,
+        enabled: true,
+        user: { enabled: true },
+      },
+      select: { id: true },
+    })
+    if (!membership) {
+      throw new WebsiteServiceError(
+        'El responsable debe ser un usuario activo de la empresa.',
+        422,
+      )
+    }
+  }
+
   async function getSite({ companyId }) {
     const site = await prisma.websiteSite.findFirst({
       where: { companyId, enabled: true },
@@ -11,8 +46,7 @@ export function createWebsiteService({ prisma }) {
     })
     if (!site) return null
     // Never expose the encrypted secret key — return a boolean flag instead
-    const { stripeSecretKey, ...rest } = site
-    return { ...rest, stripeSecretKeySet: Boolean(stripeSecretKey) }
+    return publicSite(site)
   }
 
   async function createSite({ companyId, data, actorId }) {
@@ -23,6 +57,11 @@ export function createWebsiteService({ prisma }) {
         domain:        data.domain ?? null,
         defaultLocale: data.defaultLocale ?? 'es',
         siteType:      data.siteType ?? 'website',
+        analyticsMode: data.analyticsMode ?? 'off',
+        turnstileSiteKey: data.turnstileSiteKey ?? null,
+        turnstileSecretKey: data.turnstileSecretKey
+          ? encryptedSecret(data.turnstileSecretKey)
+          : null,
         status:        'draft',
         enabled:       true,
       },
@@ -35,10 +74,10 @@ export function createWebsiteService({ prisma }) {
         entityId: created.id,
         action: 'site.create',
         before: null,
-        after: JSON.stringify(created),
+        after: JSON.stringify(publicSite(created)),
       },
     })
-    return created
+    return publicSite(created)
   }
 
   async function updateSite({ companyId, siteId, data, actorId }) {
@@ -59,10 +98,15 @@ export function createWebsiteService({ prisma }) {
         ...(data.settings            !== undefined && { settings:             data.settings }),
         ...(data.seoDefaults         !== undefined && { seoDefaults:          data.seoDefaults }),
         ...(data.stripePublishableKey  !== undefined && { stripePublishableKey:  data.stripePublishableKey }),
-        ...(data.stripeSecretKey      !== undefined && { stripeSecretKey:       encryptPassword(data.stripeSecretKey) }),
+        ...(data.stripeSecretKey      !== undefined && { stripeSecretKey:       encryptedSecret(data.stripeSecretKey) }),
         ...(data.stripeSuccessMessage !== undefined && { stripeSuccessMessage:  data.stripeSuccessMessage }),
+        ...(data.analyticsMode        !== undefined && { analyticsMode:         data.analyticsMode }),
+        ...(data.turnstileSiteKey     !== undefined && { turnstileSiteKey:      data.turnstileSiteKey }),
+        ...(data.turnstileSecretKey   !== undefined && { turnstileSecretKey:    encryptedSecret(data.turnstileSecretKey) }),
       },
     })
+    const beforePublic = publicSite(before)
+    const afterPublic = publicSite(after)
     await prisma.auditLog.create({
       data: {
         actorId: actorId ?? null,
@@ -70,11 +114,13 @@ export function createWebsiteService({ prisma }) {
         entityType: 'website.site',
         entityId: siteId,
         action: 'site.update',
-        before: JSON.stringify(before),
-        after: JSON.stringify(after),
+        before: JSON.stringify(beforePublic),
+        after: JSON.stringify(afterPublic),
       },
     })
-    return after
+    invalidateCache(companyId)
+    invalidatePrimaryCache()
+    return afterPublic
   }
 
   async function deleteSite({ companyId, siteId, actorId }) {
@@ -664,6 +710,10 @@ export function createWebsiteService({ prisma }) {
   }
 
   async function createForm({ companyId, siteId, data }) {
+    await assertFormAssignee({
+      companyId,
+      userId: data.defaultAssigneeUserId,
+    })
     return prisma.websiteForm.create({
       data: {
         companyId, siteId,
@@ -672,6 +722,10 @@ export function createWebsiteService({ prisma }) {
         submitLabel:    data.submitLabel ?? 'Enviar',
         successMessage: data.successMessage ?? null,
         notifyEmail:    data.notifyEmail ?? null,
+        createsLead:    data.createsLead ?? true,
+        defaultAssigneeUserId: data.defaultAssigneeUserId ?? null,
+        honeypotEnabled: data.honeypotEnabled ?? true,
+        turnstileRequired: data.turnstileRequired ?? false,
       },
     })
   }
@@ -679,7 +733,32 @@ export function createWebsiteService({ prisma }) {
   async function updateForm({ companyId, formId, data }) {
     const form = await prisma.websiteForm.findFirst({ where: { id: formId, companyId } })
     if (!form) throw notFound('Formulario')
+    await assertFormAssignee({
+      companyId,
+      userId: data.defaultAssigneeUserId,
+    })
     return prisma.websiteForm.update({ where: { id: formId }, data })
+  }
+
+  async function listFormAssignees({ companyId }) {
+    const memberships = await prisma.membership.findMany({
+      where: {
+        companyId,
+        enabled: true,
+        user: { enabled: true },
+      },
+      orderBy: { user: { displayName: 'asc' } },
+      select: {
+        user: {
+          select: {
+            id: true,
+            displayName: true,
+            email: true,
+          },
+        },
+      },
+    })
+    return memberships.map((membership) => membership.user)
   }
 
   async function softDeleteForm({ companyId, formId }) {
@@ -697,6 +776,7 @@ export function createWebsiteService({ prisma }) {
         label:       data.label,
         name:        data.name,
         fieldType:   data.fieldType ?? 'text',
+        semanticKey: data.semanticKey ?? 'custom',
         placeholder: data.placeholder ?? null,
         required:    data.required ?? false,
         options:     data.options ?? null,
@@ -780,6 +860,7 @@ export function createWebsiteService({ prisma }) {
     publishBlogPost,
     softDeleteBlogPost,
     listForms,
+    listFormAssignees,
     getForm,
     createForm,
     updateForm,

@@ -7,6 +7,8 @@ import { createFilesNamespace } from './files.js'
 import { createCatalogNamespace } from './catalog.js'
 import { createDiscoveryNamespace } from './discovery.js'
 import { createRealtimeNamespace } from './realtime.js'
+import { createAnalyticsNamespace } from './analytics.js'
+import { createFormsNamespace } from './forms.js'
 
 export { StorefrontError }
 
@@ -16,8 +18,9 @@ export { StorefrontError }
  * @param {string} options.company        - Company slug (sent as X-Atlas-Company on every request)
  * @param {string} options.supabaseUrl    - Supabase project URL (window.ATLAS_CONFIG.supabaseUrl in production)
  * @param {string} options.supabaseAnonKey - Supabase anon key (window.ATLAS_CONFIG.supabaseAnonKey in production)
+ * @param {string} [options.siteId]       - Website site ID for analytics and public forms
  * @param {function} [options.onSessionChange] - Called with session or null on every auth state change
- * @returns {{ auth, files, catalog, discovery, realtime, request }}
+ * @returns {{ auth, files, catalog, discovery, realtime, analytics, forms, request }}
  *
  * @example
  * const cfg = (typeof window !== 'undefined' && window.ATLAS_CONFIG) ? window.ATLAS_CONFIG : {}
@@ -28,7 +31,14 @@ export { StorefrontError }
  *   supabaseAnonKey: cfg.supabaseAnonKey ?? import.meta.env.VITE_SUPABASE_ANON_KEY,
  * })
  */
-export function createStorefrontClient({ baseUrl, company, supabaseUrl, supabaseAnonKey, onSessionChange }) {
+export function createStorefrontClient({
+  baseUrl,
+  company,
+  siteId,
+  supabaseUrl,
+  supabaseAnonKey,
+  onSessionChange,
+}) {
   if (!baseUrl)         throw new Error('createStorefrontClient: baseUrl es requerido')
   if (!company)         throw new Error('createStorefrontClient: company es requerido')
   if (!supabaseUrl)     throw new Error('createStorefrontClient: supabaseUrl es requerido')
@@ -82,10 +92,34 @@ export function createStorefrontClient({ baseUrl, company, supabaseUrl, supabase
   const catalog   = createCatalogNamespace({ request: _requestWithRefresh })
   const discovery = createDiscoveryNamespace({ request: _requestWithRefresh })
   const realtime  = createRealtimeNamespace({ request: _requestWithRefresh })
+  const resolvedSiteId =
+    siteId ??
+    (typeof window !== 'undefined' ? window.ATLAS_CONFIG?.siteId : null)
+  const analytics = createAnalyticsNamespace({
+    request: _requestWithRefresh,
+    baseUrl,
+    company,
+    siteId: resolvedSiteId,
+  })
+  const forms = createFormsNamespace({
+    request: _requestWithRefresh,
+    siteId: resolvedSiteId,
+    analytics,
+    getAnalyticsContext: () => analytics._getContext(),
+  })
 
   async function request(method, path, body = null, options = {}) {
     return _requestWithRefresh(method, path, body, options)
   }
 
-  return Object.freeze({ auth, files, catalog, discovery, realtime, request })
+  return Object.freeze({
+    auth,
+    files,
+    catalog,
+    discovery,
+    realtime,
+    analytics,
+    forms,
+    request,
+  })
 }
