@@ -41,6 +41,7 @@ import {
 } from "./services/company-service.js";
 import { createHrService, HrServiceError } from "./services/hr-service.js";
 import { createInventoryService, InventoryServiceError } from "./services/inventory-service.js";
+import { createInventoryNotificationService } from "./services/inventory-notification-service.js";
 import { buildEmployeesExcelBuffer } from "./services/hr-export-service.js";
 import { createModulesRouter } from "./routes/modules.js";
 import {
@@ -131,6 +132,7 @@ const notificationDeliveryWorker = createNotificationDeliveryWorker({ prisma });
 const notificationService = createNotificationService({ prisma });
 const distServeService = createDistServeService({ prisma, supabaseAdmin });
 const inventoryService = createInventoryService({ prisma });
+const inventoryNotifSvc = createInventoryNotificationService({ prisma, notificationService });
 
 function toSlug(name) {
   return name
@@ -4679,9 +4681,13 @@ app.post('/inventory/items/:id/comments', authMiddleware, requirePermission('inv
   try {
     const companyId  = c.get('companyId');
     const authUserId = c.get('authUserId');
+    const actorId    = c.get('userId');
     const { id } = c.req.param();
     const { body } = await c.req.json();
-    const comment = await inventoryService.createComment(id, authUserId, body, companyId);
+    const { comment, mentionIds } = await inventoryService.createComment(id, authUserId, body, companyId);
+    if (mentionIds.length > 0) {
+      inventoryNotifSvc.notifyInvComment({ companyId, actorId, itemId: id, mentionedUserIds: mentionIds });
+    }
     return c.json({ data: comment }, 201);
   } catch (err) {
     if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
@@ -4717,10 +4723,15 @@ app.delete('/inventory/items/:id/comments/:cid', authMiddleware, requirePermissi
 
 app.post('/inventory/items/:id/comments/:cid/reactions', authMiddleware, requirePermission('inventory.item.update'), async (c) => {
   try {
+    const companyId  = c.get('companyId');
     const authUserId = c.get('authUserId');
+    const actorId    = c.get('userId');
     const { cid } = c.req.param();
     const { emoji } = await c.req.json();
     const result = await inventoryService.toggleReaction(cid, authUserId, emoji);
+    if (result.action === 'added') {
+      inventoryNotifSvc.notifyInvReaction({ companyId, actorId, commentId: cid });
+    }
     return c.json({ data: result });
   } catch (err) {
     if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
