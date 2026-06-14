@@ -4686,7 +4686,14 @@ app.post('/inventory/items/:id/comments', authMiddleware, requirePermission('inv
     const { body } = await c.req.json();
     const { comment, mentionIds } = await inventoryService.createComment(id, authUserId, body, companyId);
     if (mentionIds.length > 0) {
-      inventoryNotifSvc.notifyInvComment({ companyId, actorId, itemId: id, mentionedUserIds: mentionIds });
+      const members = await prisma.membership.findMany({
+        where: { companyId, userId: { in: mentionIds }, enabled: true },
+        select: { userId: true },
+      });
+      const validatedMentionIds = members.map((m) => m.userId);
+      if (validatedMentionIds.length > 0) {
+        inventoryNotifSvc.notifyInvComment({ companyId, actorId, itemId: id, mentionedUserIds: validatedMentionIds });
+      }
     }
     return c.json({ data: comment }, 201);
   } catch (err) {

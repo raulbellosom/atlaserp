@@ -343,6 +343,9 @@ describe('createComment', () => {
       invItem: {
         findFirst: async () => ({ id: ITEM_ID, companyId: COMPANY_ID, enabled: true }),
       },
+      _root: {
+        userProfile: { findFirst: async () => ({ id: USER_ID }) },
+      },
       _tx: {
         invComment: {
           create: async (args) => ({
@@ -359,8 +362,9 @@ describe('createComment', () => {
     const svc = createInventoryService({ prisma })
     const result = await svc.createComment(ITEM_ID, USER_ID, 'Hello world', COMPANY_ID)
 
-    assert.equal(result.body, 'Hello world')
-    assert.ok(result.author, 'author is included')
+    const { comment } = result
+    assert.equal(comment.body, 'Hello world')
+    assert.ok(comment.author, 'author is included')
   })
 
   it('parses @mentions from body and creates InvMention rows', async () => {
@@ -371,6 +375,9 @@ describe('createComment', () => {
     const prisma = buildPrismaMock({
       invItem: {
         findFirst: async () => ({ id: ITEM_ID, companyId: COMPANY_ID, enabled: true }),
+      },
+      _root: {
+        userProfile: { findFirst: async () => ({ id: USER_ID }) },
       },
       _tx: {
         invComment: {
@@ -401,6 +408,9 @@ describe('createComment', () => {
       invItem: {
         findFirst: async () => ({ id: ITEM_ID, companyId: COMPANY_ID, enabled: true }),
       },
+      _root: {
+        userProfile: { findFirst: async () => ({ id: USER_ID }) },
+      },
       _tx: {
         invComment: {
           create: async (args) => ({
@@ -428,6 +438,9 @@ describe('createComment', () => {
   it('throws 404 when item does not exist', async () => {
     const prisma = buildPrismaMock({
       invItem: { findFirst: async () => null },
+      _root: {
+        userProfile: { findFirst: async () => ({ id: USER_ID }) },
+      },
     })
     const svc = createInventoryService({ prisma })
 
@@ -445,6 +458,9 @@ describe('createComment', () => {
     const prisma = buildPrismaMock({
       invItem: {
         findFirst: async () => ({ id: ITEM_ID, companyId: COMPANY_ID, enabled: true }),
+      },
+      _root: {
+        userProfile: { findFirst: async () => ({ id: USER_ID }) },
       },
     })
     const svc = createInventoryService({ prisma })
