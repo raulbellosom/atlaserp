@@ -106,6 +106,7 @@ describe('injectAtlasConfig', () => {
     const html = '<html><head></head><body></body></html>'
     const result = injectAtlasConfig(html, cfg)
     assert.ok(result.includes('window.ATLAS_CONFIG='))
+    assert.ok(result.includes('<script src="/atlas-sdk.js" defer></script>'))
     assert.ok(result.includes('supabase.racoondevs.com'))
     assert.ok(result.includes('eyJtest'))
   })

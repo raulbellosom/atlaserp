@@ -144,7 +144,8 @@ export function injectAtlasConfig(html, {
   const raw  = JSON.stringify(payload)
   const safe = raw.replace(/<\//g, '<\\/')
   const tag  = `<script>window.ATLAS_CONFIG=${safe};<\/script>`
-  return html.replace(/(<head(?:[^>]*)>)/i, `$1\n  ${tag}`)
+  const sdkTag = '<script src="/atlas-sdk.js" defer></script>'
+  return html.replace(/(<head(?:[^>]*)>)/i, `$1\n  ${tag}\n  ${sdkTag}`)
 }
 
 export function injectSeoTags(html, seoDefaults) {

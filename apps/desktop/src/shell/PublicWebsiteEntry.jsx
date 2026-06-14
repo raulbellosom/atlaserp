@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { useLocation, useNavigate, useSearchParams, Navigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider.jsx'
@@ -759,6 +759,36 @@ export function PublicWebsiteEntry() {
     retry: 0,
   })
   const showErpBeacon = erpCheckQuery.data?.show === true
+
+  useLayoutEffect(() => {
+    const publicSite = resolveData?.site
+    if (!publicSite) return
+    window.ATLAS_CONFIG = {
+      ...(window.ATLAS_CONFIG ?? {}),
+      apiUrl: getApiUrl(),
+      company: publicSite.company ?? '',
+      siteId: publicSite.id ?? '',
+      siteName: publicSite.name ?? '',
+      analyticsMode: publicSite.analyticsMode ?? 'off',
+      turnstileSiteKey: publicSite.turnstileSiteKey ?? '',
+    }
+  }, [resolveData])
+
+  useEffect(() => {
+    const publicSite = resolveData?.site
+    if (!publicSite || publicSite.sourceType !== 'builder') return undefined
+    if (window.AtlasERP?.analytics) {
+      window.AtlasERP.analytics.start().catch(() => {})
+      return undefined
+    }
+    if (document.getElementById('atlas-storefront-sdk')) return undefined
+    const script = document.createElement('script')
+    script.id = 'atlas-storefront-sdk'
+    script.src = `${getApiUrl()}/public/site/atlas-sdk.js`
+    script.defer = true
+    document.head.appendChild(script)
+    return undefined
+  }, [resolveData])
 
   // All pages list (for the bar combobox)
   const pagesQuery = useQuery({

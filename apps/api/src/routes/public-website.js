@@ -35,7 +35,8 @@ export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
       }
 
       const sites = await prisma.$queryRaw`
-        SELECT id, name, domain, status, theme_id, source_type
+        SELECT id, name, domain, status, theme_id, source_type,
+               analytics_mode, turnstile_site_key
         FROM website_site
         WHERE company_id = ${company.id}
           AND enabled = true
@@ -98,7 +99,15 @@ export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
 
       return c.json({
         initialized: true,
-        site: { id: site.id, name: site.name, domain: site.domain, sourceType: site.source_type ?? 'builder' },
+        site: {
+          id: site.id,
+          name: site.name,
+          domain: site.domain,
+          sourceType: site.source_type ?? 'builder',
+          company: company.slug,
+          analyticsMode: site.analytics_mode ?? 'off',
+          turnstileSiteKey: site.turnstile_site_key ?? null,
+        },
         page: page
           ? {
               id:                   page.id,
