@@ -147,6 +147,48 @@ export function createProjectsNotificationService({ prisma, notificationService 
     }
   }
 
+  async function notifyTaskReaction({ companyId, actorId, commentId }) {
+    try {
+      const comment = await prisma.taskComment.findFirst({
+        where: { id: commentId },
+        include: {
+          task: {
+            select: {
+              id: true,
+              title: true,
+              projectId: true,
+              project: { select: { name: true } },
+            },
+          },
+        },
+      })
+      if (!comment) return
+      if (comment.authorId === actorId) return
+      await notifSvc.publish({
+        companyId,
+        actorId: actorId ?? null,
+        input: {
+          eventType: 'projects.task.reaction',
+          title: 'Reaccionaron a tu comentario',
+          body: `"${comment.task?.title ?? 'Tarea'}"${comment.task?.project?.name ? ` en ${comment.task.project.name}` : ''}`,
+          link: `/app/m/atlas.projects?open=task:${comment.task?.id ?? ''}`,
+          recipients: { userIds: [comment.authorId] },
+          channels: ['in_app'],
+          priority: 'low',
+          sourceType: 'TaskComment',
+          sourceId: commentId,
+          metadata: {
+            commentId,
+            taskId: comment.task?.id,
+            projectId: comment.task?.projectId,
+          },
+        },
+      })
+    } catch (err) {
+      console.error('[projects.task.reaction]', err?.message ?? err)
+    }
+  }
+
   async function notifyTaskStatusChanged({ companyId, actorId, taskId, oldStatusId, newStatusId }) {
     if (!oldStatusId || !newStatusId || oldStatusId === newStatusId) return
     try {
@@ -264,6 +306,7 @@ export function createProjectsNotificationService({ prisma, notificationService 
     notifyTaskAssigned,
     notifyTaskUnassigned,
     notifyTaskComment,
+    notifyTaskReaction,
     notifyTaskStatusChanged,
     processTasksDueSoon,
   }
