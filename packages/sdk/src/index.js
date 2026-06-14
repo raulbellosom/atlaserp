@@ -1034,7 +1034,12 @@ export function createAtlasClient({ baseUrl }) {
       },
     },
     website: createWebsiteDomain({ request, withAuthHeaders }),
-    growth: createGrowthDomain({ request, withAuthHeaders, toQueryString }),
+    growth: createGrowthDomain({
+      request,
+      requestBlob,
+      withAuthHeaders,
+      toQueryString,
+    }),
     calendar: {
       getGoogleStatus: (token) =>
         request("/calendar/google/status", {

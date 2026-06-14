@@ -1,7 +1,37 @@
-export function createGrowthDomain({ request, withAuthHeaders, toQueryString }) {
+export function createGrowthDomain({
+  request,
+  requestBlob,
+  withAuthHeaders,
+  toQueryString,
+}) {
   const leadPath = (leadId) => `/growth/leads/${encodeURIComponent(leadId)}`;
+  const analyticsReport = (report, token, query = {}) =>
+    request(`/growth/analytics/${report}${toQueryString(query)}`, {
+      headers: withAuthHeaders(token),
+    });
 
   return {
+    getAnalyticsOverview: (token, query = {}) =>
+      analyticsReport("overview", token, query),
+
+    getAnalyticsAcquisition: (token, query = {}) =>
+      analyticsReport("acquisition", token, query),
+
+    getAnalyticsContent: (token, query = {}) =>
+      analyticsReport("content", token, query),
+
+    getAnalyticsConversions: (token, query = {}) =>
+      analyticsReport("conversions", token, query),
+
+    getAnalyticsRetention: (token, query = {}) =>
+      analyticsReport("retention", token, query),
+
+    exportAnalyticsCsv: (token, query) =>
+      requestBlob(
+        `/growth/analytics/export.csv${toQueryString(query)}`,
+        { headers: withAuthHeaders(token) },
+      ),
+
     getLeadSummary: (token, query = {}) =>
       request(`/growth/leads/summary${toQueryString(query)}`, {
         headers: withAuthHeaders(token),

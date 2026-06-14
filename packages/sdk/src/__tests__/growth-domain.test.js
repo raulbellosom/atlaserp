@@ -10,6 +10,7 @@ function makeFetch() {
     status: 200,
     json: async () => ({ url }),
     text: async () => "",
+    blob: async () => new Blob([url]),
   }));
 }
 
@@ -17,6 +18,7 @@ describe("atlas SDK - growth domain", () => {
   it("exports all lead inbox methods", () => {
     const domain = createGrowthDomain({
       request: async () => ({}),
+      requestBlob: async () => new Blob(),
       withAuthHeaders: () => ({}),
       toQueryString: () => "",
     });
@@ -24,6 +26,12 @@ describe("atlas SDK - growth domain", () => {
       "addLeadNote",
       "convertLead",
       "createLead",
+      "exportAnalyticsCsv",
+      "getAnalyticsAcquisition",
+      "getAnalyticsContent",
+      "getAnalyticsConversions",
+      "getAnalyticsOverview",
+      "getAnalyticsRetention",
       "getLead",
       "getLeadSummary",
       "listLeadAssignees",
@@ -60,6 +68,20 @@ describe("atlas SDK - growth domain", () => {
       { enabled: false, updatedAt: "2026-06-14T21:30:00.000Z" },
       token,
     );
+    const analyticsQuery = {
+      from: "2026-06-01",
+      to: "2026-06-14",
+      compare: true,
+    };
+    await client.growth.getAnalyticsOverview(token, analyticsQuery);
+    await client.growth.getAnalyticsAcquisition(token, analyticsQuery);
+    await client.growth.getAnalyticsContent(token, analyticsQuery);
+    await client.growth.getAnalyticsConversions(token, analyticsQuery);
+    await client.growth.getAnalyticsRetention(token, analyticsQuery);
+    await client.growth.exportAnalyticsCsv(token, {
+      ...analyticsQuery,
+      report: "overview",
+    });
 
     const calls = fetchMock.mock.calls.map((call) => call.arguments);
     assert.equal(
@@ -81,6 +103,30 @@ describe("atlas SDK - growth domain", () => {
     assert.equal(calls[7][1].method, "POST");
     assert.equal(calls[8][0], "http://api/growth/leads/lead%2F1/enabled");
     assert.equal(calls[8][1].method, "PATCH");
+    assert.equal(
+      calls[9][0],
+      "http://api/growth/analytics/overview?from=2026-06-01&to=2026-06-14&compare=true",
+    );
+    assert.equal(
+      calls[10][0],
+      "http://api/growth/analytics/acquisition?from=2026-06-01&to=2026-06-14&compare=true",
+    );
+    assert.equal(
+      calls[11][0],
+      "http://api/growth/analytics/content?from=2026-06-01&to=2026-06-14&compare=true",
+    );
+    assert.equal(
+      calls[12][0],
+      "http://api/growth/analytics/conversions?from=2026-06-01&to=2026-06-14&compare=true",
+    );
+    assert.equal(
+      calls[13][0],
+      "http://api/growth/analytics/retention?from=2026-06-01&to=2026-06-14&compare=true",
+    );
+    assert.equal(
+      calls[14][0],
+      "http://api/growth/analytics/export.csv?from=2026-06-01&to=2026-06-14&compare=true&report=overview",
+    );
     for (const [, options] of calls) {
       assert.equal(options.headers.Authorization, "Bearer tok");
     }
