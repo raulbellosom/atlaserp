@@ -234,6 +234,19 @@ test('returns 404 for disabled or invalid module PWA identities', async () => {
       pwa: { shortName: 'External', startPath: '/' },
     },
   })
+  modules.set('custom.traversal-logo', {
+    key: 'custom.traversal-logo',
+    status: 'INSTALLED',
+    enabled: true,
+    version: '0.1.0',
+    manifest: {
+      name: 'Traversal logo',
+      icon: 'Box',
+      color: '#6366f1',
+      logoUrl: '/module-logos/../secret.svg',
+      pwa: { shortName: 'Traversal', startPath: '/' },
+    },
+  })
 
   const app = createApp()
   const disabled = await app.request(
@@ -245,8 +258,12 @@ test('returns 404 for disabled or invalid module PWA identities', async () => {
   const externalLogo = await app.request(
     'https://atlas.example.com/pwa/manifest/custom.external-logo.webmanifest',
   )
+  const traversalLogo = await app.request(
+    'https://atlas.example.com/pwa/manifest/custom.traversal-logo.webmanifest',
+  )
 
   assert.equal(disabled.status, 404)
   assert.equal(invalid.status, 404)
   assert.equal(externalLogo.status, 404)
+  assert.equal(traversalLogo.status, 404)
 })
