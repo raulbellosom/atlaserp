@@ -63,6 +63,7 @@ function isPrismaUniqueError(error) {
 export function createStorefrontCaptureService({
   prisma,
   verifyTurnstile = async () => false,
+  notificationService = null,
   now = () => new Date(),
 }) {
   function hashOpaqueId(siteId, value) {
@@ -593,7 +594,7 @@ export function createStorefrontCaptureService({
       : null;
 
     try {
-      return await prisma.$transaction(async (tx) => {
+      const transactionResult = await prisma.$transaction(async (tx) => {
         const visitor = visitorKeyHash
           ? await tx.growthVisitor.findUnique?.({
               where: {
@@ -629,8 +630,8 @@ export function createStorefrontCaptureService({
         });
 
         let lead = null;
+        let createdLead = false;
         if (form.createsLead) {
-          let createdLead = false;
           const identities = [
             ...(leadFields.emailNormalized
               ? [{ emailNormalized: leadFields.emailNormalized }]
@@ -662,22 +663,22 @@ export function createStorefrontCaptureService({
           };
           if (lead) {
             lead = await tx.growthLead.update({
-                where: { id: lead.id },
-                data: leadData,
-              });
+              where: { id: lead.id },
+              data: leadData,
+            });
           } else {
             lead = await tx.growthLead.create({
-                data: {
-                  companyId: company.id,
-                  siteId: site.id,
-                  formId: form.id,
-                  status: "new",
-                  priority: "normal",
-                  ...leadData,
-                  firstSubmissionAt: now(),
-                  firstSeenAt: now(),
-                },
-              });
+              data: {
+                companyId: company.id,
+                siteId: site.id,
+                formId: form.id,
+                status: "new",
+                priority: "normal",
+                ...leadData,
+                firstSubmissionAt: now(),
+                firstSeenAt: now(),
+              },
+            });
             createdLead = true;
           }
 
@@ -728,8 +729,47 @@ export function createStorefrontCaptureService({
           leadId: lead?.id ?? null,
           message: form.successMessage ?? "Formulario enviado.",
           replayed: false,
+          notifyAssignee:
+            createdLead && lead?.assigneeUserId
+              ? {
+                  userId: lead.assigneeUserId,
+                  leadId: lead.id,
+                  title: lead.name || lead.email || "Lead web",
+                  priority: lead.priority,
+                }
+              : null,
         };
       });
+      if (transactionResult.notifyAssignee && notificationService?.publish) {
+        const notification = transactionResult.notifyAssignee;
+        try {
+          await notificationService.publish({
+            companyId: company.id,
+            actorId: null,
+            input: {
+              eventType: "growth.lead.created",
+              title: "Nuevo lead asignado",
+              body: notification.title,
+              link: `/app/m/atlas.growth/leads/${notification.leadId}`,
+              recipients: { userIds: [notification.userId] },
+              channels: ["in_app", "email"],
+              priority:
+                notification.priority === "high" ? "high" : "medium",
+              sourceType: "GrowthLead",
+              sourceId: notification.leadId,
+              metadata: { leadId: notification.leadId },
+            },
+          });
+        } catch (error) {
+          console.error(
+            "[growth.lead.created]",
+            error?.message ?? error,
+          );
+        }
+      }
+      const { notifyAssignee: _notifyAssignee, ...result } =
+        transactionResult;
+      return result;
     } catch (error) {
       if (isPrismaUniqueError(error)) {
         const replay = await prisma.websiteFormSubmission.findUnique({

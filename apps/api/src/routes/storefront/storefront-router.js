@@ -7,6 +7,7 @@ import { createStorefrontCaptureRoutes, createTurnstileVerifier } from './storef
 import { createStorefrontAuthService } from '../../services/storefront-auth-service.js'
 import { createStorefrontFilesService } from '../../services/storefront-files-service.js'
 import { StorefrontCaptureError, createStorefrontCaptureService } from '../../services/storefront-capture-service.js'
+import { createNotificationService } from '../../services/notification-service.js'
 
 export function createStorefrontRouter({ prisma, supabaseAdmin, supabaseAnon }) {
   const app = new Hono()
@@ -17,6 +18,7 @@ export function createStorefrontRouter({ prisma, supabaseAdmin, supabaseAnon }) 
   const captureService = createStorefrontCaptureService({
     prisma,
     verifyTurnstile: createTurnstileVerifier(),
+    notificationService: createNotificationService({ prisma }),
   })
 
   async function resolveAuthenticatedProfile(c) {

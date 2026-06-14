@@ -712,3 +712,98 @@ export const NOTIFICATION_CONSTANTS = {
   channels: NOTIFICATION_CHANNELS,
   priorities: NOTIFICATION_PRIORITIES,
 };
+
+// ---------------------------------------------------------------------------
+// atlas.growth
+// ---------------------------------------------------------------------------
+
+export const GROWTH_LEAD_STATUSES = [
+  "new",
+  "follow_up",
+  "qualified",
+  "discarded",
+  "converted",
+];
+
+export const GROWTH_LEAD_PRIORITIES = ["low", "normal", "high"];
+
+const growthOptionalText = (max) =>
+  z.string().trim().max(max).optional().nullable();
+
+export const growthLeadCreateSchema = z.object({
+  siteId: z.string().uuid().optional(),
+  formId: z.string().uuid().optional().nullable(),
+  name: z.string().trim().min(1).max(500),
+  email: growthOptionalText(500),
+  phone: growthOptionalText(100),
+  companyName: growthOptionalText(500),
+  message: growthOptionalText(5000),
+  priority: z.enum(GROWTH_LEAD_PRIORITIES).default("normal"),
+  assigneeUserId: z.string().uuid().optional().nullable(),
+  attribution: z.record(z.string(), z.unknown()).optional().nullable(),
+});
+
+export const growthLeadUpdateSchema = z
+  .object({
+    updatedAt: z.string().datetime({ offset: true }),
+    status: z.enum(GROWTH_LEAD_STATUSES).optional(),
+    priority: z.enum(GROWTH_LEAD_PRIORITIES).optional(),
+    assigneeUserId: z.string().uuid().optional().nullable(),
+    discardReason: growthOptionalText(1000),
+    name: z.string().trim().min(1).max(500).optional(),
+    email: growthOptionalText(500),
+    phone: growthOptionalText(100),
+    companyName: growthOptionalText(500),
+    message: growthOptionalText(5000),
+  })
+  .refine(
+    (value) => Object.keys(value).some((key) => key !== "updatedAt"),
+    "Incluye al menos un cambio.",
+  );
+
+export const growthLeadNoteSchema = z.object({
+  note: z.string().trim().min(1).max(5000),
+  updatedAt: z.string().datetime({ offset: true }),
+});
+
+export const growthLeadEnabledSchema = z.object({
+  enabled: z.boolean(),
+  updatedAt: z.string().datetime({ offset: true }),
+});
+
+export const growthLeadConvertSchema = z.discriminatedUnion("mode", [
+  z.object({
+    mode: z.literal("existing"),
+    contactId: z.string().uuid(),
+    updatedAt: z.string().datetime({ offset: true }),
+  }),
+  z.object({
+    mode: z.literal("create"),
+    updatedAt: z.string().datetime({ offset: true }),
+    contact: z.object({
+      type: z.string().trim().min(1).max(100),
+      name: z.string().trim().min(1).max(500),
+      email: growthOptionalText(500),
+      phone: growthOptionalText(100),
+    }),
+  }),
+]);
+
+export const growthLeadQuerySchema = z.object({
+  status: z.enum(GROWTH_LEAD_STATUSES).optional(),
+  priority: z.enum(GROWTH_LEAD_PRIORITIES).optional(),
+  assigneeId: z.string().uuid().optional(),
+  formId: z.string().uuid().optional(),
+  campaign: z.string().trim().max(200).optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  search: z.string().trim().max(200).optional(),
+  enabled: z
+    .union([z.boolean(), z.enum(["true", "false"])])
+    .transform((value) =>
+      typeof value === "boolean" ? value : value === "true",
+    )
+    .default(true),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(25),
+});

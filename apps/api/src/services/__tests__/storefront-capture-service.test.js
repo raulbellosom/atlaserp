@@ -263,6 +263,7 @@ function createService(prisma, options = {}) {
     prisma,
     now: () => NOW,
     verifyTurnstile: options.verifyTurnstile ?? (async () => true),
+    notificationService: options.notificationService,
   });
 }
 
@@ -695,5 +696,39 @@ describe("createStorefrontCaptureService", () => {
         },
       },
     ]);
+  });
+
+  it("notifies the default assignee only when a new web lead is created", async () => {
+    const prisma = buildPrisma();
+    const published = [];
+    const originalFindFirst = prisma.websiteForm.findFirst;
+    prisma.websiteForm.findFirst = async (args) => ({
+      ...(await originalFindFirst(args)),
+      defaultAssigneeUserId: "01900000-0000-7000-8000-000000000009",
+    });
+    const service = createService(prisma, {
+      notificationService: {
+        publish: async (input) => {
+          published.push(input);
+        },
+      },
+    });
+
+    await service.submitForm({
+      ...requestScope,
+      formId: FORM_ID,
+      idempotencyKey: "submission-notification",
+      payload: {
+        values: { full_name: "Ana", email: "ana@example.com" },
+        honeypot: "",
+      },
+    });
+
+    assert.equal(published.length, 1);
+    assert.equal(published[0].input.eventType, "growth.lead.created");
+    assert.deepEqual(published[0].input.recipients.userIds, [
+      "01900000-0000-7000-8000-000000000009",
+    ]);
+    assert.equal(published[0].input.sourceId, LEAD_ID);
   });
 });

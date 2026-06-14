@@ -10,6 +10,7 @@ import {
   StorefrontCaptureError,
   createStorefrontCaptureService,
 } from "../../services/storefront-capture-service.js";
+import { createNotificationService } from "../../services/notification-service.js";
 
 const LEGACY_SUNSET = "Wed, 30 Sep 2026 00:00:00 GMT";
 
@@ -35,6 +36,7 @@ export function createPublicFormsRouter({
   captureService = createStorefrontCaptureService({
     prisma,
     verifyTurnstile: createTurnstileVerifier(),
+    notificationService: createNotificationService({ prisma }),
   }),
   limiter = createTokenBucketLimiter({
     capacity: 10,
