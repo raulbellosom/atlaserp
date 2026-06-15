@@ -31,38 +31,18 @@ Requiere: Docker Desktop (o Docker Engine + Compose v2), Node.js 20+, npx.
 ### Windows (PowerShell)
 
 ```powershell
-mkdir atlaserp -Force
-cd atlaserp
-
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml" -OutFile "docker-compose.yml"
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/package.json"      -OutFile "package.json"
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.mjs"   -OutFile "setup-local.mjs"
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-local.mjs"    -OutFile "stop-local.mjs"
-
-New-Item -ItemType Directory -Force -Path custom-modules | Out-Null
-
-npm.cmd run atlas:local
-# equivalentes: node .\setup-local.mjs | npm run atlas:local (si PowerShell permite npm.ps1)
+# Desde la carpeta donde quieras instalar Atlas ERP:
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/bootstrap-local.ps1" -OutFile ".\bootstrap-local.ps1"
+powershell -ExecutionPolicy Bypass -File .\bootstrap-local.ps1
 ```
 
 ### Linux / macOS / Git Bash
 
 ```bash
-mkdir -p ./atlaserp && cd ./atlaserp
-
-curl -fsSLo docker-compose.yml       https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml
-curl -fsSLo package.json             https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/package.json
-curl -fsSLo docker-compose.linux.yml https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.linux.yml
-curl -fsSLo setup-local.mjs          https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.mjs
-curl -fsSLo stop-local.mjs           https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-local.mjs
-curl -fsSLo setup-local.sh           https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.sh
-curl -fsSLo stop-local.sh            https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-local.sh
-chmod +x setup-local.sh stop-local.sh
-
-mkdir -p custom-modules
-
-npm run atlas:local
-# equivalentes: ./setup-local.sh | node ./setup-local.mjs
+# Desde la carpeta donde quieras instalar Atlas ERP:
+curl -fsSLo bootstrap-local.sh https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/bootstrap-local.sh
+chmod +x bootstrap-local.sh
+./bootstrap-local.sh
 ```
 
 > `docker-compose.linux.yml` es requerido en Linux: Docker Engine no inyecta
@@ -118,24 +98,23 @@ Para un servidor Linux con Supabase self-hosted o Supabase Cloud ya configurado.
 ### Instalacion en servidor nuevo (Linux)
 
 ```bash
-mkdir -p /opt/atlaserp && cd /opt/atlaserp
+curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/bootstrap-external.sh
+chmod +x bootstrap-external.sh
+./bootstrap-external.sh
 
-curl -fsSLo docker-compose.yml      https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml
-curl -fsSLo package.json            https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/package.json
-curl -fsSLo setup-external.mjs      https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-external.mjs
-curl -fsSLo stop-external.mjs       https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-external.mjs
-curl -fsSLo setup-external.sh       https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-external.sh
-curl -fsSLo stop-external.sh        https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-external.sh
-curl -fsSLo .env.external.example   https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/.env.external.example
-chmod +x setup-external.sh stop-external.sh
-
-mkdir -p custom-modules
-
-cp .env.external.example .env.external
-nano .env.external   # completar con credenciales de Supabase
-
+nano .env.external
 npm run atlas:external
-# equivalentes: ./setup-external.sh | node ./setup-external.mjs
+```
+
+### Windows (PowerShell)
+
+```powershell
+# Desde la carpeta donde quieras instalar Atlas ERP:
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/bootstrap-external.ps1" -OutFile ".\bootstrap-external.ps1"
+powershell -ExecutionPolicy Bypass -File .\bootstrap-external.ps1
+
+notepad .\.env.external
+npm.cmd run atlas:external
 ```
 
 ### Que hace `setup-external.mjs`

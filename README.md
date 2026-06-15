@@ -17,14 +17,9 @@ Images: `raulbellosom/atlaserp:api-latest`, `worker-latest`, `web-latest` (singl
 Quick install on any machine without cloning the repo:
 
 ```powershell
-mkdir C:\atlaserp-installer -Force
-cd C:\atlaserp-installer
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml" -OutFile "docker-compose.yml"
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/package.json" -OutFile "package.json"
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.mjs" -OutFile "setup-local.mjs"
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-local.mjs" -OutFile "stop-local.mjs"
-npm.cmd run atlas:local
-# equivalentes: node .\setup-local.mjs | npm run atlas:local (si PowerShell permite npm.ps1)
+# Desde la carpeta donde quieras instalar Atlas ERP:
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/bootstrap-local.ps1" -OutFile ".\bootstrap-local.ps1"
+powershell -ExecutionPolicy Bypass -File .\bootstrap-local.ps1
 ```
 
 See [infra/installer/README.md](infra/installer/README.md) for full copy/paste steps (Windows, Linux, macOS), external Supabase setup, image tags, and reset commands.
