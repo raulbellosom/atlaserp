@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-06-15T19:38:51.332Z",
+  "generatedAt": "2026-06-15T20:59:17.040Z",
   "repoPath": "infra/installer/devkit-export",
   "files": [
     "AGENTS.md",
@@ -13,12 +13,6 @@
     "docs/ai-context/atlas-storefront-sdk.md",
     "docs/architecture/atlas-module-engine-v3.md",
     "docs/module-quality-standards.md",
-    "docs/superpowers/specs/2026-06-11-dist-auth-sdk-design.md",
-    "docs/superpowers/specs/2026-06-14-atlas-documents-template-engine-design.md",
-    "docs/superpowers/specs/2026-06-14-growth-analytics-design.md",
-    "docs/superpowers/specs/2026-06-14-growth-lead-inbox-design.md",
-    "docs/superpowers/specs/2026-06-14-storefront-capture-foundation-design.md",
-    "docs/TASKS.md",
     "golden-path-module/api/index.js",
     "golden-path-module/components/index.js",
     "golden-path-module/components/ModuleDashboard.jsx",

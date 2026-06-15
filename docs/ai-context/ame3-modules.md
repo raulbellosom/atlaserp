@@ -20,55 +20,31 @@ all behavior from them.
 
 ---
 
-## 2. Use the scaffolder for new modules
+## 2. Create new modules from the Dev Kit
 
-For a brand-new module, always try the CLI scaffolder first. It generates all files
-correctly following the exact fleet reference patterns.
+For installer-mode workspaces, the official authoring flow is:
 
-```bash
-# Interactive (prompts for all values)
-node scripts/scaffold-module.js
+1. Read `custom-modules/_atlas-devkit/AGENTS.md`
+2. Read `custom-modules/_atlas-devkit/docs/ai-context/ame3-modules.md`
+3. Read `custom-modules/_atlas-devkit/docs/ai-context/ame3-runtime-capabilities.md`
+4. Copy `custom-modules/_atlas-devkit/golden-path-module/`
+5. Rename it to your new module key and edit the files directly
 
-# From a JSON config file
-node scripts/scaffold-module.js scripts/scaffold-output/my-module.config.json
-```
+For source-mode workspaces inside this repo, use the same structure and patterns.
+Do not assume the scaffolder exists in installer-mode or external deployments.
 
-Minimal config JSON:
-
-```json
-{
-  "key": "custom.crm",
-  "name": "CRM",
-  "version": "0.1.0",
-  "icon": "Users",
-  "color": "#2563eb",
-  "pwa": {
-    "shortName": "CRM",
-    "startPath": "/crm-contacts"
-  },
-  "description": "Gestión de relaciones con clientes",
-  "entities": [
-    {
-      "name": "contact",
-      "label": "Contacto",
-      "labelPlural": "Contactos",
-      "fields": [
-        { "name": "full_name", "type": "text",   "label": "Nombre completo", "required": true },
-        { "name": "email",     "type": "email",  "label": "Correo" },
-        { "name": "status",    "type": "select", "label": "Estado",
-          "options": ["activo", "inactivo"] }
-      ]
-    }
-  ]
-}
-```
+Every new module must declare:
+- `key`, `name`, `version`
+- `icon`, `color`, and `pwa: { shortName, startPath }`
+- at least one model, one page route, and the matching permissions/navigation entries
 
 `icon`, `color` and `pwa` are required for every new module. `icon` must be a
 supported Lucide icon, `color` must use six-digit hexadecimal notation, and
 `pwa.startPath` must be an internal path relative to `/app/m/<moduleKey>`.
 Atlas uses these fields to create an independently installable PWA identity.
 
-Use **direct code editing** (not the scaffolder) when:
+Use **direct code editing** when:
+- Creating a new module from `golden-path-module/`
 - Adding a new field to an existing entity
 - Adding a new entity to an existing module
 - Adding a custom component or CUSTOM view
@@ -345,7 +321,7 @@ await prisma.auditLog.create({
 
 ### 4.7 Error class — lives in `service-helpers.js`
 
-The scaffolder (`node scripts/scaffold-module.js`) places the error class in `api/service-helpers.js`
+Place the shared module error class in `api/service-helpers.js`
 so all entity services in the module share one class. The reference fleet module defines `FleetServiceError`
 directly in `api/fleet-service.js` and other services import it from there — both approaches work.
 What matters: **define it in one place per module and import from that same file everywhere.**

@@ -65,14 +65,14 @@ Key components every module screen must use:
 
 ## Creating a new module
 
-Use the scaffolder CLI — it generates all files correctly in one command:
+Use the Dev Kit flow:
 
-```bash
-node scripts/scaffold-module.js                         # interactive
-node scripts/scaffold-module.js my-module.config.json   # from JSON config
-```
+1. Read this file first.
+2. Read `docs/ai-context/ame3-modules.md` and `docs/ai-context/ame3-runtime-capabilities.md`.
+3. In installer-mode workspaces, start from `golden-path-module/` inside the Dev Kit.
+4. Rename the copied folder to the new module key and edit files directly.
 
-See `docs/ai-context/ame3-modules.md` §2 for the config JSON format.
+Do not assume a scaffolder command exists in installer-mode or external workspaces.
 
 ---
 

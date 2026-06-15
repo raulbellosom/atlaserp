@@ -16,12 +16,6 @@ const DEVKIT_DOC_FILES = [
   'docs/03_custom_modules.md',
   'docs/module-quality-standards.md',
   'docs/architecture/atlas-module-engine-v3.md',
-  'docs/TASKS.md',
-  'docs/superpowers/specs/2026-06-11-dist-auth-sdk-design.md',
-  'docs/superpowers/specs/2026-06-14-storefront-capture-foundation-design.md',
-  'docs/superpowers/specs/2026-06-14-growth-analytics-design.md',
-  'docs/superpowers/specs/2026-06-14-growth-lead-inbox-design.md',
-  'docs/superpowers/specs/2026-06-14-atlas-documents-template-engine-design.md',
 ]
 
 function uniqueSorted(values) {
