@@ -178,10 +178,11 @@ function FormSettingsPanel({
           placeholder="Seleccionar responsable..."
           searchPlaceholder="Buscar usuario..."
         />
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="flex flex-col gap-2 rounded-lg border border-[hsl(var(--border))] p-3">
           <SwitchField
             id={`form-${form.id}-lead`}
             label="Crear lead"
+            description="Guarda cada envio como un lead en atlas.growth"
             checked={settings.createsLead}
             onChange={(checked) =>
               setSettings((current) => ({
@@ -193,6 +194,7 @@ function FormSettingsPanel({
           <SwitchField
             id={`form-${form.id}-honeypot`}
             label="Activar honeypot"
+            description="Campo oculto que atrapa bots sin molestar al usuario"
             checked={settings.honeypotEnabled}
             onChange={(checked) =>
               setSettings((current) => ({
@@ -204,6 +206,7 @@ function FormSettingsPanel({
           <SwitchField
             id={`form-${form.id}-turnstile`}
             label="Requerir Turnstile"
+            description="Verificacion anti-bot de Cloudflare (configura las claves en Ajustes)"
             checked={settings.turnstileRequired}
             disabled={!turnstileConfigured}
             onChange={(checked) =>
@@ -604,10 +607,11 @@ export default function WebsiteFormsScreen() {
               placeholder="Seleccionar responsable..."
               searchPlaceholder="Buscar usuario..."
             />
-            <div className="grid md:grid-cols-3 gap-3">
+            <div className="flex flex-col gap-2 rounded-lg border border-[hsl(var(--border))] p-3">
               <SwitchField
                 id="new-form-lead"
                 label="Crear lead"
+                description="Guarda cada envio como un lead en atlas.growth"
                 checked={newFormData.createsLead}
                 onChange={(checked) =>
                   setNewFormData((current) => ({
@@ -619,6 +623,7 @@ export default function WebsiteFormsScreen() {
               <SwitchField
                 id="new-form-honeypot"
                 label="Activar honeypot"
+                description="Campo oculto que atrapa bots sin molestar al usuario"
                 checked={newFormData.honeypotEnabled}
                 onChange={(checked) =>
                   setNewFormData((current) => ({
@@ -630,6 +635,7 @@ export default function WebsiteFormsScreen() {
               <SwitchField
                 id="new-form-turnstile"
                 label="Requerir Turnstile"
+                description="Verificacion anti-bot de Cloudflare (configura las claves en Ajustes)"
                 checked={newFormData.turnstileRequired}
                 disabled={
                   !(
