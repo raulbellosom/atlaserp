@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import { GrowthCommentsServiceError } from './growth-comments-service.js';
+import { CommentsServiceError } from '../../services/comments-service.js';
 
 function handleError(c, err) {
-  if (err instanceof GrowthCommentsServiceError) {
+  if (err instanceof CommentsServiceError) {
     return c.json({ error: err.message }, err.status);
   }
   console.error('[atlas.growth] comments error', err);
@@ -14,8 +14,7 @@ export function createGrowthCommentRoutes({ service, requirePermission }) {
 
   app.get('/growth/leads/:id/comments', requirePermission('growth.leads.read'), async (c) => {
     try {
-      const companyId = c.get('companyId');
-      const comments = await service.listComments(c.req.param('id'), companyId);
+      const comments = await service.listComments('GrowthLead', c.req.param('id'));
       return c.json({ data: comments });
     } catch (err) { return handleError(c, err); }
   });
@@ -25,7 +24,7 @@ export function createGrowthCommentRoutes({ service, requirePermission }) {
       const companyId  = c.get('companyId');
       const authUserId = c.get('authUserId');
       const { body }   = await c.req.json();
-      const result     = await service.createComment(c.req.param('id'), authUserId, body, companyId);
+      const result     = await service.createComment('GrowthLead', c.req.param('id'), authUserId, body, companyId);
       return c.json({ data: result }, 201);
     } catch (err) { return handleError(c, err); }
   });

@@ -4,7 +4,7 @@ import { createNotificationService } from "../../services/notification-service.j
 import { createGrowthAnalyticsRoutes } from "./growth-analytics-routes.js";
 import { createGrowthAnalyticsService } from "./growth-analytics-service.js";
 import { createGrowthCommentRoutes } from "./growth-comment-routes.js";
-import { createGrowthCommentsService } from "./growth-comments-service.js";
+import { createCommentsService } from "../../services/comments-service.js";
 import { createGrowthLeadRoutes } from "./growth-lead-routes.js";
 import { createGrowthLeadService } from "./growth-lead-service.js";
 
@@ -19,7 +19,7 @@ export function createGrowthRouter({
     notificationService,
   });
   const analyticsService = createGrowthAnalyticsService({ prisma });
-  const commentsService = createGrowthCommentsService({ prisma });
+  const commentsService = createCommentsService({ prisma });
   app.route("", createGrowthLeadRoutes({ service, requirePermission }));
   app.route("", createGrowthCommentRoutes({ service: commentsService, requirePermission }));
   app.route(

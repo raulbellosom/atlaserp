@@ -281,19 +281,8 @@ model UserProfile {
   tasksAssigned      Task[]          @relation("TaskAssignee")
   tasksCreated         Task[]                @relation("TaskCreator")
   projectTaskAssignees ProjectTaskAssignee[] @relation("TaskAssigneeUser")
-  taskComments         TaskComment[]         @relation("TaskCommentAuthor")
-  taskMentions         TaskMention[]         @relation("TaskMentionUser")
-  taskCommentReactions TaskCommentReaction[] @relation("UserTaskReactions")
-
-  invComments     InvComment[]         @relation("UserInvComments")
-  invMentions     InvMention[]         @relation("UserInvMentions")
-  invReactions    InvCommentReaction[] @relation("UserInvReactions")
   invAssignedBy   InvAssignment[]      @relation("UserInvAssignments")
   createdInvItems InvItem[]            @relation("UserCreatedInvItems")
-
-  growthComments  GrowthLeadComment[]         @relation("UserGrowthComments")
-  growthMentions  GrowthLeadMention[]         @relation("UserGrowthMentions")
-  growthReactions GrowthLeadCommentReaction[] @relation("UserGrowthReactions")
 
   entityComments  EntityComment[]         @relation("UserEntityComments")
   entityMentions  EntityCommentMention[]  @relation("UserEntityMentions")
@@ -1043,8 +1032,6 @@ model GrowthLead {
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  comments  GrowthLeadComment[]
-
   @@index([companyId, status, enabled, createdAt])
   @@index([companyId, emailNormalized, status])
   @@index([companyId, phoneNormalized, status])
@@ -1084,53 +1071,6 @@ model GrowthDailyMetric {
   @@unique([siteId, metricDate, dimensionType, dimensionKey])
   @@index([companyId, metricDate])
   @@map("growth_daily_metric")
-}
-
-model GrowthLeadComment {
-  id        String    @id @default(uuid(7)) @db.Uuid
-  leadId    String    @db.Uuid @map("lead_id")
-  authorId  String    @db.Uuid @map("author_id")
-  body      String    @db.VarChar(5000)
-  createdAt DateTime  @default(now()) @map("created_at")
-  editedAt  DateTime? @map("edited_at")
-
-  lead      GrowthLead                  @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  author    UserProfile                 @relation("UserGrowthComments", fields: [authorId], references: [id])
-  mentions  GrowthLeadMention[]
-  reactions GrowthLeadCommentReaction[]
-
-  @@index([leadId])
-  @@map("growth_lead_comment")
-}
-
-model GrowthLeadMention {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  commentId String   @db.Uuid @map("comment_id")
-  userId    String   @db.Uuid @map("user_id")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  comment GrowthLeadComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user    UserProfile        @relation("UserGrowthMentions", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([commentId, userId])
-  @@index([commentId])
-  @@index([userId])
-  @@map("growth_lead_mention")
-}
-
-model GrowthLeadCommentReaction {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  commentId String   @db.Uuid @map("comment_id")
-  userId    String   @db.Uuid @map("user_id")
-  emoji     String   @db.VarChar(10)
-  createdAt DateTime @default(now()) @map("created_at")
-
-  comment GrowthLeadComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user    UserProfile        @relation("UserGrowthReactions", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([commentId, userId, emoji])
-  @@index([commentId])
-  @@map("growth_lead_comment_reaction")
 }
 
 model EntityComment {
@@ -2034,7 +1974,6 @@ model Task {
   subtasks     Task[]                @relation("TaskSubtasks")
   parent       Task?                 @relation("TaskSubtasks", fields: [parentTaskId], references: [id])
   assignees    ProjectTaskAssignee[] @relation("TaskAssignees")
-  comments     TaskComment[]         @relation("TaskComments")
   blockedBy    TaskDependency[]      @relation("TaskBlocked")
   blocking     TaskDependency[]      @relation("TaskBlocker")
   fieldValues  TaskFieldValue[]      @relation("TaskFieldValues")
@@ -2058,53 +1997,6 @@ model ProjectTaskAssignee {
 
   @@unique([taskId, userId])
   @@map("project_task_assignee")
-}
-
-model TaskComment {
-  id        String        @id @default(uuid(7)) @db.Uuid
-  taskId    String        @db.Uuid @map("task_id")
-  authorId  String        @db.Uuid @map("author_id")
-  body      String        @db.VarChar(5000)
-  createdAt DateTime      @default(now()) @map("created_at")
-  editedAt  DateTime?     @map("edited_at")
-
-  task      Task                  @relation("TaskComments", fields: [taskId], references: [id], onDelete: Cascade)
-  author    UserProfile           @relation("TaskCommentAuthor", fields: [authorId], references: [id])
-  mentions  TaskMention[]         @relation("CommentMentions")
-  reactions TaskCommentReaction[] @relation("CommentReactions")
-
-  @@index([taskId])
-  @@map("task_comment")
-}
-
-model TaskMention {
-  id        String      @id @default(uuid(7)) @db.Uuid
-  commentId String      @db.Uuid @map("comment_id")
-  userId    String      @db.Uuid @map("user_id")
-  createdAt DateTime    @default(now()) @map("created_at")
-
-  comment   TaskComment @relation("CommentMentions", fields: [commentId], references: [id], onDelete: Cascade)
-  user      UserProfile @relation("TaskMentionUser", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([commentId, userId])
-  @@index([commentId])
-  @@index([userId])
-  @@map("task_mention")
-}
-
-model TaskCommentReaction {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  commentId String   @db.Uuid @map("comment_id")
-  userId    String   @db.Uuid @map("user_id")
-  emoji     String   @db.VarChar(10)
-  createdAt DateTime @default(now()) @map("created_at")
-
-  comment TaskComment @relation("CommentReactions", fields: [commentId], references: [id], onDelete: Cascade)
-  user    UserProfile @relation("UserTaskReactions", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([commentId, userId, emoji])
-  @@index([commentId])
-  @@map("task_comment_reaction")
 }
 
 model TaskDependency {
@@ -2252,7 +2144,6 @@ model InvItem {
   assignedTo   HrEmployee?    @relation("EmployeeAssignedItems", fields: [assignedToId], references: [id], onDelete: SetNull)
   createdBy    UserProfile?   @relation("UserCreatedInvItems", fields: [createdById], references: [id])
   assignments  InvAssignment[]
-  comments     InvComment[]
   customValues InvCustomFieldValue[]
   files        InvItemFile[]
 
@@ -2316,53 +2207,6 @@ model InvCustomFieldValue {
   @@index([itemId])
   @@index([fieldId])
   @@map("inv_custom_field_value")
-}
-
-model InvComment {
-  id        String    @id @default(uuid(7)) @db.Uuid
-  itemId    String    @db.Uuid @map("item_id")
-  authorId  String    @db.Uuid @map("author_id")
-  body      String    @db.VarChar(5000)
-  createdAt DateTime  @default(now()) @map("created_at")
-  editedAt  DateTime? @map("edited_at")
-
-  item      InvItem              @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  author    UserProfile          @relation("UserInvComments", fields: [authorId], references: [id])
-  mentions  InvMention[]
-  reactions InvCommentReaction[]
-
-  @@index([itemId])
-  @@map("inv_comment")
-}
-
-model InvMention {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  commentId String   @db.Uuid @map("comment_id")
-  userId    String   @db.Uuid @map("user_id")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  comment InvComment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user    UserProfile @relation("UserInvMentions", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([commentId, userId])
-  @@index([commentId])
-  @@index([userId])
-  @@map("inv_mention")
-}
-
-model InvCommentReaction {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  commentId String   @db.Uuid @map("comment_id")
-  userId    String   @db.Uuid @map("user_id")
-  emoji     String   @db.VarChar(10)
-  createdAt DateTime @default(now()) @map("created_at")
-
-  comment InvComment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user    UserProfile @relation("UserInvReactions", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([commentId, userId, emoji])
-  @@index([commentId])
-  @@map("inv_comment_reaction")
 }
 
 model InvItemFile {
