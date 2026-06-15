@@ -42,6 +42,7 @@ import {
 import { createHrService, HrServiceError } from "./services/hr-service.js";
 import { createInventoryService, InventoryServiceError } from "./services/inventory-service.js";
 import { createInventoryNotificationService } from "./services/inventory-notification-service.js";
+import { createCommentsService, CommentsServiceError } from "./services/comments-service.js";
 import { buildEmployeesExcelBuffer } from "./services/hr-export-service.js";
 import { createModulesRouter } from "./routes/modules.js";
 import {
@@ -137,6 +138,7 @@ const notificationService = createNotificationService({ prisma });
 const distServeService = createDistServeService({ prisma, supabaseAdmin });
 const inventoryService = createInventoryService({ prisma });
 const inventoryNotifSvc = createInventoryNotificationService({ prisma, notificationService });
+const commentsService = createCommentsService({ prisma });
 
 function toSlug(name) {
   return name
@@ -4680,12 +4682,11 @@ app.delete('/inventory/items/:id/files/:docId', authMiddleware, requirePermissio
 // Comments
 app.get('/inventory/items/:id/comments', authMiddleware, requirePermission('inventory.item.read'), async (c) => {
   try {
-    const companyId = c.get('companyId');
     const { id } = c.req.param();
-    const comments = await inventoryService.listComments(id, companyId);
+    const comments = await commentsService.listComments('InvItem', id);
     return c.json({ data: comments });
   } catch (err) {
-    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    if (err instanceof CommentsServiceError) return c.json({ error: err.message }, err.status);
     return c.json({ error: 'No se pudieron cargar los comentarios.' }, 500);
   }
 });
@@ -4697,7 +4698,8 @@ app.post('/inventory/items/:id/comments', authMiddleware, requirePermission('inv
     const actorId    = c.get('userId');
     const { id } = c.req.param();
     const { body } = await c.req.json();
-    const { comment, mentionIds } = await inventoryService.createComment(id, authUserId, body, companyId);
+    const comment = await commentsService.createComment('InvItem', id, authUserId, body, companyId);
+    const mentionIds = comment.mentions?.map((m) => m.userId) ?? [];
     if (mentionIds.length > 0) {
       const members = await prisma.membership.findMany({
         where: { companyId, userId: { in: mentionIds }, enabled: true },
@@ -4710,7 +4712,7 @@ app.post('/inventory/items/:id/comments', authMiddleware, requirePermission('inv
     }
     return c.json({ data: comment }, 201);
   } catch (err) {
-    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    if (err instanceof CommentsServiceError) return c.json({ error: err.message }, err.status);
     return c.json({ error: 'No se pudo crear el comentario.' }, 500);
   }
 });
@@ -4720,10 +4722,10 @@ app.patch('/inventory/items/:id/comments/:cid', authMiddleware, requirePermissio
     const authUserId = c.get('authUserId');
     const { cid } = c.req.param();
     const { body } = await c.req.json();
-    const comment = await inventoryService.updateComment(cid, authUserId, body);
+    const comment = await commentsService.updateComment(cid, authUserId, body);
     return c.json({ data: comment });
   } catch (err) {
-    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    if (err instanceof CommentsServiceError) return c.json({ error: err.message }, err.status);
     return c.json({ error: 'No se pudo actualizar el comentario.' }, 500);
   }
 });
@@ -4733,10 +4735,10 @@ app.delete('/inventory/items/:id/comments/:cid', authMiddleware, requirePermissi
     const companyId  = c.get('companyId');
     const authUserId = c.get('authUserId');
     const { cid } = c.req.param();
-    await inventoryService.deleteComment(cid, authUserId, companyId);
+    await commentsService.deleteComment(cid, authUserId, companyId);
     return c.json({ success: true });
   } catch (err) {
-    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    if (err instanceof CommentsServiceError) return c.json({ error: err.message }, err.status);
     return c.json({ error: 'No se pudo eliminar el comentario.' }, 500);
   }
 });
@@ -4748,13 +4750,13 @@ app.post('/inventory/items/:id/comments/:cid/reactions', authMiddleware, require
     const actorId    = c.get('userId');
     const { cid } = c.req.param();
     const { emoji } = await c.req.json();
-    const result = await inventoryService.toggleReaction(cid, authUserId, emoji);
-    if (result.action === 'added') {
+    const result = await commentsService.toggleReaction(cid, authUserId, emoji);
+    if (!result.removed) {
       inventoryNotifSvc.notifyInvReaction({ companyId, actorId, commentId: cid });
     }
     return c.json({ data: result });
   } catch (err) {
-    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    if (err instanceof CommentsServiceError) return c.json({ error: err.message }, err.status);
     return c.json({ error: 'No se pudo registrar la reaccion.' }, 500);
   }
 });
