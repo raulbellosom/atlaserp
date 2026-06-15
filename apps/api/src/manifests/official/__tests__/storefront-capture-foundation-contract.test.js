@@ -78,9 +78,9 @@ test("atlas.growth is an official core module with analytics and lead navigation
   assert.equal(manifest.color, "#7C3AED");
   assert.deepEqual(manifest.navigation, [
     {
-      label: "Analitica",
+      label: "Crecimiento",
       path: "/",
-      icon: "ChartNoAxesCombined",
+      icon: "TrendingUp",
       layout: "main",
       permissionKey: "growth.analytics.read",
     },

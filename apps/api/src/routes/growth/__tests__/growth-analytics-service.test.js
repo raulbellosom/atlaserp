@@ -25,6 +25,8 @@ function createPrisma() {
   const rows = [
     metric("2026-06-12", "site", "", {
       visitors: 5,
+      newVisitors: 3,
+      returningVisitors: 2,
       sessions: 6,
       engagedSessions: 3,
       pageviews: 8,
@@ -35,6 +37,8 @@ function createPrisma() {
     }),
     metric("2026-06-13", "site", "", {
       visitors: 8,
+      newVisitors: 5,
+      returningVisitors: 3,
       sessions: 10,
       engagedSessions: 7,
       pageviews: 16,
@@ -176,6 +180,21 @@ describe("createGrowthAnalyticsService", () => {
     assert.equal(result.landingPages[0].path, "/inicio");
   });
 
+  it("returns zero totals and empty series for ranges without data", async () => {
+    const service = createGrowthAnalyticsService({ prisma: createPrisma() });
+    const result = await service.getOverview({
+      companyId: COMPANY_ID,
+      query: {
+        from: "2026-06-11",
+        to: "2026-06-11",
+        siteId: SITE_ID,
+      },
+    });
+
+    assert.equal(result.totals.sessions, 0);
+    assert.deepEqual(result.series, []);
+  });
+
   it("returns page and CTA metrics with CTR", async () => {
     const service = createGrowthAnalyticsService({ prisma: createPrisma() });
     const result = await service.getContent({
@@ -206,6 +225,7 @@ describe("createGrowthAnalyticsService", () => {
       conversions.funnel.map((step) => step.count),
       [10, 8, 7, 6, 4, 2],
     );
+    assert.equal(conversions.campaigns[0].campaign, "summer");
 
     const retention = await service.getRetention({
       companyId: COMPANY_ID,
@@ -217,6 +237,69 @@ describe("createGrowthAnalyticsService", () => {
     });
     assert.equal(retention.rows[0].d1Rate, 40);
     assert.equal(retention.rows[0].d30Rate, 10);
+    assert.deepEqual(retention.series[0], {
+      date: "2026-06-12",
+      newVisitors: 3,
+      returningVisitors: 2,
+    });
+    assert.equal(retention.cohortSeries[0].d7Rate, 20);
+  });
+
+  it("merges every analytics dimension from the raw tail after watermark", async () => {
+    const prisma = createPrisma();
+    prisma.$queryRaw = async () => [
+      metric("2026-06-14", "site", "", {
+        visitors: 3,
+        sessions: 4,
+        engagedSessions: 3,
+        pageviews: 8,
+      }),
+      metric("2026-06-14", "source", "newsletter|email|june", {
+        source: "newsletter",
+        medium: "email",
+        campaign: "june",
+        sessions: 4,
+        engagedSessions: 3,
+        conversions: 1,
+      }),
+      metric("2026-06-14", "page", "/oferta", {
+        pageviews: 8,
+        visitors: 3,
+      }),
+      metric("2026-06-14", "cta", "offer_click", {
+        label: "Ver oferta",
+        placement: "hero",
+        clicks: 2,
+        visitors: 2,
+      }),
+      metric("2026-06-14", "funnel", "form_view", { count: 3 }),
+      metric("2026-06-14", "funnel", "form_start", { count: 2 }),
+      metric("2026-06-14", "funnel", "form_submit", { count: 1 }),
+    ];
+    const service = createGrowthAnalyticsService({ prisma });
+    const query = {
+      from: "2026-06-14",
+      to: "2026-06-14",
+      siteId: SITE_ID,
+    };
+
+    const acquisition = await service.getAcquisition({
+      companyId: COMPANY_ID,
+      query,
+    });
+    const content = await service.getContent({ companyId: COMPANY_ID, query });
+    const conversions = await service.getConversions({
+      companyId: COMPANY_ID,
+      query,
+    });
+
+    assert.equal(acquisition.rows[0].source, "newsletter");
+    assert.equal(content.rows[0].path, "/oferta");
+    assert.equal(content.ctas[0].clicks, 2);
+    assert.deepEqual(
+      conversions.funnel.slice(0, 3).map((step) => step.count),
+      [3, 2, 1],
+    );
   });
 
   it("rejects a site outside the active company", async () => {

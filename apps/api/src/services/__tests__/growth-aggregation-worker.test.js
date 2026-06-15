@@ -115,10 +115,61 @@ describe("createGrowthAggregationWorker", () => {
     assert.equal(first.aggregatedDimensions, 4);
     assert.equal(prisma._state.metrics.size, 4);
     assert.equal(prisma._state.watermark, "2026-06-13");
+    assert.deepEqual(
+      prisma._state.metrics.get(
+        `${SITE_ID}:2026-06-13:retention:2026-06-12`,
+      ).metrics,
+      { cohortVisitors: 2, d1: 1, d7: 0, d30: 0 },
+    );
 
     prisma._state.queriedDays = [];
     await worker.runOnce();
     assert.equal(prisma._state.metrics.size, 4);
     assert.ok(!prisma._state.queriedDays.includes("2026-06-14"));
+  });
+
+  it("purges retained models in bounded batches after aggregation", async () => {
+    const prisma = createPrisma();
+    const cutoffs = {};
+    prisma.growthEvent.findMany = async ({ where, take }) => {
+      cutoffs.events = where.serverReceivedAt.lt;
+      assert.equal(take, 2);
+      return [{ id: "event-1" }, { id: "event-2" }];
+    };
+    prisma.growthEvent.deleteMany = async ({ where }) => ({
+      count: where.id.in.length,
+    });
+    prisma.growthSession.findMany = async ({ where, take }) => {
+      cutoffs.sessions = where.lastSeenAt.lt;
+      assert.equal(take, 2);
+      return [{ id: "session-1" }];
+    };
+    prisma.growthSession.deleteMany = async ({ where }) => ({
+      count: where.id.in.length,
+    });
+    prisma.growthDailyMetric.findMany = async ({ where, take }) => {
+      cutoffs.metrics = where.metricDate.lt;
+      assert.equal(take, 2);
+      return [{ id: "metric-1" }];
+    };
+    prisma.growthDailyMetric.deleteMany = async ({ where }) => ({
+      count: where.id.in.length,
+    });
+
+    const worker = createGrowthAggregationWorker({
+      prisma,
+      now: () => NOW,
+      purgeBatchSize: 2,
+    });
+    const result = await worker.runOnce();
+
+    assert.deepEqual(result.purged, {
+      events: 2,
+      sessions: 1,
+      metrics: 1,
+    });
+    assert.equal(dayKey(cutoffs.events), "2026-03-16");
+    assert.equal(dayKey(cutoffs.sessions), "2024-05-14");
+    assert.equal(dayKey(cutoffs.metrics), "2024-05-01");
   });
 });

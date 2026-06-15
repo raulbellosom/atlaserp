@@ -36,6 +36,24 @@ Plan: `docs/superpowers/plans/2026-06-14-growth-lead-inbox.md`
 
 Verified: 2026-06-14 (automated scope: Growth/API/SDK/UI suites 42 passed; Prisma validation and UUID policy passed; `pnpm.cmd build` produced the web build, Windows executable, MSI, and NSIS installer; React Doctor scanned 7 changed files with no diagnostics. Live migration and authenticated browser workflows remain pending. See `docs/superpowers/verifications/2026-06-14-growth-lead-inbox.md`.)
 
+## Atlas Growth - Analytics
+
+Spec: `docs/superpowers/specs/2026-06-14-growth-analytics-design.md`
+Plan: `docs/superpowers/plans/2026-06-14-growth-analytics.md`
+
+- [x] Aggregate daily site, acquisition, landing, content, CTA, form, funnel,
+  and retention dimensions with watermark, late-event reprocessing, and purge.
+- [x] Add protected overview, acquisition, content, conversion, retention,
+  site-filter, and audited CSV endpoints.
+- [x] Add internal SDK methods and the `/app/m/atlas.growth` dashboard with
+  shared URL filters and five analytic tabs.
+- [x] Verify the initial one-million-event target in disposable PostgreSQL 17
+  with recorded `EXPLAIN (ANALYZE, BUFFERS)` plans.
+- [ ] Apply and verify migrations and worker scheduling in the target environment.
+- [ ] Complete authenticated browser and mobile QA against live storefront data.
+
+Verified: 2026-06-14 (49 Growth/API/worker/validator/SDK/UI tests passed; all 19 internal SDK tests passed; Prisma and UUID checks passed; Vite and full monorepo/Tauri builds passed; disposable scale benchmark measured aggregate read 7.245 ms, one-day tails 23.490-58.293 ms, and 44-day retention 272.868 ms with current indexes. React Doctor reported no correctness errors. Live deployment/browser QA remains pending. See `docs/superpowers/verifications/2026-06-14-growth-analytics.md`.)
+
 ## atlas.activity (CORE Activity Feed)
 
 - [x] Spec: `docs/superpowers/specs/2026-05-31-atlas-activity-design.md` (28 sections, status Approved).

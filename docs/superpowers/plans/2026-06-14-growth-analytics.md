@@ -45,66 +45,66 @@
 
 ### Task 1: Metric fixtures and aggregation worker
 
-- [ ] Create deterministic fixtures containing direct/UTM sessions, engaged/bounce sessions, CTA events, form funnel events, qualified/converted leads, and returning visitors.
-- [ ] Write failing tests for daily dimensions, watermark idempotency, late events, current-day tail, D1/D7/D30 cohorts, and retention purge.
-- [ ] Implement aggregation in bounded transactions with an explicit watermark.
-- [ ] Register the worker tick with a configurable hourly interval.
-- [ ] Run worker tests and commit `feat(growth): aggregate analytics metrics`.
+- [x] Create deterministic fixtures containing direct/UTM sessions, engaged/bounce sessions, CTA events, form funnel events, qualified/converted leads, and returning visitors.
+- [x] Write failing tests for daily dimensions, watermark idempotency, late events, current-day tail, D1/D7/D30 cohorts, and retention purge.
+- [x] Implement aggregation in bounded transactions with an explicit watermark.
+- [x] Register the worker tick with a configurable hourly interval.
+- [x] Run worker tests and commit `feat(growth): aggregate analytics metrics`.
 
 ### Task 2: Analytics query service
 
-- [ ] Write failing tests for overview totals, preceding-period comparison, source/medium/campaign grouping, landing pages, page/CTA metrics, fixed funnel, retention cohorts, empty ranges, and company/site isolation.
-- [ ] Implement one service factory with separate methods per tab and shared range normalization.
-- [ ] Use aggregate tables for completed days and raw/session tail only after the watermark.
+- [x] Write failing tests for overview totals, preceding-period comparison, source/medium/campaign grouping, landing pages, page/CTA metrics, fixed funnel, retention cohorts, empty ranges, and company/site isolation.
+- [x] Implement one service factory with separate methods per tab and shared range normalization.
+- [x] Use aggregate tables for completed days and raw/session tail only after the watermark.
 - [ ] Run:
 
 ```bash
 node --test apps/api/src/routes/growth/__tests__/growth-analytics-service.test.js
 ```
 
-- [ ] Commit `feat(growth): add analytics query service`.
+- [x] Commit `feat(growth): add analytics query service`.
 
 ### Task 3: Protected analytics routes and CSV
 
-- [ ] Add validator tests for invalid dates, ranges over 25 months, invalid report, and cross-company site.
-- [ ] Implement five JSON endpoints guarded by `growth.analytics.read`.
-- [ ] Implement streamed CSV with UTF-8 BOM and Spanish headers guarded by `growth.analytics.export`.
-- [ ] Add export audit record containing filters only.
-- [ ] Update Growth router and manifest navigation.
-- [ ] Run route/service tests and permission catalog verification.
-- [ ] Commit `feat(growth): expose analytics API and export`.
+- [x] Add validator tests for invalid dates, ranges over 25 months, invalid report, and cross-company site.
+- [x] Implement five JSON endpoints guarded by `growth.analytics.read`.
+- [x] Implement streamed CSV with UTF-8 BOM and Spanish headers guarded by `growth.analytics.export`.
+- [x] Add export audit record containing filters only.
+- [x] Update Growth router and manifest navigation.
+- [x] Run route/service tests and permission catalog verification.
+- [x] Commit `feat(growth): expose analytics API and export`.
 
 ### Task 4: Internal SDK methods
 
-- [ ] Extend Growth SDK request tests for all analytics methods and blob CSV response.
-- [ ] Implement methods in the existing extracted Growth domain.
-- [ ] Run all SDK tests.
-- [ ] Commit `feat(sdk): add growth analytics methods`.
+- [x] Extend Growth SDK request tests for all analytics methods and blob CSV response.
+- [x] Implement methods in the existing extracted Growth domain.
+- [x] Run all SDK tests.
+- [x] Commit `feat(sdk): add growth analytics methods`.
 
 ### Task 5: Dashboard shell and shared filters
 
-- [ ] Build `GrowthAnalyticsScreen` with `PageHeader`, shared date range, custom `DatePickerField`s, site filter, comparison switch, tabs, URL-search-param persistence, loading, empty, and error states.
-- [ ] Add route `/` for `atlas.growth`.
-- [ ] Ensure Leads remains reachable as a secondary navigation item.
-- [ ] Build and run React Doctor.
-- [ ] Commit `feat(growth): add analytics dashboard shell`.
+- [x] Build `GrowthAnalyticsScreen` with `PageHeader`, shared date range, custom `DatePickerField`s, site filter, comparison switch, tabs, URL-search-param persistence, loading, empty, and error states.
+- [x] Add route `/` for `atlas.growth`.
+- [x] Ensure Leads remains reachable as a secondary navigation item.
+- [x] Build and run React Doctor.
+- [x] Commit `feat(growth): add analytics dashboard shell`.
 
 ### Task 6: Five analytic tabs
 
-- [ ] Implement Resumen KPI cards and trend charts.
-- [ ] Implement Adquisicion source/campaign/landing tables.
-- [ ] Implement Contenido page and CTA tables with CTR.
-- [ ] Implement Conversiones fixed funnel and form/campaign breakdown.
-- [ ] Implement Retencion new/returning series and D1/D7/D30 cohort table.
-- [ ] Every chart includes a textual/table fallback.
-- [ ] Add CSV export action for the active tab.
-- [ ] Build and run React Doctor.
-- [ ] Commit `feat(growth): complete analytics tabs`.
+- [x] Implement Resumen KPI cards and trend charts.
+- [x] Implement Adquisicion source/campaign/landing tables.
+- [x] Implement Contenido page and CTA tables with CTR.
+- [x] Implement Conversiones fixed funnel and form/campaign breakdown.
+- [x] Implement Retencion new/returning series and D1/D7/D30 cohort table.
+- [x] Every chart includes a textual/table fallback.
+- [x] Add CSV export action for the active tab.
+- [x] Build and run React Doctor.
+- [x] Commit `feat(growth): complete analytics tabs`.
 
 ### Task 7: Scale and full verification
 
-- [ ] Generate a disposable one-million-event dataset.
-- [ ] Run `EXPLAIN (ANALYZE, BUFFERS)` for each service query and record plans; add forward indexes only when evidence requires them.
+- [x] Generate a disposable one-million-event dataset.
+- [x] Run `EXPLAIN (ANALYZE, BUFFERS)` for each service query and record plans; add forward indexes only when evidence requires them.
 - [ ] Run:
 
 ```bash
@@ -116,9 +116,8 @@ pnpm build
 ```
 
 - [ ] Manually verify tabs, shared filters, comparison, empty ranges, CSV, RBAC, and mobile layout.
-- [ ] Record verification evidence in TASKS.
+- [x] Record verification evidence in TASKS.
 
 ## Rollback Notes
 
 Stop the aggregation worker and remove analytics navigation/routes. Captured raw data and existing aggregates remain intact for reprocessing.
-

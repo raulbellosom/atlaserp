@@ -20,6 +20,13 @@ describe("growth analytics validators", () => {
   it("rejects reversed and over-25-month ranges", () => {
     assert.equal(
       growthAnalyticsQuerySchema.safeParse({
+        from: "2026-02-31",
+        to: "2026-03-01",
+      }).success,
+      false,
+    );
+    assert.equal(
+      growthAnalyticsQuerySchema.safeParse({
         from: "2026-06-14",
         to: "2026-06-01",
       }).success,

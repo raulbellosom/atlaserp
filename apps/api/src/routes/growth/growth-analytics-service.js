@@ -204,56 +204,308 @@ export function createGrowthAnalyticsService({
   }) {
     if (from >= toExclusive) return [];
     const rows = await prisma.$queryRaw`
-      WITH sessions AS (
-        SELECT * FROM growth_session
+      WITH
+      sessions AS (
+        SELECT *, started_at::date AS metric_date
+        FROM growth_session
         WHERE company_id = ${companyId}::uuid
           AND (${siteId ?? null}::uuid IS NULL OR site_id = ${siteId ?? null}::uuid)
           AND started_at >= ${from} AND started_at < ${toExclusive}
       ),
       events AS (
-        SELECT * FROM growth_event
+        SELECT *, server_received_at::date AS metric_date
+        FROM growth_event
         WHERE company_id = ${companyId}::uuid
           AND (${siteId ?? null}::uuid IS NULL OR site_id = ${siteId ?? null}::uuid)
           AND server_received_at >= ${from}
           AND server_received_at < ${toExclusive}
           AND consent_state <> 'denied'
       ),
+      leads AS (
+        SELECT *, created_at::date AS metric_date
+        FROM growth_lead
+        WHERE company_id = ${companyId}::uuid
+          AND (${siteId ?? null}::uuid IS NULL OR site_id = ${siteId ?? null}::uuid)
+          AND created_at >= ${from}
+          AND created_at < ${toExclusive}
+          AND enabled = true
+      ),
       site_keys AS (
-        SELECT company_id, site_id, started_at::date metric_date FROM sessions
+        SELECT company_id, site_id, metric_date FROM sessions
         UNION
-        SELECT company_id, site_id, server_received_at::date metric_date FROM events
+        SELECT company_id, site_id, metric_date FROM events
+        UNION
+        SELECT company_id, site_id, metric_date FROM leads
+      ),
+      site_rows AS (
+        SELECT
+          site_keys.company_id AS "companyId",
+          site_keys.site_id AS "siteId",
+          site_keys.metric_date AS "metricDate",
+          'site'::text AS "dimensionType",
+          ''::text AS "dimensionKey",
+          jsonb_build_object(
+            'visitors', (
+              SELECT COUNT(DISTINCT visitor_id) FROM events event
+              WHERE event.site_id = site_keys.site_id
+                AND event.metric_date = site_keys.metric_date
+            ),
+            'newVisitors', (
+              SELECT COUNT(*) FROM growth_visitor visitor
+              WHERE visitor.company_id = ${companyId}::uuid
+                AND visitor.site_id = site_keys.site_id
+                AND visitor.first_seen_at::date = site_keys.metric_date
+                AND visitor.consent_state <> 'denied'
+            ),
+            'returningVisitors', (
+              SELECT COUNT(DISTINCT event.visitor_id)
+              FROM events event
+              JOIN growth_visitor visitor ON visitor.id = event.visitor_id
+              WHERE event.site_id = site_keys.site_id
+                AND event.metric_date = site_keys.metric_date
+                AND visitor.first_seen_at::date < site_keys.metric_date
+            ),
+            'sessions', (
+              SELECT COUNT(*) FROM sessions session
+              WHERE session.site_id = site_keys.site_id
+                AND session.metric_date = site_keys.metric_date
+            ),
+            'engagedSessions', (
+              SELECT COUNT(*) FROM sessions session
+              WHERE session.site_id = site_keys.site_id
+                AND session.metric_date = site_keys.metric_date
+                AND session.engaged = true
+            ),
+            'pageviews', (
+              SELECT COUNT(*) FROM events event
+              WHERE event.site_id = site_keys.site_id
+                AND event.metric_date = site_keys.metric_date
+                AND event.event_name = 'page_view'
+            ),
+            'visibleSeconds', (
+              SELECT COALESCE(SUM(visible_seconds), 0) FROM sessions session
+              WHERE session.site_id = site_keys.site_id
+                AND session.metric_date = site_keys.metric_date
+            ),
+            'leads', (
+              SELECT COUNT(*) FROM leads lead
+              WHERE lead.site_id = site_keys.site_id
+                AND lead.metric_date = site_keys.metric_date
+            ),
+            'qualified', (
+              SELECT COUNT(*) FROM growth_lead lead
+              WHERE lead.company_id = ${companyId}::uuid
+                AND lead.site_id = site_keys.site_id
+                AND lead.qualified_at::date = site_keys.metric_date
+            ),
+            'converted', (
+              SELECT COUNT(*) FROM growth_lead lead
+              WHERE lead.company_id = ${companyId}::uuid
+                AND lead.site_id = site_keys.site_id
+                AND lead.converted_at::date = site_keys.metric_date
+            )
+          ) AS metrics
+        FROM site_keys
+      ),
+      source_rows AS (
+        SELECT
+          company_id AS "companyId",
+          site_id AS "siteId",
+          metric_date AS "metricDate",
+          'source'::text AS "dimensionType",
+          CONCAT_WS('|',
+            COALESCE(NULLIF(utm_source, ''), 'direct'),
+            COALESCE(NULLIF(utm_medium, ''), 'none'),
+            COALESCE(NULLIF(utm_campaign, ''), 'none')
+          ) AS "dimensionKey",
+          jsonb_build_object(
+            'sessions', COUNT(*),
+            'engagedSessions', COUNT(*) FILTER (WHERE engaged = true),
+            'conversions', COUNT(*) FILTER (WHERE has_conversion = true),
+            'source', COALESCE(NULLIF(utm_source, ''), 'Directo'),
+            'medium', COALESCE(NULLIF(utm_medium, ''), 'Sin medio'),
+            'campaign', COALESCE(NULLIF(utm_campaign, ''), 'Sin campana')
+          ) AS metrics
+        FROM sessions
+        GROUP BY
+          company_id, site_id, metric_date,
+          utm_source, utm_medium, utm_campaign
+      ),
+      landing_rows AS (
+        SELECT
+          company_id AS "companyId",
+          site_id AS "siteId",
+          metric_date AS "metricDate",
+          'landing'::text AS "dimensionType",
+          COALESCE(NULLIF(landing_path, ''), '/') AS "dimensionKey",
+          jsonb_build_object(
+            'sessions', COUNT(*),
+            'engagedSessions', COUNT(*) FILTER (WHERE engaged = true),
+            'conversions', COUNT(*) FILTER (WHERE has_conversion = true)
+          ) AS metrics
+        FROM sessions
+        GROUP BY
+          company_id, site_id, metric_date,
+          COALESCE(NULLIF(landing_path, ''), '/')
+      ),
+      page_rows AS (
+        SELECT
+          company_id AS "companyId",
+          site_id AS "siteId",
+          metric_date AS "metricDate",
+          'page'::text AS "dimensionType",
+          COALESCE(NULLIF(path, ''), '/') AS "dimensionKey",
+          jsonb_build_object(
+            'pageviews', COUNT(*),
+            'visitors', COUNT(DISTINCT visitor_id)
+          ) AS metrics
+        FROM events
+        WHERE event_name = 'page_view'
+        GROUP BY
+          company_id, site_id, metric_date,
+          COALESCE(NULLIF(path, ''), '/')
+      ),
+      cta_rows AS (
+        SELECT
+          company_id AS "companyId",
+          site_id AS "siteId",
+          metric_date AS "metricDate",
+          'cta'::text AS "dimensionType",
+          event_name AS "dimensionKey",
+          jsonb_build_object(
+            'clicks', COUNT(*),
+            'visitors', COUNT(DISTINCT visitor_id),
+            'label', MAX(properties->>'label'),
+            'placement', MAX(properties->>'placement')
+          ) AS metrics
+        FROM events
+        WHERE event_name NOT IN (
+          'page_view', 'visible_time', 'form_view', 'form_start',
+          'form_submit', 'form_submit_error', 'lead_created',
+          'qualified', 'converted'
+        )
+        GROUP BY company_id, site_id, metric_date, event_name
+      ),
+      form_rows AS (
+        SELECT
+          company_id AS "companyId",
+          site_id AS "siteId",
+          metric_date AS "metricDate",
+          'form'::text AS "dimensionType",
+          form_id::text AS "dimensionKey",
+          jsonb_build_object(
+            'views', COUNT(*) FILTER (WHERE event_name = 'form_view'),
+            'starts', COUNT(*) FILTER (WHERE event_name = 'form_start'),
+            'submits', COUNT(*) FILTER (WHERE event_name = 'form_submit')
+          ) AS metrics
+        FROM events
+        WHERE form_id IS NOT NULL
+          AND event_name IN ('form_view', 'form_start', 'form_submit')
+        GROUP BY company_id, site_id, metric_date, form_id
+      ),
+      funnel_events AS (
+        SELECT
+          company_id,
+          site_id,
+          metric_date,
+          event_name AS step,
+          COUNT(*) AS count
+        FROM events
+        WHERE event_name IN (
+          'form_view', 'form_start', 'form_submit', 'lead_created'
+        )
+        GROUP BY company_id, site_id, metric_date, event_name
+        UNION ALL
+        SELECT
+          company_id,
+          site_id,
+          qualified_at::date,
+          'qualified',
+          COUNT(*)
+        FROM growth_lead
+        WHERE company_id = ${companyId}::uuid
+          AND (${siteId ?? null}::uuid IS NULL OR site_id = ${siteId ?? null}::uuid)
+          AND qualified_at >= ${from}
+          AND qualified_at < ${toExclusive}
+        GROUP BY company_id, site_id, qualified_at::date
+        UNION ALL
+        SELECT
+          company_id,
+          site_id,
+          converted_at::date,
+          'converted',
+          COUNT(*)
+        FROM growth_lead
+        WHERE company_id = ${companyId}::uuid
+          AND (${siteId ?? null}::uuid IS NULL OR site_id = ${siteId ?? null}::uuid)
+          AND converted_at >= ${from}
+          AND converted_at < ${toExclusive}
+        GROUP BY company_id, site_id, converted_at::date
+      ),
+      funnel_rows AS (
+        SELECT
+          company_id AS "companyId",
+          site_id AS "siteId",
+          metric_date AS "metricDate",
+          'funnel'::text AS "dimensionType",
+          step AS "dimensionKey",
+          jsonb_build_object('count', SUM(count)) AS metrics
+        FROM funnel_events
+        GROUP BY company_id, site_id, metric_date, step
+      ),
+      retention_rows AS (
+        SELECT
+          visitor.company_id AS "companyId",
+          visitor.site_id AS "siteId",
+          visitor.first_seen_at::date AS "metricDate",
+          'retention'::text AS "dimensionType",
+          visitor.first_seen_at::date::text AS "dimensionKey",
+          jsonb_build_object(
+            'cohortVisitors', COUNT(DISTINCT visitor.id),
+            'd1', COUNT(DISTINCT visitor.id) FILTER (
+              WHERE EXISTS (
+                SELECT 1 FROM growth_session session
+                WHERE session.visitor_id = visitor.id
+                  AND session.started_at::date =
+                    visitor.first_seen_at::date + 1
+              )
+            ),
+            'd7', COUNT(DISTINCT visitor.id) FILTER (
+              WHERE EXISTS (
+                SELECT 1 FROM growth_session session
+                WHERE session.visitor_id = visitor.id
+                  AND session.started_at::date =
+                    visitor.first_seen_at::date + 7
+              )
+            ),
+            'd30', COUNT(DISTINCT visitor.id) FILTER (
+              WHERE EXISTS (
+                SELECT 1 FROM growth_session session
+                WHERE session.visitor_id = visitor.id
+                  AND session.started_at::date =
+                    visitor.first_seen_at::date + 30
+              )
+            )
+          ) AS metrics
+        FROM growth_visitor visitor
+        WHERE visitor.company_id = ${companyId}::uuid
+          AND (${siteId ?? null}::uuid IS NULL OR visitor.site_id = ${siteId ?? null}::uuid)
+          AND visitor.first_seen_at >= ${from}
+          AND visitor.first_seen_at < ${toExclusive}
+          AND visitor.consent_state <> 'denied'
+        GROUP BY
+          visitor.company_id,
+          visitor.site_id,
+          visitor.first_seen_at::date
       )
-      SELECT
-        company_id AS "companyId",
-        site_id AS "siteId",
-        metric_date AS "metricDate",
-        'site'::text AS "dimensionType",
-        ''::text AS "dimensionKey",
-        jsonb_build_object(
-          'visitors', (
-            SELECT COUNT(DISTINCT visitor_id) FROM events event
-            WHERE event.site_id = site_keys.site_id
-              AND event.server_received_at::date = site_keys.metric_date
-          ),
-          'sessions', (
-            SELECT COUNT(*) FROM sessions session
-            WHERE session.site_id = site_keys.site_id
-              AND session.started_at::date = site_keys.metric_date
-          ),
-          'engagedSessions', (
-            SELECT COUNT(*) FROM sessions session
-            WHERE session.site_id = site_keys.site_id
-              AND session.started_at::date = site_keys.metric_date
-              AND session.engaged = true
-          ),
-          'pageviews', (
-            SELECT COUNT(*) FROM events event
-            WHERE event.site_id = site_keys.site_id
-              AND event.server_received_at::date = site_keys.metric_date
-              AND event.event_name = 'page_view'
-          )
-        ) AS metrics
-      FROM site_keys
+      SELECT * FROM site_rows
+      UNION ALL SELECT * FROM source_rows
+      UNION ALL SELECT * FROM landing_rows
+      UNION ALL SELECT * FROM page_rows
+      UNION ALL SELECT * FROM cta_rows
+      UNION ALL SELECT * FROM form_rows
+      UNION ALL SELECT * FROM funnel_rows
+      UNION ALL SELECT * FROM retention_rows
     `;
     return rows.map((row) => ({
       ...row,
@@ -437,12 +689,24 @@ export function createGrowthAnalyticsService({
         completionRate: rate(metrics.submits, metrics.starts),
       }))
       .sort((left, right) => right.views - left.views);
+    const campaigns = [...mergeByDimension(loaded.rows, "source")]
+      .map(([key, metrics]) => ({
+        key,
+        source: metrics.source ?? "Directo",
+        campaign: metrics.campaign ?? "Sin campana",
+        sessions: numeric(metrics.sessions),
+        conversions: numeric(metrics.conversions),
+        conversionRate: rate(metrics.conversions, metrics.sessions),
+      }))
+      .filter((row) => row.conversions > 0)
+      .sort((left, right) => right.conversions - left.conversions);
     return {
       range: loaded.normalized.range,
       totals: siteTotals(loaded.rows),
       series: seriesFor(loaded.rows),
       rows,
       funnel,
+      campaigns,
     };
   }
 
@@ -469,7 +733,12 @@ export function createGrowthAnalyticsService({
           0,
         ),
       },
-      series: rows.map((row) => ({
+      series: seriesFor(loaded.rows).map((row) => ({
+        date: row.date,
+        newVisitors: numeric(row.newVisitors),
+        returningVisitors: numeric(row.returningVisitors),
+      })),
+      cohortSeries: rows.map((row) => ({
         date: row.cohortDate,
         d1Rate: row.d1Rate,
         d7Rate: row.d7Rate,

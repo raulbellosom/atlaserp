@@ -143,6 +143,15 @@ const formColumns = [
   },
 ];
 
+const funnelColumns = [
+  { accessorKey: "label", header: "Paso" },
+  {
+    accessorKey: "count",
+    header: "Personas",
+    cell: ({ getValue }) => formatAnalyticsNumber(getValue()),
+  },
+];
+
 const retentionColumns = [
   { accessorKey: "cohortDate", header: "Cohorte" },
   {
@@ -163,6 +172,26 @@ const retentionColumns = [
   {
     accessorKey: "d30Rate",
     header: "D30",
+    cell: ({ getValue }) => formatAnalyticsPercent(getValue()),
+  },
+];
+
+const campaignColumns = [
+  { accessorKey: "campaign", header: "Campana" },
+  { accessorKey: "source", header: "Fuente" },
+  {
+    accessorKey: "sessions",
+    header: "Sesiones",
+    cell: ({ getValue }) => formatAnalyticsNumber(getValue()),
+  },
+  {
+    accessorKey: "conversions",
+    header: "Conversiones",
+    cell: ({ getValue }) => formatAnalyticsNumber(getValue()),
+  },
+  {
+    accessorKey: "conversionRate",
+    header: "Tasa",
     cell: ({ getValue }) => formatAnalyticsPercent(getValue()),
   },
 ];
@@ -285,6 +314,15 @@ function AcquisitionReport({ data }) {
         )}
       </ReportCard>
       <DataTable
+        columns={funnelColumns}
+        data={data.funnel ?? []}
+        searchPlaceholder="Buscar paso del embudo..."
+        emptyTitle="Sin actividad en el embudo"
+        emptyDescription="Los pasos apareceran cuando existan interacciones."
+        emptyIcon={Target}
+        pageSize={10}
+      />
+      <DataTable
         columns={acquisitionColumns}
         data={data.rows ?? []}
         searchPlaceholder="Buscar fuente, medio o campana..."
@@ -376,6 +414,15 @@ function ConversionsReport({ data }) {
         emptyIcon={UserRoundCheck}
         pageSize={15}
       />
+      <DataTable
+        columns={campaignColumns}
+        data={data.campaigns ?? []}
+        searchPlaceholder="Buscar campana o fuente..."
+        emptyTitle="Sin conversiones por campana"
+        emptyDescription="Las campanas con conversiones apareceran aqui."
+        emptyIcon={Target}
+        pageSize={15}
+      />
     </div>
   );
 }
@@ -384,12 +431,40 @@ function RetentionReport({ data }) {
   return (
     <div className="space-y-6">
       <ReportCard
+        title="Visitantes nuevos y recurrentes"
+        description="Visitantes reconocidos por primera vez frente a quienes regresaron."
+      >
+        {data.series?.length ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={data.series}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="date" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Legend />
+              <Bar
+                dataKey="newVisitors"
+                name="Nuevos"
+                fill={COLORS.primary}
+              />
+              <Bar
+                dataKey="returningVisitors"
+                name="Recurrentes"
+                fill={COLORS.secondary}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <EmptyChart />
+        )}
+      </ReportCard>
+      <ReportCard
         title="Retencion por cohorte"
         description="Porcentaje de visitantes que vuelve despues de 1, 7 y 30 dias."
       >
-        {data.series?.length ? (
+        {data.cohortSeries?.length ? (
           <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={data.series}>
+            <LineChart data={data.cohortSeries}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="date" />
               <YAxis unit="%" />

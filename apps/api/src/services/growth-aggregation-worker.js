@@ -128,6 +128,22 @@ export function createGrowthAggregationWorker({
                 SELECT COUNT(DISTINCT visitor_id) FROM event_base
                 WHERE company_id = keys.company_id AND site_id = keys.site_id
               ),
+              'newVisitors', (
+                SELECT COUNT(*) FROM growth_visitor visitor
+                WHERE visitor.company_id = keys.company_id
+                  AND visitor.site_id = keys.site_id
+                  AND visitor.first_seen_at >= ${dayStart}
+                  AND visitor.first_seen_at < ${dayEnd}
+                  AND visitor.consent_state <> 'denied'
+              ),
+              'returningVisitors', (
+                SELECT COUNT(DISTINCT event.visitor_id)
+                FROM event_base event
+                JOIN growth_visitor visitor ON visitor.id = event.visitor_id
+                WHERE event.company_id = keys.company_id
+                  AND event.site_id = keys.site_id
+                  AND visitor.first_seen_at < ${dayStart}
+              ),
               'sessions', (
                 SELECT COUNT(*) FROM session_base
                 WHERE company_id = keys.company_id AND site_id = keys.site_id

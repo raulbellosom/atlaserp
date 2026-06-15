@@ -416,9 +416,9 @@ export const atlasGrowthManifest = createModuleManifest({
   },
   navigation: [
     {
-      label: "Analitica",
+      label: "Crecimiento",
       path: "/",
-      icon: "ChartNoAxesCombined",
+      icon: "TrendingUp",
       layout: "main",
       permissionKey: "growth.analytics.read",
     },
