@@ -225,7 +225,10 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
     if (_primaryCompanyCache && Date.now() - _primaryCompanyCachedAt < COMPANY_CACHE_TTL) {
       return _primaryCompanyCache
     }
-    const config = await prisma.instanceConfig.findUnique({ where: { key: 'primary_company_id' } })
+    let config = await prisma.instanceConfig.findUnique({ where: { key: 'primary_company_id' } })
+    if (!config) {
+      config = await prisma.instanceConfig.findUnique({ where: { key: 'company_id' } })
+    }
     if (!config) return null
 
     const rows = await prisma.$queryRaw`

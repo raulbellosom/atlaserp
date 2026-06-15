@@ -946,6 +946,11 @@ app.post("/setup/initialize", async (c) => {
           create: { key: "company_id", value: company.id },
         });
         await tx.instanceConfig.upsert({
+          where: { key: "primary_company_id" },
+          update: {},
+          create: { key: "primary_company_id", value: company.id },
+        });
+        await tx.instanceConfig.upsert({
           where: { key: "completed_at" },
           update: { value: now },
           create: { key: "completed_at", value: now },
