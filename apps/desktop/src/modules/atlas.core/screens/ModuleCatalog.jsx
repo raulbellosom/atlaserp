@@ -48,6 +48,7 @@ import {
   Database,
   Sprout,
   Upload,
+  Package,
 } from "lucide-react";
 import {
   ModuleIcon,
