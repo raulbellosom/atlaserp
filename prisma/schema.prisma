@@ -295,6 +295,10 @@ model UserProfile {
   growthMentions  GrowthLeadMention[]         @relation("UserGrowthMentions")
   growthReactions GrowthLeadCommentReaction[] @relation("UserGrowthReactions")
 
+  entityComments  EntityComment[]         @relation("UserEntityComments")
+  entityMentions  EntityCommentMention[]  @relation("UserEntityMentions")
+  entityReactions EntityCommentReaction[] @relation("UserEntityReactions")
+
   @@map("user_profile")
 }
 
@@ -1127,6 +1131,54 @@ model GrowthLeadCommentReaction {
   @@unique([commentId, userId, emoji])
   @@index([commentId])
   @@map("growth_lead_comment_reaction")
+}
+
+model EntityComment {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  companyId  String    @db.Uuid @map("company_id")
+  entityType String    @db.VarChar(100) @map("entity_type")
+  entityId   String    @db.Uuid @map("entity_id")
+  authorId   String    @db.Uuid @map("author_id")
+  body       String    @db.VarChar(5000)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  editedAt   DateTime? @map("edited_at")
+
+  author    UserProfile             @relation("UserEntityComments", fields: [authorId], references: [id])
+  mentions  EntityCommentMention[]
+  reactions EntityCommentReaction[]
+
+  @@index([entityType, entityId])
+  @@index([companyId, entityType, entityId])
+  @@index([authorId])
+  @@map("entity_comment")
+}
+
+model EntityCommentMention {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  commentId String   @db.Uuid @map("comment_id")
+  userId    String   @db.Uuid @map("user_id")
+
+  comment EntityComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    UserProfile   @relation("UserEntityMentions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@map("entity_comment_mention")
+}
+
+model EntityCommentReaction {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  commentId String   @db.Uuid @map("comment_id")
+  userId    String   @db.Uuid @map("user_id")
+  emoji     String   @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  comment EntityComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    UserProfile   @relation("UserEntityReactions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId, emoji])
+  @@index([commentId])
+  @@map("entity_comment_reaction")
 }
 
 model DocumentTemplate {
