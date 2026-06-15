@@ -54,6 +54,22 @@ Plan: `docs/superpowers/plans/2026-06-14-growth-analytics.md`
 
 Verified: 2026-06-14 (49 Growth/API/worker/validator/SDK/UI tests passed; all 19 internal SDK tests passed; Prisma and UUID checks passed; Vite and full monorepo/Tauri builds passed; disposable scale benchmark measured aggregate read 7.245 ms, one-day tails 23.490-58.293 ms, and 44-day retention 272.868 ms with current indexes. React Doctor reported no correctness errors. Live deployment/browser QA remains pending. See `docs/superpowers/verifications/2026-06-14-growth-analytics.md`.)
 
+## Atlas Documents - Template Engine
+
+Spec: `docs/superpowers/specs/2026-06-14-atlas-documents-template-engine-design.md`
+Plan: `docs/superpowers/plans/2026-06-14-atlas-documents-template-engine.md`
+
+- [x] Add official `atlas.documents` schema, forward migration, manifest, PWA identity, navigation, and granular permissions.
+- [x] Add controlled block validators, safe provider registry, and the company-scoped `growth.lead` provider.
+- [x] Add template/version lifecycle, immutable publication, optimistic conflicts, audit entries, preview, generation, and generated-document history.
+- [x] Render branded multipage PDFs and persist private outputs as `FileAsset` records using PostgreSQL-generated IDs.
+- [x] Add the extracted internal SDK Documents domain and lazy-loaded template editor/history screens.
+- [x] Generate Documents from Growth leads and expose generated PDFs in the lead attachment area without granting Growth removal rights.
+- [ ] Apply and verify the forward migration in the target installation.
+- [ ] Complete authenticated browser QA for template lifecycle, every block type, provider RBAC, storage/download, history, and Growth generation.
+
+Verified: 2026-06-15 (Prisma validate/generate and UUID policy passed; 84 Documents/Growth/SDK tests plus 3 manifest/schema contract tests passed; Vite and full monorepo/Tauri builds passed and produced the native executable, MSI, and NSIS bundles; React Doctor reported no correctness errors, with heuristic warnings documented. `rbac:verify-catalog` still reports only the known unrelated Calendar/Catalog/Inventory and platform catalog drift. Live migration and authenticated browser/storage QA remain pending. See `docs/superpowers/verifications/2026-06-15-atlas-documents-template-engine.md`.)
+
 ## atlas.activity (CORE Activity Feed)
 
 - [x] Spec: `docs/superpowers/specs/2026-05-31-atlas-activity-design.md` (28 sections, status Approved).

@@ -54,17 +54,17 @@
 
 ### Task 1: Documents schema, manifest, and permissions
 
-- [ ] Write a schema contract test for templates, immutable versions, generated documents, unique template key/company, version number, FileAsset reference, and indexes.
-- [ ] Add Prisma models and a forward migration.
-- [ ] Add `atlas.documents` official manifest, navigation, ACL, PWA identity, dependencies, lifecycle ownership, and permission seed.
-- [ ] Run Prisma generation, UUID policy, and permission catalog verification.
-- [ ] Commit `feat(documents): add template data model and module manifest`.
+- [x] Write a schema contract test for templates, immutable versions, generated documents, unique template key/company, version number, FileAsset reference, and indexes.
+- [x] Add Prisma models and a forward migration.
+- [x] Add `atlas.documents` official manifest, navigation, ACL, PWA identity, dependencies, lifecycle ownership, and permission seed.
+- [x] Run Prisma generation, UUID policy, and permission catalog verification.
+- [x] Commit `feat(documents): add template data model and module manifest`.
 
 ### Task 2: Block validators and provider registry
 
-- [ ] Write failing tests for every block type, invalid settings, unknown block, unknown binding, table collection/column validation, provider registration, source permission, and company isolation.
-- [ ] Implement a Zod discriminated union for heading, paragraph, fields, table, totals, image, divider, spacer, signature, and page break.
-- [ ] Implement provider contract:
+- [x] Write failing tests for every block type, invalid settings, unknown block, unknown binding, table collection/column validation, provider registration, source permission, and company isolation.
+- [x] Implement a Zod discriminated union for heading, paragraph, fields, table, totals, image, divider, spacer, signature, and page break.
+- [x] Implement provider contract:
 
 ```js
 {
@@ -75,61 +75,61 @@
 }
 ```
 
-- [ ] Implement `growth.lead` provider with lead, attribution, converted Contact, and related submission summaries.
-- [ ] Run provider/validator tests.
-- [ ] Commit `feat(documents): add safe blocks and provider registry`.
+- [x] Implement `growth.lead` provider with lead, attribution, converted Contact, and related submission summaries.
+- [x] Run provider/validator tests.
+- [x] Commit `feat(documents): add safe blocks and provider registry`.
 
 ### Task 3: Template/version service and routes
 
-- [ ] Write failing tests for CRUD, draft version creation, optimistic updates, publish validation, published immutability, disable behavior, audit entries, and RBAC.
-- [ ] Implement service factory and thin Hono routes.
-- [ ] Register router in `apps/api/src/index.js` by import/mount only.
-- [ ] Run service and route tests.
-- [ ] Commit `feat(documents): add template version workflow`.
+- [x] Write failing tests for CRUD, draft version creation, optimistic updates, publish validation, published immutability, disable behavior, audit entries, and RBAC.
+- [x] Implement service factory and thin Hono routes.
+- [x] Register router in `apps/api/src/index.js` by import/mount only.
+- [x] Run service and route tests.
+- [x] Commit `feat(documents): add template version workflow`.
 
 ### Task 4: PDF renderer
 
-- [ ] Create fixed fixture provider data and write renderer tests for branding, pagination, field paths, table overflow, totals, images, signature, explicit page break, missing optional values, and unsupported images.
-- [ ] Extend `pdf-branding-service` only with reusable low-level helpers; keep document block rendering in `document-renderer.js`.
-- [ ] Render PDFKit buffers deterministically enough to assert text/page counts and metadata.
-- [ ] Run renderer tests.
-- [ ] Commit `feat(documents): render versioned block templates to pdf`.
+- [x] Create fixed fixture provider data and write renderer tests for branding, pagination, field paths, table overflow, totals, images, signature, explicit page break, missing optional values, and unsupported images.
+- [x] Keep document block rendering isolated in `document-renderer.js`; no shared branding-service change was required.
+- [x] Render PDFKit buffers deterministically enough to assert text/page counts and metadata.
+- [x] Run renderer tests.
+- [x] Commit `feat(documents): render versioned block templates to pdf`.
 
 ### Task 5: Preview, generation, FileAsset, and cleanup
 
-- [ ] Write failing tests for preview without persistence, successful generation, storage failure cleanup, generated metadata, exact version binding, cross-company rejection, disable, and download.
-- [ ] Generate a `GeneratedDocument` ID in PostgreSQL before building its object key; do not generate UUID in JavaScript.
-- [ ] Store private PDF under `modules/atlas.documents/GeneratedDocument/<id>/...`.
-- [ ] Create FileAsset and GeneratedDocument consistently; on partial storage failure remove the object best-effort and leave no enabled metadata.
-- [ ] Add `GeneratedDocument` and `GrowthLead` to files allowlist where required.
-- [ ] Run tests and commit `feat(documents): persist generated pdf assets`.
+- [x] Write failing tests for preview without persistence, successful generation, storage failure cleanup, generated metadata, exact version binding, cross-company rejection, disable, and download.
+- [x] Generate a `GeneratedDocument` ID in PostgreSQL before building its object key; do not generate UUID in JavaScript.
+- [x] Store private PDF under `modules/atlas.documents/GeneratedDocument/<id>/...`.
+- [x] Create FileAsset and GeneratedDocument consistently; on partial storage failure remove the object best-effort and leave no enabled metadata.
+- [x] Add `GeneratedDocument` and `GrowthLead` to files allowlist where required.
+- [x] Run tests and commit `feat(documents): persist generated pdf assets`.
 
 ### Task 6: Internal SDK documents domain
 
-- [ ] Write request-shape tests for templates, versions, provider schema, preview blob, generate, and generated history.
-- [ ] Implement `packages/sdk/src/domains/documents.js` and export it from the SDK without adding inline domain logic.
-- [ ] Run all SDK tests.
-- [ ] Commit `feat(sdk): add documents domain`.
+- [x] Write request-shape tests for templates, versions, provider schema, preview blob, generate, and generated history.
+- [x] Implement `packages/sdk/src/domains/documents.js` and export it from the SDK without adding inline domain logic.
+- [x] Run all SDK tests.
+- [x] Commit `feat(sdk): add documents domain`.
 
 ### Task 7: Templates and generated-document screens
 
-- [ ] Build templates list with `PageHeader`, `DataTable`, filters, create dialog, enable/disable confirmation, and states.
-- [ ] Build editor with block list/reordering, block configuration using `@atlas/ui`, provider variable picker, save draft, preview, and publish.
-- [ ] Build generated history with filters, `FileViewer`, download, and disable.
-- [ ] Add ModuleOutlet routes and run desktop build/React Doctor.
-- [ ] Commit `feat(documents): add template editor and generated history`.
+- [x] Build templates list with `PageHeader`, `DataTable`, filters, create dialog, enable/disable confirmation, and states.
+- [x] Build editor with block list/reordering, block configuration using `@atlas/ui`, provider variable picker, save draft, preview, and publish.
+- [x] Build generated history with filters, `FileViewer`, download, and disable.
+- [x] Add ModuleOutlet routes and run desktop build/React Doctor.
+- [x] Commit `feat(documents): add template editor and generated history`.
 
 ### Task 8: Growth integration
 
-- [ ] Add `GenerateDocumentDialog` to Growth lead detail.
-- [ ] List only enabled published templates with `sourceType=growth.lead`.
-- [ ] Generate from the lead ID, refresh `AttachmentsPanel`, and open preview/download.
-- [ ] Gate action with Documents create plus Growth read permissions.
-- [ ] Build and commit `feat(growth): generate documents from leads`.
+- [x] Add `GenerateDocumentDialog` to Growth lead detail.
+- [x] List only enabled published templates with `sourceType=growth.lead`.
+- [x] Generate from the lead ID, refresh `AttachmentsPanel`, and open preview/download.
+- [x] Gate action with Documents create plus Growth read permissions.
+- [x] Build and commit `feat(growth): generate documents from leads`.
 
 ### Task 9: Full verification
 
-- [ ] Run:
+- [x] Run:
 
 ```bash
 pnpm db:generate
@@ -140,7 +140,11 @@ pnpm build
 ```
 
 - [ ] Manually verify template lifecycle, each block, long multipage output, provider permissions, storage/download, generated history, and Growth attachment.
-- [ ] Record exact evidence in TASKS.
+- [x] Record exact evidence in TASKS.
+
+Automated verification evidence is recorded in
+`docs/superpowers/verifications/2026-06-15-atlas-documents-template-engine.md`.
+The manual target-environment verification remains intentionally unchecked.
 
 ## Rollback Notes
 

@@ -1,7 +1,7 @@
 # Atlas Documents Template Engine
 
 Date: 2026-06-14
-Status: Proposed
+Status: Implemented (repository scope)
 Author: Codex
 Spec file: `docs/superpowers/specs/2026-06-14-atlas-documents-template-engine-design.md`
 Plan file: `docs/superpowers/plans/2026-06-14-atlas-documents-template-engine.md`
@@ -14,7 +14,10 @@ Atlas Documents Template Engine
 
 ## 2. Status
 
-Proposed
+Implemented (repository scope)
+
+Automated verification completed on 2026-06-15. Applying the migration in the
+target installation and authenticated browser/storage QA remain pending.
 
 ## 3. Context
 
