@@ -1,5 +1,6 @@
 import { createWebsiteDomain } from "./domains/website.js";
 import { createGrowthDomain } from "./domains/growth.js";
+import { createDocumentsDomain } from "./domains/documents.js";
 
 export function createAtlasClient({ baseUrl }) {
   let _offlineTransport = null;
@@ -1035,6 +1036,12 @@ export function createAtlasClient({ baseUrl }) {
     },
     website: createWebsiteDomain({ request, withAuthHeaders }),
     growth: createGrowthDomain({
+      request,
+      requestBlob,
+      withAuthHeaders,
+      toQueryString,
+    }),
+    documents: createDocumentsDomain({
       request,
       requestBlob,
       withAuthHeaders,
