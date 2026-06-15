@@ -393,6 +393,7 @@ model FileAsset {
   hrProfileEmployees HrEmployee[] @relation("HrEmployeeProfileImage")
   calendarFiles      CalendarEventFile[]
   invItemFiles       InvItemFile[] @relation("FileAssetInvItems")
+  generatedDocuments GeneratedDocument[]
 
   @@index([moduleKey, entityType, entityId])
   @@map("file_asset")
@@ -1073,6 +1074,75 @@ model GrowthDailyMetric {
   @@unique([siteId, metricDate, dimensionType, dimensionKey])
   @@index([companyId, metricDate])
   @@map("growth_daily_metric")
+}
+
+model DocumentTemplate {
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  companyId          String   @db.Uuid @map("company_id")
+  key                String
+  name               String
+  description        String?
+  sourceType         String   @map("source_type")
+  publishedVersionId String?  @db.Uuid @map("published_version_id")
+  enabled            Boolean  @default(true)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  publishedVersion DocumentTemplateVersion?  @relation("PublishedDocumentTemplateVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
+  versions         DocumentTemplateVersion[] @relation("DocumentTemplateVersions")
+  generatedDocuments GeneratedDocument[]
+
+  @@unique([companyId, key])
+  @@index([companyId, sourceType, enabled])
+  @@index([publishedVersionId])
+  @@map("document_template")
+}
+
+model DocumentTemplateVersion {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  templateId    String   @db.Uuid @map("template_id")
+  versionNumber Int      @map("version_number")
+  status        String   @default("draft")
+  blocks        Json
+  createdById   String?  @db.Uuid @map("created_by_id")
+  publishedAt   DateTime? @map("published_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  template              DocumentTemplate   @relation("DocumentTemplateVersions", fields: [templateId], references: [id], onDelete: Cascade)
+  publishedForTemplates DocumentTemplate[] @relation("PublishedDocumentTemplateVersion")
+  generatedDocuments    GeneratedDocument[]
+
+  @@unique([templateId, versionNumber])
+  @@index([templateId, status])
+  @@map("document_template_version")
+}
+
+model GeneratedDocument {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  companyId    String   @db.Uuid @map("company_id")
+  templateId   String   @db.Uuid @map("template_id")
+  versionId    String   @db.Uuid @map("version_id")
+  sourceType   String   @map("source_type")
+  sourceId     String   @db.Uuid @map("source_id")
+  fileAssetId  String?  @db.Uuid @map("file_asset_id")
+  status       String   @default("pending")
+  metadata     Json?
+  generatedById String? @db.Uuid @map("generated_by_id")
+  generatedAt  DateTime? @map("generated_at")
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  template  DocumentTemplate        @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  version   DocumentTemplateVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  fileAsset FileAsset?              @relation(fields: [fileAssetId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, generatedAt])
+  @@index([companyId, sourceType, sourceId])
+  @@index([templateId, versionId])
+  @@index([fileAssetId])
+  @@map("generated_document")
 }
 
 model LedgerAccount {

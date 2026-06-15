@@ -471,6 +471,105 @@ export const atlasGrowthManifest = createModuleManifest({
   blueprints: [],
 });
 
+export const atlasDocumentsManifest = createModuleManifest({
+  key: "atlas.documents",
+  name: "Documentos",
+  description: "Plantillas versionadas y documentos PDF generados.",
+  version: "0.1.0",
+  kind: MODULE_KINDS.CORE,
+  core: true,
+  uninstallable: false,
+  icon: "Files",
+  color: "#0F766E",
+  pwa: { shortName: "Documentos", startPath: "/templates" },
+  category: "productividad",
+  summary: "Plantillas seguras y generacion de documentos PDF.",
+  dependencies: [
+    { key: "atlas.core" },
+    { key: "atlas.files" },
+    { key: "atlas.company" },
+  ],
+  lifecycle: {
+    installable: true,
+    uninstallable: false,
+    resettable: false,
+    supportsDataPurge: true,
+    defaultUninstallPolicy: "purge-owned-tables",
+    ownedEntities: [
+      "DocumentTemplate",
+      "DocumentTemplateVersion",
+      "GeneratedDocument",
+    ],
+    ownedTables: [
+      "document_template",
+      "document_template_version",
+      "generated_document",
+    ],
+    sharedEntities: ["Company", "UserProfile", "FileAsset", "AuditLog"],
+  },
+  navigation: [
+    {
+      label: "Plantillas",
+      path: "/templates",
+      icon: "LayoutTemplate",
+      layout: "main",
+      permissionKey: "documents.templates.read",
+    },
+    {
+      label: "Generados",
+      path: "/generated",
+      icon: "Files",
+      layout: "main",
+      permissionKey: "documents.generated.read",
+    },
+  ],
+  permissions: [
+    { key: "documents.access", name: "Acceder a Documentos" },
+    { key: "documents.templates.read", name: "Ver plantillas" },
+    { key: "documents.templates.create", name: "Crear plantillas" },
+    { key: "documents.templates.update", name: "Editar plantillas" },
+    { key: "documents.templates.delete", name: "Desactivar plantillas" },
+    { key: "documents.templates.publish", name: "Publicar plantillas" },
+    { key: "documents.generated.read", name: "Ver documentos generados" },
+    { key: "documents.generated.create", name: "Generar documentos" },
+    { key: "documents.generated.delete", name: "Desactivar documentos" },
+  ],
+  acl: {
+    module: "documents.access",
+    actions: {
+      "documents.templates.read": "documents.templates.read",
+      "documents.templates.create": "documents.templates.create",
+      "documents.templates.update": "documents.templates.update",
+      "documents.templates.delete": "documents.templates.delete",
+      "documents.templates.publish": "documents.templates.publish",
+      "documents.generated.read": "documents.generated.read",
+      "documents.generated.create": "documents.generated.create",
+      "documents.generated.delete": "documents.generated.delete",
+    },
+    models: {
+      DocumentTemplate: {
+        read: "documents.templates.read",
+        create: "documents.templates.create",
+        update: "documents.templates.update",
+        delete: "documents.templates.delete",
+      },
+      DocumentTemplateVersion: {
+        read: "documents.templates.read",
+        create: "documents.templates.create",
+        update: "documents.templates.update",
+        delete: "documents.templates.delete",
+      },
+      GeneratedDocument: {
+        read: "documents.generated.read",
+        create: "documents.generated.create",
+        update: "documents.generated.delete",
+        delete: "documents.generated.delete",
+      },
+    },
+  },
+  blueprints: [],
+});
+
 export const featureModules = [];
 
 export const activityMap = createModuleManifest({

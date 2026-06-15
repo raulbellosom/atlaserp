@@ -11,6 +11,7 @@ const GROUPS = {
   ledger: "Libro de cuentas",
   website: "Sitio web",
   growth: "Growth",
+  documents: "Documentos",
   audit: "Bitacora",
   activity: "Actividad",
   notifications: "Notificaciones",
@@ -29,6 +30,7 @@ const MODULE_LABELS = {
   ledger: "Libro de cuentas",
   website: "Sitio web",
   growth: "Growth",
+  documents: "Documentos",
   audit: "Bitacora",
   activity: "Actividad",
   notifications: "Notificaciones",
@@ -66,6 +68,8 @@ const FEATURE_LABELS = {
   notifications: "Notificaciones",
   leads: "Leads",
   analytics: "Analitica",
+  templates: "Plantillas",
+  generated: "Documentos generados",
 };
 
 const ACTION_LABELS = {
@@ -934,6 +938,61 @@ export const PERMISSION_CATALOG = {
     descriptionEs: "Permite exportar metricas del storefront.",
     groupKey: "growth",
     order: 21,
+  },
+
+  "documents.access": {
+    displayNameEs: "Acceder a Documentos",
+    descriptionEs: "Permite acceder al modulo de documentos.",
+    groupKey: "documents",
+    order: 1,
+  },
+  "documents.templates.read": {
+    displayNameEs: "Ver plantillas",
+    descriptionEs: "Permite consultar plantillas de documentos.",
+    groupKey: "documents",
+    order: 10,
+  },
+  "documents.templates.create": {
+    displayNameEs: "Crear plantillas",
+    descriptionEs: "Permite crear plantillas de documentos.",
+    groupKey: "documents",
+    order: 11,
+  },
+  "documents.templates.update": {
+    displayNameEs: "Editar plantillas",
+    descriptionEs: "Permite editar plantillas y sus versiones.",
+    groupKey: "documents",
+    order: 12,
+  },
+  "documents.templates.delete": {
+    displayNameEs: "Desactivar plantillas",
+    descriptionEs: "Permite desactivar plantillas de documentos.",
+    groupKey: "documents",
+    order: 13,
+  },
+  "documents.templates.publish": {
+    displayNameEs: "Publicar plantillas",
+    descriptionEs: "Permite publicar versiones de plantillas.",
+    groupKey: "documents",
+    order: 14,
+  },
+  "documents.generated.read": {
+    displayNameEs: "Ver documentos generados",
+    descriptionEs: "Permite consultar documentos generados.",
+    groupKey: "documents",
+    order: 20,
+  },
+  "documents.generated.create": {
+    displayNameEs: "Generar documentos",
+    descriptionEs: "Permite generar documentos desde plantillas publicadas.",
+    groupKey: "documents",
+    order: 21,
+  },
+  "documents.generated.delete": {
+    displayNameEs: "Eliminar documentos generados",
+    descriptionEs: "Permite desactivar documentos generados.",
+    groupKey: "documents",
+    order: 22,
   },
 
   "projects.access": {

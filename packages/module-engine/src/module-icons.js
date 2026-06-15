@@ -13,6 +13,7 @@ export const MODULE_ICON_NAMES = Object.freeze([
   'Contact',
   'ContactRound',
   'CreditCard',
+  'Files',
   'FileText',
   'FolderOpen',
   'Globe',
