@@ -5,6 +5,7 @@ import {
   Badge,
   Button,
   Card,
+  CommentThread,
   ConfirmDialog,
   EmptyState,
   ErrorState,
@@ -34,6 +35,13 @@ import { atlas } from "../../../lib/atlas.js";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import { ConvertLeadDialog } from "../components/ConvertLeadDialog.jsx";
 import { GenerateDocumentDialog } from "../components/GenerateDocumentDialog.jsx";
+import {
+  useCreateGrowthLeadComment,
+  useDeleteGrowthLeadComment,
+  useGrowthLeadComments,
+  useToggleGrowthLeadCommentReaction,
+  useUpdateGrowthLeadComment,
+} from "../hooks/useGrowthLeadComments.js";
 import {
   LEAD_PRIORITY_OPTIONS,
   describeLeadActivity,
@@ -93,6 +101,7 @@ export default function GrowthLeadDetailScreen() {
 
   const [note, setNote] = useState("");
   const [convertOpen, setConvertOpen] = useState(false);
+  const handleAttachmentsError = useCallback((message) => toast.error(message), []);
   const [disableOpen, setDisableOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
   const [generatedFile, setGeneratedFile] = useState(null);
@@ -173,6 +182,35 @@ export default function GrowthLeadDetailScreen() {
     onError: (error) =>
       toast.error(error?.message || "No se pudo cambiar el estado del lead"),
   });
+
+  const commentsQuery     = useGrowthLeadComments(leadId);
+  const createComment     = useCreateGrowthLeadComment(leadId);
+  const updateComment     = useUpdateGrowthLeadComment(leadId);
+  const deleteComment     = useDeleteGrowthLeadComment(leadId);
+  const toggleReaction    = useToggleGrowthLeadCommentReaction(leadId);
+
+  const membersQuery = useQuery({
+    queryKey: ['identity', 'users'],
+    queryFn: () => atlas.identity.listUsers(token),
+    enabled: Boolean(token),
+    staleTime: 10 * 60 * 1000,
+  });
+  const members = useMemo(() => {
+    const raw = membersQuery.data?.data ?? membersQuery.data ?? [];
+    return Array.isArray(raw)
+      ? raw.map(u => ({
+          id: u.id,
+          displayName: u.displayName || u.email || u.id,
+          email: u.email || '',
+          avatarUrl: u.avatarUrl || null,
+        }))
+      : [];
+  }, [membersQuery.data]);
+
+  const comments = useMemo(() => {
+    const raw = commentsQuery.data?.data ?? commentsQuery.data ?? [];
+    return Array.isArray(raw) ? raw : [];
+  }, [commentsQuery.data]);
 
   const attachmentsConfig = useMemo(
     () => ({
@@ -378,10 +416,23 @@ export default function GrowthLeadDetailScreen() {
                 canRemoveItem={(item) =>
                   item.raw?.moduleKey === "atlas.growth"
                 }
-                onError={(message) => toast.error(message)}
+                onError={handleAttachmentsError}
               />
             </Card>
           ) : null}
+
+          <CommentThread
+            comments={comments}
+            members={members}
+            currentUserId={userProfile?.id}
+            loading={commentsQuery.isLoading}
+            isSubmitting={createComment.isPending}
+            isActing={updateComment.isPending || deleteComment.isPending || toggleReaction.isPending}
+            onSubmit={(body) => createComment.mutate({ body })}
+            onUpdate={({ commentId, body }) => updateComment.mutateAsync({ commentId, body })}
+            onDelete={(commentId) => deleteComment.mutateAsync(commentId)}
+            onToggleReaction={({ commentId, emoji }) => toggleReaction.mutate({ commentId, emoji })}
+          />
         </div>
 
         <div className="space-y-6">

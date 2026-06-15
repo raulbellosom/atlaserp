@@ -99,5 +99,37 @@ export function createGrowthDomain({
             : enabledOrPayload,
         ),
       }),
+
+    listLeadComments: (leadId, token) =>
+      request(`${leadPath(leadId)}/comments`, {
+        headers: withAuthHeaders(token),
+      }),
+
+    createLeadComment: (leadId, body, token) =>
+      request(`${leadPath(leadId)}/comments`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({ body }),
+      }),
+
+    updateLeadComment: (leadId, commentId, body, token) =>
+      request(`${leadPath(leadId)}/comments/${encodeURIComponent(commentId)}`, {
+        method: "PATCH",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({ body }),
+      }),
+
+    deleteLeadComment: (leadId, commentId, token) =>
+      request(`${leadPath(leadId)}/comments/${encodeURIComponent(commentId)}`, {
+        method: "DELETE",
+        headers: withAuthHeaders(token),
+      }),
+
+    toggleLeadCommentReaction: (leadId, commentId, emoji, token) =>
+      request(`${leadPath(leadId)}/comments/${encodeURIComponent(commentId)}/reactions`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({ emoji }),
+      }),
   };
 }

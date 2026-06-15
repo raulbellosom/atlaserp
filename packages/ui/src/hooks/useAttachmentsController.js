@@ -269,6 +269,10 @@ export function useAttachmentsController({
   const [pendingItems, setPendingItems] = useState([]);
   const pendingItemsRef = useRef(pendingItems);
   useEffect(() => { pendingItemsRef.current = pendingItems; }, [pendingItems]);
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -293,9 +297,9 @@ export function useAttachmentsController({
   const setGlobalError = useCallback(
     (message) => {
       setError(message);
-      onError?.(message);
+      onErrorRef.current?.(message);
     },
-    [onError],
+    [],
   );
 
   const loadAssociated = useCallback(
@@ -328,7 +332,7 @@ export function useAttachmentsController({
           normalizeAssociatedItem(item, normalizedFields),
         );
         setAssociatedItems(normalized);
-        onChange?.({ associated: normalized, pending: pendingItemsRef.current });
+        onChangeRef.current?.({ associated: normalized, pending: pendingItemsRef.current });
         return normalized;
       } catch (err) {
         const message =
@@ -343,7 +347,6 @@ export function useAttachmentsController({
       apiBaseUrl,
       config?.listPath,
       normalizedFields,
-      onChange,
       recordId,
       setGlobalError,
       token,
