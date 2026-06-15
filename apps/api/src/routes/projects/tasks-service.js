@@ -52,7 +52,7 @@ export function createTasksService({ prisma }) {
         },
         status: true,
         parent: { select: { id: true, title: true } },
-        _count: { select: { subtasks: true, comments: true } },
+        _count: { select: { subtasks: true } },
       },
       orderBy: [{ statusId: 'asc' }, { position: 'asc' }],
     })

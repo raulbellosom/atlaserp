@@ -8,7 +8,7 @@ import {
   useSortable, sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, GripVertical, AlertCircle, CornerDownRight, MessageSquare, Layers, Lock, RefreshCw, Paperclip, ArrowRight } from 'lucide-react'
+import { Plus, GripVertical, AlertCircle, CornerDownRight, Layers, Lock, RefreshCw, Paperclip, ArrowRight } from 'lucide-react'
 import {
   EmptyState,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
@@ -92,12 +92,6 @@ function TaskCard({ task, statusColor, onClick, isDragging, statuses, currentSta
           <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
             <Layers size={12} />
             {task._count.subtasks}
-          </span>
-        )}
-        {task._count?.comments > 0 && (
-          <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
-            <MessageSquare size={12} />
-            {task._count.comments}
           </span>
         )}
         {task._count?.attachments > 0 && (
