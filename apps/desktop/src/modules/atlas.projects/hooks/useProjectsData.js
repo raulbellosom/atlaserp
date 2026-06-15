@@ -393,38 +393,52 @@ export function useRemoveAssignee(projectId, taskId) {
 
 // ── Task Comments ─────────────────────────────────────────────────────────────
 
+function commentsKey(projectId, taskId) {
+  return ['projects', projectId, 'tasks', taskId, 'comments']
+}
+
+export function useTaskComments(projectId, taskId) {
+  const token = useToken()
+  return useQuery({
+    queryKey: commentsKey(projectId, taskId),
+    queryFn: () => atlas.projects.listTaskComments(projectId, taskId, {}, token),
+    enabled: Boolean(projectId && taskId && token),
+    select: (res) => res?.data ?? res ?? [],
+  })
+}
+
 export function useCreateComment(projectId, taskId) {
   const { session, userProfile } = useAuth()
   const token = session?.access_token
   const qc = useQueryClient()
-  const taskKey = ['projects', projectId, 'tasks', taskId]
+  const cKey = commentsKey(projectId, taskId)
   return useMutation({
     mutationFn: ({ body }) => atlas.projects.createTaskComment(projectId, taskId, { body }, token),
     onMutate: async ({ body }) => {
-      await qc.cancelQueries({ queryKey: taskKey })
-      const snapshot = qc.getQueryData(taskKey)
+      await qc.cancelQueries({ queryKey: cKey })
+      const snapshot = qc.getQueryData(cKey)
       const tempComment = {
         id: `_temp_${Date.now()}`,
-        taskId,
+        entityType: 'Task',
+        entityId: taskId,
         authorId: userProfile?.id,
         author: userProfile,
         body,
         createdAt: new Date().toISOString(),
         editedAt: null,
+        mentions: [],
         reactions: [],
         _pending: true,
       }
-      qc.setQueryData(taskKey, (old) =>
-        old ? { ...old, comments: [...(old.comments ?? []), tempComment] } : old
-      )
+      qc.setQueryData(cKey, (old) => [...(old ?? []), tempComment])
       return { snapshot }
     },
     onError: (_, __, ctx) => {
-      if (ctx?.snapshot !== undefined) qc.setQueryData(taskKey, ctx.snapshot)
+      if (ctx?.snapshot !== undefined) qc.setQueryData(cKey, ctx.snapshot)
       toast.error('No se pudo enviar el comentario')
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: taskKey })
+      qc.invalidateQueries({ queryKey: cKey })
       qc.invalidateQueries({ queryKey: ['notifications'] })
     },
   })
@@ -433,50 +447,42 @@ export function useCreateComment(projectId, taskId) {
 export function useUpdateComment(projectId, taskId) {
   const token = useToken()
   const qc = useQueryClient()
-  const taskKey = ['projects', projectId, 'tasks', taskId]
+  const cKey = commentsKey(projectId, taskId)
   return useMutation({
     mutationFn: ({ commentId, body }) => atlas.projects.updateTaskComment(projectId, taskId, commentId, { body }, token),
     onMutate: async ({ commentId, body }) => {
-      await qc.cancelQueries({ queryKey: taskKey })
-      const snapshot = qc.getQueryData(taskKey)
-      qc.setQueryData(taskKey, (old) =>
-        old
-          ? { ...old, comments: old.comments?.map(c => c.id === commentId ? { ...c, body, editedAt: new Date().toISOString() } : c) }
-          : old
+      await qc.cancelQueries({ queryKey: cKey })
+      const snapshot = qc.getQueryData(cKey)
+      qc.setQueryData(cKey, (old) =>
+        (old ?? []).map(c => c.id === commentId ? { ...c, body, editedAt: new Date().toISOString() } : c)
       )
       return { snapshot }
     },
     onError: (_, __, ctx) => {
-      if (ctx?.snapshot !== undefined) qc.setQueryData(taskKey, ctx.snapshot)
+      if (ctx?.snapshot !== undefined) qc.setQueryData(cKey, ctx.snapshot)
       toast.error('No se pudo editar el comentario')
     },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: taskKey })
-    },
+    onSettled: () => qc.invalidateQueries({ queryKey: cKey }),
   })
 }
 
 export function useDeleteComment(projectId, taskId) {
   const token = useToken()
   const qc = useQueryClient()
-  const taskKey = ['projects', projectId, 'tasks', taskId]
+  const cKey = commentsKey(projectId, taskId)
   return useMutation({
     mutationFn: ({ commentId }) => atlas.projects.deleteTaskComment(projectId, taskId, commentId, token),
     onMutate: async ({ commentId }) => {
-      await qc.cancelQueries({ queryKey: taskKey })
-      const snapshot = qc.getQueryData(taskKey)
-      qc.setQueryData(taskKey, (old) =>
-        old ? { ...old, comments: old.comments?.filter(c => c.id !== commentId) } : old
-      )
+      await qc.cancelQueries({ queryKey: cKey })
+      const snapshot = qc.getQueryData(cKey)
+      qc.setQueryData(cKey, (old) => (old ?? []).filter(c => c.id !== commentId))
       return { snapshot }
     },
     onError: (_, __, ctx) => {
-      if (ctx?.snapshot !== undefined) qc.setQueryData(taskKey, ctx.snapshot)
+      if (ctx?.snapshot !== undefined) qc.setQueryData(cKey, ctx.snapshot)
       toast.error('No se pudo eliminar el comentario')
     },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: taskKey })
-    },
+    onSettled: () => qc.invalidateQueries({ queryKey: cKey }),
   })
 }
 
@@ -484,37 +490,31 @@ export function useToggleTaskReaction(projectId, taskId) {
   const { session, userProfile } = useAuth()
   const token = session?.access_token
   const qc = useQueryClient()
-  const taskKey = ['projects', projectId, 'tasks', taskId]
+  const cKey = commentsKey(projectId, taskId)
   return useMutation({
     mutationFn: ({ commentId, emoji }) =>
       atlas.projects.toggleTaskCommentReaction(projectId, taskId, commentId, emoji, token),
     onMutate: async ({ commentId, emoji }) => {
-      await qc.cancelQueries({ queryKey: taskKey })
-      const snapshot = qc.getQueryData(taskKey)
+      await qc.cancelQueries({ queryKey: cKey })
+      const snapshot = qc.getQueryData(cKey)
       const userId = userProfile?.id
-      qc.setQueryData(taskKey, (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          comments: old.comments?.map(c => {
-            if (c.id !== commentId) return c
-            const mine = c.reactions?.some(r => r.userId === userId && r.emoji === emoji)
-            const reactions = mine
-              ? c.reactions.filter(r => !(r.userId === userId && r.emoji === emoji))
-              : [...(c.reactions ?? []), { id: '_opt', commentId, userId, emoji, user: userProfile ?? null }]
-            return { ...c, reactions }
-          }),
-        }
-      })
+      qc.setQueryData(cKey, (old) =>
+        (old ?? []).map(c => {
+          if (c.id !== commentId) return c
+          const mine = c.reactions?.some(r => r.userId === userId && r.emoji === emoji)
+          const reactions = mine
+            ? c.reactions.filter(r => !(r.userId === userId && r.emoji === emoji))
+            : [...(c.reactions ?? []), { id: '_opt', commentId, userId, emoji, user: userProfile ?? null }]
+          return { ...c, reactions }
+        })
+      )
       return { snapshot }
     },
     onError: (_, __, ctx) => {
-      if (ctx?.snapshot !== undefined) qc.setQueryData(taskKey, ctx.snapshot)
+      if (ctx?.snapshot !== undefined) qc.setQueryData(cKey, ctx.snapshot)
       toast.error('No se pudo actualizar la reaccion')
     },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: taskKey })
-    },
+    onSettled: () => qc.invalidateQueries({ queryKey: cKey }),
   })
 }
 

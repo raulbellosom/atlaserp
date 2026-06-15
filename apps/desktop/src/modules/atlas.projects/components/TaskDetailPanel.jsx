@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { createPortal } from "react-dom";
 import {
   Sheet,
   SheetContent,
@@ -20,7 +19,6 @@ import {
 } from "@atlas/ui";
 import { Skeleton } from "@atlas/ui";
 import { Trash2, Plus, X, Activity, Lock, SmilePlus } from "lucide-react";
-import EmojiPickerLib from "emoji-picker-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
@@ -44,6 +42,7 @@ import {
   useUpsertFieldValues,
   useAllTasksForPicker,
   useToggleTaskReaction,
+  useTaskComments,
 } from "../hooks/useProjectsData";
 import { SubtaskRow } from "./SubtaskRow.jsx";
 import { AssigneeAvatar } from "../lib/AssigneeChip.jsx";
@@ -52,8 +51,6 @@ import MentionTextarea, { renderMentionText } from "./MentionTextarea.jsx";
 
 const API_BASE_URL = getApiUrl();
 
-const PICKER_H = 420;
-const PICKER_W = 300;
 
 function groupReactions(reactions = [], currentUserId = null) {
   const map = new Map();
@@ -70,36 +67,19 @@ function groupReactions(reactions = [], currentUserId = null) {
   return [...map.values()];
 }
 
-function EmojiPicker({ onSelect, container }) {
+const REACTIONS = ['👍', '👎', '❤️', '🎉', '😄', '😮', '😢', '🔥', '👀', '✅', '🚀', '💯']
+
+function EmojiPicker({ onSelect }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: PICKER_W });
   const buttonRef = useRef(null);
   const pickerRef = useRef(null);
-
-  function handleToggle() {
-    if (!open && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const w = Math.min(PICKER_W, vw - 16);
-      const spaceAbove = rect.top - 8;
-      const top = spaceAbove >= PICKER_H
-        ? rect.top - PICKER_H - 6
-        : Math.min(rect.bottom + 6, vh - PICKER_H - 8);
-      let left = rect.left;
-      if (left + w > vw - 8) left = vw - w - 8;
-      if (left < 8) left = 8;
-      setPos({ top, left, width: w });
-    }
-    setOpen((o) => !o);
-  }
 
   useEffect(() => {
     if (!open) return;
     function handleOutside(e) {
-      const inButton = buttonRef.current?.contains(e.target);
-      const inPicker = pickerRef.current?.contains(e.target);
-      if (!inButton && !inPicker) setOpen(false);
+      if (!buttonRef.current?.contains(e.target) && !pickerRef.current?.contains(e.target)) {
+        setOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleOutside);
     document.addEventListener("touchstart", handleOutside, { passive: true });
@@ -110,32 +90,35 @@ function EmojiPicker({ onSelect, container }) {
   }, [open]);
 
   return (
-    <>
+    <div className="relative">
       <button
         ref={buttonRef}
         type="button"
-        onClick={handleToggle}
+        onClick={() => setOpen((o) => !o)}
         className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted active:bg-muted transition-colors"
       >
         <SmilePlus className="h-3 w-3" />
       </button>
-      {open && createPortal(
+      {open && (
         <div
           ref={pickerRef}
-          style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999 }}
-          className="shadow-2xl rounded-xl overflow-hidden"
+          className="absolute bottom-7 left-0 z-50 rounded-xl border border-border bg-popover p-2 shadow-lg"
         >
-          <EmojiPickerLib
-            onEmojiClick={(data) => { onSelect(data.emoji); setOpen(false); }}
-            height={PICKER_H}
-            width={pos.width}
-            searchPlaceholder="Buscar emoji..."
-            lazyLoadEmojis
-          />
-        </div>,
-        container ?? document.body,
+          <div className="grid grid-cols-6 gap-1">
+            {REACTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => { onSelect(emoji); setOpen(false); }}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-lg hover:bg-muted transition-colors"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -247,6 +230,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
   const addDependency = useAddDependency(projectId, taskId);
   const removeDependency = useRemoveDependency(projectId, taskId);
   const upsertFieldValues = useUpsertFieldValues(projectId, taskId);
+  const { data: taskComments = [] } = useTaskComments(projectId, taskId);
   const createComment = useCreateComment(projectId, taskId);
   const updateComment = useUpdateComment(projectId, taskId);
   const deleteComment = useDeleteComment(projectId, taskId);
@@ -297,7 +281,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
 
   // Merge comments + activity events into one chronological feed
   const feedItems = useMemo(() => {
-    const comments = (task?.comments ?? []).map((c) => ({
+    const comments = taskComments.map((c) => ({
       kind: "comment",
       createdAt: c.createdAt,
       data: c,
@@ -310,7 +294,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
     return [...comments, ...events].sort(
       (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
     );
-  }, [task?.comments, activityEvents]); // task?.comments is stable (same array ref from TanStack Query cache)
+  }, [taskComments, activityEvents]);
 
   function saveField(field, value) {
     if (!task) return;
@@ -968,7 +952,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
                                     </TooltipContent>
                                   </Tooltip>
                                 ))}
-                                <EmojiPicker container={floatingLayer} onSelect={(emoji) => toggleReaction.mutate({ commentId: comment.id, emoji })} />
+                                <EmojiPicker onSelect={(emoji) => toggleReaction.mutate({ commentId: comment.id, emoji })} />
                               </div>
                             )}
                           </div>

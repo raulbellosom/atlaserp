@@ -87,11 +87,6 @@ export function createTasksService({ prisma }) {
           },
           orderBy: { position: 'asc' },
         },
-        comments: {
-          include: { author: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } } },
-          orderBy: { createdAt: 'asc' },
-          take: 20,
-        },
         parent: { select: { id: true, title: true } },
         fieldValues: { include: { field: true }, orderBy: { field: { position: 'asc' } } },
         blockedBy: {
@@ -231,65 +226,6 @@ export function createTasksService({ prisma }) {
     })
   }
 
-  async function createComment(taskId, authorId, body) {
-    if (!body?.trim()) throw new TaskServiceError('El comentario no puede estar vacio.', 400)
-    if (body.trim().length > 5000) throw new TaskServiceError('El comentario no puede tener mas de 5000 caracteres.', 400)
-    return prisma.taskComment.create({
-      data: { taskId, authorId, body: body.trim() },
-      include: { author: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } } },
-    })
-  }
-
-  async function listComments(taskId, { limit = 50, cursor } = {}) {
-    return prisma.taskComment.findMany({
-      where: { taskId, ...(cursor ? { id: { lt: cursor } } : {}) },
-      include: {
-        author: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } },
-        reactions: { include: { user: { select: { id: true, firstName: true, lastName: true } } } },
-      },
-      orderBy: { createdAt: 'asc' },
-      take: limit,
-    })
-  }
-
-  async function toggleTaskReaction(commentId, requesterId, emoji) {
-    if (!emoji?.trim()) throw new TaskServiceError('Emoji requerido.', 400)
-    const existing = await prisma.taskCommentReaction.findUnique({
-      where: { commentId_userId_emoji: { commentId, userId: requesterId, emoji } },
-    })
-    if (existing) {
-      await prisma.taskCommentReaction.delete({ where: { commentId_userId_emoji: { commentId, userId: requesterId, emoji } } })
-      return { action: 'removed' }
-    }
-    await prisma.taskCommentReaction.create({ data: { commentId, userId: requesterId, emoji } })
-    return { action: 'added' }
-  }
-
-  async function updateComment(commentId, requesterId, body) {
-    if (!body?.trim()) throw new TaskServiceError('El comentario no puede estar vacio.', 400)
-    if (body.trim().length > 5000) throw new TaskServiceError('El comentario no puede tener mas de 5000 caracteres.', 400)
-    const comment = await prisma.taskComment.findFirst({ where: { id: commentId } })
-    if (!comment) throw new TaskServiceError('Comentario no encontrado.', 404)
-    if (comment.authorId !== requesterId) throw new TaskServiceError('Solo el autor puede editar este comentario.', 403)
-    return prisma.taskComment.update({
-      where: { id: commentId },
-      data: { body: body.trim(), editedAt: new Date() },
-      include: { author: { select: { id: true, firstName: true, lastName: true, avatarFileId: true } } },
-    })
-  }
-
-  async function deleteComment(commentId, requesterId) {
-    const comment = await prisma.taskComment.findFirst({
-      where: { id: commentId },
-      include: { task: { include: { project: { include: { members: { where: { userId: requesterId } } } } } } },
-    })
-    if (!comment) throw new TaskServiceError('Comentario no encontrado.', 404)
-    const isAuthor = comment.authorId === requesterId
-    const isAdmin = comment.task?.project?.members?.some((m) => m.role === 'ADMIN')
-    if (!isAuthor && !isAdmin) throw new TaskServiceError('No tienes permiso para eliminar este comentario.', 403)
-    await prisma.taskComment.delete({ where: { id: commentId } })
-  }
-
   async function bulkUpdateTasks(projectId, taskIds, patch) {
     if (!taskIds?.length) throw new TaskServiceError('Se requiere al menos una tarea.', 400)
     const { statusId, assigneeId, priority } = patch
@@ -316,7 +252,6 @@ export function createTasksService({ prisma }) {
   return {
     listTasks, getTask, createTask, updateTask, moveTask, deleteTask,
     addAssignee, removeAssignee, listAssignees,
-    createComment, listComments, updateComment, deleteComment, toggleTaskReaction,
     bulkUpdateTasks, bulkDeleteTasks,
   }
 }
