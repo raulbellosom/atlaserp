@@ -29,3 +29,19 @@ test('installer README tells bootstrap users to download package.json and advert
   assert.match(readme, /npm run atlas:external/i, 'installer README must advertise npm run atlas:external')
   assert.match(readme, /npm run atlas:local:docs/i, 'installer README must advertise npm run atlas:local:docs')
 })
+
+test('bootstrap entry scripts remain standalone downloads without hidden local imports', async () => {
+  const setupLocal = await fs.readFile(path.resolve('infra/installer/setup-local.mjs'), 'utf8')
+  const setupExternal = await fs.readFile(path.resolve('infra/installer/setup-external.mjs'), 'utf8')
+
+  assert.doesNotMatch(
+    setupLocal,
+    /from\s+["']\.\/lib\//,
+    'setup-local.mjs must not depend on extra local files that bootstrap users do not download'
+  )
+  assert.doesNotMatch(
+    setupExternal,
+    /from\s+["']\.\/lib\//,
+    'setup-external.mjs must not depend on extra local files that bootstrap users do not download'
+  )
+})

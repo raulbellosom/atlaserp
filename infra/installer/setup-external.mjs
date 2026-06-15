@@ -16,7 +16,6 @@ import fsSync from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { downloadDevKitSnapshot } from "./lib/devkit-installer.mjs";
 
 const argv = new Set(process.argv.slice(2));
 const skipPull    = argv.has("--skip-pull");
@@ -39,6 +38,7 @@ const docsRepoName  = process.env.ATLAS_DOCS_REPO_NAME  ?? "atlaserp";
 const docsRepoRef   = process.env.ATLAS_DOCS_REPO_REF   ?? "main";
 const docsRawBase   = process.env.ATLAS_DOCS_RAW_BASE   ??
   `https://raw.githubusercontent.com/${docsRepoOwner}/${docsRepoName}/${docsRepoRef}`;
+const DEVKIT_EXPORT_REPO_PATH = "infra/installer/devkit-export";
 
 const apiImage    = process.env.ATLAS_API_IMAGE           ?? "raulbellosom/atlaserp:api-latest";
 const workerImage = process.env.ATLAS_WORKER_IMAGE        ?? "raulbellosom/atlaserp:worker-latest";
@@ -209,6 +209,49 @@ async function appendMissingOptionalVars(filePath) {
   console.warn("[setup-external] New variables appended to .env.external:");
   for (const key of addedKeys) console.warn(`  ${key}`);
   console.warn("  Review and fill them in before starting containers.");
+}
+
+function getDevKitManifestRepoPath() {
+  return `${DEVKIT_EXPORT_REPO_PATH}/manifest.json`;
+}
+
+async function downloadTextFile(url) {
+  const response = await fetch(url, {
+    headers: { "User-Agent": "atlaserp-installer" },
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${url}`);
+  return response.text();
+}
+
+async function downloadDevKitSnapshot({ devKitDir, docsRawBase }) {
+  const manifestUrl = `${docsRawBase}/${getDevKitManifestRepoPath()}`;
+  const manifestSource = await downloadTextFile(manifestUrl);
+  const manifest = JSON.parse(manifestSource);
+  const files = Array.isArray(manifest?.files) ? manifest.files : [];
+
+  if (!files.length) {
+    throw new Error("Dev Kit manifest does not contain any files.");
+  }
+
+  await fs.mkdir(devKitDir, { recursive: true });
+  const downloadedFiles = [];
+  const failedFiles = [];
+
+  for (const relativePath of files) {
+    const url = `${docsRawBase}/${DEVKIT_EXPORT_REPO_PATH}/${relativePath}`;
+    const destination = path.resolve(devKitDir, relativePath);
+    try {
+      const content = await downloadTextFile(url);
+      await fs.mkdir(path.dirname(destination), { recursive: true });
+      await fs.writeFile(destination, content, "utf8");
+      downloadedFiles.push(relativePath);
+    } catch (error) {
+      failedFiles.push({ relativePath, error });
+    }
+  }
+
+  return { manifest, downloadedFiles, failedFiles };
 }
 
 async function downloadDevKit() {
