@@ -24,28 +24,30 @@ export function SyncStatusBar({ isOnline = true, isSyncing = false, lastSyncAt =
   const label = isSyncing ? 'Sincronizando...' : relTime ? `Sync ${relTime}` : null
 
   return (
-    <div className="flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]">
-      {isSyncing && (
-        <RefreshCw
-          size={11}
-          className="shrink-0 animate-spin text-[hsl(var(--primary))]"
-          aria-label="Sincronizando"
-        />
-      )}
-      {!isSyncing && isOnline && (
-        <CheckCircle
-          size={11}
-          className="shrink-0 text-green-500 dark:text-green-400"
-          aria-label="Sincronizado"
-        />
-      )}
-      {!isSyncing && !isOnline && (
-        <WifiOff
-          size={11}
-          className="shrink-0 text-amber-500 dark:text-amber-400"
-          aria-label="Sin conexion"
-        />
-      )}
+    <div className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))]">
+      <div className="h-9 w-9 flex items-center justify-center shrink-0">
+        {isSyncing && (
+          <RefreshCw
+            size={16}
+            className="animate-spin text-[hsl(var(--primary))]"
+            aria-label="Sincronizando"
+          />
+        )}
+        {!isSyncing && isOnline && (
+          <CheckCircle
+            size={16}
+            className="text-green-500 dark:text-green-400"
+            aria-label="Sincronizado"
+          />
+        )}
+        {!isSyncing && !isOnline && (
+          <WifiOff
+            size={16}
+            className="text-amber-500 dark:text-amber-400"
+            aria-label="Sin conexion"
+          />
+        )}
+      </div>
       {(isSyncing || showLabel) && label && (
         <span className="hidden md:inline">{label}</span>
       )}

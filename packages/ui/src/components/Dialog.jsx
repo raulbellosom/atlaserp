@@ -27,7 +27,7 @@ const DialogOverlay = forwardRef(function DialogOverlay(
 });
 
 const DialogContent = forwardRef(function DialogContent(
-  { className, children, ...props },
+  { className, style, children, ...props },
   ref,
 ) {
   const closeRef = useRef(null);
@@ -66,6 +66,10 @@ const DialogContent = forwardRef(function DialogContent(
         ref={ref}
         aria-describedby={undefined}
         {...props}
+        style={{
+          paddingBottom: "calc(2rem + env(safe-area-inset-bottom, 0px))",
+          ...style,  // caller can override if truly needed
+        }}
         className={cn(
           "fixed z-50 glass-strong shadow-xl focus:outline-none",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",

@@ -1,6 +1,8 @@
-export function BrandFooter() {
+import { cn } from "../lib/utils.js";
+
+export function BrandFooter({ className }) {
   return (
-    <footer className="shrink-0 h-12 border-t border-[hsl(var(--border))] px-4 flex items-center justify-between gap-4 bg-[hsl(var(--background))]">
+    <footer className={cn("shrink-0 h-12 border-t border-[hsl(var(--border))] px-4 flex items-center justify-between gap-4 bg-[hsl(var(--background))]", className)}>
       <span className="text-[11px] text-[hsl(var(--muted-foreground))] leading-none">
         Atlas ERP Meridian <span className="font-medium">v0.1</span>
       </span>

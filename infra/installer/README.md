@@ -85,6 +85,7 @@ mkdir -p custom-modules
 node ./setup-local.mjs --skip-compose-up  # solo inicializa Supabase, no levanta Atlas
 node ./setup-local.mjs --skip-dev-kit     # omite descarga del Dev Kit AME3
 node ./setup-local.mjs --skip-pull        # usa imagenes ya descargadas localmente
+node ./setup-local.mjs --docs-only        # solo descarga el Dev Kit (sin Docker, sin Supabase)
 ```
 
 ---
@@ -135,6 +136,7 @@ node ./setup-external.mjs --skip-pull          # usa imagenes ya descargadas
 node ./setup-external.mjs --skip-migrate       # omite migraciones (reinstalacion)
 node ./setup-external.mjs --skip-dev-kit       # omite descarga del Dev Kit AME3
 node ./setup-external.mjs --up-only            # solo docker compose up (todo ya configurado)
+node ./setup-external.mjs --docs-only          # solo descarga el Dev Kit (sin Docker, sin migraciones)
 ```
 
 ### Variables en `.env.external`

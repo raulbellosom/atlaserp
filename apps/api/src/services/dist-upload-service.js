@@ -81,7 +81,7 @@ export function createDistUploadService({ prisma, supabaseAdmin }) {
     await supabaseAdmin.storage
       .from(BUCKET)
       .upload(zipKey, Buffer.from(fileBuffer), { contentType: 'application/zip', upsert: false })
-      .catch(() => {})
+      .catch((e) => console.warn('[dist-upload-service] build zip save failed:', e?.message ?? e))
 
     await prisma.$executeRaw`
       UPDATE website_site

@@ -11,6 +11,7 @@ const argv = new Set(process.argv.slice(2));
 const skipComposeUp = argv.has("--skip-compose-up");
 const skipDevKit = argv.has("--skip-dev-kit");
 const skipPull = argv.has("--skip-pull");
+const docsOnly = argv.has("--docs-only");
 const isWindows = process.platform === "win32";
 const npxCommand = "npx";
 
@@ -50,6 +51,11 @@ const devKitFiles = [
   "docs/03_custom_modules.md",
   "docs/architecture/atlas-module-engine-v3.md",
   "docs/TASKS.md",
+  "docs/superpowers/specs/2026-06-11-dist-auth-sdk-design.md",
+  "docs/superpowers/specs/2026-06-14-storefront-capture-foundation-design.md",
+  "docs/superpowers/specs/2026-06-14-growth-analytics-design.md",
+  "docs/superpowers/specs/2026-06-14-growth-lead-inbox-design.md",
+  "docs/superpowers/specs/2026-06-14-atlas-documents-template-engine-design.md",
 ];
 
 const apiImage =
@@ -357,6 +363,14 @@ ${process.env.ATLAS_API_URL ? `ATLAS_API_URL=${process.env.ATLAS_API_URL}` : "# 
 }
 
 async function main() {
+  // ── docs-only shortcut ────────────────────────────────────────────────────
+  if (docsOnly) {
+    console.log("[setup-local] --docs-only: downloading Dev Kit files only.");
+    await downloadDevKit();
+    console.log("[setup-local] Done.");
+    return;
+  }
+
   console.log("[1/8] Validating dependencies...");
   run("docker", ["compose", "version"]);
   run(npxCommand, ["--version"]);

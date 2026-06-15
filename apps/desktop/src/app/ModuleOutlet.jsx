@@ -431,6 +431,12 @@ function resolveScreen(moduleKey, subPath) {
     }
     return SCREEN_MAP[`atlas.website:${subPath}`] ?? null;
   }
+  if (moduleKey === "atlas.documents") {
+    if (subPath === "/templates") return SCREEN_MAP["atlas.documents:/templates"] ?? null;
+    if (subPath === "/generated") return SCREEN_MAP["atlas.documents:/generated"] ?? null;
+    if (/^\/templates\/[^/]+\/editor$/.test(subPath)) return SCREEN_MAP["atlas.documents:/templates/:id/editor"] ?? null;
+    return null;
+  }
   if (moduleKey === "atlas.growth") {
     if (subPath === "/") {
       return SCREEN_MAP["atlas.growth:/"] ?? null;

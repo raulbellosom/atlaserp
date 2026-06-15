@@ -1511,12 +1511,15 @@ export function ComboboxField({
   options = [],
   value,
   onChange,
+  onValueChange,
+  onSearchChange,
   placeholder = "Seleccionar...",
   searchPlaceholder = "Buscar...",
   emptyText = "Sin resultados",
   minSearchLength = 0,
   className,
 }) {
+  const handleChange = onChange ?? onValueChange;
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [dropdownStyle, setDropdownStyle] = useState({});
@@ -1564,7 +1567,7 @@ export function ComboboxField({
   }
 
   function handleSelect(opt) {
-    onChange(opt.value);
+    handleChange(opt.value);
     setOpen(false);
     setSearch("");
   }

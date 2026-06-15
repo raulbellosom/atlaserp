@@ -301,10 +301,10 @@ export function AtlasApp() {
             ))}
 
           <div className="flex flex-col flex-1 min-w-0 min-h-0">
-            <main className="flex-1 overflow-y-auto overflow-x-clip scrollbar-gutter-stable">
+            <main className="flex-1 overflow-y-auto overflow-x-clip scrollbar-gutter-stable safe-bottom">
               <Outlet />
             </main>
-            <BrandFooter />
+            <BrandFooter className="hidden lg:flex" />
           </div>
         </div>
       </div>
@@ -326,7 +326,7 @@ export function AtlasApp() {
               On desktop (lg:static) the outer aside constrains it inside the fixed box. */}
           <aside
             className={[
-              "fixed left-0 top-14 bottom-0 z-50 w-72 overflow-hidden shadow-2xl",
+              "fixed left-0 top-topbar bottom-0 z-50 w-72 overflow-hidden shadow-2xl",
               "transition-transform duration-200 ease-out",
               sidebarOverlayOpen ? "translate-x-0" : "-translate-x-full pointer-events-none",
             ].join(" ")}

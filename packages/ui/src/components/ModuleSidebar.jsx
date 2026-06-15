@@ -54,6 +54,8 @@ import {
   LayoutTemplate,
   SquareKanban,
   Download,
+  Files,
+  UserRoundSearch,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "../lib/utils.js";
@@ -111,6 +113,8 @@ const ICON_MAP = {
   ShieldCheck,
   LayoutTemplate,
   SquareKanban,
+  Files,
+  UserRoundSearch,
 };
 
 const ICON_ALIAS_MAP = {
@@ -225,8 +229,8 @@ export function ModuleSidebar({
     <aside
       className={cn(
         "flex flex-col shrink-0 bg-surface-2 border-r border-[hsl(var(--border))] overflow-hidden",
-        // Mobile: fixed overlay drawer
-        "fixed top-14 left-0 h-[calc(100dvh-3.5rem)] w-72 z-40",
+        // Mobile: fixed overlay drawer — top-topbar accounts for notch + topbar
+        "fixed top-topbar left-0 h-below-topbar w-72 z-40",
         "transition-transform duration-300 ease-in-out",
         mobileOpen ? "translate-x-0" : "-translate-x-full",
         // Desktop (lg+): static flex child
@@ -470,21 +474,32 @@ export function ModuleSidebar({
         })}
       </nav>
 
-      {/* Collapse toggle */}
-      <div className="shrink-0 p-2 border-t border-[hsl(var(--border))]">
-        <button
-          onClick={onCollapse}
-          title={
-            collapsed ? "Expandir panel lateral" : "Colapsar panel lateral"
-          }
-          className={cn(
-            "w-full h-8 flex items-center justify-center rounded-lg cursor-pointer",
-            "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",
-            "hover:bg-[hsl(var(--muted))] transition-colors duration-150",
-          )}
-        >
-          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-        </button>
+      {/* Collapse toggle + brand info */}
+      <div className="shrink-0 border-t border-[hsl(var(--border))] safe-bottom">
+        {/* Brand — only when expanded */}
+        {!collapsed && (
+          <div className="px-3 pt-2 pb-0.5">
+            <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-none">
+              Atlas ERP Meridian{" "}
+              <span className="font-medium">v0.1</span>
+            </p>
+          </div>
+        )}
+        <div className="p-2">
+          <button
+            onClick={onCollapse}
+            title={
+              collapsed ? "Expandir panel lateral" : "Colapsar panel lateral"
+            }
+            className={cn(
+              "w-full h-8 flex items-center justify-center rounded-lg cursor-pointer",
+              "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",
+              "hover:bg-[hsl(var(--muted))] transition-colors duration-150",
+            )}
+          >
+            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+        </div>
       </div>
     </aside>
   );

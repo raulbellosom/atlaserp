@@ -149,9 +149,7 @@ export function Topbar({
               <CompanySwitcher token={token} />
             </span>
           )}
-          <span className="hidden sm:contents">
-            <ThemeToggle />
-          </span>
+          <ThemeToggle />
           {token && canReadActivity && (
             <ActivityBellTrigger
               sdk={atlas}

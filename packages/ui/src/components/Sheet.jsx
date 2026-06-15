@@ -64,6 +64,7 @@ const SheetContent = forwardRef(function SheetContent(
   {
     side = "right",
     className,
+    style,
     children,
     "aria-describedby": ariaDescribedby,
     onOpenAutoFocus,
@@ -138,15 +139,25 @@ const SheetContent = forwardRef(function SheetContent(
           effectiveSide !== "bottom" && "overflow-hidden",
           className,
         )}
+        {...props}
         style={
           effectiveSide === "bottom"
             ? {
+                paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
                 transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
                 transition: dragging ? "none" : "transform 280ms cubic-bezier(0.32, 0.72, 0, 1)",
+                ...style,
               }
-            : undefined
+            : effectiveSide === "right" || effectiveSide === "left"
+            ? {
+                paddingTop: "calc(1.5rem + env(safe-area-inset-top, 0px))",
+                paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
+                ...style,
+              }
+            : effectiveSide === "top"
+            ? { paddingTop: "calc(1.5rem + env(safe-area-inset-top, 0px))", ...style }
+            : style
         }
-        {...props}
       >
         {/* Drag handle — visible only on bottom sheet; handles swipe-to-dismiss */}
         {effectiveSide === "bottom" && (
@@ -186,7 +197,7 @@ const SheetFooter = function SheetFooter({ className, ...props }) {
   return (
     <div
       className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-auto safe-bottom",
+        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-auto",
         className,
       )}
       {...props}

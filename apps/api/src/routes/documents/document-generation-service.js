@@ -36,6 +36,13 @@ function auditJson(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function resolveSourceLabel(sourceType, data) {
+  if (sourceType === "growth.lead") {
+    return data?.lead?.name ?? data?.lead?.email ?? null;
+  }
+  return null;
+}
+
 export function createDocumentGenerationService({
   prisma,
   supabaseAdmin,
@@ -115,10 +122,11 @@ export function createDocumentGenerationService({
       }),
       resolveBranding({ prisma, companyId }),
     ]);
+    const sourceLabel = resolveSourceLabel(template.sourceType, data);
     const rendered = await renderPdf({
       title: template.name,
-      subtitle: `Version ${version.versionNumber}`,
-      folio: sourceId,
+      subtitle: sourceLabel,
+      folio: null,
       branding,
       generatedAt: now(),
       blocks: version.blocks,
@@ -231,12 +239,13 @@ export function createDocumentGenerationService({
       },
     });
 
+    const sourceLabel = resolveSourceLabel(template.sourceType, data);
     let rendered;
     try {
       rendered = await renderPdf({
         title: template.name,
-        subtitle: `Version ${version.versionNumber}`,
-        folio: parsed.sourceId,
+        subtitle: sourceLabel,
+        folio: null,
         branding,
         generatedAt: now(),
         blocks: version.blocks,

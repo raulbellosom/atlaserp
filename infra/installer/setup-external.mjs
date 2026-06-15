@@ -22,6 +22,7 @@ const skipPull    = argv.has("--skip-pull");
 const skipMigrate = argv.has("--skip-migrate");
 const skipDevKit  = argv.has("--skip-dev-kit");
 const upOnly      = argv.has("--up-only");
+const docsOnly    = argv.has("--docs-only");
 const isWindows   = process.platform === "win32";
 
 const __filename    = fileURLToPath(import.meta.url);
@@ -48,6 +49,11 @@ const devKitFiles = [
   "docs/03_custom_modules.md",
   "docs/architecture/atlas-module-engine-v3.md",
   "docs/TASKS.md",
+  "docs/superpowers/specs/2026-06-11-dist-auth-sdk-design.md",
+  "docs/superpowers/specs/2026-06-14-storefront-capture-foundation-design.md",
+  "docs/superpowers/specs/2026-06-14-growth-analytics-design.md",
+  "docs/superpowers/specs/2026-06-14-growth-lead-inbox-design.md",
+  "docs/superpowers/specs/2026-06-14-atlas-documents-template-engine-design.md",
 ];
 
 const apiImage    = process.env.ATLAS_API_IMAGE           ?? "raulbellosom/atlaserp:api-latest";
@@ -268,6 +274,14 @@ async function downloadDevKit() {
 // ── main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
+  // ── docs-only shortcut ────────────────────────────────────────────────────
+  if (docsOnly) {
+    console.log("[setup-external] --docs-only: downloading Dev Kit files only.");
+    await downloadDevKit();
+    console.log("[setup-external] Done.");
+    return;
+  }
+
   // ── 1. Validate environment file ──────────────────────────────────────────
   if (!upOnly) {
     console.log("[1/5] Checking .env.external...");

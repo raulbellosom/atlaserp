@@ -52,10 +52,10 @@ export function createAtlasClient({ baseUrl }) {
       if (queued) return queued;
     }
     const response = await fetch(`${baseUrl}${path}`, {
+      ...options,
       headers: isFormData
         ? (options.headers ?? {})
         : { "Content-Type": "application/json", ...(options.headers ?? {}) },
-      ...options,
     });
     if (!response.ok) {
       const text = await response.text();

@@ -36,6 +36,7 @@ export default function DocumentTemplatesScreen() {
     queryKey: ["documents", "templates"],
     queryFn: () => atlas.documents.listTemplates(token, { enabled: true, pageSize: 100 }),
     enabled: Boolean(token && allowed("documents.templates.read")),
+    staleTime: 30_000,
   });
   const createMutation = useMutation({
     mutationFn: () =>

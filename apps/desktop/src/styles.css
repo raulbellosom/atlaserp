@@ -157,6 +157,14 @@ html {
   .pt-topbar {
     padding-top: calc(var(--topbar-height) + env(safe-area-inset-top, 0px));
   }
+  /* top-topbar: position sidebar/overlays right below the topbar (incl. notch) */
+  .top-topbar {
+    top: calc(var(--topbar-height) + env(safe-area-inset-top, 0px));
+  }
+  /* h-below-topbar: fill remaining height after topbar + notch */
+  .h-below-topbar {
+    height: calc(100dvh - var(--topbar-height) - env(safe-area-inset-top, 0px));
+  }
   /* touch-target: minimum 44x44px tap area */
   .touch-target {
     min-height: 2.75rem;
