@@ -35,12 +35,14 @@ mkdir atlaserp -Force
 cd atlaserp
 
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml" -OutFile "docker-compose.yml"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/package.json"      -OutFile "package.json"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.mjs"   -OutFile "setup-local.mjs"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-local.mjs"    -OutFile "stop-local.mjs"
 
 New-Item -ItemType Directory -Force -Path custom-modules | Out-Null
 
-node .\setup-local.mjs
+npm run atlas:local
+# equivalente: node .\setup-local.mjs
 ```
 
 ### Linux / macOS / Git Bash
@@ -49,6 +51,7 @@ node .\setup-local.mjs
 mkdir -p ./atlaserp && cd ./atlaserp
 
 curl -fsSLo docker-compose.yml       https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml
+curl -fsSLo package.json             https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/package.json
 curl -fsSLo docker-compose.linux.yml https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.linux.yml
 curl -fsSLo setup-local.mjs          https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.mjs
 curl -fsSLo stop-local.mjs           https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-local.mjs
@@ -58,8 +61,8 @@ chmod +x setup-local.sh stop-local.sh
 
 mkdir -p custom-modules
 
-./setup-local.sh
-# equivalente: node ./setup-local.mjs
+npm run atlas:local
+# equivalentes: ./setup-local.sh | node ./setup-local.mjs
 ```
 
 > `docker-compose.linux.yml` es requerido en Linux: Docker Engine no inyecta
@@ -83,10 +86,18 @@ mkdir -p custom-modules
 ### Opciones utiles
 
 ```bash
+npm run atlas:local       # instalacion / actualizacion completa
+npm run atlas:local:docs  # solo descarga/refresca el Dev Kit
+npm run atlas:local:quick # salta docker pull y reutiliza imagenes locales
 node ./setup-local.mjs --skip-compose-up  # solo inicializa Supabase, no levanta Atlas
-node ./setup-local.mjs --skip-dev-kit     # omite descarga del Dev Kit AME3
-node ./setup-local.mjs --skip-pull        # usa imagenes ya descargadas localmente
-node ./setup-local.mjs --docs-only        # solo descarga el Dev Kit (sin Docker, sin Supabase)
+```
+
+### Comandos simples recomendados
+
+```bash
+npm run atlas:local
+npm run atlas:local:docs
+npm run atlas:stop:local
 ```
 
 ---
@@ -102,6 +113,7 @@ Para un servidor Linux con Supabase self-hosted o Supabase Cloud ya configurado.
 mkdir -p /opt/atlaserp && cd /opt/atlaserp
 
 curl -fsSLo docker-compose.yml      https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml
+curl -fsSLo package.json            https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/package.json
 curl -fsSLo setup-external.mjs      https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-external.mjs
 curl -fsSLo stop-external.mjs       https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-external.mjs
 curl -fsSLo setup-external.sh       https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-external.sh
@@ -114,8 +126,8 @@ mkdir -p custom-modules
 cp .env.external.example .env.external
 nano .env.external   # completar con credenciales de Supabase
 
-./setup-external.sh
-# equivalente: node ./setup-external.mjs
+npm run atlas:external
+# equivalentes: ./setup-external.sh | node ./setup-external.mjs
 ```
 
 ### Que hace `setup-external.mjs`
@@ -134,11 +146,18 @@ nano .env.external   # completar con credenciales de Supabase
 ### Opciones utiles
 
 ```bash
-node ./setup-external.mjs --skip-pull          # usa imagenes ya descargadas
-node ./setup-external.mjs --skip-migrate       # omite migraciones (reinstalacion)
+npm run atlas:external        # instalacion / actualizacion completa
+npm run atlas:external:docs   # solo descarga/refresca el Dev Kit
+npm run atlas:external:quick  # reinicio rapido sin pull ni migraciones
 node ./setup-external.mjs --skip-dev-kit       # omite descarga del Dev Kit AME3
-node ./setup-external.mjs --up-only            # solo docker compose up (todo ya configurado)
-node ./setup-external.mjs --docs-only          # solo descarga el Dev Kit (sin Docker, sin migraciones)
+```
+
+### Comandos simples recomendados
+
+```bash
+npm run atlas:external
+npm run atlas:external:docs
+npm run atlas:stop:external
 ```
 
 ### Variables en `.env.external`

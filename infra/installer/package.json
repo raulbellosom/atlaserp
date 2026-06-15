@@ -1,0 +1,16 @@
+{
+  "name": "atlaserp-installer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "atlas:local": "node ./setup-local.mjs",
+    "atlas:local:docs": "node ./setup-local.mjs --docs-only",
+    "atlas:local:quick": "node ./setup-local.mjs --skip-pull",
+    "atlas:external": "node ./setup-external.mjs",
+    "atlas:external:docs": "node ./setup-external.mjs --docs-only",
+    "atlas:external:quick": "node ./setup-external.mjs --skip-pull --skip-migrate --up-only",
+    "atlas:stop:local": "node ./stop-local.mjs",
+    "atlas:stop:external": "node ./stop-external.mjs"
+  }
+}

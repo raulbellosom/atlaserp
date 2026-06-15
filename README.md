@@ -20,18 +20,20 @@ Quick install on any machine without cloning the repo:
 mkdir C:\atlaserp-installer -Force
 cd C:\atlaserp-installer
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/docker-compose.yml" -OutFile "docker-compose.yml"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/package.json" -OutFile "package.json"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.mjs" -OutFile "setup-local.mjs"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-local.mjs" -OutFile "stop-local.mjs"
-node .\setup-local.mjs
+npm run atlas:local
+# equivalente: node .\setup-local.mjs
 ```
 
 See [infra/installer/README.md](infra/installer/README.md) for full copy/paste steps (Windows, Linux, macOS), external Supabase setup, image tags, and reset commands.
-The installer also downloads an AME3 Dev Kit to `custom-modules/_atlas-devkit/` for module development guidance.
+The installer also downloads an exported AME3 Dev Kit to `custom-modules/_atlas-devkit/`, including `capabilities.runtime.json`, `prompt-starter.txt`, `troubleshooting.md`, and a `golden-path-module/` sample for installer-mode module development.
 
 Stop and reset (from the installer directory):
 
 ```bash
-node stop-local.mjs           # stop, keep data
+npm run atlas:stop:local      # stop, keep data
 node stop-local.mjs --reset   # full wipe — removes containers, volumes, generated files
 ```
 
@@ -194,6 +196,14 @@ Atlas ERP is a module engine. New AME3 modules live in `modules/custom/` and dec
 New modules use `defineAtlasModule` from `@atlas/module-engine`.
 
 Modules can include React components in `components/` compiled at install time by esbuild — no web image rebuild is needed for module-local UI changes. The frontend loads bundles via dynamic `import()` at startup. If you change the shared module runtime in `apps/desktop` (for example importmap/shims/externals) or credentialed cross-origin API behavior in `apps/api`, publish fresh `web` and/or `api` images and recreate the installer containers. See `docs/ai-context/ame3-runtime-capabilities.md` for the full `@atlas/ui` component inventory and view kind examples (TABLE, FORM, DETAIL, CUSTOM).
+
+For installer-mode workspaces, the authoritative module-authoring bundle lives in `custom-modules/_atlas-devkit/`. Start with:
+- `README.md`
+- `docs/ai-context/ame3-modules.md`
+- `docs/ai-context/ame3-runtime-capabilities.md`
+- `capabilities.runtime.json`
+- `troubleshooting.md`
+- `golden-path-module/`
 
 See:
 - `docs/02_module_system.md`
