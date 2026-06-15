@@ -12,7 +12,7 @@ function handleError(c, err) {
 export function createGrowthCommentRoutes({ service, requirePermission }) {
   const app = new Hono();
 
-  app.get('/leads/:id/comments', requirePermission('growth.leads.read'), async (c) => {
+  app.get('/growth/leads/:id/comments', requirePermission('growth.leads.read'), async (c) => {
     try {
       const companyId = c.get('companyId');
       const comments = await service.listComments(c.req.param('id'), companyId);
@@ -20,7 +20,7 @@ export function createGrowthCommentRoutes({ service, requirePermission }) {
     } catch (err) { return handleError(c, err); }
   });
 
-  app.post('/leads/:id/comments', requirePermission('growth.leads.update'), async (c) => {
+  app.post('/growth/leads/:id/comments', requirePermission('growth.leads.update'), async (c) => {
     try {
       const companyId  = c.get('companyId');
       const authUserId = c.get('authUserId');
@@ -30,7 +30,7 @@ export function createGrowthCommentRoutes({ service, requirePermission }) {
     } catch (err) { return handleError(c, err); }
   });
 
-  app.patch('/leads/:id/comments/:cid', requirePermission('growth.leads.update'), async (c) => {
+  app.patch('/growth/leads/:id/comments/:cid', requirePermission('growth.leads.update'), async (c) => {
     try {
       const authUserId = c.get('authUserId');
       const { body }   = await c.req.json();
@@ -39,7 +39,7 @@ export function createGrowthCommentRoutes({ service, requirePermission }) {
     } catch (err) { return handleError(c, err); }
   });
 
-  app.delete('/leads/:id/comments/:cid', requirePermission('growth.leads.update'), async (c) => {
+  app.delete('/growth/leads/:id/comments/:cid', requirePermission('growth.leads.update'), async (c) => {
     try {
       const companyId  = c.get('companyId');
       const authUserId = c.get('authUserId');
@@ -48,7 +48,7 @@ export function createGrowthCommentRoutes({ service, requirePermission }) {
     } catch (err) { return handleError(c, err); }
   });
 
-  app.post('/leads/:id/comments/:cid/reactions', requirePermission('growth.leads.update'), async (c) => {
+  app.post('/growth/leads/:id/comments/:cid/reactions', requirePermission('growth.leads.update'), async (c) => {
     try {
       const authUserId = c.get('authUserId');
       const { emoji }  = await c.req.json();
