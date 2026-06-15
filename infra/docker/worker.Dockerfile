@@ -17,6 +17,8 @@ ENV DIRECT_URL=postgresql://postgres:postgres@localhost:5432/postgres
 RUN pnpm install --frozen-lockfile && \
     pnpm prisma:generate && \
     pnpm prune --prod
-# Copy worker source after install so source-only changes don't bust the install cache.
+# Copy app sources after install so source-only changes don't bust the install cache.
+# api/src is required because apps/worker/src/index.js imports directly from it.
+COPY apps/api apps/api
 COPY apps/worker apps/worker
 CMD ["pnpm", "--filter", "@atlas/worker", "start"]
