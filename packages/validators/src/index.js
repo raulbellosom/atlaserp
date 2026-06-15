@@ -1112,3 +1112,76 @@ export function validateDocumentBindings({ blocks, providerSchema }) {
 
   return issues;
 }
+
+const documentTemplateKeySchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(100)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const documentOptionalTextSchema = (max) =>
+  z.string().trim().max(max).optional().nullable();
+
+export const documentTemplateCreateSchema = z
+  .object({
+    key: documentTemplateKeySchema,
+    name: z.string().trim().min(2).max(200),
+    description: documentOptionalTextSchema(1000),
+    sourceType: documentPathSchema,
+  })
+  .strict();
+
+export const documentTemplateUpdateSchema = z
+  .object({
+    updatedAt: z.string().datetime({ offset: true }),
+    key: documentTemplateKeySchema.optional(),
+    name: z.string().trim().min(2).max(200).optional(),
+    description: documentOptionalTextSchema(1000),
+    sourceType: documentPathSchema.optional(),
+  })
+  .strict()
+  .refine(
+    (value) => Object.keys(value).some((key) => key !== "updatedAt"),
+    "Incluye al menos un cambio.",
+  );
+
+export const documentTemplateEnabledSchema = z
+  .object({
+    enabled: z.boolean(),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+
+export const documentTemplateQuerySchema = z
+  .object({
+    sourceType: documentPathSchema.optional(),
+    search: z.string().trim().max(200).optional(),
+    enabled: z
+      .union([z.boolean(), z.enum(["true", "false"])])
+      .transform((value) =>
+        typeof value === "boolean" ? value : value === "true",
+      )
+      .default(true),
+    page: z.coerce.number().int().positive().default(1),
+    pageSize: z.coerce.number().int().positive().max(100).default(25),
+  })
+  .strict();
+
+export const documentVersionCreateSchema = z
+  .object({
+    blocks: documentBlocksSchema,
+  })
+  .strict();
+
+export const documentVersionUpdateSchema = z
+  .object({
+    updatedAt: z.string().datetime({ offset: true }),
+    blocks: documentBlocksSchema,
+  })
+  .strict();
+
+export const documentVersionPublishSchema = z
+  .object({
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .strict();

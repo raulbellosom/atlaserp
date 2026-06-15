@@ -63,6 +63,7 @@ import { createSettingsRouter } from "./routes/settings-routes.js";
 import { createActivityRouter } from "./routes/activity.js";
 import { createNotificationsRouter } from "./routes/notifications.js";
 import { createGrowthRouter } from "./routes/growth/growth-router.js";
+import { createDocumentsRouter } from "./routes/documents/documents-router.js";
 import { createSyncRouter } from "./routes/sync.js";
 import { createPwaRouter } from "./routes/pwa.js";
 import {
@@ -121,6 +122,7 @@ const CORE_MODULE_KEYS = new Set([
   "atlas.catalog",
   "atlas.notifications",
   "atlas.growth",
+  "atlas.documents",
   "atlas.inventory",
 ]);
 const STORAGE_BUCKET_NAME = "atlas-files";
@@ -4473,6 +4475,7 @@ mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificatio
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createGrowthRouter({ prisma, requirePermission, notificationService }));
+mountWithAuth(app, createDocumentsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createSyncRouter({ prisma }));
 
 app.post("/internal/notifications/process-deliveries", async (c) => {
