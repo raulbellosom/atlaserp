@@ -1,7 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { createPortal } from 'react-dom'
 import { Pencil, Trash2, SmilePlus } from 'lucide-react'
-import EmojiPickerLib from 'emoji-picker-react'
 import { Button } from './Button.jsx'
 import { Card } from './Card.jsx'
 import { Avatar, AvatarImage, AvatarFallback } from './Avatar.jsx'
@@ -37,41 +35,21 @@ function groupReactions(reactions = [], currentUserId = null) {
   return [...map.values()]
 }
 
-// ── Emoji picker ──────────────────────────────────────────────────────────────
+// ── Emoji reaction picker (inline grid — no external dependency) ───────────────
 
-const PICKER_H = 420
-const PICKER_W = 300
+const REACTIONS = ['👍', '👎', '❤️', '🎉', '😄', '😮', '😢', '🔥', '👀', '✅', '🚀', '💯']
 
 function EmojiPicker({ onSelect }) {
   const [open, setOpen] = useState(false)
-  const [pos, setPos] = useState({ top: 0, left: 0, width: PICKER_W })
   const buttonRef = useRef(null)
   const pickerRef = useRef(null)
-
-  function handleToggle() {
-    if (!open && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect()
-      const vw = window.innerWidth
-      const vh = window.innerHeight
-      const w = Math.min(PICKER_W, vw - 16)
-      const spaceAbove = rect.top - 8
-      const top = spaceAbove >= PICKER_H
-        ? rect.top - PICKER_H - 6
-        : Math.min(rect.bottom + 6, vh - PICKER_H - 8)
-      let left = rect.left
-      if (left + w > vw - 8) left = vw - w - 8
-      if (left < 8) left = 8
-      setPos({ top, left, width: w })
-    }
-    setOpen(o => !o)
-  }
 
   useEffect(() => {
     if (!open) return
     function handleOutside(e) {
-      const inButton = buttonRef.current?.contains(e.target)
-      const inPicker = pickerRef.current?.contains(e.target)
-      if (!inButton && !inPicker) setOpen(false)
+      if (!buttonRef.current?.contains(e.target) && !pickerRef.current?.contains(e.target)) {
+        setOpen(false)
+      }
     }
     document.addEventListener('mousedown', handleOutside)
     document.addEventListener('touchstart', handleOutside, { passive: true })
@@ -82,33 +60,35 @@ function EmojiPicker({ onSelect }) {
   }, [open])
 
   return (
-    <>
+    <div className="relative">
       <button
         ref={buttonRef}
         type="button"
-        onClick={handleToggle}
-        className="inline-flex items-center gap-1 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] px-1.5 py-0.5 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] active:bg-[hsl(var(--muted))] transition-colors"
+        onClick={() => setOpen(o => !o)}
+        className="inline-flex items-center gap-1 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] px-1.5 py-0.5 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] transition-colors"
       >
         <SmilePlus className="h-3 w-3" />
       </button>
-      {open && createPortal(
+      {open && (
         <div
           ref={pickerRef}
-          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
-          className="shadow-2xl rounded-xl overflow-hidden"
+          className="absolute bottom-7 left-0 z-50 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--popover))] p-2 shadow-lg"
         >
-          <EmojiPickerLib
-            onEmojiClick={(data) => { onSelect(data.emoji); setOpen(false) }}
-            theme="dark"
-            height={PICKER_H}
-            width={pos.width}
-            searchPlaceholder="Buscar emoji..."
-            lazyLoadEmojis
-          />
-        </div>,
-        document.body
+          <div className="grid grid-cols-6 gap-1">
+            {REACTIONS.map(emoji => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => { onSelect(emoji); setOpen(false) }}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-lg hover:bg-[hsl(var(--muted))] transition-colors"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
-    </>
+    </div>
   )
 }
 
