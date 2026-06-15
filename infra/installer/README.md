@@ -41,8 +41,8 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/
 
 New-Item -ItemType Directory -Force -Path custom-modules | Out-Null
 
-npm run atlas:local
-# equivalente: node .\setup-local.mjs
+npm.cmd run atlas:local
+# equivalentes: node .\setup-local.mjs | npm run atlas:local (si PowerShell permite npm.ps1)
 ```
 
 ### Linux / macOS / Git Bash
@@ -90,6 +90,14 @@ npm run atlas:local       # instalacion / actualizacion completa
 npm run atlas:local:docs  # solo descarga/refresca el Dev Kit
 npm run atlas:local:quick # salta docker pull y reutiliza imagenes locales
 node ./setup-local.mjs --skip-compose-up  # solo inicializa Supabase, no levanta Atlas
+```
+
+En PowerShell, si `npm` falla por `ExecutionPolicy`, usa `npm.cmd`:
+
+```powershell
+npm.cmd run atlas:local
+npm.cmd run atlas:local:docs
+npm.cmd run atlas:stop:local
 ```
 
 ### Comandos simples recomendados

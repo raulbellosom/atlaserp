@@ -25,6 +25,7 @@ test('installer README tells bootstrap users to download package.json and advert
 
   assert.match(readme, /package\.json/i, 'installer README must tell users to download package.json')
   assert.match(readme, /npm run atlas:local/i, 'installer README must advertise npm run atlas:local')
+  assert.match(readme, /npm\.cmd run atlas:local/i, 'installer README must show npm.cmd for PowerShell users')
   assert.match(readme, /npm run atlas:external/i, 'installer README must advertise npm run atlas:external')
   assert.match(readme, /npm run atlas:local:docs/i, 'installer README must advertise npm run atlas:local:docs')
 })

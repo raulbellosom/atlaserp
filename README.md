@@ -23,8 +23,8 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/package.json" -OutFile "package.json"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/setup-local.mjs" -OutFile "setup-local.mjs"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/stop-local.mjs" -OutFile "stop-local.mjs"
-npm run atlas:local
-# equivalente: node .\setup-local.mjs
+npm.cmd run atlas:local
+# equivalentes: node .\setup-local.mjs | npm run atlas:local (si PowerShell permite npm.ps1)
 ```
 
 See [infra/installer/README.md](infra/installer/README.md) for full copy/paste steps (Windows, Linux, macOS), external Supabase setup, image tags, and reset commands.
@@ -33,7 +33,7 @@ The installer also downloads an exported AME3 Dev Kit to `custom-modules/_atlas-
 Stop and reset (from the installer directory):
 
 ```bash
-npm run atlas:stop:local      # stop, keep data
+npm.cmd run atlas:stop:local  # stop, keep data
 node stop-local.mjs --reset   # full wipe — removes containers, volumes, generated files
 ```
 
