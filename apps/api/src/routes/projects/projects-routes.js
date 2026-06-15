@@ -7,6 +7,7 @@ import { createProjectsCalendarBridge } from './projects-calendar-bridge.js'
 import { createProjectsNotificationService } from './projects-notification-service.js'
 import { publishActivityFromContext } from '../../services/activity-publisher.js'
 import { parseMentionIds } from '../../lib/mention-utils.js'
+import { createCommentsService, CommentsServiceError } from '../../services/comments-service.js'
 
 function getUserId(c) {
   return c.get('userContext')?.profile?.id ?? null
@@ -44,6 +45,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   const fieldsSvc = createFieldsService({ prisma })
   const bridge = createProjectsCalendarBridge({ prisma })
   const notifSvc = createProjectsNotificationService({ prisma, notificationService })
+  const commentsSvc = createCommentsService({ prisma })
 
   // --- Projects ---
   app.get('/projects', requirePermission('projects.project.read'), async (c) => {
@@ -326,37 +328,28 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   // --- Task Comments ---
   app.get('/projects/:id/tasks/:tid/comments', requirePermission('projects.task.read'), async (c) => {
     try {
-      const { cursor, limit } = c.req.query()
-      const comments = await tasksSvc.listComments(c.req.param('tid'), {
-        cursor,
-        limit: limit ? Number(limit) : 50,
-      })
-      return c.json(comments)
+      const comments = await commentsSvc.listComments('Task', c.req.param('tid'))
+      return c.json({ data: comments })
     } catch (err) { return handleError(c, err, 'Error al listar comentarios.') }
   })
 
   app.post('/projects/:id/tasks/:tid/comments', requirePermission('projects.task.update'), async (c) => {
     try {
       const { body } = await c.req.json()
-      const comment = await tasksSvc.createComment(c.req.param('tid'), getUserId(c), body)
-      const rawMentionedIds = parseMentionIds(body)
+      const companyId = getCompanyId(c)
+      const comment = await commentsSvc.createComment('Task', c.req.param('tid'), c.get('authUserId'), body, companyId)
+      const rawMentionIds = comment.mentions?.map((m) => m.userId) ?? []
       // Validate mentions are project members — prevents notification spam from injected UUIDs
       let mentionedIds = []
-      if (rawMentionedIds.length > 0) {
+      if (rawMentionIds.length > 0) {
         const members = await prisma.projectMember.findMany({
-          where: { projectId: c.req.param('id'), userId: { in: rawMentionedIds } },
+          where: { projectId: c.req.param('id'), userId: { in: rawMentionIds } },
           select: { userId: true },
         })
         mentionedIds = members.map((m) => m.userId)
       }
-      if (mentionedIds.length > 0) {
-        await prisma.taskMention.createMany({
-          data: mentionedIds.map((userId) => ({ commentId: comment.id, userId })),
-          skipDuplicates: true,
-        })
-      }
       notifSvc.notifyTaskComment({
-        companyId: getCompanyId(c),
+        companyId,
         authorId: getUserId(c),
         taskId: c.req.param('tid'),
         mentionedUserIds: mentionedIds,
@@ -368,14 +361,14 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   app.patch('/projects/:id/tasks/:tid/comments/:cid', requirePermission('projects.task.update'), async (c) => {
     try {
       const { body } = await c.req.json()
-      const comment = await tasksSvc.updateComment(c.req.param('cid'), getUserId(c), body)
+      const comment = await commentsSvc.updateComment(c.req.param('cid'), c.get('authUserId'), body)
       return c.json(comment)
     } catch (err) { return handleError(c, err, 'Error al editar comentario.') }
   })
 
   app.delete('/projects/:id/tasks/:tid/comments/:cid', requirePermission('projects.task.update'), async (c) => {
     try {
-      await tasksSvc.deleteComment(c.req.param('cid'), getUserId(c), c.req.param('id'))
+      await commentsSvc.deleteComment(c.req.param('cid'), c.get('authUserId'), getCompanyId(c))
       return c.json({ ok: true })
     } catch (err) { return handleError(c, err, 'Error al eliminar comentario.') }
   })
@@ -384,8 +377,8 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     try {
       const { emoji } = await c.req.json()
       const commentId = c.req.param('cid')
-      const result = await tasksSvc.toggleTaskReaction(commentId, getUserId(c), emoji)
-      if (result.action === 'added') {
+      const result = await commentsSvc.toggleReaction(commentId, c.get('authUserId'), emoji)
+      if (!result.removed) {
         notifSvc.notifyTaskReaction({
           companyId: getCompanyId(c),
           actorId: getUserId(c),
