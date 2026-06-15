@@ -1,6 +1,9 @@
 export {
   documentBlockSchema,
   documentBlocksSchema,
+  documentGeneratedEnabledSchema,
+  documentGeneratedQuerySchema,
+  documentRenderSchema,
   documentTemplateCreateSchema,
   documentTemplateEnabledSchema,
   documentTemplateQuerySchema,

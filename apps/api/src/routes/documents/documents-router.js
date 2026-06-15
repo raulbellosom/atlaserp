@@ -1,16 +1,27 @@
 import { Hono } from "hono";
 
 import { createDocumentProviderRegistry } from "./document-provider-registry.js";
+import { createDocumentGenerationRoutes } from "./document-generation-routes.js";
+import { createDocumentGenerationService } from "./document-generation-service.js";
 import { createDocumentTemplateRoutes } from "./document-template-routes.js";
 import { createDocumentTemplateService } from "./document-template-service.js";
 import { createGrowthLeadDocumentProvider } from "./providers/growth-lead-provider.js";
 
-export function createDocumentsRouter({ prisma, requirePermission }) {
+export function createDocumentsRouter({
+  prisma,
+  supabaseAdmin,
+  requirePermission,
+}) {
   const app = new Hono();
   const providerRegistry = createDocumentProviderRegistry();
   providerRegistry.register(createGrowthLeadDocumentProvider({ prisma }));
   const service = createDocumentTemplateService({
     prisma,
+    providerRegistry,
+  });
+  const generationService = createDocumentGenerationService({
+    prisma,
+    supabaseAdmin,
     providerRegistry,
   });
 
@@ -19,6 +30,13 @@ export function createDocumentsRouter({ prisma, requirePermission }) {
     createDocumentTemplateRoutes({
       service,
       providerRegistry,
+      requirePermission,
+    }),
+  );
+  app.route(
+    "",
+    createDocumentGenerationRoutes({
+      service: generationService,
       requirePermission,
     }),
   );

@@ -4475,7 +4475,10 @@ mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificatio
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createGrowthRouter({ prisma, requirePermission, notificationService }));
-mountWithAuth(app, createDocumentsRouter({ prisma, requirePermission }));
+mountWithAuth(
+  app,
+  createDocumentsRouter({ prisma, supabaseAdmin, requirePermission }),
+);
 mountWithAuth(app, createSyncRouter({ prisma }));
 
 app.post("/internal/notifications/process-deliveries", async (c) => {

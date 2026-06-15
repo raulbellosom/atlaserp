@@ -20,6 +20,7 @@ const ALLOWED_FILE_ENTITY_TYPES = [
   "Task",
   "InvItem",
   "GrowthLead",
+  "GeneratedDocument",
 ];
 const ALLOWED_EXACT_MIME_TYPES = new Set([
   "application/pdf",

@@ -1185,3 +1185,33 @@ export const documentVersionPublishSchema = z
     updatedAt: z.string().datetime({ offset: true }),
   })
   .strict();
+
+export const documentRenderSchema = z
+  .object({
+    sourceId: z.string().uuid(),
+    versionId: z.string().uuid().optional(),
+  })
+  .strict();
+
+export const documentGeneratedQuerySchema = z
+  .object({
+    templateId: z.string().uuid().optional(),
+    sourceType: documentPathSchema.optional(),
+    sourceId: z.string().uuid().optional(),
+    status: z.enum(["pending", "ready", "failed"]).optional(),
+    enabled: z
+      .union([z.boolean(), z.enum(["true", "false"])])
+      .transform((value) =>
+        typeof value === "boolean" ? value : value === "true",
+      )
+      .default(true),
+    page: z.coerce.number().int().positive().default(1),
+    pageSize: z.coerce.number().int().positive().max(100).default(25),
+  })
+  .strict();
+
+export const documentGeneratedEnabledSchema = z
+  .object({
+    enabled: z.boolean(),
+  })
+  .strict();
