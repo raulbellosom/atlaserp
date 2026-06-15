@@ -78,3 +78,28 @@ test('bootstrap scripts download the full installer file set for local and exter
     assert.match(content, /\.env\.external\.example/i)
   }
 })
+
+test('every file referenced by the bootstrap scripts exists in infra/installer', async () => {
+  const requiredFiles = [
+    'docker-compose.yml',
+    'docker-compose.linux.yml',
+    'lib/devkit-installer.mjs',
+    'package.json',
+    'setup-local.mjs',
+    'setup-local.ps1',
+    'setup-local.sh',
+    'stop-local.mjs',
+    'stop-local.ps1',
+    'stop-local.sh',
+    'setup-external.mjs',
+    'setup-external.sh',
+    'stop-external.mjs',
+    'stop-external.ps1',
+    'stop-external.sh',
+    '.env.external.example',
+  ]
+
+  for (const relativePath of requiredFiles) {
+    await fs.access(path.resolve('infra/installer', relativePath))
+  }
+})
