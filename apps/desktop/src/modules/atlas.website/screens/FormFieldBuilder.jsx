@@ -47,10 +47,12 @@ function toFieldName(label) {
     .replace(/^_|_$/g, '')
 }
 
-function FieldDialog({ formId, field, open, onOpenChange, onSaved }) {
+// Form content is a separate component so its setState calls don't re-render
+// the Dialog shell (DialogOverlay / Presence). Re-rendering Dialog triggers a
+// Radix composeRefs instability loop when Presence is in the tree.
+function FieldForm({ formId, field, isEdit, onOpenChange, onSaved }) {
   const { session } = useAuth()
   const token = session?.access_token
-  const isEdit = Boolean(field)
 
   const [form, setForm] = useState({
     label:       field?.label       ?? '',
@@ -111,76 +113,89 @@ function FieldDialog({ formId, field, open, onOpenChange, onSaved }) {
   }
 
   return (
+    <form onSubmit={handleSubmit} className="space-y-4 py-2">
+      <TextField
+        label="Etiqueta"
+        value={form.label}
+        onChange={handleLabelChange}
+        required
+        autoFocus
+      />
+      <TextField
+        label="Nombre del campo (clave)"
+        value={form.name}
+        onChange={(e) => { setNameTouched(true); setForm((f) => ({ ...f, name: e.target.value })) }}
+        placeholder="nombre_campo"
+        required
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <SelectField
+          label="Tipo"
+          value={form.fieldType}
+          onChange={(v) => setForm((f) => ({ ...f, fieldType: v }))}
+          options={FIELD_TYPE_OPTIONS}
+        />
+        <TextField
+          label="Placeholder"
+          value={form.placeholder}
+          onChange={(e) => setForm((f) => ({ ...f, placeholder: e.target.value }))}
+        />
+      </div>
+      <SelectField
+        label="Uso para el lead"
+        value={form.semanticKey}
+        onChange={(value) =>
+          setForm((current) => ({
+            ...current,
+            semanticKey: value,
+          }))
+        }
+        options={SEMANTIC_OPTIONS}
+      />
+      {form.fieldType === 'select' && (
+        <TextField
+          label="Opciones (separadas por coma)"
+          value={form.options}
+          onChange={(e) => setForm((f) => ({ ...f, options: e.target.value }))}
+          placeholder="Opcion 1, Opcion 2"
+        />
+      )}
+      <div
+        className="flex items-center gap-2 text-sm cursor-pointer"
+        onClick={() => setForm((f) => ({ ...f, required: !f.required }))}
+      >
+        <Checkbox
+          checked={form.required}
+          onCheckedChange={(v) => setForm((f) => ({ ...f, required: Boolean(v) }))}
+          onClick={(e) => e.stopPropagation()}
+        />
+        Campo obligatorio
+      </div>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+        <Button type="submit" disabled={mutation.isPending || !form.label.trim() || !form.name.trim()}>
+          {mutation.isPending ? 'Guardando...' : isEdit ? 'Guardar' : 'Agregar'}
+        </Button>
+      </DialogFooter>
+    </form>
+  )
+}
+
+function FieldDialog({ formId, field, open, onOpenChange, onSaved }) {
+  const isEdit = Boolean(field)
+  return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Editar campo' : 'Agregar campo'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          <TextField
-            label="Etiqueta"
-            value={form.label}
-            onChange={handleLabelChange}
-            required
-            autoFocus
-          />
-          <TextField
-            label="Nombre del campo (clave)"
-            value={form.name}
-            onChange={(e) => { setNameTouched(true); setForm((f) => ({ ...f, name: e.target.value })) }}
-            placeholder="nombre_campo"
-            required
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <SelectField
-              label="Tipo"
-              value={form.fieldType}
-              onChange={(v) => setForm((f) => ({ ...f, fieldType: v }))}
-              options={FIELD_TYPE_OPTIONS}
-            />
-            <TextField
-              label="Placeholder"
-              value={form.placeholder}
-              onChange={(e) => setForm((f) => ({ ...f, placeholder: e.target.value }))}
-            />
-          </div>
-          <SelectField
-            label="Uso para el lead"
-            value={form.semanticKey}
-            onChange={(value) =>
-              setForm((current) => ({
-                ...current,
-                semanticKey: value,
-              }))
-            }
-            options={SEMANTIC_OPTIONS}
-          />
-          {form.fieldType === 'select' && (
-            <TextField
-              label="Opciones (separadas por coma)"
-              value={form.options}
-              onChange={(e) => setForm((f) => ({ ...f, options: e.target.value }))}
-              placeholder="Opcion 1, Opcion 2"
-            />
-          )}
-          <div
-            className="flex items-center gap-2 text-sm cursor-pointer"
-            onClick={() => setForm((f) => ({ ...f, required: !f.required }))}
-          >
-            <Checkbox
-              checked={form.required}
-              onCheckedChange={(v) => setForm((f) => ({ ...f, required: Boolean(v) }))}
-              onClick={(e) => e.stopPropagation()}
-            />
-            Campo obligatorio
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={mutation.isPending || !form.label.trim() || !form.name.trim()}>
-              {mutation.isPending ? 'Guardando...' : isEdit ? 'Guardar' : 'Agregar'}
-            </Button>
-          </DialogFooter>
-        </form>
+        <FieldForm
+          formId={formId}
+          field={field}
+          isEdit={isEdit}
+          onOpenChange={onOpenChange}
+          onSaved={onSaved}
+        />
       </DialogContent>
     </Dialog>
   )
