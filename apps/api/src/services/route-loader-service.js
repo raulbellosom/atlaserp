@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Hono } from 'hono'
-import { resolveProjectRoot } from './module-discovery-service.js'
+import { resolveModuleRoots } from './module-root-resolver.js'
 import { publishNotificationFromContext } from './notification-publisher.js'
 
 function isWithinPath(parentPath, childPath) {
@@ -76,7 +76,7 @@ class RouteCollisionError extends Error {
 }
 
 export function createRouteLoaderService({ prisma, authMiddleware, requirePermission, cache = null }) {
-  let modulesRoot = null
+  let moduleRoots = null
   const routerMap = new Map()
   const routeOwnerMap = new Map()
   const routeSignaturesByModule = new Map()
@@ -162,50 +162,63 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     routeSignaturesByModule.delete(key)
   }
 
-  function ensurePathInsideModules(resolvedPath, label) {
-    if (!modulesRoot) {
-      throw new Error('Route loader modules root is not initialized.')
-    }
+  function ensurePathInsideAllowedRoots(resolvedPath, label) {
+    if (!moduleRoots) throw new Error('Route loader module roots are not initialized.')
     const absolutePath = path.resolve(resolvedPath)
-    if (!isWithinPath(modulesRoot, absolutePath)) {
-      throw new Error(`${label} resolves outside modules root: ${absolutePath}`)
+    const allowedRoots = [
+      moduleRoots.officialModulesDir,
+      moduleRoots.customModulesDir,
+      path.join(moduleRoots.projectRoot, 'modules'),
+      moduleRoots.projectRoot,
+    ]
+    if (!allowedRoots.some((root) => isWithinPath(root, absolutePath))) {
+      throw new Error(`${label} resolves outside module roots: ${absolutePath}`)
     }
     return absolutePath
   }
 
   async function resolveModuleDir(moduleRow) {
-    if (!modulesRoot) {
-      const projectRoot = await resolveProjectRoot()
-      modulesRoot = path.resolve(projectRoot, 'modules')
-    }
+    if (!moduleRoots) moduleRoots = await resolveModuleRoots()
     const lifecycleConfig = toPlainObject(moduleRow.lifecycleConfig)
     const discovery = toPlainObject(lifecycleConfig.discovery)
     const localPath =
       typeof discovery.localPath === 'string' && discovery.localPath.trim()
         ? discovery.localPath.trim()
         : null
+    const projectRoot = moduleRoots.projectRoot
+    const isCustomModule =
+      typeof moduleRow.key === 'string' &&
+      (moduleRow.key.startsWith('custom.') || moduleRow.key.startsWith('community.'))
 
     if (localPath) {
-      const projectRoot = path.dirname(modulesRoot)
-      const fromDiscovery = ensurePathInsideModules(
+      const candidates = [
         path.resolve(projectRoot, localPath),
-        `module directory for ${moduleRow.key}`
-      )
-      if (await pathExists(fromDiscovery)) {
-        return fromDiscovery
+        path.resolve(moduleRoots.customModulesDir, localPath),
+      ]
+      for (const candidate of candidates) {
+        const safeCandidate = ensurePathInsideAllowedRoots(
+          candidate,
+          `module directory for ${moduleRow.key}`
+        )
+        if (await pathExists(safeCandidate)) {
+          return safeCandidate
+        }
       }
     }
 
-    const customDir = ensurePathInsideModules(
-      path.resolve(modulesRoot, 'custom', moduleRow.key),
-      `custom module directory for ${moduleRow.key}`
+    const defaultModuleDir = ensurePathInsideAllowedRoots(
+      path.resolve(
+        isCustomModule ? moduleRoots.customModulesDir : moduleRoots.officialModulesDir,
+        moduleRow.key
+      ),
+      `module directory for ${moduleRow.key}`
     )
-    return customDir
+    return defaultModuleDir
   }
 
   async function resolveModuleApiPath(moduleRow) {
     const moduleDir = await resolveModuleDir(moduleRow)
-    return ensurePathInsideModules(
+    return ensurePathInsideAllowedRoots(
       path.resolve(moduleDir, 'api', 'index.js'),
       `api/index.js for ${moduleRow.key}`
     )
@@ -213,7 +226,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
 
   async function resolveModuleComponentsPath(moduleRow) {
     const moduleDir = await resolveModuleDir(moduleRow)
-    return ensurePathInsideModules(
+    return ensurePathInsideAllowedRoots(
       path.resolve(moduleDir, 'components', 'index.js'),
       `components/index.js for ${moduleRow.key}`
     )
@@ -416,10 +429,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
   }
 
   async function initialize(app) {
-    if (!modulesRoot) {
-      const projectRoot = await resolveProjectRoot()
-      modulesRoot = path.resolve(projectRoot, 'modules')
-    }
+    if (!moduleRoots) moduleRoots = await resolveModuleRoots()
 
     await syncInstalledModules()
 
@@ -553,6 +563,12 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     return Object.fromEntries(routeStatusMap.entries())
   }
 
+  function getModuleComponents(moduleKey) {
+    const key = normalizeModuleKey(moduleKey)
+    if (!key) return {}
+    return ComponentRegistry.getModuleComponents(key)
+  }
+
   return {
     initialize,
     reloadModule,
@@ -560,5 +576,6 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     syncInstalledModules,
     getLoadedModules,
     getModuleRouteStatus,
+    getModuleComponents,
   }
 }

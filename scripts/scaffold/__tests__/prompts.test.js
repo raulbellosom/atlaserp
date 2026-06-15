@@ -12,6 +12,7 @@ test('interactive scaffolder collects complete PWA identity', async () => {
     '#7c3aed',
     '',
     '/inventory',
+    '',
     'item',
     'Item',
     '',
@@ -36,4 +37,5 @@ test('interactive scaffolder collects complete PWA identity', async () => {
     shortName: 'Inventario',
     startPath: '/inventory',
   })
+  assert.equal(config.preset, 'crud')
 })

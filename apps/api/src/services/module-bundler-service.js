@@ -3,9 +3,9 @@ import fs from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import esbuild from 'esbuild'
+import { resolveModuleRoots } from './module-root-resolver.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT  = path.resolve(__dirname, '..', '..', '..', '..')
 const BUNDLES_DIR = path.resolve(__dirname, '..', '..', 'bundles')
 const STORAGE_BUCKET = 'module-bundles'
 
@@ -51,20 +51,14 @@ async function collectFiles(dir) {
 }
 
 async function resolveModuleBaseDir(key) {
-  const candidateDirs = [
-    path.join(REPO_ROOT, 'modules', 'custom', key),
-  ]
-
-  for (const candidate of candidateDirs) {
-    try {
-      await fs.access(candidate)
-      return candidate
-    } catch {
-      // Continue trying other locations.
-    }
+  const roots = await resolveModuleRoots({ sourceDir: __dirname })
+  const candidate = path.join(roots.customModulesDir, key)
+  try {
+    await fs.access(candidate)
+    return candidate
+  } catch {
+    return null
   }
-
-  return null
 }
 
 export function createModuleBundlerService({ prisma, supabaseAdmin }) {
@@ -243,42 +237,40 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
     if (process.env.NODE_ENV === 'production') return
     if (_devWatcher) return
     _devWatcher = true
-
-    const watchRoots = [
-      path.join(REPO_ROOT, 'modules', 'custom'),
-    ]
     const debouncers = new Map()
 
     import('node:fs').then(({ watch }) => {
-      for (const root of watchRoots) {
-        fs.access(root)
-          .then(() => {
-            watch(root, { recursive: true }, (event, filename) => {
-              const normalized = filename?.replaceAll(path.sep, '/')
-              if (!normalized?.includes('/components/')) return
-              const parts = normalized.split('/')
-              const key = parts[0]
-              if (!key) return
+      resolveModuleRoots({ sourceDir: __dirname })
+        .then(({ customModulesDir }) => {
+          fs.access(customModulesDir)
+            .then(() => {
+              watch(customModulesDir, { recursive: true }, (_event, filename) => {
+                const normalized = filename?.replaceAll(path.sep, '/')
+                if (!normalized?.includes('/components/')) return
+                const parts = normalized.split('/')
+                const key = parts[0]
+                if (!key) return
 
-              clearTimeout(debouncers.get(key))
-              debouncers.set(
-                key,
-                setTimeout(async () => {
-                  try {
-                    const result = await buildModuleBundle(key, { force: true })
-                    if (result.built) console.log(`[bundler:watch] rebuilt ${key}`)
-                  } catch (err) {
-                    console.error(`[bundler:watch] rebuild failed for ${key}:`, err.message)
-                  } finally {
-                    debouncers.delete(key)
-                  }
-                }, 200),
-              )
+                clearTimeout(debouncers.get(key))
+                debouncers.set(
+                  key,
+                  setTimeout(async () => {
+                    try {
+                      const result = await buildModuleBundle(key, { force: true })
+                      if (result.built) console.log(`[bundler:watch] rebuilt ${key}`)
+                    } catch (err) {
+                      console.error(`[bundler:watch] rebuild failed for ${key}:`, err.message)
+                    } finally {
+                      debouncers.delete(key)
+                    }
+                  }, 200),
+                )
+              })
+              console.log(`[bundler] watching ${customModulesDir} for component changes`)
             })
-            console.log(`[bundler] watching ${path.relative(REPO_ROOT, root)} for component changes`)
-          })
-          .catch(() => {})
-      }
+            .catch(() => {})
+        })
+        .catch(() => {})
     })
   }
 

@@ -4,6 +4,11 @@ import { resolve, dirname } from 'node:path'
 import { generateManifest } from './templates/manifest.js'
 import { generateModel } from './templates/model.js'
 import { generateTableView, generateFormView, generateDetailView, generatePageView } from './templates/views.js'
+import {
+  generateComponentsIndex,
+  generateCustomDashboardView,
+  generateModuleDashboard,
+} from './templates/custom.js'
 import { generateServiceHelpers } from './templates/service-helpers.js'
 import { generateService } from './templates/service.js'
 import { generateRoutes } from './templates/routes.js'
@@ -54,6 +59,12 @@ export function writeModule(config, repoRoot) {
     write(`validators/${entity.name}.validators.js`, generateEntityValidators(entity))
   }
 
+  if (config.preset === 'crud-custom') {
+    write('views/dashboard.custom.js', generateCustomDashboardView(config))
+    write('components/index.js', generateComponentsIndex(config))
+    write('components/ModuleDashboard.jsx', generateModuleDashboard(config))
+  }
+
   return { outDir, written }
 }
 
@@ -64,6 +75,7 @@ export function applyDefaults(config) {
     description: config.description || '',
     icon: config.icon,
     color: config.color,
+    preset: config.preset || 'crud',
     pwa: config.pwa ? { ...config.pwa } : null,
     entities: (config.entities || []).map((e) => ({
       ...e,

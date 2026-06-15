@@ -2255,7 +2255,7 @@ export function createModulesRouter({
     async (c) => {
       const key = c.req.param("key");
 
-      const modulesDir = resolveModulesDir();
+      const modulesDir = await resolveModulesDir();
       if (!modulesDir || !existsSync(modulesDir)) {
         return c.json({ error: "MODULES_DIR_NOT_CONFIGURED" }, 503);
       }
@@ -2303,7 +2303,7 @@ export function createModulesRouter({
     requirePermission("core.modules.purge"),
     async (c) => {
       const key = c.req.param("key");
-      const modulesDir = resolveModulesDir();
+      const modulesDir = await resolveModulesDir();
 
       try {
         await purgeModuleFromDb(key, prisma);

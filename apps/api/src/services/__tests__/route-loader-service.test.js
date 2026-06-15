@@ -31,6 +31,40 @@ export default function createRouter() {
   await fs.writeFile(filePath, content, 'utf8')
 }
 
+async function writeExternalModule(projectRoot, customModulesDir, moduleKey) {
+  const moduleDir = path.join(customModulesDir, moduleKey)
+  await fs.mkdir(path.join(moduleDir, 'api'), { recursive: true })
+  await fs.mkdir(path.join(moduleDir, 'components'), { recursive: true })
+  await fs.writeFile(
+    path.join(moduleDir, 'api', 'index.js'),
+    `export default function createRouter() {
+      return {
+        routes: [{ method: 'GET', path: '/external/demo' }],
+        router: {
+          match(method, requestPath) {
+            const isMatch = method === 'GET' && requestPath === '/external/demo'
+            return [isMatch ? [{}] : []]
+          },
+        },
+        fetch() {
+          return new Response(JSON.stringify({ ok: true, moduleKey: '${moduleKey}' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        },
+      }
+    }`,
+    'utf8'
+  )
+  await fs.writeFile(
+    path.join(moduleDir, 'components', 'index.js'),
+    `export async function register(registry) {
+      registry.register('${moduleKey}:ExternalWidget', function ExternalWidget() { return null })
+    }`,
+    'utf8'
+  )
+}
+
 function createPrismaMock(modules) {
   const moduleMap = new Map(modules.map((row) => [row.key, { ...row }]))
 
@@ -121,6 +155,59 @@ test('route-loader keeps first module route and flags collision on subsequent mo
     process.env.ATLAS_PROJECT_ROOT = previousRoot
   } else {
     delete process.env.ATLAS_PROJECT_ROOT
+  }
+  await fs.rm(projectRoot, { recursive: true, force: true })
+})
+
+test('route-loader loads API and components from ATLAS_MODULES_DIR custom root', async () => {
+  const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'atlas-route-loader-ext-'))
+  const customModulesDir = path.join(projectRoot, 'custom-modules')
+  await fs.writeFile(path.join(projectRoot, 'pnpm-workspace.yaml'), 'packages:\n  - "apps/*"\n', 'utf8')
+  await fs.writeFile(path.join(projectRoot, 'package.json'), '{"name":"tmp","type":"module"}', 'utf8')
+  await fs.mkdir(path.join(projectRoot, 'modules', 'official'), { recursive: true })
+  await writeExternalModule(projectRoot, customModulesDir, 'custom.external')
+
+  const prisma = createPrismaMock([
+    {
+      key: 'custom.external',
+      status: 'INSTALLED',
+      enabled: true,
+      manifest: { key: 'custom.external' },
+      lifecycleConfig: { discovery: { localPath: 'custom.external' } },
+      core: false,
+    },
+  ])
+
+  const previousRoot = process.env.ATLAS_PROJECT_ROOT
+  const previousModulesDir = process.env.ATLAS_MODULES_DIR
+  process.env.ATLAS_PROJECT_ROOT = projectRoot
+  process.env.ATLAS_MODULES_DIR = customModulesDir
+
+  const routeLoader = createRouteLoaderService({
+    prisma,
+    authMiddleware: async (_c, next) => next(),
+    requirePermission: () => async (_c, next) => next(),
+  })
+
+  const result = await routeLoader.reloadModule('custom.external')
+  assert.equal(result.loaded, true)
+
+  const loaded = routeLoader.getLoadedModules()
+  assert.equal(loaded.length, 1)
+  assert.equal(loaded[0]?.moduleKey, 'custom.external')
+  assert.equal(loaded[0]?.routes?.[0]?.path, '/external/demo')
+  const components = routeLoader.getModuleComponents('custom.external')
+  assert.equal(typeof components['custom.external:ExternalWidget'], 'function')
+
+  if (typeof previousRoot === 'string') {
+    process.env.ATLAS_PROJECT_ROOT = previousRoot
+  } else {
+    delete process.env.ATLAS_PROJECT_ROOT
+  }
+  if (typeof previousModulesDir === 'string') {
+    process.env.ATLAS_MODULES_DIR = previousModulesDir
+  } else {
+    delete process.env.ATLAS_MODULES_DIR
   }
   await fs.rm(projectRoot, { recursive: true, force: true })
 })

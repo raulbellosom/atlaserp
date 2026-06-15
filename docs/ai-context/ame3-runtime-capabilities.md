@@ -7,7 +7,8 @@ This document defines what custom modules can use when Atlas ERP is installed fr
 Installer mode means:
 - API and worker run from published images.
 - Web runs from a prebuilt Vite bundle image.
-- Custom modules are edited in `custom-modules/`.
+- Operators edit modules in a host `custom-modules/` folder that is mounted into the container at `ATLAS_MODULES_DIR` (for example `/app/modules/custom`).
+- If `ATLAS_MODULES_DIR` is not set, Atlas falls back to `<projectRoot>/modules/custom` for source-mode development.
 
 ## What Works in Installer Mode
 
@@ -24,7 +25,7 @@ Custom modules can ship React components compiled at install time. The API serve
 
 ### How it works
 
-1. Place React components in `modules/custom/<key>/components/`.
+1. Place React components in the module's `components/` directory. In installer mode the module lives under `ATLAS_MODULES_DIR/<moduleKey>/`; in source mode it lives under `modules/custom/<moduleKey>/`.
 2. Create `components/index.js` exporting an async `register` function (see contract below).
 3. Call `POST /modules/<key>/install` (or `sync` if already installed).
 4. esbuild compiles the bundle and stores it in the filesystem and Supabase Storage.
@@ -84,7 +85,7 @@ There are two categories. Use **Category A** (external) whenever possible — it
 | `react-hook-form` | `useForm`, `Controller` — prefer using `@atlas/ui` Form components which already wrap it |
 | `motion` (Framer Motion) | ~280 KB — use sparingly |
 | `country-state-city` | Geo data helpers |
-| Any package in `custom-modules/` root `node_modules` | esbuild bundles it at install time |
+| Any package resolvable from the module's Node resolution chain | esbuild bundles it at install time |
 | CDN: `https://esm.sh/<pkg>` | Browser fetches at runtime — no install needed |
 
 > **Not available** in browser components: Node.js built-ins (`fs`, `path`, `crypto`), `exceljs`, `pdfkit`, `sharp` — use those in `api/` only.
@@ -199,8 +200,10 @@ Use CUSTOM when TABLE/FORM/DETAIL renderers are insufficient. Requires a compone
 // 1. views/dashboard.custom.js  — declares the route and component key
 import { defineView } from '@atlas/module-engine'
 
-export default defineView('custom.mymodule.dashboard', {
+export default defineView({
+  key: 'mymodule.dashboard',
   kind: 'CUSTOM',
+  version: '0.1.0',
   schema: {
     path: '/mymodule/dashboard',
     component: 'custom.mymodule:MyDashboard',
@@ -305,6 +308,28 @@ export default function MyDashboard() {
 Cell components used in TABLE blueprints (badge renderers, custom cells) do not need a CUSTOM view — register them and reference via `schema.columns[].component`.
 
 ---
+
+## Donâ€™t Guess Imports
+
+These imports are guaranteed and should be used exactly as written:
+
+| Need | Import |
+|---|---|
+| Toasts | `import { toast } from 'sonner'` |
+| Page shell / cards / forms | `import { PageHeader, Card, Button, EmptyState, ErrorState, Skeleton } from '@atlas/ui'` |
+| Data fetching | `import { useQuery, useMutation } from '@tanstack/react-query'` |
+| Routing | `import { useNavigate, useParams, Link } from 'react-router-dom'` |
+
+If a component or function is not documented in this file or exported by `@atlas/ui`, do not assume it exists.
+
+## Troubleshooting CUSTOM Views and Bundles
+
+- Missing `components/index.js`: the bundle cannot register your React components.
+- Wrong `schema.component`: it must match the registry key exactly, for example `custom.mymodule:MyDashboard`.
+- Wrong file extension: module UI files must be `.jsx`, not `.tsx`.
+- Missing build: run `POST /modules/<key>/install` or `POST /modules/<key>/sync`, then verify `GET /modules/<key>/bundle.js`.
+- Unsupported import: stay within the documented externals and supported bundled dependencies.
+- Stale bundle cache: rebuild with `POST /modules/<key>/sync` and reload the page.
 
 ## @atlas/ui Component Library
 

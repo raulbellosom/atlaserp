@@ -463,6 +463,12 @@ Use the project's default automatic JSX runtime. Do not add `/** @jsxRuntime cla
 `/** @jsx createElement */`, or `import { createElement } from 'react'` in custom module
 components.
 
+For toast notifications inside module React components, use:
+
+```js
+import { toast } from 'sonner'
+```
+
 ### Available imports in components
 
 | Import | Available | Notes |
@@ -488,8 +494,10 @@ When a module needs a full custom screen, declare it as a CUSTOM kind view. No S
 // modules/custom/custom.deliveries/views/shipment-detail.custom.js
 import { defineView } from '@atlas/module-engine'
 
-export default defineView('custom.deliveries.shipment-detail', {
+export default defineView({
+  key: 'deliveries.shipment-detail',
   kind: 'CUSTOM',
+  version: '0.1.0',
   schema: {
     path: '/deliveries/shipments/:id',
     component: 'custom.deliveries:ShipmentDetailScreen',

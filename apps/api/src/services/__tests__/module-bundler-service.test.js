@@ -109,12 +109,50 @@ describe('module-bundler-service', () => {
       assert.ok(content.length > 100, 'bundle should have substantial content (not just empty)')
     })
 
-    it('returns { built: false, reason: "no-components" } when entry is missing', async () => {
+    it('builds a module bundle from ATLAS_MODULES_DIR', async () => {
+      const externalRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'atlas-bundler-external-'))
+      const moduleDir = path.join(externalRoot, 'custom.externalbundle', 'components')
+      const previousModulesDir = process.env.ATLAS_MODULES_DIR
+      await fs.mkdir(moduleDir, { recursive: true })
+      await fs.writeFile(
+        path.join(moduleDir, 'index.js'),
+        `export async function register(registry) {
+          const { default: ExternalScreen } = await import('./ExternalScreen.jsx')
+          registry.register('custom.externalbundle:ExternalScreen', ExternalScreen)
+        }`,
+        'utf8'
+      )
+      await fs.writeFile(
+        path.join(moduleDir, 'ExternalScreen.jsx'),
+        `export default function ExternalScreen() {
+          return null
+        }`,
+        'utf8'
+      )
+      process.env.ATLAS_MODULES_DIR = externalRoot
+
+      const { createModuleBundlerService } = await import('../module-bundler-service.js')
+      const svc = createModuleBundlerService({ prisma: mockPrisma, supabaseAdmin: mockSupabase })
+      const result = await svc.buildModuleBundle('custom.externalbundle', { force: true })
+
+      assert.equal(result.built, true)
+      assert.match(result.hash ?? '', /^[0-9a-f]{64}$/)
+
+      if (typeof previousModulesDir === 'string') {
+        process.env.ATLAS_MODULES_DIR = previousModulesDir
+      } else {
+        delete process.env.ATLAS_MODULES_DIR
+      }
+      await fs.rm(externalRoot, { recursive: true, force: true })
+      await fs.rm(path.resolve(__dirname, '../../../bundles/custom.externalbundle.js'), { force: true }).catch(() => {})
+    })
+
+    it('returns { built: false, reason: "module-not-found" } when module directory is missing', async () => {
       const { createModuleBundlerService } = await import('../module-bundler-service.js')
       const svc = createModuleBundlerService({ prisma: mockPrisma, supabaseAdmin: mockSupabase })
       const result = await svc.buildModuleBundle('custom.nonexistent')
       assert.equal(result.built, false)
-      assert.equal(result.reason, 'no-components')
+      assert.equal(result.reason, 'module-not-found')
     })
   })
 })

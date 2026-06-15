@@ -29,6 +29,7 @@ export async function collectInteractiveConfig({ ask, log = console.log }) {
     const color = await askRequired(ask, 'Color hexadecimal del modulo (ej. #6366f1): ')
     const pwaShortName = await askWithDefault(ask, 'Nombre corto PWA', name.slice(0, 14))
     const pwaStartPath = await askRequired(ask, 'Ruta inicial PWA relativa al modulo (ej. /items): ')
+    const preset = await askWithDefault(ask, 'Preset (crud o crud-custom)', 'crud')
 
     const entities = []
     let addEntity = true
@@ -90,6 +91,7 @@ export async function collectInteractiveConfig({ ask, log = console.log }) {
         shortName: pwaShortName,
         startPath: pwaStartPath,
       },
+      preset,
       entities,
     }
 }

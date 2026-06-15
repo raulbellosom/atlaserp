@@ -7,6 +7,7 @@ const MODULE_KEY_REGEX = /^[a-z][a-z0-9]*\.[a-z][a-z0-9_]*$/
 const IDENTIFIER_REGEX = /^[a-z_][a-z0-9_]*$/
 const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/
 const SAFE_START_PATH_REGEX = /^\/(?:[a-zA-Z0-9._~-]+\/?)*$/
+const VALID_PRESETS = new Set(['crud', 'crud-custom'])
 
 const VALID_FIELD_TYPES = new Set([
   'text', 'textarea', 'number', 'decimal', 'boolean',
@@ -73,6 +74,10 @@ export function validateConfig(config) {
     if (!/^\d+\.\d+\.\d+$/.test(config.version)) {
       errors.push(`version "${config.version}" debe seguir semver (ej. 0.1.0).`)
     }
+  }
+
+  if (config.preset !== undefined && !VALID_PRESETS.has(config.preset)) {
+    errors.push(`preset "${config.preset}" no es valido. Usa "crud" o "crud-custom".`)
   }
 
   // entities

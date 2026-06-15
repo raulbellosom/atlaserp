@@ -3,6 +3,10 @@ import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
+  resolveModuleRoots,
+  resolveProjectRootInfo,
+} from './module-root-resolver.js'
+import {
   validateManifest,
   validateModel,
   validatePage,
@@ -11,7 +15,6 @@ import {
 
 const SOURCE_OFFICIAL = 'official'
 const SOURCE_CUSTOM = 'custom'
-const apiSourceDir = path.dirname(fileURLToPath(import.meta.url))
 
 const RESERVED_CUSTOM_PREFIXES = ['atlas.', 'core.', 'system.', 'identity.']
 
@@ -27,10 +30,6 @@ function toErrorMessage(error) {
   }
 }
 
-function normalizeRootDir(rootDir) {
-  return path.resolve(typeof rootDir === 'string' && rootDir.trim() ? rootDir : process.cwd())
-}
-
 async function isDirectory(targetPath) {
   try {
     const stats = await fs.stat(targetPath)
@@ -40,98 +39,29 @@ async function isDirectory(targetPath) {
   }
 }
 
-async function inspectProjectRoot(candidateDir) {
-  const normalizedDir = normalizeRootDir(candidateDir)
-  const pnpmWorkspacePath = path.join(normalizedDir, 'pnpm-workspace.yaml')
-  const packageJsonPath = path.join(normalizedDir, 'package.json')
-  const modulesPath = path.join(normalizedDir, 'modules')
-  const customModulesPath = path.join(modulesPath, SOURCE_CUSTOM)
-  const officialModulesPath = path.join(modulesPath, SOURCE_OFFICIAL)
-
-  const pnpmWorkspaceExists = await pathExists(pnpmWorkspacePath)
-  const packageJsonExists = await pathExists(packageJsonPath)
-  const modulesDirExists = await isDirectory(modulesPath)
-  const customModulesDirExists = await isDirectory(customModulesPath)
-  const officialModulesDirExists = await isDirectory(officialModulesPath)
-  const valid = pnpmWorkspaceExists && packageJsonExists && modulesDirExists
-
-  return {
-    projectRoot: normalizedDir,
-    pnpmWorkspaceExists,
-    packageJsonExists,
-    modulesDirExists,
-    customModulesDirExists,
-    officialModulesDirExists,
-    valid,
-  }
-}
-
-async function findProjectRootUpward(startDir) {
-  let current = normalizeRootDir(startDir)
-  while (true) {
-    const inspection = await inspectProjectRoot(current)
-    if (inspection.valid) {
-      return inspection
-    }
-    const parentDir = path.dirname(current)
-    if (parentDir === current) {
-      return null
-    }
-    current = parentDir
-  }
-}
-
 export async function getDiscoveryRootInfo(options = {}) {
-  const env = options.env ?? process.env
-  const cwd = normalizeRootDir(options.cwd ?? process.cwd())
-  const sourceDir = normalizeRootDir(options.sourceDir ?? apiSourceDir)
-
-  const envRootRaw = typeof env.ATLAS_PROJECT_ROOT === 'string' ? env.ATLAS_PROJECT_ROOT.trim() : ''
-  if (envRootRaw) {
-    const envInspection = await inspectProjectRoot(envRootRaw)
-    if (envInspection.valid) {
-      return {
-        cwd,
-        projectRoot: envInspection.projectRoot,
-        resolution: 'env',
-        modulesDirExists: envInspection.modulesDirExists,
-        customModulesDirExists: envInspection.customModulesDirExists,
-        officialModulesDirExists: envInspection.officialModulesDirExists,
-      }
-    }
+  const info = await resolveModuleRoots({
+    ...options,
+    sourceDir: options.sourceDir ?? path.dirname(fileURLToPath(import.meta.url)),
+  })
+  return {
+    cwd: info.cwd,
+    projectRoot: info.projectRoot,
+    resolution: info.resolution,
+    modulesDirExists: info.modulesDirExists,
+    customModulesDirExists: info.customModulesDirExists,
+    officialModulesDirExists: info.officialModulesDirExists,
+    customModulesDir: info.customModulesDir,
+    officialModulesDir: info.officialModulesDir,
+    customModulesSource: info.customModulesSource,
   }
-
-  const fromCwd = await findProjectRootUpward(cwd)
-  if (fromCwd) {
-    return {
-      cwd,
-      projectRoot: fromCwd.projectRoot,
-      resolution: 'cwd-upward',
-      modulesDirExists: fromCwd.modulesDirExists,
-      customModulesDirExists: fromCwd.customModulesDirExists,
-      officialModulesDirExists: fromCwd.officialModulesDirExists,
-    }
-  }
-
-  const fromSourceDir = await findProjectRootUpward(sourceDir)
-  if (fromSourceDir) {
-    return {
-      cwd,
-      projectRoot: fromSourceDir.projectRoot,
-      resolution: 'api-source-upward',
-      modulesDirExists: fromSourceDir.modulesDirExists,
-      customModulesDirExists: fromSourceDir.customModulesDirExists,
-      officialModulesDirExists: fromSourceDir.officialModulesDirExists,
-    }
-  }
-
-  throw new Error(
-    `Project root not found. Expected pnpm-workspace.yaml, package.json, and modules/ starting from cwd (${cwd}) or API source (${sourceDir}).`
-  )
 }
 
 export async function resolveProjectRoot(options = {}) {
-  const info = await getDiscoveryRootInfo(options)
+  const info = await resolveProjectRootInfo({
+    ...options,
+    sourceDir: options.sourceDir ?? path.dirname(fileURLToPath(import.meta.url)),
+  })
   return info.projectRoot
 }
 
@@ -517,8 +447,14 @@ export async function loadModuleMigrations({ moduleDir, manifest }) {
 }
 
 async function discoverModulesBySource({ rootDir, source }) {
-  const safeRootDir = normalizeRootDir(rootDir)
-  const sourceRoot = path.resolve(safeRootDir, 'modules', source)
+  const moduleRoots = await resolveModuleRoots({
+    rootDir,
+    sourceDir: path.dirname(fileURLToPath(import.meta.url)),
+  })
+  const safeRootDir = moduleRoots.projectRoot
+  const sourceRoot = source === SOURCE_CUSTOM
+    ? moduleRoots.customModulesDir
+    : moduleRoots.officialModulesDir
 
   if (!(await pathExists(sourceRoot))) {
     return []
@@ -549,11 +485,14 @@ async function discoverModulesBySource({ rootDir, source }) {
       const manifestReal = await ensureInsideRoot(moduleDirReal, manifestPath, 'module manifest')
 
       const loadedManifest = await loadModuleManifest({ manifestPath: manifestReal, source })
+      const localPath = isWithinPath(safeRootDir, moduleDirReal)
+        ? relativePath(safeRootDir, moduleDirReal)
+        : relativePath(sourceRootReal, moduleDirReal)
       const baseRecord = {
         key: loadedManifest.key ?? null,
         manifest: loadedManifest.manifest ?? null,
         source,
-        localPath: relativePath(safeRootDir, moduleDirReal),
+        localPath,
         moduleDir: moduleDirReal,
         status: loadedManifest.status,
         error: loadedManifest.error,
@@ -608,7 +547,9 @@ async function discoverModulesBySource({ rootDir, source }) {
         key: null,
         manifest: null,
         source,
-        localPath: relativePath(safeRootDir, moduleDir),
+        localPath: isWithinPath(safeRootDir, path.resolve(moduleDir))
+          ? relativePath(safeRootDir, moduleDir)
+          : relativePath(sourceRoot, moduleDir),
         moduleDir: path.resolve(moduleDir),
         status: 'ERROR',
         error: toRecordError('DISCOVERY_IO_ERROR', error),
@@ -665,8 +606,11 @@ export async function discoverCustomModules({ rootDir }) {
 }
 
 export async function discoverModules({ rootDir }) {
-  const safeRootDir = normalizeRootDir(rootDir)
-  const official = await discoverOfficialModules({ rootDir: safeRootDir })
-  const custom = await discoverCustomModules({ rootDir: safeRootDir })
+  const info = await resolveProjectRootInfo({
+    rootDir,
+    sourceDir: path.dirname(fileURLToPath(import.meta.url)),
+  })
+  const official = await discoverOfficialModules({ rootDir: info.projectRoot })
+  const custom = await discoverCustomModules({ rootDir: info.projectRoot })
   return applyDuplicateKeyPolicy([...official, ...custom])
 }

@@ -17,6 +17,7 @@ export function generateManifest(config) {
       `  './views/${e.name}.detail.js',`,
       `  './views/${e.name}.page.js',`,
     ])
+    .concat(config.preset === 'crud-custom' ? [`  './views/dashboard.custom.js',`] : [])
     .join('\n')
 
   const permissions = entities
@@ -41,6 +42,19 @@ export function generateManifest(config) {
         `  },`,
       ].join('\n')
     })
+    .concat(
+      config.preset === 'crud-custom'
+        ? [[
+            `  {`,
+            `    label: 'Dashboard',`,
+            `    path: '/app/m/${config.key}/dashboard',`,
+            `    icon: '${config.icon}',`,
+            `    layout: 'main',`,
+            `    permissionKey: '${permKey(slug, entities[0].name, 'read')}',`,
+            `  },`,
+          ].join('\n')]
+        : []
+    )
     .join('\n')
 
   const ownedModels = entities

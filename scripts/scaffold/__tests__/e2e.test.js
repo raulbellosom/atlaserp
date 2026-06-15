@@ -1,6 +1,6 @@
 import { test, describe, before, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, readdirSync, existsSync } from 'node:fs'
+import { mkdtempSync, rmSync, readdirSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
 import { execFileSync } from 'node:child_process'
@@ -104,5 +104,39 @@ describe('e2e scaffold smoke test', () => {
         assert.fail(`Syntax error in ${relPath}:\n${err.stderr?.toString() ?? err.message}`)
       }
     }
+  })
+})
+
+describe('e2e scaffold smoke test (crud-custom preset)', () => {
+  let customRoot
+  let customResult
+
+  before(() => {
+    customRoot = mkdtempSync(join(tmpdir(), 'atlas-scaffold-custom-'))
+    customResult = writeModule(
+      applyDefaults({
+        ...DEMO_CONFIG,
+        key: 'custom.e2ecustom',
+        preset: 'crud-custom',
+      }),
+      customRoot
+    )
+  })
+
+  after(() => {
+    rmSync(customRoot, { recursive: true, force: true })
+  })
+
+  test('writes custom view and component files for crud-custom preset', () => {
+    assert.ok(customResult.written.includes('views/dashboard.custom.js'))
+    assert.ok(customResult.written.includes('components/index.js'))
+    assert.ok(customResult.written.includes('components/ModuleDashboard.jsx'))
+  })
+
+  test('module manifest references the generated custom dashboard view', () => {
+    const manifest = readdirSync(resolve(customResult.outDir)).includes('module.manifest.js')
+    assert.ok(manifest, 'module.manifest.js should exist for crud-custom preset')
+    const content = readFileSync(resolve(customResult.outDir, 'module.manifest.js'), 'utf8')
+    assert.match(content, /\.\/views\/dashboard\.custom\.js/)
   })
 })

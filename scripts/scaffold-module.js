@@ -69,8 +69,16 @@ async function main() {
   }
 
   console.log(`\n${written.length} archivos generados.`)
-  console.log(`\nProximo paso: POST /modules/sync`)
-  console.log(`  (o: pnpm dev:api y luego llamar al endpoint de sincronizacion)\n`)
+  console.log('\nVerificacion recomendada:')
+  console.log(`  node --check modules/custom/${config.key}/module.manifest.js`)
+  console.log(`  node --check modules/custom/${config.key}/api/index.js`)
+  console.log(`  curl -X POST http://localhost:4010/modules/sync -H "Authorization: Bearer $ATLAS_TOKEN"`)
+  console.log(`  curl -X POST http://localhost:4010/modules/${config.key}/install -H "Authorization: Bearer $ATLAS_TOKEN"`)
+  if (config.preset === 'crud-custom') {
+    console.log(`  curl http://localhost:4010/modules/${config.key}/bundle.js`)
+    console.log(`  # Abrir: http://localhost:5173/app/m/${config.key}/dashboard`)
+  }
+  console.log('')
 }
 
 async function askOverwrite(modulePath) {
