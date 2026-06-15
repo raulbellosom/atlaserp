@@ -196,6 +196,15 @@ const SCREEN_MAP = {
   "atlas.growth:/leads/:id": lazy(
     () => import("../modules/atlas.growth/screens/GrowthLeadDetailScreen.jsx"),
   ),
+  "atlas.documents:/templates": lazy(
+    () => import("../modules/atlas.documents/screens/DocumentTemplatesScreen.jsx"),
+  ),
+  "atlas.documents:/templates/:id/editor": lazy(
+    () => import("../modules/atlas.documents/screens/DocumentTemplateEditorScreen.jsx"),
+  ),
+  "atlas.documents:/generated": lazy(
+    () => import("../modules/atlas.documents/screens/GeneratedDocumentsScreen.jsx"),
+  ),
   "atlas.calendar:/calendar": lazy(
     () => import("../modules/atlas.calendar/screens/CalendarScreen.jsx"),
   ),
