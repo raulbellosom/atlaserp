@@ -315,7 +315,21 @@ export function createGrowthLeadService({
   async function listLeadFiles({ companyId, id }) {
     await getLeadRecord({ companyId, id });
     return prisma.fileAsset.findMany({
-      where: leadFileWhere({ companyId, id, enabled: true }),
+      where: {
+        entityId: companyId,
+        enabled: true,
+        metadata: {
+          path: ["sourceEntityId"],
+          equals: id,
+        },
+        OR: [
+          { moduleKey: "atlas.growth", entityType: "GrowthLead" },
+          {
+            moduleKey: "atlas.documents",
+            entityType: "GeneratedDocument",
+          },
+        ],
+      },
       orderBy: { createdAt: "desc" },
     });
   }

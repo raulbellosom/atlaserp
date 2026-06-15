@@ -8,6 +8,7 @@ import {
   ConfirmDialog,
   EmptyState,
   ErrorState,
+  FileViewer,
   LoadingState,
   PageHeader,
   SelectField,
@@ -18,6 +19,7 @@ import {
   Ban,
   CheckCircle2,
   FileText,
+  Files,
   Mail,
   MessageSquareText,
   Phone,
@@ -31,6 +33,7 @@ import { useAuth } from "../../../auth/AuthProvider.jsx";
 import { atlas } from "../../../lib/atlas.js";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import { ConvertLeadDialog } from "../components/ConvertLeadDialog.jsx";
+import { GenerateDocumentDialog } from "../components/GenerateDocumentDialog.jsx";
 import {
   LEAD_PRIORITY_OPTIONS,
   describeLeadActivity,
@@ -43,12 +46,14 @@ import {
   getLeadStatusVariant,
 } from "../lib/growth-leads.js";
 
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es-MX", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
 function formatDate(value) {
   if (!value) return "Sin fecha";
-  return new Intl.DateTimeFormat("es-MX", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+  return DATE_TIME_FORMATTER.format(new Date(value));
 }
 
 function DetailItem({ label, value, icon: Icon }) {
@@ -84,17 +89,26 @@ export default function GrowthLeadDetailScreen() {
   const canCreateContact = hasPermission("contacts.contacts.create");
   const canReadFiles = hasPermission("files.assets.read");
   const canCreateFiles = hasPermission("files.assets.create");
+  const canGenerateDocuments = hasPermission("documents.generated.create");
 
   const [note, setNote] = useState("");
   const [convertOpen, setConvertOpen] = useState(false);
   const [disableOpen, setDisableOpen] = useState(false);
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [generatedFile, setGeneratedFile] = useState(null);
+  const [attachmentsVersion, setAttachmentsVersion] = useState(0);
 
-  const leadQuery = useQuery({
+  const {
+    data: leadResponse,
+    isLoading: isLeadLoading,
+    isError: isLeadError,
+    refetch: refetchLead,
+  } = useQuery({
     queryKey: ["growth", "leads", "detail", leadId],
     queryFn: () => atlas.growth.getLead(leadId, token),
     enabled: Boolean(token && leadId && canRead),
   });
-  const assigneesQuery = useQuery({
+  const { data: assigneesResponse } = useQuery({
     queryKey: ["growth", "leads", "assignees"],
     queryFn: () => atlas.growth.listLeadAssignees(token),
     enabled: Boolean(token && canAssign),
@@ -193,28 +207,28 @@ export default function GrowthLeadDetailScreen() {
       </div>
     );
   }
-  if (leadQuery.isLoading) {
+  if (isLeadLoading) {
     return (
       <div className="p-4 md:p-6">
         <LoadingState />
       </div>
     );
   }
-  if (leadQuery.isError || !leadQuery.data?.data) {
+  if (isLeadError || !leadResponse?.data) {
     return (
       <div className="min-h-dvh p-4 md:p-6">
         <PageHeader eyebrow="Atlas Growth" title="Detalle del lead" />
         <ErrorState
           title="No se pudo cargar el lead"
-          onRetry={() => leadQuery.refetch()}
+          onRetry={refetchLead}
         />
       </div>
     );
   }
 
-  const lead = leadQuery.data.data;
+  const lead = leadResponse.data;
   const mutable = lead.enabled && lead.status !== "converted";
-  const assignees = assigneesQuery.data?.data ?? [];
+  const assignees = assigneesResponse?.data ?? [];
   const assigneeOptions = [
     { value: "__none__", label: "Sin responsable" },
     ...assignees.map((assignee) => ({
@@ -245,6 +259,12 @@ export default function GrowthLeadDetailScreen() {
               <Button onClick={() => setConvertOpen(true)}>
                 <UserRoundCheck className="mr-2 h-4 w-4" />
                 Convertir
+              </Button>
+            ) : null}
+            {canGenerateDocuments ? (
+              <Button variant="outline" onClick={() => setGenerateOpen(true)}>
+                <Files className="mr-2 h-4 w-4" />
+                Generar documento
               </Button>
             ) : null}
             {canDisable ? (
@@ -345,6 +365,7 @@ export default function GrowthLeadDetailScreen() {
           {canReadFiles ? (
             <Card className="p-5">
               <AttachmentsPanel
+                key={attachmentsVersion}
                 apiBaseUrl={getApiUrl()}
                 token={token}
                 recordId={lead.id}
@@ -354,6 +375,9 @@ export default function GrowthLeadDetailScreen() {
                 showHeading
                 showViewToggle
                 defaultViewMode="grid"
+                canRemoveItem={(item) =>
+                  item.raw?.moduleKey === "atlas.growth"
+                }
                 onError={(message) => toast.error(message)}
               />
             </Card>
@@ -476,6 +500,27 @@ export default function GrowthLeadDetailScreen() {
         canCreateContact={canCreateContact}
         loading={convertMutation.isPending}
         onConfirm={(payload) => convertMutation.mutate(payload)}
+      />
+
+      <GenerateDocumentDialog
+        open={generateOpen}
+        onOpenChange={setGenerateOpen}
+        leadId={lead.id}
+        token={token}
+        onGenerated={({ generated, download }) => {
+          setAttachmentsVersion((current) => current + 1);
+          setGeneratedFile({
+            id: generated.fileAssetId ?? generated.id,
+            originalName: `${lead.name || "lead"}-documento.pdf`,
+            mimeType: "application/pdf",
+            signedUrl: download.url,
+          });
+        }}
+      />
+      <FileViewer
+        open={Boolean(generatedFile)}
+        onClose={() => setGeneratedFile(null)}
+        file={generatedFile}
       />
 
       <ConfirmDialog

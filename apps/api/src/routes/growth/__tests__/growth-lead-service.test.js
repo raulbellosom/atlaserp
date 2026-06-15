@@ -64,6 +64,15 @@ function buildPrisma({ lead: leadOverride } = {}) {
         enabled: true,
         originalName: "private.pdf",
       },
+      {
+        id: "generated-file-1",
+        entityId: COMPANY_ID,
+        moduleKey: "atlas.documents",
+        entityType: "GeneratedDocument",
+        metadata: { sourceEntityId: LEAD_ID, sourceType: "growth.lead" },
+        enabled: true,
+        originalName: "lead-summary.pdf",
+      },
     ],
     activities: [],
     audits: [],
@@ -178,10 +187,16 @@ function buildPrisma({ lead: leadOverride } = {}) {
         state.files.filter(
           (row) =>
             row.entityId === where.entityId &&
-            row.moduleKey === where.moduleKey &&
-            row.entityType === where.entityType &&
             row.enabled === where.enabled &&
-            row.metadata.sourceEntityId === where.metadata.equals,
+            row.metadata.sourceEntityId === where.metadata.equals &&
+            (where.OR
+              ? where.OR.some(
+                  (branch) =>
+                    row.moduleKey === branch.moduleKey &&
+                    row.entityType === branch.entityType,
+                )
+              : row.moduleKey === where.moduleKey &&
+                row.entityType === where.entityType),
         ),
       findFirst: async ({ where }) =>
         state.files.find(
@@ -257,7 +272,10 @@ describe("createGrowthLeadService", () => {
       companyId: COMPANY_ID,
       id: LEAD_ID,
     });
-    assert.deepEqual(files.map((file) => file.id), ["file-1"]);
+    assert.deepEqual(files.map((file) => file.id), [
+      "file-1",
+      "generated-file-1",
+    ]);
 
     const associated = await service.associateLeadFile({
       companyId: COMPANY_ID,

@@ -392,6 +392,7 @@ function AssociatedFilesList({
   downloadingId,
   removingId,
   canWrite,
+  canRemoveItem,
 }) {
   if (localView === "grid") {
     const images = items.filter((i) => String(i.mimeType ?? "").startsWith("image/"));
@@ -435,7 +436,7 @@ function AssociatedFilesList({
                   opening={openingId === item.id}
                   downloading={downloadingId === item.id}
                   removing={removingId === item.id}
-                  canWrite={canWrite}
+                  canWrite={canWrite && canRemoveItem(item)}
                 />
               ))}
             </div>
@@ -462,7 +463,7 @@ function AssociatedFilesList({
             opening={openingId === item.id}
             downloading={downloadingId === item.id}
             removing={removingId === item.id}
-            canWrite={canWrite}
+            canWrite={canWrite && canRemoveItem(item)}
           />
         ))}
       </div>
@@ -485,6 +486,7 @@ export function AttachmentsPanel({
   onError,
   onChange,
   onControllerReady,
+  canRemoveItem = () => true,
 }) {
   const controller = useAttachmentsController({
     apiBaseUrl,
@@ -845,6 +847,7 @@ export function AttachmentsPanel({
             downloadingId={downloadingId}
             removingId={removingId}
             canWrite={controller.canWrite}
+            canRemoveItem={canRemoveItem}
           />
         )}
       </div>
