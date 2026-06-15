@@ -16,6 +16,7 @@ import fsSync from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { downloadDevKitSnapshot } from "./lib/devkit-installer.mjs";
 
 const argv = new Set(process.argv.slice(2));
 const skipPull    = argv.has("--skip-pull");
@@ -38,23 +39,6 @@ const docsRepoName  = process.env.ATLAS_DOCS_REPO_NAME  ?? "atlaserp";
 const docsRepoRef   = process.env.ATLAS_DOCS_REPO_REF   ?? "main";
 const docsRawBase   = process.env.ATLAS_DOCS_RAW_BASE   ??
   `https://raw.githubusercontent.com/${docsRepoOwner}/${docsRepoName}/${docsRepoRef}`;
-
-const devKitFiles = [
-  "AGENTS.md",
-  "docs/ai-context/ame3-modules.md",
-  "docs/ai-context/ame3-runtime-capabilities.md",
-  "docs/ai-context/atlas-storefront-sdk.md",
-  "docs/02_module_system.md",
-  "docs/03_core_modules.md",
-  "docs/03_custom_modules.md",
-  "docs/architecture/atlas-module-engine-v3.md",
-  "docs/TASKS.md",
-  "docs/superpowers/specs/2026-06-11-dist-auth-sdk-design.md",
-  "docs/superpowers/specs/2026-06-14-storefront-capture-foundation-design.md",
-  "docs/superpowers/specs/2026-06-14-growth-analytics-design.md",
-  "docs/superpowers/specs/2026-06-14-growth-lead-inbox-design.md",
-  "docs/superpowers/specs/2026-06-14-atlas-documents-template-engine-design.md",
-];
 
 const apiImage    = process.env.ATLAS_API_IMAGE           ?? "raulbellosom/atlaserp:api-latest";
 const workerImage = process.env.ATLAS_WORKER_IMAGE        ?? "raulbellosom/atlaserp:worker-latest";
@@ -227,15 +211,6 @@ async function appendMissingOptionalVars(filePath) {
   console.warn("  Review and fill them in before starting containers.");
 }
 
-async function downloadTextFile(url) {
-  const response = await fetch(url, {
-    headers: { "User-Agent": "atlaserp-installer" },
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${url}`);
-  return response.text();
-}
-
 async function downloadDevKit() {
   if (skipDevKit) {
     console.log("[3/5] Skipping Dev Kit download (--skip-dev-kit).");
@@ -247,25 +222,14 @@ async function downloadDevKit() {
   }
 
   await fs.mkdir(devKitDir, { recursive: true });
-  const ok = [];
-  const failed = [];
+  const { downloadedFiles: ok, failedFiles } = await downloadDevKitSnapshot({
+    devKitDir,
+    docsRawBase,
+  });
 
-  for (const rel of devKitFiles) {
-    const url = `${docsRawBase}/${rel}`;
-    const dest = path.resolve(devKitDir, rel);
-    try {
-      const content = await downloadTextFile(url);
-      await fs.mkdir(path.dirname(dest), { recursive: true });
-      await fs.writeFile(dest, content, "utf8");
-      ok.push(rel);
-    } catch (err) {
-      failed.push({ rel, err });
-    }
-  }
-
-  if (failed.length > 0) {
-    console.warn(`[setup-external] Dev Kit: ${ok.length} ok, ${failed.length} failed.`);
-    for (const { rel, err } of failed) console.warn(`  - ${rel}: ${err.message}`);
+  if (failedFiles.length > 0) {
+    console.warn(`[setup-external] Dev Kit: ${ok.length} ok, ${failedFiles.length} failed.`);
+    for (const { relativePath, error } of failedFiles) console.warn(`  - ${relativePath}: ${error.message}`);
   } else {
     console.log(`[3/5] Dev Kit ready at ${devKitDir} (${ok.length} files).`);
   }

@@ -6,6 +6,7 @@ import fsSync from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { downloadDevKitSnapshot } from "./lib/devkit-installer.mjs";
 
 const argv = new Set(process.argv.slice(2));
 const skipComposeUp = argv.has("--skip-compose-up");
@@ -40,23 +41,6 @@ const docsRepoRef = process.env.ATLAS_DOCS_REPO_REF ?? "main";
 const docsRawBase =
   process.env.ATLAS_DOCS_RAW_BASE ??
   `https://raw.githubusercontent.com/${docsRepoOwner}/${docsRepoName}/${docsRepoRef}`;
-
-const devKitFiles = [
-  "AGENTS.md",
-  "docs/ai-context/ame3-modules.md",
-  "docs/ai-context/ame3-runtime-capabilities.md",
-  "docs/ai-context/atlas-storefront-sdk.md",
-  "docs/02_module_system.md",
-  "docs/03_core_modules.md",
-  "docs/03_custom_modules.md",
-  "docs/architecture/atlas-module-engine-v3.md",
-  "docs/TASKS.md",
-  "docs/superpowers/specs/2026-06-11-dist-auth-sdk-design.md",
-  "docs/superpowers/specs/2026-06-14-storefront-capture-foundation-design.md",
-  "docs/superpowers/specs/2026-06-14-growth-analytics-design.md",
-  "docs/superpowers/specs/2026-06-14-growth-lead-inbox-design.md",
-  "docs/superpowers/specs/2026-06-14-atlas-documents-template-engine-design.md",
-];
 
 const apiImage =
   process.env.ATLAS_API_LOCAL_IMAGE ?? "raulbellosom/atlaserp:api-latest";
@@ -158,17 +142,6 @@ function pullWithRetry(image, label, retries = 3, delayMs = 5000) {
   throw new Error(`Could not pull ${label} image (${image}) after ${retries} attempts. Check your network and try again, or run with --skip-pull if the image is already local.`);
 }
 
-async function downloadTextFile(url) {
-  const response = await fetch(url, {
-    headers: { "User-Agent": "atlaserp-installer" },
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status} when downloading ${url}`);
-  }
-  return response.text();
-}
-
 async function writeDevKitReadme(downloadedFiles) {
   const readmePath = path.resolve(devKitDir, "README.md");
   const fileList = downloadedFiles.map((item) => `- ${item}`).join("\n");
@@ -214,23 +187,10 @@ async function downloadDevKit() {
   }
 
   await fs.mkdir(devKitDir, { recursive: true });
-  const downloadedFiles = [];
-  const failedFiles = [];
-
-  for (const relativePath of devKitFiles) {
-    const url = `${docsRawBase}/${relativePath}`;
-    const targetPath = path.resolve(devKitDir, relativePath);
-    try {
-      const content = await downloadTextFile(url);
-      await fs.mkdir(path.dirname(targetPath), { recursive: true });
-      await fs.writeFile(targetPath, content, "utf8");
-      downloadedFiles.push(relativePath);
-    } catch (error) {
-      failedFiles.push({ relativePath, error });
-    }
-  }
-
-  await writeDevKitReadme(downloadedFiles);
+  const { downloadedFiles, failedFiles } = await downloadDevKitSnapshot({
+    devKitDir,
+    docsRawBase,
+  });
 
   if (failedFiles.length > 0) {
     console.warn(

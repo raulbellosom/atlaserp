@@ -474,18 +474,25 @@ export function ModuleSidebar({
         })}
       </nav>
 
-      {/* Collapse toggle + brand info */}
+      {/* Bottom bar: brand (mobile) + collapse toggle (desktop) */}
       <div className="shrink-0 border-t border-[hsl(var(--border))] safe-bottom">
-        {/* Brand — only when expanded */}
-        {!collapsed && (
-          <div className="px-3 pt-2 pb-0.5">
-            <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-none">
-              Atlas ERP Meridian{" "}
-              <span className="font-medium">v0.1</span>
-            </p>
-          </div>
-        )}
-        <div className="p-2">
+        {/* Brand — mobile only; desktop uses BrandFooter */}
+        <div className="lg:hidden px-3 pt-3 pb-2 flex flex-col gap-1">
+          <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-none">
+            Atlas ERP Meridian{" "}
+            <span className="font-medium">v0.1</span>
+          </p>
+          <a
+            href="https://racoondevs.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] text-[hsl(var(--muted-foreground))] leading-none hover:text-[hsl(var(--foreground))] transition-colors duration-150"
+          >
+            Hecho con amor por Racoon Devs
+          </a>
+        </div>
+        {/* Collapse toggle — desktop only */}
+        <div className="hidden lg:block p-2">
           <button
             onClick={onCollapse}
             title={

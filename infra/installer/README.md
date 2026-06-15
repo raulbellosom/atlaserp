@@ -71,9 +71,10 @@ mkdir -p custom-modules
 1. Inicializa Supabase local en `.supabase-local/`.
 2. Levanta Supabase sin `logflare` ni `vector`.
 3. Genera `.env.local` automaticamente con las credenciales del stack local.
-4. Descarga el Dev Kit AME3 a `custom-modules/_atlas-devkit/` (siempre actualizado
-   desde main): `AGENTS.md`, docs de arquitectura, guias de modulos custom,
-   `atlas-storefront-sdk.md`, `ame3-runtime-capabilities.md` y `TASKS.md`.
+4. Descarga el Dev Kit AME3 exportado a `custom-modules/_atlas-devkit/` (siempre actualizado
+   desde main) usando un `manifest.json` versionado. Incluye `AGENTS.md`,
+   guias AME3, `capabilities.runtime.json`, `prompt-starter.txt`,
+   `troubleshooting.md` y `golden-path-module/`.
 5. Hace `docker pull` de API, worker y web. Luego ejecuta `docker image prune -f`
    para eliminar layers huerfanos de versiones anteriores.
 6. Ejecuta `pnpm db:migrate` y `pnpm db:seed` dentro del container API.
@@ -121,9 +122,10 @@ nano .env.external   # completar con credenciales de Supabase
 
 1. Valida que `.env.external` existe y tiene las credenciales.
 2. Valida que Docker Compose esta disponible.
-3. Descarga el Dev Kit AME3 a `custom-modules/_atlas-devkit/` (siempre actualizado
-   desde main): `AGENTS.md`, docs de arquitectura, guias de modulos custom,
-   `atlas-storefront-sdk.md`, `ame3-runtime-capabilities.md` y `TASKS.md`.
+3. Descarga el Dev Kit AME3 exportado a `custom-modules/_atlas-devkit/` (siempre actualizado
+   desde main) usando un `manifest.json` versionado. Incluye `AGENTS.md`,
+   guias AME3, `capabilities.runtime.json`, `prompt-starter.txt`,
+   `troubleshooting.md` y `golden-path-module/`.
 4. Hace `docker pull` de API, worker y web. Luego ejecuta `docker image prune -f`
    para eliminar layers huerfanos de versiones anteriores y liberar espacio en disco.
 5. Ejecuta `pnpm db:migrate` y `pnpm db:seed` dentro del container API.
@@ -206,6 +208,17 @@ curl -X POST http://localhost:4010/modules/custom.mymodule/install \
   -H "Authorization: Bearer $ATLAS_TOKEN"
 ```
 
+### Validacion rapida en la UI
+
+Para validar que AME3 quedo bien actualizado en un workspace installer-mode:
+
+1. Ejecuta `node .\setup-local.mjs` (o `node ./setup-external.mjs` en external mode).
+2. Abre `http://localhost:5173`.
+3. En la app, entra a Modulos y usa `Sincronizar modulos`.
+4. Instala tu modulo custom desde el catalogo.
+5. Si el modulo usa una vista `CUSTOM`, abre su ruta y confirma que no aparece `Componente de modulo no disponible`.
+6. Si falla un import, revisa primero `custom-modules/_atlas-devkit/troubleshooting.md` y `capabilities.runtime.json`.
+
 ### Componentes React en modulos (dynamic bundle)
 
 Los modulos pueden incluir componentes React compilados en el momento de instalacion.
@@ -276,7 +289,11 @@ curl http://localhost:4010/modules/custom.mymodule/bundle.js
   - Solucion: publicar nueva imagen `api`, hacer `docker compose pull atlas-api-local`
     y recrear el contenedor.
 
-Para documentacion completa: `custom-modules/_atlas-devkit/docs/03_custom_modules.md`
+Empieza aqui:
+- `custom-modules/_atlas-devkit/README.md`
+- `custom-modules/_atlas-devkit/docs/ai-context/ame3-modules.md`
+- `custom-modules/_atlas-devkit/docs/ai-context/ame3-runtime-capabilities.md`
+- `custom-modules/_atlas-devkit/capabilities.runtime.json`
 
 ---
 
