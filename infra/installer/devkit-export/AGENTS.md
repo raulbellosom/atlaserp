@@ -33,8 +33,10 @@ compiled at install time — no web image rebuild is ever needed for module UI.
 
 5. **Every new module must declare its PWA identity** — `icon`, six-digit hexadecimal
    `color`, and `pwa: { shortName, startPath }` are mandatory. `startPath` is relative
-   to `/app/m/<moduleKey>` and must stay inside that module. Use a supported Lucide
-   icon so Atlas can generate the module's 192px and 512px install icons.
+   to `/app/m/<moduleKey>` and must stay inside that module. The `icon` field must be
+   one of the whitelisted values from `MODULE_ICON_NAMES` — see the full list in
+   `docs/ai-context/ame3-modules.md`. Using an unlisted icon name will cause the sync
+   endpoint to reject the manifest. Navigation item icons are not restricted.
 
 ### UI-first rule — mandatory
 

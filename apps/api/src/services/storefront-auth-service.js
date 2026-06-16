@@ -87,7 +87,17 @@ export function createStorefrontAuthService({ prisma, supabaseAdmin, supabaseAno
       include: {
         memberships: {
           where: { enabled: true },
-          include: { role: true, company: { select: { slug: true } } },
+          include: {
+            role: {
+              include: {
+                permissions: {
+                  where: { permission: { active: true } },
+                  include: { permission: { select: { key: true } } },
+                },
+              },
+            },
+            company: { select: { slug: true } },
+          },
         },
       },
     })
@@ -95,16 +105,24 @@ export function createStorefrontAuthService({ prisma, supabaseAdmin, supabaseAno
       throw Object.assign(new Error('Perfil no encontrado'), { code: 'NOT_FOUND', status: 404 })
     }
 
-    const allowedRoles = await getRegistrableRoles()
-    const membership = profile.memberships.find(
-      m => m.role != null && m.company.slug === companySlug && allowedRoles.includes(m.role.key)
+    // Accept any active membership for this company (storefront OR ERP users)
+    const companyMemberships = profile.memberships.filter(
+      m => m.role != null && m.company.slug === companySlug
     )
-    if (!membership) {
+    if (!companyMemberships.length) {
       throw Object.assign(new Error('Sin acceso a esta plataforma'), { code: 'FORBIDDEN', status: 403 })
     }
 
+    // Prefer the membership whose role has platform.erp.access, then fall back to first
+    const membership =
+      companyMemberships.find(m =>
+        m.role.permissions?.some(rp => rp.permission.key === 'platform.erp.access')
+      ) ?? companyMemberships[0]
+
+    const rolePermissionKeys = membership.role.permissions?.map(rp => rp.permission.key) ?? []
+
     return {
-      user: buildStorefrontUserProfile(profile, membership.role),
+      user: buildStorefrontUserProfile(profile, membership.role, rolePermissionKeys),
       token: data.session.access_token,
       refreshToken: data.session.refresh_token,
       expiresAt: data.session.expires_at,

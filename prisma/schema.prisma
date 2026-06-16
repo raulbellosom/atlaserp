@@ -1193,6 +1193,8 @@ model GeneratedDocument {
 model LedgerAccount {
   id             String   @id @default(uuid(7)) @db.Uuid
   companyId      String   @db.Uuid @map("company_id")
+  ownerId        String?  @db.Uuid @map("owner_id")
+  groupId        String?  @db.Uuid @map("group_id")
   name           String
   bank           String
   accountNumber  String?  @map("account_number")
@@ -1202,9 +1204,49 @@ model LedgerAccount {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  @@unique([companyId, name])
   @@index([companyId, enabled])
   @@map("ledger_account")
+}
+
+model LedgerGroup {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String   @db.Uuid @map("company_id")
+  name      String
+  createdBy String?  @db.Uuid @map("created_by")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId])
+  @@map("ledger_group")
+}
+
+model LedgerGroupMember {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  groupId    String   @db.Uuid @map("group_id")
+  userId     String   @db.Uuid @map("user_id")
+  role       String   @default("viewer")
+  invitedBy  String?  @db.Uuid @map("invited_by")
+  invitedAt  DateTime @default(now()) @map("invited_at")
+  status     String   @default("active")
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("ledger_group_member")
+}
+
+model LedgerAccountMember {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  accountId String   @db.Uuid @map("account_id")
+  userId    String   @db.Uuid @map("user_id")
+  role      String   @default("viewer")
+  invitedBy String?  @db.Uuid @map("invited_by")
+  invitedAt DateTime @default(now()) @map("invited_at")
+  status    String   @default("active")
+
+  @@unique([accountId, userId])
+  @@index([userId])
+  @@map("ledger_account_member")
 }
 
 model LedgerCategory {
