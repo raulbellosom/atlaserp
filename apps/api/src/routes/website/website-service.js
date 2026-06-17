@@ -726,6 +726,7 @@ export function createWebsiteService({ prisma }) {
         defaultAssigneeUserId: data.defaultAssigneeUserId ?? null,
         honeypotEnabled: data.honeypotEnabled ?? true,
         turnstileRequired: data.turnstileRequired ?? false,
+        wizardMode: data.wizardMode ?? false,
       },
     })
   }
@@ -781,6 +782,8 @@ export function createWebsiteService({ prisma }) {
         required:    data.required ?? false,
         options:     data.options ?? null,
         sortOrder:   data.sortOrder ?? 0,
+        stepNumber:  data.stepNumber ?? 1,
+        stepTitle:   data.stepTitle ?? null,
       },
     })
   }

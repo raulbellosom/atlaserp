@@ -165,6 +165,7 @@ function publicFormData(form) {
     submitLabel: form.submitLabel,
     successMessage: form.successMessage ?? null,
     turnstileRequired: Boolean(form.turnstileRequired),
+    wizardMode: Boolean(form.wizardMode),
     fields: form.fields.map((field) => ({
       id: field.id,
       name: field.name,
@@ -175,6 +176,8 @@ function publicFormData(form) {
       required: Boolean(field.required),
       options: field.options ?? null,
       sortOrder: field.sortOrder,
+      stepNumber: field.stepNumber ?? 1,
+      stepTitle: field.stepTitle ?? null,
     })),
   };
 }

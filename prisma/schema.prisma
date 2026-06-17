@@ -869,6 +869,7 @@ model WebsiteForm {
   defaultAssigneeUserId String? @db.Uuid @map("default_assignee_user_id")
   honeypotEnabled Boolean @default(true) @map("honeypot_enabled")
   turnstileRequired Boolean @default(false) @map("turnstile_required")
+  wizardMode     Boolean  @default(false) @map("wizard_mode")
   enabled        Boolean  @default(true)
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
@@ -892,6 +893,8 @@ model WebsiteFormField {
   required    Boolean  @default(false)
   options     Json?
   sortOrder   Int      @default(0) @map("sort_order")
+  stepNumber  Int      @default(1) @map("step_number")
+  stepTitle   String?  @map("step_title")
   enabled     Boolean  @default(true)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")

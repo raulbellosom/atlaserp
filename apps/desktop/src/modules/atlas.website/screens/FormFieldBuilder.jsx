@@ -7,7 +7,7 @@ import {
   useSortable, sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Pencil, Trash2, Type, Mail, Phone, AlignLeft, List, CheckSquare, Hash, Calendar } from 'lucide-react'
+import { GripVertical, Pencil, Trash2, Type, Mail, Phone, AlignLeft, List, CheckSquare, Hash, Calendar, ToggleLeft, LayoutGrid, Tags, Plus, X } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -18,14 +18,17 @@ import {
 import { toast } from 'sonner'
 
 const FIELD_TYPES = [
-  { value: 'text',     label: 'Texto corto',      Icon: Type },
-  { value: 'email',    label: 'Email',             Icon: Mail },
-  { value: 'phone',    label: 'Telefono',          Icon: Phone },
-  { value: 'textarea', label: 'Texto largo',       Icon: AlignLeft },
-  { value: 'select',   label: 'Lista desplegable', Icon: List },
-  { value: 'checkbox', label: 'Casilla',           Icon: CheckSquare },
-  { value: 'number',   label: 'Numero',            Icon: Hash },
-  { value: 'date',     label: 'Fecha',             Icon: Calendar },
+  { value: 'text',        label: 'Texto corto',         Icon: Type },
+  { value: 'email',       label: 'Email',               Icon: Mail },
+  { value: 'phone',       label: 'Telefono',            Icon: Phone },
+  { value: 'textarea',    label: 'Texto largo',         Icon: AlignLeft },
+  { value: 'select',      label: 'Lista desplegable',   Icon: List },
+  { value: 'radio',       label: 'Opciones radio',      Icon: ToggleLeft },
+  { value: 'checkbox',    label: 'Casilla',             Icon: CheckSquare },
+  { value: 'number',      label: 'Numero',              Icon: Hash },
+  { value: 'date',        label: 'Fecha',               Icon: Calendar },
+  { value: 'chip_multi',  label: 'Chips multi-seleccion', Icon: Tags },
+  { value: 'card_select', label: 'Seleccion en tarjetas', Icon: LayoutGrid },
 ]
 
 const FIELD_TYPE_OPTIONS = FIELD_TYPES.map(({ value, label }) => ({ value, label }))
@@ -47,12 +50,71 @@ function toFieldName(label) {
     .replace(/^_|_$/g, '')
 }
 
-// Form content is a separate component so its setState calls don't re-render
-// the Dialog shell (DialogOverlay / Presence). Re-rendering Dialog triggers a
-// Radix composeRefs instability loop when Presence is in the tree.
-function FieldForm({ formId, field, isEdit, onOpenChange, onSaved }) {
+// Parses existing card_select options from DB [{value,label,description}] to editor state
+function parseCardOptions(options) {
+  if (!Array.isArray(options)) return [{ label: '', description: '' }]
+  return options.map(o =>
+    typeof o === 'string'
+      ? { label: o, description: '' }
+      : { label: o.label ?? '', description: o.description ?? '' }
+  )
+}
+
+// ── Card options editor ──────────────────────────────────────────────────────
+function CardOptionsEditor({ value, onChange }) {
+  function update(i, key, val) {
+    const next = value.map((o, idx) => idx === i ? { ...o, [key]: val } : o)
+    onChange(next)
+  }
+  function add() { onChange([...value, { label: '', description: '' }]) }
+  function remove(i) { onChange(value.filter((_, idx) => idx !== i)) }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Opciones de tarjeta</p>
+      {value.map((opt, i) => (
+        <div key={i} className="flex gap-2 items-start rounded-lg border border-[hsl(var(--border))] p-2.5 bg-[hsl(var(--background))]">
+          <div className="flex-1 space-y-1.5">
+            <input
+              className="w-full text-sm border border-[hsl(var(--border))] rounded-md px-2.5 py-1.5 bg-[hsl(var(--background))] text-[hsl(var(--foreground))] outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
+              placeholder="Titulo de la opcion"
+              value={opt.label}
+              onChange={e => update(i, 'label', e.target.value)}
+            />
+            <input
+              className="w-full text-xs border border-[hsl(var(--border))] rounded-md px-2.5 py-1.5 bg-[hsl(var(--background))] text-[hsl(var(--muted-foreground))] outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
+              placeholder="Descripcion (opcional)"
+              value={opt.description}
+              onChange={e => update(i, 'description', e.target.value)}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => remove(i)}
+            className="mt-1 p-1 rounded hover:bg-[hsl(var(--destructive)/0.1)] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--destructive))]"
+          >
+            <X size={13} />
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={add}
+        className="w-full rounded-lg border border-dashed border-[hsl(var(--border))] py-1.5 text-xs text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))] transition-colors flex items-center justify-center gap-1"
+      >
+        <Plus size={12} /> Agregar opcion
+      </button>
+    </div>
+  )
+}
+
+// ── Field form (inside dialog) ───────────────────────────────────────────────
+function FieldForm({ formId, field, isEdit, onOpenChange, onSaved, wizardMode, maxStep = 1 }) {
   const { session } = useAuth()
   const token = session?.access_token
+
+  const isCardSelect = (ft) => ft === 'card_select'
+  const hasStringOptions = (ft) => ['select', 'radio', 'chip_multi'].includes(ft)
 
   const [form, setForm] = useState({
     label:       field?.label       ?? '',
@@ -61,7 +123,16 @@ function FieldForm({ formId, field, isEdit, onOpenChange, onSaved }) {
     semanticKey: field?.semanticKey ?? 'custom',
     placeholder: field?.placeholder ?? '',
     required:    field?.required    ?? false,
-    options:     Array.isArray(field?.options) ? field.options.join(', ') : '',
+    options:     hasStringOptions(field?.fieldType)
+      ? (Array.isArray(field?.options)
+          ? field.options.map(o => typeof o === 'string' ? o : o.label).join(', ')
+          : '')
+      : '',
+    cardOptions: isCardSelect(field?.fieldType)
+      ? parseCardOptions(field?.options)
+      : [{ label: '', description: '' }],
+    stepNumber:  field?.stepNumber  ?? 1,
+    stepTitle:   field?.stepTitle   ?? '',
   })
   const [nameTouched, setNameTouched] = useState(isEdit)
 
@@ -77,7 +148,11 @@ function FieldForm({ formId, field, isEdit, onOpenChange, onSaved }) {
         headers,
         body: JSON.stringify(data),
       })
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`)
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        const msg = typeof body.error === 'string' ? body.error : body.error?.message || `HTTP ${res.status}`
+        throw new Error(msg)
+      }
       return res.json()
     },
     onSuccess: () => {
@@ -96,6 +171,22 @@ function FieldForm({ formId, field, isEdit, onOpenChange, onSaved }) {
     }))
   }
 
+  function buildOptions() {
+    if (isCardSelect(form.fieldType)) {
+      return form.cardOptions
+        .filter(o => o.label.trim())
+        .map(o => ({
+          value: toFieldName(o.label),
+          label: o.label.trim(),
+          description: o.description.trim() || undefined,
+        }))
+    }
+    if (hasStringOptions(form.fieldType) && form.options.trim()) {
+      return form.options.split(',').map((s) => s.trim()).filter(Boolean)
+    }
+    return null
+  }
+
   function handleSubmit(e) {
     e.preventDefault()
     const payload = {
@@ -105,9 +196,9 @@ function FieldForm({ formId, field, isEdit, onOpenChange, onSaved }) {
       semanticKey: form.semanticKey,
       placeholder: form.placeholder.trim() || undefined,
       required:    form.required,
-      options:     form.fieldType === 'select' && form.options.trim()
-        ? form.options.split(',').map((s) => s.trim()).filter(Boolean)
-        : null,
+      options:     buildOptions(),
+      stepNumber:  wizardMode ? (Number(form.stepNumber) || 1) : 1,
+      stepTitle:   wizardMode ? (form.stepTitle.trim() || null) : null,
     }
     mutation.mutate(payload)
   }
@@ -141,25 +232,53 @@ function FieldForm({ formId, field, isEdit, onOpenChange, onSaved }) {
           onChange={(e) => setForm((f) => ({ ...f, placeholder: e.target.value }))}
         />
       </div>
+
       <SelectField
         label="Uso para el lead"
         value={form.semanticKey}
-        onChange={(value) =>
-          setForm((current) => ({
-            ...current,
-            semanticKey: value,
-          }))
-        }
+        onChange={(value) => setForm((current) => ({ ...current, semanticKey: value }))}
         options={SEMANTIC_OPTIONS}
       />
-      {form.fieldType === 'select' && (
+
+      {hasStringOptions(form.fieldType) && (
         <TextField
-          label="Opciones (separadas por coma)"
+          label={form.fieldType === 'chip_multi' ? 'Opciones (separadas por coma)' : 'Opciones (separadas por coma)'}
           value={form.options}
           onChange={(e) => setForm((f) => ({ ...f, options: e.target.value }))}
-          placeholder="Opcion 1, Opcion 2"
+          placeholder="Opcion 1, Opcion 2, Opcion 3"
         />
       )}
+
+      {isCardSelect(form.fieldType) && (
+        <CardOptionsEditor
+          value={form.cardOptions}
+          onChange={(v) => setForm((f) => ({ ...f, cardOptions: v }))}
+        />
+      )}
+
+      {wizardMode && (
+        <div className="rounded-lg border border-[hsl(var(--border))] p-3 space-y-3">
+          <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Paso del wizard</p>
+          <div className="grid grid-cols-2 gap-3">
+            <SelectField
+              label="Asignar al paso"
+              value={String(form.stepNumber ?? 1)}
+              onChange={(v) => setForm((f) => ({ ...f, stepNumber: Number(v) }))}
+              options={Array.from({ length: maxStep }, (_, i) => ({
+                value: String(i + 1),
+                label: `Paso ${i + 1}`,
+              }))}
+            />
+            <TextField
+              label="Titulo del paso (opcional)"
+              value={form.stepTitle}
+              onChange={(e) => setForm((f) => ({ ...f, stepTitle: e.target.value }))}
+              placeholder="ej. Tu proyecto"
+            />
+          </div>
+        </div>
+      )}
+
       <CheckboxField
         label="Campo obligatorio"
         checked={form.required}
@@ -175,11 +294,11 @@ function FieldForm({ formId, field, isEdit, onOpenChange, onSaved }) {
   )
 }
 
-function FieldDialog({ formId, field, open, onOpenChange, onSaved }) {
+function FieldDialog({ formId, field, open, onOpenChange, onSaved, wizardMode, maxStep }) {
   const isEdit = Boolean(field)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Editar campo' : 'Agregar campo'}</DialogTitle>
         </DialogHeader>
@@ -189,13 +308,15 @@ function FieldDialog({ formId, field, open, onOpenChange, onSaved }) {
           isEdit={isEdit}
           onOpenChange={onOpenChange}
           onSaved={onSaved}
+          wizardMode={wizardMode}
+          maxStep={maxStep}
         />
       </DialogContent>
     </Dialog>
   )
 }
 
-function SortableField({ field, onEdit, onDelete }) {
+function SortableField({ field, onEdit, onDelete, wizardMode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
   const TypeIcon = FIELD_TYPES.find((t) => t.value === field.fieldType)?.Icon ?? Type
@@ -213,6 +334,11 @@ function SortableField({ field, onEdit, onDelete }) {
       <span className="flex-1 text-sm font-medium">{field.label}</span>
       {field.required && <span className="text-[10px] text-red-500 font-mono">*</span>}
       <span className="text-xs font-mono text-[hsl(var(--muted-foreground))]">{field.fieldType}</span>
+      {wizardMode && (
+        <span className="text-[10px] rounded-full bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] px-2 py-0.5 font-semibold">
+          Paso {field.stepNumber ?? 1}
+        </span>
+      )}
       {field.semanticKey && field.semanticKey !== 'custom' && (
         <span className="text-[10px] rounded-full bg-[hsl(var(--muted))] px-2 py-0.5 text-[hsl(var(--muted-foreground))]">
           {SEMANTIC_OPTIONS.find((option) => option.value === field.semanticKey)?.label}
@@ -226,7 +352,50 @@ function SortableField({ field, onEdit, onDelete }) {
   )
 }
 
-export default function FormFieldBuilder({ formId, fields = [], onRefresh }) {
+function StepsBar({ steps, onAdd }) {
+  return (
+    <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-bold text-violet-500">WIZARD — Pasos definidos</span>
+        <button
+          type="button"
+          onClick={onAdd}
+          className="flex items-center gap-1 text-xs font-medium text-violet-500 hover:text-violet-600 transition-colors px-2 py-1 rounded-md hover:bg-violet-500/10"
+        >
+          <Plus size={12} /> Agregar paso
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {steps.map((step) => (
+          <div
+            key={step.number}
+            className="flex items-center gap-2 rounded-lg border border-violet-500/20 bg-[hsl(var(--background))] px-3 py-1.5"
+          >
+            <span className="text-[10px] font-bold text-violet-500 bg-violet-500/10 rounded-full px-1.5 py-0.5">
+              {step.number}
+            </span>
+            <span className="text-xs text-[hsl(var(--foreground))]">
+              {step.title || `Paso ${step.number}`}
+            </span>
+            <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
+              {step.fieldCount} campo{step.fieldCount !== 1 ? 's' : ''}
+            </span>
+          </div>
+        ))}
+        {steps.length === 0 && (
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            Sin pasos definidos. Agrega el primero.
+          </p>
+        )}
+      </div>
+      <p className="text-[11px] text-[hsl(var(--muted-foreground))]">
+        Edita cada campo para asignarlo a un paso. El título del paso se configura por campo.
+      </p>
+    </div>
+  )
+}
+
+export default function FormFieldBuilder({ formId, fields = [], onRefresh, wizardMode = false }) {
   const { session } = useAuth()
   const token = session?.access_token
 
@@ -235,6 +404,9 @@ export default function FormFieldBuilder({ formId, fields = [], onRefresh }) {
   const [editOpen, setEditOpen] = useState(false)
   const [localFields, setLocalFields] = useState(fields)
   const [confirmField, setConfirmField] = useState(null)
+
+  const fieldsMaxStep = Math.max(1, ...fields.map(f => f.stepNumber ?? 1))
+  const [definedStepCount, setDefinedStepCount] = useState(fieldsMaxStep)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -250,6 +422,7 @@ export default function FormFieldBuilder({ formId, fields = [], onRefresh }) {
       })
       if (!res.ok) throw new Error('Error al reordenar')
     },
+    onSuccess: () => onRefresh(),
     onError: () => toast.error('Error al guardar el orden'),
   })
 
@@ -264,19 +437,38 @@ export default function FormFieldBuilder({ formId, fields = [], onRefresh }) {
     onError: () => { toast.error('Error al eliminar campo'); setConfirmField(null) },
   })
 
+  const displayFields = (localFields.length > 0 ? localFields : fields).filter(Boolean)
+
   function handleDragEnd({ active, over }) {
     if (!over || active.id === over.id) return
-    const oldIndex = localFields.findIndex((f) => f.id === active.id)
-    const newIndex  = localFields.findIndex((f) => f.id === over.id)
-    const reordered = arrayMove(localFields, oldIndex, newIndex)
+    const oldIndex = displayFields.findIndex((f) => f.id === active.id)
+    const newIndex  = displayFields.findIndex((f) => f.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+    const reordered = arrayMove(displayFields, oldIndex, newIndex)
     setLocalFields(reordered)
     reorderMutation.mutate(reordered)
   }
+  const effectiveMaxStep = wizardMode
+    ? Math.max(definedStepCount, ...displayFields.map(f => f.stepNumber ?? 1))
+    : 1
 
-  const displayFields = localFields.length > 0 ? localFields : fields
+  const wizardSteps = wizardMode
+    ? Array.from({ length: effectiveMaxStep }, (_, i) => {
+        const n = i + 1
+        const stepFields = displayFields.filter(f => (f.stepNumber ?? 1) === n)
+        const title = stepFields[0]?.stepTitle ?? null
+        return { number: n, title, fieldCount: stepFields.length }
+      })
+    : []
 
   return (
     <div className="space-y-3">
+      {wizardMode && (
+        <StepsBar
+          steps={wizardSteps}
+          onAdd={() => setDefinedStepCount(c => Math.max(c, effectiveMaxStep) + 1)}
+        />
+      )}
       {displayFields.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[hsl(var(--border))] p-8 text-center">
           <p className="text-[hsl(var(--muted-foreground))] text-sm">No hay campos. Agrega el primer campo.</p>
@@ -291,6 +483,7 @@ export default function FormFieldBuilder({ formId, fields = [], onRefresh }) {
                   field={field}
                   onEdit={(f) => { setEditField(f); setEditOpen(true) }}
                   onDelete={setConfirmField}
+                  wizardMode={wizardMode}
                 />
               ))}
             </div>
@@ -305,8 +498,8 @@ export default function FormFieldBuilder({ formId, fields = [], onRefresh }) {
         + Agregar campo
       </button>
 
-      <FieldDialog formId={formId} field={null} open={addOpen} onOpenChange={setAddOpen} onSaved={() => { setLocalFields([]); onRefresh() }} />
-      <FieldDialog formId={formId} field={editField} open={editOpen} onOpenChange={(v) => { setEditOpen(v); if (!v) setEditField(null) }} onSaved={() => { setLocalFields([]); onRefresh() }} />
+      <FieldDialog formId={formId} field={null} open={addOpen} onOpenChange={setAddOpen} onSaved={() => { setLocalFields([]); onRefresh() }} wizardMode={wizardMode} maxStep={effectiveMaxStep} />
+      <FieldDialog formId={formId} field={editField} open={editOpen} onOpenChange={(v) => { setEditOpen(v); if (!v) setEditField(null) }} onSaved={() => { setLocalFields([]); onRefresh() }} wizardMode={wizardMode} maxStep={effectiveMaxStep} />
 
       <ConfirmDialog
         open={Boolean(confirmField)}

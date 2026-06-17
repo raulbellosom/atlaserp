@@ -1,359 +1,430 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "../../../auth/AuthProvider.jsx";
-import { getApiUrl } from "../../../lib/runtimeConfig.js";
+import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Copy, Check, ChevronRight, FileText, Send, Eye, Code2, Trash2 } from 'lucide-react'
+import { useAuth } from '../../../auth/AuthProvider.jsx'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  Button,
-  Card,
-  ComboboxField,
-  TextField,
-  PageHeader,
-  EmptyState,
-  ConfirmDialog,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-  LoadingState,
-  ErrorState,
-  SwitchField,
-} from "@atlas/ui";
-import { toast } from "sonner";
-import FormFieldBuilder from "./FormFieldBuilder.jsx";
-import FormSubmissionsPanel from "./FormSubmissionsPanel.jsx";
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Button, Card, TextField, ComboboxField, PageHeader, EmptyState,
+  ConfirmDialog, Tabs, TabsList, TabsTrigger, TabsContent,
+  LoadingState, ErrorState, SwitchField,
+} from '@atlas/ui'
+import { toast } from 'sonner'
+import FormFieldBuilder from './FormFieldBuilder.jsx'
+import FormSubmissionsPanel from './FormSubmissionsPanel.jsx'
+import FormSettingsPanel from './FormSettingsPanel.jsx'
+import FormPreview from './FormPreview.jsx'
+import FormApiPanel from './FormApiPanel.jsx'
 
 async function apiGet(path, token) {
   const res = await fetch(`${getApiUrl()}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
 }
 
-function FormSettingsPanel({
-  form,
-  token,
-  assignees,
-  turnstileConfigured,
-  onSaved,
-}) {
-  const queryClient = useQueryClient();
-  const [settings, setSettings] = useState({
-    name: form.name ?? "",
-    description: form.description ?? "",
-    submitLabel: form.submitLabel ?? "Enviar",
-    successMessage: form.successMessage ?? "",
-    notifyEmail: form.notifyEmail ?? "",
-    createsLead: form.createsLead ?? true,
-    defaultAssigneeUserId: form.defaultAssigneeUserId ?? "",
-    honeypotEnabled: form.honeypotEnabled ?? true,
-    turnstileRequired: form.turnstileRequired ?? false,
-  });
+// ── Copy-to-clipboard button ────────────────────────────────────────────────
+function CopyButton({ text, label = 'Copiar', size = 'sm' }) {
+  const [copied, setCopied] = useState(false)
+
+  async function handleCopy(e) {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast.error('No se pudo copiar')
+    }
+  }
+
+  const isSmall = size === 'sm'
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      title={`Copiar: ${text}`}
+      className={[
+        'inline-flex items-center gap-1.5 rounded-md border transition-colors font-medium',
+        isSmall
+          ? 'text-xs px-2 py-1'
+          : 'text-sm px-3 py-1.5',
+        copied
+          ? 'border-green-500/40 bg-green-500/10 text-green-500'
+          : 'border-[hsl(var(--border))] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:border-[hsl(var(--primary))]',
+      ].join(' ')}
+    >
+      {copied
+        ? <><Check size={isSmall ? 11 : 13} />{label ? ' Copiado' : ''}</>
+        : <><Copy size={isSmall ? 11 : 13} />{label ? ` ${label}` : ''}</>
+      }
+    </button>
+  )
+}
+
+// ── Integration tip (collapsible code snippet) ──────────────────────────────
+function CodeBlock({ code, label }) {
+  return (
+    <div className="flex items-start gap-2 rounded-md bg-[hsl(var(--background))] border border-[hsl(var(--border))] px-3 py-2">
+      <code className="flex-1 text-xs font-mono text-[hsl(var(--foreground))] break-all select-all leading-relaxed whitespace-pre">
+        {code}
+      </code>
+      <CopyButton text={code} label={label ?? 'Copiar'} />
+    </div>
+  )
+}
+
+function IntegrationTip({ formId, formName }) {
+  const [open, setOpen] = useState(false)
+
+  const slug = (formName ?? 'miFormulario')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/, '')
+
+  const configLine = `  ${slug}: '${formId}',`
+  const importLine = `import { FORMS } from '../config/forms'`
+  const usageLine  = `<DynamicForm formId={FORMS.${slug}} client:load />`
+
+  return (
+    <div className="rounded-lg border border-[hsl(var(--border))] overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] transition-colors"
+      >
+        <Code2 size={14} />
+        <span className="font-medium">Cómo usar en tu sitio web</span>
+        <ChevronRight
+          size={14}
+          className={`ml-auto transition-transform ${open ? 'rotate-90' : ''}`}
+        />
+      </button>
+
+      {open && (
+        <div className="border-t border-[hsl(var(--border))] p-4 space-y-4 bg-[hsl(var(--muted)/0.4)]">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
+              1. Agrega el ID a <code className="font-mono normal-case bg-[hsl(var(--muted))] px-1 rounded">src/config/forms.ts</code>
+            </p>
+            <CodeBlock
+              code={`export const FORMS = {\n${configLine}\n  // ... otros formularios\n}`}
+              label="Copiar"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
+              2. Usa el componente en tu página Astro
+            </p>
+            <CodeBlock
+              code={`${importLine}\n\n${usageLine}`}
+              label="Copiar"
+            />
+          </div>
+
+          <p className="text-[11px] text-[hsl(var(--muted-foreground))] leading-relaxed">
+            Los IDs de formulario son identificadores públicos — no van en <code className="font-mono">.env</code>.
+            Todos los formularios del sitio se gestionan desde <code className="font-mono">src/config/forms.ts</code>.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Form list card ───────────────────────────────────────────────────────────
+function FormCard({ form, active, onClick }) {
+  const fieldCount = form._count?.fields ?? 0
+  const subCount   = form._count?.submissions ?? 0
+  const shortId    = form.id.split('-')[0]
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
+      className={[
+        'w-full text-left rounded-xl border p-3.5 cursor-pointer',
+        active
+          ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.06)] shadow-sm'
+          : 'border-[hsl(var(--border))]',
+      ].join(' ')}
+    >
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <span className={`text-sm font-semibold leading-tight truncate ${active ? 'text-[hsl(var(--primary))]' : 'text-[hsl(var(--foreground))]'}`}>
+          {form.name}
+        </span>
+        {form.wizardMode
+          ? <span className="text-[10px] font-semibold shrink-0 mt-0.5 px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-500 border border-violet-500/20">WIZARD</span>
+          : <FileText size={13} className={`shrink-0 mt-0.5 ${active ? 'text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))]'}`} />
+        }
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]">
+          <span>{fieldCount} campo{fieldCount !== 1 ? 's' : ''}</span>
+          <span>·</span>
+          <span className="flex items-center gap-1">
+            <Send size={10} />
+            {subCount}
+          </span>
+        </div>
+
+        <div onClick={e => e.stopPropagation()}>
+          <CopyButton text={form.id} label="" size="sm" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Form detail header ───────────────────────────────────────────────────────
+function FormDetailHeader({ form, onDelete }) {
+  const shortId = form.id.split('-')[0]
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold text-[hsl(var(--foreground))] truncate">{form.name}</h2>
+          {form.description && (
+            <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5 line-clamp-1">{form.description}</p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="flex items-center gap-1.5 shrink-0 text-xs text-[hsl(var(--destructive))] hover:bg-[hsl(var(--destructive)/0.1)] px-2.5 py-1.5 rounded-md transition-colors"
+        >
+          <Trash2 size={12} />
+          Eliminar
+        </button>
+      </div>
+
+      {/* ID row */}
+      <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.5)] px-3 py-2">
+        <span className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide shrink-0">ID</span>
+        <code className="flex-1 text-xs font-mono text-[hsl(var(--foreground))] truncate select-all" title={form.id}>
+          {form.id}
+        </code>
+        <CopyButton text={form.id} label="Copiar ID" size="sm" />
+      </div>
+
+      <IntegrationTip formId={form.id} formName={form.name} />
+    </div>
+  )
+}
+
+// ── New form dialog ──────────────────────────────────────────────────────────
+const NEW_FORM_DEFAULTS = {
+  name: '', description: '', submitLabel: 'Enviar', successMessage: '',
+  notifyEmail: '', createsLead: true, defaultAssigneeUserId: '',
+  honeypotEnabled: true, turnstileRequired: false, wizardMode: false,
+}
+
+function NewFormDialog({ open, onOpenChange, siteId, token, assignees, turnstileConfigured, onCreated }) {
+  const queryClient = useQueryClient()
+  const [data, setData] = useState(NEW_FORM_DEFAULTS)
+  const set = (key, val) => setData(d => ({ ...d, [key]: val }))
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(
-        `${getApiUrl()}/website/forms/${form.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ...settings,
-            description: settings.description.trim() || undefined,
-            successMessage: settings.successMessage.trim() || undefined,
-            notifyEmail: settings.notifyEmail.trim() || null,
-            defaultAssigneeUserId:
-              settings.defaultAssigneeUserId || null,
-          }),
-        },
-      );
-      if (!response.ok) {
-        throw new Error(
-          (await response.json().catch(() => ({}))).error ||
-            `HTTP ${response.status}`,
-        );
-      }
-      return response.json();
+      const res = await fetch(`${getApiUrl()}/website/forms`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...data, siteId,
+          description:           data.description.trim()    || undefined,
+          successMessage:        data.successMessage.trim() || undefined,
+          notifyEmail:           data.notifyEmail.trim()    || null,
+          defaultAssigneeUserId: data.defaultAssigneeUserId || null,
+        }),
+      })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`)
+      return res.json()
     },
-    onSuccess: () => {
-      toast.success("Configuracion del formulario guardada");
-      queryClient.invalidateQueries({
-        queryKey: ["website-form-detail", form.id],
-      });
-      queryClient.invalidateQueries({ queryKey: ["website-forms"] });
-      onSaved();
+    onSuccess: (form) => {
+      toast.success('Formulario creado')
+      queryClient.invalidateQueries({ queryKey: ['website-forms', siteId] })
+      setData(NEW_FORM_DEFAULTS)
+      onCreated(form.id)
     },
-    onError: (error) => toast.error(error.message),
-  });
-
-  const assigneeOptions = [
-    { value: "", label: "Sin responsable predeterminado" },
-    ...assignees.map((assignee) => ({
-      value: assignee.id,
-      label: `${assignee.displayName} (${assignee.email})`,
-    })),
-  ];
+    onError: err => toast.error(err.message || 'Error al crear formulario'),
+  })
 
   return (
-    <Card className="p-4">
-      <form
-        className="space-y-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          mutation.mutate();
-        }}
-      >
-        <div className="grid md:grid-cols-2 gap-4">
+    <Dialog open={open} onOpenChange={open => { onOpenChange(open); if (!open) setData(NEW_FORM_DEFAULTS) }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Nuevo formulario</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={e => { e.preventDefault(); mutation.mutate() }} className="space-y-4 py-2">
+          <div className="grid grid-cols-2 gap-3">
+            <TextField
+              label="Nombre"
+              value={data.name}
+              onChange={e => set('name', e.target.value)}
+              placeholder="Formulario de contacto"
+              required
+              autoFocus
+            />
+            <TextField
+              label="Botón de envío"
+              value={data.submitLabel}
+              onChange={e => set('submitLabel', e.target.value)}
+            />
+          </div>
           <TextField
-            label="Nombre"
-            value={settings.name}
-            onChange={(event) =>
-              setSettings((current) => ({
-                ...current,
-                name: event.target.value,
-              }))
-            }
-            required
+            label="Descripción (opcional)"
+            value={data.description}
+            onChange={e => set('description', e.target.value)}
           />
           <TextField
-            label="Texto del boton"
-            value={settings.submitLabel}
-            onChange={(event) =>
-              setSettings((current) => ({
-                ...current,
-                submitLabel: event.target.value,
-              }))
-            }
+            label="Mensaje de éxito (opcional)"
+            value={data.successMessage}
+            onChange={e => set('successMessage', e.target.value)}
+            placeholder="Gracias, nos pondremos en contacto pronto."
           />
-        </div>
-        <TextField
-          label="Descripcion"
-          value={settings.description}
-          onChange={(event) =>
-            setSettings((current) => ({
-              ...current,
-              description: event.target.value,
-            }))
-          }
-        />
-        <TextField
-          label="Mensaje de exito"
-          value={settings.successMessage}
-          onChange={(event) =>
-            setSettings((current) => ({
-              ...current,
-              successMessage: event.target.value,
-            }))
-          }
-        />
-        <TextField
-          label="Notificar por email"
-          type="email"
-          value={settings.notifyEmail}
-          onChange={(event) =>
-            setSettings((current) => ({
-              ...current,
-              notifyEmail: event.target.value,
-            }))
-          }
-        />
-        <ComboboxField
-          label="Responsable predeterminado"
-          options={assigneeOptions}
-          value={settings.defaultAssigneeUserId}
-          onChange={(value) =>
-            setSettings((current) => ({
-              ...current,
-              defaultAssigneeUserId: value,
-            }))
-          }
-          placeholder="Seleccionar responsable..."
-          searchPlaceholder="Buscar usuario..."
-        />
-        <div className="flex flex-col gap-2 rounded-lg border border-[hsl(var(--border))] p-3">
-          <SwitchField
-            id={`form-${form.id}-lead`}
-            label="Crear lead"
-            description="Guarda cada envio como un lead en atlas.growth"
-            checked={settings.createsLead}
-            onChange={(checked) =>
-              setSettings((current) => ({
-                ...current,
-                createsLead: checked,
-              }))
-            }
-          />
-          <SwitchField
-            id={`form-${form.id}-honeypot`}
-            label="Activar honeypot"
-            description="Campo oculto que atrapa bots sin molestar al usuario"
-            checked={settings.honeypotEnabled}
-            onChange={(checked) =>
-              setSettings((current) => ({
-                ...current,
-                honeypotEnabled: checked,
-              }))
-            }
-          />
-          <SwitchField
-            id={`form-${form.id}-turnstile`}
-            label="Requerir Turnstile"
-            description="Verificacion anti-bot de Cloudflare (configura las claves en Ajustes)"
-            checked={settings.turnstileRequired}
-            disabled={!turnstileConfigured}
-            onChange={(checked) =>
-              setSettings((current) => ({
-                ...current,
-                turnstileRequired: checked,
-              }))
-            }
-          />
-        </div>
-        {!turnstileConfigured && (
-          <p className="text-xs text-muted-foreground">
-            Configura las claves de Turnstile en Ajustes antes de exigir CAPTCHA.
-          </p>
-        )}
-        <Button
-          type="submit"
-          disabled={mutation.isPending || !settings.name.trim()}
-        >
-          {mutation.isPending ? "Guardando..." : "Guardar configuracion"}
-        </Button>
-      </form>
-    </Card>
-  );
+          <div className="grid grid-cols-2 gap-3">
+            <TextField
+              label="Notificar por email"
+              type="email"
+              value={data.notifyEmail}
+              onChange={e => set('notifyEmail', e.target.value)}
+              placeholder="tu@empresa.com"
+            />
+            <ComboboxField
+              label="Responsable"
+              options={[
+                { value: '', label: 'Sin responsable' },
+                ...assignees.map(a => ({ value: a.id, label: a.displayName })),
+              ]}
+              value={data.defaultAssigneeUserId}
+              onChange={v => set('defaultAssigneeUserId', v)}
+              placeholder="Seleccionar..."
+              searchPlaceholder="Buscar..."
+            />
+          </div>
+          <div className="rounded-lg border border-[hsl(var(--border))] p-3 space-y-2">
+            <SwitchField
+              id="nf-lead"
+              label="Crear lead automáticamente"
+              description="Registra cada envío como lead en atlas.growth"
+              checked={data.createsLead}
+              onChange={v => set('createsLead', v)}
+            />
+            <SwitchField
+              id="nf-honeypot"
+              label="Activar honeypot anti-spam"
+              description="Campo oculto que atrapa bots"
+              checked={data.honeypotEnabled}
+              onChange={v => set('honeypotEnabled', v)}
+            />
+            <SwitchField
+              id="nf-turnstile"
+              label="Requerir Turnstile (CAPTCHA)"
+              description={turnstileConfigured ? 'Anti-bot de Cloudflare' : 'Configura las claves en Ajustes primero'}
+              checked={data.turnstileRequired}
+              disabled={!turnstileConfigured}
+              onChange={v => set('turnstileRequired', v)}
+            />
+            <SwitchField
+              id="nf-wizard"
+              label="Modo paso a paso (wizard)"
+              description="Divide el formulario en pasos numerados. Configura el paso de cada campo después."
+              checked={data.wizardMode}
+              onChange={v => set('wizardMode', v)}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit" disabled={mutation.isPending || !data.name.trim()}>
+              {mutation.isPending ? 'Creando...' : 'Crear formulario'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
+// ── Main screen ──────────────────────────────────────────────────────────────
 export default function WebsiteFormsScreen() {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const queryClient = useQueryClient();
+  const { session } = useAuth()
+  const token = session?.access_token
+  const queryClient = useQueryClient()
 
-  const [selectedFormId, setSelectedFormId] = useState(null);
-  const [activeTab, setActiveTab] = useState("campos");
-  const [newFormOpen, setNewFormOpen] = useState(false);
-  const [newFormData, setNewFormData] = useState({
-    name: "",
-    description: "",
-    submitLabel: "Enviar",
-    successMessage: "",
-    notifyEmail: "",
-    createsLead: true,
-    defaultAssigneeUserId: "",
-    honeypotEnabled: true,
-    turnstileRequired: false,
-  });
-  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams()
+  const selectedFormId = searchParams.get('form')
+  function setSelectedFormId(id) {
+    setSearchParams(id ? { form: id } : {}, { replace: true })
+  }
+  const [activeTab, setActiveTab] = useState('campos')
+  const [newFormOpen, setNewFormOpen]       = useState(false)
+  const [deleteTarget, setDeleteTarget]     = useState(null)
 
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
-
+  // ── Queries ────────────────────────────────────────────────────────────────
   const siteQuery = useQuery({
-    queryKey: ["website-site", token],
-    queryFn: () => apiGet("/website/site", token),
+    queryKey: ['website-site', token],
+    queryFn: () => apiGet('/website/site', token),
     enabled: Boolean(token),
     staleTime: 60_000,
-  });
-  const siteId = siteQuery.data?.data?.id ?? null;
+  })
+  const siteId = siteQuery.data?.data?.id ?? null
+  const turnstileConfigured = Boolean(
+    siteQuery.data?.data?.turnstileSiteKey && siteQuery.data?.data?.turnstileSecretKeySet,
+  )
 
   const formsQuery = useQuery({
-    queryKey: ["website-forms", siteId, token],
+    queryKey: ['website-forms', siteId, token],
     queryFn: () => apiGet(`/website/forms?siteId=${siteId}`, token),
     enabled: Boolean(token) && Boolean(siteId),
     staleTime: 30_000,
-  });
-  const forms = formsQuery.data?.data ?? [];
-  const activeFormId = selectedFormId ?? forms[0]?.id ?? null;
-  const selectedForm = forms.find((f) => f.id === activeFormId) ?? null;
+  })
+  const forms = formsQuery.data?.data ?? []
+  const activeFormId = selectedFormId ?? forms[0]?.id ?? null
 
   const formDetailQuery = useQuery({
-    queryKey: ["website-form-detail", activeFormId, token],
+    queryKey: ['website-form-detail', activeFormId, token],
     queryFn: () => apiGet(`/website/forms/${activeFormId}`, token),
     enabled: Boolean(token) && Boolean(activeFormId),
     staleTime: 15_000,
-  });
-  const formDetail = formDetailQuery.data ?? null;
+  })
+  const formDetail = formDetailQuery.data ?? null
 
   const { data: assigneesData } = useQuery({
-    queryKey: ["website-form-assignees", token],
-    queryFn: () => apiGet("/website/form-assignees", token),
+    queryKey: ['website-form-assignees', token],
+    queryFn: () => apiGet('/website/form-assignees', token),
     enabled: Boolean(token),
     staleTime: 60_000,
-  });
-  const assignees = assigneesData?.data ?? [];
+  })
+  const assignees = assigneesData?.data ?? []
 
-  const createFormMutation = useMutation({
-    mutationFn: async (data) => {
-      const res = await fetch(`${getApiUrl()}/website/forms`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          ...data,
-          siteId,
-          description: data.description.trim() || undefined,
-          successMessage: data.successMessage.trim() || undefined,
-          notifyEmail: data.notifyEmail.trim() || null,
-          defaultAssigneeUserId: data.defaultAssigneeUserId || null,
-        }),
-      });
-      if (!res.ok)
-        throw new Error(
-          (await res.json().catch(() => ({}))).error || `HTTP ${res.status}`,
-        );
-      return res.json();
-    },
-    onSuccess: (form) => {
-      toast.success("Formulario creado");
-      queryClient.invalidateQueries({ queryKey: ["website-forms", siteId] });
-      setSelectedFormId(form.id);
-      setNewFormOpen(false);
-      setNewFormData({
-        name: "",
-        description: "",
-        submitLabel: "Enviar",
-        successMessage: "",
-        notifyEmail: "",
-        createsLead: true,
-        defaultAssigneeUserId: "",
-        honeypotEnabled: true,
-        turnstileRequired: false,
-      });
-    },
-    onError: (err) => toast.error(err.message || "Error al crear formulario"),
-  });
-
-  const deleteFormMutation = useMutation({
+  // ── Delete mutation ────────────────────────────────────────────────────────
+  const deleteMutation = useMutation({
     mutationFn: async (formId) => {
       const res = await fetch(`${getApiUrl()}/website/forms/${formId}`, {
-        method: "DELETE",
+        method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Error al eliminar");
+      })
+      if (!res.ok) throw new Error('Error al eliminar')
     },
     onSuccess: () => {
-      toast.success("Formulario eliminado");
-      setSelectedFormId(null);
-      setDeleteTarget(null);
-      queryClient.invalidateQueries({ queryKey: ["website-forms", siteId] });
+      toast.success('Formulario eliminado')
+      setSelectedFormId(null)
+      setDeleteTarget(null)
+      queryClient.invalidateQueries({ queryKey: ['website-forms', siteId] })
     },
-    onError: () => {
-      toast.error("Error al eliminar el formulario");
-      setDeleteTarget(null);
-    },
-  });
+    onError: () => { toast.error('Error al eliminar'); setDeleteTarget(null) },
+  })
 
-  if (siteQuery.isPending) return <LoadingState variant="page" />;
+  // ── Guards ─────────────────────────────────────────────────────────────────
+  if (siteQuery.isPending) return <LoadingState variant="page" />
 
   if (siteQuery.isError || formsQuery.isError) {
     return (
@@ -361,40 +432,31 @@ export default function WebsiteFormsScreen() {
         <ErrorState
           title="No se pudieron cargar los formularios"
           message={(siteQuery.error ?? formsQuery.error)?.message}
-          onRetry={() => {
-            siteQuery.refetch();
-            formsQuery.refetch();
-          }}
+          onRetry={() => { siteQuery.refetch(); formsQuery.refetch() }}
         />
       </div>
-    );
+    )
   }
 
   if (!siteId) {
     return (
       <div className="p-4 md:p-6 space-y-6">
-        <PageHeader
-          eyebrow="Atlas Website"
-          title="Formularios"
-          description="Crea formularios de contacto y captura envios desde el sitio publico."
-        />
-        <EmptyState
-          title="Sitio web no configurado"
-          description='Configura tu sitio web primero desde la seccion "Sitio web".'
-        />
+        <PageHeader eyebrow="Atlas Website" title="Formularios" />
+        <EmptyState title="Sitio web no configurado" description='Configura tu sitio primero en la sección "Sitio web".' />
       </div>
-    );
+    )
   }
+
+  const selectedForm = forms.find(f => f.id === activeFormId) ?? null
+  const subCount = selectedForm?._count?.submissions ?? 0
 
   return (
     <div className="p-4 md:p-6 space-y-6">
       <PageHeader
         eyebrow="Atlas Website"
         title="Formularios"
-        description="Crea formularios de contacto y captura envios desde el sitio publico."
-        actions={
-          <Button onClick={() => setNewFormOpen(true)}>Nuevo formulario</Button>
-        }
+        description="Define campos, copia el ID y úsalo en tu sitio con DynamicForm."
+        actions={<Button onClick={() => setNewFormOpen(true)}>Nuevo formulario</Button>}
       />
 
       {formsQuery.isPending ? (
@@ -402,68 +464,51 @@ export default function WebsiteFormsScreen() {
       ) : forms.length === 0 ? (
         <EmptyState
           title="Sin formularios"
-          description="Crea tu primer formulario para capturar envios desde el sitio publico."
-          action={{
-            label: "Crear primer formulario",
-            onClick: () => setNewFormOpen(true),
-          }}
+          description="Crea tu primer formulario para capturar envíos desde el sitio público."
+          action={{ label: 'Crear primer formulario', onClick: () => setNewFormOpen(true) }}
         />
       ) : (
-        <div className="flex gap-6">
-          <div className="w-52 shrink-0 space-y-1">
-            {forms.map((form) => (
-              <button
+        <div className="flex gap-5 items-start">
+          {/* ── Left: form list ─────────────────────────────────────────── */}
+          <div className="w-56 shrink-0 space-y-2">
+            {forms.map(form => (
+              <FormCard
                 key={form.id}
-                onClick={() => {
-                  setSelectedFormId(form.id);
-                  setActiveTab("campos");
-                }}
-                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                  activeFormId === form.id
-                    ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-medium"
-                    : "text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]"
-                }`}
-              >
-                <div className="truncate font-medium">{form.name}</div>
-                <div
-                  className={`text-xs mt-0.5 ${activeFormId === form.id ? "opacity-70" : "text-[hsl(var(--muted-foreground))]"}`}
-                >
-                  {form._count?.fields ?? 0} campo
-                  {form._count?.fields !== 1 ? "s" : ""}
-                  {" · "}
-                  {form._count?.submissions ?? 0} envio
-                  {form._count?.submissions !== 1 ? "s" : ""}
-                </div>
-              </button>
+                form={form}
+                active={activeFormId === form.id}
+                onClick={() => { setSelectedFormId(form.id); setActiveTab('campos') }}
+              />
             ))}
           </div>
 
-          <div className="flex-1 space-y-4 min-w-0">
+          {/* ── Right: form detail ──────────────────────────────────────── */}
+          <div key={activeFormId} className="flex-1 min-w-0 space-y-4">
             {selectedForm ? (
               <>
-                <div className="flex items-center justify-between">
-                  <h2 className="text-base font-medium text-[hsl(var(--foreground))]">
-                    {selectedForm.name}
-                  </h2>
-                  <button
-                    onClick={() => setDeleteTarget(selectedForm)}
-                    className="text-xs text-[hsl(var(--destructive))] hover:underline"
-                  >
-                    Eliminar formulario
-                  </button>
-                </div>
+                <Card className="p-4">
+                  <FormDetailHeader
+                    form={selectedForm}
+                    onDelete={() => setDeleteTarget(selectedForm)}
+                  />
+                </Card>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsList>
                     <TabsTrigger value="campos">Campos</TabsTrigger>
-                    <TabsTrigger value="configuracion">
-                      Configuracion
+                    <TabsTrigger value="preview">
+                      <Eye size={13} className="mr-1.5" />
+                      Vista previa
+                    </TabsTrigger>
+                    <TabsTrigger value="configuracion">Configuración</TabsTrigger>
+                    <TabsTrigger value="api">
+                      <Code2 size={13} className="mr-1.5" />
+                      API
                     </TabsTrigger>
                     <TabsTrigger value="envios">
-                      Envios
-                      {(selectedForm._count?.submissions ?? 0) > 0 && (
-                        <span className="ml-1.5 text-xs bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-full px-1.5 py-0.5 leading-none">
-                          {selectedForm._count.submissions}
+                      Envíos
+                      {subCount > 0 && (
+                        <span className="ml-1.5 text-[10px] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-full px-1.5 py-0.5 leading-none">
+                          {subCount}
                         </span>
                       )}
                     </TabsTrigger>
@@ -476,21 +521,26 @@ export default function WebsiteFormsScreen() {
                       <FormFieldBuilder
                         formId={selectedForm.id}
                         fields={formDetail?.fields ?? []}
-                        onRefresh={() =>
-                          queryClient.invalidateQueries({
-                            queryKey: ["website-form-detail", selectedForm.id],
-                          })
-                        }
+                        wizardMode={formDetail?.wizardMode ?? false}
+                        onRefresh={() => queryClient.invalidateQueries({ queryKey: ['website-form-detail', selectedForm.id] })}
                       />
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="preview">
+                    {formDetailQuery.isPending ? (
+                      <LoadingState message="Cargando vista previa..." />
+                    ) : (
+                      <FormPreview form={formDetail} />
                     )}
                   </TabsContent>
 
                   <TabsContent value="configuracion">
                     {formDetailQuery.isPending ? (
-                      <LoadingState message="Cargando configuracion..." />
+                      <LoadingState message="Cargando configuración..." />
                     ) : formDetailQuery.isError ? (
                       <ErrorState
-                        title="No se pudo cargar el formulario"
+                        title="No se pudo cargar"
                         message={formDetailQuery.error?.message}
                         onRetry={() => formDetailQuery.refetch()}
                       />
@@ -500,17 +550,20 @@ export default function WebsiteFormsScreen() {
                         form={formDetail}
                         token={token}
                         assignees={assignees}
-                        turnstileConfigured={Boolean(
-                          siteQuery.data?.data?.turnstileSiteKey &&
-                            siteQuery.data?.data?.turnstileSecretKeySet,
-                        )}
+                        turnstileConfigured={turnstileConfigured}
                         onSaved={() => {
-                          formDetailQuery.refetch();
-                          queryClient.invalidateQueries({
-                            queryKey: ["website-forms", siteId],
-                          });
+                          formDetailQuery.refetch()
+                          queryClient.invalidateQueries({ queryKey: ['website-forms', siteId] })
                         }}
                       />
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="api">
+                    {formDetailQuery.isPending ? (
+                      <LoadingState message="Cargando..." />
+                    ) : (
+                      <FormApiPanel form={formDetail} />
                     )}
                   </TabsContent>
 
@@ -520,171 +573,33 @@ export default function WebsiteFormsScreen() {
                 </Tabs>
               </>
             ) : (
-              <div className="py-10 text-center">
-                <p className="text-[hsl(var(--muted-foreground))] text-sm">
-                  Selecciona un formulario.
-                </p>
+              <div className="py-16 text-center">
+                <p className="text-sm text-[hsl(var(--muted-foreground))]">Selecciona un formulario.</p>
               </div>
             )}
           </div>
         </div>
       )}
 
-      <Dialog open={newFormOpen} onOpenChange={setNewFormOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Nuevo formulario</DialogTitle>
-          </DialogHeader>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              createFormMutation.mutate(newFormData);
-            }}
-            className="space-y-4 py-2"
-          >
-            <TextField
-              label="Nombre"
-              value={newFormData.name}
-              onChange={(e) =>
-                setNewFormData((f) => ({ ...f, name: e.target.value }))
-              }
-              placeholder="Contacto"
-              required
-              autoFocus
-            />
-            <TextField
-              label="Descripcion (opcional)"
-              value={newFormData.description}
-              onChange={(e) =>
-                setNewFormData((f) => ({ ...f, description: e.target.value }))
-              }
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <TextField
-                label="Texto del boton"
-                value={newFormData.submitLabel}
-                onChange={(e) =>
-                  setNewFormData((f) => ({ ...f, submitLabel: e.target.value }))
-                }
-              />
-              <TextField
-                label="Notificar por email (opcional)"
-                type="email"
-                value={newFormData.notifyEmail}
-                onChange={(e) =>
-                  setNewFormData((f) => ({ ...f, notifyEmail: e.target.value }))
-                }
-                placeholder="tu@empresa.com"
-              />
-            </div>
-            <TextField
-              label="Mensaje de exito (opcional)"
-              value={newFormData.successMessage}
-              onChange={(e) =>
-                setNewFormData((f) => ({
-                  ...f,
-                  successMessage: e.target.value,
-                }))
-              }
-              placeholder="Gracias, nos pondremos en contacto pronto."
-            />
-            <ComboboxField
-              label="Responsable predeterminado"
-              options={[
-                { value: "", label: "Sin responsable predeterminado" },
-                ...assignees.map((assignee) => ({
-                  value: assignee.id,
-                  label: `${assignee.displayName} (${assignee.email})`,
-                })),
-              ]}
-              value={newFormData.defaultAssigneeUserId}
-              onChange={(value) =>
-                setNewFormData((current) => ({
-                  ...current,
-                  defaultAssigneeUserId: value,
-                }))
-              }
-              placeholder="Seleccionar responsable..."
-              searchPlaceholder="Buscar usuario..."
-            />
-            <div className="flex flex-col gap-2 rounded-lg border border-[hsl(var(--border))] p-3">
-              <SwitchField
-                id="new-form-lead"
-                label="Crear lead"
-                description="Guarda cada envio como un lead en atlas.growth"
-                checked={newFormData.createsLead}
-                onChange={(checked) =>
-                  setNewFormData((current) => ({
-                    ...current,
-                    createsLead: checked,
-                  }))
-                }
-              />
-              <SwitchField
-                id="new-form-honeypot"
-                label="Activar honeypot"
-                description="Campo oculto que atrapa bots sin molestar al usuario"
-                checked={newFormData.honeypotEnabled}
-                onChange={(checked) =>
-                  setNewFormData((current) => ({
-                    ...current,
-                    honeypotEnabled: checked,
-                  }))
-                }
-              />
-              <SwitchField
-                id="new-form-turnstile"
-                label="Requerir Turnstile"
-                description="Verificacion anti-bot de Cloudflare (configura las claves en Ajustes)"
-                checked={newFormData.turnstileRequired}
-                disabled={
-                  !(
-                    siteQuery.data?.data?.turnstileSiteKey &&
-                    siteQuery.data?.data?.turnstileSecretKeySet
-                  )
-                }
-                onChange={(checked) =>
-                  setNewFormData((current) => ({
-                    ...current,
-                    turnstileRequired: checked,
-                  }))
-                }
-              />
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setNewFormOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                disabled={
-                  createFormMutation.isPending || !newFormData.name.trim()
-                }
-              >
-                {createFormMutation.isPending
-                  ? "Creando..."
-                  : "Crear formulario"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <NewFormDialog
+        open={newFormOpen}
+        onOpenChange={setNewFormOpen}
+        siteId={siteId}
+        token={token}
+        assignees={assignees}
+        turnstileConfigured={turnstileConfigured}
+        onCreated={(id) => { setSelectedFormId(id); setNewFormOpen(false) }}
+      />
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
-        }}
+        onOpenChange={open => { if (!open) setDeleteTarget(null) }}
         title="Eliminar formulario"
-        description={`Se eliminara permanentemente el formulario "${deleteTarget?.name}" y todos sus campos y envios. Esta accion no se puede deshacer.`}
+        description={`Se eliminará permanentemente "${deleteTarget?.name}" con todos sus campos y envíos. Esta acción no se puede deshacer.`}
         confirmLabel="Eliminar"
-        loading={deleteFormMutation.isPending}
-        onConfirm={() => deleteFormMutation.mutate(deleteTarget?.id)}
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate(deleteTarget?.id)}
       />
     </div>
-  );
+  )
 }

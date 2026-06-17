@@ -136,6 +136,13 @@ export const saveBlogDraftSchema = z.object({
   seo:         z.record(z.unknown()).optional(),
 })
 
+const FIELD_TYPES = ['text', 'email', 'phone', 'tel', 'textarea', 'select', 'radio', 'checkbox', 'number', 'date', 'chip_multi', 'card_select']
+
+const fieldOptions = z.array(z.union([
+  z.string(),
+  z.object({ value: z.string(), label: z.string(), description: z.string().optional() }),
+])).optional().nullable()
+
 export const createFormSchema = z.object({
   siteId:         z.string().uuid(),
   name:           z.string().min(1).max(255),
@@ -147,6 +154,7 @@ export const createFormSchema = z.object({
   defaultAssigneeUserId: z.string().uuid().optional().nullable(),
   honeypotEnabled: z.boolean().default(true),
   turnstileRequired: z.boolean().default(false),
+  wizardMode:     z.boolean().default(false),
 })
 
 export const updateFormSchema = z.object({
@@ -159,28 +167,33 @@ export const updateFormSchema = z.object({
   defaultAssigneeUserId: z.string().uuid().optional().nullable(),
   honeypotEnabled: z.boolean().optional(),
   turnstileRequired: z.boolean().optional(),
+  wizardMode:     z.boolean().optional(),
 })
 
 export const createFormFieldSchema = z.object({
   label:       z.string().min(1).max(255),
   name:        z.string().min(1).max(100).regex(/^[a-z_][a-z0-9_]*$/),
-  fieldType:   z.enum(['text', 'email', 'phone', 'textarea', 'select', 'checkbox', 'number', 'date']).default('text'),
+  fieldType:   z.enum(FIELD_TYPES).default('text'),
   semanticKey: z.enum(['name', 'email', 'phone', 'company', 'message', 'custom']).default('custom'),
   placeholder: z.string().optional(),
   required:    z.boolean().default(false),
-  options:     z.array(z.string()).optional().nullable(),
+  options:     fieldOptions,
   sortOrder:   z.number().int().default(0),
+  stepNumber:  z.number().int().min(1).default(1),
+  stepTitle:   z.string().optional().nullable(),
 })
 
 export const updateFormFieldSchema = z.object({
   label:       z.string().min(1).max(255).optional(),
   name:        z.string().min(1).max(100).regex(/^[a-z_][a-z0-9_]*$/).optional(),
-  fieldType:   z.enum(['text', 'email', 'phone', 'textarea', 'select', 'checkbox', 'number', 'date']).optional(),
+  fieldType:   z.enum(FIELD_TYPES).optional(),
   semanticKey: z.enum(['name', 'email', 'phone', 'company', 'message', 'custom']).optional(),
   placeholder: z.string().optional(),
   required:    z.boolean().optional(),
-  options:     z.array(z.string()).optional().nullable(),
+  options:     fieldOptions,
   sortOrder:   z.number().int().optional(),
+  stepNumber:  z.number().int().min(1).optional(),
+  stepTitle:   z.string().optional().nullable(),
 })
 
 export const reorderFieldsSchema = z.object({

@@ -1932,6 +1932,44 @@ const result = await sdk.forms.submit(formId, values, {
 })
 ```
 
+`sdk.forms.get(formId)` returns the form definition with all fields:
+
+```json
+{
+  "data": {
+    "id": "019...",
+    "name": "Formulario de contacto",
+    "submitLabel": "Enviar",
+    "wizardMode": false,
+    "fields": [
+      {
+        "id": "019...", "name": "nombre", "label": "Nombre",
+        "fieldType": "text", "required": true, "options": null,
+        "sortOrder": 0, "stepNumber": 1, "stepTitle": null
+      }
+    ]
+  }
+}
+```
+
+**Supported field types:**
+
+| `fieldType` | Value format | Notes |
+|---|---|---|
+| `text` | `"string"` | Single-line text input |
+| `email` | `"string"` | Email address |
+| `tel` / `phone` | `"string"` | Phone number |
+| `textarea` | `"string"` | Multi-line text |
+| `number` | `"string"` | Numeric value as string |
+| `date` | `"YYYY-MM-DD"` | ISO date string |
+| `checkbox` | `"true"` \| `"false"` | Boolean as string |
+| `select` | `"option_value"` | One of the `options` array values |
+| `radio` | `"option_value"` | One of the `options` array values |
+| `chip_multi` | `"opt1,opt2"` | Comma-joined multi-selection; `options` is `string[]` |
+| `card_select` | `"option_value"` | Single selection; `options` is `{value, label, description}[]` |
+
+**Wizard mode:** When `wizardMode: true`, each field has `stepNumber` (integer) and `stepTitle` (string or null). Group fields by `stepNumber` and present them as steps in your UI. The submit endpoint is the same regardless of wizard mode — send all field values in a single `values` object.
+
 Submission values are sent only to the form endpoint. Analytics receives form and submission identifiers, never field values.
 
 React exports: `useAnalytics`, `usePageView`, and `usePublicForm`.

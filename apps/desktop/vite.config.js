@@ -207,8 +207,8 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      "/pwa": {
-        target: process.env.VITE_ATLAS_API_URL ?? "http://localhost:4010",
+      "^/pwa/": {
+        target: process.env.VITE_ATLAS_API_URL ?? "http://127.0.0.1:4010",
         changeOrigin: true,
       },
     },
