@@ -9,6 +9,16 @@ function _mapSupabaseSession(supabaseSession) {
 }
 
 export function createSupabaseSessionAdapter({ supabase, onSessionChange = null }) {
+  if (!supabase) {
+    return {
+      get() { return null },
+      setUser() {},
+      clear() {},
+      subscribe() { return () => {} },
+      dispose() {},
+    }
+  }
+
   let _cached = null
   const _listeners = new Set()
 

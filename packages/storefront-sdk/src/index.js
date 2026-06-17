@@ -39,12 +39,13 @@ export function createStorefrontClient({
   supabaseAnonKey,
   onSessionChange,
 }) {
-  if (!baseUrl)         throw new Error('createStorefrontClient: baseUrl es requerido')
-  if (!company)         throw new Error('createStorefrontClient: company es requerido')
-  if (!supabaseUrl)     throw new Error('createStorefrontClient: supabaseUrl es requerido')
-  if (!supabaseAnonKey) throw new Error('createStorefrontClient: supabaseAnonKey es requerido')
+  if (!baseUrl)  throw new Error('createStorefrontClient: baseUrl es requerido')
+  if (!company)  throw new Error('createStorefrontClient: company es requerido')
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey)
+  // supabaseUrl + supabaseAnonKey are optional; omit them when only using public form submissions
+  const supabase = (supabaseUrl && supabaseAnonKey)
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null
 
   const session = createSupabaseSessionAdapter({ supabase, onSessionChange })
 
@@ -58,6 +59,7 @@ export function createStorefrontClient({
   let _refreshPromise = null
 
   async function _doRefreshOnce() {
+    if (!supabase) return { data: {}, error: new Error('no supabase') }
     if (_refreshPromise) return _refreshPromise
     const current = session.get()
     if (!current?.refreshToken) return { data: {}, error: new Error('no refresh token') }
@@ -72,6 +74,7 @@ export function createStorefrontClient({
     } catch (err) {
       const current = session.get()
       if (
+        supabase &&
         err?.code === 'UNAUTHORIZED' &&
         current?.refreshToken &&
         !options._retry
