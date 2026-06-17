@@ -48,8 +48,9 @@ export function createRequestCore({ baseUrl, company, getSession, fetchFn = fetc
     let details = null
     try {
       const parsed = await response.json()
-      errorMessage = parsed?.error ?? errorMessage
-      details = parsed?.details ?? null
+      const err = parsed?.error
+      errorMessage = typeof err === 'string' ? err : (err?.message ?? errorMessage)
+      details = err?.details ?? parsed?.details ?? null
     } catch {}
 
     const code = STATUS_TO_CODE[response.status] ?? 'UNKNOWN'

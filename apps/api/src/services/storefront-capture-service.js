@@ -99,13 +99,19 @@ export function createStorefrontCaptureService({
     }
 
     const configuredOrigin = parseDomainOrigin(site.domain);
-    if (configuredOrigin && configuredOrigin !== requestOrigin) {
-      throw new StorefrontCaptureError(
-        "origin_forbidden",
-        "Origen no permitido.",
-        403,
-      );
-    }
+    if (!configuredOrigin) return;
+    if (configuredOrigin === requestOrigin) return;
+
+    // Also allow submissions from the ERP host itself — the ERP serves
+    // the storefront site at ATLAS_APP_URL, so its origin is always trusted.
+    const erpOrigin = parseDomainOrigin(process.env.ATLAS_APP_URL);
+    if (erpOrigin && erpOrigin === requestOrigin) return;
+
+    throw new StorefrontCaptureError(
+      "origin_forbidden",
+      "Origen no permitido.",
+      403,
+    );
   }
 
   function assertAnalyticsPolicy(site, { dnt, consent }) {
