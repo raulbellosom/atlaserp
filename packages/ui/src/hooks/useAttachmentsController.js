@@ -266,13 +266,16 @@ export function useAttachmentsController({
   readOnly = false,
   onChange,
   onError,
+  // Pre-populated file list from a parallel query. Must be stable at mount time;
+  // updates after mount are ignored (controller has already fetched or is fetching).
   prefetchedData,
 }) {
+  const mergedFields = { ...DEFAULT_FIELDS, ...(config?.fields ?? {}) };
   const prefetchedDataRef = useRef(prefetchedData);
   const [associatedItems, setAssociatedItems] = useState(() => {
     const initial = prefetchedDataRef.current;
     if (!Array.isArray(initial)) return [];
-    return initial.map((r) => normalizeAssociatedItem(r, DEFAULT_FIELDS));
+    return initial.map((r) => normalizeAssociatedItem(r, mergedFields));
   });
   const [pendingItems, setPendingItems] = useState([]);
   const pendingItemsRef = useRef(pendingItems);
