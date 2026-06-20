@@ -22,7 +22,7 @@ function writeLastSeen(date) {
 /**
  * <ActivityBellTrigger />
  * Bell button with optional unread badge + manages the drawer state.
- * Polls /activity/recent every 15s for unread detection. If `supabase` + `companyId`
+ * Polls /activity/recent every 60s for unread detection. If `supabase` + `companyId`
  * are provided AND sdk.activity.getRealtimeChannel exists, subscribes via Realtime
  * and falls back to polling automatically if subscribe fails.
  *
