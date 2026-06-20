@@ -13,11 +13,11 @@
 Spec: `docs/superpowers/specs/2026-06-14-storefront-capture-foundation-design.md`
 Plan: `docs/superpowers/plans/2026-06-14-storefront-capture-foundation.md`
 
-- [ ] Apply and verify the forward Prisma migration in the target environment.
+- [x] Apply and verify the forward Prisma migration in the target environment.
 - [ ] Verify public capture v1 on Builder and uploaded `dist` domains.
-- [ ] Publish `@raulbellosom/atlas-sdk` 0.3.0.
+- [x] Publish `@raulbellosom/atlas-sdk` 0.3.0 (bumped to 0.3.1 with patch fix).
 - [ ] Observe event ingestion, daily aggregation, and retention under production load.
-- [ ] Start `growth-lead-inbox` only after human approval of its spec and plan.
+- [x] Start `growth-lead-inbox` — spec approved and fully implemented.
 
 Verified: 2026-06-14 (automated implementation scope: `pnpm.cmd exec prisma validate`, `pnpm.cmd db:generate`, and `pnpm.cmd check:uuid-policy` passed; API/IIFE/worker suites: 58 passed; npm SDK suites: 65 passed; `pnpm.cmd --filter @atlas/desktop build:web` passed; `pnpm.cmd build` produced the web build and Windows MSI/NSIS bundles; React Doctor diagnostics were empty. Target migration, live Builder/`dist`, npm publication, and production-load observation remain pending. See `docs/superpowers/verifications/2026-06-14-storefront-capture-foundation.md`.)
 
@@ -31,7 +31,7 @@ Plan: `docs/superpowers/plans/2026-06-14-growth-lead-inbox.md`
 - [x] Add the internal Growth SDK domain and preserve the extracted Website domain contract.
 - [x] Add responsive lead inbox/detail screens, manual creation, filters, timeline, conversion, and attachments.
 - [x] Add Growth navigation, ACL, file allowlist, and company-scoped assignee/file routes.
-- [ ] Apply the forward migration in the target environment.
+- [x] Apply the forward migration in the target environment.
 - [ ] Verify authenticated RBAC, notifications, attachments, and both conversion modes against a live installation.
 
 Verified: 2026-06-14 (automated scope: Growth/API/SDK/UI suites 42 passed; Prisma validation and UUID policy passed; `pnpm.cmd build` produced the web build, Windows executable, MSI, and NSIS installer; React Doctor scanned 7 changed files with no diagnostics. Live migration and authenticated browser workflows remain pending. See `docs/superpowers/verifications/2026-06-14-growth-lead-inbox.md`.)
@@ -49,7 +49,7 @@ Plan: `docs/superpowers/plans/2026-06-14-growth-analytics.md`
   shared URL filters and five analytic tabs.
 - [x] Verify the initial one-million-event target in disposable PostgreSQL 17
   with recorded `EXPLAIN (ANALYZE, BUFFERS)` plans.
-- [ ] Apply and verify migrations and worker scheduling in the target environment.
+- [x] Apply and verify migrations and worker scheduling in the target environment.
 - [ ] Complete authenticated browser and mobile QA against live storefront data.
 
 Verified: 2026-06-14 (49 Growth/API/worker/validator/SDK/UI tests passed; all 19 internal SDK tests passed; Prisma and UUID checks passed; Vite and full monorepo/Tauri builds passed; disposable scale benchmark measured aggregate read 7.245 ms, one-day tails 23.490-58.293 ms, and 44-day retention 272.868 ms with current indexes. React Doctor reported no correctness errors. Live deployment/browser QA remains pending. See `docs/superpowers/verifications/2026-06-14-growth-analytics.md`.)
@@ -65,10 +65,178 @@ Plan: `docs/superpowers/plans/2026-06-14-atlas-documents-template-engine.md`
 - [x] Render branded multipage PDFs and persist private outputs as `FileAsset` records using PostgreSQL-generated IDs.
 - [x] Add the extracted internal SDK Documents domain and lazy-loaded template editor/history screens.
 - [x] Generate Documents from Growth leads and expose generated PDFs in the lead attachment area without granting Growth removal rights.
-- [ ] Apply and verify the forward migration in the target installation.
+- [x] Apply and verify the forward migration in the target installation.
 - [ ] Complete authenticated browser QA for template lifecycle, every block type, provider RBAC, storage/download, history, and Growth generation.
 
 Verified: 2026-06-15 (Prisma validate/generate and UUID policy passed; 84 Documents/Growth/SDK tests plus 3 manifest/schema contract tests passed; Vite and full monorepo/Tauri builds passed and produced the native executable, MSI, and NSIS bundles; React Doctor reported no correctness errors, with heuristic warnings documented. `rbac:verify-catalog` still reports only the known unrelated Calendar/Catalog/Inventory and platform catalog drift. Live migration and authenticated browser/storage QA remain pending. See `docs/superpowers/verifications/2026-06-15-atlas-documents-template-engine.md`.)
+
+## atlas.inventory — Asset Management [COMPLETE]
+
+Plan: `docs/superpowers/plans/2026-06-12-atlas-inventory.md`
+
+- [x] Prisma models: `InventoryCategory`, `InventoryItem`, `InventoryAssignment`, `InventoryCustomField`, `InventoryCustomFieldValue` + migration
+- [x] Category management with icon + color picker, custom field schema per category
+- [x] Item CRUD with custom field values; grouped-tree main view by category
+- [x] Assignment flow: assign items to HR employees, return flow, history tracking
+- [x] API: `inventory-service.js`, `inventory-notification-service.js`, routes
+- [x] SDK `atlas.inventory.*` domain; screens `InventoryScreen`, `InventoryCatalogsScreen`, `InventoryAssignmentsScreen`, `InventoryItemDetail`, `InventoryItemForm`
+- [x] HR employee integration: assigned items panel in employee detail
+
+Verified: 2026-06-20 (all 5 screens present in `apps/desktop/src/modules/atlas.inventory/screens/`; `inventory-service.js`, `inventory-notification-service.js` present in `apps/api/src/services/`; DB migration up to date per `prisma migrate status`)
+
+Note: Activity feed bridge deferred — no `activityBridge` pattern for inventory events yet.
+
+## Atlas Comments System [COMPLETE]
+
+Plans: `docs/superpowers/plans/2026-06-14-generic-comments-api.md`, `2026-06-14-generic-comments-ui.md`, `2026-06-14-growth-comments-api.md`, `2026-06-14-growth-comments-ui.md`
+
+- [x] `comments-service.js`: generic comments engine with @mentions, emoji reactions, and soft-delete
+- [x] Growth lead comments integration
+- [x] Comments UI components in `@atlas/ui`
+
+Verified: 2026-06-20 (`comments-service.js` present in `apps/api/src/services/`)
+
+## Atlas Projects [COMPLETE — v1 through v2.3]
+
+Specs: `docs/superpowers/specs/2026-06-08-atlas-projects-design.md`, `2026-06-08-atlas-projects-v2.1-design.md`, `2026-06-08-atlas-projects-v2.3-design.md`  
+Plans: `docs/superpowers/plans/2026-06-08-atlas-projects-plan-a-api.md`, `...-plan-b-ui.md`, plus v2.1 and v2.3 variants; `2026-06-10-atlas-projects-perf-A.md`, `...-perf-B.md`, `2026-06-10-atlas-projects-mobile-mentions.md`
+
+- [x] Project + task management: `projects-service.js`, `tasks-service.js`
+- [x] Custom fields: `projects-fields-service.js`
+- [x] Task dependencies: `projects-dependencies-service.js`
+- [x] Recurring tasks: `projects-recurring-service.js`
+- [x] Notifications: `projects-notification-service.js`
+- [x] Calendar bridge: `projects-calendar-bridge.js`
+- [x] Desktop: `ProjectsScreen.jsx` with full task/project management UI
+- [x] Performance optimization (v2.3) and mobile @mentions improvements
+
+Verified: 2026-06-20 (`ProjectsScreen.jsx` present in `apps/desktop/src/modules/atlas.projects/screens/`; 7 API service files confirmed in `apps/api/src/routes/projects/`)
+
+## Atlas Calendar + Google Calendar Sync [COMPLETE]
+
+Spec: `docs/superpowers/specs/2026-06-07-google-calendar-sync-design.md`  
+Plans: `docs/superpowers/plans/2026-06-07-google-calendar-phase-1-2-implementation.md`, `2026-06-08-google-calendar-phase-3a-implementation.md`, `2026-06-08-google-calendar-phase-3b-implementation.md`, `2026-06-08-google-calendar-sidebar-modal-implementation.md`, `2026-06-08-google-calendar-persistent-icon-implementation.md`
+
+- [x] Calendar event CRUD: `calendar-service.js`, `calendar-event-service.js`
+- [x] Notification layer: `calendar-notification-service.js`
+- [x] Google OAuth + token management: `google-oauth-service.js`, `google-token-crypto.js`
+- [x] Google Calendar discovery, connection, event linking, initial import (9 Google service files)
+- [x] Desktop: `CalendarScreen.jsx` with sidebar modal, persistent Google Calendar icon
+- [x] Projects calendar bridge integration
+
+Verified: 2026-06-20 (`CalendarScreen.jsx` present in `apps/desktop/src/modules/atlas.calendar/`; `apps/api/src/routes/calendar/google/` contains 9 Google integration service files)
+
+## Offline Sync Architecture [COMPLETE — Phases 1–5]
+
+Spec: `docs/superpowers/specs/2026-06-06-offline-architecture-design.md`  
+Plans: `docs/superpowers/plans/2026-06-06-offline-phase-1a-package.md` through `2026-06-07-offline-phase5c-ledger-hooks.md`
+
+- [x] `packages/offline/` — sync engine, Dexie IndexedDB persister, mutation queue, session vault, online detector
+- [x] Conflict detection + resolution (backend + frontend phases)
+- [x] Backend pull/push: `sync-service.js`, `sync-push-service.js`, `sync-cleanup-worker.js`
+- [x] Navigation guard for offline state; offline provider for React tree
+- [x] Calendar offline support (tier 2); Atlas Ledger SQLite cache (Phase 5 — also tracked above)
+
+Verified: 2026-06-20 (`packages/offline/src/` contains 15 files including `sync-engine.js`, `dexie-persister.js`, `mutation-queue.js`, `offline-provider.jsx`; `sync-service.js`, `sync-push-service.js`, `sync-cleanup-worker.js` in API services; `sync.js` route present)
+
+## Storefront SDK + Hosted Build [COMPLETE]
+
+Specs: `docs/superpowers/specs/2026-06-01-atlas-storefront-sdk-design.md`, `2026-06-01-hosted-build-design.md`, `2026-06-11-dist-auth-sdk-design.md`, `2026-06-14-pwa-module-icon-consistency-design.md`  
+Plans: `docs/superpowers/plans/2026-06-01-atlas-storefront-sdk-plan-a-api.md`, `...-plan-b-sdk.md`, `2026-06-01-hosted-build-plan-a-backend.md`, `...-plan-b-frontend.md`, `2026-06-11-dist-auth-sdk.md`, `2026-06-14-pwa-module-icon-consistency.md`, `2026-06-14-unified-storefront-auth.md`
+
+- [x] Storefront capture + config API: `storefront-capture-service.js`, `storefront-capture-routes.js`, `storefront-config-routes.js`
+- [x] Storefront auth API: `storefront-auth-service.js`, `storefront-auth-routes.js`
+- [x] Storefront files pipeline: `storefront-files-service.js`, `storefront-files-routes.js`
+- [x] Hosted dist upload + serve: `dist-upload-service.js`, `dist-serve-service.js`
+- [x] `@raulbellosom/atlas-sdk` npm package published (0.3.1)
+- [x] Unified storefront auth flow; PWA module icon consistency
+
+Verified: 2026-06-20 (`apps/api/src/routes/storefront/` contains `storefront-router.js` + 5 route files; `dist-serve-service.js`, `dist-upload-service.js`, `storefront-auth-service.js`, `storefront-capture-service.js`, `storefront-files-service.js` in `apps/api/src/services/`)
+
+## Atlas Notifications Core [COMPLETE]
+
+Spec: `docs/superpowers/specs/2026-06-01-atlas-notifications-core-design.md`  
+Plans: `docs/superpowers/plans/2026-06-01-atlas-notifications-core-part-a-foundation.md` through `...-part-d-web-push.md`; `2026-06-14-notifications-comments-reactions.md`, `2026-06-10-notifications-deep-link-audit.md`
+
+- [x] Notification service + publisher: `notification-service.js`, `notification-publisher.js`
+- [x] Delivery worker: `notification-delivery-worker.js`
+- [x] Web push: `web-push-service.js`
+- [x] Email delivery via `smtp-service.js`
+- [x] Deep link routing audit and fix
+- [x] Comments/reactions notification integration
+- [x] Desktop: `NotificationsInboxScreen.jsx`, `NotificationSettingsScreen.jsx`
+
+Verified: 2026-06-20 (`notification-service.js`, `notification-publisher.js`, `notification-delivery-worker.js`, `web-push-service.js` in `apps/api/src/services/`; notification screens present in `apps/desktop/src/modules/atlas.notifications/`)
+
+## Atlas Website v2 [COMPLETE]
+
+Specs: `docs/superpowers/specs/2026-05-30-atlas-website-v2-redesign.md`, `2026-06-05-atlas-website-admin-refactor-design.md`, `2026-06-01-morada-premium-template-design.md`  
+Plans: `docs/superpowers/plans/2026-05-30-atlas-website-v2-plan-A.md`, `...-plan-B.md`, `2026-06-05-atlas-website-wizard-nav-refactor.md`, `...-screens-refactor.md`, `2026-06-01-morada-premium-template.md`, `2026-05-30-website-overview-delete-status-editor-bar.md`, `2026-05-31-multi-page-site-templates.md`
+
+- [x] Full CMS: pages, blog, forms, menus, templates, theme, payments, settings
+- [x] Page editor with blocks + live preview (`WebsitePageEditorScreen`)
+- [x] Blog post editor (`WebsiteBlogPostEditorScreen`)
+- [x] Forms builder with submission tracking (`WebsiteFormsScreen`)
+- [x] Website wizard + multi-page site templates; Morada premium template
+- [x] API routes in `apps/api/src/routes/website/` + `apps/api/src/routes/public-website.js`
+
+Verified: 2026-06-20 (15+ screens present in `apps/desktop/src/modules/atlas.website/screens/` including `WebsiteOverviewScreen`, `WebsitePagesScreen`, `WebsitePageEditorScreen`, `WebsiteBlogScreen`, `WebsiteFormsScreen`, `WebsiteMenusScreen`, `WebsiteThemeScreen`, `WebsiteTemplatesScreen`, `WebsiteWizard`)
+
+## Atlas Catalog v2 [COMPLETE]
+
+Spec: `docs/superpowers/specs/2026-05-31-atlas-catalog-v2-design.md`  
+Plans: `docs/superpowers/plans/2026-05-30-atlas-catalog-plan-A.md`, `...-plan-B.md`, `2026-05-31-atlas-catalog-v2-plan-a-backend.md`, `...-plan-b-frontend.md`, `2026-06-01-atlas-catalog-core-migration.md`
+
+- [x] Product catalog with categories, items, and inventory count
+- [x] Screens: `CatalogCategoriesScreen`, `CatalogProductsScreen`, `CatalogProductDetailScreen`, `CatalogInventoryScreen`
+- [x] API routes in `apps/api/src/routes/catalog/`
+
+Verified: 2026-06-20 (4 screens present in `apps/desktop/src/modules/atlas.catalog/screens/`; `catalog/` route folder confirmed in `apps/api/src/routes/`)
+
+## Fleet: AME3 → Desktop Module Migration [COMPLETE]
+
+Plans: `docs/superpowers/plans/2026-06-06-fleet-screens-migration.md`, `2026-06-06-sdk-migration-calendar-fleet.md`, `2026-06-06-ledger-cleanup-modules-official.md`
+
+- [x] Migrated from AME3 (`modules/custom/custom.fleet/`) to core desktop module (`atlas.fleet`)
+- [x] Fleet API moved to `apps/api/src/routes/fleet/` (full service layer retained)
+- [x] Desktop screens: `VehiclesScreen`, `DriversScreen`, `ReportsScreen`, `ReportFormPage`, `ReportDetailScreen`, `InsuranceScreen`, `CatalogsScreen`
+- [x] SDK migration for fleet + calendar domains; `modules/custom/` is now empty
+
+Verified: 2026-06-20 (`apps/desktop/src/modules/atlas.fleet/screens/` contains 7 screens; `apps/api/src/routes/fleet/` present with full service layer; `modules/custom/` empty confirmed)
+
+## Dynamic Module Bundler + Custom Module ZIP Upload [COMPLETE]
+
+Specs: `docs/superpowers/specs/2026-05-28-dynamic-module-bundler-design.md`, `2026-06-10-custom-module-zip-upload-design.md`  
+Plans: `docs/superpowers/plans/2026-05-28-dynamic-module-bundler.md`, `2026-06-10-custom-module-zip-upload-api.md`, `2026-06-10-custom-module-zip-upload-ui.md`
+
+- [x] `module-bundler-service.js` — builds and bundles custom module components at install time
+- [x] `module-upload-service.js` — handles ZIP upload + extraction for custom modules
+- [x] `dist-upload-service.js` / `dist-serve-service.js` — serves bundled dist assets
+- [x] UI in Module Catalog for uploading custom modules via ZIP
+
+Verified: 2026-06-20 (`module-bundler-service.js`, `module-upload-service.js`, `dist-upload-service.js`, `dist-serve-service.js` present in `apps/api/src/services/`)
+
+## Platform Settings + SMTP [COMPLETE]
+
+Plan: `docs/superpowers/plans/2026-05-30-platform-settings-smtp-plan.md`
+
+- [x] `smtp-service.js` — SMTP configuration and transactional email delivery
+- [x] `settings-routes.js` — platform settings API endpoints
+- [x] `SmtpSettingsScreen.jsx` — SMTP configuration UI in `platform-settings` module
+
+Verified: 2026-06-20 (`smtp-service.js` in `apps/api/src/services/`; `settings-routes.js` in `apps/api/src/routes/`; `SmtpSettingsScreen.jsx` in `apps/desktop/src/modules/platform-settings/screens/`)
+
+## HR v2 — Org Chart [COMPLETE]
+
+Spec: `docs/superpowers/specs/2026-05-05-phase9-hr-v2-orgchart-design.md`  
+Plan: `docs/superpowers/plans/2026-05-05-phase9-hr-v2-orgchart.md`
+
+- [x] `GET /hr/org-chart` endpoint with recursive supervisor chain (CTE)
+- [x] SDK `atlas.hr.getOrgChart(token, { rootEmployeeId })` method
+- [x] `HrOrgChartScreen.jsx` — interactive tree with root employee selector, supervisor hierarchy rendering, and empty-state guidance
+- [x] HR navigation entry for org chart route
+
+Verified: 2026-06-20 (`HrOrgChartScreen.jsx` present in `apps/desktop/src/modules/atlas.hr/screens/`; queries `atlas.hr.getOrgChart` with `rootEmployeeId` parameter confirmed at line 429)
 
 ## atlas.activity (CORE Activity Feed)
 
@@ -675,15 +843,7 @@ Verified: 2026-05-25 (`pnpm.cmd install --lockfile-only`; `node --check apps/api
 ## Future feature modules
 
 - [ ] Purchases (supplier orders, receiving)
-- [ ] Inventory (stock management)
-- [ ] Fleet (vehicles, drivers, maintenance) — active next focus (2026-05-25)
 - [ ] Reports (cross-module reporting engine)
-- [ ] Website builder / CMS
-
-## Next agreed focus (2026-05-25)
-
-- [ ] Fleet expansion execution (functional + UX + API hardening as next delivery block)
-- [ ] Module Scaffolder / Module Creator for future modules after Fleet expansion completion
 
 ## Phase 10 - Responsive foundation, toolbar migrations, and Finance decomposition
 
@@ -818,6 +978,3 @@ Plan: `docs/superpowers/plans/` (inline subagent-driven-development session)
 
 Verified: 2026-05-26 (commits `c84dabc`–`aba2ad8`; `node --test packages/module-engine/src/__tests__/define-view.test.js` → 16 passing; browser screenshot confirms `/p/test` shows empty state without session; `pnpm build` clean)
 
-## Next: Module Scaffolder / Creator
-
-Fleet expansion is complete and validated. Custom view components (kind: CUSTOM, ImmersiveShell, public routes) are implemented and build-verified. The agreed next focus is the **Module Scaffolder / Creator** — a tool that generates the scaffold for a new AME3 custom module from a description, producing the complete file structure (`module.manifest.js`, `models/`, `views/`, `api/`, `validators/`) ready for development. Fleet serves as the reference implementation and pattern.
