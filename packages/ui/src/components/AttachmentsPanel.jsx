@@ -563,6 +563,21 @@ export function AttachmentsPanel({
         const assetId = item.fileAssetId;
         if (!assetId) continue;
         if (thumbUrlsByAssetId[assetId]) continue;
+
+        // Use inline signed URL if available and not expiring within 60 s
+        if (item.signedUrl && item.signedUrlExpiresAt) {
+          const expiresAt = new Date(item.signedUrlExpiresAt).getTime();
+          if (expiresAt - Date.now() > 60_000) {
+            if (!cancelled) {
+              setThumbUrlsByAssetId((prev) =>
+                prev[assetId] ? prev : { ...prev, [assetId]: item.signedUrl },
+              );
+            }
+            continue;
+          }
+        }
+
+        // Fallback: fetch signed URL individually (original behavior)
         try {
           const url = await controller.resolveSignedUrl(assetId);
           if (cancelled || !url) continue;
