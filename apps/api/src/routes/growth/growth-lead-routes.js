@@ -55,7 +55,7 @@ function handleError(c, error) {
   return c.json({ error: "Error interno de Growth." }, 500);
 }
 
-export function createGrowthLeadRoutes({ service, requirePermission }) {
+export function createGrowthLeadRoutes({ service, requirePermission, enrichFileAssets = null }) {
   const app = new Hono();
 
   app.get(
@@ -146,10 +146,13 @@ export function createGrowthLeadRoutes({ service, requirePermission }) {
     requirePermission("growth.leads.read"),
     async (c) => {
       try {
-        const data = await service.listLeadFiles({
+        let data = await service.listLeadFiles({
           companyId: companyId(c),
           id: c.req.param("id"),
         });
+        if (enrichFileAssets && Array.isArray(data)) {
+          data = await enrichFileAssets(data);
+        }
         return c.json({ data });
       } catch (error) {
         return handleError(c, error);

@@ -37,7 +37,7 @@ function handleError(c, err, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createProjectsRouter({ prisma, requirePermission, notificationService }) {
+export function createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets = null }) {
   const app = new Hono()
   const projectsSvc = createProjectsService({ prisma })
   const tasksSvc = createTasksService({ prisma })
@@ -396,10 +396,13 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
       const taskId = c.req.param('tid')
       const task = await prisma.task.findFirst({ where: { id: taskId, projectId } })
       if (!task) return c.json({ error: 'Tarea no encontrada.' }, 404)
-      const attachments = await prisma.fileAsset.findMany({
+      let attachments = await prisma.fileAsset.findMany({
         where: { entityType: 'Task', entityId: taskId, enabled: true },
         orderBy: { createdAt: 'asc' },
       })
+      if (enrichFileAssets && Array.isArray(attachments)) {
+        attachments = await enrichFileAssets(attachments);
+      }
       return c.json(attachments)
     } catch (err) { return handleError(c, err, 'Error al listar archivos.') }
   })

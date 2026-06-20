@@ -4478,10 +4478,10 @@ mountWithAuth(app, createUsersRouter({ prisma, requirePermission }));
 mountWithAuth(app, createFleetRouter({ prisma, requirePermission, enrichFilesWithSignedUrls: filesService.enrichFilesWithSignedUrls.bind(filesService) }));
 mountWithAuth(app, createCatalogRouter({ prisma, requirePermission }));
 mountWithAuth(app, createCalendarRouter({ prisma, requirePermission }));
-mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService }));
+mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService) }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission }));
-mountWithAuth(app, createGrowthRouter({ prisma, requirePermission, notificationService }));
+mountWithAuth(app, createGrowthRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService) }));
 mountWithAuth(
   app,
   createDocumentsRouter({ prisma, supabaseAdmin, requirePermission }),

@@ -12,6 +12,7 @@ export function createGrowthRouter({
   prisma,
   requirePermission,
   notificationService = createNotificationService({ prisma }),
+  enrichFileAssets = null,
 }) {
   const app = new Hono();
   const service = createGrowthLeadService({
@@ -20,7 +21,7 @@ export function createGrowthRouter({
   });
   const analyticsService = createGrowthAnalyticsService({ prisma });
   const commentsService = createCommentsService({ prisma });
-  app.route("", createGrowthLeadRoutes({ service, requirePermission }));
+  app.route("", createGrowthLeadRoutes({ service, requirePermission, enrichFileAssets }));
   app.route("", createGrowthCommentRoutes({ service: commentsService, requirePermission }));
   app.route(
     "",
