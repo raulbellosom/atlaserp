@@ -487,6 +487,7 @@ export function AttachmentsPanel({
   onChange,
   onControllerReady,
   canRemoveItem = () => true,
+  prefetchedData,
 }) {
   const controller = useAttachmentsController({
     apiBaseUrl,
@@ -498,6 +499,7 @@ export function AttachmentsPanel({
     readOnly,
     onError,
     onChange,
+    prefetchedData,
   });
 
   const [documentType, setDocumentType] = useState("");

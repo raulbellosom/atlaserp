@@ -266,8 +266,14 @@ export function useAttachmentsController({
   readOnly = false,
   onChange,
   onError,
+  prefetchedData,
 }) {
-  const [associatedItems, setAssociatedItems] = useState([]);
+  const prefetchedDataRef = useRef(prefetchedData);
+  const [associatedItems, setAssociatedItems] = useState(() => {
+    const initial = prefetchedDataRef.current;
+    if (!Array.isArray(initial)) return [];
+    return initial.map((r) => normalizeAssociatedItem(r, DEFAULT_FIELDS));
+  });
   const [pendingItems, setPendingItems] = useState([]);
   const pendingItemsRef = useRef(pendingItems);
   useEffect(() => { pendingItemsRef.current = pendingItems; }, [pendingItems]);
@@ -356,6 +362,7 @@ export function useAttachmentsController({
   );
 
   useEffect(() => {
+    if (Array.isArray(prefetchedDataRef.current)) return;
     loadAssociated();
   }, [loadAssociated]);
 
