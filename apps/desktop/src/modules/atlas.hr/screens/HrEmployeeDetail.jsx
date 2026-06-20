@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -463,10 +463,8 @@ function OrgChartPanel({ employee }) {
 // ── FilesPanel (read-only) ────────────────────────────────────────────────────
 
 function FilesPanel({ employeeId, token }) {
-  const [previewMap, setPreviewMap] = useState(() => new Map());
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
-  const signedUrlCache = useRef(new Map());
 
   const filesQuery = useQuery({
     queryKey: ["hr-employee-files", employeeId],
@@ -482,37 +480,6 @@ function FilesPanel({ employeeId, token }) {
       ),
     enabled: Boolean(token && employeeId),
   });
-
-  // batch signed URLs for image previews
-  useEffect(() => {
-    if (!token) return;
-    const files = filesQuery.data?.data ?? [];
-    const uncached = files
-      .filter(
-        (f) =>
-          getFileKind(f.mimeType) === "image" &&
-          !previewMap.has(f.id) &&
-          !signedUrlCache.current.has(f.id),
-      )
-      .map((f) => f.id);
-    if (uncached.length === 0) return;
-    atlas.files
-      .batchSignedUrls(uncached, token)
-      .then((res) => {
-        const urlMap = res?.data ?? {};
-        uncached.forEach((id) => {
-          if (urlMap[id]) signedUrlCache.current.set(id, urlMap[id]);
-        });
-        setPreviewMap((prev) => {
-          const next = new Map(prev);
-          uncached.forEach((id) => {
-            if (urlMap[id]) next.set(id, urlMap[id]);
-          });
-          return next;
-        });
-      })
-      .catch(() => {});
-  }, [filesQuery.data, token, previewMap]);
 
   const files = filesQuery.data?.data ?? [];
   const imageFiles = files.filter((f) => getFileKind(f.mimeType) === "image");
@@ -532,7 +499,7 @@ function FilesPanel({ employeeId, token }) {
         activeIndex={viewerIndex}
         onIndexChange={setViewerIndex}
         onResolveSignedUrl={async (f) => {
-          if (previewMap.has(f.id)) return previewMap.get(f.id);
+          if (f.signedUrl) return f.signedUrl;
           const res = await atlas.files.getSignedUrl(f.id, token);
           return res?.data?.signedUrl ?? null;
         }}
@@ -553,7 +520,7 @@ function FilesPanel({ employeeId, token }) {
           )}
           {files.map((file) => {
             const kind = getFileKind(file.mimeType);
-            const preview = kind === "image" ? previewMap.get(file.id) : null;
+            const preview = kind === "image" ? (file.signedUrl ?? null) : null;
             return (
               <div
                 key={file.id}
