@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
+  Badge,
   Button,
   EmptyState,
   PageHeader,
@@ -138,10 +139,10 @@ export default function WebsitePaymentsScreen() {
             </div>
             <div className="flex items-center gap-3">
               {keysConfigured ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                <Badge variant="success" className="gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
                   Conectado
-                </span>
+                </Badge>
               ) : (
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border text-muted-foreground bg-muted border-border">
                   Sin configurar

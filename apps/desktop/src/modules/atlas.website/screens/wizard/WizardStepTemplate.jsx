@@ -1,5 +1,6 @@
 // apps/desktop/src/modules/atlas.website/screens/wizard/WizardStepTemplate.jsx
 import { useState } from 'react'
+import { Badge } from '@atlas/ui'
 import { allTemplates } from '../../../../website/atlasTemplates/index.js'
 
 export function WizardStepTemplate({ onNext, onBack, isPending }) {
@@ -75,9 +76,7 @@ export function WizardStepTemplate({ onNext, onBack, isPending }) {
                     <p className="text-xs text-muted-foreground font-mono">{p.routePath}</p>
                   </div>
                   {p.required && (
-                    <span className="text-xs bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">
-                      Requerida
-                    </span>
+                    <Badge variant="warning">Requerida</Badge>
                   )}
                 </label>
               ))}

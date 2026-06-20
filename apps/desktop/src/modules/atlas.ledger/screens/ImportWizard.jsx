@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button, DistDropZone, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@atlas/ui'
+import { Badge, Button, DistDropZone, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@atlas/ui'
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -270,14 +270,14 @@ export default function ImportWizard() {
                     {label}
                   </label>
                   <Select
-                    value={mapping[key] ?? ''}
-                    onValueChange={(v) => setMapping((m) => ({ ...m, [key]: v || undefined }))}
+                    value={mapping[key] ?? '__none__'}
+                    onValueChange={(v) => setMapping((m) => ({ ...m, [key]: v === '__none__' ? undefined : v }))}
                   >
                     <SelectTrigger className={`flex-1 text-sm ${required && !mapping[key] ? 'border-amber-400 dark:border-amber-600' : ''}`}>
                       <SelectValue placeholder="— sin mapear —" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">— sin mapear —</SelectItem>
+                      <SelectItem value="__none__">— sin mapear —</SelectItem>
                       {headers.map((h) => (
                         <SelectItem key={h} value={h}>{h}</SelectItem>
                       ))}
@@ -309,19 +309,21 @@ export default function ImportWizard() {
         {step === STEP_PREVIEW && preview && (
           <div className="max-w-2xl mx-auto space-y-4">
             <div className="flex gap-3">
-              <div className="px-4 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-sm font-semibold border border-emerald-200 dark:border-emerald-800">
+              <Badge variant="success" className="text-sm px-3.5 py-1.5 gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 shrink-0" />
                 {preview.valid_count} filas validas
-              </div>
+              </Badge>
               {preview.error_count > 0 && (
-                <div className="px-4 py-2 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm font-semibold border border-red-200 dark:border-red-800">
-                  {preview.error_count} filas con error (seran ignoradas)
-                </div>
+                <Badge variant="destructive" className="text-sm px-3.5 py-1.5 gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 shrink-0" />
+                  {preview.error_count} filas con error
+                </Badge>
               )}
             </div>
 
             {preview.errors?.length > 0 && (
               <div className="border border-red-200 dark:border-red-800 rounded-xl overflow-hidden">
-                <div className="px-3 py-2 bg-red-50 dark:bg-red-950/40 text-xs font-semibold text-red-700 dark:text-red-300">
+                <div className="px-3 py-2 bg-red-500 dark:bg-red-950/40 text-xs font-semibold text-white dark:text-red-300">
                   Errores detectados
                 </div>
                 <div className="max-h-40 overflow-auto divide-y divide-red-100 dark:divide-red-900">

@@ -152,10 +152,11 @@ export function createStorefrontAuthService({ prisma, supabaseAdmin, supabaseAno
     if (!profile) {
       throw Object.assign(new Error('Perfil no encontrado'), { code: 'NOT_FOUND', status: 404 })
     }
-    // Find membership for this company regardless of role (ERP users are welcome)
+    // Exact slug match first; fall back to any active membership for ERP admin users
+    // whose company slug may differ from the X-Atlas-Company header value.
     const membership = profile.memberships.find(
       m => m.role != null && m.company.slug === companySlug
-    )
+    ) ?? profile.memberships.find(m => m.role != null)
     if (!membership) {
       throw Object.assign(new Error('Sin membresía en esta empresa'), { code: 'FORBIDDEN', status: 403 })
     }

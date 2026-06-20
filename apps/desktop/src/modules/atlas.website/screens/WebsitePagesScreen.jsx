@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import {
-  Button, PageHeader,
+  Badge, Button, PageHeader,
   ActionMenu, ConfirmDialog, Switch, Skeleton,
   EmptyState,
 } from '@atlas/ui'
@@ -200,13 +200,9 @@ export default function WebsitePagesScreen() {
                       <p className="font-semibold text-foreground group-hover:text-primary transition-colors truncate text-sm">
                         {page.title}
                       </p>
-                      <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium border ${
-                        isPublished
-                          ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800'
-                          : 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
-                      }`}>
+                      <Badge variant={isPublished ? "success" : "warning"} className="shrink-0">
                         {isPublished ? 'Publicada' : 'Borrador'}
-                      </span>
+                      </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground font-mono">{page.slug}</p>
                     <p className="text-xs text-muted-foreground mt-1">

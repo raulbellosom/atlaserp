@@ -56,9 +56,39 @@ import {
   Download,
   Files,
   UserRoundSearch,
+  Gauge,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "../lib/utils.js";
+
+export function FleetVehicleIcon({ className, size, width, height, ...props }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      width={width ?? size ?? 24}
+      height={height ?? size ?? 24}
+      {...props}
+    >
+      <rect x="1" y="8" width="12" height="8" rx="1" />
+      <line x1="7" y1="8" x2="7" y2="16" />
+      <path d="M13 10h1.5l3 4v2h-4.5V10z" />
+      <path d="M14.5 10.5L17 14h-2.5v-3.5z" fill="currentColor" fillOpacity="0.2" stroke="none" />
+      <line x1="3" y1="16" x2="17" y2="16" />
+      <circle cx="5" cy="18.5" r="2" />
+      <circle cx="15" cy="18.5" r="2" />
+      <circle cx="21" cy="3.5" r="2" />
+      <line x1="21" y1="5.5" x2="21" y2="7.5" />
+      <circle cx="21" cy="3.5" r="0.7" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
 
 const ICON_MAP = {
   LayoutDashboard,
@@ -115,10 +145,13 @@ const ICON_MAP = {
   SquareKanban,
   Files,
   UserRoundSearch,
+  Gauge,
+  FleetVehicle: FleetVehicleIcon,
 };
 
 const ICON_ALIAS_MAP = {
   truck: "Truck",
+  fleetvehicle: "FleetVehicle",
   wrench: "Wrench",
   clipboardlist: "ClipboardList",
   usercheck: "UserCheck",
@@ -160,6 +193,7 @@ export function ModuleSidebar({
   onMobileClose,
   canInstall = false,
   onInstall,
+  contained = false,
 }) {
   if (!module) return null;
 
@@ -229,15 +263,32 @@ export function ModuleSidebar({
     <aside
       className={cn(
         "flex flex-col shrink-0 bg-surface-2 border-r border-[hsl(var(--border))] overflow-hidden",
-        // Mobile: fixed overlay drawer — top-topbar accounts for notch + topbar
-        "fixed top-topbar left-0 h-below-topbar w-72 z-40",
-        "transition-transform duration-300 ease-in-out",
-        mobileOpen ? "translate-x-0" : "-translate-x-full",
-        // Desktop (lg+): static flex child
-        "lg:static lg:z-auto",
-        "lg:translate-x-0 lg:transition-[width] lg:duration-300 lg:ease-in-out",
-        collapsed ? "lg:w-14" : "lg:w-60",
+        contained
+          ? "h-full w-full"
+          : cn(
+              // Mobile: fixed overlay drawer. top/height use inline style so this component
+              // doesn't depend on the custom CSS classes (top-topbar / h-below-topbar) that
+              // are defined in apps/desktop/src/styles.css and may not resolve in all builds.
+              "fixed left-0 w-72 z-40",
+              // Subtle directional shadow on mobile to separate from content; removed on desktop
+              "shadow-[4px_0_20px_rgba(0,0,0,0.10)] lg:shadow-none",
+              "transition-transform duration-300 ease-in-out",
+              mobileOpen ? "translate-x-0" : "-translate-x-full",
+              // Desktop (lg+): static flex child — inline top/height have no layout effect here
+              "lg:static lg:z-auto",
+              "lg:translate-x-0 lg:transition-[width] lg:duration-300 lg:ease-in-out",
+              collapsed ? "lg:w-14" : "lg:w-60",
+            ),
       )}
+      style={
+        contained
+          ? undefined
+          : {
+              top: "calc(var(--topbar-height, 3.5rem) + env(safe-area-inset-top, 0px))",
+              height:
+                "calc(100dvh - var(--topbar-height, 3.5rem) - env(safe-area-inset-top, 0px))",
+            }
+      }
     >
       {/* Module header */}
       <div className="flex items-center gap-3 border-b border-[hsl(var(--border))] h-14 px-3 shrink-0">
@@ -274,10 +325,16 @@ export function ModuleSidebar({
             Módulo
           </p>
         </div>
-        {/* Install as app button — shown when browser supports PWA install */}
+        {/* Install as app button:
+            - Regular mode: desktop-only (lg:flex), sits before the close zone
+            - Contained/overlay mode: combined into a single button shown always */}
         {canInstall && !collapsed && (
           <button
-            className="hidden lg:flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors shrink-0 cursor-pointer ml-auto"
+            className={cn(
+              "h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors shrink-0 cursor-pointer",
+              contained ? "flex" : "hidden lg:flex",
+              !contained && "ml-auto",
+            )}
             onClick={onInstall}
             title="Instalar como app"
             aria-label="Instalar modulo como app"
@@ -285,19 +342,20 @@ export function ModuleSidebar({
             <Download size={13} />
           </button>
         )}
-        {/* Mobile-only close button */}
+        {/* Close button: mobile-only for regular sidebar; always visible in overlay (contained) mode */}
         <button
           className={cn(
-            "lg:hidden flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors shrink-0 cursor-pointer",
-            canInstall ? "" : "ml-auto",
+            "flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors shrink-0 cursor-pointer",
+            !contained && "lg:hidden",
+            !canInstall && "ml-auto",
           )}
           onClick={onMobileClose}
           aria-label="Cerrar menu"
         >
           <X size={15} />
         </button>
-        {/* Mobile install button — shown next to close when installable */}
-        {canInstall && (
+        {/* Mobile-only install button (regular mode only — contained mode uses the unified button above) */}
+        {canInstall && !contained && (
           <button
             className="lg:hidden flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors shrink-0 cursor-pointer"
             onClick={onInstall}
@@ -491,8 +549,8 @@ export function ModuleSidebar({
             Hecho con amor por Racoon Devs
           </a>
         </div>
-        {/* Collapse toggle — desktop only */}
-        <div className="hidden lg:block p-2">
+        {/* Collapse toggle — desktop only, not in overlay (contained) mode */}
+        <div className={cn("hidden p-2", !contained && "lg:block")}>
           <button
             onClick={onCollapse}
             title={

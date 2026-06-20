@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../auth/AuthProvider.jsx";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import {
+  Badge,
   Button,
   PageHeader,
   EmptyState,
@@ -33,14 +34,7 @@ const STATUS_LABELS = {
   published: "Publicado",
   archived: "Archivado",
 };
-const STATUS_CLASSES = {
-  draft:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-700/50",
-  published:
-    "bg-green-100  text-green-800  dark:bg-green-900/40  dark:text-green-300  border border-green-200  dark:border-green-700/50",
-  archived:
-    "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] border border-[hsl(var(--border))]",
-};
+const STATUS_VARIANT = { published: "success", draft: "warning", archived: "secondary" };
 
 function fmtDate(dateStr) {
   if (!dateStr) return "—";
@@ -183,11 +177,9 @@ export default function WebsiteBlogScreen() {
                         {post.category?.name ?? "—"}
                       </TableCell>
                       <TableCell>
-                        <span
-                          className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CLASSES[post.status] ?? ""}`}
-                        >
+                        <Badge variant={STATUS_VARIANT[post.status] ?? "secondary"}>
                           {STATUS_LABELS[post.status] ?? post.status}
-                        </span>
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-[hsl(var(--muted-foreground))] text-xs">
                         {fmtDate(post.publishedAt)}

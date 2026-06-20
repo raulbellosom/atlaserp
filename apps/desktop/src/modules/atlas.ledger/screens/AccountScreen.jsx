@@ -238,116 +238,157 @@ export default function AccountScreen() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-6 pt-5 pb-4 border-b border-[hsl(var(--border))] flex items-start gap-4 justify-between shrink-0">
-        <div className="min-w-0 flex-1">
-          <button
-            type="button"
-            onClick={() => navigate("/app/m/atlas.ledger/accounts")}
-            className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] mb-1.5 transition-colors"
-          >
-            <ArrowLeft size={11} />
-            Cuentas bancarias
-          </button>
+      <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-[hsl(var(--border))] shrink-0">
+        {/* Title row */}
+        <div className="flex items-start gap-3 justify-between">
+          <div className="min-w-0 flex-1">
+            <button
+              type="button"
+              onClick={() => navigate("/app/m/atlas.ledger/accounts")}
+              className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] mb-1.5 transition-colors"
+            >
+              <ArrowLeft size={11} />
+              Cuentas bancarias
+            </button>
 
-          {accountLoading ? (
-            <div className="space-y-1.5">
-              <div className="h-7 w-44 rounded-lg bg-[hsl(var(--muted))] animate-pulse" />
-              <div className="h-4 w-56 rounded bg-[hsl(var(--muted))] animate-pulse opacity-70" />
-            </div>
-          ) : (
-            <>
-              <h1 className="text-2xl font-bold tracking-tight text-[hsl(var(--foreground))] truncate">
-                {account?.name ?? "Cuenta"}
-              </h1>
-              {account && (
-                <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
-                  {account.bank}
-                  <span className="mx-1.5 opacity-40">·</span>
-                  {account.currency}
-                  <span className="mx-1.5 opacity-40">·</span>
-                  <span
-                    className="font-semibold tabular-nums"
-                    style={{ color: "var(--module-accent, #16a34a)" }}
-                  >
-                    {fmtCurrency(account.current_balance, account.currency)}
-                  </span>
-                </p>
-              )}
-            </>
-          )}
-        </div>
+            {accountLoading ? (
+              <div className="space-y-1.5">
+                <div className="h-7 w-44 rounded-lg bg-[hsl(var(--muted))] animate-pulse" />
+                <div className="h-4 w-56 rounded bg-[hsl(var(--muted))] animate-pulse opacity-70" />
+              </div>
+            ) : (
+              <>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[hsl(var(--foreground))] truncate">
+                  {account?.name ?? "Cuenta"}
+                </h1>
+                {account && (
+                  <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
+                    {account.bank}
+                    <span className="mx-1.5 opacity-40">·</span>
+                    {account.currency}
+                    <span className="mx-1.5 opacity-40">·</span>
+                    <span
+                      className="font-semibold tabular-nums"
+                      style={{ color: "var(--module-accent, #16a34a)" }}
+                    >
+                      {fmtCurrency(account.current_balance, account.currency)}
+                    </span>
+                  </p>
+                )}
+              </>
+            )}
+          </div>
 
-        <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
           {canEdit && (
-            <Button variant="outline" size="sm" onClick={openEdit}>
+            <Button variant="outline" size="sm" onClick={openEdit} className="shrink-0 mt-5 sm:mt-6">
               <Pencil size={12} /> Editar
             </Button>
           )}
-          {activeTab === "registro" && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleExport("pdf")}
-                disabled={isUsingLocalLedger}
-              >
-                <FileText size={12} />
-                PDF
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleExport("xlsx")}
-                disabled={isUsingLocalLedger}
-              >
-                <Table size={12} />
-                Excel
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleExport("csv")}
-                disabled={isUsingLocalLedger}
-              >
-                <Download size={12} />
-                CSV
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isUsingLocalLedger}
-                onClick={() =>
-                  navigate(`/app/m/atlas.ledger/accounts/${accountId}/import`)
-                }
-              >
-                <Upload size={12} />
-                Importar
-              </Button>
-            </>
-          )}
         </div>
+
+        {/* Export actions row — only on Registro tab */}
+        {activeTab === "registro" && (
+          <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport("pdf")}
+              disabled={isUsingLocalLedger}
+            >
+              <FileText size={12} />
+              PDF
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport("xlsx")}
+              disabled={isUsingLocalLedger}
+            >
+              <Table size={12} />
+              Excel
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport("csv")}
+              disabled={isUsingLocalLedger}
+            >
+              <Download size={12} />
+              CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isUsingLocalLedger}
+              onClick={() =>
+                navigate(`/app/m/atlas.ledger/accounts/${accountId}/import`)
+              }
+            >
+              <Upload size={12} />
+              Importar
+            </Button>
+          </div>
+        )}
       </div>
 
-      <div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-6 shrink-0">
-        <div className="flex">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.key
-                  ? "border-(--module-accent,#16a34a) text-[hsl(var(--foreground))]"
-                  : "border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+      <div className="border-b border-[hsl(var(--border))] px-4 sm:px-6 shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex">
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab.key
+                    ? "border-(--module-accent,#16a34a) text-[hsl(var(--foreground))]"
+                    : "border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === "registro" && (
+            <div className="hidden sm:flex items-center gap-2 py-2">
+              <DatePickerField
+                compact
+                placeholder="Desde"
+                aria-label="Filtrar desde"
+                value={dateFrom || undefined}
+                onChange={(val) => setDateFrom(val ?? "")}
+              />
+              <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                —
+              </span>
+              <DatePickerField
+                compact
+                placeholder="Hasta"
+                aria-label="Filtrar hasta"
+                value={dateTo || undefined}
+                onChange={(val) => setDateTo(val ?? "")}
+              />
+              {(dateFrom || dateTo) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateFrom("");
+                    setDateTo("");
+                  }}
+                  className="text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
+                  title="Limpiar filtro"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
+        {/* Date filters — mobile only, below tabs */}
         {activeTab === "registro" && (
-          <div className="flex items-center gap-2 py-2">
+          <div className="sm:hidden flex items-center gap-2 pb-2">
             <DatePickerField
               compact
               placeholder="Desde"
@@ -355,9 +396,7 @@ export default function AccountScreen() {
               value={dateFrom || undefined}
               onChange={(val) => setDateFrom(val ?? "")}
             />
-            <span className="text-xs text-[hsl(var(--muted-foreground))]">
-              —
-            </span>
+            <span className="text-xs text-[hsl(var(--muted-foreground))]">—</span>
             <DatePickerField
               compact
               placeholder="Hasta"
@@ -368,10 +407,7 @@ export default function AccountScreen() {
             {(dateFrom || dateTo) && (
               <button
                 type="button"
-                onClick={() => {
-                  setDateFrom("");
-                  setDateTo("");
-                }}
+                onClick={() => { setDateFrom(""); setDateTo(""); }}
                 className="text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
                 title="Limpiar filtro"
               >

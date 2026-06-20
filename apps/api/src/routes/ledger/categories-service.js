@@ -5,12 +5,15 @@ import { LedgerServiceError } from './ledger-service.js'
 
 export function createCategoriesService({ prisma }) {
 
-  async function listCategories({ companyId }) {
+  async function listCategories({ companyId, actorId }) {
     try {
       const rows = await prisma.$queryRaw`
-        SELECT * FROM ledger_category
-        WHERE company_id = ${companyId}::uuid AND enabled = true
-        ORDER BY name
+        SELECT *, (owner_id IS NULL) AS is_system
+        FROM ledger_category
+        WHERE company_id = ${companyId}::uuid
+          AND enabled = true
+          AND (owner_id IS NULL OR owner_id = ${actorId}::uuid)
+        ORDER BY owner_id NULLS FIRST, name
       `
       return { data: rows }
     } catch (err) {
@@ -21,7 +24,8 @@ export function createCategoriesService({ prisma }) {
 
   async function getCategory({ companyId, categoryId }) {
     const rows = await prisma.$queryRaw`
-      SELECT * FROM ledger_category
+      SELECT *, (owner_id IS NULL) AS is_system
+      FROM ledger_category
       WHERE id = ${categoryId}::uuid AND company_id = ${companyId}::uuid
     `
     const row = firstRow(rows)
@@ -29,15 +33,15 @@ export function createCategoriesService({ prisma }) {
     return row
   }
 
-  async function createCategory({ companyId, data }) {
+  async function createCategory({ companyId, actorId, data }) {
     const name  = String(data.name).trim()
     const color = normalizeOptionalString(data.color) ?? null
     const kind  = data.kind ?? 'both'
     try {
       const rows = await prisma.$queryRaw`
-        INSERT INTO ledger_category (company_id, name, color, kind, enabled)
-        VALUES (${companyId}::uuid, ${name}, ${color}, ${kind}, true)
-        RETURNING *
+        INSERT INTO ledger_category (id, company_id, owner_id, name, color, kind, enabled, updated_at)
+        VALUES (gen_random_uuid(), ${companyId}::uuid, ${actorId}::uuid, ${name}, ${color}, ${kind}, true, NOW())
+        RETURNING *, (owner_id IS NULL) AS is_system
       `
       return firstRow(rows)
     } catch (err) {
@@ -46,8 +50,9 @@ export function createCategoriesService({ prisma }) {
     }
   }
 
-  async function updateCategory({ companyId, categoryId, data }) {
+  async function updateCategory({ companyId, categoryId, actorId, data }) {
     const existing = await getCategory({ companyId, categoryId })
+    if (existing.is_system) throw new LedgerServiceError('Las categorias de sistema no se pueden editar.', 403)
     const name  = hasOwn(data, 'name')  ? String(data.name).trim()             : existing.name
     const color = hasOwn(data, 'color') ? (normalizeOptionalString(data.color) ?? null) : existing.color
     const kind  = hasOwn(data, 'kind')  ? data.kind                            : existing.kind
@@ -55,25 +60,30 @@ export function createCategoriesService({ prisma }) {
       const rows = await prisma.$queryRaw`
         UPDATE ledger_category
         SET name = ${name}, color = ${color}, kind = ${kind}, updated_at = NOW()
-        WHERE id = ${categoryId}::uuid AND company_id = ${companyId}::uuid
-        RETURNING *
+        WHERE id = ${categoryId}::uuid AND company_id = ${companyId}::uuid AND owner_id = ${actorId}::uuid
+        RETURNING *, (owner_id IS NULL) AS is_system
       `
-      return firstRow(rows)
+      const row = firstRow(rows)
+      if (!row) throw new LedgerServiceError('Categoria no encontrada o sin permiso para editarla.', 404)
+      return row
     } catch (err) {
+      if (err instanceof LedgerServiceError) throw err
       if (isUniqueViolation(err)) throw new LedgerServiceError(`Ya existe una categoria con el nombre "${name}".`, 409)
       throw err
     }
   }
 
-  async function setCategoryEnabled({ companyId, categoryId, enabled }) {
+  async function setCategoryEnabled({ companyId, categoryId, actorId, enabled }) {
+    const existing = await getCategory({ companyId, categoryId })
+    if (existing.is_system) throw new LedgerServiceError('Las categorias de sistema no se pueden desactivar.', 403)
     const rows = await prisma.$queryRaw`
       UPDATE ledger_category
       SET enabled = ${enabled}, updated_at = NOW()
-      WHERE id = ${categoryId}::uuid AND company_id = ${companyId}::uuid
-      RETURNING *
+      WHERE id = ${categoryId}::uuid AND company_id = ${companyId}::uuid AND owner_id = ${actorId}::uuid
+      RETURNING *, (owner_id IS NULL) AS is_system
     `
     const row = firstRow(rows)
-    if (!row) throw new LedgerServiceError('Categoria no encontrada.', 404)
+    if (!row) throw new LedgerServiceError('Categoria no encontrada o sin permiso para modificarla.', 404)
     return row
   }
 

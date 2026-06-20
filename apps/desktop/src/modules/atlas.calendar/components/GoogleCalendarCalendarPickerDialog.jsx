@@ -142,7 +142,7 @@ function ConnectionHeader({
   return (
     <div className="flex items-start justify-between gap-4 rounded-lg bg-[hsl(var(--surface-2))] px-4 py-3">
       <div className="flex items-center gap-3 min-w-0">
-        <div className="shrink-0 rounded-lg bg-white/5 p-2">
+        <div className="shrink-0 rounded-lg bg-[hsl(var(--muted))]/60 dark:bg-white/5 p-2">
           <GoogleMark />
         </div>
         <div className="min-w-0">

@@ -236,7 +236,7 @@ export default function TemplatePreviewScreen() {
                 <p className="text-[11px] text-[hsl(var(--muted-foreground))] font-mono">{p.routePath}</p>
               </div>
               {p.required && (
-                <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 shrink-0">
+                <span className="text-[10px] text-white dark:text-amber-300 bg-amber-500 dark:bg-amber-950/40 border border-transparent dark:border-amber-800 rounded px-1.5 py-0.5 shrink-0">
                   base
                 </span>
               )}

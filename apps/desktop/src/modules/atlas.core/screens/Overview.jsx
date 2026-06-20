@@ -139,7 +139,7 @@ export default function Overview() {
 
       {/* Problem alerts */}
       {problemModulesDetailed.length > 0 && (
-        <div className="rounded-2xl border border-white/45 bg-white/55 p-4 space-y-2 shadow-[0_10px_35px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+        <div className="rounded-2xl border border-[hsl(var(--border))] dark:border-white/45 bg-[hsl(var(--card))] dark:bg-white/55 p-4 space-y-2 shadow-[0_10px_35px_rgba(15,23,42,0.08)] dark:backdrop-blur-xl">
           <div className="flex items-center gap-2 text-[hsl(var(--foreground))]">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <p className="text-sm font-semibold">
@@ -152,7 +152,7 @@ export default function Overview() {
             {problemModulesDetailed.map((m) => (
               <div
                 key={m.key}
-                className="rounded-xl border border-white/55 bg-white/65 px-2.5 py-2 backdrop-blur-md"
+                className="rounded-xl border border-[hsl(var(--border))] dark:border-white/55 bg-[hsl(var(--muted))]/40 dark:bg-white/65 px-2.5 py-2 dark:backdrop-blur-md"
               >
                 <div className="flex items-center gap-1.5 text-xs text-[hsl(var(--foreground))] font-semibold">
                   <span
@@ -169,7 +169,7 @@ export default function Overview() {
                         : "Error"}
                   </span>
                   {m.stageLabel && (
-                    <span className="rounded-md border border-white/60 bg-white/70 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+                    <span className="rounded-md border border-[hsl(var(--border))] dark:border-white/60 bg-[hsl(var(--background))] dark:bg-white/70 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
                       {m.stageLabel}
                     </span>
                   )}
@@ -237,8 +237,8 @@ export default function Overview() {
           className={cn(
             "rounded-2xl border p-4 space-y-2 transition-colors",
             apiOk
-              ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800/40 dark:bg-emerald-950/20"
-              : "border-red-200 bg-red-50 dark:border-red-800/40 dark:bg-red-950/20",
+              ? "border-emerald-300 bg-emerald-100/80 dark:border-emerald-800/40 dark:bg-emerald-950/20"
+              : "border-red-300 bg-red-100/80 dark:border-red-800/40 dark:bg-red-950/20",
           )}
         >
           <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">

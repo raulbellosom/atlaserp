@@ -91,8 +91,9 @@ export function createLedgerService({ prisma }) {
     try {
       const rows = await prisma.$queryRaw`
         INSERT INTO ledger_account
-          (company_id, owner_id, group_id, name, bank, account_number, currency, opening_balance, enabled)
+          (id, company_id, owner_id, group_id, name, bank, account_number, currency, opening_balance, enabled, updated_at)
         VALUES (
+          gen_random_uuid(),
           ${companyId}::uuid,
           ${ownerId},
           ${groupId},
@@ -101,7 +102,8 @@ export function createLedgerService({ prisma }) {
           ${normalizeOptionalString(account_number)},
           ${currency},
           ${opening_balance ?? 0},
-          true
+          true,
+          NOW()
         )
         RETURNING *
       `
@@ -213,9 +215,9 @@ export function createLedgerService({ prisma }) {
 
   // ── Transactions ─────────────────────────────────────────────────────────────
 
-  async function listTransactions({ companyId, accountId, dateFrom, dateTo, page, pageSize }) {
-    // Allow up to 2000 rows for the spreadsheet view (default API cap is 100)
-    const pag  = normalizePagination({ page, pageSize, maxPageSize: 2000 })
+  async function listTransactions({ companyId, accountId, dateFrom, dateTo, page, pageSize, maxPageSize = 2000 }) {
+    // Default cap: 2000 for spreadsheet view; callers may pass maxPageSize up to 50000 for exports
+    const pag  = normalizePagination({ page, pageSize, maxPageSize: Math.min(maxPageSize, 50000) })
     const from = normalizeOptionalString(dateFrom) ?? null
     const to   = normalizeOptionalString(dateTo)   ?? null
 
@@ -292,9 +294,10 @@ export function createLedgerService({ prisma }) {
           AND enabled = true
       )
       INSERT INTO ledger_transaction
-        (account_id, company_id, fecha, tipo_id, numero, nombre,
-         referencia, concepto, deposito, retiro, category_id, enabled)
+        (id, account_id, company_id, fecha, tipo_id, numero, nombre,
+         referencia, concepto, deposito, retiro, category_id, enabled, updated_at)
       SELECT
+        gen_random_uuid(),
         ${accountId}::uuid,
         ${companyId}::uuid,
         ${fecha}::date,
@@ -306,7 +309,8 @@ export function createLedgerService({ prisma }) {
         ${deposito ?? null},
         ${retiro   ?? null},
         ${categoryIdVal}::uuid,
-        true
+        true,
+        NOW()
       FROM account_check
       RETURNING *
     `

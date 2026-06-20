@@ -190,11 +190,24 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
     if (event.key === 'Escape') {
       event.preventDefault()
       clearDraft(row, rowIdx)
+      return
     }
 
-    if (event.key === 'Enter' || (event.ctrlKey && event.key === 'Enter')) {
+    // Ctrl+Enter → save immediately; plain Enter → advance to next column (mobile-friendly)
+    if (event.key === 'Enter') {
       event.preventDefault()
-      saveRow(row, rowIdx)
+      if (event.ctrlKey) {
+        saveRow(row, rowIdx)
+        return
+      }
+      const colIdx = EDITABLE_COLS.indexOf(colName)
+      if (colIdx < EDITABLE_COLS.length - 1) {
+        const selector = `[data-row="${rowIdx}"][data-col="${EDITABLE_COLS[colIdx + 1]}"]`
+        tableRef.current?.querySelector(selector)?.focus()
+      } else {
+        saveRow(row, rowIdx)
+      }
+      return
     }
 
     if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
@@ -269,7 +282,7 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setNewRow(emptyRow(accountId))}
+          onClick={() => setNewRow({ ...emptyRow(accountId), numero: String(rows.length + 1) })}
           disabled={!!newRow || !canEdit}
         >
           <Plus size={13} className="mr-1" />
@@ -284,19 +297,19 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
       )}
 
       <div className="flex-1 overflow-auto">
-        <table ref={tableRef} className="w-full border-collapse text-sm">
+        <table ref={tableRef} className="w-full min-w-262.5 border-collapse text-sm">
           <thead className="sticky top-0 z-10">
             <tr>
               <th className={`${thClass} w-10 text-center`}>#</th>
               <th className={`${thClass} w-28`}>Fecha</th>
-              <th className={`${thClass} w-24`}>Tipo</th>
+              <th className={`${thClass} w-32`}>Tipo</th>
               <th className={`${thClass} w-24`}>Numero</th>
               <th className={`${thClass} min-w-40`}>Nombre</th>
-              <th className={`${thClass} w-32`}>Referencia</th>
-              <th className={`${thClass} min-w-35`}>Concepto</th>
+              <th className={`${thClass} w-28`}>Referencia</th>
+              <th className={`${thClass} min-w-32`}>Concepto</th>
               <th className={`${thClass} w-28 text-right`}>Ingreso</th>
               <th className={`${thClass} w-28 text-right`}>Egreso</th>
-              <th className={`${thClass} w-24`}>Categoria</th>
+              <th className={`${thClass} w-36`}>Categoria</th>
               <th className={`${thClass} w-28 text-right`}>Saldo</th>
               <th className={`${thClass} w-8`} />
             </tr>
@@ -321,6 +334,7 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                       data-row={rowIdx}
                       data-col="fecha"
                       disabled={!canEdit}
+                      enterKeyHint="next"
                       value={toDateValue(draft.fecha)}
                       onChange={(event) => setDraft(row, rowIdx, 'fecha', event.target.value)}
                       onKeyDown={(event) => handleKeyDown(event, row, rowIdx, 'fecha')}
@@ -349,6 +363,7 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                       data-row={rowIdx}
                       data-col="numero"
                       disabled={!canEdit}
+                      enterKeyHint="next"
                       value={draft.numero ?? ''}
                       onChange={(event) => setDraft(row, rowIdx, 'numero', event.target.value)}
                       onKeyDown={(event) => handleKeyDown(event, row, rowIdx, 'numero')}
@@ -362,6 +377,7 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                       data-row={rowIdx}
                       data-col="nombre"
                       disabled={!canEdit}
+                      enterKeyHint="next"
                       value={draft.nombre ?? ''}
                       onChange={(event) => setDraft(row, rowIdx, 'nombre', event.target.value)}
                       onKeyDown={(event) => handleKeyDown(event, row, rowIdx, 'nombre')}
@@ -375,6 +391,7 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                       data-row={rowIdx}
                       data-col="referencia"
                       disabled={!canEdit}
+                      enterKeyHint="next"
                       value={draft.referencia ?? ''}
                       onChange={(event) => setDraft(row, rowIdx, 'referencia', event.target.value)}
                       onKeyDown={(event) => handleKeyDown(event, row, rowIdx, 'referencia')}
@@ -388,6 +405,7 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                       data-row={rowIdx}
                       data-col="concepto"
                       disabled={!canEdit}
+                      enterKeyHint="next"
                       value={draft.concepto ?? ''}
                       onChange={(event) => setDraft(row, rowIdx, 'concepto', event.target.value)}
                       onKeyDown={(event) => handleKeyDown(event, row, rowIdx, 'concepto')}
@@ -399,6 +417,8 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                       aria-label={`Ingreso movimiento ${row.consecutive ?? rowIdx + 1}`}
                       min="0"
                       step="0.01"
+                      inputMode="decimal"
+                      enterKeyHint="next"
                       className={`${colClass} text-right`}
                       data-row={rowIdx}
                       data-col="deposito"
@@ -414,6 +434,8 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                       aria-label={`Egreso movimiento ${row.consecutive ?? rowIdx + 1}`}
                       min="0"
                       step="0.01"
+                      inputMode="decimal"
+                      enterKeyHint="next"
                       className={`${colClass} text-right`}
                       data-row={rowIdx}
                       data-col="retiro"
@@ -435,7 +457,17 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                       onKeyDown={(event) => handleKeyDown(event, row, rowIdx, 'category_id')}
                     >
                       <option value="">—</option>
-                      {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                      {categories.filter(c => c.is_system).length > 0 && (
+                        <optgroup label="Sistema">
+                          {categories.filter(c => c.is_system).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </optgroup>
+                      )}
+                      {categories.filter(c => !c.is_system).length > 0 && (
+                        <optgroup label="Mis categorias">
+                          {categories.filter(c => !c.is_system).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </optgroup>
+                      )}
+                      {categories.every(c => c.is_system === undefined) && categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </td>
                   <td className={`${tdClass} text-right pr-3 text-xs font-mono font-semibold`}>
@@ -474,6 +506,7 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                     className={colClass}
                     autoFocus
                     disabled={!canEdit}
+                    enterKeyHint="next"
                     value={newRow.fecha}
                     onChange={(event) => setNewRow((row) => ({ ...row, fecha: event.target.value, _dirty: true }))}
                     onKeyDown={(event) => { if (event.key === 'Escape') setNewRow(null) }}
@@ -497,6 +530,7 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                     aria-label="Numero nuevo movimiento"
                     className={colClass}
                     disabled={!canEdit}
+                    enterKeyHint="next"
                     value={newRow.numero}
                     onChange={(event) => setNewRow((row) => ({ ...row, numero: event.target.value, _dirty: true }))}
                   />
@@ -508,6 +542,7 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                     className={colClass}
                     placeholder="Nombre *"
                     disabled={!canEdit}
+                    enterKeyHint="next"
                     value={newRow.nombre}
                     onChange={(event) => setNewRow((row) => ({ ...row, nombre: event.target.value, _dirty: true }))}
                   />
@@ -518,6 +553,7 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                     aria-label="Referencia nuevo movimiento"
                     className={colClass}
                     disabled={!canEdit}
+                    enterKeyHint="next"
                     value={newRow.referencia}
                     onChange={(event) => setNewRow((row) => ({ ...row, referencia: event.target.value, _dirty: true }))}
                   />
@@ -528,6 +564,7 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                     aria-label="Concepto nuevo movimiento"
                     className={colClass}
                     disabled={!canEdit}
+                    enterKeyHint="next"
                     value={newRow.concepto}
                     onChange={(event) => setNewRow((row) => ({ ...row, concepto: event.target.value, _dirty: true }))}
                   />
@@ -538,6 +575,8 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                     aria-label="Ingreso nuevo movimiento"
                     min="0"
                     step="0.01"
+                    inputMode="decimal"
+                    enterKeyHint="next"
                     className={`${colClass} text-right`}
                     disabled={!canEdit}
                     value={newRow.deposito}
@@ -550,6 +589,8 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                     aria-label="Egreso nuevo movimiento"
                     min="0"
                     step="0.01"
+                    inputMode="decimal"
+                    enterKeyHint="next"
                     className={`${colClass} text-right`}
                     disabled={!canEdit}
                     value={newRow.retiro}
@@ -565,7 +606,17 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
                     onChange={(event) => setNewRow((row) => ({ ...row, category_id: event.target.value || null, _dirty: true }))}
                   >
                     <option value="">—</option>
-                    {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                    {categories.filter(c => c.is_system).length > 0 && (
+                      <optgroup label="Sistema">
+                        {categories.filter(c => c.is_system).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </optgroup>
+                    )}
+                    {categories.filter(c => !c.is_system).length > 0 && (
+                      <optgroup label="Mis categorias">
+                        {categories.filter(c => !c.is_system).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </optgroup>
+                    )}
+                    {categories.every(c => c.is_system === undefined) && categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </td>
                 <td className={`${tdClass} text-right pr-3 text-xs`}>—</td>

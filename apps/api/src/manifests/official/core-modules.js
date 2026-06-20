@@ -41,6 +41,8 @@ export const atlasCoreMap = createModuleManifest({
     },
   ],
   permissions: [
+    { key: "platform.erp.access", name: "Access Atlas ERP" },
+    { key: "platform.settings.manage", name: "Manage Platform Settings" },
     { key: "core.access", name: "Access Core" },
     { key: "core.modules.read", name: "Read Core Modules" },
     { key: "core.modules.create", name: "Install Core Modules" },
@@ -435,7 +437,7 @@ export const companyMap = createModuleManifest({
 export const atlasLedgerManifest = createModuleManifest({
   key: "atlas.ledger",
   name: "Libro de cuentas",
-  version: "0.1.2",
+  version: "0.1.3",
   kind: MODULE_KINDS.CORE,
   core: true,
   uninstallable: false,
@@ -547,13 +549,6 @@ export const atlasLedgerManifest = createModuleManifest({
       layout: "main",
       permissionKey: "ledger.categories.manage",
     },
-    {
-      label: "Tipos de mov.",
-      path: "/app/m/atlas.ledger/types",
-      icon: "SlidersHorizontal",
-      layout: "main",
-      permissionKey: "ledger.types.manage",
-    },
   ],
 });
 
@@ -567,12 +562,11 @@ export const atlasFleetManifest = createModuleManifest({
   description:
     "Gestion de flota vehicular: vehiculos, reportes y asignacion de conductores.",
   summary: "Vehiculos, conductores, reportes y control operativo.",
-  icon: "Truck",
+  icon: "Gauge",
   color: "#14B8A6",
   pwa: { shortName: "Flota", startPath: "/vehicles" },
   accentColor: "#0F766E",
   initials: "FL",
-  logoUrl: "/module-logos/custom-fleet-128.webp",
   dependencies: [{ key: "atlas.core" }],
   lifecycle: {
     installable: true,

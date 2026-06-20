@@ -355,7 +355,8 @@ export function createAccountsRouter({ prisma, requirePermission }) {
           dateFrom: from,
           dateTo: to,
           page: 1,
-          pageSize: 10000,
+          pageSize: 50000,
+          maxPageSize: 50000,
         });
         const buffer = await buildExcelBuffer({
           account,
@@ -371,8 +372,9 @@ export function createAccountsRouter({ prisma, requirePermission }) {
           "Content-Disposition",
           `attachment; filename="ledger-${Date.now()}.xlsx"`,
         );
-        return c.body(buffer);
+        return new Response(buffer, { status: 200, headers: c.res.headers });
       } catch (err) {
+        console.error("[atlas.ledger:export/xlsx]", err);
         return handleError(c, err, "No se pudo exportar el archivo Excel.");
       }
     },
@@ -393,7 +395,8 @@ export function createAccountsRouter({ prisma, requirePermission }) {
           dateFrom: from,
           dateTo: to,
           page: 1,
-          pageSize: 10000,
+          pageSize: 50000,
+          maxPageSize: 50000,
         });
         const csv = buildCsvString({ rows });
         c.header("Content-Type", "text/csv; charset=utf-8");
@@ -401,8 +404,9 @@ export function createAccountsRouter({ prisma, requirePermission }) {
           "Content-Disposition",
           `attachment; filename="ledger-${Date.now()}.csv"`,
         );
-        return c.body(csv);
+        return new Response(csv, { status: 200, headers: c.res.headers });
       } catch (err) {
+        console.error("[atlas.ledger:export/csv]", err);
         return handleError(c, err, "No se pudo exportar el CSV.");
       }
     },
@@ -426,7 +430,8 @@ export function createAccountsRouter({ prisma, requirePermission }) {
           dateFrom: from,
           dateTo: to,
           page: 1,
-          pageSize: 10000,
+          pageSize: 50000,
+          maxPageSize: 50000,
         });
         const buffer = await buildPdfBuffer({
           account,
@@ -439,8 +444,9 @@ export function createAccountsRouter({ prisma, requirePermission }) {
           "Content-Disposition",
           `attachment; filename="ledger-${Date.now()}.pdf"`,
         );
-        return c.body(buffer);
+        return new Response(buffer, { status: 200, headers: c.res.headers });
       } catch (err) {
+        console.error("[atlas.ledger:export/pdf]", err);
         return handleError(c, err, "No se pudo exportar el PDF.");
       }
     },

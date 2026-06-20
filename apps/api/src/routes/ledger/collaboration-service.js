@@ -124,8 +124,8 @@ export function createCollaborationService({ prisma }) {
 
     try {
       await prisma.$queryRaw`
-        INSERT INTO ledger_account_member (account_id, user_id, role, invited_by, status)
-        VALUES (${accountId}::uuid, ${targetUserId}::uuid, ${role}, ${actorId}::uuid, 'active')
+        INSERT INTO ledger_account_member (id, account_id, user_id, role, invited_by, status)
+        VALUES (gen_random_uuid(), ${accountId}::uuid, ${targetUserId}::uuid, ${role}, ${actorId}::uuid, 'active')
         ON CONFLICT (account_id, user_id) DO UPDATE
           SET role = EXCLUDED.role, status = 'active', invited_by = EXCLUDED.invited_by, invited_at = NOW()
       `

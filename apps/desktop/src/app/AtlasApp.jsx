@@ -321,15 +321,17 @@ export function AtlasApp() {
           )}
 
           {/* Slide-in sidebar panel.
-              ModuleSidebar uses fixed+transform on mobile, so passing mobileOpen={true}
-              keeps it in the visible state; the outer aside handles the slide animation.
-              On desktop (lg:static) the outer aside constrains it inside the fixed box. */}
+              contained={true} makes ModuleSidebar fill this container (h-full w-full)
+              instead of using fixed positioning — keeps a single shadow source and
+              lets overflow-hidden clip content correctly. */}
           <aside
             className={[
-              "fixed left-0 top-topbar bottom-0 z-50 w-72 overflow-hidden shadow-2xl",
+              "fixed left-0 bottom-0 z-50 w-72 overflow-hidden",
+              "shadow-[4px_0_24px_rgba(0,0,0,0.12)]",
               "transition-transform duration-200 ease-out",
               sidebarOverlayOpen ? "translate-x-0" : "-translate-x-full pointer-events-none",
             ].join(" ")}
+            style={{ top: "calc(var(--topbar-height, 3.5rem) + env(safe-area-inset-top, 0px))" }}
           >
             <ModuleSidebar
               module={activeModule}
@@ -340,6 +342,7 @@ export function AtlasApp() {
               }}
               collapsed={false}
               onCollapse={() => setSidebarOverlayOpen(false)}
+              contained={true}
               mobileOpen={true}
               onMobileClose={() => setSidebarOverlayOpen(false)}
               canInstall={canInstall}

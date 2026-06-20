@@ -62,22 +62,22 @@ const ACCENT_CLASSES = {
   violet: {
     selected: 'border-violet-500/80 dark:border-violet-400 bg-violet-50/80 dark:bg-violet-950/30 ring-violet-300/50 dark:ring-violet-800/40',
     text:     'text-violet-700 dark:text-violet-300',
-    badge:    'border-violet-300/70 dark:border-violet-600 text-violet-700 dark:text-violet-300 bg-violet-50/70 dark:bg-violet-950/40',
+    badge:    'border-violet-400/40 dark:border-violet-600 text-violet-700 dark:text-violet-300 bg-violet-500/15 dark:bg-violet-950/40',
   },
   emerald: {
     selected: 'border-emerald-500/80 dark:border-emerald-400 bg-emerald-50/80 dark:bg-emerald-950/30 ring-emerald-300/50 dark:ring-emerald-800/40',
     text:     'text-emerald-700 dark:text-emerald-300',
-    badge:    'border-emerald-300/70 dark:border-emerald-600 text-emerald-700 dark:text-emerald-300 bg-emerald-50/70 dark:bg-emerald-950/40',
+    badge:    'border-emerald-400/40 dark:border-emerald-600 text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 dark:bg-emerald-950/40',
   },
   orange: {
     selected: 'border-orange-500/80 dark:border-orange-400 bg-orange-50/80 dark:bg-orange-950/30 ring-orange-300/50 dark:ring-orange-800/40',
     text:     'text-orange-700 dark:text-orange-300',
-    badge:    'border-orange-300/70 dark:border-orange-600 text-orange-700 dark:text-orange-300 bg-orange-50/70 dark:bg-orange-950/40',
+    badge:    'border-orange-400/40 dark:border-orange-600 text-orange-700 dark:text-orange-300 bg-orange-500/15 dark:bg-orange-950/40',
   },
   sky: {
     selected: 'border-sky-500/80 dark:border-sky-400 bg-sky-50/80 dark:bg-sky-950/30 ring-sky-300/50 dark:ring-sky-800/40',
     text:     'text-sky-700 dark:text-sky-300',
-    badge:    'border-sky-300/70 dark:border-sky-600 text-sky-700 dark:text-sky-300 bg-sky-50/70 dark:bg-sky-950/40',
+    badge:    'border-sky-400/40 dark:border-sky-600 text-sky-700 dark:text-sky-300 bg-sky-500/15 dark:bg-sky-950/40',
   },
 }
 
@@ -95,7 +95,7 @@ export function WizardStepType({ value, onNext, onBack }) {
             className={`w-full group text-left rounded-2xl border-2 p-5 transition-all duration-200 ${
               isSelected
                 ? `${ac.selected} ring-2 backdrop-blur-(--glass-blur) shadow-[0_4px_24px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.9)]`
-                : 'border-white/65 dark:border-white/10 bg-[rgba(232,242,255,0.72)] dark:bg-white/4 backdrop-blur-(--glass-blur) shadow-[0_4px_24px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.92),0_0_0_1px_rgba(0,0,0,0.05)] hover:bg-[rgba(218,234,255,0.82)] dark:hover:bg-white/7 hover:shadow-[0_6px_32px_rgba(0,0,0,0.09),inset_0_1px_0_rgba(255,255,255,0.95),0_0_0_1px_rgba(0,0,0,0.07)]'
+                : 'border-[hsl(var(--border))] dark:border-white/10 bg-[rgba(232,242,255,0.72)] dark:bg-white/4 backdrop-blur-(--glass-blur) shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.92),0_0_0_1px_rgba(0,0,0,0.05)] hover:bg-[rgba(218,234,255,0.82)] dark:hover:bg-white/7 hover:shadow-[0_6px_32px_rgba(0,0,0,0.09)] dark:hover:shadow-[0_6px_32px_rgba(0,0,0,0.09),inset_0_1px_0_rgba(255,255,255,0.95),0_0_0_1px_rgba(0,0,0,0.07)]'
             }`}
           >
             <div className="flex items-start gap-4">

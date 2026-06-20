@@ -203,6 +203,73 @@ async function main() {
     })
   }
 
+  // Seed standard ledger transaction types for every company.
+  // Types are now system-managed (read-only in UI); users cannot create new ones.
+  // Wrapped in try-catch because ledger_transaction_type may not exist if the
+  // module has never been synced (fresh install without ledger ORM migration).
+  const LEDGER_DEFAULT_TYPES = [
+    { code: 'DEP',   name: 'Deposito' },
+    { code: 'CHQ',   name: 'Cheque' },
+    { code: 'EFE',   name: 'Efectivo' },
+    { code: 'TRANSF',name: 'Transferencia' },
+    { code: 'SPEI',  name: 'SPEI' },
+    { code: 'TC',    name: 'Tarjeta de credito' },
+    { code: 'TD',    name: 'Tarjeta de debito' },
+    { code: 'DOM',   name: 'Domiciliacion' },
+    { code: 'OTRO',  name: 'Otro' },
+  ]
+  try {
+    const allCompanies = await prisma.company.findMany({ select: { id: true } })
+    for (const company of allCompanies) {
+      for (const type of LEDGER_DEFAULT_TYPES) {
+        await prisma.$executeRaw`
+          INSERT INTO ledger_transaction_type (id, company_id, code, name, enabled, updated_at)
+          SELECT gen_random_uuid(), ${company.id}::uuid, ${type.code}, ${type.name}, true, NOW()
+          WHERE NOT EXISTS (
+            SELECT 1 FROM ledger_transaction_type
+            WHERE company_id = ${company.id}::uuid AND code = ${type.code}
+          )
+        `
+      }
+    }
+    console.log(`Ledger types seeded for ${allCompanies.length} company(s)`)
+  } catch {
+    // Table doesn't exist yet — ledger module not synced, skip silently
+  }
+
+  // Seed system categories (owner_id = NULL) for every company.
+  const LEDGER_SYSTEM_CATEGORIES = [
+    { name: 'Alimentacion',    color: '#f59e0b', kind: 'expense' },
+    { name: 'Transporte',      color: '#3b82f6', kind: 'expense' },
+    { name: 'Renta',           color: '#8b5cf6', kind: 'expense' },
+    { name: 'Servicios',       color: '#06b6d4', kind: 'expense' },
+    { name: 'Salud',           color: '#ef4444', kind: 'expense' },
+    { name: 'Entretenimiento', color: '#ec4899', kind: 'expense' },
+    { name: 'Educacion',       color: '#6366f1', kind: 'expense' },
+    { name: 'Ahorro',          color: '#10b981', kind: 'income'  },
+    { name: 'Ingreso',         color: '#22c55e', kind: 'income'  },
+    { name: 'Transferencia',   color: '#64748b', kind: 'both'    },
+    { name: 'Otros',           color: '#94a3b8', kind: 'both'    },
+  ]
+  try {
+    const allCompanies = await prisma.company.findMany({ select: { id: true } })
+    for (const company of allCompanies) {
+      for (const cat of LEDGER_SYSTEM_CATEGORIES) {
+        await prisma.$executeRaw`
+          INSERT INTO ledger_category (id, company_id, owner_id, name, color, kind, enabled, updated_at)
+          SELECT gen_random_uuid(), ${company.id}::uuid, NULL, ${cat.name}, ${cat.color}, ${cat.kind}, true, NOW()
+          WHERE NOT EXISTS (
+            SELECT 1 FROM ledger_category
+            WHERE company_id = ${company.id}::uuid AND name = ${cat.name} AND owner_id IS NULL
+          )
+        `
+      }
+    }
+    console.log(`Ledger system categories seeded for ${allCompanies.length} company(s)`)
+  } catch {
+    // Table doesn't exist yet or migration not run — skip silently
+  }
+
   console.log(`Atlas modules seeded (${officialModuleManifests.length})`)
 }
 

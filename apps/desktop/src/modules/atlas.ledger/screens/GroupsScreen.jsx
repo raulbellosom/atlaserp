@@ -80,8 +80,10 @@ export default function GroupsScreen() {
       <div className="flex-1 overflow-auto px-6 pb-6 pt-4">
         {groups.length === 0 ? (
           <EmptyState
-            icon={<FolderOpen size={32} />}
-            message="No tienes grupos todavía. Crea uno para empezar a colaborar."
+            icon={FolderOpen}
+            title="Sin grupos"
+            description="Crea un grupo para empezar a colaborar en cuentas compartidas."
+            action={{ label: 'Nuevo grupo', onClick: () => setCreateOpen(true) }}
           />
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

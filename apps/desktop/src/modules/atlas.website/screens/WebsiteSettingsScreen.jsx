@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
+  Badge,
   Button,
   Card,
   EmptyState,
@@ -348,10 +349,10 @@ export default function WebsiteSettingsScreen() {
                   </p>
                 </div>
                 {smtpConfigured && (
-                  <span className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 px-2 py-0.5 rounded-full shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 dark:bg-green-400" />
+                  <Badge variant="success" className="shrink-0 gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
                     Configurado
-                  </span>
+                  </Badge>
                 )}
               </div>
 

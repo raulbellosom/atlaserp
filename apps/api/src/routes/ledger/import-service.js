@@ -121,9 +121,10 @@ export async function commitImportRows({ prisma, companyId, accountId, rows }) {
   for (const row of rows) {
     await prisma.$queryRaw`
       INSERT INTO ledger_transaction
-        (account_id, company_id, fecha, nombre, numero, referencia, concepto,
-         deposito, retiro, enabled)
+        (id, account_id, company_id, fecha, nombre, numero, referencia, concepto,
+         deposito, retiro, enabled, updated_at)
       VALUES (
+        gen_random_uuid(),
         ${accountId}::uuid,
         ${companyId}::uuid,
         ${row.fecha}::date,
@@ -133,7 +134,8 @@ export async function commitImportRows({ prisma, companyId, accountId, rows }) {
         ${row.concepto    ?? null},
         ${row.deposito    ?? null},
         ${row.retiro      ?? null},
-        true
+        true,
+        NOW()
       )
       RETURNING id
     `

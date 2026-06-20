@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../auth/AuthProvider.jsx";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import {
+  Badge,
   Button,
   SelectField,
   Switch,
@@ -174,15 +175,9 @@ export default function WebsiteOverviewScreen() {
         }
         actions={
           <div className="flex items-center gap-3">
-            <span
-              className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
-                site.status === "published"
-                  ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800"
-                  : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800"
-              }`}
-            >
+            <Badge variant={site.status === "published" ? "success" : "warning"}>
               {site.status === "published" ? "Publicado" : "Borrador"}
-            </span>
+            </Badge>
             <Switch
               checked={site.status === "published"}
               onCheckedChange={handleStatusToggle}

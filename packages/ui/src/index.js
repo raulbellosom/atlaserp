@@ -71,7 +71,10 @@ export {
 
 // Navigation & Layout
 export { AppShell } from "./components/AppShell.jsx";
-export { ModuleSidebar } from "./components/ModuleSidebar.jsx";
+export {
+  ModuleSidebar,
+  FleetVehicleIcon,
+} from "./components/ModuleSidebar.jsx";
 export {
   Tabs,
   TabsList,

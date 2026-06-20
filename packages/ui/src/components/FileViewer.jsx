@@ -7,6 +7,7 @@ import {
   ExternalLink,
   Loader2,
   Minus,
+  Music,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -28,6 +29,14 @@ function isImage(mimeType = "") {
 
 function isPdf(mimeType = "") {
   return String(mimeType) === "application/pdf";
+}
+
+function isVideo(mimeType = "") {
+  return String(mimeType).startsWith("video/");
+}
+
+function isAudio(mimeType = "") {
+  return String(mimeType).startsWith("audio/");
 }
 
 function getFileKey(file) {
@@ -71,6 +80,8 @@ export function FileViewer({
   const mode = useMemo(() => {
     if (isImage(mimeType)) return "image";
     if (isPdf(mimeType)) return "pdf";
+    if (isVideo(mimeType)) return "video";
+    if (isAudio(mimeType)) return "audio";
     return "generic";
   }, [mimeType]);
 
@@ -81,6 +92,13 @@ export function FileViewer({
   const [rotation, setRotation] = useState(0);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
+
+  // Always-current refs so the non-React wheel listener never sees stale values
+  const zoomRef = useRef(zoom);
+  const panRef = useRef(pan);
+  zoomRef.current = zoom;
+  panRef.current = pan;
+  const prevZoomRef = useRef(1);
 
   const imageContainerRef = useRef(null);
   const pointersRef = useRef(new Map());
@@ -101,6 +119,7 @@ export function FileViewer({
     setRotation(0);
     setPan({ x: 0, y: 0 });
     setDragging(false);
+    prevZoomRef.current = 1;
     pointersRef.current.clear();
     gestureRef.current = {
       mode: null,
@@ -111,8 +130,12 @@ export function FileViewer({
     };
   }, [currentFile?.id, currentFile?.associationId, currentFile?.fileAssetId, currentFile?.originalName]);
 
+  // Reset pan only when zoom transitions from >1 back to ≤1, not on every render at zoom=1
   useEffect(() => {
-    if (zoom <= 1) setPan({ x: 0, y: 0 });
+    if (zoom <= 1 && prevZoomRef.current > 1) {
+      setPan({ x: 0, y: 0 });
+    }
+    prevZoomRef.current = zoom;
   }, [zoom]);
 
   useEffect(() => {
@@ -159,31 +182,56 @@ export function FileViewer({
     setZoom((value) => clampZoom(Number((value + direction * ZOOM_STEP).toFixed(2))));
   }, []);
 
+  // Document-level wheel handler: must be on `document` with passive:false so we can
+  // call preventDefault() BEFORE Chromium's compositor acts on the pinch-to-page-zoom.
+  // An element-level listener fires too late — the browser has already processed it.
   useEffect(() => {
-    const el = imageContainerRef.current;
-    if (!el || mode !== "image") return;
+    if (!open || mode !== "image") return;
 
-    function handleImageWheel(event) {
-      event.preventDefault();
-      event.stopPropagation();
+    function handleWheel(event) {
+      const isPinch = event.ctrlKey || event.metaKey;
 
-      const isPinchLike = event.ctrlKey || event.metaKey;
-      if (isPinchLike) {
-        nudgeZoom(event.deltaY > 0 ? -1 : 1);
+      if (isPinch) {
+        // Prevent browser page-zoom for every pinch while the image modal is open
+        event.preventDefault();
+
+        const el = imageContainerRef.current;
+        if (!el) return;
+
+        const factor = Math.pow(0.998, event.deltaY);
+        const rect = el.getBoundingClientRect();
+        const cx = event.clientX - (rect.left + rect.width / 2);
+        const cy = event.clientY - (rect.top + rect.height / 2);
+
+        const prevZoom = zoomRef.current;
+        const prevPan = panRef.current;
+        const newZoom = clampZoom(Number((prevZoom * factor).toFixed(3)));
+        if (newZoom === prevZoom) return;
+
+        const ratio = newZoom / prevZoom;
+        setZoom(newZoom);
+        setPan({
+          x: cx * (1 - ratio) + prevPan.x * ratio,
+          y: cy * (1 - ratio) + prevPan.y * ratio,
+        });
         return;
       }
 
-      if (zoom > 1) {
-        setPan((prev) => ({
-          x: prev.x - event.deltaX,
-          y: prev.y - event.deltaY,
-        }));
-      }
+      // Non-pinch scroll: only pan if the scroll happened inside the image container
+      const el = imageContainerRef.current;
+      if (!el || !el.contains(event.target)) return;
+      if (zoomRef.current <= 1) return;
+
+      event.preventDefault();
+      setPan((prev) => ({
+        x: prev.x - event.deltaX,
+        y: prev.y - event.deltaY,
+      }));
     }
 
-    el.addEventListener("wheel", handleImageWheel, { passive: false });
-    return () => el.removeEventListener("wheel", handleImageWheel);
-  }, [mode, nudgeZoom, zoom]);
+    document.addEventListener("wheel", handleWheel, { passive: false });
+    return () => document.removeEventListener("wheel", handleWheel);
+  }, [open, mode]); // Re-registers when dialog opens/closes or mode changes
 
   const fileUrl = resolvedUrl;
   const showGalleryNav = canNavigate && !usingExternalFile;
@@ -218,6 +266,7 @@ export function FileViewer({
       x: event.clientX,
       y: event.clientY,
     });
+    // Capture so move/up events keep firing on this element even if fingers leave bounds
     event.currentTarget.setPointerCapture(event.pointerId);
 
     const points = [...pointersRef.current.values()];
@@ -226,7 +275,7 @@ export function FileViewer({
         ...gestureRef.current,
         mode: "pinch",
         startDistance: getDistance(points[0], points[1]),
-        startZoom: zoom,
+        startZoom: zoomRef.current,
       };
       setDragging(false);
       return;
@@ -235,7 +284,7 @@ export function FileViewer({
     gestureRef.current = {
       ...gestureRef.current,
       mode: "pan",
-      startPan: pan,
+      startPan: panRef.current,
       startPoint: { x: event.clientX, y: event.clientY },
     };
     setDragging(true);
@@ -259,6 +308,9 @@ export function FileViewer({
     }
 
     if (gestureRef.current.mode !== "pan") return;
+    // At zoom=1 the image already fills the view — panning makes no visual sense
+    if (zoomRef.current <= 1) return;
+
     const dx = event.clientX - gestureRef.current.startPoint.x;
     const dy = event.clientY - gestureRef.current.startPoint.y;
     setPan({
@@ -279,7 +331,7 @@ export function FileViewer({
       gestureRef.current = {
         ...gestureRef.current,
         mode: "pan",
-        startPan: pan,
+        startPan: panRef.current,
         startPoint: { x: point.x, y: point.y },
       };
       return;
@@ -340,6 +392,7 @@ export function FileViewer({
             "duration-200",
           ].join(" ")}
         >
+          {/* Header */}
           <div className="flex items-center gap-2 px-4 h-12 shrink-0 border-b border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60">
             <div className="flex-1 min-w-0">
               <DialogPrimitive.Title className="text-[13px] font-medium text-[hsl(var(--foreground))] truncate">
@@ -409,6 +462,7 @@ export function FileViewer({
             </div>
           </div>
 
+          {/* Content area */}
           <div className="flex-1 min-h-0 overflow-hidden relative">
             {busy && (
               <div className="absolute inset-0 flex items-center justify-center">
@@ -434,7 +488,8 @@ export function FileViewer({
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerEnd}
                 onPointerCancel={handlePointerEnd}
-                onPointerLeave={handlePointerEnd}
+                // onPointerLeave intentionally omitted: setPointerCapture keeps tracking
+                // even when fingers move outside element bounds, so leave events are harmless
               >
                 <div style={panTransformStyle} className="max-h-full max-w-full flex items-center justify-center">
                   <img
@@ -451,6 +506,36 @@ export function FileViewer({
 
             {!busy && fileUrl && mode === "pdf" && (
               <iframe title={fileName} src={fileUrl} className="h-full w-full" style={{ touchAction: "pan-y" }} />
+            )}
+
+            {!busy && fileUrl && mode === "video" && (
+              <div className="h-full w-full flex items-center justify-center bg-black">
+                <video
+                  key={getFileKey(currentFile)}
+                  src={fileUrl}
+                  controls
+                  controlsList="nodownload"
+                  playsInline
+                  className="max-h-full max-w-full outline-none"
+                />
+              </div>
+            )}
+
+            {!busy && fileUrl && mode === "audio" && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 p-6">
+                <div className="h-20 w-20 rounded-3xl bg-[hsl(var(--muted))] border border-[hsl(var(--border))] flex items-center justify-center">
+                  <Music className="h-9 w-9 text-[hsl(var(--muted-foreground))]" />
+                </div>
+                <p className="text-sm font-medium text-[hsl(var(--foreground))] truncate max-w-xs text-center">
+                  {fileName}
+                </p>
+                <audio
+                  key={getFileKey(currentFile)}
+                  src={fileUrl}
+                  controls
+                  className="w-full max-w-sm"
+                />
+              </div>
             )}
 
             {!busy && fileUrl && mode === "generic" && (
@@ -476,6 +561,7 @@ export function FileViewer({
             )}
           </div>
 
+          {/* Image toolbar — only for images */}
           {mode === "image" && !busy && fileUrl && (
             <div className="flex items-center justify-center gap-1.5 px-4 h-12 shrink-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60">
               <button

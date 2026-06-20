@@ -54,13 +54,13 @@ export function createGroupService({ prisma }) {
     try {
       const rows = await prisma.$queryRaw`
         WITH new_group AS (
-          INSERT INTO ledger_group (company_id, name, created_by)
-          VALUES (${companyId}::uuid, ${name}, ${actorId}::uuid)
+          INSERT INTO ledger_group (id, company_id, name, created_by)
+          VALUES (gen_random_uuid(), ${companyId}::uuid, ${name}, ${actorId}::uuid)
           RETURNING *
         ),
         _member AS (
-          INSERT INTO ledger_group_member (group_id, user_id, role, invited_by, status)
-          SELECT id, ${actorId}::uuid, 'admin', ${actorId}::uuid, 'active'
+          INSERT INTO ledger_group_member (id, group_id, user_id, role, invited_by, status)
+          SELECT gen_random_uuid(), id, ${actorId}::uuid, 'admin', ${actorId}::uuid, 'active'
           FROM new_group
         )
         SELECT * FROM new_group
@@ -175,8 +175,8 @@ export function createGroupService({ prisma }) {
 
     try {
       await prisma.$queryRaw`
-        INSERT INTO ledger_group_member (group_id, user_id, role, invited_by, status)
-        VALUES (${groupId}::uuid, ${targetUserId}::uuid, ${role}, ${actorId}::uuid, 'active')
+        INSERT INTO ledger_group_member (id, group_id, user_id, role, invited_by, status)
+        VALUES (gen_random_uuid(), ${groupId}::uuid, ${targetUserId}::uuid, ${role}, ${actorId}::uuid, 'active')
         ON CONFLICT (group_id, user_id) DO UPDATE
           SET role = EXCLUDED.role, status = 'active', invited_by = EXCLUDED.invited_by, invited_at = NOW()
       `

@@ -1077,7 +1077,7 @@ export default function ModuleCatalog() {
         />
 
         {redirectMessage && (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 text-sm px-4 py-3">
+          <div className="rounded-xl border border-amber-400 dark:border-amber-800 bg-amber-100 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 text-sm px-4 py-3">
             {redirectMessage}
           </div>
         )}
@@ -1780,7 +1780,7 @@ export default function ModuleCatalog() {
         }
         loading={lifecycleMutation.isPending}
       >
-        <div className="flex items-start gap-2 rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-3">
+        <div className="flex items-start gap-2 rounded-md border border-red-300 dark:border-red-800 bg-red-100 dark:bg-red-950/30 p-3">
           <Database className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
           <p className="text-xs text-red-700 dark:text-red-300 leading-relaxed">
             Se eliminarán todas las tablas propias del módulo y sus registros

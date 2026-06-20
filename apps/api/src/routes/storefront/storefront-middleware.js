@@ -44,9 +44,11 @@ export function createStorefrontMiddleware({ prisma, supabaseAdmin }) {
         m => m.role != null && m.company.slug === companySlug && allowedRoles.includes(m.role.key)
       )
     } else {
+      // Exact slug match first; fall back to any active membership so ERP admin
+      // users can reach /me even when the company slug differs from the header.
       membership = profile.memberships.find(
         m => m.role != null && m.company.slug === companySlug
-      )
+      ) ?? profile.memberships.find(m => m.role != null)
     }
 
     if (!membership) {

@@ -56,7 +56,7 @@ export function WebsiteSourceSelector({ currentSource, onSelect, isLoading }) {
               isLoading && !selected ? 'opacity-50 cursor-not-allowed' : '',
               selected
                 ? `${opt.accentBorder} bg-[rgba(240,245,255,0.88)] dark:bg-white/5 shadow-[0_4px_24px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.9)] ring-2 ${opt.accentRing}`
-                : 'border-white/65 dark:border-white/10 bg-[rgba(232,242,255,0.72)] dark:bg-white/4 shadow-[0_4px_24px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.92),0_0_0_1px_rgba(0,0,0,0.05)] hover:bg-[rgba(218,234,255,0.82)] dark:hover:bg-white/7 cursor-pointer',
+                : 'border-[hsl(var(--border))] dark:border-white/10 bg-[rgba(232,242,255,0.72)] dark:bg-white/4 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.92),0_0_0_1px_rgba(0,0,0,0.05)] hover:bg-[rgba(218,234,255,0.82)] dark:hover:bg-white/7 cursor-pointer',
             ].join(' ')}
           >
             <div className="flex items-start gap-4">

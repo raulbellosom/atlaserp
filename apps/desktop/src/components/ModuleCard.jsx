@@ -51,8 +51,9 @@ import {
   Receipt,
   CalendarDays,
   TrendingUp,
+  Gauge,
 } from "lucide-react";
-import { cn } from "@atlas/ui";
+import { cn, FleetVehicleIcon } from "@atlas/ui";
 
 // ---- Constants ----
 const DEFAULT_MODULE_COLOR = "#6366f1";
@@ -110,6 +111,8 @@ export const MODULE_ICON_REGISTRY = {
   Receipt,
   CalendarDays,
   TrendingUp,
+  Gauge,
+  FleetVehicle: FleetVehicleIcon,
 };
 
 // ---- Helpers ----
