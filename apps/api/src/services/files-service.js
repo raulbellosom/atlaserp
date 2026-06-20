@@ -632,6 +632,71 @@ export function createFilesService({ prisma, supabaseAdmin }) {
 
       return { ok: true };
     },
+
+    async enrichFileAssets(fileAssets) {
+      if (!Array.isArray(fileAssets) || fileAssets.length === 0) return fileAssets;
+      const previewable = fileAssets.filter(
+        (fa) =>
+          String(fa.mimeType ?? "").startsWith("image/") ||
+          fa.mimeType === "application/pdf",
+      );
+      if (previewable.length === 0) return fileAssets;
+
+      const byBucket = new Map();
+      for (const fa of previewable) {
+        const bucket = fa.bucket ?? STORAGE_BUCKET_NAME;
+        if (!byBucket.has(bucket)) byBucket.set(bucket, []);
+        byBucket.get(bucket).push(fa);
+      }
+
+      const urlMap = new Map();
+      await Promise.all(
+        [...byBucket.entries()].map(async ([bucket, assets]) => {
+          if (bucket === WEBSITE_BUCKET_NAME) {
+            for (const fa of assets) {
+              const { data } = supabaseAdmin.storage.from(bucket).getPublicUrl(fa.objectKey);
+              urlMap.set(fa.id, { signedUrl: data?.publicUrl ?? null, expiresAt: null });
+            }
+            return;
+          }
+          const paths = assets.map((fa) => fa.objectKey);
+          const { data: signedList } = await supabaseAdmin.storage
+            .from(bucket)
+            .createSignedUrls(paths, SIGNED_URL_SECONDS);
+          if (Array.isArray(signedList)) {
+            const expiresAt = new Date(Date.now() + SIGNED_URL_SECONDS * 1000).toISOString();
+            for (let i = 0; i < assets.length; i++) {
+              const url = signedList[i]?.signedUrl ?? null;
+              urlMap.set(assets[i].id, { signedUrl: url, expiresAt: url ? expiresAt : null });
+            }
+          }
+        }),
+      );
+
+      return fileAssets.map((fa) => {
+        const entry = urlMap.get(fa.id);
+        return entry
+          ? { ...fa, signedUrl: entry.signedUrl, signedUrlExpiresAt: entry.expiresAt }
+          : fa;
+      });
+    },
+
+    async enrichFilesWithSignedUrls(associations) {
+      if (!Array.isArray(associations) || associations.length === 0) return associations;
+      const fileAssets = associations
+        .map((a) => a.file_asset)
+        .filter((fa) => fa?.id);
+      if (fileAssets.length === 0) return associations;
+
+      const enrichedAssets = await this.enrichFileAssets(fileAssets);
+      const enrichedMap = new Map(enrichedAssets.map((fa) => [fa.id, fa]));
+      return associations.map((assoc) => ({
+        ...assoc,
+        file_asset: assoc.file_asset
+          ? (enrichedMap.get(assoc.file_asset.id) ?? assoc.file_asset)
+          : null,
+      }));
+    },
   };
 }
 
