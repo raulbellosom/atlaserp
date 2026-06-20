@@ -507,8 +507,13 @@ export function useAttachmentsController({
       const success = [];
       const failed = [];
 
-      for (const pending of candidates) {
-        const result = await uploadAndAssociateOne(pending, effectiveRecordId);
+      const uploadResults = await Promise.all(
+        candidates.map(async (pending) => ({
+          pending,
+          result: await uploadAndAssociateOne(pending, effectiveRecordId),
+        })),
+      );
+      for (const { pending, result } of uploadResults) {
         if (result.ok) success.push(pending.id);
         else failed.push({ id: pending.id, message: result.error ?? "Error" });
       }
@@ -573,9 +578,9 @@ export function useAttachmentsController({
         (context === "detail" || editMode === "upload-immediately" || createMode === "upload-immediately-if-possible");
 
       if (shouldImmediateUpload) {
-        for (const item of newPending) {
-          await uploadAndAssociateOne(item, effectiveRecordId);
-        }
+        await Promise.all(
+          newPending.map((item) => uploadAndAssociateOne(item, effectiveRecordId)),
+        );
         setPendingItems((prev) => {
           const completed = prev.filter((item) => item.status === "success").map((item) => item.id);
           if (completed.length === 0) return prev;
