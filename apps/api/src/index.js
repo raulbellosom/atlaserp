@@ -4475,7 +4475,7 @@ mountWithAuth(app, createSettingsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createLedgerRouter({ prisma, requirePermission }));
 mountWithAuth(app, createUsersRouter({ prisma, requirePermission }));
-mountWithAuth(app, createFleetRouter({ prisma, requirePermission }));
+mountWithAuth(app, createFleetRouter({ prisma, requirePermission, enrichFilesWithSignedUrls: filesService.enrichFilesWithSignedUrls.bind(filesService) }));
 mountWithAuth(app, createCatalogRouter({ prisma, requirePermission }));
 mountWithAuth(app, createCalendarRouter({ prisma, requirePermission }));
 mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService }));

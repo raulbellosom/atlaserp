@@ -64,6 +64,7 @@ export function createDriversRouter({
   prisma,
   requirePermission,
   moduleContext,
+  enrichFilesWithSignedUrls = null,
 }) {
   const app = new Hono();
   const service = createDriverService({ prisma });
@@ -320,6 +321,9 @@ export function createDriversRouter({
           companyId,
           driverId: c.req.param("id"),
         });
+        if (enrichFilesWithSignedUrls && Array.isArray(result?.data)) {
+          result.data = await enrichFilesWithSignedUrls(result.data);
+        }
         return c.json(result);
       } catch (err) {
         return handleRouteError(c, err, {

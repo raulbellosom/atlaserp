@@ -58,6 +58,7 @@ export function createReportsRouter({
   prisma,
   requirePermission,
   moduleContext,
+  enrichFilesWithSignedUrls = null,
 }) {
   const app = new Hono();
   const service = createReportsService({ prisma });
@@ -474,6 +475,9 @@ export function createReportsRouter({
           companyId,
           reportId: c.req.param("id"),
         });
+        if (enrichFilesWithSignedUrls && Array.isArray(result?.data)) {
+          result.data = await enrichFilesWithSignedUrls(result.data);
+        }
         return c.json(result);
       } catch (err) {
         return handleRouteError(c, err, {

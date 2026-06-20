@@ -75,6 +75,7 @@ export default function createFleetRouter({
   requirePermission,
   moduleContext,
   cache = null,
+  enrichFilesWithSignedUrls = null,
 }) {
   const app = new Hono();
   const service = createFleetService({ prisma });
@@ -303,6 +304,9 @@ export default function createFleetRouter({
           companyId,
           vehicleId: c.req.param("id"),
         });
+        if (enrichFilesWithSignedUrls && Array.isArray(result?.data)) {
+          result.data = await enrichFilesWithSignedUrls(result.data);
+        }
         return c.json(result);
       } catch (err) {
         return handleRouteError(c, err, {
@@ -374,7 +378,7 @@ export default function createFleetRouter({
 
   app.route(
     "",
-    createDriversRouter({ prisma, requirePermission, moduleContext }),
+    createDriversRouter({ prisma, requirePermission, moduleContext, enrichFilesWithSignedUrls }),
   );
   app.route(
     "",
@@ -382,7 +386,7 @@ export default function createFleetRouter({
   );
   app.route(
     "",
-    createReportsRouter({ prisma, requirePermission, moduleContext }),
+    createReportsRouter({ prisma, requirePermission, moduleContext, enrichFilesWithSignedUrls }),
   );
   app.route(
     "",
