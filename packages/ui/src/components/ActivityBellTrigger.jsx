@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityDrawer } from "./ActivityDrawer.jsx";
 
 const LAST_SEEN_KEY = "atlas.activity.lastSeenAt";
-const POLL_INTERVAL_MS = 15000;
+const POLL_INTERVAL_MS = 60000;
 
 function readLastSeen() {
   try {

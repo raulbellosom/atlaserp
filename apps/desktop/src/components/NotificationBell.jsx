@@ -50,7 +50,7 @@ export function NotificationBell({
     queryKey: ["notifications", token],
     queryFn: () => atlas.notifications.list(token, { unreadOnly: false, limit: 20 }),
     enabled: Boolean(token),
-    refetchInterval: 15000,
+    refetchInterval: 60000,
     staleTime: 10000,
     refetchOnWindowFocus: true,
   });
