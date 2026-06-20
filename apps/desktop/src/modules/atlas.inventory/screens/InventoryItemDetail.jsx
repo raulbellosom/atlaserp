@@ -80,13 +80,17 @@ export default function InventoryItemDetail() {
 
   // Parallel files query — starts at the same time as the entity query so
   // AttachmentsPanel receives prefetched data without an extra round-trip.
+  // useToken() exists in useInventoryItems.js but is not exported; keep inline pattern here.
   const { data: filesData } = useQuery({
-    queryKey: ['inventory-item-files', id],
+    queryKey: ['inventory', 'items', id, 'files'],
     queryFn: async () => {
       const res = await fetch(`${getApiUrl()}/inventory/items/${id}/files`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      if (!res.ok) throw new Error('Failed to fetch files')
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.message ?? `Files fetch failed (${res.status})`)
+      }
       return res.json()
     },
     enabled: Boolean(id && token),
