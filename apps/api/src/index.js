@@ -4650,7 +4650,8 @@ app.get('/inventory/items/:id/files', authMiddleware, requirePermission('invento
     const companyId = c.get('companyId');
     const { id } = c.req.param();
     const files = await inventoryService.listItemFiles(id, companyId);
-    return c.json({ data: files });
+    const enriched = await filesService.enrichFilesWithSignedUrls(files);
+    return c.json({ data: enriched });
   } catch (err) {
     if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
     return c.json({ error: 'No se pudieron cargar los archivos.' }, 500);
