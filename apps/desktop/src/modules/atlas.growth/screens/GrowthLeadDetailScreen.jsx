@@ -189,6 +189,22 @@ export default function GrowthLeadDetailScreen() {
   const deleteComment     = useDeleteGrowthLeadComment(leadId);
   const toggleReaction    = useToggleGrowthLeadCommentReaction(leadId);
 
+  const { data: filesData } = useQuery({
+    queryKey: ["growth", "leads", leadId, "files"],
+    queryFn: async () => {
+      const res = await fetch(`${getApiUrl()}/growth/leads/${leadId}/files`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.message ?? `Files fetch failed (${res.status})`);
+      }
+      return res.json();
+    },
+    enabled: Boolean(leadId && token && canReadFiles),
+    staleTime: 30_000,
+  });
+
   const membersQuery = useQuery({
     queryKey: ['identity', 'users'],
     queryFn: () => atlas.identity.listUsers(token),
@@ -417,6 +433,7 @@ export default function GrowthLeadDetailScreen() {
                   item.raw?.moduleKey === "atlas.growth"
                 }
                 onError={handleAttachmentsError}
+                prefetchedData={Array.isArray(filesData) ? filesData : filesData?.data}
               />
             </Card>
           ) : null}
