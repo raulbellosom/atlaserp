@@ -212,6 +212,8 @@ function normalizeAssociatedItem(rawItem, fields) {
     label: getByPath(rawItem, fields.label) ?? rawItem?.label ?? null,
     createdAt: getByPath(rawItem, fields.createdAt) ?? rawItem?.created_at ?? null,
     enabled: getByPath(rawItem, fields.enabled) ?? rawItem?.enabled ?? true,
+    signedUrl: fileAsset?.signedUrl ?? rawItem?.signedUrl ?? null,
+    signedUrlExpiresAt: fileAsset?.signedUrlExpiresAt ?? rawItem?.signedUrlExpiresAt ?? null,
     raw: rawItem,
   };
 }
