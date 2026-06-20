@@ -407,8 +407,9 @@ export function createFilesService({ prisma, supabaseAdmin }) {
         }),
       ]);
 
+      const enrichedRows = await batchEnrichFileAssets(rows, supabaseAdmin.storage);
       return {
-        data: rows,
+        data: enrichedRows,
         pagination: {
           page,
           pageSize,
