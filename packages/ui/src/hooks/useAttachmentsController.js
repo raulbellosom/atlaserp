@@ -637,8 +637,14 @@ export function useAttachmentsController({
   );
 
   const resolveSignedUrl = useCallback(
-    async (fileAssetId) => {
+    async (fileAssetId, { inlineSignedUrl, inlineSignedUrlExpiresAt } = {}) => {
       if (!fileAssetId) throw new Error("Archivo no disponible");
+
+      if (inlineSignedUrl && inlineSignedUrlExpiresAt) {
+        const expiresAt = new Date(inlineSignedUrlExpiresAt).getTime();
+        if (expiresAt - Date.now() > 60_000) return inlineSignedUrl;
+      }
+
       const endpointTemplate =
         config?.signedUrl?.endpointTemplate ?? "/files/:fileId/signed-url";
       const endpointPath = replacePathTokens(endpointTemplate, { fileId: fileAssetId });
@@ -661,7 +667,10 @@ export function useAttachmentsController({
   const openAssociated = useCallback(
     async (item) => {
       try {
-        const signedUrl = await resolveSignedUrl(item.fileAssetId);
+        const signedUrl = await resolveSignedUrl(item.fileAssetId, {
+          inlineSignedUrl: item.signedUrl,
+          inlineSignedUrlExpiresAt: item.signedUrlExpiresAt,
+        });
         setViewerItem({
           ...item,
           originalName: item.fileName,
