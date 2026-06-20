@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Sheet,
   SheetContent,
@@ -231,6 +232,24 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
   const removeDependency = useRemoveDependency(projectId, taskId);
   const upsertFieldValues = useUpsertFieldValues(projectId, taskId);
   const { data: taskComments = [] } = useTaskComments(projectId, taskId);
+
+  const { data: taskFilesData } = useQuery({
+    queryKey: ['projects', projectId, 'tasks', taskId, 'attachments'],
+    queryFn: async () => {
+      const res = await fetch(
+        `${API_BASE_URL}/projects/${projectId}/tasks/${taskId}/attachments`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.message ?? `Attachments fetch failed (${res.status})`);
+      }
+      return res.json();
+    },
+    enabled: Boolean(projectId && taskId && token),
+    staleTime: 30_000,
+  });
+
   const createComment = useCreateComment(projectId, taskId);
   const updateComment = useUpdateComment(projectId, taskId);
   const deleteComment = useDeleteComment(projectId, taskId);
@@ -814,6 +833,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
                     config={attachmentsConfig}
                     context="detail"
                     showHeading={false}
+                    prefetchedData={Array.isArray(taskFilesData) ? taskFilesData : taskFilesData?.data}
                   />
                 </div>
 
