@@ -1,5 +1,7 @@
 // inventory-service.js — business logic layer for atlas.inventory module
 import { parseMentionIds } from '../lib/mention-utils.js'
+import { createActivityService } from './activity-service.js';
+import { createActivityBridge } from './activity-bridge.js';
 
 export class InventoryServiceError extends Error {
   constructor(message, status = 500) {
@@ -22,7 +24,14 @@ function normalizePage(page) {
   return parsed;
 }
 
-export function createInventoryService({ prisma }) {
+export function createInventoryService({ prisma, activityBridge }) {
+  const bridge =
+    activityBridge ??
+    createActivityBridge({
+      prisma,
+      activityService: createActivityService({ prisma }),
+    });
+
   // ── Resolve Supabase auth UUID → UserProfile.id ───────────────────────────
   async function resolveProfileId(authUserId) {
     if (!authUserId) return null;
@@ -211,6 +220,18 @@ export function createInventoryService({ prisma }) {
           }
         }
       }
+      await bridge.logAndPublish({
+        auditEntry: {
+          actorId: creatorProfileId ?? 'system',
+          moduleKey: 'atlas.inventory',
+          entityType: 'InvItem',
+          entityId: created.id,
+          action: 'inventory.item.created',
+          after: { name: created.name, assetTag: created.assetTag },
+        },
+        hint: { verb: 'created', label: created.name },
+        companyId,
+      }).catch(() => {});
       return created;
     }
 
@@ -237,6 +258,18 @@ export function createInventoryService({ prisma }) {
         }
       }
     }
+    await bridge.logAndPublish({
+      auditEntry: {
+        actorId: creatorProfileId ?? 'system',
+        moduleKey: 'atlas.inventory',
+        entityType: 'InvItem',
+        entityId: created.id,
+        action: 'inventory.item.created',
+        after: { name: created.name, assetTag: created.assetTag },
+      },
+      hint: { verb: 'created', label: created.name },
+      companyId,
+    }).catch(() => {});
     return created;
   }
 
@@ -293,7 +326,7 @@ export function createInventoryService({ prisma }) {
     if (notes !== undefined) updateData.notes = notes;
 
     if (customValues && Array.isArray(customValues) && customValues.length > 0) {
-      return prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx) => {
         await tx.invItem.update({ where: { id }, data: updateData });
         for (const cv of customValues) {
           await tx.invCustomFieldValue.upsert({
@@ -312,9 +345,22 @@ export function createInventoryService({ prisma }) {
           },
         });
       });
+      await bridge.logAndPublish({
+        auditEntry: {
+          actorId: 'system',
+          moduleKey: 'atlas.inventory',
+          entityType: 'InvItem',
+          entityId: id,
+          action: 'inventory.item.updated',
+          after: { fields: Object.keys(updateData) },
+        },
+        hint: { verb: 'updated', label: result?.name ?? id },
+        companyId,
+      }).catch(() => {});
+      return result;
     }
 
-    return prisma.invItem.update({
+    const updated = await prisma.invItem.update({
       where: { id },
       data: updateData,
       include: {
@@ -323,6 +369,19 @@ export function createInventoryService({ prisma }) {
         location: { select: { id: true, name: true } },
       },
     });
+    await bridge.logAndPublish({
+      auditEntry: {
+        actorId: 'system',
+        moduleKey: 'atlas.inventory',
+        entityType: 'InvItem',
+        entityId: id,
+        action: 'inventory.item.updated',
+        after: { fields: Object.keys(updateData) },
+      },
+      hint: { verb: 'updated', label: updated.name ?? id },
+      companyId,
+    }).catch(() => {});
+    return updated;
   }
 
   async function deleteItem(id, companyId) {
@@ -340,7 +399,7 @@ export function createInventoryService({ prisma }) {
     if (!item) throw new InventoryServiceError('Item not found', 404);
     if (item.assignedToId || item.status === 'assigned') throw new InventoryServiceError('Item is already assigned', 409);
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const assignment = await tx.invAssignment.create({
         data: { itemId, employeeId, assignedById: actorProfileId, notes: notes ?? null },
       });
@@ -356,6 +415,19 @@ export function createInventoryService({ prisma }) {
       });
       return { item: updatedItem, assignment };
     });
+    await bridge.logAndPublish({
+      auditEntry: {
+        actorId: actorProfileId ?? 'system',
+        moduleKey: 'atlas.inventory',
+        entityType: 'InvItem',
+        entityId: itemId,
+        action: 'inventory.item.assigned',
+        after: { employeeId },
+      },
+      hint: { verb: 'assigned', label: item.name ?? itemId },
+      companyId,
+    }).catch(() => {});
+    return result;
   }
 
   async function returnItem(itemId, assignedById, notes, companyId) {
@@ -363,7 +435,7 @@ export function createInventoryService({ prisma }) {
     if (!item) throw new InventoryServiceError('Item not found', 404);
     if (!item.assignedToId && item.status !== 'assigned') throw new InventoryServiceError('Item is not currently assigned', 409);
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const activeAssignment = await tx.invAssignment.findFirst({
         where: { itemId, returnedAt: null },
         orderBy: { assignedAt: 'desc' },
@@ -386,6 +458,19 @@ export function createInventoryService({ prisma }) {
         },
       });
     });
+    await bridge.logAndPublish({
+      auditEntry: {
+        actorId: 'system',
+        moduleKey: 'atlas.inventory',
+        entityType: 'InvItem',
+        entityId: itemId,
+        action: 'inventory.item.returned',
+        after: { status: 'available' },
+      },
+      hint: { verb: 'returned', label: item.name ?? itemId },
+      companyId,
+    }).catch(() => {});
+    return result;
   }
 
   async function getAssignmentHistory(itemId, companyId) {
