@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Button,
@@ -76,6 +77,21 @@ export default function InventoryItemDetail() {
 
   const { data, isLoading } = useInventoryItem(id)
   const deleteItem = useDeleteInventoryItem()
+
+  // Parallel files query — starts at the same time as the entity query so
+  // AttachmentsPanel receives prefetched data without an extra round-trip.
+  const { data: filesData } = useQuery({
+    queryKey: ['inventory-item-files', id],
+    queryFn: async () => {
+      const res = await fetch(`${getApiUrl()}/inventory/items/${id}/files`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('Failed to fetch files')
+      return res.json()
+    },
+    enabled: Boolean(id && token),
+    staleTime: 30_000,
+  })
 
   const attachmentsConfig = useMemo(() => ({
     label: 'Archivos',
@@ -256,6 +272,7 @@ export default function InventoryItemDetail() {
               showHeading
               showViewToggle
               defaultViewMode="grid"
+              prefetchedData={filesData?.data}
             />
           </Card>
         </div>
