@@ -229,6 +229,30 @@ const SCREEN_MAP = {
     () =>
       import("../modules/atlas.catalog/screens/CatalogProductDetailScreen.jsx"),
   ),
+  "atlas.pos:/": lazy(
+    () => import("../modules/atlas.pos/screens/PosTerminalScreen.jsx"),
+  ),
+  "atlas.pos:/pos/terminal": lazy(
+    () => import("../modules/atlas.pos/screens/PosTerminalScreen.jsx"),
+  ),
+  "atlas.pos:/pos/tables": lazy(
+    () => import("../modules/atlas.pos/screens/PosTablesScreen.jsx"),
+  ),
+  "atlas.pos:/pos/floor-planner": lazy(
+    () => import("../modules/atlas.pos/screens/PosFloorPlannerScreen.jsx"),
+  ),
+  "atlas.pos:/pos/stations": lazy(
+    () => import("../modules/atlas.pos/screens/PosStationsScreen.jsx"),
+  ),
+  "atlas.pos:/pos/orders": lazy(
+    () => import("../modules/atlas.pos/screens/PosOrdersScreen.jsx"),
+  ),
+  "atlas.pos:/pos/sessions": lazy(
+    () => import("../modules/atlas.pos/screens/PosSessionsScreen.jsx"),
+  ),
+  "atlas.pos:/pos/settings": lazy(
+    () => import("../modules/atlas.pos/screens/PosSettingsScreen.jsx"),
+  ),
   "atlas.activity:/": lazy(
     () => import("../modules/atlas.activity/ActivityFeedScreen.jsx"),
   ),
@@ -458,6 +482,16 @@ function resolveScreen(moduleKey, subPath) {
     // Any remaining subpath like /:id is the product detail screen
     return SCREEN_MAP["atlas.catalog:/:id"] ?? null;
   }
+  if (moduleKey === "atlas.pos") {
+    if (subPath === "/" || subPath === "/pos/terminal") return SCREEN_MAP["atlas.pos:/pos/terminal"] ?? null;
+    if (subPath === "/pos/tables") return SCREEN_MAP["atlas.pos:/pos/tables"] ?? null;
+    if (subPath === "/pos/floor-planner") return SCREEN_MAP["atlas.pos:/pos/floor-planner"] ?? null;
+    if (subPath === "/pos/stations") return SCREEN_MAP["atlas.pos:/pos/stations"] ?? null;
+    if (subPath === "/pos/orders") return SCREEN_MAP["atlas.pos:/pos/orders"] ?? null;
+    if (subPath === "/pos/sessions") return SCREEN_MAP["atlas.pos:/pos/sessions"] ?? null;
+    if (subPath === "/pos/settings") return SCREEN_MAP["atlas.pos:/pos/settings"] ?? null;
+    return null;
+  }
   if (moduleKey === "atlas.inventory") {
     if (subPath === "/" || subPath === "/inventory") return SCREEN_MAP["atlas.inventory:/inventory"] ?? null;
     if (subPath === "/inventory/new") return SCREEN_MAP["atlas.inventory:/inventory/new"] ?? null;
@@ -524,7 +558,10 @@ export function ModuleOutlet() {
     const fallbackPath = navigation[0]?.path;
     if (!fallbackPath || fallbackPath === "/") return;
 
-    navigate(`/app/m/${module.key}${fallbackPath}`, { replace: true });
+    const targetPath = fallbackPath.startsWith("/app/m/")
+      ? fallbackPath
+      : `/app/m/${module.key}${fallbackPath}`;
+    navigate(targetPath, { replace: true });
   }, [isLoading, module, subPath, navigate]);
 
   if (isLoading || isPending) return <LoadingFallback />;
