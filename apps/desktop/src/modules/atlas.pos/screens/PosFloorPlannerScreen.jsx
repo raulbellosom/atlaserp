@@ -212,7 +212,7 @@ export default function PosFloorPlannerScreen() {
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Header bar */}
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-card shrink-0 flex-wrap">
-        <PageHeader title="Disenador de plano" className="mr-2" />
+        <PageHeader title="Diseñador de planos" className="mr-2" />
         <div className="flex items-center gap-2 flex-wrap">
           <SelectField
             value={outletId}
