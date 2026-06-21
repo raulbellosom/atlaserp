@@ -1,0 +1,187 @@
+import { z } from "zod";
+
+const moneySchema = z.coerce.number().finite();
+const optionalNullableText = (max) => z.string().max(max).nullable().optional();
+
+export const uuidSchema = z.string().uuid();
+
+export const posModeSchema = z.enum(["RESTAURANT", "RETAIL", "HYBRID"]);
+export const orderStatusSchema = z.enum([
+  "DRAFT",
+  "OPEN",
+  "SENT",
+  "PARTIALLY_SERVED",
+  "SERVED",
+  "PAID",
+  "CANCELLED",
+  "REFUNDED",
+]);
+export const fulfillmentTypeSchema = z.enum(["DINE_IN", "TAKEAWAY", "DELIVERY", "PICKUP"]);
+export const salesChannelSchema = z.enum([
+  "IN_STORE",
+  "PHONE",
+  "WEBSITE",
+  "UBER_EATS",
+  "RAPPI",
+  "DIDI_FOOD",
+  "OTHER",
+]);
+export const tableStatusSchema = z.enum([
+  "AVAILABLE",
+  "OCCUPIED",
+  "BILL_REQUESTED",
+  "DIRTY",
+  "RESERVED",
+  "DISABLED",
+]);
+export const kitchenStatusSchema = z.enum([
+  "PENDING",
+  "IN_PREPARATION",
+  "READY",
+  "DELIVERED",
+  "CANCELLED",
+]);
+
+export const updateSettingsSchema = z.object({
+  mode: posModeSchema.optional(),
+  currency: z.string().min(3).max(3).optional(),
+  defaultTaxRate: moneySchema.min(0).max(100).optional(),
+  pricesIncludeTax: z.boolean().optional(),
+  tipsEnabled: z.boolean().optional(),
+  serviceChargeRate: moneySchema.min(0).max(100).optional(),
+  receiptFooter: optionalNullableText(1000),
+});
+
+export const createOutletSchema = z.object({
+  name: z.string().min(1).max(160),
+  code: optionalNullableText(40),
+  address: optionalNullableText(500),
+  mode: posModeSchema.optional(),
+});
+
+export const updateOutletSchema = createOutletSchema.partial().extend({
+  enabled: z.boolean().optional(),
+});
+
+export const createTerminalSchema = z.object({
+  outletId: uuidSchema,
+  name: z.string().min(1).max(160),
+  code: optionalNullableText(40),
+});
+
+export const updateTerminalSchema = createTerminalSchema.omit({ outletId: true }).partial().extend({
+  outletId: uuidSchema.optional(),
+  enabled: z.boolean().optional(),
+});
+
+export const openSessionSchema = z.object({
+  outletId: uuidSchema,
+  terminalId: uuidSchema,
+  openingCashAmount: moneySchema.min(0).default(0),
+  notes: optionalNullableText(1000),
+});
+
+export const closeSessionSchema = z.object({
+  countedCashAmount: moneySchema.min(0),
+  notes: optionalNullableText(1000),
+});
+
+export const cashMovementSchema = z.object({
+  kind: z.enum(["IN", "OUT"]),
+  amount: moneySchema.positive(),
+  reason: z.string().min(1).max(300),
+});
+
+export const createOrderSchema = z.object({
+  outletId: uuidSchema,
+  sessionId: uuidSchema.nullable().optional(),
+  tableId: uuidSchema.nullable().optional(),
+  fulfillmentType: fulfillmentTypeSchema.default("DINE_IN"),
+  salesChannel: salesChannelSchema.default("IN_STORE"),
+  customerName: optionalNullableText(160),
+  customerPhone: optionalNullableText(80),
+  guestCount: z.coerce.number().int().min(1).max(99).default(1),
+  notes: optionalNullableText(1000),
+});
+
+export const updateOrderSchema = z.object({
+  tableId: uuidSchema.nullable().optional(),
+  fulfillmentType: fulfillmentTypeSchema.optional(),
+  customerName: optionalNullableText(160),
+  customerPhone: optionalNullableText(80),
+  guestCount: z.coerce.number().int().min(1).max(99).optional(),
+  notes: optionalNullableText(1000),
+});
+
+export const addOrderLineSchema = z.object({
+  guestSeatId: uuidSchema.nullable().optional(),
+  productId: uuidSchema.optional(),
+  variantId: uuidSchema.nullable().optional(),
+  quantity: z.coerce.number().positive(),
+  unitPrice: moneySchema.min(0).optional(),
+  note: optionalNullableText(500),
+});
+
+export const updateOrderLineSchema = z.object({
+  guestSeatId: uuidSchema.nullable().optional(),
+  quantity: z.coerce.number().positive().optional(),
+  unitPrice: moneySchema.min(0).optional(),
+  note: optionalNullableText(500),
+});
+
+export const createGuestSchema = z.object({
+  label: z.string().min(1).max(80),
+});
+
+export const createPaymentSchema = z.object({
+  paymentMethodId: uuidSchema,
+  amount: moneySchema.positive(),
+  reference: optionalNullableText(120),
+});
+
+export const cancelOrderSchema = z.object({
+  reason: optionalNullableText(500),
+});
+
+export const createFloorSchema = z.object({
+  outletId: uuidSchema,
+  name: z.string().min(1).max(160),
+  canvasWidth: z.coerce.number().int().min(320).max(10000).default(1200),
+  canvasHeight: z.coerce.number().int().min(320).max(10000).default(800),
+});
+
+export const updateFloorSchema = createFloorSchema.omit({ outletId: true }).partial().extend({
+  isActive: z.boolean().optional(),
+});
+
+export const createTableSchema = z.object({
+  floorId: uuidSchema,
+  zoneId: uuidSchema.nullable().optional(),
+  name: z.string().min(1).max(80),
+  capacity: z.coerce.number().int().min(1).max(99).default(2),
+});
+
+export const updateTableSchema = createTableSchema.omit({ floorId: true }).partial().extend({
+  floorId: uuidSchema.optional(),
+  enabled: z.boolean().optional(),
+});
+
+export const tableStatusUpdateSchema = z.object({
+  status: tableStatusSchema,
+});
+
+export const createStationSchema = z.object({
+  outletId: uuidSchema,
+  name: z.string().min(1).max(160),
+  code: z.string().min(1).max(60),
+  color: optionalNullableText(32),
+});
+
+export const updateStationSchema = createStationSchema.omit({ outletId: true }).partial().extend({
+  outletId: uuidSchema.optional(),
+  enabled: z.boolean().optional(),
+});
+
+export const kitchenStatusUpdateSchema = z.object({
+  status: kitchenStatusSchema,
+});
