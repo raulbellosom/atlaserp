@@ -99,25 +99,35 @@ export function createPosFloorService({ prisma }) {
           y,
           width,
           height,
-          rotation: 0,
+          rotation: elem.rotation ?? 0,
           label: label ?? null,
           style: style ?? null,
         }
 
         if (elemId) {
-          await tx.posFloorElement.update({ where: { id: elemId }, data: posData })
+          await tx.posFloorElement.updateMany({
+            where: { id: elemId, floorId: id },
+            data: posData,
+          })
         } else {
           let tableId = null
           if (kind.startsWith('TABLE_')) {
-            const table = await tx.posTable.create({
-              data: {
-                companyId: scopedCompanyId,
-                floorId: id,
-                name: (tableName ?? 'Mesa').trim(),
-                capacity: capacity ?? 2,
-              },
-            })
-            tableId = table.id
+            try {
+              const table = await tx.posTable.create({
+                data: {
+                  companyId: scopedCompanyId,
+                  floorId: id,
+                  name: (tableName ?? 'Mesa').trim(),
+                  capacity: capacity ?? 2,
+                },
+              })
+              tableId = table.id
+            } catch (err) {
+              if (err?.code === 'P2002') {
+                throw new PosServiceError(`Ya existe una mesa con el nombre "${(tableName ?? 'Mesa').trim()}" en este plano.`, 409)
+              }
+              throw err
+            }
           }
           await tx.posFloorElement.create({
             data: { floorId: id, tableId, kind, ...posData },

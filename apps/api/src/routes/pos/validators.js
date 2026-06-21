@@ -173,15 +173,16 @@ export const floorElementSchema = z.object({
   y: z.coerce.number().min(0),
   width: z.coerce.number().min(20),
   height: z.coerce.number().min(20),
+  rotation: z.coerce.number().min(-360).max(360).default(0).optional(),
   label: z.string().max(80).nullable().optional(),
   tableName: z.string().min(1).max(80).optional(),
   capacity: z.coerce.number().int().min(1).max(99).optional(),
   style: z.record(z.unknown()).nullable().optional(),
-})
+});
 
 export const saveLayoutSchema = z.object({
-  elements: z.array(floorElementSchema).max(500),
-})
+  elements: z.array(floorElementSchema).min(1).max(500),
+});
 
 export const tableStatusUpdateSchema = z.object({
   status: tableStatusSchema,
