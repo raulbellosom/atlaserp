@@ -101,7 +101,11 @@ export default function PosSessionsScreen() {
         )}
       </div>
 
-      <SessionOpenDialog open={openDialog} onOpenChange={setOpenDialog} />
+      <SessionOpenDialog
+        open={openDialog}
+        onOpenChange={setOpenDialog}
+        onSuccess={() => setOpenDialog(false)}
+      />
       {closeTarget && (
         <SessionCloseDialog
           open={Boolean(closeTarget)}
