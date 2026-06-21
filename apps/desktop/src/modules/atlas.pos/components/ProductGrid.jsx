@@ -49,8 +49,8 @@ export default function ProductGrid({ onSelect }) {
                 {p.image_url ? (
                   <img src={p.image_url} alt={p.name} className="h-16 w-16 rounded-lg object-cover" />
                 ) : (
-                  <div className="h-16 w-16 rounded-lg bg-muted flex items-center justify-center text-2xl text-muted-foreground">
-                    ?
+                  <div className="h-16 w-16 rounded-lg bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground text-center leading-tight">
+                    Sin img
                   </div>
                 )}
                 <span className="text-sm font-medium leading-tight line-clamp-2">{p.name}</span>
