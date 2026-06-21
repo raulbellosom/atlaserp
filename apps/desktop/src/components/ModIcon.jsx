@@ -437,7 +437,6 @@ import {
   UtensilsCrossed,
   Utensils,
   CookingPot,
-  FloorPlan,
   LayoutPanelLeft,
   ImageOff,
 } from "lucide-react";
@@ -882,7 +881,6 @@ export const ICON_MAP = {
   UtensilsCrossed,
   Utensils,
   CookingPot,
-  FloorPlan,
   LayoutPanelLeft,
   ImageOff,
 };
