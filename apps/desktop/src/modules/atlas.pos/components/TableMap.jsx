@@ -15,8 +15,6 @@ const STATUS_LABELS = {
 }
 
 export default function TableMap({ tables = [], onTableClick }) {
-  const updateStatus = useUpdateTableStatus()
-
   if (tables.length === 0) {
     return (
       <EmptyState

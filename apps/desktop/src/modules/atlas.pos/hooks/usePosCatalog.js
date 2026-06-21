@@ -12,6 +12,7 @@ export function usePosCatalogCategories() {
   return useQuery({
     queryKey: ['pos', 'catalog', 'categories'],
     queryFn: () => atlas.catalog.listCategories(token),
+    select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
@@ -23,6 +24,7 @@ export function usePosCatalogProducts(params = {}) {
   return useQuery({
     queryKey: ['pos', 'catalog', 'products', params],
     queryFn: () => atlas.catalog.listProducts(token, params),
+    select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
