@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  PageHeader, Card, CardContent, Badge, Button, Input, EmptyState, ErrorState,
+  PageHeader, Card, CardContent, Badge, Button, Input, EmptyState, ErrorState, SelectField,
 } from '@atlas/ui'
 import { usePosOrders, useReprintPosReceipt } from '../hooks/usePosOrder'
 
@@ -51,16 +51,14 @@ export default function PosOrdersScreen() {
             onChange={(e) => setSearch(e.target.value)}
             className="max-w-xs"
           />
-          <select
-            className="border border-border rounded-md px-3 py-2 text-sm bg-background"
+          <SelectField
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          >
-            <option value="">Todos los estados</option>
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-            ))}
-          </select>
+            onChange={setStatus}
+            options={[
+              { value: '', label: 'Todos los estados' },
+              ...STATUS_OPTIONS.map((s) => ({ value: s, label: STATUS_LABELS[s] })),
+            ]}
+          />
         </div>
 
         {isError ? (
