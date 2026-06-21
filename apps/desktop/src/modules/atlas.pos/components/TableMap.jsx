@@ -1,5 +1,4 @@
 import { EmptyState } from '@atlas/ui'
-import { useUpdateTableStatus } from '../hooks/usePosFloor'
 
 const STATUS_COLORS = {
   AVAILABLE: 'bg-green-100 border-green-400 text-green-800',
