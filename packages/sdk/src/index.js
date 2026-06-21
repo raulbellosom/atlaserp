@@ -929,6 +929,224 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
         }),
     },
+    pos: {
+      getSettings: (token) =>
+        request("/pos/settings", { headers: withAuthHeaders(token) }),
+      updateSettings: (data, token) =>
+        request("/pos/settings", {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      listOutlets: (token) =>
+        request("/pos/outlets", { headers: withAuthHeaders(token) }),
+      createOutlet: (data, token) =>
+        request("/pos/outlets", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateOutlet: (id, data, token) =>
+        request(`/pos/outlets/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      listTerminals: (token) =>
+        request("/pos/terminals", { headers: withAuthHeaders(token) }),
+      createTerminal: (data, token) =>
+        request("/pos/terminals", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateTerminal: (id, data, token) =>
+        request(`/pos/terminals/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      openSession: (data, token) =>
+        request("/pos/sessions/open", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      getCurrentSession: (query, token) =>
+        request(`/pos/sessions/current${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      listSessions: (query, token) =>
+        request(`/pos/sessions${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      getSession: (id, token) =>
+        request(`/pos/sessions/${encodeURIComponent(id)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      addCashMovement: (id, data, token) =>
+        request(`/pos/sessions/${encodeURIComponent(id)}/cash-movements`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      closeSession: (id, data, token) =>
+        request(`/pos/sessions/${encodeURIComponent(id)}/close`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      listOrders: (query, token) =>
+        request(`/pos/orders${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      createOrder: (data, token) =>
+        request("/pos/orders", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      getOrder: (id, token) =>
+        request(`/pos/orders/${encodeURIComponent(id)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      updateOrder: (id, data, token) =>
+        request(`/pos/orders/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      addGuest: (orderId, data, token) =>
+        request(`/pos/orders/${encodeURIComponent(orderId)}/guests`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      addOrderLine: (orderId, data, token) =>
+        request(`/pos/orders/${encodeURIComponent(orderId)}/lines`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateOrderLine: (orderId, lineId, data, token) =>
+        request(
+          `/pos/orders/${encodeURIComponent(orderId)}/lines/${encodeURIComponent(lineId)}`,
+          {
+            method: "PATCH",
+            headers: withAuthHeaders(token),
+            body: JSON.stringify(data),
+          },
+        ),
+      deleteOrderLine: (orderId, lineId, token) =>
+        request(
+          `/pos/orders/${encodeURIComponent(orderId)}/lines/${encodeURIComponent(lineId)}`,
+          { method: "DELETE", headers: withAuthHeaders(token) },
+        ),
+      addPayment: (orderId, data, token) =>
+        request(`/pos/orders/${encodeURIComponent(orderId)}/payments`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      sendToKitchen: (orderId, token) =>
+        request(`/pos/orders/${encodeURIComponent(orderId)}/send-to-kitchen`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+        }),
+      cancelOrder: (orderId, data, token) =>
+        request(`/pos/orders/${encodeURIComponent(orderId)}/cancel`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data ?? {}),
+        }),
+      reprintReceipt: (orderId, token) =>
+        request(`/pos/orders/${encodeURIComponent(orderId)}/receipts/reprint`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+        }),
+      listFloors: (query, token) =>
+        request(`/pos/floors${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      createFloor: (data, token) =>
+        request("/pos/floors", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      getFloor: (id, token) =>
+        request(`/pos/floors/${encodeURIComponent(id)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      updateFloor: (id, data, token) =>
+        request(`/pos/floors/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      publishFloor: (id, token) =>
+        request(`/pos/floors/${encodeURIComponent(id)}/publish`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+        }),
+      createTable: (data, token) =>
+        request("/pos/tables", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateTable: (tableId, data, token) =>
+        request(`/pos/tables/${encodeURIComponent(tableId)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateTableStatus: (tableId, data, token) =>
+        request(`/pos/tables/${encodeURIComponent(tableId)}/status`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      getActiveMap: (query, token) =>
+        request(`/pos/tables/active-map${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      listStations: (query, token) =>
+        request(`/pos/stations${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      createStation: (data, token) =>
+        request("/pos/stations", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateStation: (id, data, token) =>
+        request(`/pos/stations/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      listStationTickets: (stationId, query, token) =>
+        request(`/pos/stations/${encodeURIComponent(stationId)}/tickets${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      updateTicketStatus: (ticketId, data, token) =>
+        request(`/pos/kitchen/tickets/${encodeURIComponent(ticketId)}/status`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateTicketLineStatus: (ticketId, lineId, data, token) =>
+        request(
+          `/pos/kitchen/tickets/${encodeURIComponent(ticketId)}/lines/${encodeURIComponent(lineId)}/status`,
+          {
+            method: "PATCH",
+            headers: withAuthHeaders(token),
+            body: JSON.stringify(data),
+          },
+        ),
+    },
     notifications: {
       list: (token, query = {}) =>
         request(`/notifications${toQueryString(query)}`, {
