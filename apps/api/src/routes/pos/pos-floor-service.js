@@ -45,6 +45,98 @@ export function createPosFloorService({ prisma }) {
     return floor;
   }
 
+  async function getFloorWithLayout({ companyId, id }) {
+    const scopedCompanyId = requireCompanyId(companyId)
+    const floor = await prisma.posFloor.findFirst({
+      where: { id, companyId: scopedCompanyId },
+      include: {
+        elements: { orderBy: { createdAt: 'asc' } },
+        tables: { where: { enabled: true }, orderBy: { createdAt: 'asc' } },
+      },
+    })
+    if (!floor) throw new PosServiceError('Plano POS no encontrado.', 404)
+    return floor
+  }
+
+  async function saveLayout({ companyId, id, actorId, elements }) {
+    const scopedCompanyId = requireCompanyId(companyId)
+    const floor = await prisma.posFloor.findFirst({ where: { id, companyId: scopedCompanyId } })
+    if (!floor) throw new PosServiceError('Plano POS no encontrado.', 404)
+
+    const incoming = elements ?? []
+    const incomingIds = incoming.filter((e) => e.id).map((e) => e.id)
+
+    await prisma.$transaction(async (tx) => {
+      // find elements being removed (to soft-delete their linked tables)
+      const removedElements = await tx.posFloorElement.findMany({
+        where: { floorId: id, ...(incomingIds.length ? { id: { notIn: incomingIds } } : {}) },
+      })
+
+      // delete removed elements
+      await tx.posFloorElement.deleteMany({
+        where: { floorId: id, ...(incomingIds.length ? { id: { notIn: incomingIds } } : {}) },
+      })
+
+      // soft-delete tables from removed elements if no active orders
+      for (const elem of removedElements) {
+        if (!elem.tableId) continue
+        const activeCount = await tx.posOrder.count({
+          where: {
+            tableId: elem.tableId,
+            status: { in: ['DRAFT', 'OPEN', 'SENT', 'PARTIALLY_SERVED', 'SERVED'] },
+          },
+        })
+        if (activeCount === 0) {
+          await tx.posTable.update({ where: { id: elem.tableId }, data: { enabled: false } })
+        }
+      }
+
+      // upsert incoming elements
+      for (const elem of incoming) {
+        const { id: elemId, kind, x, y, width, height, label, style, tableName, capacity } = elem
+        const posData = {
+          x,
+          y,
+          width,
+          height,
+          rotation: 0,
+          label: label ?? null,
+          style: style ?? null,
+        }
+
+        if (elemId) {
+          await tx.posFloorElement.update({ where: { id: elemId }, data: posData })
+        } else {
+          let tableId = null
+          if (kind.startsWith('TABLE_')) {
+            const table = await tx.posTable.create({
+              data: {
+                companyId: scopedCompanyId,
+                floorId: id,
+                name: (tableName ?? 'Mesa').trim(),
+                capacity: capacity ?? 2,
+              },
+            })
+            tableId = table.id
+          }
+          await tx.posFloorElement.create({
+            data: { floorId: id, tableId, kind, ...posData },
+          })
+        }
+      }
+
+      await writeAudit(tx, {
+        actorId,
+        entityType: 'PosFloor',
+        entityId: id,
+        action: 'pos.floor.save_layout',
+        after: { elementCount: incoming.length },
+      })
+    })
+
+    return getFloorWithLayout({ companyId: scopedCompanyId, id })
+  }
+
   async function updateFloor({ companyId, id, actorId, data }) {
     const before = await getFloorById({ companyId, id });
     const updated = await prisma.posFloor.update({
@@ -173,11 +265,13 @@ export function createPosFloorService({ prisma }) {
     listFloors,
     createFloor,
     getFloorById,
+    getFloorWithLayout,
     updateFloor,
     publishFloor,
     createTable,
     updateTable,
     updateTableStatus,
     getActiveMap,
+    saveLayout,
   };
 }

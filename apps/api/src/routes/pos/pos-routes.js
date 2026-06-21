@@ -21,6 +21,7 @@ import {
   kitchenStatusUpdateSchema,
   openSessionSchema,
   tableStatusUpdateSchema,
+  saveLayoutSchema,
   updateFloorSchema,
   updateOrderLineSchema,
   updateOrderSchema,
@@ -331,7 +332,7 @@ export function createPosRouter({ prisma, requirePermission }) {
 
   app.get("/pos/floors/:id", requirePermission("pos.floor.read"), async (c) => {
     try {
-      return c.json({ data: await floorSvc.getFloorById({ ...context(c), id: c.req.param("id") }) });
+      return c.json({ data: await floorSvc.getFloorWithLayout({ ...context(c), id: c.req.param("id") }) });
     } catch (err) {
       return handleError(c, err, "No se pudo consultar el plano POS.");
     }
@@ -351,6 +352,15 @@ export function createPosRouter({ prisma, requirePermission }) {
       return c.json({ data: await floorSvc.publishFloor({ ...context(c), id: c.req.param("id") }) });
     } catch (err) {
       return handleError(c, err, "No se pudo publicar el plano POS.");
+    }
+  });
+
+  app.put("/pos/floors/:id/layout", requirePermission("pos.floor.manage"), async (c) => {
+    try {
+      const data = await parseBody(c, saveLayoutSchema);
+      return c.json({ data: await floorSvc.saveLayout({ ...context(c), id: c.req.param("id"), elements: data.elements }) });
+    } catch (err) {
+      return handleError(c, err, "No se pudo guardar el layout del plano POS.");
     }
   });
 

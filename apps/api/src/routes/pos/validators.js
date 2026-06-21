@@ -166,6 +166,23 @@ export const updateTableSchema = createTableSchema.omit({ floorId: true }).parti
   enabled: z.boolean().optional(),
 });
 
+export const floorElementSchema = z.object({
+  id: uuidSchema.optional(),
+  kind: z.enum(['TABLE_SQUARE', 'TABLE_ROUND', 'BAR', 'WALL', 'PLANT', 'DOOR']),
+  x: z.coerce.number().min(0),
+  y: z.coerce.number().min(0),
+  width: z.coerce.number().min(20),
+  height: z.coerce.number().min(20),
+  label: z.string().max(80).nullable().optional(),
+  tableName: z.string().min(1).max(80).optional(),
+  capacity: z.coerce.number().int().min(1).max(99).optional(),
+  style: z.record(z.unknown()).nullable().optional(),
+})
+
+export const saveLayoutSchema = z.object({
+  elements: z.array(floorElementSchema).max(500),
+})
+
 export const tableStatusUpdateSchema = z.object({
   status: tableStatusSchema,
 });
