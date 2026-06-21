@@ -1089,6 +1089,12 @@ export function createAtlasClient({ baseUrl }) {
           method: "POST",
           headers: withAuthHeaders(token),
         }),
+      saveFloorLayout: (id, data, token) =>
+        request(`/pos/floors/${encodeURIComponent(id)}/layout`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       createTable: (data, token) =>
         request("/pos/tables", {
           method: "POST",
