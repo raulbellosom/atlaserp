@@ -1,4 +1,4 @@
-import { useReducer, useState, useEffect } from 'react'
+import { useReducer, useState, useEffect, useCallback, useRef } from 'react'
 import {
   PageHeader,
   Button,
@@ -113,6 +113,7 @@ export default function PosFloorPlannerScreen() {
   const [selectedId, setSelectedId] = useState(null)
   const [newFloorDialog, setNewFloorDialog] = useState(false)
   const [newFloorName, setNewFloorName] = useState('')
+  const tempIdRef = useRef(0)
 
   const [canvas, dispatch] = useReducer(canvasReducer, { elements: [], dirty: false })
 
@@ -150,7 +151,7 @@ export default function PosFloorPlannerScreen() {
     dispatch({
       type: 'ADD',
       element: {
-        id: `temp_${Date.now()}`,
+        id: `temp_${++tempIdRef.current}`,
         kind,
         x: Math.round(x - sizes.width / 2),
         y: Math.round(y - sizes.height / 2),
@@ -204,6 +205,18 @@ export default function PosFloorPlannerScreen() {
       }
     )
   }
+
+  const handleMove = useCallback((id, x, y) => dispatch({ type: 'MOVE', id, x, y }), [])
+  const handleResize = useCallback((id, w, h) => dispatch({ type: 'RESIZE', id, width: w, height: h }), [])
+  const handleUpdate = useCallback((patch) => {
+    if (!selectedId) return
+    dispatch({ type: 'UPDATE', id: selectedId, patch })
+  }, [selectedId])
+  const handleRemove = useCallback(() => {
+    if (!selectedId) return
+    dispatch({ type: 'REMOVE', id: selectedId })
+    setSelectedId(null)
+  }, [selectedId])
 
   const selectedElement = canvas.elements.find((el) => el.id === selectedId) ?? null
   const activeFloor = floors.find((f) => f.id === floorId)
@@ -284,18 +297,15 @@ export default function PosFloorPlannerScreen() {
             selectedId={selectedId}
             activeTool={activeTool}
             onSelect={setSelectedId}
-            onMove={(id, x, y) => dispatch({ type: 'MOVE', id, x, y })}
-            onResize={(id, w, h) => dispatch({ type: 'RESIZE', id, width: w, height: h })}
+            onMove={handleMove}
+            onResize={handleResize}
             onPlace={handlePlace}
           />
           {selectedElement && (
             <FloorPropertiesPanel
               element={selectedElement}
-              onUpdate={(patch) => dispatch({ type: 'UPDATE', id: selectedElement.id, patch })}
-              onRemove={() => {
-                dispatch({ type: 'REMOVE', id: selectedElement.id })
-                setSelectedId(null)
-              }}
+              onUpdate={handleUpdate}
+              onRemove={handleRemove}
             />
           )}
         </div>
