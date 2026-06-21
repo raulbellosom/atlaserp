@@ -67,6 +67,8 @@ enum PosMode {
   RESTAURANT
   RETAIL
   HYBRID
+
+  @@map("pos_mode")
 }
 
 enum PosOrderStatus {
@@ -78,6 +80,8 @@ enum PosOrderStatus {
   PAID
   CANCELLED
   REFUNDED
+
+  @@map("pos_order_status")
 }
 
 enum PosFulfillmentType {
@@ -85,6 +89,8 @@ enum PosFulfillmentType {
   TAKEAWAY
   DELIVERY
   PICKUP
+
+  @@map("pos_fulfillment_type")
 }
 
 enum PosSalesChannel {
@@ -95,6 +101,8 @@ enum PosSalesChannel {
   RAPPI
   DIDI_FOOD
   OTHER
+
+  @@map("pos_sales_channel")
 }
 
 enum PosTableStatus {
@@ -104,6 +112,8 @@ enum PosTableStatus {
   DIRTY
   RESERVED
   DISABLED
+
+  @@map("pos_table_status")
 }
 
 enum PosKitchenStatus {
@@ -112,12 +122,16 @@ enum PosKitchenStatus {
   READY
   DELIVERED
   CANCELLED
+
+  @@map("pos_kitchen_status")
 }
 
 enum PosSessionStatus {
   OPEN
   CLOSED
   CANCELLED
+
+  @@map("pos_session_status")
 }
 
 enum PosPaymentStatus {
@@ -125,6 +139,8 @@ enum PosPaymentStatus {
   CAPTURED
   VOIDED
   REFUNDED
+
+  @@map("pos_payment_status")
 }
 
 enum PosExternalProvider {
@@ -133,6 +149,8 @@ enum PosExternalProvider {
   DIDI_FOOD
   WEBSITE
   OTHER
+
+  @@map("pos_external_provider")
 }
 
 model AtlasModule {
@@ -1976,7 +1994,7 @@ model CatalogStockMovement {
 }
 
 model PosSettings {
-  id                  String   @id @default(uuid(7)) @db.Uuid
+  id                  String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId           String   @db.Uuid @map("company_id")
   mode                PosMode  @default(RESTAURANT)
   currency            String   @default("MXN")
@@ -1993,7 +2011,7 @@ model PosSettings {
 }
 
 model PosOutlet {
-  id        String   @id @default(uuid(7)) @db.Uuid
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId String   @db.Uuid @map("company_id")
   name      String
   code      String?
@@ -2014,7 +2032,7 @@ model PosOutlet {
 }
 
 model PosTerminal {
-  id        String   @id @default(uuid(7)) @db.Uuid
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId String   @db.Uuid @map("company_id")
   outletId  String   @db.Uuid @map("outlet_id")
   name      String
@@ -2032,7 +2050,7 @@ model PosTerminal {
 }
 
 model PosSession {
-  id                 String           @id @default(uuid(7)) @db.Uuid
+  id                 String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId          String           @db.Uuid @map("company_id")
   outletId           String           @db.Uuid @map("outlet_id")
   terminalId         String           @db.Uuid @map("terminal_id")
@@ -2058,7 +2076,7 @@ model PosSession {
 }
 
 model PosPaymentMethod {
-  id                String   @id @default(uuid(7)) @db.Uuid
+  id                String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId         String   @db.Uuid @map("company_id")
   name              String
   code              String
@@ -2076,7 +2094,7 @@ model PosPaymentMethod {
 }
 
 model PosOrder {
-  id                  String               @id @default(uuid(7)) @db.Uuid
+  id                  String               @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId           String               @db.Uuid @map("company_id")
   outletId            String               @db.Uuid @map("outlet_id")
   sessionId           String?              @db.Uuid @map("session_id")
@@ -2121,7 +2139,7 @@ model PosOrder {
 }
 
 model PosOrderLine {
-  id                   String           @id @default(uuid(7)) @db.Uuid
+  id                   String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
   orderId              String           @db.Uuid @map("order_id")
   guestSeatId          String?          @db.Uuid @map("guest_seat_id")
   productId            String?          @db.Uuid @map("product_id")
@@ -2150,7 +2168,7 @@ model PosOrderLine {
 }
 
 model PosGuestSeat {
-  id        String   @id @default(uuid(7)) @db.Uuid
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   orderId   String   @db.Uuid @map("order_id")
   label     String
   position  Int
@@ -2164,7 +2182,7 @@ model PosGuestSeat {
 }
 
 model PosPayment {
-  id              String           @id @default(uuid(7)) @db.Uuid
+  id              String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId       String           @db.Uuid @map("company_id")
   orderId         String           @db.Uuid @map("order_id")
   paymentMethodId String           @db.Uuid @map("payment_method_id")
@@ -2182,7 +2200,7 @@ model PosPayment {
 }
 
 model PosCashMovement {
-  id          String   @id @default(uuid(7)) @db.Uuid
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId   String   @db.Uuid @map("company_id")
   sessionId   String   @db.Uuid @map("session_id")
   kind        String
@@ -2198,7 +2216,7 @@ model PosCashMovement {
 }
 
 model PosFloor {
-  id           String   @id @default(uuid(7)) @db.Uuid
+  id           String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId    String   @db.Uuid @map("company_id")
   outletId     String   @db.Uuid @map("outlet_id")
   name         String
@@ -2218,7 +2236,7 @@ model PosFloor {
 }
 
 model PosFloorZone {
-  id        String   @id @default(uuid(7)) @db.Uuid
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   floorId   String   @db.Uuid @map("floor_id")
   name      String
   color     String?
@@ -2233,7 +2251,7 @@ model PosFloorZone {
 }
 
 model PosTable {
-  id        String         @id @default(uuid(7)) @db.Uuid
+  id        String         @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId String         @db.Uuid @map("company_id")
   floorId   String         @db.Uuid @map("floor_id")
   zoneId    String?        @db.Uuid @map("zone_id")
@@ -2254,7 +2272,7 @@ model PosTable {
 }
 
 model PosFloorElement {
-  id        String   @id @default(uuid(7)) @db.Uuid
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   floorId   String   @db.Uuid @map("floor_id")
   tableId   String?  @db.Uuid @map("table_id")
   kind      String
@@ -2275,7 +2293,7 @@ model PosFloorElement {
 }
 
 model PosKitchenStation {
-  id        String   @id @default(uuid(7)) @db.Uuid
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId String   @db.Uuid @map("company_id")
   outletId  String   @db.Uuid @map("outlet_id")
   name      String
@@ -2294,7 +2312,7 @@ model PosKitchenStation {
 }
 
 model PosKitchenTicket {
-  id          String           @id @default(uuid(7)) @db.Uuid
+  id          String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId   String           @db.Uuid @map("company_id")
   orderId     String           @db.Uuid @map("order_id")
   stationId   String           @db.Uuid @map("station_id")
@@ -2313,7 +2331,7 @@ model PosKitchenTicket {
 }
 
 model PosKitchenTicketLine {
-  id          String           @id @default(uuid(7)) @db.Uuid
+  id          String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
   ticketId    String           @db.Uuid @map("ticket_id")
   orderLineId String           @db.Uuid @map("order_line_id")
   quantity    Decimal          @db.Decimal(12, 3)
@@ -2327,7 +2345,7 @@ model PosKitchenTicketLine {
 }
 
 model PosProductConfig {
-  id                  String   @id @default(uuid(7)) @db.Uuid
+  id                  String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId           String   @db.Uuid @map("company_id")
   productId           String   @db.Uuid @map("product_id")
   variantId           String?  @db.Uuid @map("variant_id")
@@ -2344,7 +2362,7 @@ model PosProductConfig {
 }
 
 model PosReceipt {
-  id            String   @id @default(uuid(7)) @db.Uuid
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId     String   @db.Uuid @map("company_id")
   orderId       String   @db.Uuid @map("order_id")
   receiptNumber Int      @map("receipt_number")
