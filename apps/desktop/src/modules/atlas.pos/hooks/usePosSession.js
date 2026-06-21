@@ -32,7 +32,7 @@ export function usePosCurrentSession(terminalId) {
 export function usePosSession(id) {
   const token = useToken()
   return useQuery({
-    queryKey: ['pos', 'sessions', id],
+    queryKey: ['pos', 'sessions', 'detail', id],
     queryFn: () => atlas.pos.getSession(id, token),
     enabled: Boolean(token) && Boolean(id),
     staleTime: 30 * 1000,
@@ -63,10 +63,11 @@ export function useClosePosSession() {
   return useMutation({
     mutationFn: ({ id, ...data }) => atlas.pos.closeSession(id, data, token),
     onMutate: () => ({ toastId: toast.loading('Cerrando caja...') }),
-    onSuccess: (_, __, ctx) => {
+    onSuccess: (_, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
       toast.success('Caja cerrada')
       qc.invalidateQueries({ queryKey: ['pos', 'sessions'] })
+      qc.invalidateQueries({ queryKey: ['pos', 'sessions', 'detail', vars.id] })
     },
     onError: (err, __, ctx) => {
       toast.dismiss(ctx?.toastId)

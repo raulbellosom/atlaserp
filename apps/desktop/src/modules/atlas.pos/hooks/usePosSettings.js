@@ -77,7 +77,7 @@ export function useUpdatePosOutlet() {
     },
     onError: (err, __, ctx) => {
       toast.dismiss(ctx?.toastId)
-      toast.error(err?.message ?? 'Error al guardar')
+      toast.error(err?.message ?? 'Error al guardar sucursal')
     },
   })
 }
@@ -123,7 +123,7 @@ export function useUpdatePosTerminal() {
     },
     onError: (err, __, ctx) => {
       toast.dismiss(ctx?.toastId)
-      toast.error(err?.message ?? 'Error al guardar')
+      toast.error(err?.message ?? 'Error al guardar terminal')
     },
   })
 }
@@ -169,7 +169,7 @@ export function useUpdatePosStation() {
     },
     onError: (err, __, ctx) => {
       toast.dismiss(ctx?.toastId)
-      toast.error(err?.message ?? 'Error al guardar')
+      toast.error(err?.message ?? 'Error al guardar estación')
     },
   })
 }
