@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   PageHeader, Card, CardContent, CardHeader, CardTitle, Button,
   Badge, EmptyState, Dialog, DialogContent, DialogHeader,
-  DialogTitle, DialogFooter, Input, SelectField,
+  DialogTitle, DialogFooter, Input, SelectField, Checkbox,
 } from '@atlas/ui'
 import {
   usePosSettings, useUpdatePosSettings,
@@ -53,8 +53,10 @@ function GeneralTab() {
   const { data: settings, isLoading } = usePosSettings()
   const update = useUpdatePosSettings()
   const [mode, setMode] = useState(null)
+  const [tipsEnabled, setTipsEnabled] = useState(null)
 
   const currentMode = mode ?? settings?.mode ?? 'RESTAURANT'
+  const currentTips = tipsEnabled ?? settings?.tips_enabled ?? true
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Cargando...</p>
 
@@ -71,16 +73,15 @@ function GeneralTab() {
           />
         </div>
         <div className="flex items-center gap-3">
-          <input
+          <Checkbox
             id="tips"
-            type="checkbox"
-            defaultChecked={settings?.tips_enabled ?? true}
-            className="h-4 w-4"
+            checked={currentTips}
+            onCheckedChange={(v) => setTipsEnabled(Boolean(v))}
           />
-          <label htmlFor="tips" className="text-sm">Propinas habilitadas</label>
+          <label htmlFor="tips" className="text-sm cursor-pointer">Propinas habilitadas</label>
         </div>
         <Button
-          onClick={() => update.mutate({ mode: currentMode })}
+          onClick={() => update.mutate({ mode: currentMode, tips_enabled: currentTips })}
           disabled={update.isPending}
         >
           Guardar
