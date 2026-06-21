@@ -58,6 +58,7 @@ import { createLedgerRouter } from "./routes/ledger/index.js";
 import { createUsersRouter } from './routes/users-routes.js'
 import { createFleetRouter } from "./routes/fleet/index.js";
 import { createCatalogRouter } from "./routes/catalog/index.js";
+import { createPosRouter } from "./routes/pos/index.js";
 import { createCalendarRouter } from "./routes/calendar/index.js";
 import { createProjectsRouter } from "./routes/projects/index.js";
 import { createSettingsRouter } from "./routes/settings-routes.js";
@@ -4477,6 +4478,7 @@ mountWithAuth(app, createLedgerRouter({ prisma, requirePermission }));
 mountWithAuth(app, createUsersRouter({ prisma, requirePermission }));
 mountWithAuth(app, createFleetRouter({ prisma, requirePermission, enrichFilesWithSignedUrls: filesService.enrichFilesWithSignedUrls.bind(filesService) }));
 mountWithAuth(app, createCatalogRouter({ prisma, requirePermission }));
+mountWithAuth(app, createPosRouter({ prisma, requirePermission }));
 mountWithAuth(app, createCalendarRouter({ prisma, requirePermission }));
 mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService) }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission }));
@@ -4980,7 +4982,7 @@ app.delete('/inventory/custom-fields/:id', authMiddleware, requirePermission('in
 // Wildcard fallback: handle SPA client-side route navigations and direct URL access for dist sites.
 // Fires only when no earlier API route matched and the request looks like a browser page load
 // (Accept: text/html). Skips known API prefixes to avoid masking real 404 API errors.
-const API_PREFIX_RE = /^\/(modules|blueprints|files|contacts|company|identity|finance|hr|website|ledger|calendar|projects|catalog|storefront|activity|notifications|inventory|public|auth|health|p)\b/i
+const API_PREFIX_RE = /^\/(modules|blueprints|files|contacts|company|identity|finance|hr|website|ledger|calendar|projects|catalog|pos|storefront|activity|notifications|inventory|public|auth|health|p)\b/i
 app.get('*', async (c) => {
   const path = c.req.path
   if (API_PREFIX_RE.test(path)) return c.json({ error: 'Not found' }, 404)
