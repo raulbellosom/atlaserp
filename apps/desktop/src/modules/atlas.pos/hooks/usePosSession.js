@@ -13,6 +13,7 @@ export function usePosSessions(query = {}) {
   return useQuery({
     queryKey: ['pos', 'sessions', query],
     queryFn: () => atlas.pos.listSessions(query, token),
+    select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 60 * 1000,
   })

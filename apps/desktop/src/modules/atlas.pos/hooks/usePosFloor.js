@@ -24,6 +24,7 @@ export function usePosFloors(query = {}) {
   return useQuery({
     queryKey: ['pos', 'floors', query],
     queryFn: () => atlas.pos.listFloors(query, token),
+    select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 2 * 60 * 1000,
   })

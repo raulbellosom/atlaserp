@@ -41,6 +41,7 @@ export function usePosOutlets() {
   return useQuery({
     queryKey: ['pos', 'outlets'],
     queryFn: () => atlas.pos.listOutlets(token),
+    select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
   })
@@ -87,6 +88,7 @@ export function usePosTerminals() {
   return useQuery({
     queryKey: ['pos', 'terminals'],
     queryFn: () => atlas.pos.listTerminals(token),
+    select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
   })
@@ -133,6 +135,7 @@ export function usePosStations(query = {}) {
   return useQuery({
     queryKey: ['pos', 'stations', query],
     queryFn: () => atlas.pos.listStations(query, token),
+    select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
   })

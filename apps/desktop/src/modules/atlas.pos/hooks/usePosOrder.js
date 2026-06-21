@@ -13,6 +13,7 @@ export function usePosOrders(query = {}) {
   return useQuery({
     queryKey: ['pos', 'orders', query],
     queryFn: () => atlas.pos.listOrders(query, token),
+    select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 30 * 1000,
   })
