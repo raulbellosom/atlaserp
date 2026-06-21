@@ -16,6 +16,7 @@ const GROUPS = {
   activity: "Actividad",
   notifications: "Notificaciones",
   projects: "Proyectos",
+  pos: "POS",
 };
 
 const MODULE_LABELS = {
@@ -35,6 +36,7 @@ const MODULE_LABELS = {
   activity: "Actividad",
   notifications: "Notificaciones",
   projects: "Proyectos",
+  pos: "POS",
 };
 
 const FEATURE_LABELS = {
@@ -70,6 +72,15 @@ const FEATURE_LABELS = {
   analytics: "Analitica",
   templates: "Plantillas",
   generated: "Documentos generados",
+  terminal: "Terminal",
+  orders: "Ordenes",
+  payments: "Pagos",
+  sessions: "Sesiones de caja",
+  cash: "Efectivo",
+  floor: "Planos",
+  stations: "Estaciones",
+  settings: "Configuracion",
+  external: "Canales externos",
 };
 
 const ACTION_LABELS = {
@@ -993,6 +1004,103 @@ export const PERMISSION_CATALOG = {
     descriptionEs: "Permite desactivar documentos generados.",
     groupKey: "documents",
     order: 22,
+  },
+
+  "pos.access": {
+    displayNameEs: "Acceder a POS",
+    descriptionEs: "Permite entrar al modulo POS.",
+    groupKey: "pos",
+    order: 10,
+  },
+  "pos.terminal.use": {
+    displayNameEs: "Usar terminal POS",
+    descriptionEs: "Permite operar la terminal tactil del punto de venta.",
+    groupKey: "pos",
+    order: 20,
+  },
+  "pos.orders.read": {
+    displayNameEs: "Ver ordenes POS",
+    descriptionEs: "Permite consultar ordenes del punto de venta.",
+    groupKey: "pos",
+    order: 30,
+  },
+  "pos.orders.create": {
+    displayNameEs: "Crear ordenes POS",
+    descriptionEs: "Permite crear ordenes desde POS.",
+    groupKey: "pos",
+    order: 40,
+  },
+  "pos.orders.update": {
+    displayNameEs: "Editar ordenes POS",
+    descriptionEs: "Permite modificar ordenes abiertas y sus lineas.",
+    groupKey: "pos",
+    order: 50,
+  },
+  "pos.orders.cancel": {
+    displayNameEs: "Cancelar ordenes POS",
+    descriptionEs: "Permite cancelar ordenes del punto de venta.",
+    groupKey: "pos",
+    order: 60,
+  },
+  "pos.payments.create": {
+    displayNameEs: "Registrar pagos POS",
+    descriptionEs: "Permite registrar pagos y cobros de ordenes POS.",
+    groupKey: "pos",
+    order: 70,
+  },
+  "pos.sessions.read": {
+    displayNameEs: "Ver sesiones de caja",
+    descriptionEs: "Permite consultar sesiones y cortes de caja POS.",
+    groupKey: "pos",
+    order: 80,
+  },
+  "pos.sessions.manage": {
+    displayNameEs: "Abrir y cerrar cajas",
+    descriptionEs: "Permite abrir y cerrar sesiones de caja POS.",
+    groupKey: "pos",
+    order: 90,
+  },
+  "pos.cash.manage": {
+    displayNameEs: "Gestionar efectivo POS",
+    descriptionEs: "Permite registrar entradas y salidas de efectivo.",
+    groupKey: "pos",
+    order: 100,
+  },
+  "pos.floor.read": {
+    displayNameEs: "Ver planos POS",
+    descriptionEs: "Permite consultar planos, zonas y mesas.",
+    groupKey: "pos",
+    order: 110,
+  },
+  "pos.floor.manage": {
+    displayNameEs: "Gestionar planos POS",
+    descriptionEs: "Permite crear y publicar planos, zonas y mesas.",
+    groupKey: "pos",
+    order: 120,
+  },
+  "pos.stations.read": {
+    displayNameEs: "Ver estaciones de preparacion",
+    descriptionEs: "Permite consultar estaciones y tickets de preparacion.",
+    groupKey: "pos",
+    order: 130,
+  },
+  "pos.stations.manage": {
+    displayNameEs: "Gestionar estaciones de preparacion",
+    descriptionEs: "Permite administrar estaciones y estados de tickets.",
+    groupKey: "pos",
+    order: 140,
+  },
+  "pos.settings.manage": {
+    displayNameEs: "Gestionar configuracion POS",
+    descriptionEs: "Permite configurar puntos de venta, terminales, impuestos y metodos de pago.",
+    groupKey: "pos",
+    order: 150,
+  },
+  "pos.external.manage": {
+    displayNameEs: "Gestionar canales externos POS",
+    descriptionEs: "Permite administrar integraciones futuras con canales externos de pedidos.",
+    groupKey: "pos",
+    order: 160,
   },
 
   "projects.access": {
