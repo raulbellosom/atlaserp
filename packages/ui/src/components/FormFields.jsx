@@ -117,7 +117,7 @@ export function FieldWrapper({
   className,
 }) {
   return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
+    <div className={cn("flex flex-col gap-1.5 min-w-0", className)}>
       {label && (
         <label
           htmlFor={labelFor}
@@ -735,6 +735,7 @@ export const DateTimeField = forwardRef(function DateTimeField(
             error,
             cn(
               icon && "pl-9",
+              "min-w-0",
               "[&::-webkit-calendar-picker-indicator]:opacity-40",
               "[&::-webkit-calendar-picker-indicator]:cursor-pointer",
               "[&::-webkit-calendar-picker-indicator]:hover:opacity-70",

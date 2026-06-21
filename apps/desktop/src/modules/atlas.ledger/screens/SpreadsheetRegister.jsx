@@ -203,7 +203,7 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
       const colIdx = EDITABLE_COLS.indexOf(colName)
       if (colIdx < EDITABLE_COLS.length - 1) {
         const selector = `[data-row="${rowIdx}"][data-col="${EDITABLE_COLS[colIdx + 1]}"]`
-        tableRef.current?.querySelector(selector)?.focus()
+        focusCell(selector)
       } else {
         saveRow(row, rowIdx)
       }
@@ -217,8 +217,15 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
       if (nextIdx < 0 || nextIdx >= rows.length) return
       const colIdx = EDITABLE_COLS.indexOf(colName)
       const selector = `[data-row="${nextIdx}"][data-col="${EDITABLE_COLS[colIdx]}"]`
-      tableRef.current?.querySelector(selector)?.focus()
+      focusCell(selector)
     }
+  }
+
+  function focusCell(selector) {
+    const el = tableRef.current?.querySelector(selector)
+    if (!el) return
+    el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    el.focus()
   }
 
   function handleRowBlur(event, row, rowIdx) {
@@ -297,7 +304,16 @@ export default function SpreadsheetRegister({ accountId, dateFrom, dateTo, types
       )}
 
       <div className="flex-1 overflow-auto">
-        <table ref={tableRef} className="w-full min-w-262.5 border-collapse text-sm">
+        <table
+          ref={tableRef}
+          className="w-full min-w-262.5 border-collapse text-sm"
+          onFocus={(e) => {
+            const el = e.target
+            if (el.tagName === 'INPUT' || el.tagName === 'SELECT') {
+              el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+            }
+          }}
+        >
           <thead className="sticky top-0 z-10">
             <tr>
               <th className={`${thClass} w-10 text-center`}>#</th>

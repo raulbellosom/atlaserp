@@ -165,6 +165,21 @@ html {
   .h-below-topbar {
     height: calc(100dvh - var(--topbar-height) - env(safe-area-inset-top, 0px));
   }
+  /* inset-safe: modal/dialog inset that respects iOS safe-area in PWA mode */
+  .inset-safe {
+    top: calc(0.75rem + env(safe-area-inset-top, 0px));
+    right: calc(0.75rem + env(safe-area-inset-right, 0px));
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    left: calc(0.75rem + env(safe-area-inset-left, 0px));
+  }
+  @media (min-width: 640px) {
+    .inset-safe {
+      top: calc(1.25rem + env(safe-area-inset-top, 0px));
+      right: calc(1.25rem + env(safe-area-inset-right, 0px));
+      bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+      left: calc(1.25rem + env(safe-area-inset-left, 0px));
+    }
+  }
   /* touch-target: minimum 44x44px tap area */
   .touch-target {
     min-height: 2.75rem;

@@ -210,6 +210,21 @@ export default defineConfig({
       "^/pwa/": {
         target: process.env.VITE_ATLAS_API_URL ?? "http://127.0.0.1:4010",
         changeOrigin: true,
+        configure(proxy) {
+          // Suppress ECONNREFUSED during startup — API takes a moment to boot.
+          // Handling the event prevents Vite from re-logging it as an unhandled error.
+          proxy.on("error", (err, _req, res) => {
+            if (err.code === "ECONNREFUSED") {
+              if (!res.headersSent) {
+                res.writeHead(503, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ error: "API starting" }));
+              }
+              return;
+            }
+            // Let non-startup errors surface normally.
+            console.error("[proxy] /pwa/ error:", err.message);
+          });
+        },
       },
     },
   },

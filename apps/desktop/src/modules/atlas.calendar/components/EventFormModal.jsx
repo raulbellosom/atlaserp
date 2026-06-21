@@ -274,7 +274,7 @@ export default function EventFormModal({
           </button>
         </div>
 
-        <div className="px-5 py-4 space-y-4 max-h-[72vh] overflow-y-auto">
+        <div className="px-5 py-4 space-y-4 max-h-[72vh] overflow-y-auto overflow-x-hidden">
           <TextField
             label="Titulo"
             required

@@ -298,7 +298,7 @@ export function AdvancedFileViewer({
             if (gestureRef.current.mode !== null) e.preventDefault();
           }}
           className={[
-            "fixed inset-3 sm:inset-5 z-50 flex flex-col rounded-2xl overflow-hidden",
+            "fixed inset-safe z-50 flex flex-col rounded-2xl overflow-hidden",
             "glass-strong shadow-2xl",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
