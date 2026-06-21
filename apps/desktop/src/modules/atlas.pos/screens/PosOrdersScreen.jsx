@@ -22,9 +22,9 @@ const STATUS_OPTIONS = ['OPEN', 'SENT', 'PARTIALLY_SERVED', 'SERVED', 'PAID', 'C
 
 export default function PosOrdersScreen() {
   const [search, setSearch] = useState('')
-  const [status, setStatus] = useState('')
+  const [status, setStatus] = useState('ALL')
   const query = {}
-  if (status) query.status = status
+  if (status && status !== 'ALL') query.status = status
 
   const { data: orders = [], isLoading, isError } = usePosOrders(query)
   const reprint = useReprintPosReceipt()
@@ -55,7 +55,7 @@ export default function PosOrdersScreen() {
             value={status}
             onChange={setStatus}
             options={[
-              { value: '', label: 'Todos los estados' },
+              { value: 'ALL', label: 'Todos los estados' },
               ...STATUS_OPTIONS.map((s) => ({ value: s, label: STATUS_LABELS[s] })),
             ]}
           />

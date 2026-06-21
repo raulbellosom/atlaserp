@@ -431,6 +431,15 @@ import {
   Apple,
   Grape,
   Pizza,
+  Armchair,
+  ChefHat,
+  ReceiptText,
+  UtensilsCrossed,
+  Utensils,
+  CookingPot,
+  FloorPlan,
+  LayoutPanelLeft,
+  ImageOff,
 } from "lucide-react";
 
 export const ICON_MAP = {
@@ -867,6 +876,15 @@ export const ICON_MAP = {
   Apple,
   Grape,
   Pizza,
+  Armchair,
+  ChefHat,
+  ReceiptText,
+  UtensilsCrossed,
+  Utensils,
+  CookingPot,
+  FloorPlan,
+  LayoutPanelLeft,
+  ImageOff,
 };
 
 export function ModIcon({ name, size = 22, color, logoUrl }) {
