@@ -116,6 +116,15 @@ enum PosTableStatus {
   @@map("pos_table_status")
 }
 
+enum PosReservationStatus {
+  CONFIRMED
+  SEATED
+  CANCELLED
+  NO_SHOW
+
+  @@map("pos_reservation_status")
+}
+
 enum PosKitchenStatus {
   PENDING
   IN_PREPARATION
@@ -2021,10 +2030,11 @@ model PosOutlet {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  terminals PosTerminal[]
-  sessions  PosSession[]
-  floors    PosFloor[]
-  stations  PosKitchenStation[]
+  terminals    PosTerminal[]
+  sessions     PosSession[]
+  floors       PosFloor[]
+  stations     PosKitchenStation[]
+  reservations PosReservation[]
 
   @@unique([companyId, code])
   @@index([companyId, enabled])
@@ -2041,8 +2051,9 @@ model PosTerminal {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  outlet   PosOutlet @relation(fields: [outletId], references: [id], onDelete: Restrict)
+  outlet   PosOutlet  @relation(fields: [outletId], references: [id], onDelete: Restrict)
   sessions PosSession[]
+  orders   PosOrder[]
 
   @@unique([companyId, code])
   @@index([companyId, outletId])
@@ -2098,6 +2109,7 @@ model PosOrder {
   companyId           String               @db.Uuid @map("company_id")
   outletId            String               @db.Uuid @map("outlet_id")
   sessionId           String?              @db.Uuid @map("session_id")
+  terminalId          String?              @db.Uuid @map("terminal_id")
   tableId             String?              @db.Uuid @map("table_id")
   orderNumber         Int                  @map("order_number")
   status              PosOrderStatus       @default(DRAFT)
@@ -2124,12 +2136,14 @@ model PosOrder {
   updatedAt           DateTime             @updatedAt @map("updated_at")
 
   session        PosSession?        @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  terminal       PosTerminal?       @relation(fields: [terminalId], references: [id], onDelete: SetNull)
   table          PosTable?          @relation(fields: [tableId], references: [id], onDelete: SetNull)
   lines          PosOrderLine[]
   guests         PosGuestSeat[]
   payments       PosPayment[]
   kitchenTickets PosKitchenTicket[]
   receipts       PosReceipt[]
+  reservation    PosReservation?
 
   @@unique([companyId, externalProvider, externalOrderId])
   @@unique([companyId, orderNumber])
@@ -2262,9 +2276,10 @@ model PosTable {
   createdAt DateTime       @default(now()) @map("created_at")
   updatedAt DateTime       @updatedAt @map("updated_at")
 
-  floor  PosFloor      @relation(fields: [floorId], references: [id], onDelete: Cascade)
-  zone   PosFloorZone? @relation(fields: [zoneId], references: [id], onDelete: SetNull)
-  orders PosOrder[]
+  floor        PosFloor       @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  zone         PosFloorZone?  @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  orders       PosOrder[]
+  reservations PosReservation[]
 
   @@unique([floorId, name])
   @@index([companyId, status])
@@ -2290,6 +2305,33 @@ model PosFloorElement {
 
   @@index([floorId])
   @@map("pos_floor_element")
+}
+
+model PosReservation {
+  id              String               @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId       String               @db.Uuid @map("company_id")
+  outletId        String               @db.Uuid @map("outlet_id")
+  tableId         String?              @db.Uuid @map("table_id")
+  guestName       String               @map("guest_name")
+  guestPhone      String?              @map("guest_phone")
+  partySize       Int                  @default(2) @map("party_size")
+  scheduledAt     DateTime             @map("scheduled_at")
+  durationMinutes Int                  @default(90) @map("duration_minutes")
+  notes           String?
+  status          PosReservationStatus @default(CONFIRMED)
+  orderId         String?              @unique @db.Uuid @map("order_id")
+  createdById     String               @db.Uuid @map("created_by_id")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+
+  outlet PosOutlet  @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  table  PosTable?  @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  order  PosOrder?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, scheduledAt])
+  @@index([companyId, status])
+  @@index([tableId, status])
+  @@map("pos_reservation")
 }
 
 model PosKitchenStation {
