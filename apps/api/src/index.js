@@ -4831,6 +4831,18 @@ app.delete('/inventory/categories/:id', authMiddleware, requirePermission('inven
   }
 });
 
+app.patch('/inventory/categories/reorder', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
+  try {
+    const companyId = c.get('companyId');
+    const { items } = await c.req.json();
+    await inventoryService.reorderCategories(companyId, items);
+    return c.json({ ok: true });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo reordenar.' }, 500);
+  }
+});
+
 // Brands
 app.get('/inventory/brands', authMiddleware, requirePermission('inventory.catalog.read'), async (c) => {
   try {
@@ -4877,6 +4889,18 @@ app.delete('/inventory/brands/:id', authMiddleware, requirePermission('inventory
   } catch (err) {
     if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
     return c.json({ error: 'No se pudo eliminar la marca.' }, 500);
+  }
+});
+
+app.patch('/inventory/brands/reorder', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
+  try {
+    const companyId = c.get('companyId');
+    const { items } = await c.req.json();
+    await inventoryService.reorderBrands(companyId, items);
+    return c.json({ ok: true });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo reordenar.' }, 500);
   }
 });
 
@@ -4929,6 +4953,18 @@ app.delete('/inventory/locations/:id', authMiddleware, requirePermission('invent
   }
 });
 
+app.patch('/inventory/locations/reorder', authMiddleware, requirePermission('inventory.catalog.manage'), async (c) => {
+  try {
+    const companyId = c.get('companyId');
+    const { items } = await c.req.json();
+    await inventoryService.reorderLocations(companyId, items);
+    return c.json({ ok: true });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo reordenar.' }, 500);
+  }
+});
+
 // Custom Fields
 app.get('/inventory/custom-fields', authMiddleware, requirePermission('inventory.catalog.read'), async (c) => {
   try {
@@ -4976,6 +5012,18 @@ app.delete('/inventory/custom-fields/:id', authMiddleware, requirePermission('in
   } catch (err) {
     if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
     return c.json({ error: 'No se pudo eliminar el campo personalizado.' }, 500);
+  }
+});
+
+app.patch('/inventory/custom-fields/reorder', authMiddleware, requirePermission('inventory.customfield.manage'), async (c) => {
+  try {
+    const companyId = c.get('companyId');
+    const { items } = await c.req.json();
+    await inventoryService.reorderCustomFields(companyId, items);
+    return c.json({ ok: true });
+  } catch (err) {
+    if (err instanceof InventoryServiceError) return c.json({ error: err.message }, err.status);
+    return c.json({ error: 'No se pudo reordenar.' }, 500);
   }
 });
 

@@ -694,6 +694,38 @@ export function createInventoryService({ prisma, activityBridge }) {
     return prisma.invCustomField.update({ where: { id }, data: { enabled: false } });
   }
 
+  async function reorderCategories(companyId, items) {
+    await Promise.all(
+      items.map(({ id, sortOrder }) =>
+        prisma.invCategory.update({ where: { id }, data: { sortOrder } })
+      )
+    );
+  }
+
+  async function reorderBrands(companyId, items) {
+    await Promise.all(
+      items.map(({ id, sortOrder }) =>
+        prisma.invBrand.update({ where: { id }, data: { sortOrder } })
+      )
+    );
+  }
+
+  async function reorderLocations(companyId, items) {
+    await Promise.all(
+      items.map(({ id, sortOrder }) =>
+        prisma.invLocation.update({ where: { id }, data: { sortOrder } })
+      )
+    );
+  }
+
+  async function reorderCustomFields(companyId, items) {
+    await Promise.all(
+      items.map(({ id, sortOrder }) =>
+        prisma.invCustomField.update({ where: { id }, data: { sortOrder } })
+      )
+    );
+  }
+
   // ── Comments ───────────────────────────────────────────────────────────────
 
   async function listComments(itemId, companyId) {
@@ -860,6 +892,10 @@ export function createInventoryService({ prisma, activityBridge }) {
     createCustomField,
     updateCustomField,
     deleteCustomField,
+    reorderCategories,
+    reorderBrands,
+    reorderLocations,
+    reorderCustomFields,
     // Comments
     listComments,
     createComment,
