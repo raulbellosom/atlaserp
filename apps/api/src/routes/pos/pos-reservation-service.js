@@ -115,9 +115,10 @@ export function createPosReservationService({ prisma }) {
       });
 
       if (
-        data.status === "CANCELLED" &&
+        (data.status === "CANCELLED" || data.status === "NO_SHOW") &&
         existing.tableId &&
-        existing.status !== "CANCELLED"
+        existing.status !== "CANCELLED" &&
+        existing.status !== "NO_SHOW"
       ) {
         const activeOrders = await tx.posOrder.count({
           where: {

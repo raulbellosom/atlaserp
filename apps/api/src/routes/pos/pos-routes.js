@@ -510,7 +510,7 @@ export function createPosRouter({ prisma, requirePermission }) {
     }
   });
 
-  app.post("/pos/reservations", requirePermission("pos.orders.manage"), async (c) => {
+  app.post("/pos/reservations", requirePermission("pos.orders.create"), async (c) => {
     try {
       const data = await parseBody(c, createReservationSchema);
       return c.json({ data: await reservationSvc.createReservation({ ...context(c), data }) }, 201);
@@ -529,7 +529,7 @@ export function createPosRouter({ prisma, requirePermission }) {
     }
   });
 
-  app.patch("/pos/reservations/:id", requirePermission("pos.orders.manage"), async (c) => {
+  app.patch("/pos/reservations/:id", requirePermission("pos.orders.update"), async (c) => {
     try {
       const data = await parseBody(c, updateReservationSchema);
       return c.json({
@@ -540,7 +540,7 @@ export function createPosRouter({ prisma, requirePermission }) {
     }
   });
 
-  app.post("/pos/reservations/:id/seat", requirePermission("pos.orders.manage"), async (c) => {
+  app.post("/pos/reservations/:id/seat", requirePermission("pos.orders.create"), async (c) => {
     try {
       const data = await parseBody(c, seatReservationSchema);
       return c.json({

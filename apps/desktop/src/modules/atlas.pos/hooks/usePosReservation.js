@@ -55,6 +55,7 @@ export function useSeatPosReservation() {
   return useMutation({
     mutationFn: ({ id, sessionId }) => atlas.pos.seatReservation(id, { sessionId }, token),
     onSuccess: () => {
+      toast.success('Reservación iniciada')
       qc.invalidateQueries({ queryKey: ['pos', 'reservations'] })
       qc.invalidateQueries({ queryKey: ['pos', 'floors', 'detail'] })
       qc.invalidateQueries({ queryKey: ['pos', 'orders'] })
