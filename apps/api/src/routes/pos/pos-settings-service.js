@@ -161,6 +161,50 @@ export function createPosSettingsService({ prisma }) {
     return updated;
   }
 
+  async function listPaymentMethods({ companyId }) {
+    const scopedCompanyId = requireCompanyId(companyId);
+    return prisma.posPaymentMethod.findMany({
+      where: { companyId: scopedCompanyId },
+      orderBy: [{ enabled: "desc" }, { name: "asc" }],
+    });
+  }
+
+  async function createPaymentMethod({ companyId, actorId, data }) {
+    const scopedCompanyId = requireCompanyId(companyId);
+    const method = await prisma.posPaymentMethod.create({
+      data: { companyId: scopedCompanyId, ...cleanData(data) },
+    });
+    await writeAudit(prisma, {
+      actorId,
+      entityType: "PosPaymentMethod",
+      entityId: method.id,
+      action: "pos.payment_method.create",
+      after: method,
+    });
+    return method;
+  }
+
+  async function updatePaymentMethod({ companyId, id, actorId, data }) {
+    const scopedCompanyId = requireCompanyId(companyId);
+    const before = await prisma.posPaymentMethod.findFirst({
+      where: { id, companyId: scopedCompanyId },
+    });
+    if (!before) throw new PosServiceError("Método de pago no encontrado.", 404);
+    const updated = await prisma.posPaymentMethod.update({
+      where: { id },
+      data: cleanData(data),
+    });
+    await writeAudit(prisma, {
+      actorId,
+      entityType: "PosPaymentMethod",
+      entityId: updated.id,
+      action: "pos.payment_method.update",
+      before,
+      after: updated,
+    });
+    return updated;
+  }
+
   return {
     getSettings,
     updateSettings,
@@ -170,5 +214,8 @@ export function createPosSettingsService({ prisma }) {
     listTerminals,
     createTerminal,
     updateTerminal,
+    listPaymentMethods,
+    createPaymentMethod,
+    updatePaymentMethod,
   };
 }

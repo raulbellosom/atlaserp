@@ -51,8 +51,8 @@ export default function PosSessionsScreen() {
                       <div>
                         <p className="font-medium text-sm">{s.terminal?.name ?? 'Terminal'}</p>
                         <p className="text-xs text-muted-foreground">
-                          Apertura: ${parseFloat(s.opening_cash_amount ?? 0).toFixed(2)} ·{' '}
-                          {new Date(s.opened_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
+                          Apertura: ${parseFloat(s.openingCashAmount ?? 0).toFixed(2)} ·{' '}
+                          {new Date(s.openedAt).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
                         </p>
                       </div>
                       <div className="flex gap-2">
@@ -81,14 +81,14 @@ export default function PosSessionsScreen() {
                     <div>
                       <p className="text-sm font-medium">{s.terminal?.name ?? 'Terminal'}</p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(s.opened_at).toLocaleDateString('es-MX')}
-                        {s.closed_at ? ` — ${new Date(s.closed_at).toLocaleTimeString('es-MX', { timeStyle: 'short' })}` : ''}
+                        {new Date(s.openedAt).toLocaleDateString('es-MX')}
+                        {s.closedAt ? ` — ${new Date(s.closedAt).toLocaleTimeString('es-MX', { timeStyle: 'short' })}` : ''}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      {s.difference_amount != null && (
-                        <span className={`text-sm font-medium ${parseFloat(s.difference_amount) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {parseFloat(s.difference_amount) >= 0 ? '+' : ''}{parseFloat(s.difference_amount).toFixed(2)}
+                      {s.differenceAmount != null && (
+                        <span className={`text-sm font-medium ${parseFloat(s.differenceAmount) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {parseFloat(s.differenceAmount) >= 0 ? '+' : ''}{parseFloat(s.differenceAmount).toFixed(2)}
                         </span>
                       )}
                       <Badge variant={STATUS_VARIANTS[s.status]}>{STATUS_LABELS[s.status]}</Badge>

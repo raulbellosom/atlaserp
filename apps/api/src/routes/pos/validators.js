@@ -168,20 +168,27 @@ export const updateTableSchema = createTableSchema.omit({ floorId: true }).parti
 
 export const floorElementSchema = z.object({
   id: uuidSchema.optional(),
-  kind: z.enum(['TABLE_SQUARE', 'TABLE_ROUND', 'BAR', 'WALL', 'PLANT', 'DOOR']),
+  kind: z.enum([
+    'TABLE_SQUARE', 'TABLE_ROUND',
+    'BAR', 'WALL', 'PLANT', 'DOOR',
+    'FLOOR_ZONE', 'PILLAR', 'SOFA', 'WINDOW', 'STAIRS',
+    'POLYGON',
+  ]),
   x: z.coerce.number().min(0),
   y: z.coerce.number().min(0),
-  width: z.coerce.number().min(20),
-  height: z.coerce.number().min(20),
+  width: z.coerce.number().min(10),
+  height: z.coerce.number().min(10),
   rotation: z.coerce.number().min(-360).max(360).default(0).optional(),
   label: z.string().max(80).nullable().optional(),
-  tableName: z.string().min(1).max(80).optional(),
-  capacity: z.coerce.number().int().min(1).max(99).optional(),
+  tableName: z.string().max(80).nullable().optional(),
+  capacity: z.coerce.number().int().min(0).max(999).optional(),
+  chairStyle: z.enum(['auto', 'two_sides', 'one_side', 'none']).optional(),
+  color: z.string().max(40).nullable().optional(),
   style: z.record(z.unknown()).nullable().optional(),
 });
 
 export const saveLayoutSchema = z.object({
-  elements: z.array(floorElementSchema).min(1).max(500),
+  elements: z.array(floorElementSchema).min(0).max(500),
 });
 
 export const tableStatusUpdateSchema = z.object({
@@ -203,3 +210,15 @@ export const updateStationSchema = createStationSchema.omit({ outletId: true }).
 export const kitchenStatusUpdateSchema = z.object({
   status: kitchenStatusSchema,
 });
+
+export const paymentMethodKindSchema = z.enum(["CASH", "CARD", "TRANSFER"]);
+
+export const createPaymentMethodSchema = z.object({
+  name: z.string().min(1).max(100),
+  code: z.string().min(1).max(50),
+  kind: paymentMethodKindSchema,
+  requiresReference: z.boolean().optional(),
+  enabled: z.boolean().optional(),
+});
+
+export const updatePaymentMethodSchema = createPaymentMethodSchema.partial();

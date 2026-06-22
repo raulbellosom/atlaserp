@@ -24,6 +24,7 @@ export function usePosOrder(id) {
   return useQuery({
     queryKey: ['pos', 'orders', 'detail', id],
     queryFn: () => atlas.pos.getOrder(id, token),
+    select: (res) => res?.data ?? null,
     enabled: Boolean(token) && Boolean(id),
     staleTime: 10 * 1000,
     refetchInterval: 15 * 1000,

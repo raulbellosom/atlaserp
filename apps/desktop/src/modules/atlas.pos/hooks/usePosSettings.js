@@ -130,6 +130,53 @@ export function useUpdatePosTerminal() {
   })
 }
 
+export function usePosPaymentMethods() {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['pos', 'payment-methods'],
+    queryFn: () => atlas.pos.listPaymentMethods(token),
+    select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
+    enabled: Boolean(token),
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+export function useCreatePosPaymentMethod() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => atlas.pos.createPaymentMethod(data, token),
+    onMutate: () => ({ toastId: toast.loading('Creando método de pago...') }),
+    onSuccess: (_, __, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      toast.success('Método de pago creado')
+      qc.invalidateQueries({ queryKey: ['pos', 'payment-methods'] })
+    },
+    onError: (err, __, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      toast.error(err?.message ?? 'Error al crear método de pago')
+    },
+  })
+}
+
+export function useUpdatePosPaymentMethod() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }) => atlas.pos.updatePaymentMethod(id, data, token),
+    onMutate: () => ({ toastId: toast.loading('Guardando...') }),
+    onSuccess: (_, __, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      toast.success('Método de pago actualizado')
+      qc.invalidateQueries({ queryKey: ['pos', 'payment-methods'] })
+    },
+    onError: (err, __, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      toast.error(err?.message ?? 'Error al actualizar')
+    },
+  })
+}
+
 export function usePosStations(query = {}) {
   const token = useToken()
   return useQuery({

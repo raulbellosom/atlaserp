@@ -14,6 +14,7 @@ import {
   createGuestSchema,
   createOrderSchema,
   createOutletSchema,
+  createPaymentMethodSchema,
   createPaymentSchema,
   createStationSchema,
   createTableSchema,
@@ -26,6 +27,7 @@ import {
   updateOrderLineSchema,
   updateOrderSchema,
   updateOutletSchema,
+  updatePaymentMethodSchema,
   updateSettingsSchema,
   updateStationSchema,
   updateTableSchema,
@@ -461,6 +463,33 @@ export function createPosRouter({ prisma, requirePermission }) {
       });
     } catch (err) {
       return handleError(c, err, "No se pudo actualizar la linea de ticket.");
+    }
+  });
+
+  // ── Payment Methods ────────────────────────────────────────────────────────
+  app.get("/pos/payment-methods", requirePermission("pos.terminal.use"), async (c) => {
+    try {
+      return c.json({ data: await settingsSvc.listPaymentMethods(context(c)) });
+    } catch (err) {
+      return handleError(c, err, "No se pudieron obtener los métodos de pago.");
+    }
+  });
+
+  app.post("/pos/payment-methods", requirePermission("pos.settings.manage"), async (c) => {
+    try {
+      const data = await parseBody(c, createPaymentMethodSchema);
+      return c.json({ data: await settingsSvc.createPaymentMethod({ ...context(c), data }) }, 201);
+    } catch (err) {
+      return handleError(c, err, "No se pudo crear el método de pago.");
+    }
+  });
+
+  app.patch("/pos/payment-methods/:id", requirePermission("pos.settings.manage"), async (c) => {
+    try {
+      const data = await parseBody(c, updatePaymentMethodSchema);
+      return c.json({ data: await settingsSvc.updatePaymentMethod({ ...context(c), id: c.req.param("id"), data }) });
+    } catch (err) {
+      return handleError(c, err, "No se pudo actualizar el método de pago.");
     }
   });
 

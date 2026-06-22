@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-  Button, Input, SelectField,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+  Button, TextField, Label, SelectField,
 } from '@atlas/ui'
 import { useAddCashMovement } from '../hooks/usePosSession'
 
@@ -25,32 +25,40 @@ export default function CashMovementDialog({ open, onOpenChange, sessionId }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Movimiento de efectivo</DialogTitle></DialogHeader>
-        <div className="flex flex-col gap-4 py-4">
-          <SelectField value={kind} onChange={setKind} options={KIND_OPTIONS} />
-          <div>
-            <label className="text-sm font-medium mb-1 block">Monto</label>
-            <Input
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-            />
+      <DialogContent className="max-w-sm md:min-h-0">
+        <DialogHeader>
+          <DialogTitle>Movimiento de efectivo</DialogTitle>
+          <DialogDescription>Registra una entrada o salida de efectivo en la caja activa.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={(e) => { e.preventDefault(); handleSave() }} className="flex flex-col gap-4 py-1">
+          <div className="flex flex-col gap-1.5">
+            <Label>Tipo de movimiento</Label>
+            <SelectField value={kind} onChange={setKind} options={KIND_OPTIONS} />
           </div>
-          <div>
-            <label className="text-sm font-medium mb-1 block">Motivo</label>
-            <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ej. Cambio de turno" />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={!amount || !reason || addMovement.isPending}>
-            Registrar
-          </Button>
-        </DialogFooter>
+          <TextField
+            label="Monto"
+            required
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+          />
+          <TextField
+            label="Motivo"
+            required
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Ej. Cambio para cliente, fondo de inicio..."
+          />
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit" disabled={!amount || !reason || addMovement.isPending}>
+              {addMovement.isPending ? 'Registrando...' : 'Registrar movimiento'}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   )

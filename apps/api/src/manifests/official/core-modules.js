@@ -1181,6 +1181,13 @@ export const atlasPosManifest = createModuleManifest({
       permissionKey: "pos.terminal.use",
     },
     {
+      label: "Planos",
+      path: "/app/m/atlas.pos/pos/floor-planner",
+      icon: "LayoutGrid",
+      layout: "main",
+      permissionKey: "pos.floor.manage",
+    },
+    {
       label: "Estaciones",
       path: "/app/m/atlas.pos/pos/stations",
       icon: "ChefHat",

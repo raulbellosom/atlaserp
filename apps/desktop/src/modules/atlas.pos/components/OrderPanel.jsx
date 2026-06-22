@@ -1,9 +1,13 @@
 import { useState } from 'react'
-import { Button, ConfirmDialog } from '@atlas/ui'
+import { Minus, Plus, ShoppingCart } from 'lucide-react'
+import { Button, Badge, Separator, ConfirmDialog } from '@atlas/ui'
 import {
   useUpdatePosOrderLine, useDeletePosOrderLine,
   useSendToKitchen, useCancelPosOrder,
 } from '../hooks/usePosOrder'
+
+const STATUS_LABELS = { OPEN: 'Abierta', SENT: 'En cocina', PARTIALLY_SERVED: 'Parcialmente servida', SERVED: 'Servida', PAID: 'Pagada', CANCELLED: 'Cancelada' }
+const STATUS_VARIANTS = { OPEN: 'default', SENT: 'default', PARTIALLY_SERVED: 'default', SERVED: 'default', PAID: 'secondary', CANCELLED: 'destructive' }
 
 export default function OrderPanel({ order, onPay, onNewOrder }) {
   const updateLine = useUpdatePosOrderLine()
@@ -27,66 +31,92 @@ export default function OrderPanel({ order, onPay, onNewOrder }) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-background border-l border-border">
-      <div className="p-4 border-b border-border shrink-0">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-semibold text-sm">
-              {order ? `Orden #${order.order_number}` : 'Sin orden activa'}
-            </p>
-            {order?.table?.name && (
-              <p className="text-xs text-muted-foreground">Mesa: {order.table.name}</p>
+    <div className="flex flex-col h-full bg-card border-l border-border">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-border shrink-0 bg-muted/30">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            {order ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-sm truncate">
+                    Orden #{order.orderNumber}
+                  </p>
+                  <Badge variant={STATUS_VARIANTS[order.status] ?? 'secondary'} className="shrink-0 text-[10px] px-1.5 py-0">
+                    {STATUS_LABELS[order.status] ?? order.status}
+                  </Badge>
+                </div>
+                {order.table?.name && (
+                  <p className="text-xs text-muted-foreground mt-0.5">Mesa: {order.table.name}</p>
+                )}
+              </>
+            ) : (
+              <p className="font-medium text-sm text-muted-foreground">Sin orden activa</p>
             )}
           </div>
           {order && !locked && (
-            <Button size="sm" variant="ghost" onClick={() => setCancelConfirm(true)}>
+            <Button size="sm" variant="ghost" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setCancelConfirm(true)}>
               Cancelar
             </Button>
           )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      {/* Lines list */}
+      <div className="flex-1 overflow-y-auto">
         {lines.length === 0 ? (
-          <p className="text-sm text-center text-muted-foreground py-8">
-            Selecciona productos para agregar a la orden
-          </p>
+          <div className="flex flex-col items-center justify-center gap-3 py-12 px-4 text-center">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              <ShoppingCart size={20} className="text-muted-foreground/60" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {order ? 'Agrega productos para comenzar' : 'Selecciona productos para crear la orden'}
+            </p>
+          </div>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="divide-y divide-border/60 px-1">
             {lines.map((line) => (
-              <li key={line.id} className="flex items-center gap-3 py-2 border-b border-border/50">
+              <li key={line.id} className="flex items-start gap-3 px-3 py-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{line.product_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    ${parseFloat(line.unit_price).toFixed(2)} c/u
+                  <p className="text-sm font-medium leading-snug truncate">{line.productName}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    ${parseFloat(line.unitPrice).toFixed(2)} c/u
                   </p>
                   {line.note && (
-                    <p className="text-xs text-muted-foreground italic">{line.note}</p>
+                    <p className="text-xs text-amber-600 mt-0.5 italic">{line.note}</p>
                   )}
                 </div>
-                {!locked ? (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => changeQty(line, -1)}
-                      className="h-7 w-7 rounded-full border border-border flex items-center justify-center text-sm hover:bg-muted"
-                    >
-                      −
-                    </button>
-                    <span className="w-8 text-center text-sm font-medium">
-                      {parseFloat(line.quantity)}
-                    </span>
-                    <button
-                      onClick={() => changeQty(line, 1)}
-                      className="h-7 w-7 rounded-full border border-border flex items-center justify-center text-sm hover:bg-muted"
-                    >
-                      +
-                    </button>
-                  </div>
-                ) : (
-                  <span className="text-sm shrink-0">x{parseFloat(line.quantity)}</span>
-                )}
-                <span className="text-sm font-semibold shrink-0 w-16 text-right">
-                  ${parseFloat(line.total_amount ?? 0).toFixed(2)}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {!locked ? (
+                    <>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-7 w-7 rounded-full"
+                        onClick={() => changeQty(line, -1)}
+                        aria-label="Reducir cantidad"
+                      >
+                        <Minus size={12} />
+                      </Button>
+                      <span className="w-6 text-center text-sm font-semibold tabular-nums">
+                        {parseFloat(line.quantity)}
+                      </span>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-7 w-7 rounded-full"
+                        onClick={() => changeQty(line, 1)}
+                        aria-label="Aumentar cantidad"
+                      >
+                        <Plus size={12} />
+                      </Button>
+                    </>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">×{parseFloat(line.quantity)}</span>
+                  )}
+                </div>
+                <span className="text-sm font-semibold shrink-0 w-14 text-right tabular-nums">
+                  ${parseFloat(line.totalAmount ?? 0).toFixed(2)}
                 </span>
               </li>
             ))}
@@ -94,34 +124,41 @@ export default function OrderPanel({ order, onPay, onNewOrder }) {
         )}
       </div>
 
+      {/* Totals */}
       {order && (
-        <div className="p-4 border-t border-border space-y-1 shrink-0 bg-muted/30">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Subtotal</span>
-            <span>${parseFloat(order.subtotal_amount ?? 0).toFixed(2)}</span>
-          </div>
-          {parseFloat(order.tax_amount ?? 0) > 0 && (
+        <div className="px-4 py-3 border-t border-border shrink-0 bg-muted/20">
+          <div className="flex flex-col gap-1.5">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">IVA</span>
-              <span>${parseFloat(order.tax_amount).toFixed(2)}</span>
+              <span className="text-muted-foreground">Subtotal</span>
+              <span className="tabular-nums">${parseFloat(order.subtotalAmount ?? 0).toFixed(2)}</span>
             </div>
-          )}
-          {parseFloat(order.discount_amount ?? 0) > 0 && (
-            <div className="flex justify-between text-sm text-red-600">
-              <span>Descuento</span>
-              <span>−${parseFloat(order.discount_amount).toFixed(2)}</span>
+            {parseFloat(order.taxAmount ?? 0) > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">IVA</span>
+                <span className="tabular-nums">${parseFloat(order.taxAmount).toFixed(2)}</span>
+              </div>
+            )}
+            {parseFloat(order.discountAmount ?? 0) > 0 && (
+              <div className="flex justify-between text-sm text-destructive">
+                <span>Descuento</span>
+                <span className="tabular-nums">−${parseFloat(order.discountAmount).toFixed(2)}</span>
+              </div>
+            )}
+            <Separator className="my-1" />
+            <div className="flex justify-between font-bold text-base">
+              <span>Total</span>
+              <span className="tabular-nums">${parseFloat(order.totalAmount ?? 0).toFixed(2)}</span>
             </div>
-          )}
-          <div className="flex justify-between font-bold text-base pt-1 border-t border-border mt-1">
-            <span>Total</span>
-            <span>${parseFloat(order.total_amount ?? 0).toFixed(2)}</span>
           </div>
         </div>
       )}
 
-      <div className="p-4 flex flex-col gap-2 shrink-0">
+      {/* Actions */}
+      <div className="p-3 flex flex-col gap-2 shrink-0 border-t border-border">
         {!order ? (
-          <Button onClick={onNewOrder} className="w-full">Nueva orden</Button>
+          <Button onClick={onNewOrder} className="w-full">
+            Nueva orden
+          </Button>
         ) : !locked ? (
           <>
             <div className="flex gap-2">
@@ -131,7 +168,7 @@ export default function OrderPanel({ order, onPay, onNewOrder }) {
                 onClick={() => sendKitchen.mutate(order.id)}
                 disabled={lines.length === 0 || sendKitchen.isPending}
               >
-                Enviar a cocina
+                {sendKitchen.isPending ? 'Enviando...' : 'Enviar a cocina'}
               </Button>
               <Button
                 className="flex-1"
@@ -141,13 +178,20 @@ export default function OrderPanel({ order, onPay, onNewOrder }) {
                 Cobrar
               </Button>
             </div>
-            <Button variant="ghost" className="w-full text-sm" onClick={onNewOrder}>
+            <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={onNewOrder}>
               + Nueva orden
             </Button>
           </>
         ) : (
-          <div className="text-center text-sm text-muted-foreground">
-            Orden {isPaid ? 'pagada' : 'cancelada'}
+          <div className="text-center py-2">
+            <Badge variant={isPaid ? 'secondary' : 'destructive'} className="text-xs">
+              Orden {isPaid ? 'pagada' : 'cancelada'}
+            </Badge>
+            <div className="mt-2">
+              <Button variant="outline" size="sm" className="w-full" onClick={onNewOrder}>
+                Nueva orden
+              </Button>
+            </div>
           </div>
         )}
       </div>

@@ -93,7 +93,17 @@ export function createPosFloorService({ prisma }) {
 
       // upsert incoming elements
       for (const elem of incoming) {
-        const { id: elemId, kind, x, y, width, height, label, style, tableName, capacity } = elem
+        const { id: elemId, kind, x, y, width, height, label, style, tableName, capacity, chairStyle, color } = elem
+
+        // Store visual metadata (chairStyle, color, BAR stools) in the style JSON column
+        const metaStyle = {}
+        if (chairStyle) metaStyle.chairStyle = chairStyle
+        if (color) metaStyle.color = color
+        if (kind === 'BAR' && capacity != null) metaStyle.capacity = capacity
+        const mergedStyle = (Object.keys(metaStyle).length > 0 || style)
+          ? { ...(style ?? {}), ...metaStyle }
+          : null
+
         const posData = {
           x,
           y,
@@ -101,7 +111,7 @@ export function createPosFloorService({ prisma }) {
           height,
           rotation: elem.rotation ?? 0,
           label: label ?? null,
-          style: style ?? null,
+          style: mergedStyle,
         }
 
         if (elemId) {
@@ -109,6 +119,28 @@ export function createPosFloorService({ prisma }) {
             where: { id: elemId, floorId: id },
             data: posData,
           })
+          // For TABLE elements, also sync name/capacity to the linked PosTable
+          if (kind?.startsWith('TABLE_') && (tableName != null || capacity != null)) {
+            const existingElem = await tx.posFloorElement.findFirst({
+              where: { id: elemId, floorId: id },
+              select: { tableId: true },
+            })
+            if (existingElem?.tableId) {
+              const tableUpdate = {}
+              if (tableName != null) tableUpdate.name = (tableName || 'Mesa').trim()
+              if (capacity != null) tableUpdate.capacity = capacity
+              if (Object.keys(tableUpdate).length > 0) {
+                try {
+                  await tx.posTable.update({ where: { id: existingElem.tableId }, data: tableUpdate })
+                } catch (err) {
+                  if (err?.code === 'P2002') {
+                    throw new PosServiceError(`Ya existe una mesa con el nombre "${tableUpdate.name}" en este plano.`, 409)
+                  }
+                  throw err
+                }
+              }
+            }
+          }
         } else {
           let tableId = null
           if (kind.startsWith('TABLE_')) {

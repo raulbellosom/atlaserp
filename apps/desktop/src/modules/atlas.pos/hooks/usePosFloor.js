@@ -12,7 +12,8 @@ export function usePosActiveMap(outletId) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'tables', 'active-map', outletId],
-    queryFn: () => atlas.pos.getActiveMap(outletId ? { outlet_id: outletId } : {}, token),
+    queryFn: () => atlas.pos.getActiveMap(outletId ? { outletId } : {}, token),
+    select: (res) => res?.data ?? null,
     enabled: Boolean(token),
     staleTime: 15 * 1000,
     refetchInterval: 30 * 1000,
@@ -51,6 +52,25 @@ export function usePosFloorDetail(id) {
     select: (res) => res?.data ?? res,
     enabled: Boolean(token) && Boolean(id),
     staleTime: 60 * 1000,
+  })
+}
+
+export function useUpdatePosFloor() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }) => atlas.pos.updateFloor(id, data, token),
+    onMutate: () => ({ toastId: toast.loading('Guardando plano...') }),
+    onSuccess: (_, vars, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      toast.success('Plano actualizado')
+      qc.invalidateQueries({ queryKey: ['pos', 'floors'] })
+      qc.invalidateQueries({ queryKey: ['pos', 'floors', 'detail', vars.id] })
+    },
+    onError: (err, __, ctx) => {
+      toast.dismiss(ctx?.toastId)
+      toast.error(err?.message ?? 'Error al actualizar plano')
+    },
   })
 }
 

@@ -7,12 +7,12 @@ import KitchenStationBoard from '../components/KitchenStationBoard'
 export default function PosStationsScreen() {
   const { data: outlets = [] } = usePosOutlets()
   const [outletId, setOutletId] = useState('')
-  const { data: stations = [] } = usePosStations(outletId ? { outlet_id: outletId } : {})
+  const { data: stations = [] } = usePosStations(outletId ? { outletId } : {})
   const [stationId, setStationId] = useState('')
   const { data: tickets = [], isLoading } = usePosStationTickets(stationId)
 
   return (
-    <div className="flex h-screen flex-col bg-background overflow-hidden">
+    <div className="flex h-full flex-col bg-background overflow-hidden">
       <div className="flex items-center gap-3 p-4 border-b border-border shrink-0 flex-wrap">
         <h1 className="font-semibold text-lg">Estaciones</h1>
         <div className="flex gap-2 ml-auto flex-wrap">

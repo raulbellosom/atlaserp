@@ -23,7 +23,8 @@ export function usePosCurrentSession(terminalId) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'sessions', 'current', terminalId],
-    queryFn: () => atlas.pos.getCurrentSession({ terminal_id: terminalId }, token),
+    queryFn: () => atlas.pos.getCurrentSession({ terminalId }, token),
+    select: (res) => res?.data ?? null,
     enabled: Boolean(token) && Boolean(terminalId),
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,

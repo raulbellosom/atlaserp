@@ -108,11 +108,15 @@ async function loadCatalogSnapshot(db, { companyId, productId, variantId, unitPr
 export function createPosOrderService({ prisma }) {
   async function listOrders({ companyId, filters = {} }) {
     const scopedCompanyId = requireCompanyId(companyId);
+    const openedAtFilter = {};
+    if (filters.dateFrom) openedAtFilter.gte = new Date(filters.dateFrom);
+    if (filters.dateTo) openedAtFilter.lte = new Date(filters.dateTo + "T23:59:59.999Z");
     return prisma.posOrder.findMany({
       where: {
         companyId: scopedCompanyId,
         ...(filters.status ? { status: filters.status } : {}),
         ...(filters.salesChannel ? { salesChannel: filters.salesChannel } : {}),
+        ...(Object.keys(openedAtFilter).length > 0 ? { openedAt: openedAtFilter } : {}),
       },
       orderBy: { openedAt: "desc" },
     });
@@ -120,59 +124,70 @@ export function createPosOrderService({ prisma }) {
 
   async function createOrder({ companyId, actorId, data }) {
     const scopedCompanyId = requireCompanyId(companyId);
-    return prisma.$transaction(async (tx) => {
-      if (data.externalProvider && data.externalOrderId) {
-        const duplicate = await tx.posOrder.findFirst({
-          where: {
-            companyId: scopedCompanyId,
-            externalProvider: data.externalProvider,
-            externalOrderId: data.externalOrderId,
-          },
+
+    for (let attempt = 0; attempt <= 3; attempt++) {
+      try {
+        return await prisma.$transaction(async (tx) => {
+          if (data.externalProvider && data.externalOrderId) {
+            const duplicate = await tx.posOrder.findFirst({
+              where: {
+                companyId: scopedCompanyId,
+                externalProvider: data.externalProvider,
+                externalOrderId: data.externalOrderId,
+              },
+            });
+            if (duplicate) throw new PosServiceError("La orden externa ya existe.", 409);
+          }
+
+          const order = await tx.posOrder.create({
+            data: {
+              companyId: scopedCompanyId,
+              outletId: data.outletId,
+              sessionId: data.sessionId ?? null,
+              tableId: data.tableId ?? null,
+              orderNumber: await nextOrderNumber(tx, scopedCompanyId),
+              status: "OPEN",
+              fulfillmentType: data.fulfillmentType ?? "DINE_IN",
+              salesChannel: data.salesChannel ?? "IN_STORE",
+              externalProvider: data.externalProvider ?? null,
+              externalOrderId: data.externalOrderId ?? null,
+              customerName: normalizeText(data.customerName),
+              customerPhone: normalizeText(data.customerPhone),
+              guestCount: Number(data.guestCount ?? 1),
+              notes: normalizeText(data.notes),
+              createdById: actorId,
+            },
+          });
+
+          if ((data.fulfillmentType ?? "DINE_IN") === "DINE_IN") {
+            const count = Number(data.guestCount ?? 1);
+            await tx.posGuestSeat.createMany({
+              data: Array.from({ length: count }, (_, index) => ({
+                orderId: order.id,
+                label: `Comensal ${index + 1}`,
+                position: index + 1,
+              })),
+            });
+          }
+
+          const hydrated = await hydrateOrder(tx, { companyId: scopedCompanyId, id: order.id });
+          await writeAudit(tx, {
+            actorId,
+            entityType: "PosOrder",
+            entityId: order.id,
+            action: "pos.order.create",
+            after: hydrated,
+          });
+          return hydrated;
         });
-        if (duplicate) throw new PosServiceError("La orden externa ya existe.", 409);
+      } catch (err) {
+        const isNumberConflict =
+          err?.code === "P2002" &&
+          String(err?.meta?.target ?? err?.meta?.modelName ?? "").toLowerCase().includes("order");
+        if (isNumberConflict && attempt < 3) continue;
+        throw err;
       }
-
-      const order = await tx.posOrder.create({
-        data: {
-          companyId: scopedCompanyId,
-          outletId: data.outletId,
-          sessionId: data.sessionId ?? null,
-          tableId: data.tableId ?? null,
-          orderNumber: await nextOrderNumber(tx, scopedCompanyId),
-          status: "OPEN",
-          fulfillmentType: data.fulfillmentType ?? "DINE_IN",
-          salesChannel: data.salesChannel ?? "IN_STORE",
-          externalProvider: data.externalProvider ?? null,
-          externalOrderId: data.externalOrderId ?? null,
-          customerName: normalizeText(data.customerName),
-          customerPhone: normalizeText(data.customerPhone),
-          guestCount: Number(data.guestCount ?? 1),
-          notes: normalizeText(data.notes),
-          createdById: actorId,
-        },
-      });
-
-      if ((data.fulfillmentType ?? "DINE_IN") === "DINE_IN") {
-        const count = Number(data.guestCount ?? 1);
-        await tx.posGuestSeat.createMany({
-          data: Array.from({ length: count }, (_, index) => ({
-            orderId: order.id,
-            label: `Comensal ${index + 1}`,
-            position: index + 1,
-          })),
-        });
-      }
-
-      const hydrated = await hydrateOrder(tx, { companyId: scopedCompanyId, id: order.id });
-      await writeAudit(tx, {
-        actorId,
-        entityType: "PosOrder",
-        entityId: order.id,
-        action: "pos.order.create",
-        after: hydrated,
-      });
-      return hydrated;
-    });
+    }
   }
 
   async function getOrderById({ companyId, id }) {

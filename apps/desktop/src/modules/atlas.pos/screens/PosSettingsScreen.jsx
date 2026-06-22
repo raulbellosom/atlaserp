@@ -1,15 +1,31 @@
 import { useState } from 'react'
+import { Pencil } from 'lucide-react'
 import {
-  PageHeader, Card, CardContent, CardHeader, CardTitle, Button,
-  Badge, EmptyState, Dialog, DialogContent, DialogHeader,
-  DialogTitle, DialogFooter, Input, SelectField, Checkbox,
+  PageHeader, Card, CardContent, CardHeader, CardTitle, CardDescription,
+  Button, EmptyState, Separator,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+  Tabs, TabsList, TabsTrigger, TabsContent,
+  TextField, SelectField, SwitchField, Label,
 } from '@atlas/ui'
 import {
   usePosSettings, useUpdatePosSettings,
   usePosOutlets, useCreatePosOutlet, useUpdatePosOutlet,
   usePosTerminals, useCreatePosTerminal, useUpdatePosTerminal,
   usePosStations, useCreatePosStation, useUpdatePosStation,
+  usePosPaymentMethods, useCreatePosPaymentMethod, useUpdatePosPaymentMethod,
 } from '../hooks/usePosSettings'
+
+function StatusPill({ active }) {
+  return (
+    <span className={[
+      'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
+      active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500',
+    ].join(' ')}>
+      <span className={['h-1.5 w-1.5 rounded-full', active ? 'bg-green-500' : 'bg-gray-400'].join(' ')} />
+      {active ? 'Activa' : 'Inactiva'}
+    </span>
+  )
+}
 
 const MODE_OPTIONS = [
   { value: 'RESTAURANT', label: 'Restaurante' },
@@ -17,33 +33,27 @@ const MODE_OPTIONS = [
   { value: 'HYBRID', label: 'Híbrido' },
 ]
 
-const TABS = ['General', 'Sucursales & Terminales', 'Estaciones']
-
 export default function PosSettingsScreen() {
-  const [tab, setTab] = useState('General')
-
+  const [tab, setTab] = useState('general')
   return (
     <div className="min-h-full bg-[hsl(var(--background))] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        <PageHeader title="Configuración POS" description="Sucursales, terminales, estaciones y parámetros generales." />
-        <div className="flex gap-2 border-b border-border pb-2">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
-                tab === t
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-        {tab === 'General' && <GeneralTab />}
-        {tab === 'Sucursales & Terminales' && <OutletsTab />}
-        {tab === 'Estaciones' && <StationsTab />}
+        <PageHeader
+          title="Configuración POS"
+          description="Sucursales, terminales, estaciones y parámetros generales del punto de venta."
+        />
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="mb-2">
+            <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="outlets">Sucursales y terminales</TabsTrigger>
+            <TabsTrigger value="stations">Estaciones</TabsTrigger>
+            <TabsTrigger value="payments">Métodos de pago</TabsTrigger>
+          </TabsList>
+          <TabsContent value="general"><GeneralTab /></TabsContent>
+          <TabsContent value="outlets"><OutletsTab /></TabsContent>
+          <TabsContent value="stations"><StationsTab /></TabsContent>
+          <TabsContent value="payments"><PaymentMethodsTab /></TabsContent>
+        </Tabs>
       </div>
     </div>
   )
@@ -56,36 +66,37 @@ function GeneralTab() {
   const [tipsEnabled, setTipsEnabled] = useState(null)
 
   const currentMode = mode ?? settings?.mode ?? 'RESTAURANT'
-  const currentTips = tipsEnabled ?? settings?.tips_enabled ?? true
+  const currentTips = tipsEnabled ?? settings?.tipsEnabled ?? true
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Cargando...</p>
+  if (isLoading) return <p className="text-sm text-muted-foreground">Cargando configuración...</p>
 
   return (
     <Card>
-      <CardHeader><CardTitle>Parámetros generales</CardTitle></CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <div>
-          <label className="text-sm font-medium mb-1 block">Modo de operación</label>
-          <SelectField
-            value={currentMode}
-            onChange={(v) => setMode(v)}
-            options={MODE_OPTIONS}
-          />
+      <CardHeader>
+        <CardTitle>Parámetros generales</CardTitle>
+        <CardDescription>Define el modo de operación y comportamiento del terminal.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-6">
+        <div className="flex flex-col gap-1.5">
+          <Label>Modo de operación</Label>
+          <SelectField value={currentMode} onChange={setMode} options={MODE_OPTIONS} />
         </div>
-        <div className="flex items-center gap-3">
-          <Checkbox
-            id="tips"
-            checked={currentTips}
-            onCheckedChange={(v) => setTipsEnabled(Boolean(v))}
-          />
-          <label htmlFor="tips" className="text-sm cursor-pointer">Propinas habilitadas</label>
+        <Separator />
+        <SwitchField
+          id="tips-enabled"
+          label="Propinas habilitadas"
+          description="Permite que los operadores registren propinas al momento del cobro."
+          checked={currentTips}
+          onChange={setTipsEnabled}
+        />
+        <div className="flex justify-end">
+          <Button
+            onClick={() => update.mutate({ mode: currentMode, tipsEnabled: currentTips })}
+            disabled={update.isPending}
+          >
+            {update.isPending ? 'Guardando...' : 'Guardar cambios'}
+          </Button>
         </div>
-        <Button
-          onClick={() => update.mutate({ mode: currentMode, tips_enabled: currentTips })}
-          disabled={update.isPending}
-        >
-          Guardar
-        </Button>
       </CardContent>
     </Card>
   )
@@ -95,15 +106,49 @@ function OutletsTab() {
   const { data: outlets = [], isLoading: loadingOutlets } = usePosOutlets()
   const { data: terminals = [], isLoading: loadingTerminals } = usePosTerminals()
   const createOutlet = useCreatePosOutlet()
+  const updateOutlet = useUpdatePosOutlet()
   const createTerminal = useCreatePosTerminal()
+  const updateTerminal = useUpdatePosTerminal()
 
+  // Create outlet
   const [outletDialog, setOutletDialog] = useState(false)
-  const [terminalDialog, setTerminalDialog] = useState(false)
   const [outletName, setOutletName] = useState('')
   const [outletCode, setOutletCode] = useState('')
+
+  // Edit outlet
+  const [editingOutlet, setEditingOutlet] = useState(null)
+  const [editOutletName, setEditOutletName] = useState('')
+  const [editOutletCode, setEditOutletCode] = useState('')
+  const [editOutletEnabled, setEditOutletEnabled] = useState(true)
+
+  // Create terminal
+  const [terminalDialog, setTerminalDialog] = useState(false)
   const [terminalName, setTerminalName] = useState('')
   const [terminalCode, setTerminalCode] = useState('')
   const [terminalOutletId, setTerminalOutletId] = useState('')
+
+  // Edit terminal
+  const [editingTerminal, setEditingTerminal] = useState(null)
+  const [editTerminalName, setEditTerminalName] = useState('')
+  const [editTerminalCode, setEditTerminalCode] = useState('')
+  const [editTerminalEnabled, setEditTerminalEnabled] = useState(true)
+
+  // Filter
+  const [terminalFilter, setTerminalFilter] = useState('__all__')
+
+  function openEditOutlet(o) {
+    setEditingOutlet(o)
+    setEditOutletName(o.name)
+    setEditOutletCode(o.code ?? '')
+    setEditOutletEnabled(o.enabled)
+  }
+
+  function openEditTerminal(t) {
+    setEditingTerminal(t)
+    setEditTerminalName(t.name)
+    setEditTerminalCode(t.code ?? '')
+    setEditTerminalEnabled(t.enabled)
+  }
 
   function handleCreateOutlet() {
     createOutlet.mutate({ name: outletName, code: outletCode || undefined }, {
@@ -111,36 +156,66 @@ function OutletsTab() {
     })
   }
 
+  function handleUpdateOutlet() {
+    updateOutlet.mutate(
+      { id: editingOutlet.id, name: editOutletName, code: editOutletCode || null, enabled: editOutletEnabled },
+      { onSuccess: () => setEditingOutlet(null) },
+    )
+  }
+
   function handleCreateTerminal() {
     createTerminal.mutate(
-      { name: terminalName, code: terminalCode || undefined, outlet_id: terminalOutletId },
+      { name: terminalName, code: terminalCode || undefined, outletId: terminalOutletId },
       { onSuccess: () => { setTerminalDialog(false); setTerminalName(''); setTerminalCode(''); setTerminalOutletId('') } },
     )
   }
 
+  function handleUpdateTerminal() {
+    updateTerminal.mutate(
+      { id: editingTerminal.id, name: editTerminalName, code: editTerminalCode || null, enabled: editTerminalEnabled },
+      { onSuccess: () => setEditingTerminal(null) },
+    )
+  }
+
+  const filteredTerminals = terminalFilter && terminalFilter !== '__all__'
+    ? terminals.filter((t) => t.outletId === terminalFilter)
+    : terminals
+
   return (
     <div className="flex flex-col gap-6">
+      {/* Outlets card */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Sucursales</CardTitle>
-          <Button size="sm" onClick={() => setOutletDialog(true)}>+ Sucursal</Button>
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle>Sucursales</CardTitle>
+            <CardDescription>Ubicaciones físicas desde las que opera el POS.</CardDescription>
+          </div>
+          <Button size="sm" onClick={() => setOutletDialog(true)}>+ Nueva sucursal</Button>
         </CardHeader>
         <CardContent>
           {loadingOutlets ? (
-            <p className="text-sm text-muted-foreground">Cargando...</p>
+            <p className="text-sm text-muted-foreground">Cargando sucursales...</p>
           ) : outlets.length === 0 ? (
             <EmptyState title="Sin sucursales" description="Crea la primera sucursal para continuar." />
           ) : (
             <ul className="divide-y divide-border">
               {outlets.map((o) => (
-                <li key={o.id} className="flex items-center justify-between py-3">
+                <li key={o.id} className="flex items-center justify-between py-3.5">
                   <div>
                     <p className="text-sm font-medium">{o.name}</p>
-                    {o.code && <p className="text-xs text-muted-foreground">Código: {o.code}</p>}
+                    {o.code && <p className="text-xs text-muted-foreground mt-0.5">Código: {o.code}</p>}
                   </div>
-                  <Badge variant={o.enabled ? 'default' : 'secondary'}>
-                    {o.enabled ? 'Activa' : 'Inactiva'}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <StatusPill active={o.enabled} />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      onClick={() => openEditOutlet(o)}
+                    >
+                      <Pencil size={14} />
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -148,33 +223,58 @@ function OutletsTab() {
         </CardContent>
       </Card>
 
+      {/* Terminals card */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Terminales</CardTitle>
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle>Terminales</CardTitle>
+            <CardDescription>Puntos de cobro asignados a cada sucursal.</CardDescription>
+          </div>
           <Button size="sm" onClick={() => setTerminalDialog(true)} disabled={outlets.length === 0}>
-            + Terminal
+            + Nueva terminal
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
+          {outlets.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <Label>Filtrar por sucursal</Label>
+              <SelectField
+                value={terminalFilter}
+                onChange={setTerminalFilter}
+                options={[
+                  { value: '__all__', label: 'Todas las sucursales' },
+                  ...outlets.map((o) => ({ value: o.id, label: o.name })),
+                ]}
+              />
+            </div>
+          )}
           {loadingTerminals ? (
-            <p className="text-sm text-muted-foreground">Cargando...</p>
-          ) : terminals.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Cargando terminales...</p>
+          ) : filteredTerminals.length === 0 ? (
             <EmptyState title="Sin terminales" description="Crea una terminal para cada punto de venta." />
           ) : (
             <ul className="divide-y divide-border">
-              {terminals.map((t) => {
-                const outlet = outlets.find((o) => o.id === t.outlet_id)
+              {filteredTerminals.map((t) => {
+                const outlet = outlets.find((o) => o.id === t.outletId)
                 return (
-                  <li key={t.id} className="flex items-center justify-between py-3">
+                  <li key={t.id} className="flex items-center justify-between py-3.5">
                     <div>
                       <p className="text-sm font-medium">{t.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {outlet?.name ?? 'Sucursal desconocida'}{t.code ? ` · ${t.code}` : ''}
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {outlet?.name ?? '—'}{t.code ? ` · ${t.code}` : ''}
                       </p>
                     </div>
-                    <Badge variant={t.enabled ? 'default' : 'secondary'}>
-                      {t.enabled ? 'Activa' : 'Inactiva'}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <StatusPill active={t.enabled} />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                        onClick={() => openEditTerminal(t)}
+                      >
+                        <Pencil size={14} />
+                      </Button>
+                    </div>
                   </li>
                 )
               })}
@@ -183,110 +283,480 @@ function OutletsTab() {
         </CardContent>
       </Card>
 
+      {/* Create outlet dialog */}
       <Dialog open={outletDialog} onOpenChange={setOutletDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Nueva sucursal</DialogTitle></DialogHeader>
-          <div className="flex flex-col gap-3 py-4">
-            <Input placeholder="Nombre" value={outletName} onChange={(e) => setOutletName(e.target.value)} />
-            <Input placeholder="Código (opcional)" value={outletCode} onChange={(e) => setOutletCode(e.target.value)} />
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setOutletDialog(false)}>Cancelar</Button>
-            <Button onClick={handleCreateOutlet} disabled={!outletName || createOutlet.isPending}>Crear</Button>
-          </DialogFooter>
+        <DialogContent className="max-w-sm md:min-h-0">
+          <DialogHeader>
+            <DialogTitle>Nueva sucursal</DialogTitle>
+            <DialogDescription>Registra una ubicación física para el punto de venta.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); handleCreateOutlet() }} className="flex flex-col gap-4 py-2">
+            <TextField
+              label="Nombre de la sucursal"
+              required
+              placeholder="Ej. Sucursal Centro"
+              value={outletName}
+              onChange={(e) => setOutletName(e.target.value)}
+            />
+            <TextField
+              label="Código"
+              placeholder="Ej. SUC-01 (opcional)"
+              value={outletCode}
+              onChange={(e) => setOutletCode(e.target.value)}
+            />
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setOutletDialog(false)}>Cancelar</Button>
+              <Button type="submit" disabled={!outletName || createOutlet.isPending}>
+                {createOutlet.isPending ? 'Creando...' : 'Crear sucursal'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={terminalDialog} onOpenChange={setTerminalDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Nueva terminal</DialogTitle></DialogHeader>
-          <div className="flex flex-col gap-3 py-4">
-            <SelectField
-              value={terminalOutletId}
-              onChange={setTerminalOutletId}
-              options={outlets.map((o) => ({ value: o.id, label: o.name }))}
-              placeholder="Selecciona sucursal"
+      {/* Edit outlet dialog */}
+      <Dialog open={Boolean(editingOutlet)} onOpenChange={(v) => !v && setEditingOutlet(null)}>
+        <DialogContent className="max-w-sm md:min-h-0">
+          <DialogHeader>
+            <DialogTitle>Editar sucursal</DialogTitle>
+            <DialogDescription>Modifica el nombre, código o estado de la sucursal.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); handleUpdateOutlet() }} className="flex flex-col gap-4 py-2">
+            <TextField
+              label="Nombre de la sucursal"
+              required
+              value={editOutletName}
+              onChange={(e) => setEditOutletName(e.target.value)}
             />
-            <Input placeholder="Nombre" value={terminalName} onChange={(e) => setTerminalName(e.target.value)} />
-            <Input placeholder="Código (opcional)" value={terminalCode} onChange={(e) => setTerminalCode(e.target.value)} />
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setTerminalDialog(false)}>Cancelar</Button>
-            <Button
-              onClick={handleCreateTerminal}
-              disabled={!terminalName || !terminalOutletId || createTerminal.isPending}
-            >
-              Crear
-            </Button>
-          </DialogFooter>
+            <TextField
+              label="Código"
+              placeholder="Opcional"
+              value={editOutletCode}
+              onChange={(e) => setEditOutletCode(e.target.value)}
+            />
+            <SwitchField
+              id="edit-outlet-enabled"
+              label="Sucursal activa"
+              description="Las sucursales inactivas no aparecen al abrir sesiones."
+              checked={editOutletEnabled}
+              onChange={setEditOutletEnabled}
+            />
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setEditingOutlet(null)}>Cancelar</Button>
+              <Button type="submit" disabled={!editOutletName || updateOutlet.isPending}>
+                {updateOutlet.isPending ? 'Guardando...' : 'Guardar cambios'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create terminal dialog */}
+      <Dialog open={terminalDialog} onOpenChange={setTerminalDialog}>
+        <DialogContent className="max-w-sm md:min-h-0">
+          <DialogHeader>
+            <DialogTitle>Nueva terminal</DialogTitle>
+            <DialogDescription>Asigna una terminal a la sucursal correspondiente.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); handleCreateTerminal() }} className="flex flex-col gap-4 py-2">
+            <div className="flex flex-col gap-1.5">
+              <Label>Sucursal</Label>
+              <SelectField
+                value={terminalOutletId}
+                onChange={setTerminalOutletId}
+                options={outlets.map((o) => ({ value: o.id, label: o.name }))}
+                placeholder="Selecciona una sucursal"
+              />
+            </div>
+            <TextField
+              label="Nombre de la terminal"
+              required
+              placeholder="Ej. Caja 1"
+              value={terminalName}
+              onChange={(e) => setTerminalName(e.target.value)}
+            />
+            <TextField
+              label="Código"
+              placeholder="Ej. CAJA-01 (opcional)"
+              value={terminalCode}
+              onChange={(e) => setTerminalCode(e.target.value)}
+            />
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setTerminalDialog(false)}>Cancelar</Button>
+              <Button type="submit" disabled={!terminalName || !terminalOutletId || createTerminal.isPending}>
+                {createTerminal.isPending ? 'Creando...' : 'Crear terminal'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit terminal dialog */}
+      <Dialog open={Boolean(editingTerminal)} onOpenChange={(v) => !v && setEditingTerminal(null)}>
+        <DialogContent className="max-w-sm md:min-h-0">
+          <DialogHeader>
+            <DialogTitle>Editar terminal</DialogTitle>
+            <DialogDescription>Modifica el nombre, código o estado de la terminal.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); handleUpdateTerminal() }} className="flex flex-col gap-4 py-2">
+            <TextField
+              label="Nombre de la terminal"
+              required
+              value={editTerminalName}
+              onChange={(e) => setEditTerminalName(e.target.value)}
+            />
+            <TextField
+              label="Código"
+              placeholder="Opcional"
+              value={editTerminalCode}
+              onChange={(e) => setEditTerminalCode(e.target.value)}
+            />
+            <SwitchField
+              id="edit-terminal-enabled"
+              label="Terminal activa"
+              description="Las terminales inactivas no aparecen al abrir sesiones."
+              checked={editTerminalEnabled}
+              onChange={setEditTerminalEnabled}
+            />
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setEditingTerminal(null)}>Cancelar</Button>
+              <Button type="submit" disabled={!editTerminalName || updateTerminal.isPending}>
+                {updateTerminal.isPending ? 'Guardando...' : 'Guardar cambios'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
   )
 }
 
-function StationsTab() {
-  const { data: outlets = [] } = usePosOutlets()
-  const [outletId, setOutletId] = useState('')
-  const query = outletId ? { outlet_id: outletId } : {}
-  const { data: stations = [], isLoading } = usePosStations(query)
-  const createStation = useCreatePosStation()
+const KIND_OPTIONS = [
+  { value: 'CASH', label: 'Efectivo' },
+  { value: 'CARD', label: 'Tarjeta' },
+  { value: 'TRANSFER', label: 'Transferencia' },
+]
+const KIND_LABELS = { CASH: 'Efectivo', CARD: 'Tarjeta', TRANSFER: 'Transferencia' }
+
+function PaymentMethodsTab() {
+  const { data: methods = [], isLoading } = usePosPaymentMethods()
+  const create = useCreatePosPaymentMethod()
+  const update = useUpdatePosPaymentMethod()
+
   const [dialog, setDialog] = useState(false)
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
+  const [kind, setKind] = useState('CASH')
+
+  const [editingMethod, setEditingMethod] = useState(null)
+  const [editName, setEditName] = useState('')
+  const [editCode, setEditCode] = useState('')
+  const [editKind, setEditKind] = useState('CASH')
+  const [editEnabled, setEditEnabled] = useState(true)
+
+  function openEdit(m) {
+    setEditingMethod(m)
+    setEditName(m.name)
+    setEditCode(m.code ?? '')
+    setEditKind(m.kind)
+    setEditEnabled(m.enabled)
+  }
 
   function handleCreate() {
-    createStation.mutate(
-      { name, code, outlet_id: outletId },
-      { onSuccess: () => { setDialog(false); setName(''); setCode('') } },
+    create.mutate(
+      { name, code, kind },
+      { onSuccess: () => { setDialog(false); setName(''); setCode(''); setKind('CASH') } },
+    )
+  }
+
+  function handleUpdate() {
+    update.mutate(
+      { id: editingMethod.id, name: editName, code: editCode, kind: editKind, enabled: editEnabled },
+      { onSuccess: () => setEditingMethod(null) },
     )
   }
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Estaciones de preparación</CardTitle>
-        <Button size="sm" onClick={() => setDialog(true)} disabled={!outletId}>+ Estación</Button>
+      <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <div>
+          <CardTitle>Métodos de pago</CardTitle>
+          <CardDescription>Efectivo, tarjeta, transferencia y otros métodos aceptados en el POS.</CardDescription>
+        </div>
+        <Button size="sm" onClick={() => setDialog(true)}>+ Nuevo método</Button>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <SelectField
-          value={outletId}
-          onChange={setOutletId}
-          options={outlets.map((o) => ({ value: o.id, label: o.name }))}
-          placeholder="Selecciona sucursal"
-        />
+      <CardContent>
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Cargando...</p>
-        ) : stations.length === 0 ? (
-          <EmptyState title="Sin estaciones" description="Crea estaciones como Cocina, Barra, Postres." />
+          <p className="text-sm text-muted-foreground">Cargando métodos de pago...</p>
+        ) : methods.length === 0 ? (
+          <EmptyState
+            title="Sin métodos de pago"
+            description="Crea al menos un método de pago para poder cobrar órdenes."
+            action={{ label: 'Crear método', onClick: () => setDialog(true) }}
+          />
         ) : (
           <ul className="divide-y divide-border">
-            {stations.map((s) => (
-              <li key={s.id} className="flex items-center justify-between py-3">
+            {methods.map((m) => (
+              <li key={m.id} className="flex items-center justify-between py-3.5">
                 <div>
-                  <p className="text-sm font-medium">{s.name}</p>
-                  <p className="text-xs text-muted-foreground">Código: {s.code}</p>
+                  <p className="text-sm font-medium">{m.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {KIND_LABELS[m.kind] ?? m.kind}{m.code ? ` · ${m.code}` : ''}
+                  </p>
                 </div>
-                <Badge variant={s.enabled ? 'default' : 'secondary'}>
-                  {s.enabled ? 'Activa' : 'Inactiva'}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <StatusPill active={m.enabled} />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    onClick={() => openEdit(m)}
+                  >
+                    <Pencil size={14} />
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
         )}
       </CardContent>
 
+      {/* Create dialog */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Nueva estación</DialogTitle></DialogHeader>
-          <div className="flex flex-col gap-3 py-4">
-            <Input placeholder="Nombre (ej. Cocina)" value={name} onChange={(e) => setName(e.target.value)} />
-            <Input placeholder="Código (ej. KITCHEN)" value={code} onChange={(e) => setCode(e.target.value)} />
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDialog(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={!name || !code || createStation.isPending}>Crear</Button>
-          </DialogFooter>
+        <DialogContent className="max-w-sm md:min-h-0">
+          <DialogHeader>
+            <DialogTitle>Nuevo método de pago</DialogTitle>
+            <DialogDescription>Define cómo los clientes pueden pagar en esta sucursal.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); handleCreate() }} className="flex flex-col gap-4 py-2">
+            <TextField
+              label="Nombre"
+              required
+              placeholder="Ej. Efectivo"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <TextField
+              label="Código"
+              required
+              placeholder="Ej. CASH"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
+            <div className="flex flex-col gap-1.5">
+              <Label>Tipo</Label>
+              <SelectField value={kind} onChange={setKind} options={KIND_OPTIONS} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setDialog(false)}>Cancelar</Button>
+              <Button type="submit" disabled={!name || !code || create.isPending}>
+                {create.isPending ? 'Creando...' : 'Crear método'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog open={Boolean(editingMethod)} onOpenChange={(v) => !v && setEditingMethod(null)}>
+        <DialogContent className="max-w-sm md:min-h-0">
+          <DialogHeader>
+            <DialogTitle>Editar método de pago</DialogTitle>
+            <DialogDescription>Modifica el nombre, tipo o estado del método.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); handleUpdate() }} className="flex flex-col gap-4 py-2">
+            <TextField
+              label="Nombre"
+              required
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+            />
+            <TextField
+              label="Código"
+              required
+              value={editCode}
+              onChange={(e) => setEditCode(e.target.value)}
+            />
+            <div className="flex flex-col gap-1.5">
+              <Label>Tipo</Label>
+              <SelectField value={editKind} onChange={setEditKind} options={KIND_OPTIONS} />
+            </div>
+            <SwitchField
+              id="edit-pm-enabled"
+              label="Método activo"
+              description="Los métodos inactivos no aparecen al cobrar."
+              checked={editEnabled}
+              onChange={setEditEnabled}
+            />
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setEditingMethod(null)}>Cancelar</Button>
+              <Button type="submit" disabled={!editName || !editCode || update.isPending}>
+                {update.isPending ? 'Guardando...' : 'Guardar cambios'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  )
+}
+
+function StationsTab() {
+  const { data: outlets = [] } = usePosOutlets()
+  const [outletId, setOutletId] = useState('')
+  const query = outletId ? { outletId } : {}
+  const { data: stations = [], isLoading } = usePosStations(query)
+  const createStation = useCreatePosStation()
+  const updateStation = useUpdatePosStation()
+
+  // Create
+  const [dialog, setDialog] = useState(false)
+  const [name, setName] = useState('')
+  const [code, setCode] = useState('')
+
+  // Edit
+  const [editingStation, setEditingStation] = useState(null)
+  const [editName, setEditName] = useState('')
+  const [editCode, setEditCode] = useState('')
+  const [editEnabled, setEditEnabled] = useState(true)
+
+  function openEdit(s) {
+    setEditingStation(s)
+    setEditName(s.name)
+    setEditCode(s.code ?? '')
+    setEditEnabled(s.enabled)
+  }
+
+  function handleCreate() {
+    createStation.mutate(
+      { name, code, outletId },
+      { onSuccess: () => { setDialog(false); setName(''); setCode('') } },
+    )
+  }
+
+  function handleUpdate() {
+    updateStation.mutate(
+      { id: editingStation.id, name: editName, code: editCode, enabled: editEnabled },
+      { onSuccess: () => setEditingStation(null) },
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <div>
+          <CardTitle>Estaciones de preparación</CardTitle>
+          <CardDescription>Cocina, barra, postres — cada área que recibe comandas.</CardDescription>
+        </div>
+        <Button size="sm" onClick={() => setDialog(true)} disabled={!outletId}>
+          + Nueva estación
+        </Button>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label>Filtrar por sucursal</Label>
+          <SelectField
+            value={outletId}
+            onChange={setOutletId}
+            options={outlets.map((o) => ({ value: o.id, label: o.name }))}
+            placeholder="Selecciona una sucursal"
+          />
+        </div>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Cargando estaciones...</p>
+        ) : stations.length === 0 ? (
+          <EmptyState title="Sin estaciones" description="Crea estaciones como Cocina, Barra o Postres." />
+        ) : (
+          <ul className="divide-y divide-border">
+            {stations.map((s) => (
+              <li key={s.id} className="flex items-center justify-between py-3.5">
+                <div>
+                  <p className="text-sm font-medium">{s.name}</p>
+                  {s.code && <p className="text-xs text-muted-foreground mt-0.5">Código: {s.code}</p>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <StatusPill active={s.enabled} />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    onClick={() => openEdit(s)}
+                  >
+                    <Pencil size={14} />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+
+      {/* Create station dialog */}
+      <Dialog open={dialog} onOpenChange={setDialog}>
+        <DialogContent className="max-w-sm md:min-h-0">
+          <DialogHeader>
+            <DialogTitle>Nueva estación</DialogTitle>
+            <DialogDescription>Define un área de preparación que recibirá comandas.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); handleCreate() }} className="flex flex-col gap-4 py-2">
+            <TextField
+              label="Nombre de la estación"
+              required
+              placeholder="Ej. Cocina caliente"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <TextField
+              label="Código"
+              required
+              placeholder="Ej. KITCHEN"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setDialog(false)}>Cancelar</Button>
+              <Button type="submit" disabled={!name || !code || createStation.isPending}>
+                {createStation.isPending ? 'Creando...' : 'Crear estación'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit station dialog */}
+      <Dialog open={Boolean(editingStation)} onOpenChange={(v) => !v && setEditingStation(null)}>
+        <DialogContent className="max-w-sm md:min-h-0">
+          <DialogHeader>
+            <DialogTitle>Editar estación</DialogTitle>
+            <DialogDescription>Modifica el nombre, código o estado de la estación.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); handleUpdate() }} className="flex flex-col gap-4 py-2">
+            <TextField
+              label="Nombre de la estación"
+              required
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+            />
+            <TextField
+              label="Código"
+              required
+              value={editCode}
+              onChange={(e) => setEditCode(e.target.value)}
+            />
+            <SwitchField
+              id="edit-station-enabled"
+              label="Estación activa"
+              description="Las estaciones inactivas no reciben comandas."
+              checked={editEnabled}
+              onChange={setEditEnabled}
+            />
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setEditingStation(null)}>Cancelar</Button>
+              <Button type="submit" disabled={!editName || !editCode || updateStation.isPending}>
+                {updateStation.isPending ? 'Guardando...' : 'Guardar cambios'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </Card>

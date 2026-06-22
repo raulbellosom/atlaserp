@@ -13,6 +13,7 @@ export function usePosStationTickets(stationId, query = {}) {
   return useQuery({
     queryKey: ['pos', 'kitchen', 'tickets', stationId, query],
     queryFn: () => atlas.pos.listStationTickets(stationId, query, token),
+    select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token) && Boolean(stationId),
     staleTime: 10 * 1000,
     refetchInterval: 15 * 1000,
