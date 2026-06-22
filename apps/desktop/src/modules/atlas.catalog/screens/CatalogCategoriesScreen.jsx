@@ -2,47 +2,74 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  AtlasTable,
   Button,
   ComboboxField,
   ConfirmDialog,
   MarkdownField,
-  NumberField,
   PageHeader,
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SortableList,
   TextField,
 } from '@atlas/ui'
-import { Plus } from 'lucide-react'
+import { GripVertical, Pencil, Trash2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { atlas } from '../../../lib/atlas.js'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
-const API_BASE_URL = getApiUrl()
-
-const CATEGORIES_BLUEPRINT = {
-  key: 'catalog.categories.table',
-  schema: {
-    apiPath: '/catalog/categories',
-    primaryField: 'name',
-    searchable: true,
-    searchPlaceholder: 'Buscar categoría...',
-    columns: [
-      { field: 'name',        label: 'Nombre',    sortable: true },
-      { field: 'slug',        label: 'Slug',      sortable: true },
-      { field: 'parent_name', label: 'Categoría padre', sortable: false },
-      { field: 'position',    label: 'Posición',  sortable: true },
-    ],
-    emptyState: { message: 'No hay categorías registradas.' },
-  },
-}
-
 function slugify(s) {
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/(^-|-$)/g, '')
+}
+
+function CategoryRow({ item, onEdit, onDelete, dragHandleProps, isDragging }) {
+  return (
+    <div
+      className={[
+        'flex items-center gap-2 px-3 py-2.5 bg-[hsl(var(--background))] border border-[hsl(var(--border))] rounded-lg group',
+        isDragging ? 'opacity-50 shadow-lg' : '',
+      ].join(' ')}
+    >
+      <button
+        {...dragHandleProps}
+        type="button"
+        className="cursor-grab text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] touch-none shrink-0"
+        aria-label="Arrastrar para reordenar"
+      >
+        <GripVertical size={14} />
+      </button>
+      <span className="flex-1 text-sm font-medium text-[hsl(var(--foreground))] truncate">
+        {item.name}
+      </span>
+      <span className="text-xs text-[hsl(var(--muted-foreground))] font-mono hidden sm:block truncate max-w-35">
+        {item.slug}
+      </span>
+      {item.parent_name && (
+        <span className="text-xs text-[hsl(var(--muted-foreground))] hidden md:block truncate max-w-30">
+          {item.parent_name}
+        </span>
+      )}
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        <button
+          type="button"
+          onClick={() => onEdit(item)}
+          className="p-1 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+        >
+          <Pencil size={12} />
+        </button>
+        <button
+          type="button"
+          onClick={() => onDelete(item)}
+          className="p-1 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--destructive))]"
+        >
+          <Trash2 size={12} />
+        </button>
+      </div>
+    </div>
+  )
 }
 
 export default function CatalogCategoriesScreen() {
@@ -55,13 +82,12 @@ export default function CatalogCategoriesScreen() {
   const canUpdate = hasPermission('catalog.categories.update')
   const canDelete = hasPermission('catalog.categories.delete')
 
-  const [sheetOpen,      setSheetOpen]      = useState(false)
-  const [editing,        setEditing]        = useState(null)
-  const [confirmDelete,  setConfirmDelete]  = useState(null)
-  const [refreshSignal,  setRefreshSignal]  = useState(0)
-  const [form, setForm] = useState({ name: '', slug: '', description: '', parent_id: '', position: '0' })
+  const [sheetOpen,     setSheetOpen]     = useState(false)
+  const [editing,       setEditing]       = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(null)
+  const [form, setForm] = useState({ name: '', slug: '', description: '', parent_id: '' })
+  const [localOrder, setLocalOrder] = useState(null)
 
-  // Flat list for parent selector
   const flatQuery = useQuery({
     queryKey: ['catalog-categories-flat', token],
     queryFn:  () => atlas.catalog.listCategories(token, { flat: 'true' }),
@@ -69,6 +95,7 @@ export default function CatalogCategoriesScreen() {
     staleTime: 60_000,
   })
   const flatCats = flatQuery.data?.data ?? []
+  const orderedCats = localOrder ?? flatCats
 
   const saveMutation = useMutation({
     mutationFn: data => editing
@@ -76,8 +103,8 @@ export default function CatalogCategoriesScreen() {
       : atlas.catalog.createCategory(data, token),
     onSuccess: () => {
       toast.success(editing ? 'Categoría actualizada' : 'Categoría creada')
+      setLocalOrder(null)
       queryClient.invalidateQueries({ queryKey: ['catalog-categories-flat'] })
-      setRefreshSignal(s => s + 1)
       setSheetOpen(false)
     },
     onError: err => toast.error(err?.message ?? 'Error'),
@@ -87,16 +114,28 @@ export default function CatalogCategoriesScreen() {
     mutationFn: id => atlas.catalog.deleteCategory(id, token),
     onSuccess: () => {
       toast.success('Categoría eliminada')
+      setLocalOrder(null)
       queryClient.invalidateQueries({ queryKey: ['catalog-categories-flat'] })
-      setRefreshSignal(s => s + 1)
       setConfirmDelete(null)
     },
     onError: err => toast.error(err?.message ?? 'Error'),
   })
 
+  const reorderMutation = useMutation({
+    mutationFn: async (items) => {
+      const res = await fetch(`${getApiUrl()}/catalog/categories/reorder`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: items.map((c, idx) => ({ id: c.id, position: idx * 10 })) }),
+      })
+      if (!res.ok) throw new Error('Error al guardar el orden')
+    },
+    onError: () => toast.error('Error al guardar el orden'),
+  })
+
   function openCreate() {
     setEditing(null)
-    setForm({ name: '', slug: '', description: '', parent_id: '', position: '0' })
+    setForm({ name: '', slug: '', description: '', parent_id: '' })
     setSheetOpen(true)
   }
 
@@ -107,27 +146,31 @@ export default function CatalogCategoriesScreen() {
       slug:        row.slug        ?? '',
       description: row.description ?? '',
       parent_id:   row.parent_id   ?? '',
-      position:    String(row.position ?? 0),
     })
     setSheetOpen(true)
   }
 
   function handleNameChange(e) {
     const name = e.target.value
-    const autoSlug = slugify(editing?.name ?? '')
-    const isAuto   = !editing || form.slug === autoSlug || form.slug === slugify(form.name)
+    const isAuto = !editing || form.slug === slugify(editing.name) || form.slug === slugify(form.name)
     setForm(f => ({ ...f, name, slug: isAuto ? slugify(name) : f.slug }))
   }
 
   function handleSubmit(e) {
     e.preventDefault()
+    const nextPosition = orderedCats.length * 10
     saveMutation.mutate({
       name:        form.name,
       slug:        form.slug,
       description: form.description || undefined,
       parent_id:   form.parent_id   || null,
-      position:    Number(form.position ?? 0),
+      position:    editing ? undefined : nextPosition,
     })
+  }
+
+  function handleReorder(newOrder) {
+    setLocalOrder(newOrder)
+    reorderMutation.mutate(newOrder)
   }
 
   const parentOptions = [
@@ -142,7 +185,7 @@ export default function CatalogCategoriesScreen() {
       <PageHeader
         eyebrow="Atlas Catalog"
         title="Categorías"
-        description="Organiza tus productos en categorías y subcategorías."
+        description="Organiza tus productos en categorías y subcategorías. Arrastra para reordenar."
         actions={
           canCreate && (
             <Button onClick={openCreate}>
@@ -152,16 +195,31 @@ export default function CatalogCategoriesScreen() {
         }
       />
 
-      <AtlasTable
-        blueprint={CATEGORIES_BLUEPRINT}
-        token={token}
-        apiBaseUrl={API_BASE_URL}
-        onEdit={canUpdate ? row => openEdit(row) : undefined}
-        onDelete={canDelete ? row => setConfirmDelete(row) : undefined}
-        refreshSignal={refreshSignal}
-      />
+      {flatQuery.isLoading ? (
+        <p className="text-sm text-[hsl(var(--muted-foreground))]">Cargando categorías...</p>
+      ) : orderedCats.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[hsl(var(--border))] p-10 text-center">
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">No hay categorías registradas.</p>
+          {canCreate && <Button className="mt-4" onClick={openCreate}>Nueva categoría</Button>}
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          <SortableList
+            items={orderedCats}
+            onReorder={canUpdate ? handleReorder : () => {}}
+            renderItem={(item, { dragHandleProps, isDragging }) => (
+              <CategoryRow
+                item={item}
+                dragHandleProps={canUpdate ? dragHandleProps : {}}
+                isDragging={isDragging}
+                onEdit={canUpdate ? openEdit : () => {}}
+                onDelete={canDelete ? setConfirmDelete : () => {}}
+              />
+            )}
+          />
+        </div>
+      )}
 
-      {/* Create / Edit sheet */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto" aria-describedby={undefined}>
           <SheetHeader>
@@ -195,14 +253,6 @@ export default function CatalogCategoriesScreen() {
               placeholder="Seleccionar padre..."
               searchPlaceholder="Buscar categoría..."
               emptyText="Sin resultados"
-            />
-            <NumberField
-              label="Posición de orden"
-              value={form.position}
-              onChange={e => setForm(f => ({ ...f, position: e.target.value }))}
-              min={0}
-              step={1}
-              description="Número menor = aparece primero"
             />
             <div className="flex gap-2 pt-2">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setSheetOpen(false)}>
