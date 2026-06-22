@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   PageHeader,
   Button,
@@ -17,73 +17,104 @@ import {
   EmptyState,
   LoadingState,
   ConfirmDialog,
-  Card,
+  SortableList,
 } from '@atlas/ui'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   useInventoryCategories,
   useCreateInventoryCategory,
   useUpdateInventoryCategory,
   useDeleteInventoryCategory,
+  useReorderInventoryCategories,
   useInventoryBrands,
   useCreateInventoryBrand,
   useUpdateInventoryBrand,
   useDeleteInventoryBrand,
+  useReorderInventoryBrands,
   useInventoryLocations,
   useCreateInventoryLocation,
   useUpdateInventoryLocation,
   useDeleteInventoryLocation,
+  useReorderInventoryLocations,
   useInventoryCustomFields,
   useCreateInventoryCustomField,
   useUpdateInventoryCustomField,
   useDeleteInventoryCustomField,
+  useReorderInventoryCustomFields,
 } from '../hooks/useInventoryCatalogs.js'
 
-// ── Generic CRUD table ────────────────────────────────────────────────────────
+// ── Sortable row ──────────────────────────────────────────────────────────────
 
-function CatalogRow({ item, onEdit, onDelete }) {
+function SortableRow({ item, onEdit, onDelete, dragHandleProps, isDragging }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const handleDelete = async () => { await onDelete(item.id) }
   return (
     <>
-      <tr className="border-b border-[hsl(var(--border)/0.5)] last:border-0 hover:bg-[hsl(var(--muted)/0.3)] transition-colors">
-        <td className="px-4 py-2.5 font-medium">{item.name}</td>
-        <td className="px-4 py-2.5 text-sm text-[hsl(var(--muted-foreground))] hidden sm:table-cell">
-          {item.description ?? '—'}
-        </td>
-        <td className="px-4 py-2.5 w-20">
-          <div className="flex items-center gap-1 justify-end">
-            <button
-              type="button"
-              onClick={() => onEdit(item)}
-              className="flex h-7 w-7 items-center justify-center rounded text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] active:bg-[hsl(var(--muted))] transition-colors"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setDeleteOpen(true)}
-              className="flex h-7 w-7 items-center justify-center rounded text-[hsl(var(--muted-foreground))] hover:bg-rose-500/10 hover:text-rose-500 active:bg-rose-500/10 active:text-rose-500 transition-colors"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </td>
-      </tr>
+      <div
+        className={[
+          'flex items-center gap-2 px-3 py-2.5 bg-[hsl(var(--background))] border border-[hsl(var(--border))] rounded-lg group',
+          isDragging ? 'opacity-50 shadow-lg' : '',
+        ].join(' ')}
+      >
+        <button
+          {...dragHandleProps}
+          type="button"
+          className="cursor-grab text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] touch-none shrink-0"
+          aria-label="Arrastrar para reordenar"
+        >
+          <GripVertical size={14} />
+        </button>
+        <span className="flex-1 text-sm font-medium text-[hsl(var(--foreground))] truncate">
+          {item.name ?? item.label}
+        </span>
+        <span className="text-xs text-[hsl(var(--muted-foreground))] hidden sm:block truncate max-w-48">
+          {item.description ?? item.fieldKey ?? ''}
+        </span>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <button
+            type="button"
+            onClick={() => onEdit(item)}
+            className="p-1 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+          >
+            <Pencil size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setDeleteOpen(true)}
+            className="p-1 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--destructive))]"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      </div>
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title={`Eliminar "${item.name}"`}
+        title={`Eliminar "${item.name ?? item.label}"`}
         description="Esta accion deshabilitara el registro. Los items asociados no se veran afectados."
         confirmLabel="Eliminar"
-        onConfirm={handleDelete}
+        onConfirm={() => { onDelete(item.id); setDeleteOpen(false) }}
       />
     </>
   )
 }
 
-function CatalogTable({ rows, onEdit, onDelete, isLoading, emptyMsg, onCreate }) {
+// ── Generic sortable section ──────────────────────────────────────────────────
+
+function SortableCatalogSection({ rows, onEdit, onDelete, onReorder, isLoading, emptyMsg, onCreate }) {
+  const [localOrder, setLocalOrder] = useState(null)
+
+  useEffect(() => {
+    setLocalOrder(null)
+  }, [rows])
+
+  const items = localOrder ?? rows
+
+  function handleReorder(newOrder) {
+    setLocalOrder(newOrder)
+    onReorder(newOrder)
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
@@ -94,24 +125,23 @@ function CatalogTable({ rows, onEdit, onDelete, isLoading, emptyMsg, onCreate })
       </div>
       {isLoading ? (
         <LoadingState />
-      ) : rows.length === 0 ? (
+      ) : items.length === 0 ? (
         <EmptyState title="Sin registros" description={emptyMsg} action={{ label: 'Agregar', onClick: onCreate }} />
       ) : (
-        <div className="rounded-lg border border-[hsl(var(--border))] overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))] text-xs text-[hsl(var(--muted-foreground))]">
-                <th className="px-4 py-2.5 text-left font-medium">Nombre</th>
-                <th className="px-4 py-2.5 text-left font-medium hidden sm:table-cell">Descripcion</th>
-                <th className="px-4 py-2.5 w-20" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(r => (
-                <CatalogRow key={r.id} item={r} onEdit={onEdit} onDelete={onDelete} />
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-1.5">
+          <SortableList
+            items={items}
+            onReorder={handleReorder}
+            renderItem={(item, { dragHandleProps, isDragging }) => (
+              <SortableRow
+                item={item}
+                dragHandleProps={dragHandleProps}
+                isDragging={isDragging}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
+            )}
+          />
         </div>
       )}
     </div>
@@ -120,7 +150,7 @@ function CatalogTable({ rows, onEdit, onDelete, isLoading, emptyMsg, onCreate })
 
 // ── Simple edit sheet ─────────────────────────────────────────────────────────
 
-function SimpleSheet({ open, onOpenChange, title, fields, values, onChange, onSave, busy }) {
+function SimpleSheet({ open, onOpenChange, title, fields, values, onChange, onSave, busy, saveDisabled }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-md">
@@ -152,7 +182,7 @@ function SimpleSheet({ open, onOpenChange, title, fields, values, onChange, onSa
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
             Cancelar
           </Button>
-          <Button onClick={onSave} disabled={busy || !values.name?.trim()}>
+          <Button onClick={onSave} disabled={busy || saveDisabled}>
             {busy ? 'Guardando...' : 'Guardar'}
           </Button>
         </SheetFooter>
@@ -173,6 +203,7 @@ function CategoriesTab() {
   const createMutation = useCreateInventoryCategory()
   const updateMutation = useUpdateInventoryCategory()
   const deleteMutation = useDeleteInventoryCategory()
+  const reorderMutation = useReorderInventoryCategories()
 
   function openCreate() {
     setEditing(null)
@@ -201,14 +232,19 @@ function CategoriesTab() {
     }
   }
 
+  function handleReorder(newOrder) {
+    reorderMutation.mutate(newOrder.map((item, idx) => ({ id: item.id, sortOrder: idx * 10 })))
+  }
+
   const busy = createMutation.isPending || updateMutation.isPending
 
   return (
     <>
-      <CatalogTable
+      <SortableCatalogSection
         rows={rows}
         onEdit={openEdit}
         onDelete={id => deleteMutation.mutateAsync(id).then(() => toast.success('Eliminado'))}
+        onReorder={handleReorder}
         isLoading={isLoading}
         emptyMsg="Crea tu primera categoria de activos"
         onCreate={openCreate}
@@ -226,6 +262,7 @@ function CategoriesTab() {
         onChange={(k, v) => setForm(f => ({ ...f, [k]: v }))}
         onSave={handleSave}
         busy={busy}
+        saveDisabled={!form.name?.trim()}
       />
     </>
   )
@@ -243,6 +280,7 @@ function BrandsTab() {
   const createMutation = useCreateInventoryBrand()
   const updateMutation = useUpdateInventoryBrand()
   const deleteMutation = useDeleteInventoryBrand()
+  const reorderMutation = useReorderInventoryBrands()
 
   function openCreate() { setEditing(null); setForm({ name: '', description: '' }); setSheetOpen(true) }
   function openEdit(item) { setEditing(item); setForm({ name: item.name, description: item.description ?? '' }); setSheetOpen(true) }
@@ -260,12 +298,17 @@ function BrandsTab() {
     } catch (err) { toast.error(err?.message ?? 'Error al guardar') }
   }
 
+  function handleReorder(newOrder) {
+    reorderMutation.mutate(newOrder.map((item, idx) => ({ id: item.id, sortOrder: idx * 10 })))
+  }
+
   return (
     <>
-      <CatalogTable
+      <SortableCatalogSection
         rows={rows}
         onEdit={openEdit}
         onDelete={id => deleteMutation.mutateAsync(id).then(() => toast.success('Eliminado'))}
+        onReorder={handleReorder}
         isLoading={isLoading}
         emptyMsg="Crea tu primera marca"
         onCreate={openCreate}
@@ -282,6 +325,7 @@ function BrandsTab() {
         onChange={(k, v) => setForm(f => ({ ...f, [k]: v }))}
         onSave={handleSave}
         busy={createMutation.isPending || updateMutation.isPending}
+        saveDisabled={!form.name?.trim()}
       />
     </>
   )
@@ -299,6 +343,7 @@ function LocationsTab() {
   const createMutation = useCreateInventoryLocation()
   const updateMutation = useUpdateInventoryLocation()
   const deleteMutation = useDeleteInventoryLocation()
+  const reorderMutation = useReorderInventoryLocations()
 
   function openCreate() { setEditing(null); setForm({ name: '', description: '', address: '' }); setSheetOpen(true) }
   function openEdit(item) { setEditing(item); setForm({ name: item.name, description: item.description ?? '', address: item.address ?? '' }); setSheetOpen(true) }
@@ -316,12 +361,17 @@ function LocationsTab() {
     } catch (err) { toast.error(err?.message ?? 'Error al guardar') }
   }
 
+  function handleReorder(newOrder) {
+    reorderMutation.mutate(newOrder.map((item, idx) => ({ id: item.id, sortOrder: idx * 10 })))
+  }
+
   return (
     <>
-      <CatalogTable
+      <SortableCatalogSection
         rows={rows}
         onEdit={openEdit}
         onDelete={id => deleteMutation.mutateAsync(id).then(() => toast.success('Eliminado'))}
+        onReorder={handleReorder}
         isLoading={isLoading}
         emptyMsg="Crea tu primera ubicacion"
         onCreate={openCreate}
@@ -339,6 +389,7 @@ function LocationsTab() {
         onChange={(k, v) => setForm(f => ({ ...f, [k]: v }))}
         onSave={handleSave}
         busy={createMutation.isPending || updateMutation.isPending}
+        saveDisabled={!form.name?.trim()}
       />
     </>
   )
@@ -361,17 +412,29 @@ function CustomFieldsTab() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({ label: '', fieldKey: '', fieldType: 'text' })
+  const [localOrder, setLocalOrder] = useState(null)
 
   const { data, isLoading } = useInventoryCustomFields()
   const rows = (data?.data ?? data ?? []).filter(f => f.enabled !== false)
   const createMutation = useCreateInventoryCustomField()
   const updateMutation = useUpdateInventoryCustomField()
   const deleteMutation = useDeleteInventoryCustomField()
+  const reorderMutation = useReorderInventoryCustomFields()
+
+  useEffect(() => { setLocalOrder(null) }, [rows])
+
+  const displayRows = (localOrder ?? rows).map(r => ({
+    ...r,
+    id: r.id,
+    name: r.label,
+    description: r.fieldKey,
+  }))
 
   function openCreate() { setEditing(null); setForm({ label: '', fieldKey: '', fieldType: 'text' }); setSheetOpen(true) }
-  function openEdit(item) {
-    setEditing(item)
-    setForm({ label: item.label, fieldKey: item.fieldKey, fieldType: item.fieldType })
+  function openEdit(displayItem) {
+    const original = rows.find(r => r.id === displayItem.id)
+    setEditing(original)
+    setForm({ label: original.label, fieldKey: original.fieldKey, fieldType: original.fieldType })
     setSheetOpen(true)
   }
 
@@ -388,6 +451,11 @@ function CustomFieldsTab() {
     } catch (err) { toast.error(err?.message ?? 'Error al guardar') }
   }
 
+  function handleReorder(newOrder) {
+    setLocalOrder(newOrder.map(d => rows.find(r => r.id === d.id)))
+    reorderMutation.mutate(newOrder.map((item, idx) => ({ id: item.id, sortOrder: idx * 10 })))
+  }
+
   return (
     <>
       <div className="space-y-3">
@@ -397,30 +465,23 @@ function CustomFieldsTab() {
             Nuevo campo
           </Button>
         </div>
-        {isLoading ? <LoadingState /> : rows.length === 0 ? (
+        {isLoading ? <LoadingState /> : displayRows.length === 0 ? (
           <EmptyState title="Sin campos" description="Crea campos personalizados para tus categorias" action={{ label: 'Nuevo campo', onClick: openCreate }} />
         ) : (
-          <div className="rounded-lg border border-[hsl(var(--border))] overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))] text-xs text-[hsl(var(--muted-foreground))]">
-                  <th className="px-4 py-2.5 text-left font-medium">Etiqueta</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Clave</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Tipo</th>
-                  <th className="px-4 py-2.5 w-20" />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(r => (
-                  <CatalogRow
-                    key={r.id}
-                    item={{ ...r, name: r.label, description: r.fieldKey }}
-                    onEdit={() => openEdit(r)}
-                    onDelete={id => deleteMutation.mutateAsync(id).then(() => toast.success('Eliminado'))}
-                  />
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-1.5">
+            <SortableList
+              items={displayRows}
+              onReorder={handleReorder}
+              renderItem={(item, { dragHandleProps, isDragging }) => (
+                <SortableRow
+                  item={item}
+                  dragHandleProps={dragHandleProps}
+                  isDragging={isDragging}
+                  onEdit={openEdit}
+                  onDelete={id => deleteMutation.mutateAsync(id).then(() => toast.success('Eliminado'))}
+                />
+              )}
+            />
           </div>
         )}
       </div>
@@ -478,7 +539,7 @@ export default function InventoryCatalogsScreen() {
       <PageHeader
         eyebrow="Atlas Inventario"
         title="Catalogos"
-        description="Administra categorias, marcas, ubicaciones y campos personalizados"
+        description="Administra categorias, marcas, ubicaciones y campos personalizados. Arrastra para reordenar."
       />
 
       <Tabs defaultValue="categories">
