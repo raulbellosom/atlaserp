@@ -44,6 +44,7 @@ export {
 } from "./components/FormFields.jsx";
 export { MarkdownField } from "./components/MarkdownField.jsx";
 export { MarkdownViewer } from "./components/MarkdownViewer.jsx";
+export { SortableList } from "./components/SortableList.jsx";
 export { Checkbox } from "./components/Checkbox.jsx";
 export { Switch } from "./components/Switch.jsx";
 export {
