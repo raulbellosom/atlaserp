@@ -966,6 +966,20 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
+      listPaymentMethods: (token) =>
+        request("/pos/payment-methods", { headers: withAuthHeaders(token) }),
+      createPaymentMethod: (data, token) =>
+        request("/pos/payment-methods", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updatePaymentMethod: (id, data, token) =>
+        request(`/pos/payment-methods/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       openSession: (data, token) =>
         request("/pos/sessions/open", {
           method: "POST",
@@ -1853,6 +1867,30 @@ export function createAtlasClient({ baseUrl }) {
         request(`/inventory/custom-fields/${encodeURIComponent(id)}`, {
           method: "DELETE",
           headers: withAuthHeaders(token),
+        }),
+      reorderCategories: (items, token) =>
+        request("/inventory/categories/reorder", {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ items }),
+        }),
+      reorderBrands: (items, token) =>
+        request("/inventory/brands/reorder", {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ items }),
+        }),
+      reorderLocations: (items, token) =>
+        request("/inventory/locations/reorder", {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ items }),
+        }),
+      reorderCustomFields: (items, token) =>
+        request("/inventory/custom-fields/reorder", {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ items }),
         }),
     },
     setOfflineTransport(transport) {

@@ -67,6 +67,16 @@ export function useDeleteInventoryCategory() {
   })
 }
 
+export function useReorderInventoryCategories() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (items) => atlas.inventory.reorderCategories(items, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', 'categories'] }),
+    onError: () => toast.error('Error al guardar el orden'),
+  })
+}
+
 // ── Brands ────────────────────────────────────────────────────────────────────
 
 export function useInventoryBrands() {
@@ -115,6 +125,16 @@ export function useDeleteInventoryBrand() {
       toast.dismiss(ctx?.toastId)
       qc.invalidateQueries({ queryKey: ['inventory', 'brands'] })
     },
+  })
+}
+
+export function useReorderInventoryBrands() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (items) => atlas.inventory.reorderBrands(items, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', 'brands'] }),
+    onError: () => toast.error('Error al guardar el orden'),
   })
 }
 
@@ -169,6 +189,16 @@ export function useDeleteInventoryLocation() {
   })
 }
 
+export function useReorderInventoryLocations() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (items) => atlas.inventory.reorderLocations(items, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', 'locations'] }),
+    onError: () => toast.error('Error al guardar el orden'),
+  })
+}
+
 // ── Custom fields ─────────────────────────────────────────────────────────────
 
 export function useInventoryCustomFields(categoryId) {
@@ -217,5 +247,15 @@ export function useDeleteInventoryCustomField() {
       toast.dismiss(ctx?.toastId)
       qc.invalidateQueries({ queryKey: ['inventory', 'custom-fields'] })
     },
+  })
+}
+
+export function useReorderInventoryCustomFields() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (items) => atlas.inventory.reorderCustomFields(items, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', 'custom-fields'] }),
+    onError: () => toast.error('Error al guardar el orden'),
   })
 }
