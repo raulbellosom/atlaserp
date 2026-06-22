@@ -85,3 +85,10 @@ export const createStockMovementSchema = z.object({
   reason:         z.string().max(200).optional(),
   note:           z.string().max(500).optional(),
 })
+
+export const reorderCategoriesSchema = z.object({
+  items: z.array(z.object({
+    id:       z.string().uuid(),
+    position: z.number().int().min(0),
+  })).min(1),
+})

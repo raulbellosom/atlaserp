@@ -1,6 +1,6 @@
 // apps/api/src/routes/catalog/categories-routes.js
 import { Hono } from 'hono'
-import { createCategorySchema, updateCategorySchema } from './validators.js'
+import { createCategorySchema, updateCategorySchema, reorderCategoriesSchema } from './validators.js'
 import {
   publishActivityFromContext,
   getActivityContext,
@@ -117,6 +117,19 @@ export function createCategoriesRouter({ productSvc, prisma, requirePermission }
       return c.json({ ok: true })
     } catch (err) {
       console.error('[DELETE /catalog/categories/:id]', err?.message)
+      return c.json({ error: 'Internal error' }, 500)
+    }
+  })
+
+  app.patch('/catalog/categories/reorder', requirePermission('catalog.categories.update'), async (c) => {
+    try {
+      const companyId = c.get('companyId')
+      const parsed = reorderCategoriesSchema.safeParse(await c.req.json())
+      if (!parsed.success) return c.json({ error: parsed.error.errors[0]?.message }, 400)
+      await productSvc.reorderCategories({ companyId, items: parsed.data.items })
+      return c.json({ ok: true })
+    } catch (err) {
+      console.error('[PATCH /catalog/categories/reorder]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
   })

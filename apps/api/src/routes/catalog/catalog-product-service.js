@@ -115,6 +115,18 @@ export function createCatalogProductService({ prisma }) {
     `
   }
 
+  async function reorderCategories({ companyId, items }) {
+    await Promise.all(
+      items.map(({ id, position }) =>
+        prisma.$queryRaw`
+          UPDATE catalog_category
+          SET position = ${position}, updated_at = now()
+          WHERE id = ${id}::uuid AND company_id = ${companyId}::uuid
+        `
+      )
+    )
+  }
+
   async function listProducts({ companyId, categoryId, type, published, search, limit = 50, offset = 0 }) {
     const safeLimit  = Math.min(Math.max(Number.parseInt(String(limit  ?? 50),  10) || 50,  1), 500)
     const safeOffset = Math.max(Number.parseInt(String(offset ?? 0),   10) || 0,  0)
@@ -296,6 +308,7 @@ export function createCatalogProductService({ prisma }) {
     createCategory,
     updateCategory,
     deleteCategory,
+    reorderCategories,
     listProducts,
     getProductById,
     getFullProductById,
