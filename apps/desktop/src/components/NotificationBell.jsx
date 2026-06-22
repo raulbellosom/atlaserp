@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import {
   Bell,
@@ -71,12 +72,20 @@ export function NotificationBell({
       queryClient.invalidateQueries({ queryKey: ["notifications", token] }),
   });
 
-  async function handleNotificationClick(notification) {
+  const [open, setOpen] = useState(false);
+
+  function handleNotificationClick(notification) {
     if (!notification) return;
+    setOpen(false);
     if (!notification.read) {
-      try {
-        await markOneRead.mutateAsync(notification.id);
-      } catch {}
+      queryClient.setQueryData(["notifications", token], (old) => {
+        const list = Array.isArray(old) ? old : (old?.data ?? []);
+        const updated = list.map((n) =>
+          n.id === notification.id ? { ...n, read: true } : n
+        );
+        return Array.isArray(old) ? updated : { ...old, data: updated };
+      });
+      markOneRead.mutate(notification.id);
     }
     if (notification.link && typeof onNavigate === "function") {
       onNavigate(notification.link);
@@ -88,7 +97,7 @@ export function NotificationBell({
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <button
           title="Notificaciones"
@@ -174,7 +183,7 @@ export function NotificationBell({
         <div className="border-t border-[hsl(var(--border))] p-2">
           <button
             type="button"
-            onClick={() => onSeeAll?.()}
+            onClick={() => { setOpen(false); onSeeAll?.(); }}
             className="w-full rounded-md px-3 py-2 text-xs text-left text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors cursor-pointer"
           >
             Ver todas las notificaciones
