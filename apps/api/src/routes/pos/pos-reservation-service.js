@@ -42,12 +42,12 @@ export function createPosReservationService({ prisma }) {
         where: { id: data.tableId, companyId: scopedCompanyId },
       });
       if (!table) throw new PosServiceError("Mesa no encontrada.", 404);
-      if (table.status === "OCCUPIED")
-        throw new PosServiceError("La mesa está ocupada, no se puede reservar.", 409);
+      if (table.status === "OCCUPIED" || table.status === "RESERVED")
+        throw new PosServiceError("La mesa ya está ocupada o reservada.", 409);
     }
 
     const reservation = await prisma.$transaction(async (tx) => {
-      const res = await tx.posReservation.create({
+      const reservation = await tx.posReservation.create({
         data: {
           companyId: scopedCompanyId,
           outletId: data.outletId,
@@ -71,7 +71,7 @@ export function createPosReservationService({ prisma }) {
         });
       }
 
-      return res;
+      return reservation;
     });
 
     await writeAudit(prisma, {
@@ -102,6 +102,10 @@ export function createPosReservationService({ prisma }) {
     if (data.durationMinutes !== undefined) updateData.durationMinutes = data.durationMinutes;
     if (data.notes !== undefined) updateData.notes = data.notes ?? null;
     if (data.status !== undefined) updateData.status = data.status;
+
+    if (Object.keys(updateData).length === 0) {
+      return existing;
+    }
 
     const reservation = await prisma.$transaction(async (tx) => {
       const updated = await tx.posReservation.update({
@@ -153,52 +157,66 @@ export function createPosReservationService({ prisma }) {
     if (reservation.status !== "CONFIRMED")
       throw new PosServiceError("Solo se pueden sentar reservaciones confirmadas.", 409);
 
-    const last = await prisma.posOrder.findFirst({
-      where: { companyId: scopedCompanyId },
-      orderBy: { orderNumber: "desc" },
-    });
-    const orderNumber = Number(last?.orderNumber ?? 0) + 1;
+    let order;
+    let attempt = 0;
+    while (attempt < 3) {
+      try {
+        order = await prisma.$transaction(async (tx) => {
+          const last = await tx.posOrder.findFirst({
+            where: { companyId: scopedCompanyId },
+            orderBy: { orderNumber: "desc" },
+            select: { orderNumber: true },
+          });
+          const orderNumber = Number(last?.orderNumber ?? 0) + 1;
 
-    const order = await prisma.$transaction(async (tx) => {
-      const newOrder = await tx.posOrder.create({
-        data: {
-          companyId: scopedCompanyId,
-          outletId: reservation.outletId,
-          tableId: reservation.tableId,
-          sessionId: sessionId ?? null,
-          orderNumber,
-          status: "OPEN",
-          fulfillmentType: "DINE_IN",
-          salesChannel: "IN_STORE",
-          customerName: reservation.guestName,
-          customerPhone: reservation.guestPhone,
-          guestCount: reservation.partySize,
-          notes: reservation.notes,
-          createdById: actorId,
-        },
-      });
+          const newOrder = await tx.posOrder.create({
+            data: {
+              companyId: scopedCompanyId,
+              outletId: reservation.outletId,
+              tableId: reservation.tableId,
+              sessionId: sessionId ?? null,
+              orderNumber,
+              status: "OPEN",
+              fulfillmentType: "DINE_IN",
+              salesChannel: "IN_STORE",
+              customerName: reservation.guestName,
+              customerPhone: reservation.guestPhone,
+              guestCount: reservation.partySize,
+              notes: reservation.notes,
+              createdById: actorId,
+            },
+          });
 
-      await tx.posReservation.update({
-        where: { id },
-        data: { status: "SEATED", orderId: newOrder.id },
-      });
+          await tx.posReservation.update({
+            where: { id },
+            data: { status: "SEATED", orderId: newOrder.id },
+          });
 
-      if (reservation.tableId) {
-        await tx.posTable.update({
-          where: { id: reservation.tableId },
-          data: { status: "OCCUPIED" },
+          if (reservation.tableId) {
+            await tx.posTable.update({
+              where: { id: reservation.tableId },
+              data: { status: "OCCUPIED" },
+            });
+          }
+
+          return newOrder;
         });
+        break;
+      } catch (err) {
+        if (err?.code === "P2002" && attempt < 2) {
+          attempt++;
+          continue;
+        }
+        throw err;
       }
-
-      return newOrder;
-    });
+    }
 
     await writeAudit(prisma, {
       actorId,
       entityType: "PosReservation",
       entityId: id,
       action: "pos.reservation.seat",
-      after: { orderId: order.id },
+      after: order,
     });
 
     return order;
