@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SelectField, EmptyState, Label, Button, Sheet, SheetContent, SheetTitle, Dialog, DialogContent, DialogHeader, DialogTitle } from '@atlas/ui'
+import { toast } from 'sonner'
 import { LayoutGrid, List, Maximize2, Minimize2, CalendarCheck, CalendarX, Sparkles, UtensilsCrossed } from 'lucide-react'
 import { usePosFloors, usePosFloorDetail, useUpdateTableStatus } from '../hooks/usePosFloor'
 import { useCreatePosReservation, useUpdatePosReservation, useSeatPosReservation } from '../hooks/usePosReservation'
@@ -263,7 +264,8 @@ export default function PosTablesScreen() {
         { id: reservationId },
         {
           onSuccess: (res) => {
-            const orderId = (res?.data ?? res).id
+            const orderId = (res?.data ?? res)?.id
+            if (!orderId) { toast.error('No se pudo obtener la orden'); return }
             navigate(`/app/m/atlas.pos/pos/terminal?order=${orderId}`)
           },
         }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Button, TextField,
@@ -22,13 +22,26 @@ export function ReservationFormDialog({ open, onOpenChange, tableName, tableId, 
     notes: '',
   })
 
+  useEffect(() => {
+    if (open) {
+      setForm({
+        guestName: '',
+        guestPhone: '',
+        partySize: '2',
+        scheduledAt: toLocalDatetimeValue(),
+        durationMinutes: '90',
+        notes: '',
+      })
+    }
+  }, [open, tableId])
+
   function handleChange(field) {
     return (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }))
   }
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!form.guestName.trim()) return
+    if (!form.guestName.trim() || !outletId) return
     onSubmit({
       outletId,
       tableId: tableId ?? null,
@@ -101,7 +114,7 @@ export function ReservationFormDialog({ open, onOpenChange, tableName, tableId, 
             <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" size="sm" disabled={!form.guestName.trim() || loading}>
+            <Button type="submit" size="sm" disabled={!form.guestName.trim() || !outletId || loading}>
               {loading ? 'Guardando...' : 'Confirmar reserva'}
             </Button>
           </DialogFooter>
