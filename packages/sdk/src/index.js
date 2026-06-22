@@ -1131,6 +1131,32 @@ export function createAtlasClient({ baseUrl }) {
         request(`/pos/tables/active-map${toQueryString(query)}`, {
           headers: withAuthHeaders(token),
         }),
+      listReservations: (query, token) =>
+        request(`/pos/reservations${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      createReservation: (data, token) =>
+        request("/pos/reservations", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      getReservation: (id, token) =>
+        request(`/pos/reservations/${encodeURIComponent(id)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      updateReservation: (id, data, token) =>
+        request(`/pos/reservations/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      seatReservation: (id, data, token) =>
+        request(`/pos/reservations/${encodeURIComponent(id)}/seat`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       listStations: (query, token) =>
         request(`/pos/stations${toQueryString(query)}`, {
           headers: withAuthHeaders(token),
