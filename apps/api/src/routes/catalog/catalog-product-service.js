@@ -71,7 +71,7 @@ export function createCatalogProductService({ prisma }) {
   async function createCategory({ companyId, data }) {
     const rows = await prisma.$queryRaw`
       INSERT INTO catalog_category
-        (company_id, name, slug, description, parent_id, cover_asset_id, position)
+        (company_id, name, slug, description, parent_id, cover_asset_id, position, created_at, updated_at)
       VALUES (
         ${companyId}::uuid,
         ${data.name},
@@ -79,7 +79,9 @@ export function createCatalogProductService({ prisma }) {
         ${data.description ?? null},
         ${data.parent_id ?? null}::uuid,
         ${data.cover_asset_id ?? null}::uuid,
-        ${data.position ?? 0}
+        ${data.position ?? 0},
+        now(),
+        now()
       )
       RETURNING *
     `
