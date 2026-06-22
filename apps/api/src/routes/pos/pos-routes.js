@@ -4,6 +4,7 @@ import { createPosSessionService } from "./pos-session-service.js";
 import { createPosOrderService } from "./pos-order-service.js";
 import { createPosFloorService } from "./pos-floor-service.js";
 import { createPosKitchenService } from "./pos-kitchen-service.js";
+import { createPosReservationService } from "./pos-reservation-service.js";
 import { getActorId, getCompanyId, PosServiceError } from "./service-helpers.js";
 import {
   addOrderLineSchema,
@@ -32,6 +33,9 @@ import {
   updateStationSchema,
   updateTableSchema,
   updateTerminalSchema,
+  createReservationSchema,
+  updateReservationSchema,
+  seatReservationSchema,
 } from "./validators.js";
 
 function zodMessage(error) {
@@ -66,6 +70,7 @@ export function createPosRouter({ prisma, requirePermission }) {
   const orderSvc = createPosOrderService({ prisma });
   const floorSvc = createPosFloorService({ prisma });
   const kitchenSvc = createPosKitchenService({ prisma });
+  const reservationSvc = createPosReservationService({ prisma });
 
   app.get("/pos/settings", requirePermission("pos.settings.manage"), async (c) => {
     try {
@@ -490,6 +495,63 @@ export function createPosRouter({ prisma, requirePermission }) {
       return c.json({ data: await settingsSvc.updatePaymentMethod({ ...context(c), id: c.req.param("id"), data }) });
     } catch (err) {
       return handleError(c, err, "No se pudo actualizar el método de pago.");
+    }
+  });
+
+  // ── Reservations ───────────────────────────────────────────────────────────
+  app.get("/pos/reservations", requirePermission("pos.orders.read"), async (c) => {
+    try {
+      const { outletId, date, status } = c.req.query();
+      return c.json({
+        data: await reservationSvc.listReservations({ ...context(c), outletId, date, status }),
+      });
+    } catch (err) {
+      return handleError(c, err, "No se pudieron consultar las reservaciones.");
+    }
+  });
+
+  app.post("/pos/reservations", requirePermission("pos.orders.manage"), async (c) => {
+    try {
+      const data = await parseBody(c, createReservationSchema);
+      return c.json({ data: await reservationSvc.createReservation({ ...context(c), data }) }, 201);
+    } catch (err) {
+      return handleError(c, err, "No se pudo crear la reservación.");
+    }
+  });
+
+  app.get("/pos/reservations/:id", requirePermission("pos.orders.read"), async (c) => {
+    try {
+      return c.json({
+        data: await reservationSvc.getReservation({ ...context(c), id: c.req.param("id") }),
+      });
+    } catch (err) {
+      return handleError(c, err, "No se pudo consultar la reservación.");
+    }
+  });
+
+  app.patch("/pos/reservations/:id", requirePermission("pos.orders.manage"), async (c) => {
+    try {
+      const data = await parseBody(c, updateReservationSchema);
+      return c.json({
+        data: await reservationSvc.updateReservation({ ...context(c), id: c.req.param("id"), data }),
+      });
+    } catch (err) {
+      return handleError(c, err, "No se pudo actualizar la reservación.");
+    }
+  });
+
+  app.post("/pos/reservations/:id/seat", requirePermission("pos.orders.manage"), async (c) => {
+    try {
+      const data = await parseBody(c, seatReservationSchema);
+      return c.json({
+        data: await reservationSvc.seatReservation({
+          ...context(c),
+          id: c.req.param("id"),
+          sessionId: data.sessionId,
+        }),
+      });
+    } catch (err) {
+      return handleError(c, err, "No se pudo sentar la reservación.");
     }
   });
 

@@ -51,11 +51,29 @@ export function createPosFloorService({ prisma }) {
       where: { id, companyId: scopedCompanyId },
       include: {
         elements: { orderBy: { createdAt: 'asc' } },
-        tables: { where: { enabled: true }, orderBy: { createdAt: 'asc' } },
+        tables: {
+          where: { enabled: true },
+          orderBy: { createdAt: 'asc' },
+          include: {
+            reservations: {
+              where: { status: 'CONFIRMED' },
+              orderBy: { scheduledAt: 'asc' },
+              take: 1,
+            },
+          },
+        },
       },
     })
     if (!floor) throw new PosServiceError('Plano POS no encontrado.', 404)
-    return floor
+
+    return {
+      ...floor,
+      tables: floor.tables.map((t) => ({
+        ...t,
+        activeReservation: t.reservations?.[0] ?? null,
+        reservations: undefined,
+      })),
+    }
   }
 
   async function saveLayout({ companyId, id, actorId, elements }) {

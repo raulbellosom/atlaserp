@@ -95,6 +95,7 @@ export const cashMovementSchema = z.object({
 export const createOrderSchema = z.object({
   outletId: uuidSchema,
   sessionId: uuidSchema.nullable().optional(),
+  terminalId: uuidSchema.nullable().optional(),
   tableId: uuidSchema.nullable().optional(),
   fulfillmentType: fulfillmentTypeSchema.default("DINE_IN"),
   salesChannel: salesChannelSchema.default("IN_STORE"),
@@ -222,3 +223,35 @@ export const createPaymentMethodSchema = z.object({
 });
 
 export const updatePaymentMethodSchema = createPaymentMethodSchema.partial();
+
+export const reservationStatusSchema = z.enum([
+  "CONFIRMED",
+  "SEATED",
+  "CANCELLED",
+  "NO_SHOW",
+]);
+
+export const createReservationSchema = z.object({
+  outletId: z.string().uuid(),
+  tableId: z.string().uuid().nullable().optional(),
+  guestName: z.string().min(1).max(160),
+  guestPhone: optionalNullableText(60),
+  partySize: z.coerce.number().int().min(1).max(50).optional(),
+  scheduledAt: z.string().datetime({ offset: true }),
+  durationMinutes: z.coerce.number().int().min(15).max(720).optional(),
+  notes: optionalNullableText(1000),
+});
+
+export const updateReservationSchema = z.object({
+  guestName: z.string().min(1).max(160).optional(),
+  guestPhone: optionalNullableText(60),
+  partySize: z.coerce.number().int().min(1).max(50).optional(),
+  scheduledAt: z.string().datetime({ offset: true }).optional(),
+  durationMinutes: z.coerce.number().int().min(15).max(720).optional(),
+  notes: optionalNullableText(1000),
+  status: reservationStatusSchema.optional(),
+});
+
+export const seatReservationSchema = z.object({
+  sessionId: z.string().uuid().nullable().optional(),
+});
