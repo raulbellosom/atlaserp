@@ -58,7 +58,7 @@ export default function EventDetailModal({
               <X size={15} className="text-[hsl(var(--muted-foreground))]" />
             </button>
           </div>
-          <div className="px-6 pb-6 space-y-3">
+          <div className="px-5 pb-5 space-y-3">
             <Skeleton className="h-6 w-3/4" />
             <Skeleton className="h-4 w-1/2" />
             <Skeleton className="h-4 w-2/3" />
