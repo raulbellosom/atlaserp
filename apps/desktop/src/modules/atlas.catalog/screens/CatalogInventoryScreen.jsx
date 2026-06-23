@@ -14,6 +14,7 @@ const INVENTORY_BLUEPRINT = {
     searchable: true,
     searchPlaceholder: 'Buscar producto...',
     columns: [
+      { field: 'image_url',     label: 'Foto',            type: 'image', sortable: false },
       { field: 'name',          label: 'Producto',        sortable: true, link: true },
       { field: 'category_name', label: 'Categoria',       sortable: false },
       {
@@ -21,6 +22,7 @@ const INVENTORY_BLUEPRINT = {
         label: 'Tipo',
         sortable: false,
         type: 'select',
+        defaultVisible: false,
         options: [
           { value: 'SIMPLE',   label: 'Simple' },
           { value: 'VARIABLE', label: 'Variable' },
@@ -32,6 +34,7 @@ const INVENTORY_BLUEPRINT = {
         label: 'Control stock',
         sortable: false,
         type: 'select',
+        defaultVisible: false,
         options: [
           { value: true,  label: 'Si' },
           { value: false, label: 'No' },

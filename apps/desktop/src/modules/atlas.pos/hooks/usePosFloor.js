@@ -39,19 +39,21 @@ export function useUpdateTableStatus() {
       atlas.pos.updateTableStatus(tableId, { status }, token),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pos', 'tables'] })
+      qc.invalidateQueries({ queryKey: ['pos', 'floors', 'detail'] })
     },
-    onError: (err) => toast.error(err?.message ?? 'Error al actualizar mesa'),
+    onError: (err) => toast.error(err?.message ?? 'Error al actualizar estado de mesa'),
   })
 }
 
-export function usePosFloorDetail(id) {
+export function usePosFloorDetail(id, { refetch = false } = {}) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'floors', 'detail', id],
     queryFn: () => atlas.pos.getFloor(id, token),
     select: (res) => res?.data ?? res,
     enabled: Boolean(token) && Boolean(id),
-    staleTime: 60 * 1000,
+    staleTime: 15 * 1000,
+    refetchInterval: refetch ? 15 * 1000 : false,
   })
 }
 

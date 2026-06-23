@@ -10,6 +10,9 @@ import VehicleImageCell from "../modules/atlas.fleet/components/VehicleImageCell
 import InsuranceBadgeCell from "../modules/atlas.fleet/components/InsuranceBadgeCell.jsx";
 import CoverageTypeBadge from "../modules/atlas.fleet/components/CoverageTypeBadge.jsx";
 
+import LeadStatusBadge from "../modules/atlas.growth/components/LeadStatusBadge.jsx";
+import LeadPriorityBadge from "../modules/atlas.growth/components/LeadPriorityBadge.jsx";
+
 const _isDev = Boolean(import.meta.env?.DEV);
 
 function warnDev(message) {
@@ -40,6 +43,9 @@ componentRegistry.register(
   InsuranceBadgeCell,
 );
 componentRegistry.register("atlas.fleet:CoverageTypeBadge", CoverageTypeBadge);
+
+componentRegistry.register("atlas.growth:LeadStatusBadge", LeadStatusBadge);
+componentRegistry.register("atlas.growth:LeadPriorityBadge", LeadPriorityBadge);
 
 // Dynamic bundle registration is done at runtime by ModuleBundleLoader
 // for modules that still use the bundle system (has_bundle=true).

@@ -1,6 +1,57 @@
 // apps/api/src/routes/catalog/catalog-product-service.js
 
-export function createCatalogProductService({ prisma }) {
+const PUBLIC_BUCKET  = 'atlas-website'
+const SIGNED_URL_TTL = 3600
+
+export function createCatalogProductService({ prisma, supabaseAdmin }) {
+
+  async function resolveImageUrls(rows) {
+    if (!supabaseAdmin) return rows
+    const ids = [...new Set(rows.map((r) => r.cover_asset_id).filter(Boolean))]
+    if (!ids.length) return rows
+
+    const placeholders = ids.map((_, i) => `$${i + 1}::uuid`).join(', ')
+    const assets = await prisma.$queryRawUnsafe(
+      `SELECT id, object_key, bucket, visibility FROM file_asset WHERE id IN (${placeholders})`,
+      ...ids,
+    )
+    if (!assets.length) return rows
+
+    const urlMap = new Map()
+
+    const publicAssets  = assets.filter((a) => a.bucket === PUBLIC_BUCKET)
+    const privateAssets = assets.filter((a) => a.bucket !== PUBLIC_BUCKET)
+
+    for (const a of publicAssets) {
+      const { data } = supabaseAdmin.storage.from(a.bucket).getPublicUrl(a.object_key)
+      urlMap.set(String(a.id), data?.publicUrl ?? null)
+    }
+
+    if (privateAssets.length) {
+      const byBucket = new Map()
+      for (const a of privateAssets) {
+        if (!byBucket.has(a.bucket)) byBucket.set(a.bucket, [])
+        byBucket.get(a.bucket).push(a)
+      }
+      await Promise.all([...byBucket.entries()].map(async ([bucket, batch]) => {
+        const paths = batch.map((a) => a.object_key)
+        const { data: signed } = await supabaseAdmin.storage
+          .from(bucket)
+          .createSignedUrls(paths, SIGNED_URL_TTL)
+        if (Array.isArray(signed)) {
+          for (const item of signed) {
+            const asset = batch.find((a) => a.object_key === item.path)
+            if (asset) urlMap.set(String(asset.id), item.signedUrl ?? null)
+          }
+        }
+      }))
+    }
+
+    return rows.map((r) => ({
+      ...r,
+      image_url: r.cover_asset_id ? (urlMap.get(String(r.cover_asset_id)) ?? null) : null,
+    }))
+  }
 
   async function listCategoriesTree({ companyId }) {
     const rows = await prisma.$queryRaw`
@@ -164,7 +215,8 @@ export function createCatalogProductService({ prisma }) {
       companyId, catId, prodType, pubFilter, likeSearch,
     )
 
-    return { data: rows, total }
+    const enriched = await resolveImageUrls(rows)
+    return { data: enriched, total }
   }
 
   async function getProductById({ companyId, id }) {

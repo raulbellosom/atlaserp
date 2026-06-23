@@ -1,4 +1,4 @@
-import { Eye, ImageIcon, FileText, Pencil, Trash2 } from "lucide-react";
+import { Eye, ImageIcon, FileText, Pencil, Trash2, Image } from "lucide-react";
 import { Checkbox } from "../components/Checkbox.jsx";
 import { ActionMenu } from "../components/ActionMenu.jsx";
 import { stripMarkdown } from "./renderer-adapters.js";
@@ -29,8 +29,18 @@ function formatCardDate(value) {
   return `${day}/${month}/${year}`;
 }
 
-function renderColValue(col, value) {
+function formatCardCurrency(value, currencyCode = "MXN") {
+  const amount = Number(value ?? 0);
+  if (!Number.isFinite(amount)) return "—";
+  const code = currencyCode && /^[A-Z]{3}$/.test(String(currencyCode).toUpperCase())
+    ? String(currencyCode).toUpperCase()
+    : "MXN";
+  return new Intl.NumberFormat("es-MX", { style: "currency", currency: code }).format(amount);
+}
+
+function renderColValue(col, value, row = {}) {
   if (col.type === "date" || col.type === "datetime") return formatCardDate(value);
+  if (col.type === "currency" || col.type === "decimal") return formatCardCurrency(value, row.currency);
   if (col.type === "select" && col.options) {
     const opt = col.options.find((o) => String(o.value) === String(value ?? ""));
     return opt?.label ?? renderValue(value);
@@ -57,9 +67,10 @@ export function AtlasCardView({
   const primaryColumn = columns[0] ?? null;
   const statusColumn = columns.find((c) => /^(status|estado)$/i.test(c.field)) ?? null;
   const colorColumn = columns.find((c) => c.type === "color") ?? null;
-  const secondaryColumns = columns
-    .filter((c) => c !== primaryColumn && c !== statusColumn && c !== colorColumn)
-    .slice(0, 5);
+  const imageColumn = columns.find((c) => c.type === "image") ?? null;
+  const secondaryColumns = columns.filter(
+    (c) => c !== primaryColumn && c !== statusColumn && c !== colorColumn && c !== imageColumn,
+  );
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -75,6 +86,7 @@ export function AtlasCardView({
 
         const itemColor = resolveItemColor ? resolveItemColor(row) : null;
         const effectiveColor = itemColor || accentColor;
+        const imageUrl = imageColumn ? (row[imageColumn.field] || null) : null;
 
         const imageCount = Number(row.image_count ?? 0);
         const docCount = Number(row.doc_count ?? 0);
@@ -110,19 +122,27 @@ export function AtlasCardView({
                     className="mt-0.5 shrink-0"
                   />
                 )}
-                <div
-                  className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
-                  style={{
-                    backgroundColor: effectiveColor ? `${effectiveColor}26` : "hsl(var(--muted))",
-                  }}
-                >
-                  <span
-                    className="text-sm font-semibold"
-                    style={{ color: effectiveColor ?? "hsl(var(--muted-foreground))" }}
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt={titleVal}
+                    className="h-10 w-10 rounded-xl shrink-0 object-cover"
+                  />
+                ) : (
+                  <div
+                    className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
+                    style={{
+                      backgroundColor: effectiveColor ? `${effectiveColor}26` : "hsl(var(--muted))",
+                    }}
                   >
-                    {initials}
-                  </span>
-                </div>
+                    <span
+                      className="text-sm font-semibold"
+                      style={{ color: effectiveColor ?? "hsl(var(--muted-foreground))" }}
+                    >
+                      {initials}
+                    </span>
+                  </div>
+                )}
                 <div className="min-w-0 flex-1 pt-0.5">
                   <button
                     type="button"
@@ -131,10 +151,10 @@ export function AtlasCardView({
                   >
                     {titleVal}
                   </button>
-                  {statusColumn && renderColValue(statusColumn, row[statusColumn.field]) !== "—" && (
+                  {statusColumn && renderColValue(statusColumn, row[statusColumn.field], row) !== "—" && (
                     <div className="mt-1">
                       <span className="inline-block text-xs font-medium text-[hsl(var(--foreground))] bg-[hsl(var(--muted))] rounded-full px-2.5 py-0.5">
-                        {renderColValue(statusColumn, row[statusColumn.field])}
+                        {renderColValue(statusColumn, row[statusColumn.field], row)}
                       </span>
                     </div>
                   )}
@@ -147,7 +167,7 @@ export function AtlasCardView({
               {secondaryColumns.length > 0 && (
                 <div className="space-y-1.5 border-t border-[hsl(var(--border))]/50 pt-2.5">
                   {secondaryColumns.map((col) => {
-                    const val = renderColValue(col, row[col.field]);
+                    const val = renderColValue(col, row[col.field], row);
                     if (val === "—") return null;
                     return (
                       <div

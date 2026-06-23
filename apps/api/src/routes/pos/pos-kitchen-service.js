@@ -90,6 +90,23 @@ export function createPosKitchenService({ prisma }) {
     return prisma.$transaction(async (tx) => {
       const order = await getOrderInCompany(tx, { companyId: scopedCompanyId, orderId });
       const lines = await tx.posOrderLine.findMany({ where: { orderId } });
+
+      // If no stations are configured at all, skip routing — mark order SENT without tickets.
+      // This supports simple restaurants that don't use a kitchen display system.
+      const stationCount = await tx.posKitchenStation.count({ where: { companyId: scopedCompanyId } });
+      if (stationCount === 0) {
+        await tx.posOrder.update({ where: { id: orderId }, data: { status: "SENT" } });
+        await writeAudit(tx, {
+          actorId,
+          entityType: "PosOrder",
+          entityId: order.id,
+          action: "pos.order.send_to_kitchen",
+          after: { orderId, ticketsCount: 0, note: "no_stations_configured" },
+        });
+        return { orderId, tickets: [] };
+      }
+
+      // Stations exist — route lines to their assigned station
       const missingStationLineIds = [];
       const byStation = new Map();
 
@@ -105,9 +122,12 @@ export function createPosKitchenService({ prisma }) {
       }
 
       if (missingStationLineIds.length > 0) {
+        const missingNames = lines
+          .filter((l) => missingStationLineIds.includes(l.id))
+          .map((l) => l.productName ?? 'Producto desconocido')
         throw Object.assign(
           new PosServiceError(
-            `Lineas sin estacion de preparacion: ${missingStationLineIds.join(", ")}.`,
+            `Los siguientes productos no tienen estación de preparación asignada: ${missingNames.join(', ')}. Configúralos en POS → Configuración → Estaciones.`,
             400,
           ),
           { lineIds: missingStationLineIds },
@@ -135,6 +155,8 @@ export function createPosKitchenService({ prisma }) {
         });
         tickets.push(ticket);
       }
+
+      await tx.posOrder.update({ where: { id: orderId }, data: { status: "SENT" } });
 
       await writeAudit(tx, {
         actorId,

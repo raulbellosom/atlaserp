@@ -22,6 +22,7 @@ const CATALOG_PRODUCTS_BLUEPRINT = {
     searchable: true,
     searchPlaceholder: 'Buscar producto...',
     columns: [
+      { field: 'image_url', label: 'Foto', type: 'image', sortable: false },
       { field: 'name', label: 'Nombre', sortable: true, link: true },
       {
         field: 'product_type',
@@ -33,9 +34,9 @@ const CATALOG_PRODUCTS_BLUEPRINT = {
           { value: 'VARIABLE', label: 'Variable' },
         ],
       },
-      { field: 'category_name', label: 'Categoria', sortable: false },
+      { field: 'category_name', label: 'Categoria', sortable: false, defaultVisible: false },
       { field: 'price', label: 'Precio', sortable: true, type: 'decimal' },
-      { field: 'stock', label: 'Stock', sortable: true },
+      { field: 'stock', label: 'Stock', sortable: true, defaultVisible: false },
       {
         field: 'published',
         label: 'Estado',
@@ -158,7 +159,7 @@ export default function CatalogProductsScreen() {
       />
 
       <Dialog open={createOpen} onOpenChange={v => { if (!v) setCreateOpen(false) }}>
-        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
+        <DialogContent size="sm" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Nuevo producto</DialogTitle>
           </DialogHeader>

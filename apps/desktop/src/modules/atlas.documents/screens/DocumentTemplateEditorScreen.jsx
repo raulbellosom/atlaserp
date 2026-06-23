@@ -66,7 +66,7 @@ function LeadPickerDialog({ token, selectedId, onSelect }) {
     staleTime: 60_000,
   });
 
-  const rows = leadsQuery.data?.data?.rows ?? [];
+  const rows = leadsQuery.data?.data ?? [];
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

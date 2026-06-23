@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button, TextField, SelectField, ConfirmDialog } from '@atlas/ui'
 
 const KIND_LABELS = {
@@ -56,24 +57,76 @@ function Section({ title, children }) {
   )
 }
 
-export default function FloorPropertiesPanel({ element, onUpdate, onRemove }) {
+const DEFAULT_CONTAINER = 'w-56 shrink-0 border-l border-border bg-card flex flex-col overflow-y-auto'
+
+export default function FloorPropertiesPanel({ element, onUpdate, onRemove, className, collapsed, onToggleCollapse }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const containerClass = className ?? DEFAULT_CONTAINER
+
+  if (collapsed) {
+    return (
+      <div className="w-10 shrink-0 border-l border-border bg-card flex flex-col items-center pt-2 gap-1">
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          title="Expandir propiedades"
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ChevronLeft size={14} />
+        </button>
+        {element && (
+          <div className="w-2 h-2 rounded-full bg-primary mt-1" title="Elemento seleccionado" />
+        )}
+      </div>
+    )
+  }
 
   if (!element) {
     return (
-      <div className="w-56 shrink-0 border-l border-border bg-card flex flex-col overflow-y-auto">
-        <div className="px-3 pt-3 pb-2 border-b border-border/60">
+      <div className={containerClass}>
+        <div className="px-3 pt-3 pb-2 border-b border-border/60 flex items-center justify-between">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Propiedades</p>
+          {onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              title="Colapsar"
+              className="w-6 h-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ChevronRight size={12} />
+            </button>
+          )}
         </div>
-        <div className="flex flex-col items-center justify-center flex-1 px-3 text-center gap-1.5">
-          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-muted-foreground">
+        <div className="flex flex-col items-center px-4 pt-8 pb-6 gap-4">
+          {/* Icon */}
+          <div className="w-11 h-11 rounded-xl bg-muted/60 border border-border/50 flex items-center justify-center shrink-0">
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="none" className="text-muted-foreground/50">
               <rect x="3" y="5" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
               <rect x="5" y="2" width="3" height="3" rx="0.75" stroke="currentColor" strokeWidth="1.25" />
               <rect x="8" y="2" width="3" height="3" rx="0.75" stroke="currentColor" strokeWidth="1.25" />
             </svg>
           </div>
-          <p className="text-xs text-muted-foreground/60">Selecciona un elemento del plano para editar sus propiedades</p>
+          {/* Copy */}
+          <div className="text-center space-y-1.5">
+            <p className="text-xs font-semibold text-muted-foreground">Sin selección</p>
+            <p className="text-[11px] text-muted-foreground/55 leading-relaxed">
+              Haz clic en una mesa u objeto del plano para ver y editar sus propiedades
+            </p>
+          </div>
+          {/* Ghost skeleton rows */}
+          <div className="w-full mt-1 space-y-2 opacity-20 pointer-events-none select-none" aria-hidden>
+            <div className="h-7.5 rounded-md bg-muted/70 border border-border/40" />
+            <div className="h-7.5 rounded-md bg-muted/70 border border-border/40" />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="h-7.5 rounded-md bg-muted/70 border border-border/40" />
+              <div className="h-7.5 rounded-md bg-muted/70 border border-border/40" />
+            </div>
+            <div className="h-7.5 rounded-md bg-muted/70 border border-border/40" />
+          </div>
+        </div>
+        {/* Bottom delete button ghost */}
+        <div className="px-3 py-3 mt-auto opacity-15 pointer-events-none select-none" aria-hidden>
+          <div className="h-8 rounded-md bg-destructive/30 border border-destructive/20" />
         </div>
       </div>
     )
@@ -87,9 +140,19 @@ export default function FloorPropertiesPanel({ element, onUpdate, onRemove }) {
   const badgeClass = KIND_BADGE[element.kind] ?? 'bg-muted text-foreground border-border'
 
   return (
-    <div className="w-56 shrink-0 border-l border-border bg-card flex flex-col overflow-y-auto">
-      <div className="px-3 pt-3 pb-2 border-b border-border/60">
+    <div className={containerClass}>
+      <div className="px-3 pt-3 pb-2 border-b border-border/60 flex items-center justify-between">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Propiedades</p>
+        {onToggleCollapse && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            title="Colapsar"
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronRight size={12} />
+          </button>
+        )}
       </div>
 
       {/* Type badge */}

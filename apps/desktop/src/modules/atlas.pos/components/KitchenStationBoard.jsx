@@ -50,9 +50,9 @@ export default function KitchenStationBoard({ tickets = [] }) {
   }, {})
 
   return (
-    <div className="grid grid-cols-3 gap-4 p-4 h-full overflow-y-auto">
+    <div className="flex gap-4 p-4 h-full overflow-x-auto">
       {COLUMNS.map((col) => (
-        <div key={col} className="flex flex-col gap-3">
+        <div key={col} className="flex flex-col gap-3 min-w-70 flex-1">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-sm">{STATUS_LABELS[col]}</h3>
             <Badge variant="secondary">{byStatus[col].length}</Badge>

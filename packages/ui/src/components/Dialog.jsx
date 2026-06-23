@@ -26,8 +26,16 @@ const DialogOverlay = forwardRef(function DialogOverlay(
   );
 });
 
+const SIZE_CLASSES = {
+  sm: "md:max-w-sm",
+  md: "md:max-w-lg",
+  lg: "md:max-w-xl",
+  xl: "md:max-w-2xl",
+  "2xl": "md:max-w-3xl",
+};
+
 const DialogContent = forwardRef(function DialogContent(
-  { className, style, children, ...props },
+  { className, style, children, size = "md", ...props },
   ref,
 ) {
   const closeRef = useRef(null);
@@ -75,7 +83,7 @@ const DialogContent = forwardRef(function DialogContent(
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           // ── Mobile: full-width bottom sheet ──────────────────────────────
-          "inset-x-0 bottom-0 w-full min-h-[50dvh] max-h-[85dvh] overflow-y-auto overscroll-contain touch-pan-y",
+          "inset-x-0 bottom-0 w-full min-h-[30dvh] max-h-[85dvh] overflow-y-auto overscroll-contain touch-pan-y",
           "rounded-t-2xl px-5 pt-5 pb-8",
           "data-[state=open]:slide-in-from-bottom-full",
           "data-[state=closed]:slide-out-to-bottom-full",
@@ -84,8 +92,9 @@ const DialogContent = forwardRef(function DialogContent(
           "md:inset-x-auto md:bottom-auto",
           "md:left-1/2 md:top-1/2",
           "md:-translate-x-1/2 md:-translate-y-1/2",
-          "md:w-full md:max-w-2xl md:max-h-[90dvh] md:overflow-y-auto md:overscroll-contain",
-          "md:rounded-2xl md:p-8",
+          "md:w-full md:max-h-[90dvh] md:overflow-y-auto md:overscroll-contain",
+          SIZE_CLASSES[size] ?? SIZE_CLASSES.md,
+          "md:rounded-2xl md:p-6",
           "md:data-[state=open]:slide-in-from-top-2",
           "md:data-[state=closed]:slide-out-to-top-2",
           "md:data-[state=closed]:zoom-out-95 md:data-[state=open]:zoom-in-95",

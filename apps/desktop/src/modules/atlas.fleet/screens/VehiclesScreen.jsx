@@ -47,13 +47,15 @@ const VEHICLE_TABLE = {
         label: "Financiado",
         sortable: true,
         type: "boolean",
+        defaultVisible: false,
       },
       {
         field: "full_economic_number",
         label: "No. Economico",
         sortable: false,
+        defaultVisible: false,
       },
-      { field: "vehicle_type_name", label: "Tipo", sortable: false },
+      { field: "vehicle_type_name", label: "Tipo", sortable: false, defaultVisible: false },
       {
         field: "driver_name",
         label: "Conductor",
@@ -65,6 +67,7 @@ const VEHICLE_TABLE = {
         label: "Seguro",
         sortable: false,
         component: "atlas.fleet:InsuranceBadgeCell",
+        defaultVisible: false,
       },
     ],
     actions: [

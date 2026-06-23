@@ -1631,7 +1631,7 @@ export default function ModuleCatalog() {
           }
         }}
       >
-        <DialogContent className="w-full sm:max-w-xl lg:max-w-2xl">
+        <DialogContent size="xl">
           <DialogHeader>
             <DialogTitle>Detalle del error del módulo</DialogTitle>
             <DialogDescription>

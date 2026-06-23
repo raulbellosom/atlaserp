@@ -39,6 +39,7 @@ export function useCreatePosOrder() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pos', 'orders'] })
       qc.invalidateQueries({ queryKey: ['pos', 'tables'] })
+      qc.invalidateQueries({ queryKey: ['pos', 'floors'] })
     },
     onError: (err) => toast.error(err?.message ?? 'Error al crear orden'),
   })
@@ -49,10 +50,35 @@ export function useAddPosOrderLine() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ orderId, ...data }) => atlas.pos.addOrderLine(orderId, data, token),
+    onMutate: async ({ orderId, productId, productName, unitPrice, quantity = 1 }) => {
+      await qc.cancelQueries({ queryKey: ['pos', 'orders', 'detail', orderId] })
+      const prev = qc.getQueryData(['pos', 'orders', 'detail', orderId])
+      qc.setQueryData(['pos', 'orders', 'detail', orderId], (old) => {
+        if (!old) return old
+        const order = old?.data ?? old
+        const qty = Number(quantity) || 1
+        const price = Number(unitPrice ?? 0)
+        const newLine = {
+          id: `tmp-${Date.now()}`,
+          productId, productName: productName ?? '',
+          quantity: qty, unitPrice: price,
+          discountAmount: 0, taxRate: 0, taxAmount: 0,
+          totalAmount: qty * price,
+        }
+        const newLines = [...(order?.lines ?? []), newLine]
+        const newSubtotal = newLines.reduce((s, l) => s + Number(l.unitPrice ?? 0) * Number(l.quantity ?? 0), 0)
+        const updated = { ...order, lines: newLines, subtotalAmount: newSubtotal, totalAmount: newSubtotal }
+        return old?.data !== undefined ? { ...old, data: updated } : updated
+      })
+      return { prev }
+    },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['pos', 'orders', 'detail', vars.orderId] })
     },
-    onError: (err) => toast.error(err?.message ?? 'Error al agregar producto'),
+    onError: (err, vars, ctx) => {
+      if (ctx?.prev !== undefined) qc.setQueryData(['pos', 'orders', 'detail', vars.orderId], ctx.prev)
+      toast.error(err?.message ?? 'Error al agregar producto')
+    },
   })
 }
 
@@ -62,10 +88,35 @@ export function useUpdatePosOrderLine() {
   return useMutation({
     mutationFn: ({ orderId, lineId, ...data }) =>
       atlas.pos.updateOrderLine(orderId, lineId, data, token),
+    onMutate: async ({ orderId, lineId, quantity, note }) => {
+      await qc.cancelQueries({ queryKey: ['pos', 'orders', 'detail', orderId] })
+      const prev = qc.getQueryData(['pos', 'orders', 'detail', orderId])
+      qc.setQueryData(['pos', 'orders', 'detail', orderId], (old) => {
+        if (!old) return old
+        const order = old?.data ?? old
+        const newLines = (order?.lines ?? []).map((l) => {
+          if (l.id !== lineId) return l
+          const qty = quantity !== undefined ? Number(quantity) : Number(l.quantity)
+          return {
+            ...l,
+            quantity: qty,
+            totalAmount: Number(l.unitPrice ?? 0) * qty,
+            ...(note !== undefined ? { note: note ?? null } : {}),
+          }
+        })
+        const newSubtotal = newLines.reduce((s, l) => s + Number(l.unitPrice ?? 0) * Number(l.quantity ?? 0), 0)
+        const updated = { ...order, lines: newLines, subtotalAmount: newSubtotal, totalAmount: newSubtotal }
+        return old?.data !== undefined ? { ...old, data: updated } : updated
+      })
+      return { prev }
+    },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['pos', 'orders', 'detail', vars.orderId] })
     },
-    onError: (err) => toast.error(err?.message ?? 'Error al actualizar línea'),
+    onError: (err, vars, ctx) => {
+      if (ctx?.prev !== undefined) qc.setQueryData(['pos', 'orders', 'detail', vars.orderId], ctx.prev)
+      toast.error(err?.message ?? 'Error al actualizar línea')
+    },
   })
 }
 
@@ -74,10 +125,26 @@ export function useDeletePosOrderLine() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ orderId, lineId }) => atlas.pos.deleteOrderLine(orderId, lineId, token),
+    onMutate: async ({ orderId, lineId }) => {
+      await qc.cancelQueries({ queryKey: ['pos', 'orders', 'detail', orderId] })
+      const prev = qc.getQueryData(['pos', 'orders', 'detail', orderId])
+      qc.setQueryData(['pos', 'orders', 'detail', orderId], (old) => {
+        if (!old) return old
+        const order = old?.data ?? old
+        const newLines = (order?.lines ?? []).filter(l => l.id !== lineId)
+        const newSubtotal = newLines.reduce((s, l) => s + Number(l.unitPrice ?? 0) * Number(l.quantity ?? 0), 0)
+        const updated = { ...order, lines: newLines, subtotalAmount: newSubtotal, totalAmount: newSubtotal }
+        return old?.data !== undefined ? { ...old, data: updated } : updated
+      })
+      return { prev }
+    },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['pos', 'orders', 'detail', vars.orderId] })
     },
-    onError: (err) => toast.error(err?.message ?? 'Error al eliminar línea'),
+    onError: (err, vars, ctx) => {
+      if (ctx?.prev !== undefined) qc.setQueryData(['pos', 'orders', 'detail', vars.orderId], ctx.prev)
+      toast.error(err?.message ?? 'Error al eliminar línea')
+    },
   })
 }
 
@@ -124,6 +191,7 @@ export function useAddPosPayment() {
       qc.invalidateQueries({ queryKey: ['pos', 'orders', 'detail', vars.orderId] })
       qc.invalidateQueries({ queryKey: ['pos', 'orders'] })
       qc.invalidateQueries({ queryKey: ['pos', 'tables'] })
+      qc.invalidateQueries({ queryKey: ['pos', 'floors'] })
     },
     onError: (err, __, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -144,6 +212,7 @@ export function useCancelPosOrder() {
       qc.invalidateQueries({ queryKey: ['pos', 'orders', 'detail', vars.orderId] })
       qc.invalidateQueries({ queryKey: ['pos', 'orders'] })
       qc.invalidateQueries({ queryKey: ['pos', 'tables'] })
+      qc.invalidateQueries({ queryKey: ['pos', 'floors'] })
     },
     onError: (err, __, ctx) => {
       toast.dismiss(ctx?.toastId)

@@ -237,12 +237,15 @@ const STATUS_LABELS = {
 };
 
 
-function formatTableCurrency(value) {
+function formatTableCurrency(value, currencyCode = "MXN") {
   const amount = Number(value ?? 0);
   if (!Number.isFinite(amount)) return "—";
+  const code = currencyCode && /^[A-Z]{3}$/.test(String(currencyCode).toUpperCase())
+    ? String(currencyCode).toUpperCase()
+    : "MXN";
   return new Intl.NumberFormat("es-MX", {
     style: "currency",
-    currency: "MXN",
+    currency: code,
   }).format(amount);
 }
 
@@ -662,7 +665,7 @@ export function AtlasTable({
 
     if (loading) {
       return (
-        <div className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden">
+        <div className="rounded-2xl border border-[hsl(var(--border))] overflow-clip">
           <Table>
             <TableHeader>
               <TableRow className="bg-[hsl(var(--muted))]/40 hover:bg-[hsl(var(--muted))]/40">
@@ -719,7 +722,7 @@ export function AtlasTable({
     }
 
     return (
-      <div className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden">
+      <div className="rounded-2xl border border-[hsl(var(--border))] overflow-clip">
         <Table>
           <TableHeader>
             <TableRow className="bg-[hsl(var(--muted))]/40 hover:bg-[hsl(var(--muted))]/40">
@@ -828,6 +831,16 @@ export function AtlasTable({
                         (o) => String(o.value) === str,
                       );
                       cellContent = opt?.label ?? renderValue(value);
+                    } else if (col.type === "image") {
+                      cellContent = value ? (
+                        <img
+                          src={value}
+                          alt=""
+                          className="h-8 w-8 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <span className="text-xs text-[hsl(var(--muted-foreground))]">—</span>
+                      );
                     } else if (col.type === "markdown") {
                       cellContent = stripMarkdown(value);
                     } else if (col.type === "date") {
@@ -838,11 +851,11 @@ export function AtlasTable({
                       col.type === "currency" ||
                       col.type === "decimal"
                     ) {
-                      cellContent = formatTableCurrency(value);
+                      cellContent = formatTableCurrency(value, row.currency);
                     } else {
                       cellContent = renderValue(value);
                     }
-                    const truncateCell = !col.component && col.type !== "color";
+                    const truncateCell = !col.component && col.type !== "color" && col.type !== "image";
                     return (
                       <TableCell
                         key={`${col.key}-${rowIndex}`}
@@ -887,13 +900,14 @@ export function AtlasTable({
     const statusCol =
       visibleColumns.find((c) => /^(status|estado)$/i.test(c.field)) ?? null;
     const colorCol = visibleColumns.find((c) => c.type === "color") ?? null;
+    const imageCol = visibleColumns.find((c) => c.type === "image") ?? null;
     const detailCols = visibleColumns.filter(
-      (c) => c !== primaryCol && c !== statusCol && c !== colorCol,
+      (c) => c !== primaryCol && c !== statusCol && c !== colorCol && c !== imageCol,
     );
 
     if (loading) {
       return (
-        <div className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden">
+        <div className="rounded-2xl border border-[hsl(var(--border))] overflow-clip">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={`sk-list-${i}`}
@@ -944,7 +958,7 @@ export function AtlasTable({
     }
 
     return (
-      <div className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden">
+      <div className="rounded-2xl border border-[hsl(var(--border))] overflow-clip">
         {rows.map((row, rowIndex) => {
           const id = getRowId(row, rowIndex);
           const isSelected = selectedIds.has(id);
@@ -966,6 +980,7 @@ export function AtlasTable({
               : "hsl(var(--muted))";
           const avatarText =
             itemColorHex ?? accentColor ?? "hsl(var(--muted-foreground))";
+          const rowImageUrl = imageCol ? (getByPath(row, imageCol.field) || null) : null;
           const statusVal = statusCol
             ? (() => {
                 const v = getByPath(row, statusCol.field);
@@ -990,17 +1005,25 @@ export function AtlasTable({
                 aria-label="Seleccionar"
                 className="shrink-0"
               />
-              <div
-                className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
-                style={{ backgroundColor: avatarBg }}
-              >
-                <span
-                  className="text-sm font-semibold"
-                  style={{ color: avatarText }}
+              {rowImageUrl ? (
+                <img
+                  src={rowImageUrl}
+                  alt={titleVal}
+                  className="h-9 w-9 rounded-xl shrink-0 object-cover"
+                />
+              ) : (
+                <div
+                  className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: avatarBg }}
                 >
-                  {initials}
-                </span>
-              </div>
+                  <span
+                    className="text-sm font-semibold"
+                    style={{ color: avatarText }}
+                  >
+                    {initials}
+                  </span>
+                </div>
+              )}
 
               {/* Title + status — fixed width column */}
               <div className="shrink-0 w-36 min-w-0">
@@ -1028,6 +1051,8 @@ export function AtlasTable({
                       formatted = formatTableDate(rawVal, false);
                     } else if (col.type === "datetime") {
                       formatted = formatTableDate(rawVal, true);
+                    } else if (col.type === "currency" || col.type === "decimal") {
+                      formatted = formatTableCurrency(rawVal, row.currency);
                     } else if (col.type === "select" && col.options) {
                       const opt = col.options.find(
                         (o) => String(o.value) === String(rawVal ?? ""),

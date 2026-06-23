@@ -30,7 +30,7 @@ function lineAmounts({ quantity, unitPrice, discountAmount = 0, taxRate = 0 }) {
 }
 
 async function hydrateOrder(db, { companyId, id }) {
-  const order = await db.posOrder.findFirst({ where: { id, companyId } });
+  const order = await db.posOrder.findFirst({ where: { id, companyId }, include: { table: true } });
   if (!order) throw new PosServiceError("Orden POS no encontrada.", 404);
   const [lines, guests, payments] = await Promise.all([
     db.posOrderLine.findMany({ where: { orderId: id }, orderBy: { createdAt: "asc" } }),
@@ -144,6 +144,7 @@ export function createPosOrderService({ prisma }) {
               companyId: scopedCompanyId,
               outletId: data.outletId,
               sessionId: data.sessionId ?? null,
+              terminalId: data.terminalId ?? null,
               tableId: data.tableId ?? null,
               orderNumber: await nextOrderNumber(tx, scopedCompanyId),
               status: "OPEN",
@@ -168,6 +169,10 @@ export function createPosOrderService({ prisma }) {
                 position: index + 1,
               })),
             });
+          }
+
+          if (data.tableId) {
+            await tx.posTable.update({ where: { id: data.tableId }, data: { status: "OCCUPIED" } });
           }
 
           const hydrated = await hydrateOrder(tx, { companyId: scopedCompanyId, id: order.id });
@@ -369,6 +374,9 @@ export function createPosOrderService({ prisma }) {
         ...(status === "PAID" ? { paidAt: new Date() } : {}),
       },
     });
+    if (status === "PAID" && before.tableId) {
+      await prisma.posTable.update({ where: { id: before.tableId }, data: { status: "DIRTY" } });
+    }
     const after = await hydrateOrder(prisma, { companyId: scopedCompanyId, id: orderId });
     await writeAudit(prisma, {
       actorId,
@@ -393,6 +401,9 @@ export function createPosOrderService({ prisma }) {
         notes: normalizeText(reason) ?? before.notes,
       },
     });
+    if (before.tableId) {
+      await prisma.posTable.update({ where: { id: before.tableId }, data: { status: "AVAILABLE" } });
+    }
     await writeAudit(prisma, {
       actorId,
       entityType: "PosOrder",

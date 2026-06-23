@@ -419,7 +419,7 @@ export default function AccountsScreen() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
+        <DialogContent size="sm" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Nuevo grupo</DialogTitle>
           </DialogHeader>

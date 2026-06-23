@@ -72,12 +72,15 @@ function formatDetailDate(value, includeTime = false) {
   return `${dateFmt} ${h12}:${m} ${ampm}`;
 }
 
-function formatDetailCurrency(value) {
+function formatDetailCurrency(value, currencyCode = "MXN") {
   const amount = Number(value ?? 0);
   if (!Number.isFinite(amount)) return "—";
+  const code = currencyCode && /^[A-Z]{3}$/.test(String(currencyCode).toUpperCase())
+    ? String(currencyCode).toUpperCase()
+    : "MXN";
   return new Intl.NumberFormat("es-MX", {
     style: "currency",
-    currency: "MXN",
+    currency: code,
   }).format(amount);
 }
 
@@ -370,7 +373,7 @@ function normalizeSections(schema, fieldMap) {
     .filter(Boolean);
 }
 
-function renderValue(field, value) {
+function renderValue(field, value, record = {}) {
   if (value === undefined || value === null || value === "") return "—";
   if (field?.type === "boolean") return value ? "Sí" : "No";
 
@@ -378,7 +381,7 @@ function renderValue(field, value) {
   if (field?.type === "datetime") return formatDetailDate(value, true);
 
   if (field?.type === "currency" || field?.type === "decimal") {
-    return formatDetailCurrency(value);
+    return formatDetailCurrency(value, record.currency);
   }
 
   if (field?.type === "number" || field?.type === "integer") {
@@ -689,13 +692,7 @@ function RelationListSection({ section, data, apiBaseUrl, token }) {
             } else if (type === "datetime") {
               formatted = formatDetailDate(raw, true);
             } else if (type === "currency") {
-              const n = Number(raw);
-              formatted = Number.isFinite(n)
-                ? new Intl.NumberFormat("es-MX", {
-                    style: "currency",
-                    currency: "MXN",
-                  }).format(n)
-                : String(raw);
+              formatted = formatDetailCurrency(raw, item.currency);
             } else if (type === "integer" || type === "number") {
               const n = Number(raw);
               formatted = Number.isFinite(n)
@@ -730,13 +727,7 @@ function RelationListSection({ section, data, apiBaseUrl, token }) {
                 } else if (type === "datetime") {
                   formatted = formatDetailDate(raw, true);
                 } else if (type === "currency") {
-                  const n = Number(raw);
-                  formatted = Number.isFinite(n)
-                    ? new Intl.NumberFormat("es-MX", {
-                        style: "currency",
-                        currency: "MXN",
-                      }).format(n)
-                    : String(raw);
+                  formatted = formatDetailCurrency(raw, item.currency) || null;
                 } else {
                   formatted = normalizeTextValue(raw) || null;
                 }
@@ -944,7 +935,7 @@ export function AtlasDetail({
                             </span>
                           )
                         ) : (
-                          renderValue(field, value)
+                          renderValue(field, value, data)
                         )}
                       </dd>
                     </div>

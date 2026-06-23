@@ -1,8 +1,9 @@
 import { useReducer, useState, useEffect, useCallback, useRef } from 'react'
-import { Pencil } from 'lucide-react'
+import { Pencil, LayoutGrid, Settings2, ZoomIn, ZoomOut, RotateCcw, Grid, Ruler } from 'lucide-react'
 import {
-  Button, Label, SelectField, Badge,
+  Button, SelectField, Badge,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
   TextField, EmptyState,
 } from '@atlas/ui'
 import { usePosOutlets } from '../hooks/usePosSettings'
@@ -15,7 +16,7 @@ import {
   usePublishFloor,
 } from '../hooks/usePosFloor'
 import FloorCanvas from '../components/FloorCanvas'
-import FloorToolbox from '../components/FloorToolbox'
+import FloorToolbox, { FloorToolboxContent } from '../components/FloorToolbox'
 import FloorPropertiesPanel from '../components/FloorPropertiesPanel'
 
 const DEFAULT_SIZES = {
@@ -121,6 +122,35 @@ function canvasReducer(state, action) {
   }
 }
 
+// History-aware reducer wrapper for undo/redo (up to 50 steps)
+function useHistoryReducer(reducer, initialState) {
+  const [hist, setHist] = useState({ past: [], present: initialState, future: [] })
+  const dispatch = useCallback((action) => {
+    if (action.type === 'UNDO') {
+      setHist((h) => h.past.length === 0 ? h : {
+        past: h.past.slice(0, -1),
+        present: h.past[h.past.length - 1],
+        future: [h.present, ...h.future],
+      })
+      return
+    }
+    if (action.type === 'REDO') {
+      setHist((h) => h.future.length === 0 ? h : {
+        past: [...h.past, h.present],
+        present: h.future[0],
+        future: h.future.slice(1),
+      })
+      return
+    }
+    setHist((h) => ({
+      past: action.type === 'LOAD' ? [] : [...h.past.slice(-49), h.present],
+      present: reducer(h.present, action),
+      future: [],
+    }))
+  }, [reducer])
+  return [hist.present, dispatch, hist.past.length > 0, hist.future.length > 0]
+}
+
 export default function PosFloorPlannerScreen() {
   const [outletId, setOutletId] = useState('')
   const [floorId, setFloorId] = useState('')
@@ -131,10 +161,24 @@ export default function PosFloorPlannerScreen() {
   const [newFloorName, setNewFloorName] = useState('')
   const [editFloorDialog, setEditFloorDialog] = useState(false)
   const [editFloorName, setEditFloorName] = useState('')
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false)
+  const [mobilePropsOpen, setMobilePropsOpen] = useState(false)
+
+  const [zoom, setZoom] = useState(1)
+  const [showGrid, setShowGrid] = useState(true)
+  const [showRulers, setShowRulers] = useState(true)
+  const [toolboxCollapsed, setToolboxCollapsed] = useState(false)
+  const [propsCollapsed, setPropsCollapsed] = useState(false)
 
   const tempIdRef = useRef(0)
   const clipboardRef = useRef(null)
-  const [canvas, dispatch] = useReducer(canvasReducer, { elements: [], dirty: false })
+  const [canvas, dispatch, canUndo, canRedo] = useHistoryReducer(canvasReducer, { elements: [], dirty: false })
+
+  // Refs so the keydown closure stays stable (only re-registers on floorId change)
+  const selectedIdRef     = useRef(selectedId)
+  const canvasElementsRef = useRef(canvas.elements)
+  useEffect(() => { selectedIdRef.current = selectedId }, [selectedId])
+  useEffect(() => { canvasElementsRef.current = canvas.elements }, [canvas.elements])
 
   const { data: outlets = [] } = usePosOutlets()
   const { data: floors = [] } = usePosFloors(outletId ? { outletId } : {})
@@ -153,22 +197,52 @@ export default function PosFloorPlannerScreen() {
   }, [floor?.id])
 
   // Keyboard shortcuts
+  // Keyboard shortcuts — uses capture phase so it fires before any child handler.
+  // Reads selectedId and canvas.elements via refs to avoid re-registering on every state change.
   useEffect(() => {
     if (!floorId) return
     function onKeyDown(e) {
-      // Don't fire when typing in inputs
       if (e.target.closest('input, textarea, [contenteditable], [role="dialog"]')) return
       const ctrl = e.ctrlKey || e.metaKey
+      const sel      = selectedIdRef.current
+      const elements = canvasElementsRef.current
 
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+      if (ctrl && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault()
-        dispatch({ type: 'REMOVE', id: selectedId })
+        dispatch({ type: 'UNDO' })
         setSelectedId(null)
         return
       }
-      if (ctrl && e.key.toLowerCase() === 'c' && selectedId) {
+      if (ctrl && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
         e.preventDefault()
-        const el = canvas.elements.find((el) => el.id === selectedId)
+        dispatch({ type: 'REDO' })
+        setSelectedId(null)
+        return
+      }
+      if (ctrl && (e.key === '+' || e.key === '=')) {
+        e.preventDefault()
+        setZoom((z) => Math.min(3, Math.round((z + 0.25) * 100) / 100))
+        return
+      }
+      if (ctrl && e.key === '-') {
+        e.preventDefault()
+        setZoom((z) => Math.max(0.25, Math.round((z - 0.25) * 100) / 100))
+        return
+      }
+      if (ctrl && e.key === '0') {
+        e.preventDefault()
+        setZoom(1)
+        return
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && sel) {
+        e.preventDefault()
+        dispatch({ type: 'REMOVE', id: sel })
+        setSelectedId(null)
+        return
+      }
+      if (ctrl && e.key.toLowerCase() === 'c' && sel) {
+        e.preventDefault()
+        const el = elements.find((el) => el.id === sel)
         if (el) clipboardRef.current = el
         return
       }
@@ -180,9 +254,9 @@ export default function PosFloorPlannerScreen() {
         setSelectedId(newId)
         return
       }
-      if (ctrl && e.key.toLowerCase() === 'd' && selectedId) {
+      if (ctrl && e.key.toLowerCase() === 'd' && sel) {
         e.preventDefault()
-        const el = canvas.elements.find((el) => el.id === selectedId)
+        const el = elements.find((el) => el.id === sel)
         if (el) {
           const newId = `temp_${++tempIdRef.current}`
           dispatch({ type: 'ADD', element: { ...el, id: newId, x: el.x + 20, y: el.y + 20 } })
@@ -195,19 +269,23 @@ export default function PosFloorPlannerScreen() {
         setActiveTool('SELECT')
         return
       }
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && selectedId) {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && sel) {
         e.preventDefault()
         const nudge = e.shiftKey ? 10 : 1
-        const el = canvas.elements.find((el) => el.id === selectedId)
+        const el = elements.find((el) => el.id === sel)
         if (!el) return
         const dx = e.key === 'ArrowLeft' ? -nudge : e.key === 'ArrowRight' ? nudge : 0
         const dy = e.key === 'ArrowUp' ? -nudge : e.key === 'ArrowDown' ? nudge : 0
-        dispatch({ type: 'MOVE', id: selectedId, x: el.x + dx, y: el.y + dy })
+        dispatch({ type: 'MOVE', id: sel, x: el.x + dx, y: el.y + dy })
       }
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [floorId, selectedId, canvas.elements])
+    window.addEventListener('keydown', onKeyDown, { capture: true })
+    return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
+  }, [floorId])
+
+  function handleZoomChange(delta) {
+    setZoom((z) => Math.max(0.25, Math.min(3, Math.round((z + delta) * 100) / 100)))
+  }
 
   function handleContextAction(action, elementId) {
     switch (action) {
@@ -433,27 +511,92 @@ export default function PosFloorPlannerScreen() {
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
-      {/* Toolbar */}
-      <div className="flex items-center gap-4 px-4 py-2.5 border-b border-border bg-card shrink-0 flex-wrap">
-        <div className="shrink-0">
-          <h1 className="text-sm font-semibold leading-tight">Diseñador de planos</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Crea y edita el layout de tus sucursales</p>
+      {/* ── Toolbar ──────────────────────────────────────────────────────── */}
+      <div className="border-b border-border bg-card shrink-0">
+
+        {/* Mobile: 2-row compact layout */}
+        <div className="md:hidden">
+          <div className="flex items-center justify-between px-4 pt-3 pb-2 gap-3">
+            <div className="min-w-0">
+              <h1 className="text-sm font-semibold leading-tight truncate">Diseñador de planos</h1>
+            </div>
+            {floorId && (
+              <div className="flex items-center gap-1.5 shrink-0">
+                {activeFloor?.isActive && (
+                  <Badge variant="secondary" className="text-xs">Activo</Badge>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleSave}
+                  disabled={!canvas.dirty || saveLayout.isPending}
+                >
+                  {saveLayout.isPending ? '...' : 'Guardar'}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handlePublish}
+                  disabled={activeFloor?.isActive || publishFloor.isPending || canvas.dirty}
+                >
+                  {publishFloor.isPending ? '...' : 'Publicar'}
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2 px-4 pb-3 flex-wrap">
+            <div className="flex-1 min-w-0">
+              <SelectField
+                value={outletId}
+                onChange={handleOutletChange}
+                options={outlets.map((o) => ({ value: o.id, label: o.name }))}
+                placeholder="Sucursal"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <SelectField
+                value={floorId}
+                onChange={handleFloorChange}
+                options={floors.map((f) => ({ value: f.id, label: f.name }))}
+                placeholder={
+                  !outletId ? 'Elige sucursal'
+                  : floors.length === 0 ? 'Sin planos'
+                  : 'Plano'
+                }
+                disabled={!outletId}
+              />
+            </div>
+            {outletId && (
+              <Button size="sm" variant="outline" onClick={() => setNewFloorDialog(true)}>
+                + Plano
+              </Button>
+            )}
+            {floorId && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-9 w-9 text-muted-foreground"
+                onClick={openEditFloor}
+                title="Renombrar plano"
+              >
+                <Pencil size={14} />
+              </Button>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-end gap-2 flex-1 min-w-0 flex-wrap">
-          <div className="flex flex-col gap-1">
-            <Label className="text-xs text-muted-foreground">Sucursal</Label>
+        {/* Desktop: compact single-row layout */}
+        <div className="hidden md:flex items-center gap-3 px-4 py-1.5 flex-wrap">
+          <h1 className="text-sm font-semibold shrink-0">Diseñador de planos</h1>
+          <div className="w-px h-4 bg-border/60 shrink-0" />
+          <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
             <div className="w-44">
               <SelectField
                 value={outletId}
                 onChange={handleOutletChange}
                 options={outlets.map((o) => ({ value: o.id, label: o.name }))}
-                placeholder="Selecciona sucursal"
+                placeholder="Sucursal"
               />
             </div>
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label className="text-xs text-muted-foreground">Plano</Label>
             <div className="w-44">
               <SelectField
                 value={floorId}
@@ -461,58 +604,57 @@ export default function PosFloorPlannerScreen() {
                 options={floors.map((f) => ({ value: f.id, label: f.name }))}
                 placeholder={
                   !outletId
-                    ? 'Primero elige sucursal'
+                    ? 'Elige sucursal primero'
                     : floors.length === 0
-                      ? 'Sin planos — crea uno'
-                      : 'Selecciona plano'
+                      ? 'Sin planos'
+                      : 'Plano'
                 }
                 disabled={!outletId}
               />
             </div>
+            {outletId && (
+              <Button size="sm" variant="outline" onClick={() => setNewFloorDialog(true)}>
+                + Plano
+              </Button>
+            )}
+            {floorId && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={openEditFloor}
+                title="Renombrar plano"
+              >
+                <Pencil size={14} />
+              </Button>
+            )}
           </div>
-          {outletId && (
-            <Button size="sm" variant="outline" onClick={() => setNewFloorDialog(true)}>
-              + Plano
-            </Button>
-          )}
           {floorId && (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-9 w-9 text-muted-foreground hover:text-foreground"
-              onClick={openEditFloor}
-              title="Renombrar plano"
-            >
-              <Pencil size={14} />
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              {activeFloor?.isActive && (
+                <Badge variant="secondary" className="text-xs">Activo</Badge>
+              )}
+              {canvas.dirty && (
+                <span className="text-xs text-muted-foreground hidden sm:inline">Sin guardar</span>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSave}
+                disabled={!canvas.dirty || saveLayout.isPending}
+              >
+                {saveLayout.isPending ? 'Guardando...' : 'Guardar'}
+              </Button>
+              <Button
+                size="sm"
+                onClick={handlePublish}
+                disabled={activeFloor?.isActive || publishFloor.isPending || canvas.dirty}
+              >
+                {publishFloor.isPending ? 'Publicando...' : 'Publicar'}
+              </Button>
+            </div>
           )}
         </div>
-
-        {floorId && (
-          <div className="flex items-center gap-2 shrink-0">
-            {activeFloor?.isActive && (
-              <Badge variant="secondary" className="text-xs">Activo</Badge>
-            )}
-            {canvas.dirty && (
-              <span className="text-xs text-muted-foreground hidden sm:inline">Sin guardar</span>
-            )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleSave}
-              disabled={!canvas.dirty || saveLayout.isPending}
-            >
-              {saveLayout.isPending ? 'Guardando...' : 'Guardar'}
-            </Button>
-            <Button
-              size="sm"
-              onClick={handlePublish}
-              disabled={activeFloor?.isActive || publishFloor.isPending || canvas.dirty}
-            >
-              {publishFloor.isPending ? 'Publicando...' : 'Publicar'}
-            </Button>
-          </div>
-        )}
       </div>
 
       {!floorId ? (
@@ -528,31 +670,177 @@ export default function PosFloorPlannerScreen() {
         </div>
       ) : (
         <div className="flex flex-1 overflow-hidden">
-          <FloorToolbox activeTool={activeTool} onToolChange={setActiveTool} />
-          <FloorCanvas
-            floor={floor}
-            elements={canvas.elements}
-            selectedId={selectedId}
-            activeTool={activeTool}
-            hasClipboard={clipboardRef.current != null}
-            onSelect={setSelectedId}
-            onMove={handleMove}
-            onResize={handleResize}
-            onPlace={handlePlace}
-            onVertexMove={handleVertexMove}
-            onAddVertex={handleAddVertex}
-            onDeleteVertex={handleDeleteVertex}
-            onContextAction={handleContextAction}
-          />
-          {selectedElement && (
+          {/* Toolbox sidebar — desktop only */}
+          <div className="hidden md:block md:shrink-0">
+            <FloorToolbox
+              activeTool={activeTool}
+              onToolChange={setActiveTool}
+              collapsed={toolboxCollapsed}
+              onToggleCollapse={() => setToolboxCollapsed((c) => !c)}
+            />
+          </div>
+
+          {/* Canvas */}
+          <div className="relative flex-1 overflow-hidden">
+            <FloorCanvas
+              floor={floor}
+              elements={canvas.elements}
+              selectedId={selectedId}
+              activeTool={activeTool}
+              hasClipboard={clipboardRef.current != null}
+              zoom={zoom}
+              showGrid={showGrid}
+              showRulers={showRulers}
+              onSelect={setSelectedId}
+              onMove={handleMove}
+              onResize={handleResize}
+              onPlace={handlePlace}
+              onVertexMove={handleVertexMove}
+              onAddVertex={handleAddVertex}
+              onDeleteVertex={handleDeleteVertex}
+              onContextAction={handleContextAction}
+              onZoomChange={handleZoomChange}
+            />
+
+            {/* Floating zoom + grid controls — desktop */}
+            <div className="hidden md:flex absolute bottom-4 right-4 items-center gap-1 z-20 bg-card/95 border border-border rounded-lg shadow-md px-2 py-1.5 backdrop-blur-sm">
+              <button
+                type="button"
+                onClick={() => dispatch({ type: 'UNDO' })}
+                disabled={!canUndo}
+                title="Deshacer (Ctrl+Z)"
+                className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <RotateCcw size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => dispatch({ type: 'REDO' })}
+                disabled={!canRedo}
+                title="Rehacer (Ctrl+Y)"
+                className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                style={{ transform: 'scaleX(-1)' }}
+              >
+                <RotateCcw size={13} />
+              </button>
+              <div className="w-px h-4 bg-border mx-0.5" />
+              <button
+                type="button"
+                onClick={() => handleZoomChange(-0.25)}
+                disabled={zoom <= 0.25}
+                title="Alejar (Ctrl+-)"
+                className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ZoomOut size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setZoom(1)}
+                title="Restablecer zoom (Ctrl+0)"
+                className="w-12 h-7 flex items-center justify-center rounded text-xs font-mono text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <button
+                type="button"
+                onClick={() => handleZoomChange(0.25)}
+                disabled={zoom >= 3}
+                title="Acercar (Ctrl++)"
+                className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ZoomIn size={13} />
+              </button>
+              <div className="w-px h-4 bg-border mx-0.5" />
+              <button
+                type="button"
+                onClick={() => setShowGrid((g) => !g)}
+                title={showGrid ? 'Ocultar cuadrícula' : 'Mostrar cuadrícula'}
+                className={['w-7 h-7 flex items-center justify-center rounded transition-colors',
+                  showGrid ? 'text-primary bg-primary/10 hover:bg-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted'].join(' ')}
+              >
+                <Grid size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRulers((r) => !r)}
+                title={showRulers ? 'Ocultar reglas' : 'Mostrar reglas'}
+                className={['w-7 h-7 flex items-center justify-center rounded transition-colors',
+                  showRulers ? 'text-primary bg-primary/10 hover:bg-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted'].join(' ')}
+              >
+                <Ruler size={13} />
+              </button>
+            </div>
+
+            {/* Mobile floating action buttons */}
+            <div className="md:hidden absolute bottom-4 left-3 flex flex-col gap-2 z-20">
+              <button
+                type="button"
+                onClick={() => setMobileToolsOpen(true)}
+                className="flex items-center gap-2 h-10 px-3.5 rounded-xl bg-card border border-border shadow-md text-sm font-medium text-foreground active:scale-95 transition-transform"
+              >
+                <LayoutGrid size={15} />
+                Elementos
+              </button>
+              {selectedElement && (
+                <button
+                  type="button"
+                  onClick={() => setMobilePropsOpen(true)}
+                  className="flex items-center gap-2 h-10 px-3.5 rounded-xl bg-primary text-primary-foreground shadow-md text-sm font-medium active:scale-95 transition-transform"
+                >
+                  <Settings2 size={15} />
+                  Editar
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Properties panel — desktop only, always rendered so collapse works */}
+          <div className="hidden md:block md:shrink-0">
             <FloorPropertiesPanel
               element={selectedElement}
               onUpdate={handleUpdate}
               onRemove={handleRemove}
+              collapsed={propsCollapsed}
+              onToggleCollapse={() => setPropsCollapsed((c) => !c)}
             />
-          )}
+          </div>
         </div>
       )}
+
+      {/* ── Mobile Sheets ─────────────────────────────────────────────────── */}
+
+      {/* Toolbox sheet */}
+      <Sheet open={mobileToolsOpen} onOpenChange={setMobileToolsOpen}>
+        <SheetContent side="bottom" aria-describedby={undefined}>
+          <SheetHeader>
+            <SheetTitle>Elementos</SheetTitle>
+          </SheetHeader>
+          <div className="overflow-y-auto -mx-6 px-2">
+            <FloorToolboxContent
+              activeTool={activeTool}
+              onToolChange={(t) => { setActiveTool(t); setMobileToolsOpen(false) }}
+              showHints={false}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Properties sheet */}
+      <Sheet open={mobilePropsOpen} onOpenChange={setMobilePropsOpen}>
+        <SheetContent side="bottom" aria-describedby={undefined}>
+          <SheetHeader>
+            <SheetTitle>Propiedades</SheetTitle>
+          </SheetHeader>
+          {selectedElement && (
+            <FloorPropertiesPanel
+              element={selectedElement}
+              onUpdate={handleUpdate}
+              onRemove={() => { handleRemove(); setMobilePropsOpen(false) }}
+              className="flex flex-col overflow-y-auto"
+            />
+          )}
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={newFloorDialog} onOpenChange={(v) => { setNewFloorDialog(v); if (!v) setNewFloorName('') }}>
         <DialogContent className="max-w-xs md:min-h-0">

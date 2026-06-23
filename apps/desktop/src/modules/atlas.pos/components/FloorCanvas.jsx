@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useLayoutEffect } from 'react'
 
 const CHAIR_PAD = 18
 
@@ -297,6 +297,7 @@ function PolygonVisual({ el, isSelected }) {
     return <div className="w-full h-full rounded border-2 border-dashed border-border bg-muted/20" />
   }
   const pts = el.points.map((p) => `${p.x - el.x},${p.y - el.y}`).join(' ')
+  const zoneColors = POLYGON_ZONE_COLORS[el.color ?? 'neutral'] ?? POLYGON_ZONE_COLORS.neutral
   return (
     <div className="absolute inset-0" style={{ overflow: 'visible' }}>
       <svg
@@ -305,10 +306,9 @@ function PolygonVisual({ el, isSelected }) {
       >
         <polygon
           points={pts}
-          className="stroke-slate-400 dark:stroke-slate-500"
-          fill="rgba(100,116,139,0.12)"
+          fill={zoneColors.fill}
+          stroke={isSelected ? 'var(--primary)' : zoneColors.stroke}
           strokeWidth={isSelected ? 2.5 : 1.5}
-          stroke={isSelected ? 'var(--primary)' : undefined}
           strokeDasharray="6 3"
         />
         {el.label && (
@@ -318,7 +318,6 @@ function PolygonVisual({ el, isSelected }) {
             className="fill-slate-600 dark:fill-slate-300"
           >{el.label}</text>
         )}
-        {/* Vertex dots rendered as HTML handles in CanvasElement */}
       </svg>
     </div>
   )
@@ -442,6 +441,15 @@ const DRAW_PREVIEW_COLORS = {
   STAIRS:       'border-slate-400   bg-slate-200/20   dark:bg-slate-700/20',
 }
 
+const POLYGON_ZONE_COLORS = {
+  neutral: { fill: 'rgba(100,116,139,0.12)', stroke: '#64748b' },
+  dining:  { fill: 'rgba(59,130,246,0.12)',  stroke: '#3b82f6' },
+  outdoor: { fill: 'rgba(34,197,94,0.12)',   stroke: '#22c55e' },
+  bar:     { fill: 'rgba(245,158,11,0.12)',  stroke: '#f59e0b' },
+  vip:     { fill: 'rgba(139,92,246,0.12)',  stroke: '#8b5cf6' },
+  private: { fill: 'rgba(239,68,68,0.12)',   stroke: '#ef4444' },
+}
+
 function DrawingPreview({ preview }) {
   const w = Math.abs(preview.width)
   const h = Math.abs(preview.height)
@@ -482,22 +490,70 @@ function ContextMenuOverlay({ menu, onAction, onClose, hasClipboard }) {
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose() }} />
       <div
-        className="fixed z-50 bg-popover border border-border shadow-xl rounded-lg py-1 min-w-45 text-sm"
-        style={{ left: Math.min(menu.clientX, window.innerWidth - 192), top: Math.min(menu.clientY, window.innerHeight - 200) }}
+        className="fixed z-50 rounded-2xl py-1.5 text-sm overflow-hidden"
+        style={{
+          left: Math.min(menu.clientX, window.innerWidth - 204),
+          top: Math.min(menu.clientY, window.innerHeight - 224),
+          minWidth: 188,
+          // ── Liquid glass material ──────────────────────────────────────────
+          background: 'rgba(14, 14, 22, 0.68)',
+          backdropFilter: 'blur(32px) saturate(200%) brightness(1.08)',
+          WebkitBackdropFilter: 'blur(32px) saturate(200%) brightness(1.08)',
+          border: '1px solid rgba(255, 255, 255, 0.09)',
+          boxShadow: [
+            '0 12px 48px rgba(0,0,0,0.55)',
+            '0 4px 16px rgba(0,0,0,0.35)',
+            'inset 0 1px 0 rgba(255,255,255,0.10)',
+            'inset 0 -1px 0 rgba(255,255,255,0.03)',
+          ].join(', '),
+        }}
         onPointerDown={(e) => e.stopPropagation()}
       >
+        {/* Specular top highlight — simulates surface light reflection */}
+        <div
+          aria-hidden
+          className="absolute inset-x-0 top-0 pointer-events-none"
+          style={{
+            height: 1,
+            background: 'linear-gradient(90deg, transparent 8%, rgba(255,255,255,0.22) 35%, rgba(255,255,255,0.22) 65%, transparent 92%)',
+          }}
+        />
+
         {items.map((item, i) =>
           item === null ? (
-            <div key={i} className="h-px bg-border mx-1 my-1" />
+            <div
+              key={i}
+              className="mx-2 my-1.5"
+              style={{ height: 1, background: 'rgba(255,255,255,0.07)' }}
+            />
           ) : (
-            <button key={item.action} type="button"
+            <button
+              key={item.action}
+              type="button"
               onClick={() => { onAction(item.action, menu.elementId); onClose() }}
-              className={['flex items-center justify-between px-3 py-1.5 text-left rounded-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary',
-                item.danger ? 'text-destructive hover:bg-destructive/10' : 'text-popover-foreground hover:bg-muted'].join(' ')}
-              style={{ width: 'calc(100% - 4px)', margin: '0 2px' }}
+              className={[
+                'group flex items-center justify-between rounded-lg transition-all duration-75',
+                'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30',
+                item.danger
+                  ? 'text-red-400 hover:text-red-300 hover:bg-red-500/13'
+                  : 'hover:bg-white/[0.07]',
+              ].join(' ')}
+              style={{
+                width: 'calc(100% - 8px)',
+                margin: '1px 4px',
+                padding: '6px 10px',
+                color: item.danger ? undefined : 'rgba(255,255,255,0.82)',
+              }}
             >
-              <span>{item.label}</span>
-              {item.shortcut && <span className="text-[10px] text-muted-foreground ml-4">{item.shortcut}</span>}
+              <span className="font-[450] tracking-[-0.01em]">{item.label}</span>
+              {item.shortcut && (
+                <span
+                  className="ml-5 font-mono text-[10px] tabular-nums transition-colors group-hover:opacity-70"
+                  style={{ color: 'rgba(255,255,255,0.30)' }}
+                >
+                  {item.shortcut}
+                </span>
+              )}
             </button>
           ),
         )}
@@ -614,32 +670,209 @@ function CanvasElement({ el, arrIndex, isSelected, onPointerDown, onResizePointe
   )
 }
 
+// ─── Rulers ───────────────────────────────────────────────────────────────
+// Rendered inside the scaled canvas div so they scale with zoom.
+// All sizes divided by zoom to maintain constant screen-pixel appearance.
+// Colors use hsl(var(--xxx)) — shadcn/ui variables store raw HSL values, not
+// full color strings, so they MUST be wrapped in hsl() to be valid CSS colors.
+
+const RULER_THICKNESS = 20 // screen-pixel height/width at zoom=1
+
+function CanvasRulerH({ canvasWidth, zoom, cursorX = null }) {
+  const step = zoom >= 1.5 ? 50 : zoom >= 0.75 ? 100 : zoom >= 0.4 ? 200 : 500
+  const ticks = Array.from({ length: Math.ceil(canvasWidth / step) + 1 }, (_, i) => i * step)
+  const sw = 0.75 / zoom
+  const fs = 8 / zoom
+  const rh = RULER_THICKNESS / zoom
+  const TICK  = 'hsl(var(--foreground) / 0.22)'
+  const LABEL = 'hsl(var(--foreground) / 0.5)'
+  const BG    = 'hsl(var(--muted))'
+  return (
+    <svg style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 15 }}
+         width={canvasWidth} height={rh}>
+      <rect width={canvasWidth} height={rh} fill={BG} opacity={0.9} />
+      <line x1={0} y1={rh} x2={canvasWidth} y2={rh} stroke={TICK} strokeWidth={sw} />
+      {ticks.map((x) => {
+        const major = x % 500 === 0
+        const mid   = !major && x % 100 === 0
+        const th    = (major ? 10 : mid ? 6 : 3) / zoom
+        const showLabel = major || (zoom >= 0.5 && mid)
+        return (
+          <g key={x}>
+            <line x1={x} y1={rh - th} x2={x} y2={rh} stroke={TICK} strokeWidth={sw} />
+            {showLabel && x > 0 && (
+              <text x={x + 2 / zoom} y={rh - th - 1.5 / zoom} fontSize={fs}
+                    fontFamily="monospace" fill={LABEL}>{x}</text>
+            )}
+          </g>
+        )
+      })}
+      {cursorX !== null && (
+        <line x1={cursorX} y1={0} x2={cursorX} y2={rh}
+              stroke="hsl(var(--primary))" strokeWidth={1.5 / zoom} opacity={0.7} />
+      )}
+    </svg>
+  )
+}
+
+function CanvasRulerV({ canvasHeight, zoom, cursorY = null }) {
+  const step = zoom >= 1.5 ? 50 : zoom >= 0.75 ? 100 : zoom >= 0.4 ? 200 : 500
+  const ticks = Array.from({ length: Math.ceil(canvasHeight / step) + 1 }, (_, i) => i * step)
+  const sw = 0.75 / zoom
+  const fs = 8 / zoom
+  const rw = RULER_THICKNESS / zoom
+  const TICK  = 'hsl(var(--foreground) / 0.22)'
+  const LABEL = 'hsl(var(--foreground) / 0.5)'
+  const BG    = 'hsl(var(--muted))'
+  return (
+    <svg style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 16 }}
+         width={rw} height={canvasHeight}>
+      <rect width={rw} height={canvasHeight} fill={BG} opacity={0.9} />
+      <line x1={rw} y1={0} x2={rw} y2={canvasHeight} stroke={TICK} strokeWidth={sw} />
+      {ticks.map((y) => {
+        const major = y % 500 === 0
+        const mid   = !major && y % 100 === 0
+        const tw    = (major ? 10 : mid ? 6 : 3) / zoom
+        const showLabel = major || (zoom >= 0.5 && mid)
+        return (
+          <g key={y}>
+            <line x1={rw - tw} y1={y} x2={rw} y2={y} stroke={TICK} strokeWidth={sw} />
+            {showLabel && y > 0 && (
+              <text x={-(y) - 2 / zoom} y={rw - tw - 1.5 / zoom}
+                    fontSize={fs} fontFamily="monospace" fill={LABEL}
+                    transform="rotate(-90)" textAnchor="end">{y}</text>
+            )}
+          </g>
+        )
+      })}
+      {cursorY !== null && (
+        <line x1={0} y1={cursorY} x2={rw} y2={cursorY}
+              stroke="hsl(var(--primary))" strokeWidth={1.5 / zoom} opacity={0.7} />
+      )}
+    </svg>
+  )
+}
+
+// Dashed crosshair lines from rulers to cursor position
+function CursorCrosshair({ pos, canvasWidth, canvasHeight, zoom }) {
+  if (!pos) return null
+  const offset = RULER_THICKNESS / zoom
+  const sw     = 0.75 / zoom
+  const dash   = `${4 / zoom},${3 / zoom}`
+  const color  = 'hsl(var(--primary) / 0.35)'
+  return (
+    <svg style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 14 }}
+         width={canvasWidth} height={canvasHeight}>
+      <line x1={pos.x} y1={offset} x2={pos.x} y2={pos.y}
+            stroke={color} strokeWidth={sw} strokeDasharray={dash} />
+      <line x1={offset} y1={pos.y} x2={pos.x} y2={pos.y}
+            stroke={color} strokeWidth={sw} strokeDasharray={dash} />
+    </svg>
+  )
+}
+
 // ─── Main canvas ───────────────────────────────────────────────────────────
 
 const MIN_DRAW_SIZE = 16 // px — below this, treat as single click
 
 export default function FloorCanvas({
-  floor, elements, selectedId, activeTool, hasClipboard,
-  onSelect, onMove, onResize, onPlace, onVertexMove, onAddVertex, onDeleteVertex, onContextAction,
+  floor, elements, selectedId, activeTool, hasClipboard, zoom = 1, showGrid = true, showRulers = true,
+  onSelect, onMove, onResize, onPlace, onVertexMove, onAddVertex, onDeleteVertex, onContextAction, onZoomChange,
 }) {
-  const containerRef    = useRef(null)
-  const dragging        = useRef(null)
-  const longPressTimer  = useRef(null)
-  const longPressOrigin = useRef(null)
-  const drawingRef      = useRef(null)
-  const polygonPointsRef   = useRef([])   // always-current copy to avoid stale closures
-  const lastVertexTimeRef  = useRef(0)    // debounce double-click vertex spam
+  const containerRef       = useRef(null)
+  const scrollContainerRef = useRef(null)
+  const dragging           = useRef(null)
+  const longPressTimer     = useRef(null)
+  const longPressOrigin    = useRef(null)
+  const drawingRef         = useRef(null)
+  const polygonPointsRef   = useRef([])
+  const lastVertexTimeRef  = useRef(0)
+  const lastPinchDistRef   = useRef(null)
+  // Stores the canvas coordinate under the pinch center at gesture start.
+  // Used to keep that point fixed while panning and zooming simultaneously.
+  const lastPinchAnchorRef = useRef(null) // { canvasX, canvasY }
+  // Pan: middle-mouse or Space+drag
+  const panRef             = useRef(null) // { startX, startY, scrollLeft, scrollTop }
+  const spacePressedRef    = useRef(false)
+  // Zoom toward cursor: wheel handler stores desired scroll; useLayoutEffect applies it
+  const zoomRef            = useRef(zoom)
+  const pendingScrollRef   = useRef(null)
 
   const [drawingPreview, setDrawingPreview] = useState(null)
   const [contextMenu, setContextMenu]       = useState(null)
   const [polygonPoints, setPolygonPoints]   = useState([])
   const [polygonCursor, setPolygonCursor]   = useState(null)
+  const [cursorPos, setCursorPos]           = useState(null)
+  const [isPanning, setIsPanning]           = useState(false)
 
-  const canvasWidth  = floor?.canvasWidth  ?? 1200
-  const canvasHeight = floor?.canvasHeight ?? 800
+  // Force minimum canvas dimensions so stored 1200×800 floors get more space
+  const canvasWidth  = Math.max(floor?.canvasWidth  ?? 2000, 2000)
+  const canvasHeight = Math.max(floor?.canvasHeight ?? 1400, 1400)
 
-  // Keep ref in sync with state for use inside stale closures
+  // Keep refs in sync
   useEffect(() => { polygonPointsRef.current = polygonPoints }, [polygonPoints])
+  useEffect(() => { zoomRef.current = zoom }, [zoom])
+
+  // Non-passive wheel: zoom toward cursor position
+  useEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el || !onZoomChange) return
+    function onWheel(e) {
+      if (!e.ctrlKey) return
+      e.preventDefault()
+      const container = scrollContainerRef.current
+      if (!container) return
+      const rect     = container.getBoundingClientRect()
+      const cursorX  = e.clientX - rect.left  // relative to scroll container viewport
+      const cursorY  = e.clientY - rect.top
+      const oldZoom  = zoomRef.current
+      const delta    = e.deltaY < 0 ? 0.1 : -0.1
+      const newZoom  = Math.max(0.25, Math.min(3, Math.round((oldZoom + delta) * 100) / 100))
+      if (newZoom === oldZoom) return
+      // Canvas coordinate under cursor stays fixed after zoom
+      const cx = (cursorX - 12 + container.scrollLeft) / oldZoom
+      const cy = (cursorY - 12 + container.scrollTop)  / oldZoom
+      pendingScrollRef.current = { left: cx * newZoom + 12 - cursorX, top: cy * newZoom + 12 - cursorY }
+      onZoomChange(delta)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [onZoomChange])
+
+  // After zoom re-renders, apply the cursor-anchored scroll position
+  useLayoutEffect(() => {
+    const pending = pendingScrollRef.current
+    if (!pending) return
+    pendingScrollRef.current = null
+    const container = scrollContainerRef.current
+    if (container) {
+      container.scrollLeft = Math.max(0, pending.left)
+      container.scrollTop  = Math.max(0, pending.top)
+    }
+  }, [zoom])
+
+  // Space key → pan cursor; released → restore
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.code !== 'Space' || e.repeat) return
+      if (e.target.closest('input, textarea, [contenteditable]')) return
+      e.preventDefault()
+      spacePressedRef.current = true
+      setIsPanning(true)
+    }
+    function onKeyUp(e) {
+      if (e.code !== 'Space') return
+      spacePressedRef.current = false
+      panRef.current = null
+      setIsPanning(false)
+    }
+    window.addEventListener('keydown', onKeyDown, { capture: true })
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, { capture: true })
+      window.removeEventListener('keyup', onKeyUp)
+    }
+  }, [])
 
   // Clear polygon state when switching away from polygon tool
   useEffect(() => {
@@ -676,10 +909,9 @@ export default function FloorCanvas({
   function getCanvasCoords(clientX, clientY) {
     if (!containerRef.current) return { x: 0, y: 0 }
     const rect = containerRef.current.getBoundingClientRect()
-    const scrollEl = containerRef.current.parentElement
     return {
-      x: clientX - rect.left + (scrollEl?.scrollLeft ?? 0),
-      y: clientY - rect.top  + (scrollEl?.scrollTop  ?? 0),
+      x: (clientX - rect.left) / zoom,
+      y: (clientY - rect.top) / zoom,
     }
   }
 
@@ -811,6 +1043,24 @@ export default function FloorCanvas({
 
   // ── Pointer move: drawing preview OR element drag ────────────────────────
   function handlePointerMove(e) {
+    // Active pan (middle mouse or Space+drag): scroll container directly
+    if (panRef.current) {
+      const container = scrollContainerRef.current
+      if (container) {
+        container.scrollLeft = panRef.current.scrollLeft - (e.clientX - panRef.current.startX)
+        container.scrollTop  = panRef.current.scrollTop  - (e.clientY - panRef.current.startY)
+      }
+      return
+    }
+
+    // Track cursor for crosshair overlay (always, so rulers show live position)
+    const coords = getCanvasCoords(e.clientX, e.clientY)
+    if (coords.x >= 0 && coords.x <= canvasWidth && coords.y >= 0 && coords.y <= canvasHeight) {
+      setCursorPos(coords)
+    } else {
+      setCursorPos(null)
+    }
+
     // Cancel long-press if touch moved
     if (longPressOrigin.current) {
       const dx = e.clientX - longPressOrigin.current.x
@@ -871,6 +1121,7 @@ export default function FloorCanvas({
   function handlePointerUp() {
     clearTimeout(longPressTimer.current)
     longPressOrigin.current = null
+    panRef.current = null
     dragging.current = null
 
     if (drawingRef.current) {
@@ -892,36 +1143,130 @@ export default function FloorCanvas({
     }
   }
 
+  // ── Pan: middle-mouse drag or Space+drag ────────────────────────────────
+  function handleScrollContainerPointerDown(e) {
+    const container = scrollContainerRef.current
+    if (!container) return
+    const isMiddle = e.button === 1
+    const isSpaceDrag = e.button === 0 && spacePressedRef.current
+    if (!isMiddle && !isSpaceDrag) return
+    e.preventDefault()
+    panRef.current = { startX: e.clientX, startY: e.clientY, scrollLeft: container.scrollLeft, scrollTop: container.scrollTop }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  // ── Touch: two-finger pan + pinch-zoom anchored to pinch center ──────────
+  function handleTouchStart(e) {
+    if (e.touches.length === 2) {
+      const [t1, t2] = e.touches
+      lastPinchDistRef.current = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY)
+
+      // Record canvas coordinate under the pinch center so we can keep it fixed
+      const container = scrollContainerRef.current
+      if (container) {
+        const rect = container.getBoundingClientRect()
+        const cx = (t1.clientX + t2.clientX) / 2 - rect.left
+        const cy = (t1.clientY + t2.clientY) / 2 - rect.top
+        lastPinchAnchorRef.current = {
+          canvasX: (cx - 12 + container.scrollLeft) / zoomRef.current,
+          canvasY: (cy - 12 + container.scrollTop)  / zoomRef.current,
+        }
+      }
+
+      dragging.current = null
+      drawingRef.current = null
+      setDrawingPreview(null)
+    }
+  }
+
+  function handleTouchMove(e) {
+    if (e.touches.length !== 2) return
+    const [t1, t2] = e.touches
+    const container = scrollContainerRef.current
+    if (!container || !lastPinchAnchorRef.current) return
+
+    const newDist    = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY)
+    const rect       = container.getBoundingClientRect()
+    const newCenterX = (t1.clientX + t2.clientX) / 2 - rect.left
+    const newCenterY = (t1.clientY + t2.clientY) / 2 - rect.top
+    const { canvasX, canvasY } = lastPinchAnchorRef.current
+    const cz = zoomRef.current
+
+    // Pan: scroll so the anchor canvas point stays under the current finger center
+    container.scrollLeft = canvasX * cz + 12 - newCenterX
+    container.scrollTop  = canvasY * cz + 12 - newCenterY
+
+    // Zoom: also correct scroll for new zoom level
+    if (lastPinchDistRef.current !== null && onZoomChange) {
+      const delta = (newDist - lastPinchDistRef.current) / 280
+      if (Math.abs(delta) > 0.004) {
+        const newZoom = Math.max(0.25, Math.min(3, Math.round((cz + delta) * 100) / 100))
+        if (newZoom !== cz) {
+          pendingScrollRef.current = {
+            left: canvasX * newZoom + 12 - newCenterX,
+            top:  canvasY * newZoom + 12 - newCenterY,
+          }
+          onZoomChange(delta)
+        }
+        lastPinchDistRef.current = newDist
+      }
+    }
+  }
+
+  function handleTouchEnd(e) {
+    if (e.touches.length < 2) {
+      lastPinchDistRef.current   = null
+      lastPinchAnchorRef.current = null
+    }
+  }
+
   return (
     <div
+      ref={scrollContainerRef}
       className="flex-1 overflow-auto bg-muted/40 select-none"
+      onPointerDown={handleScrollContainerPointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
+      onPointerLeave={(e) => { handlePointerUp(e); setCursorPos(null) }}
       onContextMenu={handleCanvasContextMenu}
-      style={{ touchAction: 'none' }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      style={{ touchAction: 'none', cursor: isPanning ? 'grab' : undefined }}
     >
-      <div
-        ref={containerRef}
-        className="relative bg-card border border-border shadow-md m-6 rounded-sm"
-        style={{
-          width: canvasWidth, height: canvasHeight,
-          cursor: activeTool === 'POLYGON'
-            ? 'crosshair'
-            : activeTool !== 'SELECT' ? 'crosshair' : 'default',
-        }}
-        data-canvas="true"
-        onPointerDown={handleCanvasPointerDown}
-        onDoubleClick={handleCanvasDblClick}
-      >
-        {/* Dot grid */}
+      {/* Zoom wrapper — sets scroll area to scaled canvas dimensions */}
+      <div style={{ width: canvasWidth * zoom + 24, height: canvasHeight * zoom + 24, flexShrink: 0 }}>
         <div
-          className="absolute inset-0 pointer-events-none rounded-sm text-foreground/[0.07]"
+          ref={containerRef}
+          className="relative bg-card border border-border shadow-md rounded-sm"
+          style={{
+            width: canvasWidth, height: canvasHeight,
+            marginLeft: 12, marginTop: 12,
+            transform: zoom !== 1 ? `scale(${zoom})` : undefined,
+            transformOrigin: '0 0',
+            cursor: activeTool === 'POLYGON'
+              ? 'crosshair'
+              : activeTool !== 'SELECT' ? 'crosshair' : 'default',
+          }}
           data-canvas="true"
-          style={{ backgroundImage: 'radial-gradient(circle, currentColor 1.5px, transparent 1.5px)', backgroundSize: '24px 24px' }}
-        />
-        {/* Room border accent */}
-        <div className="absolute inset-2 border border-dashed border-border/40 pointer-events-none rounded-sm" data-canvas="true" />
+          onPointerDown={handleCanvasPointerDown}
+          onDoubleClick={handleCanvasDblClick}
+        >
+          {/* Dot grid */}
+          {showGrid && (
+            <div
+              className="absolute inset-0 pointer-events-none rounded-sm text-foreground/[0.07]"
+              data-canvas="true"
+              style={{ backgroundImage: 'radial-gradient(circle, currentColor 1.5px, transparent 1.5px)', backgroundSize: '24px 24px' }}
+            />
+          )}
+          {/* Room border accent */}
+          <div className="absolute inset-2 border border-dashed border-border/40 pointer-events-none rounded-sm" data-canvas="true" />
+
+          {/* Rulers + live cursor crosshair */}
+          {showRulers && <CanvasRulerH canvasWidth={canvasWidth} zoom={zoom} cursorX={cursorPos?.x ?? null} />}
+          {showRulers && <CanvasRulerV canvasHeight={canvasHeight} zoom={zoom} cursorY={cursorPos?.y ?? null} />}
+          {showRulers && <CursorCrosshair pos={cursorPos} canvasWidth={canvasWidth} canvasHeight={canvasHeight} zoom={zoom} />}
 
         {(elements ?? []).map((el, arrIndex) => (
           <CanvasElement
@@ -948,6 +1293,7 @@ export default function FloorCanvas({
             canvasHeight={canvasHeight}
           />
         )}
+        </div>
       </div>
 
       {contextMenu && (

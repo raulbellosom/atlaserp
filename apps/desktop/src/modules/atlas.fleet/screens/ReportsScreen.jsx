@@ -27,12 +27,12 @@ const REPORT_TABLES = {
       searchable: true,
       searchPlaceholder: 'Buscar reportes de mantenimiento...',
       columns: [
-        { field: 'folio', label: 'Folio', sortable: true },
+        { field: 'folio', label: 'Folio', sortable: true, defaultVisible: false },
         { field: 'title', label: 'Titulo', sortable: true, link: true },
         { field: 'vehicle_plate', label: 'Vehiculo' },
         { field: 'status', label: 'Estado', sortable: true, component: 'atlas.fleet:ReportStatusBadge' },
         { field: 'report_date', label: 'Fecha', type: 'date', sortable: true },
-        { field: 'total_cost', label: 'Total', type: 'currency', sortable: true },
+        { field: 'total_cost', label: 'Total', type: 'currency', sortable: true, defaultVisible: false },
       ],
       rowActions: [
         { label: 'Ver detalle', permission: 'fleet.reports.read' },
@@ -52,12 +52,12 @@ const REPORT_TABLES = {
       searchable: true,
       searchPlaceholder: 'Buscar reportes de servicio...',
       columns: [
-        { field: 'folio', label: 'Folio', sortable: true },
+        { field: 'folio', label: 'Folio', sortable: true, defaultVisible: false },
         { field: 'title', label: 'Titulo', sortable: true, link: true },
         { field: 'vehicle_plate', label: 'Vehiculo' },
         { field: 'status', label: 'Estado', sortable: true, component: 'atlas.fleet:ReportStatusBadge' },
         { field: 'report_date', label: 'Fecha', type: 'date', sortable: true },
-        { field: 'total_cost', label: 'Total', type: 'currency', sortable: true },
+        { field: 'total_cost', label: 'Total', type: 'currency', sortable: true, defaultVisible: false },
       ],
       rowActions: [
         { label: 'Ver detalle', permission: 'fleet.reports.read' },
@@ -77,13 +77,13 @@ const REPORT_TABLES = {
       searchable: true,
       searchPlaceholder: 'Buscar reportes de reparacion...',
       columns: [
-        { field: 'folio', label: 'Folio', sortable: true },
+        { field: 'folio', label: 'Folio', sortable: true, defaultVisible: false },
         { field: 'title', label: 'Titulo', sortable: true, link: true },
         { field: 'vehicle_plate', label: 'Vehiculo' },
         { field: 'repair_priority', label: 'Prioridad' },
         { field: 'status', label: 'Estado', sortable: true, component: 'atlas.fleet:ReportStatusBadge' },
         { field: 'report_date', label: 'Fecha', type: 'date', sortable: true },
-        { field: 'total_cost', label: 'Total', type: 'currency', sortable: true },
+        { field: 'total_cost', label: 'Total', type: 'currency', sortable: true, defaultVisible: false },
       ],
       rowActions: [
         { label: 'Ver detalle', permission: 'fleet.reports.read' },
@@ -103,13 +103,13 @@ const REPORT_TABLES = {
       searchable: true,
       searchPlaceholder: 'Buscar reportes de otro tipo...',
       columns: [
-        { field: 'folio', label: 'Folio', sortable: true },
+        { field: 'folio', label: 'Folio', sortable: true, defaultVisible: false },
         { field: 'title', label: 'Titulo', sortable: true, link: true },
-        { field: 'other_category_label', label: 'Categoria' },
+        { field: 'other_category_label', label: 'Categoria', defaultVisible: false },
         { field: 'vehicle_plate', label: 'Vehiculo' },
         { field: 'status', label: 'Estado', sortable: true, component: 'atlas.fleet:ReportStatusBadge' },
         { field: 'report_date', label: 'Fecha', type: 'date', sortable: true },
-        { field: 'total_cost', label: 'Total', type: 'currency', sortable: true },
+        { field: 'total_cost', label: 'Total', type: 'currency', sortable: true, defaultVisible: false },
       ],
       rowActions: [
         { label: 'Ver detalle', permission: 'fleet.reports.read' },
@@ -145,9 +145,13 @@ export default function ReportsScreen() {
     navigate(`/app/m/atlas.fleet/reports/${tab}`, { replace: true })
   }, [navigate])
 
-  const handleRowClick = useCallback((row) => {
+  const handleView = useCallback((row) => {
     navigate(`/app/m/atlas.fleet/reports/${row.id}`)
   }, [navigate])
+
+  const handleEdit = useCallback((row) => {
+    navigate(`/app/m/atlas.fleet/reports/${reportType}/${row.id}/edit`)
+  }, [navigate, reportType])
 
   const handleCreate = useCallback(() => {
     navigate(`/app/m/atlas.fleet/reports/${reportType}/new`)
@@ -187,8 +191,8 @@ export default function ReportsScreen() {
         token={token}
         apiBaseUrl={API_BASE}
         componentRegistry={componentRegistry}
-        onRowClick={handleRowClick}
-        suppressCreate
+        onView={handleView}
+        onEdit={handleEdit}
       />
     </div>
   )

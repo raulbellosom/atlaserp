@@ -57,7 +57,7 @@ export default function StockMovementModal({ open, onClose, token, productId, va
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
+      <DialogContent aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Registrar ajuste de stock</DialogTitle>
         </DialogHeader>

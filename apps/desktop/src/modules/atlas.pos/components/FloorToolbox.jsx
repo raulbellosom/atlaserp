@@ -1,4 +1,4 @@
-import { MousePointer2, Square, Circle, Coffee, Minus, Leaf, DoorOpen, LayoutDashboard, Columns3, Sofa, PanelTop, Footprints, PenLine } from 'lucide-react'
+import { MousePointer2, Square, Circle, Coffee, Minus, Leaf, DoorOpen, LayoutDashboard, Columns3, Sofa, PanelTop, Footprints, PenLine, ChevronLeft, ChevronRight } from 'lucide-react'
 
 // ─── SVG Previews ──────────────────────────────────────────────────────────
 
@@ -214,15 +214,11 @@ function ToolButton({ tool, isActive, onClick }) {
   )
 }
 
-// ─── Toolbox ───────────────────────────────────────────────────────────────
+// ─── Toolbox content (reusable in sidebar or Sheet) ───────────────────────
 
-export default function FloorToolbox({ activeTool, onToolChange }) {
+export function FloorToolboxContent({ activeTool, onToolChange, showHints = true }) {
   return (
-    <div className="w-52 shrink-0 border-r border-border bg-card flex flex-col overflow-y-auto">
-      <div className="px-3 pt-3 pb-2 border-b border-border/60">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Elementos</p>
-      </div>
-
+    <>
       <div className="flex flex-col gap-0.5 p-2 flex-1">
         {SECTIONS.map((section, si) => (
           <div key={si} className={si > 0 ? 'mt-2' : ''}>
@@ -245,17 +241,57 @@ export default function FloorToolbox({ activeTool, onToolChange }) {
         ))}
       </div>
 
-      <div className="px-3 py-2 border-t border-border/60 space-y-0.5">
-        <p className="text-[10px] text-muted-foreground/50 leading-tight">
-          Clic para colocar · Clic derecho: opciones
-        </p>
-        <p className="text-[10px] text-muted-foreground/40 leading-tight">
-          Polígono: clic por vértice · doble clic para cerrar
-        </p>
-        <p className="text-[10px] text-muted-foreground/40 leading-tight">
-          Ctrl+C / Ctrl+V / Ctrl+D · Del · ↑↓←→
-        </p>
+      {showHints && (
+        <div className="px-3 py-2 border-t border-border/60 space-y-0.5">
+          <p className="text-[10px] text-muted-foreground/50 leading-tight">
+            Clic para colocar · Clic derecho: opciones
+          </p>
+          <p className="text-[10px] text-muted-foreground/40 leading-tight">
+            Polígono: clic por vértice · doble clic para cerrar
+          </p>
+          <p className="text-[10px] text-muted-foreground/40 leading-tight">
+            Ctrl+C / Ctrl+V / Ctrl+D · Del · ↑↓←→
+          </p>
+          <p className="text-[10px] text-muted-foreground/40 leading-tight">
+            Ctrl+Z deshacer · Ctrl+Y rehacer · Ctrl+scroll zoom
+          </p>
+        </div>
+      )}
+    </>
+  )
+}
+
+// ─── Toolbox sidebar (desktop) ─────────────────────────────────────────────
+
+export default function FloorToolbox({ activeTool, onToolChange, collapsed, onToggleCollapse }) {
+  if (collapsed) {
+    return (
+      <div className="w-10 shrink-0 border-r border-border bg-card flex flex-col items-center pt-2 gap-1">
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          title="Expandir herramientas"
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ChevronRight size={14} />
+        </button>
       </div>
+    )
+  }
+  return (
+    <div className="w-52 shrink-0 border-r border-border bg-card flex flex-col overflow-y-auto">
+      <div className="px-3 pt-3 pb-2 border-b border-border/60 flex items-center justify-between">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Elementos</p>
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          title="Colapsar"
+          className="w-6 h-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ChevronLeft size={12} />
+        </button>
+      </div>
+      <FloorToolboxContent activeTool={activeTool} onToolChange={onToolChange} />
     </div>
   )
 }

@@ -516,7 +516,7 @@ export default function GroupScreen() {
       />
 
       <Dialog open={renameOpen} onOpenChange={(v) => { if (!v) setRenameOpen(false) }}>
-        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
+        <DialogContent size="sm" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Renombrar grupo</DialogTitle>
           </DialogHeader>

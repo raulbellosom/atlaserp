@@ -1,9 +1,8 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Badge,
+  AtlasTable,
   Button,
-  DataTable,
   ErrorState,
   PageHeader,
   StatCard,
@@ -20,23 +19,56 @@ import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
 import { atlas } from "../../../lib/atlas.js";
+import { getApiUrl } from "../../../lib/runtimeConfig.js";
+import { componentRegistry } from "../../../lib/moduleComponentRegistry.js";
 import { CreateLeadDialog } from "../components/CreateLeadDialog.jsx";
 import {
   LEAD_PRIORITY_OPTIONS,
   LEAD_STATUS_OPTIONS,
-  getLeadPriorityLabel,
-  getLeadPriorityVariant,
-  getLeadStatusLabel,
-  getLeadStatusVariant,
 } from "../lib/growth-leads.js";
 
-function formatDate(value) {
-  if (!value) return "Sin fecha";
-  return new Intl.DateTimeFormat("es-MX", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
+const API_BASE_URL = getApiUrl();
+
+const LEADS_BLUEPRINT = {
+  key: "growth.leads.table",
+  schema: {
+    apiPath: "/growth/leads",
+    primaryField: "name",
+    searchable: true,
+    searchPlaceholder: "Buscar por nombre, correo, telefono o empresa...",
+    columns: [
+      { field: "name", label: "Lead", sortable: true, link: true },
+      {
+        field: "status",
+        label: "Estado",
+        sortable: true,
+        type: "select",
+        options: LEAD_STATUS_OPTIONS,
+        component: "atlas.growth:LeadStatusBadge",
+      },
+      {
+        field: "priority",
+        label: "Prioridad",
+        sortable: false,
+        type: "select",
+        options: LEAD_PRIORITY_OPTIONS,
+        component: "atlas.growth:LeadPriorityBadge",
+        defaultVisible: false,
+      },
+      { field: "email", label: "Correo", sortable: false, defaultVisible: false },
+      { field: "phone", label: "Telefono", sortable: false, defaultVisible: false },
+      { field: "companyName", label: "Empresa", sortable: false, defaultVisible: false },
+      { field: "source", label: "Fuente", sortable: false, defaultVisible: false },
+      { field: "assignedToName", label: "Asignado a", sortable: false, defaultVisible: false },
+      { field: "createdAt", label: "Entrada", type: "date", sortable: true },
+    ],
+    filters: [
+      { key: "status", label: "Estado", type: "select", options: LEAD_STATUS_OPTIONS },
+      { key: "priority", label: "Prioridad", type: "select", options: LEAD_PRIORITY_OPTIONS },
+    ],
+    emptyState: { message: "No hay leads registrados." },
+  },
+};
 
 export default function GrowthLeadsScreen() {
   const navigate = useNavigate();
@@ -49,20 +81,11 @@ export default function GrowthLeadsScreen() {
   const canRead = hasPermission("growth.leads.read");
   const canCreate = hasPermission("growth.leads.create");
   const [createOpen, setCreateOpen] = useState(false);
+  const [refreshSignal, setRefreshSignal] = useState(0);
 
   const summaryQuery = useQuery({
     queryKey: ["growth", "leads", "summary"],
     queryFn: () => atlas.growth.getLeadSummary(token),
-    enabled: Boolean(token && canRead),
-  });
-  const leadsQuery = useQuery({
-    queryKey: ["growth", "leads", "list"],
-    queryFn: () =>
-      atlas.growth.listLeads(token, {
-        page: 1,
-        pageSize: 100,
-        enabled: true,
-      }),
     enabled: Boolean(token && canRead),
   });
 
@@ -70,89 +93,13 @@ export default function GrowthLeadsScreen() {
     mutationFn: (payload) => atlas.growth.createLead(payload, token),
     onSuccess: async () => {
       setCreateOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ["growth", "leads"] });
+      setRefreshSignal((s) => s + 1);
+      await queryClient.invalidateQueries({ queryKey: ["growth", "leads", "summary"] });
       toast.success("Lead creado");
     },
     onError: (error) =>
       toast.error(error?.message || "No se pudo crear el lead"),
   });
-
-  const columns = useMemo(
-    () => [
-      {
-        accessorKey: "name",
-        header: "Lead",
-        cell: ({ row }) => (
-          <button
-            type="button"
-            onClick={() =>
-              navigate(`/app/m/atlas.growth/leads/${row.original.id}`)
-            }
-            className="text-left"
-          >
-            <span className="block font-medium text-[hsl(var(--foreground))] hover:underline">
-              {row.original.name || row.original.email || "Lead sin nombre"}
-            </span>
-            <span className="block text-xs text-[hsl(var(--muted-foreground))]">
-              {row.original.companyName || row.original.source || "Web"}
-            </span>
-          </button>
-        ),
-      },
-      {
-        accessorKey: "status",
-        header: "Estado",
-        cell: ({ getValue }) => (
-          <Badge variant={getLeadStatusVariant(getValue())}>
-            {getLeadStatusLabel(getValue())}
-          </Badge>
-        ),
-      },
-      {
-        accessorKey: "priority",
-        header: "Prioridad",
-        cell: ({ getValue }) => (
-          <Badge variant={getLeadPriorityVariant(getValue())}>
-            {getLeadPriorityLabel(getValue())}
-          </Badge>
-        ),
-      },
-      {
-        accessorKey: "email",
-        header: "Contacto",
-        cell: ({ row }) => (
-          <div className="text-sm">
-            <span className="block">{row.original.email || "Sin correo"}</span>
-            <span className="block text-xs text-[hsl(var(--muted-foreground))]">
-              {row.original.phone || "Sin teléfono"}
-            </span>
-          </div>
-        ),
-      },
-      {
-        accessorKey: "createdAt",
-        header: "Entrada",
-        cell: ({ getValue }) => formatDate(getValue()),
-      },
-    ],
-    [navigate],
-  );
-
-  const filters = useMemo(
-    () => [
-      {
-        key: "status",
-        label: "Estado",
-        options: LEAD_STATUS_OPTIONS,
-      },
-      {
-        key: "priority",
-        label: "Prioridad",
-        options: LEAD_PRIORITY_OPTIONS,
-      },
-    ],
-    [],
-  );
 
   if (!canRead) {
     return (
@@ -164,7 +111,6 @@ export default function GrowthLeadsScreen() {
   }
 
   const summary = summaryQuery.data?.data ?? {};
-  const rows = leadsQuery.data?.data?.rows ?? [];
 
   return (
     <div className="min-h-dvh space-y-6 p-4 md:p-6">
@@ -209,18 +155,13 @@ export default function GrowthLeadsScreen() {
         />
       </div>
 
-      <DataTable
-        columns={columns}
-        data={rows}
-        filters={filters}
-        isLoading={leadsQuery.isLoading}
-        isError={leadsQuery.isError}
-        onRetry={() => leadsQuery.refetch()}
-        searchPlaceholder="Buscar por nombre, correo, teléfono o empresa..."
-        emptyTitle="No hay leads"
-        emptyDescription="Los nuevos formularios y registros manuales aparecerán aquí."
-        emptyIcon={UserRoundSearch}
-        pageSize={20}
+      <AtlasTable
+        blueprint={LEADS_BLUEPRINT}
+        token={token}
+        apiBaseUrl={API_BASE_URL}
+        componentRegistry={componentRegistry}
+        onView={(row) => navigate(`/app/m/atlas.growth/leads/${row.id}`)}
+        refreshSignal={refreshSignal}
       />
 
       <CreateLeadDialog

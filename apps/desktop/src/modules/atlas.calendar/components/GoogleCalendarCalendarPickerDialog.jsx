@@ -268,7 +268,7 @@ function DisconnectConfirmDialog({ open, onClose, onConfirm, isLoading }) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
+      <DialogContent aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-red-400">
             <Unplug className="h-4 w-4" />

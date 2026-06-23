@@ -23,7 +23,7 @@ const INSURANCE_TABLE = {
       { field: 'insurer_name', label: 'Aseguradora', sortable: true },
       { field: 'policy_number', label: 'No. Poliza', sortable: true, link: true },
       { field: 'coverage_type', label: 'Cobertura', sortable: false, component: 'atlas.fleet:CoverageTypeBadge' },
-      { field: 'start_date', label: 'Inicio vigencia', sortable: true, type: 'date' },
+      { field: 'start_date', label: 'Inicio vigencia', sortable: true, type: 'date', defaultVisible: false },
       { field: 'expiry_date', label: 'Fin vigencia', sortable: true, type: 'date' },
       { field: 'is_active', label: 'Estado', sortable: false, type: 'boolean' },
     ],

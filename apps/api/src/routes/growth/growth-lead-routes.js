@@ -81,11 +81,11 @@ export function createGrowthLeadRoutes({ service, requirePermission, enrichFileA
     zValidator("query", growthLeadQuerySchema),
     async (c) => {
       try {
-        const data = await service.listLeads({
+        const result = await service.listLeads({
           companyId: companyId(c),
           query: c.req.valid("query"),
         });
-        return c.json({ data });
+        return c.json({ data: result.rows, total: result.total, page: result.page, pageSize: result.pageSize });
       } catch (error) {
         return handleError(c, error);
       }

@@ -43,12 +43,20 @@ export default function PosSettingsScreen() {
           description="Sucursales, terminales, estaciones y parámetros generales del punto de venta."
         />
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="mb-2">
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="outlets">Sucursales y terminales</TabsTrigger>
-            <TabsTrigger value="stations">Estaciones</TabsTrigger>
-            <TabsTrigger value="payments">Métodos de pago</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto pb-0.5">
+            <TabsList className="mb-2 w-full min-w-max">
+              <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="outlets">
+                <span className="sm:hidden">Sucursales</span>
+                <span className="hidden sm:inline">Sucursales y terminales</span>
+              </TabsTrigger>
+              <TabsTrigger value="stations">Estaciones</TabsTrigger>
+              <TabsTrigger value="payments">
+                <span className="sm:hidden">Pagos</span>
+                <span className="hidden sm:inline">Métodos de pago</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
           <TabsContent value="general"><GeneralTab /></TabsContent>
           <TabsContent value="outlets"><OutletsTab /></TabsContent>
           <TabsContent value="stations"><StationsTab /></TabsContent>
@@ -64,9 +72,11 @@ function GeneralTab() {
   const update = useUpdatePosSettings()
   const [mode, setMode] = useState(null)
   const [tipsEnabled, setTipsEnabled] = useState(null)
+  const [taxRate, setTaxRate] = useState(null)
 
   const currentMode = mode ?? settings?.mode ?? 'RESTAURANT'
   const currentTips = tipsEnabled ?? settings?.tipsEnabled ?? true
+  const currentTaxRate = taxRate ?? String(settings?.defaultTaxRate ?? 0)
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Cargando configuración...</p>
 
@@ -82,6 +92,18 @@ function GeneralTab() {
           <SelectField value={currentMode} onChange={setMode} options={MODE_OPTIONS} />
         </div>
         <Separator />
+        <TextField
+          label="Tasa de impuesto (%)"
+          type="number"
+          min={0}
+          max={100}
+          step={0.01}
+          value={currentTaxRate}
+          onChange={(e) => setTaxRate(e.target.value)}
+          placeholder="0"
+          helperText="Aplica a todas las líneas de orden. Usa 0 para deshabilitar el IVA."
+        />
+        <Separator />
         <SwitchField
           id="tips-enabled"
           label="Propinas habilitadas"
@@ -91,7 +113,11 @@ function GeneralTab() {
         />
         <div className="flex justify-end">
           <Button
-            onClick={() => update.mutate({ mode: currentMode, tipsEnabled: currentTips })}
+            onClick={() => update.mutate({
+              mode: currentMode,
+              tipsEnabled: currentTips,
+              defaultTaxRate: parseFloat(currentTaxRate) || 0,
+            })}
             disabled={update.isPending}
           >
             {update.isPending ? 'Guardando...' : 'Guardar cambios'}

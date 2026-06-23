@@ -98,7 +98,7 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Editar proyecto' : 'Nuevo proyecto'}</DialogTitle>
           <DialogDescription className="sr-only">

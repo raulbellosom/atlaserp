@@ -104,7 +104,7 @@ export function ConvertLeadDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent size="lg">
           <DialogHeader>
             <DialogTitle>Convertir lead</DialogTitle>
             <DialogDescription>

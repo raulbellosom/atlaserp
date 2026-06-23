@@ -13,110 +13,134 @@ import FloorOperationalCanvas from '../components/FloorOperationalCanvas'
 import TableMap from '../components/TableMap'
 
 // ─── Table action panel ───────────────────────────────────────────────────────
-// Bottom sheet on mobile, centered Dialog on desktop
+// Bottom sheet on mobile, centered Dialog on desktop.
+// isSheet=true → stacked full-width buttons + close button at bottom (thumb-reach)
+// isSheet=false → compact footer with right-aligned buttons, no redundant close
 
-function TableActionContent({ actionTable, onClose, onNavigateToOrder, onMarkClean, onCancelReserve, busy }) {
-  const name = actionTable?.name || 'Mesa'
-
+function ReservationCard({ r }) {
+  const start = new Date(r.scheduledAt)
+  const end   = new Date(start.getTime() + r.durationMinutes * 60000)
+  const fmt   = (d) => d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
   return (
-    <>
-      {actionTable?.action === 'dirty' && (
-        <>
-          <p className="text-sm text-muted-foreground mb-4">La mesa está marcada como sucia. ¿Qué deseas hacer?</p>
-          <div className="flex flex-col gap-2">
-            <Button className="w-full" onClick={onMarkClean} disabled={busy}>
-              <Sparkles size={15} className="mr-2 shrink-0" />
-              {busy ? 'Actualizando...' : 'Marcar como lista'}
-            </Button>
-            <Button variant="outline" className="w-full" onClick={onNavigateToOrder}>
-              <UtensilsCrossed size={15} className="mr-2 shrink-0" />
-              Abrir de todas formas
-            </Button>
-          </div>
-        </>
-      )}
-
-      {actionTable?.action === 'reserved' && (
-        <>
-          {actionTable.activeReservation && (
-            <div className="mb-4 rounded-xl bg-blue-500/8 border border-blue-500/20 p-3 space-y-1.5 text-sm">
-              <p className="font-semibold text-foreground">
-                {actionTable.activeReservation.guestName}
-              </p>
-              {actionTable.activeReservation.guestPhone && (
-                <p className="text-muted-foreground">{actionTable.activeReservation.guestPhone}</p>
-              )}
-              <p className="text-muted-foreground">
-                {actionTable.activeReservation.partySize}{' '}
-                {actionTable.activeReservation.partySize === 1 ? 'comensal' : 'comensales'}
-                {' · '}
-                {new Date(actionTable.activeReservation.scheduledAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
-                {' – '}
-                {new Date(
-                  new Date(actionTable.activeReservation.scheduledAt).getTime() +
-                    actionTable.activeReservation.durationMinutes * 60000
-                ).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
-              </p>
-              {actionTable.activeReservation.notes && (
-                <p className="text-muted-foreground italic">{actionTable.activeReservation.notes}</p>
-              )}
-            </div>
-          )}
-          <div className="flex flex-col gap-2">
-            <Button className="w-full" onClick={onNavigateToOrder} disabled={busy}>
-              <UtensilsCrossed size={15} className="mr-2 shrink-0" />
-              Iniciar orden
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full text-destructive border-destructive/30 hover:bg-destructive/5 dark:hover:bg-destructive/10"
-              onClick={onCancelReserve}
-              disabled={busy}
-            >
-              <CalendarX size={15} className="mr-2 shrink-0" />
-              {busy ? 'Actualizando...' : 'Cancelar reserva'}
-            </Button>
-          </div>
-        </>
-      )}
-
-      <Button variant="ghost" size="sm" className="w-full mt-3 text-muted-foreground" onClick={onClose}>
-        Cancelar
-      </Button>
-    </>
+    <div className="rounded-xl border border-blue-200 bg-blue-50/60 dark:border-blue-900/60 dark:bg-blue-950/30 px-4 py-3 space-y-1">
+      <p className="font-semibold text-sm text-foreground">{r.guestName}</p>
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+        {r.guestPhone && <span>{r.guestPhone}</span>}
+        <span>{r.partySize} {r.partySize === 1 ? 'comensal' : 'comensales'}</span>
+        <span>{fmt(start)} – {fmt(end)}</span>
+      </div>
+      {r.notes && <p className="text-xs text-muted-foreground italic">{r.notes}</p>}
+    </div>
   )
 }
 
 function TableActionPanel({ actionTable, onClose, onNavigateToOrder, onMarkClean, onCancelReserve, busy }) {
   const isDesktop = useIsDesktop()
   const name = actionTable?.name || 'Mesa'
+  const action = actionTable?.action
+  const res = actionTable?.activeReservation ?? null
 
+  // ── Dialog (desktop) ──────────────────────────────────────────────────────
   if (isDesktop) {
     return (
       <Dialog open={!!actionTable} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="max-w-sm" aria-describedby={undefined}>
+        <DialogContent className="max-w-xs sm:max-w-sm" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>{name}</DialogTitle>
           </DialogHeader>
-          <TableActionContent
-            actionTable={actionTable} onClose={onClose}
-            onNavigateToOrder={onNavigateToOrder} onMarkClean={onMarkClean}
-            onCancelReserve={onCancelReserve} busy={busy}
-          />
+
+          <div className="space-y-4 pt-1">
+            {action === 'dirty' && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  La mesa todavía no ha sido limpiada.
+                </p>
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" size="sm" onClick={onNavigateToOrder}>
+                    Abrir igual
+                  </Button>
+                  <Button size="sm" onClick={onMarkClean} disabled={busy}>
+                    <Sparkles size={14} className="mr-1.5" />
+                    {busy ? 'Actualizando...' : 'Marcar como lista'}
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {action === 'reserved' && (
+              <>
+                {res && <ReservationCard r={res} />}
+                {!res && (
+                  <p className="text-sm text-muted-foreground">Mesa reservada sin detalles adicionales.</p>
+                )}
+                <div className="flex justify-between items-center gap-2 pt-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/8 gap-1.5"
+                    onClick={onCancelReserve}
+                    disabled={busy}
+                  >
+                    <CalendarX size={14} />
+                    Cancelar reserva
+                  </Button>
+                  <Button size="sm" onClick={onNavigateToOrder} disabled={busy} className="gap-1.5">
+                    <UtensilsCrossed size={14} />
+                    Iniciar orden
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     )
   }
 
+  // ── Sheet (mobile) ────────────────────────────────────────────────────────
   return (
     <Sheet open={!!actionTable} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="bottom" aria-describedby={undefined} className="pb-8 max-h-[80dvh]">
-        <SheetTitle className="text-base mb-0.5">{name}</SheetTitle>
-        <TableActionContent
-          actionTable={actionTable} onClose={onClose}
-          onNavigateToOrder={onNavigateToOrder} onMarkClean={onMarkClean}
-          onCancelReserve={onCancelReserve} busy={busy}
-        />
+        <SheetTitle className="text-base mb-4">{name}</SheetTitle>
+
+        <div className="space-y-3">
+          {action === 'dirty' && (
+            <>
+              <p className="text-sm text-muted-foreground mb-2">La mesa todavía no ha sido limpiada.</p>
+              <Button className="w-full h-12" onClick={onMarkClean} disabled={busy}>
+                <Sparkles size={15} className="mr-2" />
+                {busy ? 'Actualizando...' : 'Marcar como lista'}
+              </Button>
+              <Button variant="outline" className="w-full h-12" onClick={onNavigateToOrder}>
+                <UtensilsCrossed size={15} className="mr-2" />
+                Abrir de todas formas
+              </Button>
+            </>
+          )}
+
+          {action === 'reserved' && (
+            <>
+              {res && <ReservationCard r={res} />}
+              <Button className="w-full h-12 mt-2" onClick={onNavigateToOrder} disabled={busy}>
+                <UtensilsCrossed size={15} className="mr-2" />
+                Iniciar orden
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full h-12 text-destructive border-destructive/30 hover:bg-destructive/5"
+                onClick={onCancelReserve}
+                disabled={busy}
+              >
+                <CalendarX size={15} className="mr-2" />
+                {busy ? 'Actualizando...' : 'Cancelar reserva'}
+              </Button>
+            </>
+          )}
+
+          <Button variant="ghost" className="w-full text-muted-foreground" size="sm" onClick={onClose}>
+            Cerrar
+          </Button>
+        </div>
       </SheetContent>
     </Sheet>
   )

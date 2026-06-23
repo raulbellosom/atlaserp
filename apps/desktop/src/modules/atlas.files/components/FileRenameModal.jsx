@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Badge, Button, Dialog, DialogContent, Input } from "@atlas/ui";
+import { Badge, Button, Dialog, DialogContent, DialogTitle, Input } from "@atlas/ui";
 import { Pencil } from "lucide-react";
 import {
   formatBytes,
@@ -94,9 +94,9 @@ export function FileRenameModal({
                 <Pencil className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-[hsl(var(--foreground))] leading-none">
+                <DialogTitle className="text-sm font-semibold text-[hsl(var(--foreground))] leading-none">
                   Renombrar archivo
-                </p>
+                </DialogTitle>
                 <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">
                   El nombre es solo visual, no afecta el objeto en
                   almacenamiento.

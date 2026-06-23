@@ -13,23 +13,27 @@ export default function PosStationsScreen() {
 
   return (
     <div className="flex h-full flex-col bg-background overflow-hidden">
-      <div className="flex items-center gap-3 p-4 border-b border-border shrink-0 flex-wrap">
-        <h1 className="font-semibold text-lg">Estaciones</h1>
-        <div className="flex gap-2 ml-auto flex-wrap">
+      <div className="flex flex-col gap-2 px-4 py-3 border-b border-border shrink-0 sm:flex-row sm:items-center sm:gap-3">
+        <h1 className="font-semibold text-lg shrink-0">Estaciones</h1>
+        <div className="flex gap-2 sm:ml-auto flex-wrap">
           {outlets.length > 1 && (
-            <SelectField
-              value={outletId}
-              onChange={(v) => { setOutletId(v); setStationId('') }}
-              options={outlets.map((o) => ({ value: o.id, label: o.name }))}
-              placeholder="Sucursal"
-            />
+            <div className="flex-1 min-w-32">
+              <SelectField
+                value={outletId}
+                onChange={(v) => { setOutletId(v); setStationId('') }}
+                options={outlets.map((o) => ({ value: o.id, label: o.name }))}
+                placeholder="Sucursal"
+              />
+            </div>
           )}
-          <SelectField
-            value={stationId}
-            onChange={setStationId}
-            options={stations.map((s) => ({ value: s.id, label: s.name }))}
-            placeholder="Selecciona estación"
-          />
+          <div className="flex-1 min-w-32">
+            <SelectField
+              value={stationId}
+              onChange={setStationId}
+              options={stations.map((s) => ({ value: s.id, label: s.name }))}
+              placeholder="Selecciona estación"
+            />
+          </div>
         </div>
       </div>
 

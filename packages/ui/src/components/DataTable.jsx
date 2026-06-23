@@ -94,7 +94,7 @@ export function DataTable({
         </div>
       )}
 
-      <div className="rounded-2xl glass overflow-hidden">
+      <div className="rounded-2xl glass overflow-clip">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

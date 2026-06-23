@@ -8,10 +8,10 @@ import { createProductsRouter }        from './products-routes.js'
 import { createVariantsRouter }        from './variants-routes.js'
 import { createStockRouter }           from './stock-routes.js'
 
-export function createCatalogRouter({ prisma, requirePermission }) {
+export function createCatalogRouter({ prisma, requirePermission, supabaseAdmin }) {
   const app = new Hono()
 
-  const productSvc = createCatalogProductService({ prisma })
+  const productSvc = createCatalogProductService({ prisma, supabaseAdmin })
   const variantSvc = createCatalogVariantService({ prisma })
   const stockSvc   = createCatalogStockService({ prisma })
 
