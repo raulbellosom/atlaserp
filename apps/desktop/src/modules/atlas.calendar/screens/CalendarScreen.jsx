@@ -69,7 +69,14 @@ export default function CalendarScreen() {
 
   const { data: deepLinkEventData, isError: deepLinkEventError } = useCalendarEvent(deepLinkEventId);
 
-  // Open EventDetailModal once the event data arrives.
+  // Open the modal immediately with a loading skeleton so the user sees feedback at once.
+  useEffect(() => {
+    if (!deepLinkEventId) return;
+    setDetailEvent({ id: deepLinkEventId, _isLoading: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Replace the loading skeleton with real event data once it arrives.
   useEffect(() => {
     if (!deepLinkEventId || !deepLinkEventData) return;
     const event = deepLinkEventData?.data ?? deepLinkEventData;
@@ -78,9 +85,10 @@ export default function CalendarScreen() {
     }
   }, [deepLinkEventId, deepLinkEventData]);
 
-  // Show an error toast if the event no longer exists.
+  // Close the loading modal and show an error toast if the event no longer exists.
   useEffect(() => {
     if (!deepLinkEventId || !deepLinkEventError) return;
+    setDetailEvent(null);
     toast.error("El evento no existe o ya fue eliminado.");
   }, [deepLinkEventId, deepLinkEventError]);
 
