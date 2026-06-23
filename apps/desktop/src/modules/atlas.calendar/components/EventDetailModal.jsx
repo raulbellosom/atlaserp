@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useDeleteEvent } from "../hooks/useCalendarData";
 import { toast } from "sonner";
-import { MarkdownViewer, ConfirmDialog } from "@atlas/ui";
+import { MarkdownViewer, ConfirmDialog, Skeleton } from "@atlas/ui";
 import {
   formatReminderClock,
   formatReminderLead,
@@ -37,6 +37,37 @@ export default function EventDetailModal({
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   if (!event) return null;
+
+  if (event._isLoading) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+        onClick={onClose}
+      >
+        <div
+          className="bg-[hsl(var(--surface-1))] rounded-xl shadow-xl w-136 max-w-[calc(100vw-2rem)] overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="h-1.5 bg-[hsl(var(--muted))]" />
+          <div className="flex items-center justify-end px-4 pt-3 pb-1">
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded hover:bg-[hsl(var(--muted))]"
+              title="Cerrar"
+            >
+              <X size={15} className="text-[hsl(var(--muted-foreground))]" />
+            </button>
+          </div>
+          <div className="px-6 pb-6 space-y-3">
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-4 w-1/3" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const calColor = event.color || event.calendar?.color || "#6B46C1";
   const reminderMinutes = getPrimaryReminderMinutes(event);
