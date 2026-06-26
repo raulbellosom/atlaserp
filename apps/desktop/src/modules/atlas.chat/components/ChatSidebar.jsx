@@ -6,7 +6,7 @@ import { CreateChatModal } from "./CreateChatModal";
 import { useAuth } from "../../../auth/AuthProvider";
 
 export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCreated }) {
-  const { user } = useAuth();
+  const { userProfile } = useAuth();
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
 
@@ -14,7 +14,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
     if (!search.trim()) return true;
     const displayName =
       c.title ??
-      (c.members ?? []).find((m) => m.userId !== user?.id)?.displayName ??
+      (c.members ?? []).find((m) => m.userId !== userProfile?.id)?.displayName ??
       "";
     return displayName.toLowerCase().includes(search.toLowerCase());
   });
@@ -83,7 +83,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
             conversation={conv}
             isActive={conv.id === activeId}
             onClick={() => onSelect(conv)}
-            currentUserId={user?.id}
+            currentUserId={userProfile?.id}
           />
         ))}
       </div>

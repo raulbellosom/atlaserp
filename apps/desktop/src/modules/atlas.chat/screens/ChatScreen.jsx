@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { PageHeader } from "@atlas/ui";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ChatWindow } from "../components/ChatWindow";
 import { useChatConversations } from "../hooks/useChatConversations";
@@ -24,36 +23,34 @@ export function ChatScreen() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-3.5rem)]">
-      <div className="shrink-0 px-4 pt-4 pb-0">
-        <PageHeader title="Chat" description="Mensajeria interna en tiempo real" />
+    <div className="flex h-[calc(100dvh-3.5rem)] overflow-hidden">
+      {/* Conversation list — full width on mobile, fixed 288px on desktop */}
+      <div
+        className={[
+          "flex flex-col shrink-0 w-full md:w-72",
+          mobileShowWindow ? "hidden md:flex" : "flex",
+        ].join(" ")}
+      >
+        <ChatSidebar
+          conversations={conversations}
+          isLoading={isLoading}
+          activeId={activeConversation?.id}
+          onSelect={handleSelect}
+          onCreated={handleCreated}
+        />
       </div>
 
-      <div className="flex flex-1 min-h-0 mt-4 border-t border-[hsl(var(--border))]">
-        {/* Sidebar — hidden on mobile when conversation is open */}
-        <div className={[
-          "flex flex-col",
-          mobileShowWindow ? "hidden lg:flex" : "flex",
-        ].join(" ")}>
-          <ChatSidebar
-            conversations={conversations}
-            isLoading={isLoading}
-            activeId={activeConversation?.id}
-            onSelect={handleSelect}
-            onCreated={handleCreated}
-          />
-        </div>
-
-        {/* Chat window */}
-        <div className={[
+      {/* Chat window — fills remaining space */}
+      <div
+        className={[
           "flex flex-1 min-w-0",
-          mobileShowWindow ? "flex" : "hidden lg:flex",
-        ].join(" ")}>
-          <ChatWindow
-            conversation={activeConversation}
-            onClose={() => setMobileShowWindow(false)}
-          />
-        </div>
+          mobileShowWindow ? "flex" : "hidden md:flex",
+        ].join(" ")}
+      >
+        <ChatWindow
+          conversation={activeConversation}
+          onClose={() => setMobileShowWindow(false)}
+        />
       </div>
     </div>
   );

@@ -1,22 +1,53 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@atlas/ui";
-import { Send, Paperclip } from "lucide-react";
+import { Send, Paperclip, Smile } from "lucide-react";
+import EmojiPicker from "emoji-picker-react";
 
 export function MessageComposer({ onSend, onTyping, disabled, placeholder = "Escribe un mensaje..." }) {
   const [body, setBody] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const textareaRef = useRef(null);
+  const emojiContainerRef = useRef(null);
   const typingTimeout = useRef(null);
   const isTypingRef = useRef(false);
+
+  useEffect(() => {
+    if (!showEmoji) return;
+    function handlePointerDown(e) {
+      if (!emojiContainerRef.current?.contains(e.target)) {
+        setShowEmoji(false);
+      }
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [showEmoji]);
+
+  const insertEmoji = useCallback((emojiData) => {
+    const emoji = emojiData.emoji;
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setBody((prev) => prev + emoji);
+      return;
+    }
+    const start = textarea.selectionStart ?? body.length;
+    const end = textarea.selectionEnd ?? body.length;
+    const newBody = body.slice(0, start) + emoji + body.slice(end);
+    setBody(newBody);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const pos = start + emoji.length;
+      textarea.setSelectionRange(pos, pos);
+    });
+  }, [body]);
 
   const handleChange = useCallback(
     (e) => {
       setBody(e.target.value);
-
       if (!isTypingRef.current) {
         isTypingRef.current = true;
         onTyping?.(true);
       }
-
       clearTimeout(typingTimeout.current);
       typingTimeout.current = setTimeout(() => {
         isTypingRef.current = false;
@@ -34,12 +65,17 @@ export function MessageComposer({ onSend, onTyping, disabled, placeholder = "Esc
     isTypingRef.current = false;
     onTyping?.(false);
     setIsSending(true);
+    setShowEmoji(false);
 
     try {
       await onSend({ body: trimmed, messageType: "text" });
       setBody("");
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
     } finally {
       setIsSending(false);
+      textareaRef.current?.focus();
     }
   }, [body, isSending, onSend, onTyping]);
 
@@ -54,11 +90,28 @@ export function MessageComposer({ onSend, onTyping, disabled, placeholder = "Esc
   );
 
   return (
-    <div className="border-t border-[hsl(var(--border))] px-4 py-3">
+    <div className="border-t border-[hsl(var(--border))] px-3 py-2 sm:px-4 sm:py-3 relative shrink-0">
+      {showEmoji && (
+        <div
+          ref={emojiContainerRef}
+          className="absolute bottom-full left-3 sm:left-4 mb-2 z-50 shadow-xl rounded-xl overflow-hidden"
+        >
+          <EmojiPicker
+            onEmojiClick={insertEmoji}
+            theme="dark"
+            width={300}
+            height={360}
+            searchPlaceholder="Buscar emoji..."
+            lazyLoadEmojis
+            skinTonesDisabled
+          />
+        </div>
+      )}
+
       <div className="flex items-end gap-2 bg-[hsl(var(--muted))] rounded-2xl px-3 py-2">
         <button
           type="button"
-          className="shrink-0 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors mb-0.5"
+          className="shrink-0 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors mb-0.5 touch-manipulation"
           title="Adjuntar archivo (proximamente)"
           disabled={disabled}
         >
@@ -66,6 +119,7 @@ export function MessageComposer({ onSend, onTyping, disabled, placeholder = "Esc
         </button>
 
         <textarea
+          ref={textareaRef}
           className="flex-1 bg-transparent text-sm resize-none outline-none placeholder:text-[hsl(var(--muted-foreground))] min-h-[20px] max-h-32 py-0.5"
           rows={1}
           placeholder={placeholder}
@@ -80,16 +134,32 @@ export function MessageComposer({ onSend, onTyping, disabled, placeholder = "Esc
           }}
         />
 
+        <button
+          type="button"
+          onClick={() => setShowEmoji((v) => !v)}
+          disabled={disabled}
+          className={[
+            "shrink-0 transition-colors mb-0.5 touch-manipulation",
+            showEmoji
+              ? "text-[hsl(var(--primary))]"
+              : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",
+          ].join(" ")}
+          title="Emojis"
+        >
+          <Smile className="h-4 w-4" />
+        </button>
+
         <Button
           size="sm"
-          className="shrink-0 rounded-full h-8 w-8 p-0"
+          className="shrink-0 rounded-full h-8 w-8 p-0 touch-manipulation"
           onClick={handleSend}
           disabled={!body.trim() || isSending || disabled}
         >
           <Send className="h-3.5 w-3.5" />
         </Button>
       </div>
-      <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-1 ml-1">
+
+      <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-1 ml-1 hidden sm:block">
         Intro para enviar · Shift+Intro para nueva linea
       </p>
     </div>

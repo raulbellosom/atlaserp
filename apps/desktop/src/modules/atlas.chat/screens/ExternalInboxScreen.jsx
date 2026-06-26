@@ -58,7 +58,7 @@ function ExternalConversationItem({ conv, isActive, onClick }) {
 }
 
 function ExternalChatPane({ conversation }) {
-  const { session, user } = useAuth();
+  const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
   const unsubRef = useRef(null);
@@ -118,7 +118,7 @@ function ExternalChatPane({ conversation }) {
       <ChatMessageList
         messages={messagesData?.data ?? []}
         isLoading={isLoading}
-        currentUserId={user?.id}
+        currentUserId={userProfile?.id}
         typingUsers={[]}
       />
 

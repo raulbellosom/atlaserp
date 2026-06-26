@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from "react";
 import { Button } from "@atlas/ui";
-import { X, Users } from "lucide-react";
+import { ArrowLeft, Users } from "lucide-react";
 import { ChatMessageList } from "./ChatMessageList";
 import { MessageComposer } from "./MessageComposer";
 import { useChatMessages, useSendMessage, useMarkRead } from "../hooks/useChatMessages";
@@ -14,7 +14,17 @@ function ChatHeader({ conversation, currentUserId, onlineUsers, onClose }) {
   const onlineCount = Object.keys(onlineUsers ?? {}).length;
 
   return (
-    <div className="flex items-center gap-3 border-b border-[hsl(var(--border))] px-4 py-3 shrink-0">
+    <div className="flex items-center gap-3 border-b border-[hsl(var(--border))] px-3 sm:px-4 py-3 shrink-0">
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors md:hidden touch-manipulation shrink-0"
+          aria-label="Volver"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+      )}
       <div className="h-9 w-9 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center font-semibold text-sm shrink-0">
         {displayName?.[0]?.toUpperCase() ?? "?"}
       </div>
@@ -27,13 +37,8 @@ function ChatHeader({ conversation, currentUserId, onlineUsers, onClose }) {
         </p>
       </div>
       {conversation?.type === "group" && (
-        <button type="button" className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors">
+        <button type="button" className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors touch-manipulation">
           <Users className="h-4 w-4" />
-        </button>
-      )}
-      {onClose && (
-        <button type="button" onClick={onClose} className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors lg:hidden">
-          <X className="h-4 w-4" />
         </button>
       )}
     </div>
@@ -41,7 +46,7 @@ function ChatHeader({ conversation, currentUserId, onlineUsers, onClose }) {
 }
 
 export function ChatWindow({ conversation, onClose }) {
-  const { user } = useAuth();
+  const { userProfile } = useAuth();
   const conversationId = conversation?.id;
 
   const { data: messagesData, isLoading } = useChatMessages(conversationId);
@@ -81,7 +86,7 @@ export function ChatWindow({ conversation, onClose }) {
     <div className="flex flex-col flex-1 min-h-0">
       <ChatHeader
         conversation={conversation}
-        currentUserId={user?.id}
+        currentUserId={userProfile?.id}
         onlineUsers={onlineUsers}
         onClose={onClose}
       />
@@ -89,7 +94,7 @@ export function ChatWindow({ conversation, onClose }) {
       <ChatMessageList
         messages={messages}
         isLoading={isLoading}
-        currentUserId={user?.id}
+        currentUserId={userProfile?.id}
         typingUsers={typingNames}
         onAttachmentClick={null}
       />
