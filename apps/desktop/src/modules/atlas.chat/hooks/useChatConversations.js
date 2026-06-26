@@ -5,7 +5,7 @@ import { atlas } from "../../../lib/atlas";
 import { subscribeToConversationList } from "../lib/supabaseRealtime";
 
 export function useChatConversations() {
-  const { session, user } = useAuth();
+  const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
   const unsubRef = useRef(null);
@@ -19,16 +19,16 @@ export function useChatConversations() {
   });
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!userProfile?.id) return;
 
-    unsubRef.current = subscribeToConversationList(user.id, () => {
+    unsubRef.current = subscribeToConversationList(userProfile.id, () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
     });
 
     return () => {
       unsubRef.current?.();
     };
-  }, [user?.id, queryClient]);
+  }, [userProfile?.id, queryClient]);
 
   return query;
 }

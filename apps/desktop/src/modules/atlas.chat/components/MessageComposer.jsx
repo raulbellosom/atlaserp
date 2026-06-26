@@ -108,10 +108,10 @@ export function MessageComposer({ onSend, onTyping, disabled, placeholder = "Esc
         </div>
       )}
 
-      <div className="flex items-end gap-2 bg-[hsl(var(--muted))] rounded-2xl px-3 py-2">
+      <div className="flex items-center gap-1.5 bg-[hsl(var(--muted))] rounded-2xl px-2.5 py-2">
         <button
           type="button"
-          className="shrink-0 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors mb-0.5 touch-manipulation"
+          className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors touch-manipulation"
           title="Adjuntar archivo (proximamente)"
           disabled={disabled}
         >
@@ -120,16 +120,16 @@ export function MessageComposer({ onSend, onTyping, disabled, placeholder = "Esc
 
         <textarea
           ref={textareaRef}
-          className="flex-1 bg-transparent text-sm resize-none outline-none placeholder:text-[hsl(var(--muted-foreground))] min-h-[20px] max-h-32 py-0.5"
+          className="flex-1 bg-transparent text-sm resize-none outline-none placeholder:text-[hsl(var(--muted-foreground))] min-h-9 max-h-32 py-2 leading-tight"
           rows={1}
           placeholder={placeholder}
           value={body}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           disabled={disabled || isSending}
-          style={{ height: "auto" }}
+          style={{ height: "36px" }}
           onInput={(e) => {
-            e.target.style.height = "auto";
+            e.target.style.height = "36px";
             e.target.style.height = `${Math.min(e.target.scrollHeight, 128)}px`;
           }}
         />
@@ -139,10 +139,10 @@ export function MessageComposer({ onSend, onTyping, disabled, placeholder = "Esc
           onClick={() => setShowEmoji((v) => !v)}
           disabled={disabled}
           className={[
-            "shrink-0 transition-colors mb-0.5 touch-manipulation",
+            "shrink-0 h-8 w-8 flex items-center justify-center rounded-full transition-colors touch-manipulation",
             showEmoji
-              ? "text-[hsl(var(--primary))]"
-              : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",
+              ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]"
+              : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))]",
           ].join(" ")}
           title="Emojis"
         >

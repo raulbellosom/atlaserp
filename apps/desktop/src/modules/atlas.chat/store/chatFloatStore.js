@@ -1,0 +1,49 @@
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+
+export const useChatFloatStore = create(
+  persist(
+    (set, get) => ({
+      edge: "right",
+      yPx: null, // null = 75% of viewport height
+      isOpen: false,
+      openChats: [], // [{ id, conversation, minimized }]
+
+      setPosition: (edge, yPx) => set({ edge, yPx }),
+      toggle: () => set((s) => ({ isOpen: !s.isOpen })),
+      close: () => set({ isOpen: false }),
+
+      openChat: (conversation) => {
+        const chats = get().openChats;
+        if (chats.some((c) => c.id === conversation.id)) {
+          set({
+            isOpen: false,
+            openChats: chats.map((c) =>
+              c.id === conversation.id ? { ...c, minimized: false } : c,
+            ),
+          });
+          return;
+        }
+        const next =
+          chats.length >= 3
+            ? [...chats.slice(1), { id: conversation.id, conversation, minimized: false }]
+            : [...chats, { id: conversation.id, conversation, minimized: false }];
+        set({ openChats: next, isOpen: false });
+      },
+
+      closeChat: (id) =>
+        set((s) => ({ openChats: s.openChats.filter((c) => c.id !== id) })),
+
+      toggleMinimize: (id) =>
+        set((s) => ({
+          openChats: s.openChats.map((c) =>
+            c.id === id ? { ...c, minimized: !c.minimized } : c,
+          ),
+        })),
+    }),
+    {
+      name: "atlas-chat-float",
+      partialize: (s) => ({ edge: s.edge, yPx: s.yPx }),
+    },
+  ),
+);

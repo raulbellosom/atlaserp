@@ -17,6 +17,7 @@ import { usePwaManifest } from "../hooks/usePwaManifest.js";
 import { usePwaInstall } from "../hooks/usePwaInstall.js";
 import { toast } from "sonner";
 import { atlas } from '../lib/atlas.js'
+import { FloatingChatHub } from '../modules/atlas.chat/components/FloatingChatHub.jsx'
 
 function getSidebarCollapsed() {
   try {
@@ -354,6 +355,7 @@ export function AtlasApp() {
 
         <AppLauncher />
         <CommandPalette activeModule={activeModule} />
+        <FloatingChatHub />
       </div>
       </ModuleBundleLoader>
     </OfflineProvider>
