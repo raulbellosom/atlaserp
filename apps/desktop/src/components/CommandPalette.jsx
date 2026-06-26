@@ -26,6 +26,8 @@ import {
   User,
   Truck,
   WifiOff,
+  MessageSquare,
+  Inbox,
 } from "lucide-react";
 import { useCommandStore } from "../stores/command";
 import { getModuleLaunchPath } from "../lib/runtimeModules";
@@ -54,6 +56,8 @@ const ICON_MAP = {
   Box,
   User,
   Truck,
+  MessageSquare,
+  Inbox,
 };
 
 function CmdIcon({ name, size = 14, color }) {

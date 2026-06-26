@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { Prisma } from "@prisma/client";
 
 export class ChatServiceError extends Error {
   constructor(message, status = 400) {
@@ -51,8 +52,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   async function listConversations({ authUserId, limit = 50, cursor = null }) {
     const profileId = await getUserProfileId(authUserId);
 
-    let cursorClause = prisma.$queryRaw``;
-    const params = [profileId, limit + 1];
+    const cursorClause = cursor ? Prisma.sql`AND c.last_message_at < ${new Date(cursor)}` : Prisma.empty;
 
     const rows = await prisma.$queryRaw`
       SELECT
@@ -115,7 +115,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         AND ccm.user_id = ${profileId}
         AND ccm.left_at IS NULL
       WHERE c.deleted_at IS NULL
-        ${cursor ? prisma.$queryRaw`AND c.last_message_at < ${new Date(cursor)}` : prisma.$queryRaw``}
+        ${cursorClause}
       ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
       LIMIT ${limit + 1}
     `;
@@ -346,7 +346,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       FROM chat_messages m
       LEFT JOIN user_profile up ON up.id = m.sender_user_id
       WHERE m.conversation_id = ${conversationId}
-        ${before ? prisma.$queryRaw`AND m.created_at < ${new Date(before)}` : prisma.$queryRaw``}
+        ${before ? Prisma.sql`AND m.created_at < ${new Date(before)}` : Prisma.empty}
       ORDER BY m.created_at DESC
       LIMIT ${limit + 1}
     `;

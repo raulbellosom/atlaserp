@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { Prisma } from "@prisma/client";
 
 export class GuestChatServiceError extends Error {
   constructor(message, status = 400) {
@@ -211,7 +212,7 @@ export function createGuestChatService({ prisma, supabaseAdmin }) {
       LEFT JOIN user_profile up ON up.id = m.sender_user_id
       WHERE m.conversation_id = ${conversationId}
         AND m.deleted_at IS NULL
-        ${before ? prisma.$queryRaw`AND m.created_at < ${new Date(before)}` : prisma.$queryRaw``}
+        ${before ? Prisma.sql`AND m.created_at < ${new Date(before)}` : Prisma.empty}
       ORDER BY m.created_at DESC
       LIMIT ${limit}
     `;
