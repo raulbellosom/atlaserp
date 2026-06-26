@@ -2,10 +2,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { MessageSquare, X, Minus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@atlas/ui";
 import { useChatFloatStore } from "../store/chatFloatStore";
-import { useChatConversations } from "../hooks/useChatConversations";
 import { useChatMessages, useSendMessage, useMarkRead } from "../hooks/useChatMessages";
+import { atlas } from "../../../lib/atlas";
 import { MessageComposer } from "./MessageComposer";
 import { ChatMessageList } from "./ChatMessageList";
 import { getConversationDisplayName } from "../lib/chatUtils";
@@ -174,11 +175,19 @@ function ConversationPanel({ conversations, isLoading, edge, y, currentUserId })
 // --- Hub (inner, only mounts when authenticated) ---
 
 function FloatingChatHubInner() {
-  const { userProfile } = useAuth();
+  const { session, userProfile } = useAuth();
   const { edge, yPx, isOpen, openChats, setPosition, toggle, closeChat, toggleMinimize } =
     useChatFloatStore();
 
-  const { data, isLoading, isError } = useChatConversations();
+  // Plain query — shares the cache with useChatConversations but does NOT set up
+  // a second Supabase realtime subscription (which would error on duplicate channel names).
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["chat-conversations"],
+    queryFn: () => atlas.chat.listConversations({}, session?.access_token),
+    enabled: Boolean(session?.access_token),
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
   const conversations = data?.data ?? [];
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unread_count ?? 0), 0);
 
