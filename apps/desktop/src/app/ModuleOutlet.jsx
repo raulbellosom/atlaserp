@@ -512,6 +512,12 @@ function resolveScreen(moduleKey, subPath) {
     if (/^\/inventory\/[^/]+$/.test(subPath)) return SCREEN_MAP["atlas.inventory:/inventory/:id"] ?? null;
     return null;
   }
+  if (moduleKey === "atlas.chat") {
+    if (subPath === "/" || subPath === "/chat/inbox") return SCREEN_MAP["atlas.chat:/chat/inbox"] ?? null;
+    if (subPath.startsWith("/chat/inbox/")) return SCREEN_MAP["atlas.chat:/chat/inbox"] ?? null;
+    if (subPath === "/chat/external") return SCREEN_MAP["atlas.chat:/chat/external"] ?? null;
+    return null;
+  }
   if (subPath === "/") return SCREEN_MAP[`${moduleKey}:/`] ?? null;
   if (!SCREEN_MODULE_KEYS.has(moduleKey)) return BlueprintCrudScreen;
   return null;

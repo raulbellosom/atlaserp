@@ -1,25 +1,53 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ChatWindow } from "../components/ChatWindow";
 import { useChatConversations } from "../hooks/useChatConversations";
 
 export function ChatScreen() {
-  const [activeConversation, setActiveConversation] = useState(null);
-  const [mobileShowWindow, setMobileShowWindow] = useState(false);
+  const { "*": wildcard } = useParams();
+  const navigate = useNavigate();
+
+  // Extract conversation ID from /chat/inbox/<id>
+  const conversationIdFromUrl = useMemo(() => {
+    const match = (wildcard ?? "").match(/^chat\/inbox\/(.+)$/);
+    return match ? match[1] : null;
+  }, [wildcard]);
+
+  const [mobileShowWindow, setMobileShowWindow] = useState(
+    () => Boolean(conversationIdFromUrl),
+  );
 
   const { data, isLoading } = useChatConversations();
   const conversations = data?.data ?? [];
 
+  const activeConversation = useMemo(
+    () => conversations.find((c) => c.id === conversationIdFromUrl) ?? null,
+    [conversations, conversationIdFromUrl],
+  );
+
+  // Once the conversation list loads and the URL ID resolves, reveal the window on mobile
+  useEffect(() => {
+    if (conversationIdFromUrl && activeConversation) {
+      setMobileShowWindow(true);
+    }
+  }, [conversationIdFromUrl, activeConversation]);
+
   function handleSelect(conv) {
-    setActiveConversation(conv);
+    navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}`, { replace: true });
     setMobileShowWindow(true);
   }
 
   function handleCreated(conv) {
     if (conv?.id) {
-      setActiveConversation(conv);
+      navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}`, { replace: true });
       setMobileShowWindow(true);
     }
+  }
+
+  function handleClose() {
+    navigate("/app/m/atlas.chat/chat/inbox", { replace: true });
+    setMobileShowWindow(false);
   }
 
   return (
@@ -49,7 +77,7 @@ export function ChatScreen() {
       >
         <ChatWindow
           conversation={activeConversation}
-          onClose={() => setMobileShowWindow(false)}
+          onClose={handleClose}
         />
       </div>
     </div>
