@@ -40,7 +40,7 @@ function UserPickerItem({ user, selected, onToggle }) {
 }
 
 export function CreateChatModal({ open, onClose, onCreated }) {
-  const { session, user } = useAuth();
+  const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState([]);
@@ -57,7 +57,7 @@ export function CreateChatModal({ open, onClose, onCreated }) {
 
   const users = (usersData?.data ?? []).filter(
     (u) =>
-      u.id !== user?.id &&
+      u.id !== userProfile?.id &&
       (!search ||
         u.displayName?.toLowerCase().includes(search.toLowerCase()) ||
         u.email?.toLowerCase().includes(search.toLowerCase())),

@@ -132,6 +132,11 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   async function createConversation({ authUserId, type, title, memberUserIds, metadata = {} }) {
     const creatorProfileId = await getUserProfileId(authUserId);
 
+    // Prevent self-chat
+    if (type === "direct" && memberUserIds.length === 1 && memberUserIds[0] === creatorProfileId.toString()) {
+      throw new ChatServiceError("No puedes iniciar un chat contigo mismo.", 400);
+    }
+
     // For direct conversations, enforce uniqueness (find existing)
     if (type === "direct" && memberUserIds.length === 1) {
       const otherId = memberUserIds[0];
