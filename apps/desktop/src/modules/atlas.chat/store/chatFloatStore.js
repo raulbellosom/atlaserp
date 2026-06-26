@@ -43,7 +43,7 @@ export const useChatFloatStore = create(
     }),
     {
       name: "atlas-chat-float",
-      partialize: (s) => ({ edge: s.edge, yPx: s.yPx }),
+      partialize: (s) => ({ edge: s.edge, yPx: s.yPx, openChats: s.openChats }),
     },
   ),
 );

@@ -267,7 +267,7 @@ export function AdvancedFileViewer({
     if (!signedUrl || !file) return;
     const anchor = document.createElement("a");
     anchor.href = signedUrl;
-    anchor.download = file.originalName;
+    anchor.download = file.originalName ?? file.name ?? "archivo";
     anchor.target = "_blank";
     anchor.rel = "noopener noreferrer";
     anchor.click();
@@ -449,8 +449,40 @@ export function AdvancedFileViewer({
               />
             )}
 
+            {/* Video player */}
+            {!loading && signedUrl && kind === "video" && (
+              <div className="h-full w-full flex items-center justify-center bg-black">
+                <video
+                  key={signedUrl}
+                  src={signedUrl}
+                  controls
+                  className="max-h-full max-w-full"
+                  style={{ outline: "none" }}
+                />
+              </div>
+            )}
+
+            {/* Audio player */}
+            {!loading && signedUrl && kind === "audio" && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 p-8">
+                <div className="h-20 w-20 rounded-2xl bg-[hsl(var(--muted))] flex items-center justify-center border border-[hsl(var(--border))]">
+                  <FileVisual file={file} previewUrl={null} className="h-10 w-10 opacity-60" />
+                </div>
+                <p className="text-sm font-medium text-center truncate max-w-xs">
+                  {file?.originalName ?? file?.name ?? "Audio"}
+                </p>
+                <audio
+                  key={signedUrl}
+                  src={signedUrl}
+                  controls
+                  className="w-full max-w-sm"
+                  style={{ outline: "none" }}
+                />
+              </div>
+            )}
+
             {/* Generic (unsupported) */}
-            {!loading && signedUrl && kind !== "image" && kind !== "pdf" && (
+            {!loading && signedUrl && kind !== "image" && kind !== "pdf" && kind !== "video" && kind !== "audio" && (
               <div className="absolute inset-0 flex items-center justify-center p-6">
                 <div className="w-full max-w-xs glass rounded-2xl p-6">
                   <div className="flex items-center gap-4 mb-5">

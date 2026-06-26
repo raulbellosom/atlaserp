@@ -15,17 +15,31 @@ export function useChatMessages(conversationId) {
     queryFn: () => atlas.chat.listMessages(conversationId, { limit: 40 }, token),
     enabled: Boolean(token && conversationId),
     staleTime: 10_000,
+    // Polling fallback: fires every 5s so messages arrive even if Realtime drops
+    refetchInterval: Boolean(token && conversationId) ? 5_000 : false,
+    refetchOnWindowFocus: true,
   });
 
   const addMessageToCache = useCallback(
     (newMsg) => {
       queryClient.setQueryData(["chat-messages", conversationId], (old) => {
         if (!old) return old;
+        // Replace any pending temp message with the same body/type if it matches,
+        // then deduplicate by real ID.
         const already = old.data?.some((m) => m.id === newMsg.id);
         if (already) return old;
-        return { ...old, data: [...(old.data ?? []), newMsg] };
+        // Remove orphaned temp messages that match this real message's content
+        const filtered = (old.data ?? []).filter(
+          (m) => !(m._pending && m.body === newMsg.body && m.message_type === newMsg.message_type),
+        );
+        return { ...old, data: [...filtered, newMsg] };
       });
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+      // Realtime INSERT rows don't include joined attachment data — refetch so recipients
+      // see attachment cards as soon as the message arrives.
+      if (Number(newMsg.attachment_count) > 0) {
+        queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
+      }
     },
     [conversationId, queryClient],
   );
@@ -65,14 +79,65 @@ export function useChatMessages(conversationId) {
 }
 
 export function useSendMessage(conversationId) {
-  const { session } = useAuth();
+  const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (data) => atlas.chat.sendMessage(conversationId, data, token),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
+
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ["chat-messages", conversationId] });
+      const previous = queryClient.getQueryData(["chat-messages", conversationId]);
+
+      const tempId = `temp-${Date.now()}-${Math.random()}`;
+      const optimistic = {
+        id: tempId,
+        conversation_id: conversationId,
+        sender_user_id: userProfile?.id,
+        sender_type: "user",
+        body: data.body ?? null,
+        message_type: data.messageType ?? "text",
+        attachment_count: data.attachmentIds?.length ?? 0,
+        metadata: {},
+        created_at: new Date().toISOString(),
+        edited_at: null,
+        deleted_at: null,
+        sender: {
+          id: userProfile?.id,
+          displayName: userProfile?.displayName ?? null,
+          avatarUrl: userProfile?.avatarUrl ?? null,
+        },
+        attachments: null,
+        _pending: true,
+      };
+
+      queryClient.setQueryData(["chat-messages", conversationId], (old) => {
+        if (!old) return old;
+        return { ...old, data: [...(old.data ?? []), optimistic] };
+      });
+
+      return { previous, tempId };
+    },
+
+    onError: (_err, _data, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["chat-messages", conversationId], context.previous);
+      }
+    },
+
+    onSuccess: (result, _data, context) => {
+      const real = result?.data;
+      queryClient.setQueryData(["chat-messages", conversationId], (old) => {
+        if (!old) return old;
+        // Remove the temp message
+        const withoutTemp = (old.data ?? []).filter((m) => m.id !== context.tempId);
+        if (!real) return { ...old, data: withoutTemp };
+        // Add real if not already present (realtime may have beaten us)
+        const already = withoutTemp.some((m) => m.id === real.id);
+        if (already) return { ...old, data: withoutTemp };
+        return { ...old, data: [...withoutTemp, real] };
+      });
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
     },
   });

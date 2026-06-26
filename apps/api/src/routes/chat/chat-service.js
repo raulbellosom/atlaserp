@@ -45,6 +45,26 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     `;
   }
 
+  async function batchSignAvatarUrls(fileIds) {
+    if (!fileIds.length) return {};
+    const assets = await prisma.fileAsset.findMany({
+      where: { id: { in: fileIds } },
+      select: { id: true, bucket: true, objectKey: true },
+    });
+    const result = {};
+    await Promise.all(
+      assets.map(async (fa) => {
+        try {
+          const { data } = await supabaseAdmin.storage
+            .from(fa.bucket)
+            .createSignedUrl(fa.objectKey, 3600);
+          if (data?.signedUrl) result[fa.id] = data.signedUrl;
+        } catch {}
+      }),
+    );
+    return result;
+  }
+
   // ------------------------------------------------------------------
   // Conversations
   // ------------------------------------------------------------------
@@ -100,7 +120,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             'userId', cm.user_id,
             'role', cm.role,
             'displayName', up.display_name,
-            'avatarUrl', NULL::text
+            'avatarFileId', up.avatar_file_id::text,
+            'lastReadAt', cm.last_read_at
           ) ORDER BY cm.joined_at)
           FROM (
             SELECT * FROM chat_conversation_members
@@ -122,6 +143,23 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
 
     const hasMore = rows.length > limit;
     const data = hasMore ? rows.slice(0, limit) : rows;
+
+    const allFileIds = [
+      ...new Set(
+        data.flatMap((c) => (c.members ?? []).map((m) => m.avatarFileId).filter(Boolean)),
+      ),
+    ];
+    const avatarUrlMap = allFileIds.length ? await batchSignAvatarUrls(allFileIds) : {};
+    for (const conv of data) {
+      if (conv.members) {
+        conv.members = conv.members.map((m) => ({
+          ...m,
+          avatarUrl: m.avatarFileId ? (avatarUrlMap[m.avatarFileId] ?? null) : null,
+          avatarFileId: undefined,
+        }));
+      }
+    }
+
     return {
       data,
       hasMore,
@@ -206,7 +244,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             'leftAt', cm.left_at,
             'lastReadAt', cm.last_read_at,
             'displayName', up.display_name,
-            'avatarUrl', NULL::text,
+            'avatarFileId', up.avatar_file_id::text,
             'email', up.email
           ) ORDER BY cm.joined_at)
           FROM chat_conversation_members cm
@@ -218,7 +256,17 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       LIMIT 1
     `;
     if (!rows.length) throw new ChatServiceError("Conversacion no encontrada.", 404);
-    return rows[0];
+    const conv = rows[0];
+    if (conv.members) {
+      const fileIds = [...new Set(conv.members.map((m) => m.avatarFileId).filter(Boolean))];
+      const avatarUrlMap = fileIds.length ? await batchSignAvatarUrls(fileIds) : {};
+      conv.members = conv.members.map((m) => ({
+        ...m,
+        avatarUrl: m.avatarFileId ? (avatarUrlMap[m.avatarFileId] ?? null) : null,
+        avatarFileId: undefined,
+      }));
+    }
+    return conv;
   }
 
   async function updateConversation({ conversationId, authUserId, updates }) {
@@ -307,6 +355,55 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   }
 
   // ------------------------------------------------------------------
+  // Internal: fetch a single message with sender + attachments joins
+  // ------------------------------------------------------------------
+
+  async function getMessageFull(messageId) {
+    const rows = await prisma.$queryRaw`
+      SELECT
+        m.id, m.conversation_id, m.sender_user_id, m.sender_guest_id,
+        m.sender_type, m.body, m.message_type, m.attachment_count,
+        m.metadata, m.created_at, m.edited_at, m.deleted_at,
+        json_build_object(
+          'id', up.id,
+          'displayName', up.display_name,
+          'avatarFileId', up.avatar_file_id::text
+        ) AS sender,
+        (
+          SELECT json_agg(json_build_object(
+            'id', a.id,
+            'fileName', a.file_name,
+            'mimeType', a.mime_type,
+            'sizeBytes', a.size_bytes,
+            'width', a.width,
+            'height', a.height,
+            'objectKey', a.object_key,
+            'bucket', a.bucket
+          ) ORDER BY a.created_at)
+          FROM chat_attachments a WHERE a.message_id = m.id
+        ) AS attachments
+      FROM chat_messages m
+      LEFT JOIN user_profile up ON up.id = m.sender_user_id
+      WHERE m.id = ${messageId}
+      LIMIT 1
+    `;
+    if (!rows.length) return null;
+    const m = rows[0];
+    const avatarFileIds = m.sender?.avatarFileId ? [m.sender.avatarFileId] : [];
+    const urlMap = avatarFileIds.length ? await batchSignAvatarUrls(avatarFileIds) : {};
+    return {
+      ...m,
+      sender: m.sender
+        ? {
+            ...m.sender,
+            avatarUrl: m.sender.avatarFileId ? (urlMap[m.sender.avatarFileId] ?? null) : null,
+            avatarFileId: undefined,
+          }
+        : m.sender,
+    };
+  }
+
+  // ------------------------------------------------------------------
   // Messages
   // ------------------------------------------------------------------
 
@@ -332,7 +429,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         json_build_object(
           'id', up.id,
           'displayName', up.display_name,
-          'avatarUrl', NULL::text
+          'avatarFileId', up.avatar_file_id::text
         ) AS sender,
         -- attachments
         (
@@ -358,8 +455,25 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
 
     const hasMore = rows.length > limit;
     const data = hasMore ? rows.slice(0, limit) : rows;
+
+    const senderFileIds = [
+      ...new Set(data.map((m) => m.sender?.avatarFileId).filter(Boolean)),
+    ];
+    const avatarUrlMap = senderFileIds.length ? await batchSignAvatarUrls(senderFileIds) : {};
+
     return {
-      data: data.reverse(),
+      data: data.reverse().map((m) => ({
+        ...m,
+        sender: m.sender
+          ? {
+              ...m.sender,
+              avatarUrl: m.sender.avatarFileId
+                ? (avatarUrlMap[m.sender.avatarFileId] ?? null)
+                : null,
+              avatarFileId: undefined,
+            }
+          : m.sender,
+      })),
       hasMore,
       nextCursor: hasMore ? data[data.length - 1]?.created_at?.toISOString() : null,
     };
@@ -394,6 +508,9 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     }
 
     await updateConversationLastMessage(conversationId, msg.id, msg.created_at);
+
+    // Fetch full message with sender + attachments joins before returning
+    const fullMsg = await getMessageFull(msg.id);
 
     // Notify other members (fire-and-forget — don't fail the send on notification error)
     if (notificationService) {
@@ -438,7 +555,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       });
     }
 
-    return msg;
+    return fullMsg ?? msg;
   }
 
   async function editMessage({ messageId, authUserId, body }) {
@@ -503,6 +620,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
 
     const ALLOWED_MIME = [
       /^image\//,
+      /^audio\//,
+      /^video\//,
       /^application\/pdf$/,
       /^text\/plain$/,
       /^application\/msword$/,
@@ -512,25 +631,26 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     ];
     const allowed = ALLOWED_MIME.some(re => re.test(mimeType));
     if (!allowed) throw new ChatServiceError("Tipo de archivo no permitido.", 422);
-    if (sizeBytes > 20 * 1024 * 1024) throw new ChatServiceError("Archivo demasiado grande (max 20 MB).", 422);
+    if (sizeBytes > 50 * 1024 * 1024) throw new ChatServiceError("Archivo demasiado grande (max 50 MB).", 422);
 
     const ext = fileName.split(".").pop()?.toLowerCase() ?? "bin";
-    const placeholderMsgId = crypto.randomUUID();
-    const objectKey = `conversations/${conversationId}/${placeholderMsgId}/${crypto.randomUUID()}.${ext}`;
+    const objectKey = `conversations/${conversationId}/${crypto.randomUUID()}.${ext}`;
 
     const { data, error } = await supabaseAdmin.storage
       .from("atlas-chat")
       .createSignedUploadUrl(objectKey, { expiresIn: 300 });
 
-    if (error) throw new ChatServiceError("Error generando URL de subida.", 500);
+    if (error) {
+      console.error("[atlas.chat] createSignedUploadUrl failed", { bucket: "atlas-chat", key: objectKey, error });
+      throw new ChatServiceError("Error generando URL de subida.", 500);
+    }
 
-    // Pre-create attachment record (message_id will be set on sendMessage)
+    // message_id is NULL until sendMessage links it
     const attRows = await prisma.$queryRaw`
       INSERT INTO chat_attachments
-        (conversation_id, message_id, bucket, object_key, file_name, mime_type, size_bytes, uploaded_by_user_id)
+        (conversation_id, bucket, object_key, file_name, mime_type, size_bytes, uploaded_by_user_id)
       VALUES (
         ${conversationId},
-        ${placeholderMsgId}::uuid,
         'atlas-chat',
         ${objectKey},
         ${fileName},
@@ -559,14 +679,20 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       WHERE a.id = ${attachmentId}
       LIMIT 1
     `;
-    if (!rows.length) throw new ChatServiceError("Adjunto no encontrado.", 404);
+    if (!rows.length) {
+      console.error("[atlas.chat] getAttachmentSignedUrl: attachment not found or user not member", { attachmentId, profileId });
+      throw new ChatServiceError("Adjunto no encontrado.", 404);
+    }
 
     const att = rows[0];
     const { data, error } = await supabaseAdmin.storage
       .from(att.bucket)
       .createSignedUrl(att.object_key, 3600);
 
-    if (error) throw new ChatServiceError("Error generando URL firmada.", 500);
+    if (error) {
+      console.error("[atlas.chat] createSignedUrl failed", { bucket: att.bucket, key: att.object_key, error });
+      throw new ChatServiceError("Error generando URL firmada.", 500);
+    }
     return { url: data.signedUrl, attachment: att };
   }
 

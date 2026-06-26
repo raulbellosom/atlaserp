@@ -51,7 +51,7 @@ export function ChatScreen() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] overflow-hidden">
+    <div className="flex h-below-topbar overflow-hidden">
       {/* Conversation list — full width on mobile, fixed 288px on desktop */}
       <div
         className={[

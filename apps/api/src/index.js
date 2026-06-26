@@ -663,6 +663,9 @@ async function ensureBuckets() {
     SET public = TRUE, allowed_mime_types = NULL, file_size_limit = 104857600
     WHERE id = ${WEBSITE_BUCKET_NAME}
   `.catch((e) => console.error('[ensureBuckets] SQL update failed:', e.message));
+  await supabaseAdmin.storage
+    .createBucket("atlas-chat", { public: false, fileSizeLimit: 52428800 }) // 50 MB
+    .catch(() => {});
 }
 
 function serializeModulesForResponse(modules, context, options = {}) {

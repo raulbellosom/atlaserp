@@ -1,6 +1,8 @@
 export function getFileKind(mimeType = "") {
   const value = String(mimeType || "").toLowerCase();
   if (value.startsWith("image/")) return "image";
+  if (value.startsWith("video/")) return "video";
+  if (value.startsWith("audio/")) return "audio";
   if (value === "application/pdf") return "pdf";
   if (value.includes("spreadsheet") || value.includes("excel") || value.includes("csv")) {
     return "sheet";
@@ -30,8 +32,10 @@ export function formatDate(value) {
 
 export function getKindLabel(kind) {
   if (kind === "image") return "Imagen";
+  if (kind === "video") return "Video";
+  if (kind === "audio") return "Audio";
   if (kind === "pdf") return "PDF";
-  if (kind === "sheet") return "Hoja";
+  if (kind === "sheet") return "Hoja de calculo";
   if (kind === "doc") return "Documento";
   if (kind === "text") return "Texto";
   return "Archivo";

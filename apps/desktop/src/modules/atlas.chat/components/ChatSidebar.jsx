@@ -20,7 +20,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
   });
 
   return (
-    <aside className="flex flex-col w-72 shrink-0 border-r border-[hsl(var(--border))] h-full bg-[hsl(var(--surface-2))]">
+    <aside className="flex flex-col w-full h-full border-r border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[hsl(var(--border))] shrink-0">
         <h2 className="text-sm font-semibold">Chat</h2>
