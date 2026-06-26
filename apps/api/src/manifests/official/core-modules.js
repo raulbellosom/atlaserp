@@ -8,6 +8,7 @@ import {
   activityMap,
   notificationsMap,
   projectsMap,
+  chatMap,
 } from "./feature-modules.js";
 
 export const atlasCoreMap = createModuleManifest({
@@ -1308,4 +1309,5 @@ export const coreModules = [
   atlasPosManifest,
   projectsMap,
   inventoryMap,
+  chatMap,
 ];

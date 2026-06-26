@@ -68,6 +68,7 @@ import { createGrowthRouter } from "./routes/growth/growth-router.js";
 import { createDocumentsRouter } from "./routes/documents/documents-router.js";
 import { createSyncRouter } from "./routes/sync.js";
 import { createPwaRouter } from "./routes/pwa.js";
+import { createChatRouter } from "./routes/chat/index.js";
 import {
   publishActivityFromContext,
   getActivityContext,
@@ -4489,6 +4490,9 @@ mountWithAuth(
   createDocumentsRouter({ prisma, supabaseAdmin, requirePermission }),
 );
 mountWithAuth(app, createSyncRouter({ prisma }));
+
+// Chat router handles its own auth (internal + public guest routes)
+app.route("/", createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission }));
 
 app.post("/internal/notifications/process-deliveries", async (c) => {
   const secret = c.req.header("x-internal-secret");

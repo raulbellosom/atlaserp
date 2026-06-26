@@ -215,6 +215,16 @@ const SCREEN_MAP = {
   "atlas.projects:/": lazy(
     () => import("../modules/atlas.projects/screens/ProjectsScreen.jsx"),
   ),
+  // atlas.chat
+  "atlas.chat:/": lazy(
+    () => import("../modules/atlas.chat/screens/ChatScreen.jsx").then((m) => ({ default: m.ChatScreen })),
+  ),
+  "atlas.chat:/chat/inbox": lazy(
+    () => import("../modules/atlas.chat/screens/ChatScreen.jsx").then((m) => ({ default: m.ChatScreen })),
+  ),
+  "atlas.chat:/chat/external": lazy(
+    () => import("../modules/atlas.chat/screens/ExternalInboxScreen.jsx").then((m) => ({ default: m.ExternalInboxScreen })),
+  ),
   "atlas.catalog:/": lazy(
     () => import("../modules/atlas.catalog/screens/CatalogProductsScreen.jsx"),
   ),

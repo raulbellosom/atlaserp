@@ -1215,3 +1215,5 @@ export const documentGeneratedEnabledSchema = z
     enabled: z.boolean(),
   })
   .strict();
+
+export * from './chat.js';

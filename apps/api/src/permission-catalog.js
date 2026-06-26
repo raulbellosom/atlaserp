@@ -1163,6 +1163,33 @@ export const PERMISSION_CATALOG = {
     groupKey: "projects",
     order: 100,
   },
+  // -----------------------------------------------------------------------
+  // atlas.chat
+  // -----------------------------------------------------------------------
+  "chat.access": {
+    displayNameEs: "Acceder a Chat",
+    descriptionEs: "Permite acceder al modulo de chat.",
+    groupKey: "chat",
+    order: 10,
+  },
+  "chat.conversations.read": {
+    displayNameEs: "Ver conversaciones",
+    descriptionEs: "Permite ver conversaciones y mensajes.",
+    groupKey: "chat",
+    order: 20,
+  },
+  "chat.conversations.create": {
+    displayNameEs: "Enviar mensajes",
+    descriptionEs: "Permite crear conversaciones y enviar mensajes.",
+    groupKey: "chat",
+    order: 30,
+  },
+  "chat.support.manage": {
+    displayNameEs: "Gestionar soporte externo",
+    descriptionEs: "Permite ver y responder conversaciones de visitantes externos.",
+    groupKey: "chat",
+    order: 40,
+  },
 };
 
 function inferGroupKey(permissionKey) {

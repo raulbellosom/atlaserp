@@ -1,6 +1,7 @@
 import { createWebsiteDomain } from "./domains/website.js";
 import { createGrowthDomain } from "./domains/growth.js";
 import { createDocumentsDomain } from "./domains/documents.js";
+import { createChatDomain } from "./domains/chat.js";
 
 export function createAtlasClient({ baseUrl }) {
   let _offlineTransport = null;
@@ -1311,6 +1312,7 @@ export function createAtlasClient({ baseUrl }) {
       withAuthHeaders,
       toQueryString,
     }),
+    chat: createChatDomain(request, withAuthHeaders, toQueryString),
     calendar: {
       getGoogleStatus: (token) =>
         request("/calendar/google/status", {

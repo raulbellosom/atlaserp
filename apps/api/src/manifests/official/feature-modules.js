@@ -779,3 +779,56 @@ export const projectsMap = createModuleManifest({
   },
   blueprints: [],
 });
+
+export const chatMap = createModuleManifest({
+  key: 'atlas.chat',
+  name: 'Chat',
+  description: 'Mensajeria interna en tiempo real y chat de soporte para visitantes externos.',
+  version: '0.1.0',
+  kind: MODULE_KINDS.CORE,
+  core: true,
+  uninstallable: false,
+  icon: 'MessageSquare',
+  color: '#8b5cf6',
+  pwa: { shortName: 'Chat', startPath: '/chat/inbox' },
+  category: 'comunicacion',
+  summary: 'Chat interno y soporte en vivo',
+  dependencies: [{ key: 'atlas.core' }, { key: 'atlas.identity' }],
+  lifecycle: {
+    installable: false,
+    uninstallable: false,
+    resettable: false,
+    supportsDataPurge: false,
+  },
+  navigation: [
+    {
+      label: 'Chat',
+      path: '/chat/inbox',
+      icon: 'MessageSquare',
+      layout: 'main',
+      permissionKey: 'chat.conversations.read',
+    },
+    {
+      label: 'Bandeja externa',
+      path: '/chat/external',
+      icon: 'Inbox',
+      layout: 'main',
+      permissionKey: 'chat.support.manage',
+    },
+  ],
+  permissions: [
+    { key: 'chat.access',               name: 'Acceder a Chat' },
+    { key: 'chat.conversations.read',   name: 'Ver conversaciones' },
+    { key: 'chat.conversations.create', name: 'Crear y enviar mensajes' },
+    { key: 'chat.support.manage',       name: 'Gestionar soporte externo' },
+  ],
+  acl: {
+    module: 'chat.access',
+    actions: {
+      'chat.conversations.read':   'chat.conversations.read',
+      'chat.conversations.create': 'chat.conversations.create',
+      'chat.support.manage':       'chat.support.manage',
+    },
+  },
+  blueprints: [],
+});
