@@ -100,7 +100,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             'userId', cm.user_id,
             'role', cm.role,
             'displayName', up.display_name,
-            'avatarUrl', up.avatar_url
+            'avatarUrl', NULL::text
           ) ORDER BY cm.joined_at)
           FROM (
             SELECT * FROM chat_conversation_members
@@ -201,7 +201,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             'leftAt', cm.left_at,
             'lastReadAt', cm.last_read_at,
             'displayName', up.display_name,
-            'avatarUrl', up.avatar_url,
+            'avatarUrl', NULL::text,
             'email', up.email
           ) ORDER BY cm.joined_at)
           FROM chat_conversation_members cm
@@ -327,7 +327,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         json_build_object(
           'id', up.id,
           'displayName', up.display_name,
-          'avatarUrl', up.avatar_url
+          'avatarUrl', NULL::text
         ) AS sender,
         -- attachments
         (

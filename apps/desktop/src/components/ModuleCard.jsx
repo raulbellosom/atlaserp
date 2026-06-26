@@ -52,6 +52,8 @@ import {
   CalendarDays,
   TrendingUp,
   Gauge,
+  MessageSquare,
+  Inbox,
 } from "lucide-react";
 import { cn, FleetVehicleIcon } from "@atlas/ui";
 
@@ -112,6 +114,8 @@ export const MODULE_ICON_REGISTRY = {
   CalendarDays,
   TrendingUp,
   Gauge,
+  MessageSquare,
+  Inbox,
   FleetVehicle: FleetVehicleIcon,
 };
 
