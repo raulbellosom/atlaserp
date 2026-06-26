@@ -79,6 +79,8 @@ import {
   BarChart,
   BarChart2,
   TrendingDown,
+  MessageSquare,
+  Inbox,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "../lib/utils.js";
@@ -190,6 +192,8 @@ const ICON_MAP = {
   BarChart,
   BarChart2,
   TrendingDown,
+  MessageSquare,
+  Inbox,
   FleetVehicle: FleetVehicleIcon,
 };
 

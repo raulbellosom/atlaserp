@@ -794,6 +794,7 @@ export const chatMap = createModuleManifest({
   category: 'comunicacion',
   summary: 'Chat interno y soporte en vivo',
   dependencies: [{ key: 'atlas.core' }, { key: 'atlas.identity' }],
+  consumes: ['atlas.notifications'],
   lifecycle: {
     installable: false,
     uninstallable: false,

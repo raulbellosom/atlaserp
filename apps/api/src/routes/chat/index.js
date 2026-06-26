@@ -23,9 +23,9 @@ function handleError(c, err, fallback) {
   return c.json({ error: fallback }, 500);
 }
 
-export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission }) {
+export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService = null }) {
   const app = new Hono();
-  const chatService = createChatService({ prisma, supabaseAdmin });
+  const chatService = createChatService({ prisma, supabaseAdmin, notificationService });
   const guestService = createGuestChatService({ prisma, supabaseAdmin });
 
   // ================================================================
@@ -246,7 +246,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
 
       // Add operator as member if not already
       const profileRows = await prisma.$queryRaw`
-        SELECT id FROM "UserProfile" WHERE auth_user_id = ${authUserId} LIMIT 1
+        SELECT id FROM user_profile WHERE auth_user_id = ${authUserId} LIMIT 1
       `;
       if (profileRows.length) {
         await prisma.$executeRaw`
@@ -278,7 +278,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
 
       // Auto-join as operator
       const profileRows = await prisma.$queryRaw`
-        SELECT id FROM "UserProfile" WHERE auth_user_id = ${authUserId} LIMIT 1
+        SELECT id FROM user_profile WHERE auth_user_id = ${authUserId} LIMIT 1
       `;
       if (profileRows.length) {
         await prisma.$executeRaw`

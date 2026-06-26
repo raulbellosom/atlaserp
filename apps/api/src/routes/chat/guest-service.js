@@ -208,7 +208,7 @@ export function createGuestChatService({ prisma, supabaseAdmin }) {
           FROM chat_attachments a WHERE a.message_id = m.id
         ) AS attachments
       FROM chat_messages m
-      LEFT JOIN "UserProfile" up ON up.id = m.sender_user_id
+      LEFT JOIN user_profile up ON up.id = m.sender_user_id
       WHERE m.conversation_id = ${conversationId}
         AND m.deleted_at IS NULL
         ${before ? prisma.$queryRaw`AND m.created_at < ${new Date(before)}` : prisma.$queryRaw``}

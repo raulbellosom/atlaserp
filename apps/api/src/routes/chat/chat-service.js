@@ -8,14 +8,14 @@ export class ChatServiceError extends Error {
   }
 }
 
-export function createChatService({ prisma, supabaseAdmin }) {
+export function createChatService({ prisma, supabaseAdmin, notificationService = null }) {
   // ------------------------------------------------------------------
   // Internal helpers
   // ------------------------------------------------------------------
 
   async function getUserProfileId(authUserId) {
     const rows = await prisma.$queryRaw`
-      SELECT id FROM "UserProfile" WHERE auth_user_id = ${authUserId} LIMIT 1
+      SELECT id FROM user_profile WHERE auth_user_id = ${authUserId} LIMIT 1
     `;
     if (!rows.length) throw new ChatServiceError("Usuario no encontrado.", 404);
     return rows[0].id;
@@ -107,7 +107,7 @@ export function createChatService({ prisma, supabaseAdmin }) {
             WHERE conversation_id = c.id AND user_id IS NOT NULL AND left_at IS NULL
             LIMIT 5
           ) cm
-          LEFT JOIN "UserProfile" up ON up.id = cm.user_id
+          LEFT JOIN user_profile up ON up.id = cm.user_id
         ) AS members
       FROM chat_conversations c
       INNER JOIN chat_conversation_members ccm
@@ -173,7 +173,7 @@ export function createChatService({ prisma, supabaseAdmin }) {
     // System message: group created
     if (type === "group") {
       const [creatorUser] = await prisma.$queryRaw`
-        SELECT display_name FROM "UserProfile" WHERE id = ${creatorProfileId} LIMIT 1
+        SELECT display_name FROM user_profile WHERE id = ${creatorProfileId} LIMIT 1
       `;
       const systemBody = `${creatorUser?.display_name ?? "Un usuario"} creó el grupo`;
       await prisma.$executeRaw`
@@ -205,7 +205,7 @@ export function createChatService({ prisma, supabaseAdmin }) {
             'email', up.email
           ) ORDER BY cm.joined_at)
           FROM chat_conversation_members cm
-          LEFT JOIN "UserProfile" up ON up.id = cm.user_id
+          LEFT JOIN user_profile up ON up.id = cm.user_id
           WHERE cm.conversation_id = c.id AND cm.left_at IS NULL
         ) AS members
       FROM chat_conversations c
@@ -263,7 +263,7 @@ export function createChatService({ prisma, supabaseAdmin }) {
 
       // System message
       const [newUser] = await prisma.$queryRaw`
-        SELECT display_name FROM "UserProfile" WHERE id = ${uid} LIMIT 1
+        SELECT display_name FROM user_profile WHERE id = ${uid} LIMIT 1
       `;
       if (newUser) {
         await prisma.$executeRaw`
@@ -289,7 +289,7 @@ export function createChatService({ prisma, supabaseAdmin }) {
     `;
 
     const [removedUser] = await prisma.$queryRaw`
-      SELECT display_name FROM "UserProfile" WHERE id = ${targetUserId} LIMIT 1
+      SELECT display_name FROM user_profile WHERE id = ${targetUserId} LIMIT 1
     `;
     if (removedUser) {
       await prisma.$executeRaw`
@@ -344,7 +344,7 @@ export function createChatService({ prisma, supabaseAdmin }) {
           FROM chat_attachments a WHERE a.message_id = m.id
         ) AS attachments
       FROM chat_messages m
-      LEFT JOIN "UserProfile" up ON up.id = m.sender_user_id
+      LEFT JOIN user_profile up ON up.id = m.sender_user_id
       WHERE m.conversation_id = ${conversationId}
         ${before ? prisma.$queryRaw`AND m.created_at < ${new Date(before)}` : prisma.$queryRaw``}
       ORDER BY m.created_at DESC
@@ -389,6 +389,50 @@ export function createChatService({ prisma, supabaseAdmin }) {
     }
 
     await updateConversationLastMessage(conversationId, msg.id, msg.created_at);
+
+    // Notify other members (fire-and-forget — don't fail the send on notification error)
+    if (notificationService) {
+      setImmediate(async () => {
+        try {
+          const senderMembership = await prisma.membership.findFirst({
+            where: { userId: profileId.toString(), enabled: true },
+            orderBy: { createdAt: "desc" },
+            select: { companyId: true },
+          });
+          const companyId = senderMembership?.companyId;
+          if (!companyId) return;
+
+          const otherMembers = await prisma.$queryRaw`
+            SELECT user_id
+            FROM chat_conversation_members
+            WHERE conversation_id = ${conversationId}
+              AND user_id != ${profileId}
+              AND left_at IS NULL
+          `;
+          if (!otherMembers.length) return;
+
+          const recipientIds = otherMembers.map((m) => m.user_id.toString());
+          const preview = body.length > 80 ? `${body.slice(0, 80)}...` : body;
+          await notificationService.publish({
+            companyId,
+            actorId: profileId,
+            input: {
+              eventType: "chat.message.new",
+              title: "Nuevo mensaje de chat",
+              body: preview,
+              link: `/app/m/atlas.chat/chat/inbox`,
+              recipients: { userIds: recipientIds },
+              channels: ["in_app"],
+              priority: "medium",
+              sourceType: "chat_conversation",
+              sourceId: conversationId,
+              dedupeKey: `chat.message.new:${msg.id}`,
+            },
+          });
+        } catch {}
+      });
+    }
+
     return msg;
   }
 
@@ -565,7 +609,7 @@ export function createChatService({ prisma, supabaseAdmin }) {
     `;
 
     const [op] = await prisma.$queryRaw`
-      SELECT display_name FROM "UserProfile" WHERE id = ${operatorUserId} LIMIT 1
+      SELECT display_name FROM user_profile WHERE id = ${operatorUserId} LIMIT 1
     `;
     if (op) {
       await prisma.$executeRaw`
