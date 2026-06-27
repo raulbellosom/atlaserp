@@ -71,7 +71,7 @@ export function ChatScreen() {
       {/* Chat window — fills remaining space */}
       <div
         className={[
-          "flex flex-1 min-w-0",
+          "flex flex-1 min-w-0 min-h-0 overflow-hidden",
           mobileShowWindow ? "flex" : "hidden md:flex",
         ].join(" ")}
       >

@@ -426,7 +426,7 @@ export function ChatMessageBubble({
               className={[
                 "px-3 py-2 text-sm leading-relaxed",
                 radius,
-                "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]",
+                "bg-(--brand-primary) text-(--brand-primary-foreground)",
                 isDeleted ? "opacity-50 italic" : "",
               ].join(" ")}
             >
@@ -451,7 +451,7 @@ export function ChatMessageBubble({
                 {isPending ? "Enviando..." : formatMessageTime(message.created_at)}
               </span>
               {showReadReceipt && !isPending && (
-                <CheckCheck className="h-3 w-3 text-[hsl(var(--primary))]" />
+                <CheckCheck className="h-3 w-3 text-(--brand-primary)" />
               )}
             </div>
           )}

@@ -205,11 +205,21 @@ async function authMiddleware(c, next) {
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token)
     return c.json({ error: "No autorizado. Debes iniciar sesion." }, 401);
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) {
-    return c.json({ error: "No autorizado. Token invalido o expirado." }, 401);
+
+  // Cache the getUser result per token to avoid a network round-trip on every request.
+  // TTL matches USER_CONTEXT (60s) — short enough that revoked tokens expire quickly.
+  const cacheKey = `auth:token:${token.slice(-32)}`; // last 32 chars are unique per JWT
+  let userId = cacheGet(cacheKey);
+  if (!userId) {
+    const { data, error } = await supabaseAdmin.auth.getUser(token);
+    if (error || !data.user) {
+      return c.json({ error: "No autorizado. Token invalido o expirado." }, 401);
+    }
+    userId = data.user.id;
+    cacheSet(cacheKey, userId, TTL.USER_CONTEXT);
   }
-  c.set("authUserId", data.user.id);
+
+  c.set("authUserId", userId);
   await next();
 }
 

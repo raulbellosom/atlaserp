@@ -693,7 +693,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       console.error("[atlas.chat] createSignedUrl failed", { bucket: att.bucket, key: att.object_key, error });
       throw new ChatServiceError("Error generando URL firmada.", 500);
     }
-    return { url: data.signedUrl, attachment: att };
+    return { url: data.signedUrl };
   }
 
   // ------------------------------------------------------------------

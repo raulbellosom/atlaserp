@@ -2,7 +2,7 @@ import { useEffect, useRef, useMemo } from "react";
 import { Skeleton } from "@atlas/ui";
 import { ChatMessageBubble } from "./ChatMessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
-import { groupMessagesByDate, formatDateSeparator } from "../lib/chatUtils";
+import { groupMessagesByDate, formatDateSeparator, isImageMime } from "../lib/chatUtils";
 
 function senderKey(msg) {
   return `${msg.sender_user_id ?? "guest"}::${msg.sender_type ?? "user"}`;
@@ -47,6 +47,27 @@ export function ChatMessageList({
 }) {
   const bottomRef = useRef(null);
   const listRef = useRef(null);
+
+  // Flat list of all image attachments across the entire conversation (for the global carousel)
+  const allConversationImages = useMemo(() => {
+    if (!messages?.length) return [];
+    return messages.flatMap((m) =>
+      (m.attachments ?? []).filter((a) => isImageMime(a.mimeType)),
+    );
+  }, [messages]);
+
+  // Intercepts image clicks to use the global conversation image list
+  function handleAttachmentClick(attachments, index) {
+    const clicked = attachments[index];
+    if (clicked && isImageMime(clicked.mimeType) && allConversationImages.length > 0) {
+      const globalIdx = allConversationImages.findIndex((img) => img.id === clicked.id);
+      if (globalIdx !== -1) {
+        onAttachmentClick(allConversationImages, globalIdx);
+        return;
+      }
+    }
+    onAttachmentClick(attachments, index);
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -108,7 +129,7 @@ export function ChatMessageList({
   const grouped = enrichWithGroupInfo(groupMessagesByDate(messages));
 
   return (
-    <div ref={listRef} className="flex-1 overflow-y-auto py-3">
+    <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain py-3">
       {grouped.map((item, idx) => {
         if (item.type === "date_separator") {
           return (
@@ -126,7 +147,7 @@ export function ChatMessageList({
             isOwn={item.sender_user_id === currentUserId}
             isFirst={item.isFirst}
             isLast={item.isLast}
-            onAttachmentClick={onAttachmentClick}
+            onAttachmentClick={handleAttachmentClick}
             showReadReceipt={item.id === lastReadMessageId}
           />
         );

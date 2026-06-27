@@ -35,6 +35,7 @@ export function ChatAttachmentViewer({ open, onOpenChange, attachments, activeIn
       activeIndex={activeIndex ?? 0}
       onIndexChange={onIndexChange}
       onResolveSignedUrl={resolveSignedUrl}
+      zIndex={10000}
     />
   );
 }
