@@ -17,6 +17,7 @@ import { AtlasOfflineDatabase, createDexiePersister } from "@atlas/offline";
 import { Toaster, TooltipProvider } from "@atlas/ui";
 import { SetupWizard } from "../setup/SetupWizard";
 import { AuthProvider } from "../auth/AuthProvider";
+import { RealtimeProvider } from "../providers/RealtimeProvider";
 import { LoginScreen } from "../auth/LoginScreen";
 import { useAuth } from "../auth/AuthProvider";
 import { AtlasApp } from "./AtlasApp";
@@ -228,7 +229,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                 element={<GoogleCalendarCallbackScreen />}
               />
               <Route element={<AppAccessGuard />}>
-                <Route path="/app" element={<AtlasApp />}>
+                <Route path="/app" element={<RealtimeProvider><AtlasApp /></RealtimeProvider>}>
                   <Route index element={<Navigate to="home" replace />} />
                   <Route path="home" element={<HomeScreen />} />
                   <Route path="m/:moduleKey/*" element={<ModuleOutlet />} />
