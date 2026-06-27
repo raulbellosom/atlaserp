@@ -59,7 +59,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const result = await chatService.createConversation({ authUserId, ...data });
       return c.json({ data: result }, 201);
     } catch (err) {
-      if (err?.name === "ZodError") return c.json({ error: err.errors[0]?.message ?? "Datos invalidos." }, 422);
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
       return handleError(c, err, "Error creando conversacion.");
     }
   });
@@ -86,7 +86,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const result = await chatService.updateConversation({ conversationId, authUserId, updates });
       return c.json({ data: result });
     } catch (err) {
-      if (err?.name === "ZodError") return c.json({ error: err.errors[0]?.message ?? "Datos invalidos." }, 422);
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
       return handleError(c, err, "Error actualizando conversacion.");
     }
   });
@@ -119,7 +119,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const result = await chatService.sendMessage({ conversationId, authUserId, ...data });
       return c.json({ data: result }, 201);
     } catch (err) {
-      if (err?.name === "ZodError") return c.json({ error: err.errors[0]?.message ?? "Datos invalidos." }, 422);
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
       return handleError(c, err, "Error enviando mensaje.");
     }
   });
@@ -134,7 +134,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const result = await chatService.editMessage({ messageId, authUserId, body: data.body });
       return c.json({ data: result });
     } catch (err) {
-      if (err?.name === "ZodError") return c.json({ error: err.errors[0]?.message ?? "Datos invalidos." }, 422);
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
       return handleError(c, err, "Error editando mensaje.");
     }
   });
@@ -161,7 +161,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const result = await chatService.addMembers({ conversationId, authUserId, ...data });
       return c.json(result, 201);
     } catch (err) {
-      if (err?.name === "ZodError") return c.json({ error: err.errors[0]?.message ?? "Datos invalidos." }, 422);
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
       return handleError(c, err, "Error agregando miembros.");
     }
   });
@@ -200,7 +200,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const result = await chatService.presignAttachmentUpload({ authUserId, ...data });
       return c.json({ data: result });
     } catch (err) {
-      if (err?.name === "ZodError") return c.json({ error: err.errors[0]?.message ?? "Datos invalidos." }, 422);
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
       return handleError(c, err, "Error generando URL de subida.");
     }
   });
@@ -291,7 +291,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const result = await chatService.sendMessage({ conversationId, authUserId, ...data });
       return c.json({ data: result }, 201);
     } catch (err) {
-      if (err?.name === "ZodError") return c.json({ error: err.errors[0]?.message ?? "Datos invalidos." }, 422);
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
       return handleError(c, err, "Error enviando mensaje externo.");
     }
   });
@@ -306,7 +306,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const result = await chatService.assignOperator({ conversationId, authUserId, ...data });
       return c.json(result);
     } catch (err) {
-      if (err?.name === "ZodError") return c.json({ error: err.errors[0]?.message ?? "Datos invalidos." }, 422);
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
       return handleError(c, err, "Error asignando operador.");
     }
   });
@@ -336,7 +336,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const result = await guestService.createGuestSession(data);
       return c.json({ data: result }, 201);
     } catch (err) {
-      if (err?.name === "ZodError") return c.json({ error: err.errors[0]?.message ?? "Datos invalidos." }, 422);
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
       return handleError(c, err, "Error creando sesion de invitado.");
     }
   });
@@ -361,7 +361,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const result = await guestService.sendGuestMessage({ rawToken, ...data });
       return c.json({ data: result }, 201);
     } catch (err) {
-      if (err?.name === "ZodError") return c.json({ error: err.errors[0]?.message ?? "Datos invalidos." }, 422);
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
       return handleError(c, err, "Error enviando mensaje.");
     }
   });

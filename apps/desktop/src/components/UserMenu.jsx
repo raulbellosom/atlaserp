@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, User, Settings, LogOut, Monitor, Download, X, Smartphone, Share } from "lucide-react";
+import { ChevronDown, User, Settings, LogOut, Monitor, Download, X, Smartphone, Share, Sun, Moon, Activity } from "lucide-react";
+import { useThemeStore } from "../stores/theme";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -65,8 +66,11 @@ export function UserMenu({
   canInstall = false,
   manualInstallReady = false,
   onInstall,
+  canReadActivity = false,
+  onActivityOpen,
 }) {
   const { userProfile, logout } = useAuth();
+  const { isDark, toggle: toggleTheme } = useThemeStore();
   const navigate = useNavigate();
   const [showReminder, setShowReminder] = useState(() => shouldShowDesktopReminder());
 
@@ -242,6 +246,27 @@ export function UserMenu({
             </div>
           </>
         )}
+
+        {/* Mobile-only: activity + theme (hidden on sm+ where they live in topbar) */}
+        <div className="sm:hidden">
+          <DropdownMenuSeparator />
+          {canReadActivity && (
+            <DropdownMenuItem
+              onClick={onActivityOpen}
+              className="gap-2 cursor-pointer"
+            >
+              <Activity size={14} />
+              Actividad
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem
+            onClick={toggleTheme}
+            className="gap-2 cursor-pointer"
+          >
+            {isDark ? <Sun size={14} /> : <Moon size={14} />}
+            {isDark ? "Modo claro" : "Modo oscuro"}
+          </DropdownMenuItem>
+        </div>
 
         <DropdownMenuSeparator />
         <DropdownMenuItem

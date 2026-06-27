@@ -22,7 +22,8 @@ function Avatar({ name, avatarUrl, size = "md", online = false }) {
         />
       ) : (
         <div
-          className={`${sizeClass} rounded-full bg-[hsl(var(--muted))] flex items-center justify-center font-semibold text-[hsl(var(--muted-foreground))]`}
+          className={`${sizeClass} rounded-full flex items-center justify-center font-semibold`}
+          style={{ backgroundColor: "var(--brand-primary)", color: "var(--brand-primary-foreground)" }}
         >
           {getInitials(name)}
         </div>

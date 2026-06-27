@@ -1,6 +1,39 @@
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
 import { z } from "zod";
 import webpush from "web-push";
 import { decryptPassword, encryptPassword } from "./smtp-service.js";
+
+// VAPID keys use the Supabase service role key as the derivation secret because
+// it is more stable than JWT_SECRET (Supabase infra sets it once and never changes it).
+// Fallback: if SERVICE_ROLE_KEY is absent, derive from JWT_SECRET.
+const VAPID_CIPHER = 'aes-256-gcm';
+const VAPID_SALT = 'atlas-vapid-v2';
+
+function deriveVapidKey() {
+  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.JWT_SECRET;
+  if (!secret) throw new Error('SUPABASE_SERVICE_ROLE_KEY or JWT_SECRET is required');
+  return scryptSync(secret, VAPID_SALT, 32);
+}
+
+function encryptVapid(plaintext) {
+  const key = deriveVapidKey();
+  const iv = randomBytes(12);
+  const cipher = createCipheriv(VAPID_CIPHER, key, iv);
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, encrypted]).toString('base64');
+}
+
+function decryptVapid(ciphertext) {
+  const key = deriveVapidKey();
+  const buf = Buffer.from(ciphertext, 'base64');
+  const iv = buf.subarray(0, 12);
+  const tag = buf.subarray(12, 28);
+  const data = buf.subarray(28);
+  const decipher = createDecipheriv(VAPID_CIPHER, key, iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
+}
 
 const VAPID_CONFIG_KEYS = {
   subject: "notifications.webpush.vapid.subject",
@@ -76,12 +109,16 @@ export function createWebPushService({ prisma, webPushLib = webpush }) {
     let privateKey = null;
     if (encryptedPrivateKey) {
       try {
-        privateKey = decryptPassword(encryptedPrivateKey);
+        // Try new stable key (SUPABASE_SERVICE_ROLE_KEY-derived) first.
+        privateKey = decryptVapid(encryptedPrivateKey);
       } catch {
-        // Decryption fails when JWT_SECRET changed since the key was saved.
-        // Treat as not configured — admin must re-save VAPID keys from the
-        // Web Push settings screen.
-        privateKey = null;
+        try {
+          // Backward compat: keys saved before this fix were encrypted with JWT_SECRET.
+          privateKey = decryptPassword(encryptedPrivateKey);
+        } catch (e2) {
+          console.warn('[web-push] VAPID private key decryption failed — re-save keys from Settings > Web Push.', e2?.message);
+          privateKey = null;
+        }
       }
     }
     const configured = Boolean(
@@ -105,7 +142,7 @@ export function createWebPushService({ prisma, webPushLib = webpush }) {
       { key: VAPID_CONFIG_KEYS.publicKey, value: data.publicKey },
       {
         key: VAPID_CONFIG_KEYS.privateKey,
-        value: encryptPassword(data.privateKey),
+        value: encryptVapid(data.privateKey),
       },
     ];
     await Promise.all(

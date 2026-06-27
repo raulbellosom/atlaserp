@@ -16,8 +16,8 @@ export function useChatMessages(conversationId) {
     queryKey: ["chat-messages", conversationId],
     queryFn: () => atlas.chat.listMessages(conversationId, { limit: 40 }, token),
     enabled: Boolean(token && conversationId),
-    staleTime: 10_000,
-    refetchInterval: false,
+    staleTime: 5_000,
+    refetchInterval: 8_000,
     refetchOnWindowFocus: true,
   });
 

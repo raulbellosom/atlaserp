@@ -1,58 +1,110 @@
 import { useState } from 'react'
-import { Copy } from 'lucide-react'
-import { useNoteFolders } from '../hooks/useNoteFolders.js'
+import { Copy, Smile, X } from 'lucide-react'
+import { useNoteFolders, useCreateNoteFolder } from '../hooks/useNoteFolders.js'
 import { useNoteTags, useCreateNoteTag, useSetNoteTags } from '../hooks/useNoteTags.js'
-import { ConfirmDialog } from '@atlas/ui'
+import { useIsDark } from '../hooks/useIsDark.js'
+import { NOTE_BACKGROUND_COLORS } from '../lib/noteColors.js'
+import {
+  ConfirmDialog, TextField, CreatableComboboxField,
+  Popover, PopoverTrigger, PopoverContent,
+} from '@atlas/ui'
 
-const BACKGROUND_COLORS = [
-  { label: 'Blanco', value: '#ffffff' },
-  { label: 'Crema', value: '#fefce8' },
-  { label: 'Menta', value: '#f0fdf4' },
-  { label: 'Cielo', value: '#eff6ff' },
-  { label: 'Lavanda', value: '#faf5ff' },
-  { label: 'Rosa', value: '#fff1f2' },
+const EMOJI_GROUPS = [
+  {
+    label: 'Frecuentes',
+    emojis: ['📝','📖','💡','🎯','✅','⭐','❤️','🔥','💎','🚀','📌','🔖','🗒️','📓','📔'],
+  },
+  {
+    label: 'Trabajo',
+    emojis: ['💼','📊','📈','📉','💰','🔧','⚙️','🖥️','📋','🗂️','🔍','📎','✏️','🖊️','📐','🗃️','🖨️','💾'],
+  },
+  {
+    label: 'Ideas & Arte',
+    emojis: ['🧠','🎨','🎭','🎲','🏆','✨','💫','⚡','🌈','🦋','🌟','🎵','🎸','🎬','🎤','🎯','🧩','🪄'],
+  },
+  {
+    label: 'Naturaleza',
+    emojis: ['🌿','🌱','🌸','🌻','🌙','☀️','🌊','🏔️','🌲','🍀','🌴','🍁','🌾','🌵','🌺','🌹','🍄','🦋'],
+  },
+  {
+    label: 'Personas',
+    emojis: ['😊','🤔','😎','🤩','🥳','😴','🤗','💪','👋','✌️','👏','🙏','🫶','❤️','💙','💚','🧡','💜'],
+  },
+  {
+    label: 'Comida',
+    emojis: ['☕','🍵','🧃','🍎','🍋','🍊','🍇','🍓','🥑','🍕','🍣','🥗','🍰','🎂','🧁','🥐','🍜','🥤'],
+  },
+  {
+    label: 'Lugares & Viajes',
+    emojis: ['🏠','🏢','🏖️','🏕️','🌆','✈️','🚂','🚀','🗺️','📍','🌍','🗼','🏰','⛩️','🎡','🚗','⛵','🏡'],
+  },
 ]
+
+function SectionLabel({ children }) {
+  return (
+    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+      {children}
+    </label>
+  )
+}
 
 export function NoteSettingsPanel({ note, onUpdate, onPublish, onUnpublish, onTrash }) {
   const { data: foldersData } = useNoteFolders()
   const { data: tagsData } = useNoteTags()
+  const createFolder = useCreateNoteFolder()
   const createTag = useCreateNoteTag()
   const setNoteTags = useSetNoteTags()
+  const isDark = useIsDark()
   const [trashOpen, setTrashOpen] = useState(false)
-  const [newTagName, setNewTagName] = useState('')
 
   const folders = foldersData?.folders ?? []
   const allTags = tagsData?.tags ?? []
   const noteTags = note?.tags ?? []
   const noteTagIds = noteTags.map(t => t.id)
 
+  const folderOptions = [
+    { value: '__none__', label: 'Sin carpeta' },
+    ...folders.map(f => ({ value: f.id, label: f.name })),
+  ]
+
+  // Only show tags not already assigned, so the combobox is an "add" action
+  const unassignedTagOptions = allTags
+    .filter(t => !noteTagIds.includes(t.id))
+    .map(t => ({ value: t.id, label: t.name }))
+
   const publicUrl = note?.public_slug
     ? `${window.location.origin}/p/notes/${note.public_slug}`
     : null
 
-  function handleFolderChange(folderId) {
-    onUpdate({ folder_id: folderId || null })
+  const activeBg = note?.background_color ?? null
+
+  function handleAddTag(tagId) {
+    if (!tagId || noteTagIds.includes(tagId)) return
+    setNoteTags.mutate({ noteId: note.id, tagIds: [...noteTagIds, tagId] })
   }
 
-  function handleBgChange(color) {
-    onUpdate({ background_color: color })
+  function handleRemoveTag(tagId) {
+    setNoteTags.mutate({ noteId: note.id, tagIds: noteTagIds.filter(id => id !== tagId) })
   }
 
-  function handleTagToggle(tagId) {
-    const updated = noteTagIds.includes(tagId)
-      ? noteTagIds.filter(id => id !== tagId)
-      : [...noteTagIds, tagId]
-    setNoteTags.mutate({ noteId: note.id, tagIds: updated })
-  }
-
-  function handleCreateTag(e) {
-    e.preventDefault()
-    if (!newTagName.trim()) return
-    createTag.mutate({ name: newTagName.trim() }, {
+  function handleCreateTag(name) {
+    createTag.mutate({ name: name.trim() }, {
       onSuccess: (res) => {
         const newId = res?.tag?.id
         if (newId) setNoteTags.mutate({ noteId: note.id, tagIds: [...noteTagIds, newId] })
-        setNewTagName('')
+      },
+    })
+  }
+
+  function handleFolderChange(v) {
+    onUpdate({ folderId: v === '__none__' ? null : v })
+  }
+
+  function handleCreateFolder(name) {
+    createFolder.mutate({ name: name.trim() }, {
+      onSuccess: (res) => {
+        const newId = res?.folder?.id
+        if (newId) onUpdate({ folderId: newId })
       },
     })
   }
@@ -60,122 +112,189 @@ export function NoteSettingsPanel({ note, onUpdate, onPublish, onUnpublish, onTr
   if (!note) return null
 
   return (
-    <div className="flex flex-col gap-4 p-4 text-sm overflow-y-auto h-full bg-white border-l border-gray-200">
-      <h3 className="font-semibold text-gray-900 text-base">Ajustes de nota</h3>
+    <div className="flex flex-col gap-5 p-5 text-sm overflow-y-auto h-full bg-card border-l border-border">
 
-      {/* Icon */}
-      <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">Icono</label>
-        <input
-          type="text"
-          value={note.icon ?? ''}
-          onChange={e => onUpdate({ icon: e.target.value })}
-          placeholder="Icono"
-          maxLength={4}
-          className="w-16 text-center text-2xl border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400"
-        />
-      </div>
+      <h3 className="font-semibold text-foreground text-sm tracking-tight">Ajustes de nota</h3>
 
-      {/* Title */}
+      {/* ── Emoji / Icono ─────────────────────────────────── */}
       <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">Titulo</label>
-        <input
-          type="text"
-          value={note.title ?? ''}
-          onChange={e => onUpdate({ title: e.target.value })}
-          className="w-full border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm"
-        />
-      </div>
-
-      {/* Folder */}
-      <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">Carpeta</label>
-        <select
-          value={note.folder_id ?? ''}
-          onChange={e => handleFolderChange(e.target.value)}
-          className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400 bg-white"
-        >
-          <option value="">Sin carpeta</option>
-          {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-        </select>
-      </div>
-
-      {/* Background color */}
-      <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">Fondo</label>
-        <div className="flex gap-2 flex-wrap">
-          {BACKGROUND_COLORS.map(bg => (
+        <SectionLabel>Icono</SectionLabel>
+        <Popover>
+          <PopoverTrigger asChild>
             <button
-              key={bg.value}
-              onClick={() => handleBgChange(bg.value)}
-              title={bg.label}
-              className={`w-7 h-7 rounded-full border-2 transition-transform ${
-                note.background_color === bg.value || (!note.background_color && bg.value === '#ffffff')
-                  ? 'border-amber-500 scale-110'
-                  : 'border-gray-200 hover:border-gray-400'
-              }`}
-              style={{ backgroundColor: bg.value }}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Tags */}
-      <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">Etiquetas</label>
-        <div className="flex flex-wrap gap-1.5 mb-2">
-          {allTags.map(tag => (
-            <button
-              key={tag.id}
-              onClick={() => handleTagToggle(tag.id)}
-              className={`px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
-                noteTagIds.includes(tag.id)
-                  ? 'bg-amber-100 border-amber-300 text-amber-800'
-                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
-              }`}
+              className="w-12 h-12 rounded-xl border border-border bg-muted flex items-center justify-center text-2xl hover:bg-muted/70 transition-colors"
+              title="Seleccionar emoji"
             >
-              {tag.name}
+              {note.icon
+                ? <span>{note.icon}</span>
+                : <Smile className="w-5 h-5 text-muted-foreground" />
+              }
             </button>
-          ))}
-        </div>
-        <form onSubmit={handleCreateTag} className="flex gap-1">
-          <input
-            type="text"
-            value={newTagName}
-            onChange={e => setNewTagName(e.target.value)}
-            placeholder="Nueva etiqueta..."
-            className="flex-1 text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400"
-          />
-          <button type="submit" disabled={!newTagName.trim()} className="text-xs px-2 py-1 bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-40">+</button>
-        </form>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-3" side="bottom" align="start">
+            <div className="max-h-64 overflow-y-auto space-y-3 pr-1">
+              {EMOJI_GROUPS.map(group => (
+                <div key={group.label}>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 sticky top-0 bg-card py-0.5">
+                    {group.label}
+                  </p>
+                  <div className="grid grid-cols-9 gap-0.5">
+                    {group.emojis.map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => onUpdate({ icon: emoji })}
+                        title={emoji}
+                        className={[
+                          'w-7 h-7 flex items-center justify-center rounded-lg text-base transition-colors',
+                          note.icon === emoji
+                            ? 'bg-amber-100 ring-1 ring-amber-400 dark:bg-amber-900/40 dark:ring-amber-500'
+                            : 'hover:bg-muted',
+                        ].join(' ')}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {note.icon && (
+              <button
+                onClick={() => onUpdate({ icon: '' })}
+                className="mt-2.5 w-full flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-1 py-1.5 rounded hover:bg-muted transition-colors"
+              >
+                <X className="w-3 h-3" />
+                Sin icono
+              </button>
+            )}
+          </PopoverContent>
+        </Popover>
       </div>
 
-      {/* Public link */}
+      {/* ── Titulo ───────────────────────────────────────── */}
+      <TextField
+        label="Titulo"
+        value={note.title ?? ''}
+        onChange={e => onUpdate({ title: e.target.value })}
+        placeholder="Titulo de la nota"
+      />
+
+      {/* ── Carpeta ──────────────────────────────────────── */}
+      <CreatableComboboxField
+        label="Carpeta"
+        options={folderOptions}
+        value={note.folder_id ?? '__none__'}
+        onChange={handleFolderChange}
+        onCreate={handleCreateFolder}
+        isCreating={createFolder.isPending}
+        placeholder="Buscar o crear carpeta..."
+        searchPlaceholder="Buscar carpeta..."
+      />
+
+      {/* ── Color de fondo ───────────────────────────────── */}
       <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">Enlace publico</label>
+        <SectionLabel>Color de fondo</SectionLabel>
+        <div className="flex gap-2 flex-wrap">
+          {NOTE_BACKGROUND_COLORS.map(bg => {
+            // Use the saturated swatch color for the picker so colors are easily distinguishable
+            const swatchColor = bg.swatch ?? null
+            const isActive = activeBg === bg.value
+            return (
+              <button
+                key={bg.value ?? 'none'}
+                onClick={() => onUpdate({ backgroundColor: bg.value })}
+                title={bg.label}
+                className="w-7 h-7 rounded-full transition-all hover:scale-110 focus-visible:outline-none"
+                style={{
+                  backgroundColor: swatchColor ?? 'transparent',
+                  borderWidth: 2,
+                  borderStyle: 'solid',
+                  borderColor: isActive ? '#f59e0b' : 'transparent',
+                  boxShadow: isActive
+                    ? '0 0 0 1.5px #f59e0b'
+                    : bg.value === null
+                    ? 'inset 0 0 0 1.5px hsl(var(--border))'
+                    : 'none',
+                  transform: isActive ? 'scale(1.2)' : 'scale(1)',
+                }}
+              />
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── Etiquetas ────────────────────────────────────── */}
+      <div>
+        <SectionLabel>Etiquetas</SectionLabel>
+        {noteTags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-2.5">
+            {noteTags.map(tag => (
+              <span
+                key={tag.id}
+                className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 border border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-600 dark:text-amber-300"
+              >
+                {tag.name}
+                <button
+                  onClick={() => handleRemoveTag(tag.id)}
+                  className="rounded-full hover:bg-amber-200 dark:hover:bg-amber-800/50 p-0.5 transition-colors"
+                  title="Quitar etiqueta"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <CreatableComboboxField
+          options={unassignedTagOptions}
+          value=""
+          onChange={handleAddTag}
+          onCreate={handleCreateTag}
+          isCreating={createTag.isPending}
+          placeholder="Agregar etiqueta..."
+          searchPlaceholder="Buscar o crear etiqueta..."
+        />
+      </div>
+
+      {/* ── Enlace publico ───────────────────────────────── */}
+      <div>
+        <SectionLabel>Enlace publico</SectionLabel>
         {publicUrl ? (
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1">
-              <input readOnly value={publicUrl} className="flex-1 text-xs border border-gray-200 rounded px-2 py-1 bg-gray-50 truncate" />
-              <button onClick={() => navigator.clipboard.writeText(publicUrl)} className="p-1.5 border border-gray-200 rounded hover:bg-gray-50" title="Copiar enlace"><Copy className="w-3.5 h-3.5 text-gray-500" /></button>
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <div className="flex-1 text-xs border border-border rounded-lg px-3 py-2.5 bg-muted text-muted-foreground truncate font-mono">
+                {publicUrl}
+              </div>
+              <button
+                onClick={() => navigator.clipboard.writeText(publicUrl)}
+                className="p-2.5 border border-border rounded-lg hover:bg-muted transition-colors shrink-0"
+                title="Copiar enlace"
+              >
+                <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
             </div>
-            <button onClick={onUnpublish} className="text-xs text-red-500 hover:underline">Desactivar enlace publico</button>
+            <button
+              onClick={onUnpublish}
+              className="text-xs text-destructive hover:underline"
+            >
+              Desactivar enlace publico
+            </button>
           </div>
         ) : (
           <button
             onClick={onPublish}
-            className="text-xs px-3 py-1.5 bg-amber-500 text-white rounded hover:bg-amber-600"
+            className="text-xs px-3 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium"
           >
             Generar enlace publico
           </button>
         )}
       </div>
 
-      {/* Danger zone */}
-      <div className="mt-auto pt-4 border-t border-gray-100">
+      {/* ── Zona de peligro ──────────────────────────────── */}
+      <div className="mt-auto pt-4 border-t border-border">
         <button
           onClick={() => setTrashOpen(true)}
-          className="w-full text-xs text-red-500 hover:bg-red-50 py-2 rounded border border-red-100 transition-colors"
+          className="w-full text-xs text-destructive hover:bg-destructive/5 py-2.5 rounded-lg border border-destructive/20 transition-colors font-medium"
         >
           Enviar a papelera
         </button>

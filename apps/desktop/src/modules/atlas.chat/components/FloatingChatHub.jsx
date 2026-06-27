@@ -47,7 +47,8 @@ function AvatarCircle({ avatarUrl, name, size = "md" }) {
   }
   return (
     <div
-      className={`${sizeClass} rounded-full bg-[hsl(var(--primary))] text-white flex items-center justify-center font-bold shrink-0`}
+      className={`${sizeClass} rounded-full flex items-center justify-center font-bold shrink-0`}
+      style={{ backgroundColor: "var(--brand-primary)", color: "var(--brand-primary-foreground)" }}
     >
       {name?.[0]?.toUpperCase() ?? "?"}
     </div>
@@ -124,7 +125,7 @@ function MiniChatWindow({ entry, index, edge, onClose, onMinimize }) {
           height: minimized ? WH_MIN : WH,
           transition: "height 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
-        className="rounded-xl shadow-2xl border border-[hsl(var(--border))] bg-white dark:bg-[hsl(222_47%_5%)] flex flex-col overflow-hidden relative"
+        className="rounded-xl shadow-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] flex flex-col overflow-hidden relative"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -250,7 +251,7 @@ function ConversationPanel({ conversations, isLoading, edge, y, currentUserId })
   return (
     <div
       style={{ position: "fixed", [edge]: offset, top: clampedTop, width: 240, zIndex: 9997 }}
-      className="rounded-xl shadow-2xl border border-[hsl(var(--border))] bg-white dark:bg-[hsl(222_47%_6%)] overflow-hidden"
+      className="rounded-xl shadow-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden"
     >
       <div className="px-3 py-2.5 border-b border-[hsl(var(--border))]">
         <p className="text-xs font-semibold">Mensajes recientes</p>
@@ -354,42 +355,51 @@ function FloatingChatHubInner() {
   const handlePointerDown = useCallback(
     (e) => {
       e.stopPropagation();
+      e.preventDefault();
       isDragRef.current = false;
-      dragStartRef.current = { x: e.clientX, y: e.clientY };
+      dragStartRef.current = { x: e.clientX, y: e.clientY, type: e.pointerType };
+      e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    [],
+  );
 
-      const onMove = (me) => {
-        if (!dragStartRef.current) return;
-        const dx = Math.abs(me.clientX - dragStartRef.current.x);
-        const dy = Math.abs(me.clientY - dragStartRef.current.y);
-        if (dx > 6 || dy > 6) {
-          isDragRef.current = true;
-          setDragPos({ x: me.clientX, y: me.clientY });
-        }
-      };
+  const handlePointerMove = useCallback((e) => {
+    if (!dragStartRef.current) return;
+    // Touch has more imprecision than mouse; use a larger threshold to avoid false drags
+    const threshold = dragStartRef.current.type === "touch" ? 12 : 6;
+    const dx = Math.abs(e.clientX - dragStartRef.current.x);
+    const dy = Math.abs(e.clientY - dragStartRef.current.y);
+    if (dx > threshold || dy > threshold) {
+      isDragRef.current = true;
+      setDragPos({ x: e.clientX, y: e.clientY });
+    }
+  }, []);
 
-      const onUp = (ue) => {
-        document.removeEventListener("pointermove", onMove);
-        document.removeEventListener("pointerup", onUp);
-        if (isDragRef.current) {
-          const newEdge = ue.clientX > window.innerWidth / 2 ? "right" : "left";
-          const clampedY = Math.max(
-            60,
-            Math.min(ue.clientY - BS / 2, window.innerHeight - BS - BM * 2),
-          );
-          setPosition(newEdge, clampedY);
-          setDragPos(null);
-        } else {
-          toggle();
-        }
-        isDragRef.current = false;
-        dragStartRef.current = null;
-      };
-
-      document.addEventListener("pointermove", onMove);
-      document.addEventListener("pointerup", onUp);
+  const handlePointerUp = useCallback(
+    (e) => {
+      if (!dragStartRef.current) return;
+      if (isDragRef.current) {
+        const newEdge = e.clientX > window.innerWidth / 2 ? "right" : "left";
+        const clampedY = Math.max(
+          60,
+          Math.min(e.clientY - BS / 2, window.innerHeight - BS - BM * 2),
+        );
+        setPosition(newEdge, clampedY);
+        setDragPos(null);
+      } else {
+        toggle();
+      }
+      isDragRef.current = false;
+      dragStartRef.current = null;
     },
     [setPosition, toggle],
   );
+
+  const handlePointerCancel = useCallback(() => {
+    isDragRef.current = false;
+    dragStartRef.current = null;
+    setDragPos(null);
+  }, []);
 
   if (isError) return null;
 
@@ -430,10 +440,14 @@ function FloatingChatHubInner() {
         <button
           type="button"
           onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
+          style={{ touchAction: "none" }}
           className={[
             "h-14 w-14 rounded-full shadow-xl flex items-center justify-center relative overflow-hidden",
-            "cursor-grab active:cursor-grabbing touch-manipulation select-none",
-            "transition-transform active:scale-95",
+            "cursor-grab select-none",
+            dragPos ? "" : "transition-transform active:scale-95",
             userProfile?.avatarUrl ? "bg-[hsl(var(--muted))]" : "bg-(--brand-primary) text-white",
             isOpen ? "ring-2 ring-white/30" : "",
           ].join(" ")}

@@ -90,6 +90,8 @@ export const MessageComposer = forwardRef(function MessageComposer(
   const recorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recordTimerRef = useRef(null);
+  const voiceAutoSendRef = useRef(false);
+  const handleSendRef = useRef(null);
 
   const { uploadFile } = useChatUpload(conversationId);
 
@@ -177,6 +179,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
         const file = new File([blob], `nota_de_voz_${ts}.${ext}`, { type: baseMime });
         setRecording(false);
         setRecordSeconds(0);
+        voiceAutoSendRef.current = true;
         addFilesToQueue([file]);
       };
 
@@ -301,6 +304,17 @@ export const MessageComposer = forwardRef(function MessageComposer(
       textareaRef.current?.focus();
     }
   }, [body, isSending, onSend, onTyping, pendingFiles]);
+
+  // Keep ref in sync so the auto-send effect never holds a stale closure
+  handleSendRef.current = handleSend;
+
+  // ── Voice auto-send ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!voiceAutoSendRef.current) return;
+    if (pendingFiles.length === 0) return;
+    voiceAutoSendRef.current = false;
+    handleSendRef.current();
+  }, [pendingFiles]);
 
   const handleKeyDown = useCallback(
     (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } },

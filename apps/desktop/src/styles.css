@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @source "../../../packages/ui/src";
 
+/* Use .dark class for dark mode (class strategy), not OS preference */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-primary: var(--brand-primary-computed, var(--brand-primary));
   --color-primary-foreground: var(--brand-primary-foreground);
@@ -347,6 +350,265 @@ body,
   border-radius: 50%;
   background: var(--brand-primary);
   animation: loader-dot-bounce 1.2s ease-in-out var(--dot-delay, 0s) infinite;
+}
+
+/* ── TipTap Notes editor ─────────────────────────────────── */
+/* Tailwind preflight resets h1-h6, strong, em, etc. to inherit.
+   These rules restore visual meaning inside the editor content area. */
+.tiptap {
+  font-size: 0.9375rem;
+  line-height: 1.72;
+  color: hsl(var(--foreground));
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  caret-color: #f59e0b;
+}
+
+/* First paragraph = Apple-Notes-style title */
+.tiptap > p:first-child {
+  font-size: 1.625rem !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.02em;
+  color: hsl(var(--foreground));
+  margin-bottom: 0.625rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+/* Headings */
+.tiptap h1 {
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  line-height: 1.3;
+  margin: 1.25rem 0 0.5rem;
+  color: hsl(var(--foreground));
+  letter-spacing: -0.015em;
+}
+.tiptap h2 {
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  line-height: 1.35;
+  margin: 1rem 0 0.375rem;
+  color: hsl(var(--foreground));
+}
+.tiptap h3 {
+  font-size: 1.0625rem !important;
+  font-weight: 600 !important;
+  line-height: 1.4;
+  margin: 0.875rem 0 0.25rem;
+  color: hsl(var(--foreground));
+}
+
+/* Paragraph */
+.tiptap p { margin: 0.3rem 0; }
+
+/* Marks */
+.tiptap strong { font-weight: 700 !important; }
+.tiptap em     { font-style: italic !important; }
+.tiptap s, .tiptap del { text-decoration: line-through; }
+.tiptap u { text-decoration: underline; text-underline-offset: 2px; }
+
+/* Inline code */
+.tiptap :not(pre) > code {
+  background: hsl(var(--muted));
+  border-radius: 0.25rem;
+  padding: 0.1em 0.35em;
+  font-size: 0.875em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Code block */
+.tiptap pre {
+  background: hsl(222 47% 11%);
+  color: hsl(210 40% 90%);
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  line-height: 1.6;
+}
+.tiptap pre code {
+  background: none !important;
+  padding: 0 !important;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* Blockquote */
+.tiptap blockquote {
+  border-left: 3px solid #f59e0b;
+  padding-left: 1rem;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+  margin: 0.75rem 0;
+}
+
+/* Lists */
+.tiptap ul:not([data-type="taskList"]) {
+  list-style-type: disc;
+  list-style-position: outside;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+.tiptap ol {
+  list-style-type: decimal;
+  list-style-position: outside;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+.tiptap li {
+  margin: 0.2rem 0;
+  line-height: 1.65;
+  display: list-item;
+}
+.tiptap li > p { margin: 0; }
+.tiptap ul ul:not([data-type="taskList"]) { list-style-type: circle; }
+.tiptap ul ul ul:not([data-type="taskList"]) { list-style-type: square; }
+
+/* Task list */
+.tiptap ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.5rem 0;
+}
+.tiptap ul[data-type="taskList"] > li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  list-style: none;
+}
+.tiptap ul[data-type="taskList"] > li > label {
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+  cursor: pointer;
+}
+.tiptap ul[data-type="taskList"] > li > label input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #f59e0b;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.tiptap ul[data-type="taskList"] > li[data-checked="true"] > div {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.tiptap ul[data-type="taskList"] > li > div { flex: 1; }
+
+/* Horizontal rule */
+.tiptap hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 1rem 0;
+}
+
+/* Links */
+.tiptap a {
+  color: #3b82f6;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  border-radius: 2px;
+}
+.tiptap a:hover { opacity: 0.75; }
+
+/* Tables */
+.tiptap table {
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  width: 100%;
+  font-size: 0.875rem;
+  table-layout: fixed;
+}
+.tiptap th,
+.tiptap td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.4rem 0.75rem;
+  vertical-align: top;
+  text-align: left;
+  position: relative;
+}
+.tiptap th {
+  background: hsl(var(--muted));
+  font-weight: 600 !important;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: hsl(var(--muted-foreground));
+}
+.tiptap .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(245, 158, 11, 0.12);
+  pointer-events: none;
+}
+.tiptap .column-resize-handle {
+  background: #f59e0b;
+  bottom: -2px;
+  pointer-events: none;
+  position: absolute;
+  right: -2px;
+  top: 0;
+  width: 2px;
+}
+.tiptap .tableWrapper {
+  overflow-x: auto;
+  margin: 0.75rem 0;
+}
+.tiptap .resize-cursor { cursor: col-resize; }
+
+/* Placeholder — TipTap adds data-placeholder + is-empty on empty blocks */
+.tiptap p.is-empty::before,
+.tiptap h1.is-empty::before,
+.tiptap h2.is-empty::before,
+.tiptap h3.is-empty::before {
+  color: hsl(var(--muted-foreground));
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+/* Title-size placeholder for empty first paragraph */
+.tiptap > p:first-child.is-empty::before {
+  font-size: 1.625rem !important;
+  font-weight: 700 !important;
+  opacity: 0.45;
+}
+
+/* Highlighted text — force dark text in dark mode so light pastels remain readable.
+   Without this, white --foreground text on #fef08a (yellow) etc. is invisible.
+   !important is required to override both CSS inheritance from .tiptap and
+   any inline color style that TextStyle/Color extension may have injected. */
+.dark .tiptap mark,
+.dark .tiptap mark span {
+  color: #1a1a1a !important;
+}
+
+/* Collaboration cursors */
+.collaboration-cursor__caret {
+  border-left: 1px solid;
+  border-right: 1px solid;
+  margin-left: -1px;
+  margin-right: -1px;
+  pointer-events: none;
+  position: relative;
+  word-break: normal;
+}
+.collaboration-cursor__label {
+  border-radius: 3px 3px 3px 0;
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 600;
+  left: -1px;
+  line-height: 1;
+  padding: 0.2rem 0.35rem;
+  position: absolute;
+  top: -1.4em;
+  user-select: none;
+  white-space: nowrap;
 }
 
 /* ── MDXEditor theme overrides ────────────────────────────── */

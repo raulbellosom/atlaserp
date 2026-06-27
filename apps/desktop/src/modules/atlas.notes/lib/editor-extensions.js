@@ -32,9 +32,13 @@ export function buildExtensions({ ydoc, provider, userColor, userName, readOnly 
     // the 'image' node. Including both would produce a duplicate-extension warning.
     CharacterCount,
     Placeholder.configure({
-      placeholder: ({ node }) => {
+      showOnlyCurrent: false,
+      placeholder: ({ editor, node }) => {
+        const isFirstNode = editor.state.doc.firstChild === node
+        if (isFirstNode) return 'Titulo de la nota...'
         if (node.type.name === 'heading') return 'Titulo...'
-        return 'Escribe algo...'
+        // Don't show placeholder on empty paragraphs in the middle of existing content
+        return ''
       },
     }),
   ]

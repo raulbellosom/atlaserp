@@ -51,6 +51,7 @@ export function useSetNoteTags() {
     onSuccess: (_, { noteId }) => {
       qc.invalidateQueries({ queryKey: ['notes', noteId] })
       qc.invalidateQueries({ queryKey: ['notes', 'tags'] })
+      qc.invalidateQueries({ queryKey: ['notes'] })
     },
   })
 }

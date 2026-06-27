@@ -1,34 +1,144 @@
 import { useCurrentEditor } from '@tiptap/react'
-import { Undo2, Redo2, Link2, PenLine, Table2 } from 'lucide-react'
+import {
+  Undo2, Redo2, Link2, PenLine, Table2, ChevronDown,
+  Bold, Italic, Underline as UnderlineIcon, Strikethrough,
+  Code, Code2, List, ListOrdered, ListChecks,
+  Quote, Type, Highlighter,
+} from 'lucide-react'
+import { Popover, PopoverTrigger, PopoverContent } from '@atlas/ui'
+import { useIsDark } from '../hooks/useIsDark.js'
 
-const ToolbarButton = ({ onClick, active, disabled, title, children }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    title={title}
-    className={`px-2 py-1 rounded text-sm transition-colors ${
-      active
-        ? 'bg-amber-100 text-amber-700 font-semibold'
-        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-    } disabled:opacity-30 disabled:cursor-not-allowed`}
-  >
-    {children}
-  </button>
-)
+const TEXT_COLORS_LIGHT = [
+  '#0f172a', '#475569', '#94a3b8', '#cbd5e1',
+  '#ef4444', '#f97316', '#eab308', '#22c55e',
+  '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6',
+  '#ec4899', '#d946ef',
+]
+const TEXT_COLORS_DARK = [
+  '#f8fafc', '#94a3b8', '#475569', '#1e293b',
+  '#f87171', '#fb923c', '#facc15', '#4ade80',
+  '#22d3ee', '#60a5fa', '#818cf8', '#a78bfa',
+  '#f472b6', '#e879f9',
+]
 
-const Divider = () => <div className="h-5 w-px bg-gray-200 mx-1" />
+// Same pastels in both modes — CSS forces dark text on marks in dark mode
+const HIGHLIGHT_COLORS_LIGHT = [
+  '#fef08a', '#bbf7d0', '#bfdbfe', '#e9d5ff',
+  '#fce7f3', '#fed7aa', '#fecaca', '#cffafe',
+]
+const HIGHLIGHT_COLORS_DARK = HIGHLIGHT_COLORS_LIGHT
+
+function ToolbarButton({ onClick, active, disabled, title, children }) {
+  return (
+    <button
+      onMouseDown={e => { e.preventDefault(); onClick?.() }}
+      disabled={disabled}
+      title={title}
+      className={[
+        'h-7 min-w-7 px-1.5 rounded flex items-center justify-center gap-1 text-sm transition-colors select-none',
+        active
+          ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+        disabled ? 'opacity-30 cursor-not-allowed' : '',
+      ].join(' ')}
+    >
+      {children}
+    </button>
+  )
+}
+
+function Divider() {
+  return <div className="h-5 w-px bg-border mx-0.5 shrink-0" />
+}
+
+function ColorPopover({ title, colors, onColor, onClear, isColorActive, triggerIsActive, triggerContent }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          onMouseDown={e => e.preventDefault()}
+          className={[
+            'h-7 min-w-7 px-1.5 rounded flex items-center justify-center gap-0.5 transition-colors select-none',
+            triggerIsActive
+              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          ].join(' ')}
+          title={title}
+        >
+          {triggerContent}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="p-3 w-auto" side="bottom" align="start">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">{title}</p>
+        <div className="grid grid-cols-7 gap-1.5">
+          {colors.map(c => (
+            <button
+              key={c}
+              onMouseDown={e => { e.preventDefault(); onColor(c) }}
+              style={{ backgroundColor: c }}
+              title={c}
+              className={[
+                'w-6 h-6 rounded border-2 transition-all hover:scale-110',
+                isColorActive(c)
+                  ? 'border-amber-500 scale-110 shadow-sm'
+                  : 'border-border hover:border-foreground/40',
+              ].join(' ')}
+            />
+          ))}
+        </div>
+        <button
+          onMouseDown={e => { e.preventDefault(); onClear() }}
+          className="mt-2.5 w-full text-[11px] text-muted-foreground hover:text-foreground text-left px-1 py-1 rounded hover:bg-muted transition-colors"
+        >
+          Sin color
+        </button>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function TableMenuItem({ label, onClick, destructive }) {
+  return (
+    <button
+      onMouseDown={e => { e.preventDefault(); onClick() }}
+      className={[
+        'w-full text-left px-3 py-1.5 text-sm rounded transition-colors',
+        destructive
+          ? 'text-destructive hover:bg-destructive/10'
+          : 'text-foreground hover:bg-muted',
+      ].join(' ')}
+    >
+      {label}
+    </button>
+  )
+}
 
 export function NoteToolbar() {
   const { editor } = useCurrentEditor()
+  const isDark = useIsDark()
   if (!editor) return null
 
+  const TEXT_COLORS = isDark ? TEXT_COLORS_DARK : TEXT_COLORS_LIGHT
+  const HIGHLIGHT_COLORS = isDark ? HIGHLIGHT_COLORS_DARK : HIGHLIGHT_COLORS_LIGHT
+
+  const activeTextColor = editor.getAttributes('textStyle').color ?? null
+
   return (
-    <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-gray-200 bg-white flex-wrap sticky top-0 z-10">
+    <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-border bg-background/90 backdrop-blur-sm flex-wrap sticky top-0 z-10 shadow-sm">
+
       {/* History */}
-      <ToolbarButton onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Deshacer">
+      <ToolbarButton
+        onClick={() => editor.chain().focus().undo().run()}
+        disabled={!editor.can().undo()}
+        title="Deshacer (Ctrl+Z)"
+      >
         <Undo2 className="w-3.5 h-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Rehacer">
+      <ToolbarButton
+        onClick={() => editor.chain().focus().redo().run()}
+        disabled={!editor.can().redo()}
+        title="Rehacer (Ctrl+Y)"
+      >
         <Redo2 className="w-3.5 h-3.5" />
       </ToolbarButton>
 
@@ -42,7 +152,7 @@ export function NoteToolbar() {
           active={editor.isActive('heading', { level: l })}
           title={`Titulo ${l}`}
         >
-          H{l}
+          <span className="font-bold text-xs">H{l}</span>
         </ToolbarButton>
       ))}
 
@@ -52,88 +162,70 @@ export function NoteToolbar() {
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBold().run()}
         active={editor.isActive('bold')}
-        title="Negrita"
+        title="Negrita (Ctrl+B)"
       >
-        <strong>N</strong>
+        <Bold className="w-3.5 h-3.5" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleItalic().run()}
         active={editor.isActive('italic')}
-        title="Cursiva"
+        title="Cursiva (Ctrl+I)"
       >
-        <em>C</em>
+        <Italic className="w-3.5 h-3.5" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleUnderline().run()}
         active={editor.isActive('underline')}
-        title="Subrayado"
+        title="Subrayado (Ctrl+U)"
       >
-        <u>S</u>
+        <UnderlineIcon className="w-3.5 h-3.5" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleStrike().run()}
         active={editor.isActive('strike')}
         title="Tachado"
       >
-        <s>T</s>
+        <Strikethrough className="w-3.5 h-3.5" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleCode().run()}
         active={editor.isActive('code')}
-        title="Codigo"
+        title="Codigo inline"
       >
-        {'<>'}
+        <Code className="w-3.5 h-3.5" />
       </ToolbarButton>
 
       <Divider />
 
-      {/* Text colors */}
-      <div className="relative flex items-center gap-1" title="Color de texto">
-        <span className="text-xs text-gray-500">A</span>
-        {['#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6', '#1a1a1a'].map(c => (
-          <button
-            key={c}
-            onClick={() => editor.chain().focus().setColor(c).run()}
-            className={`w-4 h-4 rounded-full border-2 ${
-              editor.isActive('textStyle', { color: c }) ? 'border-amber-500' : 'border-transparent'
-            }`}
-            style={{ backgroundColor: c }}
-            title={c}
-          />
-        ))}
-        <button
-          onClick={() => editor.chain().focus().unsetColor().run()}
-          className="text-xs text-gray-400 hover:text-gray-600 px-1"
-          title="Sin color de texto"
-        >
-          &#x2715;
-        </button>
-      </div>
+      {/* Text color */}
+      <ColorPopover
+        title="Color de texto"
+        colors={TEXT_COLORS}
+        onColor={c => editor.chain().focus().setColor(c).run()}
+        onClear={() => editor.chain().focus().unsetColor().run()}
+        isColorActive={c => editor.isActive('textStyle', { color: c })}
+        triggerIsActive={Boolean(activeTextColor)}
+        triggerContent={
+          <span className="flex flex-col items-center gap-0.75">
+            <Type className="w-3.5 h-3.5" />
+            <span
+              className="w-4 h-0.75 rounded-full transition-colors"
+              style={{ backgroundColor: activeTextColor ?? '#0f172a' }}
+            />
+          </span>
+        }
+      />
 
-      <Divider />
-
-      {/* Highlights */}
-      <div className="relative flex items-center gap-1" title="Resaltado">
-        <span className="text-xs text-gray-500">&#x25AE;</span>
-        {['#fef08a', '#bbf7d0', '#bfdbfe', '#f5d0fe', '#fed7aa'].map(c => (
-          <button
-            key={c}
-            onClick={() => editor.chain().focus().toggleHighlight({ color: c }).run()}
-            className={`w-4 h-4 rounded border-2 ${
-              editor.isActive('highlight', { color: c }) ? 'border-amber-500' : 'border-transparent'
-            }`}
-            style={{ backgroundColor: c }}
-            title={c}
-          />
-        ))}
-        <button
-          onClick={() => editor.chain().focus().unsetHighlight().run()}
-          className="text-xs text-gray-400 hover:text-gray-600 px-1"
-          title="Sin resaltado"
-        >
-          &#x2715;
-        </button>
-      </div>
+      {/* Highlight */}
+      <ColorPopover
+        title="Color de resaltado"
+        colors={HIGHLIGHT_COLORS}
+        onColor={c => editor.chain().focus().toggleHighlight({ color: c }).run()}
+        onClear={() => editor.chain().focus().unsetHighlight().run()}
+        isColorActive={c => editor.isActive('highlight', { color: c })}
+        triggerIsActive={editor.isActive('highlight')}
+        triggerContent={<Highlighter className="w-3.5 h-3.5" />}
+      />
 
       <Divider />
 
@@ -143,54 +235,98 @@ export function NoteToolbar() {
         active={editor.isActive('bulletList')}
         title="Lista de viñetas"
       >
-        &bull; Lista
+        <List className="w-3.5 h-3.5" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
         active={editor.isActive('orderedList')}
         title="Lista numerada"
       >
-        1. Lista
+        <ListOrdered className="w-3.5 h-3.5" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleTaskList().run()}
         active={editor.isActive('taskList')}
         title="Lista de tareas"
       >
-        &#x2611; Tareas
+        <ListChecks className="w-3.5 h-3.5" />
       </ToolbarButton>
 
       <Divider />
 
-      {/* Blocks */}
-      <ToolbarButton onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')} title="Cita">
-        Cita
+      {/* Block elements */}
+      <ToolbarButton
+        onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        active={editor.isActive('blockquote')}
+        title="Cita"
+      >
+        <Quote className="w-3.5 h-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editor.isActive('codeBlock')} title="Bloque de codigo">
-        {'{ }'}
+      <ToolbarButton
+        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+        active={editor.isActive('codeBlock')}
+        title="Bloque de codigo"
+      >
+        <Code2 className="w-3.5 h-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} title="Insertar tabla">
+      <ToolbarButton
+        onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+        title="Insertar tabla"
+      >
         <Table2 className="w-3.5 h-3.5" />
       </ToolbarButton>
 
       <Divider />
 
-      {/* Custom blocks */}
-      <ToolbarButton onClick={() => editor.chain().focus().insertDrawingBlock().run()} title="Insertar dibujo">
+      {/* Drawing + link */}
+      <ToolbarButton
+        onClick={() => editor.chain().focus().insertDrawingBlock().run()}
+        title="Insertar canvas de dibujo"
+      >
         <PenLine className="w-3.5 h-3.5" />
       </ToolbarButton>
-
-      {/* Link */}
       <ToolbarButton
         onClick={() => {
           const currentHref = editor.getAttributes('link').href ?? ''
           editor.chain().focus().setLink({ href: currentHref }).run()
         }}
         active={editor.isActive('link')}
-        title="Enlace"
+        title="Insertar enlace"
       >
         <Link2 className="w-3.5 h-3.5" />
       </ToolbarButton>
+
+      {/* Table context menu — only when cursor is inside a table */}
+      {editor.isActive('table') && (
+        <>
+          <Divider />
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                onMouseDown={e => e.preventDefault()}
+                className="h-7 px-2 rounded flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors select-none"
+                title="Opciones de tabla"
+              >
+                <Table2 className="w-3.5 h-3.5" />
+                <span>Tabla</span>
+                <ChevronDown className="w-3 h-3" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="p-1 w-52" side="bottom" align="start">
+              <TableMenuItem label="Agregar columna a la derecha" onClick={() => editor.chain().focus().addColumnAfter().run()} />
+              <TableMenuItem label="Agregar columna a la izquierda" onClick={() => editor.chain().focus().addColumnBefore().run()} />
+              <TableMenuItem label="Agregar fila abajo" onClick={() => editor.chain().focus().addRowAfter().run()} />
+              <TableMenuItem label="Agregar fila arriba" onClick={() => editor.chain().focus().addRowBefore().run()} />
+              <div className="my-1 border-t border-border" />
+              <TableMenuItem label="Eliminar columna" onClick={() => editor.chain().focus().deleteColumn().run()} destructive />
+              <TableMenuItem label="Eliminar fila" onClick={() => editor.chain().focus().deleteRow().run()} destructive />
+              <div className="my-1 border-t border-border" />
+              <TableMenuItem label="Eliminar tabla" onClick={() => editor.chain().focus().deleteTable().run()} destructive />
+            </PopoverContent>
+          </Popover>
+        </>
+      )}
+
     </div>
   )
 }

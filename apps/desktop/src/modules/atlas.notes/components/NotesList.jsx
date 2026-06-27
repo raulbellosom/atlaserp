@@ -14,21 +14,21 @@ export function NotesList({ notes = [], selectedNoteId, onSelect, onTrash, isLoa
     : notes
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      <div className="px-3 py-2.5 border-b border-gray-100">
+    <div className="flex flex-col h-full bg-card">
+      <div className="px-3 py-2.5 border-b border-border">
         <div className="relative flex items-center">
-          <Search className="absolute left-2.5 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+          <Search className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar notas..."
-            className="w-full pl-8 pr-7 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-300 focus:border-amber-300 transition-colors placeholder:text-gray-400"
+            className="w-full pl-8 pr-7 py-1.5 text-sm bg-muted border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 focus:border-amber-400 transition-colors placeholder:text-muted-foreground text-foreground"
           />
           {search && (
             <button
               onClick={() => setSearch('')}
-              className="absolute right-2 text-gray-400 hover:text-gray-600"
+              className="absolute right-2 text-muted-foreground hover:text-foreground transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -40,7 +40,7 @@ export function NotesList({ notes = [], selectedNoteId, onSelect, onTrash, isLoa
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-40 gap-2">
             <div className="w-5 h-5 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
-            <span className="text-xs text-gray-400">Cargando notas...</span>
+            <span className="text-xs text-muted-foreground">Cargando notas...</span>
           </div>
         ) : filtered.length === 0 ? (
           <div className="px-4 py-8">

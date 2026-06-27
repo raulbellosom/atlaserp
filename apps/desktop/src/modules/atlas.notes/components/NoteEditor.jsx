@@ -1,5 +1,6 @@
 import { EditorProvider } from '@tiptap/react'
 import { useEffect, useRef, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import * as Y from 'yjs'
 import { useAuth } from '../../../auth/AuthProvider'
 import { atlas } from '../../../lib/atlas'
@@ -15,6 +16,7 @@ const AUTOSAVE_DELAY = 1500
 export function NoteEditor({ note, readOnly = false }) {
   const { session } = useAuth()
   const token = session?.access_token
+  const queryClient = useQueryClient()
   const ydocRef = useRef(null)
   const providerRef = useRef(null)
   const saveTimerRef = useRef(null)
@@ -53,8 +55,15 @@ export function NoteEditor({ note, readOnly = false }) {
         isSavingRef.current = true
         try {
           const content = editor.getHTML()
-          await atlas.notes.update(note.id, { content }, token)
-          // Also persist Y.js state
+          // First paragraph text becomes the note title (Apple Notes pattern)
+          const firstChild = editor.state.doc.firstChild
+          const firstLineText = firstChild?.textContent?.trim() ?? ''
+          const patch = { content }
+          if (firstLineText) patch.title = firstLineText
+          await atlas.notes.update(note.id, patch, token)
+          // Invalidate so NotesList and the topbar title update immediately
+          queryClient.invalidateQueries({ queryKey: ['notes'] })
+          queryClient.invalidateQueries({ queryKey: ['notes', note.id] })
           if (ydocRef.current) {
             const state = Y.encodeStateAsUpdate(ydocRef.current)
             const stateB64 = btoa(String.fromCharCode(...state))
@@ -86,7 +95,7 @@ export function NoteEditor({ note, readOnly = false }) {
   ]
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-white">
+    <div className="flex flex-col h-full overflow-hidden">
       <EditorProvider
         extensions={extensions}
         content={note.content || ''}
@@ -94,8 +103,7 @@ export function NoteEditor({ note, readOnly = false }) {
         onUpdate={handleUpdate}
         editorProps={{
           attributes: {
-            class:
-              'prose prose-sm max-w-none focus:outline-none px-8 py-6 min-h-full',
+            class: 'focus:outline-none px-8 py-6 min-h-full',
           },
         }}
         slotBefore={!readOnly ? <NoteToolbar /> : null}

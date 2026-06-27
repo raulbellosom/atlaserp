@@ -60,7 +60,7 @@ function ChatHeader({ conversation, currentUserId, onlineUsers, onClose }) {
             onError={() => setAvatarErr(true)}
           />
         ) : (
-          <div className="h-9 w-9 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center font-semibold text-sm">
+          <div className="h-9 w-9 rounded-full flex items-center justify-center font-semibold text-sm" style={{ backgroundColor: "var(--brand-primary)", color: "var(--brand-primary-foreground)" }}>
             {initial}
           </div>
         )}

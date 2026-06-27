@@ -42,7 +42,8 @@ export function createSharesService({ prisma, broadcaster }) {
       SELECT
         ns.*,
         up.display_name,
-        up.avatar_url
+        up.email        AS user_email,
+        up.avatar_file_id
       FROM note_shares ns
       JOIN user_profile up ON ns.shared_with_user_id = up.id
       WHERE ns.note_id = ${noteId}
@@ -117,18 +118,18 @@ export function createSharesService({ prisma, broadcaster }) {
       WHERE id = ${noteId} AND owner_user_id = ${userId} AND deleted_at IS NULL
     `
     if (!rows.length) throw new SharesServiceError('No tienes permiso para realizar esta acción', 403)
-    const note = rows[0]
-    if (note.is_public && note.public_slug) {
-      return { publicSlug: note.public_slug, url: '/p/notes/' + note.public_slug }
+    const existing = rows[0]
+    if (!existing.is_public || !existing.public_slug) {
+      const slug = randomBytes(8).toString('base64url')
+      await prisma.$executeRaw`
+        UPDATE notes SET is_public = true, public_slug = ${slug}
+        WHERE id = ${noteId} AND owner_user_id = ${userId}
+      `
     }
-    const slug = randomBytes(8).toString('base64url')
     const updated = await prisma.$queryRaw`
-      UPDATE notes SET is_public = true, public_slug = ${slug}
-      WHERE id = ${noteId} AND owner_user_id = ${userId}
-      RETURNING public_slug
+      SELECT * FROM notes WHERE id = ${noteId}
     `
-    const publicSlug = updated[0].public_slug
-    return { publicSlug, url: '/p/notes/' + publicSlug }
+    return updated[0]
   }
 
   async function unpublishNote(noteId, userId) {
@@ -137,11 +138,14 @@ export function createSharesService({ prisma, broadcaster }) {
       WHERE id = ${noteId} AND owner_user_id = ${userId} AND deleted_at IS NULL
     `
     if (!rows.length) throw new SharesServiceError('No tienes permiso para realizar esta acción', 403)
-    await prisma.$queryRaw`
+    await prisma.$executeRaw`
       UPDATE notes SET is_public = false, public_slug = NULL
       WHERE id = ${noteId} AND owner_user_id = ${userId}
     `
-    return { ok: true }
+    const updated = await prisma.$queryRaw`
+      SELECT * FROM notes WHERE id = ${noteId}
+    `
+    return updated[0]
   }
 
   async function getPublicNote(slug) {

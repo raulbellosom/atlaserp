@@ -8,7 +8,7 @@ export const chatCreateConversationSchema = z.object({
 });
 
 export const chatSendMessageSchema = z.object({
-  body: z.string().max(10000).default(""),
+  body: z.string().max(10000).nullish().transform(v => v ?? ""),
   messageType: z.enum(["text", "image", "file", "system"]).default("text"),
   metadata: z.record(z.unknown()).optional(),
   attachmentIds: z.array(z.string().uuid()).optional(),

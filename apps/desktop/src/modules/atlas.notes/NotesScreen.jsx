@@ -8,6 +8,8 @@ import { ConfirmDialog } from '@atlas/ui'
 import { useNotes, useCreateNote } from './hooks/useNotes.js'
 import { useNote, useUpdateNote, useTrashNote, useRestoreNote, usePermanentDeleteNote } from './hooks/useNote.js'
 import { usePublishNote, useUnpublishNote } from './hooks/useNoteShares.js'
+import { useIsDark } from './hooks/useIsDark.js'
+import { DARK_BG_MAP } from './lib/noteColors.js'
 import { NotesList } from './components/NotesList.jsx'
 import { NoteEditor } from './components/NoteEditor.jsx'
 import { NoteSettingsPanel } from './components/NoteSettingsPanel.jsx'
@@ -47,8 +49,19 @@ export default function NotesScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlNoteData?.note?.id])
 
+  // Keep selectedNote in sync with server after any mutation invalidates ['notes', id]
+  const { data: liveNoteData } = useNote(selectedNote?.id)
+  useEffect(() => {
+    if (liveNoteData?.note && liveNoteData.note.id === selectedNote?.id) {
+      setSelectedNote(liveNoteData.note)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveNoteData])
+
   const { data, isLoading } = useNotes(buildQueryParams(activeView, folderId))
   const notes = data?.notes ?? []
+
+  const isDark = useIsDark()
 
   const createNote      = useCreateNote()
   const updateNote      = useUpdateNote()
@@ -85,6 +98,17 @@ export default function NotesScreen() {
 
   const handleUpdateNote = useCallback((patch) => {
     if (!selectedNote) return
+    // Optimistic local update so the UI reacts instantly (title bar, bg color, etc.)
+    const camelToSnake = {
+      title: 'title', content: 'content', icon: 'icon',
+      backgroundColor: 'background_color', folderId: 'folder_id',
+      isPinned: 'is_pinned', isArchived: 'is_archived', coverUrl: 'cover_url',
+    }
+    const localPatch = {}
+    for (const [k, v] of Object.entries(patch)) {
+      localPatch[camelToSnake[k] ?? k] = v
+    }
+    setSelectedNote(prev => prev ? { ...prev, ...localPatch } : prev)
     updateNote.mutate(
       { noteId: selectedNote.id, data: patch },
       { onSuccess: (res) => { if (res?.note) setSelectedNote(res.note) } },
@@ -173,7 +197,12 @@ export default function NotesScreen() {
           'flex-1 min-w-0 flex flex-col overflow-hidden bg-background',
           mobileView === 'editor' ? 'flex' : 'hidden lg:flex',
         ].join(' ')}
-        style={selectedNote?.background_color ? { backgroundColor: selectedNote.background_color } : {}}
+        style={(() => {
+          const raw = selectedNote?.background_color
+          if (!raw) return {}
+          const color = isDark ? (DARK_BG_MAP[raw] ?? raw) : raw
+          return { backgroundColor: color }
+        })()}
       >
         <div className="flex items-center gap-2 px-3 h-11 border-b border-border shrink-0 bg-background/95 backdrop-blur-sm">
           <button

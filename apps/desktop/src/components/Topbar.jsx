@@ -149,14 +149,20 @@ export function Topbar({
               <CompanySwitcher token={token} />
             </span>
           )}
-          <ThemeToggle />
+          {/* ThemeToggle — hidden on mobile, accessible via UserMenu */}
+          <span className="hidden sm:contents">
+            <ThemeToggle />
+          </span>
+          {/* ActivityBell — hidden on mobile, accessible via UserMenu */}
           {token && canReadActivity && (
-            <ActivityBellTrigger
-              sdk={atlas}
-              token={token}
-              onSelect={setSelectedActivity}
-              onSeeAll={() => navigate("/app/m/atlas.activity")}
-            />
+            <span className="hidden sm:contents">
+              <ActivityBellTrigger
+                sdk={atlas}
+                token={token}
+                onSelect={setSelectedActivity}
+                onSeeAll={() => navigate("/app/m/atlas.activity")}
+              />
+            </span>
           )}
           <ActivityDetailSheet
             activity={selectedActivity}
@@ -188,6 +194,8 @@ export function Topbar({
             canInstall={canInstall}
             manualInstallReady={manualInstallReady}
             onInstall={onInstall}
+            canReadActivity={canReadActivity}
+            onActivityOpen={() => navigate("/app/m/atlas.activity")}
           />
         </div>
       </div>

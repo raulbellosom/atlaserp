@@ -27,7 +27,8 @@ function UserAvatar({ user, size = "md" }) {
   }
   return (
     <div
-      className={`${sizeClass} rounded-full bg-[hsl(var(--muted))] flex items-center justify-center font-semibold shrink-0`}
+      className={`${sizeClass} rounded-full flex items-center justify-center font-semibold shrink-0`}
+      style={{ backgroundColor: "var(--brand-primary)", color: "var(--brand-primary-foreground)" }}
     >
       {user.displayName?.[0]?.toUpperCase() ?? "?"}
     </div>

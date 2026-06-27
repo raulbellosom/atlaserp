@@ -20,7 +20,7 @@ export function createRealtimeBroadcaster({ supabaseUrl, serviceRoleKey }) {
   async function broadcastToUser(profileId, event, payload) {
     if (!profileId) return
     await _send([{
-      topic: `realtime:user:${profileId}:events`,
+      topic: `user:${profileId}:events`,
       event,
       payload: payload ?? {},
     }]).catch((err) => {
@@ -33,7 +33,7 @@ export function createRealtimeBroadcaster({ supabaseUrl, serviceRoleKey }) {
     if (!ids.length) return
     await _send(
       ids.map((id) => ({
-        topic: `realtime:user:${id}:events`,
+        topic: `user:${id}:events`,
         event,
         payload: payload ?? {},
       })),

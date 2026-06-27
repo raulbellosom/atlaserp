@@ -116,7 +116,7 @@ export function NoteShareModal({ noteId, open, onOpenChange }) {
               {shares.map(share => (
                 <div key={share.id} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900 truncate">{share.user_name ?? share.user_email}</p>
+                    <p className="text-sm text-gray-900 truncate">{share.display_name ?? share.user_email}</p>
                     <p className="text-xs text-gray-400 truncate">{share.user_email}</p>
                   </div>
                   <select
