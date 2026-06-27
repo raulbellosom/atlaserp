@@ -43,6 +43,7 @@
   "dependencies": {
     "@atlas/module-engine": "workspace:*",
     "@prisma/adapter-pg": "^7.8.0",
+    "pg": "^8.13.3",
     "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
     "hono": "^4.12.18",

@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import pkg from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
+import pg from 'pg'
 import { createNotificationDeliveryWorker } from '../../api/src/services/notification-delivery-worker.js'
 import { createCalendarNotificationService } from '../../api/src/routes/calendar/calendar-notification-service.js'
 import { createSyncLogCleanupWorker } from '../../api/src/services/sync-cleanup-worker.js'
@@ -31,9 +32,15 @@ if (!prismaConnectionString) {
   )
 }
 
-const prismaAdapter = new PrismaPg({
+const pgPool = new pg.Pool({
   connectionString: prismaConnectionString,
+  max: 5,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,
 })
+const prismaAdapter = new PrismaPg(pgPool)
 const prisma = new PrismaClient({ adapter: prismaAdapter })
 const deliveryWorker = createNotificationDeliveryWorker({ prisma })
 const calendarNotificationService = createCalendarNotificationService({ prisma })

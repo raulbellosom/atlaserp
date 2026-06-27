@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import ExcelJS from "exceljs";
 import pkg from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
 const { PrismaClient } = pkg;
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -98,9 +99,17 @@ loadEnv({
 
 const prismaConnectionString =
   process.env.DATABASE_URL ?? process.env.DIRECT_URL;
-const prismaAdapter = new PrismaPg({
+// Use an explicit pg Pool with keepAlive so firewalls/VPS idle timeouts don't
+// silently drop connections and cause "Connection terminated unexpectedly" crashes.
+const pgPool = new pg.Pool({
   connectionString: prismaConnectionString,
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,
 });
+const prismaAdapter = new PrismaPg(pgPool);
 const prisma = new PrismaClient({ adapter: prismaAdapter });
 const app = new Hono();
 const port = Number(process.env.ATLAS_API_PORT ?? 4010);
@@ -5072,3 +5081,28 @@ console.log(`Atlas API running on http://localhost:${port}`);
 
 process.on("SIGTERM", () => server.close(() => process.exit(0)));
 process.on("SIGINT", () => server.close(() => process.exit(0)));
+
+// Prevent stale-connection errors from the Prisma pg pool from crashing the
+// API process. These are transient and Prisma will reconnect on the next query.
+process.on("unhandledRejection", (reason) => {
+  const msg = reason instanceof Error ? reason.message : String(reason ?? "");
+  console.error("[api] unhandledRejection (non-fatal):", msg);
+});
+process.on("uncaughtException", (err) => {
+  const msg = err?.message ?? String(err);
+  // Re-throw anything that isn't a transient DB connection error — those should
+  // still crash the process so we don't silently swallow real bugs.
+  const isConnectionError =
+    msg.includes("Connection terminated") ||
+    msg.includes("Connection reset") ||
+    msg.includes("Server has closed the connection") ||
+    msg.includes("EPIPE") ||
+    err?.code === "P1001" ||
+    err?.code === "P1017";
+  if (isConnectionError) {
+    console.error("[api] uncaughtException (transient DB error, continuing):", msg);
+    return;
+  }
+  console.error("[api] uncaughtException (fatal):", err);
+  process.exit(1);
+});
