@@ -1,0 +1,107 @@
+import { EditorProvider } from '@tiptap/react'
+import { useEffect, useRef, useCallback } from 'react'
+import * as Y from 'yjs'
+import { useAuth } from '../../../auth/AuthProvider'
+import { atlas } from '../../../lib/atlas'
+import { supabase } from '../../../lib/supabase'
+import { SupabaseYjsProvider } from '../lib/SupabaseYjsProvider.js'
+import { buildExtensions } from '../lib/editor-extensions.js'
+import { NoteToolbar } from './NoteToolbar.jsx'
+import { DrawingBlock } from '../lib/extensions/DrawingBlock.jsx'
+import { AnnotatableImage } from '../lib/extensions/AnnotatableImage.jsx'
+
+const AUTOSAVE_DELAY = 1500
+
+export function NoteEditor({ note, readOnly = false }) {
+  const { session } = useAuth()
+  const token = session?.access_token
+  const ydocRef = useRef(null)
+  const providerRef = useRef(null)
+  const saveTimerRef = useRef(null)
+  const isSavingRef = useRef(false)
+
+  // Create Y.js doc and provider once per noteId
+  useEffect(() => {
+    if (!note?.id || !token) return
+
+    const ydoc = new Y.Doc()
+    ydocRef.current = ydoc
+
+    const provider = new SupabaseYjsProvider(ydoc, {
+      noteId: note.id,
+      supabase,
+      atlas,
+      token,
+      onSynced: () => {},
+    })
+    providerRef.current = provider
+
+    return () => {
+      clearTimeout(saveTimerRef.current)
+      provider.destroy()
+      ydocRef.current = null
+      providerRef.current = null
+    }
+  }, [note?.id, token])
+
+  const handleUpdate = useCallback(
+    ({ editor }) => {
+      if (readOnly || !note?.id || !token) return
+      clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = setTimeout(async () => {
+        if (isSavingRef.current) return
+        isSavingRef.current = true
+        try {
+          const content = editor.getHTML()
+          await atlas.notes.update(note.id, { content }, token)
+          // Also persist Y.js state
+          if (ydocRef.current) {
+            const state = Y.encodeStateAsUpdate(ydocRef.current)
+            const stateB64 = btoa(String.fromCharCode(...state))
+            await atlas.notes.saveYDoc(note.id, stateB64, token)
+          }
+        } catch (err) {
+          console.warn('[NoteEditor] autosave failed:', err?.message)
+        } finally {
+          isSavingRef.current = false
+        }
+      }, AUTOSAVE_DELAY)
+    },
+    [note?.id, token, readOnly],
+  )
+
+  if (!note) return null
+
+  const extensions = [
+    ...buildExtensions({
+      ydoc: ydocRef.current,
+      provider: providerRef.current,
+      userName:
+        session?.user?.user_metadata?.full_name ?? session?.user?.email ?? 'Usuario',
+      userColor: '#f59e0b',
+      readOnly,
+    }),
+    DrawingBlock,
+    AnnotatableImage,
+  ]
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden bg-white">
+      <EditorProvider
+        extensions={extensions}
+        content={note.content || ''}
+        editable={!readOnly}
+        onUpdate={handleUpdate}
+        editorProps={{
+          attributes: {
+            class:
+              'prose prose-sm max-w-none focus:outline-none px-8 py-6 min-h-full',
+          },
+        }}
+        slotBefore={!readOnly ? <NoteToolbar /> : null}
+      >
+        {/* EditorProvider renders children inside editor context */}
+      </EditorProvider>
+    </div>
+  )
+}
