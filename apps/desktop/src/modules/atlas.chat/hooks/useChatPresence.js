@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "../../../auth/AuthProvider";
 import { createPresenceChannel } from "../lib/supabaseRealtime";
+import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 
 export function useChatPresence(conversationId) {
   const { user } = useAuth();
+  const { isUserOnline } = useGlobalPresence();
   const [onlineUsers, setOnlineUsers] = useState({});
   const [typingUsers, setTypingUsers] = useState({});
   const channelRef = useRef(null);
@@ -13,7 +15,7 @@ export function useChatPresence(conversationId) {
     if (!conversationId || !user?.id) return;
 
     const { sendTyping, unsubscribe } = createPresenceChannel(
-      `chat:conv:${conversationId}`,
+      `chat:presence:${conversationId}`,
       { userId: user.id, displayName: user.display_name ?? user.email ?? user.id },
       {
         onPresenceSync: (state) => {
@@ -65,5 +67,9 @@ export function useChatPresence(conversationId) {
 
   const typingUsersList = Object.keys(typingUsers);
 
-  return { onlineUsers, typingUsersList, sendTyping };
+  // isOnline checks per-conversation presence AND global company presence.
+  // A user appears online if they have this conversation open OR the app open anywhere.
+  const isOnline = (userId) => Boolean(onlineUsers[userId]) || isUserOnline(userId);
+
+  return { onlineUsers, typingUsersList, sendTyping, isOnline };
 }
