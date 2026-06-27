@@ -19,6 +19,7 @@ import { usePushAutoSubscribe } from "../hooks/usePushAutoSubscribe.js";
 import { toast } from "sonner";
 import { atlas } from '../lib/atlas.js'
 import { FloatingChatHub } from '../modules/atlas.chat/components/FloatingChatHub.jsx'
+import { MODULE_SIDEBAR_SLOTS } from './sidebar-slots.js'
 
 function getSidebarCollapsed() {
   try {
@@ -255,6 +256,12 @@ export function AtlasApp() {
   const sidebarLoading = showSidebar && modulesLoading && !activeModule;
   const networkBusy = isFetching > 0 || isMutating > 0;
 
+  const sidebarSlot = useMemo(() => {
+    if (!activeModule) return null
+    const Slot = MODULE_SIDEBAR_SLOTS[activeModule.key]
+    return Slot ? <Slot /> : null
+  }, [activeModule?.key])
+
   return (
     <OfflineProvider apiBaseUrl={apiBaseUrl} onTransportReady={handleTransportReady}>
       <ModuleBundleLoader>
@@ -297,6 +304,7 @@ export function AtlasApp() {
                 collapsed={collapsed}
                 onCollapse={toggleCollapsed}
                 mobileOpen={mobileOpen}
+                sidebarSlot={sidebarSlot}
                 onMobileClose={() => setMobileOpen(false)}
                 canInstall={canInstall}
                 onInstall={install}
@@ -347,6 +355,7 @@ export function AtlasApp() {
               onCollapse={() => setSidebarOverlayOpen(false)}
               contained={true}
               mobileOpen={true}
+              sidebarSlot={sidebarSlot}
               onMobileClose={() => setSidebarOverlayOpen(false)}
               canInstall={canInstall}
               onInstall={install}

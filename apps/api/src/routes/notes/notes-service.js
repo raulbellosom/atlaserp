@@ -93,8 +93,8 @@ export function createNotesService({ prisma, broadcaster = null }) {
     const rows = await prisma.$queryRaw`
       SELECT
         n.*,
-        up.display_name AS owner_display_name,
-        up.avatar_url   AS owner_avatar_url,
+        up.display_name      AS owner_display_name,
+        up.avatar_file_id    AS owner_avatar_file_id,
         COALESCE(
           json_agg(
             DISTINCT jsonb_build_object(
@@ -108,11 +108,11 @@ export function createNotesService({ prisma, broadcaster = null }) {
         COALESCE(
           json_agg(
             DISTINCT jsonb_build_object(
-              'id',          ns.id,
-              'userId',      ns.shared_with_user_id,
-              'permission',  ns.permission,
-              'displayName', sup.display_name,
-              'avatarUrl',   sup.avatar_url
+              'id',            ns.id,
+              'userId',        ns.shared_with_user_id,
+              'permission',    ns.permission,
+              'displayName',   sup.display_name,
+              'avatarFileId',  sup.avatar_file_id
             )
           ) FILTER (WHERE ns.id IS NOT NULL),
           '[]'
@@ -130,7 +130,7 @@ export function createNotesService({ prisma, broadcaster = null }) {
         ON sup.id = ns.shared_with_user_id
       WHERE n.id = ${noteId}
         AND n.deleted_at IS NULL
-      GROUP BY n.id, up.display_name, up.avatar_url
+      GROUP BY n.id, up.display_name, up.avatar_file_id
       LIMIT 1
     `;
 

@@ -248,6 +248,7 @@ export function ModuleSidebar({
   canInstall = false,
   onInstall,
   contained = false,
+  sidebarSlot = null,
 }) {
   if (!module) return null;
 
@@ -585,6 +586,13 @@ export function ModuleSidebar({
           );
         })}
       </nav>
+
+      {/* Module-specific sidebar slot (e.g. Notes folder list) — hidden when collapsed */}
+      {sidebarSlot && !collapsed && (
+        <div className="shrink-0 border-t border-[hsl(var(--border))]">
+          {sidebarSlot}
+        </div>
+      )}
 
       {/* Bottom bar: brand (mobile) + collapse toggle (desktop) */}
       <div className="shrink-0 border-t border-[hsl(var(--border))] safe-bottom">

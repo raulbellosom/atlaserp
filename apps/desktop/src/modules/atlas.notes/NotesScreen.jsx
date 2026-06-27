@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import {
   Plus, ArrowLeft,
   Settings2, Share2, RotateCcw, Trash2, PenLine
@@ -22,7 +22,9 @@ function viewFromPath(pathname) {
 
 export default function NotesScreen() {
   const { pathname } = useLocation()
+  const [searchParams] = useSearchParams()
   const activeView = viewFromPath(pathname)
+  const folderId   = searchParams.get('folder')
   const isTrashView = activeView === 'trash'
 
   const [selectedNote, setSelectedNote] = useState(null)
@@ -33,7 +35,7 @@ export default function NotesScreen() {
   const [noteToAction, setNoteToAction] = useState(null)
   const [mobileView, setMobileView]     = useState('list')
 
-  const { data, isLoading } = useNotes(buildQueryParams(activeView))
+  const { data, isLoading } = useNotes(buildQueryParams(activeView, folderId))
   const notes = data?.notes ?? []
 
   const createNote      = useCreateNote()
@@ -98,7 +100,7 @@ export default function NotesScreen() {
 
         <div className="flex items-center gap-2 px-3 h-11 border-b border-border shrink-0">
           <span className="flex-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            {VIEW_LABELS[activeView]}
+            {folderId ? 'Carpeta' : VIEW_LABELS[activeView]}
           </span>
           {!isTrashView && (
             <button
@@ -267,9 +269,10 @@ const VIEW_LABELS = {
   trash:  'Papelera',
 }
 
-function buildQueryParams(view) {
+function buildQueryParams(view, folderId) {
   if (view === 'trash')  return { trashed: true }
   if (view === 'recent') return { pageSize: 20 }
   if (view === 'shared') return { shared: true }
+  if (folderId)          return { folderId }
   return {}
 }
