@@ -4,9 +4,11 @@ import { Plus, Search } from "lucide-react";
 import { ChatConversationItem } from "./ChatConversationItem";
 import { CreateChatModal } from "./CreateChatModal";
 import { useAuth } from "../../../auth/AuthProvider";
+import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 
 export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCreated }) {
   const { userProfile } = useAuth();
+  const { isUserOnline } = useGlobalPresence();
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
 
@@ -77,15 +79,21 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
           />
         )}
 
-        {filtered.map((conv) => (
-          <ChatConversationItem
-            key={conv.id}
-            conversation={conv}
-            isActive={conv.id === activeId}
-            onClick={() => onSelect(conv)}
-            currentUserId={userProfile?.id}
-          />
-        ))}
+        {filtered.map((conv) => {
+          const otherMember = conv.type === "direct"
+            ? (conv.members ?? []).find((m) => m.userId !== userProfile?.id)
+            : null;
+          return (
+            <ChatConversationItem
+              key={conv.id}
+              conversation={conv}
+              isActive={conv.id === activeId}
+              onClick={() => onSelect(conv)}
+              currentUserId={userProfile?.id}
+              isOnline={otherMember ? isUserOnline(otherMember.userId) : false}
+            />
+          );
+        })}
       </div>
 
       <CreateChatModal

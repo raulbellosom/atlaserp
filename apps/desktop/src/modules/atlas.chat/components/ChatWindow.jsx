@@ -8,9 +8,21 @@ import { useChatMessages, useSendMessage, useMarkRead } from "../hooks/useChatMe
 import { useChatPresence } from "../hooks/useChatPresence";
 import { getConversationDisplayName } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
+import { useGlobalPresence } from "../../../providers/RealtimeProvider";
+
+function formatLastSeen(date) {
+  if (!date) return null;
+  const diff = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (diff < 1) return "hace un momento";
+  if (diff < 60) return `hace ${diff} min`;
+  const h = Math.floor(diff / 60);
+  if (h < 24) return `hace ${h} h`;
+  return `hace ${Math.floor(h / 24)} d`;
+}
 
 function ChatHeader({ conversation, currentUserId, onlineUsers, onClose }) {
   const [avatarErr, setAvatarErr] = useState(false);
+  const { isUserOnline, getLastSeen } = useGlobalPresence();
   const displayName = getConversationDisplayName(conversation, currentUserId);
   const members = conversation?.members ?? [];
   const onlineCount = Object.keys(onlineUsers ?? {}).length;
@@ -20,6 +32,9 @@ function ChatHeader({ conversation, currentUserId, onlineUsers, onClose }) {
       : null;
   const avatarUrl = conversation?.avatar_url ?? otherMember?.avatarUrl ?? null;
   const initial = (displayName?.[0] ?? "?").toUpperCase();
+
+  const directOnline = otherMember ? isUserOnline(otherMember.userId) : false;
+  const directLastSeen = otherMember ? getLastSeen(otherMember.userId) : null;
 
   // Reset error when URL changes (e.g. conversation switch)
   useEffect(() => { setAvatarErr(false); }, [avatarUrl]);
@@ -36,24 +51,39 @@ function ChatHeader({ conversation, currentUserId, onlineUsers, onClose }) {
           <ArrowLeft className="h-5 w-5" />
         </button>
       )}
-      {avatarUrl && !avatarErr ? (
-        <img
-          src={avatarUrl}
-          alt={displayName}
-          className="h-9 w-9 rounded-full object-cover shrink-0"
-          onError={() => setAvatarErr(true)}
-        />
-      ) : (
-        <div className="h-9 w-9 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center font-semibold text-sm shrink-0">
-          {initial}
-        </div>
-      )}
+      <div className="relative shrink-0">
+        {avatarUrl && !avatarErr ? (
+          <img
+            src={avatarUrl}
+            alt={displayName}
+            className="h-9 w-9 rounded-full object-cover"
+            onError={() => setAvatarErr(true)}
+          />
+        ) : (
+          <div className="h-9 w-9 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center font-semibold text-sm">
+            {initial}
+          </div>
+        )}
+        {conversation?.type === "direct" && directOnline && (
+          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[hsl(var(--background))]" />
+        )}
+      </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold truncate">{displayName}</p>
         <p className="text-xs text-[hsl(var(--muted-foreground))]">
-          {onlineCount > 0
-            ? `${onlineCount} en linea`
-            : `${members.length} miembro${members.length !== 1 ? "s" : ""}`}
+          {conversation?.type === "direct" ? (
+            directOnline ? (
+              <span className="text-green-500">En linea</span>
+            ) : directLastSeen ? (
+              `Visto ${formatLastSeen(directLastSeen)}`
+            ) : (
+              "Desconectado"
+            )
+          ) : (
+            onlineCount > 0
+              ? `${onlineCount} en linea`
+              : `${members.length} miembro${members.length !== 1 ? "s" : ""}`
+          )}
         </p>
       </div>
       {conversation?.type === "group" && (

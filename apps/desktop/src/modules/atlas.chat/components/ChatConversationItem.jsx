@@ -34,7 +34,7 @@ function Avatar({ name, avatarUrl, size = "md", online = false }) {
   );
 }
 
-export function ChatConversationItem({ conversation, isActive, onClick, currentUserId }) {
+export function ChatConversationItem({ conversation, isActive, onClick, currentUserId, isOnline = false }) {
   const otherMember = conversation.type === "direct"
     ? (conversation.members ?? []).find((m) => m.userId !== currentUserId)
     : null;
@@ -72,7 +72,7 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
           : "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
       ].join(" ")}
     >
-      <Avatar name={displayName} avatarUrl={avatarUrl} />
+      <Avatar name={displayName} avatarUrl={avatarUrl} online={isOnline} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-medium truncate">{displayName}</span>
