@@ -15,6 +15,7 @@ import { getApiUrl } from "../lib/runtimeConfig.js";
 import { useAuth } from "../auth/AuthProvider";
 import { usePwaManifest } from "../hooks/usePwaManifest.js";
 import { usePwaInstall } from "../hooks/usePwaInstall.js";
+import { usePushAutoSubscribe } from "../hooks/usePushAutoSubscribe.js";
 import { toast } from "sonner";
 import { atlas } from '../lib/atlas.js'
 import { FloatingChatHub } from '../modules/atlas.chat/components/FloatingChatHub.jsx'
@@ -242,6 +243,7 @@ export function AtlasApp() {
   usePwaManifest(moduleKeyFromPath, activeModule);
   const { canInstall, install, manualInstallReady } =
     usePwaInstall(moduleKeyFromPath);
+  usePushAutoSubscribe();
 
   const showSidebar =
     !isFullscreen &&
