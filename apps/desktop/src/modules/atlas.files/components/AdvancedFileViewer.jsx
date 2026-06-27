@@ -310,6 +310,13 @@ export function AdvancedFileViewer({
             // Prevent accidental close during pinch/pan gestures
             if (gestureRef.current.mode !== null) e.preventDefault();
           }}
+          onInteractOutside={(e) => {
+            // Prevent closing when interacting with Radix portals rendered from within
+            // this dialog (e.g. DropdownMenu items that render in a separate portal)
+            if (e.target?.closest?.("[data-radix-popper-content-wrapper]")) {
+              e.preventDefault();
+            }
+          }}
           className={[
             "fixed inset-safe flex flex-col rounded-2xl overflow-hidden",
             "glass-strong shadow-2xl",
@@ -661,7 +668,7 @@ export function AdvancedFileViewer({
                       <MoreHorizontal className="h-4 w-4" />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent side="top" align="end">
+                  <DropdownMenuContent side="top" align="end" style={{ zIndex: zIndex + 10 }}>
                     <DropdownMenuItem onSelect={() => setRotation((v) => v - 90)}>
                       <RotateCcw className="h-4 w-4 mr-2" />
                       Rotar izquierda
