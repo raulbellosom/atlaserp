@@ -187,16 +187,36 @@ export function createNotificationService({ prisma, broadcaster = null }) {
 
   async function isDuplicate({ tx, userId, dedupeKey }) {
     if (!dedupeKey) return false;
+    // Chat notifications deduplicate against any existing UNREAD notification
+    // for the same conversation — no time window — to prevent message spam.
+    if (dedupeKey.startsWith('chat.message.new:')) {
+      const row = await tx.notification.findFirst({
+        where: { userId, dedupeKey, readAt: null },
+        select: { id: true },
+      });
+      return Boolean(row);
+    }
     const since = new Date(Date.now() - DEDUPE_WINDOW_MS);
     const row = await tx.notification.findFirst({
-      where: {
-        userId,
-        dedupeKey,
-        createdAt: { gte: since },
-      },
+      where: { userId, dedupeKey, createdAt: { gte: since } },
       select: { id: true },
     });
     return Boolean(row);
+  }
+
+  async function markReadBySource({ authUserId, sourceType, sourceId }) {
+    const { profileId, companyId } = await resolveCompanyContext(authUserId);
+    const result = await prisma.notification.updateMany({
+      where: {
+        userId: profileId,
+        readAt: null,
+        sourceType,
+        sourceId,
+        ...buildCompanyScopeClause(companyId),
+      },
+      data: { readAt: new Date() },
+    });
+    return { updated: result.count };
   }
 
   async function publish({ companyId, actorId = null, input }) {
@@ -379,6 +399,7 @@ export function createNotificationService({ prisma, broadcaster = null }) {
     list,
     markRead,
     markAllRead,
+    markReadBySource,
     publish,
     publishFromContext,
     listPreferences,

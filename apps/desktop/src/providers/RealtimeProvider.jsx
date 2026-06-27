@@ -50,7 +50,11 @@ export function RealtimeProvider({ children }) {
       .subscribe()
 
     return () => { client.removeChannel(channel) }
-  }, [userProfile?.id, session?.access_token, queryClient])
+  // session?.access_token intentionally omitted: Supabase manages auth for
+  // Realtime internally; including it here re-opens the channel on every
+  // token refresh (~60min) and drops broadcasts during the transition window.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userProfile?.id, queryClient])
 
   // Company presence channel — tracks who is online across the whole company
   useEffect(() => {

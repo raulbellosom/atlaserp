@@ -85,6 +85,27 @@ export function useChatMessages(conversationId) {
     });
   }, [conversationId, on, queryClient]);
 
+  // Mobile fallback: when the user returns to the tab/app after backgrounding,
+  // the WebSocket may have dropped broadcasts. Refetch on visibility restore.
+  useEffect(() => {
+    if (!conversationId) return;
+    function handleVisibility() {
+      if (document.visibilityState === "visible") {
+        queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
+        queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [conversationId, queryClient]);
+
+  // Auto-dismiss chat notifications for this conversation when the user opens it.
+  useEffect(() => {
+    if (!conversationId || !token) return;
+    atlas.notifications.markReadBySource(token, "chat_conversation", conversationId).catch(() => {});
+    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+  }, [conversationId, token, queryClient]);
+
   return query;
 }
 

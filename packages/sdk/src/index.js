@@ -1213,6 +1213,12 @@ export function createAtlasClient({ baseUrl }) {
           method: "PATCH",
           headers: withAuthHeaders(token),
         }),
+      markReadBySource: (token, sourceType, sourceId) =>
+        request("/notifications/read-by-source", {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ sourceType, sourceId }),
+        }),
       publish: (token, payload) =>
         request("/notifications/publish", {
           method: "POST",

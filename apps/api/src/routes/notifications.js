@@ -65,6 +65,25 @@ export function createNotificationsRouter({ prisma, requirePermission }) {
     },
   );
 
+  app.patch(
+    "/notifications/read-by-source",
+    requirePermission("notifications.read"),
+    async (c) => {
+      try {
+        const authUserId = c.get("authUserId");
+        const body = await c.req.json();
+        const { sourceType, sourceId } = body ?? {};
+        if (!sourceType || !sourceId) {
+          return c.json({ error: "sourceType y sourceId son requeridos" }, 400);
+        }
+        const result = await service.markReadBySource({ authUserId, sourceType, sourceId });
+        return c.json({ data: result });
+      } catch (err) {
+        return handleError(c, err, "PATCH /notifications/read-by-source");
+      }
+    },
+  );
+
   app.post(
     "/notifications/publish",
     requirePermission("notifications.publish"),
