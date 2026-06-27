@@ -78,6 +78,7 @@ import { createRouteLoaderService } from "./services/route-loader-service.js";
 import { createDistServeService } from "./services/dist-serve-service.js";
 import { createNotificationDeliveryWorker } from "./services/notification-delivery-worker.js";
 import { createNotificationService } from "./services/notification-service.js";
+import { createRealtimeBroadcaster } from "./services/realtime-broadcaster.js";
 import {
   get as cacheGet,
   set as cacheSet,
@@ -112,6 +113,10 @@ const supabaseAnon = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY,
 );
+const broadcaster = createRealtimeBroadcaster({
+  supabaseUrl: process.env.SUPABASE_URL,
+  serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+});
 const CORE_MODULE_KEYS = new Set([
   "atlas.core",
   "atlas.identity",
@@ -136,7 +141,7 @@ const companyService = createCompanyService({ prisma, supabaseAdmin });
 const bundlerService = createModuleBundlerService({ prisma, supabaseAdmin });
 const hrService = createHrService({ prisma });
 const notificationDeliveryWorker = createNotificationDeliveryWorker({ prisma });
-const notificationService = createNotificationService({ prisma });
+const notificationService = createNotificationService({ prisma, broadcaster });
 const distServeService = createDistServeService({ prisma, supabaseAdmin });
 const inventoryService = createInventoryService({ prisma });
 const inventoryNotifSvc = createInventoryNotificationService({ prisma, notificationService });
@@ -4494,7 +4499,7 @@ mountWithAuth(app, createFleetRouter({ prisma, requirePermission, enrichFilesWit
 mountWithAuth(app, createCatalogRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createPosRouter({ prisma, requirePermission }));
 mountWithAuth(app, createCalendarRouter({ prisma, requirePermission }));
-mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService) }));
+mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService), broadcaster }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createGrowthRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService) }));
@@ -4505,7 +4510,7 @@ mountWithAuth(
 mountWithAuth(app, createSyncRouter({ prisma }));
 
 // Chat router handles its own auth (internal + public guest routes)
-app.route("/", createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService }));
+app.route("/", createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService, broadcaster }));
 
 app.post("/internal/notifications/process-deliveries", async (c) => {
   const secret = c.req.header("x-internal-secret");
