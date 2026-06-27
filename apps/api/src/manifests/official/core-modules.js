@@ -1302,6 +1302,7 @@ export const notesMap = createModuleManifest({
   icon: 'NotebookPen',
   color: '#f59e0b',
   category: 'productividad',
+  pwa: { shortName: 'Notas', startPath: '/notes' },
   navigation: [
     {
       label: 'Notas',
