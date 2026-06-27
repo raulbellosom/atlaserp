@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button, Badge, EmptyState, ErrorState, LoadingState } from "@atlas/ui";
 import { useProjects, useWorkspaceUsers } from "../hooks/useProjectsData";
+import { useProjectRealtime } from "../hooks/useProjectRealtime";
 import { atlas } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
 import { toast } from "sonner";
@@ -109,6 +110,8 @@ export default function ProjectsScreen() {
   const selectedProject =
     projectList.find((p) => p.id === selectedId) ?? projectList[0] ?? null;
   const effectiveId = selectedProject?.id ?? null;
+
+  useProjectRealtime(effectiveId);
 
   async function handleExport() {
     if (!effectiveId) return;
