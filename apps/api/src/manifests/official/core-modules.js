@@ -1303,6 +1303,7 @@ export const notesMap = createModuleManifest({
   color: '#f59e0b',
   category: 'productividad',
   pwa: { shortName: 'Notas', startPath: '/notes' },
+  fullscreenPaths: ['/notes'],
   navigation: [
     {
       label: 'Notas',
