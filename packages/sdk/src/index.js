@@ -1927,6 +1927,142 @@ export function createAtlasClient({ baseUrl }) {
           body: JSON.stringify({ items }),
         }),
     },
+    notes: {
+      list: (params, token) =>
+        request(`/notes${toQueryString(params)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      create: (data, token) =>
+        request("/notes", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      get: (id, token) =>
+        request(`/notes/${encodeURIComponent(id)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      update: (id, data, token) =>
+        request(`/notes/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      trash: (id, token) =>
+        request(`/notes/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
+      restore: (id, token) =>
+        request(`/notes/${encodeURIComponent(id)}/restore`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+        }),
+      permanentDelete: (id, token) =>
+        request(`/notes/${encodeURIComponent(id)}/permanent`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
+      getYDoc: (id, token) =>
+        request(`/notes/${encodeURIComponent(id)}/ydoc`, {
+          headers: withAuthHeaders(token),
+        }),
+      saveYDoc: (id, stateBase64, token) =>
+        request(`/notes/${encodeURIComponent(id)}/ydoc`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ state: stateBase64 }),
+        }),
+      listFolders: (token) =>
+        request("/notes/folders", {
+          headers: withAuthHeaders(token),
+        }),
+      createFolder: (data, token) =>
+        request("/notes/folders", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateFolder: (id, data, token) =>
+        request(`/notes/folders/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      deleteFolder: (id, token) =>
+        request(`/notes/folders/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
+      listTags: (token) =>
+        request("/notes/tags", {
+          headers: withAuthHeaders(token),
+        }),
+      createTag: (data, token) =>
+        request("/notes/tags", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateTag: (id, data, token) =>
+        request(`/notes/tags/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      deleteTag: (id, token) =>
+        request(`/notes/tags/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
+      setNoteTags: (id, tagIds, token) =>
+        request(`/notes/${encodeURIComponent(id)}/tags`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ tagIds }),
+        }),
+      listShares: (id, token) =>
+        request(`/notes/${encodeURIComponent(id)}/shares`, {
+          headers: withAuthHeaders(token),
+        }),
+      shareNote: (id, data, token) =>
+        request(`/notes/${encodeURIComponent(id)}/shares`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateShare: (id, shareId, data, token) =>
+        request(`/notes/${encodeURIComponent(id)}/shares/${encodeURIComponent(shareId)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      revokeShare: (id, shareId, token) =>
+        request(`/notes/${encodeURIComponent(id)}/shares/${encodeURIComponent(shareId)}`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
+      publish: (id, token) =>
+        request(`/notes/${encodeURIComponent(id)}/publish`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+        }),
+      unpublish: (id, token) =>
+        request(`/notes/${encodeURIComponent(id)}/unpublish`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+        }),
+      presignImage: (data, token) =>
+        request("/notes/presign-image", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      getPublic: (slug) =>
+        request(`/public/notes/${encodeURIComponent(slug)}`, {
+          method: "GET",
+        }),
+    },
     setOfflineTransport(transport) {
       _offlineTransport = transport;
     },
