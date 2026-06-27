@@ -279,12 +279,11 @@ const SCREEN_MAP = {
       ),
   ),
   // atlas.notes
-  "atlas.notes:/": lazy(
-    () => import("../modules/atlas.notes/NotesScreen.jsx"),
-  ),
-  "atlas.notes:/notes": lazy(
-    () => import("../modules/atlas.notes/NotesScreen.jsx"),
-  ),
+  "atlas.notes:/": lazy(() => import("../modules/atlas.notes/NotesScreen.jsx")),
+  "atlas.notes:/notes": lazy(() => import("../modules/atlas.notes/NotesScreen.jsx")),
+  "atlas.notes:/notes/recent": lazy(() => import("../modules/atlas.notes/NotesScreen.jsx")),
+  "atlas.notes:/notes/shared": lazy(() => import("../modules/atlas.notes/NotesScreen.jsx")),
+  "atlas.notes:/notes/trash": lazy(() => import("../modules/atlas.notes/NotesScreen.jsx")),
   // atlas.inventory
   "atlas.inventory:/": lazy(
     () => import("../modules/atlas.inventory/screens/InventoryScreen.jsx"),
@@ -527,6 +526,9 @@ function resolveScreen(moduleKey, subPath) {
   }
   if (moduleKey === "atlas.notes") {
     if (subPath === "/" || subPath === "/notes") return SCREEN_MAP["atlas.notes:/notes"] ?? null;
+    if (subPath === "/notes/recent") return SCREEN_MAP["atlas.notes:/notes/recent"] ?? null;
+    if (subPath === "/notes/shared") return SCREEN_MAP["atlas.notes:/notes/shared"] ?? null;
+    if (subPath === "/notes/trash")  return SCREEN_MAP["atlas.notes:/notes/trash"]  ?? null;
     return null;
   }
   if (subPath === "/") return SCREEN_MAP[`${moduleKey}:/`] ?? null;

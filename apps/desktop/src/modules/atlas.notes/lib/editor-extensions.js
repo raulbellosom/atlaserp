@@ -1,5 +1,4 @@
 import StarterKit from '@tiptap/starter-kit'
-import Image from '@tiptap/extension-image'
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
 import Color from '@tiptap/extension-color'
 import { TextStyle } from '@tiptap/extension-text-style'
@@ -15,7 +14,9 @@ import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
 
 export function buildExtensions({ ydoc, provider, userColor, userName, readOnly = false }) {
   const base = [
-    StarterKit.configure({ history: false }),
+    // Exclude link/underline/image from StarterKit — we register them explicitly below
+    // (StarterKit v3 bundles them; adding duplicates triggers a TipTap warning)
+    StarterKit.configure({ history: false, link: false, underline: false }),
     Underline,
     TextStyle,
     Color,
@@ -27,7 +28,8 @@ export function buildExtensions({ ydoc, provider, userColor, userName, readOnly 
     TableRow,
     TableCell,
     TableHeader,
-    Image.configure({ inline: false, allowBase64: false }),
+    // Image is intentionally omitted here: AnnotatableImage (added in NoteEditor) overrides
+    // the 'image' node. Including both would produce a duplicate-extension warning.
     CharacterCount,
     Placeholder.configure({
       placeholder: ({ node }) => {

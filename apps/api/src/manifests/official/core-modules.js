@@ -1303,15 +1303,11 @@ export const notesMap = createModuleManifest({
   color: '#f59e0b',
   category: 'productividad',
   pwa: { shortName: 'Notas', startPath: '/notes' },
-  fullscreenPaths: ['/notes'],
   navigation: [
-    {
-      label: 'Notas',
-      path: '/notes',
-      icon: 'NotebookPen',
-      layout: 'main',
-      permissionKey: 'notes.notes.read',
-    },
+    { label: 'Todas las notas', path: '/notes',        icon: 'NotebookPen', layout: 'main', permissionKey: 'notes.notes.read' },
+    { label: 'Recientes',       path: '/notes/recent', icon: 'Clock',       layout: 'main', permissionKey: 'notes.notes.read' },
+    { label: 'Compartidas',     path: '/notes/shared', icon: 'Users',       layout: 'main', permissionKey: 'notes.shares.read' },
+    { label: 'Papelera',        path: '/notes/trash',  icon: 'Trash2',      layout: 'main', permissionKey: 'notes.notes.read' },
   ],
   permissions: [
     { key: 'notes.access', name: 'Acceso a notas', description: 'Puede ver el módulo de notas' },
