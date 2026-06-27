@@ -3,20 +3,21 @@ import { useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 import { subscribeToMessages } from "../lib/supabaseRealtime";
+import { useRealtimeContext } from "../../../providers/RealtimeProvider";
 
 export function useChatMessages(conversationId) {
   const { session } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
   const unsubRef = useRef(null);
+  const { on } = useRealtimeContext();
 
   const query = useQuery({
     queryKey: ["chat-messages", conversationId],
     queryFn: () => atlas.chat.listMessages(conversationId, { limit: 40 }, token),
     enabled: Boolean(token && conversationId),
     staleTime: 10_000,
-    // Polling fallback: fires every 5s so messages arrive even if Realtime drops
-    refetchInterval: Boolean(token && conversationId) ? 5_000 : false,
+    refetchInterval: false,
     refetchOnWindowFocus: true,
   });
 
@@ -74,6 +75,15 @@ export function useChatMessages(conversationId) {
       unsubRef.current?.();
     };
   }, [conversationId, addMessageToCache, updateMessageInCache]);
+
+  useEffect(() => {
+    if (!conversationId) return;
+    return on("chat.message.new", ({ conversationId: cid }) => {
+      if (cid === conversationId) {
+        queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
+      }
+    });
+  }, [conversationId, on, queryClient]);
 
   return query;
 }
