@@ -11,7 +11,8 @@
     "release": "pnpm build && pnpm publish:release",
     "build:web": "vite build",
     "preview": "vite preview",
-    "lint": "echo lint-pending"
+    "lint": "echo lint-pending",
+    "postinstall": "node -e \"const{cpSync,existsSync}=require('fs'),src=require.resolve('pdfjs-dist/build/pdf.worker.min.mjs');existsSync(src)&&cpSync(src,'public/pdf.worker.min.mjs');\""
   },
   "dependencies": {
     "@atlas/core": "workspace:*",
@@ -37,6 +38,7 @@
     "react": "latest",
     "react-dom": "latest",
     "react-hook-form": "^7.75.0",
+    "react-pdf": "^10.4.1",
     "react-router-dom": "^7.14.2",
     "recharts": "^3.8.1",
     "sonner": "^2.0.7",

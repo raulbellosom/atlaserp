@@ -25,6 +25,7 @@ import {
 } from "@atlas/ui";
 import { getFileKind, getKindLabel, formatBytes } from "../lib/file-kind";
 import { FileVisual } from "./FileVisual";
+import { PDFViewer } from "./PDFViewer";
 
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 4;
@@ -477,24 +478,7 @@ export function AdvancedFileViewer({
 
             {/* PDF viewer */}
             {!loading && signedUrl && kind === "pdf" && (
-              <div className="relative h-full w-full group">
-                <iframe
-                  src={signedUrl}
-                  title={file?.originalName ?? "PDF"}
-                  className="h-full w-full"
-                  style={{ touchAction: "pan-y" }}
-                />
-                {/* Mobile: always visible. Desktop: revealed on hover */}
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150 pointer-events-none md:pointer-events-auto">
-                  <button
-                    onClick={() => window.open(signedUrl, "_blank")}
-                    className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium glass shadow-lg text-[hsl(var(--foreground))]"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Abrir PDF
-                  </button>
-                </div>
-              </div>
+              <PDFViewer url={signedUrl} />
             )}
 
             {/* Video player */}
