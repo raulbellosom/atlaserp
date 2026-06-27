@@ -75,6 +75,7 @@ export function AdvancedFileViewer({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
+  const [pinching, setPinching] = useState(false);
 
   const imageContainerRef = useRef(null);
   const pointersRef = useRef(new Map());
@@ -98,6 +99,7 @@ export function AdvancedFileViewer({
     setZoom(1);
     setPan({ x: 0, y: 0 });
     setDragging(false);
+    setPinching(false);
     pointersRef.current.clear();
     gestureRef.current = {
       mode: null,
@@ -158,6 +160,16 @@ export function AdvancedFileViewer({
     return () => el.removeEventListener("wheel", handleImageWheel);
   }, [nudgeZoom, signedUrl, loading, kind]);
 
+  useEffect(() => {
+    const el = imageContainerRef.current;
+    if (!el || kind !== "image") return;
+    function preventNativePinch(e) {
+      if (e.touches.length > 1) e.preventDefault();
+    }
+    el.addEventListener("touchstart", preventNativePinch, { passive: false });
+    return () => el.removeEventListener("touchstart", preventNativePinch);
+  }, [kind, signedUrl, loading]);
+
   function handlePointerDown(event) {
     if (kind !== "image") return;
 
@@ -176,6 +188,7 @@ export function AdvancedFileViewer({
         startZoom: zoom,
       };
       setDragging(false);
+      setPinching(true);
       return;
     }
 
@@ -235,6 +248,7 @@ export function AdvancedFileViewer({
     }
 
     if (points.length === 0) {
+      setPinching(false);
       gestureRef.current = {
         ...gestureRef.current,
         mode: null,
@@ -282,15 +296,17 @@ export function AdvancedFileViewer({
     anchor.click();
   }
 
+  const gestureActive = dragging || pinching;
+
   const imageTransformStyle = {
     transform: `rotate(${rotation}deg) scaleX(${flipX ? -1 : 1}) scaleY(${flipY ? -1 : 1}) scale(${zoom})`,
     transformOrigin: "center",
-    transition: dragging ? "none" : "transform 120ms ease",
+    transition: gestureActive ? "none" : "transform 120ms ease",
   };
 
   const panTransformStyle = {
     transform: `translate3d(${pan.x}px, ${pan.y}px, 0)`,
-    transition: dragging ? "none" : "transform 120ms ease",
+    transition: gestureActive ? "none" : "transform 120ms ease",
   };
 
   return (
