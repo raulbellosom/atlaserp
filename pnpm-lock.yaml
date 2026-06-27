@@ -175,6 +175,9 @@ importers:
       motion:
         specifier: ^12.38.0
         version: 12.38.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      pdfjs-dist:
+        specifier: ^5.0.0
+        version: 5.4.296
       react:
         specifier: latest
         version: 19.2.7
