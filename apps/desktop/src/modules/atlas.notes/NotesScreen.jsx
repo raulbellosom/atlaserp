@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import {
-  Settings2, Share2, Plus, ArrowLeft, RotateCcw, Trash2, PenLine
+  Menu, X, Plus, ArrowLeft,
+  Settings2, Share2, RotateCcw, Trash2, PenLine
 } from 'lucide-react'
 import { ConfirmDialog } from '@atlas/ui'
 import { useNotes, useCreateNote } from './hooks/useNotes.js'
@@ -12,29 +13,29 @@ import { NoteEditor } from './components/NoteEditor.jsx'
 import { NoteSettingsPanel } from './components/NoteSettingsPanel.jsx'
 import { NoteShareModal } from './components/NoteShareModal.jsx'
 
-// mobile: 'sidebar' | 'list' | 'editor'
 export default function NotesScreen() {
-  const [activeView, setActiveView]         = useState('all')
-  const [selectedNote, setSelectedNote]     = useState(null)
-  const [rightPanel, setRightPanel]         = useState('editor')
-  const [shareOpen, setShareOpen]           = useState(false)
-  const [restoreOpen, setRestoreOpen]       = useState(false)
-  const [deleteOpen, setDeleteOpen]         = useState(false)
-  const [noteToAction, setNoteToAction]     = useState(null)
-  const [mobilePanel, setMobilePanel]       = useState('list') // mobile-only
+  const [activeView, setActiveView]     = useState('all')
+  const [selectedNote, setSelectedNote] = useState(null)
+  const [rightPanel, setRightPanel]     = useState('editor')
+  const [shareOpen, setShareOpen]       = useState(false)
+  const [restoreOpen, setRestoreOpen]   = useState(false)
+  const [deleteOpen, setDeleteOpen]     = useState(false)
+  const [noteToAction, setNoteToAction] = useState(null)
+  const [sidebarOpen, setSidebarOpen]   = useState(false)
+  // mobile: 'list' | 'editor'
+  const [mobileView, setMobileView]     = useState('list')
 
-  const queryParams   = buildQueryParams(activeView)
-  const { data, isLoading } = useNotes(queryParams)
-  const notes         = data?.notes ?? []
-  const isTrashView   = activeView === 'trash'
+  const { data, isLoading } = useNotes(buildQueryParams(activeView))
+  const notes       = data?.notes ?? []
+  const isTrashView = activeView === 'trash'
 
-  const createNote    = useCreateNote()
-  const updateNote    = useUpdateNote()
-  const trashNote     = useTrashNote()
-  const restoreNote   = useRestoreNote()
+  const createNote      = useCreateNote()
+  const updateNote      = useUpdateNote()
+  const trashNote       = useTrashNote()
+  const restoreNote     = useRestoreNote()
   const permanentDelete = usePermanentDeleteNote()
-  const publishNote   = usePublishNote()
-  const unpublishNote = useUnpublishNote()
+  const publishNote     = usePublishNote()
+  const unpublishNote   = useUnpublishNote()
 
   function handleCreateNote() {
     createNote.mutate(
@@ -44,7 +45,7 @@ export default function NotesScreen() {
           if (res?.note) {
             setSelectedNote(res.note)
             setRightPanel('editor')
-            setMobilePanel('editor')
+            setMobileView('editor')
           }
         },
       },
@@ -66,7 +67,7 @@ export default function NotesScreen() {
       onSuccess: () => {
         if (selectedNote?.id === target.id) {
           setSelectedNote(null)
-          setMobilePanel('list')
+          setMobileView('list')
         }
       },
     })
@@ -75,103 +76,87 @@ export default function NotesScreen() {
   function selectNote(note) {
     setSelectedNote(note)
     setRightPanel('editor')
-    setMobilePanel('editor')
+    setMobileView('editor')
   }
 
   function changeView(v) {
     setActiveView(v)
     setSelectedNote(null)
-    setMobilePanel('list')
+    setMobileView('list')
+    setSidebarOpen(false)
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* ── Top bar ────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-4 h-12 border-b border-gray-100 shrink-0">
-        {/* Mobile back navigation */}
-        {mobilePanel === 'list' && (
+    <div className="flex h-full min-h-0 relative overflow-hidden">
+
+      {/* ── Mobile backdrop ─────────────────────────────────── */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-10 bg-black/40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* ── Panel 1: Folders/views sidebar ──────────────────── */}
+      <aside
+        className={[
+          'w-52 shrink-0 border-r border-border flex flex-col bg-background',
+          'transition-transform duration-200 ease-in-out',
+          'fixed top-14 left-0 bottom-0 z-20',
+          'lg:static lg:z-auto lg:translate-x-0',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+        ].join(' ')}
+      >
+        <div className="flex items-center justify-between px-3 pt-4 pb-2 shrink-0">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Notas
+          </span>
           <button
-            onClick={() => setMobilePanel('sidebar')}
-            className="md:hidden flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mr-1"
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <X size={14} />
           </button>
-        )}
-        {mobilePanel === 'editor' && (
-          <button
-            onClick={() => setMobilePanel('list')}
-            className="md:hidden flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mr-1"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-        )}
-
-        {/* Title */}
-        <span className="font-semibold text-gray-900 text-sm tracking-tight">
-          {selectedNote && mobilePanel === 'editor'
-            ? (selectedNote.title || 'Sin titulo')
-            : 'Notas'}
-        </span>
-
-        <div className="flex-1" />
-
-        {/* Actions */}
-        {selectedNote && (mobilePanel === 'editor' || window.innerWidth >= 768) && (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setShareOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <Share2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Compartir</span>
-            </button>
-            <button
-              onClick={() => setRightPanel(p => p === 'editor' ? 'settings' : 'editor')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                rightPanel === 'settings'
-                  ? 'bg-amber-100 text-amber-700'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <Settings2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{rightPanel === 'settings' ? 'Editor' : 'Ajustes'}</span>
-            </button>
-          </div>
-        )}
-
-        {!isTrashView && (
-          <button
-            onClick={handleCreateNote}
-            disabled={createNote.isPending}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50 shadow-sm"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Nueva nota</span>
-          </button>
-        )}
-      </div>
-
-      {/* ── Three-panel body ───────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
-
-        {/* Panel 1: Sidebar — hidden on mobile unless mobilePanel === 'sidebar' */}
-        <div className={`
-          shrink-0 border-r border-gray-100 overflow-y-auto
-          w-full md:w-52
-          ${mobilePanel === 'sidebar' ? 'flex' : 'hidden'} md:flex flex-col
-        `}>
-          <NotesSidebar
-            activeView={activeView}
-            onViewChange={changeView}
-          />
         </div>
+        <div className="flex-1 overflow-y-auto">
+          <NotesSidebar activeView={activeView} onViewChange={changeView} />
+        </div>
+      </aside>
 
-        {/* Panel 2: Note list — hidden on mobile unless mobilePanel === 'list' */}
-        <div className={`
-          shrink-0 border-r border-gray-100 overflow-hidden flex flex-col
-          w-full md:w-72
-          ${mobilePanel === 'list' ? 'flex' : 'hidden'} md:flex
-        `}>
+      {/* ── Main area (list + editor) ────────────────────────── */}
+      <div className="flex flex-1 min-w-0 overflow-hidden">
+
+        {/* Panel 2: Note list */}
+        <div className={[
+          'shrink-0 border-r border-border flex flex-col bg-background',
+          'w-full lg:w-72',
+          mobileView === 'list' ? 'flex' : 'hidden lg:flex',
+        ].join(' ')}>
+
+          {/* List header */}
+          <div className="flex items-center gap-2 px-3 h-11 border-b border-border shrink-0">
+            <button
+              className="lg:hidden p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setSidebarOpen(true)}
+              title="Menu"
+            >
+              <Menu size={15} />
+            </button>
+            <span className="flex-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              {VIEW_LABELS[activeView] ?? 'Notas'}
+            </span>
+            {!isTrashView && (
+              <button
+                onClick={handleCreateNote}
+                disabled={createNote.isPending}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors disabled:opacity-50 shadow-sm"
+              >
+                <Plus size={13} />
+                <span className="hidden sm:inline">Nueva</span>
+              </button>
+            )}
+          </div>
+
           <NotesList
             notes={notes}
             selectedNoteId={selectedNote?.id}
@@ -182,35 +167,84 @@ export default function NotesScreen() {
           />
 
           {isTrashView && selectedNote && (
-            <div className="px-3 py-2.5 border-t border-gray-100 flex gap-2 shrink-0">
+            <div className="px-3 py-2 border-t border-border flex gap-2 shrink-0">
               <button
                 onClick={() => { setNoteToAction(selectedNote); setRestoreOpen(true) }}
-                className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 border border-border rounded-lg hover:bg-muted text-foreground transition-colors"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <RotateCcw size={13} />
                 Restaurar
               </button>
               <button
                 onClick={() => { setNoteToAction(selectedNote); setDeleteOpen(true) }}
                 className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition-colors"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 size={13} />
                 Eliminar
               </button>
             </div>
           )}
         </div>
 
-        {/* Panel 3: Editor / Settings — hidden on mobile unless mobilePanel === 'editor' */}
+        {/* Panel 3: Editor / Settings */}
         <div
-          className={`
-            flex-1 overflow-hidden
-            ${mobilePanel === 'editor' ? 'flex' : 'hidden'} md:flex flex-col
-          `}
+          className={[
+            'flex-1 min-w-0 flex flex-col overflow-hidden bg-background',
+            mobileView === 'editor' ? 'flex' : 'hidden lg:flex',
+          ].join(' ')}
           style={selectedNote?.background_color ? { backgroundColor: selectedNote.background_color } : {}}
         >
+          {/* Editor header */}
+          <div className="flex items-center gap-2 px-3 h-11 border-b border-border shrink-0 bg-background/95 backdrop-blur-sm">
+            {/* Mobile: back to list */}
+            <button
+              className="lg:hidden p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setMobileView('list')}
+            >
+              <ArrowLeft size={15} />
+            </button>
+
+            {/* Desktop: open sidebar hamburger (only when sidebar would be hidden — show always on lg for consistency but it's static) */}
+            <button
+              className="hidden lg:flex p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setSidebarOpen(true)}
+              title="Abrir navegacion"
+              style={{ display: 'none' }}
+            >
+              <Menu size={15} />
+            </button>
+
+            <span className="flex-1 text-xs text-muted-foreground truncate">
+              {selectedNote ? (selectedNote.title || 'Sin titulo') : ''}
+            </span>
+
+            {selectedNote && (
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={() => setShareOpen(true)}
+                  className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
+                >
+                  <Share2 size={13} />
+                  <span className="hidden sm:inline">Compartir</span>
+                </button>
+                <button
+                  onClick={() => setRightPanel(p => p === 'editor' ? 'settings' : 'editor')}
+                  className={`flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                    rightPanel === 'settings'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  <Settings2 size={13} />
+                  <span className="hidden sm:inline">{rightPanel === 'settings' ? 'Editor' : 'Ajustes'}</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Editor body */}
           {!selectedNote ? (
-            <EmptyEditor onCreateNote={handleCreateNote} isTrash={isTrashView} />
+            <EmptyEditor onCreateNote={!isTrashView ? handleCreateNote : undefined} isTrash={isTrashView} />
           ) : rightPanel === 'settings' ? (
             <NoteSettingsPanel
               note={selectedNote}
@@ -260,29 +294,36 @@ function EmptyEditor({ onCreateNote, isTrash }) {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-8 select-none">
       <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center">
-        <PenLine className="w-6 h-6 text-amber-400" />
+        <PenLine size={22} className="text-amber-400" />
       </div>
       <div>
-        <p className="text-sm font-medium text-gray-700 mb-1">
+        <p className="text-sm font-medium text-foreground mb-1">
           {isTrash ? 'Papelera' : 'Selecciona una nota'}
         </p>
-        <p className="text-xs text-gray-400 leading-relaxed">
+        <p className="text-xs text-muted-foreground leading-relaxed max-w-48">
           {isTrash
             ? 'Selecciona una nota para restaurarla o eliminarla definitivamente'
             : 'Elige una nota de la lista o crea una nueva'}
         </p>
       </div>
-      {!isTrash && (
+      {onCreateNote && (
         <button
           onClick={onCreateNote}
-          className="mt-1 flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors shadow-sm"
+          className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors shadow-sm"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus size={13} />
           Nueva nota
         </button>
       )}
     </div>
   )
+}
+
+const VIEW_LABELS = {
+  all:    'Todas las notas',
+  recent: 'Recientes',
+  shared: 'Compartidas',
+  trash:  'Papelera',
 }
 
 function buildQueryParams(view) {
