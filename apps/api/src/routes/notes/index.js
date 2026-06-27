@@ -351,7 +351,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
       const noteId = c.req.param('id')
       const body = await c.req.json()
       const { targetUserId, permission } = body
-      const data = await shares.shareNote(noteId, userId, targetUserId, permission)
+      const data = await shares.shareNote(noteId, userId, { targetUserId, permission })
       return c.json({ data }, 201)
     } catch (e) {
       return c.json({ error: e.message }, e.status ?? 500)
@@ -366,7 +366,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
       const shareId = c.req.param('shareId')
       const body = await c.req.json()
       const { permission } = body
-      const data = await shares.updateShare(noteId, shareId, userId, permission)
+      const data = await shares.updateShare(shareId, userId, { permission })
       return c.json({ data })
     } catch (e) {
       return c.json({ error: e.message }, e.status ?? 500)
@@ -379,7 +379,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
       const shareId = c.req.param('shareId')
-      const data = await shares.revokeShare(noteId, shareId, userId)
+      const data = await shares.revokeShare(shareId, userId)
       return c.json(data)
     } catch (e) {
       return c.json({ error: e.message }, e.status ?? 500)

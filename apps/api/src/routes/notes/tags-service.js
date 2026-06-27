@@ -119,39 +119,62 @@ export function createTagsService({ prisma }) {
   // Set note tags (replace-all)
   // ------------------------------------------------------------------
 
-  async function setNoteTags(noteId, tagIds) {
-    await prisma.$executeRaw`
-      DELETE FROM note_tag_assignments
-      WHERE note_id = ${noteId}::uuid
-    `;
+  async function setNoteTags(noteId, userId, tagIds) {
+    // Verify user has edit access to this note (owner OR share with edit permission)
+    const access = await prisma.$queryRaw`
+      SELECT id FROM notes
+      WHERE id = ${noteId}::uuid
+        AND deleted_at IS NULL
+        AND (
+          owner_user_id = ${userId}::uuid
+          OR id IN (
+            SELECT note_id FROM note_shares
+            WHERE shared_with_user_id = ${userId}::uuid
+              AND permission = 'edit'
+          )
+        )
+    `
+    if (!access.length) throw new TagsServiceError('No tienes permiso para editar esta nota', 403)
 
-    if (!tagIds || tagIds.length === 0) {
-      return { ok: true };
-    }
-
+    await prisma.$executeRaw`DELETE FROM note_tag_assignments WHERE note_id = ${noteId}::uuid`
+    if (!tagIds || !tagIds.length) return { ok: true, count: 0 }
     for (const tagId of tagIds) {
       await prisma.$executeRaw`
         INSERT INTO note_tag_assignments (note_id, tag_id)
         VALUES (${noteId}::uuid, ${tagId}::uuid)
         ON CONFLICT DO NOTHING
-      `;
+      `
     }
-
-    return { ok: true, count: tagIds.length };
+    return { ok: true, count: tagIds.length }
   }
 
   // ------------------------------------------------------------------
   // Remove single note tag
   // ------------------------------------------------------------------
 
-  async function removeNoteTag(noteId, tagId) {
+  async function removeNoteTag(noteId, tagId, userId) {
+    // Verify user has edit access
+    const access = await prisma.$queryRaw`
+      SELECT id FROM notes
+      WHERE id = ${noteId}::uuid
+        AND deleted_at IS NULL
+        AND (
+          owner_user_id = ${userId}::uuid
+          OR id IN (
+            SELECT note_id FROM note_shares
+            WHERE shared_with_user_id = ${userId}::uuid
+              AND permission = 'edit'
+          )
+        )
+    `
+    if (!access.length) throw new TagsServiceError('No tienes permiso para editar esta nota', 403)
+
     await prisma.$executeRaw`
       DELETE FROM note_tag_assignments
       WHERE note_id = ${noteId}::uuid
         AND tag_id  = ${tagId}::uuid
-    `;
-
-    return { ok: true };
+    `
+    return { ok: true }
   }
 
   // ------------------------------------------------------------------
