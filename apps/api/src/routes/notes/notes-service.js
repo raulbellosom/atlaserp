@@ -265,33 +265,61 @@ export function createNotesService({ prisma, broadcaster = null }) {
     const rows = await prisma.$queryRaw`
       UPDATE notes
       SET
-        title                = COALESCE(${data.title !== undefined ? data.title : null}::text,               title),
-        content              = COALESCE(${data.content !== undefined ? JSON.stringify(data.content) : null}::jsonb, content),
-        content_text         = COALESCE(${data.contentText !== undefined ? data.contentText : null}::text,   content_text),
-        icon                 = COALESCE(${data.icon !== undefined ? data.icon : null}::text,                 icon),
+        title                = CASE
+                                 WHEN ${data.title !== undefined ? "t" : "f"}::boolean = TRUE
+                                 THEN ${data.title ?? null}::text
+                                 ELSE title
+                               END,
+        content              = CASE
+                                 WHEN ${data.content !== undefined ? "t" : "f"}::boolean = TRUE
+                                 THEN ${data.content !== undefined ? JSON.stringify(data.content) : null}::jsonb
+                                 ELSE content
+                               END,
+        content_text         = CASE
+                                 WHEN ${data.contentText !== undefined ? "t" : "f"}::boolean = TRUE
+                                 THEN ${data.contentText ?? null}::text
+                                 ELSE content_text
+                               END,
+        icon                 = CASE
+                                 WHEN ${data.icon !== undefined ? "t" : "f"}::boolean = TRUE
+                                 THEN ${data.icon ?? null}::text
+                                 ELSE icon
+                               END,
         background_color     = CASE
-                                 WHEN ${data.backgroundColor !== undefined ? "t" : "f"}::text = 't'
-                                 THEN ${data.backgroundColor !== undefined ? data.backgroundColor : null}::text
+                                 WHEN ${data.backgroundColor !== undefined ? "t" : "f"}::boolean = TRUE
+                                 THEN ${data.backgroundColor ?? null}::text
                                  ELSE background_color
                                END,
         background_image_url = CASE
-                                 WHEN ${data.backgroundImageUrl !== undefined ? "t" : "f"}::text = 't'
-                                 THEN ${data.backgroundImageUrl !== undefined ? data.backgroundImageUrl : null}::text
+                                 WHEN ${data.backgroundImageUrl !== undefined ? "t" : "f"}::boolean = TRUE
+                                 THEN ${data.backgroundImageUrl ?? null}::text
                                  ELSE background_image_url
                                END,
         cover_url            = CASE
-                                 WHEN ${data.coverUrl !== undefined ? "t" : "f"}::text = 't'
-                                 THEN ${data.coverUrl !== undefined ? data.coverUrl : null}::text
+                                 WHEN ${data.coverUrl !== undefined ? "t" : "f"}::boolean = TRUE
+                                 THEN ${data.coverUrl ?? null}::text
                                  ELSE cover_url
                                END,
         folder_id            = CASE
-                                 WHEN ${data.folderId !== undefined ? "t" : "f"}::text = 't'
-                                 THEN ${data.folderId !== undefined ? data.folderId : null}::uuid
+                                 WHEN ${data.folderId !== undefined ? "t" : "f"}::boolean = TRUE
+                                 THEN ${data.folderId ?? null}::uuid
                                  ELSE folder_id
                                END,
-        is_pinned            = COALESCE(${data.isPinned !== undefined ? data.isPinned : null}::boolean,      is_pinned),
-        is_archived          = COALESCE(${data.isArchived !== undefined ? data.isArchived : null}::boolean,  is_archived),
-        word_count           = COALESCE(${data.wordCount !== undefined ? data.wordCount : null}::integer,    word_count),
+        is_pinned            = CASE
+                                 WHEN ${data.isPinned !== undefined ? "t" : "f"}::boolean = TRUE
+                                 THEN ${data.isPinned ?? null}::boolean
+                                 ELSE is_pinned
+                               END,
+        is_archived          = CASE
+                                 WHEN ${data.isArchived !== undefined ? "t" : "f"}::boolean = TRUE
+                                 THEN ${data.isArchived ?? null}::boolean
+                                 ELSE is_archived
+                               END,
+        word_count           = CASE
+                                 WHEN ${data.wordCount !== undefined ? "t" : "f"}::boolean = TRUE
+                                 THEN ${data.wordCount ?? null}::integer
+                                 ELSE word_count
+                               END,
         updated_at           = NOW()
       WHERE id = ${noteId}
         AND deleted_at IS NULL
@@ -314,8 +342,8 @@ export function createNotesService({ prisma, broadcaster = null }) {
         if (collaboratorIds.length > 0) {
           await broadcaster.broadcastToUsers(collaboratorIds, "notes.note.updated", { noteId });
         }
-      } catch (_err) {
-        // Non-critical — don't fail the update if broadcast errors
+      } catch (broadcastErr) {
+        console.warn('[notes] broadcast failed after updateNote:', broadcastErr?.message ?? broadcastErr)
       }
     }
 
@@ -348,6 +376,7 @@ export function createNotesService({ prisma, broadcaster = null }) {
           trashed_at = NOW(),
           updated_at = NOW()
       WHERE id = ${noteId}
+        AND deleted_at IS NULL
     `;
 
     return { ok: true };
@@ -375,6 +404,7 @@ export function createNotesService({ prisma, broadcaster = null }) {
           trashed_at = NULL,
           updated_at = NOW()
       WHERE id = ${noteId}
+        AND deleted_at IS NULL
     `;
 
     return { ok: true };
@@ -402,6 +432,7 @@ export function createNotesService({ prisma, broadcaster = null }) {
     await prisma.$executeRaw`
       DELETE FROM notes
       WHERE id = ${noteId}
+        AND deleted_at IS NULL
     `;
 
     return { ok: true };
@@ -412,7 +443,6 @@ export function createNotesService({ prisma, broadcaster = null }) {
   // ------------------------------------------------------------------
 
   return {
-    assertAccess,
     createNote,
     getNote,
     listNotes,
