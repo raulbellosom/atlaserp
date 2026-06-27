@@ -48,11 +48,11 @@ export function NotificationBell({
   const queryClient = useQueryClient();
 
   const { data } = useQuery({
-    queryKey: ["notifications", token],
+    queryKey: ["notifications"],
     queryFn: () => atlas.notifications.list(token, { unreadOnly: false, limit: 20 }),
     enabled: Boolean(token),
-    refetchInterval: 60000,
-    staleTime: 10000,
+    refetchInterval: 300_000,
+    staleTime: 10_000,
     refetchOnWindowFocus: true,
   });
 
@@ -63,13 +63,13 @@ export function NotificationBell({
   const markAllRead = useMutation({
     mutationFn: () => atlas.notifications.markAllRead(token),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["notifications", token] }),
+      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
   const markOneRead = useMutation({
     mutationFn: (id) => atlas.notifications.markRead(token, id),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["notifications", token] }),
+      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
   const [open, setOpen] = useState(false);
@@ -78,7 +78,7 @@ export function NotificationBell({
     if (!notification) return;
     setOpen(false);
     if (!notification.read) {
-      queryClient.setQueryData(["notifications", token], (old) => {
+      queryClient.setQueryData(["notifications"], (old) => {
         const list = Array.isArray(old) ? old : (old?.data ?? []);
         const updated = list.map((n) =>
           n.id === notification.id ? { ...n, read: true } : n
