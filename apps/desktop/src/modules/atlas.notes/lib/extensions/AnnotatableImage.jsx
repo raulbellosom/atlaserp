@@ -1,4 +1,4 @@
-import { Node, mergeAttributes } from '@tiptap/core'
+import { Node, mergeAttributes } from '@tiptap/react'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import { ImageAnnotationOverlay } from '../../components/ImageAnnotationOverlay.jsx'
 
