@@ -129,6 +129,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             'role', cm.role,
             'displayName', up.display_name,
             'avatarFileId', up.avatar_file_id::text,
+            'authAvatarUrl', au.raw_user_meta_data->>'avatar_url',
             'lastReadAt', cm.last_read_at
           ) ORDER BY cm.joined_at)
           FROM (
@@ -137,6 +138,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             LIMIT 5
           ) cm
           LEFT JOIN user_profile up ON up.id = cm.user_id
+          LEFT JOIN auth.users au ON au.id = up.auth_user_id
         ) AS members
       FROM chat_conversations c
       INNER JOIN chat_conversation_members ccm
@@ -162,8 +164,9 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       if (conv.members) {
         conv.members = conv.members.map((m) => ({
           ...m,
-          avatarUrl: m.avatarFileId ? (avatarUrlMap[m.avatarFileId] ?? null) : null,
+          avatarUrl: m.avatarFileId ? (avatarUrlMap[m.avatarFileId] ?? m.authAvatarUrl ?? null) : (m.authAvatarUrl ?? null),
           avatarFileId: undefined,
+          authAvatarUrl: undefined,
         }));
       }
     }
@@ -262,10 +265,12 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             'lastReadAt', cm.last_read_at,
             'displayName', up.display_name,
             'avatarFileId', up.avatar_file_id::text,
+            'authAvatarUrl', au.raw_user_meta_data->>'avatar_url',
             'email', up.email
           ) ORDER BY cm.joined_at)
           FROM chat_conversation_members cm
           LEFT JOIN user_profile up ON up.id = cm.user_id
+          LEFT JOIN auth.users au ON au.id = up.auth_user_id
           WHERE cm.conversation_id = c.id AND cm.left_at IS NULL
         ) AS members
       FROM chat_conversations c
@@ -279,8 +284,9 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       const avatarUrlMap = fileIds.length ? await batchSignAvatarUrls(fileIds) : {};
       conv.members = conv.members.map((m) => ({
         ...m,
-        avatarUrl: m.avatarFileId ? (avatarUrlMap[m.avatarFileId] ?? null) : null,
+        avatarUrl: m.avatarFileId ? (avatarUrlMap[m.avatarFileId] ?? m.authAvatarUrl ?? null) : (m.authAvatarUrl ?? null),
         avatarFileId: undefined,
+        authAvatarUrl: undefined,
       }));
     }
     return conv;

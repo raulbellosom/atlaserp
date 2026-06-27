@@ -47,6 +47,7 @@ export function ChatMessageList({
 }) {
   const bottomRef = useRef(null);
   const listRef = useRef(null);
+  const isInitialLoadRef = useRef(true);
 
   // Flat list of all image attachments across the entire conversation (for the global carousel)
   const allConversationImages = useMemo(() => {
@@ -70,8 +71,19 @@ export function ChatMessageList({
   }
 
   useEffect(() => {
+    if (!messages?.length) return;
+    if (isInitialLoadRef.current) {
+      isInitialLoadRef.current = false;
+      if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+      return;
+    }
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages?.length, typingUsers?.length]);
+  }, [messages?.length]);
+
+  useEffect(() => {
+    if (!typingUsers?.length) return;
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [typingUsers?.length]);
 
   // ID of the last own message that all other members have read
   const lastReadMessageId = useMemo(() => {

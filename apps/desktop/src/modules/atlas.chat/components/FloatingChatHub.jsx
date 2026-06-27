@@ -20,11 +20,6 @@ const WH = 380;    // mini-window height px
 const WH_MIN = 44; // minimized height px
 const GAP = 8;     // gap between elements px
 
-function getFirstName(fullName) {
-  if (!fullName) return "?";
-  return fullName.split(" ")[0];
-}
-
 function getAvatarUrl(conversation, currentUserId) {
   if (conversation.avatar_url) return conversation.avatar_url;
   if (conversation.type === "direct") {
@@ -59,6 +54,22 @@ function AvatarCircle({ avatarUrl, name, size = "md" }) {
   );
 }
 
+function BubbleAvatar({ avatarUrl, name }) {
+  const [err, setErr] = useState(false);
+  useEffect(() => { setErr(false); }, [avatarUrl]);
+  if (avatarUrl && !err) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name}
+        className="w-full h-full object-cover"
+        onError={() => setErr(true)}
+      />
+    );
+  }
+  return <MessageSquare className="h-6 w-6" />;
+}
+
 // --- Mini chat window (desktop) ---
 
 function MiniChatWindow({ entry, index, edge, onClose, onMinimize }) {
@@ -77,7 +88,6 @@ function MiniChatWindow({ entry, index, edge, onClose, onMinimize }) {
   useEffect(() => { markReadRef.current(); }, [id]);
 
   const name = getConversationDisplayName(conversation, userProfile?.id);
-  const firstName = getFirstName(name);
   const avatarUrl = getAvatarUrl(conversation, userProfile?.id);
   const offset = BM + BS + GAP + index * (WW + GAP);
 
@@ -137,7 +147,7 @@ function MiniChatWindow({ entry, index, edge, onClose, onMinimize }) {
             className="group flex items-center gap-1.5 px-2.5 h-11 bg-[hsl(var(--surface-2))] cursor-pointer select-none"
           >
             <AvatarCircle avatarUrl={avatarUrl} name={name} size="sm" />
-            <p className="flex-1 text-xs font-semibold truncate">{firstName}</p>
+            <p className="flex-1 text-xs font-semibold truncate">{name}</p>
             <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
               <button
                 type="button"
@@ -389,16 +399,20 @@ function FloatingChatHubInner() {
 
   return createPortal(
     <>
-      {openChats.slice(0, maxWins).map((entry, i) => (
-        <MiniChatWindow
-          key={entry.id}
-          entry={entry}
-          index={i}
-          edge={edge}
-          onClose={() => closeChat(entry.id)}
-          onMinimize={() => toggleMinimize(entry.id)}
-        />
-      ))}
+      {openChats.slice(0, maxWins).map((entry, i) => {
+        const freshConv = conversations.find((c) => c.id === entry.id);
+        const liveEntry = freshConv ? { ...entry, conversation: freshConv } : entry;
+        return (
+          <MiniChatWindow
+            key={entry.id}
+            entry={liveEntry}
+            index={i}
+            edge={edge}
+            onClose={() => closeChat(entry.id)}
+            onMinimize={() => toggleMinimize(entry.id)}
+          />
+        );
+      })}
 
       {isOpen && (
         <div ref={panelRef} onPointerDown={(e) => e.stopPropagation()}>
@@ -417,14 +431,14 @@ function FloatingChatHubInner() {
           type="button"
           onPointerDown={handlePointerDown}
           className={[
-            "h-14 w-14 rounded-full shadow-xl flex items-center justify-center relative",
+            "h-14 w-14 rounded-full shadow-xl flex items-center justify-center relative overflow-hidden",
             "cursor-grab active:cursor-grabbing touch-manipulation select-none",
             "transition-transform active:scale-95",
-            "bg-[hsl(var(--primary))] text-white",
+            userProfile?.avatarUrl ? "bg-[hsl(var(--muted))]" : "bg-(--brand-primary) text-white",
             isOpen ? "ring-2 ring-white/30" : "",
           ].join(" ")}
         >
-          <MessageSquare className="h-6 w-6" />
+          <BubbleAvatar avatarUrl={userProfile?.avatarUrl} name={userProfile?.displayName} />
           {totalUnread > 0 && (
             <span className="absolute -top-1 -right-1 h-5 min-w-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-md pointer-events-none">
               {totalUnread > 99 ? "99+" : totalUnread}
