@@ -32,7 +32,7 @@ export function useUpdateNoteShare() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ noteId, shareId, permission }) =>
-      atlas.notes.updateShare(shareId, { permission }, token),
+      atlas.notes.updateShare(noteId, shareId, { permission }, token),
     onSuccess: (_, { noteId }) =>
       qc.invalidateQueries({ queryKey: ['notes', noteId, 'shares'] }),
   })
@@ -42,7 +42,7 @@ export function useRevokeNoteShare() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ noteId, shareId }) => atlas.notes.revokeShare(shareId, token),
+    mutationFn: ({ noteId, shareId }) => atlas.notes.revokeShare(noteId, shareId, token),
     onSuccess: (_, { noteId }) =>
       qc.invalidateQueries({ queryKey: ['notes', noteId, 'shares'] }),
   })

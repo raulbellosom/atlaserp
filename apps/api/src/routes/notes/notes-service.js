@@ -267,22 +267,22 @@ export function createNotesService({ prisma, broadcaster = null }) {
       SET
         title                = CASE
                                  WHEN ${data.title !== undefined ? "t" : "f"}::boolean = TRUE
-                                 THEN ${data.title ?? null}::text
+                                 THEN ${data.title ?? ''}::text
                                  ELSE title
                                END,
         content              = CASE
                                  WHEN ${data.content !== undefined ? "t" : "f"}::boolean = TRUE
-                                 THEN ${data.content !== undefined ? JSON.stringify(data.content) : null}::jsonb
+                                 THEN ${JSON.stringify(data.content ?? '')}::jsonb
                                  ELSE content
                                END,
         content_text         = CASE
                                  WHEN ${data.contentText !== undefined ? "t" : "f"}::boolean = TRUE
-                                 THEN ${data.contentText ?? null}::text
+                                 THEN ${data.contentText ?? ''}::text
                                  ELSE content_text
                                END,
         icon                 = CASE
                                  WHEN ${data.icon !== undefined ? "t" : "f"}::boolean = TRUE
-                                 THEN ${data.icon ?? null}::text
+                                 THEN ${data.icon ?? ''}::text
                                  ELSE icon
                                END,
         background_color     = CASE

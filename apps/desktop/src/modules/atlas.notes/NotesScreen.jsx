@@ -327,9 +327,9 @@ const VIEW_LABELS = {
 }
 
 function buildQueryParams(view) {
-  if (view === 'trash')           return { is_trashed: true }
-  if (view === 'recent')          return { sort: 'updated_at', limit: 20 }
-  if (view === 'shared')          return { shared_with_me: true }
-  if (view.startsWith('folder:')) return { folder_id: view.replace('folder:', '') }
+  if (view === 'trash')           return { trashed: true }
+  if (view === 'recent')          return { pageSize: 20 }
+  if (view === 'shared')          return { shared: true }
+  if (view.startsWith('folder:')) return { folderId: view.replace('folder:', '') }
   return {}
 }
