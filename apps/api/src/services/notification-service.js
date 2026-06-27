@@ -70,7 +70,7 @@ function buildListWhere({ userId, companyId, query }) {
   return where;
 }
 
-export function createNotificationService({ prisma }) {
+export function createNotificationService({ prisma, broadcaster = null }) {
   async function resolveCompanyContext(authUserId) {
     const profile = await prisma.userProfile.findUnique({
       where: { authUserId },
@@ -263,12 +263,25 @@ export function createNotificationService({ prisma }) {
       return { created, deduped };
     });
 
-    return {
+    const publishResult = {
       created: result.created.length,
       deduped: result.deduped,
       data: result.created.map(toNotificationView),
       actorId,
     };
+
+    if (broadcaster && result.created.length > 0) {
+      const recipientIds = result.created.map((n) => n.userId);
+      broadcaster.broadcastToUsers(recipientIds, "notification.new", {
+        eventType: parsed.eventType,
+        title: parsed.title,
+        body: parsed.body ?? null,
+        priority: parsed.priority ?? "medium",
+        link: parsed.link ?? null,
+      }).catch(() => {});
+    }
+
+    return publishResult;
   }
 
   async function publishFromContext({ authUserId, input }) {
