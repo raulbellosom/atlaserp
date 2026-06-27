@@ -567,11 +567,11 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
               body: preview,
               link: `/app/m/atlas.chat/chat/inbox`,
               recipients: { userIds: recipientIds },
-              channels: ["in_app"],
+              channels: ["in_app", "web_push"],
               priority: "medium",
               sourceType: "chat_conversation",
               sourceId: conversationId,
-              dedupeKey: `chat.message.new:${msg.id}`,
+              dedupeKey: `chat.message.new:${conversationId}`,
             },
           });
         } catch {}

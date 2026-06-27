@@ -12,7 +12,7 @@ import {
   Skeleton,
   Switch,
 } from "@atlas/ui";
-import { BellRing, CalendarClock, CheckSquare2, Globe2, ShieldAlert, Users } from "lucide-react";
+import { BellRing, CalendarClock, CheckSquare2, Globe2, MessageCircle, ShieldAlert, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../auth/AuthProvider";
 import { atlas } from "../../lib/atlas";
@@ -32,6 +32,13 @@ const DEFAULT_PREFS = {
 };
 
 const EVENT_CATALOG = [
+  // atlas.chat
+  {
+    eventType: "chat.message.new",
+    title: "Mensaje de chat",
+    description: "Cuando alguien te envia un mensaje directo o de grupo.",
+    icon: MessageCircle,
+  },
   // atlas.projects
   {
     eventType: "projects.member.added",

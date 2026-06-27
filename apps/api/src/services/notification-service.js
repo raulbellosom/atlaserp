@@ -265,9 +265,22 @@ export function createNotificationService({ prisma, broadcaster = null }) {
           },
         });
 
-        if (parsed.channels.length > 0) {
+        // Filter delivery channels by user's saved preferences for this eventType.
+        // Defaults: in_app=on, email=off, push=off (matches DEFAULT_PREFS in the UI).
+        const pref = await tx.notificationPreference.findFirst({
+          where: { userId, eventType: parsed.eventType },
+          select: { inAppEnabled: true, emailEnabled: true, pushEnabled: true },
+        });
+        const allowedChannels = parsed.channels.filter((ch) => {
+          if (ch === 'in_app')  return pref ? pref.inAppEnabled  !== false : true;
+          if (ch === 'email')   return pref ? pref.emailEnabled  === true  : false;
+          if (ch === 'web_push') return pref ? pref.pushEnabled  === true  : false;
+          return true;
+        });
+
+        if (allowedChannels.length > 0) {
           await tx.notificationDelivery.createMany({
-            data: parsed.channels.map((channel) => ({
+            data: allowedChannels.map((channel) => ({
               notificationId: notification.id,
               channel,
               status: "queued",
