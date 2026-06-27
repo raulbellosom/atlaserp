@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import {
   Plus, ArrowLeft,
@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { ConfirmDialog } from '@atlas/ui'
 import { useNotes, useCreateNote } from './hooks/useNotes.js'
-import { useUpdateNote, useTrashNote, useRestoreNote, usePermanentDeleteNote } from './hooks/useNote.js'
+import { useNote, useUpdateNote, useTrashNote, useRestoreNote, usePermanentDeleteNote } from './hooks/useNote.js'
 import { usePublishNote, useUnpublishNote } from './hooks/useNoteShares.js'
 import { NotesList } from './components/NotesList.jsx'
 import { NoteEditor } from './components/NoteEditor.jsx'
@@ -22,9 +22,10 @@ function viewFromPath(pathname) {
 
 export default function NotesScreen() {
   const { pathname } = useLocation()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const activeView = viewFromPath(pathname)
   const folderId   = searchParams.get('folder')
+  const urlNoteId  = searchParams.get('note')
   const isTrashView = activeView === 'trash'
 
   const [selectedNote, setSelectedNote] = useState(null)
@@ -34,6 +35,17 @@ export default function NotesScreen() {
   const [deleteOpen, setDeleteOpen]     = useState(false)
   const [noteToAction, setNoteToAction] = useState(null)
   const [mobileView, setMobileView]     = useState('list')
+
+  // Restore selected note from URL on mount / page reload
+  const { data: urlNoteData } = useNote(urlNoteId)
+  useEffect(() => {
+    if (urlNoteData?.note && !selectedNote) {
+      setSelectedNote(urlNoteData.note)
+      setMobileView('editor')
+    }
+  // Only run when the fetched note data arrives — not on every selectedNote change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlNoteData?.note?.id])
 
   const { data, isLoading } = useNotes(buildQueryParams(activeView, folderId))
   const notes = data?.notes ?? []
@@ -46,6 +58,15 @@ export default function NotesScreen() {
   const publishNote     = usePublishNote()
   const unpublishNote   = useUnpublishNote()
 
+  function setNoteParam(noteId) {
+    setSearchParams(p => {
+      const next = new URLSearchParams(p)
+      if (noteId) next.set('note', noteId)
+      else next.delete('note')
+      return next
+    })
+  }
+
   function handleCreateNote() {
     createNote.mutate(
       { title: 'Nueva nota', content: '' },
@@ -53,6 +74,7 @@ export default function NotesScreen() {
         onSuccess: (res) => {
           if (res?.note) {
             setSelectedNote(res.note)
+            setNoteParam(res.note.id)
             setRightPanel('editor')
             setMobileView('editor')
           }
@@ -76,6 +98,7 @@ export default function NotesScreen() {
       onSuccess: () => {
         if (selectedNote?.id === target.id) {
           setSelectedNote(null)
+          setNoteParam(null)
           setMobileView('list')
         }
       },
@@ -84,6 +107,7 @@ export default function NotesScreen() {
 
   function selectNote(note) {
     setSelectedNote(note)
+    setNoteParam(note.id)
     setRightPanel('editor')
     setMobileView('editor')
   }
@@ -214,7 +238,9 @@ export default function NotesScreen() {
         confirmLabel="Restaurar"
         onConfirm={() => {
           setRestoreOpen(false)
-          if (noteToAction) restoreNote.mutate(noteToAction.id, { onSuccess: () => setSelectedNote(null) })
+          if (noteToAction) restoreNote.mutate(noteToAction.id, {
+            onSuccess: () => { setSelectedNote(null); setNoteParam(null) }
+          })
         }}
       />
 
@@ -226,7 +252,9 @@ export default function NotesScreen() {
         confirmLabel="Eliminar permanentemente"
         onConfirm={() => {
           setDeleteOpen(false)
-          if (noteToAction) permanentDelete.mutate(noteToAction.id, { onSuccess: () => setSelectedNote(null) })
+          if (noteToAction) permanentDelete.mutate(noteToAction.id, {
+            onSuccess: () => { setSelectedNote(null); setNoteParam(null) }
+          })
         }}
       />
     </div>
