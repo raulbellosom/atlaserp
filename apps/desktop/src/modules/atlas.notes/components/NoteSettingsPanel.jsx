@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Copy } from 'lucide-react'
 import { useNoteFolders } from '../hooks/useNoteFolders.js'
 import { useNoteTags, useCreateNoteTag, useSetNoteTags } from '../hooks/useNoteTags.js'
 import { ConfirmDialog } from '@atlas/ui'
@@ -69,7 +70,7 @@ export function NoteSettingsPanel({ note, onUpdate, onPublish, onUnpublish, onTr
           type="text"
           value={note.icon ?? ''}
           onChange={e => onUpdate({ icon: e.target.value })}
-          placeholder="📝"
+          placeholder="Icono"
           maxLength={4}
           className="w-16 text-center text-2xl border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400"
         />
@@ -156,7 +157,7 @@ export function NoteSettingsPanel({ note, onUpdate, onPublish, onUnpublish, onTr
           <div className="space-y-1.5">
             <div className="flex items-center gap-1">
               <input readOnly value={publicUrl} className="flex-1 text-xs border border-gray-200 rounded px-2 py-1 bg-gray-50 truncate" />
-              <button onClick={() => navigator.clipboard.writeText(publicUrl)} className="text-xs px-2 py-1 border border-gray-200 rounded hover:bg-gray-50" title="Copiar">📋</button>
+              <button onClick={() => navigator.clipboard.writeText(publicUrl)} className="p-1.5 border border-gray-200 rounded hover:bg-gray-50" title="Copiar enlace"><Copy className="w-3.5 h-3.5 text-gray-500" /></button>
             </div>
             <button onClick={onUnpublish} className="text-xs text-red-500 hover:underline">Desactivar enlace publico</button>
           </div>

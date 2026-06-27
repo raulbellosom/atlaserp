@@ -1,4 +1,5 @@
 import { useCurrentEditor } from '@tiptap/react'
+import { Undo2, Redo2, Link2, PenLine, Table2 } from 'lucide-react'
 
 const ToolbarButton = ({ onClick, active, disabled, title, children }) => (
   <button
@@ -24,19 +25,11 @@ export function NoteToolbar() {
   return (
     <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-gray-200 bg-white flex-wrap sticky top-0 z-10">
       {/* History */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().undo().run()}
-        disabled={!editor.can().undo()}
-        title="Deshacer"
-      >
-        &#x21A9;
+      <ToolbarButton onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Deshacer">
+        <Undo2 className="w-3.5 h-3.5" />
       </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().redo().run()}
-        disabled={!editor.can().redo()}
-        title="Rehacer"
-      >
-        &#x21AA;
+      <ToolbarButton onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Rehacer">
+        <Redo2 className="w-3.5 h-3.5" />
       </ToolbarButton>
 
       <Divider />
@@ -170,37 +163,21 @@ export function NoteToolbar() {
       <Divider />
 
       {/* Blocks */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        active={editor.isActive('blockquote')}
-        title="Cita"
-      >
-        &ldquo; Cita
+      <ToolbarButton onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')} title="Cita">
+        Cita
       </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-        active={editor.isActive('codeBlock')}
-        title="Bloque de codigo"
-      >
-        {'{ }'} Codigo
+      <ToolbarButton onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editor.isActive('codeBlock')} title="Bloque de codigo">
+        {'{ }'}
       </ToolbarButton>
-      <ToolbarButton
-        onClick={() =>
-          editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
-        }
-        title="Insertar tabla"
-      >
-        &#x229E; Tabla
+      <ToolbarButton onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} title="Insertar tabla">
+        <Table2 className="w-3.5 h-3.5" />
       </ToolbarButton>
 
       <Divider />
 
       {/* Custom blocks */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().insertDrawingBlock().run()}
-        title="Insertar dibujo"
-      >
-        &#x270F; Dibujo
+      <ToolbarButton onClick={() => editor.chain().focus().insertDrawingBlock().run()} title="Insertar dibujo">
+        <PenLine className="w-3.5 h-3.5" />
       </ToolbarButton>
 
       {/* Link */}
@@ -212,7 +189,7 @@ export function NoteToolbar() {
         active={editor.isActive('link')}
         title="Enlace"
       >
-        &#x1F517; Enlace
+        <Link2 className="w-3.5 h-3.5" />
       </ToolbarButton>
     </div>
   )
