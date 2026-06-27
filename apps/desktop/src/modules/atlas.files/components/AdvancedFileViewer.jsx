@@ -473,6 +473,8 @@ export function AdvancedFileViewer({
                   key={signedUrl}
                   src={signedUrl}
                   controls
+                  playsInline
+                  preload="metadata"
                   className="max-h-full max-w-full"
                   style={{ outline: "none" }}
                 />
