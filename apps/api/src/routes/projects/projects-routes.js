@@ -37,7 +37,7 @@ function handleError(c, err, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets = null }) {
+export function createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets = null, broadcaster = null }) {
   const app = new Hono()
   const projectsSvc = createProjectsService({ prisma })
   const tasksSvc = createTasksService({ prisma })
@@ -46,6 +46,22 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   const bridge = createProjectsCalendarBridge({ prisma })
   const notifSvc = createProjectsNotificationService({ prisma, notificationService })
   const commentsSvc = createCommentsService({ prisma })
+
+  async function broadcastTaskEvent(projectId, taskId, action) {
+    if (!broadcaster || !projectId) return
+    try {
+      const members = await prisma.projectMember.findMany({
+        where: { projectId },
+        select: { userId: true },
+      })
+      const memberIds = members.map((m) => m.userId)
+      await broadcaster.broadcastToUsers(memberIds, 'projects.task.updated', {
+        projectId,
+        taskId: taskId ?? null,
+        action,
+      })
+    } catch {}
+  }
 
   // --- Projects ---
   app.get('/projects', requirePermission('projects.project.read'), async (c) => {
@@ -198,6 +214,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
         const project = await prisma.project.findFirst({ where: { id: task.projectId } })
         await bridge.syncTaskEvent(task, project?.calendarId)
       }
+      broadcastTaskEvent(task.projectId, task.id, 'created')
       return c.json(task, 201)
     } catch (err) { return handleError(c, err, 'Error al crear tarea.') }
   })
@@ -262,6 +279,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
           })
         }).catch(() => {})
       }
+      broadcastTaskEvent(task.projectId ?? c.req.param('id'), task.id, 'updated')
       return c.json(task)
     } catch (err) { return handleError(c, err, 'Error al actualizar tarea.') }
   })
@@ -270,6 +288,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     try {
       const task = await tasksSvc.deleteTask(c.req.param('tid'))
       if (task.calendarEventId) await bridge.deleteTaskEvent(task.calendarEventId)
+      broadcastTaskEvent(c.req.param('id'), c.req.param('tid'), 'deleted')
       return c.json({ ok: true })
     } catch (err) { return handleError(c, err, 'Error al eliminar tarea.') }
   })
@@ -277,6 +296,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   app.patch('/projects/:id/tasks/:tid/move', requirePermission('projects.task.update'), async (c) => {
     try {
       const task = await tasksSvc.moveTask(c.req.param('tid'), await c.req.json())
+      broadcastTaskEvent(c.req.param('id'), c.req.param('tid'), 'moved')
       return c.json(task)
     } catch (err) { return handleError(c, err, 'Error al mover tarea.') }
   })
