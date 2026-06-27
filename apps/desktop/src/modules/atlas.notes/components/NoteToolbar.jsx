@@ -1,6 +1,7 @@
 import { useCurrentEditor } from '@tiptap/react'
+import { useState } from 'react'
 import {
-  Undo2, Redo2, Link2, PenLine, Table2, ChevronDown,
+  Undo2, Redo2, Link2, PenLine, Table2, ChevronDown, ExternalLink, Unlink,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Code, Code2, List, ListOrdered, ListChecks,
   Quote, Type, Highlighter,
@@ -116,6 +117,8 @@ function TableMenuItem({ label, onClick, destructive }) {
 export function NoteToolbar() {
   const { editor } = useCurrentEditor()
   const isDark = useIsDark()
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkOpen, setLinkOpen] = useState(false)
   if (!editor) return null
 
   const TEXT_COLORS = isDark ? TEXT_COLORS_DARK : TEXT_COLORS_LIGHT
@@ -285,16 +288,77 @@ export function NoteToolbar() {
       >
         <PenLine className="w-3.5 h-3.5" />
       </ToolbarButton>
-      <ToolbarButton
-        onClick={() => {
-          const currentHref = editor.getAttributes('link').href ?? ''
-          editor.chain().focus().setLink({ href: currentHref }).run()
-        }}
-        active={editor.isActive('link')}
-        title="Insertar enlace"
-      >
-        <Link2 className="w-3.5 h-3.5" />
-      </ToolbarButton>
+      <Popover open={linkOpen} onOpenChange={open => {
+        setLinkOpen(open)
+        if (open) setLinkUrl(editor.getAttributes('link').href ?? '')
+      }}>
+        <PopoverTrigger asChild>
+          <button
+            onMouseDown={e => e.preventDefault()}
+            className={[
+              'h-7 min-w-7 px-1.5 rounded flex items-center justify-center gap-1 text-sm transition-colors select-none',
+              editor.isActive('link')
+                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+            ].join(' ')}
+            title="Insertar enlace"
+          >
+            <Link2 className="w-3.5 h-3.5" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="p-3 w-72" side="bottom" align="start">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Enlace</p>
+          <form
+            onSubmit={e => {
+              e.preventDefault()
+              const url = linkUrl.trim()
+              if (!url) {
+                editor.chain().focus().unsetLink().run()
+              } else {
+                const href = url.startsWith('http') ? url : `https://${url}`
+                editor.chain().focus().setLink({ href }).run()
+              }
+              setLinkOpen(false)
+            }}
+            className="flex gap-2"
+          >
+            <input
+              autoFocus
+              type="text"
+              value={linkUrl}
+              onChange={e => setLinkUrl(e.target.value)}
+              placeholder="https://..."
+              className="flex-1 text-sm border border-border rounded-md px-2.5 py-1.5 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-amber-400"
+            />
+            <button
+              type="submit"
+              className="px-3 py-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-md transition-colors"
+            >
+              Aplicar
+            </button>
+          </form>
+          {editor.isActive('link') && (
+            <div className="flex items-center gap-2 mt-2.5 pt-2.5 border-t border-border">
+              <a
+                href={editor.getAttributes('link').href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-amber-600 hover:underline flex-1 truncate"
+              >
+                <ExternalLink className="w-3 h-3 shrink-0" />
+                {editor.getAttributes('link').href}
+              </a>
+              <button
+                onMouseDown={e => { e.preventDefault(); editor.chain().focus().unsetLink().run(); setLinkOpen(false) }}
+                className="text-xs text-destructive hover:underline flex items-center gap-1 shrink-0"
+              >
+                <Unlink className="w-3 h-3" />
+                Quitar
+              </button>
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
 
       {/* Table context menu — only when cursor is inside a table */}
       {editor.isActive('table') && (

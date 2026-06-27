@@ -7,9 +7,14 @@ import {
   forwardRef,
 } from "react";
 import { Button } from "@atlas/ui";
-import { Send, Paperclip, Smile, X, FileText, Loader2, AlertCircle, Mic, Square } from "lucide-react";
+import {
+  Send, Paperclip, Smile, X, Loader2, AlertCircle, Mic,
+  Play, FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
+  FileArchive, FileCode, File as FileIcon,
+} from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import { useChatUpload } from "../hooks/useChatUpload";
+import { formatFileSize } from "../lib/chatUtils";
 
 // Preferred audio MIME type for recording — safe for iOS (audio/mp4 only) and Android
 function getRecordingMime() {
@@ -33,30 +38,122 @@ function formatDuration(seconds) {
   return `${m}:${s}`;
 }
 
-function FileChip({ entry, onRemove }) {
-  const isImage = entry.file.type.startsWith("image/");
-  const isAudio = entry.file.type.startsWith("audio/");
+function fileTypeIcon(mimeType) {
+  const m = String(mimeType ?? "").toLowerCase();
+  if (m.startsWith("image/"))   return <FileImage className="h-5 w-5 text-blue-400" />;
+  if (m.startsWith("video/"))   return <FileVideo className="h-5 w-5 text-orange-400" />;
+  if (m.startsWith("audio/"))   return <FileAudio className="h-5 w-5 text-emerald-400" />;
+  if (m === "application/pdf")  return <FileText className="h-5 w-5 text-red-400" />;
+  if (m.includes("spreadsheet") || m.includes("excel")) return <FileSpreadsheet className="h-5 w-5 text-green-400" />;
+  if (m.includes("word") || m.includes("document"))     return <FileType2 className="h-5 w-5 text-blue-400" />;
+  if (m.includes("zip") || m.includes("archive") || m.includes("compressed")) return <FileArchive className="h-5 w-5 text-yellow-400" />;
+  if (m.startsWith("text/"))    return <FileCode className="h-5 w-5 text-purple-400" />;
+  return <FileIcon className="h-5 w-5 text-[hsl(var(--muted-foreground))]" />;
+}
+
+function RemoveBtn({ onClick }) {
   return (
-    <div className="flex items-center gap-1.5 bg-[hsl(var(--muted))] rounded-lg px-2 py-1 max-w-[160px] shrink-0">
-      {entry.uploading ? (
-        <Loader2 className="h-3 w-3 shrink-0 animate-spin text-[hsl(var(--muted-foreground))]" />
-      ) : entry.error ? (
-        <AlertCircle className="h-3 w-3 shrink-0 text-red-500" />
-      ) : isImage && entry.objectUrl ? (
-        <img src={entry.objectUrl} alt="" className="h-5 w-5 rounded object-cover shrink-0" />
-      ) : isAudio ? (
-        <Mic className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--primary))]" />
-      ) : (
-        <FileText className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--muted-foreground))]" />
-      )}
-      <span className="text-[10px] truncate flex-1 min-w-0">{entry.file.name}</span>
-      <button
-        type="button"
-        onClick={() => onRemove(entry.localId)}
-        className="shrink-0 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
-      >
-        <X className="h-3 w-3" />
-      </button>
+    <button
+      type="button"
+      onClick={onClick}
+      className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center transition-colors touch-manipulation z-10"
+      aria-label="Quitar"
+    >
+      <X className="h-3 w-3 text-white" />
+    </button>
+  );
+}
+
+function StatusOverlay({ uploading, error }) {
+  if (uploading) return (
+    <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl pointer-events-none">
+      <Loader2 className="h-4 w-4 animate-spin text-white" />
+    </div>
+  );
+  if (error) return (
+    <div className="absolute inset-0 bg-red-500/40 flex items-center justify-center rounded-xl pointer-events-none">
+      <AlertCircle className="h-4 w-4 text-white" />
+    </div>
+  );
+  return null;
+}
+
+function AttachmentPreviewCard({ entry, onRemove }) {
+  const mime = entry.file.type;
+  const isImage = mime.startsWith("image/");
+  const isVideo = mime.startsWith("video/");
+  const isAudio = mime.startsWith("audio/");
+
+  // ── Image thumbnail ──────────────────────────────────────────────────────
+  if (isImage && entry.objectUrl) {
+    return (
+      <div className="relative h-20 w-20 rounded-xl overflow-hidden shrink-0 bg-[hsl(var(--muted))]">
+        <img src={entry.objectUrl} alt="" className="h-full w-full object-cover" />
+        <StatusOverlay uploading={entry.uploading} error={entry.error} />
+        <RemoveBtn onClick={() => onRemove(entry.localId)} />
+      </div>
+    );
+  }
+
+  // ── Video thumbnail ──────────────────────────────────────────────────────
+  if (isVideo) {
+    return (
+      <div className="relative h-20 w-20 rounded-xl overflow-hidden shrink-0 bg-black/25">
+        {entry.objectUrl && (
+          <video
+            src={`${entry.objectUrl}#t=0.001`}
+            preload="auto"
+            muted
+            playsInline
+            className="h-full w-full object-cover"
+          />
+        )}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-7 w-7 rounded-full bg-black/55 flex items-center justify-center">
+            <Play className="h-3.5 w-3.5 text-white fill-white ml-0.5" />
+          </div>
+        </div>
+        <StatusOverlay uploading={entry.uploading} error={entry.error} />
+        <RemoveBtn onClick={() => onRemove(entry.localId)} />
+      </div>
+    );
+  }
+
+  // ── Audio / voice note ───────────────────────────────────────────────────
+  if (isAudio) {
+    return (
+      <div className="relative flex items-center gap-2.5 bg-[hsl(var(--muted))] rounded-xl px-3 py-2.5 shrink-0 pr-8" style={{ maxWidth: 200 }}>
+        <div className="h-8 w-8 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
+          <Mic className="h-4 w-4 text-emerald-500" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium leading-tight">Nota de voz</p>
+          <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-tight">
+            {formatFileSize(entry.file.size)}
+            {entry.uploading && " · Subiendo..."}
+            {entry.error && <span className="text-red-500"> · Error</span>}
+          </p>
+        </div>
+        <RemoveBtn onClick={() => onRemove(entry.localId)} />
+      </div>
+    );
+  }
+
+  // ── Generic file ─────────────────────────────────────────────────────────
+  return (
+    <div className="relative flex items-center gap-2.5 bg-[hsl(var(--muted))] rounded-xl px-3 py-2.5 shrink-0 pr-8" style={{ maxWidth: 200 }}>
+      <div className="h-8 w-8 rounded-full bg-[hsl(var(--border))] flex items-center justify-center shrink-0">
+        {fileTypeIcon(mime)}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium truncate leading-tight">{entry.file.name}</p>
+        <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-tight">
+          {formatFileSize(entry.file.size)}
+          {entry.uploading && " · Subiendo..."}
+          {entry.error && <span className="text-red-500"> · Error</span>}
+        </p>
+      </div>
+      <RemoveBtn onClick={() => onRemove(entry.localId)} />
     </div>
   );
 }
@@ -103,7 +200,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
     const entries = Array.from(files).map((file) => ({
       localId: `${Date.now()}-${Math.random()}`,
       file,
-      objectUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
+      objectUrl: (file.type.startsWith("image/") || file.type.startsWith("video/")) ? URL.createObjectURL(file) : null,
       uploading: Boolean(conversationId),
       done: !conversationId,
       error: null,
@@ -384,11 +481,14 @@ export const MessageComposer = forwardRef(function MessageComposer(
         </div>
       )}
 
-      {/* Pending file chips */}
+      {/* Attachment previews */}
       {pendingFiles.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-1.5">
+        <div
+          className="flex gap-2 overflow-x-auto pb-1 mb-2"
+          style={{ scrollbarWidth: "none" }}
+        >
           {pendingFiles.map((entry) => (
-            <FileChip key={entry.localId} entry={entry} onRemove={removeFile} />
+            <AttachmentPreviewCard key={entry.localId} entry={entry} onRemove={removeFile} />
           ))}
         </div>
       )}
@@ -396,25 +496,30 @@ export const MessageComposer = forwardRef(function MessageComposer(
       {/* ── Recording mode ── */}
       {recording ? (
         <div className="flex items-center gap-2 bg-[hsl(var(--muted))] rounded-2xl px-3 py-2">
-          <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-          <span className="text-sm font-mono tabular-nums flex-1">
-            {formatDuration(recordSeconds)}
-          </span>
+          {/* Cancel */}
           <button
             type="button"
             onClick={() => stopRecording(true)}
-            className="shrink-0 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors h-8 w-8"
-            title="Cancelar"
+            className="shrink-0 flex items-center justify-center rounded-full border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-red-500 hover:border-red-400 transition-colors touch-manipulation h-8 w-8"
+            title="Cancelar nota de voz"
           >
             <X className="h-4 w-4" />
           </button>
+
+          {/* Red pulse dot + timer */}
+          <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+          <span className="text-sm font-mono tabular-nums flex-1 text-center">
+            {formatDuration(recordSeconds)}
+          </span>
+
+          {/* Send */}
           <button
             type="button"
             onClick={() => stopRecording(false)}
-            className="shrink-0 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors h-8 w-8"
-            title="Detener y enviar"
+            className="shrink-0 flex items-center justify-center rounded-full bg-(--brand-primary) text-(--brand-primary-foreground) hover:opacity-90 active:scale-95 transition-all touch-manipulation h-8 w-8"
+            title="Enviar nota de voz"
           >
-            <Square className="h-3.5 w-3.5 fill-white" />
+            <Send className="h-4 w-4" />
           </button>
         </div>
       ) : (

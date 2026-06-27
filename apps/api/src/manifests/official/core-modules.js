@@ -1301,6 +1301,7 @@ export const notesMap = createModuleManifest({
   uninstallable: false,
   icon: 'NotebookPen',
   color: '#f59e0b',
+  description: 'Notas enriquecidas con editor de texto, carpetas, etiquetas y colaboracion en tiempo real.',
   category: 'productividad',
   pwa: { shortName: 'Notas', startPath: '/notes' },
   navigation: [

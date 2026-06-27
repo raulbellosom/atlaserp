@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 import { subscribeToMessages } from "../lib/supabaseRealtime";
@@ -60,21 +60,27 @@ export function useChatMessages(conversationId) {
     [conversationId, queryClient],
   );
 
+  // Keep callback ref in sync so the subscription closure never goes stale
+  // without triggering an unnecessary channel teardown + re-subscribe.
+  const messageHandlerRef = useRef(null);
+  useLayoutEffect(() => {
+    messageHandlerRef.current = (payload) => {
+      if (payload.eventType === "INSERT") addMessageToCache(payload.new);
+      else if (payload.eventType === "UPDATE") updateMessageInCache(payload.new);
+    };
+  });
+
   useEffect(() => {
     if (!conversationId) return;
 
     unsubRef.current = subscribeToMessages(conversationId, (payload) => {
-      if (payload.eventType === "INSERT") {
-        addMessageToCache(payload.new);
-      } else if (payload.eventType === "UPDATE") {
-        updateMessageInCache(payload.new);
-      }
+      messageHandlerRef.current?.(payload);
     });
 
     return () => {
       unsubRef.current?.();
     };
-  }, [conversationId, addMessageToCache, updateMessageInCache]);
+  }, [conversationId]); // only re-subscribe when the conversation changes
 
   useEffect(() => {
     if (!conversationId) return;

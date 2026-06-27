@@ -137,6 +137,13 @@ export function createWebPushService({ prisma, webPushLib = webpush }) {
 
   async function saveVapidConfig(input) {
     const data = vapidConfigSchema.parse(input ?? {});
+
+    // Check if the public key is changing — if so, all existing browser push
+    // subscriptions were registered with the old applicationServerKey and will
+    // be rejected by the push service. Delete them so they stop retrying.
+    const existing = await getVapidConfig();
+    const publicKeyChanged = existing.configured && existing.publicKey !== data.publicKey;
+
     const entries = [
       { key: VAPID_CONFIG_KEYS.subject, value: data.subject },
       { key: VAPID_CONFIG_KEYS.publicKey, value: data.publicKey },
@@ -154,6 +161,14 @@ export function createWebPushService({ prisma, webPushLib = webpush }) {
         }),
       ),
     );
+
+    if (publicKeyChanged) {
+      // Remove stale subscriptions so the worker stops retrying deliveries that
+      // will always fail with "unexpected response code" (key mismatch).
+      await prisma.pushSubscription.deleteMany({}).catch(() => {});
+      console.log('[web-push] VAPID public key changed — all push subscriptions cleared. Users must re-subscribe.');
+    }
+
     return getVapidConfig();
   }
 

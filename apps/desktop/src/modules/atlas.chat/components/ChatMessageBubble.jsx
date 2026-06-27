@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Loader2, Download, Play, CheckCheck,
+  Loader2, Download, Play, Pause, CheckCheck, Mic,
   FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
   FileArchive, FileCode, File,
 } from "lucide-react";
@@ -87,53 +87,253 @@ function ImageCard({ att, index, allAttachments, onOpen }) {
 
 // ── Video card ────────────────────────────────────────────────────────────────
 function VideoCard({ att, index, allAttachments, onOpen }) {
-  const { data: url } = useAttachmentUrl(att);
+  const { data: url, isLoading } = useAttachmentUrl(att);
+  const [videoErr, setVideoErr] = useState(false);
+
+  // Appending #t=0.001 forces the browser to seek 1ms in and paint that frame as a thumbnail
+  const videoSrc = url ? `${url}#t=0.001` : null;
 
   return (
     <button
       type="button"
       onClick={() => onOpen?.(allAttachments, index)}
-      className="relative block rounded-xl overflow-hidden bg-black/20 hover:opacity-90 transition-opacity"
-      style={{ minHeight: 80, maxWidth: 220 }}
+      className="relative block rounded-xl overflow-hidden bg-black/25 hover:opacity-90 active:opacity-70 transition-opacity mt-1.5"
+      style={{ width: 220, height: 140, maxWidth: "100%" }}
     >
-      {url ? (
-        <video src={url} className="block w-full object-cover" style={{ maxHeight: 160 }} muted preload="metadata" />
-      ) : (
-        <div className="flex items-center justify-center h-24 w-40" />
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-white/50" />
+        </div>
       )}
+
+      {videoSrc && !videoErr ? (
+        <video
+          src={videoSrc}
+          className="absolute inset-0 w-full h-full object-cover"
+          muted
+          playsInline
+          preload="auto"
+          onError={() => setVideoErr(true)}
+        />
+      ) : !isLoading ? (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <FileVideo className="h-10 w-10 text-white/40" />
+        </div>
+      ) : null}
+
+      {/* Play overlay — always visible */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="h-10 w-10 rounded-full bg-black/50 flex items-center justify-center">
-          <Play className="h-5 w-5 text-white fill-white ml-0.5" />
+        <div className="h-12 w-12 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center shadow-lg">
+          <Play className="h-6 w-6 text-white fill-white ml-0.5" />
         </div>
       </div>
+
+      {/* Filename label at bottom */}
+      {att.fileName && (
+        <div className="absolute bottom-0 left-0 right-0 px-2 py-1 bg-linear-to-t from-black/60 to-transparent">
+          <p className="text-[10px] text-white/80 truncate">{att.fileName}</p>
+        </div>
+      )}
     </button>
   );
 }
 
-// ── Audio card ────────────────────────────────────────────────────────────────
+// ── Audio card (voice message player) ────────────────────────────────────────
+const AUDIO_SPEEDS = [1, 1.5, 2, 0.5];
+
+function fmtAudioTime(secs) {
+  if (!isFinite(secs) || secs < 0) return "0:00";
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+// Seeded LCG so bars are deterministic per attachment (same each render)
+function seedBars(seed, count) {
+  let s = seed;
+  return Array.from({ length: count }, () => {
+    s = (s * 1664525 + 1013904223) | 0;
+    return 20 + (Math.abs(s) % 80); // 20-100% height
+  });
+}
+
 function AudioCard({ att, isOwn }) {
   const { data: url, isLoading } = useAttachmentUrl(att);
+  const audioRef = useRef(null);
+  const durationFoundRef = useRef(false);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [speedIdx, setSpeedIdx] = useState(0);
+  const [loadError, setLoadError] = useState(false);
+  const speed = AUDIO_SPEEDS[speedIdx];
+
+  // Deterministic waveform bars seeded by attachment id
+  const bars = useMemo(() => {
+    const seed = Array.from(att.id).reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) | 0, 0);
+    return seedBars(seed, 32);
+  }, [att.id]);
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.playbackRate = speed;
+  }, [speed]);
+
+  // MediaRecorder webm files report Infinity duration — seek to end to discover real duration
+  function handleLoadedMetadata(e) {
+    const audio = e.currentTarget;
+    if (isFinite(audio.duration) && audio.duration > 0) {
+      durationFoundRef.current = true;
+      setDuration(audio.duration);
+    } else {
+      audio.currentTime = 1e101; // triggers seeked which reveals real duration
+    }
+  }
+
+  function handleSeeked(e) {
+    if (durationFoundRef.current) return;
+    const audio = e.currentTarget;
+    if (isFinite(audio.duration) && audio.duration > 0) {
+      durationFoundRef.current = true;
+      setDuration(audio.duration);
+      audio.currentTime = 0;
+    }
+  }
+
+  function togglePlay() {
+    const audio = audioRef.current;
+    if (!audio || !url) return;
+    if (playing) audio.pause();
+    else audio.play().catch(() => {});
+  }
+
+  function handleSeek(e) {
+    const audio = audioRef.current;
+    if (!audio || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clientX = e.changedTouches?.[0]?.clientX ?? e.touches?.[0]?.clientX ?? e.clientX;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    audio.currentTime = ratio * duration;
+    setCurrentTime(ratio * duration);
+  }
+
+  const progress = duration > 0 ? currentTime / duration : 0;
+
+  // Color tokens
+  const playBg    = isOwn ? "rgba(255,255,255,0.22)" : "var(--brand-primary)";
+  const playColor = isOwn ? "white"                   : "var(--brand-primary-foreground)";
+  const barPlayed = isOwn ? "rgba(255,255,255,0.9)"  : "var(--brand-primary)";
+  const barRest   = isOwn ? "rgba(255,255,255,0.28)" : "hsl(var(--border))";
+  const metaColor = isOwn ? "rgba(255,255,255,0.65)" : "hsl(var(--muted-foreground))";
+  const speedBg   = isOwn ? "rgba(255,255,255,0.15)" : "hsl(var(--muted))";
+  const speedFg   = isOwn ? "rgba(255,255,255,0.9)"  : "hsl(var(--foreground))";
+
+  if (isLoading) {
+    return (
+      <div className="mt-2 flex items-center gap-2 opacity-50" style={{ width: 240 }}>
+        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+        <span className="text-xs">Cargando audio...</span>
+      </div>
+    );
+  }
+
+  if (!url || loadError) {
+    return (
+      <div className="mt-2 flex items-center gap-2 text-xs opacity-50" style={{ width: 240 }}>
+        <FileAudio className="h-4 w-4 shrink-0" />
+        <span className="truncate">{att.fileName}</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="mt-1.5 w-full max-w-xs">
-      {isLoading ? (
-        <div className="flex items-center gap-2 opacity-50">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span className="text-xs">Cargando audio...</span>
+    <div className="mt-2 flex items-center gap-2.5" style={{ width: 248, maxWidth: "100%" }}>
+      {/* Hidden audio */}
+      <audio
+        ref={audioRef}
+        src={url}
+        preload="metadata"
+        onLoadedMetadata={handleLoadedMetadata}
+        onSeeked={handleSeeked}
+        onDurationChange={(e) => {
+          const d = e.currentTarget.duration;
+          if (isFinite(d) && d > 0 && !durationFoundRef.current) {
+            durationFoundRef.current = true;
+            setDuration(d);
+          }
+        }}
+        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => {
+          setPlaying(false);
+          setCurrentTime(0);
+          if (audioRef.current) audioRef.current.currentTime = 0;
+        }}
+        onError={() => setLoadError(true)}
+      />
+
+      {/* Play / pause button */}
+      <button
+        type="button"
+        onClick={togglePlay}
+        className="shrink-0 h-10 w-10 rounded-full flex items-center justify-center touch-manipulation active:scale-95 transition-transform"
+        style={{ backgroundColor: playBg, color: playColor }}
+        aria-label={playing ? "Pausar" : "Reproducir"}
+      >
+        {playing
+          ? <Pause className="h-4.5 w-4.5 fill-current" />
+          : <Play  className="h-4.5 w-4.5 fill-current ml-0.5" />}
+      </button>
+
+      {/* Waveform + meta row */}
+      <div className="flex-1 min-w-0 flex flex-col gap-1">
+        {/* Waveform bars — tap/click to seek */}
+        <div
+          className="flex items-center gap-px cursor-pointer touch-manipulation select-none"
+          style={{ height: 28 }}
+          onClick={handleSeek}
+          onTouchEnd={handleSeek}
+        >
+          {bars.map((h, i) => (
+            <div
+              key={i}
+              style={{
+                flexShrink: 0,
+                width: 2.5,
+                height: `${h}%`,
+                borderRadius: 2,
+                backgroundColor: i / bars.length < progress ? barPlayed : barRest,
+                transition: "background-color 0.06s",
+              }}
+            />
+          ))}
         </div>
-      ) : url ? (
-        <audio
-          src={url}
-          controls
-          className="w-full"
-          style={{ height: 36, filter: isOwn ? "invert(1) brightness(0.85)" : "none" }}
-        />
-      ) : (
-        <div className="flex items-center gap-2 text-xs opacity-50">
-          <FileText className="h-4 w-4 shrink-0" />
-          <span className="truncate">{att.fileName}</span>
+
+        {/* Time row */}
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] leading-none tabular-nums" style={{ color: metaColor }}>
+            {fmtAudioTime(currentTime)}
+          </span>
+          <div className="flex items-center gap-1.5">
+            {/* Mic icon for voice note identity */}
+            <Mic className="h-2.5 w-2.5 shrink-0" style={{ color: metaColor }} />
+            <span className="text-[10px] leading-none tabular-nums" style={{ color: metaColor }}>
+              {duration > 0 ? fmtAudioTime(duration) : "—:——"}
+            </span>
+          </div>
         </div>
-      )}
+      </div>
+
+      {/* Speed pill */}
+      <button
+        type="button"
+        onClick={() => setSpeedIdx((i) => (i + 1) % AUDIO_SPEEDS.length)}
+        className="shrink-0 text-[10px] font-bold rounded-full px-1.5 py-0.5 touch-manipulation active:scale-95 transition-transform leading-none"
+        style={{ backgroundColor: speedBg, color: speedFg }}
+        aria-label="Velocidad"
+      >
+        x{speed}
+      </button>
     </div>
   );
 }

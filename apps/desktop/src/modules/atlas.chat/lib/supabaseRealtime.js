@@ -6,8 +6,17 @@ import { getSupabaseClient } from "../../../lib/supabase.js";
  */
 export function subscribeToMessages(conversationId, onMessage) {
   const client = getSupabaseClient();
+  const channelName = `chat:messages:${conversationId}`;
+
+  // Supabase client.channel() returns an existing channel if one with the same
+  // topic is still registered. If that channel is already subscribed, calling
+  // .on() on it throws. Remove any stale channel before creating a fresh one.
+  // This happens in React strict-mode (double-mount) and on dep-triggered re-runs.
+  const stale = client.getChannels().find((ch) => ch.topic === `realtime:${channelName}`);
+  if (stale) client.removeChannel(stale);
+
   const channel = client
-    .channel(`chat:messages:${conversationId}`)
+    .channel(channelName)
     .on(
       "postgres_changes",
       {
@@ -20,9 +29,7 @@ export function subscribeToMessages(conversationId, onMessage) {
     )
     .subscribe();
 
-  return () => {
-    client.removeChannel(channel);
-  };
+  return () => client.removeChannel(channel);
 }
 
 /**
@@ -31,14 +38,15 @@ export function subscribeToMessages(conversationId, onMessage) {
  */
 export function subscribeToBroadcast(channelName, event, onEvent) {
   const client = getSupabaseClient();
+  const stale = client.getChannels().find((ch) => ch.topic === `realtime:${channelName}`);
+  if (stale) client.removeChannel(stale);
+
   const channel = client
     .channel(channelName)
     .on("broadcast", { event }, (payload) => onEvent(payload))
     .subscribe();
 
-  return () => {
-    client.removeChannel(channel);
-  };
+  return () => client.removeChannel(channel);
 }
 
 /**

@@ -445,14 +445,16 @@ function FloatingChatHubInner() {
           onPointerCancel={handlePointerCancel}
           style={{ touchAction: "none" }}
           className={[
-            "h-14 w-14 rounded-full shadow-xl flex items-center justify-center relative overflow-hidden",
+            "h-14 w-14 rounded-full shadow-xl flex items-center justify-center relative",
             "cursor-grab select-none",
             dragPos ? "" : "transition-transform active:scale-95",
             userProfile?.avatarUrl ? "bg-[hsl(var(--muted))]" : "bg-(--brand-primary) text-white",
             isOpen ? "ring-2 ring-white/30" : "",
           ].join(" ")}
         >
-          <BubbleAvatar avatarUrl={userProfile?.avatarUrl} name={userProfile?.displayName} />
+          <div className="h-full w-full rounded-full overflow-hidden flex items-center justify-center">
+            <BubbleAvatar avatarUrl={userProfile?.avatarUrl} name={userProfile?.displayName} />
+          </div>
           {totalUnread > 0 && (
             <span className="absolute -top-1 -right-1 h-5 min-w-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-md pointer-events-none">
               {totalUnread > 99 ? "99+" : totalUnread}
