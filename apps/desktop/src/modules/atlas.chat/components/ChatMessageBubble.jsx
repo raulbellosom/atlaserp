@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, FileText, Download, Play, CheckCheck } from "lucide-react";
+import {
+  Loader2, Download, Play, CheckCheck,
+  FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
+  FileArchive, FileCode, File,
+} from "lucide-react";
 import { formatMessageTime, formatFileSize, isImageMime } from "../lib/chatUtils";
 import { atlas } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -8,10 +12,26 @@ import { useAuth } from "../../../auth/AuthProvider";
 function isVideoMime(m) { return String(m ?? "").startsWith("video/"); }
 function isAudioMime(m) { return String(m ?? "").startsWith("audio/"); }
 
-// Hook: pre-fetch signed URL for a single attachment (image, audio, video)
+function getFileTypeInfo(mimeType = "") {
+  const m = String(mimeType).toLowerCase();
+  if (m === "application/pdf") return { Icon: FileType2, colorClass: "text-red-400" };
+  if (m.includes("spreadsheet") || m.includes("excel") || m === "text/csv")
+    return { Icon: FileSpreadsheet, colorClass: "text-green-400" };
+  if (m.includes("word") || m.includes("document"))
+    return { Icon: FileText, colorClass: "text-blue-400" };
+  if (m.startsWith("image/")) return { Icon: FileImage, colorClass: "text-violet-400" };
+  if (m.startsWith("video/")) return { Icon: FileVideo, colorClass: "text-orange-400" };
+  if (m.startsWith("audio/")) return { Icon: FileAudio, colorClass: "text-emerald-400" };
+  if (m.includes("zip") || m.includes("rar") || m.includes("tar") || m.includes("7z"))
+    return { Icon: FileArchive, colorClass: "text-yellow-400" };
+  if (m.startsWith("text/") || m.includes("json") || m.includes("xml"))
+    return { Icon: FileCode, colorClass: "text-cyan-400" };
+  return { Icon: File, colorClass: "text-[hsl(var(--muted-foreground))]" };
+}
+
+// Hook: pre-fetch signed URL for all attachment types (needed for thumbnails, audio, video, and download button)
 function useAttachmentUrl(att) {
   const { session } = useAuth();
-  const needsUrl = isImageMime(att.mimeType) || isAudioMime(att.mimeType) || isVideoMime(att.mimeType);
   return useQuery({
     queryKey: ["chat-attachment-url", att.id],
     queryFn: async () => {
@@ -25,13 +45,14 @@ function useAttachmentUrl(att) {
     },
     staleTime: 50 * 60 * 1000,
     retry: 2,
-    enabled: needsUrl && Boolean(session?.access_token),
+    enabled: Boolean(session?.access_token),
   });
 }
 
 // ── Image card ────────────────────────────────────────────────────────────────
 function ImageCard({ att, index, allAttachments, onOpen }) {
   const { data: url, isLoading, isError } = useAttachmentUrl(att);
+  const [imgErr, setImgErr] = useState(false);
 
   return (
     <button
@@ -44,8 +65,17 @@ function ImageCard({ att, index, allAttachments, onOpen }) {
         <div className="flex items-center justify-center h-20 w-32">
           <Loader2 className="h-5 w-5 animate-spin opacity-40" />
         </div>
-      ) : url ? (
-        <img src={url} alt={att.fileName} className="block w-full object-cover" style={{ maxHeight: 220 }} />
+      ) : url && !imgErr ? (
+        <img
+          src={url}
+          alt={att.fileName}
+          className="block w-full object-cover"
+          style={{ maxHeight: 220 }}
+          onError={() => {
+            console.warn("[chat] image load failed", { url, id: att.id });
+            setImgErr(true);
+          }}
+        />
       ) : (
         <div className="flex items-center justify-center h-20 w-32 opacity-40">
           <FileText className="h-6 w-6" />
@@ -85,7 +115,7 @@ function AudioCard({ att, isOwn }) {
   const { data: url, isLoading } = useAttachmentUrl(att);
 
   return (
-    <div className="mt-1.5 max-w-55">
+    <div className="mt-1.5 w-full max-w-xs">
       {isLoading ? (
         <div className="flex items-center gap-2 opacity-50">
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -111,6 +141,7 @@ function AudioCard({ att, isOwn }) {
 // ── File card (generic) ───────────────────────────────────────────────────────
 function FileCard({ att, index, allAttachments, onOpen, isOwn }) {
   const { data: url } = useAttachmentUrl(att);
+  const { Icon, colorClass } = getFileTypeInfo(att.mimeType);
 
   function handleDownload(e) {
     e.stopPropagation();
@@ -135,7 +166,7 @@ function FileCard({ att, index, allAttachments, onOpen, isOwn }) {
         onClick={() => onOpen?.(allAttachments, index)}
         className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
       >
-        <FileText className="h-4 w-4 shrink-0 opacity-60" />
+        <Icon className={`h-4 w-4 shrink-0 ${colorClass}`} />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium truncate">{att.fileName}</p>
           <p className="text-xs opacity-50">{formatFileSize(att.sizeBytes)}</p>
@@ -154,39 +185,114 @@ function FileCard({ att, index, allAttachments, onOpen, isOwn }) {
   );
 }
 
-// ── Image grid (2+ images grouped) ───────────────────────────────────────────
+// ── Cover cell for image grids ────────────────────────────────────────────────
+function ImageCoverCell({ att, index, allAttachments, onOpen, overflowCount = 0 }) {
+  const { data: url, isLoading } = useAttachmentUrl(att);
+  const [imgErr, setImgErr] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen?.(allAttachments, index)}
+      className="absolute inset-0 w-full h-full hover:opacity-90 transition-opacity bg-black/10"
+    >
+      {isLoading ? (
+        <div className="flex items-center justify-center w-full h-full">
+          <Loader2 className="h-4 w-4 animate-spin opacity-40" />
+        </div>
+      ) : url && !imgErr ? (
+        <img
+          src={url}
+          alt={att.fileName}
+          className="w-full h-full object-cover"
+          onError={() => {
+            console.warn("[chat] image load failed", { url, id: att.id });
+            setImgErr(true);
+          }}
+        />
+      ) : (
+        <div className="flex items-center justify-center w-full h-full opacity-40">
+          <FileImage className="h-5 w-5" />
+        </div>
+      )}
+      {overflowCount > 0 && (
+        <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-white font-bold text-xl pointer-events-none">
+          +{overflowCount}
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ── Image grid (Telegram-style layouts) ───────────────────────────────────────
 function ImageGrid({ images, allAttachments, onOpen, startIndex }) {
-  if (images.length === 1) {
+  const shown = images.slice(0, 4);
+  const overflowCount = Math.max(0, images.length - 4);
+  const count = shown.length;
+
+  // 1 image: natural aspect ratio
+  if (count === 1) {
     return (
-      <div className="mt-1.5 max-w-55">
+      <div className="mt-1.5" style={{ maxWidth: 220 }}>
         <ImageCard att={images[0]} index={startIndex} allAttachments={allAttachments} onOpen={onOpen} />
       </div>
     );
   }
 
-  const shown = images.slice(0, 4);
-  const overflow = images.length > 4 ? images.length - 4 : 0;
-
-  return (
-    <div className={`mt-1.5 grid gap-1 ${shown.length === 2 ? "grid-cols-2" : "grid-cols-2"}`} style={{ maxWidth: 220 }}>
-      {shown.map((att, i) => {
-        const globalIdx = startIndex + i;
-        const isLast = i === shown.length - 1 && overflow > 0;
-        return (
-          <div key={att.id} className="relative rounded-lg overflow-hidden">
-            <ImageCard att={att} index={globalIdx} allAttachments={allAttachments} onOpen={onOpen} />
-            {isLast && (
-              <button
-                type="button"
-                onClick={() => onOpen?.(allAttachments, globalIdx)}
-                className="absolute inset-0 flex items-center justify-center bg-black/60 text-white font-bold text-lg"
-              >
-                +{overflow + 1}
-              </button>
-            )}
+  // 2 images: side-by-side square cells
+  if (count === 2) {
+    return (
+      <div className="mt-1.5 flex gap-0.5 rounded-xl overflow-hidden" style={{ width: 220, maxWidth: '100%' }}>
+        {shown.map((att, i) => (
+          <div key={att.id} className="relative flex-1" style={{ height: 110 }}>
+            <ImageCoverCell att={att} index={startIndex + i} allAttachments={allAttachments} onOpen={onOpen} />
           </div>
-        );
-      })}
+        ))}
+      </div>
+    );
+  }
+
+  // 3 images: 1 wide on top + 2 side-by-side below
+  if (count === 3) {
+    return (
+      <div className="mt-1.5 rounded-xl overflow-hidden" style={{ width: 220, maxWidth: '100%' }}>
+        <div className="relative" style={{ height: 132 }}>
+          <ImageCoverCell att={shown[0]} index={startIndex} allAttachments={allAttachments} onOpen={onOpen} />
+        </div>
+        <div className="flex gap-0.5 mt-0.5">
+          {shown.slice(1).map((att, i) => (
+            <div key={att.id} className="relative flex-1" style={{ height: 86 }}>
+              <ImageCoverCell att={att} index={startIndex + 1 + i} allAttachments={allAttachments} onOpen={onOpen} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // 4+ images: 2×2 grid, last cell shows overflow counter
+  return (
+    <div className="mt-1.5 rounded-xl overflow-hidden" style={{ width: 220, maxWidth: '100%' }}>
+      <div className="flex gap-0.5">
+        {shown.slice(0, 2).map((att, i) => (
+          <div key={att.id} className="relative flex-1" style={{ height: 110 }}>
+            <ImageCoverCell att={att} index={startIndex + i} allAttachments={allAttachments} onOpen={onOpen} />
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-0.5 mt-0.5">
+        {shown.slice(2, 4).map((att, i) => (
+          <div key={att.id} className="relative flex-1" style={{ height: 110 }}>
+            <ImageCoverCell
+              att={att}
+              index={startIndex + 2 + i}
+              allAttachments={allAttachments}
+              onOpen={onOpen}
+              overflowCount={i === 1 ? overflowCount : 0}
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
