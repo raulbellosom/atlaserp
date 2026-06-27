@@ -74,7 +74,7 @@ export function createNotesService({ prisma, broadcaster = null }) {
         ${companyId ?? null}::uuid,
         ${folderId ?? null}::uuid,
         ${title ?? "Sin titulo"},
-        ${content ? JSON.stringify(content) : null}::jsonb,
+        ${JSON.stringify(content ?? '')}::jsonb,
         ${icon ?? null},
         ${backgroundColor ?? null}
       )
