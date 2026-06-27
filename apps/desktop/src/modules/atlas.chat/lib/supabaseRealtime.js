@@ -7,7 +7,7 @@ import { getSupabaseClient } from "../../../lib/supabase.js";
 export function subscribeToMessages(conversationId, onMessage) {
   const client = getSupabaseClient();
   const channel = client
-    .channel(`chat:conv:${conversationId}`)
+    .channel(`chat:messages:${conversationId}`)
     .on(
       "postgres_changes",
       {
@@ -83,25 +83,3 @@ export function createPresenceChannel(channelName, userPresenceData, { onPresenc
   };
 }
 
-/**
- * Subscribe to conversation list updates for a user.
- */
-export function subscribeToConversationList(userId, onUpdate) {
-  const client = getSupabaseClient();
-  const channel = client
-    .channel(`chat:user:${userId}:convlist`)
-    .on(
-      "postgres_changes",
-      {
-        event: "UPDATE",
-        schema: "public",
-        table: "chat_conversations",
-      },
-      (payload) => onUpdate(payload),
-    )
-    .subscribe();
-
-  return () => {
-    client.removeChannel(channel);
-  };
-}
