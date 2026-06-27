@@ -16,6 +16,7 @@ export function useProjectRealtime(projectId) {
     return on("projects.task.updated", ({ projectId: pid }) => {
       if (pid !== projectId) return;
       queryClient.invalidateQueries({ queryKey: ["projects", projectId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["projects", projectId] });
     });
   }, [projectId, on, queryClient]);
 }
