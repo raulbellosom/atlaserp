@@ -38,6 +38,7 @@ import { PublicModuleOutlet } from "../shell/PublicModuleOutlet.jsx";
 import { PublicWebsiteEntry } from "../shell/PublicWebsiteEntry.jsx";
 import { PublicClientLogin } from "../shell/PublicClientLogin.jsx";
 import { ServerSetup } from "./ServerSetup.jsx";
+import PublicNoteScreen from "../modules/atlas.notes/PublicNoteScreen.jsx";
 import "../styles.css";
 
 useThemeStore.getState().init();
@@ -237,6 +238,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                 </Route>
               </Route>
               <Route path="/p" element={<PublicShell />}>
+                <Route path="notes/:slug" element={<PublicNoteScreen />} />
                 <Route path="*" element={<PublicModuleOutlet />} />
               </Route>
               <Route path="*" element={<PublicWebsiteEntry />} />

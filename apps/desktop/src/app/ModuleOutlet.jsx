@@ -278,6 +278,13 @@ const SCREEN_MAP = {
         "../modules/atlas.notifications/NotificationSettingsScreen.jsx"
       ),
   ),
+  // atlas.notes
+  "atlas.notes:/": lazy(
+    () => import("../modules/atlas.notes/NotesScreen.jsx"),
+  ),
+  "atlas.notes:/notes": lazy(
+    () => import("../modules/atlas.notes/NotesScreen.jsx"),
+  ),
   // atlas.inventory
   "atlas.inventory:/": lazy(
     () => import("../modules/atlas.inventory/screens/InventoryScreen.jsx"),
@@ -516,6 +523,10 @@ function resolveScreen(moduleKey, subPath) {
     if (subPath === "/" || subPath === "/chat/inbox") return SCREEN_MAP["atlas.chat:/chat/inbox"] ?? null;
     if (subPath.startsWith("/chat/inbox/")) return SCREEN_MAP["atlas.chat:/chat/inbox"] ?? null;
     if (subPath === "/chat/external") return SCREEN_MAP["atlas.chat:/chat/external"] ?? null;
+    return null;
+  }
+  if (moduleKey === "atlas.notes") {
+    if (subPath === "/" || subPath === "/notes") return SCREEN_MAP["atlas.notes:/notes"] ?? null;
     return null;
   }
   if (subPath === "/") return SCREEN_MAP[`${moduleKey}:/`] ?? null;
