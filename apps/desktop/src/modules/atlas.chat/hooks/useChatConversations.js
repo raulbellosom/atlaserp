@@ -1,14 +1,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
-import { subscribeToConversationList } from "../lib/supabaseRealtime";
+import { useRealtimeContext } from "../../../providers/RealtimeProvider";
 
 export function useChatConversations() {
-  const { session, userProfile } = useAuth();
+  const { session } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
-  const unsubRef = useRef(null);
+  const { on } = useRealtimeContext();
 
   const query = useQuery({
     queryKey: ["chat-conversations"],
@@ -19,16 +19,17 @@ export function useChatConversations() {
   });
 
   useEffect(() => {
-    if (!userProfile?.id) return;
-
-    unsubRef.current = subscribeToConversationList(userProfile.id, () => {
+    const unsub1 = on("chat.conversation.new", () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
     });
-
+    const unsub2 = on("chat.message.new", () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+    });
     return () => {
-      unsubRef.current?.();
+      unsub1();
+      unsub2();
     };
-  }, [userProfile?.id, queryClient]);
+  }, [on, queryClient]);
 
   return query;
 }
