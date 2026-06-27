@@ -19,6 +19,16 @@ export function AuthProvider({ children }) {
     let profileLoadedForAuthUserId = null
 
     async function forceLogout() {
+      // Before signing out permanently, try to refresh the session.
+      // A 401 from the API can be transient (network blip, token rotation race).
+      // Only sign out if the refresh token itself is also dead.
+      const { error: refreshError } = await supabase.auth.refreshSession().catch(() => ({
+        error: new Error('refresh_unavailable'),
+      }))
+      if (!refreshError) {
+        // Refresh succeeded — TOKEN_REFRESHED fires, session is alive.
+        return
+      }
       try {
         await supabase.auth.signOut()
       } catch {}
@@ -30,17 +40,16 @@ export function AuthProvider({ children }) {
     }
 
     function shouldForceLogout(error) {
-      if (Number(error?.status) === 401) return true
+      // Never force logout on a plain 401 — that's often a transient issue
+      // or a token rotation race that the Supabase client will self-heal.
+      // Only trigger on errors that unambiguously mean the session is dead.
       const message = String(error?.message ?? '').toLowerCase()
       return (
-        message.includes('profile not found') ||
-        message.includes('unauthorized') ||
-        message.includes('no autorizado') ||
+        message.includes('jwt expired') ||
+        message.includes('invalid jwt') ||
         message.includes('token invalido') ||
         message.includes('token inválido') ||
-        message.includes('expirado') ||
-        message.includes('jwt expired') ||
-        message.includes('invalid jwt')
+        message.includes('profile not found')
       )
     }
 

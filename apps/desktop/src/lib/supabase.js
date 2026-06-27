@@ -55,7 +55,13 @@ export async function initSupabaseClient({
     return currentSupabaseClient
   }
 
-  currentSupabaseClient = createClient(resolvedConfig.url, resolvedConfig.anonKey)
+  currentSupabaseClient = createClient(resolvedConfig.url, resolvedConfig.anonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: false,
+    },
+  })
   currentSupabaseKey = nextKey
   return currentSupabaseClient
 }
@@ -69,7 +75,13 @@ export function getSupabaseClient() {
       )
     }
 
-    currentSupabaseClient = createClient(fallbackConfig.url, fallbackConfig.anonKey)
+    currentSupabaseClient = createClient(fallbackConfig.url, fallbackConfig.anonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+      },
+    })
     currentSupabaseKey = `${fallbackConfig.url}::${fallbackConfig.anonKey}`
   }
 

@@ -73,9 +73,17 @@ export function createWebPushService({ prisma, webPushLib = webpush }) {
     const rows = await getConfigRows();
     const cfg = Object.fromEntries(rows.map((row) => [row.key, row.value]));
     const encryptedPrivateKey = cfg[VAPID_CONFIG_KEYS.privateKey] ?? null;
-    const privateKey = encryptedPrivateKey
-      ? decryptPassword(encryptedPrivateKey)
-      : null;
+    let privateKey = null;
+    if (encryptedPrivateKey) {
+      try {
+        privateKey = decryptPassword(encryptedPrivateKey);
+      } catch {
+        // Decryption fails when JWT_SECRET changed since the key was saved.
+        // Treat as not configured — admin must re-save VAPID keys from the
+        // Web Push settings screen.
+        privateKey = null;
+      }
+    }
     const configured = Boolean(
       cfg[VAPID_CONFIG_KEYS.subject] &&
         cfg[VAPID_CONFIG_KEYS.publicKey] &&
