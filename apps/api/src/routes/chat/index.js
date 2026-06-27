@@ -23,9 +23,9 @@ function handleError(c, err, fallback) {
   return c.json({ error: fallback }, 500);
 }
 
-export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService = null }) {
+export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService = null, broadcaster = null }) {
   const app = new Hono();
-  const chatService = createChatService({ prisma, supabaseAdmin, notificationService });
+  const chatService = createChatService({ prisma, supabaseAdmin, notificationService, broadcaster });
   const guestService = createGuestChatService({ prisma, supabaseAdmin });
 
   // ================================================================
