@@ -1098,6 +1098,7 @@ export const atlasPosManifest = createModuleManifest({
       "PosKitchenTicketLine",
       "PosProductConfig",
       "PosReceipt",
+      "PosReservation",
     ],
     ownedTables: [
       "pos_settings",
@@ -1119,6 +1120,7 @@ export const atlasPosManifest = createModuleManifest({
       "pos_kitchen_ticket_line",
       "pos_product_config",
       "pos_receipt",
+      "pos_reservation",
     ],
     sharedEntities: [
       "Company",
@@ -1290,6 +1292,35 @@ export const inventoryMap = createModuleManifest({
   consumes: [],
 });
 
+export const notesMap = createModuleManifest({
+  key: 'atlas.notes',
+  name: 'Notas',
+  version: '0.1.0',
+  kind: MODULE_KINDS.CORE,
+  core: true,
+  uninstallable: false,
+  icon: 'NotebookPen',
+  color: '#f59e0b',
+  category: 'productividad',
+  navigation: [
+    {
+      label: 'Notas',
+      path: '/notes',
+      icon: 'NotebookPen',
+      layout: 'main',
+      permissionKey: 'notes.notes.read',
+    },
+  ],
+  permissions: [
+    { key: 'notes.access', name: 'Acceso a notas', description: 'Puede ver el modulo de notas' },
+    { key: 'notes.notes.read', name: 'Leer notas', description: 'Puede leer sus propias notas y notas compartidas' },
+    { key: 'notes.notes.create', name: 'Crear notas', description: 'Puede crear nuevas notas' },
+    { key: 'notes.notes.delete', name: 'Eliminar notas', description: 'Puede mover sus notas a la papelera' },
+    { key: 'notes.notes.share', name: 'Compartir notas', description: 'Puede compartir notas con otros usuarios' },
+    { key: 'notes.notes.publish', name: 'Publicar notas', description: 'Puede generar enlaces publicos para sus notas' },
+  ],
+});
+
 export const coreModules = [
   atlasCoreMap,
   identityMap,
@@ -1310,4 +1341,5 @@ export const coreModules = [
   projectsMap,
   inventoryMap,
   chatMap,
+  notesMap,
 ];
