@@ -57,6 +57,7 @@ export function AdvancedFileViewer({
   activeIndex,
   onIndexChange,
   onResolveSignedUrl,
+  zIndex = 50,
 }) {
   const [signedUrl, setSignedUrl] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -288,17 +289,21 @@ export function AdvancedFileViewer({
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         {/* Overlay */}
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 duration-200" />
+        <DialogPrimitive.Overlay
+          style={{ zIndex }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 duration-200"
+        />
 
         {/* Viewer panel — fills almost the full viewport */}
         <DialogPrimitive.Content
           aria-describedby={undefined}
+          style={{ zIndex }}
           onPointerDownOutside={(e) => {
             // Prevent accidental close during pinch/pan gestures
             if (gestureRef.current.mode !== null) e.preventDefault();
           }}
           className={[
-            "fixed inset-safe z-50 flex flex-col rounded-2xl overflow-hidden",
+            "fixed inset-safe flex flex-col rounded-2xl overflow-hidden",
             "glass-strong shadow-2xl",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
@@ -441,12 +446,24 @@ export function AdvancedFileViewer({
 
             {/* PDF viewer */}
             {!loading && signedUrl && kind === "pdf" && (
-              <iframe
-                src={signedUrl}
-                title={file?.originalName ?? "PDF"}
-                className="h-full w-full"
-                style={{ touchAction: "pan-y" }}
-              />
+              <div className="relative h-full w-full group">
+                <iframe
+                  src={signedUrl}
+                  title={file?.originalName ?? "PDF"}
+                  className="h-full w-full"
+                  style={{ touchAction: "pan-y" }}
+                />
+                {/* Mobile: always visible. Desktop: revealed on hover */}
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150 pointer-events-none md:pointer-events-auto">
+                  <button
+                    onClick={() => window.open(signedUrl, "_blank")}
+                    className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium glass shadow-lg text-[hsl(var(--foreground))]"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Abrir PDF
+                  </button>
+                </div>
+              </div>
             )}
 
             {/* Video player */}
