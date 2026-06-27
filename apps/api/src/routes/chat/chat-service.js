@@ -9,7 +9,7 @@ export class ChatServiceError extends Error {
   }
 }
 
-export function createChatService({ prisma, supabaseAdmin, notificationService = null }) {
+export function createChatService({ prisma, supabaseAdmin, notificationService = null, broadcaster = null }) {
   // ------------------------------------------------------------------
   // Internal helpers
   // ------------------------------------------------------------------
@@ -43,6 +43,14 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
           updated_at = NOW()
       WHERE id = ${conversationId}
     `;
+  }
+
+  async function getConversationMemberIds(conversationId) {
+    const rows = await prisma.$queryRaw`
+      SELECT user_id FROM chat_conversation_members
+      WHERE conversation_id = ${conversationId} AND left_at IS NULL AND user_id IS NOT NULL
+    `;
+    return rows.map((r) => r.user_id.toString());
   }
 
   async function batchSignAvatarUrls(fileIds) {
@@ -225,7 +233,16 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       `;
     }
 
-    return getConversation({ conversationId: conv.id, authUserId });
+    const newConv = await getConversation({ conversationId: conv.id, authUserId });
+
+    if (broadcaster) {
+      const memberIds = allMembers.map((id) => id.toString());
+      broadcaster.broadcastToUsers(memberIds, "chat.conversation.new", {
+        conversationId: conv.id,
+      }).catch(() => {});
+    }
+
+    return newConv;
   }
 
   async function getConversation({ conversationId, authUserId }) {
@@ -553,6 +570,15 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
           });
         } catch {}
       });
+    }
+
+    if (broadcaster) {
+      const memberIds = await getConversationMemberIds(conversationId).catch(() => []);
+      broadcaster.broadcastToUsers(memberIds, "chat.message.new", {
+        conversationId,
+        messageId: msg.id,
+        senderName: fullMsg?.sender?.displayName ?? null,
+      }).catch(() => {});
     }
 
     return fullMsg ?? msg;
