@@ -3203,6 +3203,13 @@ app.route("/public/storefront", storefrontRouter);
 const pwaRouter = createPwaRouter({ prisma });
 app.route("/pwa", pwaRouter);
 
+// Chat and notes routers manage their own auth internally (internal.use("*", authMiddleware)).
+// They MUST be registered before mountWithAuth() calls — the secured sub-apps created by
+// mountWithAuth intercept every request via secured.use("*", authMiddleware), which returns
+// 401 before the chat/notes public routes (e.g. POST /public/chat/session) can be reached.
+app.route("/", createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService, broadcaster }));
+app.route("/", createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster }));
+
 app.get("/public", (c) => {
   return c.json({
     api: "Atlas ERP Public API",
@@ -4603,10 +4610,7 @@ mountWithAuth(
 );
 mountWithAuth(app, createSyncRouter({ prisma }));
 
-// Chat router handles its own auth (internal + public guest routes)
-app.route("/", createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService, broadcaster }));
 
-app.route("/", createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster }));
 
 app.post("/internal/notifications/process-deliveries", async (c) => {
   const secret = c.req.header("x-internal-secret");
