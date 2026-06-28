@@ -190,6 +190,25 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     }
   });
 
+  // PATCH /chat/availability
+  internal.patch("/availability", requirePermission("chat.support.manage"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const body = await c.req.json();
+      if (typeof body?.available !== "boolean") {
+        return c.json({ error: "El campo 'available' es requerido y debe ser booleano." }, 422);
+      }
+      const profile = await prisma.userProfile.update({
+        where: { authUserId },
+        data: { availableForChat: body.available },
+        select: { id: true, availableForChat: true },
+      });
+      return c.json({ ok: true, available: profile.availableForChat });
+    } catch (err) {
+      return handleError(c, err, "Error actualizando disponibilidad.");
+    }
+  });
+
   // POST /chat/attachments/presign
   internal.post("/attachments/presign", requirePermission("chat.conversations.create"), async (c) => {
     try {
@@ -288,6 +307,17 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       }
 
       const result = await chatService.sendMessage({ conversationId, authUserId, ...data });
+
+      // Notify the guest widget in real time
+      supabaseAdmin
+        .channel(`chat:conv:${conversationId}`)
+        .send({
+          type: "broadcast",
+          event: "new_operator_message",
+          payload: { conversationId, messageId: result.id, body: data.body, senderType: "user", createdAt: result.created_at },
+        })
+        .catch(() => {});
+
       return c.json({ data: result }, 201);
     } catch (err) {
       if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);

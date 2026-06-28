@@ -1104,6 +1104,7 @@ app.get("/user/me", authMiddleware, async (c) => {
       permissions: context.permissions,
       colony: context.profile.colony,
       companyId: context.memberships?.[0]?.companyId ?? null,
+      availableForChat: context.profile.availableForChat ?? false,
     });
   } catch {
     return c.json({ error: "Internal server error" }, 500);

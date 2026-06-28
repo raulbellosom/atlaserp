@@ -19,6 +19,23 @@ export function createStorefrontConfigRoutes({ prisma }) {
     })
   })
 
+  app.get('/chat/availability', async (c) => {
+    const companySlug = c.req.header('X-Atlas-Company')
+    if (!companySlug) return c.json({ error: 'Cabecera X-Atlas-Company requerida' }, 400)
+
+    const company = await prisma.company.findUnique({ where: { slug: companySlug } })
+    if (!company) return c.json({ error: 'Empresa no encontrada' }, 404)
+
+    const agentsOnline = await prisma.userProfile.count({
+      where: {
+        availableForChat: true,
+        memberships: { some: { enabled: true, company: { slug: companySlug } } },
+      },
+    })
+
+    return c.json({ data: { available: agentsOnline > 0, agentsOnline } })
+  })
+
   app.get('/config', async (c) => {
     const companySlug = c.req.header('X-Atlas-Company')
     if (!companySlug) return c.json({ error: 'Cabecera X-Atlas-Company requerida' }, 400)

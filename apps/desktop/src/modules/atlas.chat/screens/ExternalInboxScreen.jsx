@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PageHeader, Button, EmptyState, Skeleton, Badge } from "@atlas/ui";
 import { MessageSquare } from "lucide-react";
 import { ChatMessageList } from "../components/ChatMessageList";
 import { MessageComposer } from "../components/MessageComposer";
 import { useExternalInbox, useExternalMessages, useSendExternalMessage } from "../hooks/useExternalInbox";
 import { subscribeToMessages } from "../lib/supabaseRealtime";
-import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatMessageTime } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -135,14 +134,55 @@ function ExternalChatPane({ conversation }) {
 export function ExternalInboxScreen() {
   const [statusFilter, setStatusFilter] = useState("open");
   const [selected, setSelected] = useState(null);
+  const [isAvailable, setIsAvailable] = useState(false);
+  const [togglingAvailability, setTogglingAvailability] = useState(false);
+
+  const { session, userProfile } = useAuth();
+  const token = session?.access_token;
+
+  // Sync availability from user profile once it loads from the server
+  useEffect(() => {
+    if (typeof userProfile?.availableForChat === "boolean") {
+      setIsAvailable(userProfile.availableForChat);
+    }
+  }, [userProfile?.availableForChat]);
 
   const { data, isLoading } = useExternalInbox(statusFilter);
   const conversations = data?.data ?? [];
 
+  async function handleToggleAvailability() {
+    if (!token) return;
+    setTogglingAvailability(true);
+    try {
+      const next = !isAvailable;
+      await atlas.chat.toggleAvailability(next, token);
+      setIsAvailable(next);
+    } catch {
+      // non-fatal — UI stays unchanged if request fails
+    } finally {
+      setTogglingAvailability(false);
+    }
+  }
+
   return (
     <div className="flex flex-col h-[calc(100dvh-3.5rem)]">
-      <div className="shrink-0 px-4 pt-4 pb-0">
+      <div className="shrink-0 px-4 pt-4 pb-0 flex items-start justify-between gap-4">
         <PageHeader title="Bandeja externa" description="Conversaciones de soporte en vivo" />
+        <button
+          type="button"
+          onClick={handleToggleAvailability}
+          disabled={togglingAvailability}
+          className={[
+            "mt-1 shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border",
+            isAvailable
+              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
+              : "bg-[hsl(var(--muted))] border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted)/0.8)]",
+          ].join(" ")}
+          title={isAvailable ? "Estás disponible para chat — clic para desactivar" : "No disponible para chat — clic para activar"}
+        >
+          <span className={["w-2 h-2 rounded-full", isAvailable ? "bg-emerald-400" : "bg-[hsl(var(--muted-foreground))]"].join(" ")} />
+          {isAvailable ? "Disponible" : "No disponible"}
+        </button>
       </div>
 
       <div className="flex flex-1 min-h-0 mt-4 border-t border-[hsl(var(--border))]">

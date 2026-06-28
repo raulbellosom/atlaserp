@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { StorefrontError } from './storefront-error.js'
 import { createRequestCore } from './core/request.js'
 import { createSupabaseSessionAdapter } from './core/session.js'
+import { createGuestChatDomain } from './guestChat.js'
 import { createAuthNamespace } from './auth.js'
 import { createFilesNamespace } from './files.js'
 import { createCatalogNamespace } from './catalog.js'
@@ -90,6 +91,7 @@ export function createStorefrontClient({
     }
   }
 
+  const guestChat = createGuestChatDomain(_requestWithRefresh, supabaseUrl, supabaseAnonKey)
   const auth      = createAuthNamespace({ supabase, request: _requestWithRefresh, session })
   const files     = createFilesNamespace({ request: _requestWithRefresh })
   const catalog   = createCatalogNamespace({ request: _requestWithRefresh })
@@ -123,6 +125,7 @@ export function createStorefrontClient({
     realtime,
     analytics,
     forms,
+    guestChat,
     request,
   })
 }

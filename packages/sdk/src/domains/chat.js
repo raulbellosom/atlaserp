@@ -132,6 +132,13 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         body: JSON.stringify({}),
       }),
 
+    toggleAvailability: (available, token) =>
+      request("/chat/availability", {
+        method: "PATCH",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({ available }),
+      }),
+
     // ----------------------------------------------------------------
     // Guest / Public (no auth token)
     // ----------------------------------------------------------------
