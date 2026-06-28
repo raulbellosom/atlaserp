@@ -3,14 +3,19 @@
   "version": "0.4.0",
   "type": "module",
   "description": "Generic JavaScript client for AtlasERP storefront APIs",
-  "main": "./src/index.js",
+  "main": "./dist/index.js",
   "exports": {
-    ".": "./src/index.js",
-    "./react": "./src/react/index.js"
+    ".": "./dist/index.js",
+    "./react": "./dist/react/index.js"
   },
   "files": [
+    "dist",
     "src"
   ],
+  "scripts": {
+    "build": "node build.mjs",
+    "prepublishOnly": "node build.mjs"
+  },
   "keywords": [
     "atlas",
     "erp",
@@ -25,6 +30,7 @@
     "react": ">=18"
   },
   "devDependencies": {
+    "esbuild": "^0.25.0",
     "react": "^18.3.1"
   },
   "publishConfig": {
