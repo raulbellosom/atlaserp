@@ -108,6 +108,7 @@ export default defineConfig({
       name: 'atlas-dist-proxy',
       configureServer(server) {
         const apiTarget = process.env.VITE_ATLAS_API_URL ?? 'http://127.0.0.1:4010'
+        const DIST_STATIC_RE = /\.(txt|xml|webmanifest|ico|rss|atom)$/i
         server.middlewares.use(async (req, res, next) => {
           if (req.method !== 'GET') return next()
           const url = req.url ?? '/'
@@ -115,17 +116,20 @@ export default defineConfig({
           if (url.startsWith('/app') || url.startsWith('/pwa/')) return next()
           if (url.startsWith('/@') || url.startsWith('/node_modules/')) return next()
           if ((req.headers.upgrade ?? '') === 'websocket') return next()
-          if (!accept.includes('text/html')) return next()
+          const isPageNav = accept.includes('text/html')
+          const isStaticDistFile = DIST_STATIC_RE.test(url.split('?')[0])
+          if (!isPageNav && !isStaticDistFile) return next()
           try {
             const upstream = await fetch(`${apiTarget}${url}`, {
               headers: { accept, host: new URL(apiTarget).host },
               redirect: 'follow',
             })
             const ct = upstream.headers.get('content-type') ?? ''
-            if (upstream.ok && ct.includes('text/html')) {
-              const body = await upstream.text()
-              res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
-              res.end(body)
+            // Serve HTML pages and static dist files (robots.txt, sitemap.xml, etc.)
+            if (upstream.ok && (ct.includes('text/html') || isStaticDistFile)) {
+              const body = await upstream.arrayBuffer()
+              res.writeHead(200, { 'content-type': ct || 'application/octet-stream', 'cache-control': 'no-store' })
+              res.end(Buffer.from(body))
               return
             }
           } catch { /* API not ready yet — fall through to Vite SPA */ }

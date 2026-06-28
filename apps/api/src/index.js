@@ -4563,12 +4563,16 @@ app.route("/modules", modulesRouter);
 // Moving this up as a use() middleware means it runs first for browser GETs to
 // non-API paths and calls next() for everything else (API AJAX calls, etc.).
 const API_PREFIX_RE = /^\/(modules|blueprints|files|contacts|company|identity|finance|hr|website|ledger|calendar|projects|catalog|pos|storefront|activity|notifications|inventory|chat|public|auth|health|p|app|user|users|memberships|profile|settings|sync)\b/i
+// Static dist files that aren't HTML pages but live in the dist root (robots.txt, sitemap, webmanifest).
+const DIST_STATIC_RE = /\.(txt|xml|webmanifest|ico|rss|atom)$/i
 app.use('*', async (c, next) => {
   if (c.req.method !== 'GET') return next()
   const path = c.req.path
   if (API_PREFIX_RE.test(path)) return next()
   const accept = c.req.header('Accept') ?? ''
-  if (!accept.includes('text/html')) return next()
+  const isPageNav = accept.includes('text/html')
+  const isStaticDistFile = DIST_STATIC_RE.test(path)
+  if (!isPageNav && !isStaticDistFile) return next()
   const result = await distServeService.serve(c, path)
   if (result === null) return next()
   return result
