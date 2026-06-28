@@ -4557,6 +4557,23 @@ const modulesRouter = createModulesRouter({
 });
 app.route("/modules", modulesRouter);
 
+// Dist-serve middleware — must be registered BEFORE mountWithAuth() calls.
+// In Hono v4, secured.use("*", authMiddleware) inside a sub-app mounted at "/"
+// intercepts every unmatched path before the wildcard route at the bottom can fire.
+// Moving this up as a use() middleware means it runs first for browser GETs to
+// non-API paths and calls next() for everything else (API AJAX calls, etc.).
+const API_PREFIX_RE = /^\/(modules|blueprints|files|contacts|company|identity|finance|hr|website|ledger|calendar|projects|catalog|pos|storefront|activity|notifications|inventory|chat|public|auth|health|p|app|user|users|memberships|profile|settings|sync)\b/i
+app.use('*', async (c, next) => {
+  if (c.req.method !== 'GET') return next()
+  const path = c.req.path
+  if (API_PREFIX_RE.test(path)) return next()
+  const accept = c.req.header('Accept') ?? ''
+  if (!accept.includes('text/html')) return next()
+  const result = await distServeService.serve(c, path)
+  if (result === null) return next()
+  return result
+})
+
 function mountWithAuth(baseApp, router) {
   const secured = new Hono();
   secured.use("*", authMiddleware);
@@ -5123,20 +5140,6 @@ app.patch('/inventory/custom-fields/reorder', authMiddleware, requirePermission(
     return c.json({ error: 'No se pudo reordenar.' }, 500);
   }
 });
-
-// Wildcard fallback: handle SPA client-side route navigations and direct URL access for dist sites.
-// Fires only when no earlier API route matched and the request looks like a browser page load
-// (Accept: text/html). Skips known API prefixes to avoid masking real 404 API errors.
-const API_PREFIX_RE = /^\/(modules|blueprints|files|contacts|company|identity|finance|hr|website|ledger|calendar|projects|catalog|pos|storefront|activity|notifications|inventory|chat|public|auth|health|p)\b/i
-app.get('*', async (c) => {
-  const path = c.req.path
-  if (API_PREFIX_RE.test(path)) return c.json({ error: 'Not found' }, 404)
-  const accept = c.req.header('Accept') ?? ''
-  if (!accept.includes('text/html') && !accept.includes('*/*')) return c.json({ error: 'Not found' }, 404)
-  const result = await distServeService.serve(c, path)
-  if (result === null) return c.json({ error: 'Not found' }, 404)
-  return result
-})
 
 const server = serve({ fetch: app.fetch, port });
 console.log(`Atlas API running on http://localhost:${port}`);
