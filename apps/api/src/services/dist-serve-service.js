@@ -144,7 +144,7 @@ export function injectAtlasConfig(html, {
   const raw  = JSON.stringify(payload)
   const safe = raw.replace(/<\//g, '<\\/')
   const tag  = `<script>window.ATLAS_CONFIG=${safe};<\/script>`
-  const sdkTag = '<script src="/atlas-sdk.js" defer></script>'
+  const sdkTag = '<script src="/public/site/atlas-sdk.js" defer></script>'
   return html.replace(/(<head(?:[^>]*)>)/i, `$1\n  ${tag}\n  ${sdkTag}`)
 }
 
@@ -250,7 +250,14 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
   }
 
   async function serve(c, urlPath) {
-    const site = await getPrimaryCompany()
+    let site
+    try {
+      site = await getPrimaryCompany()
+    } catch (err) {
+      // DB connection timeout or transient failure — return 503 instead of crashing
+      console.error('[dist-serve] getPrimaryCompany failed:', err?.message ?? err)
+      return c.text('Servicio temporalmente no disponible. Intenta de nuevo en unos segundos.', 503)
+    }
 
     if (!site) {
       return c.json({ error: 'Sitio no configurado' }, 404)
@@ -283,12 +290,17 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
     const candidates = resolveHtmlCandidates(site.company_slug, urlPath)
     let html = null
 
-    for (const objectKey of [...new Set(candidates)]) {
-      const { data, error } = await supabaseAdmin.storage.from(BUCKET).download(objectKey)
-      if (!error && data) {
-        html = await data.text()
-        break
+    try {
+      for (const objectKey of [...new Set(candidates)]) {
+        const { data, error } = await supabaseAdmin.storage.from(BUCKET).download(objectKey)
+        if (!error && data) {
+          html = await data.text()
+          break
+        }
       }
+    } catch (err) {
+      console.error('[dist-serve] storage download failed:', err?.message ?? err)
+      return c.text('Error al cargar los archivos del sitio. Intenta de nuevo.', 503)
     }
 
     if (!html) {

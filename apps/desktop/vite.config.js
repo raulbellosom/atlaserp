@@ -100,6 +100,39 @@ export default defineConfig({
     react(),
     atlasDevImportmapPlugin(),
     atlasBuildImportmapPlugin(),
+    {
+      // Async proxy for browser page navigations in dev.
+      // Proxies text/html GET requests (non-ERP, non-Vite) to the API dist-serve.
+      // Falls back to Vite's own SPA handler (index.html) when the API returns
+      // non-200 HTML — this keeps builder mode and no-website state working.
+      name: 'atlas-dist-proxy',
+      configureServer(server) {
+        const apiTarget = process.env.VITE_ATLAS_API_URL ?? 'http://127.0.0.1:4010'
+        server.middlewares.use(async (req, res, next) => {
+          if (req.method !== 'GET') return next()
+          const url = req.url ?? '/'
+          const accept = req.headers['accept'] ?? ''
+          if (url.startsWith('/app') || url.startsWith('/pwa/')) return next()
+          if (url.startsWith('/@') || url.startsWith('/node_modules/')) return next()
+          if ((req.headers.upgrade ?? '') === 'websocket') return next()
+          if (!accept.includes('text/html')) return next()
+          try {
+            const upstream = await fetch(`${apiTarget}${url}`, {
+              headers: { accept, host: new URL(apiTarget).host },
+              redirect: 'follow',
+            })
+            const ct = upstream.headers.get('content-type') ?? ''
+            if (upstream.ok && ct.includes('text/html')) {
+              const body = await upstream.text()
+              res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
+              res.end(body)
+              return
+            }
+          } catch { /* API not ready yet — fall through to Vite SPA */ }
+          return next()
+        })
+      },
+    },
   ],
   resolve: {
     // Prevents duplicate React instances across chunks (e.g. workspace packages
@@ -238,27 +271,10 @@ export default defineConfig({
           configure: (p) => suppressStartup(p, "api-paths"),
         },
 
-        // Catch-all: proxy browser page navigations (Accept: text/html) for
-        // non-ERP, non-Vite paths to the API dist-serve middleware.
-        // This makes source_type=dist work at localhost:5173 in dev.
-        "^/": {
-          target: apiTarget,
-          changeOrigin: true,
-          bypass(req) {
-            const url = req.url ?? "/";
-            const accept = req.headers["accept"] ?? "";
-            // Never proxy ERP app or pwa routes — handled by Vite SPA
-            if (url.startsWith("/app") || url.startsWith("/pwa/")) return url;
-            // Never proxy Vite internals (HMR, module resolution, etc.)
-            if (url.startsWith("/@") || url.startsWith("/node_modules/")) return url;
-            // Never proxy WebSocket upgrades (Vite HMR)
-            if (req.headers.upgrade === "websocket") return url;
-            // Proxy only browser page navigations
-            if (accept.includes("text/html")) return null;
-            return url;
-          },
-          configure: (p) => suppressStartup(p, "dist-serve"),
-        },
+        // Note: browser page navigation fallback (source_type=dist) is handled by
+        // the 'atlas-dist-proxy' plugin below, not a proxy rule. The plugin is async
+        // and can fall back to Vite's SPA handler when the API returns non-2xx
+        // (builder mode, no-website, etc.). A synchronous proxy rule can't do this.
       };
     })(),
   },
