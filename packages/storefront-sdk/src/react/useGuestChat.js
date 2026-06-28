@@ -93,7 +93,7 @@ export function useGuestChat(sdk) {
       const res = await sdk.guestChat.createSession({
         ...data,
         pageUrl: typeof window !== 'undefined' ? window.location.href : undefined,
-        referrer: typeof document !== 'undefined' ? document.referrer : undefined,
+        referrer: typeof document !== 'undefined' && document.referrer ? document.referrer : undefined,
         userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
       })
       storeSession(res.token, { conversationId: res.conversationId })
