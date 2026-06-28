@@ -7,7 +7,7 @@ const _cache = new NodeCache({ useClones: false });
 export const TTL = {
   BLUEPRINTS: 120,      // 2 min — changes only on module lifecycle events
   PERMISSIONS: 300,     // 5 min — changes only on admin permission writes
-  USER_CONTEXT: 60,     // 1 min — balance between security and performance
+  USER_CONTEXT: 300,    // 5 min — extended to avoid thundering herd on concurrent polls
   REFERENCE_DATA: 300,  // 5 min — catalog lookups (brands, types, models, etc.)
 };
 

@@ -84,24 +84,50 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     return rows.map((r) => r.user_id.toString());
   }
 
+  // fileAsset rows for avatar files never change; cache them to avoid DB queries per poll
+  const _fileAssetCache = new Map(); // fileId → { bucket, objectKey, expiresAt }
+  const FILE_ASSET_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
   async function batchSignAvatarUrls(fileIds) {
     if (!fileIds.length) return {};
-    const assets = await prisma.fileAsset.findMany({
-      where: { id: { in: fileIds } },
-      select: { id: true, bucket: true, objectKey: true },
-    });
+
+    // Split into cache hits and misses
+    const now = Date.now();
+    const missIds = [];
+    const assetMap = {};
+    for (const id of fileIds) {
+      const entry = _fileAssetCache.get(id);
+      if (entry && entry.expiresAt > now) {
+        assetMap[id] = entry;
+      } else {
+        missIds.push(id);
+      }
+    }
+
+    if (missIds.length) {
+      const rows = await prisma.fileAsset.findMany({
+        where: { id: { in: missIds } },
+        select: { id: true, bucket: true, objectKey: true },
+      });
+      for (const row of rows) {
+        const entry = { bucket: row.bucket, objectKey: row.objectKey, expiresAt: now + FILE_ASSET_TTL_MS };
+        _fileAssetCache.set(row.id, entry);
+        assetMap[row.id] = entry;
+      }
+    }
+
     const result = {};
     await Promise.all(
-      assets.map(async (fa) => {
+      Object.entries(assetMap).map(async ([id, fa]) => {
         try {
           const cached = getCachedSignedUrl(fa.bucket, fa.objectKey);
-          if (cached) { result[fa.id] = cached; return; }
+          if (cached) { result[id] = cached; return; }
           const { data } = await supabaseAdmin.storage
             .from(fa.bucket)
             .createSignedUrl(fa.objectKey, 3600);
           if (data?.signedUrl) {
             setCachedSignedUrl(fa.bucket, fa.objectKey, data.signedUrl);
-            result[fa.id] = data.signedUrl;
+            result[id] = data.signedUrl;
           }
         } catch {}
       }),

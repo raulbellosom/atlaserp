@@ -232,16 +232,7 @@ function AudioCard({ att, isOwn }) {
   const speedBg   = isOwn ? "rgba(255,255,255,0.15)" : "hsl(var(--muted))";
   const speedFg   = isOwn ? "rgba(255,255,255,0.9)"  : "hsl(var(--foreground))";
 
-  if (isLoading) {
-    return (
-      <div className="mt-2 flex items-center gap-2 opacity-50" style={{ width: 240 }}>
-        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-        <span className="text-xs">Cargando audio...</span>
-      </div>
-    );
-  }
-
-  if (!url || loadError) {
+  if (!url && !isLoading && loadError) {
     return (
       <div className="mt-2 flex items-center gap-2 text-xs opacity-50" style={{ width: 240 }}>
         <FileAudio className="h-4 w-4 shrink-0" />
@@ -252,40 +243,45 @@ function AudioCard({ att, isOwn }) {
 
   return (
     <div className="mt-2 flex items-center gap-2.5" style={{ width: 248, maxWidth: "100%" }}>
-      {/* Hidden audio */}
-      <audio
-        ref={audioRef}
-        src={url}
-        preload="metadata"
-        onLoadedMetadata={handleLoadedMetadata}
-        onSeeked={handleSeeked}
-        onDurationChange={(e) => {
-          const d = e.currentTarget.duration;
-          if (isFinite(d) && d > 0 && !durationFoundRef.current) {
-            durationFoundRef.current = true;
-            setDuration(d);
-          }
-        }}
-        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-        onEnded={() => {
-          setPlaying(false);
-          setCurrentTime(0);
-          if (audioRef.current) audioRef.current.currentTime = 0;
-        }}
-        onError={() => setLoadError(true)}
-      />
+      {/* Hidden audio — only mount when URL is available to avoid phantom errors */}
+      {url && (
+        <audio
+          ref={audioRef}
+          src={url}
+          preload="metadata"
+          onLoadedMetadata={handleLoadedMetadata}
+          onSeeked={handleSeeked}
+          onDurationChange={(e) => {
+            const d = e.currentTarget.duration;
+            if (isFinite(d) && d > 0 && !durationFoundRef.current) {
+              durationFoundRef.current = true;
+              setDuration(d);
+            }
+          }}
+          onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onEnded={() => {
+            setPlaying(false);
+            setCurrentTime(0);
+            if (audioRef.current) audioRef.current.currentTime = 0;
+          }}
+          onError={() => setLoadError(true)}
+        />
+      )}
 
       {/* Play / pause button */}
       <button
         type="button"
         onClick={togglePlay}
-        className="shrink-0 h-10 w-10 rounded-full flex items-center justify-center touch-manipulation active:scale-95 transition-transform"
+        disabled={isLoading || !url}
+        className="shrink-0 h-10 w-10 rounded-full flex items-center justify-center touch-manipulation active:scale-95 transition-transform disabled:opacity-70 disabled:active:scale-100"
         style={{ backgroundColor: playBg, color: playColor }}
-        aria-label={playing ? "Pausar" : "Reproducir"}
+        aria-label={isLoading ? "Cargando..." : playing ? "Pausar" : "Reproducir"}
       >
-        {playing
+        {isLoading
+          ? <Loader2 className="h-4 w-4 animate-spin" />
+          : playing
           ? <Pause className="h-4.5 w-4.5 fill-current" />
           : <Play  className="h-4.5 w-4.5 fill-current ml-0.5" />}
       </button>
