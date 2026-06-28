@@ -9,20 +9,12 @@ import {
   FlipVertical2,
   Loader2,
   Minus,
-  MoreHorizontal,
   Plus,
   RefreshCw,
   RotateCcw,
   RotateCw,
   X,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@atlas/ui";
 import { getFileKind, getKindLabel, formatBytes } from "../lib/file-kind";
 import { FileVisual } from "./FileVisual";
 import { PDFViewer } from "./PDFViewer";
@@ -327,13 +319,6 @@ export function AdvancedFileViewer({
             // Prevent accidental close during pinch/pan gestures
             if (gestureRef.current.mode !== null) e.preventDefault();
           }}
-          onInteractOutside={(e) => {
-            // Prevent closing when interacting with Radix portals rendered from within
-            // this dialog (e.g. DropdownMenu items that render in a separate portal)
-            if (e.target?.closest?.("[data-radix-popper-content-wrapper]")) {
-              e.preventDefault();
-            }
-          }}
           className={[
             "fixed inset-safe flex flex-col rounded-2xl overflow-hidden",
             "glass-strong shadow-2xl",
@@ -587,9 +572,9 @@ export function AdvancedFileViewer({
 
           {/* ── BOTTOM TOOLBAR (images only) ────────────── */}
           {kind === "image" && !loading && signedUrl && (
-            <div className="flex items-center justify-center gap-1.5 px-4 h-12 safe-bottom shrink-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60">
-              {/* Zoom group — always visible */}
-              <div className="flex items-center rounded-lg bg-[hsl(var(--muted))]/60 p-0.5">
+            <div className="flex items-center justify-center gap-1.5 px-3 h-12 safe-bottom shrink-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60 overflow-x-auto">
+              {/* Zoom group */}
+              <div className="flex items-center rounded-lg bg-[hsl(var(--muted))]/60 p-0.5 shrink-0">
                 <ToolbarBtn
                   onClick={() => nudgeZoom(-1)}
                   title="Reducir zoom"
@@ -616,83 +601,51 @@ export function AdvancedFileViewer({
                 </ToolbarBtn>
               </div>
 
-              {/* Desktop (≥ sm): full rotate + flip + reset groups */}
-              <div className="hidden sm:flex items-center gap-1.5">
-                <div className="w-px h-4 bg-[hsl(var(--border))] mx-0.5" />
-                <div className="flex items-center rounded-lg bg-[hsl(var(--muted))]/60 p-0.5">
-                  <ToolbarBtn
-                    onClick={() => setRotation((v) => v - 90)}
-                    title="Rotar izquierda"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                  </ToolbarBtn>
-                  <ToolbarBtn
-                    onClick={() => setRotation((v) => v + 90)}
-                    title="Rotar derecha"
-                  >
-                    <RotateCw className="h-3.5 w-3.5" />
-                  </ToolbarBtn>
-                </div>
-                <div className="w-px h-4 bg-[hsl(var(--border))] mx-0.5" />
-                <div className="flex items-center rounded-lg bg-[hsl(var(--muted))]/60 p-0.5">
-                  <ToolbarBtn
-                    onClick={() => setFlipX((v) => !v)}
-                    title="Voltear horizontal"
-                    active={flipX}
-                  >
-                    <FlipHorizontal2 className="h-3.5 w-3.5" />
-                  </ToolbarBtn>
-                  <ToolbarBtn
-                    onClick={() => setFlipY((v) => !v)}
-                    title="Voltear vertical"
-                    active={flipY}
-                  >
-                    <FlipVertical2 className="h-3.5 w-3.5" />
-                  </ToolbarBtn>
-                </div>
-                <div className="w-px h-4 bg-[hsl(var(--border))] mx-0.5" />
-                <ToolbarBtn onClick={resetTransforms} title="Restablecer todo">
-                  <RefreshCw className="h-3.5 w-3.5" />
+              <div className="w-px h-4 bg-[hsl(var(--border))] mx-0.5 shrink-0" />
+
+              {/* Rotate group */}
+              <div className="flex items-center rounded-lg bg-[hsl(var(--muted))]/60 p-0.5 shrink-0">
+                <ToolbarBtn
+                  onClick={() => setRotation((v) => v - 90)}
+                  title="Rotar izquierda"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </ToolbarBtn>
+                <ToolbarBtn
+                  onClick={() => setRotation((v) => v + 90)}
+                  title="Rotar derecha"
+                >
+                  <RotateCw className="h-3.5 w-3.5" />
                 </ToolbarBtn>
               </div>
 
-              {/* Mobile (< sm): collapse rotate/flip/reset into DropdownMenu */}
-              <div className="sm:hidden flex items-center">
-                <div className="w-px h-4 bg-[hsl(var(--border))] mx-1.5" />
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      title="Mas opciones"
-                      className="h-8 w-8 rounded-md flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-all duration-150"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent side="top" align="end" style={{ zIndex: zIndex + 10 }}>
-                    <DropdownMenuItem onSelect={() => setRotation((v) => v - 90)}>
-                      <RotateCcw className="h-4 w-4 mr-2" />
-                      Rotar izquierda
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setRotation((v) => v + 90)}>
-                      <RotateCw className="h-4 w-4 mr-2" />
-                      Rotar derecha
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => setFlipX((v) => !v)}>
-                      <FlipHorizontal2 className="h-4 w-4 mr-2" />
-                      {flipX ? "Quitar volteo horizontal" : "Voltear horizontal"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setFlipY((v) => !v)}>
-                      <FlipVertical2 className="h-4 w-4 mr-2" />
-                      {flipY ? "Quitar volteo vertical" : "Voltear vertical"}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={resetTransforms}>
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Restablecer todo
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              <div className="w-px h-4 bg-[hsl(var(--border))] mx-0.5 shrink-0" />
+
+              {/* Flip group */}
+              <div className="flex items-center rounded-lg bg-[hsl(var(--muted))]/60 p-0.5 shrink-0">
+                <ToolbarBtn
+                  onClick={() => setFlipX((v) => !v)}
+                  title="Voltear horizontal"
+                  active={flipX}
+                >
+                  <FlipHorizontal2 className="h-3.5 w-3.5" />
+                </ToolbarBtn>
+                <ToolbarBtn
+                  onClick={() => setFlipY((v) => !v)}
+                  title="Voltear vertical"
+                  active={flipY}
+                >
+                  <FlipVertical2 className="h-3.5 w-3.5" />
+                </ToolbarBtn>
+              </div>
+
+              <div className="w-px h-4 bg-[hsl(var(--border))] mx-0.5 shrink-0" />
+
+              {/* Reset */}
+              <div className="shrink-0">
+                <ToolbarBtn onClick={resetTransforms} title="Restablecer todo">
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </ToolbarBtn>
               </div>
             </div>
           )}
