@@ -183,7 +183,9 @@ export function createStorefrontCaptureService({
   }
 
   async function getPublicConfig(input) {
-    const { site } = await resolveSite(input);
+    // Skip origin check — this is read-only config (analytics policy, capabilities).
+    // Origin enforcement applies only to write operations (events, form submissions).
+    const { site } = await resolveSite({ ...input, origin: undefined });
     return {
       siteId: site.id,
       analyticsMode: site.analyticsMode,
