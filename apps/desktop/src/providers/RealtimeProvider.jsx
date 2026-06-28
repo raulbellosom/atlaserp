@@ -95,6 +95,22 @@ export function RealtimeProvider({ children }) {
     return () => { client.removeChannel(channel) }
   }, [userProfile?.id, userProfile?.companyId, userProfile?.displayName, userProfile?.email])
 
+  // Company events channel — receives broadcast events for POS, Calendar, and other company-wide modules
+  useEffect(() => {
+    if (!userProfile?.id || !userProfile?.companyId) return
+    const client = getSupabaseClient()
+    const channel = client
+      .channel(`company:${userProfile.companyId}:events`)
+      .on('broadcast', { event: 'pos.order.updated' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['pos'] })
+      })
+      .on('broadcast', { event: 'calendar.event.updated' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      })
+      .subscribe()
+    return () => { client.removeChannel(channel) }
+  }, [userProfile?.id, userProfile?.companyId, queryClient])
+
   const isUserOnline = useCallback((id) => Boolean(onlineUsers[id]), [onlineUsers])
   const getLastSeen = useCallback((id) => lastSeenMap[id] ?? null, [lastSeenMap])
 
