@@ -229,6 +229,10 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                 path="/app/google/calendar/callback"
                 element={<GoogleCalendarCallbackScreen />}
               />
+              {/* Public notes under /app/p/ — accessible without auth, served by same SPA */}
+              <Route path="/app/p" element={<PublicShell />}>
+                <Route path="notes/:slug" element={<PublicNoteScreen />} />
+              </Route>
               <Route element={<AppAccessGuard />}>
                 <Route path="/app" element={<RealtimeProvider><AtlasApp /></RealtimeProvider>}>
                   <Route index element={<Navigate to="home" replace />} />

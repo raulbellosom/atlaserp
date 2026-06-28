@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Copy, Smile, X } from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { Copy, Check, Smile, X } from 'lucide-react'
 import { useNoteFolders, useCreateNoteFolder } from '../hooks/useNoteFolders.js'
 import { useNoteTags, useCreateNoteTag, useSetNoteTags } from '../hooks/useNoteTags.js'
 import { useIsDark } from '../hooks/useIsDark.js'
@@ -73,8 +73,17 @@ export function NoteSettingsPanel({ note, onUpdate, onPublish, onUnpublish, onTr
     .map(t => ({ value: t.id, label: t.name }))
 
   const publicUrl = note?.public_slug
-    ? `${window.location.origin}/p/notes/${note.public_slug}`
+    ? `${window.location.origin}/app/p/notes/${note.public_slug}`
     : null
+
+  const [copied, setCopied] = useState(false)
+  const handleCopyLink = useCallback(() => {
+    if (!publicUrl) return
+    navigator.clipboard.writeText(publicUrl).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }, [publicUrl])
 
   const activeBg = note?.background_color ?? null
 
@@ -266,11 +275,18 @@ export function NoteSettingsPanel({ note, onUpdate, onPublish, onUnpublish, onTr
                 {publicUrl}
               </div>
               <button
-                onClick={() => navigator.clipboard.writeText(publicUrl)}
-                className="p-2.5 border border-border rounded-lg hover:bg-muted transition-colors shrink-0"
-                title="Copiar enlace"
+                onClick={handleCopyLink}
+                className={`p-2.5 border rounded-lg transition-all shrink-0 ${
+                  copied
+                    ? 'border-green-400 bg-green-50 dark:bg-green-950/30'
+                    : 'border-border hover:bg-muted'
+                }`}
+                title={copied ? 'Copiado' : 'Copiar enlace'}
               >
-                <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                {copied
+                  ? <Check className="w-3.5 h-3.5 text-green-500" />
+                  : <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                }
               </button>
             </div>
             <button
