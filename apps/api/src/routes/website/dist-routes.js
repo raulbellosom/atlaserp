@@ -145,7 +145,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
         }
 
         const site = await prisma.$queryRaw`
-          SELECT ws.id, c.slug as company_slug
+          SELECT ws.id, ws.company_id as "companyId", c.slug as company_slug
           FROM website_site ws
           JOIN company c ON c.id = ws.company_id
           WHERE ws.id = ${siteId}::uuid AND ws.enabled = true
@@ -162,6 +162,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
         })
 
         invalidatePrimaryCache()
+        invalidateCache(site[0].companyId)
         return c.json({ data: result }, 201)
       } catch (err) {
         return c.json({ error: err.message }, err.status ?? 500)
@@ -176,7 +177,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
       try {
         const { siteId } = c.req.param()
         const site = await prisma.$queryRaw`
-          SELECT ws.id, c.slug as company_slug
+          SELECT ws.id, ws.company_id as "companyId", c.slug as company_slug
           FROM website_site ws
           JOIN company c ON c.id = ws.company_id
           WHERE ws.id = ${siteId}::uuid AND ws.enabled = true
@@ -186,6 +187,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
 
         await uploadService.deleteDist({ siteId, companySlug: site[0].company_slug })
         invalidatePrimaryCache()
+        invalidateCache(site[0].companyId)
         return c.json({ data: { success: true } })
       } catch (err) {
         return c.json({ error: err.message }, err.status ?? 500)
