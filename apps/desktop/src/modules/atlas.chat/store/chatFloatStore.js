@@ -7,11 +7,14 @@ export const useChatFloatStore = create(
       edge: "right",
       yPx: null, // null = 75% of viewport height
       isOpen: false,
+      hidden: false, // user explicitly hid the bubble
       openChats: [], // [{ id, conversation, minimized }]
 
       setPosition: (edge, yPx) => set({ edge, yPx }),
       toggle: () => set((s) => ({ isOpen: !s.isOpen })),
       close: () => set({ isOpen: false }),
+      hide: () => set({ hidden: true, isOpen: false }),
+      show: () => set({ hidden: false }),
 
       openChat: (conversation) => {
         const chats = get().openChats;
@@ -43,7 +46,7 @@ export const useChatFloatStore = create(
     }),
     {
       name: "atlas-chat-float",
-      partialize: (s) => ({ edge: s.edge, yPx: s.yPx, openChats: s.openChats }),
+      partialize: (s) => ({ edge: s.edge, yPx: s.yPx, hidden: s.hidden, openChats: s.openChats }),
     },
   ),
 );

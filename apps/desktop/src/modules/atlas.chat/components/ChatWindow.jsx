@@ -5,6 +5,7 @@ import {
   FileText, FileType2, FileSpreadsheet, FileVideo, FileAudio,
   FileArchive, FileCode, File as FileIconBase, FileImage,
   MoreVertical, Trash2, X as XIcon, Search, Share2, CheckSquare,
+  ChevronUp, ChevronDown,
 } from "lucide-react";
 import { ChatMessageList } from "./ChatMessageList";
 import { MessageComposer } from "./MessageComposer";
@@ -154,6 +155,7 @@ function ChatHeader({
   conversation, currentUserId, onlineUsers, onClose,
   filesView, onToggleFilesView,
   searchMode, searchQuery, onSearchToggle, onSearchChange,
+  searchMatchCount, searchCurrentIdx, onNextMatch, onPrevMatch,
   selectionMode, selectionCount, hasOwnSelected,
   onSelectionCancel, onDeleteForMe, onDeleteForAll, onForwardSelected,
   onEnterSelection,
@@ -214,8 +216,9 @@ function ChatHeader({
 
   // ── Search mode ─────────────────────────────────────────────────────────────
   if (searchMode) {
+    const hasMatches = searchMatchCount > 0;
     return (
-      <div className="flex items-center gap-2 border-b border-[hsl(var(--border))] px-3 py-2.5 shrink-0">
+      <div className="flex items-center gap-1.5 border-b border-[hsl(var(--border))] px-3 py-2.5 shrink-0">
         <button type="button" onClick={onSearchToggle} className={headerBtnCls} title="Cerrar busqueda">
           <XIcon className="h-4 w-4" />
         </button>
@@ -228,10 +231,28 @@ function ChatHeader({
           className="flex-1 text-sm bg-transparent outline-none placeholder:text-[hsl(var(--muted-foreground))]"
         />
         {searchQuery && (
-          <button type="button" onClick={() => onSearchChange("")} className={headerBtnCls}>
-            <XIcon className="h-3.5 w-3.5" />
-          </button>
+          <span className={["text-xs shrink-0 tabular-nums", hasMatches ? "text-[hsl(var(--muted-foreground))]" : "text-red-400"].join(" ")}>
+            {hasMatches ? `${searchCurrentIdx + 1} / ${searchMatchCount}` : "Sin resultados"}
+          </span>
         )}
+        <button
+          type="button"
+          onClick={onPrevMatch}
+          disabled={!hasMatches}
+          className={[headerBtnCls, !hasMatches ? "opacity-30 cursor-not-allowed" : ""].join(" ")}
+          title="Anterior"
+        >
+          <ChevronUp className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={onNextMatch}
+          disabled={!hasMatches}
+          className={[headerBtnCls, !hasMatches ? "opacity-30 cursor-not-allowed" : ""].join(" ")}
+          title="Siguiente"
+        >
+          <ChevronDown className="h-4 w-4" />
+        </button>
       </div>
     );
   }
@@ -402,6 +423,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
     setSelectedMsgIds(new Set());
     setSearchMode(false);
     setSearchQuery("");
+    setSearchCurrentIdx(0);
   }, [conversationId, initialFilesView]);
 
   useEffect(() => {
@@ -516,14 +538,32 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
     });
   }, [selectedMsgIds, messagesData, userProfile]);
 
-  // Search filter applied on top of hidden filter
-  const filteredBySearch = useMemo(() => {
+  // Ordered list of matching message IDs for navigation
+  const searchMatchIds = useMemo(() => {
+    if (!searchMode || !searchQuery.trim()) return [];
     const all = messagesData?.data ?? [];
-    const base = all.filter((m) => !hiddenMessageIds.has(m.id));
-    if (!searchMode || !searchQuery.trim()) return null; // null means "no filter active"
     const q = searchQuery.toLowerCase();
-    return base.filter((m) => m.body?.toLowerCase().includes(q));
+    return all
+      .filter((m) => !hiddenMessageIds.has(m.id) && m.body?.toLowerCase().includes(q))
+      .map((m) => m.id)
+      .reverse();
   }, [messagesData, hiddenMessageIds, searchMode, searchQuery]);
+
+  const [searchCurrentIdx, setSearchCurrentIdx] = useState(0);
+
+  useEffect(() => { setSearchCurrentIdx(0); }, [searchQuery]);
+
+  const currentMatchId = searchMatchIds[searchCurrentIdx] ?? null;
+
+  const handleNextMatch = useCallback(() => {
+    if (!searchMatchIds.length) return;
+    setSearchCurrentIdx((i) => (i + 1) % searchMatchIds.length);
+  }, [searchMatchIds]);
+
+  const handlePrevMatch = useCallback(() => {
+    if (!searchMatchIds.length) return;
+    setSearchCurrentIdx((i) => (i - 1 + searchMatchIds.length) % searchMatchIds.length);
+  }, [searchMatchIds]);
 
   function handleDragOver(e) {
     e.preventDefault();
@@ -576,8 +616,12 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         onToggleFilesView={() => setFilesView((v) => !v)}
         searchMode={searchMode}
         searchQuery={searchQuery}
-        onSearchToggle={() => { setSearchMode((v) => !v); setSearchQuery(""); }}
+        onSearchToggle={() => { setSearchMode((v) => !v); setSearchQuery(""); setSearchCurrentIdx(0); }}
         onSearchChange={setSearchQuery}
+        searchMatchCount={searchMatchIds.length}
+        searchCurrentIdx={searchCurrentIdx}
+        onNextMatch={handleNextMatch}
+        onPrevMatch={handlePrevMatch}
         selectionMode={selectionMode}
         selectionCount={selectedMsgIds.size}
         hasOwnSelected={hasOwnSelected}
@@ -597,13 +641,13 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         />
       ) : (
         <ChatMessageList
-          messages={filteredBySearch ?? messages}
+          messages={messages}
           isLoading={isLoading}
           currentUserId={userProfile?.id}
-          typingUsers={filteredBySearch ? [] : typingUsersList}
+          typingUsers={typingUsersList}
           onAttachmentClick={handleAttachmentClick}
           members={conversation.members}
-          hasMore={filteredBySearch ? false : hasMore}
+          hasMore={hasMore}
           isLoadingMore={isLoadingMore}
           onLoadMore={loadMore}
           onDeleteMessage={handleDeleteMessage}
@@ -614,6 +658,9 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
           selectedMsgIds={selectedMsgIds}
           onToggleSelect={toggleSelectMessage}
           onEnterSelection={enterSelectionMode}
+          searchQuery={searchMode ? searchQuery : ""}
+          searchMatchIds={searchMode && searchMatchIds.length ? new Set(searchMatchIds) : null}
+          currentMatchId={currentMatchId}
         />
       )}
 

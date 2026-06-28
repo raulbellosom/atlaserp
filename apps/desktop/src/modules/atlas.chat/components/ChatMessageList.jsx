@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useMemo } from "react";
+import { useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
 import { Skeleton } from "@atlas/ui";
 import { Loader2 } from "lucide-react";
 import { ChatMessageBubble } from "./ChatMessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
-import { groupMessagesByDate, formatDateSeparator, isImageMime } from "../lib/chatUtils";
+import { groupMessagesByDate, formatDateSeparator } from "../lib/chatUtils";
 
 function senderKey(msg) {
   return `${msg.sender_user_id ?? "guest"}::${msg.sender_type ?? "user"}`;
@@ -52,26 +52,29 @@ export function ChatMessageList({
   selectedMsgIds,
   onToggleSelect,
   onEnterSelection,
+  searchQuery,
+  searchMatchIds,
+  currentMatchId,
 }) {
   const bottomRef = useRef(null);
   const listRef = useRef(null);
+  const topSentinelRef = useRef(null);
   const isInitialLoadRef = useRef(true);
   const prevScrollHeightRef = useRef(0);
   const restoreScrollRef = useRef(false);
 
-  const allConversationImages = useMemo(() => {
+  // All attachments across all messages — used so clicking any file navigates the full set
+  const allConversationAttachments = useMemo(() => {
     if (!messages?.length) return [];
-    return messages.flatMap((m) =>
-      (m.attachments ?? []).filter((a) => isImageMime(a.mimeType)),
-    );
+    return messages.flatMap((m) => m.attachments ?? []);
   }, [messages]);
 
   function handleAttachmentClick(attachments, index) {
     const clicked = attachments[index];
-    if (clicked && isImageMime(clicked.mimeType) && allConversationImages.length > 0) {
-      const globalIdx = allConversationImages.findIndex((img) => img.id === clicked.id);
+    if (clicked && allConversationAttachments.length > 0) {
+      const globalIdx = allConversationAttachments.findIndex((a) => a.id === clicked.id);
       if (globalIdx !== -1) {
-        onAttachmentClick(allConversationImages, globalIdx);
+        onAttachmentClick(allConversationAttachments, globalIdx);
         return;
       }
     }
@@ -105,6 +108,13 @@ export function ChatMessageList({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [typingUsers?.length]);
 
+  // Scroll to the current search match
+  useEffect(() => {
+    if (!currentMatchId || !listRef.current) return;
+    const el = listRef.current.querySelector(`[data-msg-id="${currentMatchId}"]`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [currentMatchId]);
+
   const lastReadMessageId = useMemo(() => {
     if (!members?.length || !messages?.length) return null;
     const otherMembers = members.filter((m) => m.userId !== currentUserId);
@@ -131,13 +141,27 @@ export function ChatMessageList({
     return null;
   }, [messages, members, currentUserId]);
 
-  function handleLoadMore() {
+  const handleLoadMore = useCallback(() => {
+    if (!hasMore || isLoadingMore) return;
     if (listRef.current) {
       prevScrollHeightRef.current = listRef.current.scrollHeight;
       restoreScrollRef.current = true;
     }
     onLoadMore?.();
-  }
+  }, [hasMore, isLoadingMore, onLoadMore]);
+
+  // Auto-load when user scrolls up to the sentinel near the top of the list
+  useEffect(() => {
+    const sentinel = topSentinelRef.current;
+    const container = listRef.current;
+    if (!sentinel || !container || !hasMore) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) handleLoadMore(); },
+      { root: container, threshold: 0 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, handleLoadMore]);
 
   if (isLoading) {
     return (
@@ -173,24 +197,26 @@ export function ChatMessageList({
 
   return (
     <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-3">
-      {/* Load older messages button */}
+      {/* Sentinel watched by IntersectionObserver — triggers auto-load when scrolled into view */}
+      <div ref={topSentinelRef} className="h-px" />
+
+      {/* Visible load-more indicator */}
       {hasMore && (
         <div className="flex justify-center px-4 pt-1 pb-3">
-          <button
-            type="button"
-            onClick={handleLoadMore}
-            disabled={isLoadingMore}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-[hsl(var(--muted))] hover:bg-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoadingMore ? (
-              <>
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Cargando...
-              </>
-            ) : (
-              "Cargar mensajes anteriores"
-            )}
-          </button>
+          {isLoadingMore ? (
+            <span className="flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Cargando...
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={handleLoadMore}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-[hsl(var(--muted))] hover:bg-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
+            >
+              Cargar mensajes anteriores
+            </button>
+          )}
         </div>
       )}
 
@@ -232,6 +258,9 @@ export function ChatMessageList({
             isSelected={selectedMsgIds?.has(item.id) ?? false}
             onSelect={onToggleSelect ? () => onToggleSelect(item.id) : undefined}
             onEnterSelection={onEnterSelection ? () => onEnterSelection(item.id) : undefined}
+            searchQuery={searchQuery}
+            isSearchMatch={searchMatchIds ? searchMatchIds.has(item.id) : false}
+            isCurrentMatch={item.id === currentMatchId}
           />
         );
       })}

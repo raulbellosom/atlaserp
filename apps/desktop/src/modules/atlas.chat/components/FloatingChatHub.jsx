@@ -78,7 +78,7 @@ function BubbleAvatar({ avatarUrl, name }) {
 
 // --- Mini chat window (desktop) ---
 
-function MiniChatWindow({ entry, index, edge, onClose, onMinimize }) {
+function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }) {
   const { id, conversation, minimized } = entry;
   const { userProfile } = useAuth();
   const navigate = useNavigate();
@@ -137,7 +137,7 @@ function MiniChatWindow({ entry, index, edge, onClose, onMinimize }) {
           bottom: BM,
           width: WW,
           [edge]: offset,
-          zIndex: 9990,
+          zIndex,
           height: minimized ? WH_MIN : WH,
           transition: "height 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
@@ -340,7 +340,7 @@ function OnlineUserPill({ user, currentUserId, conversations, onOpen }) {
 
 // --- Conversation picker panel ---
 
-function ConversationPanel({ conversations, isLoading, edge, y, currentUserId }) {
+function ConversationPanel({ conversations, isLoading, edge, bottomPx, zIndex = 45, currentUserId }) {
   const { openChat, close } = useChatFloatStore();
   const navigate = useNavigate();
   const { onlineUsers } = useGlobalPresence();
@@ -367,11 +367,11 @@ function ConversationPanel({ conversations, isLoading, edge, y, currentUserId })
   }
 
   const offset = BM + BS + GAP;
-  const clampedTop = Math.max(60, Math.min(y, window.innerHeight - 400));
+  const clampedBottom = Math.max(BM, bottomPx);
 
   return (
     <div
-      style={{ position: "fixed", [edge]: offset, top: clampedTop, width: 256, zIndex: 9997 }}
+      style={{ position: "fixed", [edge]: offset, bottom: clampedBottom, width: 256, zIndex, maxHeight: "calc(100dvh - 80px)" }}
       className="rounded-xl shadow-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden flex flex-col"
     >
       {/* Online users */}
@@ -470,7 +470,7 @@ function ConversationPanel({ conversations, isLoading, edge, y, currentUserId })
 
 function FloatingChatHubInner() {
   const { session, userProfile } = useAuth();
-  const { edge, yPx, isOpen, openChats, setPosition, toggle, close, closeChat, toggleMinimize } =
+  const { edge, yPx, isOpen, hidden, openChats, setPosition, toggle, close, closeChat, toggleMinimize, hide } =
     useChatFloatStore();
 
   const { data, isLoading, isError } = useQuery({
@@ -556,11 +556,21 @@ function FloatingChatHubInner() {
     setDragPos(null);
   }, []);
 
-  if (isError) return null;
+  const [showHide, setShowHide] = useState(false);
+
+  if (isError || hidden) return null;
+
+  // z-45: above sidebar (z-40) but below Dialog overlay (z-50)
+  const Z_BUBBLE = 45;
+  const Z_WIN    = 45;
+  const Z_PANEL  = 45;
 
   const bubbleStyle = dragPos
-    ? { position: "fixed", left: dragPos.x - BS / 2, top: dragPos.y - BS / 2, zIndex: 9999 }
-    : { position: "fixed", [edge]: BM, top: effectiveY, zIndex: 9999 };
+    ? { position: "fixed", left: dragPos.x - BS / 2, top: dragPos.y - BS / 2, zIndex: Z_BUBBLE }
+    : { position: "fixed", [edge]: BM, top: effectiveY, zIndex: Z_BUBBLE };
+
+  // Panel anchors its bottom to the bubble's bottom edge so it's always adjacent
+  const panelBottomPx = window.innerHeight - effectiveY - BS;
 
   return createPortal(
     <>
@@ -573,6 +583,7 @@ function FloatingChatHubInner() {
             entry={liveEntry}
             index={i}
             edge={edge}
+            zIndex={Z_WIN}
             onClose={() => closeChat(entry.id)}
             onMinimize={() => toggleMinimize(entry.id)}
           />
@@ -585,13 +596,20 @@ function FloatingChatHubInner() {
             conversations={conversations}
             isLoading={isLoading}
             edge={edge}
-            y={effectiveY}
+            bottomPx={panelBottomPx}
+            zIndex={Z_PANEL}
             currentUserId={userProfile?.id}
           />
         </div>
       )}
 
-      <div style={bubbleStyle}>
+      <div
+        style={bubbleStyle}
+        onMouseEnter={() => setShowHide(true)}
+        onMouseLeave={() => setShowHide(false)}
+        className="relative"
+      >
+        {/* Main drag+toggle button */}
         <button
           type="button"
           onPointerDown={handlePointerDown}
@@ -600,21 +618,37 @@ function FloatingChatHubInner() {
           onPointerCancel={handlePointerCancel}
           style={{ touchAction: "none" }}
           className={[
-            "h-14 w-14 rounded-full shadow-xl flex items-center justify-center relative",
+            "h-14 w-14 rounded-full shadow-xl flex items-center justify-center relative overflow-hidden",
             "cursor-grab select-none",
             dragPos ? "" : "transition-transform active:scale-95",
             userProfile?.avatarUrl ? "bg-[hsl(var(--muted))]" : "bg-(--brand-primary) text-white",
             isOpen ? "ring-2 ring-white/30" : "",
           ].join(" ")}
         >
-          <div className="h-full w-full rounded-full overflow-hidden flex items-center justify-center">
+          {/* Avatar layer — dims when hover shows close */}
+          <div className={["h-full w-full rounded-full flex items-center justify-center transition-opacity duration-200", showHide ? "opacity-30" : "opacity-100"].join(" ")}>
             <BubbleAvatar avatarUrl={userProfile?.avatarUrl} name={userProfile?.displayName} />
           </div>
-          {totalUnread > 0 && (
+          {totalUnread > 0 && !showHide && (
             <span className="absolute -top-1 -right-1 h-5 min-w-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-md pointer-events-none">
               {totalUnread > 99 ? "99+" : totalUnread}
             </span>
           )}
+        </button>
+
+        {/* Messenger-style close overlay */}
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); hide(); }}
+          title="Ocultar chat"
+          className={[
+            "absolute inset-0 rounded-full flex items-center justify-center",
+            "bg-black/55 backdrop-blur-[1px] transition-all duration-200",
+            showHide ? "opacity-100 scale-100" : "opacity-0 scale-75 pointer-events-none",
+          ].join(" ")}
+        >
+          <X className="h-6 w-6 text-white drop-shadow" />
         </button>
       </div>
     </>,

@@ -642,6 +642,27 @@ function MessageActions({ isOwn, hasBody, onCopy, onDelete, onHideForMe, onForwa
   );
 }
 
+// ── Search text highlight ──────────────────────────────────────────────────────
+function HighlightedText({ text, query }) {
+  if (!query || !text) return <>{text}</>;
+  const q = query.toLowerCase();
+  const parts = [];
+  let lastIndex = 0;
+  const lower = text.toLowerCase();
+  while (lastIndex < text.length) {
+    const idx = lower.indexOf(q, lastIndex);
+    if (idx === -1) { parts.push(text.slice(lastIndex)); break; }
+    if (idx > lastIndex) parts.push(text.slice(lastIndex, idx));
+    parts.push(
+      <mark key={idx} className="bg-yellow-300 text-black rounded-xs px-0.5">
+        {text.slice(idx, idx + q.length)}
+      </mark>
+    );
+    lastIndex = idx + q.length;
+  }
+  return <>{parts}</>;
+}
+
 // ── Main bubble ───────────────────────────────────────────────────────────────
 export function ChatMessageBubble({
   message,
@@ -658,6 +679,9 @@ export function ChatMessageBubble({
   isSelected = false,
   onSelect,
   onEnterSelection,
+  searchQuery = "",
+  isSearchMatch = false,
+  isCurrentMatch = false,
 }) {
   if (message.type === "date_separator") {
     return (
@@ -702,6 +726,7 @@ export function ChatMessageBubble({
   if (isOwn) {
     return (
       <div
+        data-msg-id={message.id}
         role={selectionMode ? "button" : undefined}
         tabIndex={selectionMode ? 0 : undefined}
         onClick={selectionMode ? onSelect : undefined}
@@ -712,6 +737,7 @@ export function ChatMessageBubble({
           isPending ? "opacity-60" : "",
           selectionMode ? "cursor-pointer" : "",
           selectionMode && isSelected ? "bg-[hsl(var(--primary)/0.08)]" : "",
+          isCurrentMatch ? "bg-yellow-400/15" : isSearchMatch ? "bg-yellow-400/6" : "",
         ].join(" ")}
       >
         {selectionMode ? (
@@ -740,7 +766,9 @@ export function ChatMessageBubble({
               {isDeleted ? (
                 <span>Mensaje eliminado</span>
               ) : (
-                <p className="text-left whitespace-pre-wrap wrap-break-word">{message.body}</p>
+                <p className="text-left whitespace-pre-wrap wrap-break-word">
+                  <HighlightedText text={message.body} query={searchQuery} />
+                </p>
               )}
             </div>
           )}
@@ -769,6 +797,7 @@ export function ChatMessageBubble({
 
   return (
     <div
+      data-msg-id={message.id}
       role={selectionMode ? "button" : undefined}
       tabIndex={selectionMode ? 0 : undefined}
       onClick={selectionMode ? onSelect : undefined}
@@ -779,6 +808,7 @@ export function ChatMessageBubble({
         isPending ? "opacity-60" : "",
         selectionMode ? "cursor-pointer" : "",
         selectionMode && isSelected ? "bg-[hsl(var(--primary)/0.08)]" : "",
+        isCurrentMatch ? "bg-yellow-400/15" : isSearchMatch ? "bg-yellow-400/6" : "",
       ].join(" ")}
     >
       {selectionMode && <SelectionCircle isSelected={isSelected} />}
@@ -817,7 +847,9 @@ export function ChatMessageBubble({
             {isDeleted ? (
               <span>Mensaje eliminado</span>
             ) : (
-              <p className="text-left whitespace-pre-wrap wrap-break-word">{message.body}</p>
+              <p className="text-left whitespace-pre-wrap wrap-break-word">
+                <HighlightedText text={message.body} query={searchQuery} />
+              </p>
             )}
           </div>
         )}

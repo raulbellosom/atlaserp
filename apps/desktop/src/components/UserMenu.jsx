@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, User, Settings, LogOut, Monitor, Download, X, Smartphone, Share, Sun, Moon, Activity } from "lucide-react";
+import { ChevronDown, User, Settings, LogOut, Monitor, Download, X, Smartphone, Share, Sun, Moon, Activity, MessageSquare } from "lucide-react";
 import { useThemeStore } from "../stores/theme";
+import { useChatFloatStore } from "../modules/atlas.chat/store/chatFloatStore";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -71,6 +72,7 @@ export function UserMenu({
 }) {
   const { userProfile, logout } = useAuth();
   const { isDark, toggle: toggleTheme } = useThemeStore();
+  const { hidden: chatHubHidden, show: showChatHub } = useChatFloatStore();
   const navigate = useNavigate();
   const [showReminder, setShowReminder] = useState(() => shouldShowDesktopReminder());
 
@@ -267,6 +269,16 @@ export function UserMenu({
             {isDark ? "Modo claro" : "Modo oscuro"}
           </DropdownMenuItem>
         </div>
+
+        {chatHubHidden && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={showChatHub} className="gap-2 cursor-pointer">
+              <MessageSquare size={14} />
+              Mostrar chat flotante
+            </DropdownMenuItem>
+          </>
+        )}
 
         <DropdownMenuSeparator />
         <DropdownMenuItem
