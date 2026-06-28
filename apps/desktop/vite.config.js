@@ -206,27 +206,61 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
-    proxy: {
-      "^/pwa/": {
-        target: process.env.VITE_ATLAS_API_URL ?? "http://127.0.0.1:4010",
-        changeOrigin: true,
-        configure(proxy) {
-          // Suppress ECONNREFUSED during startup — API takes a moment to boot.
-          // Handling the event prevents Vite from re-logging it as an unhandled error.
-          proxy.on("error", (err, _req, res) => {
-            if (err.code === "ECONNREFUSED") {
-              if (!res.headersSent) {
-                res.writeHead(503, { "Content-Type": "application/json" });
-                res.end(JSON.stringify({ error: "API starting" }));
-              }
-              return;
+    proxy: (function () {
+      const apiTarget = process.env.VITE_ATLAS_API_URL ?? "http://127.0.0.1:4010";
+
+      function suppressStartup(proxy, label) {
+        proxy.on("error", (err, _req, res) => {
+          if (err.code === "ECONNREFUSED") {
+            if (!res.headersSent) {
+              res.writeHead(503, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "API starting" }));
             }
-            // Let non-startup errors surface normally.
-            console.error("[proxy] /pwa/ error:", err.message);
-          });
+            return;
+          }
+          console.error(`[proxy] ${label} error:`, err.message);
+        });
+      }
+
+      return {
+        // PWA push endpoints
+        "^/pwa/": {
+          target: apiTarget,
+          changeOrigin: true,
+          configure: (p) => suppressStartup(p, "/pwa/"),
         },
-      },
-    },
+
+        // All known API path prefixes — needed so storefront SDK calls
+        // (using ATLAS_APP_URL=localhost:5173) reach the API backend.
+        "^/(public|modules|blueprints|files|contacts|company|identity|finance|hr|website|ledger|calendar|projects|catalog|pos|storefront|activity|notifications|inventory|chat|auth|health|erp-badge-check|p)/": {
+          target: apiTarget,
+          changeOrigin: true,
+          configure: (p) => suppressStartup(p, "api-paths"),
+        },
+
+        // Catch-all: proxy browser page navigations (Accept: text/html) for
+        // non-ERP, non-Vite paths to the API dist-serve middleware.
+        // This makes source_type=dist work at localhost:5173 in dev.
+        "^/": {
+          target: apiTarget,
+          changeOrigin: true,
+          bypass(req) {
+            const url = req.url ?? "/";
+            const accept = req.headers["accept"] ?? "";
+            // Never proxy ERP app or pwa routes — handled by Vite SPA
+            if (url.startsWith("/app") || url.startsWith("/pwa/")) return url;
+            // Never proxy Vite internals (HMR, module resolution, etc.)
+            if (url.startsWith("/@") || url.startsWith("/node_modules/")) return url;
+            // Never proxy WebSocket upgrades (Vite HMR)
+            if (req.headers.upgrade === "websocket") return url;
+            // Proxy only browser page navigations
+            if (accept.includes("text/html")) return null;
+            return url;
+          },
+          configure: (p) => suppressStartup(p, "dist-serve"),
+        },
+      };
+    })(),
   },
   clearScreen: false,
 });
