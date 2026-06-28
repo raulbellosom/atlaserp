@@ -282,7 +282,7 @@ export function useCalendarNotifications() {
     queryFn: () =>
       atlas.calendar.listNotifications(token, { unread_only: true }),
     enabled: Boolean(token),
-    refetchInterval: 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
     staleTime: 30 * 1000,
   });
 }
