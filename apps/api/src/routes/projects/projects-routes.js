@@ -224,6 +224,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     try {
       const { taskIds, patch } = await c.req.json()
       const result = await tasksSvc.bulkUpdateTasks(c.req.param('id'), taskIds, patch ?? {})
+      broadcastTaskEvent(c.req.param('id'), null, 'bulk_updated')
       return c.json(result)
     } catch (err) { return handleError(c, err, 'Error al actualizar tareas en masa.') }
   })
@@ -232,6 +233,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     try {
       const { taskIds } = await c.req.json()
       const result = await tasksSvc.bulkDeleteTasks(c.req.param('id'), taskIds)
+      broadcastTaskEvent(c.req.param('id'), null, 'bulk_deleted')
       return c.json(result)
     } catch (err) { return handleError(c, err, 'Error al eliminar tareas en masa.') }
   })
