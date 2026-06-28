@@ -16,7 +16,7 @@ export function usePosActiveMap(outletId) {
     select: (res) => res?.data ?? null,
     enabled: Boolean(token),
     staleTime: 15 * 1000,
-    refetchInterval: 30 * 1000,
+    refetchInterval: 60 * 1000,
   })
 }
 
@@ -53,7 +53,7 @@ export function usePosFloorDetail(id, { refetch = false } = {}) {
     select: (res) => res?.data ?? res,
     enabled: Boolean(token) && Boolean(id),
     staleTime: 15 * 1000,
-    refetchInterval: refetch ? 15 * 1000 : false,
+    refetchInterval: refetch ? 60 * 1000 : false,
   })
 }
 

@@ -16,7 +16,7 @@ export function usePosStationTickets(stationId, query = {}) {
     select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token) && Boolean(stationId),
     staleTime: 10 * 1000,
-    refetchInterval: 15 * 1000,
+    refetchInterval: 60 * 1000,
   })
 }
 

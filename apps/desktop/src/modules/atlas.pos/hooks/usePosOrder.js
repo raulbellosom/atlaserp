@@ -27,7 +27,7 @@ export function usePosOrder(id) {
     select: (res) => res?.data ?? null,
     enabled: Boolean(token) && Boolean(id),
     staleTime: 10 * 1000,
-    refetchInterval: 15 * 1000,
+    refetchInterval: 60 * 1000,
   })
 }
 
