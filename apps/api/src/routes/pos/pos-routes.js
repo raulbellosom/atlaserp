@@ -63,7 +63,7 @@ function handleError(c, err, fallback) {
   return c.json({ error: fallback }, 500);
 }
 
-export function createPosRouter({ prisma, requirePermission }) {
+export function createPosRouter({ prisma, requirePermission, broadcaster = null }) {
   const app = new Hono();
   const settingsSvc = createPosSettingsService({ prisma });
   const sessionSvc = createPosSessionService({ prisma });
@@ -71,6 +71,15 @@ export function createPosRouter({ prisma, requirePermission }) {
   const floorSvc = createPosFloorService({ prisma });
   const kitchenSvc = createPosKitchenService({ prisma });
   const reservationSvc = createPosReservationService({ prisma });
+
+  function broadcastPosEvent(c, orderId, action) {
+    const companyId = getCompanyId(c)
+    if (!broadcaster || !companyId) return
+    broadcaster.broadcastToCompany(companyId, 'pos.order.updated', {
+      orderId: orderId ?? null,
+      action,
+    }).catch(() => {})
+  }
 
   app.get("/pos/settings", requirePermission("pos.settings.manage"), async (c) => {
     try {
@@ -215,7 +224,9 @@ export function createPosRouter({ prisma, requirePermission }) {
   app.post("/pos/orders", requirePermission("pos.orders.create"), async (c) => {
     try {
       const data = await parseBody(c, createOrderSchema);
-      return c.json({ data: await orderSvc.createOrder({ ...context(c), data }) }, 201);
+      const result = await orderSvc.createOrder({ ...context(c), data })
+      broadcastPosEvent(c, result?.id, 'created')
+      return c.json({ data: result }, 201);
     } catch (err) {
       return handleError(c, err, "No se pudo crear la orden POS.");
     }
@@ -232,7 +243,9 @@ export function createPosRouter({ prisma, requirePermission }) {
   app.patch("/pos/orders/:id", requirePermission("pos.orders.update"), async (c) => {
     try {
       const data = await parseBody(c, updateOrderSchema);
-      return c.json({ data: await orderSvc.updateOrder({ ...context(c), id: c.req.param("id"), data }) });
+      const result = await orderSvc.updateOrder({ ...context(c), id: c.req.param("id"), data })
+      broadcastPosEvent(c, c.req.param("id"), 'updated')
+      return c.json({ data: result });
     } catch (err) {
       return handleError(c, err, "No se pudo actualizar la orden POS.");
     }
@@ -250,7 +263,9 @@ export function createPosRouter({ prisma, requirePermission }) {
   app.post("/pos/orders/:id/lines", requirePermission("pos.orders.update"), async (c) => {
     try {
       const data = await parseBody(c, addOrderLineSchema);
-      return c.json({ data: await orderSvc.addOrderLine({ ...context(c), orderId: c.req.param("id"), data }) }, 201);
+      const result = await orderSvc.addOrderLine({ ...context(c), orderId: c.req.param("id"), data })
+      broadcastPosEvent(c, c.req.param("id"), 'line_added')
+      return c.json({ data: result }, 201);
     } catch (err) {
       return handleError(c, err, "No se pudo agregar la linea.");
     }
@@ -259,14 +274,14 @@ export function createPosRouter({ prisma, requirePermission }) {
   app.patch("/pos/orders/:id/lines/:lineId", requirePermission("pos.orders.update"), async (c) => {
     try {
       const data = await parseBody(c, updateOrderLineSchema);
-      return c.json({
-        data: await orderSvc.updateOrderLine({
-          ...context(c),
-          orderId: c.req.param("id"),
-          lineId: c.req.param("lineId"),
-          data,
-        }),
-      });
+      const result = await orderSvc.updateOrderLine({
+        ...context(c),
+        orderId: c.req.param("id"),
+        lineId: c.req.param("lineId"),
+        data,
+      })
+      broadcastPosEvent(c, c.req.param("id"), 'line_updated')
+      return c.json({ data: result });
     } catch (err) {
       return handleError(c, err, "No se pudo actualizar la linea.");
     }
@@ -274,13 +289,13 @@ export function createPosRouter({ prisma, requirePermission }) {
 
   app.delete("/pos/orders/:id/lines/:lineId", requirePermission("pos.orders.update"), async (c) => {
     try {
-      return c.json({
-        data: await orderSvc.deleteOrderLine({
-          ...context(c),
-          orderId: c.req.param("id"),
-          lineId: c.req.param("lineId"),
-        }),
-      });
+      const result = await orderSvc.deleteOrderLine({
+        ...context(c),
+        orderId: c.req.param("id"),
+        lineId: c.req.param("lineId"),
+      })
+      broadcastPosEvent(c, c.req.param("id"), 'line_deleted')
+      return c.json({ data: result });
     } catch (err) {
       return handleError(c, err, "No se pudo eliminar la linea.");
     }
@@ -288,7 +303,9 @@ export function createPosRouter({ prisma, requirePermission }) {
 
   app.post("/pos/orders/:id/send-to-kitchen", requirePermission("pos.orders.update"), async (c) => {
     try {
-      return c.json({ data: await kitchenSvc.sendOrderToKitchen({ ...context(c), orderId: c.req.param("id") }) });
+      const result = await kitchenSvc.sendOrderToKitchen({ ...context(c), orderId: c.req.param("id") })
+      broadcastPosEvent(c, c.req.param("id"), 'sent_to_kitchen')
+      return c.json({ data: result });
     } catch (err) {
       return handleError(c, err, "No se pudo enviar la orden a cocina.");
     }
@@ -297,7 +314,9 @@ export function createPosRouter({ prisma, requirePermission }) {
   app.post("/pos/orders/:id/payments", requirePermission("pos.payments.create"), async (c) => {
     try {
       const data = await parseBody(c, createPaymentSchema);
-      return c.json({ data: await orderSvc.addPayment({ ...context(c), orderId: c.req.param("id"), data }) }, 201);
+      const result = await orderSvc.addPayment({ ...context(c), orderId: c.req.param("id"), data })
+      broadcastPosEvent(c, c.req.param("id"), 'payment_added')
+      return c.json({ data: result }, 201);
     } catch (err) {
       return handleError(c, err, "No se pudo registrar el pago.");
     }
@@ -306,7 +325,9 @@ export function createPosRouter({ prisma, requirePermission }) {
   app.post("/pos/orders/:id/cancel", requirePermission("pos.orders.cancel"), async (c) => {
     try {
       const data = await parseBody(c, cancelOrderSchema);
-      return c.json({ data: await orderSvc.cancelOrder({ ...context(c), orderId: c.req.param("id"), reason: data.reason }) });
+      const result = await orderSvc.cancelOrder({ ...context(c), orderId: c.req.param("id"), reason: data.reason })
+      broadcastPosEvent(c, c.req.param("id"), 'cancelled')
+      return c.json({ data: result });
     } catch (err) {
       return handleError(c, err, "No se pudo cancelar la orden.");
     }
