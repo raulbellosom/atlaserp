@@ -24,6 +24,10 @@ function getUserId(c) {
   return c.get("userContext")?.profile?.id ?? null;
 }
 
+function getCompanyId(c) {
+  return c.get('companyId') ?? c.get('userContext')?.memberships?.[0]?.companyId ?? null
+}
+
 function handleError(c, err, fallback) {
   if (err instanceof CalendarServiceError)
     return c.json({ error: err.message }, err.status);
@@ -151,12 +155,21 @@ function createGoogleRouteDependencies({ prisma, google = {} }) {
   };
 }
 
-export function createCalendarRouter({ prisma, requirePermission, google }) {
+export function createCalendarRouter({ prisma, requirePermission, google, broadcaster = null }) {
   const app = new Hono();
   const svc = createCalendarService({ prisma });
   const eventSvc = createCalendarEventService({ prisma });
   const notifSvc = createCalendarNotificationService({ prisma });
   const googleDeps = createGoogleRouteDependencies({ prisma, google });
+
+  function broadcastCalendarEvent(c, eventId, action) {
+    const companyId = getCompanyId(c)
+    if (!broadcaster || !companyId) return
+    broadcaster.broadcastToCompany(companyId, 'calendar.event.updated', {
+      eventId: eventId ?? null,
+      action,
+    }).catch(() => {})
+  }
 
   async function requireActiveGoogleConnection(
     userId,
@@ -664,6 +677,7 @@ export function createCalendarRouter({ prisma, requirePermission, google }) {
             },
           });
         }
+        broadcastCalendarEvent(c, event.id, 'created')
         return c.json(event, 201);
       } catch (err) {
         return handleError(c, err, "No se pudo crear el evento.");
@@ -762,6 +776,7 @@ export function createCalendarRouter({ prisma, requirePermission, google }) {
             },
           });
         }
+        broadcastCalendarEvent(c, eventId, 'updated')
         return c.json(event);
       } catch (err) {
         return handleError(c, err, "No se pudo actualizar el evento.");
@@ -820,6 +835,7 @@ export function createCalendarRouter({ prisma, requirePermission, google }) {
               : undefined,
           });
         }
+        broadcastCalendarEvent(c, eventId, 'deleted')
         return c.json({ ok: true });
       } catch (err) {
         return handleError(c, err, "No se pudo eliminar el evento.");
