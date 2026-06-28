@@ -42,12 +42,36 @@ export function createRealtimeBroadcaster({ supabaseUrl, serviceRoleKey }) {
     })
   }
 
-  return { broadcastToUser, broadcastToUsers }
+  async function broadcastToCompany(companyId, event, payload) {
+    if (!companyId) return
+    await _send([{
+      topic: `company:${companyId}:events`,
+      event,
+      payload: payload ?? {},
+    }]).catch((err) => {
+      console.warn('[realtime-broadcaster] broadcastToCompany error:', err?.message)
+    })
+  }
+
+  async function broadcastToChannel(channelName, event, payload) {
+    if (!channelName) return
+    await _send([{
+      topic: channelName,
+      event,
+      payload: payload ?? {},
+    }]).catch((err) => {
+      console.warn('[realtime-broadcaster] broadcastToChannel error:', err?.message)
+    })
+  }
+
+  return { broadcastToUser, broadcastToUsers, broadcastToCompany, broadcastToChannel }
 }
 
 export function createNoopBroadcaster() {
   return {
     broadcastToUser: async () => {},
     broadcastToUsers: async () => {},
+    broadcastToCompany: async () => {},
+    broadcastToChannel: async () => {},
   }
 }
