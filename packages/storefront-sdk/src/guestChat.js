@@ -42,7 +42,9 @@ export function createGuestChatDomain(request, supabaseUrl, supabaseAnonKey) {
     import('@supabase/supabase-js')
       .then(({ createClient }) => {
         if (cancelled) return
-        supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+        supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+          auth: { storageKey: 'atlas-guest-chat', persistSession: false },
+        })
         channel = supabaseClient
           .channel(`chat:conv:${conversationId}`)
           .on('broadcast', { event: 'new_operator_message' }, ({ payload }) => {
