@@ -17,9 +17,8 @@ function handleError(c, err, fallback) {
   if (err instanceof ChatServiceError || err instanceof GuestChatServiceError) {
     return c.json({ error: err.message }, err.status);
   }
-  if (process.env.NODE_ENV !== "production") {
-    console.error("[atlas.chat]", err?.message, err?.stack);
-  }
+  console.error("[atlas.chat]", err?.message ?? err);
+  if (err?.stack) console.error(err.stack);
   return c.json({ error: fallback }, 500);
 }
 

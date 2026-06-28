@@ -21,6 +21,7 @@ export function NoteEditor({ note, readOnly = false }) {
   const providerRef = useRef(null)
   const saveTimerRef = useRef(null)
   const isSavingRef = useRef(false)
+  const containerRef = useRef(null)
 
   // Create Y.js doc and provider once per noteId
   useEffect(() => {
@@ -79,6 +80,56 @@ export function NoteEditor({ note, readOnly = false }) {
     [note?.id, token, readOnly],
   )
 
+  // Touch-to-mouse bridge for TipTap column resize handles.
+  // ProseMirror's columnResizing plugin only listens to mousedown/mousemove/mouseup.
+  // This converts touchstart on .column-resize-handle into the equivalent mouse events.
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || readOnly) return
+
+    let active = false
+
+    function makeMouseEvent(type, touch) {
+      return new MouseEvent(type, {
+        bubbles: true, cancelable: true, view: window,
+        clientX: touch.clientX, clientY: touch.clientY,
+        screenX: touch.screenX, screenY: touch.screenY,
+        button: 0, buttons: type === 'mouseup' ? 0 : 1,
+      })
+    }
+
+    function onTouchStart(e) {
+      const handle = e.target.closest?.('.column-resize-handle') ??
+        (e.target.classList?.contains('column-resize-handle') ? e.target : null)
+      if (!handle) return
+      e.preventDefault()
+      active = true
+      handle.dispatchEvent(makeMouseEvent('mousedown', e.touches[0]))
+    }
+
+    function onTouchMove(e) {
+      if (!active) return
+      e.preventDefault()
+      document.dispatchEvent(makeMouseEvent('mousemove', e.touches[0]))
+    }
+
+    function onTouchEnd(e) {
+      if (!active) return
+      active = false
+      document.dispatchEvent(makeMouseEvent('mouseup', e.changedTouches[0]))
+    }
+
+    container.addEventListener('touchstart', onTouchStart, { passive: false })
+    container.addEventListener('touchmove', onTouchMove, { passive: false })
+    container.addEventListener('touchend', onTouchEnd)
+
+    return () => {
+      container.removeEventListener('touchstart', onTouchStart)
+      container.removeEventListener('touchmove', onTouchMove)
+      container.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [readOnly])
+
   if (!note) return null
 
   const extensions = [
@@ -95,7 +146,7 @@ export function NoteEditor({ note, readOnly = false }) {
   ]
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div ref={containerRef} className="flex flex-col h-full overflow-hidden">
       <EditorProvider
         extensions={extensions}
         content={note.content || ''}

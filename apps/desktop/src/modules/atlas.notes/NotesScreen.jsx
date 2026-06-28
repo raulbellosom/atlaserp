@@ -5,6 +5,7 @@ import {
   Settings2, Share2, RotateCcw, Trash2, PenLine
 } from 'lucide-react'
 import { ConfirmDialog } from '@atlas/ui'
+import { NoteIcon } from './noteIcons.jsx'
 import { useNotes, useCreateNote } from './hooks/useNotes.js'
 import { useNote, useUpdateNote, useTrashNote, useRestoreNote, usePermanentDeleteNote } from './hooks/useNote.js'
 import { usePublishNote, useUnpublishNote } from './hooks/useNoteShares.js'
@@ -212,7 +213,10 @@ export default function NotesScreen() {
             <ArrowLeft size={15} />
           </button>
 
-          <span className="flex-1 text-xs text-muted-foreground truncate">
+          <span className="flex-1 flex items-center gap-1.5 min-w-0 text-xs text-muted-foreground truncate">
+            {selectedNote?.icon && (
+              <NoteIcon name={selectedNote.icon} size={13} className="text-amber-500 shrink-0" />
+            )}
             {selectedNote ? (selectedNote.title || 'Sin titulo') : ''}
           </span>
 
@@ -256,7 +260,7 @@ export default function NotesScreen() {
       </div>
 
       {selectedNote && (
-        <NoteShareModal noteId={selectedNote.id} open={shareOpen} onOpenChange={setShareOpen} />
+        <NoteShareModal note={selectedNote} open={shareOpen} onOpenChange={setShareOpen} />
       )}
 
       <ConfirmDialog

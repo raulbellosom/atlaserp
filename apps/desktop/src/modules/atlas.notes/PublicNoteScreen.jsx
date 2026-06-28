@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { atlas } from '../../lib/atlas'
 import { NoteEditor } from './components/NoteEditor.jsx'
+import { NoteIcon } from './noteIcons.jsx'
 import { ErrorState } from '@atlas/ui'
 
 export default function PublicNoteScreen() {
@@ -41,7 +42,7 @@ export default function PublicNoteScreen() {
     <div className="min-h-screen" style={{ backgroundColor: note.background_color ?? '#ffffff' }}>
       <div className="max-w-3xl mx-auto py-12 px-4">
         <div className="flex items-center gap-3 mb-6">
-          {note.icon && <span className="text-3xl">{note.icon}</span>}
+          {note.icon && <NoteIcon name={note.icon} size={28} className="text-amber-500 shrink-0" />}
           <h1 className="text-2xl font-bold text-gray-900">{note.title || 'Nota'}</h1>
         </div>
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">

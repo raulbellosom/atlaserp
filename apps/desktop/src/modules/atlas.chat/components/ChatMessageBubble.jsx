@@ -29,12 +29,15 @@ function getFileTypeInfo(mimeType = "") {
   return { Icon: File, colorClass: "text-[hsl(var(--muted-foreground))]" };
 }
 
-// Hook: pre-fetch signed URL for all attachment types (needed for thumbnails, audio, video, and download button)
+// Hook: resolve the signed URL for an attachment.
+// The API now embeds `url` directly in the attachment object from listMessages,
+// so we skip the network call entirely when it's already present.
 function useAttachmentUrl(att) {
   const { session } = useAuth();
   return useQuery({
     queryKey: ["chat-attachment-url", att.id],
     queryFn: async () => {
+      if (att.url) return att.url;
       try {
         const res = await atlas.chat.getAttachmentSignedUrl(att.id, session?.access_token);
         return res?.data?.url ?? null;
@@ -43,6 +46,8 @@ function useAttachmentUrl(att) {
         throw err;
       }
     },
+    // Seed the cache with the embedded URL so it resolves synchronously
+    initialData: att.url ? att.url : undefined,
     staleTime: 50 * 60 * 1000,
     retry: 2,
     enabled: Boolean(session?.access_token),

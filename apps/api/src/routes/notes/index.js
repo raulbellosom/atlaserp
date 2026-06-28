@@ -14,39 +14,26 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   const ydoc = createYDocService({ prisma })
 
   // ----------------------------------------------------------------
-  // Public routes (no auth) — must be registered before the auth middleware
+  // All /notes/* routes — dedicated internal router with auth
+  // Public note route is registered in apps/api/src/index.js to
+  // guarantee it is never intercepted by auth middleware.
   // ----------------------------------------------------------------
+  const internal = new Hono()
+  internal.use('*', authMiddleware)
 
-  app.get('/public/notes/:slug', async (c) => {
-    try {
-      const slug = c.req.param('slug')
-      const data = await shares.getPublicNote(slug)
-      return c.json({ data })
-    } catch (e) {
-      return c.json({ error: e.message }, e.status ?? 500)
-    }
-  })
-
-  // ----------------------------------------------------------------
-  // All /notes/* routes require authentication
-  // ----------------------------------------------------------------
-  app.use('/notes/*', authMiddleware)
-
-  // ----------------------------------------------------------------
   // Helper — extract userId and companyId from Hono context
-  // ----------------------------------------------------------------
   function getAuth(c) {
     const userId = c.get('userContext')?.profile?.id ?? c.get('userId')
     const companyId = c.get('userContext')?.memberships?.[0]?.companyId ?? null
     return { userId, companyId }
   }
 
-  // ================================================================
-  // FOLDERS — register BEFORE /notes/:id to avoid "folders" matching :id
-  // ================================================================
+  // ==============================================================
+  // FOLDERS — register BEFORE /:id to avoid "folders" matching :id
+  // ==============================================================
 
   // GET /notes/folders
-  app.get('/notes/folders', requirePermission('notes.folders.read'), async (c) => {
+  internal.get('/folders', requirePermission('notes.folders.read'), async (c) => {
     try {
       const { userId, companyId } = getAuth(c)
       const folders_ = await folders.listFolders({ userId, companyId })
@@ -57,7 +44,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // POST /notes/folders
-  app.post('/notes/folders', requirePermission('notes.folders.create'), async (c) => {
+  internal.post('/folders', requirePermission('notes.folders.create'), async (c) => {
     try {
       const { userId, companyId } = getAuth(c)
       const body = await c.req.json()
@@ -70,7 +57,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // PATCH /notes/folders/:id
-  app.patch('/notes/folders/:id', requirePermission('notes.folders.update'), async (c) => {
+  internal.patch('/folders/:id', requirePermission('notes.folders.update'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const folderId = c.req.param('id')
@@ -83,7 +70,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // DELETE /notes/folders/:id
-  app.delete('/notes/folders/:id', requirePermission('notes.folders.delete'), async (c) => {
+  internal.delete('/folders/:id', requirePermission('notes.folders.delete'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const folderId = c.req.param('id')
@@ -94,12 +81,12 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
     }
   })
 
-  // ================================================================
-  // TAGS — register BEFORE /notes/:id to avoid "tags" matching :id
-  // ================================================================
+  // ==============================================================
+  // TAGS — register BEFORE /:id to avoid "tags" matching :id
+  // ==============================================================
 
   // GET /notes/tags
-  app.get('/notes/tags', requirePermission('notes.tags.read'), async (c) => {
+  internal.get('/tags', requirePermission('notes.tags.read'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const tags_ = await tags.listTags({ userId })
@@ -110,7 +97,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // POST /notes/tags
-  app.post('/notes/tags', requirePermission('notes.tags.create'), async (c) => {
+  internal.post('/tags', requirePermission('notes.tags.create'), async (c) => {
     try {
       const { userId, companyId } = getAuth(c)
       const body = await c.req.json()
@@ -123,7 +110,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // PATCH /notes/tags/:id
-  app.patch('/notes/tags/:id', requirePermission('notes.tags.update'), async (c) => {
+  internal.patch('/tags/:id', requirePermission('notes.tags.update'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const tagId = c.req.param('id')
@@ -136,7 +123,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // DELETE /notes/tags/:id
-  app.delete('/notes/tags/:id', requirePermission('notes.tags.delete'), async (c) => {
+  internal.delete('/tags/:id', requirePermission('notes.tags.delete'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const tagId = c.req.param('id')
@@ -147,12 +134,12 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
     }
   })
 
-  // ================================================================
-  // PRESIGN IMAGE — register before /notes/:id
-  // ================================================================
+  // ==============================================================
+  // PRESIGN IMAGE — register before /:id
+  // ==============================================================
 
   // POST /notes/presign-image
-  app.post('/notes/presign-image', requirePermission('notes.notes.create'), async (c) => {
+  internal.post('/presign-image', requirePermission('notes.notes.create'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const body = await c.req.json()
@@ -167,12 +154,12 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
     }
   })
 
-  // ================================================================
+  // ==============================================================
   // NOTES CRUD
-  // ================================================================
+  // ==============================================================
 
   // GET /notes
-  app.get('/notes', requirePermission('notes.notes.read'), async (c) => {
+  internal.get('/', requirePermission('notes.notes.read'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const { folderId, tagId, q, archived, trashed, shared, page, pageSize } = c.req.query()
@@ -194,7 +181,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // POST /notes
-  app.post('/notes', requirePermission('notes.notes.create'), async (c) => {
+  internal.post('/', requirePermission('notes.notes.create'), async (c) => {
     try {
       const { userId, companyId } = getAuth(c)
       const body = await c.req.json()
@@ -207,7 +194,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // GET /notes/:id
-  app.get('/notes/:id', requirePermission('notes.notes.read'), async (c) => {
+  internal.get('/:id', requirePermission('notes.notes.read'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
@@ -219,7 +206,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // PATCH /notes/:id
-  app.patch('/notes/:id', requirePermission('notes.notes.update'), async (c) => {
+  internal.patch('/:id', requirePermission('notes.notes.update'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
@@ -232,7 +219,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // DELETE /notes/:id — soft delete (trash)
-  app.delete('/notes/:id', requirePermission('notes.notes.delete'), async (c) => {
+  internal.delete('/:id', requirePermission('notes.notes.delete'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
@@ -244,7 +231,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // POST /notes/:id/restore
-  app.post('/notes/:id/restore', requirePermission('notes.notes.update'), async (c) => {
+  internal.post('/:id/restore', requirePermission('notes.notes.update'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
@@ -256,7 +243,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // DELETE /notes/:id/permanent
-  app.delete('/notes/:id/permanent', requirePermission('notes.notes.delete'), async (c) => {
+  internal.delete('/:id/permanent', requirePermission('notes.notes.delete'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
@@ -267,12 +254,12 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
     }
   })
 
-  // ================================================================
+  // ==============================================================
   // Y.js STATE
-  // ================================================================
+  // ==============================================================
 
   // GET /notes/:id/ydoc
-  app.get('/notes/:id/ydoc', requirePermission('notes.notes.read'), async (c) => {
+  internal.get('/:id/ydoc', requirePermission('notes.notes.read'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
@@ -284,7 +271,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // PUT /notes/:id/ydoc
-  app.put('/notes/:id/ydoc', requirePermission('notes.notes.update'), async (c) => {
+  internal.put('/:id/ydoc', requirePermission('notes.notes.update'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
@@ -297,12 +284,12 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
     }
   })
 
-  // ================================================================
+  // ==============================================================
   // TAGS ON NOTES
-  // ================================================================
+  // ==============================================================
 
   // PUT /notes/:id/tags — set all tags on a note
-  app.put('/notes/:id/tags', requirePermission('notes.notes.update'), async (c) => {
+  internal.put('/:id/tags', requirePermission('notes.notes.update'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
@@ -316,7 +303,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // DELETE /notes/:id/tags/:tagId — remove a single tag from a note
-  app.delete('/notes/:id/tags/:tagId', requirePermission('notes.notes.update'), async (c) => {
+  internal.delete('/:id/tags/:tagId', requirePermission('notes.notes.update'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
@@ -328,12 +315,12 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
     }
   })
 
-  // ================================================================
+  // ==============================================================
   // SHARES
-  // ================================================================
+  // ==============================================================
 
   // GET /notes/:id/shares
-  app.get('/notes/:id/shares', requirePermission('notes.shares.read'), async (c) => {
+  internal.get('/:id/shares', requirePermission('notes.shares.read'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
@@ -345,7 +332,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // POST /notes/:id/shares
-  app.post('/notes/:id/shares', requirePermission('notes.shares.create'), async (c) => {
+  internal.post('/:id/shares', requirePermission('notes.shares.create'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
@@ -359,7 +346,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // PATCH /notes/:id/shares/:shareId
-  app.patch('/notes/:id/shares/:shareId', requirePermission('notes.shares.update'), async (c) => {
+  internal.patch('/:id/shares/:shareId', requirePermission('notes.shares.update'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
@@ -374,7 +361,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // DELETE /notes/:id/shares/:shareId
-  app.delete('/notes/:id/shares/:shareId', requirePermission('notes.shares.delete'), async (c) => {
+  internal.delete('/:id/shares/:shareId', requirePermission('notes.shares.delete'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
@@ -386,12 +373,12 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
     }
   })
 
-  // ================================================================
+  // ==============================================================
   // PUBLISH / UNPUBLISH
-  // ================================================================
+  // ==============================================================
 
   // POST /notes/:id/publish
-  app.post('/notes/:id/publish', requirePermission('notes.notes.update'), async (c) => {
+  internal.post('/:id/publish', requirePermission('notes.notes.update'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
@@ -403,7 +390,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   })
 
   // POST /notes/:id/unpublish
-  app.post('/notes/:id/unpublish', requirePermission('notes.notes.update'), async (c) => {
+  internal.post('/:id/unpublish', requirePermission('notes.notes.update'), async (c) => {
     try {
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
@@ -413,6 +400,9 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
       return c.json({ error: e.message }, e.status ?? 500)
     }
   })
+
+  // Mount the internal (auth-protected) router at /notes
+  app.route('/notes', internal)
 
   return app
 }

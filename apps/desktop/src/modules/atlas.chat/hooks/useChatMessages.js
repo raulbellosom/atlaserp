@@ -170,12 +170,18 @@ export function useSendMessage(conversationId) {
         // Remove the temp message
         const withoutTemp = (old.data ?? []).filter((m) => m.id !== context.tempId);
         if (!real) return { ...old, data: withoutTemp };
-        // Add real if not already present (realtime may have beaten us)
+        // If realtime already inserted the message (without attachment JOIN data),
+        // update it in-place with the full API response (which has attachments).
         const already = withoutTemp.some((m) => m.id === real.id);
-        if (already) return { ...old, data: withoutTemp };
+        if (already) {
+          return { ...old, data: withoutTemp.map((m) => (m.id === real.id ? { ...m, ...real } : m)) };
+        }
         return { ...old, data: [...withoutTemp, real] };
       });
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+      // Always refetch after send so attachment data (audio player, image, etc.)
+      // is fully hydrated — the realtime INSERT row lacks the attachment JOIN.
+      queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
     },
   });
 }

@@ -62,8 +62,7 @@ export function createSharesService({ prisma, broadcaster }) {
       ON CONFLICT (note_id, shared_with_user_id)
       DO UPDATE SET
         permission = EXCLUDED.permission,
-        shared_by_user_id = EXCLUDED.shared_by_user_id,
-        updated_at = NOW()
+        shared_by_user_id = EXCLUDED.shared_by_user_id
       RETURNING *
     `
     const share = rows[0]

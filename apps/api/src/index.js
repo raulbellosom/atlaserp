@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { config as loadEnv } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import crypto from "node:crypto";
 import ExcelJS from "exceljs";
 import pkg from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -71,6 +72,7 @@ import { createSyncRouter } from "./routes/sync.js";
 import { createPwaRouter } from "./routes/pwa.js";
 import { createChatRouter } from "./routes/chat/index.js";
 import { createNotesRouter } from "./routes/notes/index.js";
+import { createSharesService as createNotesSharesService } from "./routes/notes/shares-service.js";
 import {
   publishActivityFromContext,
   getActivityContext,
@@ -103,9 +105,9 @@ const prismaConnectionString =
 // silently drop connections and cause "Connection terminated unexpectedly" crashes.
 const pgPool = new pg.Pool({
   connectionString: prismaConnectionString,
-  max: 10,
+  max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
+  connectionTimeoutMillis: 15000,
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
 });
@@ -215,23 +217,64 @@ function mapSetupError(err) {
   return { status: 500, error: "Error interno al inicializar la instancia." };
 }
 
+// Verify a Supabase HS256 JWT locally without a network call.
+// Returns the payload if valid, null otherwise.
+function verifySupabaseJwt(token, secret) {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const [headerB64, payloadB64, signatureB64] = parts;
+
+    const expectedSig = crypto
+      .createHmac("sha256", secret)
+      .update(`${headerB64}.${payloadB64}`)
+      .digest("base64url");
+
+    const expectedBuf = Buffer.from(expectedSig);
+    const receivedBuf = Buffer.from(signatureB64);
+    // timingSafeEqual requires identical lengths; mismatch means invalid signature
+    if (expectedBuf.length !== receivedBuf.length) return null;
+    if (!crypto.timingSafeEqual(expectedBuf, receivedBuf)) return null;
+
+    const payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString("utf8"));
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp <= now) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
 async function authMiddleware(c, next) {
   const authHeader = c.req.header("Authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token)
     return c.json({ error: "No autorizado. Debes iniciar sesion." }, 401);
 
-  // Cache the getUser result per token to avoid a network round-trip on every request.
-  // TTL matches USER_CONTEXT (60s) — short enough that revoked tokens expire quickly.
-  const cacheKey = `auth:token:${token.slice(-32)}`; // last 32 chars are unique per JWT
+  const cacheKey = `auth:token:${token.slice(-32)}`;
   let userId = cacheGet(cacheKey);
   if (!userId) {
-    const { data, error } = await supabaseAdmin.auth.getUser(token);
-    if (error || !data.user) {
-      return c.json({ error: "No autorizado. Token invalido o expirado." }, 401);
+    // Prefer local JWT verification — no network call, resilient to VPS connectivity issues.
+    // SUPABASE_JWT_SECRET is the secret Supabase uses to sign its access tokens.
+    const jwtSecret = process.env.SUPABASE_JWT_SECRET;
+    const payload = jwtSecret ? verifySupabaseJwt(token, jwtSecret) : null;
+
+    if (payload?.sub) {
+      userId = payload.sub;
+      // Cache until token expiry minus 30s buffer (cap at 5 min for safety)
+      const ttlSecs = payload.exp
+        ? Math.min(payload.exp - Math.floor(Date.now() / 1000) - 30, 300)
+        : TTL.USER_CONTEXT;
+      if (ttlSecs > 0) cacheSet(cacheKey, userId, ttlSecs);
+    } else {
+      // Fallback: verify via Supabase network call (handles unknown alg, rotated secrets)
+      const { data, error } = await supabaseAdmin.auth.getUser(token);
+      if (error || !data.user) {
+        return c.json({ error: "No autorizado. Token invalido o expirado." }, 401);
+      }
+      userId = data.user.id;
+      cacheSet(cacheKey, userId, TTL.USER_CONTEXT);
     }
-    userId = data.user.id;
-    cacheSet(cacheKey, userId, TTL.USER_CONTEXT);
   }
 
   c.set("authUserId", userId);
@@ -313,10 +356,16 @@ async function getOrLoadUserContext(c) {
   if (current) return current;
   const authUserId = c.get("authUserId");
   if (!authUserId) return null;
-  const context = await getUserContextByAuthId(authUserId);
-  if (!context) return null;
-  c.set("userContext", context);
-  return context;
+  try {
+    const context = await getUserContextByAuthId(authUserId);
+    if (!context) return null;
+    c.set("userContext", context);
+    return context;
+  } catch (err) {
+    console.error("[getOrLoadUserContext] DB error:", err?.message ?? err);
+    if (err?.stack) console.error(err.stack);
+    return null;
+  }
 }
 
 function forbiddenMessage(permissionKey) {
@@ -769,6 +818,18 @@ app.get("/health", (c) => {
     localTime: formatLogTimestamp(now),
     timeZone: getConfiguredTimeZone(),
   });
+});
+
+// Public notes — no auth. Registered early so it's never wrapped by auth middleware.
+const _publicNotesShares = createNotesSharesService({ prisma, broadcaster });
+app.get("/public/notes/:slug", async (c) => {
+  try {
+    const slug = c.req.param("slug");
+    const note = await _publicNotesShares.getPublicNote(slug);
+    return c.json({ note });
+  } catch (e) {
+    return c.json({ error: e.message }, e.status ?? 500);
+  }
 });
 
 app.get("/instance/status", async (c) => {

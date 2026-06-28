@@ -20,7 +20,8 @@ export function createActivityRouter({ prisma, requirePermission }) {
     if (err?.name === "ZodError") {
       return c.json({ error: "Datos inválidos", details: err.flatten() }, 400);
     }
-    console.error(`[${scope}]`, err?.message ?? err);
+    console.error(`[${scope}] ${err?.name ?? "Error"}: ${err?.message ?? err}`);
+    if (err?.stack) console.error(err.stack);
     return c.json({ error: "Error interno" }, 500);
   }
 

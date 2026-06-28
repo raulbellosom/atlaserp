@@ -517,8 +517,11 @@ body,
 /* Tables */
 .tiptap table {
   border-collapse: collapse;
-  margin: 0.75rem 0;
-  width: 100%;
+  margin: 0;
+  /* min-width: 100% ensures the table fills its container; width: auto lets it grow
+     wider when column widths exceed the container, triggering overflow-x on .tableWrapper */
+  min-width: 100%;
+  width: auto;
   font-size: 0.875rem;
   table-layout: fixed;
 }
@@ -529,6 +532,10 @@ body,
   vertical-align: top;
   text-align: left;
   position: relative;
+  min-width: 80px;
+  /* Prevent single letters stacking vertically in narrow cells */
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .tiptap th {
   background: hsl(var(--muted));
@@ -548,14 +555,26 @@ body,
 .tiptap .column-resize-handle {
   background: #f59e0b;
   bottom: -2px;
-  pointer-events: none;
+  /* pointer-events: auto allows touch events to target the handle directly */
+  pointer-events: auto;
   position: absolute;
-  right: -2px;
+  right: -3px;
   top: 0;
-  width: 2px;
+  width: 6px;
+  z-index: 10;
+  cursor: col-resize;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.tiptap td:hover .column-resize-handle,
+.tiptap th:hover .column-resize-handle,
+.tiptap .resize-cursor .column-resize-handle {
+  opacity: 1;
 }
 .tiptap .tableWrapper {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   margin: 0.75rem 0;
 }
 .tiptap .resize-cursor { cursor: col-resize; }

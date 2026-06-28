@@ -9,17 +9,48 @@ export class ChatServiceError extends Error {
   }
 }
 
+// auth_user_id → user_profile.id never changes; cache per-process to avoid
+// one extra DB round-trip on every chat request when the pool is under load.
+const _profileIdCache = new Map();
+const PROFILE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+// Supabase Storage signed URLs are valid for 3600s; cache them for 55 min so we
+// never hit the VPS more than once per file per hour regardless of poll frequency.
+const _signedUrlCache = new Map();
+const SIGNED_URL_TTL_MS = 55 * 60 * 1000; // 55 minutes
+
+function getCachedSignedUrl(bucket, objectKey) {
+  const key = `${bucket}:${objectKey}`;
+  const entry = _signedUrlCache.get(key);
+  if (entry && entry.expiresAt > Date.now()) return entry.url;
+  _signedUrlCache.delete(key);
+  return null;
+}
+
+function setCachedSignedUrl(bucket, objectKey, url) {
+  _signedUrlCache.set(`${bucket}:${objectKey}`, {
+    url,
+    expiresAt: Date.now() + SIGNED_URL_TTL_MS,
+  });
+}
+
 export function createChatService({ prisma, supabaseAdmin, notificationService = null, broadcaster = null }) {
   // ------------------------------------------------------------------
   // Internal helpers
   // ------------------------------------------------------------------
 
   async function getUserProfileId(authUserId) {
+    const cached = _profileIdCache.get(authUserId);
+    if (cached && cached.expiresAt > Date.now()) return cached.profileId;
+
     const rows = await prisma.$queryRaw`
       SELECT id FROM user_profile WHERE auth_user_id = ${authUserId} LIMIT 1
     `;
     if (!rows.length) throw new ChatServiceError("Usuario no encontrado.", 404);
-    return rows[0].id;
+
+    const profileId = rows[0].id;
+    _profileIdCache.set(authUserId, { profileId, expiresAt: Date.now() + PROFILE_CACHE_TTL_MS });
+    return profileId;
   }
 
   async function assertMember(conversationId, userProfileId) {
@@ -63,10 +94,38 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     await Promise.all(
       assets.map(async (fa) => {
         try {
+          const cached = getCachedSignedUrl(fa.bucket, fa.objectKey);
+          if (cached) { result[fa.id] = cached; return; }
           const { data } = await supabaseAdmin.storage
             .from(fa.bucket)
             .createSignedUrl(fa.objectKey, 3600);
-          if (data?.signedUrl) result[fa.id] = data.signedUrl;
+          if (data?.signedUrl) {
+            setCachedSignedUrl(fa.bucket, fa.objectKey, data.signedUrl);
+            result[fa.id] = data.signedUrl;
+          }
+        } catch {}
+      }),
+    );
+    return result;
+  }
+
+  // Returns { "bucket:objectKey": signedUrl } for a list of { bucket, objectKey } pairs.
+  async function batchSignAttachmentUrls(pairs) {
+    if (!pairs.length) return {};
+    const result = {};
+    await Promise.all(
+      pairs.map(async ({ bucket, objectKey }) => {
+        const cacheKey = `${bucket}:${objectKey}`;
+        try {
+          const cached = getCachedSignedUrl(bucket, objectKey);
+          if (cached) { result[cacheKey] = cached; return; }
+          const { data } = await supabaseAdmin.storage
+            .from(bucket)
+            .createSignedUrl(objectKey, 3600);
+          if (data?.signedUrl) {
+            setCachedSignedUrl(bucket, objectKey, data.signedUrl);
+            result[cacheKey] = data.signedUrl;
+          }
         } catch {}
       }),
     );
@@ -482,11 +541,36 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     const senderFileIds = [
       ...new Set(data.map((m) => m.sender?.avatarFileId).filter(Boolean)),
     ];
-    const avatarUrlMap = senderFileIds.length ? await batchSignAvatarUrls(senderFileIds) : {};
+
+    // Collect unique attachment (bucket, objectKey) pairs across all messages
+    const attachmentPairs = [];
+    const seenAttachmentKeys = new Set();
+    for (const m of data) {
+      for (const a of m.attachments ?? []) {
+        if (a.bucket && a.objectKey) {
+          const k = `${a.bucket}:${a.objectKey}`;
+          if (!seenAttachmentKeys.has(k)) {
+            seenAttachmentKeys.add(k);
+            attachmentPairs.push({ bucket: a.bucket, objectKey: a.objectKey });
+          }
+        }
+      }
+    }
+
+    const [avatarUrlMap, attachmentUrlMap] = await Promise.all([
+      senderFileIds.length ? batchSignAvatarUrls(senderFileIds) : Promise.resolve({}),
+      attachmentPairs.length ? batchSignAttachmentUrls(attachmentPairs) : Promise.resolve({}),
+    ]);
 
     return {
       data: data.reverse().map((m) => ({
         ...m,
+        attachments: (m.attachments ?? []).map((a) => ({
+          ...a,
+          url: attachmentUrlMap[`${a.bucket}:${a.objectKey}`] ?? null,
+          objectKey: undefined,
+          bucket: undefined,
+        })),
         sender: m.sender
           ? {
               ...m.sender,
@@ -717,6 +801,10 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     }
 
     const att = rows[0];
+
+    const cached = getCachedSignedUrl(att.bucket, att.object_key);
+    if (cached) return { url: cached };
+
     const { data, error } = await supabaseAdmin.storage
       .from(att.bucket)
       .createSignedUrl(att.object_key, 3600);
@@ -725,6 +813,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       console.error("[atlas.chat] createSignedUrl failed", { bucket: att.bucket, key: att.object_key, error });
       throw new ChatServiceError("Error generando URL firmada.", 500);
     }
+    setCachedSignedUrl(att.bucket, att.object_key, data.signedUrl);
     return { url: data.signedUrl };
   }
 

@@ -1,6 +1,7 @@
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Trash2 } from 'lucide-react'
+import { NoteIcon } from '../noteIcons.jsx'
 
 export function NoteCard({ note, isSelected, onClick, onTrash }) {
   const excerpt = note.content
@@ -23,14 +24,23 @@ export function NoteCard({ note, isSelected, onClick, onTrash }) {
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <h3 className={[
-            'text-sm truncate mb-0.5',
-            isSelected
-              ? 'font-semibold text-amber-700 dark:text-amber-300'
-              : 'font-medium text-foreground',
-          ].join(' ')}>
-            {note.title || 'Sin titulo'}
-          </h3>
+          <div className="flex items-center gap-1.5 mb-0.5">
+            {note.icon && (
+              <NoteIcon
+                name={note.icon}
+                size={13}
+                className={isSelected ? 'text-amber-500 shrink-0' : 'text-muted-foreground shrink-0'}
+              />
+            )}
+            <h3 className={[
+              'text-sm truncate',
+              isSelected
+                ? 'font-semibold text-amber-700 dark:text-amber-300'
+                : 'font-medium text-foreground',
+            ].join(' ')}>
+              {note.title || 'Sin titulo'}
+            </h3>
+          </div>
           {excerpt && (
             <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{excerpt}</p>
           )}

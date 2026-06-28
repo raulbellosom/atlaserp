@@ -1,44 +1,16 @@
 import { useState, useCallback } from 'react'
-import { Copy, Check, Smile, X } from 'lucide-react'
+import { Copy, Check, NotebookPen, X } from 'lucide-react'
 import { useNoteFolders, useCreateNoteFolder } from '../hooks/useNoteFolders.js'
 import { useNoteTags, useCreateNoteTag, useSetNoteTags } from '../hooks/useNoteTags.js'
 import { useIsDark } from '../hooks/useIsDark.js'
 import { NOTE_BACKGROUND_COLORS } from '../lib/noteColors.js'
+import { NOTE_ICONS, NoteIcon } from '../noteIcons.jsx'
 import {
   ConfirmDialog, TextField, CreatableComboboxField,
   Popover, PopoverTrigger, PopoverContent,
 } from '@atlas/ui'
 
-const EMOJI_GROUPS = [
-  {
-    label: 'Frecuentes',
-    emojis: ['📝','📖','💡','🎯','✅','⭐','❤️','🔥','💎','🚀','📌','🔖','🗒️','📓','📔'],
-  },
-  {
-    label: 'Trabajo',
-    emojis: ['💼','📊','📈','📉','💰','🔧','⚙️','🖥️','📋','🗂️','🔍','📎','✏️','🖊️','📐','🗃️','🖨️','💾'],
-  },
-  {
-    label: 'Ideas & Arte',
-    emojis: ['🧠','🎨','🎭','🎲','🏆','✨','💫','⚡','🌈','🦋','🌟','🎵','🎸','🎬','🎤','🎯','🧩','🪄'],
-  },
-  {
-    label: 'Naturaleza',
-    emojis: ['🌿','🌱','🌸','🌻','🌙','☀️','🌊','🏔️','🌲','🍀','🌴','🍁','🌾','🌵','🌺','🌹','🍄','🦋'],
-  },
-  {
-    label: 'Personas',
-    emojis: ['😊','🤔','😎','🤩','🥳','😴','🤗','💪','👋','✌️','👏','🙏','🫶','❤️','💙','💚','🧡','💜'],
-  },
-  {
-    label: 'Comida',
-    emojis: ['☕','🍵','🧃','🍎','🍋','🍊','🍇','🍓','🥑','🍕','🍣','🥗','🍰','🎂','🧁','🥐','🍜','🥤'],
-  },
-  {
-    label: 'Lugares & Viajes',
-    emojis: ['🏠','🏢','🏖️','🏕️','🌆','✈️','🚂','🚀','🗺️','📍','🌍','🗼','🏰','⛩️','🎡','🚗','⛵','🏡'],
-  },
-]
+const ICON_NAMES = Object.keys(NOTE_ICONS)
 
 function SectionLabel({ children }) {
   return (
@@ -125,47 +97,43 @@ export function NoteSettingsPanel({ note, onUpdate, onPublish, onUnpublish, onTr
 
       <h3 className="font-semibold text-foreground text-sm tracking-tight">Ajustes de nota</h3>
 
-      {/* ── Emoji / Icono ─────────────────────────────────── */}
+      {/* ── Icono ────────────────────────────────────────── */}
       <div>
         <SectionLabel>Icono</SectionLabel>
         <Popover>
           <PopoverTrigger asChild>
             <button
-              className="w-12 h-12 rounded-xl border border-border bg-muted flex items-center justify-center text-2xl hover:bg-muted/70 transition-colors"
-              title="Seleccionar emoji"
+              className="w-12 h-12 rounded-xl border border-border bg-muted flex items-center justify-center hover:bg-muted/70 transition-colors"
+              title="Seleccionar icono"
             >
               {note.icon
-                ? <span>{note.icon}</span>
-                : <Smile className="w-5 h-5 text-muted-foreground" />
+                ? <NoteIcon name={note.icon} size={20} className="text-amber-500" />
+                : <NotebookPen className="w-5 h-5 text-muted-foreground" />
               }
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-72 p-3" side="bottom" align="start">
-            <div className="max-h-64 overflow-y-auto space-y-3 pr-1">
-              {EMOJI_GROUPS.map(group => (
-                <div key={group.label}>
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 sticky top-0 bg-card py-0.5">
-                    {group.label}
-                  </p>
-                  <div className="grid grid-cols-9 gap-0.5">
-                    {group.emojis.map(emoji => (
-                      <button
-                        key={emoji}
-                        onClick={() => onUpdate({ icon: emoji })}
-                        title={emoji}
-                        className={[
-                          'w-7 h-7 flex items-center justify-center rounded-lg text-base transition-colors',
-                          note.icon === emoji
-                            ? 'bg-amber-100 ring-1 ring-amber-400 dark:bg-amber-900/40 dark:ring-amber-500'
-                            : 'hover:bg-muted',
-                        ].join(' ')}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
+            <div className="max-h-64 overflow-y-auto pr-1">
+              <div className="grid grid-cols-8 gap-0.5">
+                {ICON_NAMES.map(name => {
+                  const Icon = NOTE_ICONS[name]
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => onUpdate({ icon: name })}
+                      title={name}
+                      className={[
+                        'w-8 h-8 flex items-center justify-center rounded-lg transition-colors',
+                        note.icon === name
+                          ? 'bg-amber-100 ring-1 ring-amber-400 dark:bg-amber-900/40 dark:ring-amber-500 text-amber-600 dark:text-amber-400'
+                          : 'hover:bg-muted text-muted-foreground hover:text-foreground',
+                      ].join(' ')}
+                    >
+                      <Icon size={15} />
+                    </button>
+                  )
+                })}
+              </div>
             </div>
             {note.icon && (
               <button

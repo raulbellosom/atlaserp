@@ -8,6 +8,8 @@ export function ChatAttachmentViewer({ open, onOpenChange, attachments, activeIn
 
   const resolveSignedUrl = useCallback(
     async (file) => {
+      // Use the embedded URL from listMessages if available — no network call needed
+      if (file.url) return file.url;
       try {
         const res = await atlas.chat.getAttachmentSignedUrl(file.id, session?.access_token);
         return res?.data?.url ?? null;
@@ -22,6 +24,7 @@ export function ChatAttachmentViewer({ open, onOpenChange, attachments, activeIn
   // AdvancedFileViewer expects originalName + sizeBytes
   const files = (attachments ?? []).map((att) => ({
     id: att.id,
+    url: att.url ?? null,
     mimeType: att.mimeType,
     originalName: att.fileName,
     sizeBytes: att.sizeBytes,
