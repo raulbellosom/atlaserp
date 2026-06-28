@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, ConfirmDialog, DistDropZone, LoadingState } from "@atlas/ui";
+import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import {
   Upload,
   FileArchive,

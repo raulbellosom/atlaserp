@@ -1,0 +1,91 @@
+<h2>¿Dónde aparece el chat en el sitio?</h2>
+<p class="subtitle">Selecciona la ubicación/entrada que mejor encaja con el sitio de RacoonDevs</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0f0f13;height:220px;position:relative;overflow:hidden;border-radius:8px;">
+      <!-- Fake browser chrome -->
+      <div style="background:#1a1a24;height:28px;display:flex;align-items:center;gap:6px;padding:0 10px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:#ff5f57;display:inline-block;"></span>
+        <span style="width:8px;height:8px;border-radius:50%;background:#febc2e;display:inline-block;"></span>
+        <span style="width:8px;height:8px;border-radius:50%;background:#28c840;display:inline-block;"></span>
+      </div>
+      <!-- Page body -->
+      <div style="padding:10px;color:#888;font-size:10px;">racoondevs.com</div>
+      <!-- Floating bubble -->
+      <div style="position:absolute;bottom:14px;right:14px;width:44px;height:44px;background:#c7f049;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(199,240,73,0.4);cursor:pointer;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0f0f13" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Bubble flotante</h3>
+      <p>Botón circular fijo en la esquina inferior derecha. Aparece en <strong>todas las páginas</strong>. Al hacer clic abre el panel de chat. Patrón estándar (Intercom, Crisp, Tawk).</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0f0f13;height:220px;position:relative;overflow:hidden;border-radius:8px;">
+      <div style="background:#1a1a24;height:28px;display:flex;align-items:center;gap:6px;padding:0 10px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:#ff5f57;display:inline-block;"></span>
+        <span style="width:8px;height:8px;border-radius:50%;background:#febc2e;display:inline-block;"></span>
+        <span style="width:8px;height:8px;border-radius:50%;background:#28c840;display:inline-block;"></span>
+      </div>
+      <!-- Contact page mockup -->
+      <div style="padding:10px;display:flex;gap:10px;height:185px;">
+        <div style="flex:1;background:#1a1a24;border-radius:6px;padding:8px;color:#888;font-size:9px;">
+          <div style="color:#c7f049;font-size:10px;font-weight:bold;margin-bottom:6px;">Contacto</div>
+          <div style="background:#252535;height:8px;border-radius:3px;margin-bottom:4px;width:80%"></div>
+          <div style="background:#252535;height:8px;border-radius:3px;margin-bottom:4px;width:60%"></div>
+          <div style="background:#252535;height:8px;border-radius:3px;margin-bottom:4px;width:70%"></div>
+          <div style="background:#c7f049;height:24px;border-radius:4px;margin-top:8px;display:flex;align-items:center;justify-content:center;">
+            <span style="color:#0f0f13;font-size:8px;font-weight:bold;">CHAT EN VIVO</span>
+          </div>
+        </div>
+        <div style="flex:1;background:#1a1a24;border-radius:6px;padding:8px;">
+          <div style="color:#c7f049;font-size:9px;font-weight:bold;margin-bottom:4px;">Chat en vivo</div>
+          <div style="background:#252535;border-radius:6px;padding:5px;font-size:8px;color:#888;margin-bottom:4px;">Hola, ¿en qué podemos ayudarte?</div>
+          <div style="background:#c7f049;border-radius:6px;padding:5px;font-size:8px;color:#0f0f13;margin-bottom:4px;text-align:right;">Necesito info sobre precios</div>
+          <div style="background:#252535;height:16px;border-radius:4px;margin-top:6px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Sección inline en /contacto</h3>
+      <p>El chat vive <strong>dentro de la página de contacto</strong> como una sección más, junto con el formulario. El usuario navega explícitamente a /contacto para chatear.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0f0f13;height:220px;position:relative;overflow:hidden;border-radius:8px;">
+      <div style="background:#1a1a24;height:28px;display:flex;align-items:center;gap:6px;padding:0 10px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:#ff5f57;display:inline-block;"></span>
+        <span style="width:8px;height:8px;border-radius:50%;background:#febc2e;display:inline-block;"></span>
+        <span style="width:8px;height:8px;border-radius:50%;background:#28c840;display:inline-block;"></span>
+      </div>
+      <!-- Slide-in panel mockup -->
+      <div style="position:relative;height:190px;">
+        <div style="padding:10px;color:#555;font-size:9px;">Contenido de la página</div>
+        <!-- Slide-in panel from right -->
+        <div style="position:absolute;top:0;right:0;width:140px;height:190px;background:#1a1a24;border-left:2px solid #c7f049;padding:8px;display:flex;flex-direction:column;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="color:#c7f049;font-size:9px;font-weight:bold;">Chat</span>
+            <span style="color:#555;font-size:9px;">✕</span>
+          </div>
+          <div style="flex:1;overflow:hidden;">
+            <div style="background:#252535;border-radius:4px;padding:4px;font-size:7px;color:#888;margin-bottom:3px;">Hola, ¿cómo te podemos ayudar?</div>
+            <div style="background:#c7f049;border-radius:4px;padding:4px;font-size:7px;color:#0f0f13;margin-bottom:3px;text-align:right;">Tengo una pregunta</div>
+          </div>
+          <div style="background:#252535;height:14px;border-radius:4px;margin-top:4px;"></div>
+        </div>
+        <!-- Trigger tab -->
+        <div style="position:absolute;bottom:50px;right:0;background:#c7f049;padding:4px 6px;border-radius:4px 0 0 4px;writing-mode:vertical-rl;font-size:7px;color:#0f0f13;font-weight:bold;cursor:pointer;">CHAT</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Panel lateral deslizante</h3>
+      <p>Una pestaña fija en el borde derecho de la página. Al hacer clic, se desliza un panel de chat desde el lado. Visible en todas las páginas sin ocupar espacio.</p>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,130 @@
+<h2>Flujo UX completo del widget</h2>
+<p class="subtitle">Los 4 estados que ve el cliente — de izquierda a derecha</p>
+
+<div style="display:flex;gap:12px;align-items:flex-start;overflow-x:auto;padding-bottom:8px;">
+
+  <!-- State 1: Tab visible -->
+  <div style="min-width:140px;">
+    <div style="color:#c7f049;font-size:10px;font-weight:bold;margin-bottom:6px;text-align:center;">1 — Pestaña</div>
+    <div style="background:#0f0f13;border-radius:8px;height:280px;position:relative;overflow:hidden;">
+      <div style="background:#111;padding:6px 8px;font-size:8px;color:#444;">racoondevs.com/servicios</div>
+      <div style="padding:8px;color:#333;font-size:8px;line-height:1.6;">
+        Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore...
+      </div>
+      <!-- Chat tab on right edge -->
+      <div style="position:absolute;right:0;top:50%;transform:translateY(-50%);background:#c7f049;padding:5px 4px;border-radius:5px 0 0 5px;writing-mode:vertical-rl;font-size:8px;color:#0f0f13;font-weight:bold;letter-spacing:0.5px;cursor:pointer;">
+        CHAT
+      </div>
+    </div>
+    <div style="color:#666;font-size:8px;text-align:center;margin-top:6px;">Visible en todas las páginas</div>
+  </div>
+
+  <div style="color:#555;font-size:20px;margin-top:100px;">→</div>
+
+  <!-- State 2: Welcome screen -->
+  <div style="min-width:160px;">
+    <div style="color:#c7f049;font-size:10px;font-weight:bold;margin-bottom:6px;text-align:center;">2 — Bienvenida</div>
+    <div style="background:#0f0f13;border-radius:8px;height:280px;position:relative;overflow:hidden;">
+      <div style="background:#111;padding:6px 8px;font-size:8px;color:#444;">racoondevs.com/servicios</div>
+      <!-- Slide panel -->
+      <div style="position:absolute;top:0;right:0;width:130px;height:100%;background:#111118;border-left:2px solid #c7f049;display:flex;flex-direction:column;padding:10px;">
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:4px;">
+            <div style="width:6px;height:6px;border-radius:50%;background:#22c55e;"></div>
+            <span style="color:#aaa;font-size:8px;">RacoonDevs</span>
+          </div>
+          <span style="color:#444;font-size:10px;cursor:pointer;">×</span>
+        </div>
+        <!-- Avatar + greeting -->
+        <div style="background:#1a1a24;border-radius:6px;padding:8px;margin-bottom:6px;">
+          <div style="color:#ddd;font-size:8px;font-weight:bold;margin-bottom:3px;">¿Cómo te ayudamos?</div>
+          <div style="display:flex;align-items:center;gap:3px;margin-bottom:2px;">
+            <div style="width:5px;height:5px;border-radius:50%;background:#22c55e;"></div>
+            <span style="color:#666;font-size:7px;">1 agente disponible</span>
+          </div>
+          <div style="color:#555;font-size:7px;">Tiempo de respuesta: ~2 min</div>
+        </div>
+        <!-- Options -->
+        <div style="background:#1a1a24;border-radius:5px;padding:6px 8px;font-size:8px;color:#aaa;display:flex;align-items:center;gap:4px;margin-bottom:4px;cursor:pointer;">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#c7f049" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          Hablar con agente
+        </div>
+        <div style="background:#1a1a24;border-radius:5px;padding:6px 8px;font-size:8px;color:#aaa;display:flex;align-items:center;gap:4px;cursor:pointer;">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#c7f049" stroke-width="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          Enviar mensaje
+        </div>
+      </div>
+    </div>
+    <div style="color:#666;font-size:8px;text-align:center;margin-top:6px;">Muestra disponibilidad real</div>
+  </div>
+
+  <div style="color:#555;font-size:20px;margin-top:100px;">→</div>
+
+  <!-- State 3: Email gate -->
+  <div style="min-width:160px;">
+    <div style="color:#c7f049;font-size:10px;font-weight:bold;margin-bottom:6px;text-align:center;">3 — Identificación</div>
+    <div style="background:#0f0f13;border-radius:8px;height:280px;position:relative;overflow:hidden;">
+      <div style="background:#111;padding:6px 8px;font-size:8px;color:#444;">racoondevs.com/servicios</div>
+      <div style="position:absolute;top:0;right:0;width:130px;height:100%;background:#111118;border-left:2px solid #c7f049;display:flex;flex-direction:column;padding:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="color:#aaa;font-size:8px;">← atrás</span>
+          <span style="color:#444;font-size:10px;">×</span>
+        </div>
+        <div style="color:#ddd;font-size:9px;font-weight:bold;margin-bottom:3px;">Antes de empezar</div>
+        <div style="color:#555;font-size:7px;margin-bottom:8px;">Para poder darte seguimiento si la conversación se interrumpe.</div>
+        <div style="background:#1a1a24;border-radius:4px;padding:5px 6px;font-size:7px;color:#444;margin-bottom:4px;">Nombre (opcional)</div>
+        <div style="background:#1a1a24;border:1px solid #c7f049;border-radius:4px;padding:5px 6px;font-size:7px;color:#888;margin-bottom:8px;">tu@correo.com *</div>
+        <div style="background:#c7f049;border-radius:4px;padding:5px 8px;font-size:8px;color:#0f0f13;font-weight:bold;text-align:center;cursor:pointer;">Iniciar chat</div>
+        <div style="color:#444;font-size:7px;text-align:center;margin-top:4px;cursor:pointer;">Continuar sin correo</div>
+      </div>
+    </div>
+    <div style="color:#666;font-size:8px;text-align:center;margin-top:6px;">Email requerido para seguimiento</div>
+  </div>
+
+  <div style="color:#555;font-size:20px;margin-top:100px;">→</div>
+
+  <!-- State 4: Active chat -->
+  <div style="min-width:160px;">
+    <div style="color:#c7f049;font-size:10px;font-weight:bold;margin-bottom:6px;text-align:center;">4 — Chat activo</div>
+    <div style="background:#0f0f13;border-radius:8px;height:280px;position:relative;overflow:hidden;">
+      <div style="background:#111;padding:6px 8px;font-size:8px;color:#444;">racoondevs.com/servicios</div>
+      <div style="position:absolute;top:0;right:0;width:130px;height:100%;background:#111118;border-left:2px solid #c7f049;display:flex;flex-direction:column;padding:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div style="display:flex;align-items:center;gap:3px;">
+            <div style="width:5px;height:5px;border-radius:50%;background:#22c55e;"></div>
+            <span style="color:#aaa;font-size:8px;">Agente conectado</span>
+          </div>
+          <span style="color:#444;font-size:10px;">×</span>
+        </div>
+        <!-- Messages -->
+        <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:4px;">
+          <div style="background:#1a1a24;border-radius:6px;padding:5px 7px;font-size:7px;color:#aaa;max-width:90%;">
+            Hola, ¿en qué te podemos ayudar hoy?
+          </div>
+          <div style="background:#c7f049;border-radius:6px;padding:5px 7px;font-size:7px;color:#0f0f13;max-width:90%;align-self:flex-end;text-align:right;">
+            Hola! Quiero saber sobre el plan enterprise
+          </div>
+          <!-- Typing indicator / operator reply -->
+          <div style="background:#1a1a24;border-radius:6px;padding:5px 7px;font-size:7px;color:#aaa;max-width:90%;">
+            <span style="color:#c7f049;">⚡</span> Claro, con gusto te explico...
+          </div>
+        </div>
+        <!-- Input -->
+        <div style="background:#1a1a24;border-radius:5px;padding:5px 6px;display:flex;align-items:center;gap:4px;margin-top:4px;">
+          <span style="flex:1;font-size:7px;color:#333;">Escribe aquí...</span>
+          <div style="background:#c7f049;border-radius:3px;width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#0f0f13" stroke-width="3"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="color:#666;font-size:8px;text-align:center;margin-top:6px;">Respuestas en tiempo real (Supabase)</div>
+  </div>
+
+</div>
+
+<div style="margin-top:16px;background:#1a1a24;border-radius:8px;padding:10px 14px;font-size:10px;color:#666;">
+  <span style="color:#aaa;">Token de sesión</span> guardado en localStorage → si el cliente recarga la página, retoma la conversación donde la dejó.<br/>
+  <span style="color:#aaa;">Sin operadores disponibles</span> → el botón "Hablar con agente" se reemplaza por "Dejarnos un mensaje" (formulario simple).
+</div>

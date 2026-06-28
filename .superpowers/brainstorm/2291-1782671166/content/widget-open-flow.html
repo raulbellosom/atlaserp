@@ -1,0 +1,75 @@
+<h2>¿Qué ve el cliente al abrir el panel?</h2>
+<p class="subtitle">El flujo de entrada al chat — antes de que pueda escribir su primer mensaje</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0f0f13;height:260px;border-radius:8px;display:flex;align-items:stretch;overflow:hidden;">
+      <!-- Slide panel mockup -->
+      <div style="flex:1;background:#111118;border-left:2px solid #c7f049;padding:14px;display:flex;flex-direction:column;gap:8px;">
+        <div style="color:#c7f049;font-size:11px;font-weight:bold;">RacoonDevs · Chat</div>
+        <div style="color:#888;font-size:9px;border-radius:6px;background:#1a1a24;padding:8px;">
+          Hola 👋 Antes de empezar, ¿cuál es tu correo para poder darte seguimiento?
+        </div>
+        <div style="background:#1a1a24;border-radius:5px;padding:6px 8px;font-size:9px;color:#555;">tu@correo.com</div>
+        <div style="background:#1a1a24;border-radius:5px;padding:6px 8px;font-size:9px;color:#555;">Tu nombre (opcional)</div>
+        <div style="background:#c7f049;border-radius:5px;padding:6px 8px;font-size:9px;color:#0f0f13;font-weight:bold;text-align:center;">Iniciar chat</div>
+        <div style="color:#444;font-size:8px;text-align:center;">o continuar sin datos</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Email primero</h3>
+      <p>El cliente ve un mini formulario antes de chatear. Email requerido, nombre opcional. Permite notificarle si el operador tarda. Más fricción, más datos.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0f0f13;height:260px;border-radius:8px;display:flex;align-items:stretch;overflow:hidden;">
+      <div style="flex:1;background:#111118;border-left:2px solid #c7f049;padding:14px;display:flex;flex-direction:column;gap:6px;">
+        <div style="color:#c7f049;font-size:11px;font-weight:bold;">RacoonDevs · Chat</div>
+        <div style="background:#1a1a24;border-radius:8px;padding:7px 9px;font-size:9px;color:#aaa;">
+          Hola, ¿en qué podemos ayudarte hoy?
+        </div>
+        <div style="color:#555;font-size:8px;text-align:center;margin:2px 0;">hoy 12:30</div>
+        <div style="flex:1;"></div>
+        <!-- Input area -->
+        <div style="background:#1a1a24;border-radius:6px;padding:7px 9px;display:flex;align-items:center;gap:6px;">
+          <span style="flex:1;font-size:8px;color:#444;">Escribe tu mensaje...</span>
+          <div style="background:#c7f049;border-radius:4px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0f0f13" stroke-width="3"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Chat inmediato, email después</h3>
+      <p>El panel abre directo al chat. El cliente puede escribir de inmediato. Si el operador tarda, el sistema pide el correo inline ("¿quieres que te avisemos?"). Menor fricción.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0f0f13;height:260px;border-radius:8px;display:flex;align-items:stretch;overflow:hidden;">
+      <div style="flex:1;background:#111118;border-left:2px solid #c7f049;padding:14px;display:flex;flex-direction:column;gap:6px;">
+        <div style="color:#c7f049;font-size:11px;font-weight:bold;">RacoonDevs · Chat</div>
+        <!-- Greeting card -->
+        <div style="background:#1a1a24;border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:5px;">
+          <div style="color:#ddd;font-size:9px;font-weight:bold;">¿Cómo te podemos ayudar?</div>
+          <div style="background:#252535;border-radius:5px;padding:6px 8px;font-size:9px;color:#aaa;display:flex;align-items:center;gap:5px;">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#c7f049" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            Hablar con un agente
+          </div>
+          <div style="background:#252535;border-radius:5px;padding:6px 8px;font-size:9px;color:#aaa;display:flex;align-items:center;gap:5px;">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#c7f049" stroke-width="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            Enviar un mensaje
+          </div>
+        </div>
+        <div style="color:#444;font-size:8px;text-align:center;margin-top:2px;">Tiempo de respuesta típico: &lt;2 min</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Pantalla de bienvenida con opciones</h3>
+      <p>El panel muestra una pantalla de inicio con opciones: "Hablar con agente" (live chat) o "Enviar mensaje" (form async). El cliente elige su modo preferido.</p>
+    </div>
+  </div>
+
+</div>

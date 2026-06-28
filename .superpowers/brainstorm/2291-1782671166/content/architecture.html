@@ -1,0 +1,92 @@
+<h2>Arquitectura del guest chat widget</h2>
+<p class="subtitle">Cómo conectan los 4 sistemas implicados</p>
+
+<div style="font-family:monospace;font-size:12px;line-height:1.7;">
+
+<!-- Row 1: Frontend -->
+<div style="display:flex;gap:16px;margin-bottom:8px;">
+
+  <div style="background:#1a1a24;border:1.5px solid #c7f049;border-radius:8px;padding:14px 16px;flex:1;">
+    <div style="color:#c7f049;font-size:11px;font-weight:bold;margin-bottom:8px;">racoondevs (Astro + React)</div>
+    <div style="background:#252535;border-radius:5px;padding:8px;color:#aaa;font-size:10px;">
+      &lt;ChatWidget sdk={sdk} /&gt;<br/>
+      <span style="color:#555;">— importado de @raulbellosom/atlas-sdk</span><br/>
+      <span style="color:#555;">— panel lateral derecho</span><br/>
+      <span style="color:#555;">— token guardado en localStorage</span>
+    </div>
+  </div>
+
+  <div style="background:#1a1a24;border:1.5px solid #4a9eff;border-radius:8px;padding:14px 16px;flex:1;">
+    <div style="color:#4a9eff;font-size:11px;font-weight:bold;margin-bottom:8px;">@raulbellosom/atlas-sdk (nuevo)</div>
+    <div style="background:#252535;border-radius:5px;padding:8px;color:#aaa;font-size:10px;">
+      sdk.guestChat.createSession()<br/>
+      sdk.guestChat.sendMessage()<br/>
+      sdk.guestChat.listMessages()<br/>
+      sdk.guestChat.getAvailability()<br/>
+      <span style="color:#c7f049;">sdk.guestChat.subscribeToReplies()</span><br/>
+      <span style="color:#555;">— Supabase Realtime para recibir respuestas</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Arrows down -->
+<div style="display:flex;gap:16px;margin-bottom:8px;padding:0 30px;">
+  <div style="flex:1;text-align:center;color:#555;font-size:18px;">↓ HTTP REST</div>
+  <div style="flex:1;text-align:center;color:#c7f049;font-size:18px;">↓ Supabase Realtime</div>
+</div>
+
+<!-- Row 2: Backend -->
+<div style="display:flex;gap:16px;margin-bottom:8px;">
+
+  <div style="background:#1a1a24;border:1.5px solid #ff6b6b;border-radius:8px;padding:14px 16px;flex:1;">
+    <div style="color:#ff6b6b;font-size:11px;font-weight:bold;margin-bottom:8px;">Atlas API (Hono) — cambios</div>
+    <div style="background:#252535;border-radius:5px;padding:8px;color:#aaa;font-size:10px;">
+      <span style="color:#aaa;">Ya existe:</span><br/>
+      POST /public/chat/session<br/>
+      POST /public/chat/session/:t/messages<br/>
+      GET  /public/chat/session/:t/messages<br/><br/>
+      <span style="color:#c7f049;">Nuevo:</span><br/>
+      GET  /public/storefront/chat/availability<br/>
+      PATCH /chat/availability  (auth, ERP)<br/>
+      <span style="color:#c7f049;">+ broadcast al operador cuando guest responde ✓</span><br/>
+      <span style="color:#c7f049;">+ broadcast al guest cuando operador responde ← nuevo</span>
+    </div>
+  </div>
+
+  <div style="background:#1a1a24;border:1.5px solid #a855f7;border-radius:8px;padding:14px 16px;flex:1;">
+    <div style="color:#a855f7;font-size:11px;font-weight:bold;margin-bottom:8px;">Supabase Realtime</div>
+    <div style="background:#252535;border-radius:5px;padding:8px;color:#aaa;font-size:10px;">
+      Canal: chat:conv:{conversationId}<br/><br/>
+      Evento existente:<br/>
+      <span style="color:#aaa;">new_guest_message → operadores</span><br/><br/>
+      Evento nuevo:<br/>
+      <span style="color:#c7f049;">new_operator_message → widget del cliente</span><br/><br/>
+      <span style="color:#555;">El SDK ya tiene supabaseUrl + anonKey,<br/>infraestructura de realtime ya existe.</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Arrow down to ERP -->
+<div style="text-align:center;color:#555;font-size:18px;margin-bottom:8px;">↕ ERP interno</div>
+
+<!-- Row 3: ERP -->
+<div style="background:#1a1a24;border:1.5px solid #ff9f43;border-radius:8px;padding:14px 16px;">
+  <div style="color:#ff9f43;font-size:11px;font-weight:bold;margin-bottom:8px;">Atlas ERP Desktop — atlas.chat (cambios menores)</div>
+  <div style="display:flex;gap:16px;">
+    <div style="background:#252535;border-radius:5px;padding:8px;color:#aaa;font-size:10px;flex:1;">
+      <span style="color:#aaa;">Ya existe:</span> bandeja de soporte externo (external inbox), responder a guests
+    </div>
+    <div style="background:#252535;border-radius:5px;padding:8px;color:#aaa;font-size:10px;flex:1;">
+      <span style="color:#c7f049;">Nuevo:</span> toggle "Disponible para chat" en el panel del operador<br/>
+      <span style="color:#555;">→ llama a PATCH /chat/availability</span>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:14px;background:#1a1a24;border-radius:8px;padding:10px 14px;color:#555;font-size:10px;">
+  <span style="color:#aaa;">Base de datos:</span> nueva migración Prisma → campo <code style="color:#c7f049;">availableForChat Boolean @default(false)</code> en <code>UserProfile</code>
+</div>
+
+</div>
