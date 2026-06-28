@@ -490,7 +490,13 @@ function FloatingChatHubInner() {
   const isDragRef = useRef(false);
   const dragStartRef = useRef(null);
   const [dragPos, setDragPos] = useState(null);
+  const [overDropZone, setOverDropZone] = useState(false);
   const panelRef = useRef(null);
+
+  // Drop zone center — bottom-center of the viewport
+  const dropZoneCenterX = window.innerWidth / 2;
+  const dropZoneCenterY = window.innerHeight - 52;
+  const DROP_RADIUS = 44;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -527,36 +533,43 @@ function FloatingChatHubInner() {
     if (dx > threshold || dy > threshold) {
       isDragRef.current = true;
       setDragPos({ x: e.clientX, y: e.clientY });
+      const dist = Math.hypot(e.clientX - dropZoneCenterX, e.clientY - dropZoneCenterY);
+      setOverDropZone(dist < DROP_RADIUS);
     }
-  }, []);
+  }, [dropZoneCenterX, dropZoneCenterY]);
 
   const handlePointerUp = useCallback(
     (e) => {
       if (!dragStartRef.current) return;
       if (isDragRef.current) {
-        const newEdge = e.clientX > window.innerWidth / 2 ? "right" : "left";
-        const clampedY = Math.max(
-          60,
-          Math.min(e.clientY - BS / 2, window.innerHeight - BS - BM * 2),
-        );
-        setPosition(newEdge, clampedY);
+        const dist = Math.hypot(e.clientX - dropZoneCenterX, e.clientY - dropZoneCenterY);
+        if (dist < DROP_RADIUS) {
+          hide();
+        } else {
+          const newEdge = e.clientX > window.innerWidth / 2 ? "right" : "left";
+          const clampedY = Math.max(
+            60,
+            Math.min(e.clientY - BS / 2, window.innerHeight - BS - BM * 2),
+          );
+          setPosition(newEdge, clampedY);
+        }
         setDragPos(null);
+        setOverDropZone(false);
       } else {
         toggle();
       }
       isDragRef.current = false;
       dragStartRef.current = null;
     },
-    [setPosition, toggle],
+    [setPosition, toggle, hide, dropZoneCenterX, dropZoneCenterY],
   );
 
   const handlePointerCancel = useCallback(() => {
     isDragRef.current = false;
     dragStartRef.current = null;
     setDragPos(null);
+    setOverDropZone(false);
   }, []);
-
-  const [showHide, setShowHide] = useState(false);
 
   if (isError || hidden) return null;
 
@@ -603,13 +616,36 @@ function FloatingChatHubInner() {
         </div>
       )}
 
-      <div
-        style={bubbleStyle}
-        onMouseEnter={() => setShowHide(true)}
-        onMouseLeave={() => setShowHide(false)}
-        className="relative"
-      >
-        {/* Main drag+toggle button */}
+      {/* Drag-to-close drop zone — appears at bottom-center while dragging */}
+      {dragPos && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 16,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: Z_BUBBLE - 1,
+            pointerEvents: "none",
+          }}
+          className="flex flex-col items-center gap-1"
+        >
+          <div
+            className={[
+              "flex items-center justify-center rounded-full transition-all duration-150",
+              overDropZone
+                ? "h-16 w-16 bg-red-500/90 shadow-lg shadow-red-500/40 scale-110"
+                : "h-12 w-12 bg-black/50 backdrop-blur-sm",
+            ].join(" ")}
+          >
+            <X className={["text-white transition-all duration-150", overDropZone ? "h-7 w-7" : "h-5 w-5"].join(" ")} />
+          </div>
+          <span className={["text-white text-[10px] font-medium drop-shadow transition-opacity duration-150", overDropZone ? "opacity-100" : "opacity-60"].join(" ")}>
+            Ocultar chat
+          </span>
+        </div>
+      )}
+
+      <div style={bubbleStyle}>
         <button
           type="button"
           onPointerDown={handlePointerDown}
@@ -620,35 +656,19 @@ function FloatingChatHubInner() {
           className={[
             "h-14 w-14 rounded-full shadow-xl flex items-center justify-center relative overflow-hidden",
             "cursor-grab select-none",
-            dragPos ? "" : "transition-transform active:scale-95",
+            dragPos ? "scale-110 shadow-2xl" : "transition-transform active:scale-95",
             userProfile?.avatarUrl ? "bg-[hsl(var(--muted))]" : "bg-(--brand-primary) text-white",
             isOpen ? "ring-2 ring-white/30" : "",
           ].join(" ")}
         >
-          {/* Avatar layer — dims when hover shows close */}
-          <div className={["h-full w-full rounded-full flex items-center justify-center transition-opacity duration-200", showHide ? "opacity-30" : "opacity-100"].join(" ")}>
+          <div className="h-full w-full rounded-full flex items-center justify-center">
             <BubbleAvatar avatarUrl={userProfile?.avatarUrl} name={userProfile?.displayName} />
           </div>
-          {totalUnread > 0 && !showHide && (
+          {totalUnread > 0 && (
             <span className="absolute -top-1 -right-1 h-5 min-w-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-md pointer-events-none">
               {totalUnread > 99 ? "99+" : totalUnread}
             </span>
           )}
-        </button>
-
-        {/* Messenger-style close overlay */}
-        <button
-          type="button"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); hide(); }}
-          title="Ocultar chat"
-          className={[
-            "absolute inset-0 rounded-full flex items-center justify-center",
-            "bg-black/55 backdrop-blur-[1px] transition-all duration-200",
-            showHide ? "opacity-100 scale-100" : "opacity-0 scale-75 pointer-events-none",
-          ].join(" ")}
-        >
-          <X className="h-6 w-6 text-white drop-shadow" />
         </button>
       </div>
     </>,
