@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ChatWindow } from "../components/ChatWindow";
 import { useChatConversations } from "../hooks/useChatConversations";
@@ -7,6 +7,8 @@ import { useChatConversations } from "../hooks/useChatConversations";
 export function ChatScreen() {
   const { "*": wildcard } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialFilesView = searchParams.get("view") === "files";
 
   // Extract conversation ID from /chat/inbox/<id>
   const conversationIdFromUrl = useMemo(() => {
@@ -51,11 +53,11 @@ export function ChatScreen() {
   }
 
   return (
-    <div className="flex h-below-topbar overflow-hidden">
+    <div className="flex h-full overflow-hidden">
       {/* Conversation list — full width on mobile, fixed 288px on desktop */}
       <div
         className={[
-          "flex flex-col shrink-0 w-full md:w-72",
+          "flex flex-col shrink-0 w-full md:w-72 min-h-0 overflow-hidden",
           mobileShowWindow ? "hidden md:flex" : "flex",
         ].join(" ")}
       >
@@ -78,6 +80,7 @@ export function ChatScreen() {
         <ChatWindow
           conversation={activeConversation}
           onClose={handleClose}
+          initialFilesView={initialFilesView}
         />
       </div>
     </div>

@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Loader2, Download, Play, Pause, CheckCheck, Mic,
+  Loader2, Download, Play, Pause, CheckCheck, Mic, MoreHorizontal,
   FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
-  FileArchive, FileCode, File,
+  FileArchive, FileCode, File, Copy, Trash2, Share2, EyeOff, CheckSquare,
 } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+} from "@atlas/ui";
 import { formatMessageTime, formatFileSize, isImageMime } from "../lib/chatUtils";
 import { atlas } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -566,6 +569,79 @@ function bubbleRadius(isOwn, isFirst, isLast) {
   }
 }
 
+// ── Selection checkbox ────────────────────────────────────────────────────────
+function SelectionCircle({ isSelected }) {
+  return (
+    <div
+      className={[
+        "shrink-0 h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all duration-150 self-center",
+        isSelected
+          ? "bg-[hsl(var(--primary))] border-[hsl(var(--primary))]"
+          : "border-[hsl(var(--foreground)/0.5)] bg-[hsl(var(--background)/0.85)]",
+      ].join(" ")}
+      style={!isSelected ? { boxShadow: "0 0 0 1px hsl(var(--foreground)/0.15)" } : undefined}
+    >
+      {isSelected && (
+        <svg viewBox="0 0 10 8" className="w-3 h-2.5" fill="none">
+          <path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+// ── Message action dropdown ───────────────────────────────────────────────────
+function MessageActions({ isOwn, hasBody, onCopy, onDelete, onHideForMe, onForward, onEnterSelection }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="opacity-0 group-hover/msg:opacity-100 focus:opacity-100 data-[state=open]:opacity-100 h-6 w-6 flex items-center justify-center rounded-full hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-opacity shrink-0 self-center touch-manipulation"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <MoreHorizontal className="h-3.5 w-3.5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align={isOwn ? "start" : "end"} style={{ zIndex: 10000 }}>
+        {hasBody && onCopy && (
+          <DropdownMenuItem onSelect={onCopy}>
+            <Copy className="h-3.5 w-3.5 mr-2" />
+            Copiar
+          </DropdownMenuItem>
+        )}
+        {hasBody && onForward && (
+          <DropdownMenuItem onSelect={onForward}>
+            <Share2 className="h-3.5 w-3.5 mr-2" />
+            Reenviar
+          </DropdownMenuItem>
+        )}
+        {onEnterSelection && (
+          <DropdownMenuItem onSelect={onEnterSelection}>
+            <CheckSquare className="h-3.5 w-3.5 mr-2" />
+            Seleccionar
+          </DropdownMenuItem>
+        )}
+        {(hasBody && (onCopy || onForward) || onEnterSelection) && (onDelete || onHideForMe) && (
+          <DropdownMenuSeparator />
+        )}
+        {isOwn && onDelete && (
+          <DropdownMenuItem onSelect={onDelete} className="text-red-500 focus:text-red-500">
+            <Trash2 className="h-3.5 w-3.5 mr-2" />
+            Eliminar para todos
+          </DropdownMenuItem>
+        )}
+        {onHideForMe && (
+          <DropdownMenuItem onSelect={onHideForMe}>
+            <EyeOff className="h-3.5 w-3.5 mr-2" />
+            Eliminar para mi
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 // ── Main bubble ───────────────────────────────────────────────────────────────
 export function ChatMessageBubble({
   message,
@@ -574,6 +650,14 @@ export function ChatMessageBubble({
   showReadReceipt,
   isFirst = true,
   isLast = true,
+  onCopy,
+  onDelete,
+  onHideForMe,
+  onForward,
+  selectionMode = false,
+  isSelected = false,
+  onSelect,
+  onEnterSelection,
 }) {
   if (message.type === "date_separator") {
     return (
@@ -612,15 +696,37 @@ export function ChatMessageBubble({
   // Bubble only shown when there's text (attachments render outside/below)
   const hasText = Boolean(message.body) || isDeleted;
 
+  const hasBody = Boolean(message.body) && !isDeleted;
+  const showActions = !isDeleted && !isPending;
+
   if (isOwn) {
     return (
       <div
+        role={selectionMode ? "button" : undefined}
+        tabIndex={selectionMode ? 0 : undefined}
+        onClick={selectionMode ? onSelect : undefined}
+        onKeyDown={selectionMode ? (e) => e.key === "Enter" && onSelect?.() : undefined}
         className={[
-          "flex justify-end items-end gap-2 px-3 sm:px-4",
+          "group/msg flex justify-end items-end gap-1 px-3 sm:px-4",
           rowPaddingY,
           isPending ? "opacity-60" : "",
+          selectionMode ? "cursor-pointer" : "",
+          selectionMode && isSelected ? "bg-[hsl(var(--primary)/0.08)]" : "",
         ].join(" ")}
       >
+        {selectionMode ? (
+          <SelectionCircle isSelected={isSelected} />
+        ) : showActions && (
+          <MessageActions
+            isOwn
+            hasBody={hasBody}
+            onCopy={onCopy}
+            onDelete={onDelete}
+            onHideForMe={onHideForMe}
+            onForward={onForward}
+            onEnterSelection={onEnterSelection}
+          />
+        )}
         <div className="flex flex-col items-end max-w-[72%] sm:max-w-[65%]">
           {hasText && (
             <div
@@ -663,12 +769,19 @@ export function ChatMessageBubble({
 
   return (
     <div
+      role={selectionMode ? "button" : undefined}
+      tabIndex={selectionMode ? 0 : undefined}
+      onClick={selectionMode ? onSelect : undefined}
+      onKeyDown={selectionMode ? (e) => e.key === "Enter" && onSelect?.() : undefined}
       className={[
-        "flex items-end gap-2 px-3 sm:px-4",
+        "group/msg flex items-end gap-1 px-3 sm:px-4",
         rowPaddingY,
         isPending ? "opacity-60" : "",
+        selectionMode ? "cursor-pointer" : "",
+        selectionMode && isSelected ? "bg-[hsl(var(--primary)/0.08)]" : "",
       ].join(" ")}
     >
+      {selectionMode && <SelectionCircle isSelected={isSelected} />}
       {/* Avatar — invisible on non-last to keep column alignment */}
       <div className={["shrink-0", isLast ? "visible" : "invisible"].join(" ")}>
         {message.sender?.avatarUrl && !avatarErr ? (
@@ -724,6 +837,18 @@ export function ChatMessageBubble({
           </div>
         )}
       </div>
+
+      {!selectionMode && showActions && (
+        <MessageActions
+          isOwn={false}
+          hasBody={hasBody}
+          onCopy={onCopy}
+          onDelete={onDelete}
+          onHideForMe={onHideForMe}
+          onForward={onForward}
+          onEnterSelection={onEnterSelection}
+        />
+      )}
     </div>
   );
 }

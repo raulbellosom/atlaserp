@@ -1,17 +1,22 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, X, Minus, ChevronUp } from "lucide-react";
+import {
+  MessageSquare, X, Minus, ChevronUp,
+  ExternalLink, FolderOpen, MoreVertical,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { Skeleton } from "@atlas/ui";
+import { Skeleton, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@atlas/ui";
 import { useChatFloatStore } from "../store/chatFloatStore";
 import { useChatMessages, useSendMessage, useMarkRead } from "../hooks/useChatMessages";
+import { useCreateConversation } from "../hooks/useCreateConversation";
 import { atlas } from "../../../lib/atlas";
 import { MessageComposer } from "./MessageComposer";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { getConversationDisplayName } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
+import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 
 const BS = 56;     // bubble size px
 const BM = 16;     // margin from edge px
@@ -76,7 +81,8 @@ function BubbleAvatar({ avatarUrl, name }) {
 function MiniChatWindow({ entry, index, edge, onClose, onMinimize }) {
   const { id, conversation, minimized } = entry;
   const { userProfile } = useAuth();
-  const { data, isLoading } = useChatMessages(id);
+  const navigate = useNavigate();
+  const { data, isLoading, hasMore, isLoadingMore, loadMore } = useChatMessages(id);
   const { mutateAsync: send } = useSendMessage(id);
   const { mutate: markRead } = useMarkRead(id);
   const markReadRef = useRef(markRead);
@@ -95,6 +101,16 @@ function MiniChatWindow({ entry, index, edge, onClose, onMinimize }) {
   const handleAttachmentClick = useCallback((attachments, activeIndex) => {
     setViewer({ open: true, attachments, activeIndex });
   }, []);
+
+  function handleViewInChat() {
+    navigate(`/app/m/atlas.chat/chat/inbox/${id}`);
+    onClose();
+  }
+
+  function handleViewFiles() {
+    navigate(`/app/m/atlas.chat/chat/inbox/${id}?view=files`);
+    onClose();
+  }
 
   function handleDragOver(e) {
     e.preventDefault();
@@ -170,17 +186,41 @@ function MiniChatWindow({ entry, index, edge, onClose, onMinimize }) {
           </div>
         ) : (
           <div
-            role="button"
-            tabIndex={0}
-            onClick={onMinimize}
-            onKeyDown={(e) => e.key === "Enter" && onMinimize()}
-            className="flex items-center gap-2 px-3 h-11 bg-[hsl(var(--surface-2))] border-b border-[hsl(var(--border))] shrink-0 cursor-pointer select-none"
+            className="flex items-center gap-2 px-3 h-11 bg-[hsl(var(--surface-2))] border-b border-[hsl(var(--border))] shrink-0"
           >
-            <AvatarCircle avatarUrl={avatarUrl} name={name} size="sm" />
-            <p className="flex-1 text-xs font-semibold truncate">{name}</p>
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onMinimize(); }}
+              onClick={onMinimize}
+              className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer select-none text-left"
+            >
+              <AvatarCircle avatarUrl={avatarUrl} name={name} size="sm" />
+              <p className="flex-1 text-xs font-semibold truncate">{name}</p>
+            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => e.stopPropagation()}
+                  className="shrink-0 h-6 w-6 flex items-center justify-center rounded text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors touch-manipulation"
+                  title="Opciones"
+                >
+                  <MoreVertical className="h-3 w-3" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" style={{ zIndex: 10000 }}>
+                <DropdownMenuItem onSelect={handleViewInChat}>
+                  <ExternalLink className="h-3.5 w-3.5 mr-2" />
+                  Ver conversacion en el chat
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={handleViewFiles}>
+                  <FolderOpen className="h-3.5 w-3.5 mr-2" />
+                  Ver todos los archivos
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <button
+              type="button"
+              onClick={onMinimize}
               className="shrink-0 h-6 w-6 flex items-center justify-center rounded text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors touch-manipulation"
               title="Minimizar"
             >
@@ -188,7 +228,7 @@ function MiniChatWindow({ entry, index, edge, onClose, onMinimize }) {
             </button>
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onClose(); }}
+              onClick={onClose}
               className="shrink-0 h-6 w-6 flex items-center justify-center rounded text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors touch-manipulation"
               title="Cerrar"
             >
@@ -206,6 +246,9 @@ function MiniChatWindow({ entry, index, edge, onClose, onMinimize }) {
               typingUsers={[]}
               onAttachmentClick={handleAttachmentClick}
               members={conversation.members}
+              hasMore={hasMore}
+              isLoadingMore={isLoadingMore}
+              onLoadMore={loadMore}
             />
             <MessageComposer
               ref={composerRef}
@@ -229,35 +272,136 @@ function MiniChatWindow({ entry, index, edge, onClose, onMinimize }) {
   );
 }
 
+// --- Online user pill ---
+
+function OnlineUserPill({ user, currentUserId, conversations, onOpen }) {
+  const [avatarErr, setAvatarErr] = useState(false);
+  const { mutateAsync: createConversation } = useCreateConversation();
+  const { userProfile, session } = useAuth();
+  const token = session?.access_token;
+
+  async function handleClick() {
+    // Find existing direct conversation with this user
+    const existing = conversations.find(
+      (c) =>
+        c.type === "direct" &&
+        (c.members ?? []).some((m) => m.userId === user.userId),
+    );
+    if (existing) {
+      onOpen(existing);
+      return;
+    }
+    // Create new direct conversation
+    try {
+      const result = await createConversation({
+        type: "direct",
+        memberIds: [user.userId],
+      });
+      if (result?.data) onOpen(result.data);
+    } catch {}
+  }
+
+  const name = user.displayName ?? "Usuario";
+  const avatarUrl = user.avatarUrl ?? null;
+  const isCurrentUser = user.userId === currentUserId;
+  if (isCurrentUser) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      title={name}
+      className="flex flex-col items-center gap-1 shrink-0 w-14"
+    >
+      <div className="relative">
+        {avatarUrl && !avatarErr ? (
+          <img
+            src={avatarUrl}
+            alt={name}
+            className="h-9 w-9 rounded-full object-cover"
+            onError={() => setAvatarErr(true)}
+          />
+        ) : (
+          <div
+            className="h-9 w-9 rounded-full flex items-center justify-center font-bold text-xs"
+            style={{ backgroundColor: "var(--brand-primary)", color: "var(--brand-primary-foreground)" }}
+          >
+            {name[0]?.toUpperCase() ?? "?"}
+          </div>
+        )}
+        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[hsl(var(--card))]" />
+      </div>
+      <p className="text-[9px] font-medium text-[hsl(var(--foreground))] truncate w-full text-center leading-tight">
+        {name.split(" ")[0]}
+      </p>
+    </button>
+  );
+}
+
 // --- Conversation picker panel ---
 
 function ConversationPanel({ conversations, isLoading, edge, y, currentUserId }) {
-  const { openChat } = useChatFloatStore();
+  const { openChat, close } = useChatFloatStore();
   const navigate = useNavigate();
+  const { onlineUsers } = useGlobalPresence();
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+
+  const onlineList = useMemo(
+    () =>
+      Object.values(onlineUsers ?? {}).filter((u) => u.userId !== currentUserId),
+    [onlineUsers, currentUserId],
+  );
 
   function handleSelect(conv) {
     if (isMobile) {
-      navigate("/app/m/atlas.chat/chat/inbox");
-      useChatFloatStore.getState().close();
+      navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}`);
+      close();
     } else {
       openChat(conv);
     }
   }
 
+  function handleViewAll() {
+    navigate("/app/m/atlas.chat/chat/inbox");
+    close();
+  }
+
   const offset = BM + BS + GAP;
-  const clampedTop = Math.max(60, Math.min(y, window.innerHeight - 340));
+  const clampedTop = Math.max(60, Math.min(y, window.innerHeight - 400));
 
   return (
     <div
-      style={{ position: "fixed", [edge]: offset, top: clampedTop, width: 240, zIndex: 9997 }}
-      className="rounded-xl shadow-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden"
+      style={{ position: "fixed", [edge]: offset, top: clampedTop, width: 256, zIndex: 9997 }}
+      className="rounded-xl shadow-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden flex flex-col"
     >
-      <div className="px-3 py-2.5 border-b border-[hsl(var(--border))]">
-        <p className="text-xs font-semibold">Mensajes recientes</p>
+      {/* Online users */}
+      {onlineList.length > 0 && (
+        <div className="px-3 pt-3 pb-2 border-b border-[hsl(var(--border))]">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))] mb-2">
+            En linea
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {onlineList.map((user) => (
+              <OnlineUserPill
+                key={user.userId}
+                user={user}
+                currentUserId={currentUserId}
+                conversations={conversations}
+                onOpen={(conv) => { handleSelect(conv); }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recent conversations */}
+      <div className="px-3 py-2 border-b border-[hsl(var(--border))]">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+          Mensajes recientes
+        </p>
       </div>
 
-      <div className="overflow-y-auto" style={{ maxHeight: 280 }}>
+      <div className="overflow-y-auto" style={{ maxHeight: 240 }}>
         {isLoading && (
           <div className="p-3 space-y-2">
             {[1, 2, 3].map((i) => (
@@ -306,6 +450,18 @@ function ConversationPanel({ conversations, isLoading, edge, y, currentUserId })
           );
         })}
       </div>
+
+      {/* Footer: Ver todos los chats */}
+      <div className="border-t border-[hsl(var(--border))]">
+        <button
+          type="button"
+          onClick={handleViewAll}
+          className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-medium text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted))] transition-colors"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          Ver todos los chats
+        </button>
+      </div>
     </div>
   );
 }
@@ -314,7 +470,7 @@ function ConversationPanel({ conversations, isLoading, edge, y, currentUserId })
 
 function FloatingChatHubInner() {
   const { session, userProfile } = useAuth();
-  const { edge, yPx, isOpen, openChats, setPosition, toggle, closeChat, toggleMinimize } =
+  const { edge, yPx, isOpen, openChats, setPosition, toggle, close, closeChat, toggleMinimize } =
     useChatFloatStore();
 
   const { data, isLoading, isError } = useQuery({
@@ -365,7 +521,6 @@ function FloatingChatHubInner() {
 
   const handlePointerMove = useCallback((e) => {
     if (!dragStartRef.current) return;
-    // Touch has more imprecision than mouse; use a larger threshold to avoid false drags
     const threshold = dragStartRef.current.type === "touch" ? 12 : 6;
     const dx = Math.abs(e.clientX - dragStartRef.current.x);
     const dy = Math.abs(e.clientY - dragStartRef.current.y);

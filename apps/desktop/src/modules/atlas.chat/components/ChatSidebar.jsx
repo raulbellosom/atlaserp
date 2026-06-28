@@ -52,7 +52,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
       </div>
 
       {/* Conversation list */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+      <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-0.5">
         {isLoading && (
           <div className="space-y-2 p-2">
             {Array.from({ length: 5 }).map((_, i) => (

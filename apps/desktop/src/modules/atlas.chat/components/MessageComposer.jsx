@@ -469,6 +469,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
             searchPlaceholder="Buscar emoji..."
             lazyLoadEmojis
             skinTonesDisabled
+            autoFocusSearch={false}
           />
         </div>
       )}

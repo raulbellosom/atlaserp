@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from "react";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 import { subscribeToMessages } from "../lib/supabaseRealtime";
@@ -12,6 +12,12 @@ export function useChatMessages(conversationId) {
   const unsubRef = useRef(null);
   const { on } = useRealtimeContext();
 
+  // Older pages accumulated via "load more" — stored separately from the latest page
+  const [olderMessages, setOlderMessages] = useState([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const hasInitialized = useRef(false);
+
   const query = useQuery({
     queryKey: ["chat-messages", conversationId],
     queryFn: () => atlas.chat.listMessages(conversationId, { limit: 40 }, token),
@@ -21,23 +27,62 @@ export function useChatMessages(conversationId) {
     refetchOnWindowFocus: true,
   });
 
+  // Initialize hasMore from the first successful fetch of this conversation
+  useEffect(() => {
+    if (query.data && !hasInitialized.current) {
+      hasInitialized.current = true;
+      setHasMore(query.data.hasMore ?? false);
+    }
+  }, [query.data]);
+
+  // Reset older pages and hasMore when conversation changes
+  useEffect(() => {
+    hasInitialized.current = false;
+    setOlderMessages([]);
+    setHasMore(false);
+    setIsLoadingMore(false);
+  }, [conversationId]);
+
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore || !token || !conversationId) return;
+
+    // The oldest message is the first in the combined list (olderMessages are prepended)
+    const latestData = queryClient.getQueryData(["chat-messages", conversationId])?.data ?? [];
+    const oldestMsg = olderMessages.length > 0 ? olderMessages[0] : latestData[0];
+    if (!oldestMsg?.created_at) return;
+
+    setIsLoadingMore(true);
+    try {
+      const result = await atlas.chat.listMessages(conversationId, {
+        limit: 40,
+        before: oldestMsg.created_at,
+      }, token);
+
+      const newOlder = result?.data ?? [];
+      setOlderMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        return [...newOlder.filter((m) => !existingIds.has(m.id)), ...prev];
+      });
+      setHasMore(result?.hasMore ?? false);
+    } catch (err) {
+      console.error("[chat] loadMore failed", err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMore, token, conversationId, olderMessages, queryClient]);
+
   const addMessageToCache = useCallback(
     (newMsg) => {
       queryClient.setQueryData(["chat-messages", conversationId], (old) => {
         if (!old) return old;
-        // Replace any pending temp message with the same body/type if it matches,
-        // then deduplicate by real ID.
         const already = old.data?.some((m) => m.id === newMsg.id);
         if (already) return old;
-        // Remove orphaned temp messages that match this real message's content
         const filtered = (old.data ?? []).filter(
           (m) => !(m._pending && m.body === newMsg.body && m.message_type === newMsg.message_type),
         );
         return { ...old, data: [...filtered, newMsg] };
       });
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
-      // Realtime INSERT rows don't include joined attachment data — refetch so recipients
-      // see attachment cards as soon as the message arrives.
       if (Number(newMsg.attachment_count) > 0) {
         queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
       }
@@ -60,8 +105,6 @@ export function useChatMessages(conversationId) {
     [conversationId, queryClient],
   );
 
-  // Keep callback ref in sync so the subscription closure never goes stale
-  // without triggering an unnecessary channel teardown + re-subscribe.
   const messageHandlerRef = useRef(null);
   useLayoutEffect(() => {
     messageHandlerRef.current = (payload) => {
@@ -72,15 +115,11 @@ export function useChatMessages(conversationId) {
 
   useEffect(() => {
     if (!conversationId) return;
-
     unsubRef.current = subscribeToMessages(conversationId, (payload) => {
       messageHandlerRef.current?.(payload);
     });
-
-    return () => {
-      unsubRef.current?.();
-    };
-  }, [conversationId]); // only re-subscribe when the conversation changes
+    return () => { unsubRef.current?.(); };
+  }, [conversationId]);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -91,8 +130,6 @@ export function useChatMessages(conversationId) {
     });
   }, [conversationId, on, queryClient]);
 
-  // Mobile fallback: when the user returns to the tab/app after backgrounding,
-  // the WebSocket may have dropped broadcasts. Refetch on visibility restore.
   useEffect(() => {
     if (!conversationId) return;
     function handleVisibility() {
@@ -105,14 +142,27 @@ export function useChatMessages(conversationId) {
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [conversationId, queryClient]);
 
-  // Auto-dismiss chat notifications for this conversation when the user opens it.
   useEffect(() => {
     if (!conversationId || !token) return;
     atlas.notifications.markReadBySource(token, "chat_conversation", conversationId).catch(() => {});
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
   }, [conversationId, token, queryClient]);
 
-  return query;
+  // Combine older pages with the latest page, deduplicating by id
+  const latestMessages = query.data?.data ?? [];
+  const combinedData = useMemo(() => {
+    if (!olderMessages.length) return latestMessages;
+    const seen = new Set(olderMessages.map((m) => m.id));
+    return [...olderMessages, ...latestMessages.filter((m) => !seen.has(m.id))];
+  }, [olderMessages, latestMessages]);
+
+  return {
+    ...query,
+    data: query.data ? { ...query.data, data: combinedData } : query.data,
+    hasMore,
+    isLoadingMore,
+    loadMore,
+  };
 }
 
 export function useSendMessage(conversationId) {
@@ -167,11 +217,8 @@ export function useSendMessage(conversationId) {
       const real = result?.data;
       queryClient.setQueryData(["chat-messages", conversationId], (old) => {
         if (!old) return old;
-        // Remove the temp message
         const withoutTemp = (old.data ?? []).filter((m) => m.id !== context.tempId);
         if (!real) return { ...old, data: withoutTemp };
-        // If realtime already inserted the message (without attachment JOIN data),
-        // update it in-place with the full API response (which has attachments).
         const already = withoutTemp.some((m) => m.id === real.id);
         if (already) {
           return { ...old, data: withoutTemp.map((m) => (m.id === real.id ? { ...m, ...real } : m)) };
@@ -179,8 +226,6 @@ export function useSendMessage(conversationId) {
         return { ...old, data: [...withoutTemp, real] };
       });
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
-      // Always refetch after send so attachment data (audio player, image, etc.)
-      // is fully hydrated — the realtime INSERT row lacks the attachment JOIN.
       queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
     },
   });
@@ -195,6 +240,40 @@ export function useMarkRead(conversationId) {
     mutationFn: () => atlas.chat.markRead(conversationId, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+    },
+  });
+}
+
+export function useDeleteMessage(conversationId) {
+  const { session } = useAuth();
+  const token = session?.access_token;
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (messageId) => atlas.chat.deleteMessage(messageId, token),
+    onMutate: async (messageId) => {
+      await queryClient.cancelQueries({ queryKey: ["chat-messages", conversationId] });
+      const previous = queryClient.getQueryData(["chat-messages", conversationId]);
+      queryClient.setQueryData(["chat-messages", conversationId], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          data: (old.data ?? []).map((m) =>
+            m.id === messageId
+              ? { ...m, deleted_at: new Date().toISOString(), body: "" }
+              : m,
+          ),
+        };
+      });
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["chat-messages", conversationId], context.previous);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
     },
   });
 }

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { atlas } from '../../lib/atlas'
@@ -7,6 +8,16 @@ import { ErrorState } from '@atlas/ui'
 
 export default function PublicNoteScreen() {
   const { slug } = useParams()
+
+  // Force light theme for the public view — remove .dark from <html> and restore on unmount
+  useEffect(() => {
+    const html = document.documentElement
+    const hadDark = html.classList.contains('dark')
+    html.classList.remove('dark')
+    return () => {
+      if (hadDark) html.classList.add('dark')
+    }
+  }, [])
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['public-note', slug],
@@ -39,13 +50,16 @@ export default function PublicNoteScreen() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: note.background_color ?? '#ffffff' }}>
+    <div className="min-h-screen bg-gray-100">
       <div className="max-w-3xl mx-auto py-12 px-4">
         <div className="flex items-center gap-3 mb-6">
           {note.icon && <NoteIcon name={note.icon} size={28} className="text-amber-500 shrink-0" />}
           <h1 className="text-2xl font-bold text-gray-900">{note.title || 'Nota'}</h1>
         </div>
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div
+          className="rounded-xl shadow-sm overflow-hidden"
+          style={{ backgroundColor: note.background_color ?? '#ffffff' }}
+        >
           <NoteEditor note={note} readOnly />
         </div>
       </div>
