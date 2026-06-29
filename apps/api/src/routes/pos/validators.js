@@ -255,3 +255,7 @@ export const updateReservationSchema = z.object({
 export const seatReservationSchema = z.object({
   sessionId: z.string().uuid().nullable().optional(),
 });
+
+export const assignWaiterSchema = z.object({
+  waiterId: z.string().uuid("El ID de mesero debe ser un UUID valido.").nullable().optional(),
+});
