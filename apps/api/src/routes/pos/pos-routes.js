@@ -8,6 +8,7 @@ import { createPosReservationService } from "./pos-reservation-service.js";
 import { getActorId, getCompanyId, PosServiceError } from "./service-helpers.js";
 import {
   addOrderLineSchema,
+  assignWaiterSchema,
   cancelOrderSchema,
   cashMovementSchema,
   closeSessionSchema,
@@ -251,6 +252,30 @@ export function createPosRouter({ prisma, requirePermission, broadcaster = null 
     }
   });
 
+  app.patch("/pos/orders/:id/waiter", requirePermission("pos.orders.update"), async (c) => {
+    try {
+      const data = await parseBody(c, assignWaiterSchema);
+      const order = await orderSvc.assignOrderWaiter({
+        ...context(c),
+        id: c.req.param("id"),
+        waiterId: data.waiterId ?? null,
+      });
+      broadcastPosEvent(c, order.id, "waiter.assign");
+      return c.json({ data: order });
+    } catch (err) {
+      return handleError(c, err, "No se pudo asignar el mesero a la orden.");
+    }
+  });
+
+  app.get("/pos/orders/:id/seat-totals", requirePermission("pos.terminal.use"), async (c) => {
+    try {
+      const data = await orderSvc.getSeatTotals({ ...context(c), id: c.req.param("id") });
+      return c.json({ data });
+    } catch (err) {
+      return handleError(c, err, "No se pudieron calcular los totales por comensal.");
+    }
+  });
+
   app.post("/pos/orders/:id/guests", requirePermission("pos.orders.update"), async (c) => {
     try {
       const data = await parseBody(c, createGuestSchema);
@@ -360,7 +385,13 @@ export function createPosRouter({ prisma, requirePermission, broadcaster = null 
 
   app.get("/pos/floors/:id", requirePermission("pos.floor.read"), async (c) => {
     try {
-      return c.json({ data: await floorSvc.getFloorWithLayout({ ...context(c), id: c.req.param("id") }) });
+      return c.json({
+        data: await floorSvc.getFloorWithLayout({
+          ...context(c),
+          id: c.req.param("id"),
+          myTablesOnly: c.req.query("myTablesOnly") === "true",
+        }),
+      });
     } catch (err) {
       return handleError(c, err, "No se pudo consultar el plano POS.");
     }
@@ -421,9 +452,29 @@ export function createPosRouter({ prisma, requirePermission, broadcaster = null 
     }
   });
 
+  app.patch("/pos/tables/:id/waiter", requirePermission("pos.terminal.use"), async (c) => {
+    try {
+      const data = await parseBody(c, assignWaiterSchema);
+      const table = await floorSvc.updateTableWaiter({
+        ...context(c),
+        tableId: c.req.param("id"),
+        waiterId: data.waiterId ?? null,
+      });
+      return c.json({ data: table });
+    } catch (err) {
+      return handleError(c, err, "No se pudo asignar el mesero a la mesa.");
+    }
+  });
+
   app.get("/pos/tables/active-map", requirePermission("pos.terminal.use"), async (c) => {
     try {
-      return c.json({ data: await floorSvc.getActiveMap({ ...context(c), outletId: c.req.query("outletId") }) });
+      return c.json({
+        data: await floorSvc.getActiveMap({
+          ...context(c),
+          outletId: c.req.query("outletId"),
+          myTablesOnly: c.req.query("myTablesOnly") === "true",
+        }),
+      });
     } catch (err) {
       return handleError(c, err, "No se pudo consultar el mapa activo.");
     }
