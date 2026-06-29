@@ -38,7 +38,8 @@ self.addEventListener("push", (event) => {
     icon: payload?.icon || "/icon-192.png",
     badge: payload?.badge || "/icon-192.png",
     tag: payload?.tag,
-    renotify: Boolean(payload?.tag),
+    // renotify only on iOS — Android Chrome triggers a spam warning on rapid pushes
+    renotify: Boolean(payload?.tag) && /iphone|ipad|ipod/i.test(self.navigator?.userAgent ?? ""),
     data: {
       ...(payload?.data || {}),
       link,
