@@ -43,7 +43,7 @@ export async function expireStaleGuestSessions(prisma) {
     SELECT cgs.id, cgs.email, cgs.name,
            ws.company_id,
            ic.value AS company_name,
-           ws.site_url
+           ws.domain
     FROM chat_guest_sessions cgs
     LEFT JOIN chat_conversations cc ON cc.created_by_guest_id = cgs.id
     LEFT JOIN website_site ws ON ws.id = cc.website_id
@@ -54,6 +54,7 @@ export async function expireStaleGuestSessions(prisma) {
       AND cgs.expiry_email_sent IS NOT DISTINCT FROM false
     LIMIT 50
   `;
+  // website_site.domain holds the public URL; site_url does not exist
 
   if (expiringWithEmail.length > 0) {
     const smtp = createSmtpService({ prisma });
@@ -75,7 +76,7 @@ export async function expireStaleGuestSessions(prisma) {
         `;
 
         if (isSmtpReady) {
-          const siteUrl = row.site_url ?? "https://racoondevs.com";
+          const siteUrl = row.domain ? `https://${row.domain.replace(/^https?:\/\//, "")}` : "https://racoondevs.com";
           const resumeUrl = `${siteUrl.replace(/\/$/, "")}?chat_resume=${resumeToken}`;
           const companyName = row.company_name ?? "nuestro equipo";
           await sendExpiryEmail(smtp, {

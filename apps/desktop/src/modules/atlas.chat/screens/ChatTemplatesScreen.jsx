@@ -220,12 +220,7 @@ export function ChatTemplatesScreen() {
             icon={LayoutTemplate}
             title="Sin plantillas"
             description="Crea plantillas de respuesta para agilizar las conversaciones con visitantes."
-            action={
-              <Button onClick={handleNew}>
-                <Plus className="h-4 w-4 mr-1.5" />
-                Crear primera plantilla
-              </Button>
-            }
+            action={{ label: "Crear primera plantilla", onClick: handleNew }}
           />
         )}
 
