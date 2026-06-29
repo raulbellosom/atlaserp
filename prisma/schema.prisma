@@ -2134,6 +2134,7 @@ model PosOrder {
   paidAt              DateTime?            @map("paid_at")
   cancelledAt         DateTime?            @map("cancelled_at")
   createdById         String               @db.Uuid @map("created_by_id")
+  waiterId            String?              @db.Uuid @map("waiter_id")
   updatedAt           DateTime             @updatedAt @map("updated_at")
 
   session        PosSession?        @relation(fields: [sessionId], references: [id], onDelete: SetNull)
@@ -2274,6 +2275,7 @@ model PosTable {
   capacity  Int            @default(2)
   status    PosTableStatus @default(AVAILABLE)
   enabled   Boolean        @default(true)
+  waiterId  String?        @db.Uuid @map("waiter_id")
   createdAt DateTime       @default(now()) @map("created_at")
   updatedAt DateTime       @updatedAt @map("updated_at")
 
