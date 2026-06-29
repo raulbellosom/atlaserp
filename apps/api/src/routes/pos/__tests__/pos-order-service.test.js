@@ -10,6 +10,9 @@ function makePrisma() {
   const payments = new Map();
   const receipts = new Map();
   const audits = [];
+  const tables = new Map([
+    ["table-1", { id: "table-1", companyId: "company-1", status: "AVAILABLE", waiterId: null }],
+  ]);
   const products = new Map([
     [
       "product-1",
@@ -50,6 +53,7 @@ function makePrisma() {
     payments,
     receipts,
     audits,
+    tables,
     profiles,
     $transaction: async (fn) => fn(prisma),
     userProfile: {
@@ -164,6 +168,15 @@ function makePrisma() {
       create: async ({ data }) => {
         const row = { id: `receipt-${receipts.size + 1}`, ...data };
         receipts.set(row.id, row);
+        return row;
+      },
+    },
+    posTable: {
+      findFirst: async ({ where }) =>
+        [...tables.values()].find((row) => row.id === where.id) ?? null,
+      update: async ({ where, data }) => {
+        const row = { ...tables.get(where.id), ...data };
+        tables.set(where.id, row);
         return row;
       },
     },
@@ -388,5 +401,23 @@ describe("createPosOrderService", () => {
     const unassignedIdx = totals.seats.indexOf(unassigned);
     const assignedIdx = totals.seats.indexOf(assigned);
     assert.ok(unassignedIdx > assignedIdx, "Sin asignar bucket must be last");
+  });
+
+  it("creating a dine-in order on a table sets that table's waiterId to the actor", async () => {
+    const db = makePrisma();
+    const svc = createPosOrderService({ prisma: db });
+    await svc.createOrder({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: {
+        outletId: "outlet-1",
+        fulfillmentType: "DINE_IN",
+        guestCount: 2,
+        tableId: "table-1",
+      },
+    });
+    const table = db.tables.get("table-1");
+    assert.equal(table.status, "OCCUPIED");
+    assert.equal(table.waiterId, "user-1");
   });
 });

@@ -284,6 +284,31 @@ describe("createPosFloorService", () => {
     assert.equal(cleared.waiterId, null);
   });
 
+  it("updateTableWaiter rejects an unknown waiterId with 404", async () => {
+    const prisma = makePrisma();
+    const svc = createPosFloorService({ prisma });
+    const floor = await svc.createFloor({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", name: "Salon" },
+    });
+    const table = await svc.createTable({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { floorId: floor.id, name: "Mesa 1", capacity: 4 },
+    });
+    await assert.rejects(
+      () =>
+        svc.updateTableWaiter({
+          companyId: "company-1",
+          actorId: "user-1",
+          tableId: table.id,
+          waiterId: "nonexistent-user",
+        }),
+      (err) => err instanceof PosServiceError && err.status === 404,
+    );
+  });
+
   it("getActiveMap with myTablesOnly:true returns only tables where waiterId matches actorId", async () => {
     const prisma = makePrisma();
     const svc = createPosFloorService({ prisma });
