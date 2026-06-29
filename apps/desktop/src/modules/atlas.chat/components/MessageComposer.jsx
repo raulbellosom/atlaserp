@@ -194,6 +194,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
 
   useImperativeHandle(ref, () => ({
     addFiles: (files) => addFilesToQueue(files),
+    setBody: (text) => setBody(text),
   }));
 
   function addFilesToQueue(files) {

@@ -172,6 +172,15 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
       assignedUserId = await autoAssign(prisma, conv.id, companyId);
     }
 
+    // Broadcast new conversation to all operators' inbox (non-fatal)
+    if (companyId) {
+      supabaseAdmin.channel(`chat:company:${companyId}`).send({
+        type: "broadcast",
+        event: "new_external_conversation",
+        payload: { conversationId: conv.id, assignedUserId },
+      }).catch(() => {});
+    }
+
     // Non-blocking: capture lead in atlas.growth
     if (email && companyId) {
       setImmediate(() => captureGrowthLead(prisma, { companyId, email, name }));
@@ -300,23 +309,32 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
     ]);
 
     // Broadcast to operators via Supabase Realtime
+    const broadcastPayload = {
+      conversationId,
+      messageId: msg.id,
+      sessionId: session.id,
+      senderType: "guest",
+      senderName: session.name ?? session.email ?? "Visitante",
+      body,
+      messageType,
+      createdAt: msg.created_at,
+    };
     try {
       await supabaseAdmin.channel(`chat:conv:${conversationId}`).send({
         type: "broadcast",
         event: "new_guest_message",
-        payload: {
-          conversationId,
-          messageId: msg.id,
-          sessionId: session.id,
-          senderType: "guest",
-          senderName: session.name ?? session.email ?? "Visitante",
-          body,
-          messageType,
-          createdAt: msg.created_at,
-        },
+        payload: broadcastPayload,
       });
     } catch {
       // Non-fatal
+    }
+    // Also broadcast at company level so inbox sidebar updates immediately
+    if (companyId) {
+      supabaseAdmin.channel(`chat:company:${companyId}`).send({
+        type: "broadcast",
+        event: "external_message",
+        payload: { conversationId, messageId: msg.id },
+      }).catch(() => {});
     }
 
     // In-app notification to assigned operator (or broadcast to all available)

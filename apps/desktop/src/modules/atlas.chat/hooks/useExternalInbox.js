@@ -1,34 +1,48 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
-import { subscribeToBroadcast, subscribeToMessages } from "../lib/supabaseRealtime";
+import { subscribeToBroadcast } from "../lib/supabaseRealtime";
 
 export function useExternalInbox(status = "open") {
-  const { session } = useAuth();
+  const { session, companyId } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
-  const unsubRef = useRef(null);
+  const unsubRefs = useRef([]);
 
   const query = useQuery({
     queryKey: ["chat-external-inbox", status],
     queryFn: () => atlas.chat.listExternalInbox({ status }, token),
     enabled: Boolean(token),
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
   });
 
-  // Listen for guest messages and refresh inbox
-  useEffect(() => {
-    unsubRef.current = subscribeToBroadcast(
-      "chat:external:inbox",
-      "new_guest_message",
-      () => {
-        queryClient.invalidateQueries({ queryKey: ["chat-external-inbox"] });
-      },
-    );
-    return () => unsubRef.current?.();
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["chat-external-inbox"] });
   }, [queryClient]);
+
+  useEffect(() => {
+    if (!companyId) return;
+
+    // Subscribe to company-level channel for inbox updates
+    const unsubConv = subscribeToBroadcast(
+      `chat:company:${companyId}`,
+      "new_external_conversation",
+      invalidate,
+    );
+    const unsubMsg = subscribeToBroadcast(
+      `chat:company:${companyId}`,
+      "external_message",
+      invalidate,
+    );
+
+    unsubRefs.current = [unsubConv, unsubMsg];
+    return () => {
+      unsubRefs.current.forEach((fn) => fn?.());
+      unsubRefs.current = [];
+    };
+  }, [companyId, invalidate]);
 
   return query;
 }
@@ -37,7 +51,7 @@ export function useExternalMessages(conversationId) {
   const { session } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
-  const unsubRef = useRef(null);
+  const unsubRefs = useRef([]);
 
   const query = useQuery({
     queryKey: ["chat-external-messages", conversationId],
@@ -46,16 +60,32 @@ export function useExternalMessages(conversationId) {
     staleTime: 10_000,
   });
 
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["chat-external-messages", conversationId] });
+    queryClient.invalidateQueries({ queryKey: ["chat-external-inbox"] });
+  }, [queryClient, conversationId]);
+
   useEffect(() => {
     if (!conversationId) return;
 
-    unsubRef.current = subscribeToMessages(conversationId, () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-external-messages", conversationId] });
-      queryClient.invalidateQueries({ queryKey: ["chat-external-inbox"] });
-    });
+    // Subscribe to broadcast channel for both guest and operator messages
+    const unsubGuest = subscribeToBroadcast(
+      `chat:conv:${conversationId}`,
+      "new_guest_message",
+      invalidate,
+    );
+    const unsubOp = subscribeToBroadcast(
+      `chat:conv:${conversationId}`,
+      "new_operator_message",
+      invalidate,
+    );
 
-    return () => unsubRef.current?.();
-  }, [conversationId, queryClient]);
+    unsubRefs.current = [unsubGuest, unsubOp];
+    return () => {
+      unsubRefs.current.forEach((fn) => fn?.());
+      unsubRefs.current = [];
+    };
+  }, [conversationId, invalidate]);
 
   return query;
 }

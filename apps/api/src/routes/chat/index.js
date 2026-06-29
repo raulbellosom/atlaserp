@@ -297,9 +297,10 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const body = await c.req.json();
       const data = chatSendMessageSchema.parse(body);
 
-      // Auto-join as operator
+      // Auto-join as operator and fetch profile for broadcast
       const profileRows = await prisma.$queryRaw`
-        SELECT id FROM user_profile WHERE auth_user_id = ${authUserId} LIMIT 1
+        SELECT id, display_name AS "displayName", avatar_url AS "avatarUrl"
+        FROM user_profile WHERE auth_user_id = ${authUserId} LIMIT 1
       `;
       if (profileRows.length) {
         await prisma.$executeRaw`
@@ -311,13 +312,21 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
 
       const result = await chatService.sendMessage({ conversationId, authUserId, ...data });
 
-      // Notify the guest widget in real time
+      // Notify the guest widget in real time (includes operator profile for display)
       supabaseAdmin
         .channel(`chat:conv:${conversationId}`)
         .send({
           type: "broadcast",
           event: "new_operator_message",
-          payload: { conversationId, messageId: result.id, body: data.body, senderType: "user", createdAt: result.created_at },
+          payload: {
+            conversationId,
+            messageId: result.id,
+            body: data.body,
+            senderType: "user",
+            senderName: profileRows[0]?.displayName ?? "Operador",
+            senderAvatarUrl: profileRows[0]?.avatarUrl ?? null,
+            createdAt: result.created_at,
+          },
         })
         .catch(() => {});
 

@@ -139,6 +139,43 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         body: JSON.stringify({ available }),
       }),
 
+    listTemplates: (token) =>
+      request("/chat/templates", { headers: withAuthHeaders(token) }),
+
+    createTemplate: (data, token) =>
+      request("/chat/templates", {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify(data),
+      }),
+
+    updateTemplate: (templateId, data, token) =>
+      request(`/chat/templates/${encodeURIComponent(templateId)}`, {
+        method: "PATCH",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify(data),
+      }),
+
+    deleteTemplate: (templateId, token) =>
+      request(`/chat/templates/${encodeURIComponent(templateId)}`, {
+        method: "DELETE",
+        headers: withAuthHeaders(token),
+      }),
+
+    recordTemplateUse: (templateId, token) =>
+      request(`/chat/templates/${encodeURIComponent(templateId)}/use`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({}),
+      }),
+
+    assignOperator: (conversationId, userId, token) =>
+      request(`/chat/external/${encodeURIComponent(conversationId)}/assign`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({ userId }),
+      }),
+
     // ----------------------------------------------------------------
     // Guest / Public (no auth token)
     // ----------------------------------------------------------------
