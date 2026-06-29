@@ -693,6 +693,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       broadcaster.broadcastToUsers(memberIds, "chat.message.new", {
         conversationId,
         messageId: msg.id,
+        senderId: profileId.toString(),
         senderName: fullMsg?.sender?.displayName ?? null,
       }).catch(() => {});
     }

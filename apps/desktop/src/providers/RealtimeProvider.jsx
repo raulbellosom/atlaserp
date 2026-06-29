@@ -1,13 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { getSupabaseClient } from '../lib/supabase'
+import { toast } from 'sonner'
+import { useChatFloatStore } from '../modules/atlas.chat/store/chatFloatStore'
 
 const RealtimeContext = createContext(null)
 
 export function RealtimeProvider({ children }) {
   const { userProfile, session } = useAuth()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const listenersRef = useRef({})
   const [onlineUsers, setOnlineUsers] = useState({})
   const [lastSeenMap, setLastSeenMap] = useState({})
@@ -35,10 +39,39 @@ export function RealtimeProvider({ children }) {
       .on('broadcast', { event: 'notification.new' }, ({ payload }) => {
         queryClient.invalidateQueries({ queryKey: ['notifications'] })
         dispatch('notification.new', payload)
+        if (payload?.title) {
+          const handleClick = () => {
+            if (!payload.link) return
+            const href = payload.link.startsWith('/m/') ? `/app${payload.link}` : payload.link
+            navigate(href)
+          }
+          toast(payload.title, {
+            description: payload.body ?? undefined,
+            duration: 6000,
+            action: payload.link ? { label: 'Ver', onClick: handleClick } : undefined,
+          })
+        }
       })
       .on('broadcast', { event: 'chat.message.new' }, ({ payload }) => {
         queryClient.invalidateQueries({ queryKey: ['chat-conversations'] })
         dispatch('chat.message.new', payload)
+        const isSelf = payload?.senderId && payload.senderId === userProfile?.id
+        if (!isSelf && payload?.senderName) {
+          const convId = payload?.conversationId
+          const openChats = useChatFloatStore.getState().openChats
+          const isOpenAndVisible = convId && openChats.some((c) => c.id === convId && !c.minimized)
+          const isOnRoute = convId && window.location.pathname.includes(`/atlas.chat/chat/inbox/${convId}`)
+          if (!isOpenAndVisible && !isOnRoute) {
+            toast(payload.senderName, {
+              description: 'Nuevo mensaje',
+              duration: 5000,
+              action: convId ? {
+                label: 'Ver',
+                onClick: () => navigate(`/app/m/atlas.chat/chat/inbox/${convId}`),
+              } : undefined,
+            })
+          }
+        }
       })
       .on('broadcast', { event: 'chat.conversation.new' }, ({ payload }) => {
         queryClient.invalidateQueries({ queryKey: ['chat-conversations'] })
@@ -110,6 +143,22 @@ export function RealtimeProvider({ children }) {
       .subscribe()
     return () => { client.removeChannel(channel) }
   }, [userProfile?.id, userProfile?.companyId, queryClient])
+
+  // Postgres Changes on the notification table — fires when the API inserts a notification
+  // for the current user. This is a reliable backup when the REST broadcast is unavailable.
+  useEffect(() => {
+    if (!userProfile?.id) return
+    const client = getSupabaseClient()
+    const channel = client
+      .channel(`pg-notifications-${userProfile.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notification', filter: `user_id=eq.${userProfile.id}` },
+        () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+      )
+      .subscribe()
+    return () => { client.removeChannel(channel) }
+  }, [userProfile?.id, queryClient])
 
   const isUserOnline = useCallback((id) => Boolean(onlineUsers[id]), [onlineUsers])
   const getLastSeen = useCallback((id) => lastSeenMap[id] ?? null, [lastSeenMap])

@@ -51,7 +51,7 @@ export function NotificationBell({
     queryKey: ["notifications"],
     queryFn: () => atlas.notifications.list(token, { unreadOnly: false, limit: 20 }),
     enabled: Boolean(token),
-    refetchInterval: 300_000,
+    refetchInterval: 30_000,
     staleTime: 10_000,
     refetchOnWindowFocus: true,
   });
@@ -105,7 +105,7 @@ export function NotificationBell({
         >
           <Bell size={16} />
           {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 h-4 min-w-4 px-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none pointer-events-none">
+            <span className="absolute top-1 right-1 h-4 min-w-4 px-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none pointer-events-none shadow-[0_0_8px_rgba(239,68,68,0.65)]">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
@@ -143,7 +143,7 @@ export function NotificationBell({
                 <button
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
-                  className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer text-left border-b border-[hsl(var(--border))] last:border-0"
+                  className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-(--glass-tint) transition-colors duration-150 cursor-pointer text-left border-b border-[hsl(var(--border))] last:border-0"
                 >
                   <KindIcon
                     size={14}

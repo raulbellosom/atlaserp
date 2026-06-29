@@ -478,6 +478,7 @@ function FloatingChatHubInner() {
     queryFn: () => atlas.chat.listConversations({}, session?.access_token),
     enabled: Boolean(session?.access_token),
     staleTime: 30_000,
+    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
   const conversations = data?.data ?? [];

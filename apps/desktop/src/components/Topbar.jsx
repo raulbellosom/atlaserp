@@ -53,7 +53,7 @@ export function Topbar({
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-topbar safe-top bg-surface-1 border-b border-[hsl(var(--border))] flex flex-col justify-end">
+    <header className="fixed top-0 left-0 right-0 z-50 h-topbar safe-top glass dark:bg-[rgba(10,17,38,0.88)] border-b border-[hsl(var(--border))] flex flex-col justify-end">
       <div className="h-14 flex items-center px-4 gap-2">
         {/* Left section */}
         <div className="flex items-center gap-1.5 shrink-0">
@@ -110,7 +110,7 @@ export function Topbar({
           {/* Full bar — hidden on mobile */}
           <button
             onClick={openCommand}
-            className="pointer-events-auto hidden sm:flex h-9 w-64 max-w-xs items-center gap-2 px-3 rounded-xl bg-[hsl(var(--muted))] hover:bg-[hsl(var(--border))] border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] transition-colors duration-150 cursor-pointer"
+            className="pointer-events-auto hidden sm:flex h-9 w-64 max-w-xs items-center gap-2 px-3 rounded-xl glass-subtle hover:brightness-105 border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] transition-all duration-150 cursor-pointer"
           >
             <Search size={13} className="shrink-0" />
             <span className="flex-1 text-xs text-left">
