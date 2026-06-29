@@ -68,6 +68,10 @@ export function useGuestChat(sdk) {
             setTrackingCode(null)
             return null
           }
+          if (data?.trackingCode) {
+            storeTrackingCode(data.trackingCode)
+            setTrackingCode(data.trackingCode)
+          }
           setSession({ token: stored.token, conversationId: stored.conversationId, email: data.email, name: data.name })
           setScreen('chat')
           return sdk.guestChat.listMessages(stored.token)

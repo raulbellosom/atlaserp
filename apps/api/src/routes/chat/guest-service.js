@@ -259,10 +259,8 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
     const session = await resolveGuestSession(rawToken);
 
     const convRows = await prisma.$queryRaw`
-      SELECT c.id, c.status, c.title, c.created_at,
-             c.assigned_user_id AS "assignedUserId",
-             c.idle_expires_at AS "idleExpiresAt",
-             c.absolute_expires_at AS "absoluteExpiresAt"
+      SELECT c.id, c.status, c.title, c.created_at, c.tracking_code,
+             c.assigned_user_id AS "assignedUserId"
       FROM chat_conversations c
       INNER JOIN chat_conversation_members ccm
         ON ccm.conversation_id = c.id AND ccm.guest_session_id = ${session.id}
@@ -276,6 +274,7 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
       email: session.email,
       name: session.name,
       conversation: convRows[0] ?? null,
+      trackingCode: convRows[0]?.tracking_code ?? null,
       idleExpiresAt: session.idle_expires_at,
       absoluteExpiresAt: session.absolute_expires_at,
     };
