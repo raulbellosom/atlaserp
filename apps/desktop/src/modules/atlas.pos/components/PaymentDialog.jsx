@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CreditCard, Banknote, Smartphone, Check } from 'lucide-react'
+import { CreditCard, Banknote, Smartphone, Check, Receipt, SplitSquareHorizontal } from 'lucide-react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
   Button, Label, Separator,
@@ -7,6 +7,7 @@ import {
 } from '@atlas/ui'
 import { usePosPaymentMethods } from '../hooks/usePosSettings'
 import { useAddPosPayment } from '../hooks/usePosOrder'
+import SplitBillDialog from './SplitBillDialog'
 
 const METHOD_ICONS = { CASH: Banknote, cash: Banknote, CARD: CreditCard, card: CreditCard, TRANSFER: Smartphone, transfer: Smartphone }
 
@@ -15,6 +16,7 @@ export default function PaymentDialog({ open, onOpenChange, order, onSuccess }) 
   const addPayment = useAddPosPayment()
   const [selectedMethod, setSelectedMethod] = useState(null)
   const [amount, setAmount] = useState('')
+  const [mode, setMode] = useState('full') // 'full' | 'split'
 
   const totalDue = parseFloat(order?.totalAmount ?? 0) - parseFloat(order?.paidAmount ?? 0)
   const amountNum = parseFloat(amount) || 0
@@ -41,7 +43,23 @@ export default function PaymentDialog({ open, onOpenChange, order, onSuccess }) 
   function handleClose() {
     setAmount('')
     setSelectedMethod(null)
+    setMode('full')
     onOpenChange(false)
+  }
+
+  if (mode === 'split') {
+    return (
+      <SplitBillDialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) setMode('full')
+          onOpenChange(next)
+        }}
+        order={order}
+        paymentMethodId={selectedMethod}
+        onFullyPaid={() => onSuccess?.()}
+      />
+    )
   }
 
   return (
@@ -54,6 +72,25 @@ export default function PaymentDialog({ open, onOpenChange, order, onSuccess }) 
             <span className="font-semibold text-foreground">${totalDue.toFixed(2)}</span>
           </DialogDescription>
         </DialogHeader>
+
+        <div className="flex rounded-md border border-border overflow-hidden self-start">
+          <Button
+            variant="ghost" size="sm"
+            className={`rounded-none px-3 gap-1.5 ${mode === 'full' ? 'bg-muted' : ''}`}
+            onClick={() => setMode('full')}
+          >
+            <Receipt size={14} />
+            <span className="text-xs">Mesa completa</span>
+          </Button>
+          <Button
+            variant="ghost" size="sm"
+            className={`rounded-none px-3 gap-1.5 border-l border-border ${mode === 'split' ? 'bg-muted' : ''}`}
+            onClick={() => setMode('split')}
+          >
+            <SplitSquareHorizontal size={14} />
+            <span className="text-xs">Dividir cuenta</span>
+          </Button>
+        </div>
 
         <div className="flex flex-col gap-5 py-1">
           {/* Payment method selection */}
