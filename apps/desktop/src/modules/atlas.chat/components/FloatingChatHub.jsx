@@ -164,16 +164,16 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
             onClick={onMinimize}
             onKeyDown={(e) => e.key === "Enter" && onMinimize()}
             className={[
-              "group flex items-center gap-1.5 px-2.5 h-11 cursor-pointer select-none",
+              "group flex items-center gap-1.5 px-2.5 h-11 cursor-pointer select-none border-l-4",
               conversation?.unread_count > 0
-                ? "bg-[hsl(var(--primary)/0.12)] border-l-2 border-[hsl(var(--primary))]"
-                : "bg-[hsl(var(--surface-2))]",
+                ? "bg-red-500/10 border-red-500"
+                : "bg-[hsl(var(--surface-2))] border-transparent",
             ].join(" ")}
           >
             <AvatarCircle avatarUrl={avatarUrl} name={name} size="sm" />
             <p className="flex-1 text-xs font-semibold truncate">{name}</p>
             {conversation?.unread_count > 0 && (
-              <span className="h-4 min-w-4 rounded-full bg-[hsl(var(--primary))] text-white text-[9px] font-bold flex items-center justify-center px-1 shrink-0 group-hover:hidden">
+              <span className="h-4 min-w-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1 shrink-0 group-hover:hidden">
                 {conversation.unread_count > 99 ? "99+" : conversation.unread_count}
               </span>
             )}
