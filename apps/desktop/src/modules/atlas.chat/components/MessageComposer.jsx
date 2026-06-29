@@ -619,6 +619,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
             size="sm"
             className={["shrink-0 rounded-full p-0 touch-manipulation", btnSize].join(" ")}
             onClick={handleSend}
+            onMouseDown={(e) => e.preventDefault()}
             disabled={(!body.trim() && !pendingFiles.length) || isSending || disabled}
           >
             {isSending ? (
