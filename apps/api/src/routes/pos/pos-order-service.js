@@ -236,6 +236,7 @@ export function createPosOrderService({ prisma }) {
     const scopedCompanyId = requireCompanyId(companyId);
     const order = await prisma.posOrder.findFirst({ where: { id, companyId: scopedCompanyId } });
     if (!order) throw new PosServiceError("Orden POS no encontrada.", 404);
+    assertEditableOrder(order);
 
     if (waiterId) {
       const profile = await prisma.userProfile.findUnique({
@@ -283,7 +284,11 @@ export function createPosOrderService({ prisma }) {
 
     const seats = Array.from(seatMap.values())
       .filter((seat) => seat.lines.length > 0)
-      .sort((a, b) => a.position - b.position)
+      .sort((a, b) => {
+        if (a.id === null) return 1;
+        if (b.id === null) return -1;
+        return a.position - b.position;
+      })
       .map((seat) => ({
         id: seat.id,
         label: seat.label,
