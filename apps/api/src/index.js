@@ -105,11 +105,17 @@ const prismaConnectionString =
 // silently drop connections and cause "Connection terminated unexpectedly" crashes.
 const pgPool = new pg.Pool({
   connectionString: prismaConnectionString,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 15000,
+  max: 10,            // keep below Supabase direct-connection limit
+  min: 1,             // always keep one warm connection
+  idleTimeoutMillis: 10000,    // release idle connections quickly
+  connectionTimeoutMillis: 5000, // fail fast so the pool doesn't queue up
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
+});
+
+// Log and recover from pool-level errors (e.g. VPS firewall dropping idle conns)
+pgPool.on("error", (err) => {
+  console.error("[pg-pool] client error (pool will recover):", err?.message ?? err);
 });
 const prismaAdapter = new PrismaPg(pgPool);
 const prisma = new PrismaClient({ adapter: prismaAdapter });
@@ -5170,6 +5176,8 @@ process.on("uncaughtException", (err) => {
     msg.includes("Connection reset") ||
     msg.includes("Server has closed the connection") ||
     msg.includes("EPIPE") ||
+    msg.includes("timeout exceeded when trying to connect") ||
+    msg.includes("connection timeout") ||
     err?.code === "P1001" ||
     err?.code === "P1017";
   if (isConnectionError) {
