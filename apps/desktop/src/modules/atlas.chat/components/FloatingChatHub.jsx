@@ -94,7 +94,7 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
   const [isDragOver, setIsDragOver] = useState(false);
   const [viewer, setViewer] = useState({ open: false, attachments: [], activeIndex: 0 });
 
-  useEffect(() => { markReadRef.current(); }, [id]);
+  useEffect(() => { if (!minimized) markReadRef.current(); }, [id, minimized]);
 
   const name = getConversationDisplayName(conversation, userProfile?.id);
   const avatarUrl = getAvatarUrl(conversation, userProfile?.id);
@@ -163,17 +163,26 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
             title={name}
             onClick={onMinimize}
             onKeyDown={(e) => e.key === "Enter" && onMinimize()}
-            className={[
-              "group flex items-center gap-1.5 px-2.5 h-11 cursor-pointer select-none border-l-4",
-              conversation?.unread_count > 0
-                ? "bg-red-500/10 border-red-500"
-                : "bg-[hsl(var(--surface-2))] border-transparent",
-            ].join(" ")}
+            className="group flex items-center gap-1.5 px-2.5 h-11 cursor-pointer select-none"
+            style={conversation?.unread_count > 0 ? {
+              borderLeft: "4px solid #ef4444",
+              background: "rgba(239,68,68,0.10)",
+            } : {
+              borderLeft: "4px solid transparent",
+            }}
           >
             <AvatarCircle avatarUrl={avatarUrl} name={name} size="sm" />
             <p className="flex-1 text-xs font-semibold truncate">{name}</p>
             {conversation?.unread_count > 0 && (
-              <span className="h-4 min-w-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1 shrink-0 group-hover:hidden">
+              <span
+                className="flex items-center justify-center font-bold shrink-0 group-hover:hidden"
+                style={{
+                  minWidth: "1rem", height: "1rem",
+                  borderRadius: "9999px",
+                  background: "#ef4444", color: "#fff",
+                  fontSize: "9px", padding: "0 3px",
+                }}
+              >
                 {conversation.unread_count > 99 ? "99+" : conversation.unread_count}
               </span>
             )}
