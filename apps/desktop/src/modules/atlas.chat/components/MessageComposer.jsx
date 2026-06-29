@@ -357,6 +357,16 @@ export const MessageComposer = forwardRef(function MessageComposer(
     [body],
   );
 
+  // ── Auto-resize textarea (covers programmatic setBody from templates) ────
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const base = compact ? "28px" : "36px";
+    const max = compact ? 80 : 200;
+    el.style.height = base;
+    el.style.height = `${Math.min(el.scrollHeight, max)}px`;
+  }, [body, compact]);
+
   // ── Typing ───────────────────────────────────────────────────────────────
   const handleChange = useCallback(
     (e) => {
@@ -554,7 +564,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
             ref={textareaRef}
             className={[
               "flex-1 bg-transparent resize-none outline-none placeholder:text-[hsl(var(--muted-foreground))] leading-tight",
-              compact ? "text-xs min-h-7 max-h-20 py-1" : "text-sm min-h-9 max-h-32 py-2",
+              compact ? "text-xs min-h-7 max-h-20 py-1" : "text-sm min-h-9 max-h-50 py-2",
             ].join(" ")}
             rows={1}
             placeholder={placeholder}
