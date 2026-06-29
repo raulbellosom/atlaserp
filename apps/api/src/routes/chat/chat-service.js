@@ -922,6 +922,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       SET status = 'closed', updated_at = NOW()
       WHERE id = ${conversationId} AND type = 'external_support'
     `;
+    broadcaster?.broadcastToChannel(`chat:conv:${conversationId}`, "conversation_closed", { conversationId });
     return { ok: true };
   }
 

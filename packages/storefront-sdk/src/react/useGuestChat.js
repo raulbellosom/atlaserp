@@ -49,6 +49,7 @@ export function useGuestChat(sdk) {
   const [trackingCode, setTrackingCode] = useState(() => loadTrackingCode())
   const [messages, setMessages] = useState([])
   const [isSending, setIsSending] = useState(false)
+  const [isClosed, setIsClosed] = useState(false)
   const [startError, setStartError] = useState(null)
   const [resumeError, setResumeError] = useState(null)
   const unsubscribeRef = useRef(null)
@@ -87,20 +88,24 @@ export function useGuestChat(sdk) {
   useEffect(() => {
     if (!session?.conversationId) return
 
-    const unsub = sdk.guestChat.subscribeToReplies(session.conversationId, (payload) => {
-      setMessages((prev) => {
-        const isDuplicate = prev.some((m) => m.id === payload.messageId)
-        if (isDuplicate) return prev
-        return [...prev, {
-          id: payload.messageId,
-          body: payload.body,
-          sender_type: payload.senderType,
-          senderName: payload.senderName ?? null,
-          senderAvatarUrl: payload.senderAvatarUrl ?? null,
-          created_at: payload.createdAt,
-        }]
-      })
-    })
+    const unsub = sdk.guestChat.subscribeToReplies(
+      session.conversationId,
+      (payload) => {
+        setMessages((prev) => {
+          const isDuplicate = prev.some((m) => m.id === payload.messageId)
+          if (isDuplicate) return prev
+          return [...prev, {
+            id: payload.messageId,
+            body: payload.body,
+            sender_type: payload.senderType,
+            senderName: payload.senderName ?? null,
+            senderAvatarUrl: payload.senderAvatarUrl ?? null,
+            created_at: payload.createdAt,
+          }]
+        })
+      },
+      () => { setIsClosed(true) },
+    )
 
     unsubscribeRef.current = unsub
     return () => {
@@ -123,6 +128,7 @@ export function useGuestChat(sdk) {
       setTrackingCode(res.trackingCode ?? null)
       setSession({ token: res.token, conversationId: res.conversationId, email: data.email, name: data.name })
       setMessages([])
+      setIsClosed(false)
       setScreen('chat')
       return res
     } catch (err) {
@@ -184,8 +190,11 @@ export function useGuestChat(sdk) {
       setMessages((prev) => prev.map((m) =>
         m.id === tempId ? { ...m, id: res.messageId, created_at: res.createdAt } : m
       ))
-    } catch {
+    } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== tempId))
+      if (err?.status === 404 || err?.message?.includes('No hay conversacion activa')) {
+        setIsClosed(true)
+      }
     } finally {
       setIsSending(false)
     }
@@ -221,6 +230,7 @@ export function useGuestChat(sdk) {
     setSession(null)
     setTrackingCode(null)
     setMessages([])
+    setIsClosed(false)
     setScreen('welcome')
   }, [sdk, session])
 
@@ -232,6 +242,7 @@ export function useGuestChat(sdk) {
     trackingCode,
     messages,
     isSending,
+    isClosed,
     startError,
     resumeError,
     startSession,

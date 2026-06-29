@@ -54,6 +54,7 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
   const [textInput, setTextInput] = useState('')
   const messagesEndRef = useRef(null)
   const prevMsgCountRef = useRef(0)
+  const textAreaRef = useRef(null)
 
   const {
     screen,
@@ -63,6 +64,7 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
     trackingCode,
     messages,
     isSending,
+    isClosed,
     startError,
     resumeError,
     startSession,
@@ -120,11 +122,12 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
     await startSession({ email: emailInput.trim(), name: nameInput.trim() || undefined })
   }, [emailInput, nameInput, startSession])
 
-  const handleSend = useCallback(async () => {
+  const handleSend = useCallback(() => {
     if (!textInput.trim()) return
     const body = textInput.trim()
     setTextInput('')
-    await sendMessage(body)
+    sendMessage(body)
+    requestAnimationFrame(() => textAreaRef.current?.focus())
   }, [textInput, sendMessage])
 
   const handleKeyDown = useCallback((e) => {
@@ -648,6 +651,25 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
           <div ref={messagesEndRef} />
         </div>
 
+        {isClosed && (
+          <div style={{
+            padding: '8px 14px',
+            background: '#1a1a24',
+            borderTop: `1px solid #252535`,
+            color: '#888',
+            fontSize: 11,
+            textAlign: 'center',
+            flexShrink: 0,
+          }}>
+            Esta conversacion fue cerrada.{' '}
+            <button
+              style={{ background: 'none', border: 'none', color: accentColor, fontSize: 11, cursor: 'pointer', padding: 0 }}
+              onClick={closeSession}
+            >
+              Iniciar nueva
+            </button>
+          </div>
+        )}
         <div style={styles.chatFooter}>
           {/* Hidden file input */}
           <input
@@ -659,9 +681,10 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
           />
           <button
             type="button"
-            style={s(styles.clipBtn, isSending ? { opacity: 0.4 } : {})}
+            style={s(styles.clipBtn, (isSending || isClosed) ? { opacity: 0.4 } : {})}
             onClick={() => fileInputRef.current?.click()}
-            disabled={isSending}
+            onMouseDown={(e) => e.preventDefault()}
+            disabled={isSending || isClosed}
             aria-label="Adjuntar archivo"
             title="Adjuntar imagen o documento"
           >
@@ -669,13 +692,15 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
           </button>
           <textarea
             ref={(el) => {
+              textAreaRef.current = el;
               if (!el) return;
               el.style.height = '36px';
               el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
             }}
-            style={styles.textArea}
-            placeholder="Escribe un mensaje..."
+            style={s(styles.textArea, isClosed ? { opacity: 0.5 } : {})}
+            placeholder={isClosed ? 'Esta conversacion ha sido cerrada.' : 'Escribe un mensaje...'}
             value={textInput}
+            disabled={isClosed}
             onChange={(e) => {
               setTextInput(e.target.value);
               const el = e.target;
@@ -686,9 +711,10 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
             rows={1}
           />
           <button
-            style={s(styles.sendBtn, isSending ? { opacity: 0.5 } : {})}
+            style={s(styles.sendBtn, (isSending || isClosed) ? { opacity: 0.5 } : {})}
             onClick={handleSend}
-            disabled={isSending}
+            onMouseDown={(e) => e.preventDefault()}
+            disabled={isSending || isClosed}
             aria-label="Enviar mensaje"
           >
             <SendIcon />
