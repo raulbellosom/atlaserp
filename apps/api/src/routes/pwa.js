@@ -73,7 +73,7 @@ function buildWebManifest(moduleRow, identityHash) {
     description: manifest.description ?? '',
     id: `/pwa/apps/${moduleKey}`,
     start_url: startUrl,
-    scope: `/app/m/${moduleKey}/`,
+    scope: `/`,
     display: 'standalone',
     orientation: 'portrait-primary',
     background_color: '#0A1D44',

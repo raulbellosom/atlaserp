@@ -172,6 +172,17 @@ export function AtlasApp() {
           }
         }
 
+        // Don't show an in-app toast for chat messages when the user is
+        // already inside the chat module — they can see the message directly.
+        if (
+          message.eventType === "chat.message.new" &&
+          window.location.pathname.includes("/m/atlas.chat")
+        ) {
+          queryClient.invalidateQueries({ queryKey: ["notifications"] });
+          queryClient.invalidateQueries({ queryKey: ["notifications-inbox"] });
+          return;
+        }
+
         const title =
           typeof message.title === "string" && message.title.trim()
             ? message.title

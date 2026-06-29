@@ -53,6 +53,7 @@ self.addEventListener("push", (event) => {
         body: options.body,
         link,
         notificationId: payload?.data?.notificationId ?? null,
+        eventType: payload?.data?.eventType ?? null,
       }),
       self.registration.showNotification(title, options),
     ]),
