@@ -193,6 +193,12 @@ export function AtlasApp() {
             : "";
         const link = resolveLink(message.link);
 
+        try {
+          const audio = new Audio("/sounds/notification.mp3");
+          audio.volume = 0.6;
+          audio.play().catch(() => {});
+        } catch {}
+
         toast(title, {
           description: body || undefined,
           action: link
