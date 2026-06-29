@@ -39,6 +39,10 @@ function makePrisma() {
     ["cash-1", { id: "cash-1", companyId: "company-1", kind: "CASH", enabled: true }],
   ]);
 
+  const profiles = new Map([
+    ["user-1", { id: "user-1", displayName: "Mesero Principal" }],
+  ]);
+
   const prisma = {
     orders,
     lines,
@@ -46,7 +50,11 @@ function makePrisma() {
     payments,
     receipts,
     audits,
+    profiles,
     $transaction: async (fn) => fn(prisma),
+    userProfile: {
+      findUnique: async ({ where }) => profiles.get(where.id) ?? null,
+    },
     posSettings: {
       findUnique: async ({ where }) =>
         where.companyId === "company-1" ? { companyId: "company-1", defaultTaxRate: 16 } : null,
@@ -301,5 +309,84 @@ describe("createPosOrderService", () => {
     assert.equal(payment.status, "CAPTURED");
     assert.equal(paid.paidAmount, 58);
     assert.equal(paid.status, "PAID");
+  });
+
+  it("auto-assigns waiterId to the creating actor on order create", async () => {
+    const svc = createPosOrderService({ prisma: makePrisma() });
+    const order = await svc.createOrder({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", fulfillmentType: "DINE_IN", guestCount: 2 },
+    });
+    assert.equal(order.waiterId, "user-1");
+    assert.equal(order.waiterName, "Mesero Principal");
+  });
+
+  it("assignOrderWaiter reassigns waiter and writes an audit entry", async () => {
+    const db = makePrisma();
+    db.profiles.set("user-2", { id: "user-2", displayName: "Otro Mesero" });
+    db.userProfile = {
+      findUnique: async ({ where }) => db.profiles.get(where.id) ?? null,
+    };
+    const svc = createPosOrderService({ prisma: db });
+    const created = await svc.createOrder({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", fulfillmentType: "DINE_IN", guestCount: 1 },
+    });
+    const updated = await svc.assignOrderWaiter({
+      companyId: "company-1",
+      actorId: "user-1",
+      id: created.id,
+      waiterId: "user-2",
+    });
+    assert.equal(updated.waiterId, "user-2");
+    assert.equal(updated.waiterName, "Otro Mesero");
+    const auditEntry = db.audits.find((a) => a.action === "pos.order.waiter.assign");
+    assert.ok(auditEntry, "audit entry for waiter.assign must exist");
+  });
+
+  it("getSeatTotals groups lines by seat and puts unassigned lines last", async () => {
+    const db = makePrisma();
+    const svc = createPosOrderService({ prisma: db });
+    const order = await svc.createOrder({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", fulfillmentType: "DINE_IN", guestCount: 2 },
+    });
+    const seat = order.guests[0];
+    // Add a line assigned to the first seat
+    await svc.addOrderLine({
+      companyId: "company-1",
+      actorId: "user-1",
+      orderId: order.id,
+      data: {
+        productId: "product-1",
+        quantity: 1,
+        guestSeatId: seat.id,
+      },
+    });
+    // Add an unassigned line (no guestSeatId)
+    await svc.addOrderLine({
+      companyId: "company-1",
+      actorId: "user-1",
+      orderId: order.id,
+      data: {
+        productId: "product-1",
+        quantity: 1,
+      },
+    });
+    const totals = await svc.getSeatTotals({ companyId: "company-1", id: order.id });
+    assert.strictEqual(totals.seats.length, 2);
+    const unassigned = totals.seats.find((s) => s.id === null);
+    assert.ok(unassigned, "unassigned bucket must exist");
+    assert.strictEqual(unassigned.linesCount, 1);
+    const assigned = totals.seats.find((s) => s.id === seat.id);
+    assert.ok(assigned, "assigned seat bucket must exist");
+    assert.strictEqual(assigned.linesCount, 1);
+    // Unassigned bucket must come LAST
+    const unassignedIdx = totals.seats.indexOf(unassigned);
+    const assignedIdx = totals.seats.indexOf(assigned);
+    assert.ok(unassignedIdx > assignedIdx, "Sin asignar bucket must be last");
   });
 });

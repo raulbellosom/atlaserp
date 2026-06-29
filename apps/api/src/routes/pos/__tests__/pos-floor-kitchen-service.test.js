@@ -15,6 +15,10 @@ function makePrisma() {
   const ticketLines = new Map();
   const audits = [];
 
+  const profiles = new Map([
+    ["user-1", { id: "user-1", displayName: "Mesero Principal" }],
+  ]);
+
   const prisma = {
     floors,
     tables,
@@ -25,7 +29,15 @@ function makePrisma() {
     tickets,
     ticketLines,
     audits,
+    profiles,
     $transaction: async (fn) => fn(prisma),
+    userProfile: {
+      findUnique: async ({ where }) => profiles.get(where.id) ?? null,
+      findMany: async ({ where }) => {
+        const ids = where?.id?.in ?? [];
+        return ids.map((id) => profiles.get(id)).filter(Boolean);
+      },
+    },
     posFloor: {
       findMany: async ({ where }) =>
         [...floors.values()].filter(
@@ -62,7 +74,12 @@ function makePrisma() {
     },
     posTable: {
       findMany: async ({ where }) =>
-        [...tables.values()].filter((row) => row.floorId === where.floorId),
+        [...tables.values()].filter((row) => {
+          if (where.floorId && row.floorId !== where.floorId) return false;
+          if (where.waiterId !== undefined && row.waiterId !== where.waiterId) return false;
+          if (where.enabled !== undefined && row.enabled !== where.enabled) return false;
+          return true;
+        }),
       findFirst: async ({ where }) =>
         [...tables.values()].find((row) => {
           if (where.id && row.id !== where.id) return false;
@@ -89,6 +106,10 @@ function makePrisma() {
         ),
       findFirst: async ({ where }) =>
         [...stations.values()].find((row) => row.id === where.id && row.companyId === where.companyId) ?? null,
+      count: async ({ where }) =>
+        [...stations.values()].filter(
+          (row) => !where?.companyId || row.companyId === where.companyId,
+        ).length,
       create: async ({ data }) => {
         const row = { id: `station-${stations.size + 1}`, enabled: true, ...data };
         stations.set(row.id, row);
@@ -103,6 +124,11 @@ function makePrisma() {
     posOrder: {
       findFirst: async ({ where }) =>
         [...orders.values()].find((row) => row.id === where.id && row.companyId === where.companyId) ?? null,
+      update: async ({ where, data }) => {
+        const row = { ...orders.get(where.id), ...data };
+        orders.set(where.id, row);
+        return row;
+      },
     },
     posOrderLine: {
       findMany: async ({ where }) =>
@@ -226,6 +252,74 @@ describe("createPosFloorService", () => {
       (err) => err instanceof PosServiceError && err.status === 404,
     );
   });
+
+  it("updateTableWaiter sets waiterId and updateTableStatus AVAILABLE clears it", async () => {
+    const prisma = makePrisma();
+    const svc = createPosFloorService({ prisma });
+    const floor = await svc.createFloor({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", name: "Salon" },
+    });
+    const table = await svc.createTable({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { floorId: floor.id, name: "Mesa 1", capacity: 4 },
+    });
+    const assigned = await svc.updateTableWaiter({
+      companyId: "company-1",
+      actorId: "user-1",
+      tableId: table.id,
+      waiterId: "user-1",
+    });
+    assert.equal(assigned.waiterId, "user-1");
+    const auditEntry = prisma.audits.find((a) => a.action === "pos.table.waiter.assign");
+    assert.ok(auditEntry, "audit entry for table waiter.assign must exist");
+    const cleared = await svc.updateTableStatus({
+      companyId: "company-1",
+      actorId: "user-1",
+      tableId: table.id,
+      status: "AVAILABLE",
+    });
+    assert.equal(cleared.waiterId, null);
+  });
+
+  it("getActiveMap with myTablesOnly:true returns only tables where waiterId matches actorId", async () => {
+    const prisma = makePrisma();
+    const svc = createPosFloorService({ prisma });
+    const floor = await svc.createFloor({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", name: "Salon" },
+    });
+    await svc.publishFloor({ companyId: "company-1", id: floor.id, actorId: "user-1" });
+    const myTable = await svc.createTable({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { floorId: floor.id, name: "Mesa A", capacity: 2 },
+    });
+    await svc.createTable({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { floorId: floor.id, name: "Mesa B", capacity: 2 },
+    });
+    await svc.updateTableWaiter({
+      companyId: "company-1",
+      actorId: "user-1",
+      tableId: myTable.id,
+      waiterId: "user-1",
+    });
+    const map = await svc.getActiveMap({
+      companyId: "company-1",
+      outletId: "outlet-1",
+      myTablesOnly: true,
+      actorId: "user-1",
+    });
+    assert.ok(map, "active map must exist");
+    assert.strictEqual(map.tables.length, 1);
+    assert.strictEqual(map.tables[0].id, myTable.id);
+    assert.equal(map.tables[0].waiterName, "Mesero Principal");
+  });
 });
 
 describe("createPosKitchenService", () => {
@@ -263,6 +357,8 @@ describe("createPosKitchenService", () => {
   it("rejects prep lines without a station", async () => {
     const prisma = makePrisma();
     const svc = createPosKitchenService({ prisma });
+    // A station must exist so the router enters the routing path; stationCount === 0 short-circuits to SENT.
+    prisma.stations.set("station-1", { id: "station-1", companyId: "company-1", outletId: "outlet-1", enabled: true });
     prisma.orders.set("order-1", { id: "order-1", companyId: "company-1" });
     prisma.lines.set("line-1", { id: "line-1", orderId: "order-1", productId: "p1", variantId: null, quantity: 1 });
     prisma.configs.set("p1", { companyId: "company-1", productId: "p1", variantId: null, requiresPreparation: true, stationId: null });
