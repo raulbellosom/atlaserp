@@ -1,5 +1,11 @@
 import { EmptyState } from '@atlas/ui'
 
+function waiterInitials(name) {
+  if (!name) return ''
+  const parts = name.trim().split(/\s+/)
+  return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('')
+}
+
 const STATUS_COLORS = {
   AVAILABLE: 'bg-green-100 border-green-400 text-green-800',
   OCCUPIED: 'bg-amber-100 border-amber-400 text-amber-800',
@@ -44,10 +50,18 @@ export default function TableMap({ tables = [], onTableClick }) {
               key={table.id}
               onClick={() => onTableClick(table)}
               disabled={table.status === 'DISABLED'}
-              className={`aspect-square flex flex-col items-center justify-center rounded-xl border-2 transition-all hover:scale-105 active:scale-95 min-h-18 ${
+              className={`relative aspect-square flex flex-col items-center justify-center rounded-xl border-2 transition-all hover:scale-105 active:scale-95 min-h-18 ${
                 STATUS_COLORS[table.status] ?? STATUS_COLORS.AVAILABLE
               } ${table.status === 'DISABLED' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             >
+              {table.waiterName && (
+                <span
+                  title={table.waiterName}
+                  className="absolute top-1 right-1 h-5 w-5 rounded-full bg-foreground/80 text-background text-[9px] font-bold flex items-center justify-center"
+                >
+                  {waiterInitials(table.waiterName)}
+                </span>
+              )}
               <span className="text-base font-bold leading-none">{table.name}</span>
               <span className="text-[10px] mt-1 font-medium opacity-80">{STATUS_LABELS[table.status]}</span>
               {table.capacity && (

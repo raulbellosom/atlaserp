@@ -89,6 +89,14 @@ function OperationalTable({ el, table, onClick }) {
         <circle cx={ox + el.width - 6} cy={oy + 6} r={4}
           fill={style.dot} stroke="white" strokeWidth={1.2} />
       </svg>
+      {table?.waiterName && (
+        <div
+          title={table.waiterName}
+          className="absolute -top-1.5 -left-1.5 h-5 w-5 rounded-full bg-foreground/80 text-background text-[9px] font-bold flex items-center justify-center z-20"
+        >
+          {table.waiterName.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('')}
+        </div>
+      )}
     </div>
   )
 }
@@ -390,14 +398,15 @@ export default function FloorOperationalCanvas({ floor, elements = [], tableStat
             ))}
 
             {/* Table elements (top layer, interactive) */}
-            {tableElements.map((el) => (
-              <OperationalTable
-                key={el.id}
-                el={el}
-                table={el.tableId ? tableStates[el.tableId] : null}
-                onClick={onTableClick}
-              />
-            ))}
+            {tableElements.map((el) => {
+              const boundTable = el.tableId ? tableStates[el.tableId] : null
+              const isUnbound = Boolean(el.tableId) && !boundTable
+              return (
+                <div key={el.id} style={isUnbound ? { opacity: 0.25, pointerEvents: 'none' } : undefined}>
+                  <OperationalTable el={el} table={boundTable} onClick={onTableClick} />
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>
