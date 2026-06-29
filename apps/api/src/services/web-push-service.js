@@ -164,10 +164,13 @@ export function createWebPushService({ prisma, webPushLib = webpush }) {
     );
 
     if (publicKeyChanged) {
-      // Remove stale subscriptions so the worker stops retrying deliveries that
-      // will always fail with "unexpected response code" (key mismatch).
+      // Remove stale subscriptions and queued deliveries — both are now invalid
+      // because the new applicationServerKey won't match what browsers subscribed with.
       await prisma.pushSubscription.deleteMany({}).catch(() => {});
-      console.log('[web-push] VAPID public key changed — all push subscriptions cleared. Users must re-subscribe.');
+      await prisma.notificationDelivery.deleteMany({
+        where: { channel: 'web_push', status: { in: ['queued', 'failed'] } },
+      }).catch(() => {});
+      console.log('[web-push] VAPID public key changed — all push subscriptions and pending deliveries cleared. Users must re-subscribe.');
     }
 
     return getVapidConfig();

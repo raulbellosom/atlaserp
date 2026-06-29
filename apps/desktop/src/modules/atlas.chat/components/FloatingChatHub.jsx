@@ -163,10 +163,20 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
             title={name}
             onClick={onMinimize}
             onKeyDown={(e) => e.key === "Enter" && onMinimize()}
-            className="group flex items-center gap-1.5 px-2.5 h-11 bg-[hsl(var(--surface-2))] cursor-pointer select-none"
+            className={[
+              "group flex items-center gap-1.5 px-2.5 h-11 cursor-pointer select-none",
+              conversation?.unread_count > 0
+                ? "bg-[hsl(var(--primary)/0.12)] border-l-2 border-[hsl(var(--primary))]"
+                : "bg-[hsl(var(--surface-2))]",
+            ].join(" ")}
           >
             <AvatarCircle avatarUrl={avatarUrl} name={name} size="sm" />
             <p className="flex-1 text-xs font-semibold truncate">{name}</p>
+            {conversation?.unread_count > 0 && (
+              <span className="h-4 min-w-4 rounded-full bg-[hsl(var(--primary))] text-white text-[9px] font-bold flex items-center justify-center px-1 shrink-0 group-hover:hidden">
+                {conversation.unread_count > 99 ? "99+" : conversation.unread_count}
+              </span>
+            )}
             <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
               <button
                 type="button"
@@ -673,18 +683,18 @@ function FloatingChatHubInner() {
           onPointerCancel={handlePointerCancel}
           style={{ touchAction: "none" }}
           className={[
-            "h-14 w-14 rounded-full shadow-xl flex items-center justify-center relative overflow-hidden",
+            "h-14 w-14 rounded-full shadow-xl flex items-center justify-center relative",
             "cursor-grab select-none",
             dragPos ? "scale-110 shadow-2xl" : "transition-transform active:scale-95",
             userProfile?.avatarUrl ? "bg-[hsl(var(--muted))]" : "bg-(--brand-primary) text-white",
             isOpen ? "ring-2 ring-white/30" : "",
           ].join(" ")}
         >
-          <div className="h-full w-full rounded-full flex items-center justify-center">
+          <div className="h-full w-full rounded-full flex items-center justify-center overflow-hidden">
             <BubbleAvatar avatarUrl={userProfile?.avatarUrl} name={userProfile?.displayName} />
           </div>
           {totalUnread > 0 && (
-            <span className="absolute -top-1 -right-1 h-5 min-w-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-md pointer-events-none">
+            <span className="absolute -top-1.5 -right-1.5 h-5 min-w-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-md pointer-events-none ring-2 ring-[hsl(var(--background))]">
               {totalUnread > 99 ? "99+" : totalUnread}
             </span>
           )}
