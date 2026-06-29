@@ -826,6 +826,33 @@ app.get("/health", (c) => {
   });
 });
 
+const BRAND_DIR = path.resolve(currentDir, "../../../apps/desktop/public/brand");
+const ALLOWED_BRAND_FILES = new Set([
+  "atlas-logo-horizontal.png",
+  "atlas-logo-primary.png",
+  "atlas-logo-isotype.png",
+  "atlas-logo-vertical.png",
+  "atlas-logo-monochrome-light.png",
+  "atlas-logo-monochrome-dark.png",
+]);
+app.get("/brand/:filename", async (c) => {
+  const filename = c.req.param("filename");
+  if (!ALLOWED_BRAND_FILES.has(filename)) return c.notFound();
+  const filePath = path.join(BRAND_DIR, filename);
+  try {
+    const { readFile } = await import("node:fs/promises");
+    const data = await readFile(filePath);
+    return new Response(data, {
+      headers: {
+        "Content-Type": "image/png",
+        "Cache-Control": "public, max-age=86400",
+      },
+    });
+  } catch {
+    return c.notFound();
+  }
+});
+
 // Public notes — no auth. Registered early so it's never wrapped by auth middleware.
 const _publicNotesShares = createNotesSharesService({ prisma, broadcaster });
 app.get("/public/notes/:slug", async (c) => {

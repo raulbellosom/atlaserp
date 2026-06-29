@@ -1,6 +1,6 @@
 # @raulbellosom/atlas-sdk
 
-Generic JavaScript client for AtlasERP storefront APIs. Works in any browser environment, React app, or Vite project. Handles authentication, session persistence, file uploads, product catalog, module discovery, and real-time events.
+Generic JavaScript client for AtlasERP storefront APIs. Works in any browser environment, React app, or Vite project. Handles authentication, session persistence, file uploads, product catalog, module discovery, real-time events, and guest live chat.
 
 ```bash
 # npm
@@ -30,6 +30,7 @@ pnpm add @raulbellosom/atlas-sdk
 14. [Environment variables for Vite projects](#14-environment-variables-for-vite-projects)
 15. [Roles system](#15-roles-system)
 16. [Deploying to Atlas Website (source\_type=dist)](#16-deploying-to-atlas-website-source_typedist)
+17. [sdk.guestChat — guest live chat](#17-sdkguestchat--guest-live-chat)
 
 ---
 
@@ -2106,3 +2107,489 @@ if (user?.hasErpAccess) {
 ### Local development
 
 Run your dev server normally with `.env` variables (`VITE_ERP_URL`, `VITE_ERP_COMPANY`). The two-fallback pattern in `src/sdk.js` ensures the SDK uses env vars when `window.ATLAS_CONFIG` is not present.
+
+---
+
+## 17. sdk.guestChat — guest live chat
+
+The `guestChat` namespace lets public visitors start, continue, and close live chat conversations with your team through the `atlas.chat` module. No authentication is required — sessions are identified by a short-lived signed token stored in `localStorage`.
+
+**Requires:** `atlas.chat` installed and enabled on the ERP instance. Both `supabaseUrl` and `supabaseAnonKey` must be provided to `createStorefrontClient` for real-time reply subscriptions to work (the `subscribeToReplies` method falls back to a no-op when they are absent).
+
+---
+
+### `sdk.guestChat.getAvailability()`
+
+**Description:** Returns the current chat availability for the company. Use this to show or hide the chat widget before a session is started.
+
+**Parameters:** None
+
+**Returns:** `Promise<{ available: boolean, agentsOnline: number }>`
+
+| Field | Type | Description |
+|---|---|---|
+| `available` | `boolean` | `true` if at least one operator is online and ready to accept conversations |
+| `agentsOnline` | `number` | Number of operators currently online |
+
+**Example:**
+
+```js
+const status = await sdk.guestChat.getAvailability()
+if (status.available) {
+  showChatButton()
+} else {
+  showOfflineMessage(`No hay agentes disponibles ahora mismo`)
+}
+```
+
+---
+
+### `sdk.guestChat.createSession(data?)`
+
+**Description:** Opens a new guest chat conversation. The server returns a signed token that identifies the session. Store this token in `localStorage` to resume the conversation across page reloads.
+
+**Parameters (all optional):**
+
+| Name | Type | Description |
+|---|---|---|
+| `data.name` | `string` | Visitor's display name |
+| `data.email` | `string` | Visitor's email address |
+| `data.pageUrl` | `string` | URL of the page where the chat started (for operator context) |
+| `data.referrer` | `string` | `document.referrer` value |
+| `data.userAgent` | `string` | `navigator.userAgent` value |
+
+**Returns:** `Promise<{ token, conversationId, trackingCode }>`
+
+| Field | Type | Description |
+|---|---|---|
+| `token` | `string` | Signed session token — required for all subsequent calls |
+| `conversationId` | `string` | UUID of the created conversation — required for `subscribeToReplies` |
+| `trackingCode` | `string` | Short human-readable code (e.g. `"CHAT-000042"`) visitors can use to resume the conversation by email |
+
+**Example:**
+
+```js
+const session = await sdk.guestChat.createSession({
+  name: 'Ana Garcia',
+  email: 'ana@ejemplo.mx',
+  pageUrl: window.location.href,
+  referrer: document.referrer,
+  userAgent: navigator.userAgent,
+})
+localStorage.setItem('atlas_chat_token', session.token)
+console.log('Conversacion iniciada. Codigo de referencia:', session.trackingCode)
+```
+
+---
+
+### `sdk.guestChat.getSession(token)`
+
+**Description:** Retrieves the current state of a guest session. Use this to restore a persisted session on page reload.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `token` | `string` | Yes | Session token from `createSession` |
+
+**Returns:** `Promise<{ email, name, conversation: { status } }>`
+
+| Field | Type | Description |
+|---|---|---|
+| `email` | `string \| null` | Visitor email on the session |
+| `name` | `string \| null` | Visitor name on the session |
+| `conversation.status` | `string` | `'open'` or `'closed'` — when `'closed'` the token is no longer usable |
+
+**Example:**
+
+```js
+const stored = localStorage.getItem('atlas_chat_token')
+if (stored) {
+  const data = await sdk.guestChat.getSession(stored)
+  if (data.conversation?.status === 'closed') {
+    localStorage.removeItem('atlas_chat_token')
+    // Session expired — show welcome screen
+  } else {
+    // Restore the conversation UI
+  }
+}
+```
+
+---
+
+### `sdk.guestChat.listMessages(token, options?)`
+
+**Description:** Returns the message history for a session, in chronological order.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `token` | `string` | Yes | Session token |
+| `options.limit` | `number` | No | Maximum messages to return (default: 40) |
+| `options.before` | `string` | No | ISO datetime cursor — returns messages created before this timestamp (for pagination) |
+
+**Returns:** `Promise<Array<message>>`
+
+Each message object:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Message UUID |
+| `body` | `string` | Message text, or file name for file messages |
+| `sender_type` | `'guest' \| 'operator'` | Who sent the message |
+| `message_type` | `'text' \| 'file'` | Message kind |
+| `senderName` | `string \| null` | Operator display name (null for guest messages) |
+| `senderAvatarUrl` | `string \| null` | Operator avatar URL (null for guest messages) |
+| `metadata` | `object \| null` | For file messages: `{ attachmentId, fileName, mimeType, sizeBytes }` |
+| `created_at` | `string` | ISO datetime |
+
+**Example:**
+
+```js
+const messages = await sdk.guestChat.listMessages(token, { limit: 40 })
+for (const msg of messages) {
+  const side = msg.sender_type === 'guest' ? 'Tu' : (msg.senderName ?? 'Operador')
+  console.log(`[${side}] ${msg.body}`)
+}
+```
+
+---
+
+### `sdk.guestChat.sendMessage(token, body, messageType?)`
+
+**Description:** Sends a text message in the conversation.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `token` | `string` | Yes | Session token |
+| `body` | `string` | Yes | Message text |
+| `messageType` | `string` | No | Message type — defaults to `'text'` |
+
+**Returns:** `Promise<{ messageId, createdAt }>`
+
+**Example:**
+
+```js
+const result = await sdk.guestChat.sendMessage(token, 'Hola, necesito ayuda con mi pedido')
+console.log('Mensaje enviado, ID:', result.messageId)
+```
+
+---
+
+### `sdk.guestChat.sendFileMessage(token, options)`
+
+**Description:** Presigns an upload URL, uploads the file to Supabase Storage, then sends a file message in the conversation. This is the recommended high-level method for file sharing.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `token` | `string` | Yes | Session token |
+| `options.fileName` | `string` | Yes | Original file name |
+| `options.mimeType` | `string` | Yes | File MIME type |
+| `options.sizeBytes` | `number` | Yes | File size in bytes |
+| `options.file` | `File \| Blob` | Yes | The file data to upload |
+
+**Returns:** `Promise<{ messageId, createdAt }>`
+
+**Example:**
+
+```js
+const fileInput = document.getElementById('adjunto')
+const file = fileInput.files[0]
+if (file) {
+  await sdk.guestChat.sendFileMessage(token, {
+    fileName: file.name,
+    mimeType: file.type || 'application/octet-stream',
+    sizeBytes: file.size,
+    file,
+  })
+}
+```
+
+---
+
+### `sdk.guestChat.presignAttachment(token, options)`
+
+**Description:** Low-level method — requests a presigned upload URL for a file attachment. Use `sendFileMessage` instead unless you need direct control over the upload step.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `token` | `string` | Yes | Session token |
+| `options.fileName` | `string` | Yes | Original file name |
+| `options.mimeType` | `string` | Yes | MIME type |
+| `options.sizeBytes` | `number` | Yes | File size in bytes |
+
+**Returns:** `Promise<{ attachmentId, uploadUrl }>`
+
+---
+
+### `sdk.guestChat.subscribeToReplies(conversationId, onMessage)`
+
+**Description:** Subscribes to real-time operator replies via Supabase Realtime broadcast. Opens a new Supabase client (separate from the auth client) with a non-persistent session so it does not interfere with the user's auth state.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `conversationId` | `string` | Yes | UUID returned by `createSession` |
+| `onMessage` | `function(payload)` | Yes | Called for each incoming operator message |
+
+The `payload` object:
+
+| Field | Type | Description |
+|---|---|---|
+| `messageId` | `string` | UUID of the new message |
+| `body` | `string` | Message text |
+| `senderType` | `'operator'` | Always `'operator'` for broadcast events |
+| `senderName` | `string \| null` | Operator display name |
+| `senderAvatarUrl` | `string \| null` | Operator avatar URL |
+| `createdAt` | `string` | ISO datetime |
+
+**Returns:** `function` — call this to unsubscribe and close the channel
+
+**Important:** If `supabaseUrl` and `supabaseAnonKey` were not provided to `createStorefrontClient`, this method returns a no-op unsubscribe function immediately.
+
+**Example:**
+
+```js
+const unsubscribe = sdk.guestChat.subscribeToReplies(conversationId, (payload) => {
+  console.log('Nuevo mensaje del operador:', payload.body)
+  appendMessage({
+    id: payload.messageId,
+    body: payload.body,
+    sender_type: payload.senderType,
+    senderName: payload.senderName,
+    created_at: payload.createdAt,
+  })
+})
+
+// When navigating away or closing the chat
+unsubscribe()
+```
+
+---
+
+### `sdk.guestChat.closeSession(token)`
+
+**Description:** Marks the conversation as closed. The token becomes invalid after this call.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `token` | `string` | Yes | Session token |
+
+**Returns:** `Promise<void>`
+
+**Example:**
+
+```js
+await sdk.guestChat.closeSession(token)
+localStorage.removeItem('atlas_chat_token')
+showThankYouScreen()
+```
+
+---
+
+### `sdk.guestChat.resumeByCode(trackingCode, email)`
+
+**Description:** Resumes a previous conversation using the tracking code shown to the visitor (e.g. `"CHAT-000042"`) plus their email address. Use this for the "resume conversation" flow when a visitor returns from a different browser or device.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `trackingCode` | `string` | Yes | Tracking code from `createSession`. Case-insensitive — the SDK uppercases it automatically |
+| `email` | `string` | Yes | Email address used when the conversation was started |
+
+**Returns:** `Promise<{ token, conversationId, trackingCode }>`
+
+Same shape as `createSession` — the new token replaces the old one.
+
+**Errors thrown:**
+- `NOT_FOUND` (404) — tracking code + email combination does not match any conversation
+- `UNKNOWN` (409) — the conversation is already closed
+
+**Example:**
+
+```js
+try {
+  const session = await sdk.guestChat.resumeByCode('CHAT-000042', 'ana@ejemplo.mx')
+  localStorage.setItem('atlas_chat_token', session.token)
+  const messages = await sdk.guestChat.listMessages(session.token)
+  showChatScreen(messages)
+} catch (err) {
+  if (err.code === 'NOT_FOUND') {
+    showError('No encontramos una conversacion con ese codigo y correo')
+  }
+}
+```
+
+---
+
+### React: `useGuestChat(sdk)`
+
+**Import:** `import { useGuestChat } from '@raulbellosom/atlas-sdk/react'`
+
+A stateful React hook that manages the complete guest chat lifecycle: availability check, session creation, session restore, message list, sending, real-time subscriptions, and close. Backed by `localStorage` for persistence across page reloads.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `sdk` | SDK client | Yes | The object returned by `createStorefrontClient`. Pass the singleton from your `src/sdk.js` |
+
+**Return value:**
+
+| Field | Type | Description |
+|---|---|---|
+| `screen` | `'welcome' \| 'identify' \| 'resume' \| 'chat'` | Current UI screen state |
+| `setScreen` | `function(screen)` | Navigate between screens |
+| `availability` | `{ available: boolean, agentsOnline: number } \| null` | Chat availability status. `null` while loading |
+| `session` | `{ token, conversationId, email, name } \| null` | Active session, or `null` when no session |
+| `trackingCode` | `string \| null` | Human-readable reference code for the active conversation |
+| `messages` | `Array<message>` | All messages in the conversation, in chronological order |
+| `isSending` | `boolean` | `true` while a send operation is in progress |
+| `startError` | `string \| null` | Error message from the last `startSession` call, or `null` |
+| `resumeError` | `string \| null` | Error message from the last `resumeByCode` call, or `null` |
+| `startSession` | `async function(data?)` | Creates a new session. Accepts the same `data` object as `sdk.guestChat.createSession`. Sets `screen` to `'chat'` on success |
+| `resumeByCode` | `async function(code, email)` | Resumes by tracking code. Sets `screen` to `'chat'` on success |
+| `sendMessage` | `async function(body)` | Sends a text message. No-op if no session or empty body |
+| `sendFile` | `async function(file)` | Sends a file. Accepts a `File` or `Blob` object |
+| `closeSession` | `async function()` | Closes and clears the session. Resets to `screen: 'welcome'` |
+
+**Screen flow:**
+
+```
+welcome → identify → [startSession] → chat
+        → resume  → [resumeByCode] → chat
+```
+
+On mount the hook:
+1. Fetches chat availability via `sdk.guestChat.getAvailability()`
+2. Checks `localStorage` for a stored session token
+3. If found, calls `sdk.guestChat.getSession(token)` to validate it
+4. If the conversation is still open, restores messages and sets `screen: 'chat'`
+5. If the conversation is closed, clears storage and starts at `screen: 'welcome'`
+
+**Example:**
+
+```jsx
+import { useGuestChat } from '@raulbellosom/atlas-sdk/react'
+import { sdk } from './sdk.js'
+
+function GuestChatPanel() {
+  const {
+    screen, setScreen, availability,
+    session, trackingCode, messages,
+    isSending, startError, resumeError,
+    startSession, resumeByCode,
+    sendMessage, sendFile, closeSession,
+  } = useGuestChat(sdk)
+
+  if (screen === 'welcome') {
+    return (
+      <div>
+        {availability?.available
+          ? <p>Hay {availability.agentsOnline} agente(s) disponibles</p>
+          : <p>Sin agentes disponibles ahora</p>
+        }
+        <button onClick={() => setScreen('identify')}>Iniciar chat</button>
+        <button onClick={() => setScreen('resume')}>Retomar conversacion</button>
+      </div>
+    )
+  }
+
+  if (screen === 'identify') {
+    return (
+      <IdentifyForm
+        onSubmit={({ name, email }) =>
+          startSession({ name, email, pageUrl: window.location.href })
+        }
+        error={startError}
+      />
+    )
+  }
+
+  if (screen === 'resume') {
+    return (
+      <ResumeForm
+        onSubmit={({ code, email }) => resumeByCode(code, email)}
+        error={resumeError}
+      />
+    )
+  }
+
+  // screen === 'chat'
+  return (
+    <div>
+      <p>Referencia: {trackingCode}</p>
+      <ul>
+        {messages.map(msg => (
+          <li key={msg.id} style={{ textAlign: msg.sender_type === 'guest' ? 'right' : 'left' }}>
+            {msg.senderName && <strong>{msg.senderName}: </strong>}
+            {msg.body}
+          </li>
+        ))}
+      </ul>
+      <button onClick={() => sendMessage('Hola')} disabled={isSending}>
+        Enviar
+      </button>
+      <button onClick={closeSession}>Cerrar chat</button>
+    </div>
+  )
+}
+```
+
+---
+
+### React: `ChatWidget`
+
+**Import:** `import { ChatWidget } from '@raulbellosom/atlas-sdk/react'`
+
+A fully styled, self-contained chat widget component built on top of `useGuestChat`. Renders as a floating action button in the bottom-right corner of the page. Handles all screens (welcome, identify, resume, chat) and supports text messages, file attachments, availability display, and operator reply indicators. Uses inline styles only — no external CSS required.
+
+**Props:**
+
+| Prop | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `sdk` | SDK client | Yes | — | The object returned by `createStorefrontClient` |
+| `companyName` | `string` | No | `'Chat'` | Company or brand name shown in the widget header |
+| `accentColor` | `string` | No | `'#c7f049'` | Hex color for the primary action button and accents |
+
+**Example:**
+
+```jsx
+import { ChatWidget } from '@raulbellosom/atlas-sdk/react'
+import { sdk } from './sdk.js'
+
+export default function App() {
+  return (
+    <>
+      {/* Your app content */}
+      <ChatWidget
+        sdk={sdk}
+        companyName="Soporte Atlas"
+        accentColor="#6366f1"
+      />
+    </>
+  )
+}
+```
+
+The widget:
+- Shows a floating button when `availability.available` is `true`
+- Hides automatically when the chat service is offline
+- Shows a session restore flow when a stored session is found
+- Plays a soft audio beep when an operator reply arrives
+- Renders inline file attachments for file messages
+- Groups messages by date (Hoy / Ayer / day-month)
+- Shows the tracking code (`CHAT-XXXXXX`) in the header for support reference
+
+No routing, global state, or CSS imports are required. Mount it once at the root of your app.

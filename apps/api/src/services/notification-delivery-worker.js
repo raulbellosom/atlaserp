@@ -71,6 +71,22 @@ async function resolveAppBaseUrl({ prisma }) {
   return null;
 }
 
+function resolveApiBaseUrl() {
+  const candidates = [
+    process.env.ATLAS_API_URL,
+    process.env.API_URL,
+    process.env.VITE_ATLAS_API_URL,
+  ];
+  for (const candidate of candidates) {
+    const normalized = normalizeBaseUrl(candidate);
+    if (normalized) return normalized;
+  }
+  if (process.env.NODE_ENV !== "production") {
+    return "http://localhost:4010";
+  }
+  return null;
+}
+
 function toAbsoluteLink(link, appBaseUrl) {
   if (!link || typeof link !== "string") return null;
   const value = link.trim();
@@ -164,8 +180,9 @@ function buildNotificationEmail({ notification, appBaseUrl }) {
   const title = notification?.title ?? "Notificacion de Atlas";
   const body = notification?.body ?? "";
   const link = toAbsoluteLink(notification?.link ?? null, appBaseUrl);
-  const logoUrl = appBaseUrl
-    ? toAbsoluteLink("/brand/atlas-logo-horizontal.png", appBaseUrl)
+  const apiBaseUrl = resolveApiBaseUrl();
+  const logoUrl = apiBaseUrl
+    ? toAbsoluteLink("/brand/atlas-logo-horizontal.png", apiBaseUrl)
     : null;
   const createdAt = formatDateTime(notification?.createdAt);
   const eventStart = formatDateTime(notification?.metadata?.startAt);

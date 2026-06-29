@@ -42,12 +42,12 @@ Uploaded `dist` HTML receives both `window.ATLAS_CONFIG` and
 The Builder runtime receives the equivalent config from
 `GET /public/website/resolve` and loads the same IIFE.
 
-## npm SDK 0.3.0
+## npm SDK 0.4.7
 
 ```js
 import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
 
-const cfg = window.ATLAS_CONFIG ?? {}
+const cfg = (typeof window !== 'undefined' && window.ATLAS_CONFIG) ? window.ATLAS_CONFIG : {}
 
 export const sdk = createStorefrontClient({
   baseUrl: cfg.apiUrl ?? import.meta.env.VITE_ERP_URL,
@@ -68,6 +68,7 @@ Create one client singleton. The returned frozen object contains:
 - `realtime`
 - `analytics`
 - `forms`
+- `guestChat`
 - `request`
 
 React exports include:
@@ -76,6 +77,7 @@ React exports include:
 - `useAuth`, `useSession`
 - `useAnalytics`, `usePageView`
 - `usePublicForm`
+- `useGuestChat`, `ChatWidget`
 - existing catalog, files, discovery, config, and request hooks
 
 ## Unified auth session
@@ -252,6 +254,62 @@ This ensures Builder, plain HTML, and uploaded `dist` sites share:
 
 It aggregates complete UTC days into `GrowthDailyMetric`, stores a global watermark,
 and purges in bounded batches. It never purges leads or form submissions.
+
+## Guest chat (sdk.guestChat)
+
+Available when `atlas.chat` is installed. Requires `supabaseUrl` + `supabaseAnonKey` for
+real-time reply subscriptions; the other methods work without them.
+
+```js
+// Check availability before showing the widget
+const { available, agentsOnline } = await sdk.guestChat.getAvailability()
+
+// Start a session (name/email optional for anonymous mode)
+const { token, conversationId, trackingCode } = await sdk.guestChat.createSession({
+  name: 'Ana Garcia',
+  email: 'ana@ejemplo.mx',
+  pageUrl: window.location.href,
+})
+
+// List history
+const messages = await sdk.guestChat.listMessages(token, { limit: 40 })
+
+// Send text
+await sdk.guestChat.sendMessage(token, 'Hola, necesito ayuda')
+
+// Send file (presign + upload + message in one call)
+await sdk.guestChat.sendFileMessage(token, { fileName, mimeType, sizeBytes, file })
+
+// Real-time operator replies (returns unsubscribe fn)
+const unsub = sdk.guestChat.subscribeToReplies(conversationId, (payload) => {
+  appendMessage(payload)
+})
+
+// Resume from a different device
+const resumed = await sdk.guestChat.resumeByCode('CHAT-000042', 'ana@ejemplo.mx')
+
+// Close
+await sdk.guestChat.closeSession(token)
+```
+
+**guestChat methods:**
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `getAvailability()` | `GET /public/storefront/chat/availability` | Check if operators are online |
+| `createSession(data?)` | `POST /public/chat/session` | Open a new conversation |
+| `getSession(token)` | `GET /public/chat/session/:token` | Validate / restore a stored session |
+| `listMessages(token, opts?)` | `GET /public/chat/session/:token/messages` | Message history (newest last) |
+| `sendMessage(token, body)` | `POST /public/chat/session/:token/messages` | Send text |
+| `sendFileMessage(token, opts)` | presign + PUT + `POST messages` | Upload file and send as message |
+| `presignAttachment(token, opts)` | `POST /public/chat/session/:token/attachments/presign` | Low-level: get upload URL only |
+| `subscribeToReplies(convId, fn)` | Supabase Realtime broadcast | Returns unsubscribe fn |
+| `resumeByCode(code, email)` | `POST /public/chat/session/resume-by-code` | Resume from tracking code |
+| `closeSession(token)` | `POST /public/chat/session/:token/close` | Mark conversation closed |
+
+**React:** `useGuestChat(sdk)` manages the full lifecycle (availability, session restore, messages, realtime). Returns `{ screen, setScreen, availability, session, trackingCode, messages, isSending, startError, resumeError, startSession, resumeByCode, sendMessage, sendFile, closeSession }`.
+
+`<ChatWidget sdk={sdk} companyName="..." accentColor="#..." />` is a drop-in fully-styled floating widget built on `useGuestChat`. Import from `@raulbellosom/atlas-sdk/react`.
 
 ## Verification
 

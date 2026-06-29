@@ -39,9 +39,58 @@ Every new module must declare:
 - at least one model, one page route, and the matching permissions/navigation entries
 
 `icon`, `color` and `pwa` are required for every new module. `icon` must be a
-supported Lucide icon, `color` must use six-digit hexadecimal notation, and
-`pwa.startPath` must be an internal path relative to `/app/m/<moduleKey>`.
-Atlas uses these fields to create an independently installable PWA identity.
+supported Lucide icon from the Atlas whitelist below, `color` must use six-digit
+hexadecimal notation, and `pwa.startPath` must be an internal path relative to
+`/app/m/<moduleKey>`. Atlas uses these fields to create an independently
+installable PWA identity.
+
+**Valid module icon names** — only these values pass `isModuleIconName()` validation.
+Do NOT use any other Lucide icon name or the sync endpoint will reject the manifest.
+
+```
+Analytics & Reporting:
+  Activity, BarChart3, BarChart4, LineChart, PieChart, TrendingDown, TrendingUp
+
+Finance & Accounting:
+  ArrowRightLeft, Banknote, Calculator, Coins, CreditCard, DollarSign, HandCoins,
+  Landmark, Percent, PiggyBank, Receipt, Scale, Wallet
+
+Documents & Files:
+  BookOpen, BookMarked, ClipboardCheck, ClipboardList, FileCheck, Files, FileSearch,
+  FileSpreadsheet, FileText, FolderOpen, Library, ListOrdered, NotebookPen
+
+People & HR:
+  Briefcase, Contact, ContactRound, GraduationCap, HeartPulse, Stethoscope,
+  UserCheck, UserPlus, Users, UsersRound
+
+Inventory & Logistics:
+  Anchor, Archive, Barcode, Box, Boxes, Container, Fuel, Package, Package2, QrCode,
+  Route, Ship, ShoppingBag, ShoppingCart, Store, Tag, Truck, Warehouse
+
+Operations & Production:
+  ClipboardCopy, Construction, Factory, Gauge, Hammer, Layers, LayoutDashboard,
+  LayoutTemplate, ListChecks, ListTree, Plug, Settings, SlidersHorizontal,
+  SquareKanban, Target, Wrench
+
+Communication & CRM:
+  Bell, Calendar, CalendarDays, Mail, MapPin, Menu, MessageCircle, MessageSquare,
+  Phone, Send
+
+Location & Navigation:
+  Building2, Globe, Home, Hotel, Map, Network
+
+Security & Admin:
+  Award, Crown, Flag, Gavel, Key, Lock, Palette, Puzzle, Shield, ShieldCheck, Star
+
+Time & Scheduling:
+  Clock, History, Hourglass, Timer
+
+Tech & System:
+  Database, HardDrive, Server, Wifi, Zap
+```
+
+Navigation item icons (`navigation[].icon`) are NOT restricted to this list — they
+accept any valid Lucide icon name.
 
 Use **direct code editing** when:
 - Creating a new module from `golden-path-module/`
