@@ -13,12 +13,115 @@ function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
-export function createGuestChatService({ prisma, supabaseAdmin }) {
+// ------------------------------------------------------------------
+// Auto-assign conversation to least-loaded available operator
+// ------------------------------------------------------------------
+async function autoAssign(prisma, conversationId, companyId) {
+  const candidates = await prisma.$queryRaw`
+    SELECT up.id AS user_id, COUNT(cc.id)::int AS open_count
+    FROM "UserProfile" up
+    LEFT JOIN chat_conversations cc
+      ON cc.assigned_user_id = up.id
+      AND cc.status IN ('open', 'pending')
+      AND cc.type = 'external_support'
+      AND cc.deleted_at IS NULL
+    WHERE up."companyId" = ${companyId}::uuid
+      AND up."availableForChat" = true
+    GROUP BY up.id
+    ORDER BY open_count ASC, RANDOM()
+    LIMIT 1
+  `;
+  if (!candidates[0]) return null;
+  const userId = candidates[0].user_id;
+  await prisma.$executeRaw`
+    UPDATE chat_conversations SET assigned_user_id = ${userId}::uuid WHERE id = ${conversationId}::uuid
+  `;
+  await prisma.$executeRaw`
+    INSERT INTO chat_conversation_members (conversation_id, user_id, role)
+    VALUES (${conversationId}::uuid, ${userId}::uuid, 'operator')
+    ON CONFLICT DO NOTHING
+  `;
+  return userId;
+}
+
+// ------------------------------------------------------------------
+// Non-blocking lead capture in atlas.growth
+// ------------------------------------------------------------------
+async function captureGrowthLead(prisma, { companyId, email, name }) {
+  try {
+    const sites = await prisma.$queryRaw`
+      SELECT id FROM website_site WHERE company_id = ${companyId}::uuid AND enabled = true LIMIT 1
+    `;
+    if (!sites[0]) return;
+    const existing = await prisma.$queryRaw`
+      SELECT id FROM growth_lead
+      WHERE company_id = ${companyId}::uuid
+        AND email_normalized = lower(${email})
+        AND created_at > NOW() - INTERVAL '7 days'
+      LIMIT 1
+    `;
+    if (existing[0]) return;
+    await prisma.growthLead.create({
+      data: {
+        companyId,
+        siteId: sites[0].id,
+        status: "new",
+        source: "chat_widget",
+        email,
+        emailNormalized: email.toLowerCase().trim(),
+        name: name ?? null,
+        message: "Lead generado desde el chat de la web.",
+        firstSubmissionAt: new Date(),
+        lastSubmissionAt: new Date(),
+        firstSeenAt: new Date(),
+        lastSeenAt: new Date(),
+      },
+    });
+  } catch {
+    // Non-fatal
+  }
+}
+
+export function createGuestChatService({ prisma, supabaseAdmin, notificationService }) {
   // ------------------------------------------------------------------
   // Session management
   // ------------------------------------------------------------------
 
-  async function createGuestSession({ email, name, phone, websiteId, pageUrl, referrer, userAgent, metadata = {} }) {
+  async function createGuestSession({ email, name, phone, websiteId, pageUrl, referrer, userAgent, metadata = {}, companyId }) {
+    // Session continuation: if same email has an active session, issue a resume token
+    if (email && companyId) {
+      const existing = await prisma.$queryRaw`
+        SELECT cgs.id, cgs.session_token_hash, cc.id AS conversation_id
+        FROM chat_guest_sessions cgs
+        JOIN chat_conversations cc ON cc.created_by_guest_id = cgs.id
+        WHERE lower(cgs.email) = lower(${email})
+          AND cgs.closed_at IS NULL
+          AND cgs.idle_expires_at > NOW()
+          AND cgs.absolute_expires_at > NOW()
+          AND cc.status != 'closed'
+          AND cc.deleted_at IS NULL
+        ORDER BY cgs.created_at DESC
+        LIMIT 1
+      `;
+      if (existing[0]) {
+        const resumeToken = crypto.randomBytes(32).toString("hex");
+        const resumeHash = hashToken(resumeToken);
+        await prisma.$executeRaw`
+          UPDATE chat_guest_sessions
+          SET resume_token_hash = ${resumeHash},
+              idle_expires_at = NOW() + INTERVAL '30 minutes',
+              last_seen_at = NOW()
+          WHERE id = ${existing[0].id}::uuid
+        `;
+        return {
+          token: resumeToken,
+          sessionId: existing[0].id,
+          conversationId: existing[0].conversation_id,
+          resumed: true,
+        };
+      }
+    }
+
     const rawToken = crypto.randomBytes(32).toString("hex");
     const tokenHash = hashToken(rawToken);
 
@@ -43,12 +146,13 @@ export function createGuestChatService({ prisma, supabaseAdmin }) {
     // Create a support conversation for this guest
     const convRows = await prisma.$queryRaw`
       INSERT INTO chat_conversations
-        (type, title, created_by_guest_id, website_id, status, metadata)
+        (type, title, created_by_guest_id, website_id, company_id, status, metadata)
       VALUES (
         'external_support',
         ${name ? `Chat de ${name}` : email ? `Chat de ${email}` : "Chat de visitante"},
         ${session.id},
         ${websiteId ?? null}::uuid,
+        ${companyId ?? null}::uuid,
         'pending',
         ${JSON.stringify({ pageUrl, referrer, userAgent })}::jsonb
       )
@@ -62,30 +166,58 @@ export function createGuestChatService({ prisma, supabaseAdmin }) {
       VALUES (${conv.id}, ${session.id}, 'guest')
     `;
 
+    // Auto-assign to an available operator
+    let assignedUserId = null;
+    if (companyId) {
+      assignedUserId = await autoAssign(prisma, conv.id, companyId);
+    }
+
+    // Non-blocking: capture lead in atlas.growth
+    if (email && companyId) {
+      setImmediate(() => captureGrowthLead(prisma, { companyId, email, name }));
+    }
+
     return {
       token: rawToken,
       sessionId: session.id,
       conversationId: conv.id,
-      expiresAt: session.expires_at,
+      assignedUserId,
+      resumed: false,
     };
   }
 
   async function resolveGuestSession(rawToken) {
     const tokenHash = hashToken(rawToken);
-    const rows = await prisma.$queryRaw`
+
+    // Check primary token
+    let rows = await prisma.$queryRaw`
       SELECT * FROM chat_guest_sessions
       WHERE session_token_hash = ${tokenHash}
         AND closed_at IS NULL
-        AND expires_at > NOW()
+        AND idle_expires_at > NOW()
+        AND absolute_expires_at > NOW()
       LIMIT 1
     `;
+
+    // Check resume token (single-use)
+    if (!rows.length) {
+      rows = await prisma.$queryRaw`
+        SELECT * FROM chat_guest_sessions
+        WHERE resume_token_hash = ${tokenHash}
+          AND closed_at IS NULL
+          AND idle_expires_at > NOW()
+          AND absolute_expires_at > NOW()
+        LIMIT 1
+      `;
+      if (rows.length) {
+        // Consume the resume token immediately
+        await prisma.$executeRaw`
+          UPDATE chat_guest_sessions SET resume_token_hash = NULL WHERE id = ${rows[0].id}
+        `;
+      }
+    }
+
     if (!rows.length) throw new GuestChatServiceError("Sesion de invitado invalida o expirada.", 401);
-
-    // Refresh last_seen_at
-    await prisma.$executeRaw`
-      UPDATE chat_guest_sessions SET last_seen_at = NOW() WHERE id = ${rows[0].id}
-    `;
-
     return rows[0];
   }
 
@@ -93,7 +225,10 @@ export function createGuestChatService({ prisma, supabaseAdmin }) {
     const session = await resolveGuestSession(rawToken);
 
     const convRows = await prisma.$queryRaw`
-      SELECT c.id, c.status, c.title, c.created_at
+      SELECT c.id, c.status, c.title, c.created_at,
+             c.assigned_user_id AS "assignedUserId",
+             c.idle_expires_at AS "idleExpiresAt",
+             c.absolute_expires_at AS "absoluteExpiresAt"
       FROM chat_conversations c
       INNER JOIN chat_conversation_members ccm
         ON ccm.conversation_id = c.id AND ccm.guest_session_id = ${session.id}
@@ -107,7 +242,8 @@ export function createGuestChatService({ prisma, supabaseAdmin }) {
       email: session.email,
       name: session.name,
       conversation: convRows[0] ?? null,
-      expiresAt: session.expires_at,
+      idleExpiresAt: session.idle_expires_at,
+      absoluteExpiresAt: session.absolute_expires_at,
     };
   }
 
@@ -119,7 +255,8 @@ export function createGuestChatService({ prisma, supabaseAdmin }) {
     const session = await resolveGuestSession(rawToken);
 
     const convRows = await prisma.$queryRaw`
-      SELECT c.id FROM chat_conversations c
+      SELECT c.id, c.company_id, c.assigned_user_id
+      FROM chat_conversations c
       INNER JOIN chat_conversation_members ccm
         ON ccm.conversation_id = c.id AND ccm.guest_session_id = ${session.id}
       WHERE c.deleted_at IS NULL AND c.status != 'closed'
@@ -127,7 +264,7 @@ export function createGuestChatService({ prisma, supabaseAdmin }) {
       LIMIT 1
     `;
     if (!convRows.length) throw new GuestChatServiceError("No hay conversacion activa.", 404);
-    const conversationId = convRows[0].id;
+    const { id: conversationId, company_id: companyId, assigned_user_id: assignedUserId } = convRows[0];
 
     const msgRows = await prisma.$queryRaw`
       INSERT INTO chat_messages
@@ -144,25 +281,86 @@ export function createGuestChatService({ prisma, supabaseAdmin }) {
     `;
     const msg = msgRows[0];
 
-    await prisma.$executeRaw`
-      UPDATE chat_conversations
-      SET last_message_id = ${msg.id},
-          last_message_at = ${msg.created_at},
-          status = CASE WHEN status = 'pending' THEN 'open' ELSE status END,
-          updated_at = NOW()
-      WHERE id = ${conversationId}
-    `;
+    // Update conversation + bump idle expiry on the session
+    await Promise.all([
+      prisma.$executeRaw`
+        UPDATE chat_conversations
+        SET last_message_id = ${msg.id},
+            last_message_at = ${msg.created_at},
+            status = CASE WHEN status = 'pending' THEN 'open' ELSE status END,
+            updated_at = NOW()
+        WHERE id = ${conversationId}
+      `,
+      prisma.$executeRaw`
+        UPDATE chat_guest_sessions
+        SET idle_expires_at = NOW() + INTERVAL '30 minutes',
+            last_seen_at = NOW()
+        WHERE id = ${session.id}
+      `,
+    ]);
 
-    // Notify operators via Supabase Realtime broadcast
+    // Broadcast to operators via Supabase Realtime
     try {
-      const channel = supabaseAdmin.channel(`chat:conv:${conversationId}`);
-      await channel.send({
+      await supabaseAdmin.channel(`chat:conv:${conversationId}`).send({
         type: "broadcast",
         event: "new_guest_message",
-        payload: { conversationId, messageId: msg.id, sessionId: session.id },
+        payload: {
+          conversationId,
+          messageId: msg.id,
+          sessionId: session.id,
+          senderType: "guest",
+          senderName: session.name ?? session.email ?? "Visitante",
+          body,
+          messageType,
+          createdAt: msg.created_at,
+        },
       });
     } catch {
-      // Non-fatal: realtime notification failure
+      // Non-fatal
+    }
+
+    // In-app notification to assigned operator (or broadcast to all available)
+    if (notificationService && companyId) {
+      setImmediate(async () => {
+        try {
+          if (assignedUserId) {
+            await notificationService.createNotification({
+              companyId,
+              userId: assignedUserId,
+              channels: ["in_app"],
+              type: "chat.new_guest_message",
+              title: "Nuevo mensaje de visitante",
+              body: body.slice(0, 100),
+              sourceType: "ChatConversation",
+              sourceId: conversationId,
+              actionUrl: `/app/chat/external/${conversationId}`,
+            });
+          } else {
+            // No assigned operator: notify all available operators
+            const operators = await prisma.$queryRaw`
+              SELECT id FROM "UserProfile"
+              WHERE "companyId" = ${companyId}::uuid AND "availableForChat" = true
+            `;
+            await Promise.all(
+              operators.map((op) =>
+                notificationService.createNotification({
+                  companyId,
+                  userId: op.id,
+                  channels: ["in_app"],
+                  type: "chat.new_guest_message",
+                  title: "Nuevo mensaje de visitante sin asignar",
+                  body: body.slice(0, 100),
+                  sourceType: "ChatConversation",
+                  sourceId: conversationId,
+                  actionUrl: `/app/chat/external/${conversationId}`,
+                }).catch(() => {})
+              )
+            );
+          }
+        } catch {
+          // Non-fatal
+        }
+      });
     }
 
     return { messageId: msg.id, conversationId, createdAt: msg.created_at };
@@ -186,13 +384,13 @@ export function createGuestChatService({ prisma, supabaseAdmin }) {
       SELECT
         m.id,
         m.body,
-        m.sender_type,
-        m.message_type,
-        m.attachment_count,
+        m.sender_type AS "senderType",
+        m.message_type AS "messageType",
+        m.attachment_count AS "attachmentCount",
         m.metadata,
-        m.created_at,
-        m.edited_at,
-        m.deleted_at,
+        m.created_at AS "createdAt",
+        m.edited_at AS "editedAt",
+        m.deleted_at AS "deletedAt",
         CASE
           WHEN m.sender_type = 'user' THEN
             json_build_object('displayName', up.display_name, 'avatarUrl', up.avatar_url)

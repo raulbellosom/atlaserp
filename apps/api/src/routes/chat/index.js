@@ -12,6 +12,8 @@ import {
 } from "@atlas/validators";
 import { createChatService, ChatServiceError } from "./chat-service.js";
 import { createGuestChatService, GuestChatServiceError } from "./guest-service.js";
+import { createChatTemplateService } from "./template-service.js";
+import { expireStaleGuestSessions } from "./session-expiry-job.js";
 
 function handleError(c, err, fallback) {
   if (err instanceof ChatServiceError || err instanceof GuestChatServiceError) {
@@ -25,7 +27,8 @@ function handleError(c, err, fallback) {
 export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService = null, broadcaster = null }) {
   const app = new Hono();
   const chatService = createChatService({ prisma, supabaseAdmin, notificationService, broadcaster });
-  const guestService = createGuestChatService({ prisma, supabaseAdmin });
+  const guestService = createGuestChatService({ prisma, supabaseAdmin, notificationService });
+  const templateService = createChatTemplateService({ prisma });
 
   // ================================================================
   // INTERNAL CHAT — all routes require authentication
@@ -362,7 +365,16 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     try {
       const body = await c.req.json();
       const data = chatGuestSessionSchema.parse(body);
-      const result = await guestService.createGuestSession(data);
+
+      // Resolve companyId from X-Atlas-Company header for assignment + lead capture
+      let companyId = null;
+      const companySlug = c.req.header("X-Atlas-Company");
+      if (companySlug) {
+        const company = await prisma.company.findUnique({ where: { slug: companySlug }, select: { id: true } });
+        companyId = company?.id ?? null;
+      }
+
+      const result = await guestService.createGuestSession({ ...data, companyId });
       return c.json({ data: result }, 201);
     } catch (err) {
       if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
@@ -419,6 +431,114 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       return c.json(result);
     } catch (err) {
       return handleError(c, err, "Error cerrando sesion.");
+    }
+  });
+
+  // ================================================================
+  // MESSAGE TEMPLATES
+  // ================================================================
+
+  internal.get("/templates", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const companyId = c.get("companyId");
+      const { search } = c.req.query();
+      const data = await templateService.listTemplates({ companyId, search: search || undefined });
+      return c.json({ data });
+    } catch (err) {
+      return handleError(c, err, "Error listando templates.");
+    }
+  });
+
+  internal.post("/templates", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const companyId = c.get("companyId");
+      const actorId = c.get("userId");
+      const body = await c.req.json();
+      const data = await templateService.createTemplate({ companyId, actorId, ...body });
+      return c.json({ data }, 201);
+    } catch (err) {
+      return handleError(c, err, "Error creando template.");
+    }
+  });
+
+  internal.patch("/templates/:templateId", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const companyId = c.get("companyId");
+      const { templateId } = c.req.param();
+      const body = await c.req.json();
+      const data = await templateService.updateTemplate({ companyId, templateId, ...body });
+      return c.json({ data });
+    } catch (err) {
+      return handleError(c, err, "Error actualizando template.");
+    }
+  });
+
+  internal.delete("/templates/:templateId", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const companyId = c.get("companyId");
+      const { templateId } = c.req.param();
+      await templateService.deleteTemplate({ companyId, templateId });
+      return c.json({ data: { ok: true } });
+    } catch (err) {
+      return handleError(c, err, "Error eliminando template.");
+    }
+  });
+
+  internal.post("/templates/:templateId/use", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const companyId = c.get("companyId");
+      const { templateId } = c.req.param();
+      await templateService.recordUsage({ companyId, templateId });
+      return c.json({ data: { ok: true } });
+    } catch (err) {
+      return handleError(c, err, "Error registrando uso de template.");
+    }
+  });
+
+  // ================================================================
+  // MANUAL ASSIGNMENT
+  // ================================================================
+
+  internal.post("/external/:conversationId/assign", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const companyId = c.get("companyId");
+      const { conversationId } = c.req.param();
+      const { userId } = await c.req.json();
+      if (!userId) return c.json({ error: "userId requerido." }, 422);
+
+      // Verify operator belongs to company
+      const profile = await prisma.userProfile.findFirst({
+        where: { authUserId: userId, memberships: { some: { companyId, enabled: true } } },
+        select: { id: true },
+      });
+      if (!profile) return c.json({ error: "Operador no encontrado en esta empresa." }, 404);
+
+      await prisma.$executeRaw`
+        UPDATE chat_conversations
+        SET assigned_user_id = ${profile.id}::uuid, updated_at = NOW()
+        WHERE id = ${conversationId}::uuid AND company_id = ${companyId}::uuid AND deleted_at IS NULL
+      `;
+      await prisma.$executeRaw`
+        INSERT INTO chat_conversation_members (conversation_id, user_id, role)
+        VALUES (${conversationId}::uuid, ${profile.id}::uuid, 'operator')
+        ON CONFLICT DO NOTHING
+      `;
+      return c.json({ data: { ok: true, assignedUserId: profile.id } });
+    } catch (err) {
+      return handleError(c, err, "Error asignando operador.");
+    }
+  });
+
+  // ================================================================
+  // SESSION EXPIRY JOB (internal trigger)
+  // ================================================================
+
+  internal.post("/internal/expire-sessions", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const result = await expireStaleGuestSessions(prisma);
+      return c.json({ data: result });
+    } catch (err) {
+      return handleError(c, err, "Error expirando sesiones.");
     }
   });
 

@@ -12,6 +12,7 @@ import { createNotificationService } from '../../api/src/services/notification-s
 import { createProjectsNotificationService } from '../../api/src/routes/projects/projects-notification-service.js'
 import { createRecurringTasksService } from '../../api/src/routes/projects/projects-recurring-service.js'
 import { createGrowthAggregationWorker } from '../../api/src/services/growth-aggregation-worker.js'
+import { expireStaleGuestSessions } from '../../api/src/routes/chat/session-expiry-job.js'
 
 const { PrismaClient } = pkg
 
@@ -206,6 +207,26 @@ runRecurringTasksTick()
 setInterval(() => {
   runRecurringTasksTick()
 }, RECURRING_INTERVAL_MS)
+
+const CHAT_EXPIRY_INTERVAL_MS = 15 * 60 * 1000
+async function runChatSessionExpiryTick() {
+  try {
+    const result = await expireStaleGuestSessions(prisma)
+    if ((result.closedConversations ?? 0) > 0 || (result.closedSessions ?? 0) > 0) {
+      console.log(
+        `[worker] chat session expiry ${formatLogTimestamp()} conversations=${result.closedConversations} sessions=${result.closedSessions}`,
+      )
+    }
+  } catch (err) {
+    console.error('[worker] chat session expiry tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  }
+}
+
+runChatSessionExpiryTick()
+setInterval(() => {
+  runChatSessionExpiryTick()
+}, CHAT_EXPIRY_INTERVAL_MS)
 
 process.on('SIGTERM', async () => {
   await prisma.$disconnect().catch(() => {})
