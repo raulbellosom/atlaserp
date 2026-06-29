@@ -84,6 +84,11 @@ function ExternalConversationItem({ conv, isActive, onClick }) {
             {formatRelative(conv.last_message?.createdAt ?? conv.created_at)}
           </span>
         </div>
+        {conv.tracking_code && (
+          <p className="text-[9px] font-mono font-semibold text-[hsl(var(--primary))] opacity-60 mt-0.5 tracking-wide">
+            {conv.tracking_code}
+          </p>
+        )}
         {conv.guest_page_url && (
           <p className="text-[10px] text-[hsl(var(--muted-foreground))] truncate mt-0.5">
             {conv.guest_page_url.replace(/^https?:\/\//, "")}
@@ -213,6 +218,7 @@ function VisitorInfoPanel({ conversation, onReassigned }) {
   const email = conversation.guest_email;
   const pageUrl = conversation.guest_page_url;
   const createdAt = conversation.created_at;
+  const trackingCode = conversation.tracking_code ?? null;
   const idleExpiresAt = conversation.idle_expires_at ?? conversation.idleExpiresAt;
   const countdown = useExpiryCountdown(conversation.status !== "closed" ? idleExpiresAt : null);
 
@@ -232,6 +238,16 @@ function VisitorInfoPanel({ conversation, onReassigned }) {
             </div>
           </div>
         </div>
+
+        {/* Tracking code */}
+        {trackingCode && (
+          <div>
+            <p className="text-[10px] uppercase tracking-wide text-[hsl(var(--muted-foreground))] font-medium mb-1">Numero de seguimiento</p>
+            <p className="text-sm font-mono font-semibold text-[hsl(var(--primary))] tracking-wide select-all">
+              {trackingCode}
+            </p>
+          </div>
+        )}
 
         {/* Source URL */}
         {pageUrl && (
@@ -428,19 +444,16 @@ export function ExternalInboxScreen() {
     }
   }, [userProfile?.availableForChat]);
 
-  const { data, isLoading } = useExternalInbox(statusFilter);
-  const conversations = data?.data ?? [];
+  // Debounce search to avoid firing on every keystroke
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  const filtered = search
-    ? conversations.filter((c) => {
-        const q = search.toLowerCase();
-        return (
-          (c.guest_name ?? "").toLowerCase().includes(q) ||
-          (c.guest_email ?? "").toLowerCase().includes(q) ||
-          (c.guest_page_url ?? "").toLowerCase().includes(q)
-        );
-      })
-    : conversations;
+  // Search is server-side: includes tracking_code, email, name
+  const { data, isLoading } = useExternalInbox(statusFilter, debouncedSearch || null);
+  const filtered = data?.data ?? [];
 
   async function handleToggleAvailability() {
     if (!token) return;

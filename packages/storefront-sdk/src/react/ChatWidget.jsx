@@ -60,21 +60,36 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
     setScreen,
     availability,
     session,
+    trackingCode,
     messages,
     isSending,
     startError,
+    resumeError,
     startSession,
+    resumeByCode,
     sendMessage,
     sendFile,
     closeSession,
   } = useGuestChat(sdk)
 
+  const [resumeCodeInput, setResumeCodeInput] = useState('')
+  const [resumeEmailInput, setResumeEmailInput] = useState('')
+  const [isResuming, setIsResuming] = useState(false)
   const fileInputRef = useRef(null)
 
   const handleFileChange = useCallback((e) => {
     const file = e.target.files?.[0]
     if (file) { sendFile(file); e.target.value = '' }
   }, [sendFile])
+
+  const handleResumeByCode = useCallback(async () => {
+    if (!resumeCodeInput.trim() || !resumeEmailInput.trim()) return
+    setIsResuming(true)
+    try {
+      await resumeByCode(resumeCodeInput, resumeEmailInput)
+    } catch { /* error shown via resumeError */ }
+    finally { setIsResuming(false) }
+  }, [resumeByCode, resumeCodeInput, resumeEmailInput])
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -430,6 +445,58 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
             Dejar un mensaje
           </button>
         )}
+
+        <button
+          style={s(styles.ghostBtn, { marginTop: 6, fontSize: 11, color: '#555' })}
+          onClick={() => setScreen('resume')}
+        >
+          Tengo un numero de seguimiento
+        </button>
+      </>
+    )
+  }
+
+  function renderResume() {
+    return (
+      <>
+        <button style={styles.backBtn} onClick={() => setScreen('welcome')}>← Atras</button>
+        <div style={{ color: '#ddd', fontWeight: 700, fontSize: 13, marginBottom: 4 }}>Retomar conversacion</div>
+        <div style={{ color: '#666', fontSize: 11, marginBottom: 14 }}>
+          Ingresa tu numero de seguimiento y el correo que usaste al iniciar el chat.
+        </div>
+
+        <div style={{ marginBottom: 10 }}>
+          <div style={styles.label}>Numero de seguimiento</div>
+          <input
+            style={s(styles.input, { textTransform: 'uppercase', letterSpacing: '0.05em' })}
+            type="text"
+            placeholder="CHAT-000001"
+            value={resumeCodeInput}
+            onChange={(e) => setResumeCodeInput(e.target.value.toUpperCase())}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleResumeByCode() }}
+          />
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <div style={styles.label}>Correo electronico</div>
+          <input
+            style={styles.input}
+            type="email"
+            placeholder="tu@correo.com"
+            value={resumeEmailInput}
+            onChange={(e) => setResumeEmailInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleResumeByCode() }}
+          />
+        </div>
+
+        <button
+          style={s(styles.primaryBtn, isResuming ? { opacity: 0.6 } : {})}
+          onClick={handleResumeByCode}
+          disabled={isResuming}
+        >
+          {isResuming ? 'Buscando...' : 'Continuar conversacion'}
+        </button>
+        {resumeError && <div style={styles.errorMsg}>{resumeError}</div>}
       </>
     )
   }
@@ -493,6 +560,28 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
 
     return (
       <>
+        {trackingCode && (
+          <div style={{
+            background: DEFAULT_BG2,
+            borderBottom: `1px solid ${DEFAULT_BG3}`,
+            padding: '5px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            flexShrink: 0,
+          }}>
+            <span style={{ fontSize: 9, color: '#555', letterSpacing: '0.04em' }}>NUMERO DE SEGUIMIENTO</span>
+            <span style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: accentColor,
+              letterSpacing: '0.08em',
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              {trackingCode}
+            </span>
+          </div>
+        )}
         <div style={s(styles.body, { padding: '12px 14px' })}>
           {messages.length === 0 && (
             <div style={{ color: '#555', fontSize: 11, textAlign: 'center', marginTop: 20 }}>
@@ -626,6 +715,7 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
           <div style={styles.body}>
             {screen === 'welcome' && renderWelcome()}
             {screen === 'identify' && renderIdentify()}
+            {screen === 'resume' && renderResume()}
           </div>
         ) : (
           renderChat()

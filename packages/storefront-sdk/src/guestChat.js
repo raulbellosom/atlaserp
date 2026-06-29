@@ -80,6 +80,11 @@ export function createGuestChatDomain(request, supabaseUrl, supabaseAnonKey) {
     return res.data
   }
 
+  async function resumeByCode(trackingCode, email) {
+    const res = await request('POST', '/public/chat/session/resume-by-code', { trackingCode, email })
+    return res.data
+  }
+
   return {
     createSession,
     getSession,
@@ -90,5 +95,6 @@ export function createGuestChatDomain(request, supabaseUrl, supabaseAnonKey) {
     subscribeToReplies,
     presignAttachment,
     sendFileMessage,
+    resumeByCode,
   }
 }

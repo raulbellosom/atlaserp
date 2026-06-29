@@ -4,22 +4,22 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 import { subscribeToBroadcast } from "../lib/supabaseRealtime";
 
-export function useExternalInbox(status = "open") {
+export function useExternalInbox(status = "open", search = null) {
   const { session, companyId } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
   const unsubRefs = useRef([]);
 
   const query = useQuery({
-    queryKey: ["chat-external-inbox", status],
-    queryFn: () => atlas.chat.listExternalInbox({ status }, token),
+    queryKey: ["chat-external-inbox", status, search],
+    queryFn: () => atlas.chat.listExternalInbox({ status, ...(search ? { search } : {}) }, token),
     enabled: Boolean(token),
     staleTime: 15_000,
     refetchInterval: 60_000,
   });
 
   const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["chat-external-inbox"] });
+    queryClient.invalidateQueries({ queryKey: ["chat-external-inbox"], exact: false });
   }, [queryClient]);
 
   useEffect(() => {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 const TOKEN_KEY = 'atlas_chat_guest_token'
 const SESSION_KEY = 'atlas_chat_guest_session'
+const TRACKING_KEY = 'atlas_chat_tracking_code'
 
 function loadStoredSession() {
   try {
@@ -21,20 +22,35 @@ function storeSession(token, sessionData) {
   } catch { /* storage might be disabled */ }
 }
 
+function storeTrackingCode(code) {
+  try {
+    if (code) localStorage.setItem(TRACKING_KEY, code)
+  } catch { /* ignore */ }
+}
+
+function loadTrackingCode() {
+  try {
+    return localStorage.getItem(TRACKING_KEY) ?? null
+  } catch { return null }
+}
+
 function clearStoredSession() {
   try {
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(SESSION_KEY)
+    localStorage.removeItem(TRACKING_KEY)
   } catch { /* ignore */ }
 }
 
 export function useGuestChat(sdk) {
-  const [screen, setScreen] = useState('welcome') // 'welcome' | 'identify' | 'chat'
+  const [screen, setScreen] = useState('welcome') // 'welcome' | 'identify' | 'resume' | 'chat'
   const [availability, setAvailability] = useState(null)
   const [session, setSession] = useState(null)
+  const [trackingCode, setTrackingCode] = useState(() => loadTrackingCode())
   const [messages, setMessages] = useState([])
   const [isSending, setIsSending] = useState(false)
   const [startError, setStartError] = useState(null)
+  const [resumeError, setResumeError] = useState(null)
   const unsubscribeRef = useRef(null)
 
   // Load availability + restore session on mount
@@ -49,6 +65,7 @@ export function useGuestChat(sdk) {
         .then((data) => {
           if (data?.conversation?.status === 'closed') {
             clearStoredSession()
+            setTrackingCode(null)
             return null
           }
           setSession({ token: stored.token, conversationId: stored.conversationId, email: data.email, name: data.name })
@@ -56,7 +73,6 @@ export function useGuestChat(sdk) {
           return sdk.guestChat.listMessages(stored.token)
         })
         .then((msgs) => {
-          // listMessages now returns the array directly
           if (Array.isArray(msgs)) setMessages(msgs)
         })
         .catch(() => clearStoredSession())
@@ -99,12 +115,33 @@ export function useGuestChat(sdk) {
         userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
       })
       storeSession(res.token, { conversationId: res.conversationId })
+      storeTrackingCode(res.trackingCode)
+      setTrackingCode(res.trackingCode ?? null)
       setSession({ token: res.token, conversationId: res.conversationId, email: data.email, name: data.name })
       setMessages([])
       setScreen('chat')
       return res
     } catch (err) {
       setStartError(err?.message ?? 'No se pudo iniciar la sesión. Inténtalo de nuevo.')
+      throw err
+    }
+  }, [sdk])
+
+  const resumeByCode = useCallback(async (code, email) => {
+    setResumeError(null)
+    try {
+      const res = await sdk.guestChat.resumeByCode(code.trim().toUpperCase(), email.trim())
+      storeSession(res.token, { conversationId: res.conversationId })
+      storeTrackingCode(res.trackingCode)
+      setTrackingCode(res.trackingCode ?? code)
+      setSession({ token: res.token, conversationId: res.conversationId, email })
+      const msgs = await sdk.guestChat.listMessages(res.token)
+      if (Array.isArray(msgs)) setMessages(msgs)
+      setScreen('chat')
+      return res
+    } catch (err) {
+      const msg = err?.message ?? 'No se pudo encontrar la conversación. Verifica el número y correo.'
+      setResumeError(msg)
       throw err
     }
   }, [sdk])
@@ -153,6 +190,7 @@ export function useGuestChat(sdk) {
     }
     clearStoredSession()
     setSession(null)
+    setTrackingCode(null)
     setMessages([])
     setScreen('welcome')
   }, [sdk, session])
@@ -162,10 +200,13 @@ export function useGuestChat(sdk) {
     setScreen,
     availability,
     session,
+    trackingCode,
     messages,
     isSending,
     startError,
+    resumeError,
     startSession,
+    resumeByCode,
     sendMessage,
     sendFile,
     closeSession,

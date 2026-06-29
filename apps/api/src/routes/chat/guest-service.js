@@ -14,6 +14,24 @@ function hashToken(token) {
 }
 
 // ------------------------------------------------------------------
+// Sequential tracking code per company: CHAT-000001
+// ------------------------------------------------------------------
+async function generateTrackingCode(prisma, companyId) {
+  if (!companyId) {
+    // Fallback: short random hex when no company
+    return `CHAT-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
+  }
+  const rows = await prisma.$queryRaw`
+    SELECT COUNT(*)::int AS total
+    FROM chat_conversations
+    WHERE company_id = ${companyId}::uuid
+      AND tracking_code IS NOT NULL
+  `;
+  const seq = (rows[0]?.total ?? 0) + 1;
+  return `CHAT-${String(seq).padStart(6, "0")}`;
+}
+
+// ------------------------------------------------------------------
 // Auto-assign conversation to least-loaded available operator
 // ------------------------------------------------------------------
 async function autoAssign(prisma, conversationId, companyId) {
@@ -47,7 +65,7 @@ async function autoAssign(prisma, conversationId, companyId) {
 // ------------------------------------------------------------------
 // Non-blocking lead capture in atlas.growth
 // ------------------------------------------------------------------
-async function captureGrowthLead(prisma, { companyId, email, name }) {
+async function captureGrowthLead(prisma, { companyId, email, name, trackingCode }) {
   try {
     const sites = await prisma.$queryRaw`
       SELECT id FROM website_site WHERE company_id = ${companyId}::uuid AND enabled = true LIMIT 1
@@ -75,6 +93,7 @@ async function captureGrowthLead(prisma, { companyId, email, name }) {
         lastSubmissionAt: new Date(),
         firstSeenAt: new Date(),
         lastSeenAt: new Date(),
+        metadata: trackingCode ? { chatTrackingCode: trackingCode } : undefined,
       },
     });
   } catch {
@@ -91,7 +110,7 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
     // Session continuation: if same email has an active session, issue a resume token
     if (email && companyId) {
       const existing = await prisma.$queryRaw`
-        SELECT cgs.id, cgs.session_token_hash, cc.id AS conversation_id
+        SELECT cgs.id, cgs.session_token_hash, cc.id AS conversation_id, cc.tracking_code
         FROM chat_guest_sessions cgs
         JOIN chat_conversations cc ON cc.created_by_guest_id = cgs.id
         WHERE lower(cgs.email) = lower(${email})
@@ -117,6 +136,7 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
           token: resumeToken,
           sessionId: existing[0].id,
           conversationId: existing[0].conversation_id,
+          trackingCode: existing[0].tracking_code ?? null,
           resumed: true,
         };
       }
@@ -143,10 +163,13 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
     `;
     const session = sessionRows[0];
 
+    // Generate sequential tracking code per company (CHAT-000001)
+    const trackingCode = await generateTrackingCode(prisma, companyId);
+
     // Create a support conversation for this guest
     const convRows = await prisma.$queryRaw`
       INSERT INTO chat_conversations
-        (type, title, created_by_guest_id, website_id, company_id, status, metadata)
+        (type, title, created_by_guest_id, website_id, company_id, status, metadata, tracking_code)
       VALUES (
         'external_support',
         ${name ? `Chat de ${name}` : email ? `Chat de ${email}` : "Chat de visitante"},
@@ -154,7 +177,8 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
         ${websiteId ?? null}::uuid,
         ${companyId ?? null}::uuid,
         'pending',
-        ${JSON.stringify({ pageUrl, referrer, userAgent })}::jsonb
+        ${JSON.stringify({ pageUrl, referrer, userAgent })}::jsonb,
+        ${trackingCode}
       )
       RETURNING *
     `;
@@ -181,15 +205,16 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
       }).catch(() => {});
     }
 
-    // Non-blocking: capture lead in atlas.growth
+    // Non-blocking: capture lead in atlas.growth (pass trackingCode for metadata)
     if (email && companyId) {
-      setImmediate(() => captureGrowthLead(prisma, { companyId, email, name }));
+      setImmediate(() => captureGrowthLead(prisma, { companyId, email, name, trackingCode }));
     }
 
     return {
       token: rawToken,
       sessionId: session.id,
       conversationId: conv.id,
+      trackingCode,
       assignedUserId,
       resumed: false,
     };

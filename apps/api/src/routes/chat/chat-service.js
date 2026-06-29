@@ -847,7 +847,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   // External inbox (operator view)
   // ------------------------------------------------------------------
 
-  async function listExternalInbox({ authUserId, status = "open", limit = 30, cursor = null }) {
+  async function listExternalInbox({ authUserId, status = "open", limit = 30, cursor = null, search = null }) {
     const rows = await prisma.$queryRaw`
       SELECT
         c.*,
@@ -873,6 +873,12 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       WHERE c.type = 'external_support'
         AND c.deleted_at IS NULL
         AND c.status = ${status}
+        AND (
+          ${search} IS NULL
+          OR LOWER(c.tracking_code) LIKE '%' || LOWER(${search ?? ""}) || '%'
+          OR LOWER(gs.email) LIKE '%' || LOWER(${search ?? ""}) || '%'
+          OR LOWER(gs.name) LIKE '%' || LOWER(${search ?? ""}) || '%'
+        )
       ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
       LIMIT ${limit}
     `;

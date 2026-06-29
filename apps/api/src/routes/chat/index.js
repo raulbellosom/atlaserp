@@ -247,11 +247,12 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   internal.get("/external/inbox", requirePermission("chat.support.manage"), async (c) => {
     try {
       const authUserId = c.get("authUserId");
-      const { status, limit } = c.req.query();
+      const { status, limit, search } = c.req.query();
       const result = await chatService.listExternalInbox({
         authUserId,
         status: status ?? "open",
         limit: limit ? Math.min(parseInt(limit, 10), 100) : 30,
+        search: search?.trim() || null,
       });
       return c.json(result);
     } catch (err) {
@@ -358,16 +359,19 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     try {
       const authUserId = c.get("authUserId");
       const profileRows = await prisma.$queryRaw`
-        SELECT "companyId" FROM "UserProfile" WHERE auth_user_id = ${authUserId} LIMIT 1
+        SELECT company_id FROM user_profile WHERE auth_user_id = ${authUserId} LIMIT 1
       `;
       if (!profileRows[0]) return c.json({ data: [] });
-      const companyId = profileRows[0].companyId;
+      const companyId = profileRows[0].company_id;
       const operators = await prisma.$queryRaw`
-        SELECT id, display_name AS "displayName", avatar_url AS "avatarUrl", email,
-               "availableForChat" AS "availableForChat"
-        FROM "UserProfile"
-        WHERE "companyId" = ${companyId}::uuid
-          AND "availableForChat" = true
+        SELECT id,
+               display_name AS "displayName",
+               avatar_url AS "avatarUrl",
+               email,
+               available_for_chat AS "availableForChat"
+        FROM user_profile
+        WHERE company_id = ${companyId}::uuid
+          AND available_for_chat = true
         ORDER BY display_name ASC
       `;
       return c.json({ data: operators });
@@ -453,6 +457,74 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       return c.json(result);
     } catch (err) {
       return handleError(c, err, "Error listando mensajes.");
+    }
+  });
+
+  // POST /public/chat/session/resume-by-code
+  // Guest lost their session but has their tracking code + email
+  pub.post("/session/resume-by-code", async (c) => {
+    try {
+      const body = await c.req.json();
+      const { trackingCode, email } = body;
+      if (!trackingCode || !email) {
+        return c.json({ error: "trackingCode y email son requeridos." }, 422);
+      }
+
+      // Find the conversation by tracking code
+      const convRows = await prisma.$queryRaw`
+        SELECT cc.id AS conversation_id, cc.company_id, cc.tracking_code,
+               cgs.id AS session_id, cgs.email AS session_email
+        FROM chat_conversations cc
+        JOIN chat_guest_sessions cgs ON cgs.id = cc.created_by_guest_id
+        WHERE LOWER(cc.tracking_code) = LOWER(${trackingCode.trim()})
+          AND cc.deleted_at IS NULL
+        LIMIT 1
+      `;
+
+      if (!convRows.length) {
+        return c.json({ error: "Numero de seguimiento no encontrado." }, 404);
+      }
+
+      const conv = convRows[0];
+
+      // Verify email matches (case insensitive)
+      if (!conv.session_email || conv.session_email.toLowerCase() !== email.trim().toLowerCase()) {
+        return c.json({ error: "El correo no coincide con el registrado para este chat." }, 403);
+      }
+
+      // Issue a single-use resume token
+      const { randomBytes, createHash } = await import("node:crypto");
+      const resumeToken = randomBytes(32).toString("hex");
+      const resumeHash = createHash("sha256").update(resumeToken).digest("hex");
+
+      await prisma.$executeRaw`
+        UPDATE chat_guest_sessions
+        SET resume_token_hash = ${resumeHash},
+            idle_expires_at = NOW() + INTERVAL '30 minutes',
+            absolute_expires_at = GREATEST(absolute_expires_at, NOW() + INTERVAL '30 minutes'),
+            last_seen_at = NOW()
+        WHERE id = ${conv.session_id}
+      `;
+
+      // Reopen conversation if it was closed due to expiry
+      await prisma.$executeRaw`
+        UPDATE chat_conversations
+        SET status = 'open', updated_at = NOW()
+        WHERE id = ${conv.conversation_id}
+          AND status = 'closed'
+          AND type = 'external_support'
+      `;
+
+      return c.json({
+        data: {
+          token: resumeToken,
+          conversationId: conv.conversation_id,
+          trackingCode: conv.tracking_code,
+          resumed: true,
+        },
+      });
+    } catch (err) {
+      return handleError(c, err, "Error resumiendo sesion por codigo.");
     }
   });
 
