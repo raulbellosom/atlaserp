@@ -75,6 +75,8 @@ export function useGuestChat(sdk) {
           id: payload.messageId,
           body: payload.body,
           sender_type: payload.senderType,
+          senderName: payload.senderName ?? null,
+          senderAvatarUrl: payload.senderAvatarUrl ?? null,
           created_at: payload.createdAt,
         }]
       })

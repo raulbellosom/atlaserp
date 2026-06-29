@@ -176,6 +176,9 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         body: JSON.stringify({ userId }),
       }),
 
+    listAvailableOperators: (token) =>
+      request("/chat/operators/available", { headers: withAuthHeaders(token) }),
+
     // ----------------------------------------------------------------
     // Guest / Public (no auth token)
     // ----------------------------------------------------------------

@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { PageHeader, Button, EmptyState, Skeleton, Badge } from "@atlas/ui";
-import { MessageSquare, Search, ExternalLink, Clock, UserCheck } from "lucide-react";
+import { MessageSquare, Search, ExternalLink, Clock, UserCheck, ChevronDown } from "lucide-react";
 import { ChatMessageList } from "../components/ChatMessageList";
 import { MessageComposer } from "../components/MessageComposer";
 import { ChatTemplatePopover } from "../components/ChatTemplatePopover";
 import { useExternalInbox, useExternalMessages, useSendExternalMessage } from "../hooks/useExternalInbox";
 import { subscribeToBroadcast } from "../lib/supabaseRealtime";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 
@@ -100,15 +100,121 @@ function ExternalConversationItem({ conv, isActive, onClick }) {
 }
 
 // ------------------------------------------------------------------
+// Session expiry countdown
+// ------------------------------------------------------------------
+
+function useExpiryCountdown(idleExpiresAt) {
+  const [remaining, setRemaining] = useState("");
+
+  useEffect(() => {
+    if (!idleExpiresAt) return;
+    function update() {
+      const diffMs = new Date(idleExpiresAt) - new Date();
+      if (diffMs <= 0) { setRemaining("Expirada"); return; }
+      const mins = Math.floor(diffMs / 60000);
+      const secs = Math.floor((diffMs % 60000) / 1000);
+      setRemaining(mins > 0 ? `${mins}m ${secs}s` : `${secs}s`);
+    }
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [idleExpiresAt]);
+
+  return remaining;
+}
+
+// ------------------------------------------------------------------
+// Operator reassignment dropdown
+// ------------------------------------------------------------------
+
+function ReassignDropdown({ conversationId, currentUserId, onReassigned }) {
+  const { session } = useAuth();
+  const token = session?.access_token;
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  const { data } = useQuery({
+    queryKey: ["chat-available-operators"],
+    queryFn: () => atlas.chat.listAvailableOperators(token),
+    enabled: open && Boolean(token),
+    staleTime: 30_000,
+  });
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: (userId) => atlas.chat.assignOperator(conversationId, userId, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-external-inbox"] });
+      setOpen(false);
+      onReassigned?.();
+    },
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e) {
+      if (!containerRef.current?.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [open]);
+
+  const operators = data?.data ?? [];
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        disabled={isPending}
+        className="flex items-center gap-1 text-xs text-[hsl(var(--primary))] hover:underline"
+      >
+        <UserCheck className="h-3 w-3 shrink-0" />
+        <span>Reasignar</span>
+        <ChevronDown className="h-3 w-3" />
+      </button>
+      {open && (
+        <div className="absolute top-full mt-1 left-0 z-50 w-52 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] shadow-xl overflow-hidden">
+          {operators.length === 0 && (
+            <p className="text-xs text-[hsl(var(--muted-foreground))] px-3 py-4 text-center">
+              Sin operadores disponibles.
+            </p>
+          )}
+          {operators.map((op) => (
+            <button
+              key={op.id}
+              type="button"
+              onClick={() => mutate(op.id)}
+              className={[
+                "w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[hsl(var(--muted))] transition-colors text-left",
+                op.id === currentUserId ? "text-[hsl(var(--primary))]" : "",
+              ].join(" ")}
+            >
+              <div className="h-6 w-6 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center text-[10px] font-semibold shrink-0 uppercase">
+                {(op.displayName ?? op.email ?? "?")[0]}
+              </div>
+              <span className="truncate">{op.displayName ?? op.email ?? "Operador"}</span>
+              {op.id === currentUserId && <span className="ml-auto text-[9px] opacity-60">actual</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------
 // Visitor info panel (right column)
 // ------------------------------------------------------------------
 
-function VisitorInfoPanel({ conversation }) {
+function VisitorInfoPanel({ conversation, onReassigned }) {
   if (!conversation) return null;
   const name = conversation.guest_name ?? conversation.guest_email ?? "Visitante";
   const email = conversation.guest_email;
   const pageUrl = conversation.guest_page_url;
   const createdAt = conversation.created_at;
+  const idleExpiresAt = conversation.idle_expires_at ?? conversation.idleExpiresAt;
+  const countdown = useExpiryCountdown(conversation.status !== "closed" ? idleExpiresAt : null);
 
   return (
     <aside className="w-64 shrink-0 border-l border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] flex flex-col overflow-y-auto">
@@ -154,6 +260,20 @@ function VisitorInfoPanel({ conversation }) {
           </div>
         )}
 
+        {/* Idle expiry countdown */}
+        {countdown && (
+          <div>
+            <p className="text-[10px] uppercase tracking-wide text-[hsl(var(--muted-foreground))] font-medium mb-1">Sesion expira en</p>
+            <div className={[
+              "flex items-center gap-1 text-xs font-mono tabular-nums",
+              countdown === "Expirada" ? "text-red-400" : "text-amber-400",
+            ].join(" ")}>
+              <Clock className="h-3 w-3 shrink-0" />
+              <span>{countdown}</span>
+            </div>
+          </div>
+        )}
+
         {/* Status */}
         <div>
           <p className="text-[10px] uppercase tracking-wide text-[hsl(var(--muted-foreground))] font-medium mb-1">Estado</p>
@@ -161,6 +281,18 @@ function VisitorInfoPanel({ conversation }) {
             {conversation.status === "open" ? "Abierta" : conversation.status === "pending" ? "Pendiente" : "Cerrada"}
           </Badge>
         </div>
+
+        {/* Operator reassignment */}
+        {conversation.status !== "closed" && (
+          <div>
+            <p className="text-[10px] uppercase tracking-wide text-[hsl(var(--muted-foreground))] font-medium mb-1">Operador asignado</p>
+            <ReassignDropdown
+              conversationId={conversation.id}
+              currentUserId={conversation.assigned_user_id ?? conversation.assignedUserId}
+              onReassigned={onReassigned}
+            />
+          </div>
+        )}
       </div>
     </aside>
   );
@@ -288,6 +420,7 @@ export function ExternalInboxScreen() {
 
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (typeof userProfile?.availableForChat === "boolean") {
@@ -411,7 +544,10 @@ export function ExternalInboxScreen() {
         <ExternalChatPane conversation={selected} />
 
         {/* Right: visitor info */}
-        <VisitorInfoPanel conversation={selected} />
+        <VisitorInfoPanel
+          conversation={selected}
+          onReassigned={() => queryClient.invalidateQueries({ queryKey: ["chat-external-inbox"] })}
+        />
       </div>
     </div>
   );

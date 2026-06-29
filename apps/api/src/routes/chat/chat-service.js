@@ -854,6 +854,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         gs.email AS guest_email,
         gs.name AS guest_name,
         gs.page_url AS guest_page_url,
+        gs.idle_expires_at,
+        gs.absolute_expires_at,
         (
           SELECT COUNT(*)::int FROM chat_messages m
           WHERE m.conversation_id = c.id AND m.deleted_at IS NULL

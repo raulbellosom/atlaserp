@@ -10,6 +10,42 @@ function s(base, extra = {}) {
   return { ...base, ...extra }
 }
 
+function fmtTime(dateStr) {
+  if (!dateStr) return ''
+  try {
+    return new Date(dateStr).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+  } catch { return '' }
+}
+
+function fmtDay(dateStr) {
+  if (!dateStr) return ''
+  try {
+    const d = new Date(dateStr)
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    if (d.toDateString() === today.toDateString()) return 'Hoy'
+    if (d.toDateString() === yesterday.toDateString()) return 'Ayer'
+    return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+  } catch { return '' }
+}
+
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.frequency.value = 880
+    osc.type = 'sine'
+    gain.gain.setValueAtTime(0.2, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + 0.2)
+  } catch { /* non-fatal */ }
+}
+
 export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_ACCENT }) {
   const [open, setOpen] = useState(false)
   const [nameInput, setNameInput] = useState('')
@@ -17,6 +53,7 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
   const [emailError, setEmailError] = useState('')
   const [textInput, setTextInput] = useState('')
   const messagesEndRef = useRef(null)
+  const prevMsgCountRef = useRef(0)
 
   const {
     screen,
@@ -38,9 +75,22 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
     }
   }, [messages, open, screen])
 
+  // Sound on new operator message when widget is not open
+  useEffect(() => {
+    const count = messages.length
+    const prevCount = prevMsgCountRef.current
+    if (count > prevCount && prevCount > 0) {
+      const lastMsg = messages[messages.length - 1]
+      if (lastMsg?.sender_type !== 'guest' && !open) {
+        playBeep()
+      }
+    }
+    prevMsgCountRef.current = count
+  }, [messages, open])
+
   const handleStartChat = useCallback(async () => {
     if (!emailInput.trim() || !/\S+@\S+\.\S+/.test(emailInput)) {
-      setEmailError('Ingresa un correo válido.')
+      setEmailError('Ingresa un correo valido.')
       return
     }
     setEmailError('')
@@ -66,7 +116,6 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
 
   // ── Styles ──────────────────────────────────────────────────────────────
   const styles = {
-    // Fixed tab on right edge
     tab: {
       position: 'fixed',
       right: 0,
@@ -86,7 +135,6 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
       boxShadow: '-2px 0 12px rgba(0,0,0,0.3)',
       display: open ? 'none' : 'block',
     },
-    // Panel
     panel: {
       position: 'fixed',
       top: 0,
@@ -132,7 +180,6 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
       flexDirection: 'column',
       gap: 10,
     },
-    // Welcome screen
     welcomeCard: {
       background: DEFAULT_BG2,
       borderRadius: 8,
@@ -181,7 +228,6 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
       gap: 8,
       textAlign: 'left',
     },
-    // Identify screen
     label: {
       color: '#888',
       fontSize: 11,
@@ -237,7 +283,6 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
       padding: '0 0 8px',
       textAlign: 'left',
     },
-    // Chat screen
     msgBubbleGuest: {
       alignSelf: 'flex-end',
       background: accentColor,
@@ -291,6 +336,46 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
       justifyContent: 'center',
       flexShrink: 0,
     },
+    dayDivider: {
+      textAlign: 'center',
+      fontSize: 10,
+      color: '#444',
+      padding: '4px 0',
+      userSelect: 'none',
+    },
+    msgTimestamp: {
+      fontSize: 9,
+      color: '#444',
+      marginTop: 2,
+      textAlign: 'right',
+    },
+    operatorRow: {
+      display: 'flex',
+      alignItems: 'flex-end',
+      gap: 7,
+      alignSelf: 'flex-start',
+      maxWidth: '85%',
+    },
+    operatorAvatar: {
+      width: 26,
+      height: 26,
+      borderRadius: '50%',
+      background: '#252535',
+      border: `1px solid ${DEFAULT_BG3}`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 11,
+      fontWeight: 700,
+      color: accentColor,
+      flexShrink: 0,
+      overflow: 'hidden',
+    },
+    operatorMeta: {
+      fontSize: 9,
+      color: '#555',
+      marginBottom: 2,
+    },
   }
 
   // ── Render helpers ───────────────────────────────────────────────────────
@@ -299,31 +384,27 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
     return (
       <>
         <div style={styles.welcomeCard}>
-          <div style={styles.welcomeTitle}>¿Cómo te podemos ayudar?</div>
+          <div style={styles.welcomeTitle}>Como te podemos ayudar?</div>
           <div style={styles.availBadge}>
             <span style={styles.dot} />
             <span style={styles.availText}>
-              {isAvailable ? `${agentsOnline} agente${agentsOnline !== 1 ? 's' : ''} disponible${agentsOnline !== 1 ? 's' : ''}` : 'Sin agentes disponibles ahora'}
+              {isAvailable
+                ? `${agentsOnline} agente${agentsOnline !== 1 ? 's' : ''} disponible${agentsOnline !== 1 ? 's' : ''}`
+                : 'Sin agentes disponibles ahora'}
             </span>
           </div>
           {isAvailable && (
-            <div style={styles.responseTime}>Tiempo de respuesta típico: &lt;5 min</div>
+            <div style={styles.responseTime}>Tiempo de respuesta tipico: &lt;5 min</div>
           )}
         </div>
 
         {isAvailable ? (
-          <button
-            style={styles.optionBtn}
-            onClick={() => setScreen('identify')}
-          >
+          <button style={styles.optionBtn} onClick={() => setScreen('identify')}>
             <ChatIcon color={accentColor} />
             Hablar con un agente
           </button>
         ) : (
-          <button
-            style={styles.optionBtn}
-            onClick={() => setScreen('identify')}
-          >
+          <button style={styles.optionBtn} onClick={() => setScreen('identify')}>
             <MailIcon color={accentColor} />
             Dejar un mensaje
           </button>
@@ -335,10 +416,10 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
   function renderIdentify() {
     return (
       <>
-        <button style={styles.backBtn} onClick={() => setScreen('welcome')}>← Atrás</button>
+        <button style={styles.backBtn} onClick={() => setScreen('welcome')}>← Atras</button>
         <div style={{ color: '#ddd', fontWeight: 700, fontSize: 13, marginBottom: 4 }}>Antes de empezar</div>
         <div style={{ color: '#666', fontSize: 11, marginBottom: 14 }}>
-          Tu correo nos permite darte seguimiento si la conversación se interrumpe.
+          Tu correo nos permite darte seguimiento si la conversacion se interrumpe.
         </div>
 
         <div style={{ marginBottom: 10 }}>
@@ -353,7 +434,7 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
         </div>
 
         <div style={{ marginBottom: 14 }}>
-          <div style={styles.label}>Correo electrónico *</div>
+          <div style={styles.label}>Correo electronico *</div>
           <input
             style={s(styles.input, emailError ? styles.inputError : {})}
             type="email"
@@ -377,22 +458,64 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
   }
 
   function renderChat() {
+    // Group messages by day for dividers
+    const items = []
+    let lastDay = null
+    for (const msg of messages) {
+      const day = fmtDay(msg.created_at)
+      if (day && day !== lastDay) {
+        items.push({ type: 'divider', day, key: `div-${day}` })
+        lastDay = day
+      }
+      items.push({ type: 'msg', msg, key: msg.id })
+    }
+
     return (
       <>
         <div style={s(styles.body, { padding: '12px 14px' })}>
           {messages.length === 0 && (
             <div style={{ color: '#555', fontSize: 11, textAlign: 'center', marginTop: 20 }}>
-              Escribe tu primer mensaje para iniciar la conversación.
+              Escribe tu primer mensaje para iniciar la conversacion.
             </div>
           )}
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              style={msg.sender_type === 'guest' ? styles.msgBubbleGuest : styles.msgBubbleOperator}
-            >
-              {msg.body}
-            </div>
-          ))}
+          {items.map((item) => {
+            if (item.type === 'divider') {
+              return <div key={item.key} style={styles.dayDivider}>{item.day}</div>
+            }
+            const { msg } = item
+            const isGuest = msg.sender_type === 'guest'
+            const time = fmtTime(msg.created_at)
+
+            if (isGuest) {
+              return (
+                <div key={msg.id} style={{ alignSelf: 'flex-end', maxWidth: '80%' }}>
+                  <div style={styles.msgBubbleGuest}>{msg.body}</div>
+                  {time && <div style={s(styles.msgTimestamp, { color: '#666' })}>{time}</div>}
+                </div>
+              )
+            }
+
+            // Operator message — show avatar + name
+            const senderName = msg.senderName ?? msg.sender_name ?? 'Agente'
+            const avatarUrl = msg.senderAvatarUrl ?? msg.sender_avatar_url ?? null
+            const initial = senderName[0]?.toUpperCase() ?? 'A'
+
+            return (
+              <div key={msg.id} style={styles.operatorRow}>
+                <div style={styles.operatorAvatar}>
+                  {avatarUrl
+                    ? <img src={avatarUrl} alt={senderName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : initial
+                  }
+                </div>
+                <div>
+                  <div style={styles.operatorMeta}>{senderName}</div>
+                  <div style={styles.msgBubbleOperator}>{msg.body}</div>
+                  {time && <div style={styles.msgTimestamp}>{time}</div>}
+                </div>
+              </div>
+            )
+          })}
           <div ref={messagesEndRef} />
         </div>
 
@@ -422,14 +545,11 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
 
   return (
     <>
-      {/* Tab trigger */}
       <div style={styles.tab} onClick={() => setOpen(true)} role="button" aria-label="Abrir chat">
         CHAT
       </div>
 
-      {/* Slide panel */}
       <div style={styles.panel} role="dialog" aria-label="Chat de soporte">
-        {/* Header */}
         <div style={styles.header}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
             {screen === 'chat' && (
@@ -442,7 +562,7 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
               <button
                 style={s(styles.closeBtn, { fontSize: 11, color: '#555' })}
                 onClick={closeSession}
-                title="Cerrar conversación"
+                title="Cerrar conversacion"
               >
                 Cerrar
               </button>
@@ -453,7 +573,6 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
           </div>
         </div>
 
-        {/* Body */}
         {screen !== 'chat' ? (
           <div style={styles.body}>
             {screen === 'welcome' && renderWelcome()}
@@ -464,7 +583,6 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
         )}
       </div>
 
-      {/* Overlay to close on outside click */}
       {open && (
         <div
           style={{ position: 'fixed', inset: 0, zIndex: 9997 }}

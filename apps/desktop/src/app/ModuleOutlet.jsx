@@ -225,6 +225,9 @@ const SCREEN_MAP = {
   "atlas.chat:/chat/external": lazy(
     () => import("../modules/atlas.chat/screens/ExternalInboxScreen.jsx").then((m) => ({ default: m.ExternalInboxScreen })),
   ),
+  "atlas.chat:/chat/templates": lazy(
+    () => import("../modules/atlas.chat/screens/ChatTemplatesScreen.jsx").then((m) => ({ default: m.ChatTemplatesScreen })),
+  ),
   "atlas.catalog:/": lazy(
     () => import("../modules/atlas.catalog/screens/CatalogProductsScreen.jsx"),
   ),
@@ -522,6 +525,7 @@ function resolveScreen(moduleKey, subPath) {
     if (subPath === "/" || subPath === "/chat/inbox") return SCREEN_MAP["atlas.chat:/chat/inbox"] ?? null;
     if (subPath.startsWith("/chat/inbox/")) return SCREEN_MAP["atlas.chat:/chat/inbox"] ?? null;
     if (subPath === "/chat/external") return SCREEN_MAP["atlas.chat:/chat/external"] ?? null;
+    if (subPath === "/chat/templates") return SCREEN_MAP["atlas.chat:/chat/templates"] ?? null;
     return null;
   }
   if (moduleKey === "atlas.notes") {

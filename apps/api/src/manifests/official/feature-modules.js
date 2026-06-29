@@ -816,6 +816,13 @@ export const chatMap = createModuleManifest({
       layout: 'main',
       permissionKey: 'chat.support.manage',
     },
+    {
+      label: 'Plantillas',
+      path: '/chat/templates',
+      icon: 'LayoutTemplate',
+      layout: 'main',
+      permissionKey: 'chat.support.manage',
+    },
   ],
   permissions: [
     { key: 'chat.access',               name: 'Acceder a Chat' },

@@ -352,6 +352,29 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     }
   });
 
+  // GET /chat/operators/available — list operators available for chat in the caller's company
+  internal.get("/operators/available", requirePermission("chat.support.manage"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const profileRows = await prisma.$queryRaw`
+        SELECT "companyId" FROM "UserProfile" WHERE auth_user_id = ${authUserId} LIMIT 1
+      `;
+      if (!profileRows[0]) return c.json({ data: [] });
+      const companyId = profileRows[0].companyId;
+      const operators = await prisma.$queryRaw`
+        SELECT id, display_name AS "displayName", avatar_url AS "avatarUrl", email,
+               "availableForChat" AS "availableForChat"
+        FROM "UserProfile"
+        WHERE "companyId" = ${companyId}::uuid
+          AND "availableForChat" = true
+        ORDER BY display_name ASC
+      `;
+      return c.json({ data: operators });
+    } catch (err) {
+      return handleError(c, err, "Error obteniendo operadores.");
+    }
+  });
+
   // POST /chat/external/:conversationId/close
   internal.post("/external/:conversationId/close", requirePermission("chat.support.manage"), async (c) => {
     try {
