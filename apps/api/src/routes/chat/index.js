@@ -282,8 +282,8 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const result = await chatService.listMessages({
         conversationId,
         authUserId,
-        limit: limit ? parseInt(limit, 10) : 40,
-        before: before || null,
+        limit: limit ? Math.min(parseInt(limit, 10), 100) : 40,
+        before: before && !Number.isNaN(new Date(before).getTime()) ? before : null,
       });
       return c.json(result);
     } catch (err) {
@@ -446,7 +446,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const result = await guestService.listGuestMessages({
         rawToken,
         limit: limit ? Math.min(parseInt(limit, 10), 60) : 40,
-        before: before || null,
+        before: before && !Number.isNaN(new Date(before).getTime()) ? before : null,
       });
       return c.json(result);
     } catch (err) {

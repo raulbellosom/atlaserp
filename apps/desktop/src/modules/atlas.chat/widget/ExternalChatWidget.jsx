@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { MessageSquare, X, Send, ChevronDown } from "lucide-react";
-import { saveGuestSession, loadGuestSession } from "../lib/chatUtils";
+import { saveGuestSession, loadGuestSession, clearGuestSession } from "../lib/chatUtils";
 
 const POLL_INTERVAL = 5000;
 
@@ -52,8 +52,8 @@ function StartForm({ onStart, isLoading, error }) {
 }
 
 function MessageBubble({ msg }) {
-  const isOperator = msg.sender_type === "user";
-  const isSystem = msg.sender_type === "system";
+  const isOperator = msg.senderType === "user";
+  const isSystem = msg.senderType === "system";
 
   if (isSystem) {
     return (
@@ -82,7 +82,7 @@ function MessageBubble({ msg }) {
       >
         <p className="whitespace-pre-wrap break-words">{msg.body}</p>
         <p className={["text-[10px] mt-0.5", isOperator ? "text-gray-400" : "text-violet-200"].join(" ")}>
-          {formatTime(msg.created_at)}
+          {formatTime(msg.createdAt)}
         </p>
       </div>
     </div>
@@ -114,6 +114,7 @@ export function ExternalChatWidget({
   const [phase, setPhase] = useState("idle"); // idle | starting | chatting | error
   const [sessionToken, setSessionToken] = useState(null);
   const [conversationId, setConversationId] = useState(null);
+  const [trackingCode, setTrackingCode] = useState(null);
   const [messages, setMessages] = useState([]);
   const [body, setBody] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -126,9 +127,8 @@ export function ExternalChatWidget({
     const stored = loadGuestSession();
     if (stored?.token) {
       setSessionToken(stored.token);
-      if (stored.session?.conversationId) {
-        setConversationId(stored.session.conversationId);
-      }
+      if (stored.session?.conversationId) setConversationId(stored.session.conversationId);
+      if (stored.session?.trackingCode) setTrackingCode(stored.session.trackingCode);
       setPhase("chatting");
     }
   }, []);
@@ -145,14 +145,21 @@ export function ExternalChatWidget({
       const resp = await fetch(`${apiBaseUrl}/public/chat/session/${sessionToken}/messages`, {
         headers: { "Content-Type": "application/json" },
       });
+      if (resp.status === 401) {
+        clearGuestSession();
+        setSessionToken(null);
+        setMessages([]);
+        setPhase("idle");
+        return;
+      }
       if (!resp.ok) return;
       const data = await resp.json();
       if (data?.data?.length) {
         setMessages(data.data);
-        setConversationId(data.conversationId ?? conversationId);
+        if (data.conversationId) setConversationId(data.conversationId);
       }
     } catch {}
-  }, [sessionToken, apiBaseUrl, conversationId]);
+  }, [sessionToken, apiBaseUrl]);
 
   useEffect(() => {
     if (!open || phase !== "chatting" || !sessionToken) return;
@@ -182,12 +189,13 @@ export function ExternalChatWidget({
         throw new Error(err?.error ?? "Error iniciando chat.");
       }
       const result = await resp.json();
-      const { token, conversationId: convId } = result?.data ?? {};
+      const { token, conversationId: convId, trackingCode: code } = result?.data ?? {};
       if (!token) throw new Error("No se recibio token de sesion.");
 
       setSessionToken(token);
       setConversationId(convId);
-      saveGuestSession(token, { conversationId: convId, name, email });
+      setTrackingCode(code ?? null);
+      saveGuestSession(token, { conversationId: convId, trackingCode: code ?? null, name, email });
       setPhase("chatting");
     } catch (err) {
       setStartError(err?.message ?? "Error iniciando sesion.");
@@ -202,20 +210,24 @@ export function ExternalChatWidget({
     const optimistic = {
       id: `opt-${Date.now()}`,
       body: trimmed,
-      sender_type: "guest",
-      created_at: new Date().toISOString(),
+      senderType: "guest",
+      createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, optimistic]);
     setBody("");
 
     try {
-      await fetch(`${apiBaseUrl}/public/chat/session/${sessionToken}/messages`, {
+      const resp = await fetch(`${apiBaseUrl}/public/chat/session/${sessionToken}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body: trimmed }),
       });
+      if (!resp.ok) throw new Error("send_failed");
       await fetchMessages();
-    } catch {}
+    } catch {
+      setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
+      setBody(trimmed);
+    }
     setIsSending(false);
   }
 
@@ -244,7 +256,11 @@ export function ExternalChatWidget({
             </div>
             <div className="flex-1">
               <p className="text-white text-sm font-semibold">{operatorName}</p>
-              <p className="text-white/70 text-xs">En linea</p>
+              {trackingCode ? (
+                <p className="text-white/60 text-[10px] font-mono leading-tight">{trackingCode}</p>
+              ) : (
+                <p className="text-white/70 text-xs">En linea</p>
+              )}
             </div>
             <button
               type="button"

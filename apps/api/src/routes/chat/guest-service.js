@@ -37,14 +37,14 @@ async function generateTrackingCode(prisma, companyId) {
 async function autoAssign(prisma, conversationId, companyId) {
   const candidates = await prisma.$queryRaw`
     SELECT up.id AS user_id, COUNT(cc.id)::int AS open_count
-    FROM "UserProfile" up
+    FROM user_profile up
+    INNER JOIN membership m ON m.user_id = up.id AND m.company_id = ${companyId}::uuid AND m.enabled = true
     LEFT JOIN chat_conversations cc
       ON cc.assigned_user_id = up.id
       AND cc.status IN ('open', 'pending')
       AND cc.type = 'external_support'
       AND cc.deleted_at IS NULL
-    WHERE up."companyId" = ${companyId}::uuid
-      AND up."availableForChat" = true
+    WHERE up.available_for_chat = true
     GROUP BY up.id
     ORDER BY open_count ASC, RANDOM()
     LIMIT 1
@@ -123,17 +123,20 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
         LIMIT 1
       `;
       if (existing[0]) {
-        const resumeToken = crypto.randomBytes(32).toString("hex");
-        const resumeHash = hashToken(resumeToken);
+        // Issue a fresh primary token so all subsequent requests work without re-auth.
+        // Single-use resume_token_hash would be consumed on the first poll and break polling.
+        const newToken = crypto.randomBytes(32).toString("hex");
+        const newHash = hashToken(newToken);
         await prisma.$executeRaw`
           UPDATE chat_guest_sessions
-          SET resume_token_hash = ${resumeHash},
+          SET session_token_hash = ${newHash},
+              resume_token_hash = NULL,
               idle_expires_at = NOW() + INTERVAL '30 minutes',
               last_seen_at = NOW()
           WHERE id = ${existing[0].id}::uuid
         `;
         return {
-          token: resumeToken,
+          token: newToken,
           sessionId: existing[0].id,
           conversationId: existing[0].conversation_id,
           trackingCode: existing[0].tracking_code ?? null,
@@ -201,6 +204,28 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
       broadcaster?.broadcastToChannel(`chat:company:${companyId}`, "new_external_conversation", {
         conversationId: conv.id, assignedUserId,
       });
+    }
+
+    // System message so the guest immediately sees their tracking code
+    const sysMsg = await prisma.$queryRaw`
+      INSERT INTO chat_messages (conversation_id, sender_type, body, message_type, metadata)
+      VALUES (
+        ${conv.id},
+        'system',
+        ${`Conversacion iniciada. Tu numero de seguimiento es ${trackingCode}.`},
+        'text',
+        '{}'::jsonb
+      )
+      RETURNING id, created_at
+    `.catch(() => []);
+    if (sysMsg[0]) {
+      await prisma.$executeRaw`
+        UPDATE chat_conversations
+        SET last_message_id = ${sysMsg[0].id},
+            last_message_at = ${sysMsg[0].created_at},
+            updated_at = NOW()
+        WHERE id = ${conv.id}
+      `.catch(() => {});
     }
 
     // Non-blocking: capture lead in atlas.growth (pass trackingCode for metadata)
@@ -350,43 +375,52 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
       });
     }
 
-    // In-app notification to assigned operator (or broadcast to all available)
+    // In-app notification to assigned operator (or all available operators)
     if (notificationService && companyId) {
       setImmediate(async () => {
         try {
+          const preview = body.length > 80 ? `${body.slice(0, 80)}...` : body;
           if (assignedUserId) {
-            await notificationService.createNotification({
+            await notificationService.publish({
               companyId,
-              userId: assignedUserId,
-              channels: ["in_app", "email"],
-              type: "chat.new_guest_message",
-              title: "Nuevo mensaje de visitante",
-              body: body.slice(0, 100),
-              sourceType: "ChatConversation",
-              sourceId: conversationId,
-              actionUrl: `/app/chat/external/${conversationId}`,
+              input: {
+                eventType: "chat.new_guest_message",
+                title: "Nuevo mensaje de visitante",
+                body: preview,
+                link: `/m/atlas.chat/external`,
+                recipients: { userIds: [assignedUserId.toString()] },
+                channels: ["in_app"],
+                priority: "medium",
+                sourceType: "chat_conversation",
+                sourceId: conversationId,
+                dedupeKey: `chat.new_guest_message:${conversationId}`,
+              },
             });
           } else {
-            // No assigned operator: notify all available operators
+            // No assigned operator: notify all available operators in the company
             const operators = await prisma.$queryRaw`
-              SELECT id FROM "UserProfile"
-              WHERE "companyId" = ${companyId}::uuid AND "availableForChat" = true
+              SELECT up.id FROM user_profile up
+              INNER JOIN membership m ON m.user_id = up.id
+                AND m.company_id = ${companyId}::uuid AND m.enabled = true
+              WHERE up.available_for_chat = true
             `;
-            await Promise.all(
-              operators.map((op) =>
-                notificationService.createNotification({
-                  companyId,
-                  userId: op.id,
-                  channels: ["in_app", "email"],
-                  type: "chat.new_guest_message",
+            if (operators.length) {
+              await notificationService.publish({
+                companyId,
+                input: {
+                  eventType: "chat.new_guest_message",
                   title: "Nuevo mensaje de visitante sin asignar",
-                  body: body.slice(0, 100),
-                  sourceType: "ChatConversation",
+                  body: preview,
+                  link: `/m/atlas.chat/external`,
+                  recipients: { userIds: operators.map((op) => op.id.toString()) },
+                  channels: ["in_app"],
+                  priority: "medium",
+                  sourceType: "chat_conversation",
                   sourceId: conversationId,
-                  actionUrl: `/app/chat/external/${conversationId}`,
-                }).catch(() => {})
-              )
-            );
+                  dedupeKey: `chat.new_guest_message:${conversationId}`,
+                },
+              });
+            }
           }
         } catch {
           // Non-fatal
@@ -424,7 +458,7 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
         m.deleted_at AS "deletedAt",
         CASE
           WHEN m.sender_type = 'user' THEN
-            json_build_object('displayName', up.display_name, 'avatarUrl', up.avatar_url)
+            json_build_object('displayName', up.display_name, 'avatarUrl', NULL)
           ELSE NULL
         END AS sender,
         (
