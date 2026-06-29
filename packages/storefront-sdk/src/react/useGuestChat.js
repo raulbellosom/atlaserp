@@ -150,17 +150,42 @@ export function useGuestChat(sdk) {
     }
   }, [sdk])
 
+  // Poll for new messages as a safety net (covers cases where the realtime
+  // broadcast channel drops or reconnects slowly).
+  useEffect(() => {
+    if (!session?.token || screen !== 'chat') return
+    const id = setInterval(async () => {
+      try {
+        const msgs = await sdk.guestChat.listMessages(session.token)
+        if (!Array.isArray(msgs)) return
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m.id))
+          const newOnes = msgs.filter((m) => !existingIds.has(m.id))
+          return newOnes.length ? [...prev, ...newOnes] : prev
+        })
+      } catch { /* non-fatal */ }
+    }, 8000)
+    return () => clearInterval(id)
+  }, [session?.token, screen, sdk])
+
   const sendMessage = useCallback(async (body) => {
     if (!session?.token || !body?.trim()) return
     setIsSending(true)
+    // Optimistic: add instantly so the sender sees their own message right away.
+    const tempId = `temp-${Date.now()}`
+    setMessages((prev) => [...prev, {
+      id: tempId,
+      body,
+      sender_type: 'guest',
+      created_at: new Date().toISOString(),
+    }])
     try {
       const res = await sdk.guestChat.sendMessage(session.token, body)
-      setMessages((prev) => [...prev, {
-        id: res.messageId,
-        body,
-        sender_type: 'guest',
-        created_at: res.createdAt,
-      }])
+      setMessages((prev) => prev.map((m) =>
+        m.id === tempId ? { ...m, id: res.messageId, created_at: res.createdAt } : m
+      ))
+    } catch {
+      setMessages((prev) => prev.filter((m) => m.id !== tempId))
     } finally {
       setIsSending(false)
     }

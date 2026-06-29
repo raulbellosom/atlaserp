@@ -31,28 +31,44 @@ export function createGuestChatDomain(request, supabaseUrl, supabaseAnonKey) {
   }
 
   function subscribeToReplies(conversationId, onMessage) {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      return () => {}
-    }
-
     let channel = null
     let supabaseClient = null
     let cancelled = false
 
-    import('@supabase/supabase-js')
-      .then(({ createClient }) => {
-        if (cancelled) return
-        supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-          auth: { storageKey: 'atlas-guest-chat', persistSession: false },
-        })
-        channel = supabaseClient
-          .channel(`chat:conv:${conversationId}`)
-          .on('broadcast', { event: 'new_operator_message' }, ({ payload }) => {
-            onMessage(payload)
-          })
-          .subscribe()
+    async function setup() {
+      let url = supabaseUrl
+      let key = supabaseAnonKey
+
+      // If credentials were not supplied at SDK init time, fetch them from the API.
+      // The /public/storefront/realtime-config endpoint is unauthenticated and returns
+      // the Supabase URL + anon key needed to open a broadcast channel.
+      if (!url || !key) {
+        try {
+          const res = await request('GET', '/public/storefront/realtime-config')
+          url = res?.data?.supabaseUrl
+          key = res?.data?.supabaseAnonKey
+        } catch {
+          return
+        }
+      }
+
+      if (cancelled || !url || !key) return
+
+      const { createClient } = await import('@supabase/supabase-js')
+      if (cancelled) return
+
+      supabaseClient = createClient(url, key, {
+        auth: { storageKey: 'atlas-guest-chat', persistSession: false },
       })
-      .catch(() => {})
+      channel = supabaseClient
+        .channel(`chat:conv:${conversationId}`)
+        .on('broadcast', { event: 'new_operator_message' }, ({ payload }) => {
+          onMessage(payload)
+        })
+        .subscribe()
+    }
+
+    setup().catch(() => {})
 
     return function unsubscribe() {
       cancelled = true
