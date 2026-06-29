@@ -45,14 +45,17 @@ export function createPosFloorService({ prisma }) {
     return floor;
   }
 
-  async function getFloorWithLayout({ companyId, id }) {
+  async function getFloorWithLayout({ companyId, id, myTablesOnly = false, actorId }) {
     const scopedCompanyId = requireCompanyId(companyId)
     const floor = await prisma.posFloor.findFirst({
       where: { id, companyId: scopedCompanyId },
       include: {
         elements: { orderBy: { createdAt: 'asc' } },
         tables: {
-          where: { enabled: true },
+          where: {
+            enabled: true,
+            ...(myTablesOnly && actorId ? { waiterId: actorId } : {}),
+          },
           orderBy: { createdAt: 'asc' },
           include: {
             reservations: {
@@ -66,10 +69,21 @@ export function createPosFloorService({ prisma }) {
     })
     if (!floor) throw new PosServiceError('Plano POS no encontrado.', 404)
 
+    const waiterIds = [...new Set(floor.tables.map((t) => t.waiterId).filter(Boolean))]
+    let waiterNames = {}
+    if (waiterIds.length > 0) {
+      const waiters = await prisma.userProfile.findMany({
+        where: { id: { in: waiterIds } },
+        select: { id: true, displayName: true },
+      })
+      waiterNames = Object.fromEntries(waiters.map((w) => [w.id, w.displayName]))
+    }
+
     return {
       ...floor,
       tables: floor.tables.map((t) => ({
         ...t,
+        waiterName: t.waiterId ? (waiterNames[t.waiterId] ?? null) : null,
         activeReservation: t.reservations?.[0] ?? null,
         reservations: undefined,
       })),
@@ -294,7 +308,10 @@ export function createPosFloorService({ prisma }) {
     const before = await getTableInCompany({ companyId: scopedCompanyId, tableId });
     const updated = await prisma.posTable.update({
       where: { id: tableId },
-      data: { status },
+      data: {
+        status,
+        ...(status === "AVAILABLE" ? { waiterId: null } : {}),
+      },
     });
     await writeAudit(prisma, {
       actorId,
@@ -307,18 +324,75 @@ export function createPosFloorService({ prisma }) {
     return updated;
   }
 
-  async function getActiveMap({ companyId, outletId }) {
+  async function updateTableWaiter({ companyId, actorId, tableId, waiterId }) {
+    const scopedCompanyId = requireCompanyId(companyId);
+    const table = await prisma.posTable.findFirst({
+      where: { id: tableId, companyId: scopedCompanyId },
+    });
+    if (!table) throw new PosServiceError("Mesa no encontrada.", 404);
+
+    if (waiterId) {
+      const profile = await prisma.userProfile.findUnique({
+        where: { id: waiterId },
+        select: { id: true },
+      });
+      if (!profile) throw new PosServiceError("Usuario no encontrado.", 404);
+    }
+
+    const updated = await prisma.posTable.update({
+      where: { id: tableId },
+      data: { waiterId: waiterId ?? null },
+    });
+
+    await writeAudit(prisma, {
+      actorId,
+      entityType: "PosTable",
+      entityId: tableId,
+      action: "pos.table.waiter.assign",
+      before: { waiterId: table.waiterId },
+      after: { waiterId: waiterId ?? null },
+    });
+
+    return updated;
+  }
+
+  async function getActiveMap({ companyId, outletId, myTablesOnly = false, actorId }) {
     const scopedCompanyId = requireCompanyId(companyId);
     const floor = await prisma.posFloor.findFirst({
       where: { companyId: scopedCompanyId, outletId, isActive: true },
     });
     if (!floor) return null;
+
+    const tableWhere = {
+      floorId: floor.id,
+      ...(myTablesOnly && actorId ? { waiterId: actorId } : {}),
+    };
+
     const [zones, elements, tables] = await Promise.all([
       prisma.posFloorZone.findMany({ where: { floorId: floor.id }, orderBy: { position: "asc" } }),
       prisma.posFloorElement.findMany({ where: { floorId: floor.id } }),
-      prisma.posTable.findMany({ where: { floorId: floor.id } }),
+      prisma.posTable.findMany({ where: tableWhere }),
     ]);
-    return { ...floor, zones, elements, tables };
+
+    const waiterIds = [...new Set(tables.map((table) => table.waiterId).filter(Boolean))];
+    let waiterNames = {};
+    if (waiterIds.length > 0) {
+      const waiters = await prisma.userProfile.findMany({
+        where: { id: { in: waiterIds } },
+        select: { id: true, displayName: true },
+      });
+      waiterNames = Object.fromEntries(waiters.map((w) => [w.id, w.displayName]));
+    }
+
+    return {
+      ...floor,
+      zones,
+      elements,
+      tables: tables.map((table) => ({
+        ...table,
+        waiterName: table.waiterId ? (waiterNames[table.waiterId] ?? null) : null,
+      })),
+    };
   }
 
   return {
@@ -331,6 +405,7 @@ export function createPosFloorService({ prisma }) {
     createTable,
     updateTable,
     updateTableStatus,
+    updateTableWaiter,
     getActiveMap,
     saveLayout,
   };
