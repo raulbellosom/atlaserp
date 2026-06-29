@@ -271,6 +271,71 @@ async function main() {
   }
 
   console.log(`Atlas modules seeded (${officialModuleManifests.length})`)
+
+  // ------------------------------------------------------------------
+  // Chat message templates (default set per company)
+  // ------------------------------------------------------------------
+  const DEFAULT_CHAT_TEMPLATES = [
+    {
+      title: "Saludo de bienvenida",
+      body: "Hola, bienvenido/a. Soy {nombre_agente} del equipo de soporte. ¿En que puedo ayudarte hoy?",
+      tags: ["saludo", "bienvenida"],
+    },
+    {
+      title: "Un momento por favor",
+      body: "Entendido, dame un momento para revisar tu caso y darte la mejor respuesta.",
+      tags: ["espera"],
+    },
+    {
+      title: "Solicitar mas informacion",
+      body: "Para ayudarte mejor, podrias indicarme: \n1. ¿Cual es el nombre de tu empresa o cuenta?\n2. ¿Que paso exactamente?\n3. ¿Desde cuando ocurre?\nGracias.",
+      tags: ["soporte", "informacion"],
+    },
+    {
+      title: "Transferir a otro agente",
+      body: "Voy a transferirte con un especialista que podra ayudarte mejor en este caso. En un momento te atienden.",
+      tags: ["transferencia"],
+    },
+    {
+      title: "Cierre de conversacion",
+      body: "Ha sido un placer ayudarte. Si tienes otra duda en el futuro, no dudes en escribirnos. Que tengas un excelente dia.",
+      tags: ["cierre", "despedida"],
+    },
+    {
+      title: "Problema tecnico - escalando",
+      body: "Entiendo la situacion. Voy a escalar este caso a nuestro equipo tecnico para que lo revisen con prioridad. Te contactaremos a la brevedad.",
+      tags: ["tecnico", "escalamiento"],
+    },
+    {
+      title: "Cotizacion o precios",
+      body: "Con gusto te ayudo con informacion sobre precios y planes. Para prepararte una propuesta personalizada, podrias indicarme: ¿cuantos usuarios necesitas y que funcionalidades son mas importantes para ti?",
+      tags: ["ventas", "cotizacion"],
+    },
+    {
+      title: "Agradecimiento por feedback",
+      body: "Muchas gracias por compartir tu experiencia, nos ayuda a mejorar. Hemos registrado tu comentario para revisarlo con el equipo.",
+      tags: ["feedback"],
+    },
+  ]
+
+  try {
+    const allCompanies = await prisma.company.findMany({ select: { id: true } })
+    for (const company of allCompanies) {
+      for (const tpl of DEFAULT_CHAT_TEMPLATES) {
+        await prisma.$executeRaw`
+          INSERT INTO chat_message_templates (company_id, title, body, tags, enabled)
+          SELECT ${company.id}::uuid, ${tpl.title}, ${tpl.body}, ${tpl.tags}::text[], true
+          WHERE NOT EXISTS (
+            SELECT 1 FROM chat_message_templates
+            WHERE company_id = ${company.id}::uuid AND title = ${tpl.title}
+          )
+        `
+      }
+    }
+    console.log(`Chat templates seeded for ${allCompanies.length} company(s)`)
+  } catch {
+    // Table doesn't exist yet or migration not run — skip silently
+  }
 }
 
 main().finally(() => prisma.$disconnect())

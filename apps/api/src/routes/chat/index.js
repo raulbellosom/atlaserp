@@ -300,8 +300,9 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const data = chatSendMessageSchema.parse(body);
 
       // Auto-join as operator and fetch profile for broadcast
+      // user_profile has no avatar_url column; avatar is resolved via profile_image_file_id
       const profileRows = await prisma.$queryRaw`
-        SELECT id, display_name AS "displayName", avatar_url AS "avatarUrl"
+        SELECT id, display_name AS "displayName"
         FROM user_profile WHERE auth_user_id = ${authUserId} LIMIT 1
       `;
       if (profileRows.length) {
@@ -366,7 +367,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const operators = await prisma.$queryRaw`
         SELECT id,
                display_name AS "displayName",
-               avatar_url AS "avatarUrl",
+               NULL AS "avatarUrl",
                email,
                available_for_chat AS "availableForChat"
         FROM user_profile
