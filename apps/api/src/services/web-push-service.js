@@ -64,8 +64,9 @@ function asErrorMessage(err) {
 
 export function isPermanentSubscriptionError(err) {
   const status = Number(err?.statusCode ?? err?.status ?? 0);
-  // 404/410: subscription gone. 401: VAPID key mismatch — subscription invalid with current keys.
-  if (status === 401 || status === 404 || status === 410) return true;
+  // 401/403: VAPID key mismatch — subscription registered with a different key.
+  // 404/410: subscription expired or explicitly unsubscribed by the browser.
+  if (status === 401 || status === 403 || status === 404 || status === 410) return true;
   return false;
 }
 
@@ -207,10 +208,13 @@ export function createWebPushService({ prisma, webPushLib = webpush }) {
       config.privateKey,
     );
 
+    const priority = payload?.data?.priority ?? "medium";
+    const urgency = priority === "critical" || priority === "high" ? "high" : "normal";
+
     try {
       await webPushLib.sendNotification(subscription, JSON.stringify(payload), {
-        TTL: 60,
-        urgency: "normal",
+        TTL: 86400,
+        urgency,
       });
       return { ok: true };
     } catch (err) {

@@ -119,9 +119,10 @@ export async function subscribeCurrentDeviceToWebPush({
 
 export async function unsubscribeCurrentDeviceFromWebPush({ token }) {
   if (isWebPushSupported()) {
-    const registration = await navigator.serviceWorker.getRegistration(
-      "/sw-notifications.js",
-    );
+    const registration =
+      (await navigator.serviceWorker.getRegistration("/")) ??
+      (await navigator.serviceWorker.getRegistration()) ??
+      null;
     const subscription = await registration?.pushManager?.getSubscription?.();
     if (subscription) await subscription.unsubscribe();
   }
