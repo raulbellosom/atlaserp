@@ -64,7 +64,8 @@ function asErrorMessage(err) {
 
 export function isPermanentSubscriptionError(err) {
   const status = Number(err?.statusCode ?? err?.status ?? 0);
-  if (status === 404 || status === 410) return true;
+  // 404/410: subscription gone. 401: VAPID key mismatch — subscription invalid with current keys.
+  if (status === 401 || status === 404 || status === 410) return true;
   return false;
 }
 
@@ -210,11 +211,14 @@ export function createWebPushService({ prisma, webPushLib = webpush }) {
       });
       return { ok: true };
     } catch (err) {
+      const statusCode = Number(err?.statusCode ?? err?.status ?? 0) || null;
+      const baseMsg = asErrorMessage(err);
+      const error = statusCode ? `${baseMsg} (HTTP ${statusCode})` : baseMsg;
       return {
         ok: false,
-        statusCode: Number(err?.statusCode ?? err?.status ?? 0) || null,
+        statusCode,
         permanentFailure: isPermanentSubscriptionError(err),
-        error: asErrorMessage(err),
+        error,
       };
     }
   }

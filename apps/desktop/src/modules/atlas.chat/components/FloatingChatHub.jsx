@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
@@ -6,6 +7,7 @@ import {
   ExternalLink, FolderOpen, MoreVertical,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useRealtimeContext } from "../../../providers/RealtimeProvider";
 import { Skeleton, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@atlas/ui";
 import { useChatFloatStore } from "../store/chatFloatStore";
 import { useChatMessages, useSendMessage, useMarkRead } from "../hooks/useChatMessages";
@@ -472,6 +474,8 @@ function FloatingChatHubInner() {
   const { session, userProfile } = useAuth();
   const { edge, yPx, isOpen, hidden, openChats, setPosition, toggle, close, closeChat, toggleMinimize, hide } =
     useChatFloatStore();
+  const queryClient = useQueryClient();
+  const { on } = useRealtimeContext();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["chat-conversations"],
@@ -483,6 +487,20 @@ function FloatingChatHubInner() {
   });
   const conversations = data?.data ?? [];
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unread_count ?? 0), 0);
+
+  // Invalidate immediately on new messages so the badge updates in real time
+  useEffect(() => {
+    const unsub1 = on("chat.message.new", () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+    });
+    const unsub2 = on("external_message", () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+    });
+    const unsub3 = on("new_external_conversation", () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+    });
+    return () => { unsub1(); unsub2(); unsub3(); };
+  }, [on, queryClient]);
 
   const effectiveY = yPx ?? Math.round(window.innerHeight * 0.75);
   const isMobile = window.innerWidth < 640;

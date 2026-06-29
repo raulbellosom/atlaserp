@@ -181,16 +181,19 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         c.metadata,
         c.created_at,
         -- unread count
+        -- IS DISTINCT FROM handles NULL sender_user_id (guest messages) correctly
+        -- != would evaluate NULL != profileId as NULL (falsy), missing guest messages
         (
           SELECT COUNT(*)::int FROM chat_messages m
           WHERE m.conversation_id = c.id
             AND m.deleted_at IS NULL
+            AND m.sender_type != 'system'
+            AND m.sender_user_id IS DISTINCT FROM ${profileId}
             AND m.created_at > COALESCE(
               (SELECT last_read_at FROM chat_conversation_members
                WHERE conversation_id = c.id AND user_id = ${profileId}),
               '1970-01-01'::timestamptz
             )
-            AND m.sender_user_id != ${profileId}
         ) AS unread_count,
         -- last message preview
         (
