@@ -70,14 +70,29 @@ function TemplateFormDialog({ open, onClose, initial }) {
             placeholder="Ej: Saludo inicial"
             required
           />
-          <TextareaField
-            label="Cuerpo del mensaje"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Escribe el texto de la plantilla..."
-            rows={5}
-            required
-          />
+          <div className="space-y-1.5">
+            <TextareaField
+              label="Cuerpo del mensaje"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Escribe el texto de la plantilla..."
+              rows={5}
+              required
+            />
+            <p className="text-[11px] text-[hsl(var(--muted-foreground))] leading-relaxed">
+              Variables disponibles:{" "}
+              {["{nombre_agente}", "{nombre_cliente}", "{email_cliente}"].map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setBody((prev) => prev + v)}
+                  className="inline font-mono bg-[hsl(var(--muted))] hover:bg-[hsl(var(--border))] px-1 py-0.5 rounded text-[10px] mr-1 cursor-pointer transition-colors"
+                >
+                  {v}
+                </button>
+              ))}
+            </p>
+          </div>
           <TextField
             label="Etiquetas (separadas por coma)"
             value={tagsRaw}

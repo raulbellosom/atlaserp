@@ -408,7 +408,14 @@ function ExternalChatPane({ conversation }) {
         <div className="shrink-0">
           {/* Template button row above composer */}
           <div className="flex items-center gap-2 px-3 pt-2">
-            <ChatTemplatePopover onSelect={(body) => composerRef.current?.setBody?.(body)} />
+            <ChatTemplatePopover
+              onSelect={(body) => composerRef.current?.setBody?.(body)}
+              vars={{
+                nombre_agente: userProfile?.displayName ?? userProfile?.email ?? "Agente",
+                nombre_cliente: conversation?.guest_name ?? conversation?.guest_email ?? "Cliente",
+                email_cliente: conversation?.guest_email ?? "",
+              }}
+            />
             <span className="text-[10px] text-[hsl(var(--muted-foreground))]">Plantillas</span>
           </div>
           <MessageComposer

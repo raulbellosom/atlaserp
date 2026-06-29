@@ -4,7 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 
-export function ChatTemplatePopover({ onSelect }) {
+function applyVars(body, vars = {}) {
+  return body.replace(/\{(\w+)\}/g, (match, key) => vars[key] ?? match);
+}
+
+export function ChatTemplatePopover({ onSelect, vars = {} }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const { session } = useAuth();
@@ -37,7 +41,7 @@ export function ChatTemplatePopover({ onSelect }) {
   }, [open]);
 
   function handleSelect(template) {
-    onSelect(template.body);
+    onSelect(applyVars(template.body, vars));
     atlas.chat.recordTemplateUse(template.id, token).catch(() => {});
     setOpen(false);
     setSearch("");
