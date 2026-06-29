@@ -37,7 +37,20 @@ export function createGuestChatDomain(request, supabaseUrl, supabaseAnonKey) {
     const params = new URLSearchParams({ limit: String(limit) })
     if (before) params.set('before', before)
     const res = await request('GET', `/public/chat/session/${token}/messages?${params}`)
-    return res.data
+    const msgs = res.data
+    if (!Array.isArray(msgs)) return []
+    // Normalize to snake_case so the shape matches realtime broadcast payloads.
+    return msgs.map((m) => ({
+      id: m.id,
+      body: m.body,
+      sender_type: m.senderType ?? m.sender_type,
+      message_type: m.messageType ?? m.message_type,
+      created_at: m.createdAt ?? m.created_at,
+      senderName: m.sender?.displayName ?? null,
+      senderAvatarUrl: m.sender?.avatarUrl ?? null,
+      metadata: m.metadata ?? null,
+      attachments: m.attachments ?? null,
+    }))
   }
 
   async function closeSession(token) {
