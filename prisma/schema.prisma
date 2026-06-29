@@ -2151,6 +2151,7 @@ model PosOrder {
   @@unique([companyId, orderNumber])
   @@index([companyId, status])
   @@index([companyId, salesChannel])
+  @@index([waiterId])
   @@map("pos_order")
 }
 
@@ -2286,6 +2287,7 @@ model PosTable {
 
   @@unique([floorId, name])
   @@index([companyId, status])
+  @@index([waiterId])
   @@map("pos_table")
 }
 
