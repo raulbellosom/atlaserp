@@ -338,6 +338,7 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
       padding: '10px 12px',
       borderTop: `1px solid ${DEFAULT_BG3}`,
       display: 'flex',
+      alignItems: 'flex-end',
       gap: 6,
       flexShrink: 0,
     },
@@ -352,8 +353,10 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
       resize: 'none',
       outline: 'none',
       fontFamily: 'inherit',
+      lineHeight: '1.45',
       minHeight: 36,
-      maxHeight: 100,
+      maxHeight: 140,
+      overflowY: 'auto',
     },
     sendBtn: {
       background: accentColor,
@@ -667,10 +670,20 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
             <ClipIcon color="#666" />
           </button>
           <textarea
+            ref={(el) => {
+              if (!el) return;
+              el.style.height = '36px';
+              el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+            }}
             style={styles.textArea}
             placeholder="Escribe un mensaje..."
             value={textInput}
-            onChange={(e) => setTextInput(e.target.value)}
+            onChange={(e) => {
+              setTextInput(e.target.value);
+              const el = e.target;
+              el.style.height = '36px';
+              el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+            }}
             onKeyDown={handleKeyDown}
             rows={1}
           />
