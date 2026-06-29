@@ -101,7 +101,7 @@ async function captureGrowthLead(prisma, { companyId, email, name, trackingCode 
   }
 }
 
-export function createGuestChatService({ prisma, supabaseAdmin, notificationService }) {
+export function createGuestChatService({ prisma, supabaseAdmin, notificationService, broadcaster }) {
   // ------------------------------------------------------------------
   // Session management
   // ------------------------------------------------------------------
@@ -198,11 +198,9 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
 
     // Broadcast new conversation to all operators' inbox (non-fatal)
     if (companyId) {
-      supabaseAdmin.channel(`chat:company:${companyId}`).send({
-        type: "broadcast",
-        event: "new_external_conversation",
-        payload: { conversationId: conv.id, assignedUserId },
-      }).catch(() => {});
+      broadcaster?.broadcastToChannel(`chat:company:${companyId}`, "new_external_conversation", {
+        conversationId: conv.id, assignedUserId,
+      });
     }
 
     // Non-blocking: capture lead in atlas.growth (pass trackingCode for metadata)
@@ -343,22 +341,13 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
       messageType,
       createdAt: msg.created_at,
     };
-    try {
-      await supabaseAdmin.channel(`chat:conv:${conversationId}`).send({
-        type: "broadcast",
-        event: "new_guest_message",
-        payload: broadcastPayload,
-      });
-    } catch {
-      // Non-fatal
-    }
+    // Broadcast to conversation channel (guest widget updates)
+    broadcaster?.broadcastToChannel(`chat:conv:${conversationId}`, "new_guest_message", broadcastPayload);
     // Also broadcast at company level so inbox sidebar updates immediately
     if (companyId) {
-      supabaseAdmin.channel(`chat:company:${companyId}`).send({
-        type: "broadcast",
-        event: "external_message",
-        payload: { conversationId, messageId: msg.id },
-      }).catch(() => {});
+      broadcaster?.broadcastToChannel(`chat:company:${companyId}`, "external_message", {
+        conversationId, messageId: msg.id,
+      });
     }
 
     // In-app notification to assigned operator (or broadcast to all available)

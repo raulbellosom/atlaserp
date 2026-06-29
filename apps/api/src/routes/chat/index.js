@@ -28,7 +28,7 @@ function handleError(c, err, fallback) {
 export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService = null, broadcaster = null }) {
   const app = new Hono();
   const chatService = createChatService({ prisma, supabaseAdmin, notificationService, broadcaster });
-  const guestService = createGuestChatService({ prisma, supabaseAdmin, notificationService });
+  const guestService = createGuestChatService({ prisma, supabaseAdmin, notificationService, broadcaster });
   const templateService = createChatTemplateService({ prisma });
 
   // ================================================================
@@ -315,23 +315,16 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
 
       const result = await chatService.sendMessage({ conversationId, authUserId, ...data });
 
-      // Notify the guest widget in real time (includes operator profile for display)
-      supabaseAdmin
-        .channel(`chat:conv:${conversationId}`)
-        .send({
-          type: "broadcast",
-          event: "new_operator_message",
-          payload: {
-            conversationId,
-            messageId: result.id,
-            body: data.body,
-            senderType: "user",
-            senderName: profileRows[0]?.displayName ?? "Operador",
-            senderAvatarUrl: profileRows[0]?.avatarUrl ?? null,
-            createdAt: result.created_at,
-          },
-        })
-        .catch(() => {});
+      // Notify the guest widget in real time via HTTP broadcast (no subscribe needed)
+      broadcaster?.broadcastToChannel(`chat:conv:${conversationId}`, "new_operator_message", {
+        conversationId,
+        messageId: result.id,
+        body: data.body,
+        senderType: "user",
+        senderName: profileRows[0]?.displayName ?? "Operador",
+        senderAvatarUrl: null,
+        createdAt: result.created_at,
+      });
 
       return c.json({ data: result }, 201);
     } catch (err) {

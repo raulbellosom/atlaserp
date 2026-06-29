@@ -312,19 +312,27 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
       color: '#0f0f13',
       borderRadius: '10px 10px 2px 10px',
       padding: '7px 10px',
-      fontSize: 12,
-      maxWidth: '80%',
+      fontSize: 13,
+      lineHeight: '1.45',
+      maxWidth: '78%',
+      minWidth: 48,
       wordBreak: 'break-word',
+      whiteSpace: 'pre-wrap',
+      overflowWrap: 'anywhere',
     },
     msgBubbleOperator: {
       alignSelf: 'flex-start',
       background: DEFAULT_BG2,
-      color: '#ddd',
+      color: '#e0e0e0',
       borderRadius: '10px 10px 10px 2px',
       padding: '7px 10px',
-      fontSize: 12,
-      maxWidth: '80%',
+      fontSize: 13,
+      lineHeight: '1.45',
+      maxWidth: '78%',
+      minWidth: 48,
       wordBreak: 'break-word',
+      whiteSpace: 'pre-wrap',
+      overflowWrap: 'anywhere',
     },
     chatFooter: {
       padding: '10px 12px',
@@ -599,7 +607,7 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
             if (isGuest) {
               const isFile = msg.message_type === 'file'
               return (
-                <div key={msg.id} style={{ alignSelf: 'flex-end', maxWidth: '80%' }}>
+                <div key={msg.id} style={{ alignSelf: 'flex-end', maxWidth: '85%' }}>
                   <div style={styles.msgBubbleGuest}>
                     {isFile
                       ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><ClipIcon color="#0f0f13" />{msg.body}</span>
