@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
-import { subscribeToBroadcast } from "../lib/supabaseRealtime";
+import { subscribeToMultiBroadcast } from "../lib/supabaseRealtime";
 
 export function useExternalInbox(status = "open", search = null) {
   const { session, companyId } = useAuth();
@@ -25,19 +25,12 @@ export function useExternalInbox(status = "open", search = null) {
   useEffect(() => {
     if (!companyId) return;
 
-    // Subscribe to company-level channel for inbox updates
-    const unsubConv = subscribeToBroadcast(
-      `chat:company:${companyId}`,
-      "new_external_conversation",
-      invalidate,
-    );
-    const unsubMsg = subscribeToBroadcast(
-      `chat:company:${companyId}`,
-      "external_message",
-      invalidate,
-    );
+    const unsub = subscribeToMultiBroadcast(`chat:company:${companyId}`, {
+      new_external_conversation: invalidate,
+      external_message: invalidate,
+    });
 
-    unsubRefs.current = [unsubConv, unsubMsg];
+    unsubRefs.current = [unsub];
     return () => {
       unsubRefs.current.forEach((fn) => fn?.());
       unsubRefs.current = [];
@@ -68,19 +61,12 @@ export function useExternalMessages(conversationId) {
   useEffect(() => {
     if (!conversationId) return;
 
-    // Subscribe to broadcast channel for both guest and operator messages
-    const unsubGuest = subscribeToBroadcast(
-      `chat:conv:${conversationId}`,
-      "new_guest_message",
-      invalidate,
-    );
-    const unsubOp = subscribeToBroadcast(
-      `chat:conv:${conversationId}`,
-      "new_operator_message",
-      invalidate,
-    );
+    const unsub = subscribeToMultiBroadcast(`chat:conv:${conversationId}`, {
+      new_guest_message: invalidate,
+      new_operator_message: invalidate,
+    });
 
-    unsubRefs.current = [unsubGuest, unsubOp];
+    unsubRefs.current = [unsub];
     return () => {
       unsubRefs.current.forEach((fn) => fn?.());
       unsubRefs.current = [];

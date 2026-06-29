@@ -5,7 +5,6 @@ import { ChatMessageList } from "../components/ChatMessageList";
 import { MessageComposer } from "../components/MessageComposer";
 import { ChatTemplatePopover } from "../components/ChatTemplatePopover";
 import { useExternalInbox, useExternalMessages, useSendExternalMessage } from "../hooks/useExternalInbox";
-import { subscribeToBroadcast } from "../lib/supabaseRealtime";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
@@ -323,24 +322,10 @@ function ExternalChatPane({ conversation }) {
   const token = session?.access_token;
   const queryClient = useQueryClient();
   const composerRef = useRef(null);
-  const unsubRef = useRef(null);
   const prevCountRef = useRef(0);
 
   const { data: messagesData, isLoading } = useExternalMessages(conversation?.id);
   const { mutateAsync: sendMsg } = useSendExternalMessage(conversation?.id);
-
-  // Sound notification when new guest message arrives (tab not focused)
-  useEffect(() => {
-    if (!conversation?.id) return;
-    unsubRef.current = subscribeToBroadcast(
-      `chat:conv:${conversation.id}`,
-      "new_guest_message",
-      () => {
-        if (document.visibilityState === "hidden") playNotificationBeep();
-      },
-    );
-    return () => unsubRef.current?.();
-  }, [conversation?.id]);
 
   // Track message count to play sound when inbox is in background
   useEffect(() => {

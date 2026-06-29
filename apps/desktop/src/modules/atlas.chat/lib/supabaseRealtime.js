@@ -33,7 +33,7 @@ export function subscribeToMessages(conversationId, onMessage) {
 }
 
 /**
- * Subscribe to new/updated messages via Broadcast (for guest channels too).
+ * Subscribe to a single broadcast event on a channel.
  * Returns an unsubscribe function.
  */
 export function subscribeToBroadcast(channelName, event, onEvent) {
@@ -47,6 +47,27 @@ export function subscribeToBroadcast(channelName, event, onEvent) {
     .subscribe();
 
   return () => client.removeChannel(channel);
+}
+
+/**
+ * Subscribe to multiple broadcast events on a SINGLE channel.
+ * Avoids the channel-removal conflict that occurs when subscribeToBroadcast
+ * is called more than once with the same channelName.
+ * handlers is an object of { eventName: callbackFn }.
+ * Returns an unsubscribe function.
+ */
+export function subscribeToMultiBroadcast(channelName, handlers) {
+  const client = getSupabaseClient();
+  const stale = client.getChannels().find((ch) => ch.topic === `realtime:${channelName}`);
+  if (stale) client.removeChannel(stale);
+
+  let ch = client.channel(channelName);
+  for (const [event, fn] of Object.entries(handlers)) {
+    ch = ch.on("broadcast", { event }, (payload) => fn(payload));
+  }
+  ch.subscribe();
+
+  return () => client.removeChannel(ch);
 }
 
 /**

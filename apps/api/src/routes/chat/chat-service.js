@@ -234,6 +234,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         AND ccm.user_id = ${profileId}
         AND ccm.left_at IS NULL
       WHERE c.deleted_at IS NULL
+        AND c.type != 'external_support'
         ${cursorClause}
       ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
       LIMIT ${limit + 1}
