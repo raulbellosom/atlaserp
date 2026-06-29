@@ -2,13 +2,14 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SelectField, EmptyState, Label, Button, Sheet, SheetContent, SheetTitle, Dialog, DialogContent, DialogHeader, DialogTitle } from '@atlas/ui'
 import { toast } from 'sonner'
-import { LayoutGrid, List, Maximize2, Minimize2, CalendarCheck, CalendarX, Sparkles, UtensilsCrossed } from 'lucide-react'
-import { usePosFloors, usePosFloorDetail, useUpdateTableStatus } from '../hooks/usePosFloor'
+import { LayoutGrid, List, Maximize2, Minimize2, CalendarCheck, CalendarX, Sparkles, UtensilsCrossed, UserCheck } from 'lucide-react'
+import { usePosFloors, usePosFloorDetail, useUpdateTableStatus, useUpdateTableWaiter } from '../hooks/usePosFloor'
 import { useCreatePosReservation, useUpdatePosReservation, useSeatPosReservation } from '../hooks/usePosReservation'
 import { ReservationFormDialog } from '../components/ReservationFormDialog'
 import { usePosOutlets } from '../hooks/usePosSettings'
 import { useCreatePosOrder, usePosOrders } from '../hooks/usePosOrder'
 import { useIsDesktop } from '../../../hooks/useIsDesktop'
+import { useAuth } from '../../../auth/AuthProvider'
 import FloorOperationalCanvas from '../components/FloorOperationalCanvas'
 import TableMap from '../components/TableMap'
 
@@ -34,7 +35,7 @@ function ReservationCard({ r }) {
   )
 }
 
-function TableActionPanel({ actionTable, onClose, onNavigateToOrder, onMarkClean, onCancelReserve, busy }) {
+function TableActionPanel({ actionTable, onClose, onNavigateToOrder, onMarkClean, onCancelReserve, onClaimTable, busy }) {
   const isDesktop = useIsDesktop()
   const name = actionTable?.name || 'Mesa'
   const action = actionTable?.action
@@ -50,6 +51,25 @@ function TableActionPanel({ actionTable, onClose, onNavigateToOrder, onMarkClean
           </DialogHeader>
 
           <div className="space-y-4 pt-1">
+            {action === 'claim' && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  {actionTable?.waiterName
+                    ? `Asignada actualmente a ${actionTable.waiterName}.`
+                    : 'Esta mesa no tiene mesero asignado.'}
+                </p>
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" size="sm" onClick={onNavigateToOrder}>
+                    Abrir orden
+                  </Button>
+                  <Button size="sm" onClick={onClaimTable} disabled={busy} className="gap-1.5">
+                    <UserCheck size={14} />
+                    {busy ? 'Asignando...' : 'Asignar mesa a mí'}
+                  </Button>
+                </div>
+              </>
+            )}
+
             {action === 'dirty' && (
               <>
                 <p className="text-sm text-muted-foreground">
@@ -104,6 +124,23 @@ function TableActionPanel({ actionTable, onClose, onNavigateToOrder, onMarkClean
         <SheetTitle className="text-base mb-4">{name}</SheetTitle>
 
         <div className="space-y-3">
+          {action === 'claim' && (
+            <>
+              <p className="text-sm text-muted-foreground mb-2">
+                {actionTable?.waiterName
+                  ? `Asignada actualmente a ${actionTable.waiterName}.`
+                  : 'Esta mesa no tiene mesero asignado.'}
+              </p>
+              <Button className="w-full h-12" onClick={onClaimTable} disabled={busy}>
+                <UserCheck size={15} className="mr-2" />
+                {busy ? 'Asignando...' : 'Asignar mesa a mí'}
+              </Button>
+              <Button variant="outline" className="w-full h-12" onClick={onNavigateToOrder}>
+                Abrir orden
+              </Button>
+            </>
+          )}
+
           {action === 'dirty' && (
             <>
               <p className="text-sm text-muted-foreground mb-2">La mesa todavía no ha sido limpiada.</p>
@@ -158,6 +195,9 @@ export default function PosTablesScreen() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [reserveMode, setReserveMode] = useState(false)
   const [actionTable, setActionTable] = useState(null) // { id, name, status, action }
+  const [myTablesOnly, setMyTablesOnly] = useState(false)
+  const { userProfile } = useAuth()
+  const updateTableWaiter = useUpdateTableWaiter()
 
   const updateTableStatus = useUpdateTableStatus()
   const [reserveFormTable, setReserveFormTable] = useState(null)
@@ -185,7 +225,10 @@ export default function PosTablesScreen() {
   const defaultFloor = floors.find((f) => f.isActive) ?? floors[0]
   const effectiveFloorId = selectedFloorId || defaultFloor?.id || ''
 
-  const { data: floorDetail, isLoading: tablesLoading } = usePosFloorDetail(effectiveFloorId, { refetch: true })
+  const { data: floorDetail, isLoading: tablesLoading } = usePosFloorDetail(effectiveFloorId, {
+    refetch: true,
+    myTablesOnly,
+  })
 
   const tables = floorDetail?.tables ?? []
   const elements = floorDetail?.elements ?? []
@@ -243,6 +286,10 @@ export default function PosTablesScreen() {
       setReserveFormTable({ id: table.id, name, outletId: effectiveOutletId })
       return
     }
+    if (liveTable.waiterId && liveTable.waiterId !== userProfile?.id) {
+      setActionTable({ id: table.id, name, status, action: 'claim', waiterName: liveTable.waiterName ?? null })
+      return
+    }
     navigateToOrder(liveTable)
   }
 
@@ -251,6 +298,14 @@ export default function PosTablesScreen() {
     updateTableStatus.mutate({ tableId: actionTable.id, status: 'AVAILABLE' }, {
       onSuccess: () => setActionTable(null),
     })
+  }
+
+  function handleClaimTable() {
+    if (!actionTable || !userProfile?.id) return
+    updateTableWaiter.mutate(
+      { tableId: actionTable.id, waiterId: userProfile.id },
+      { onSuccess: () => setActionTable(null) },
+    )
   }
 
   function handleReservationSubmit(data) {
@@ -347,6 +402,18 @@ export default function PosTablesScreen() {
           </div>
         )}
 
+        {/* Mis mesas toggle */}
+        <Button
+          variant={myTablesOnly ? 'default' : 'ghost'}
+          size="sm"
+          className={`shrink-0 px-2.5 gap-1.5 ${myTablesOnly ? 'bg-foreground hover:bg-foreground/90 text-background' : ''}`}
+          onClick={() => setMyTablesOnly((v) => !v)}
+          title="Mostrar solo mis mesas asignadas"
+        >
+          <UserCheck size={15} />
+          <span className="hidden sm:inline text-xs">Mis mesas</span>
+        </Button>
+
         {/* Reserve mode toggle */}
         <Button
           variant={reserveMode ? 'default' : 'ghost'}
@@ -436,7 +503,8 @@ export default function PosTablesScreen() {
         onNavigateToOrder={handleActionNavigate}
         onMarkClean={handleMarkClean}
         onCancelReserve={handleCancelReserve}
-        busy={updateTableStatus.isPending || updateReservation.isPending || seatReservation.isPending}
+        onClaimTable={handleClaimTable}
+        busy={updateTableStatus.isPending || updateReservation.isPending || seatReservation.isPending || updateTableWaiter.isPending}
       />
 
       <ReservationFormDialog
