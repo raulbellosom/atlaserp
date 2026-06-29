@@ -684,7 +684,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
               priority: "medium",
               sourceType: "chat_conversation",
               sourceId: conversationId,
-              dedupeKey: `chat.message.new:${conversationId}`,
+              dedupeKey: `chat.message.new:${msg.id}`,
             },
           });
         } catch {}

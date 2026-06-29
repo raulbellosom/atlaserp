@@ -38,6 +38,7 @@ self.addEventListener("push", (event) => {
     icon: payload?.icon || "/icon-192.png",
     badge: payload?.badge || "/icon-192.png",
     tag: payload?.tag,
+    renotify: Boolean(payload?.tag),
     data: {
       ...(payload?.data || {}),
       link,

@@ -85,7 +85,9 @@ export function buildPushPayload({ notification }) {
       eventType: notification?.eventType ?? null,
       priority: notification?.priority ?? "medium",
     },
-    tag: notification?.id ?? undefined,
+    tag: notification?.eventType === 'chat.message.new' && notification?.sourceId
+      ? `chat:${notification.sourceId}`
+      : (notification?.id ?? undefined),
   };
 }
 
