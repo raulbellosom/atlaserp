@@ -47,7 +47,7 @@ export async function expireStaleGuestSessions(prisma) {
     FROM chat_guest_sessions cgs
     LEFT JOIN chat_conversations cc ON cc.created_by_guest_id = cgs.id
     LEFT JOIN website_site ws ON ws.id = cc.website_id
-    LEFT JOIN "InstanceConfig" ic ON ic.key = 'company.name'
+    LEFT JOIN instance_config ic ON ic.key = 'company.name'
     WHERE (cgs.idle_expires_at < NOW() OR cgs.absolute_expires_at < NOW())
       AND cgs.closed_at IS NULL
       AND cgs.email IS NOT NULL

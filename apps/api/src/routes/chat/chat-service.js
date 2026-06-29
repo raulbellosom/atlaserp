@@ -848,6 +848,15 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   // ------------------------------------------------------------------
 
   async function listExternalInbox({ authUserId, status = "open", limit = 30, cursor = null, search = null }) {
+    // Build search filter dynamically to avoid untyped NULL parameter (42P18)
+    const searchFilter = search
+      ? Prisma.sql`AND (
+          LOWER(c.tracking_code) LIKE ${"%" + search.toLowerCase() + "%"}
+          OR LOWER(gs.email) LIKE ${"%" + search.toLowerCase() + "%"}
+          OR LOWER(gs.name) LIKE ${"%" + search.toLowerCase() + "%"}
+        )`
+      : Prisma.empty;
+
     const rows = await prisma.$queryRaw`
       SELECT
         c.*,
@@ -873,12 +882,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       WHERE c.type = 'external_support'
         AND c.deleted_at IS NULL
         AND c.status = ${status}
-        AND (
-          ${search} IS NULL
-          OR LOWER(c.tracking_code) LIKE '%' || LOWER(${search ?? ""}) || '%'
-          OR LOWER(gs.email) LIKE '%' || LOWER(${search ?? ""}) || '%'
-          OR LOWER(gs.name) LIKE '%' || LOWER(${search ?? ""}) || '%'
-        )
+        ${searchFilter}
       ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
       LIMIT ${limit}
     `;

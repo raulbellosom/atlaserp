@@ -1,9 +1,10 @@
 import { useState } from "react";
 import {
-  PageHeader, Button, EmptyState, Skeleton, Badge,
-  Dialog, TextField, TextareaField, ConfirmDialog,
+  PageHeader, Button, EmptyState, Skeleton, Badge, ConfirmDialog,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  TextField, TextareaField,
 } from "@atlas/ui";
-import { Plus, Pencil, Trash2, Hash } from "lucide-react";
+import { Plus, Pencil, Trash2, Hash, LayoutTemplate } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
@@ -23,10 +24,11 @@ function TemplateFormDialog({ open, onClose, initial }) {
   const [tagsRaw, setTagsRaw] = useState((initial?.tags ?? []).join(", "));
   const [error, setError] = useState("");
 
-  function resetForm() {
-    setTitle(initial?.title ?? "");
-    setBody(initial?.body ?? "");
-    setTagsRaw((initial?.tags ?? []).join(", "));
+  // Sync fields when dialog opens with a different template
+  function resetForm(next) {
+    setTitle(next?.title ?? "");
+    setBody(next?.body ?? "");
+    setTagsRaw((next?.tags ?? []).join(", "));
     setError("");
   }
 
@@ -50,77 +52,94 @@ function TemplateFormDialog({ open, onClose, initial }) {
     mutate({ title: title.trim(), body: body.trim(), tags });
   }
 
+  function handleOpenChange(v) {
+    if (!v) { resetForm(null); onClose(); }
+  }
+
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => { if (!v) { resetForm(); onClose(); } }}
-      title={isEdit ? "Editar plantilla" : "Nueva plantilla"}
-    >
-      <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-        <TextField
-          label="Titulo"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Ej: Saludo inicial"
-          required
-        />
-        <TextareaField
-          label="Cuerpo del mensaje"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Escribe el texto de la plantilla..."
-          rows={4}
-          required
-        />
-        <TextField
-          label="Etiquetas (separadas por coma)"
-          value={tagsRaw}
-          onChange={(e) => setTagsRaw(e.target.value)}
-          placeholder="soporte, ventas, facturacion"
-        />
-        {error && <p className="text-xs text-red-400">{error}</p>}
-        <div className="flex justify-end gap-2 pt-1">
-          <Button type="button" variant="outline" onClick={() => { resetForm(); onClose(); }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Editar plantilla" : "Nueva plantilla"}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+          <TextField
+            label="Titulo"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Ej: Saludo inicial"
+            required
+          />
+          <TextareaField
+            label="Cuerpo del mensaje"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Escribe el texto de la plantilla..."
+            rows={5}
+            required
+          />
+          <TextField
+            label="Etiquetas (separadas por coma)"
+            value={tagsRaw}
+            onChange={(e) => setTagsRaw(e.target.value)}
+            placeholder="soporte, ventas, facturacion"
+          />
+          {error && <p className="text-xs text-red-400">{error}</p>}
+        </form>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => { resetForm(null); onClose(); }}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={isPending}>
+          <Button onClick={handleSubmit} disabled={isPending}>
             {isPending ? "Guardando..." : isEdit ? "Guardar cambios" : "Crear plantilla"}
           </Button>
-        </div>
-      </form>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
   );
 }
 
 // ------------------------------------------------------------------
-// Template row
+// Template card
 // ------------------------------------------------------------------
 
-function TemplateRow({ template, onEdit, onDelete }) {
+function TemplateCard({ template, onEdit, onDelete }) {
   return (
-    <div className="flex items-start gap-4 px-4 py-3 border-b border-[hsl(var(--border))] last:border-0 hover:bg-[hsl(var(--muted)/0.4)] transition-colors group">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-sm font-medium">{template.title}</p>
-          {(template.tags ?? []).map((tag) => (
-            <Badge key={tag} variant="secondary" className="text-[10px] px-1.5 py-0">
-              <Hash className="h-2.5 w-2.5 mr-0.5" />
-              {tag}
-            </Badge>
-          ))}
-        </div>
-        <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1 line-clamp-2">{template.body}</p>
-        <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-1">
-          Usado {template.usage_count ?? 0} {template.usage_count === 1 ? "vez" : "veces"}
-        </p>
-      </div>
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+    <div className="group relative flex flex-col gap-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] p-4 hover:border-[hsl(var(--primary)/0.4)] transition-colors">
+      {/* Actions — top right corner */}
+      <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(template)}>
           <Pencil className="h-3.5 w-3.5" />
         </Button>
-        <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-300" onClick={() => onDelete(template)}>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7 text-red-400 hover:text-red-300"
+          onClick={() => onDelete(template)}
+        >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
+      </div>
+
+      {/* Title */}
+      <p className="text-sm font-semibold pr-16 leading-snug">{template.title}</p>
+
+      {/* Body preview */}
+      <p className="text-xs text-[hsl(var(--muted-foreground))] line-clamp-3 leading-relaxed">
+        {template.body}
+      </p>
+
+      {/* Footer: tags + usage */}
+      <div className="flex items-center gap-2 flex-wrap mt-1">
+        {(template.tags ?? []).map((tag) => (
+          <Badge key={tag} variant="secondary" className="text-[10px] px-1.5 py-0 gap-0.5">
+            <Hash className="h-2.5 w-2.5" />
+            {tag}
+          </Badge>
+        ))}
+        <span className="ml-auto text-[10px] text-[hsl(var(--muted-foreground))]">
+          {template.usage_count ?? 0} {template.usage_count === 1 ? "uso" : "usos"}
+        </span>
       </div>
     </div>
   );
@@ -143,6 +162,7 @@ export function ChatTemplatesScreen() {
     queryKey: ["chat-templates"],
     queryFn: () => atlas.chat.listTemplates(token),
     enabled: Boolean(token),
+    staleTime: 30_000,
   });
 
   const { mutate: deleteTemplate, isPending: isDeleting } = useMutation({
@@ -167,24 +187,29 @@ export function ChatTemplatesScreen() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="shrink-0 px-6 pt-6 pb-4 flex items-start justify-between gap-4 border-b border-[hsl(var(--border))]">
-        <PageHeader
-          title="Plantillas de respuesta"
-          description="Crea y gestiona respuestas rapidas para el chat externo."
-        />
-        <Button onClick={handleNew} className="shrink-0 mt-1">
-          <Plus className="h-4 w-4 mr-1.5" />
-          Nueva plantilla
-        </Button>
+      {/* Header */}
+      <div className="shrink-0 px-6 pt-6 pb-4 border-b border-[hsl(var(--border))]">
+        <div className="flex items-start justify-between gap-4">
+          <PageHeader
+            title="Plantillas de respuesta"
+            description="Crea y gestiona respuestas rapidas para el chat externo."
+          />
+          <Button onClick={handleNew} className="shrink-0 mt-1">
+            <Plus className="h-4 w-4 mr-1.5" />
+            Nueva plantilla
+          </Button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6">
         {isLoading && (
-          <div className="p-4 space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="space-y-1.5 px-4 py-3">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-3 w-full max-w-sm" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-[hsl(var(--border))] p-4 space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-3/4" />
               </div>
             ))}
           </div>
@@ -192,7 +217,7 @@ export function ChatTemplatesScreen() {
 
         {!isLoading && templates.length === 0 && (
           <EmptyState
-            className="mt-16"
+            icon={LayoutTemplate}
             title="Sin plantillas"
             description="Crea plantillas de respuesta para agilizar las conversaciones con visitantes."
             action={
@@ -205,9 +230,9 @@ export function ChatTemplatesScreen() {
         )}
 
         {templates.length > 0 && (
-          <div className="border-t border-[hsl(var(--border))]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {templates.map((t) => (
-              <TemplateRow
+              <TemplateCard
                 key={t.id}
                 template={t}
                 onEdit={handleEdit}
@@ -230,7 +255,7 @@ export function ChatTemplatesScreen() {
         open={Boolean(deleteTarget)}
         onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}
         title="Eliminar plantilla"
-        description={`¿Eliminar la plantilla "${deleteTarget?.title}"? Esta accion no se puede deshacer.`}
+        description={`Eliminar la plantilla "${deleteTarget?.title}"? Esta accion no se puede deshacer.`}
         confirmLabel="Eliminar"
         variant="destructive"
         onConfirm={() => deleteTemplate(deleteTarget.id)}
