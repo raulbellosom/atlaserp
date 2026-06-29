@@ -32,12 +32,22 @@ function lineAmounts({ quantity, unitPrice, discountAmount = 0, taxRate = 0 }) {
 async function hydrateOrder(db, { companyId, id }) {
   const order = await db.posOrder.findFirst({ where: { id, companyId }, include: { table: true } });
   if (!order) throw new PosServiceError("Orden POS no encontrada.", 404);
+
+  let waiterName = null;
+  if (order.waiterId) {
+    const waiter = await db.userProfile.findUnique({
+      where: { id: order.waiterId },
+      select: { displayName: true },
+    });
+    waiterName = waiter?.displayName ?? null;
+  }
+
   const [lines, guests, payments] = await Promise.all([
     db.posOrderLine.findMany({ where: { orderId: id }, orderBy: { createdAt: "asc" } }),
     db.posGuestSeat.findMany({ where: { orderId: id }, orderBy: { position: "asc" } }),
     db.posPayment.findMany({ where: { orderId: id }, orderBy: { paidAt: "asc" } }),
   ]);
-  return { ...order, lines, guests, payments };
+  return { ...order, waiterName, lines, guests, payments };
 }
 
 async function getDefaultTaxRate(db, companyId) {
@@ -157,6 +167,7 @@ export function createPosOrderService({ prisma }) {
               guestCount: Number(data.guestCount ?? 1),
               notes: normalizeText(data.notes),
               createdById: actorId,
+              waiterId: actorId,
             },
           });
 
@@ -172,7 +183,10 @@ export function createPosOrderService({ prisma }) {
           }
 
           if (data.tableId) {
-            await tx.posTable.update({ where: { id: data.tableId }, data: { status: "OCCUPIED" } });
+            await tx.posTable.update({
+              where: { id: data.tableId },
+              data: { status: "OCCUPIED", waiterId: actorId },
+            });
           }
 
           const hydrated = await hydrateOrder(tx, { companyId: scopedCompanyId, id: order.id });
@@ -216,6 +230,85 @@ export function createPosOrderService({ prisma }) {
       after: updated,
     });
     return hydrateOrder(prisma, { companyId: scopedCompanyId, id });
+  }
+
+  async function assignOrderWaiter({ companyId, actorId, id, waiterId }) {
+    const scopedCompanyId = requireCompanyId(companyId);
+    const order = await prisma.posOrder.findFirst({ where: { id, companyId: scopedCompanyId } });
+    if (!order) throw new PosServiceError("Orden POS no encontrada.", 404);
+
+    if (waiterId) {
+      const profile = await prisma.userProfile.findUnique({
+        where: { id: waiterId },
+        select: { id: true },
+      });
+      if (!profile) throw new PosServiceError("Usuario no encontrado.", 404);
+    }
+
+    await prisma.posOrder.update({ where: { id }, data: { waiterId: waiterId ?? null } });
+
+    await writeAudit(prisma, {
+      actorId,
+      entityType: "PosOrder",
+      entityId: id,
+      action: "pos.order.waiter.assign",
+      before: { waiterId: order.waiterId },
+      after: { waiterId: waiterId ?? null },
+    });
+
+    return hydrateOrder(prisma, { companyId: scopedCompanyId, id });
+  }
+
+  async function getSeatTotals({ companyId, id }) {
+    const scopedCompanyId = requireCompanyId(companyId);
+    const order = await prisma.posOrder.findFirst({ where: { id, companyId: scopedCompanyId } });
+    if (!order) throw new PosServiceError("Orden POS no encontrada.", 404);
+
+    const [lines, guests, payments] = await Promise.all([
+      prisma.posOrderLine.findMany({ where: { orderId: id } }),
+      prisma.posGuestSeat.findMany({ where: { orderId: id }, orderBy: { position: "asc" } }),
+      prisma.posPayment.findMany({ where: { orderId: id } }),
+    ]);
+
+    const seatMap = new Map();
+    seatMap.set(null, { id: null, label: "Sin asignar", position: 0, lines: [] });
+    for (const guest of guests) {
+      seatMap.set(guest.id, { id: guest.id, label: guest.label, position: guest.position, lines: [] });
+    }
+    for (const line of lines) {
+      const key = line.guestSeatId ?? null;
+      const bucket = seatMap.has(key) ? seatMap.get(key) : seatMap.get(null);
+      bucket.lines.push(line);
+    }
+
+    const seats = Array.from(seatMap.values())
+      .filter((seat) => seat.lines.length > 0)
+      .sort((a, b) => a.position - b.position)
+      .map((seat) => ({
+        id: seat.id,
+        label: seat.label,
+        position: seat.position,
+        subtotal: toMoney(
+          seat.lines.reduce(
+            (sum, line) =>
+              sum + Number(line.quantity) * Number(line.unitPrice) - Number(line.discountAmount ?? 0),
+            0,
+          ),
+        ),
+        taxAmount: toMoney(seat.lines.reduce((sum, line) => sum + Number(line.taxAmount ?? 0), 0)),
+        total: toMoney(seat.lines.reduce((sum, line) => sum + Number(line.totalAmount), 0)),
+        linesCount: seat.lines.length,
+      }));
+
+    const paidAmount = toMoney(payments.reduce((sum, payment) => sum + Number(payment.amount), 0));
+    const orderTotal = toMoney(Number(order.totalAmount));
+
+    return {
+      seats,
+      orderTotal,
+      paidAmount,
+      remaining: toMoney(orderTotal - paidAmount),
+    };
   }
 
   async function addGuest({ companyId, orderId, actorId, data }) {
@@ -457,5 +550,7 @@ export function createPosOrderService({ prisma }) {
     addPayment,
     cancelOrder,
     reprintReceipt,
+    assignOrderWaiter,
+    getSeatTotals,
   };
 }
