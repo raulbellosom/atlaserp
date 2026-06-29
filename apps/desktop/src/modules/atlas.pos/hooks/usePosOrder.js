@@ -189,6 +189,7 @@ export function useAddPosPayment() {
       toast.dismiss(ctx?.toastId)
       toast.success('Pago registrado')
       qc.invalidateQueries({ queryKey: ['pos', 'orders', 'detail', vars.orderId] })
+      qc.invalidateQueries({ queryKey: ['pos', 'orders', 'seat-totals', vars.orderId] })
       qc.invalidateQueries({ queryKey: ['pos', 'orders'] })
       qc.invalidateQueries({ queryKey: ['pos', 'tables'] })
       qc.invalidateQueries({ queryKey: ['pos', 'floors'] })
@@ -234,5 +235,30 @@ export function useReprintPosReceipt() {
       toast.dismiss(ctx?.toastId)
       toast.error(err?.message ?? 'Error al reimprimir')
     },
+  })
+}
+
+export function useAssignOrderWaiter() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ orderId, waiterId }) =>
+      atlas.pos.assignOrderWaiter(orderId, { waiterId }, token),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['pos', 'orders', 'detail', vars.orderId] })
+      qc.invalidateQueries({ queryKey: ['pos', 'orders'] })
+    },
+    onError: (err) => toast.error(err?.message ?? 'Error al asignar mesero a la orden'),
+  })
+}
+
+export function useOrderSeatTotals(orderId) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['pos', 'orders', 'seat-totals', orderId],
+    queryFn: () => atlas.pos.getOrderSeatTotals(orderId, token),
+    select: (res) => res?.data ?? null,
+    enabled: Boolean(token) && Boolean(orderId),
+    staleTime: 5 * 1000,
   })
 }

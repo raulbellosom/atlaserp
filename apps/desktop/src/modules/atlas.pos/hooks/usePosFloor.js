@@ -45,11 +45,25 @@ export function useUpdateTableStatus() {
   })
 }
 
-export function usePosFloorDetail(id, { refetch = false } = {}) {
+export function useUpdateTableWaiter() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ tableId, waiterId }) =>
+      atlas.pos.assignTableWaiter(tableId, { waiterId }, token),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pos', 'tables'] })
+      qc.invalidateQueries({ queryKey: ['pos', 'floors', 'detail'] })
+    },
+    onError: (err) => toast.error(err?.message ?? 'Error al asignar mesero'),
+  })
+}
+
+export function usePosFloorDetail(id, { refetch = false, myTablesOnly = false } = {}) {
   const token = useToken()
   return useQuery({
-    queryKey: ['pos', 'floors', 'detail', id],
-    queryFn: () => atlas.pos.getFloor(id, {}, token),
+    queryKey: ['pos', 'floors', 'detail', id, myTablesOnly],
+    queryFn: () => atlas.pos.getFloor(id, myTablesOnly ? { myTablesOnly: true } : {}, token),
     select: (res) => res?.data ?? res,
     enabled: Boolean(token) && Boolean(id),
     staleTime: 15 * 1000,
