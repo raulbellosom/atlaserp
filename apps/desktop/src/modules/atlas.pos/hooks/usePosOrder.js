@@ -246,6 +246,7 @@ export function useAssignOrderWaiter() {
       atlas.pos.assignOrderWaiter(orderId, { waiterId }, token),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['pos', 'orders', 'detail', vars.orderId] })
+      qc.invalidateQueries({ queryKey: ['pos', 'orders', 'seat-totals', vars.orderId] })
       qc.invalidateQueries({ queryKey: ['pos', 'orders'] })
     },
     onError: (err) => toast.error(err?.message ?? 'Error al asignar mesero a la orden'),
