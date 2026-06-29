@@ -452,12 +452,12 @@ export function createPosRouter({ prisma, requirePermission, broadcaster = null 
     }
   });
 
-  app.patch("/pos/tables/:id/waiter", requirePermission("pos.terminal.use"), async (c) => {
+  app.patch("/pos/tables/:tableId/waiter", requirePermission("pos.terminal.use"), async (c) => {
     try {
       const data = await parseBody(c, assignWaiterSchema);
       const table = await floorSvc.updateTableWaiter({
         ...context(c),
-        tableId: c.req.param("id"),
+        tableId: c.req.param("tableId"),
         waiterId: data.waiterId ?? null,
       });
       return c.json({ data: table });

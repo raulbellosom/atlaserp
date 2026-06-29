@@ -49,7 +49,7 @@ export function usePosFloorDetail(id, { refetch = false } = {}) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'floors', 'detail', id],
-    queryFn: () => atlas.pos.getFloor(id, token),
+    queryFn: () => atlas.pos.getFloor(id, {}, token),
     select: (res) => res?.data ?? res,
     enabled: Boolean(token) && Boolean(id),
     staleTime: 15 * 1000,
