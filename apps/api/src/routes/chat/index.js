@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Hono } from "hono";
 import {
   chatCreateConversationSchema,
@@ -463,6 +464,66 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       return c.json(result);
     } catch (err) {
       return handleError(c, err, "Error cerrando sesion.");
+    }
+  });
+
+  // POST /public/chat/session/:token/attachments/presign
+  // Guest uploads a file: we create the chat_attachment row + signed upload URL
+  pub.post("/session/:token/attachments/presign", async (c) => {
+    try {
+      const rawToken = c.req.param("token");
+      const body = await c.req.json();
+      const { fileName, mimeType, sizeBytes } = body;
+
+      if (!fileName || !mimeType || !sizeBytes) {
+        return c.json({ error: "fileName, mimeType, sizeBytes son requeridos." }, 422);
+      }
+
+      const ALLOWED_MIME = [/^image\//, /^application\/pdf$/, /^text\/plain$/, /^application\/msword$/, /^application\/vnd\.openxmlformats/];
+      if (!ALLOWED_MIME.some((re) => re.test(mimeType))) {
+        return c.json({ error: "Tipo de archivo no permitido." }, 422);
+      }
+      if (sizeBytes > 20 * 1024 * 1024) {
+        return c.json({ error: "Archivo demasiado grande (max 20 MB)." }, 422);
+      }
+
+      const session = await guestService.resolveGuestSession(rawToken);
+      const convRows = await prisma.$queryRaw`
+        SELECT c.id FROM chat_conversations c
+        INNER JOIN chat_conversation_members ccm
+          ON ccm.conversation_id = c.id AND ccm.guest_session_id = ${session.id}
+        WHERE c.deleted_at IS NULL AND c.status != 'closed'
+        ORDER BY c.created_at DESC LIMIT 1
+      `;
+      if (!convRows.length) return c.json({ error: "No hay conversacion activa." }, 404);
+      const conversationId = convRows[0].id;
+
+      const ext = fileName.split(".").pop()?.toLowerCase() ?? "bin";
+      const objectKey = `conversations/${conversationId}/guest/${crypto.randomUUID()}.${ext}`;
+
+      const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+        .from("atlas-chat")
+        .createSignedUploadUrl(objectKey, { expiresIn: 300 });
+
+      if (uploadError) return c.json({ error: "Error generando URL de subida." }, 500);
+
+      const attRows = await prisma.$queryRaw`
+        INSERT INTO chat_attachments
+          (conversation_id, bucket, object_key, file_name, mime_type, size_bytes)
+        VALUES (
+          ${conversationId},
+          'atlas-chat',
+          ${objectKey},
+          ${fileName},
+          ${mimeType},
+          ${sizeBytes}
+        )
+        RETURNING id
+      `;
+
+      return c.json({ data: { attachmentId: attRows[0].id, uploadUrl: uploadData.signedUrl } }, 201);
+    } catch (err) {
+      return handleError(c, err, "Error generando URL de subida.");
     }
   });
 

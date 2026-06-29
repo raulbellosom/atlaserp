@@ -65,8 +65,16 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
     startError,
     startSession,
     sendMessage,
+    sendFile,
     closeSession,
   } = useGuestChat(sdk)
+
+  const fileInputRef = useRef(null)
+
+  const handleFileChange = useCallback((e) => {
+    const file = e.target.files?.[0]
+    if (file) { sendFile(file); e.target.value = '' }
+  }, [sendFile])
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -336,6 +344,19 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
       justifyContent: 'center',
       flexShrink: 0,
     },
+    clipBtn: {
+      background: 'none',
+      border: 'none',
+      color: '#555',
+      width: 30,
+      height: 36,
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+      padding: 0,
+    },
     dayDivider: {
       textAlign: 'center',
       fontSize: 10,
@@ -487,9 +508,14 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
             const time = fmtTime(msg.created_at)
 
             if (isGuest) {
+              const isFile = msg.message_type === 'file'
               return (
                 <div key={msg.id} style={{ alignSelf: 'flex-end', maxWidth: '80%' }}>
-                  <div style={styles.msgBubbleGuest}>{msg.body}</div>
+                  <div style={styles.msgBubbleGuest}>
+                    {isFile
+                      ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><ClipIcon color="#0f0f13" />{msg.body}</span>
+                      : msg.body}
+                  </div>
                   {time && <div style={s(styles.msgTimestamp, { color: '#666' })}>{time}</div>}
                 </div>
               )
@@ -499,6 +525,7 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
             const senderName = msg.senderName ?? msg.sender_name ?? 'Agente'
             const avatarUrl = msg.senderAvatarUrl ?? msg.sender_avatar_url ?? null
             const initial = senderName[0]?.toUpperCase() ?? 'A'
+            const isFileOp = msg.message_type === 'file'
 
             return (
               <div key={msg.id} style={styles.operatorRow}>
@@ -510,7 +537,11 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
                 </div>
                 <div>
                   <div style={styles.operatorMeta}>{senderName}</div>
-                  <div style={styles.msgBubbleOperator}>{msg.body}</div>
+                  <div style={styles.msgBubbleOperator}>
+                    {isFileOp
+                      ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><ClipIcon color="#ddd" />{msg.body}</span>
+                      : msg.body}
+                  </div>
                   {time && <div style={styles.msgTimestamp}>{time}</div>}
                 </div>
               </div>
@@ -520,6 +551,24 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
         </div>
 
         <div style={styles.chatFooter}>
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf,.doc,.docx,.txt"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+          <button
+            type="button"
+            style={s(styles.clipBtn, isSending ? { opacity: 0.4 } : {})}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isSending}
+            aria-label="Adjuntar archivo"
+            title="Adjuntar imagen o documento"
+          >
+            <ClipIcon color="#666" />
+          </button>
           <textarea
             style={styles.textArea}
             placeholder="Escribe un mensaje..."
@@ -618,6 +667,14 @@ function SendIcon() {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0f0f13" strokeWidth="2.5" aria-hidden="true">
       <line x1="22" y1="2" x2="11" y2="13" />
       <polygon points="22 2 15 22 11 13 2 9 22 2" />
+    </svg>
+  )
+}
+
+function ClipIcon({ color = '#888' }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" aria-hidden="true">
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
     </svg>
   )
 }

@@ -63,6 +63,23 @@ export function createGuestChatDomain(request, supabaseUrl, supabaseAnonKey) {
     }
   }
 
+  async function presignAttachment(token, { fileName, mimeType, sizeBytes }) {
+    const res = await request('POST', `/public/chat/session/${token}/attachments/presign`, { fileName, mimeType, sizeBytes })
+    return res.data
+  }
+
+  async function sendFileMessage(token, { fileName, mimeType, sizeBytes, file }) {
+    const { attachmentId, uploadUrl } = await presignAttachment(token, { fileName, mimeType, sizeBytes })
+    const uploadRes = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': mimeType }, body: file })
+    if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`)
+    const res = await request('POST', `/public/chat/session/${token}/messages`, {
+      body: fileName,
+      messageType: 'file',
+      metadata: { attachmentId, fileName, mimeType, sizeBytes },
+    })
+    return res.data
+  }
+
   return {
     createSession,
     getSession,
@@ -71,5 +88,7 @@ export function createGuestChatDomain(request, supabaseUrl, supabaseAnonKey) {
     closeSession,
     getAvailability,
     subscribeToReplies,
+    presignAttachment,
+    sendFileMessage,
   }
 }

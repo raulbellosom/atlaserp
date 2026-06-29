@@ -345,7 +345,7 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
             await notificationService.createNotification({
               companyId,
               userId: assignedUserId,
-              channels: ["in_app"],
+              channels: ["in_app", "email"],
               type: "chat.new_guest_message",
               title: "Nuevo mensaje de visitante",
               body: body.slice(0, 100),
@@ -364,7 +364,7 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
                 notificationService.createNotification({
                   companyId,
                   userId: op.id,
-                  channels: ["in_app"],
+                  channels: ["in_app", "email"],
                   type: "chat.new_guest_message",
                   title: "Nuevo mensaje de visitante sin asignar",
                   body: body.slice(0, 100),

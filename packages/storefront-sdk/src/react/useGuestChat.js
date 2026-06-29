@@ -125,6 +125,28 @@ export function useGuestChat(sdk) {
     }
   }, [sdk, session])
 
+  const sendFile = useCallback(async (file) => {
+    if (!session?.token || !file) return
+    setIsSending(true)
+    try {
+      const res = await sdk.guestChat.sendFileMessage(session.token, {
+        fileName: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        sizeBytes: file.size,
+        file,
+      })
+      setMessages((prev) => [...prev, {
+        id: res.messageId,
+        body: file.name,
+        sender_type: 'guest',
+        message_type: 'file',
+        created_at: res.createdAt,
+      }])
+    } finally {
+      setIsSending(false)
+    }
+  }, [sdk, session])
+
   const closeSession = useCallback(async () => {
     if (session?.token) {
       await sdk.guestChat.closeSession(session.token).catch(() => {})
@@ -145,6 +167,7 @@ export function useGuestChat(sdk) {
     startError,
     startSession,
     sendMessage,
+    sendFile,
     closeSession,
   }
 }
