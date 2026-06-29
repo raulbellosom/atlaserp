@@ -1089,8 +1089,8 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
-      getFloor: (id, token) =>
-        request(`/pos/floors/${encodeURIComponent(id)}`, {
+      getFloor: (id, query, token) =>
+        request(`/pos/floors/${encodeURIComponent(id)}${toQueryString(query)}`, {
           headers: withAuthHeaders(token),
         }),
       updateFloor: (id, data, token) =>
@@ -1124,6 +1124,22 @@ export function createAtlasClient({ baseUrl }) {
         }),
       updateTableStatus: (tableId, data, token) =>
         request(`/pos/tables/${encodeURIComponent(tableId)}/status`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      assignOrderWaiter: (orderId, data, token) =>
+        request(`/pos/orders/${encodeURIComponent(orderId)}/waiter`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      getOrderSeatTotals: (orderId, token) =>
+        request(`/pos/orders/${encodeURIComponent(orderId)}/seat-totals`, {
+          headers: withAuthHeaders(token),
+        }),
+      assignTableWaiter: (tableId, data, token) =>
+        request(`/pos/tables/${encodeURIComponent(tableId)}/waiter`, {
           method: "PATCH",
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
