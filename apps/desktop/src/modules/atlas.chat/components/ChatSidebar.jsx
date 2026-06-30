@@ -1,18 +1,32 @@
 import { useState } from "react";
 import { Button, EmptyState, Skeleton } from "@atlas/ui";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Archive, ChevronDown, ChevronRight } from "lucide-react";
 import { ChatConversationItem } from "./ChatConversationItem";
 import { CreateChatModal } from "./CreateChatModal";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
+import { useArchivedConversations } from "../hooks/useChatConversations";
 
 export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCreated }) {
   const { userProfile } = useAuth();
   const { isUserOnline } = useGlobalPresence();
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+
+  const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations();
+  const archivedConversations = archivedData?.data ?? [];
 
   const filtered = (conversations ?? []).filter((c) => {
+    if (!search.trim()) return true;
+    const displayName =
+      c.title ??
+      (c.members ?? []).find((m) => m.userId !== userProfile?.id)?.displayName ??
+      "";
+    return displayName.toLowerCase().includes(search.toLowerCase());
+  });
+
+  const filteredArchived = archivedConversations.filter((c) => {
     if (!search.trim()) return true;
     const displayName =
       c.title ??
@@ -67,15 +81,19 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
           </div>
         )}
 
-        {!isLoading && !filtered.length && (
+        {!isLoading && !filtered.length && !search && (
           <EmptyState
             className="py-8"
             title="Sin conversaciones"
-            description={
-              search
-                ? "No se encontraron resultados."
-                : "Inicia un nuevo chat con el botón +"
-            }
+            description="Inicia un nuevo chat con el botón +"
+          />
+        )}
+
+        {!isLoading && !filtered.length && search && (
+          <EmptyState
+            className="py-8"
+            title="Sin resultados"
+            description="No se encontraron conversaciones."
           />
         )}
 
@@ -94,6 +112,64 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
             />
           );
         })}
+
+        {/* Archived section */}
+        {(archivedConversations.length > 0 || search) && (
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setShowArchived((v) => !v)}
+              className="w-full flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] rounded-lg transition-colors touch-manipulation"
+            >
+              {showArchived ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+              <Archive className="h-3.5 w-3.5 shrink-0" />
+              Archivados
+              {archivedConversations.length > 0 && (
+                <span className="ml-auto text-[10px] bg-[hsl(var(--muted))] px-1.5 py-0.5 rounded-full">
+                  {archivedConversations.length}
+                </span>
+              )}
+            </button>
+
+            {showArchived && (
+              <div className="mt-1 space-y-0.5">
+                {archivedLoading && (
+                  <div className="space-y-2 p-2">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="flex items-center gap-3 px-2">
+                        <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <Skeleton className="h-3 w-32" />
+                          <Skeleton className="h-2.5 w-48" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!archivedLoading && filteredArchived.length === 0 && (
+                  <p className="text-xs text-[hsl(var(--muted-foreground))] px-4 py-2">
+                    Sin conversaciones archivadas.
+                  </p>
+                )}
+                {filteredArchived.map((conv) => {
+                  const otherMember = conv.type === "direct"
+                    ? (conv.members ?? []).find((m) => m.userId !== userProfile?.id)
+                    : null;
+                  return (
+                    <ChatConversationItem
+                      key={conv.id}
+                      conversation={{ ...conv, is_archived: true }}
+                      isActive={conv.id === activeId}
+                      onClick={() => onSelect({ ...conv, is_archived: true })}
+                      currentUserId={userProfile?.id}
+                      isOnline={otherMember ? isUserOnline(otherMember.userId) : false}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <CreateChatModal

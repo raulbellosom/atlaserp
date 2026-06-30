@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
@@ -32,4 +32,44 @@ export function useChatConversations() {
   }, [on, queryClient]);
 
   return query;
+}
+
+export function useArchivedConversations() {
+  const { session } = useAuth();
+  const token = session?.access_token;
+
+  return useQuery({
+    queryKey: ["chat-conversations-archived"],
+    queryFn: () => atlas.chat.listConversations({ archived: true }, token),
+    enabled: Boolean(token),
+    staleTime: 60_000,
+  });
+}
+
+export function useArchiveConversation() {
+  const { session } = useAuth();
+  const token = session?.access_token;
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (conversationId) => atlas.chat.archiveConversation(conversationId, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["chat-conversations-archived"] });
+    },
+  });
+}
+
+export function useUnarchiveConversation() {
+  const { session } = useAuth();
+  const token = session?.access_token;
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (conversationId) => atlas.chat.unarchiveConversation(conversationId, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["chat-conversations-archived"] });
+    },
+  });
 }

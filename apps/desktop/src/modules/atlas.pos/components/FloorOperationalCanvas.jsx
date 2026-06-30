@@ -2,18 +2,18 @@
 // Tables are clickable with live status overlays; all other elements are decorative.
 // Supports pinch-zoom, two-finger pan, and Ctrl+scroll zoom toward cursor.
 
-import { useRef, useState, useEffect, useLayoutEffect, useMemo } from 'react'
-import { Minus, Plus, RotateCcw } from 'lucide-react'
+import { useRef, useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react'
+import { Minus, Plus, Maximize2 } from 'lucide-react'
 import { CHAIR_PAD, squareChairPositions, roundChairPositions } from './FloorCanvasHelpers.jsx'
 import { POLYGON_ZONE_COLORS } from './FloorCanvasDecor.jsx'
 
 const TABLE_STATUS_STYLE = {
-  AVAILABLE:      { ring: '#22c55e', fill: 'rgba(34,197,94,0.14)',   label: 'Disponible',   dot: '#22c55e' },
-  OCCUPIED:       { ring: '#f59e0b', fill: 'rgba(245,158,11,0.2)',   label: 'Ocupada',      dot: '#f59e0b' },
-  BILL_REQUESTED: { ring: '#f97316', fill: 'rgba(249,115,22,0.2)',   label: 'Cuenta',       dot: '#f97316' },
-  DIRTY:          { ring: '#94a3b8', fill: 'rgba(148,163,184,0.14)', label: 'Sucia',        dot: '#94a3b8' },
-  RESERVED:       { ring: '#3b82f6', fill: 'rgba(59,130,246,0.18)',  label: 'Reservada',    dot: '#3b82f6' },
-  DISABLED:       { ring: '#d1d5db', fill: 'rgba(209,213,219,0.1)',  label: 'No disponible',dot: '#d1d5db' },
+  AVAILABLE:      { ring: '#16a34a', fill: 'rgba(220,252,231,0.97)', ringWidth: 2,   label: 'Disponible',   dot: '#22c55e', textColor: '#14532d' },
+  OCCUPIED:       { ring: '#d97706', fill: 'rgba(254,243,199,0.97)', ringWidth: 2.5, label: 'Ocupada',      dot: '#f59e0b', textColor: '#78350f' },
+  BILL_REQUESTED: { ring: '#ea580c', fill: 'rgba(255,237,213,0.97)', ringWidth: 3,   label: 'Cuenta',       dot: '#f97316', textColor: '#7c2d12' },
+  DIRTY:          { ring: '#64748b', fill: 'rgba(241,245,249,0.97)', ringWidth: 1.5, label: 'Sucia',        dot: '#94a3b8', textColor: '#334155' },
+  RESERVED:       { ring: '#2563eb', fill: 'rgba(219,234,254,0.97)', ringWidth: 2,   label: 'Reservada',    dot: '#3b82f6', textColor: '#1e3a8a' },
+  DISABLED:       { ring: '#cbd5e1', fill: 'rgba(248,250,252,0.80)', ringWidth: 1,   label: 'No disponible',dot: '#cbd5e1', textColor: '#94a3b8' },
 }
 
 const DEFAULT_STATUS = TABLE_STATUS_STYLE.AVAILABLE
@@ -23,7 +23,7 @@ const DEFAULT_STATUS = TABLE_STATUS_STYLE.AVAILABLE
 
 function OperationalTable({ el, table, onClick }) {
   const status = table?.status ?? 'AVAILABLE'
-  const style = TABLE_STATUS_STYLE[status] ?? DEFAULT_STATUS
+  const s = TABLE_STATUS_STYLE[status] ?? DEFAULT_STATUS
   const isDisabled = status === 'DISABLED'
   const isRound = el.kind === 'TABLE_ROUND'
 
@@ -41,6 +41,9 @@ function OperationalTable({ el, table, onClick }) {
     : squareChairPositions(el.width, el.height, capacity, chairStyle)
 
   const displayName = tableName.length > 9 ? tableName.slice(0, 8) + '…' : tableName
+  const nameFontSize = Math.min(13, Math.max(9, el.width / 6))
+  const showStatusLabel = el.height > 52
+  const nameY = oy + el.height / 2 + (showStatusLabel && displayName ? -(nameFontSize * 0.55) : 0)
 
   return (
     <div
@@ -51,7 +54,9 @@ function OperationalTable({ el, table, onClick }) {
         zIndex: 10,
         cursor: isDisabled ? 'not-allowed' : 'pointer',
         overflow: 'visible',
-        opacity: isDisabled ? 0.45 : 1,
+        opacity: isDisabled ? 0.4 : 1,
+        filter: isDisabled ? undefined : 'drop-shadow(0 2px 6px rgba(0,0,0,0.13))',
+        transition: 'filter 150ms',
       }}
       onClick={() => !isDisabled && onClick(table ?? { id: el.tableId, name: tableName, capacity, status: 'AVAILABLE' })}
     >
@@ -59,40 +64,57 @@ function OperationalTable({ el, table, onClick }) {
         width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`}
         style={{ position: 'absolute', left: -CHAIR_PAD, top: -CHAIR_PAD, overflow: 'visible', pointerEvents: 'none' }}
       >
+        {/* Chairs — white fill, status-colored stroke */}
         {chairs.map((c, i) =>
           c.r ? (
             <circle key={i} cx={c.cx} cy={c.cy} r={c.r}
-              fill={style.fill} stroke={style.ring} strokeWidth={1.5} opacity={0.8} />
+              fill="rgba(255,255,255,0.85)" stroke={s.ring} strokeWidth={1.5} />
           ) : (
             <rect key={i} x={c.x} y={c.y} width={c.w} height={c.h} rx={c.rx ?? 3}
-              fill={style.fill} stroke={style.ring} strokeWidth={1.5} opacity={0.8} />
+              fill="rgba(255,255,255,0.85)" stroke={s.ring} strokeWidth={1.5} />
           )
         )}
+
+        {/* Table surface */}
         {isRound ? (
-          <circle cx={ox + el.width / 2} cy={oy + el.height / 2} r={tableR - 2}
-            fill={style.fill} stroke={style.ring} strokeWidth={2.5} />
+          <circle cx={ox + el.width / 2} cy={oy + el.height / 2} r={tableR - 1.5}
+            fill={s.fill} stroke={s.ring} strokeWidth={s.ringWidth} />
         ) : (
-          <rect x={ox + 1} y={oy + 1} width={el.width - 2} height={el.height - 2} rx={8}
-            fill={style.fill} stroke={style.ring} strokeWidth={2.5} />
+          <rect x={ox + 1} y={oy + 1} width={el.width - 2} height={el.height - 2} rx={9}
+            fill={s.fill} stroke={s.ring} strokeWidth={s.ringWidth} />
         )}
+
+        {/* Table name */}
         {displayName && (
-          <text x={ox + el.width / 2} y={oy + el.height / 2 + (capacity ? -6 : 1)}
+          <text x={ox + el.width / 2} y={nameY}
             textAnchor="middle" dominantBaseline="middle"
-            fontSize={Math.min(12, el.width / 6)} fontWeight="700" fontFamily="inherit"
-            fill={style.ring}
+            fontSize={nameFontSize} fontWeight="700" fontFamily="inherit"
+            fill={s.textColor}
           >{displayName}</text>
         )}
-        <text x={ox + el.width / 2} y={oy + el.height / 2 + (displayName ? 8 : 1)}
-          textAnchor="middle" dominantBaseline="middle"
-          fontSize={8} fontFamily="inherit" fill={style.ring} opacity={0.85}
-        >{style.label}</text>
-        <circle cx={ox + el.width - 6} cy={oy + 6} r={4}
-          fill={style.dot} stroke="white" strokeWidth={1.2} />
+
+        {/* Status label — only if tall enough */}
+        {showStatusLabel && (
+          <text
+            x={ox + el.width / 2}
+            y={oy + el.height / 2 + (displayName ? nameFontSize * 0.75 : 0)}
+            textAnchor="middle" dominantBaseline="middle"
+            fontSize={Math.max(7.5, nameFontSize * 0.65)} fontFamily="inherit"
+            fill={s.ring} opacity={0.9}
+          >{s.label}</text>
+        )}
+
+        {/* Status dot — top-right */}
+        <circle cx={ox + el.width - 8} cy={oy + 8} r={5}
+          fill={s.dot} stroke="white" strokeWidth={1.5} />
       </svg>
+
+      {/* Waiter avatar badge — colored with status ring */}
       {table?.waiterName && (
         <div
           title={table.waiterName}
-          className="absolute -top-1.5 -left-1.5 h-5 w-5 rounded-full bg-foreground/80 text-background text-[9px] font-bold flex items-center justify-center z-20"
+          style={{ background: s.ring }}
+          className="absolute -top-2.5 -left-2.5 h-6 w-6 rounded-full text-white text-[9px] font-bold flex items-center justify-center z-20 shadow ring-2 ring-white"
         >
           {table.waiterName.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('')}
         </div>
@@ -267,6 +289,43 @@ export default function FloorOperationalCanvas({ floor, elements = [], tableStat
 
   useEffect(() => { zoomRef.current = zoom }, [zoom])
 
+  // Fit view to all element bounds
+  const fitToContent = useCallback(() => {
+    if (!normalizedElements.length) return
+    const el = scrollRef.current
+    if (!el || el.clientWidth === 0) return
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    for (const { x, y, width, height } of normalizedElements) {
+      if (x < minX) minX = x
+      if (y < minY) minY = y
+      if (x + width > maxX) maxX = x + width
+      if (y + height > maxY) maxY = y + height
+    }
+
+    const PAD = 72
+    const contentW = maxX - minX + PAD * 2
+    const contentH = maxY - minY + PAD * 2
+    const fitZoom = Math.round(Math.min(el.clientWidth / contentW, el.clientHeight / contentH, 1) * 100) / 100
+    const cx = (minX + maxX) / 2
+    const cy = (minY + maxY) / 2
+
+    pendingScrollRef.current = {
+      left: Math.max(0, cx * fitZoom + 12 - el.clientWidth / 2),
+      top:  Math.max(0, cy * fitZoom + 12 - el.clientHeight / 2),
+    }
+    setZoom(fitZoom)
+  }, [normalizedElements])
+
+  // Auto-fit on first load of each floor
+  const autoFitFloorId = useRef(null)
+  useEffect(() => {
+    if (autoFitFloorId.current === floor?.id) return
+    if (!normalizedElements.length) return
+    fitToContent()
+    autoFitFloorId.current = floor?.id
+  }, [normalizedElements, floor?.id, fitToContent])
+
   // Ctrl+scroll: zoom toward cursor
   useEffect(() => {
     const el = scrollRef.current
@@ -362,8 +421,8 @@ export default function FloorOperationalCanvas({ floor, elements = [], tableStat
       {/* Scrollable canvas area */}
       <div
         ref={scrollRef}
-        className="absolute inset-0 overflow-auto bg-muted/40 select-none"
-        style={{ touchAction: 'pan-x pan-y' }}
+        className="absolute inset-0 overflow-auto select-none"
+        style={{ touchAction: 'pan-x pan-y', background: 'hsl(var(--muted)/0.35)' }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -371,7 +430,7 @@ export default function FloorOperationalCanvas({ floor, elements = [], tableStat
         {/* Zoom wrapper */}
         <div style={{ width: canvasWidth * zoom + 24, height: canvasHeight * zoom + 24, flexShrink: 0 }}>
           <div
-            className="relative bg-card border border-border shadow-md rounded-sm"
+            className="relative bg-card border border-border/60 shadow-lg rounded-md"
             style={{
               width: canvasWidth, height: canvasHeight,
               marginLeft: 12, marginTop: 12,
@@ -381,10 +440,10 @@ export default function FloorOperationalCanvas({ floor, elements = [], tableStat
           >
             {/* Dot grid */}
             <div
-              className="absolute inset-0 pointer-events-none rounded-sm text-foreground/6"
-              style={{ backgroundImage: 'radial-gradient(circle, currentColor 1.5px, transparent 1.5px)', backgroundSize: '24px 24px' }}
+              className="absolute inset-0 pointer-events-none rounded-md text-foreground/4"
+              style={{ backgroundImage: 'radial-gradient(circle, currentColor 1.5px, transparent 1.5px)', backgroundSize: '28px 28px' }}
             />
-            <div className="absolute inset-2 border border-dashed border-border/30 pointer-events-none rounded-sm" />
+            <div className="absolute inset-3 border border-dashed border-border/20 pointer-events-none rounded-sm" />
 
             {/* Decor elements (bottom layer) */}
             {decorElements.map((el, i) => (
@@ -412,7 +471,7 @@ export default function FloorOperationalCanvas({ floor, elements = [], tableStat
       </div>
 
       {/* Floating zoom control — bottom right */}
-      <div className="absolute bottom-4 right-4 flex items-center gap-1 rounded-xl bg-card/90 border border-border shadow-lg backdrop-blur-sm px-1 py-1 z-10">
+      <div className="absolute bottom-4 right-4 flex items-center gap-px rounded-xl bg-card/90 border border-border shadow-lg backdrop-blur-sm px-1 py-1 z-10">
         <button
           type="button"
           onClick={() => setZoom((z) => Math.max(0.3, Math.round((z - 0.15) * 100) / 100))}
@@ -425,7 +484,7 @@ export default function FloorOperationalCanvas({ floor, elements = [], tableStat
           type="button"
           onClick={() => setZoom(1)}
           className="min-w-13 h-9 px-2 text-xs font-mono font-medium text-foreground hover:bg-muted rounded-lg transition-colors active:scale-95"
-          title="Restablecer zoom"
+          title="Restablecer zoom al 100%"
         >
           {pct}%
         </button>
@@ -436,6 +495,15 @@ export default function FloorOperationalCanvas({ floor, elements = [], tableStat
           title="Acercar"
         >
           <Plus size={16} />
+        </button>
+        <div className="w-px h-5 bg-border mx-0.5" />
+        <button
+          type="button"
+          onClick={fitToContent}
+          className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors active:scale-95"
+          title="Ajustar vista a las mesas"
+        >
+          <Maximize2 size={14} />
         </button>
       </div>
     </div>

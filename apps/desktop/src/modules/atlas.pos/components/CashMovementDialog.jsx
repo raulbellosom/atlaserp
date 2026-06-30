@@ -25,7 +25,7 @@ export default function CashMovementDialog({ open, onOpenChange, sessionId }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm md:min-h-0">
+      <DialogContent size="sm">
         <DialogHeader>
           <DialogTitle>Movimiento de efectivo</DialogTitle>
           <DialogDescription>Registra una entrada o salida de efectivo en la caja activa.</DialogDescription>

@@ -162,7 +162,7 @@ export default function LineEditSheet({ line, orderId, open, onOpenChange }) {
   if (isDesktop) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-sm" aria-describedby={undefined}>
+        <DialogContent size="sm" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="text-base">{title}</DialogTitle>
           </DialogHeader>

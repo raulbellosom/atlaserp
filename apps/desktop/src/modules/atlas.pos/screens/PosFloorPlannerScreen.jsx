@@ -194,6 +194,7 @@ export default function PosFloorPlannerScreen() {
     dispatch({ type: 'LOAD', elements: elementsFromFloor(floor) })
     setSelectedId(null)
     setActiveTool('SELECT')
+    setZoom(0.75)
   }, [floor?.id])
 
   // Keyboard shortcuts
@@ -843,7 +844,7 @@ export default function PosFloorPlannerScreen() {
       </Sheet>
 
       <Dialog open={newFloorDialog} onOpenChange={(v) => { setNewFloorDialog(v); if (!v) setNewFloorName('') }}>
-        <DialogContent className="max-w-xs md:min-h-0">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>Nuevo plano</DialogTitle>
             <DialogDescription>Dale un nombre al plano de esta sucursal.</DialogDescription>
@@ -870,7 +871,7 @@ export default function PosFloorPlannerScreen() {
       </Dialog>
 
       <Dialog open={editFloorDialog} onOpenChange={setEditFloorDialog}>
-        <DialogContent className="max-w-xs md:min-h-0">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>Renombrar plano</DialogTitle>
             <DialogDescription>Cambia el nombre de "{activeFloor?.name}".</DialogDescription>

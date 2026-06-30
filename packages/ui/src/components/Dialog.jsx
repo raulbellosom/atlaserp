@@ -40,6 +40,7 @@ const DialogContent = forwardRef(function DialogContent(
 ) {
   const closeRef = useRef(null);
   const [dragY, setDragY] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const dragStartY = useRef(null);
   const isDragging = useRef(false);
 
@@ -47,6 +48,7 @@ const DialogContent = forwardRef(function DialogContent(
     e.currentTarget.setPointerCapture(e.pointerId);
     dragStartY.current = e.clientY;
     isDragging.current = true;
+    setDragging(true);
   }
 
   function handleDragPointerMove(e) {
@@ -58,6 +60,7 @@ const DialogContent = forwardRef(function DialogContent(
   function handleDragPointerUp() {
     if (!isDragging.current) return;
     isDragging.current = false;
+    setDragging(false);
     if (dragY > 80) {
       setDragY(0);
       closeRef.current?.click();
@@ -76,7 +79,9 @@ const DialogContent = forwardRef(function DialogContent(
         {...props}
         style={{
           paddingBottom: "calc(2rem + env(safe-area-inset-bottom, 0px))",
-          ...style,  // caller can override if truly needed
+          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
+          transition: dragging ? "none" : "transform 280ms cubic-bezier(0.32, 0.72, 0, 1)",
+          ...style,
         }}
         className={cn(
           "fixed z-50 glass-strong shadow-xl focus:outline-none",
@@ -89,7 +94,7 @@ const DialogContent = forwardRef(function DialogContent(
           "data-[state=closed]:slide-out-to-bottom-full",
           "duration-300",
           // ── Desktop md+: centered modal, wider, animations from center ───
-          "md:inset-x-auto md:bottom-auto",
+          "md:inset-x-auto md:bottom-auto md:min-h-0",
           "md:left-1/2 md:top-1/2",
           "md:-translate-x-1/2 md:-translate-y-1/2",
           "md:w-full md:max-h-[90dvh] md:overflow-y-auto md:overscroll-contain",
@@ -104,7 +109,7 @@ const DialogContent = forwardRef(function DialogContent(
       >
         {/* Drag handle — mobile only; handles swipe-to-dismiss */}
         <div
-          className="mx-auto mb-4 h-1.5 w-12 shrink-0 rounded-full bg-[hsl(var(--muted-foreground))]/30 md:hidden cursor-grab active:cursor-grabbing touch-none"
+          className="mx-auto mb-4 h-1.5 w-12 shrink-0 rounded-full bg-[hsl(var(--muted-foreground))]/50 md:hidden cursor-grab active:cursor-grabbing touch-none"
           aria-hidden="true"
           onPointerDown={handleDragPointerDown}
           onPointerMove={handleDragPointerMove}

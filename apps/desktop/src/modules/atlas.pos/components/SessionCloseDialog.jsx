@@ -24,7 +24,7 @@ export default function SessionCloseDialog({ open, onOpenChange, session, onSucc
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm md:min-h-0">
+      <DialogContent size="sm">
         <DialogHeader>
           <DialogTitle>Cerrar caja</DialogTitle>
           <DialogDescription>

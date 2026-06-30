@@ -610,7 +610,7 @@ function MessageActions({ isOwn, hasBody, onCopy, onDelete, onHideForMe, onForwa
             Copiar
           </DropdownMenuItem>
         )}
-        {hasBody && onForward && (
+        {onForward && (
           <DropdownMenuItem onSelect={onForward}>
             <Share2 className="h-3.5 w-3.5 mr-2" />
             Reenviar
@@ -622,7 +622,7 @@ function MessageActions({ isOwn, hasBody, onCopy, onDelete, onHideForMe, onForwa
             Seleccionar
           </DropdownMenuItem>
         )}
-        {(hasBody && (onCopy || onForward) || onEnterSelection) && (onDelete || onHideForMe) && (
+        {(hasBody && onCopy || onForward || onEnterSelection) && (onDelete || onHideForMe) && (
           <DropdownMenuSeparator />
         )}
         {isOwn && onDelete && (

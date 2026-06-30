@@ -29,7 +29,6 @@ const STATUS_LABELS = {
   DIRTY: 'Sucia', RESERVED: 'Reservada', DISABLED: 'Deshabilitada',
 }
 
-const LEGEND_STATUSES = ['AVAILABLE', 'OCCUPIED', 'BILL_REQUESTED', 'DIRTY', 'RESERVED']
 
 export default function TableMap({ tables = [], onTableClick }) {
   if (tables.length === 0) {
@@ -42,43 +41,47 @@ export default function TableMap({ tables = [], onTableClick }) {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto">
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 p-4">
-          {tables.map((table) => (
+    <div className="overflow-y-auto h-full">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 p-4">
+        {tables.map((table) => {
+          const colorClass = STATUS_COLORS[table.status] ?? STATUS_COLORS.AVAILABLE
+          const dotClass   = STATUS_DOT[table.status]   ?? STATUS_DOT.AVAILABLE
+          const isDisabled = table.status === 'DISABLED'
+          return (
             <button
               key={table.id}
               onClick={() => onTableClick(table)}
-              disabled={table.status === 'DISABLED'}
-              className={`relative aspect-square flex flex-col items-center justify-center rounded-xl border-2 transition-all hover:scale-105 active:scale-95 min-h-18 ${
-                STATUS_COLORS[table.status] ?? STATUS_COLORS.AVAILABLE
-              } ${table.status === 'DISABLED' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+              disabled={isDisabled}
+              className={[
+                'relative aspect-square flex flex-col items-center justify-center gap-0.5 rounded-xl border-2 shadow-sm min-h-18',
+                'transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+                colorClass,
+                isDisabled
+                  ? 'cursor-not-allowed opacity-40'
+                  : 'cursor-pointer hover:shadow-md hover:-translate-y-px active:translate-y-0 active:shadow-sm',
+              ].join(' ')}
             >
+              {/* Status indicator dot */}
+              <span className={`absolute top-2 right-2 h-2.5 w-2.5 rounded-full shadow-sm ${dotClass}`} />
+
+              {/* Waiter initials badge */}
               {table.waiterName && (
                 <span
                   title={table.waiterName}
-                  className="absolute top-1 right-1 h-5 w-5 rounded-full bg-foreground/80 text-background text-[9px] font-bold flex items-center justify-center"
+                  className="absolute top-1.5 left-1.5 h-5 w-5 rounded-full bg-current/20 text-current text-[8px] font-bold flex items-center justify-center ring-1 ring-current/30"
                 >
                   {waiterInitials(table.waiterName)}
                 </span>
               )}
-              <span className="text-base font-bold leading-none">{table.name}</span>
-              <span className="text-[10px] mt-1 font-medium opacity-80">{STATUS_LABELS[table.status]}</span>
-              {table.capacity && (
-                <span className="text-[10px] opacity-60">{table.capacity} pers.</span>
+
+              <span className="text-sm font-bold leading-tight px-1 text-center line-clamp-2">{table.name}</span>
+              <span className="text-[10px] font-medium opacity-75 leading-none">{STATUS_LABELS[table.status]}</span>
+              {table.capacity > 0 && (
+                <span className="text-[9px] opacity-50 leading-none">{table.capacity}p</span>
               )}
             </button>
-          ))}
-        </div>
-      </div>
-      {/* Status legend */}
-      <div className="shrink-0 border-t border-border bg-card/60 px-4 py-2 flex flex-wrap gap-x-5 gap-y-1">
-        {LEGEND_STATUSES.map((s) => (
-          <div key={s} className="flex items-center gap-1.5">
-            <span className={`h-2 w-2 rounded-full ${STATUS_DOT[s]}`} />
-            <span className="text-xs text-muted-foreground">{STATUS_LABELS[s]}</span>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

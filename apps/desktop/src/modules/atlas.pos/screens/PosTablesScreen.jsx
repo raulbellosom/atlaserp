@@ -45,7 +45,7 @@ function TableActionPanel({ actionTable, onClose, onNavigateToOrder, onMarkClean
   if (isDesktop) {
     return (
       <Dialog open={!!actionTable} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="max-w-xs sm:max-w-sm" aria-describedby={undefined}>
+        <DialogContent size="sm" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>{name}</DialogTitle>
           </DialogHeader>
@@ -459,20 +459,35 @@ export default function PosTablesScreen() {
         </div>
       )}
 
-      {/* Status legend */}
-      <div className="shrink-0 px-4 py-1.5 border-b border-border/60 bg-card/30 flex flex-wrap gap-x-4 gap-y-1">
+      {/* Status legend with live counts */}
+      <div className="shrink-0 px-4 py-1.5 border-b border-border/60 bg-card/30 flex flex-wrap items-center gap-x-4 gap-y-1">
         {[
-          { color: 'bg-green-500',  label: 'Disponible' },
-          { color: 'bg-amber-500',  label: 'Ocupada' },
-          { color: 'bg-orange-500', label: 'Cuenta pedida' },
-          { color: 'bg-slate-400',  label: 'Sucia' },
-          { color: 'bg-blue-500',   label: 'Reservada' },
-        ].map(({ color, label }) => (
-          <div key={label} className="flex items-center gap-1.5">
-            <span className={`h-2 w-2 rounded-full ${color}`} />
-            <span className="text-xs text-muted-foreground">{label}</span>
-          </div>
-        ))}
+          { color: 'bg-green-500',  label: 'Disponible',   status: 'AVAILABLE' },
+          { color: 'bg-amber-500',  label: 'Ocupada',      status: 'OCCUPIED' },
+          { color: 'bg-orange-500', label: 'Cuenta',       status: 'BILL_REQUESTED' },
+          { color: 'bg-slate-400',  label: 'Sucia',        status: 'DIRTY' },
+          { color: 'bg-blue-500',   label: 'Reservada',    status: 'RESERVED' },
+        ].map(({ color, label, status }) => {
+          const count = tables.filter((t) => t.status === status).length
+          return (
+            <div key={label} className="flex items-center gap-1.5">
+              <span className={`h-2 w-2 rounded-full shrink-0 ${color}`} />
+              <span className="text-xs text-muted-foreground">
+                {label}
+                {count > 0 && (
+                  <span className="ml-1 font-semibold tabular-nums text-foreground">{count}</span>
+                )}
+              </span>
+            </div>
+          )
+        })}
+        {tables.length > 0 && (
+          <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+            {tables.filter((t) => t.status === 'AVAILABLE').length}
+            <span className="text-muted-foreground/60">/{tables.length}</span>
+            <span className="ml-1">libres</span>
+          </span>
+        )}
       </div>
 
       {/* Content */}

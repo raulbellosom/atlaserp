@@ -233,7 +233,7 @@ function OrderDetailPanel({ orderId, onClose }) {
   if (isDesktop) {
     return (
       <>
-        <DialogContent className="max-w-lg flex flex-col p-0 max-h-[90vh]" aria-describedby="order-detail-desc">
+        <DialogContent size="md" className="flex flex-col p-0 max-h-[90dvh]" aria-describedby="order-detail-desc">
           <DialogHeader className="px-5 pt-5 pb-3 border-b border-border shrink-0">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -382,7 +382,22 @@ export default function PosOrdersScreen() {
         {isError ? (
           <ErrorState title="Error al cargar" description="No se pudieron obtener las ordenes." />
         ) : isLoading ? (
-          <p className="text-sm text-muted-foreground">Cargando ordenes...</p>
+          <Card>
+            <CardContent className="p-0">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between px-4 py-3.5 gap-4 border-b border-border last:border-0 animate-pulse">
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3.5 bg-muted rounded w-40" />
+                    <div className="h-3 bg-muted rounded w-28" />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-3.5 bg-muted rounded w-16" />
+                    <div className="h-5 bg-muted rounded-full w-20" />
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         ) : filtered.length === 0 ? (
           <EmptyState title="Sin ordenes" description="No hay ordenes que coincidan con el filtro." />
         ) : (

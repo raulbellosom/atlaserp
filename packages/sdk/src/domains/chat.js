@@ -8,6 +8,20 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         headers: withAuthHeaders(token),
       }),
 
+    archiveConversation: (conversationId, token) =>
+      request(`/chat/conversations/${encodeURIComponent(conversationId)}/archive`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({}),
+      }),
+
+    unarchiveConversation: (conversationId, token) =>
+      request(`/chat/conversations/${encodeURIComponent(conversationId)}/unarchive`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({}),
+      }),
+
     createConversation: (data, token) =>
       request("/chat/conversations", {
         method: "POST",
@@ -127,6 +141,13 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
 
     closeExternal: (conversationId, token) =>
       request(`/chat/external/${encodeURIComponent(conversationId)}/close`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({}),
+      }),
+
+    markExternalRead: (conversationId, token) =>
+      request(`/chat/external/${encodeURIComponent(conversationId)}/read`, {
         method: "POST",
         headers: withAuthHeaders(token),
         body: JSON.stringify({}),

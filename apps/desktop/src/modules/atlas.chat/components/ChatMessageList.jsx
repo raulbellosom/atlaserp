@@ -251,7 +251,7 @@ export function ChatMessageList({
             onHideForMe={!isDeleted && !isPending && onHideForMe
               ? () => onHideForMe(item.id)
               : undefined}
-            onForward={!isDeleted && !isPending && item.body && onForward
+            onForward={!isDeleted && !isPending && onForward
               ? () => onForward(item)
               : undefined}
             selectionMode={selectionMode}

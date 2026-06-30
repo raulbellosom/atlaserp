@@ -311,7 +311,7 @@ function OutletsTab() {
 
       {/* Create outlet dialog */}
       <Dialog open={outletDialog} onOpenChange={setOutletDialog}>
-        <DialogContent className="max-w-sm md:min-h-0">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>Nueva sucursal</DialogTitle>
             <DialogDescription>Registra una ubicación física para el punto de venta.</DialogDescription>
@@ -342,7 +342,7 @@ function OutletsTab() {
 
       {/* Edit outlet dialog */}
       <Dialog open={Boolean(editingOutlet)} onOpenChange={(v) => !v && setEditingOutlet(null)}>
-        <DialogContent className="max-w-sm md:min-h-0">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>Editar sucursal</DialogTitle>
             <DialogDescription>Modifica el nombre, código o estado de la sucursal.</DialogDescription>
@@ -379,7 +379,7 @@ function OutletsTab() {
 
       {/* Create terminal dialog */}
       <Dialog open={terminalDialog} onOpenChange={setTerminalDialog}>
-        <DialogContent className="max-w-sm md:min-h-0">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>Nueva terminal</DialogTitle>
             <DialogDescription>Asigna una terminal a la sucursal correspondiente.</DialogDescription>
@@ -419,7 +419,7 @@ function OutletsTab() {
 
       {/* Edit terminal dialog */}
       <Dialog open={Boolean(editingTerminal)} onOpenChange={(v) => !v && setEditingTerminal(null)}>
-        <DialogContent className="max-w-sm md:min-h-0">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>Editar terminal</DialogTitle>
             <DialogDescription>Modifica el nombre, código o estado de la terminal.</DialogDescription>
@@ -549,7 +549,7 @@ function PaymentMethodsTab() {
 
       {/* Create dialog */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="max-w-sm md:min-h-0">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>Nuevo método de pago</DialogTitle>
             <DialogDescription>Define cómo los clientes pueden pagar en esta sucursal.</DialogDescription>
@@ -585,7 +585,7 @@ function PaymentMethodsTab() {
 
       {/* Edit dialog */}
       <Dialog open={Boolean(editingMethod)} onOpenChange={(v) => !v && setEditingMethod(null)}>
-        <DialogContent className="max-w-sm md:min-h-0">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>Editar método de pago</DialogTitle>
             <DialogDescription>Modifica el nombre, tipo o estado del método.</DialogDescription>
@@ -719,7 +719,7 @@ function StationsTab() {
 
       {/* Create station dialog */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="max-w-sm md:min-h-0">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>Nueva estación</DialogTitle>
             <DialogDescription>Define un área de preparación que recibirá comandas.</DialogDescription>
@@ -751,7 +751,7 @@ function StationsTab() {
 
       {/* Edit station dialog */}
       <Dialog open={Boolean(editingStation)} onOpenChange={(v) => !v && setEditingStation(null)}>
-        <DialogContent className="max-w-sm md:min-h-0">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>Editar estación</DialogTitle>
             <DialogDescription>Modifica el nombre, código o estado de la estación.</DialogDescription>

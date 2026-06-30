@@ -162,10 +162,13 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   // Conversations
   // ------------------------------------------------------------------
 
-  async function listConversations({ authUserId, limit = 50, cursor = null }) {
+  async function listConversations({ authUserId, limit = 50, cursor = null, archived = false }) {
     const profileId = await getUserProfileId(authUserId);
 
     const cursorClause = cursor ? Prisma.sql`AND c.last_message_at < ${new Date(cursor)}` : Prisma.empty;
+    const archiveClause = archived
+      ? Prisma.sql`AND ccm.archived_at IS NOT NULL`
+      : Prisma.sql`AND ccm.archived_at IS NULL`;
 
     const rows = await prisma.$queryRaw`
       SELECT
@@ -228,6 +231,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
           LEFT JOIN user_profile up ON up.id = cm.user_id
           LEFT JOIN auth.users au ON au.id = up.auth_user_id
         ) AS members
+        ccm.archived_at IS NOT NULL AS is_archived
       FROM chat_conversations c
       INNER JOIN chat_conversation_members ccm
         ON ccm.conversation_id = c.id
@@ -235,6 +239,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         AND ccm.left_at IS NULL
       WHERE c.deleted_at IS NULL
         AND c.type != 'external_support'
+        ${archiveClause}
         ${cursorClause}
       ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
       LIMIT ${limit + 1}
@@ -265,6 +270,26 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       hasMore,
       nextCursor: hasMore ? data[data.length - 1].last_message_at?.toISOString() : null,
     };
+  }
+
+  async function archiveConversation({ conversationId, authUserId }) {
+    const profileId = await getUserProfileId(authUserId);
+    await prisma.$executeRaw`
+      UPDATE chat_conversation_members
+      SET archived_at = NOW()
+      WHERE conversation_id = ${conversationId} AND user_id = ${profileId} AND left_at IS NULL
+    `;
+    return { ok: true };
+  }
+
+  async function unarchiveConversation({ conversationId, authUserId }) {
+    const profileId = await getUserProfileId(authUserId);
+    await prisma.$executeRaw`
+      UPDATE chat_conversation_members
+      SET archived_at = NULL
+      WHERE conversation_id = ${conversationId} AND user_id = ${profileId} AND left_at IS NULL
+    `;
+    return { ok: true };
   }
 
   async function createConversation({ authUserId, type, title, memberUserIds, metadata = {} }) {
@@ -853,6 +878,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   // ------------------------------------------------------------------
 
   async function listExternalInbox({ authUserId, status = "open", limit = 30, cursor = null, search = null }) {
+    const profileId = await getUserProfileId(authUserId);
+
     // Build search filter dynamically to avoid untyped NULL parameter (42P18)
     const searchFilter = search
       ? Prisma.sql`AND (
@@ -875,6 +902,17 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
           WHERE m.conversation_id = c.id AND m.deleted_at IS NULL
         ) AS message_count,
         (
+          SELECT COUNT(*)::int FROM chat_messages m
+          WHERE m.conversation_id = c.id
+            AND m.deleted_at IS NULL
+            AND m.sender_type = 'guest'
+            AND m.created_at > COALESCE(
+              (SELECT last_read_at FROM chat_conversation_members
+               WHERE conversation_id = c.id AND user_id = ${profileId}),
+              '1970-01-01'::timestamptz
+            )
+        ) AS unread_count,
+        (
           SELECT json_build_object(
             'id', m.id, 'body', m.body, 'senderType', m.sender_type, 'createdAt', m.created_at
           )
@@ -892,6 +930,23 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       LIMIT ${limit}
     `;
     return { data: rows };
+  }
+
+  async function markExternalRead({ conversationId, authUserId }) {
+    const profileId = await getUserProfileId(authUserId);
+    // Ensure a member row exists for this operator (partial index — DO NOTHING on any conflict)
+    await prisma.$executeRaw`
+      INSERT INTO chat_conversation_members (conversation_id, user_id, role, last_read_at)
+      VALUES (${conversationId}, ${profileId}, 'operator', NOW())
+      ON CONFLICT DO NOTHING
+    `;
+    // Then update last_read_at on the existing row
+    await prisma.$executeRaw`
+      UPDATE chat_conversation_members
+      SET last_read_at = NOW()
+      WHERE conversation_id = ${conversationId} AND user_id = ${profileId} AND left_at IS NULL
+    `;
+    return { ok: true };
   }
 
   async function assignOperator({ conversationId, authUserId, operatorUserId }) {
@@ -928,6 +983,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
 
   return {
     listConversations,
+    archiveConversation,
+    unarchiveConversation,
     createConversation,
     getConversation,
     updateConversation,
@@ -941,6 +998,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     presignAttachmentUpload,
     getAttachmentSignedUrl,
     listExternalInbox,
+    markExternalRead,
     assignOperator,
     closeExternalConversation,
   };

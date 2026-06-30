@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { PageHeader, Button, EmptyState, Skeleton, Badge } from "@atlas/ui";
-import { MessageSquare, Search, ExternalLink, Clock, UserCheck, ChevronDown } from "lucide-react";
+import { Button, EmptyState, Skeleton, Badge } from "@atlas/ui";
+import { MessageSquare, Search, ExternalLink, Clock, UserCheck, ChevronDown, ArrowLeft } from "lucide-react";
 import { ChatMessageList } from "../components/ChatMessageList";
 import { MessageComposer } from "../components/MessageComposer";
 import { ChatTemplatePopover } from "../components/ChatTemplatePopover";
@@ -62,23 +62,31 @@ const STATUS_OPTIONS = [
 
 function ExternalConversationItem({ conv, isActive, onClick }) {
   const name = conv.guest_name ?? conv.guest_email ?? "Visitante";
+  const unread = conv.unread_count ?? 0;
   return (
     <button
       type="button"
       onClick={onClick}
       className={[
-        "w-full flex items-start gap-3 px-3 py-2.5 rounded-xl text-left transition-colors",
+        "w-full flex items-start gap-3 px-3 py-2.5 rounded-xl text-left transition-colors touch-manipulation",
         isActive
           ? "bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]"
           : "hover:bg-[hsl(var(--muted))]",
       ].join(" ")}
     >
-      <div className="h-9 w-9 rounded-full bg-violet-100 dark:bg-violet-900 flex items-center justify-center shrink-0 text-sm font-semibold text-violet-600 dark:text-violet-300 uppercase">
-        {name[0]}
+      <div className="relative shrink-0">
+        <div className="h-9 w-9 rounded-full bg-violet-100 dark:bg-violet-900 flex items-center justify-center text-sm font-semibold text-violet-600 dark:text-violet-300 uppercase">
+          {name[0]}
+        </div>
+        {unread > 0 && (
+          <span className="absolute -top-1 -right-1 h-4 min-w-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1 ring-2 ring-[hsl(var(--background))]">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-medium truncate">{name}</p>
+          <p className={["text-sm truncate", unread > 0 ? "font-semibold" : "font-medium"].join(" ")}>{name}</p>
           <span className="text-[10px] text-[hsl(var(--muted-foreground))] shrink-0 tabular-nums">
             {formatRelative(conv.last_message?.createdAt ?? conv.created_at)}
           </span>
@@ -94,7 +102,7 @@ function ExternalConversationItem({ conv, isActive, onClick }) {
           </p>
         )}
         {conv.last_message?.body && (
-          <p className="text-xs text-[hsl(var(--muted-foreground))] truncate mt-0.5">
+          <p className={["text-xs truncate mt-0.5", unread > 0 ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]"].join(" ")}>
             {conv.last_message.body}
           </p>
         )}
@@ -208,7 +216,7 @@ function ReassignDropdown({ conversationId, currentUserId, onReassigned }) {
 }
 
 // ------------------------------------------------------------------
-// Visitor info panel (right column)
+// Visitor info panel (right column) — desktop only
 // ------------------------------------------------------------------
 
 function VisitorInfoPanel({ conversation, onReassigned }) {
@@ -222,7 +230,7 @@ function VisitorInfoPanel({ conversation, onReassigned }) {
   const countdown = useExpiryCountdown(conversation.status !== "closed" ? idleExpiresAt : null);
 
   return (
-    <aside className="w-64 shrink-0 border-l border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] flex flex-col overflow-y-auto">
+    <aside className="hidden lg:flex w-64 shrink-0 border-l border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] flex-col overflow-y-auto">
       <div className="p-4 space-y-4">
         {/* Guest identity */}
         <div>
@@ -317,15 +325,24 @@ function VisitorInfoPanel({ conversation, onReassigned }) {
 // Chat pane (center column)
 // ------------------------------------------------------------------
 
-function ExternalChatPane({ conversation }) {
+function ExternalChatPane({ conversation, onBack }) {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
   const composerRef = useRef(null);
   const prevCountRef = useRef(0);
+  const [hiddenMsgIds, setHiddenMsgIds] = useState(() => new Set());
 
   const { data: messagesData, isLoading } = useExternalMessages(conversation?.id);
   const { mutateAsync: sendMsg } = useSendExternalMessage(conversation?.id);
+
+  // Mark as read when conversation is opened or new messages arrive
+  useEffect(() => {
+    if (!conversation?.id || !token) return;
+    atlas.chat.markExternalRead(conversation.id, token).catch(() => {});
+    queryClient.invalidateQueries({ queryKey: ["chat-external-inbox"], exact: false });
+    queryClient.invalidateQueries({ queryKey: ["chat-external-inbox-bubble"] });
+  }, [conversation?.id, token, queryClient]);
 
   // Track message count to play sound when inbox is in background
   useEffect(() => {
@@ -344,9 +361,11 @@ function ExternalChatPane({ conversation }) {
 
   if (!conversation) {
     return (
-      <div className="flex-1 flex items-center justify-center text-[hsl(var(--muted-foreground))]">
-        <div className="text-center space-y-2">
-          <MessageSquare className="h-10 w-10 mx-auto opacity-30" />
+      <div className="flex-1 hidden md:flex items-center justify-center text-[hsl(var(--muted-foreground))]">
+        <div className="text-center space-y-3">
+          <div className="mx-auto h-14 w-14 rounded-2xl bg-[hsl(var(--muted))] flex items-center justify-center">
+            <MessageSquare className="h-7 w-7 text-[hsl(var(--primary)/0.4)]" />
+          </div>
           <p className="text-sm">Selecciona una conversacion</p>
         </div>
       </div>
@@ -358,7 +377,17 @@ function ExternalChatPane({ conversation }) {
   return (
     <div className="flex flex-col flex-1 min-h-0 min-w-0">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-[hsl(var(--border))] px-4 py-3 shrink-0">
+      <div className="flex items-center gap-3 border-b border-[hsl(var(--border))] px-3 sm:px-4 py-3 shrink-0">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="md:hidden text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors shrink-0 touch-manipulation"
+            aria-label="Volver"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+        )}
         <div className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900 flex items-center justify-center text-xs font-semibold text-violet-600 dark:text-violet-300 uppercase shrink-0">
           {guestName[0]}
         </div>
@@ -387,6 +416,8 @@ function ExternalChatPane({ conversation }) {
         isLoading={isLoading}
         currentUserId={userProfile?.id}
         typingUsers={[]}
+        onHideForMe={(msgId) => setHiddenMsgIds((prev) => { const n = new Set(prev); n.add(msgId); return n; })}
+        hiddenMessageIds={hiddenMsgIds}
       />
 
       {conversation.status !== "closed" && (
@@ -425,6 +456,8 @@ export function ExternalInboxScreen() {
   const [search, setSearch] = useState("");
   const [isAvailable, setIsAvailable] = useState(false);
   const [togglingAvailability, setTogglingAvailability] = useState(false);
+  // "list" | "chat" — only matters on mobile (<md)
+  const [mobileView, setMobileView] = useState("list");
 
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
@@ -458,31 +491,48 @@ export function ExternalInboxScreen() {
     finally { setTogglingAvailability(false); }
   }
 
+  function handleSelectConversation(conv) {
+    setSelected(conv);
+    setMobileView("chat");
+  }
+
+  function handleBack() {
+    setMobileView("list");
+  }
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Top bar */}
-      <div className="shrink-0 px-4 pt-4 pb-3 flex items-start justify-between gap-4 border-b border-[hsl(var(--border))]">
-        <PageHeader title="Bandeja externa" description="Conversaciones de soporte en vivo" />
+      {/* Top bar — compact on mobile */}
+      <div className="shrink-0 px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between gap-3 border-b border-[hsl(var(--border))]">
+        <div className="min-w-0">
+          <h1 className="text-base sm:text-lg font-semibold tracking-tight truncate">Bandeja externa</h1>
+          <p className="hidden sm:block text-xs text-[hsl(var(--muted-foreground))]">Conversaciones de soporte en vivo</p>
+        </div>
         <button
           type="button"
           onClick={handleToggleAvailability}
           disabled={togglingAvailability}
           className={[
-            "mt-1 shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border",
+            "shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors border",
             isAvailable
               ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
               : "bg-[hsl(var(--muted))] border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted)/0.8)]",
           ].join(" ")}
           title={isAvailable ? "Disponible — clic para desactivar" : "No disponible — clic para activar"}
         >
-          <span className={["w-2 h-2 rounded-full", isAvailable ? "bg-emerald-400" : "bg-[hsl(var(--muted-foreground))]"].join(" ")} />
-          {isAvailable ? "Disponible" : "No disponible"}
+          <span className={["w-1.5 h-1.5 rounded-full", isAvailable ? "bg-emerald-400" : "bg-[hsl(var(--muted-foreground))]"].join(" ")} />
+          <span className="hidden xs:inline">{isAvailable ? "Disponible" : "No disponible"}</span>
+          <span className="xs:hidden">{isAvailable ? "Activo" : "Inactivo"}</span>
         </button>
       </div>
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Left: conversation list */}
-        <aside className="flex flex-col w-72 shrink-0 border-r border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]">
+        {/* Left: conversation list — full width on mobile when mobileView === "list", fixed w on desktop */}
+        <aside className={[
+          "flex flex-col shrink-0 border-r border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]",
+          "w-full md:w-72",
+          mobileView === "chat" ? "hidden md:flex" : "flex",
+        ].join(" ")}>
           {/* Search */}
           <div className="px-3 py-2 border-b border-[hsl(var(--border))]">
             <div className="flex items-center gap-2 bg-[hsl(var(--muted))] rounded-lg px-2.5 py-1.5">
@@ -539,16 +589,24 @@ export function ExternalInboxScreen() {
                 key={conv.id}
                 conv={conv}
                 isActive={selected?.id === conv.id}
-                onClick={() => setSelected(conv)}
+                onClick={() => handleSelectConversation(conv)}
               />
             ))}
           </div>
         </aside>
 
-        {/* Center: chat pane */}
-        <ExternalChatPane conversation={selected} />
+        {/* Center: chat pane — full width on mobile when mobileView === "chat" */}
+        <div className={[
+          "flex flex-1 min-w-0 min-h-0",
+          mobileView === "list" ? "hidden md:flex" : "flex",
+        ].join(" ")}>
+          <ExternalChatPane
+            conversation={selected}
+            onBack={handleBack}
+          />
+        </div>
 
-        {/* Right: visitor info */}
+        {/* Right: visitor info — desktop only (lg+) */}
         <VisitorInfoPanel
           conversation={selected}
           onReassigned={() => queryClient.invalidateQueries({ queryKey: ["chat-external-inbox"] })}

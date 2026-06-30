@@ -4,18 +4,19 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   MessageSquare, X, Minus, ChevronUp,
-  ExternalLink, FolderOpen, MoreVertical,
+  ExternalLink, FolderOpen, MoreVertical, Search, Plus,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useRealtimeContext } from "../../../providers/RealtimeProvider";
 import { Skeleton, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@atlas/ui";
 import { useChatFloatStore } from "../store/chatFloatStore";
-import { useChatMessages, useSendMessage, useMarkRead } from "../hooks/useChatMessages";
+import { useChatMessages, useSendMessage, useMarkRead, useDeleteMessage } from "../hooks/useChatMessages";
 import { useCreateConversation } from "../hooks/useCreateConversation";
 import { atlas } from "../../../lib/atlas";
 import { MessageComposer } from "./MessageComposer";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
+import { CreateChatModal } from "./CreateChatModal";
 import { getConversationDisplayName } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
@@ -87,12 +88,14 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
   const { data, isLoading, hasMore, isLoadingMore, loadMore } = useChatMessages(id);
   const { mutateAsync: send } = useSendMessage(id);
   const { mutate: markRead } = useMarkRead(id);
+  const { mutate: deleteMessageMutate } = useDeleteMessage(id);
   const markReadRef = useRef(markRead);
   markReadRef.current = markRead;
 
   const composerRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [viewer, setViewer] = useState({ open: false, attachments: [], activeIndex: 0 });
+  const [hiddenMsgIds, setHiddenMsgIds] = useState(() => new Set());
 
   useEffect(() => { if (!minimized) markReadRef.current(); }, [id, minimized]);
 
@@ -270,6 +273,10 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
               hasMore={hasMore}
               isLoadingMore={isLoadingMore}
               onLoadMore={loadMore}
+              onDeleteMessage={(msgId) => deleteMessageMutate(msgId)}
+              onHideForMe={(msgId) => setHiddenMsgIds((prev) => { const n = new Set(prev); n.add(msgId); return n; })}
+              onForward={() => { navigate(`/app/m/atlas.chat/chat/inbox/${id}`); onClose(); }}
+              hiddenMessageIds={hiddenMsgIds}
             />
             <MessageComposer
               ref={composerRef}
@@ -361,17 +368,37 @@ function OnlineUserPill({ user, currentUserId, conversations, onOpen }) {
 
 // --- Conversation picker panel ---
 
-function ConversationPanel({ conversations, isLoading, edge, bottomPx, zIndex = 45, currentUserId }) {
+function ConversationPanel({ conversations, externalConversations, isLoading, edge, bottomPx, zIndex = 45, currentUserId }) {
   const { openChat, close } = useChatFloatStore();
   const navigate = useNavigate();
   const { onlineUsers } = useGlobalPresence();
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+  const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const searchRef = useRef(null);
 
   const onlineList = useMemo(
-    () =>
-      Object.values(onlineUsers ?? {}).filter((u) => u.userId !== currentUserId),
+    () => Object.values(onlineUsers ?? {}).filter((u) => u.userId !== currentUserId),
     [onlineUsers, currentUserId],
   );
+
+  const filteredConversations = useMemo(() => {
+    if (!search.trim()) return conversations;
+    const q = search.toLowerCase();
+    return conversations.filter((c) => {
+      const name = getConversationDisplayName(c, currentUserId).toLowerCase();
+      return name.includes(q) || c.last_message?.body?.toLowerCase().includes(q);
+    });
+  }, [conversations, search, currentUserId]);
+
+  const filteredExternal = useMemo(() => {
+    if (!search.trim()) return externalConversations;
+    const q = search.toLowerCase();
+    return externalConversations.filter((c) => {
+      const name = (c.guest_name ?? c.guest_email ?? "").toLowerCase();
+      return name.includes(q) || c.last_message?.body?.toLowerCase().includes(q) || (c.tracking_code ?? "").toLowerCase().includes(q);
+    });
+  }, [externalConversations, search]);
 
   function handleSelect(conv) {
     if (isMobile) {
@@ -382,108 +409,228 @@ function ConversationPanel({ conversations, isLoading, edge, bottomPx, zIndex = 
     }
   }
 
+  function handleSelectExternal() {
+    navigate("/app/m/atlas.chat/chat/external");
+    close();
+  }
+
   function handleViewAll() {
     navigate("/app/m/atlas.chat/chat/inbox");
     close();
   }
 
+  function handleCreated(conv) {
+    if (conv?.id) {
+      if (isMobile) {
+        navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}`);
+      } else {
+        openChat(conv);
+      }
+      close();
+    }
+  }
+
   const offset = BM + BS + GAP;
   const clampedBottom = Math.max(BM, bottomPx);
+  const hasExternal = filteredExternal.length > 0;
 
   return (
-    <div
-      style={{ position: "fixed", [edge]: offset, bottom: clampedBottom, width: 256, zIndex, maxHeight: "calc(100dvh - 80px)" }}
-      className="rounded-xl shadow-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden flex flex-col"
-    >
-      {/* Online users */}
-      {onlineList.length > 0 && (
-        <div className="px-3 pt-3 pb-2 border-b border-[hsl(var(--border))]">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))] mb-2">
-            En linea
-          </p>
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            {onlineList.map((user) => (
-              <OnlineUserPill
-                key={user.userId}
-                user={user}
-                currentUserId={currentUserId}
-                conversations={conversations}
-                onOpen={(conv) => { handleSelect(conv); }}
-              />
-            ))}
+    <>
+      <div
+        style={{ position: "fixed", [edge]: offset, bottom: clampedBottom, width: 272, zIndex, maxHeight: "calc(100dvh - 80px)" }}
+        className="rounded-xl shadow-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden flex flex-col"
+      >
+        {/* Search + new conversation header */}
+        <div className="flex items-center gap-1.5 px-2.5 py-2 border-b border-[hsl(var(--border))]">
+          <div className="flex-1 flex items-center gap-1.5 bg-[hsl(var(--muted))] rounded-lg px-2 py-1.5">
+            <Search className="h-3 w-3 text-[hsl(var(--muted-foreground))] shrink-0" />
+            <input
+              ref={searchRef}
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar conversacion..."
+              className="flex-1 bg-transparent text-[11px] outline-none placeholder:text-[hsl(var(--muted-foreground))] min-w-0"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="shrink-0 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] touch-manipulation"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
           </div>
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            title="Nueva conversacion"
+            className="shrink-0 h-8 w-8 rounded-lg flex items-center justify-center bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:opacity-90 transition-opacity touch-manipulation"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
         </div>
-      )}
 
-      {/* Recent conversations */}
-      <div className="px-3 py-2 border-b border-[hsl(var(--border))]">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-          Mensajes recientes
-        </p>
-      </div>
+        {/* Online users — hidden when searching */}
+        {onlineList.length > 0 && !search && (
+          <div className="px-3 pt-2.5 pb-2 border-b border-[hsl(var(--border))]">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))] mb-2">
+              En linea
+            </p>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              {onlineList.map((user) => (
+                <OnlineUserPill
+                  key={user.userId}
+                  user={user}
+                  currentUserId={currentUserId}
+                  conversations={conversations}
+                  onOpen={(conv) => { handleSelect(conv); }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
-      <div className="overflow-y-auto" style={{ maxHeight: 240 }}>
-        {isLoading && (
-          <div className="p-3 space-y-2">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center gap-2">
-                <Skeleton className="h-8 w-8 rounded-full shrink-0" />
-                <div className="flex-1 space-y-1">
-                  <Skeleton className="h-2.5 w-3/4 rounded" />
-                  <Skeleton className="h-2 w-1/2 rounded" />
+        <div className="flex-1 overflow-y-auto overscroll-contain">
+          {/* External conversations section */}
+          {hasExternal && (
+            <>
+              <div className="px-3 py-1.5 sticky top-0 bg-[hsl(var(--card))] border-b border-[hsl(var(--border))]">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+                    Bandeja externa
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSelectExternal}
+                    className="text-[10px] text-[hsl(var(--primary))] hover:underline touch-manipulation"
+                  >
+                    Ver todas
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-
-        {!isLoading && !conversations.length && (
-          <p className="text-xs text-[hsl(var(--muted-foreground))] p-4 text-center">
-            Sin conversaciones
-          </p>
-        )}
-
-        {conversations.map((conv) => {
-          const name = getConversationDisplayName(conv, currentUserId);
-          const avatarUrl = getAvatarUrl(conv, currentUserId);
-          return (
-            <button
-              key={conv.id}
-              type="button"
-              onClick={() => handleSelect(conv)}
-              className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-[hsl(var(--muted))] transition-colors text-left"
-            >
-              <AvatarCircle avatarUrl={avatarUrl} name={name} size="md" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium truncate">{name}</p>
-                {conv.last_message?.body && (
-                  <p className="text-[10px] text-[hsl(var(--muted-foreground))] truncate">
-                    {conv.last_message.body}
-                  </p>
-                )}
-              </div>
-              {conv.unread_count > 0 && (
-                <span className="h-4 min-w-4 rounded-full bg-[hsl(var(--primary))] text-white text-[9px] font-bold flex items-center justify-center px-1 shrink-0">
-                  {conv.unread_count > 99 ? "99+" : conv.unread_count}
-                </span>
+              {filteredExternal.slice(0, 3).map((conv) => {
+                const name = conv.guest_name ?? conv.guest_email ?? "Visitante";
+                const unread = conv.unread_count ?? 0;
+                return (
+                  <button
+                    key={conv.id}
+                    type="button"
+                    onClick={handleSelectExternal}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[hsl(var(--muted))] active:bg-[hsl(var(--muted))] transition-colors text-left touch-manipulation"
+                  >
+                    <div className="relative shrink-0">
+                      <div className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900 flex items-center justify-center text-xs font-semibold text-violet-600 dark:text-violet-300 uppercase">
+                        {name[0]}
+                      </div>
+                      {unread > 0 && (
+                        <span className="absolute -top-1 -right-1 h-4 min-w-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1 ring-1 ring-[hsl(var(--card))]">
+                          {unread > 99 ? "99+" : unread}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={["text-xs truncate", unread > 0 ? "font-semibold" : "font-medium"].join(" ")}>{name}</p>
+                      {conv.last_message?.body ? (
+                        <p className={["text-[10px] truncate", unread > 0 ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]"].join(" ")}>
+                          {conv.last_message.body}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-violet-400">Conversacion activa</p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+              {filteredExternal.length > 3 && (
+                <button
+                  type="button"
+                  onClick={handleSelectExternal}
+                  className="w-full px-3 py-2 text-[10px] text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted))] transition-colors text-center touch-manipulation"
+                >
+                  +{filteredExternal.length - 3} mas en bandeja externa
+                </button>
               )}
+              <div className="border-b border-[hsl(var(--border))]" />
+            </>
+          )}
+
+          {/* Recent internal conversations */}
+          <div className="px-3 py-1.5 sticky top-0 bg-[hsl(var(--card))]">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+              Mensajes recientes
+            </p>
+          </div>
+
+          {isLoading && (
+            <div className="p-3 space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-1">
+                    <Skeleton className="h-2.5 w-3/4 rounded" />
+                    <Skeleton className="h-2 w-1/2 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!isLoading && !filteredConversations.length && (
+            <p className="text-xs text-[hsl(var(--muted-foreground))] p-4 text-center">
+              {search ? "Sin resultados." : "Sin conversaciones"}
+            </p>
+          )}
+
+          {filteredConversations.map((conv) => {
+            const name = getConversationDisplayName(conv, currentUserId);
+            const avatarUrl = getAvatarUrl(conv, currentUserId);
+            return (
+              <button
+                key={conv.id}
+                type="button"
+                onClick={() => handleSelect(conv)}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[hsl(var(--muted))] active:bg-[hsl(var(--muted))] transition-colors text-left touch-manipulation"
+              >
+                <AvatarCircle avatarUrl={avatarUrl} name={name} size="md" />
+                <div className="flex-1 min-w-0">
+                  <p className={["text-xs truncate", conv.unread_count > 0 ? "font-semibold" : "font-medium"].join(" ")}>{name}</p>
+                  {conv.last_message?.body && (
+                    <p className={["text-[10px] truncate", conv.unread_count > 0 ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]"].join(" ")}>
+                      {conv.last_message.body}
+                    </p>
+                  )}
+                </div>
+                {conv.unread_count > 0 && (
+                  <span className="h-4 min-w-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1 shrink-0">
+                    {conv.unread_count > 99 ? "99+" : conv.unread_count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+
+          {/* Footer */}
+          <div className="border-t border-[hsl(var(--border))] mt-1">
+            <button
+              type="button"
+              onClick={handleViewAll}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted))] transition-colors touch-manipulation"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Ver todos los chats
             </button>
-          );
-        })}
+          </div>
+        </div>
       </div>
 
-      {/* Footer: Ver todos los chats */}
-      <div className="border-t border-[hsl(var(--border))]">
-        <button
-          type="button"
-          onClick={handleViewAll}
-          className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-medium text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted))] transition-colors"
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-          Ver todos los chats
-        </button>
-      </div>
-    </div>
+      <CreateChatModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={handleCreated}
+      />
+    </>
   );
 }
 
@@ -507,6 +654,16 @@ function FloatingChatHubInner() {
   const conversations = data?.data ?? [];
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unread_count ?? 0), 0);
 
+  const { data: externalData } = useQuery({
+    queryKey: ["chat-external-inbox-bubble"],
+    queryFn: () => atlas.chat.listExternalInbox({ status: "open" }, session?.access_token),
+    enabled: Boolean(session?.access_token),
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
+  const externalConversations = externalData?.data ?? [];
+
   // Invalidate immediately on new messages so the badge updates in real time
   useEffect(() => {
     const unsub1 = on("chat.message.new", () => {
@@ -514,9 +671,11 @@ function FloatingChatHubInner() {
     });
     const unsub2 = on("external_message", () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["chat-external-inbox-bubble"] });
     });
     const unsub3 = on("new_external_conversation", () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["chat-external-inbox-bubble"] });
     });
     return () => { unsub1(); unsub2(); unsub3(); };
   }, [on, queryClient]);
@@ -645,6 +804,7 @@ function FloatingChatHubInner() {
         <div ref={panelRef} onPointerDown={(e) => e.stopPropagation()}>
           <ConversationPanel
             conversations={conversations}
+            externalConversations={externalConversations}
             isLoading={isLoading}
             edge={edge}
             bottomPx={panelBottomPx}

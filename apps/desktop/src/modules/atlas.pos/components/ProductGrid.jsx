@@ -45,9 +45,15 @@ export default function ProductGrid({ onSelect }) {
       {/* Product grid */}
       <div className="flex-1 overflow-y-auto p-3">
         {isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="aspect-3/4 rounded-xl border border-border bg-muted/40 animate-pulse" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card overflow-hidden animate-pulse">
+                <div className="aspect-4/3 bg-muted/60" />
+                <div className="px-2.5 pt-2 pb-2.5 space-y-1.5">
+                  <div className="h-3.5 bg-muted rounded w-3/4" />
+                  <div className="h-3.5 bg-muted rounded w-1/3" />
+                </div>
+              </div>
             ))}
           </div>
         ) : products.length === 0 ? (
@@ -58,24 +64,31 @@ export default function ProductGrid({ onSelect }) {
               <button
                 key={p.id}
                 onClick={() => onSelect(p)}
-                className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-3 text-center hover:border-primary hover:bg-primary/5 active:scale-[0.97] transition-all touch-manipulation"
+                className="group relative flex flex-col rounded-xl border border-border bg-card overflow-hidden shadow-sm hover:shadow-md hover:border-primary/50 active:scale-[0.97] transition-all touch-manipulation text-left"
               >
+                {/* Image area */}
                 {p.image_url ? (
-                  <img
-                    src={p.image_url}
-                    alt={p.name}
-                    className="h-16 w-16 rounded-lg object-cover cursor-zoom-in"
-                    onClick={(e) => handleImageClick(e, p)}
-                  />
+                  <div className="aspect-4/3 w-full overflow-hidden bg-muted/30 shrink-0">
+                    <img
+                      src={p.image_url}
+                      alt={p.name}
+                      className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03] cursor-zoom-in"
+                      onClick={(e) => handleImageClick(e, p)}
+                    />
+                  </div>
                 ) : (
-                  <div className="h-16 w-16 rounded-lg bg-muted flex items-center justify-center">
-                    <ImageOff size={24} className="text-muted-foreground/40" />
+                  <div className="aspect-4/3 w-full bg-muted/40 flex items-center justify-center shrink-0">
+                    <ImageOff size={22} className="text-muted-foreground/30" />
                   </div>
                 )}
-                <span className="text-sm font-medium leading-tight line-clamp-2 w-full">{p.name}</span>
-                <span className="text-sm font-bold text-primary mt-auto">
-                  ${parseFloat(p.price ?? p.base_price ?? 0).toFixed(2)}
-                </span>
+
+                {/* Footer */}
+                <div className="px-2.5 pt-2 pb-2.5 flex flex-col gap-0.5 flex-1">
+                  <span className="text-sm font-medium leading-tight line-clamp-2">{p.name}</span>
+                  <span className="text-sm font-bold text-primary mt-auto">
+                    ${parseFloat(p.price ?? p.base_price ?? 0).toFixed(2)}
+                  </span>
+                </div>
               </button>
             ))}
           </div>
@@ -84,7 +97,7 @@ export default function ProductGrid({ onSelect }) {
 
       {/* Image preview dialog */}
       <Dialog open={!!previewProduct} onOpenChange={(open) => !open && setPreviewProduct(null)}>
-        <DialogContent className="max-w-lg p-0 overflow-hidden">
+        <DialogContent size="md" className="p-0 overflow-hidden" aria-describedby={undefined}>
           {previewProduct && (
             <div className="relative">
               <DialogTitle className="sr-only">{previewProduct.name}</DialogTitle>

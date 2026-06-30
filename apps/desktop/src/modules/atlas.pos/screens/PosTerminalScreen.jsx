@@ -499,7 +499,7 @@ export default function PosTerminalScreen() {
 
       {/* Change config modal */}
       <Dialog open={configOpen} onOpenChange={setConfigOpen}>
-        <DialogContent className="max-w-sm md:min-h-0">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>Cambiar sucursal o terminal</DialogTitle>
             <DialogDescription>

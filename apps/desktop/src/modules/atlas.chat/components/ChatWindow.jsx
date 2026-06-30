@@ -5,7 +5,7 @@ import {
   FileText, FileType2, FileSpreadsheet, FileVideo, FileAudio,
   FileArchive, FileCode, File as FileIconBase, FileImage,
   MoreVertical, Trash2, X as XIcon, Search, Share2, CheckSquare,
-  ChevronUp, ChevronDown,
+  ChevronUp, ChevronDown, Archive, ArchiveRestore,
 } from "lucide-react";
 import { ChatMessageList } from "./ChatMessageList";
 import { MessageComposer } from "./MessageComposer";
@@ -13,7 +13,7 @@ import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { ForwardMessageModal } from "./ForwardMessageModal";
 import { useChatMessages, useSendMessage, useMarkRead, useDeleteMessage } from "../hooks/useChatMessages";
 import { useChatPresence } from "../hooks/useChatPresence";
-import { useChatConversations } from "../hooks/useChatConversations";
+import { useChatConversations, useArchiveConversation, useUnarchiveConversation } from "../hooks/useChatConversations";
 import {
   getConversationDisplayName, isImageMime, formatFileSize, formatMessageTime,
 } from "../lib/chatUtils";
@@ -160,6 +160,7 @@ function ChatHeader({
   onSelectionCancel, onDeleteForMe, onDeleteForAll, onForwardSelected,
   onEnterSelection,
   onDeleteConversation,
+  onArchive, isArchived,
 }) {
   const [avatarErr, setAvatarErr] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -346,6 +347,14 @@ function ChatHeader({
               <CheckSquare className="h-3.5 w-3.5 mr-2" />
               Seleccionar mensajes
             </DropdownMenuItem>
+            {onArchive && (
+              <DropdownMenuItem onSelect={onArchive}>
+                {isArchived
+                  ? <><ArchiveRestore className="h-3.5 w-3.5 mr-2" />Desarchivar</>
+                  : <><Archive className="h-3.5 w-3.5 mr-2" />Archivar</>
+                }
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => setConfirmDelete(true)} className="text-red-500 focus:text-red-500">
               <Trash2 className="h-3.5 w-3.5 mr-2" />
@@ -394,6 +403,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
   const { mutateAsync: sendMessage } = useSendMessage(conversationId);
   const { mutate: markReadMutate } = useMarkRead(conversationId);
   const { mutate: deleteMessageMutate } = useDeleteMessage(conversationId);
+  const { mutate: archiveMutate } = useArchiveConversation();
+  const { mutate: unarchiveMutate } = useUnarchiveConversation();
   const { onlineUsers, typingUsersList, sendTyping } = useChatPresence(conversationId);
   const { data: convsData } = useChatConversations();
   const conversations = convsData?.data ?? [];
@@ -583,10 +594,15 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
 
   if (!conversation) {
     return (
-      <div className="flex-1 flex items-center justify-center text-[hsl(var(--muted-foreground))]">
-        <div className="text-center space-y-2">
-          <p className="text-4xl">💬</p>
-          <p className="text-sm">Selecciona una conversacion para empezar</p>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="mx-auto h-14 w-14 rounded-2xl bg-[hsl(var(--muted))] flex items-center justify-center">
+            <MessageSquare className="h-7 w-7 text-[hsl(var(--primary)/0.4)]" />
+          </div>
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-[hsl(var(--foreground))]">Selecciona una conversacion</p>
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">para empezar a chatear</p>
+          </div>
         </div>
       </div>
     );
@@ -631,6 +647,12 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         onForwardSelected={handleForwardSelected}
         onEnterSelection={() => enterSelectionMode(null)}
         onDeleteConversation={handleDeleteConversation}
+        isArchived={conversation?.is_archived ?? false}
+        onArchive={conversationId
+          ? () => conversation?.is_archived
+            ? unarchiveMutate(conversationId)
+            : archiveMutate(conversationId)
+          : undefined}
       />
 
       {filesView ? (

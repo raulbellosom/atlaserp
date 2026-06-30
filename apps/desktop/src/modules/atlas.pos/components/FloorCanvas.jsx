@@ -142,8 +142,8 @@ export default function FloorCanvas({
   const [cursorPos, setCursorPos]           = useState(null)
   const [isPanning, setIsPanning]           = useState(false)
 
-  const canvasWidth  = Math.max(floor?.canvasWidth  ?? 2000, 2000)
-  const canvasHeight = Math.max(floor?.canvasHeight ?? 1400, 1400)
+  const canvasWidth  = Math.max(floor?.canvasWidth  ?? 1400, 1400)
+  const canvasHeight = Math.max(floor?.canvasHeight ?? 900,  900)
 
   useEffect(() => { polygonPointsRef.current = polygonPoints }, [polygonPoints])
   useEffect(() => { zoomRef.current = zoom }, [zoom])

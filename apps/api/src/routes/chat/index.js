@@ -41,15 +41,40 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   internal.get("/conversations", requirePermission("chat.conversations.read"), async (c) => {
     try {
       const authUserId = c.get("authUserId");
-      const { limit, cursor } = c.req.query();
+      const { limit, cursor, archived } = c.req.query();
       const result = await chatService.listConversations({
         authUserId,
         limit: limit ? Math.min(parseInt(limit, 10), 100) : 50,
         cursor: cursor || null,
+        archived: archived === "true",
       });
       return c.json(result);
     } catch (err) {
       return handleError(c, err, "Error listando conversaciones.");
+    }
+  });
+
+  // POST /chat/conversations/:id/archive
+  internal.post("/conversations/:id/archive", requirePermission("chat.conversations.read"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const conversationId = c.req.param("id");
+      const result = await chatService.archiveConversation({ conversationId, authUserId });
+      return c.json(result);
+    } catch (err) {
+      return handleError(c, err, "Error archivando conversacion.");
+    }
+  });
+
+  // POST /chat/conversations/:id/unarchive
+  internal.post("/conversations/:id/unarchive", requirePermission("chat.conversations.read"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const conversationId = c.req.param("id");
+      const result = await chatService.unarchiveConversation({ conversationId, authUserId });
+      return c.json(result);
+    } catch (err) {
+      return handleError(c, err, "Error desarchivando conversacion.");
     }
   });
 
@@ -257,6 +282,18 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       return c.json(result);
     } catch (err) {
       return handleError(c, err, "Error listando bandeja externa.");
+    }
+  });
+
+  // POST /chat/external/:id/read
+  internal.post("/external/:id/read", requirePermission("chat.support.manage"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const conversationId = c.req.param("id");
+      const result = await chatService.markExternalRead({ conversationId, authUserId });
+      return c.json(result);
+    } catch (err) {
+      return handleError(c, err, "Error marcando conversacion como leida.");
     }
   });
 

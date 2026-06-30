@@ -105,12 +105,12 @@ const prismaConnectionString =
 // silently drop connections and cause "Connection terminated unexpectedly" crashes.
 const pgPool = new pg.Pool({
   connectionString: prismaConnectionString,
-  max: 10,            // keep below Supabase direct-connection limit
-  min: 1,             // always keep one warm connection
-  idleTimeoutMillis: 10000,    // release idle connections quickly
-  connectionTimeoutMillis: 5000, // fail fast so the pool doesn't queue up
+  max: 10,
+  min: 0,                         // don't hold idle connections — NAT/firewall kills them silently
+  idleTimeoutMillis: 20000,       // release connections after 20s idle
+  connectionTimeoutMillis: 10000, // give remote VPS up to 10s to accept
   keepAlive: true,
-  keepAliveInitialDelayMillis: 10000,
+  keepAliveInitialDelayMillis: 5000,
 });
 
 // Log and recover from pool-level errors (e.g. VPS firewall dropping idle conns)

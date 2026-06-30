@@ -35,7 +35,7 @@ export default function SessionOpenDialog({ open, onOpenChange, onSuccess, defau
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm md:min-h-0">
+      <DialogContent size="sm">
         <DialogHeader>
           <DialogTitle>Abrir caja</DialogTitle>
           <DialogDescription>

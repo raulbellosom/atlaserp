@@ -34,7 +34,7 @@ export default function SplitBillDialog({ open, onOpenChange, order, paymentMeth
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-md">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Dividir cuenta — orden #{order?.orderNumber}</DialogTitle>
           <DialogDescription>

@@ -64,7 +64,7 @@ export default function PaymentDialog({ open, onOpenChange, order, onSuccess }) 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-sm">
+      <DialogContent size="sm">
         <DialogHeader>
           <DialogTitle>Cobrar orden #{order?.orderNumber}</DialogTitle>
           <DialogDescription>

@@ -88,9 +88,9 @@ export function CreateChatModal({ open, onClose, onCreated }) {
 
   const { data: usersData, isLoading } = useQuery({
     queryKey: ["users-for-chat-picker"],
-    queryFn: () => atlas.identity.listUsers(token, { limit: 100 }),
-    enabled: Boolean(open && token),
-    staleTime: 60_000,
+    queryFn: () => atlas.identity.listUsers(token, { pageSize: 100 }),
+    enabled: Boolean(token),
+    staleTime: 120_000,
   });
 
   const users = (usersData?.data ?? []).filter(

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  PageHeader, Button, EmptyState, Skeleton, Badge, ConfirmDialog,
+  Button, EmptyState, Skeleton, Badge, ConfirmDialog,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   TextField, TextareaField,
 } from "@atlas/ui";
@@ -203,17 +203,16 @@ export function ChatTemplatesScreen() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 px-6 pt-6 pb-4 border-b border-[hsl(var(--border))]">
-        <div className="flex items-start justify-between gap-4">
-          <PageHeader
-            title="Plantillas de respuesta"
-            description="Crea y gestiona respuestas rapidas para el chat externo."
-          />
-          <Button onClick={handleNew} className="shrink-0 mt-1">
-            <Plus className="h-4 w-4 mr-1.5" />
-            Nueva plantilla
-          </Button>
+      <div className="shrink-0 px-3 sm:px-6 py-2 sm:py-4 border-b border-[hsl(var(--border))] flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-base sm:text-lg font-semibold tracking-tight truncate">Plantillas de respuesta</h1>
+          <p className="hidden sm:block text-xs text-[hsl(var(--muted-foreground))]">Crea y gestiona respuestas rapidas para el chat externo.</p>
         </div>
+        <Button onClick={handleNew} size="sm" className="shrink-0">
+          <Plus className="h-3.5 w-3.5 mr-1" />
+          <span className="hidden xs:inline">Nueva plantilla</span>
+          <span className="xs:hidden">Nueva</span>
+        </Button>
       </div>
 
       {/* Content */}
