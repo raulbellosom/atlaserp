@@ -230,7 +230,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
           ) cm
           LEFT JOIN user_profile up ON up.id = cm.user_id
           LEFT JOIN auth.users au ON au.id = up.auth_user_id
-        ) AS members
+        ) AS members,
         ccm.archived_at IS NOT NULL AS is_archived
       FROM chat_conversations c
       INNER JOIN chat_conversation_members ccm
