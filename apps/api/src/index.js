@@ -105,12 +105,12 @@ const prismaConnectionString =
 // silently drop connections and cause "Connection terminated unexpectedly" crashes.
 const pgPool = new pg.Pool({
   connectionString: prismaConnectionString,
-  max: 10,
+  max: 20,
   min: 0,                         // don't hold idle connections — NAT/firewall kills them silently
   idleTimeoutMillis: 20000,       // release connections after 20s idle
-  connectionTimeoutMillis: 10000, // give remote VPS up to 10s to accept
+  connectionTimeoutMillis: 30000, // remote VPS can be slow on cold start — give 30s
   keepAlive: true,
-  keepAliveInitialDelayMillis: 5000,
+  keepAliveInitialDelayMillis: 10000,
 });
 
 // Log and recover from pool-level errors (e.g. VPS firewall dropping idle conns)
@@ -290,10 +290,26 @@ async function authMiddleware(c, next) {
 const ADMIN_ROLE_KEYS = new Set(["atlas.admin", "system.admin"]);
 const BASE_PERMISSION_KEYS = new Set(["profile.self.read"]);
 
+const _userContextInFlight = new Map();
+
 async function getUserContextByAuthId(authUserId) {
   const cacheKey = `user_ctx:${authUserId}`;
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
+
+  // Deduplicate concurrent requests for the same user — only one DB round-trip
+  if (_userContextInFlight.has(authUserId)) {
+    return _userContextInFlight.get(authUserId);
+  }
+
+  const promise = _loadUserContext(authUserId, cacheKey).finally(() => {
+    _userContextInFlight.delete(authUserId);
+  });
+  _userContextInFlight.set(authUserId, promise);
+  return promise;
+}
+
+async function _loadUserContext(authUserId, cacheKey) {
 
   const profile = await prisma.userProfile.findUnique({
     where: { authUserId },
