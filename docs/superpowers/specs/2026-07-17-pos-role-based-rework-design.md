@@ -6,7 +6,7 @@ atlas.pos Role-Based Rework: restructure the POS module around work posts (Caja,
 
 ## 2. Status
 
-Approved (2026-07-17)
+Complete (F1–F4 shipped 2026-07-18; kitchen printing deferred to future by F4 spec `2026-07-18-pos-rework-f4-cocina-design.md` §6)
 
 ## 3. Context
 
