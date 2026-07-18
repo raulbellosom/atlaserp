@@ -20,12 +20,15 @@ Stabilization: `docs/superpowers/specs/2026-07-17-post-pause-stabilization-desig
 - [x] Waiter assignment: auto-claim on order open, auto-clear on AVAILABLE, mis-mesas filter, waiter chip (`20260629120000_pos_waiter_split_bill`)
 - [x] Split bill: per-seat totals, `SplitBillDialog`, mesa-completa/dividir-cuenta toggle in `PaymentDialog`
 - [x] Backend tests: waiter assignment, seat totals, mis-mesas, auto-claim, 404 unknown waiter
-- [ ] Manual QA: waiter chip + mis-mesas flow in browser
-- [ ] Manual QA: split-bill payment flow in browser
-- [ ] Smoke + commit of transform-based pan/zoom refactor in `FloorOperationalCanvas.jsx`
-- [ ] Full restaurant-flow QA (session → table → order → kitchen → payment → close)
+- [x] Manual QA: waiter chip + mis-mesas flow in browser
+- [x] Manual QA: split-bill payment flow in browser (degenerate "Sin asignar" case only — see pending seat UI below)
+- [x] Smoke + commit of transform-based pan/zoom refactor in `FloorOperationalCanvas.jsx` (commit `12af733`)
+- [ ] Wire guest/seat management UI in the terminal: no control exists to set `guestCount` on order creation nor to assign lines to `guestSeatId`, so per-seat split bill is unreachable from the UI (backend + `SplitBillDialog` are ready; only reservations set `guestCount` via `partySize`)
+- [ ] Fix silent no-op in `SplitBillDialog.handleChargeSeat` when no payment method is configured (button click does nothing; should disable with a hint)
+- [ ] Cosmetic: in mis-mesas mode, filtered-out tables render as pale "Disponible" ghosts instead of their true status (backend filters them from the response; canvas falls back to default status)
+- [ ] Full restaurant-flow QA with kitchen stations configured (send-to-kitchen returned 400 in dev because products lack an assigned preparation station — error message is correct and actionable)
 
-Verified: 2026-07-17 (`pnpm.cmd exec prisma migrate status` → "Database schema is up to date!" with all 50 migrations applied incl. `20260629120000_pos_waiter_split_bill`; `node --test "apps/api/src/routes/pos/__tests__/*.test.js"` → 31 tests / 31 pass / 0 fail; `pnpm.cmd --filter @atlas/desktop build:web` → built in 3.46s; browser QA items remain unchecked pending live session)
+Verified: 2026-07-17 (`pnpm.cmd exec prisma migrate status` → "Database schema is up to date!" with all 50 migrations applied incl. `20260629120000_pos_waiter_split_bill`; `node --test "apps/api/src/routes/pos/__tests__/*.test.js"` → 31 tests / 31 pass / 0 fail; `pnpm.cmd --filter @atlas/desktop build:web` → built in 3.46s; Playwright browser QA against localhost:5173: canvas fit-to-content 80% + wheel zoom to 92% + pan + fit button OK with zero console errors; new dine-in order on available table auto-claimed table (chip "RB" with title "Raul Belloso Medina" in DOM), mis-mesas dimmed the non-assigned table, full payment via Efectivo → table SUCIA → "Marcar como lista" → AVAILABLE cleared the chip; split-bill dialog showed correct "Sin asignar" seat total $128 and POST /payments 201 closed the dialog and transitioned the table)
 
 ## atlas.chat — Realtime Chat
 
