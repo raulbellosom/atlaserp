@@ -57,7 +57,7 @@ function makePrisma() {
           (row) =>
             row.companyId === where.companyId &&
             row.status === where.status &&
-            row.order?.sessionId === where.order.sessionId,
+            row.sessionId === where.sessionId,
         ),
     },
     auditLog: {
@@ -138,6 +138,7 @@ describe("createPosSessionService", () => {
         companyId: "company-1",
         status: "CAPTURED",
         amount: 80,
+        sessionId: session.id,
         order: { sessionId: session.id },
         paymentMethod: { kind: "CASH" },
       },
@@ -145,6 +146,7 @@ describe("createPosSessionService", () => {
         companyId: "company-1",
         status: "CAPTURED",
         amount: 50,
+        sessionId: session.id,
         order: { sessionId: session.id },
         paymentMethod: { kind: "CARD" },
       },
@@ -187,5 +189,123 @@ describe("createPosSessionService", () => {
       () => svc.getSessionById({ companyId: "company-2", id: session.id }),
       (err) => err instanceof PosServiceError && err.status === 404,
     );
+  });
+
+  it("attributes cash payments by payment.sessionId, not order.sessionId", async () => {
+    const prisma = makePrisma();
+    const svc = createPosSessionService({ prisma });
+    const session = await svc.openSession({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", terminalId: "terminal-1", openingCashAmount: 0 },
+    });
+
+    // Comandero-created order charged at caja: order has no sessionId, but the
+    // payment that captured it is attributed directly to the closing session.
+    prisma.payments.push(
+      {
+        companyId: "company-1",
+        status: "CAPTURED",
+        amount: 45,
+        sessionId: session.id,
+        order: { sessionId: null },
+        paymentMethod: { kind: "CASH" },
+      },
+      {
+        companyId: "company-1",
+        status: "CAPTURED",
+        amount: 999,
+        sessionId: "other-session",
+        order: { sessionId: session.id },
+        paymentMethod: { kind: "CASH" },
+      },
+    );
+
+    const closed = await svc.closeSession({
+      companyId: "company-1",
+      sessionId: session.id,
+      actorId: "user-1",
+      data: { countedCashAmount: 45 },
+    });
+
+    assert.equal(closed.expectedCashAmount, 45);
+    assert.equal(closed.differenceAmount, 0);
+  });
+
+  it("counts WAITER_DELIVERY movements as cash-in when reconciling the cut", async () => {
+    const prisma = makePrisma();
+    const svc = createPosSessionService({ prisma });
+    const session = await svc.openSession({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", terminalId: "terminal-1", openingCashAmount: 500 },
+    });
+
+    prisma.payments.push({
+      companyId: "company-1",
+      status: "CAPTURED",
+      amount: 128,
+      sessionId: session.id,
+      order: { sessionId: session.id },
+      paymentMethod: { kind: "CASH" },
+    });
+    await svc.addCashMovement({
+      companyId: "company-1",
+      sessionId: session.id,
+      actorId: "user-1",
+      data: { kind: "IN", amount: 50, reason: "Ingreso" },
+    });
+    await svc.addCashMovement({
+      companyId: "company-1",
+      sessionId: session.id,
+      actorId: "user-1",
+      data: { kind: "OUT", amount: 20, reason: "Retiro" },
+    });
+    await svc.addCashMovement({
+      companyId: "company-1",
+      sessionId: session.id,
+      actorId: "user-1",
+      data: { kind: "WAITER_DELIVERY", amount: 35, reason: "Entrega de corte de mesero" },
+    });
+
+    const closed = await svc.closeSession({
+      companyId: "company-1",
+      sessionId: session.id,
+      actorId: "user-1",
+      data: { countedCashAmount: 693 },
+    });
+
+    // 500 (opening) + 128 (cash payment) + 50 (IN) - 20 (OUT) + 35 (WAITER_DELIVERY) = 693
+    assert.equal(closed.expectedCashAmount, 693);
+    assert.equal(closed.differenceAmount, 0);
+  });
+
+  it("excludes non-cash payments from expected cash even when attributed to the session", async () => {
+    const prisma = makePrisma();
+    const svc = createPosSessionService({ prisma });
+    const session = await svc.openSession({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", terminalId: "terminal-1", openingCashAmount: 100 },
+    });
+
+    prisma.payments.push({
+      companyId: "company-1",
+      status: "CAPTURED",
+      amount: 250,
+      sessionId: session.id,
+      order: { sessionId: session.id },
+      paymentMethod: { kind: "CARD" },
+    });
+
+    const closed = await svc.closeSession({
+      companyId: "company-1",
+      sessionId: session.id,
+      actorId: "user-1",
+      data: { countedCashAmount: 100 },
+    });
+
+    assert.equal(closed.expectedCashAmount, 100);
+    assert.equal(closed.differenceAmount, 0);
   });
 });

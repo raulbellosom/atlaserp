@@ -113,7 +113,7 @@ export function createPosSessionService({ prisma }) {
         where: {
           companyId: scopedCompanyId,
           status: "CAPTURED",
-          order: { sessionId },
+          sessionId,
         },
         include: { paymentMethod: true, order: true },
       }),
@@ -126,7 +126,8 @@ export function createPosSessionService({ prisma }) {
       Number(before.openingCashAmount ?? 0) +
         cashPaymentTotal(payments) +
         movementTotal(movements, "IN") -
-        movementTotal(movements, "OUT"),
+        movementTotal(movements, "OUT") +
+        movementTotal(movements, "WAITER_DELIVERY"),
     );
     const countedCashAmount = toMoney(data.countedCashAmount);
     const differenceAmount = toMoney(countedCashAmount - expectedCashAmount);
