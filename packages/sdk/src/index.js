@@ -1011,6 +1011,26 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
+      listWaiterShifts: (query, token) =>
+        request(`/pos/waiter-shifts${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      currentWaiterShift: (query, token) =>
+        request(`/pos/waiter-shifts/current${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      openWaiterShift: (data, token) =>
+        request("/pos/waiter-shifts/open", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      closeWaiterShift: (id, data, token) =>
+        request(`/pos/waiter-shifts/${encodeURIComponent(id)}/close`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       listOrders: (query, token) =>
         request(`/pos/orders${toQueryString(query)}`, {
           headers: withAuthHeaders(token),
