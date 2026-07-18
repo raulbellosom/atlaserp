@@ -8,6 +8,7 @@ function makePrisma() {
   const floors = new Map();
   const tables = new Map();
   const stations = new Map();
+  const outlets = new Map();
   const orders = new Map();
   const lines = new Map();
   const configs = new Map();
@@ -24,6 +25,7 @@ function makePrisma() {
     floors,
     tables,
     stations,
+    outlets,
     orders,
     lines,
     configs,
@@ -123,6 +125,10 @@ function makePrisma() {
         return row;
       },
     },
+    posOutlet: {
+      findFirst: async ({ where }) =>
+        [...outlets.values()].find((row) => row.id === where.id && row.companyId === where.companyId) ?? null,
+    },
     posOrder: {
       findFirst: async ({ where }) =>
         [...orders.values()].find((row) => row.id === where.id && row.companyId === where.companyId) ?? null,
@@ -133,8 +139,13 @@ function makePrisma() {
       },
     },
     posOrderLine: {
-      findMany: async ({ where }) =>
-        [...lines.values()].filter((row) => row.orderId === where.orderId),
+      findMany: async ({ where }) => {
+        if (where?.id?.in) {
+          const ids = where.id.in;
+          return [...lines.values()].filter((row) => ids.includes(row.id));
+        }
+        return [...lines.values()].filter((row) => row.orderId === where.orderId);
+      },
       update: async ({ where, data }) => {
         const row = { ...lines.get(where.id), ...data };
         lines.set(where.id, row);
@@ -149,6 +160,18 @@ function makePrisma() {
             row.productId === where.productId &&
             (where.variantId === undefined || row.variantId === where.variantId),
         ) ?? null,
+      findMany: async ({ where }) =>
+        [...configs.values()].filter((row) => row.companyId === where.companyId),
+      create: async ({ data }) => {
+        const row = { id: `config-${configs.size + 1}`, ...data };
+        configs.set(row.id, row);
+        return row;
+      },
+      update: async ({ where, data }) => {
+        const row = { ...configs.get(where.id), ...data };
+        configs.set(where.id, row);
+        return row;
+      },
     },
     posKitchenTicket: {
       findMany: async ({ where, include }) => {
@@ -469,5 +492,185 @@ describe("createPosKitchenService", () => {
     assert.equal(line.modifiers.length, 1);
     assert.equal(line.modifiers[0].optionName, "Extra queso");
     assert.equal(line.modifiers[0].groupName, "Salsa");
+  });
+
+  it("falls back missing-station lines to the outlet default station", async () => {
+    const prisma = makePrisma();
+    const svc = createPosKitchenService({ prisma });
+    const tacos = await svc.createStation({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", name: "Tacos", code: "TACOS" },
+    });
+    prisma.outlets.set("outlet-1", { id: "outlet-1", companyId: "company-1", defaultStationId: tacos.id });
+    prisma.orders.set("order-1", { id: "order-1", companyId: "company-1", outletId: "outlet-1" });
+    prisma.lines.set("line-1", { id: "line-1", orderId: "order-1", productId: "p1", variantId: null, quantity: 1 });
+    prisma.configs.set("p1", { companyId: "company-1", productId: "p1", variantId: null, requiresPreparation: true, stationId: null });
+
+    const result = await svc.sendOrderToKitchen({ companyId: "company-1", orderId: "order-1", actorId: "user-1" });
+
+    assert.equal(result.tickets.length, 1);
+    assert.equal(result.tickets[0].stationId, tacos.id);
+    assert.equal(prisma.ticketLines.size, 1);
+    const [ticketLine] = prisma.ticketLines.values();
+    assert.equal(ticketLine.orderLineId, "line-1");
+  });
+
+  it("still rejects prep lines without a station when the outlet has no default station", async () => {
+    const prisma = makePrisma();
+    const svc = createPosKitchenService({ prisma });
+    prisma.stations.set("station-1", { id: "station-1", companyId: "company-1", outletId: "outlet-1", enabled: true });
+    prisma.outlets.set("outlet-1", { id: "outlet-1", companyId: "company-1", defaultStationId: null });
+    prisma.orders.set("order-1", { id: "order-1", companyId: "company-1", outletId: "outlet-1" });
+    prisma.lines.set("line-1", { id: "line-1", orderId: "order-1", productId: "p1", variantId: null, quantity: 1 });
+    prisma.configs.set("p1", { companyId: "company-1", productId: "p1", variantId: null, requiresPreparation: true, stationId: null });
+
+    await assert.rejects(
+      () => svc.sendOrderToKitchen({ companyId: "company-1", orderId: "order-1", actorId: "user-1" }),
+      (err) =>
+        err instanceof PosServiceError &&
+        err.status === 400 &&
+        err.message ===
+          "Los siguientes productos no tienen estación de preparación asignada: Producto desconocido. Configúralos en POS → Configuración → Estaciones.",
+    );
+  });
+
+  it("routes mixed lines: own station plus outlet-default fallback", async () => {
+    const prisma = makePrisma();
+    const svc = createPosKitchenService({ prisma });
+    const grill = await svc.createStation({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", name: "Parrilla", code: "GRILL" },
+    });
+    const tacos = await svc.createStation({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", name: "Tacos", code: "TACOS" },
+    });
+    prisma.outlets.set("outlet-1", { id: "outlet-1", companyId: "company-1", defaultStationId: tacos.id });
+    prisma.orders.set("order-1", { id: "order-1", companyId: "company-1", outletId: "outlet-1" });
+    prisma.lines.set("line-a", { id: "line-a", orderId: "order-1", productId: "pa", variantId: null, quantity: 1 });
+    prisma.lines.set("line-b", { id: "line-b", orderId: "order-1", productId: "pb", variantId: null, quantity: 1 });
+    prisma.configs.set("pa", { companyId: "company-1", productId: "pa", variantId: null, requiresPreparation: true, stationId: grill.id });
+    prisma.configs.set("pb", { companyId: "company-1", productId: "pb", variantId: null, requiresPreparation: true, stationId: null });
+
+    const result = await svc.sendOrderToKitchen({ companyId: "company-1", orderId: "order-1", actorId: "user-1" });
+
+    assert.equal(result.tickets.length, 2);
+    const tacosTicket = result.tickets.find((t) => t.stationId === tacos.id);
+    const grillTicket = result.tickets.find((t) => t.stationId === grill.id);
+    assert.ok(tacosTicket, "tacos ticket must exist");
+    assert.ok(grillTicket, "grill ticket must exist");
+    const tacosLines = [...prisma.ticketLines.values()].filter((l) => l.ticketId === tacosTicket.id);
+    const grillLines = [...prisma.ticketLines.values()].filter((l) => l.ticketId === grillTicket.id);
+    assert.equal(tacosLines.length, 1);
+    assert.equal(tacosLines[0].orderLineId, "line-b");
+    assert.equal(grillLines.length, 1);
+    assert.equal(grillLines[0].orderLineId, "line-a");
+  });
+
+  it("listTickets attaches orderLine productName and quantity via batch join, null when missing", async () => {
+    const prisma = makePrisma();
+    const svc = createPosKitchenService({ prisma });
+    prisma.stations.set("station-1", { id: "station-1", companyId: "company-1", outletId: "outlet-1", enabled: true });
+    prisma.tickets.set("ticket-1", {
+      id: "ticket-1",
+      companyId: "company-1",
+      stationId: "station-1",
+      status: "PENDING",
+      sentAt: new Date(),
+    });
+    prisma.lines.set("line-1", { id: "line-1", orderId: "order-1", productId: "p1", productName: "Taco al pastor", quantity: 3 });
+    prisma.ticketLines.set("ticket-line-1", {
+      id: "ticket-line-1",
+      ticketId: "ticket-1",
+      orderLineId: "line-1",
+      quantity: 3,
+      status: "PENDING",
+    });
+    prisma.ticketLines.set("ticket-line-2", {
+      id: "ticket-line-2",
+      ticketId: "ticket-1",
+      orderLineId: "missing-line",
+      quantity: 1,
+      status: "PENDING",
+    });
+
+    const tickets = await svc.listTickets({ companyId: "company-1", stationId: "station-1" });
+
+    assert.equal(tickets.length, 1);
+    const line1 = tickets[0].lines.find((l) => l.orderLineId === "line-1");
+    const line2 = tickets[0].lines.find((l) => l.orderLineId === "missing-line");
+    assert.deepEqual(line1.orderLine, { productName: "Taco al pastor", quantity: 3 });
+    assert.equal(line2.orderLine, null);
+  });
+
+  it("updateProductConfig upserts the (companyId, productId, variantId:null) row, validates station, and audits", async () => {
+    const prisma = makePrisma();
+    const svc = createPosKitchenService({ prisma });
+    const station = await svc.createStation({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", name: "Tacos", code: "TACOS" },
+    });
+
+    const created = await svc.updateProductConfig({
+      companyId: "company-1",
+      actorId: "user-1",
+      productId: "p1",
+      data: { stationId: station.id, requiresPreparation: true },
+    });
+    assert.equal(created.productId, "p1");
+    assert.equal(created.variantId, null);
+    assert.equal(created.stationId, station.id);
+
+    const updated = await svc.updateProductConfig({
+      companyId: "company-1",
+      actorId: "user-1",
+      productId: "p1",
+      data: { availableInPos: false },
+    });
+    assert.equal(updated.id, created.id);
+    assert.equal(updated.availableInPos, false);
+    assert.equal(prisma.configs.size, 1);
+
+    const auditEntry = prisma.audits.find((a) => a.action === "pos.productConfig.update");
+    assert.ok(auditEntry, "audit entry for pos.productConfig.update must exist");
+
+    await assert.rejects(
+      () =>
+        svc.updateProductConfig({
+          companyId: "company-1",
+          actorId: "user-1",
+          productId: "p1",
+          data: { stationId: "foreign-station" },
+        }),
+      (err) =>
+        err instanceof PosServiceError &&
+        err.status === 404 &&
+        err.message === "Estación de preparación no encontrada.",
+    );
+  });
+
+  it("listProductConfigs returns only the company's rows", async () => {
+    const prisma = makePrisma();
+    const svc = createPosKitchenService({ prisma });
+    await svc.updateProductConfig({
+      companyId: "company-1",
+      actorId: "user-1",
+      productId: "p1",
+      data: { requiresPreparation: true },
+    });
+    await svc.updateProductConfig({
+      companyId: "company-2",
+      actorId: "user-1",
+      productId: "p2",
+      data: { requiresPreparation: true },
+    });
+
+    const rows = await svc.listProductConfigs({ companyId: "company-1" });
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].productId, "p1");
   });
 });

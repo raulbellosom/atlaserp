@@ -122,6 +122,19 @@ export function createPosKitchenService({ prisma }) {
       }
 
       if (missingStationLineIds.length > 0) {
+        const outlet = await tx.posOutlet.findFirst({
+          where: { id: order.outletId, companyId: scopedCompanyId },
+        });
+        if (outlet?.defaultStationId) {
+          const fallbackStationId = outlet.defaultStationId;
+          const fallbackLines = lines.filter((l) => missingStationLineIds.includes(l.id));
+          if (!byStation.has(fallbackStationId)) byStation.set(fallbackStationId, []);
+          byStation.get(fallbackStationId).push(...fallbackLines);
+          missingStationLineIds.length = 0;
+        }
+      }
+
+      if (missingStationLineIds.length > 0) {
         const missingNames = lines
           .filter((l) => missingStationLineIds.includes(l.id))
           .map((l) => l.productName ?? 'Producto desconocido')
@@ -194,12 +207,23 @@ export function createPosKitchenService({ prisma }) {
       });
     }
 
+    const orderLineRows = orderLineIds.length
+      ? await prisma.posOrderLine.findMany({ where: { id: { in: orderLineIds } } })
+      : [];
+    const orderLineById = new Map(orderLineRows.map((row) => [row.id, row]));
+
     return tickets.map((ticket) => ({
       ...ticket,
-      lines: (ticket.lines ?? []).map((line) => ({
-        ...line,
-        modifiers: modifiersByLineId.get(line.orderLineId) ?? [],
-      })),
+      lines: (ticket.lines ?? []).map((line) => {
+        const sourceLine = orderLineById.get(line.orderLineId);
+        return {
+          ...line,
+          modifiers: modifiersByLineId.get(line.orderLineId) ?? [],
+          orderLine: sourceLine
+            ? { productName: sourceLine.productName, quantity: sourceLine.quantity }
+            : null,
+        };
+      }),
     }));
   }
 
@@ -263,6 +287,45 @@ export function createPosKitchenService({ prisma }) {
     return updated;
   }
 
+  async function assertStationInCompany({ companyId, stationId }) {
+    if (!stationId) return null;
+    const station = await prisma.posKitchenStation.findFirst({
+      where: { id: stationId, companyId },
+    });
+    if (!station) throw new PosServiceError("Estación de preparación no encontrada.", 404);
+    return station;
+  }
+
+  async function listProductConfigs({ companyId }) {
+    const scopedCompanyId = requireCompanyId(companyId);
+    return prisma.posProductConfig.findMany({ where: { companyId: scopedCompanyId } });
+  }
+
+  async function updateProductConfig({ companyId, actorId, productId, data }) {
+    const scopedCompanyId = requireCompanyId(companyId);
+    const clean = cleanData(data);
+    if (clean.stationId) {
+      await assertStationInCompany({ companyId: scopedCompanyId, stationId: clean.stationId });
+    }
+    const before = await prisma.posProductConfig.findFirst({
+      where: { companyId: scopedCompanyId, productId, variantId: null },
+    });
+    const updated = before
+      ? await prisma.posProductConfig.update({ where: { id: before.id }, data: clean })
+      : await prisma.posProductConfig.create({
+          data: { companyId: scopedCompanyId, productId, variantId: null, ...clean },
+        });
+    await writeAudit(prisma, {
+      actorId,
+      entityType: "PosProductConfig",
+      entityId: updated.id,
+      action: "pos.productConfig.update",
+      before,
+      after: updated,
+    });
+    return updated;
+  }
+
   return {
     listStations,
     createStation,
@@ -271,5 +334,7 @@ export function createPosKitchenService({ prisma }) {
     listTickets,
     updateTicketStatus,
     updateTicketLineStatus,
+    listProductConfigs,
+    updateProductConfig,
   };
 }
