@@ -16,6 +16,7 @@ import {
 } from '../hooks/usePosSettings'
 import OutletFlagsFields from '../components/OutletFlagsFields.jsx'
 import PosModifiersTab from '../components/PosModifiersTab.jsx'
+import ProductStationsPanel from '../components/ProductStationsPanel.jsx'
 
 function StatusPill({ active }) {
   return (
@@ -699,7 +700,8 @@ function StationsTab() {
   }
 
   return (
-    <Card>
+    <div className="flex flex-col gap-4">
+      <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div>
           <CardTitle>Estaciones de preparación</CardTitle>
@@ -816,6 +818,9 @@ function StationsTab() {
           </form>
         </DialogContent>
       </Dialog>
-    </Card>
+      </Card>
+
+      <ProductStationsPanel stations={stations} />
+    </div>
   )
 }
