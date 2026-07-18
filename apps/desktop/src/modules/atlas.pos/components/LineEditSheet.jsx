@@ -48,7 +48,7 @@ function LineEditContent({ line, onSave, onDelete, onClose, saving, deleting, is
       {/* Quantity stepper — large touch targets for tablet */}
       <div className="flex flex-col gap-2">
         <Label className="text-sm font-medium">Cantidad</Label>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center justify-center gap-8">
           <button
             type="button"
             onClick={decrement}
@@ -59,7 +59,7 @@ function LineEditContent({ line, onSave, onDelete, onClose, saving, deleting, is
             <Minus size={22} strokeWidth={2.5} />
           </button>
 
-          <span className="flex-1 text-center text-4xl font-bold tabular-nums tracking-tight select-none">
+          <span className="w-20 text-center text-4xl font-bold tabular-nums tracking-tight select-none">
             {qty}
           </span>
 

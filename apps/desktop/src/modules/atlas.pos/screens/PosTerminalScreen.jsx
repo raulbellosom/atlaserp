@@ -348,7 +348,7 @@ export default function PosTerminalScreen({ cajaTools = false }) {
                   className="h-7 text-xs px-2.5 gap-1.5"
                 >
                   <Receipt size={13} />
-                  Cortes
+                  <span className="hidden sm:inline">Cortes</span>
                   <WaiterShiftsBadgeCount outletId={outletId} />
                 </Button>
                 <Button
@@ -358,7 +358,7 @@ export default function PosTerminalScreen({ cajaTools = false }) {
                   className="h-7 text-xs px-2.5 gap-1.5"
                 >
                   <History size={13} />
-                  Historial
+                  <span className="hidden sm:inline">Historial</span>
                 </Button>
               </>
             )}

@@ -146,7 +146,7 @@ export default function ModifierSheet({
 
           <div className="flex flex-col gap-2">
             <p className="text-sm font-medium">Cantidad</p>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-center gap-8">
               <Button
                 type="button"
                 variant="outline"
@@ -157,7 +157,7 @@ export default function ModifierSheet({
               >
                 <Minus size={18} />
               </Button>
-              <span className="flex-1 text-center text-2xl font-bold tabular-nums select-none">{quantity}</span>
+              <span className="w-14 text-center text-2xl font-bold tabular-nums select-none">{quantity}</span>
               <Button
                 type="button"
                 variant="outline"
