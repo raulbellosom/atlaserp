@@ -97,7 +97,7 @@ CREATE TABLE "pos_waiter_shift" (
     "company_id" UUID NOT NULL,
     "outlet_id" UUID NOT NULL,
     "waiter_id" UUID NOT NULL,
-    "status" "PosSessionStatus" NOT NULL DEFAULT 'OPEN',
+    "status" "pos_session_status" NOT NULL DEFAULT 'OPEN',
     "expected_cash_amount" DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     "delivered_amount" DECIMAL(12,2),
     "delivered_to_session_id" UUID,
