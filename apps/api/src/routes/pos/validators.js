@@ -125,6 +125,7 @@ export const addOrderLineSchema = z.object({
   quantity: z.coerce.number().positive(),
   unitPrice: moneySchema.min(0).optional(),
   note: optionalNullableText(500),
+  modifiers: z.array(z.object({ optionId: uuidSchema })).max(30).optional(),
 });
 
 export const updateOrderLineSchema = z.object({
@@ -273,4 +274,36 @@ export const closeWaiterShiftSchema = z.object({
   deliveredAmount: z.coerce.number().min(0),
   sessionId: z.string().uuid(),
   notes: z.string().max(500).optional(),
+});
+
+export const createModifierGroupSchema = z
+  .object({
+    name: z.string().min(1).max(80),
+    minSelect: z.coerce.number().int().min(0).default(0),
+    maxSelect: z.coerce.number().int().min(1).default(1),
+    required: z.boolean().default(false),
+    position: z.coerce.number().int().min(0).default(0),
+  })
+  .refine((v) => v.minSelect <= v.maxSelect, { message: "minSelect no puede ser mayor que maxSelect." });
+
+export const updateModifierGroupSchema = z.object({
+  name: z.string().min(1).max(80).optional(),
+  minSelect: z.coerce.number().int().min(0).optional(),
+  maxSelect: z.coerce.number().int().min(1).optional(),
+  required: z.boolean().optional(),
+  position: z.coerce.number().int().min(0).optional(),
+  enabled: z.boolean().optional(),
+});
+
+export const createModifierOptionSchema = z.object({
+  name: z.string().min(1).max(80),
+  priceDelta: moneySchema.min(0).default(0),
+  position: z.coerce.number().int().min(0).default(0),
+});
+
+export const updateModifierOptionSchema = z.object({
+  name: z.string().min(1).max(80).optional(),
+  priceDelta: moneySchema.min(0).optional(),
+  position: z.coerce.number().int().min(0).optional(),
+  enabled: z.boolean().optional(),
 });

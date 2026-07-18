@@ -6,6 +6,7 @@ import { createPosFloorService } from "./pos-floor-service.js";
 import { createPosKitchenService } from "./pos-kitchen-service.js";
 import { createPosReservationService } from "./pos-reservation-service.js";
 import { createPosWaiterShiftService } from "./pos-waiter-shift-service.js";
+import { createPosModifierService } from "./pos-modifier-service.js";
 import { getActorId, getCompanyId, PosServiceError } from "./service-helpers.js";
 import {
   addOrderLineSchema,
@@ -16,6 +17,8 @@ import {
   closeWaiterShiftSchema,
   createFloorSchema,
   createGuestSchema,
+  createModifierGroupSchema,
+  createModifierOptionSchema,
   createOrderSchema,
   createOutletSchema,
   createPaymentMethodSchema,
@@ -29,6 +32,8 @@ import {
   tableStatusUpdateSchema,
   saveLayoutSchema,
   updateFloorSchema,
+  updateModifierGroupSchema,
+  updateModifierOptionSchema,
   updateOrderLineSchema,
   updateOrderSchema,
   updateOutletSchema,
@@ -72,7 +77,8 @@ export function createPosRouter({ prisma, requirePermission, broadcaster = null 
   const settingsSvc = createPosSettingsService({ prisma });
   const sessionSvc = createPosSessionService({ prisma });
   const waiterShiftSvc = createPosWaiterShiftService({ prisma });
-  const orderSvc = createPosOrderService({ prisma, waiterShifts: waiterShiftSvc });
+  const modifierSvc = createPosModifierService({ prisma });
+  const orderSvc = createPosOrderService({ prisma, waiterShifts: waiterShiftSvc, modifiers: modifierSvc });
   const floorSvc = createPosFloorService({ prisma });
   const kitchenSvc = createPosKitchenService({ prisma });
   const reservationSvc = createPosReservationService({ prisma });
@@ -688,6 +694,70 @@ export function createPosRouter({ prisma, requirePermission, broadcaster = null 
       });
     } catch (err) {
       return handleError(c, err, "No se pudo sentar la reservación.");
+    }
+  });
+
+  // ── Modifiers ──────────────────────────────────────────────────────────────
+  app.get("/pos/modifier-groups", requirePermission("pos.orders.read"), async (c) => {
+    try {
+      const productIds = (c.req.query("productIds") ?? "").split(",").filter(Boolean);
+      return c.json({ data: await modifierSvc.listByProducts({ ...context(c), productIds }) });
+    } catch (err) {
+      return handleError(c, err, "No se pudieron consultar los modificadores.");
+    }
+  });
+
+  app.get("/pos/products/:productId/modifier-groups", requirePermission("pos.orders.read"), async (c) => {
+    try {
+      return c.json({
+        data: await modifierSvc.listForProduct({
+          ...context(c),
+          productId: c.req.param("productId"),
+          includeDisabled: c.req.query("includeDisabled") === "true",
+        }),
+      });
+    } catch (err) {
+      return handleError(c, err, "No se pudieron consultar los modificadores.");
+    }
+  });
+
+  app.post("/pos/products/:productId/modifier-groups", requirePermission("pos.admin.update"), async (c) => {
+    try {
+      const data = await parseBody(c, createModifierGroupSchema);
+      return c.json({
+        data: await modifierSvc.createGroup({ ...context(c), productId: c.req.param("productId"), data }),
+      }, 201);
+    } catch (err) {
+      return handleError(c, err, "No se pudo crear el grupo de modificadores.");
+    }
+  });
+
+  app.patch("/pos/modifier-groups/:id", requirePermission("pos.admin.update"), async (c) => {
+    try {
+      const data = await parseBody(c, updateModifierGroupSchema);
+      return c.json({ data: await modifierSvc.updateGroup({ ...context(c), id: c.req.param("id"), data }) });
+    } catch (err) {
+      return handleError(c, err, "No se pudo actualizar el grupo de modificadores.");
+    }
+  });
+
+  app.post("/pos/modifier-groups/:id/options", requirePermission("pos.admin.update"), async (c) => {
+    try {
+      const data = await parseBody(c, createModifierOptionSchema);
+      return c.json({
+        data: await modifierSvc.createOption({ ...context(c), groupId: c.req.param("id"), data }),
+      }, 201);
+    } catch (err) {
+      return handleError(c, err, "No se pudo crear la opción de modificador.");
+    }
+  });
+
+  app.patch("/pos/modifier-options/:id", requirePermission("pos.admin.update"), async (c) => {
+    try {
+      const data = await parseBody(c, updateModifierOptionSchema);
+      return c.json({ data: await modifierSvc.updateOption({ ...context(c), id: c.req.param("id"), data }) });
+    } catch (err) {
+      return handleError(c, err, "No se pudo actualizar la opción de modificador.");
     }
   });
 
