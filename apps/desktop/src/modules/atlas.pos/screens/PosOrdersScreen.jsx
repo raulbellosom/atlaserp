@@ -233,12 +233,12 @@ function OrderDetailPanel({ orderId, onClose }) {
   if (isDesktop) {
     return (
       <>
-        <DialogContent size="md" className="flex flex-col p-0 max-h-[90dvh]" aria-describedby="order-detail-desc">
+        <DialogContent size="md" className="flex flex-col p-0 max-h-[90dvh]">
           <DialogHeader className="px-5 pt-5 pb-3 border-b border-border shrink-0">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <DialogTitle className="text-base">{titleText}</DialogTitle>
-                <DialogDescription id="order-detail-desc" className="text-xs mt-0.5">{subtitleText}</DialogDescription>
+                <DialogDescription className="text-xs mt-0.5">{subtitleText}</DialogDescription>
               </div>
               {order && (
                 <span className={`shrink-0 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASSES[order.status] ?? STATUS_CLASSES.OPEN}`}>
@@ -257,12 +257,12 @@ function OrderDetailPanel({ orderId, onClose }) {
 
   return (
     <>
-      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col p-0" aria-describedby="order-detail-desc">
+      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col p-0">
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div>
               <SheetTitle className="text-base">{titleText}</SheetTitle>
-              <SheetDescription id="order-detail-desc" className="text-xs mt-0.5">{subtitleText}</SheetDescription>
+              <SheetDescription className="text-xs mt-0.5">{subtitleText}</SheetDescription>
             </div>
             {order && (
               <span className={`shrink-0 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASSES[order.status] ?? STATUS_CLASSES.OPEN}`}>
