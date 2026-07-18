@@ -24,6 +24,16 @@ function makePrisma() {
         price: 50,
       },
     ],
+    [
+      "product-2",
+      {
+        id: "product-2",
+        companyId: "company-1",
+        name: "Hamburguesa",
+        sku: "BURGER",
+        price: 100,
+      },
+    ],
   ]);
   const variants = new Map([
     [
@@ -55,6 +65,28 @@ function makePrisma() {
   ]);
   const waiterShifts = new Map();
   let shiftSeq = 0;
+  const modifierGroups = new Map();
+  const modifierOptions = new Map();
+  const lineModifiers = new Map();
+  let modifierGroupSeq = 0;
+  let modifierOptionSeq = 0;
+  let lineModifierSeq = 0;
+
+  function matchesModifierGroup(row, where = {}) {
+    if (where.id !== undefined && row.id !== where.id) return false;
+    if (where.companyId !== undefined && row.companyId !== where.companyId) return false;
+    if (where.productId !== undefined && row.productId !== where.productId) return false;
+    if (where.enabled !== undefined && row.enabled !== where.enabled) return false;
+    return true;
+  }
+
+  function matchesModifierOption(row, where = {}) {
+    if (where.id !== undefined && row.id !== where.id) return false;
+    if (where.companyId !== undefined && row.companyId !== where.companyId) return false;
+    if (where.groupId !== undefined && row.groupId !== where.groupId) return false;
+    if (where.enabled !== undefined && row.enabled !== where.enabled) return false;
+    return true;
+  }
 
   const prisma = {
     orders,
@@ -68,6 +100,9 @@ function makePrisma() {
     outlets,
     sessions,
     waiterShifts,
+    modifierGroups,
+    modifierOptions,
+    lineModifiers,
     $transaction: async (fn) => fn(prisma),
     userProfile: {
       findUnique: async ({ where }) => profiles.get(where.id) ?? null,
@@ -235,9 +270,102 @@ function makePrisma() {
         return data;
       },
     },
+    posModifierGroup: {
+      findFirst: async ({ where }) =>
+        [...modifierGroups.values()].find((r) => matchesModifierGroup(r, where)) ?? null,
+      findMany: async ({ where, orderBy } = {}) => {
+        let rows = [...modifierGroups.values()].filter((r) => matchesModifierGroup(r, where));
+        if (orderBy?.position) rows = rows.slice().sort((a, b) => a.position - b.position);
+        return rows;
+      },
+      create: async ({ data }) => {
+        const row = {
+          id: `modifier-group-${++modifierGroupSeq}`,
+          enabled: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...data,
+        };
+        modifierGroups.set(row.id, row);
+        return row;
+      },
+      update: async ({ where, data }) => {
+        const row = { ...modifierGroups.get(where.id), ...data };
+        modifierGroups.set(where.id, row);
+        return row;
+      },
+    },
+    posModifierOption: {
+      findFirst: async ({ where }) =>
+        [...modifierOptions.values()].find((r) => matchesModifierOption(r, where)) ?? null,
+      findMany: async ({ where, orderBy } = {}) => {
+        let rows = [...modifierOptions.values()].filter((r) => matchesModifierOption(r, where));
+        if (orderBy?.position) rows = rows.slice().sort((a, b) => a.position - b.position);
+        return rows;
+      },
+      create: async ({ data }) => {
+        const row = {
+          id: `modifier-option-${++modifierOptionSeq}`,
+          enabled: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...data,
+        };
+        modifierOptions.set(row.id, row);
+        return row;
+      },
+      update: async ({ where, data }) => {
+        const row = { ...modifierOptions.get(where.id), ...data };
+        modifierOptions.set(where.id, row);
+        return row;
+      },
+    },
+    posOrderLineModifier: {
+      createMany: async ({ data }) => {
+        for (const item of data) {
+          const row = { id: `line-modifier-${++lineModifierSeq}`, ...item };
+          lineModifiers.set(row.id, row);
+        }
+        return { count: data.length };
+      },
+      findMany: async ({ where }) => {
+        const ids = where?.lineId?.in ?? null;
+        return [...lineModifiers.values()].filter((row) => !ids || ids.includes(row.lineId));
+      },
+    },
   };
 
   return prisma;
+}
+
+async function seedModifierGroup(prisma, { companyId, productId, group, options: optionDefs = [] }) {
+  const createdGroup = await prisma.posModifierGroup.create({
+    data: {
+      companyId,
+      productId,
+      name: group.name,
+      minSelect: group.minSelect ?? 0,
+      maxSelect: group.maxSelect ?? 1,
+      required: group.required ?? false,
+      position: group.position ?? 0,
+      enabled: group.enabled ?? true,
+    },
+  });
+  const createdOptions = [];
+  for (const optionDef of optionDefs) {
+    const option = await prisma.posModifierOption.create({
+      data: {
+        companyId,
+        groupId: createdGroup.id,
+        name: optionDef.name,
+        priceDelta: optionDef.priceDelta ?? 0,
+        position: optionDef.position ?? 0,
+        enabled: optionDef.enabled ?? true,
+      },
+    });
+    createdOptions.push(option);
+  }
+  return { group: createdGroup, options: createdOptions };
 }
 
 describe("createPosOrderService", () => {
@@ -578,5 +706,119 @@ describe("addPayment money containers", () => {
         }),
       (err) => err instanceof PosServiceError && err.status === 404,
     );
+  });
+});
+
+describe("addOrderLine modifier pricing", () => {
+  async function seedTamano(prisma) {
+    const { options } = await seedModifierGroup(prisma, {
+      companyId: "company-1",
+      productId: "product-2",
+      group: { name: "Tamaño", minSelect: 1, maxSelect: 1, required: true },
+      options: [
+        { name: "Chica", priceDelta: 0 },
+        { name: "Grande", priceDelta: 20 },
+      ],
+    });
+    return options.find((o) => o.name === "Grande");
+  }
+
+  it("rejects a required group with no modifiers sent", async () => {
+    const prisma = makePrisma();
+    await seedTamano(prisma);
+    const svc = createPosOrderService({ prisma });
+    const order = await svc.createOrder({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1" },
+    });
+
+    await assert.rejects(
+      () =>
+        svc.addOrderLine({
+          companyId: "company-1",
+          orderId: order.id,
+          actorId: "user-1",
+          data: { productId: "product-2", quantity: 1 },
+        }),
+      (err) =>
+        err instanceof PosServiceError &&
+        err.status === 400 &&
+        err.message.includes("Faltan modificadores requeridos"),
+    );
+  });
+
+  it("prices the line as base + selected modifier deltas and persists snapshots with lineId", async () => {
+    const prisma = makePrisma();
+    const grande = await seedTamano(prisma);
+    const svc = createPosOrderService({ prisma });
+    const order = await svc.createOrder({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1" },
+    });
+
+    const line = await svc.addOrderLine({
+      companyId: "company-1",
+      orderId: order.id,
+      actorId: "user-1",
+      data: { productId: "product-2", quantity: 1, modifiers: [{ optionId: grande.id }] },
+    });
+
+    assert.equal(line.unitPrice, 120);
+    const snapshots = [...prisma.lineModifiers.values()].filter((row) => row.lineId === line.id);
+    assert.equal(snapshots.length, 1);
+    assert.equal(snapshots[0].groupName, "Tamaño");
+    assert.equal(snapshots[0].optionName, "Grande");
+    assert.equal(snapshots[0].priceDelta, 20);
+  });
+
+  it("ignores a tampered client unitPrice when modifiers are present", async () => {
+    const prisma = makePrisma();
+    const grande = await seedTamano(prisma);
+    const svc = createPosOrderService({ prisma });
+    const order = await svc.createOrder({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1" },
+    });
+
+    const line = await svc.addOrderLine({
+      companyId: "company-1",
+      orderId: order.id,
+      actorId: "user-1",
+      data: {
+        productId: "product-2",
+        quantity: 1,
+        unitPrice: 1,
+        modifiers: [{ optionId: grande.id }],
+      },
+    });
+
+    assert.equal(line.unitPrice, 120);
+  });
+
+  it("hydrates order lines with their modifier snapshots", async () => {
+    const prisma = makePrisma();
+    const grande = await seedTamano(prisma);
+    const svc = createPosOrderService({ prisma });
+    const order = await svc.createOrder({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1" },
+    });
+    await svc.addOrderLine({
+      companyId: "company-1",
+      orderId: order.id,
+      actorId: "user-1",
+      data: { productId: "product-2", quantity: 1, modifiers: [{ optionId: grande.id }] },
+    });
+
+    const hydrated = await svc.getOrderById({ companyId: "company-1", id: order.id });
+
+    assert.equal(hydrated.lines.length, 1);
+    assert.deepEqual(hydrated.lines[0].modifiers, [
+      { groupName: "Tamaño", optionName: "Grande", priceDelta: 20 },
+    ]);
   });
 });

@@ -6,6 +6,7 @@ import {
   writeAudit,
 } from "./service-helpers.js";
 import { createPosWaiterShiftService } from "./pos-waiter-shift-service.js";
+import { createPosModifierService } from "./pos-modifier-service.js";
 
 function normalizeText(value) {
   if (typeof value !== "string") return value ?? null;
@@ -48,7 +49,26 @@ async function hydrateOrder(db, { companyId, id }) {
     db.posGuestSeat.findMany({ where: { orderId: id }, orderBy: { position: "asc" } }),
     db.posPayment.findMany({ where: { orderId: id }, orderBy: { paidAt: "asc" } }),
   ]);
-  return { ...order, waiterName, lines, guests, payments };
+
+  const lineIds = lines.map((line) => line.id);
+  const lineModifiers = lineIds.length
+    ? await db.posOrderLineModifier.findMany({ where: { lineId: { in: lineIds } } })
+    : [];
+  const modifiersByLine = new Map();
+  for (const modifier of lineModifiers) {
+    if (!modifiersByLine.has(modifier.lineId)) modifiersByLine.set(modifier.lineId, []);
+    modifiersByLine.get(modifier.lineId).push({
+      groupName: modifier.groupName,
+      optionName: modifier.optionName,
+      priceDelta: modifier.priceDelta,
+    });
+  }
+  const linesWithModifiers = lines.map((line) => ({
+    ...line,
+    modifiers: modifiersByLine.get(line.id) ?? [],
+  }));
+
+  return { ...order, waiterName, lines: linesWithModifiers, guests, payments };
 }
 
 async function getDefaultTaxRate(db, companyId) {
@@ -100,6 +120,7 @@ async function loadCatalogSnapshot(db, { companyId, productId, variantId, unitPr
       productName: variant.product?.name ?? "Producto",
       sku: variant.sku ?? variant.product?.sku ?? null,
       unitPrice: toMoney(unitPrice ?? variant.price),
+      catalogPrice: toMoney(variant.price),
     };
   }
 
@@ -113,11 +134,13 @@ async function loadCatalogSnapshot(db, { companyId, productId, variantId, unitPr
     productName: product.name,
     sku: product.sku ?? null,
     unitPrice: toMoney(unitPrice ?? product.price),
+    catalogPrice: toMoney(product.price),
   };
 }
 
-export function createPosOrderService({ prisma, waiterShifts }) {
+export function createPosOrderService({ prisma, waiterShifts, modifiers }) {
   const shiftSvc = waiterShifts ?? createPosWaiterShiftService({ prisma });
+  const modifierSvc = modifiers ?? createPosModifierService({ prisma });
 
   async function listOrders({ companyId, filters = {} }) {
     const scopedCompanyId = requireCompanyId(companyId);
@@ -355,24 +378,48 @@ export function createPosOrderService({ prisma, waiterShifts }) {
       variantId: data.variantId,
       unitPrice: data.unitPrice,
     });
+    const selection = await modifierSvc.resolveSelection({
+      companyId: scopedCompanyId,
+      productId: snapshot.productId,
+      optionIds: (data.modifiers ?? []).map((m) => m.optionId),
+    });
+    const unitPrice =
+      selection.snapshots.length > 0 || selection.totalDelta !== 0
+        ? toMoney(Number(snapshot.catalogPrice) + selection.totalDelta)
+        : snapshot.unitPrice;
     const quantity = Number(data.quantity);
-    const amounts = lineAmounts({ quantity, unitPrice: snapshot.unitPrice, taxRate });
-    const line = await prisma.posOrderLine.create({
-      data: {
-        orderId,
-        guestSeatId: data.guestSeatId ?? null,
-        productId: snapshot.productId,
-        variantId: snapshot.variantId,
-        productName: snapshot.productName,
-        sku: snapshot.sku,
-        quantity,
-        unitPrice: snapshot.unitPrice,
-        discountAmount: 0,
-        taxRate,
-        taxAmount: amounts.taxAmount,
-        totalAmount: amounts.totalAmount,
-        note: normalizeText(data.note),
-      },
+    const amounts = lineAmounts({ quantity, unitPrice, taxRate });
+    const line = await prisma.$transaction(async (tx) => {
+      const created = await tx.posOrderLine.create({
+        data: {
+          orderId,
+          guestSeatId: data.guestSeatId ?? null,
+          productId: snapshot.productId,
+          variantId: snapshot.variantId,
+          productName: snapshot.productName,
+          sku: snapshot.sku,
+          quantity,
+          unitPrice,
+          discountAmount: 0,
+          taxRate,
+          taxAmount: amounts.taxAmount,
+          totalAmount: amounts.totalAmount,
+          note: normalizeText(data.note),
+        },
+      });
+      if (selection.snapshots.length > 0) {
+        await tx.posOrderLineModifier.createMany({
+          data: selection.snapshots.map((s) => ({
+            companyId: scopedCompanyId,
+            lineId: created.id,
+            optionId: s.optionId,
+            groupName: s.groupName,
+            optionName: s.optionName,
+            priceDelta: s.priceDelta,
+          })),
+        });
+      }
+      return created;
     });
     const after = await recalculateOrderTotals(prisma, { companyId: scopedCompanyId, orderId });
     await writeAudit(prisma, {
