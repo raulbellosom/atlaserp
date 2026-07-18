@@ -78,13 +78,22 @@ export default function KitchenStationBoard({ tickets = [] }) {
                   </p>
                 </div>
               </div>
-              <ul className="space-y-1">
+              <ul className="space-y-1.5">
                 {(ticket.lines ?? []).map((line) => (
-                  <li key={line.id} className="text-sm flex items-center gap-1">
-                    <span className="font-medium">{parseFloat(line.quantity)}x</span>
-                    <span>{line.orderLine?.productName ?? 'Producto'}</span>
-                    {line.orderLine?.note && (
-                      <span className="text-xs text-muted-foreground italic"> — {line.orderLine.note}</span>
+                  <li key={line.id} className="text-sm">
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium">
+                        {parseFloat(line.orderLine?.quantity ?? line.quantity)}×
+                      </span>
+                      <span>{line.orderLine?.productName ?? 'Producto'}</span>
+                    </div>
+                    {(line.modifiers ?? []).map((mod, idx) => (
+                      <p key={idx} className="text-xs text-muted-foreground pl-4">
+                        · {mod.optionName}
+                      </p>
+                    ))}
+                    {line.note && (
+                      <p className="text-xs text-muted-foreground italic pl-4">{line.note}</p>
                     )}
                   </li>
                 ))}
