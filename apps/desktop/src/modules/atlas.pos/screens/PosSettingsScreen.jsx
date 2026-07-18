@@ -14,6 +14,7 @@ import {
   usePosStations, useCreatePosStation, useUpdatePosStation,
   usePosPaymentMethods, useCreatePosPaymentMethod, useUpdatePosPaymentMethod,
 } from '../hooks/usePosSettings'
+import OutletFlagsFields from '../components/OutletFlagsFields.jsx'
 
 function StatusPill({ active }) {
   return (
@@ -146,6 +147,15 @@ function OutletsTab() {
   const [editOutletName, setEditOutletName] = useState('')
   const [editOutletCode, setEditOutletCode] = useState('')
   const [editOutletEnabled, setEditOutletEnabled] = useState(true)
+  const [editOutletFlags, setEditOutletFlags] = useState({
+    allowTableCharge: false,
+    defaultStationId: null,
+    kitchenKdsEnabled: true,
+    kitchenPrintEnabled: false,
+  })
+  const { data: editOutletStations = [] } = usePosStations(
+    editingOutlet ? { outletId: editingOutlet.id } : {},
+  )
 
   // Create terminal
   const [terminalDialog, setTerminalDialog] = useState(false)
@@ -167,6 +177,12 @@ function OutletsTab() {
     setEditOutletName(o.name)
     setEditOutletCode(o.code ?? '')
     setEditOutletEnabled(o.enabled)
+    setEditOutletFlags({
+      allowTableCharge: Boolean(o.allowTableCharge),
+      defaultStationId: o.defaultStationId ?? null,
+      kitchenKdsEnabled: Boolean(o.kitchenKdsEnabled),
+      kitchenPrintEnabled: Boolean(o.kitchenPrintEnabled),
+    })
   }
 
   function openEditTerminal(t) {
@@ -184,7 +200,13 @@ function OutletsTab() {
 
   function handleUpdateOutlet() {
     updateOutlet.mutate(
-      { id: editingOutlet.id, name: editOutletName, code: editOutletCode || null, enabled: editOutletEnabled },
+      {
+        id: editingOutlet.id,
+        name: editOutletName,
+        code: editOutletCode || null,
+        enabled: editOutletEnabled,
+        ...editOutletFlags,
+      },
       { onSuccess: () => setEditingOutlet(null) },
     )
   }
@@ -366,6 +388,12 @@ function OutletsTab() {
               description="Las sucursales inactivas no aparecen al abrir sesiones."
               checked={editOutletEnabled}
               onChange={setEditOutletEnabled}
+            />
+            <Separator />
+            <OutletFlagsFields
+              value={editOutletFlags}
+              onChange={setEditOutletFlags}
+              stations={editOutletStations}
             />
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setEditingOutlet(null)}>Cancelar</Button>
