@@ -6,7 +6,7 @@ atlas.pos F2: product modifiers (groups/options with price deltas), guest-seat U
 
 ## 2. Status
 
-Proposed
+Approved (2026-07-18)
 
 ## 3. Context
 
