@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import {
-  Button, Textarea, Label,
+  Button, Textarea, Label, SelectField,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Sheet, SheetContent, SheetTitle,
   ConfirmDialog,
@@ -9,24 +9,34 @@ import {
 import { useIsDesktop } from '../../../hooks/useIsDesktop'
 import { useUpdatePosOrderLine, useDeletePosOrderLine } from '../hooks/usePosOrder'
 
-function LineEditContent({ line, onSave, onDelete, onClose, saving, deleting, isSheet = false }) {
+const SHARED_SEAT = '__shared__'
+
+function LineEditContent({ line, onSave, onDelete, onClose, saving, deleting, isSheet = false, guests }) {
+  const hasSeatSelect = Array.isArray(guests)
   const [qty, setQty] = useState(parseFloat(line.quantity) || 1)
   const [note, setNote] = useState(line.note ?? '')
+  const [seatId, setSeatId] = useState(line.guestSeatId ?? SHARED_SEAT)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
 
   useEffect(() => {
     setQty(parseFloat(line.quantity) || 1)
     setNote(line.note ?? '')
-  }, [line.id, line.quantity, line.note])
+    setSeatId(line.guestSeatId ?? SHARED_SEAT)
+  }, [line.id, line.quantity, line.note, line.guestSeatId])
 
   function decrement() { setQty((q) => Math.max(1, q - 1)) }
   function increment() { setQty((q) => q + 1) }
 
   function handleSave() {
-    onSave({ qty, note: note.trim() || null })
+    const payload = { qty, note: note.trim() || null }
+    if (hasSeatSelect) payload.guestSeatId = seatId === SHARED_SEAT ? null : seatId
+    onSave(payload)
   }
 
-  const isDirty = qty !== parseFloat(line.quantity) || (note.trim() || null) !== (line.note ?? null)
+  const isDirty =
+    qty !== parseFloat(line.quantity) ||
+    (note.trim() || null) !== (line.note ?? null) ||
+    (hasSeatSelect && (seatId === SHARED_SEAT ? null : seatId) !== (line.guestSeatId ?? null))
 
   return (
     <div className="flex flex-col gap-6">
@@ -63,6 +73,21 @@ function LineEditContent({ line, onSave, onDelete, onClose, saving, deleting, is
           </button>
         </div>
       </div>
+
+      {/* Seat */}
+      {hasSeatSelect && (
+        <div className="flex flex-col gap-2">
+          <Label className="text-sm font-medium">Comensal</Label>
+          <SelectField
+            value={seatId}
+            onChange={setSeatId}
+            options={[
+              { value: SHARED_SEAT, label: 'Compartido' },
+              ...guests.map((g) => ({ value: g.id, label: g.label })),
+            ]}
+          />
+        </div>
+      )}
 
       {/* Note */}
       <div className="flex flex-col gap-2">
@@ -136,18 +161,17 @@ function LineEditContent({ line, onSave, onDelete, onClose, saving, deleting, is
   )
 }
 
-export default function LineEditSheet({ line, orderId, open, onOpenChange }) {
+export default function LineEditSheet({ line, orderId, open, onOpenChange, guests }) {
   const isDesktop = useIsDesktop()
   const updateLine = useUpdatePosOrderLine()
   const deleteLine = useDeletePosOrderLine()
 
   if (!line) return null
 
-  function handleSave({ qty, note }) {
-    updateLine.mutate(
-      { orderId, lineId: line.id, quantity: qty, note },
-      { onSuccess: () => onOpenChange(false) },
-    )
+  function handleSave({ qty, note, guestSeatId }) {
+    const data = { orderId, lineId: line.id, quantity: qty, note }
+    if (guestSeatId !== undefined) data.guestSeatId = guestSeatId
+    updateLine.mutate(data, { onSuccess: () => onOpenChange(false) })
   }
 
   function handleDelete() {
@@ -173,6 +197,7 @@ export default function LineEditSheet({ line, orderId, open, onOpenChange }) {
             onClose={() => onOpenChange(false)}
             saving={updateLine.isPending}
             deleting={deleteLine.isPending}
+            guests={guests}
           />
         </DialogContent>
       </Dialog>
@@ -191,6 +216,7 @@ export default function LineEditSheet({ line, orderId, open, onOpenChange }) {
           onClose={() => onOpenChange(false)}
           saving={updateLine.isPending}
           deleting={deleteLine.isPending}
+          guests={guests}
         />
       </SheetContent>
     </Sheet>

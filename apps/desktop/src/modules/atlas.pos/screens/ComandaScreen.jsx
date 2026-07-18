@@ -19,6 +19,7 @@ import ProductGrid from "../components/ProductGrid";
 import SeatChips from "../components/SeatChips";
 import ComandaLineList from "../components/ComandaLineList";
 import LineEditSheet from "../components/LineEditSheet";
+import ModifierSheet from "../components/ModifierSheet";
 import PaymentDialog from "../components/PaymentDialog";
 
 // Orders in these statuses can no longer be edited — mirrors assertEditableOrder
@@ -33,6 +34,7 @@ export default function ComandaScreen() {
 
   const [activeSeatId, setActiveSeatId] = useState(null);
   const [editingLine, setEditingLine] = useState(null);
+  const [modifierSheetProduct, setModifierSheetProduct] = useState(null);
   const [payOpen, setPayOpen] = useState(false);
   const [localOrderId, setLocalOrderId] = useState(null);
 
@@ -112,11 +114,22 @@ export default function ComandaScreen() {
     if (readOnly) return;
     const groups = modifierGroupsMap?.[product.id];
     if (Array.isArray(groups) && groups.length > 0) {
-      // Task 5: open ModifierSheet for this product instead of adding directly.
-      addProductLine(product);
+      setModifierSheetProduct(product);
       return;
     }
     addProductLine(product);
+  }
+
+  async function handleModifierSubmit({ modifiers, quantity, note, guestSeatId }) {
+    const product = modifierSheetProduct;
+    if (!product) return;
+    const oid = await ensureOrderId();
+    if (!oid) return;
+    const unitPrice = parseFloat(product.price ?? product.base_price ?? 0);
+    addLine.mutate(
+      { orderId: oid, productId: product.id, productName: product.name, unitPrice, quantity, note, guestSeatId, modifiers },
+      { onSuccess: () => setModifierSheetProduct(null) },
+    );
   }
 
   async function handleAddGuest() {
@@ -221,6 +234,18 @@ export default function ComandaScreen() {
         orderId={orderId}
         open={Boolean(editingLine)}
         onOpenChange={(v) => !v && setEditingLine(null)}
+        guests={order?.guests ?? []}
+      />
+
+      <ModifierSheet
+        open={Boolean(modifierSheetProduct)}
+        onOpenChange={(v) => !v && setModifierSheetProduct(null)}
+        product={modifierSheetProduct}
+        groups={modifierSheetProduct ? (modifierGroupsMap?.[modifierSheetProduct.id] ?? []) : []}
+        guests={order?.guests ?? []}
+        activeSeatId={activeSeatId}
+        onSubmit={handleModifierSubmit}
+        submitting={addLine.isPending}
       />
 
       {order && (
