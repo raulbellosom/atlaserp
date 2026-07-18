@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import {
   Button, Textarea, Label, SelectField,
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-  Sheet, SheetContent, SheetTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
   ConfirmDialog,
 } from '@atlas/ui'
 import { useIsDesktop } from '../../../hooks/useIsDesktop'
@@ -205,9 +204,9 @@ export default function LineEditSheet({ line, orderId, open, onOpenChange, guest
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" aria-describedby={undefined} className="pb-8 max-h-[85dvh] overflow-y-auto">
-        <SheetTitle className="text-base mb-4">{title}</SheetTitle>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent size="md" aria-describedby={undefined} className="max-h-[85dvh] overflow-y-auto">
+        <DialogTitle className="text-base mb-4">{title}</DialogTitle>
         <LineEditContent
           isSheet
           line={line}
@@ -218,7 +217,7 @@ export default function LineEditSheet({ line, orderId, open, onOpenChange, guest
           deleting={deleteLine.isPending}
           guests={guests}
         />
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }

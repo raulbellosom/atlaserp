@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { Sheet, SheetContent, SheetTitle, Button, SelectField, TextareaField } from "@atlas/ui";
+import { Dialog, DialogContent, DialogTitle, Button, SelectField, TextareaField } from "@atlas/ui";
 
 const SHARED_SEAT = "__shared__";
 
-// Bottom sheet: pick modifier groups/options, quantity, seat and note before
-// adding a product line to the comanda. Mirrors LineEditSheet's mobile sheet
-// conventions (Sheet side="bottom").
+// Adaptive dialog: pick modifier groups/options, quantity, seat and note before
+// adding a product line to the comanda. Dialog renders as a bottom sheet on
+// mobile and a centered modal on desktop.
 export default function ModifierSheet({
   open,
   onOpenChange,
@@ -105,9 +105,9 @@ export default function ModifierSheet({
   ];
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" aria-describedby={undefined} className="pb-8 max-h-[85dvh] overflow-y-auto">
-        <SheetTitle className="text-base mb-1">{product.name}</SheetTitle>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent size="md" aria-describedby={undefined} className="max-h-[85dvh] overflow-y-auto">
+        <DialogTitle className="text-base mb-1">{product.name}</DialogTitle>
         <p className="-mt-1 mb-4 text-sm text-muted-foreground">${basePrice.toFixed(2)} base</p>
 
         <div className="flex flex-col gap-5">
@@ -185,7 +185,7 @@ export default function ModifierSheet({
             {submitting ? "Agregando..." : `Agregar $${total.toFixed(2)}`}
           </Button>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

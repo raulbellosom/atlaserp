@@ -25,6 +25,20 @@ export class ErrorBoundary extends Component {
   componentDidCatch(error, info) {
     // eslint-disable-next-line no-console
     console.error("[ErrorBoundary]", error, info?.componentStack);
+    // Stale-client recovery: a lazy chunk URL died because the server restarted
+    // or a new deploy replaced hashed assets. Reload once to fetch fresh modules.
+    const message = String(error?.message ?? error ?? "");
+    const isChunkLoadError =
+      /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed/i.test(
+        message,
+      );
+    if (isChunkLoadError) {
+      const lastReload = Number(sessionStorage.getItem("atlas-chunk-reload") ?? 0);
+      if (Date.now() - lastReload > 10000) {
+        sessionStorage.setItem("atlas-chunk-reload", String(Date.now()));
+        window.location.reload();
+      }
+    }
   }
 
   handleRetry = () => {

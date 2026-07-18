@@ -501,7 +501,7 @@ export default function PosTablesScreen({ comanderoMode = false }) {
       {/* Content */}
       <div className="flex-1 min-h-0 overflow-hidden">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-muted-foreground">Cargando mesas...</p>
+          <p className="p-4 md:p-6 text-center text-sm text-muted-foreground">Cargando mesas...</p>
         ) : floors.length === 0 ? (
           <EmptyState
             title="Sin planos"
