@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Pencil } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Pencil, LayoutGrid } from 'lucide-react'
 import {
   PageHeader, Card, CardContent, CardHeader, CardTitle, CardDescription,
   Button, EmptyState, Separator,
@@ -38,12 +39,22 @@ const MODE_OPTIONS = [
 
 export default function PosSettingsScreen() {
   const [tab, setTab] = useState('general')
+  const navigate = useNavigate()
   return (
     <div className="min-h-full bg-[hsl(var(--background))] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <PageHeader
           title="Configuración POS"
           description="Sucursales, terminales, estaciones y parámetros generales del punto de venta."
+          actions={
+            <Button
+              variant="outline"
+              onClick={() => navigate('/app/m/atlas.pos/pos/admin/planos')}
+            >
+              <LayoutGrid size={16} />
+              Editor de planos
+            </Button>
+          }
         />
         <Tabs value={tab} onValueChange={setTab}>
           <div className="overflow-x-auto pb-0.5">
