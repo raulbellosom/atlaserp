@@ -5,6 +5,7 @@ import {
   toMoney,
   writeAudit,
 } from "./service-helpers.js";
+import { createPosWaiterShiftService } from "./pos-waiter-shift-service.js";
 
 function normalizeText(value) {
   if (typeof value !== "string") return value ?? null;
@@ -115,7 +116,9 @@ async function loadCatalogSnapshot(db, { companyId, productId, variantId, unitPr
   };
 }
 
-export function createPosOrderService({ prisma }) {
+export function createPosOrderService({ prisma, waiterShifts }) {
+  const shiftSvc = waiterShifts ?? createPosWaiterShiftService({ prisma });
+
   async function listOrders({ companyId, filters = {} }) {
     const scopedCompanyId = requireCompanyId(companyId);
     const openedAtFilter = {};
@@ -447,6 +450,23 @@ export function createPosOrderService({ prisma }) {
       where: { id: data.paymentMethodId, companyId: scopedCompanyId, enabled: true },
     });
     if (!method) throw new PosServiceError("Metodo de pago POS no encontrado.", 404);
+
+    let sessionId = data.sessionId ?? null;
+    let waiterShiftId = null;
+    if (sessionId) {
+      const session = await prisma.posSession.findFirst({
+        where: { id: sessionId, companyId: scopedCompanyId, status: "OPEN" },
+      });
+      if (!session) throw new PosServiceError("Sesion de caja no encontrada o cerrada.", 404);
+    } else {
+      const shift = await shiftSvc.ensureOpenShift({
+        companyId: scopedCompanyId,
+        outletId: before.outletId,
+        waiterId: actorId,
+      });
+      waiterShiftId = shift.id;
+    }
+
     const amount = toMoney(data.amount);
     const remaining = toMoney(Number(before.totalAmount ?? 0) - Number(before.paidAmount ?? 0));
     if (amount > remaining) throw new PosServiceError("El pago excede el total pendiente.", 400);
@@ -460,8 +480,18 @@ export function createPosOrderService({ prisma }) {
         status: "CAPTURED",
         reference: normalizeText(data.reference),
         createdById: actorId,
+        sessionId,
+        waiterShiftId,
       },
     });
+    if (waiterShiftId) {
+      await shiftSvc.registerCharge({
+        companyId: scopedCompanyId,
+        shiftId: waiterShiftId,
+        amount,
+        isCash: method.kind === "CASH",
+      });
+    }
     const paidAmount = toMoney(Number(before.paidAmount ?? 0) + amount);
     const status = paidAmount >= Number(before.totalAmount ?? 0) ? "PAID" : before.status;
     await prisma.posOrder.update({

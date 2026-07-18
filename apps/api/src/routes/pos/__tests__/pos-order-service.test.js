@@ -46,6 +46,16 @@ function makePrisma() {
     ["user-1", { id: "user-1", displayName: "Mesero Principal" }],
   ]);
 
+  const outlets = new Map([
+    ["outlet-1", { id: "outlet-1", companyId: "company-1", allowTableCharge: true }],
+  ]);
+  const sessions = new Map([
+    ["session-1", { id: "session-1", companyId: "company-1", status: "OPEN" }],
+    ["session-closed", { id: "session-closed", companyId: "company-1", status: "CLOSED" }],
+  ]);
+  const waiterShifts = new Map();
+  let shiftSeq = 0;
+
   const prisma = {
     orders,
     lines,
@@ -55,6 +65,9 @@ function makePrisma() {
     audits,
     tables,
     profiles,
+    outlets,
+    sessions,
+    waiterShifts,
     $transaction: async (fn) => fn(prisma),
     userProfile: {
       findUnique: async ({ where }) => profiles.get(where.id) ?? null,
@@ -177,6 +190,42 @@ function makePrisma() {
       update: async ({ where, data }) => {
         const row = { ...tables.get(where.id), ...data };
         tables.set(where.id, row);
+        return row;
+      },
+    },
+    posOutlet: {
+      findFirst: async ({ where }) => {
+        const row = outlets.get(where.id);
+        return row && row.companyId === where.companyId ? row : null;
+      },
+    },
+    posSession: {
+      findFirst: async ({ where }) => {
+        const row = sessions.get(where.id);
+        if (!row) return null;
+        if (where.companyId && row.companyId !== where.companyId) return null;
+        if (where.status && row.status !== where.status) return null;
+        return row;
+      },
+    },
+    posWaiterShift: {
+      findFirst: async ({ where }) =>
+        [...waiterShifts.values()].find(
+          (r) =>
+            r.companyId === where.companyId &&
+            (!where.id || r.id === where.id) &&
+            (!where.outletId || r.outletId === where.outletId) &&
+            (!where.waiterId || r.waiterId === where.waiterId) &&
+            (!where.status || r.status === where.status),
+        ) ?? null,
+      create: async ({ data }) => {
+        const row = { id: `shift-${++shiftSeq}`, status: "OPEN", expectedCashAmount: 0, ...data };
+        waiterShifts.set(row.id, row);
+        return row;
+      },
+      update: async ({ where, data }) => {
+        const row = { ...waiterShifts.get(where.id), ...data };
+        waiterShifts.set(where.id, row);
         return row;
       },
     },
@@ -419,5 +468,115 @@ describe("createPosOrderService", () => {
     const table = db.tables.get("table-1");
     assert.equal(table.status, "OCCUPIED");
     assert.equal(table.waiterId, "user-1");
+  });
+});
+
+describe("addPayment money containers", () => {
+  it("attaches the payment to the given open session", async () => {
+    const prisma = makePrisma();
+    const svc = createPosOrderService({ prisma });
+    const order = await svc.createOrder({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1" },
+    });
+    await svc.addOrderLine({
+      companyId: "company-1",
+      orderId: order.id,
+      actorId: "user-1",
+      data: { productId: "product-1", quantity: 1 },
+    });
+
+    const payment = await svc.addPayment({
+      companyId: "company-1",
+      orderId: order.id,
+      actorId: "cashier-1",
+      data: { paymentMethodId: "cash-1", amount: 50, sessionId: "session-1" },
+    });
+
+    assert.equal(payment.sessionId, "session-1");
+    assert.equal(payment.waiterShiftId, null);
+  });
+
+  it("falls back to an ensured waiter shift when no session is given and outlet allows table charge", async () => {
+    const prisma = makePrisma();
+    const svc = createPosOrderService({ prisma });
+    const order = await svc.createOrder({
+      companyId: "company-1",
+      actorId: "waiter-1",
+      data: { outletId: "outlet-1" },
+    });
+    await svc.addOrderLine({
+      companyId: "company-1",
+      orderId: order.id,
+      actorId: "waiter-1",
+      data: { productId: "product-1", quantity: 1 },
+    });
+
+    const payment = await svc.addPayment({
+      companyId: "company-1",
+      orderId: order.id,
+      actorId: "waiter-1",
+      data: { paymentMethodId: "cash-1", amount: 50 },
+    });
+
+    assert.equal(payment.sessionId, null);
+    assert.ok(payment.waiterShiftId);
+    assert.equal(prisma.waiterShifts.size, 1);
+  });
+
+  it("rejects 409 when no session is given and outlet forbids table charge", async () => {
+    const prisma = makePrisma();
+    prisma.outlets.set("outlet-2", { id: "outlet-2", companyId: "company-1", allowTableCharge: false });
+    const svc = createPosOrderService({ prisma });
+    const order = await svc.createOrder({
+      companyId: "company-1",
+      actorId: "waiter-1",
+      data: { outletId: "outlet-2" },
+    });
+    await svc.addOrderLine({
+      companyId: "company-1",
+      orderId: order.id,
+      actorId: "waiter-1",
+      data: { productId: "product-1", quantity: 1 },
+    });
+
+    await assert.rejects(
+      () =>
+        svc.addPayment({
+          companyId: "company-1",
+          orderId: order.id,
+          actorId: "waiter-1",
+          data: { paymentMethodId: "cash-1", amount: 50 },
+        }),
+      (err) => err instanceof PosServiceError && err.status === 409,
+    );
+  });
+
+  it("rejects 404 for a closed or foreign session", async () => {
+    const prisma = makePrisma();
+    const svc = createPosOrderService({ prisma });
+    const order = await svc.createOrder({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1" },
+    });
+    await svc.addOrderLine({
+      companyId: "company-1",
+      orderId: order.id,
+      actorId: "user-1",
+      data: { productId: "product-1", quantity: 1 },
+    });
+
+    await assert.rejects(
+      () =>
+        svc.addPayment({
+          companyId: "company-1",
+          orderId: order.id,
+          actorId: "cashier-1",
+          data: { paymentMethodId: "cash-1", amount: 50, sessionId: "session-closed" },
+        }),
+      (err) => err instanceof PosServiceError && err.status === 404,
+    );
   });
 });
