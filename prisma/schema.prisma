@@ -2021,21 +2021,27 @@ model PosSettings {
 }
 
 model PosOutlet {
-  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  companyId String   @db.Uuid @map("company_id")
-  name      String
-  code      String?
-  address   String?
-  mode      PosMode  @default(RESTAURANT)
-  enabled   Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                  String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId           String   @db.Uuid @map("company_id")
+  name                String
+  code                String?
+  address             String?
+  mode                PosMode  @default(RESTAURANT)
+  enabled             Boolean  @default(true)
+  allowTableCharge    Boolean  @default(false) @map("allow_table_charge")
+  defaultStationId    String?  @db.Uuid @map("default_station_id")
+  kitchenKdsEnabled   Boolean  @default(true) @map("kitchen_kds_enabled")
+  kitchenPrintEnabled Boolean  @default(false) @map("kitchen_print_enabled")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   terminals    PosTerminal[]
   sessions     PosSession[]
   floors       PosFloor[]
   stations     PosKitchenStation[]
   reservations PosReservation[]
+  defaultStation PosKitchenStation? @relation("OutletDefaultStation", fields: [defaultStationId], references: [id], onDelete: SetNull)
+  waiterShifts PosWaiterShift[]
 
   @@unique([companyId, code])
   @@index([companyId, enabled])
@@ -2081,10 +2087,34 @@ model PosSession {
   terminal      PosTerminal @relation(fields: [terminalId], references: [id], onDelete: Restrict)
   orders        PosOrder[]
   cashMovements PosCashMovement[]
+  payments      PosPayment[]
+  waiterShifts  PosWaiterShift[]
 
   @@index([companyId, status])
   @@index([terminalId, status])
   @@map("pos_session")
+}
+
+model PosWaiterShift {
+  id                   String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId            String           @db.Uuid @map("company_id")
+  outletId             String           @db.Uuid @map("outlet_id")
+  waiterId             String           @db.Uuid @map("waiter_id")
+  status               PosSessionStatus @default(OPEN)
+  expectedCashAmount   Decimal          @default(0.00) @db.Decimal(12, 2) @map("expected_cash_amount")
+  deliveredAmount      Decimal?         @db.Decimal(12, 2) @map("delivered_amount")
+  deliveredToSessionId String?          @db.Uuid @map("delivered_to_session_id")
+  openedAt             DateTime         @default(now()) @map("opened_at")
+  closedAt             DateTime?        @map("closed_at")
+  notes                String?
+
+  outlet             PosOutlet   @relation(fields: [outletId], references: [id], onDelete: Restrict)
+  deliveredToSession PosSession? @relation(fields: [deliveredToSessionId], references: [id], onDelete: SetNull)
+  payments           PosPayment[]
+
+  @@index([companyId, outletId, status])
+  @@index([companyId, waiterId, status])
+  @@map("pos_waiter_shift")
 }
 
 model PosPaymentMethod {
@@ -2208,11 +2238,17 @@ model PosPayment {
   reference       String?
   paidAt          DateTime         @default(now()) @map("paid_at")
   createdById     String           @db.Uuid @map("created_by_id")
+  sessionId       String?          @db.Uuid @map("session_id")
+  waiterShiftId   String?          @db.Uuid @map("waiter_shift_id")
 
   order         PosOrder         @relation(fields: [orderId], references: [id], onDelete: Cascade)
   paymentMethod PosPaymentMethod @relation(fields: [paymentMethodId], references: [id], onDelete: Restrict)
+  session       PosSession?      @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  waiterShift   PosWaiterShift?  @relation(fields: [waiterShiftId], references: [id], onDelete: Restrict)
 
   @@index([companyId, paidAt])
+  @@index([sessionId])
+  @@index([waiterShiftId])
   @@map("pos_payment")
 }
 
@@ -2352,6 +2388,7 @@ model PosKitchenStation {
 
   outlet  PosOutlet          @relation(fields: [outletId], references: [id], onDelete: Restrict)
   tickets PosKitchenTicket[]
+  defaultForOutlets PosOutlet[] @relation("OutletDefaultStation")
 
   @@unique([outletId, code])
   @@index([companyId, enabled])
