@@ -1102,6 +1102,66 @@ export const PERMISSION_CATALOG = {
     groupKey: "pos",
     order: 160,
   },
+  "pos.caja.read": {
+    displayNameEs: "Ver puesto de caja",
+    descriptionEs: "Permite consultar el puesto de caja, sesiones y cortes de mesero.",
+    groupKey: "pos",
+    order: 170,
+  },
+  "pos.caja.operate": {
+    displayNameEs: "Cobrar y registrar movimientos en caja",
+    descriptionEs: "Permite cobrar ordenes y registrar movimientos de efectivo desde el puesto de caja.",
+    groupKey: "pos",
+    order: 180,
+  },
+  "pos.caja.close": {
+    displayNameEs: "Cerrar caja y recibir cortes",
+    descriptionEs: "Permite cerrar sesiones de caja y recibir entregas de cortes de mesero.",
+    groupKey: "pos",
+    order: 190,
+  },
+  "pos.comandas.read": {
+    displayNameEs: "Ver puesto de comandero",
+    descriptionEs: "Permite consultar el puesto de comandero y sus comandas.",
+    groupKey: "pos",
+    order: 200,
+  },
+  "pos.comandas.create": {
+    displayNameEs: "Tomar y editar comandas",
+    descriptionEs: "Permite tomar y editar comandas desde el puesto de comandero.",
+    groupKey: "pos",
+    order: 210,
+  },
+  "pos.comandas.charge": {
+    displayNameEs: "Cobrar en mesa",
+    descriptionEs: "Permite cobrar en mesa y abrir cortes de mesero.",
+    groupKey: "pos",
+    order: 220,
+  },
+  "pos.cocina.read": {
+    displayNameEs: "Ver tablero de cocina",
+    descriptionEs: "Permite consultar el tablero de cocina y sus comandas.",
+    groupKey: "pos",
+    order: 230,
+  },
+  "pos.cocina.operate": {
+    displayNameEs: "Marcar comandas listas",
+    descriptionEs: "Permite marcar comandas como listas desde el tablero de cocina.",
+    groupKey: "pos",
+    order: 240,
+  },
+  "pos.admin.read": {
+    displayNameEs: "Ver administracion POS",
+    descriptionEs: "Permite consultar la administracion del modulo POS.",
+    groupKey: "pos",
+    order: 250,
+  },
+  "pos.admin.update": {
+    displayNameEs: "Editar configuracion POS",
+    descriptionEs: "Permite editar la configuracion del modulo POS desde administracion.",
+    groupKey: "pos",
+    order: 260,
+  },
 
   "projects.access": {
     displayNameEs: "Acceder a Proyectos",
