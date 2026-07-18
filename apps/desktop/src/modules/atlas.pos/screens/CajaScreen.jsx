@@ -1,3 +1,7 @@
-// F1 placeholder: Caja post mounts the existing terminal experience.
-// F3 replaces this with the dedicated Caja/Mostrador UX.
-export { default } from "./PosTerminalScreen.jsx";
+// F3: Caja post — the real terminal experience with caja-specific tools
+// (waiter shift reception, session history) enabled via the cajaTools prop.
+import PosTerminalScreen from "./PosTerminalScreen.jsx";
+
+export default function CajaScreen() {
+  return <PosTerminalScreen cajaTools />;
+}

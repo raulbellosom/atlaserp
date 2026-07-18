@@ -269,6 +269,9 @@ const SCREEN_MAP = {
   "atlas.pos:/pos/caja": lazy(
     () => import("../modules/atlas.pos/screens/CajaScreen.jsx"),
   ),
+  "atlas.pos:/pos/caja/historial": lazy(
+    () => import("../modules/atlas.pos/screens/PosSessionsScreen.jsx"),
+  ),
   "atlas.pos:/pos/comandero": lazy(
     () => import("../modules/atlas.pos/screens/ComanderoScreen.jsx"),
   ),

@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Store, Landmark, Settings2, AlertTriangle, ShoppingCart, ChevronUp } from 'lucide-react'
+import { Store, Landmark, Settings2, AlertTriangle, ShoppingCart, ChevronUp, Receipt, History } from 'lucide-react'
 import {
   EmptyState, Button, Label, SelectField,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
@@ -17,6 +17,7 @@ import OrderPanel from '../components/OrderPanel'
 import PaymentDialog from '../components/PaymentDialog'
 import SessionOpenDialog from '../components/SessionOpenDialog'
 import SessionCloseDialog from '../components/SessionCloseDialog'
+import WaiterShiftsPanel, { WaiterShiftsBadgeCount } from '../components/WaiterShiftsPanel'
 
 const LS_OUTLET = 'atlas.pos.outletId'
 const LS_TERMINAL = 'atlas.pos.terminalId'
@@ -79,7 +80,8 @@ function SetupCard({ outlets, terminals, onConfirm }) {
   )
 }
 
-export default function PosTerminalScreen() {
+export default function PosTerminalScreen({ cajaTools = false }) {
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [outletId, setOutletId] = useState(() => localStorage.getItem(LS_OUTLET) ?? '')
   const [terminalId, setTerminalId] = useState(() => localStorage.getItem(LS_TERMINAL) ?? '')
@@ -92,6 +94,7 @@ export default function PosTerminalScreen() {
   const [draftTerminalId, setDraftTerminalId] = useState('')
   const [orderSheetOpen, setOrderSheetOpen] = useState(false)
   const [pendingLines, setPendingLines] = useState([])
+  const [shiftsPanelOpen, setShiftsPanelOpen] = useState(false)
 
   const { data: outlets = [], isLoading: outletsLoading } = usePosOutlets()
   const { data: allTerminals = [] } = usePosTerminals()
@@ -336,6 +339,29 @@ export default function PosTerminalScreen() {
           )}
 
           <div className="ml-auto flex items-center gap-2.5">
+            {cajaTools && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShiftsPanelOpen(true)}
+                  className="h-7 text-xs px-2.5 gap-1.5"
+                >
+                  <Receipt size={13} />
+                  Cortes
+                  <WaiterShiftsBadgeCount outletId={outletId} />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate('/app/m/atlas.pos/pos/caja/historial')}
+                  className="h-7 text-xs px-2.5 gap-1.5"
+                >
+                  <History size={13} />
+                  Historial
+                </Button>
+              </>
+            )}
             {sessionLoading ? (
               <span className="text-xs text-muted-foreground">Verificando...</span>
             ) : hasActiveSession ? (
@@ -497,6 +523,15 @@ export default function PosTerminalScreen() {
           onOpenChange={setCloseCajaDialog}
           session={currentSession}
           onSuccess={() => setCloseCajaDialog(false)}
+        />
+      )}
+
+      {cajaTools && (
+        <WaiterShiftsPanel
+          open={shiftsPanelOpen}
+          onOpenChange={setShiftsPanelOpen}
+          outletId={outletId}
+          sessionId={currentSession?.id ?? null}
         />
       )}
 
