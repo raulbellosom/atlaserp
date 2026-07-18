@@ -8,6 +8,64 @@
 - If a task is implemented but not verified yet, keep it unchecked until validation is done.
 - Prisma migration safety: never edit existing `prisma/migrations/**/migration.sql` after apply; always add a new forward migration.
 
+## atlas.pos — Restaurant POS
+
+Specs: `docs/superpowers/specs/2026-06-21-atlas-pos-core-design.md`, `2026-06-29-pos-waiter-split-bill.md`
+Plans: `docs/superpowers/plans/2026-06-21-atlas-pos-plan-a-core-backend.md`, `...-plan-b-ui.md`, `...-plan-c-floor-planner.md`, `2026-06-22-pos-reservations.md`, `2026-06-29-pos-waiter-plan-a-backend.md`, `...-plan-b-ui.md`
+Stabilization: `docs/superpowers/specs/2026-07-17-post-pause-stabilization-design.md` + plan of same name
+
+- [x] Core backend: sessions, stations, tables, orders, payments (`apps/api/src/routes/pos/`)
+- [x] Screens: `PosFloorPlannerScreen`, `PosOrdersScreen`, `PosSessionsScreen`, `PosSettingsScreen`, `PosStationsScreen`, `PosTablesScreen`, `PosTerminalScreen`
+- [x] Reservations (`20260622100000_pos_reservations`, `pos-reservation-service.js`, `usePosReservation`)
+- [x] Waiter assignment: auto-claim on order open, auto-clear on AVAILABLE, mis-mesas filter, waiter chip (`20260629120000_pos_waiter_split_bill`)
+- [x] Split bill: per-seat totals, `SplitBillDialog`, mesa-completa/dividir-cuenta toggle in `PaymentDialog`
+- [x] Backend tests: waiter assignment, seat totals, mis-mesas, auto-claim, 404 unknown waiter
+- [ ] Manual QA: waiter chip + mis-mesas flow in browser
+- [ ] Manual QA: split-bill payment flow in browser
+- [ ] Smoke + commit of transform-based pan/zoom refactor in `FloorOperationalCanvas.jsx`
+- [ ] Full restaurant-flow QA (session → table → order → kitchen → payment → close)
+
+Verified: 2026-07-17 (`pnpm.cmd exec prisma migrate status` → "Database schema is up to date!" with all 50 migrations applied incl. `20260629120000_pos_waiter_split_bill`; `node --test "apps/api/src/routes/pos/__tests__/*.test.js"` → 31 tests / 31 pass / 0 fail; `pnpm.cmd --filter @atlas/desktop build:web` → built in 3.46s; browser QA items remain unchecked pending live session)
+
+## atlas.chat — Realtime Chat
+
+Specs: `docs/superpowers/specs/CHAT_SPEC.md`, `2026-06-28-chat-improvements-a-backend.md`, `...-b-frontend.md`, `2026-06-28-realtime-layer-unificado-design.md`, `2026-06-26-realtime-v2-design.md`
+Plans: `docs/superpowers/plans/CHAT_IMPLEMENTATION_PLAN.md`, `2026-06-28-chat-improvements-plan-a.md`, `2026-06-28-realtime-layer-plan-a-api.md`, `...-plan-b-frontend.md`, `2026-06-26-realtime-v2-plan-a-api.md`, `...-plan-b-frontend.md`
+
+- [x] Chat tables + evolution migrations (`20260625000000_add_chat_tables` → `20260629130000_chat_archive`: attachments, tracking code, expiry email flag, archive, available_for_chat)
+- [x] Internal chat: `ChatScreen`, conversations, members, typing, presence (Supabase Realtime)
+- [x] External guest chat: `ExternalInboxScreen`, `ExternalChatWidget`, storefront-sdk guest flow (v0.5.2)
+- [x] Message templates: `ChatTemplatesScreen`; forward message modal
+- [x] Unified realtime layer (2026-06-28 plans A/B)
+- [ ] Message search
+- [ ] Notification integration: unread badge in topbar
+- [ ] Confirm `atlas-chat` bucket exists in Supabase Storage
+
+Verified: 2026-07-17 (migrations confirmed applied via `prisma migrate status`; module active in dev use since 2026-06-25; no formal browser verification run recorded)
+
+## atlas.notes — Collaborative Notes
+
+Plans: `docs/superpowers/plans/2026-06-27-atlas-notes-A-backend.md`, `2026-06-27-atlas-notes-B-frontend.md`
+
+- [x] Backend: migrations `20260627120000_atlas_notes_tables` + `20260627130000_atlas_notes_fixes`; services (notes/folders/tags/shares/ydoc); 26-endpoint router; SDK domain; 17 permissions in core manifest
+- [x] Frontend: `NotesScreen`, `PublicNoteScreen`, `NoteEditor` (TipTap + Yjs via `SupabaseYjsProvider`), `DrawingCanvas`, `ImageAnnotationOverlay`, `NoteShareModal`, folders/tags sidebar
+- [ ] Create `atlas-notes` private bucket in Supabase Storage
+- [ ] Live QA: collaborative editing between two sessions; public route `/p/notes/:slug`
+
+Verified: 2026-07-17 (implementation confirmed by file inventory and applied migrations via `prisma migrate status`; no live QA recorded)
+
+## June 2026 UX/platform small plans
+
+Plans: `docs/superpowers/plans/2026-06-20-ledger-categories-user-scope-a-api.md` + `-b-ui.md`, `2026-06-21-sortable-lists-plan.md`, `2026-06-21-notification-bell-ux-fix.md`, `2026-06-22-calendar-deeplink-loading-state.md`, `2026-06-26-file-viewer-mobile-responsive.md`
+
+- [x] Ledger categories user scope (A: API, B: UI)
+- [x] Sortable lists
+- [x] Notification bell UX fix
+- [x] Calendar deeplink loading state
+- [x] File viewer mobile responsive
+
+Verified: 2026-06-29 (implemented per plan execution in June sessions and included in commits up to `323e6d9`; re-verify opportunistically when touching these areas)
+
 ## Atlas Growth - Storefront Capture Foundation
 
 Spec: `docs/superpowers/specs/2026-06-14-storefront-capture-foundation-design.md`
