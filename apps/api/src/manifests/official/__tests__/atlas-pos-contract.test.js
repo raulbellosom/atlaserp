@@ -41,10 +41,11 @@ test("atlas.pos declares restaurant-first POS permissions and navigation", () =>
   }
 
   const navPaths = atlasPosManifest.navigation.map((item) => item.path);
-  assert.ok(navPaths.includes("/app/m/atlas.pos/pos/terminal"));
-  assert.ok(navPaths.includes("/app/m/atlas.pos/pos/tables"));
-  assert.ok(navPaths.includes("/app/m/atlas.pos/pos/stations"));
-  assert.ok(navPaths.includes("/app/m/atlas.pos/pos/settings"));
+  assert.ok(navPaths.includes("/app/m/atlas.pos/pos/caja"));
+  assert.ok(navPaths.includes("/app/m/atlas.pos/pos/comandero"));
+  assert.ok(navPaths.includes("/app/m/atlas.pos/pos/cocina"));
+  assert.ok(navPaths.includes("/app/m/atlas.pos/pos/orders"));
+  assert.ok(navPaths.includes("/app/m/atlas.pos/pos/admin"));
 });
 
 test("atlas.pos declares lifecycle ownership for POS tables", () => {
