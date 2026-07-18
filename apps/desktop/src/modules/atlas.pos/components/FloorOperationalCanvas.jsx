@@ -2,7 +2,7 @@
 // Tables are clickable with live status overlays; all other elements are decorative.
 // Supports pinch-zoom, two-finger pan, and Ctrl+scroll zoom toward cursor.
 
-import { useRef, useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react'
+import { useRef, useState, useEffect, useMemo, useCallback } from 'react'
 import { Minus, Plus, Maximize2 } from 'lucide-react'
 import { CHAIR_PAD, squareChairPositions, roundChairPositions } from './FloorCanvasHelpers.jsx'
 import { POLYGON_ZONE_COLORS } from './FloorCanvasDecor.jsx'
@@ -261,16 +261,15 @@ function DecorElement({ el }) {
 // ─── Main operational canvas ──────────────────────────────────────────────────
 
 export default function FloorOperationalCanvas({ floor, elements = [], tableStates = {}, onTableClick }) {
-  const scrollRef        = useRef(null)
-  const zoomRef          = useRef(1)
-  const pendingScrollRef = useRef(null)
-  const lastPinchDistRef   = useRef(null)
-  const lastPinchAnchorRef = useRef(null)
+  const containerRef = useRef(null)
+  const stateRef     = useRef({ zoom: 1, panX: 0, panY: 0 })
+  const activePtr    = useRef(new Map()) // pointerId → {x,y}
   const [zoom, setZoom] = useState(1)
+  const [panX, setPanX] = useState(0)
+  const [panY, setPanY] = useState(0)
 
-  // Match the planner's minimum canvas size so the layout looks identical
-  const canvasWidth  = Math.max(floor?.canvasWidth  ?? 2000, 2000)
-  const canvasHeight = Math.max(floor?.canvasHeight ?? 1400, 1400)
+  const canvasWidth  = Math.max(floor?.canvasWidth  ?? 1400, 1400)
+  const canvasHeight = Math.max(floor?.canvasHeight ?? 900,  900)
 
   // Prisma Decimal columns serialize as strings over JSON — normalize to numbers
   const normalizedElements = useMemo(
@@ -287,194 +286,192 @@ export default function FloorOperationalCanvas({ floor, elements = [], tableStat
   const tableElements = normalizedElements.filter((el) => el.kind === 'TABLE_SQUARE' || el.kind === 'TABLE_ROUND')
   const decorElements = normalizedElements.filter((el) => el.kind !== 'TABLE_SQUARE' && el.kind !== 'TABLE_ROUND')
 
-  useEffect(() => { zoomRef.current = zoom }, [zoom])
+  // Keep ref in sync so gesture handlers always see the latest values
+  useEffect(() => { stateRef.current = { zoom, panX, panY } }, [zoom, panX, panY])
 
-  // Fit view to all element bounds
+  // ── Fit to content ────────────────────────────────────────────────────────────
   const fitToContent = useCallback(() => {
     if (!normalizedElements.length) return
-    const el = scrollRef.current
+    const el = containerRef.current
     if (!el || el.clientWidth === 0) return
+    const W = el.clientWidth
+    const H = el.clientHeight
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
     for (const { x, y, width, height } of normalizedElements) {
-      if (x < minX) minX = x
-      if (y < minY) minY = y
+      if (x < minX) minX = x;          if (y < minY) minY = y
       if (x + width > maxX) maxX = x + width
       if (y + height > maxY) maxY = y + height
     }
-
-    const PAD = 72
-    const contentW = maxX - minX + PAD * 2
-    const contentH = maxY - minY + PAD * 2
-    const fitZoom = Math.round(Math.min(el.clientWidth / contentW, el.clientHeight / contentH, 1) * 100) / 100
+    const PAD = 64
+    const fitZoom = Math.max(0.1, Math.min(
+      W / (maxX - minX + PAD * 2),
+      H / (maxY - minY + PAD * 2),
+      1.5,
+    ))
+    // Canvas center in canvas space: (canvasWidth/2, canvasHeight/2)
+    // Content center: cx, cy
+    // To center content in viewport: panX = -(cx - canvasWidth/2) * fitZoom, etc.
     const cx = (minX + maxX) / 2
     const cy = (minY + maxY) / 2
+    const newPanX = -(cx - canvasWidth / 2) * fitZoom
+    const newPanY = -(cy - canvasHeight / 2) * fitZoom
+    setZoom(Math.round(fitZoom * 100) / 100)
+    setPanX(newPanX)
+    setPanY(newPanY)
+  }, [normalizedElements, canvasWidth, canvasHeight])
 
-    pendingScrollRef.current = {
-      left: Math.max(0, cx * fitZoom + 12 - el.clientWidth / 2),
-      top:  Math.max(0, cy * fitZoom + 12 - el.clientHeight / 2),
-    }
-    setZoom(fitZoom)
-  }, [normalizedElements])
-
-  // Auto-fit on first load of each floor
+  // Auto-fit on first load of each floor (after elements are available)
   const autoFitFloorId = useRef(null)
   useEffect(() => {
     if (autoFitFloorId.current === floor?.id) return
     if (!normalizedElements.length) return
-    fitToContent()
+    // Delay by one tick so the container has its rendered size
+    const raf = requestAnimationFrame(fitToContent)
     autoFitFloorId.current = floor?.id
+    return () => cancelAnimationFrame(raf)
   }, [normalizedElements, floor?.id, fitToContent])
 
-  // Ctrl+scroll: zoom toward cursor
+  // ── Wheel: zoom toward cursor (no Ctrl required) ──────────────────────────────
   useEffect(() => {
-    const el = scrollRef.current
+    const el = containerRef.current
     if (!el) return
     function onWheel(e) {
-      if (!e.ctrlKey) return
       e.preventDefault()
-      const rect    = el.getBoundingClientRect()
-      const cursorX = e.clientX - rect.left
-      const cursorY = e.clientY - rect.top
-      const oldZoom = zoomRef.current
-      const delta   = e.deltaY < 0 ? 0.15 : -0.15
-      const newZoom = Math.max(0.3, Math.min(3, Math.round((oldZoom + delta) * 100) / 100))
-      if (newZoom === oldZoom) return
-      const cx = (cursorX - 12 + el.scrollLeft) / oldZoom
-      const cy = (cursorY - 12 + el.scrollTop)  / oldZoom
-      pendingScrollRef.current = { left: cx * newZoom + 12 - cursorX, top: cy * newZoom + 12 - cursorY }
+      const rect = el.getBoundingClientRect()
+      const vx   = e.clientX - rect.left - el.clientWidth  / 2
+      const vy   = e.clientY - rect.top  - el.clientHeight / 2
+      const { zoom: cz, panX: cpx, panY: cpy } = stateRef.current
+      const delta   = e.deltaY < 0 ? 0.12 : -0.12
+      const newZoom = Math.max(0.1, Math.min(3, Math.round((cz + delta) * 100) / 100))
+      if (newZoom === cz) return
+      // Keep the canvas point under the cursor fixed
+      const scale  = newZoom / cz
+      const newPanX = vx - (vx - cpx) * scale
+      const newPanY = vy - (vy - cpy) * scale
       setZoom(newZoom)
+      setPanX(newPanX)
+      setPanY(newPanY)
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
   }, [])
 
-  // Apply cursor-anchored scroll after zoom re-renders
-  useLayoutEffect(() => {
-    const pending = pendingScrollRef.current
-    if (!pending) return
-    pendingScrollRef.current = null
-    const el = scrollRef.current
-    if (el) {
-      el.scrollLeft = Math.max(0, pending.left)
-      el.scrollTop  = Math.max(0, pending.top)
-    }
-  }, [zoom])
-
-  // Touch: two-finger pan + pinch-zoom toward pinch center
-  function handleTouchStart(e) {
-    if (e.touches.length === 2) {
-      const [t1, t2] = e.touches
-      lastPinchDistRef.current = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY)
-      const el = scrollRef.current
-      if (el) {
-        const rect = el.getBoundingClientRect()
-        const cx = (t1.clientX + t2.clientX) / 2 - rect.left
-        const cy = (t1.clientY + t2.clientY) / 2 - rect.top
-        lastPinchAnchorRef.current = {
-          canvasX: (cx - 12 + el.scrollLeft) / zoomRef.current,
-          canvasY: (cy - 12 + el.scrollTop)  / zoomRef.current,
-        }
-      }
-    }
+  // ── Pointer events: single-finger pan + two-finger pinch-zoom ────────────────
+  function onPointerDown(e) {
+    // Don't hijack clicks on table elements
+    if (e.target.closest('[data-table]')) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    activePtr.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
   }
 
-  function handleTouchMove(e) {
-    if (e.touches.length !== 2) return
-    const [t1, t2] = e.touches
-    const el = scrollRef.current
-    if (!el || !lastPinchAnchorRef.current) return
-    const newDist    = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY)
-    const rect       = el.getBoundingClientRect()
-    const newCenterX = (t1.clientX + t2.clientX) / 2 - rect.left
-    const newCenterY = (t1.clientY + t2.clientY) / 2 - rect.top
-    const { canvasX, canvasY } = lastPinchAnchorRef.current
-    const cz = zoomRef.current
-    // Pan: keep anchor canvas point at current finger center
-    el.scrollLeft = canvasX * cz + 12 - newCenterX
-    el.scrollTop  = canvasY * cz + 12 - newCenterY
-    // Zoom
-    if (lastPinchDistRef.current !== null) {
-      const delta = (newDist - lastPinchDistRef.current) / 280
-      if (Math.abs(delta) > 0.004) {
-        const newZoom = Math.max(0.3, Math.min(3, Math.round((cz + delta) * 100) / 100))
-        if (newZoom !== cz) {
-          pendingScrollRef.current = { left: canvasX * newZoom + 12 - newCenterX, top: canvasY * newZoom + 12 - newCenterY }
-          setZoom(newZoom)
-        }
-        lastPinchDistRef.current = newDist
+  function onPointerMove(e) {
+    if (!activePtr.current.has(e.pointerId)) return
+    const prev = activePtr.current.get(e.pointerId)
+    const curr = { x: e.clientX, y: e.clientY }
+    const ptrs = [...activePtr.current.entries()]
+
+    if (activePtr.current.size === 1) {
+      // Single-finger pan
+      setPanX((p) => p + curr.x - prev.x)
+      setPanY((p) => p + curr.y - prev.y)
+    } else if (activePtr.current.size === 2) {
+      // Two-finger pinch + pan
+      const otherId  = ptrs.find(([id]) => id !== e.pointerId)?.[0]
+      const otherPt  = activePtr.current.get(otherId)
+      const prevDist = Math.hypot(prev.x - otherPt.x,  prev.y - otherPt.y)
+      const newDist  = Math.hypot(curr.x - otherPt.x,  curr.y - otherPt.y)
+      const prevCx   = (prev.x + otherPt.x) / 2
+      const prevCy   = (prev.y + otherPt.y) / 2
+      const newCx    = (curr.x + otherPt.x) / 2
+      const newCy    = (curr.y + otherPt.y) / 2
+
+      if (prevDist > 0) {
+        const { zoom: cz, panX: cpx, panY: cpy } = stateRef.current
+        const el      = containerRef.current
+        const W       = el.clientWidth  / 2
+        const H       = el.clientHeight / 2
+        const rect    = el.getBoundingClientRect()
+        const scale   = newDist / prevDist
+        const newZoom = Math.max(0.1, Math.min(3, cz * scale))
+        const vx      = prevCx - rect.left - W
+        const vy      = prevCy - rect.top  - H
+        const zFactor = newZoom / cz
+        const newPanX = vx - (vx - cpx) * zFactor + (newCx - prevCx)
+        const newPanY = vy - (vy - cpy) * zFactor + (newCy - prevCy)
+        setZoom(newZoom)
+        setPanX(newPanX)
+        setPanY(newPanY)
       }
     }
+
+    activePtr.current.set(e.pointerId, curr)
   }
 
-  function handleTouchEnd(e) {
-    if (e.touches.length < 2) {
-      lastPinchDistRef.current   = null
-      lastPinchAnchorRef.current = null
-    }
+  function onPointerUp(e) {
+    activePtr.current.delete(e.pointerId)
   }
 
   const pct = Math.round(zoom * 100)
 
   return (
-    <div className="relative flex-1 h-full overflow-hidden">
-      {/* Scrollable canvas area */}
+    <div
+      ref={containerRef}
+      className="relative flex-1 h-full overflow-hidden select-none"
+      style={{ background: 'hsl(var(--muted)/0.35)', touchAction: 'none' }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {/* Canvas — always centered via CSS transform */}
       <div
-        ref={scrollRef}
-        className="absolute inset-0 overflow-auto select-none"
-        style={{ touchAction: 'pan-x pan-y', background: 'hsl(var(--muted)/0.35)' }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        className="absolute bg-card border border-border/60 shadow-lg rounded-md"
+        style={{
+          width: canvasWidth,
+          height: canvasHeight,
+          left: '50%',
+          top: '50%',
+          transform: `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${zoom})`,
+          transformOrigin: 'center',
+          willChange: 'transform',
+        }}
       >
-        {/* Zoom wrapper */}
-        <div style={{ width: canvasWidth * zoom + 24, height: canvasHeight * zoom + 24, flexShrink: 0 }}>
+        {/* Dot grid */}
+        <div
+          className="absolute inset-0 pointer-events-none rounded-md text-foreground/4"
+          style={{ backgroundImage: 'radial-gradient(circle, currentColor 1.5px, transparent 1.5px)', backgroundSize: '28px 28px' }}
+        />
+        <div className="absolute inset-3 border border-dashed border-border/20 pointer-events-none rounded-sm" />
+
+        {/* Decor elements (bottom layer) */}
+        {decorElements.map((el, i) => (
           <div
-            className="relative bg-card border border-border/60 shadow-lg rounded-md"
-            style={{
-              width: canvasWidth, height: canvasHeight,
-              marginLeft: 12, marginTop: 12,
-              transform: zoom !== 1 ? `scale(${zoom})` : undefined,
-              transformOrigin: '0 0',
-            }}
+            key={el.id ?? i}
+            className="absolute"
+            style={{ left: el.x, top: el.y, width: el.width, height: el.height, zIndex: el.kind === 'FLOOR_ZONE' ? 0 : i + 1 }}
           >
-            {/* Dot grid */}
-            <div
-              className="absolute inset-0 pointer-events-none rounded-md text-foreground/4"
-              style={{ backgroundImage: 'radial-gradient(circle, currentColor 1.5px, transparent 1.5px)', backgroundSize: '28px 28px' }}
-            />
-            <div className="absolute inset-3 border border-dashed border-border/20 pointer-events-none rounded-sm" />
-
-            {/* Decor elements (bottom layer) */}
-            {decorElements.map((el, i) => (
-              <div
-                key={el.id ?? i}
-                className="absolute"
-                style={{ left: el.x, top: el.y, width: el.width, height: el.height, zIndex: el.kind === 'FLOOR_ZONE' ? 0 : i + 1 }}
-              >
-                <DecorElement el={el} />
-              </div>
-            ))}
-
-            {/* Table elements (top layer, interactive) */}
-            {tableElements.map((el) => {
-              const boundTable = el.tableId ? tableStates[el.tableId] : null
-              const isUnbound = Boolean(el.tableId) && !boundTable
-              return (
-                <div key={el.id} style={isUnbound ? { opacity: 0.25, pointerEvents: 'none' } : undefined}>
-                  <OperationalTable el={el} table={boundTable} onClick={onTableClick} />
-                </div>
-              )
-            })}
+            <DecorElement el={el} />
           </div>
-        </div>
+        ))}
+
+        {/* Table elements (top layer, interactive) */}
+        {tableElements.map((el) => {
+          const boundTable = el.tableId ? tableStates[el.tableId] : null
+          const isUnbound = Boolean(el.tableId) && !boundTable
+          return (
+            <div key={el.id} data-table="1" style={isUnbound ? { opacity: 0.25, pointerEvents: 'none' } : undefined}>
+              <OperationalTable el={el} table={boundTable} onClick={onTableClick} />
+            </div>
+          )
+        })}
       </div>
 
       {/* Floating zoom control — bottom right */}
       <div className="absolute bottom-4 right-4 flex items-center gap-px rounded-xl bg-card/90 border border-border shadow-lg backdrop-blur-sm px-1 py-1 z-10">
         <button
           type="button"
-          onClick={() => setZoom((z) => Math.max(0.3, Math.round((z - 0.15) * 100) / 100))}
+          onClick={() => { const nz = Math.max(0.1, Math.round((zoom - 0.15) * 100) / 100); const s = nz/zoom; setPanX(p=>p*s); setPanY(p=>p*s); setZoom(nz) }}
           className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors active:scale-95"
           title="Alejar"
         >
@@ -482,7 +479,7 @@ export default function FloorOperationalCanvas({ floor, elements = [], tableStat
         </button>
         <button
           type="button"
-          onClick={() => setZoom(1)}
+          onClick={() => { setZoom(1); setPanX(0); setPanY(0) }}
           className="min-w-13 h-9 px-2 text-xs font-mono font-medium text-foreground hover:bg-muted rounded-lg transition-colors active:scale-95"
           title="Restablecer zoom al 100%"
         >
@@ -490,7 +487,7 @@ export default function FloorOperationalCanvas({ floor, elements = [], tableStat
         </button>
         <button
           type="button"
-          onClick={() => setZoom((z) => Math.min(3, Math.round((z + 0.15) * 100) / 100))}
+          onClick={() => { const nz = Math.min(3, Math.round((zoom + 0.15) * 100) / 100); const s = nz/zoom; setPanX(p=>p*s); setPanY(p=>p*s); setZoom(nz) }}
           className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors active:scale-95"
           title="Acercar"
         >
