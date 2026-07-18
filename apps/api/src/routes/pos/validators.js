@@ -61,6 +61,10 @@ export const createOutletSchema = z.object({
 
 export const updateOutletSchema = createOutletSchema.partial().extend({
   enabled: z.boolean().optional(),
+  allowTableCharge: z.boolean().optional(),
+  defaultStationId: z.string().uuid().nullable().optional(),
+  kitchenKdsEnabled: z.boolean().optional(),
+  kitchenPrintEnabled: z.boolean().optional(),
 });
 
 export const createTerminalSchema = z.object({
@@ -138,6 +142,7 @@ export const createPaymentSchema = z.object({
   paymentMethodId: uuidSchema,
   amount: moneySchema.positive(),
   reference: optionalNullableText(120),
+  sessionId: z.string().uuid().optional(),
 });
 
 export const cancelOrderSchema = z.object({
@@ -258,4 +263,14 @@ export const seatReservationSchema = z.object({
 
 export const assignWaiterSchema = z.object({
   waiterId: z.string().uuid("El ID de mesero debe ser un UUID valido.").nullable().optional(),
+});
+
+export const openWaiterShiftSchema = z.object({
+  outletId: z.string().uuid(),
+});
+
+export const closeWaiterShiftSchema = z.object({
+  deliveredAmount: z.coerce.number().min(0),
+  sessionId: z.string().uuid(),
+  notes: z.string().max(500).optional(),
 });

@@ -5,6 +5,7 @@ import { createPosOrderService } from "./pos-order-service.js";
 import { createPosFloorService } from "./pos-floor-service.js";
 import { createPosKitchenService } from "./pos-kitchen-service.js";
 import { createPosReservationService } from "./pos-reservation-service.js";
+import { createPosWaiterShiftService } from "./pos-waiter-shift-service.js";
 import { getActorId, getCompanyId, PosServiceError } from "./service-helpers.js";
 import {
   addOrderLineSchema,
@@ -12,6 +13,7 @@ import {
   cancelOrderSchema,
   cashMovementSchema,
   closeSessionSchema,
+  closeWaiterShiftSchema,
   createFloorSchema,
   createGuestSchema,
   createOrderSchema,
@@ -23,6 +25,7 @@ import {
   createTerminalSchema,
   kitchenStatusUpdateSchema,
   openSessionSchema,
+  openWaiterShiftSchema,
   tableStatusUpdateSchema,
   saveLayoutSchema,
   updateFloorSchema,
@@ -68,7 +71,8 @@ export function createPosRouter({ prisma, requirePermission, broadcaster = null 
   const app = new Hono();
   const settingsSvc = createPosSettingsService({ prisma });
   const sessionSvc = createPosSessionService({ prisma });
-  const orderSvc = createPosOrderService({ prisma });
+  const waiterShiftSvc = createPosWaiterShiftService({ prisma });
+  const orderSvc = createPosOrderService({ prisma, waiterShifts: waiterShiftSvc });
   const floorSvc = createPosFloorService({ prisma });
   const kitchenSvc = createPosKitchenService({ prisma });
   const reservationSvc = createPosReservationService({ prisma });
@@ -211,6 +215,66 @@ export function createPosRouter({ prisma, requirePermission, broadcaster = null 
       });
     } catch (err) {
       return handleError(c, err, "No se pudo cerrar la sesion POS.");
+    }
+  });
+
+  app.get("/pos/waiter-shifts", requirePermission("pos.caja.read"), async (c) => {
+    try {
+      return c.json({
+        data: await waiterShiftSvc.listShifts({
+          ...context(c),
+          outletId: c.req.query("outletId") || undefined,
+          status: c.req.query("status") || undefined,
+        }),
+      });
+    } catch (err) {
+      return handleError(c, err, "No se pudieron consultar los cortes de mesero.");
+    }
+  });
+
+  app.get("/pos/waiter-shifts/current", requirePermission("pos.comandas.charge"), async (c) => {
+    try {
+      const ctx = context(c);
+      return c.json({
+        data: await waiterShiftSvc.getCurrentShift({
+          companyId: ctx.companyId,
+          outletId: c.req.query("outletId"),
+          waiterId: ctx.actorId,
+        }),
+      });
+    } catch (err) {
+      return handleError(c, err, "No se pudo consultar el corte actual.");
+    }
+  });
+
+  app.post("/pos/waiter-shifts/open", requirePermission("pos.comandas.charge"), async (c) => {
+    try {
+      const ctx = context(c);
+      const data = await parseBody(c, openWaiterShiftSchema);
+      return c.json({
+        data: await waiterShiftSvc.ensureOpenShift({
+          companyId: ctx.companyId,
+          outletId: data.outletId,
+          waiterId: ctx.actorId,
+        }),
+      }, 201);
+    } catch (err) {
+      return handleError(c, err, "No se pudo abrir el corte de mesero.");
+    }
+  });
+
+  app.post("/pos/waiter-shifts/:id/close", requirePermission("pos.caja.close"), async (c) => {
+    try {
+      const data = await parseBody(c, closeWaiterShiftSchema);
+      return c.json({
+        data: await waiterShiftSvc.closeShift({
+          ...context(c),
+          id: c.req.param("id"),
+          data,
+        }),
+      });
+    } catch (err) {
+      return handleError(c, err, "No se pudo cerrar el corte de mesero.");
     }
   });
 
