@@ -6,7 +6,7 @@ atlas.pos Role-Based Rework: restructure the POS module around work posts (Caja,
 
 ## 2. Status
 
-Proposed
+Approved (2026-07-17)
 
 ## 3. Context
 
@@ -76,7 +76,7 @@ Module `atlas.pos`, base `/app/m/atlas.pos`:
 | `/pos/comandero` | `ComanderoScreen` (floor → table → comanda editor) | `PosTablesScreen` + `PosTerminalScreen` (order side) |
 | `/pos/cocina` | `CocinaScreen` (KDS per station) | `PosStationsScreen` board |
 | `/pos/admin` | `PosAdminScreen` (tabs: general, sucursales/terminales, estaciones, métodos de pago, modificadores, planos) | `PosSettingsScreen`, `PosFloorPlannerScreen` (linked) |
-| `/pos/ordenes` | `PosOrdersScreen` (history — kept as is) | — |
+| `/pos/orders` | `PosOrdersScreen` (history — existing route kept as is) | — |
 
 `FloorOperationalCanvas`, `PaymentDialog`, `SplitBillDialog`, `SessionOpenDialog/CloseDialog`, `CashMovementDialog` are reused inside the new screens.
 
@@ -91,10 +91,10 @@ New entities:
 
 Modified entities:
 
-- **PosOrder**: `sessionId` becomes **nullable** (order no longer requires a cash session).
-- **PosPayment**: gains `sessionId` (nullable) and `waiterShiftId` (nullable) with a CHECK constraint that exactly one is set; line total computation includes modifier `priceDelta` sums.
+- **PosOrder**: `sessionId` is already nullable in the schema (verified 2026-07-17); the service layer already creates orders without a session. F1 documents this as the contract: order creation never requires a session.
+- **PosPayment**: gains `sessionId` (nullable) and `waiterShiftId` (nullable) with a CHECK constraint (`NOT VALID`, so legacy session-less rows survive) that new rows set exactly one; line total computation includes modifier `priceDelta` sums.
 - **PosOrderLine**: gains `notes` (text, nullable) if not present.
-- **PosOutlet**: gains `mode` (`MOSTRADOR` | `RESTAURANTE`, default RESTAURANTE), `allowTableCharge` (bool, default false), `defaultStationId` (nullable FK PosStation), `kitchenKdsEnabled` (bool, default true), `kitchenPrintEnabled` (bool, default false). The global `mode` in PosSettings is deprecated in favor of per-outlet mode.
+- **PosOutlet**: already has per-outlet `mode` using the existing `PosMode` enum (`RESTAURANT` | `RETAIL` | `HYBRID`); this spec maps UI labels "Restaurante" → RESTAURANT and "Mostrador" → RETAIL, and deprecates HYBRID and the global mode in PosSettings. Gains `allowTableCharge` (bool, default false), `defaultStationId` (nullable FK PosKitchenStation), `kitchenKdsEnabled` (bool, default true), `kitchenPrintEnabled` (bool, default false).
 
 ## 11. Prisma impact
 
@@ -139,7 +139,7 @@ Module-local `apps/api/src/routes/pos/validators.js` gains: `waiterShiftOpenSche
 | Caja | `/pos/caja` | CreditCard | `pos.caja.read` |
 | Comandero | `/pos/comandero` | NotebookPen | `pos.comandas.read` |
 | Cocina | `/pos/cocina` | ChefHat | `pos.cocina.read` |
-| Órdenes | `/pos/ordenes` | Receipt | `pos.orders.read` (existing) |
+| Órdenes | `/pos/orders` | ReceiptText | `pos.orders.read` (existing) |
 | Administración | `/pos/admin` | Settings | `pos.admin.read` |
 
 ## 17. Blueprint impact
