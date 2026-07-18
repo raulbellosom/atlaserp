@@ -171,14 +171,36 @@ export function createPosKitchenService({ prisma }) {
 
   async function listTickets({ companyId, stationId, status }) {
     const scopedCompanyId = requireCompanyId(companyId);
-    return prisma.posKitchenTicket.findMany({
+    const tickets = await prisma.posKitchenTicket.findMany({
       where: {
         companyId: scopedCompanyId,
         ...(stationId ? { stationId } : {}),
         ...(status ? { status } : {}),
       },
       orderBy: { sentAt: "asc" },
+      include: { lines: true },
     });
+
+    const orderLineIds = tickets.flatMap((ticket) => (ticket.lines ?? []).map((line) => line.orderLineId));
+    const modifierRows = orderLineIds.length
+      ? await prisma.posOrderLineModifier.findMany({ where: { lineId: { in: orderLineIds } } })
+      : [];
+    const modifiersByLineId = new Map();
+    for (const modifier of modifierRows) {
+      if (!modifiersByLineId.has(modifier.lineId)) modifiersByLineId.set(modifier.lineId, []);
+      modifiersByLineId.get(modifier.lineId).push({
+        groupName: modifier.groupName,
+        optionName: modifier.optionName,
+      });
+    }
+
+    return tickets.map((ticket) => ({
+      ...ticket,
+      lines: (ticket.lines ?? []).map((line) => ({
+        ...line,
+        modifiers: modifiersByLineId.get(line.orderLineId) ?? [],
+      })),
+    }));
   }
 
   async function getTicketInCompany({ companyId, ticketId }) {

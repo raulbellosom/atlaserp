@@ -13,6 +13,7 @@ function makePrisma() {
   const configs = new Map();
   const tickets = new Map();
   const ticketLines = new Map();
+  const orderLineModifiers = new Map();
   const audits = [];
 
   const profiles = new Map([
@@ -28,6 +29,7 @@ function makePrisma() {
     configs,
     tickets,
     ticketLines,
+    orderLineModifiers,
     audits,
     profiles,
     $transaction: async (fn) => fn(prisma),
@@ -149,13 +151,19 @@ function makePrisma() {
         ) ?? null,
     },
     posKitchenTicket: {
-      findMany: async ({ where }) =>
-        [...tickets.values()].filter(
+      findMany: async ({ where, include }) => {
+        const rows = [...tickets.values()].filter(
           (row) =>
             row.companyId === where.companyId &&
             (!where.stationId || row.stationId === where.stationId) &&
             (!where.status || row.status === where.status),
-        ),
+        );
+        if (!include?.lines) return rows;
+        return rows.map((row) => ({
+          ...row,
+          lines: [...ticketLines.values()].filter((l) => l.ticketId === row.id),
+        }));
+      },
       findFirst: async ({ where }) =>
         [...tickets.values()].find((row) => row.id === where.id && row.companyId === where.companyId) ??
         null,
@@ -185,6 +193,12 @@ function makePrisma() {
         const row = { ...ticketLines.get(where.id), ...data };
         ticketLines.set(where.id, row);
         return row;
+      },
+    },
+    posOrderLineModifier: {
+      findMany: async ({ where }) => {
+        const ids = where?.lineId?.in ?? [];
+        return [...orderLineModifiers.values()].filter((row) => ids.includes(row.lineId));
       },
     },
     auditLog: {
@@ -417,5 +431,43 @@ describe("createPosKitchenService", () => {
 
     assert.equal(prisma.ticketLines.get("ticket-line-1").status, "READY");
     assert.equal(prisma.lines.get("line-1").kitchenStatus, "READY");
+  });
+
+  it("listTickets attaches modifiers and note to each board line", async () => {
+    const prisma = makePrisma();
+    const svc = createPosKitchenService({ prisma });
+    prisma.stations.set("station-1", { id: "station-1", companyId: "company-1", outletId: "outlet-1", enabled: true });
+    prisma.tickets.set("ticket-1", {
+      id: "ticket-1",
+      companyId: "company-1",
+      stationId: "station-1",
+      status: "PENDING",
+      sentAt: new Date(),
+    });
+    prisma.ticketLines.set("ticket-line-1", {
+      id: "ticket-line-1",
+      ticketId: "ticket-1",
+      orderLineId: "line-1",
+      quantity: 1,
+      status: "PENDING",
+      note: "Sin cebolla",
+    });
+    prisma.orderLineModifiers.set("mod-1", {
+      id: "mod-1",
+      lineId: "line-1",
+      optionId: "option-1",
+      groupName: "Salsa",
+      optionName: "Extra queso",
+      priceDelta: 10,
+    });
+
+    const tickets = await svc.listTickets({ companyId: "company-1", stationId: "station-1" });
+
+    assert.equal(tickets.length, 1);
+    const [line] = tickets[0].lines;
+    assert.equal(line.note, "Sin cebolla");
+    assert.equal(line.modifiers.length, 1);
+    assert.equal(line.modifiers[0].optionName, "Extra queso");
+    assert.equal(line.modifiers[0].groupName, "Salsa");
   });
 });
