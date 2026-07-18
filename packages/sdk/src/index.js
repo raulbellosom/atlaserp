@@ -1229,6 +1229,28 @@ export function createAtlasClient({ baseUrl }) {
             body: JSON.stringify(data),
           },
         ),
+      listProductModifierGroups: (productId, query, token) =>
+        request(`/pos/products/${encodeURIComponent(productId)}/modifier-groups${toQueryString(query)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      listModifierGroups: (query, token) =>
+        request(`/pos/modifier-groups${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+      createModifierGroup: (productId, data, token) =>
+        request(`/pos/products/${encodeURIComponent(productId)}/modifier-groups`, {
+          method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data),
+        }),
+      updateModifierGroup: (id, data, token) =>
+        request(`/pos/modifier-groups/${encodeURIComponent(id)}`, {
+          method: "PATCH", headers: withAuthHeaders(token), body: JSON.stringify(data),
+        }),
+      createModifierOption: (groupId, data, token) =>
+        request(`/pos/modifier-groups/${encodeURIComponent(groupId)}/options`, {
+          method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data),
+        }),
+      updateModifierOption: (id, data, token) =>
+        request(`/pos/modifier-options/${encodeURIComponent(id)}`, {
+          method: "PATCH", headers: withAuthHeaders(token), body: JSON.stringify(data),
+        }),
     },
     notifications: {
       list: (token, query = {}) =>
