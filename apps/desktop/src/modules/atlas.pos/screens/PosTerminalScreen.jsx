@@ -93,7 +93,7 @@ export default function PosTerminalScreen() {
   const [orderSheetOpen, setOrderSheetOpen] = useState(false)
   const [pendingLines, setPendingLines] = useState([])
 
-  const { data: outlets = [] } = usePosOutlets()
+  const { data: outlets = [], isLoading: outletsLoading } = usePosOutlets()
   const { data: allTerminals = [] } = usePosTerminals()
 
   const terminals = useMemo(
@@ -113,7 +113,9 @@ export default function PosTerminalScreen() {
 
   const { data: posSettingsRaw } = usePosSettings()
   const posMode = (posSettingsRaw?.data ?? posSettingsRaw)?.mode ?? 'RESTAURANT'
-  const isRetail = posMode === 'RETAIL'
+  // Terminal mode follows its configured outlet; fall back to the global setting
+  // only while outlet data hasn't loaded yet, to avoid a mode flicker.
+  const isRetail = outletsLoading ? posMode === 'RETAIL' : currentOutlet?.mode === 'RETAIL'
 
   const qc = useQueryClient()
   const createOrder = useCreatePosOrder()
