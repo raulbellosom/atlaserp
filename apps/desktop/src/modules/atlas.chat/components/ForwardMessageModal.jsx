@@ -153,7 +153,7 @@ export function ForwardMessageModal({ open, onClose, message, conversations }) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent size="lg">
+      <DialogContent size="lg" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <Share2 className="h-4 w-4 shrink-0" />
