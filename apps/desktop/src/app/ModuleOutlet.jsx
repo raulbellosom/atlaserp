@@ -243,7 +243,7 @@ const SCREEN_MAP = {
       import("../modules/atlas.catalog/screens/CatalogProductDetailScreen.jsx"),
   ),
   "atlas.pos:/": lazy(
-    () => import("../modules/atlas.pos/screens/PosTerminalScreen.jsx"),
+    () => import("../modules/atlas.pos/screens/PosHomeRedirect.jsx"),
   ),
   "atlas.pos:/pos/terminal": lazy(
     () => import("../modules/atlas.pos/screens/PosTerminalScreen.jsx"),
@@ -265,6 +265,18 @@ const SCREEN_MAP = {
   ),
   "atlas.pos:/pos/settings": lazy(
     () => import("../modules/atlas.pos/screens/PosSettingsScreen.jsx"),
+  ),
+  "atlas.pos:/pos/caja": lazy(
+    () => import("../modules/atlas.pos/screens/CajaScreen.jsx"),
+  ),
+  "atlas.pos:/pos/comandero": lazy(
+    () => import("../modules/atlas.pos/screens/ComanderoScreen.jsx"),
+  ),
+  "atlas.pos:/pos/cocina": lazy(
+    () => import("../modules/atlas.pos/screens/CocinaScreen.jsx"),
+  ),
+  "atlas.pos:/pos/admin": lazy(
+    () => import("../modules/atlas.pos/screens/PosAdminScreen.jsx"),
   ),
   "atlas.activity:/": lazy(
     () => import("../modules/atlas.activity/ActivityFeedScreen.jsx"),
