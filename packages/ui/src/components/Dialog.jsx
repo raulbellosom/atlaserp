@@ -109,7 +109,7 @@ const DialogContent = forwardRef(function DialogContent(
       >
         {/* Drag handle — mobile only; handles swipe-to-dismiss */}
         <div
-          className="mx-auto mb-4 h-1.5 w-12 shrink-0 rounded-full bg-[hsl(var(--muted-foreground))]/50 md:hidden cursor-grab active:cursor-grabbing touch-none"
+          className="mx-auto mb-4 h-1.5 w-16 shrink-0 rounded-full bg-foreground/25 md:hidden cursor-grab active:cursor-grabbing touch-none"
           aria-hidden="true"
           onPointerDown={handleDragPointerDown}
           onPointerMove={handleDragPointerMove}

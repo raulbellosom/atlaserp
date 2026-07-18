@@ -162,7 +162,7 @@ const SheetContent = forwardRef(function SheetContent(
         {/* Drag handle — visible only on bottom sheet; handles swipe-to-dismiss */}
         {effectiveSide === "bottom" && (
           <div
-            className="mx-auto -mt-1 mb-2 h-1.5 w-12 shrink-0 rounded-full bg-[hsl(var(--muted-foreground))]/50 cursor-grab active:cursor-grabbing touch-none"
+            className="mx-auto -mt-1 mb-3 h-1.5 w-16 shrink-0 rounded-full bg-foreground/25 cursor-grab active:cursor-grabbing touch-none"
             aria-hidden="true"
             onPointerDown={handleDragPointerDown}
             onPointerMove={handleDragPointerMove}
