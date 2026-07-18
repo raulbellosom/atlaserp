@@ -1,3 +1,6 @@
-// F1 placeholder: Comandero post mounts the tables floor.
-// F2 replaces this with the mobile comanda editor.
-export { default } from "./PosTablesScreen.jsx";
+import PosTablesScreen from "./PosTablesScreen.jsx";
+
+// Comandero post: the shared floor in comandero mode — table taps open the mobile comanda editor.
+export default function ComanderoScreen() {
+  return <PosTablesScreen comanderoMode />;
+}

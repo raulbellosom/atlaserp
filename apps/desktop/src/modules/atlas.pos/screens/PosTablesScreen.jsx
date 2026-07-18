@@ -185,7 +185,7 @@ function TableActionPanel({ actionTable, onClose, onNavigateToOrder, onMarkClean
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
-export default function PosTablesScreen() {
+export default function PosTablesScreen({ comanderoMode = false }) {
   const navigate = useNavigate()
   const containerRef = useRef(null)
   const { data: outlets = [] } = usePosOutlets()
@@ -256,6 +256,10 @@ export default function PosTablesScreen() {
   }
 
   function navigateToOrder(table) {
+    if (comanderoMode) {
+      navigate(`/app/m/atlas.pos/pos/comandero/mesa/${table.id}`)
+      return
+    }
     const existingOrder = activeOrders.find((o) => o.tableId === table.id)
     if (existingOrder) {
       navigate(`/app/m/atlas.pos/pos/terminal?order=${existingOrder.id}`)
@@ -343,6 +347,10 @@ export default function PosTablesScreen() {
         { id: reservationId },
         {
           onSuccess: (res) => {
+            if (comanderoMode) {
+              navigate(`/app/m/atlas.pos/pos/comandero/mesa/${table.id}`)
+              return
+            }
             const orderId = (res?.data ?? res)?.id
             if (!orderId) { toast.error('No se pudo obtener la orden'); return }
             navigate(`/app/m/atlas.pos/pos/terminal?order=${orderId}`)

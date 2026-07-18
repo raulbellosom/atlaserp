@@ -272,6 +272,9 @@ const SCREEN_MAP = {
   "atlas.pos:/pos/comandero": lazy(
     () => import("../modules/atlas.pos/screens/ComanderoScreen.jsx"),
   ),
+  "atlas.pos:/pos/comandero/mesa/:tableId": lazy(
+    () => import("../modules/atlas.pos/screens/ComandaScreen.jsx"),
+  ),
   "atlas.pos:/pos/cocina": lazy(
     () => import("../modules/atlas.pos/screens/CocinaScreen.jsx"),
   ),
@@ -521,6 +524,7 @@ function resolveScreen(moduleKey, subPath) {
     if (subPath === "/pos/orders") return SCREEN_MAP["atlas.pos:/pos/orders"] ?? null;
     if (subPath === "/pos/sessions") return SCREEN_MAP["atlas.pos:/pos/sessions"] ?? null;
     if (subPath === "/pos/settings") return SCREEN_MAP["atlas.pos:/pos/settings"] ?? null;
+    if (/^\/pos\/comandero\/mesa\/[^/]+$/.test(subPath)) return SCREEN_MAP["atlas.pos:/pos/comandero/mesa/:tableId"] ?? null;
     return null;
   }
   if (moduleKey === "atlas.inventory") {
