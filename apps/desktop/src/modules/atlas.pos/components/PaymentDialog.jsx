@@ -11,7 +11,7 @@ import SplitBillDialog from './SplitBillDialog'
 
 const METHOD_ICONS = { CASH: Banknote, cash: Banknote, CARD: CreditCard, card: CreditCard, TRANSFER: Smartphone, transfer: Smartphone }
 
-export default function PaymentDialog({ open, onOpenChange, order, onSuccess }) {
+export default function PaymentDialog({ open, onOpenChange, order, onSuccess, sessionId = null }) {
   const { data: methods = [] } = usePosPaymentMethods()
   const addPayment = useAddPosPayment()
   const [selectedMethod, setSelectedMethod] = useState(null)
@@ -28,7 +28,12 @@ export default function PaymentDialog({ open, onOpenChange, order, onSuccess }) 
     if (!selectedMethod) return
     const payAmount = amount === '' ? totalDue : amountNum
     addPayment.mutate(
-      { orderId: order.id, paymentMethodId: selectedMethod, amount: payAmount },
+      {
+        orderId: order.id,
+        paymentMethodId: selectedMethod,
+        amount: payAmount,
+        ...(sessionId ? { sessionId } : {}),
+      },
       {
         onSuccess: (data) => {
           setAmount('')
@@ -57,6 +62,7 @@ export default function PaymentDialog({ open, onOpenChange, order, onSuccess }) 
         }}
         order={order}
         paymentMethodId={selectedMethod}
+        sessionId={sessionId}
         onFullyPaid={() => onSuccess?.()}
       />
     )

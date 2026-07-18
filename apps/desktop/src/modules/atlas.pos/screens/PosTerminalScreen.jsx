@@ -478,6 +478,7 @@ export default function PosTerminalScreen() {
           onOpenChange={setPayDialog}
           order={activeOrder}
           onSuccess={() => setActiveOrderId(null)}
+          sessionId={currentSession?.id ?? null}
         />
       )}
 

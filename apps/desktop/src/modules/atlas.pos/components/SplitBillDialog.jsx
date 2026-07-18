@@ -5,7 +5,7 @@ import {
 import { useOrderSeatTotals, useAddPosPayment } from '../hooks/usePosOrder'
 import { usePosPaymentMethods } from '../hooks/usePosSettings'
 
-export default function SplitBillDialog({ open, onOpenChange, order, paymentMethodId, onFullyPaid }) {
+export default function SplitBillDialog({ open, onOpenChange, order, paymentMethodId, onFullyPaid, sessionId = null }) {
   const { data: totals, isLoading } = useOrderSeatTotals(open ? order?.id : null)
   const addPayment = useAddPosPayment()
   const { data: methods = [] } = usePosPaymentMethods()
@@ -19,7 +19,12 @@ export default function SplitBillDialog({ open, onOpenChange, order, paymentMeth
   function handleChargeSeat(seat) {
     if (!order?.id || !effectiveMethodId) return
     addPayment.mutate(
-      { orderId: order.id, paymentMethodId: effectiveMethodId, amount: seat.total },
+      {
+        orderId: order.id,
+        paymentMethodId: effectiveMethodId,
+        amount: seat.total,
+        ...(sessionId ? { sessionId } : {}),
+      },
       {
         onSuccess: () => {
           const remaining = Number(totals?.remaining ?? 0) - Number(seat.total)
