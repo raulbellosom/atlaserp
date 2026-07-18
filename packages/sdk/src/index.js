@@ -1251,6 +1251,14 @@ export function createAtlasClient({ baseUrl }) {
         request(`/pos/modifier-options/${encodeURIComponent(id)}`, {
           method: "PATCH", headers: withAuthHeaders(token), body: JSON.stringify(data),
         }),
+      listProductConfigs: (token) =>
+        request("/pos/product-configs", { headers: withAuthHeaders(token) }),
+      updateProductConfig: (productId, data, token) =>
+        request(`/pos/products/${encodeURIComponent(productId)}/config`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
     },
     notifications: {
       list: (token, query = {}) =>

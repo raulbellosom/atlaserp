@@ -307,3 +307,11 @@ export const updateModifierOptionSchema = z.object({
   position: z.coerce.number().int().min(0).optional(),
   enabled: z.boolean().optional(),
 });
+
+export const updateProductConfigSchema = z
+  .object({
+    stationId: uuidSchema.nullable().optional(),
+    requiresPreparation: z.boolean().optional(),
+    availableInPos: z.boolean().optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: "Nada que actualizar." });

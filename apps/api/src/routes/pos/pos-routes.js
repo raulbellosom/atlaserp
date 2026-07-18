@@ -38,6 +38,7 @@ import {
   updateOrderSchema,
   updateOutletSchema,
   updatePaymentMethodSchema,
+  updateProductConfigSchema,
   updateSettingsSchema,
   updateStationSchema,
   updateTableSchema,
@@ -758,6 +759,26 @@ export function createPosRouter({ prisma, requirePermission, broadcaster = null 
       return c.json({ data: await modifierSvc.updateOption({ ...context(c), id: c.req.param("id"), data }) });
     } catch (err) {
       return handleError(c, err, "No se pudo actualizar la opción de modificador.");
+    }
+  });
+
+  // ── Product Config ─────────────────────────────────────────────────────────
+  app.get("/pos/product-configs", requirePermission("pos.admin.read"), async (c) => {
+    try {
+      return c.json({ data: await kitchenSvc.listProductConfigs(context(c)) });
+    } catch (err) {
+      return handleError(c, err, "No se pudieron consultar las configuraciones de productos.");
+    }
+  });
+
+  app.put("/pos/products/:productId/config", requirePermission("pos.admin.update"), async (c) => {
+    try {
+      const data = await parseBody(c, updateProductConfigSchema);
+      return c.json({
+        data: await kitchenSvc.updateProductConfig({ ...context(c), productId: c.req.param("productId"), data }),
+      });
+    } catch (err) {
+      return handleError(c, err, "No se pudo actualizar la configuración del producto.");
     }
   });
 
