@@ -15,6 +15,7 @@ import {
   usePosPaymentMethods, useCreatePosPaymentMethod, useUpdatePosPaymentMethod,
 } from '../hooks/usePosSettings'
 import OutletFlagsFields from '../components/OutletFlagsFields.jsx'
+import PosModifiersTab from '../components/PosModifiersTab.jsx'
 
 function StatusPill({ active }) {
   return (
@@ -56,12 +57,14 @@ export default function PosSettingsScreen() {
                 <span className="sm:hidden">Pagos</span>
                 <span className="hidden sm:inline">Métodos de pago</span>
               </TabsTrigger>
+              <TabsTrigger value="modifiers">Modificadores</TabsTrigger>
             </TabsList>
           </div>
           <TabsContent value="general"><GeneralTab /></TabsContent>
           <TabsContent value="outlets"><OutletsTab /></TabsContent>
           <TabsContent value="stations"><StationsTab /></TabsContent>
           <TabsContent value="payments"><PaymentMethodsTab /></TabsContent>
+          <TabsContent value="modifiers"><PosModifiersTab /></TabsContent>
         </Tabs>
       </div>
     </div>
