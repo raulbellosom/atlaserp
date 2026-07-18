@@ -2209,6 +2209,8 @@ model PosOrderLine {
   order     PosOrder      @relation(fields: [orderId], references: [id], onDelete: Cascade)
   guestSeat PosGuestSeat? @relation(fields: [guestSeatId], references: [id], onDelete: SetNull)
 
+  modifiers PosOrderLineModifier[]
+
   @@index([orderId])
   @@index([productId])
   @@map("pos_order_line")
@@ -2443,6 +2445,58 @@ model PosProductConfig {
   @@unique([companyId, productId, variantId])
   @@index([companyId, availableInPos])
   @@map("pos_product_config")
+}
+
+model PosModifierGroup {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String   @db.Uuid @map("company_id")
+  productId String   @db.Uuid @map("product_id")
+  name      String
+  minSelect Int      @default(0) @map("min_select")
+  maxSelect Int      @default(1) @map("max_select")
+  required  Boolean  @default(false)
+  position  Int      @default(0)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  options PosModifierOption[]
+
+  @@unique([companyId, productId, name])
+  @@index([companyId, productId, enabled])
+  @@map("pos_modifier_group")
+}
+
+model PosModifierOption {
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId  String   @db.Uuid @map("company_id")
+  groupId    String   @db.Uuid @map("group_id")
+  name       String
+  priceDelta Decimal  @default(0.00) @db.Decimal(12, 2) @map("price_delta")
+  position   Int      @default(0)
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  group PosModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, enabled])
+  @@map("pos_modifier_option")
+}
+
+model PosOrderLineModifier {
+  id         String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId  String  @db.Uuid @map("company_id")
+  lineId     String  @db.Uuid @map("line_id")
+  optionId   String  @db.Uuid @map("option_id")
+  groupName  String  @map("group_name")
+  optionName String  @map("option_name")
+  priceDelta Decimal @default(0.00) @db.Decimal(12, 2) @map("price_delta")
+
+  line PosOrderLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+
+  @@index([lineId])
+  @@map("pos_order_line_modifier")
 }
 
 model PosReceipt {
