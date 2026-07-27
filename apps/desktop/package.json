@@ -24,7 +24,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.4.0",
     "@radix-ui/react-dialog": "^1.1.15",
-    "@raulbellosom/atlas-web-builder": "^0.1.0",
+    "@raulbellosom/atlas-web-builder": "^0.2.0",
     "@supabase/supabase-js": "^2.105.1",
     "@tanstack/react-query": "latest",
     "@tanstack/react-query-persist-client": "^5.101.0",
