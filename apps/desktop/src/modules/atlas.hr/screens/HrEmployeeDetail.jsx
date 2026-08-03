@@ -833,15 +833,18 @@ export default function HrEmployeeDetail({ employeeId }) {
   });
 
   const userAvatarQuery = useQuery({
-    queryKey: ["hr-user-avatar", employee?.userProfile?.avatarFileId],
+    queryKey: ["hr-user-avatar", employee?.userProfile?.id],
     queryFn: async () => {
-      const res = await atlas.files.getSignedUrl(
-        employee.userProfile.avatarFileId,
+      const res = await atlas.identity.getUserAvatarSignedUrl(
+        employee.userProfile.id,
         token,
+        { variant: "card" },
       );
       return res?.data?.signedUrl ?? "";
     },
-    enabled: Boolean(token && employee?.userProfile?.avatarFileId),
+    enabled: Boolean(
+      token && employee?.userProfile?.id && employee?.userProfile?.avatarFileId,
+    ),
     staleTime: 2 * 60 * 1000,
   });
 
