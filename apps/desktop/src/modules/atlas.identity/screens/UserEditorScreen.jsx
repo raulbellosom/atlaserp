@@ -318,8 +318,8 @@ export default function UserEditorScreen() {
               <button
                 type="button"
                 className="group relative w-fit rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
-                disabled={!user?.avatarUrl}
-                onClick={() => user?.avatarUrl && setImageViewerOpen(true)}
+                disabled={!user?.avatarFileId}
+                onClick={() => user?.avatarFileId && setImageViewerOpen(true)}
               >
                 <Avatar className="h-20 w-20">
                   <AvatarImage

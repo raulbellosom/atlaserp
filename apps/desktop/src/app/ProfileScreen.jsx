@@ -243,8 +243,8 @@ export function ProfileScreen() {
                     <button
                       type="button"
                       aria-label="Ver foto de perfil"
-                      disabled={!profile?.avatarUrl || avatarMutation.isPending}
-                      onClick={() => profile?.avatarUrl && setImageViewerOpen(true)}
+                      disabled={!profile?.avatarFileId || avatarMutation.isPending}
+                      onClick={() => profile?.avatarFileId && setImageViewerOpen(true)}
                       className="relative block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:pointer-events-none"
                     >
                       <Avatar className="h-20 w-20">
