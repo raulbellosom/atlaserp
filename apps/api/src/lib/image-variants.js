@@ -8,7 +8,12 @@ export const IMAGE_VARIANTS = Object.freeze({
   thumb: Object.freeze({ width: 40, height: 40, resize: 'cover', quality: 70 }),
   card: Object.freeze({ width: 96, height: 96, resize: 'cover', quality: 75 }),
   banner: Object.freeze({ width: 1600, height: 400, resize: 'cover', quality: 80 }),
+  // Forces a height, so it letterboxes/pads into a fixed box — use only where
+  // the source image's aspect ratio is known/controlled (e.g. product photos).
   product: Object.freeze({ width: 480, height: 480, resize: 'contain', quality: 80 }),
+  // No forced height — scales to fit the width, preserving aspect ratio, no
+  // crop and no letterbox. Use for arbitrary-aspect content images where
+  // cropping to a fixed box would cut off real content.
   content: Object.freeze({ width: 1600, quality: 80 }),
   full: null,
 })
