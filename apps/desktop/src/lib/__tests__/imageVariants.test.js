@@ -33,6 +33,15 @@ test('leaves non-Supabase-public-object URLs unchanged (e.g. already-signed or b
   assert.equal(withImageVariant(blobUrl, 'banner'), blobUrl);
 });
 
+test('appends the preset query params with & when the URL already has a query string', () => {
+  const urlWithQuery = `${PUBLIC_URL}?download=true`;
+  const result = withImageVariant(urlWithQuery, 'thumb');
+  assert.equal(
+    result,
+    'https://supabase.racoondevs.com/storage/v1/render/image/public/atlas-notes/notes/u1/n1/123-cover.jpg?download=true&width=40&height=40&resize=cover&quality=70',
+  );
+});
+
 test('IMAGE_VARIANT_PRESETS mirrors the backend presets used for banners', () => {
   assert.deepEqual(IMAGE_VARIANT_PRESETS.banner, { width: 1600, height: 400, resize: 'cover', quality: 80 });
 });
