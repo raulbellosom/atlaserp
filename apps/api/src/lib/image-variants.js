@@ -1,0 +1,42 @@
+// apps/api/src/lib/image-variants.js
+
+// Named image-transform presets applied to Supabase Storage signed/public URLs
+// via the imgproxy sidecar (confirmed active on the self-hosted instance —
+// see docs/superpowers/specs/2026-08-03-image-thumbnail-variants-design.md).
+// `full` means "no transform, serve the original".
+export const IMAGE_VARIANTS = {
+  thumb: { width: 40, height: 40, resize: 'cover', quality: 70 },
+  card: { width: 96, height: 96, resize: 'cover', quality: 75 },
+  banner: { width: 1600, height: 400, resize: 'cover', quality: 80 },
+  product: { width: 480, height: 480, resize: 'contain', quality: 80 },
+  full: null,
+}
+
+function transformOptions(variant) {
+  const preset = IMAGE_VARIANTS[variant]
+  return preset ? { transform: preset } : {}
+}
+
+export async function signedUrlWithVariant(supabaseAdmin, bucket, objectKey, variant, expiresIn = 3600) {
+  if (!bucket || !objectKey) return null
+  const { data, error } = await supabaseAdmin.storage
+    .from(bucket)
+    .createSignedUrl(objectKey, expiresIn, transformOptions(variant))
+  if (error) return null
+  return data?.signedUrl ?? null
+}
+
+export async function signedUrlsWithVariant(supabaseAdmin, bucket, objectKeys, variant, expiresIn = 3600) {
+  if (!bucket || !objectKeys?.length) return []
+  const { data, error } = await supabaseAdmin.storage
+    .from(bucket)
+    .createSignedUrls(objectKeys, expiresIn, transformOptions(variant))
+  if (error || !Array.isArray(data)) return objectKeys.map(() => null)
+  return data.map((entry) => entry?.signedUrl ?? null)
+}
+
+export function publicUrlWithVariant(supabaseAdmin, bucket, objectKey, variant) {
+  if (!bucket || !objectKey) return null
+  const { data } = supabaseAdmin.storage.from(bucket).getPublicUrl(objectKey, transformOptions(variant))
+  return data?.publicUrl ?? null
+}
