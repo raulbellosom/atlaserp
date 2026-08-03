@@ -1,9 +1,12 @@
 import { NodeViewWrapper } from '@tiptap/react'
 import { useRef, useState } from 'react'
+import { GripVertical } from 'lucide-react'
+import { findDropPosition, moveNode } from '../lib/dragReorder.js'
+import { withImageVariant } from '../../../lib/imageVariants.js'
 
 const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#1a1a1a', '#ffffff']
 
-export function ImageAnnotationOverlay({ node, updateAttributes, editor }) {
+export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos }) {
   const svgRef = useRef(null)
   const [tool, setTool] = useState('arrow')
   const [color, setColor] = useState('#ef4444')
@@ -11,9 +14,56 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor }) {
   const [draft, setDraft] = useState(null)
   // For inline text input — no window.prompt() allowed
   const [textInput, setTextInput] = useState(null) // { screenX, screenY, svgX, svgY }
+  // Drop indicator shown while dragging the image to reorder it (mouse + touch)
+  const [dropIndicator, setDropIndicator] = useState(null) // { top, left, width }
+  const dragRef = useRef(null) // { pointerId, dropPos }
   const annotations = JSON.parse(node.attrs.annotations || '[]')
 
   const editable = editor?.isEditable !== false
+
+  function getIndicatorRect(view, pos) {
+    const { doc } = view.state
+    let dom = pos < doc.content.size ? view.nodeDOM(pos) : null
+    if (dom?.getBoundingClientRect) {
+      const rect = dom.getBoundingClientRect()
+      return { top: rect.top, left: rect.left, width: rect.width }
+    }
+    // Dropping after the last node — anchor below it
+    let lastDom = null
+    doc.forEach((_n, offset) => { lastDom = view.nodeDOM(offset) ?? lastDom })
+    if (lastDom?.getBoundingClientRect) {
+      const rect = lastDom.getBoundingClientRect()
+      return { top: rect.bottom, left: rect.left, width: rect.width }
+    }
+    const containerRect = view.dom.getBoundingClientRect()
+    return { top: containerRect.top, left: containerRect.left, width: containerRect.width }
+  }
+
+  function onHandlePointerDown(e) {
+    if (!editable || typeof getPos !== 'function') return
+    e.preventDefault()
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragRef.current = { pointerId: e.pointerId, dropPos: null }
+  }
+
+  function onHandlePointerMove(e) {
+    if (!dragRef.current || dragRef.current.pointerId !== e.pointerId) return
+    const view = editor.view
+    const dropPos = findDropPosition(view, e.clientY)
+    dragRef.current.dropPos = dropPos
+    setDropIndicator(getIndicatorRect(view, dropPos))
+  }
+
+  function onHandlePointerUp(e) {
+    if (!dragRef.current || dragRef.current.pointerId !== e.pointerId) return
+    const { dropPos } = dragRef.current
+    dragRef.current = null
+    setDropIndicator(null)
+    if (dropPos !== null) {
+      moveNode(editor, getPos(), dropPos)
+    }
+  }
 
   function getSvgPos(e) {
     const svg = svgRef.current
@@ -148,6 +198,18 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor }) {
     <NodeViewWrapper className="relative my-2 inline-block w-full">
       {editable && (
         <div className="flex items-center gap-2 py-1 px-2 bg-gray-50 border border-gray-200 rounded-t text-xs flex-wrap">
+          <button
+            title="Arrastrar para mover la imagen"
+            className="flex items-center justify-center w-7 h-7 -ml-1 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700 cursor-grab active:cursor-grabbing shrink-0"
+            style={{ touchAction: 'none' }}
+            onPointerDown={onHandlePointerDown}
+            onPointerMove={onHandlePointerMove}
+            onPointerUp={onHandlePointerUp}
+            onPointerCancel={onHandlePointerUp}
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
+          <div className="h-4 w-px bg-gray-200" />
           {['arrow', 'rect', 'text'].map(t => (
             <button key={t} onClick={() => setTool(t)}
               className={`px-2 py-0.5 rounded font-medium capitalize ${tool === t ? 'bg-amber-100 text-amber-700' : 'text-gray-600 hover:bg-gray-100'}`}>
@@ -173,7 +235,7 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor }) {
       )}
       <div className="relative" style={{ userSelect: 'none' }}>
         <img
-          src={node.attrs.src}
+          src={withImageVariant(node.attrs.src, 'banner')}
           alt={node.attrs.alt ?? ''}
           className="w-full block rounded-b"
           draggable={false}
@@ -208,6 +270,12 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor }) {
           />
         )}
       </div>
+      {dropIndicator && (
+        <div
+          className="fixed h-0.5 bg-amber-500 rounded-full z-50 pointer-events-none"
+          style={{ top: dropIndicator.top, left: dropIndicator.left, width: dropIndicator.width }}
+        />
+      )}
     </NodeViewWrapper>
   )
 }
