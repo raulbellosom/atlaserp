@@ -95,7 +95,7 @@ export default function UserEditorScreen() {
 
   const fullAvatarQuery = useQuery({
     queryKey: ["user-avatar-full", user?.avatarFileId],
-    queryFn: () => atlas.files.getSignedUrl(user.avatarFileId, token, { variant: "full" }),
+    queryFn: () => atlas.files.getSignedUrl(user?.avatarFileId, token, { variant: "full" }),
     enabled: Boolean(token && imageViewerOpen && user?.avatarFileId),
     staleTime: 5 * 60 * 1000,
   });
