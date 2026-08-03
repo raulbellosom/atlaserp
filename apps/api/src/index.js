@@ -2058,7 +2058,8 @@ app.get(
     try {
       const authUserId = c.get("authUserId");
       const id = c.req.param("id");
-      const data = await filesService.getSignedUrl({ authUserId, id });
+      const variant = c.req.query("variant") || "full";
+      const data = await filesService.getSignedUrl({ authUserId, id, variant });
       return c.json({ data });
     } catch (err) {
       if (err instanceof FilesServiceError) {

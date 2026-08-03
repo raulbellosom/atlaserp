@@ -1,4 +1,5 @@
 ﻿import JSZip from "jszip";
+import { signedUrlWithVariant, publicUrlWithVariant } from "../lib/image-variants.js";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const SIGNED_URL_SECONDS = 3600;
@@ -597,7 +598,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       };
     },
 
-    async getSignedUrl({ authUserId, id }) {
+    async getSignedUrl({ authUserId, id, variant = "full" }) {
       const { companyId } = await getUserCompanyContext(authUserId);
       const file = await ensureFileBelongsToCompany({
         fileId: id,
@@ -606,15 +607,19 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       });
 
       if (file.visibility === "PUBLIC" || file.bucket === WEBSITE_BUCKET_NAME) {
-        const { data } = supabaseAdmin.storage.from(file.bucket).getPublicUrl(file.objectKey)
-        return { signedUrl: data.publicUrl, expiresIn: null, permanent: true }
+        const publicUrl = publicUrlWithVariant(supabaseAdmin, file.bucket, file.objectKey, variant)
+        return { signedUrl: publicUrl, expiresIn: null, permanent: true }
       }
 
-      const { data, error } = await supabaseAdmin.storage
-        .from(file.bucket)
-        .createSignedUrl(file.objectKey, SIGNED_URL_SECONDS);
+      const signedUrl = await signedUrlWithVariant(
+        supabaseAdmin,
+        file.bucket,
+        file.objectKey,
+        variant,
+        SIGNED_URL_SECONDS,
+      );
 
-      if (error || !data?.signedUrl) {
+      if (!signedUrl) {
         throw new FilesServiceError(
           "No se pudo generar el enlace de descarga.",
           500,
@@ -622,7 +627,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       }
 
       return {
-        signedUrl: data.signedUrl,
+        signedUrl,
         expiresIn: SIGNED_URL_SECONDS,
       };
     },
