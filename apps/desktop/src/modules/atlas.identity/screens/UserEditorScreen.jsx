@@ -93,6 +93,13 @@ export default function UserEditorScreen() {
   );
   const membership = user?.memberships?.[0] ?? null;
 
+  const fullAvatarQuery = useQuery({
+    queryKey: ["user-avatar-full", user?.avatarFileId],
+    queryFn: () => atlas.files.getSignedUrl(user.avatarFileId, token, { variant: "full" }),
+    enabled: Boolean(token && imageViewerOpen && user?.avatarFileId),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const [draft, setDraft] = useState(null);
 
   const updateUserMutation = useMutation({
@@ -693,7 +700,7 @@ export default function UserEditorScreen() {
       <ImageViewer
         open={imageViewerOpen}
         onOpenChange={setImageViewerOpen}
-        src={user?.avatarUrl || ""}
+        src={fullAvatarQuery.data?.data?.signedUrl || user?.avatarUrl || ""}
         alt={user?.displayName || "Foto de perfil"}
       />
 
