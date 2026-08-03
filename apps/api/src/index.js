@@ -90,6 +90,10 @@ import {
   delByPrefix as cacheDelByPrefix,
   TTL,
 } from "./lib/cache.js";
+import {
+  signedUrlWithVariant,
+  signedUrlsWithVariant,
+} from "./lib/image-variants.js";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 loadEnv({
@@ -549,16 +553,18 @@ async function ensureSetupAdminRole(db) {
   });
 }
 
-async function getSignedUrlByFileId(fileId) {
+async function getSignedUrlByFileId(fileId, variant = "full") {
   if (!fileId) return null;
   const fileAsset = await prisma.fileAsset.findUnique({
     where: { id: fileId },
   });
   if (!fileAsset) return null;
-  const { data } = await supabaseAdmin.storage
-    .from(fileAsset.bucket)
-    .createSignedUrl(fileAsset.objectKey, 3600);
-  return data?.signedUrl ?? null;
+  return signedUrlWithVariant(
+    supabaseAdmin,
+    fileAsset.bucket,
+    fileAsset.objectKey,
+    variant,
+  );
 }
 
 function toPositiveInt(value, fallback, { min = 1, max = 500 } = {}) {
@@ -657,7 +663,7 @@ function buildIdentityUsersWhere({ search, enabled }) {
   return where;
 }
 
-async function buildAvatarUrlMapByFileIds(fileIds) {
+async function buildAvatarUrlMapByFileIds(fileIds, variant = "thumb") {
   const avatarUrlMap = new Map();
   if (!fileIds.length) return avatarUrlMap;
 
@@ -673,16 +679,15 @@ async function buildAvatarUrlMapByFileIds(fileIds) {
   await Promise.all(
     [...byBucket.entries()].map(async ([bucket, assets]) => {
       const paths = assets.map((asset) => asset.objectKey);
-      const { data: signedList } = await supabaseAdmin.storage
-        .from(bucket)
-        .createSignedUrls(paths, 3600);
-      if (!Array.isArray(signedList)) return;
-      for (let index = 0; index < assets.length; index += 1) {
-        avatarUrlMap.set(
-          assets[index].id,
-          signedList[index]?.signedUrl ?? null,
-        );
-      }
+      const signedUrls = await signedUrlsWithVariant(
+        supabaseAdmin,
+        bucket,
+        paths,
+        variant,
+      );
+      assets.forEach((asset, index) => {
+        avatarUrlMap.set(asset.id, signedUrls[index] ?? null);
+      });
     }),
   );
 
@@ -1140,7 +1145,10 @@ app.get("/user/me", authMiddleware, async (c) => {
   try {
     const context = await getOrLoadUserContext(c);
     if (!context?.profile) return c.json({ error: "Profile not found" }, 404);
-    const avatarUrl = await getSignedUrlByFileId(context.profile.avatarFileId);
+    const avatarUrl = await getSignedUrlByFileId(
+      context.profile.avatarFileId,
+      "card",
+    );
     return c.json({
       id: context.profile.id,
       firstName: context.profile.firstName,
@@ -1172,6 +1180,7 @@ app.get(
         return c.json({ error: "Perfil no encontrado." }, 404);
       const avatarUrl = await getSignedUrlByFileId(
         context.profile.avatarFileId,
+        "card",
       );
       return c.json({
         data: {
@@ -1181,6 +1190,7 @@ app.get(
           displayName: context.profile.displayName,
           email: context.profile.email,
           avatarUrl,
+          avatarFileId: context.profile.avatarFileId,
           birthDate: context.profile.birthDate,
           gender: context.profile.gender,
           phone: context.profile.phone,
@@ -1246,7 +1256,10 @@ app.put(
           bio: body.bio ? String(body.bio).trim() : null,
         },
       });
-      const avatarUrl = await getSignedUrlByFileId(updated.avatarFileId);
+      const avatarUrl = await getSignedUrlByFileId(
+        updated.avatarFileId,
+        "card",
+      );
       cacheDel(`user_ctx:${authUserId}`);
       return c.json({
         data: {
@@ -1256,6 +1269,7 @@ app.put(
           displayName: updated.displayName,
           email: updated.email,
           avatarUrl,
+          avatarFileId: updated.avatarFileId,
           birthDate: updated.birthDate,
           gender: updated.gender,
           phone: updated.phone,
@@ -1305,8 +1319,8 @@ app.post(
         file,
       });
       cacheDel(`user_ctx:${authUserId}`);
-      const avatarUrl = await getSignedUrlByFileId(asset.id);
-      return c.json({ data: { avatarUrl } });
+      const avatarUrl = await getSignedUrlByFileId(asset.id, "card");
+      return c.json({ data: { avatarUrl, avatarFileId: asset.id } });
     } catch {
       return c.json({ error: "No se pudo actualizar el avatar." }, 500);
     }
@@ -2903,8 +2917,8 @@ app.post(
 
       const asset = await uploadIdentityAvatar({ profileId: target.id, file });
       cacheDel(`user_ctx:${target.authUserId}`);
-      const avatarUrl = await getSignedUrlByFileId(asset.id);
-      return c.json({ data: { avatarUrl } });
+      const avatarUrl = await getSignedUrlByFileId(asset.id, "card");
+      return c.json({ data: { avatarUrl, avatarFileId: asset.id } });
     } catch {
       return c.json(
         { error: "No se pudo actualizar el avatar del usuario." },
@@ -4501,20 +4515,15 @@ app.get(
         }
         await Promise.all(
           [...byBucket.entries()].map(async ([bucket, assets]) => {
-            const { data: signedList } = await supabaseAdmin.storage
-              .from(bucket)
-              .createSignedUrls(
-                assets.map((a) => a.objectKey),
-                3600,
-              );
-            if (Array.isArray(signedList)) {
-              for (let i = 0; i < assets.length; i++) {
-                orgAvatarUrlMap.set(
-                  assets[i].id,
-                  signedList[i]?.signedUrl ?? null,
-                );
-              }
-            }
+            const signedUrls = await signedUrlsWithVariant(
+              supabaseAdmin,
+              bucket,
+              assets.map((a) => a.objectKey),
+              "card",
+            );
+            assets.forEach((asset, i) => {
+              orgAvatarUrlMap.set(asset.id, signedUrls[i] ?? null);
+            });
           }),
         );
       }
@@ -4543,20 +4552,15 @@ app.get(
         }
         await Promise.all(
           [...profileByBucket.entries()].map(async ([bucket, assets]) => {
-            const { data: signedList } = await supabaseAdmin.storage
-              .from(bucket)
-              .createSignedUrls(
-                assets.map((a) => a.objectKey),
-                3600,
-              );
-            if (Array.isArray(signedList)) {
-              for (let i = 0; i < assets.length; i++) {
-                orgProfileUrlMap.set(
-                  assets[i].id,
-                  signedList[i]?.signedUrl ?? null,
-                );
-              }
-            }
+            const signedUrls = await signedUrlsWithVariant(
+              supabaseAdmin,
+              bucket,
+              assets.map((a) => a.objectKey),
+              "card",
+            );
+            assets.forEach((asset, i) => {
+              orgProfileUrlMap.set(asset.id, signedUrls[i] ?? null);
+            });
           }),
         );
       }
