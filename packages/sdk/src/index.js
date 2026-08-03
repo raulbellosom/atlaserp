@@ -107,6 +107,10 @@ export function createAtlasClient({ baseUrl }) {
           body: formData,
         });
       },
+      getAvatarSignedUrl: (token, options = {}) =>
+        request(`/profile/me/avatar/signed-url${toQueryString({ variant: options.variant })}`, {
+          headers: withAuthHeaders(token),
+        }),
       changePassword: (data, token) =>
         request("/profile/me/password", {
           method: "POST",
@@ -355,6 +359,10 @@ export function createAtlasClient({ baseUrl }) {
           body: formData,
         });
       },
+      getUserAvatarSignedUrl: (id, token, options = {}) =>
+        request(`/identity/users/${encodeURIComponent(id)}/avatar/signed-url${toQueryString({ variant: options.variant })}`, {
+          headers: withAuthHeaders(token),
+        }),
       listRoles: (token) =>
         request("/identity/roles", { headers: withAuthHeaders(token) }),
       createRole: (data, token) =>

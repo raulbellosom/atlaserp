@@ -70,10 +70,9 @@ export function ProfileScreen() {
   });
 
   const fullAvatarQuery = useQuery({
-    queryKey: ["profile-avatar-full", profileQuery.data?.data?.avatarFileId],
-    queryFn: () =>
-      atlas.files.getSignedUrl(profileQuery.data?.data?.avatarFileId, token, { variant: "full" }),
-    enabled: Boolean(token && imageViewerOpen && profileQuery.data?.data?.avatarFileId),
+    queryKey: ["profile-avatar-full"],
+    queryFn: () => atlas.profile.getAvatarSignedUrl(token, { variant: "full" }),
+    enabled: Boolean(token && imageViewerOpen),
     staleTime: 5 * 60 * 1000,
   });
 

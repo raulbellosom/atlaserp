@@ -1327,6 +1327,28 @@ app.post(
   },
 );
 
+app.get(
+  "/profile/me/avatar/signed-url",
+  authMiddleware,
+  requirePermission("profile.self.read"),
+  async (c) => {
+    try {
+      const context = await getOrLoadUserContext(c);
+      if (!context?.profile) {
+        return c.json({ error: "Perfil no encontrado." }, 404);
+      }
+      const variant = c.req.query("variant") || "full";
+      const signedUrl = await getSignedUrlByFileId(
+        context.profile.avatarFileId,
+        variant,
+      );
+      return c.json({ data: { signedUrl } });
+    } catch {
+      return c.json({ error: "No se pudo generar el enlace del avatar." }, 500);
+    }
+  },
+);
+
 app.post(
   "/profile/me/password",
   authMiddleware,
@@ -2923,6 +2945,30 @@ app.post(
     } catch {
       return c.json(
         { error: "No se pudo actualizar el avatar del usuario." },
+        500,
+      );
+    }
+  },
+);
+
+app.get(
+  "/identity/users/:id/avatar/signed-url",
+  authMiddleware,
+  requirePermission("identity.users.read"),
+  async (c) => {
+    try {
+      const id = c.req.param("id");
+      const target = await prisma.userProfile.findUnique({
+        where: { id },
+        select: { avatarFileId: true },
+      });
+      if (!target) return c.json({ error: "Usuario no encontrado." }, 404);
+      const variant = c.req.query("variant") || "full";
+      const signedUrl = await getSignedUrlByFileId(target.avatarFileId, variant);
+      return c.json({ data: { signedUrl } });
+    } catch {
+      return c.json(
+        { error: "No se pudo generar el enlace del avatar." },
         500,
       );
     }
