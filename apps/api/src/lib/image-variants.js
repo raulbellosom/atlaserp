@@ -4,15 +4,18 @@
 // via the imgproxy sidecar (confirmed active on the self-hosted instance —
 // see docs/superpowers/specs/2026-08-03-image-thumbnail-variants-design.md).
 // `full` means "no transform, serve the original".
-export const IMAGE_VARIANTS = {
-  thumb: { width: 40, height: 40, resize: 'cover', quality: 70 },
-  card: { width: 96, height: 96, resize: 'cover', quality: 75 },
-  banner: { width: 1600, height: 400, resize: 'cover', quality: 80 },
-  product: { width: 480, height: 480, resize: 'contain', quality: 80 },
+export const IMAGE_VARIANTS = Object.freeze({
+  thumb: Object.freeze({ width: 40, height: 40, resize: 'cover', quality: 70 }),
+  card: Object.freeze({ width: 96, height: 96, resize: 'cover', quality: 75 }),
+  banner: Object.freeze({ width: 1600, height: 400, resize: 'cover', quality: 80 }),
+  product: Object.freeze({ width: 480, height: 480, resize: 'contain', quality: 80 }),
   full: null,
-}
+})
 
 function transformOptions(variant) {
+  if (variant !== 'full' && !(variant in IMAGE_VARIANTS)) {
+    console.warn(`[image-variants] unrecognized variant "${variant}" — serving full resolution`)
+  }
   const preset = IMAGE_VARIANTS[variant]
   return preset ? { transform: preset } : {}
 }
