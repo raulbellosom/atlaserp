@@ -106,8 +106,8 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         body: JSON.stringify(data),
       }),
 
-    getAttachmentSignedUrl: (attachmentId, token) =>
-      request(`/chat/attachments/${encodeURIComponent(attachmentId)}/signed-url`, {
+    getAttachmentSignedUrl: (attachmentId, token, options = {}) =>
+      request(`/chat/attachments/${encodeURIComponent(attachmentId)}/signed-url${toQueryString({ variant: options.variant })}`, {
         headers: withAuthHeaders(token),
       }),
 

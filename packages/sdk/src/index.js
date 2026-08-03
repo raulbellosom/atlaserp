@@ -622,8 +622,8 @@ export function createAtlasClient({ baseUrl }) {
         request(`/files/${encodeURIComponent(id)}`, {
           headers: withAuthHeaders(token),
         }),
-      getSignedUrl: (id, token) =>
-        request(`/files/${encodeURIComponent(id)}/signed-url`, {
+      getSignedUrl: (id, token, options = {}) =>
+        request(`/files/${encodeURIComponent(id)}/signed-url${toQueryString({ variant: options.variant })}`, {
           headers: withAuthHeaders(token),
         }),
       batchSignedUrls: (fileIds, token) =>
