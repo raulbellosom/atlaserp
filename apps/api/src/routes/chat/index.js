@@ -257,7 +257,8 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     try {
       const authUserId = c.get("authUserId");
       const attachmentId = c.req.param("id");
-      const result = await chatService.getAttachmentSignedUrl({ attachmentId, authUserId });
+      const variant = c.req.query("variant") || "full";
+      const result = await chatService.getAttachmentSignedUrl({ attachmentId, authUserId, variant });
       return c.json({ data: result });
     } catch (err) {
       return handleError(c, err, "Error obteniendo URL del adjunto.");
