@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -17,7 +17,6 @@ import {
   DatePickerField,
   DistDropZone,
   ErrorState,
-  ImageViewer,
   MarkdownField,
   PageHeader,
   PhoneField,
@@ -26,6 +25,7 @@ import {
   SwitchField,
   TextField,
 } from "@atlas/ui";
+import { AdvancedFileViewer } from "../../atlas.files/components/AdvancedFileViewer";
 import {
   ArrowLeft,
   CalendarDays,
@@ -93,12 +93,13 @@ export default function UserEditorScreen() {
   );
   const membership = user?.memberships?.[0] ?? null;
 
-  const fullAvatarQuery = useQuery({
-    queryKey: ["user-avatar-full", user?.id],
-    queryFn: () => atlas.identity.getUserAvatarSignedUrl(user?.id, token, { variant: "full" }),
-    enabled: Boolean(token && imageViewerOpen && user?.id),
-    staleTime: 5 * 60 * 1000,
-  });
+  const resolveUserAvatarSignedUrl = useCallback(
+    async () => {
+      const res = await atlas.identity.getUserAvatarSignedUrl(user?.id, token, { variant: "full" });
+      return res?.data?.signedUrl ?? null;
+    },
+    [user?.id, token],
+  );
 
   const [draft, setDraft] = useState(null);
 
@@ -697,12 +698,23 @@ export default function UserEditorScreen() {
         </div>
       )}
 
-      <ImageViewer
-        open={imageViewerOpen}
-        onOpenChange={setImageViewerOpen}
-        src={fullAvatarQuery.data?.data?.signedUrl || user?.avatarUrl || ""}
-        alt={user?.displayName || "Foto de perfil"}
-      />
+      {user?.avatarFileId && (
+        <AdvancedFileViewer
+          open={imageViewerOpen}
+          onOpenChange={setImageViewerOpen}
+          files={[
+            {
+              id: user.avatarFileId,
+              mimeType: "image/jpeg",
+              originalName: user.displayName ?? "Foto de perfil",
+              sizeBytes: 0,
+            },
+          ]}
+          activeIndex={0}
+          onIndexChange={() => {}}
+          onResolveSignedUrl={resolveUserAvatarSignedUrl}
+        />
+      )}
 
       <ConfirmDialog
         open={deleteOpen}

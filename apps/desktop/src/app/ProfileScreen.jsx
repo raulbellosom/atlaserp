@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Avatar,
@@ -9,7 +9,6 @@ import {
   ComboboxField,
   DateField,
   DistDropZone,
-  ImageViewer,
   MarkdownField,
   PageHeader,
   PasswordField,
@@ -18,6 +17,7 @@ import {
   Skeleton,
   TextField,
 } from "@atlas/ui";
+import { AdvancedFileViewer } from "../modules/atlas.files/components/AdvancedFileViewer";
 import { Country, State, City } from "country-state-city";
 import {
   CalendarDays,
@@ -69,12 +69,13 @@ export function ProfileScreen() {
     enabled: Boolean(token),
   });
 
-  const fullAvatarQuery = useQuery({
-    queryKey: ["profile-avatar-full"],
-    queryFn: () => atlas.profile.getAvatarSignedUrl(token, { variant: "full" }),
-    enabled: Boolean(token && imageViewerOpen),
-    staleTime: 5 * 60 * 1000,
-  });
+  const resolveAvatarSignedUrl = useCallback(
+    async () => {
+      const res = await atlas.profile.getAvatarSignedUrl(token, { variant: "full" });
+      return res?.data?.signedUrl ?? null;
+    },
+    [token],
+  );
 
   const [form, setForm] = useState(EMPTY_FORM);
 
@@ -470,13 +471,21 @@ export function ProfileScreen() {
         </Card>
       </div>
 
-      {profile?.avatarUrl && (
-        <ImageViewer
+      {profile?.avatarFileId && (
+        <AdvancedFileViewer
           open={imageViewerOpen}
-          src={fullAvatarQuery.data?.data?.signedUrl ?? profile.avatarUrl}
-          alt="Foto de perfil"
-          fileName={profile.displayName ?? "avatar"}
-          onClose={() => setImageViewerOpen(false)}
+          onOpenChange={setImageViewerOpen}
+          files={[
+            {
+              id: profile.avatarFileId,
+              mimeType: "image/jpeg",
+              originalName: profile.displayName ?? "Foto de perfil",
+              sizeBytes: 0,
+            },
+          ]}
+          activeIndex={0}
+          onIndexChange={() => {}}
+          onResolveSignedUrl={resolveAvatarSignedUrl}
         />
       )}
     </div>
