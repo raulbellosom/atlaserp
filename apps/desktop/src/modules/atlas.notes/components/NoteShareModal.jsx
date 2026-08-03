@@ -129,7 +129,7 @@ export function NoteShareModal({ note, noteId, open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="xl">
+      <DialogContent size="2xl" className="md:max-w-4xl">
         {/* Colored strip tied to note background */}
         {bgColor && (
           <div
@@ -185,7 +185,7 @@ export function NoteShareModal({ note, noteId, open, onOpenChange }) {
             </div>
 
             {/* User results */}
-            <div className="overflow-y-auto rounded-xl border border-border max-h-52 md:max-h-64">
+            <div className="overflow-y-auto rounded-xl border border-[hsl(var(--border)/0.5)] max-h-52 md:max-h-64">
               {userList.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-6 gap-2 text-muted-foreground">
                   <Users className="w-7 h-7 opacity-30" />
@@ -197,7 +197,7 @@ export function NoteShareModal({ note, noteId, open, onOpenChange }) {
                 </div>
               ) : (
                 <>
-                  <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 sticky top-0 bg-background">
+                  <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
                     {query.trim().length >= 2 ? 'Resultados' : 'Sugerencias'}
                   </p>
                   {userList.map(user => {

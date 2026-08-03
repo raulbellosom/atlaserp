@@ -4,10 +4,12 @@ import {
   Undo2, Redo2, Link2, PenLine, Table2, ChevronDown, ExternalLink, Unlink,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Code, Code2, List, ListOrdered, ListChecks,
-  Quote, Type, Highlighter,
+  Quote, Type, Highlighter, Image as ImageIcon, Loader2, HelpCircle,
 } from 'lucide-react'
 import { Popover, PopoverTrigger, PopoverContent } from '@atlas/ui'
 import { useIsDark } from '../hooks/useIsDark.js'
+import { uploadAndInsertNoteImage } from '../lib/noteImageUpload.js'
+import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog.jsx'
 
 const TEXT_COLORS_LIGHT = [
   '#0f172a', '#475569', '#94a3b8', '#cbd5e1',
@@ -114,17 +116,28 @@ function TableMenuItem({ label, onClick, destructive }) {
   )
 }
 
-export function NoteToolbar() {
+export function NoteToolbar({ noteId, token }) {
   const { editor } = useCurrentEditor()
   const isDark = useIsDark()
   const [linkUrl, setLinkUrl] = useState('')
   const [linkOpen, setLinkOpen] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   if (!editor) return null
 
   const TEXT_COLORS = isDark ? TEXT_COLORS_DARK : TEXT_COLORS_LIGHT
   const HIGHLIGHT_COLORS = isDark ? HIGHLIGHT_COLORS_DARK : HIGHLIGHT_COLORS_LIGHT
 
   const activeTextColor = editor.getAttributes('textStyle').color ?? null
+
+  async function handleImageFile(file) {
+    setUploadingImage(true)
+    try {
+      await uploadAndInsertNoteImage(file, { editor, noteId, token })
+    } finally {
+      setUploadingImage(false)
+    }
+  }
 
   return (
     <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-border bg-background/90 backdrop-blur-sm flex-wrap sticky top-0 z-10 shadow-sm">
@@ -281,7 +294,31 @@ export function NoteToolbar() {
 
       <Divider />
 
-      {/* Drawing + link */}
+      {/* Image + drawing + link */}
+      <label
+        title="Insertar imagen"
+        className={[
+          'h-7 min-w-7 px-1.5 rounded flex items-center justify-center gap-1 text-sm transition-colors select-none cursor-pointer',
+          uploadingImage
+            ? 'opacity-50 cursor-not-allowed'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+        ].join(' ')}
+      >
+        {uploadingImage
+          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          : <ImageIcon className="w-3.5 h-3.5" />}
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          disabled={uploadingImage}
+          onChange={e => {
+            const file = e.target.files?.[0]
+            e.target.value = ''
+            if (file) handleImageFile(file)
+          }}
+        />
+      </label>
       <ToolbarButton
         onClick={() => editor.chain().focus().insertDrawingBlock().run()}
         title="Insertar canvas de dibujo"
@@ -391,6 +428,14 @@ export function NoteToolbar() {
         </>
       )}
 
+      <ToolbarButton
+        onClick={() => setShortcutsOpen(true)}
+        title="Atajos de teclado"
+      >
+        <HelpCircle className="w-3.5 h-3.5" />
+      </ToolbarButton>
+
+      <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
     </div>
   )
 }

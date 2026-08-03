@@ -2,15 +2,13 @@ import { useState, useCallback } from 'react'
 import { Copy, Check, NotebookPen, X } from 'lucide-react'
 import { useNoteFolders, useCreateNoteFolder } from '../hooks/useNoteFolders.js'
 import { useNoteTags, useCreateNoteTag, useSetNoteTags } from '../hooks/useNoteTags.js'
-import { useIsDark } from '../hooks/useIsDark.js'
 import { NOTE_BACKGROUND_COLORS } from '../lib/noteColors.js'
-import { NOTE_ICONS, NoteIcon } from '../noteIcons.jsx'
+import { NoteIcon } from '../noteIcons.jsx'
+import { NoteIconPickerContent } from './NoteIconPicker.jsx'
 import {
   ConfirmDialog, TextField, CreatableComboboxField,
   Popover, PopoverTrigger, PopoverContent,
 } from '@atlas/ui'
-
-const ICON_NAMES = Object.keys(NOTE_ICONS)
 
 function SectionLabel({ children }) {
   return (
@@ -26,7 +24,6 @@ export function NoteSettingsPanel({ note, onUpdate, onPublish, onUnpublish, onTr
   const createFolder = useCreateNoteFolder()
   const createTag = useCreateNoteTag()
   const setNoteTags = useSetNoteTags()
-  const isDark = useIsDark()
   const [trashOpen, setTrashOpen] = useState(false)
 
   const folders = foldersData?.folders ?? []
@@ -112,38 +109,8 @@ export function NoteSettingsPanel({ note, onUpdate, onPublish, onUnpublish, onTr
               }
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-72 p-3" side="bottom" align="start">
-            <div className="max-h-64 overflow-y-auto pr-1">
-              <div className="grid grid-cols-8 gap-0.5">
-                {ICON_NAMES.map(name => {
-                  const Icon = NOTE_ICONS[name]
-                  return (
-                    <button
-                      key={name}
-                      onClick={() => onUpdate({ icon: name })}
-                      title={name}
-                      className={[
-                        'w-8 h-8 flex items-center justify-center rounded-lg transition-colors',
-                        note.icon === name
-                          ? 'bg-amber-100 ring-1 ring-amber-400 dark:bg-amber-900/40 dark:ring-amber-500 text-amber-600 dark:text-amber-400'
-                          : 'hover:bg-muted text-muted-foreground hover:text-foreground',
-                      ].join(' ')}
-                    >
-                      <Icon size={15} />
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-            {note.icon && (
-              <button
-                onClick={() => onUpdate({ icon: '' })}
-                className="mt-2.5 w-full flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-1 py-1.5 rounded hover:bg-muted transition-colors"
-              >
-                <X className="w-3 h-3" />
-                Sin icono
-              </button>
-            )}
+          <PopoverContent className="w-84 p-3" side="bottom" align="start">
+            <NoteIconPickerContent value={note.icon} onChange={icon => onUpdate({ icon })} />
           </PopoverContent>
         </Popover>
       </div>

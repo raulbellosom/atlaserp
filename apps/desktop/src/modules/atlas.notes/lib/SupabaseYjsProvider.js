@@ -77,6 +77,10 @@ export class SupabaseYjsProvider {
   }
 
   destroy() {
+    // Broadcast local-state removal first (while _awarenessHandler is still
+    // attached) so peers see this user's presence disappear immediately,
+    // instead of lingering until their own connection times out.
+    this.awareness.setLocalState(null)
     if (this._updateHandler) this.ydoc.off('update', this._updateHandler)
     if (this._awarenessHandler) this.awareness.off('update', this._awarenessHandler)
     this.awareness.destroy()

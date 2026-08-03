@@ -154,7 +154,7 @@ export function NotificationBell({
                     <p
                       className={`text-xs font-medium truncate ${
                         notification.read
-                          ? "text-[hsl(var(--muted-foreground))]"
+                          ? "text-[hsl(var(--foreground))]/75"
                           : "text-[hsl(var(--foreground))]"
                       }`}
                     >

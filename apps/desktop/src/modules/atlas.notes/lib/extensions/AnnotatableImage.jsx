@@ -6,7 +6,10 @@ export const AnnotatableImage = Node.create({
   name: 'image',
   group: 'block',
   atom: true,
-  draggable: true,
+  // Reordering is handled with a custom pointer-based drag handle (see
+  // ImageAnnotationOverlay) instead of native HTML5 drag, which doesn't
+  // fire on touch devices.
+  draggable: false,
   selectable: true,
 
   addAttributes() {

@@ -78,8 +78,8 @@ html {
   --surface-3: 210 16% 95%;
 
   --glass-blur: 20px;
-  --glass-bg: rgba(255, 255, 255, 0.82);
-  --glass-bg-strong: rgba(255, 255, 255, 0.96);
+  --glass-bg: rgba(255, 255, 255, 0.68);
+  --glass-bg-strong: rgba(255, 255, 255, 0.8);
   --glass-border: rgba(0, 0, 0, 0.08);
   --glass-border-subtle: rgba(0, 0, 0, 0.04);
   --glass-shadow:
@@ -128,9 +128,9 @@ html {
   --surface-3: 222 47% 10%;
   --brand-soft: rgba(33, 199, 255, 0.18);
 
-  --glass-bg: rgba(255, 255, 255, 0.055);
-  --glass-bg-strong: rgba(255, 255, 255, 0.1);
-  --glass-border: rgba(255, 255, 255, 0.11);
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-bg-strong: rgba(255, 255, 255, 0.15);
+  --glass-border: rgba(255, 255, 255, 0.09);
   --glass-border-subtle: rgba(255, 255, 255, 0.055);
   --glass-shadow:
     0 8px 32px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.07);
@@ -872,8 +872,26 @@ body,
 
 /* ── General ──────────────────────────────────────────────── */
 
-* {
-  border-color: hsl(var(--border));
+/* Must live in @layer base: unlayered rules always win over @layer utilities
+   in CSS cascade layers regardless of specificity. Without this layer, this
+   default border-color silently overrode .glass/.glass-strong/etc.'s own
+   border-color everywhere — every "glass" surface (dropdowns, popovers,
+   dialogs) rendered with the opaque --border color instead of the
+   translucent --glass-border, which is why borders looked flat and
+   high-contrast instead of soft glass edges. */
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+}
+
+/* Suppress transitions for one paint during a light/dark theme swap — see
+   useThemeStore.toggle(). Without this, every element with transition-colors
+   (used broadly for hover states) animates the swap at its own duration,
+   which reads as a staggered lag instead of an instant switch. */
+.theme-transitioning-off,
+.theme-transitioning-off * {
+  transition: none !important;
 }
 
 body {

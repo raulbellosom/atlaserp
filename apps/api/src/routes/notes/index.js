@@ -148,7 +148,8 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
       const key = `notes/${userId}/${noteId ?? 'draft'}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
       const { data, error } = await supabaseAdmin.storage.from('atlas-notes').createSignedUploadUrl(key)
       if (error) return c.json({ error: error.message }, 500)
-      return c.json({ uploadUrl: data.signedUrl, objectKey: key, token: data.token }, 201)
+      const { data: publicData } = supabaseAdmin.storage.from('atlas-notes').getPublicUrl(key)
+      return c.json({ uploadUrl: data.signedUrl, objectKey: key, uploadToken: data.token, publicUrl: publicData.publicUrl }, 201)
     } catch (e) {
       return c.json({ error: e.message }, e.status ?? 500)
     }

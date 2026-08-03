@@ -184,8 +184,8 @@ export function createLedgerService({ prisma }) {
     `
     const account = firstRow(accountRows)
     if (!account) throw new LedgerServiceError('Cuenta no encontrada.', 404)
-    if (account.owner_id !== actorId) {
-      throw new LedgerServiceError('Solo el propietario puede asignar esta cuenta a un grupo.', 403)
+    if (!(await canWriteAccount({ companyId, accountId, actorId }))) {
+      throw new LedgerServiceError('No tienes permisos para asignar esta cuenta a un grupo.', 403)
     }
 
     if (groupId !== null) {

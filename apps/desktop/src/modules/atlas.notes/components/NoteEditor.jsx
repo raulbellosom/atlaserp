@@ -1,17 +1,36 @@
 import { EditorProvider } from '@tiptap/react'
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import * as Y from 'yjs'
+import { NotebookPen } from 'lucide-react'
+import { Popover, PopoverTrigger, PopoverContent } from '@atlas/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { atlas } from '../../../lib/atlas'
 import { supabase } from '../../../lib/supabase'
 import { SupabaseYjsProvider } from '../lib/SupabaseYjsProvider.js'
 import { buildExtensions } from '../lib/editor-extensions.js'
+import { usePresence } from '../hooks/usePresence.js'
 import { NoteToolbar } from './NoteToolbar.jsx'
+import { NoteCoverBanner } from './NoteCoverBanner.jsx'
+import { NoteIconPickerContent } from './NoteIconPicker.jsx'
+import { PresenceStack } from './PresenceStack.jsx'
+import { NoteIcon } from '../noteIcons.jsx'
 import { DrawingBlock } from '../lib/extensions/DrawingBlock.jsx'
 import { AnnotatableImage } from '../lib/extensions/AnnotatableImage.jsx'
 
 const AUTOSAVE_DELAY = 1500
+
+// Fixed palette for per-collaborator cursor/avatar color — distinct from the
+// amber brand accent so collaborators don't blend into UI chrome, and from
+// each other (previously every user got the same hardcoded amber).
+const PRESENCE_COLORS = ['#3b82f6', '#22c55e', '#a855f7', '#ec4899', '#06b6d4', '#f97316', '#14b8a6', '#6366f1']
+
+function colorForUser(seed) {
+  const s = String(seed ?? '')
+  let hash = 0
+  for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0
+  return PRESENCE_COLORS[hash % PRESENCE_COLORS.length]
+}
 
 export function NoteEditor({ note, readOnly = false }) {
   const { session } = useAuth()
@@ -22,6 +41,11 @@ export function NoteEditor({ note, readOnly = false }) {
   const saveTimerRef = useRef(null)
   const isSavingRef = useRef(false)
   const containerRef = useRef(null)
+  // providerRef is a ref (not state) so it doesn't re-render on every ydoc
+  // update, but that means React never re-reads it once populated — bump
+  // this after the provider is created/synced so components that need
+  // providerRef.current (e.g. the presence stack) actually see it.
+  const [, setProviderTick] = useState(0)
 
   // Create Y.js doc and provider once per noteId
   useEffect(() => {
@@ -35,7 +59,7 @@ export function NoteEditor({ note, readOnly = false }) {
       supabase,
       atlas,
       token,
-      onSynced: () => {},
+      onSynced: () => setProviderTick(t => t + 1),
     })
     providerRef.current = provider
 
@@ -78,6 +102,23 @@ export function NoteEditor({ note, readOnly = false }) {
       }, AUTOSAVE_DELAY)
     },
     [note?.id, token, readOnly],
+  )
+
+  // Immediate (non-debounced) update for discrete meta fields — icon and cover
+  // banner are single user actions, not continuous typing, so they don't need
+  // the autosave delay/queue that handleUpdate uses for content.
+  const updateNoteMeta = useCallback(
+    async (patch) => {
+      if (readOnly || !note?.id || !token) return
+      try {
+        await atlas.notes.update(note.id, patch, token)
+        queryClient.invalidateQueries({ queryKey: ['notes'] })
+        queryClient.invalidateQueries({ queryKey: ['notes', note.id] })
+      } catch (err) {
+        console.warn('[NoteEditor] meta update failed:', err?.message)
+      }
+    },
+    [note?.id, token, readOnly, queryClient],
   )
 
   // Touch-to-mouse bridge for TipTap column resize handles.
@@ -130,6 +171,8 @@ export function NoteEditor({ note, readOnly = false }) {
     }
   }, [readOnly])
 
+  const presenceUsers = usePresence(providerRef.current, session?.user?.id)
+
   if (!note) return null
 
   const extensions = [
@@ -138,8 +181,12 @@ export function NoteEditor({ note, readOnly = false }) {
       provider: providerRef.current,
       userName:
         session?.user?.user_metadata?.full_name ?? session?.user?.email ?? 'Usuario',
-      userColor: '#f59e0b',
+      userColor: colorForUser(session?.user?.id ?? session?.user?.email),
+      userId: session?.user?.id ?? null,
+      userAvatarUrl: session?.user?.user_metadata?.avatar_url ?? null,
       readOnly,
+      noteId: note.id,
+      token,
     }),
     DrawingBlock,
     AnnotatableImage,
@@ -154,10 +201,49 @@ export function NoteEditor({ note, readOnly = false }) {
         onUpdate={handleUpdate}
         editorProps={{
           attributes: {
-            class: 'focus:outline-none px-8 py-6 min-h-full',
+            class: 'focus:outline-none px-8 pt-1 pb-6 min-h-full',
           },
         }}
-        slotBefore={!readOnly ? <NoteToolbar /> : null}
+        slotBefore={
+          <>
+            <NoteCoverBanner
+              coverUrl={note.cover_url}
+              editable={!readOnly}
+              noteId={note.id}
+              token={token}
+              onChange={coverUrl => updateNoteMeta({ coverUrl })}
+              onRemove={() => updateNoteMeta({ coverUrl: null })}
+            />
+            {!readOnly && <NoteToolbar noteId={note.id} token={token} />}
+            {!readOnly && (
+              // Sits directly above the title (the editor's first line — see
+              // handleUpdate) with no toolbar in between, so icon + title
+              // read as one unit, matching Notion's page-icon convention.
+              <div className="px-8 pt-4 flex items-center justify-between gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-muted transition-colors"
+                      title="Seleccionar icono"
+                    >
+                      {note.icon
+                        ? <NoteIcon name={note.icon} size={22} className="text-amber-500" />
+                        : <NotebookPen className="w-5 h-5 text-muted-foreground/50" />
+                      }
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-84 p-3" side="bottom" align="start">
+                    <NoteIconPickerContent
+                      value={note.icon}
+                      onChange={icon => updateNoteMeta({ icon })}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <PresenceStack users={presenceUsers} />
+              </div>
+            )}
+          </>
+        }
       >
         {/* EditorProvider renders children inside editor context */}
       </EditorProvider>

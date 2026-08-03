@@ -11,8 +11,12 @@ import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
+import { SlashCommand } from './extensions/SlashCommand.jsx'
 
-export function buildExtensions({ ydoc, provider, userColor, userName, readOnly = false }) {
+export function buildExtensions({
+  ydoc, provider, userColor, userName, userId, userAvatarUrl,
+  readOnly = false, noteId, token,
+}) {
   const base = [
     // Exclude link/underline/image from StarterKit — we register them explicitly below
     // (StarterKit v3 bundles them; adding duplicates triggers a TipTap warning)
@@ -43,12 +47,21 @@ export function buildExtensions({ ydoc, provider, userColor, userName, readOnly 
     }),
   ]
 
+  if (!readOnly) {
+    base.push(SlashCommand.configure({ noteId, token }))
+  }
+
   if (ydoc && provider) {
     base.push(
       Collaboration.configure({ document: ydoc }),
       CollaborationCursor.configure({
         provider,
-        user: { name: userName ?? 'Anonimo', color: userColor ?? '#f59e0b' },
+        user: {
+          id: userId ?? null,
+          name: userName ?? 'Anonimo',
+          color: userColor ?? '#f59e0b',
+          avatarUrl: userAvatarUrl ?? null,
+        },
       }),
     )
   }

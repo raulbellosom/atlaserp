@@ -137,7 +137,13 @@ export const NOTE_ICONS = {
 }
 
 export function NoteIcon({ name, size = 14, className }) {
-  const Icon = name ? NOTE_ICONS[name] : null
-  if (!Icon) return null
-  return <Icon size={size} className={className} />
+  if (!name) return null
+  const Icon = NOTE_ICONS[name]
+  if (Icon) return <Icon size={size} className={className} />
+  // Not a known Lucide key — treat as a literal emoji/glyph (see NoteSettingsPanel emoji tab)
+  return (
+    <span className={className} style={{ fontSize: size * 1.1, lineHeight: 1 }}>
+      {name}
+    </span>
+  )
 }

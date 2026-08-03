@@ -4,9 +4,19 @@ import { Trash2 } from 'lucide-react'
 import { NoteIcon } from '../noteIcons.jsx'
 
 export function NoteCard({ note, isSelected, onClick, onTrash }) {
-  const excerpt = note.content
-    ? note.content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 100)
-    : ''
+  const excerpt = (() => {
+    if (!note.content) return ''
+    // Block tags become spaces so text from separate lines doesn't glue together
+    const plainText = note.content
+      .replace(/<(p|div|h[1-6]|li|br)[^>]*>/gi, ' ')
+      .replace(/<[^>]*>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+    // The first line of content is duplicated as note.title (see NoteEditor.jsx) — skip it
+    const title = (note.title || '').trim()
+    const body = title && plainText.startsWith(title) ? plainText.slice(title.length) : plainText
+    return body.trim().slice(0, 100)
+  })()
 
   const lastMod = note.updated_at
     ? formatDistanceToNow(new Date(note.updated_at), { addSuffix: true, locale: es })
