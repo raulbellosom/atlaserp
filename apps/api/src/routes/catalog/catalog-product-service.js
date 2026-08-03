@@ -1,7 +1,10 @@
 // apps/api/src/routes/catalog/catalog-product-service.js
 
+import { publicUrlWithVariant, signedUrlsWithVariant } from '../../lib/image-variants.js'
+
 const PUBLIC_BUCKET  = 'atlas-website'
 const SIGNED_URL_TTL = 3600
+const IMAGE_VARIANT  = 'product'
 
 export function createCatalogProductService({ prisma, supabaseAdmin }) {
 
@@ -23,8 +26,8 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
     const privateAssets = assets.filter((a) => a.bucket !== PUBLIC_BUCKET)
 
     for (const a of publicAssets) {
-      const { data } = supabaseAdmin.storage.from(a.bucket).getPublicUrl(a.object_key)
-      urlMap.set(String(a.id), data?.publicUrl ?? null)
+      const publicUrl = publicUrlWithVariant(supabaseAdmin, a.bucket, a.object_key, IMAGE_VARIANT)
+      urlMap.set(String(a.id), publicUrl)
     }
 
     if (privateAssets.length) {
@@ -35,15 +38,10 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
       }
       await Promise.all([...byBucket.entries()].map(async ([bucket, batch]) => {
         const paths = batch.map((a) => a.object_key)
-        const { data: signed } = await supabaseAdmin.storage
-          .from(bucket)
-          .createSignedUrls(paths, SIGNED_URL_TTL)
-        if (Array.isArray(signed)) {
-          for (const item of signed) {
-            const asset = batch.find((a) => a.object_key === item.path)
-            if (asset) urlMap.set(String(asset.id), item.signedUrl ?? null)
-          }
-        }
+        const signedUrls = await signedUrlsWithVariant(supabaseAdmin, bucket, paths, IMAGE_VARIANT, SIGNED_URL_TTL)
+        batch.forEach((asset, index) => {
+          urlMap.set(String(asset.id), signedUrls[index] ?? null)
+        })
       }))
     }
 
