@@ -4502,31 +4502,10 @@ app.get(
       const orgAvatarFileIds = allNodes
         .map((n) => n.linkedUser?.avatarFileId)
         .filter(Boolean);
-      const orgAvatarUrlMap = new Map();
-      if (orgAvatarFileIds.length > 0) {
-        const orgAssets = await prisma.fileAsset.findMany({
-          where: { id: { in: orgAvatarFileIds } },
-          select: { id: true, bucket: true, objectKey: true },
-        });
-        const byBucket = new Map();
-        for (const asset of orgAssets) {
-          if (!byBucket.has(asset.bucket)) byBucket.set(asset.bucket, []);
-          byBucket.get(asset.bucket).push(asset);
-        }
-        await Promise.all(
-          [...byBucket.entries()].map(async ([bucket, assets]) => {
-            const signedUrls = await signedUrlsWithVariant(
-              supabaseAdmin,
-              bucket,
-              assets.map((a) => a.objectKey),
-              "card",
-            );
-            assets.forEach((asset, i) => {
-              orgAvatarUrlMap.set(asset.id, signedUrls[i] ?? null);
-            });
-          }),
-        );
-      }
+      const orgAvatarUrlMap = await buildAvatarUrlMapByFileIds(
+        orgAvatarFileIds,
+        "card",
+      );
       for (const node of allNodes) {
         if (node.linkedUser?.avatarFileId) {
           node.linkedUser.avatarUrl =
@@ -4538,32 +4517,10 @@ app.get(
       const orgProfileFileIds = allNodes
         .map((n) => n.profileImageFileId)
         .filter(Boolean);
-      const orgProfileUrlMap = new Map();
-      if (orgProfileFileIds.length > 0) {
-        const profileAssets = await prisma.fileAsset.findMany({
-          where: { id: { in: orgProfileFileIds } },
-          select: { id: true, bucket: true, objectKey: true },
-        });
-        const profileByBucket = new Map();
-        for (const asset of profileAssets) {
-          if (!profileByBucket.has(asset.bucket))
-            profileByBucket.set(asset.bucket, []);
-          profileByBucket.get(asset.bucket).push(asset);
-        }
-        await Promise.all(
-          [...profileByBucket.entries()].map(async ([bucket, assets]) => {
-            const signedUrls = await signedUrlsWithVariant(
-              supabaseAdmin,
-              bucket,
-              assets.map((a) => a.objectKey),
-              "card",
-            );
-            assets.forEach((asset, i) => {
-              orgProfileUrlMap.set(asset.id, signedUrls[i] ?? null);
-            });
-          }),
-        );
-      }
+      const orgProfileUrlMap = await buildAvatarUrlMapByFileIds(
+        orgProfileFileIds,
+        "card",
+      );
       for (const node of allNodes) {
         if (node.profileImageFileId) {
           node.profileImageUrl =
