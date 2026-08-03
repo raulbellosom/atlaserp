@@ -8,10 +8,11 @@ export function ChatAttachmentViewer({ open, onOpenChange, attachments, activeIn
 
   const resolveSignedUrl = useCallback(
     async (file) => {
-      // Use the embedded URL from listMessages if available — no network call needed
-      if (file.url) return file.url;
+      // The embedded URL from listMessages is the small `card` variant (see
+      // Plan A) — the viewer always needs the full-resolution image, so it
+      // fetches it explicitly rather than reusing that URL.
       try {
-        const res = await atlas.chat.getAttachmentSignedUrl(file.id, session?.access_token);
+        const res = await atlas.chat.getAttachmentSignedUrl(file.id, session?.access_token, { variant: "full" });
         return res?.data?.url ?? null;
       } catch (err) {
         console.warn("[chat] viewer getAttachmentSignedUrl failed", { id: file.id, status: err?.status, msg: err?.message });
