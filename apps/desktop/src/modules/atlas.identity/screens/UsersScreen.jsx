@@ -26,6 +26,7 @@ const USERS_BLUEPRINT = {
     searchable: true,
     searchPlaceholder: "Buscar usuario...",
     columns: [
+      { field: "avatarUrl", label: "Foto", type: "image", sortable: false },
       { field: "displayName", label: "Usuario", sortable: true, link: true },
       { field: "email", label: "Correo", sortable: true },
       { field: "memberships.0.roleName", label: "Rol", sortable: false },
