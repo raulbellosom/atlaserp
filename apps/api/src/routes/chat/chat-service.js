@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { Prisma } from "@prisma/client";
+import { signedUrlWithVariant } from "../../lib/image-variants.js";
 
 export class ChatServiceError extends Error {
   constructor(message, status = 400) {
@@ -19,16 +20,16 @@ const PROFILE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const _signedUrlCache = new Map();
 const SIGNED_URL_TTL_MS = 55 * 60 * 1000; // 55 minutes
 
-function getCachedSignedUrl(bucket, objectKey) {
-  const key = `${bucket}:${objectKey}`;
+function getCachedSignedUrl(bucket, objectKey, variant) {
+  const key = `${bucket}:${objectKey}:${variant}`;
   const entry = _signedUrlCache.get(key);
   if (entry && entry.expiresAt > Date.now()) return entry.url;
   _signedUrlCache.delete(key);
   return null;
 }
 
-function setCachedSignedUrl(bucket, objectKey, url) {
-  _signedUrlCache.set(`${bucket}:${objectKey}`, {
+function setCachedSignedUrl(bucket, objectKey, variant, url) {
+  _signedUrlCache.set(`${bucket}:${objectKey}:${variant}`, {
     url,
     expiresAt: Date.now() + SIGNED_URL_TTL_MS,
   });
@@ -120,14 +121,12 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     await Promise.all(
       Object.entries(assetMap).map(async ([id, fa]) => {
         try {
-          const cached = getCachedSignedUrl(fa.bucket, fa.objectKey);
+          const cached = getCachedSignedUrl(fa.bucket, fa.objectKey, "thumb");
           if (cached) { result[id] = cached; return; }
-          const { data } = await supabaseAdmin.storage
-            .from(fa.bucket)
-            .createSignedUrl(fa.objectKey, 3600);
-          if (data?.signedUrl) {
-            setCachedSignedUrl(fa.bucket, fa.objectKey, data.signedUrl);
-            result[id] = data.signedUrl;
+          const signedUrl = await signedUrlWithVariant(supabaseAdmin, fa.bucket, fa.objectKey, "thumb");
+          if (signedUrl) {
+            setCachedSignedUrl(fa.bucket, fa.objectKey, "thumb", signedUrl);
+            result[id] = signedUrl;
           }
         } catch {}
       }),
@@ -143,14 +142,12 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       pairs.map(async ({ bucket, objectKey }) => {
         const cacheKey = `${bucket}:${objectKey}`;
         try {
-          const cached = getCachedSignedUrl(bucket, objectKey);
+          const cached = getCachedSignedUrl(bucket, objectKey, "card");
           if (cached) { result[cacheKey] = cached; return; }
-          const { data } = await supabaseAdmin.storage
-            .from(bucket)
-            .createSignedUrl(objectKey, 3600);
-          if (data?.signedUrl) {
-            setCachedSignedUrl(bucket, objectKey, data.signedUrl);
-            result[cacheKey] = data.signedUrl;
+          const signedUrl = await signedUrlWithVariant(supabaseAdmin, bucket, objectKey, "card");
+          if (signedUrl) {
+            setCachedSignedUrl(bucket, objectKey, "card", signedUrl);
+            result[cacheKey] = signedUrl;
           }
         } catch {}
       }),
@@ -841,7 +838,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     };
   }
 
-  async function getAttachmentSignedUrl({ attachmentId, authUserId }) {
+  async function getAttachmentSignedUrl({ attachmentId, authUserId, variant = "full" }) {
     const profileId = await getUserProfileId(authUserId);
 
     const rows = await prisma.$queryRaw`
@@ -858,19 +855,17 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
 
     const att = rows[0];
 
-    const cached = getCachedSignedUrl(att.bucket, att.object_key);
+    const cached = getCachedSignedUrl(att.bucket, att.object_key, variant);
     if (cached) return { url: cached };
 
-    const { data, error } = await supabaseAdmin.storage
-      .from(att.bucket)
-      .createSignedUrl(att.object_key, 3600);
+    const signedUrl = await signedUrlWithVariant(supabaseAdmin, att.bucket, att.object_key, variant);
 
-    if (error) {
-      console.error("[atlas.chat] createSignedUrl failed", { bucket: att.bucket, key: att.object_key, error });
+    if (!signedUrl) {
+      console.error("[atlas.chat] createSignedUrl failed", { bucket: att.bucket, key: att.object_key });
       throw new ChatServiceError("Error generando URL firmada.", 500);
     }
-    setCachedSignedUrl(att.bucket, att.object_key, data.signedUrl);
-    return { url: data.signedUrl };
+    setCachedSignedUrl(att.bucket, att.object_key, variant, signedUrl);
+    return { url: signedUrl };
   }
 
   // ------------------------------------------------------------------
