@@ -7,6 +7,7 @@ export const IMAGE_VARIANT_PRESETS = {
   card: { width: 96, height: 96, resize: 'cover', quality: 75 },
   banner: { width: 1600, height: 400, resize: 'cover', quality: 80 },
   product: { width: 480, height: 480, resize: 'contain', quality: 80 },
+  content: { width: 1600, quality: 80 },
 };
 
 const PUBLIC_OBJECT_PATH = '/storage/v1/object/public/';
@@ -21,11 +22,10 @@ export function withImageVariant(publicUrl, variant) {
 
   const rewritten = publicUrl.replace(PUBLIC_OBJECT_PATH, RENDER_IMAGE_PUBLIC_PATH);
   const separator = rewritten.includes('?') ? '&' : '?';
-  const query = new URLSearchParams({
-    width: String(preset.width),
-    height: String(preset.height),
-    resize: preset.resize,
-    quality: String(preset.quality),
-  });
+  const params = { width: String(preset.width) };
+  if (preset.height !== undefined) params.height = String(preset.height);
+  if (preset.resize !== undefined) params.resize = preset.resize;
+  params.quality = String(preset.quality);
+  const query = new URLSearchParams(params);
   return `${rewritten}${separator}${query.toString()}`;
 }

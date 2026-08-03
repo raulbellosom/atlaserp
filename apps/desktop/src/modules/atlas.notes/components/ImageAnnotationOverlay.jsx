@@ -235,7 +235,7 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
       )}
       <div className="relative" style={{ userSelect: 'none' }}>
         <img
-          src={withImageVariant(node.attrs.src, 'banner')}
+          src={withImageVariant(node.attrs.src, 'content')}
           alt={node.attrs.alt ?? ''}
           className="w-full block rounded-b"
           draggable={false}

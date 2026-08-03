@@ -45,3 +45,11 @@ test('appends the preset query params with & when the URL already has a query st
 test('IMAGE_VARIANT_PRESETS mirrors the backend presets used for banners', () => {
   assert.deepEqual(IMAGE_VARIANT_PRESETS.banner, { width: 1600, height: 400, resize: 'cover', quality: 80 });
 });
+
+test('rewrites a public object URL using the content preset (width-only, no forced crop)', () => {
+  const result = withImageVariant(PUBLIC_URL, 'content');
+  assert.equal(
+    result,
+    'https://supabase.racoondevs.com/storage/v1/render/image/public/atlas-notes/notes/u1/n1/123-cover.jpg?width=1600&quality=80',
+  );
+});

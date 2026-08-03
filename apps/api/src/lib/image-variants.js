@@ -9,6 +9,7 @@ export const IMAGE_VARIANTS = Object.freeze({
   card: Object.freeze({ width: 96, height: 96, resize: 'cover', quality: 75 }),
   banner: Object.freeze({ width: 1600, height: 400, resize: 'cover', quality: 80 }),
   product: Object.freeze({ width: 480, height: 480, resize: 'contain', quality: 80 }),
+  content: Object.freeze({ width: 1600, quality: 80 }),
   full: null,
 })
 
