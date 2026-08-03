@@ -69,6 +69,14 @@ export function ProfileScreen() {
     enabled: Boolean(token),
   });
 
+  const fullAvatarQuery = useQuery({
+    queryKey: ["profile-avatar-full", profileQuery.data?.data?.avatarFileId],
+    queryFn: () =>
+      atlas.files.getSignedUrl(profileQuery.data.data.avatarFileId, token, { variant: "full" }),
+    enabled: Boolean(token && imageViewerOpen && profileQuery.data?.data?.avatarFileId),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const [form, setForm] = useState(EMPTY_FORM);
 
   const countryOptions = useMemo(
@@ -466,7 +474,7 @@ export function ProfileScreen() {
       {profile?.avatarUrl && (
         <ImageViewer
           open={imageViewerOpen}
-          src={profile.avatarUrl}
+          src={fullAvatarQuery.data?.data?.signedUrl ?? profile.avatarUrl}
           alt="Foto de perfil"
           fileName={profile.displayName ?? "avatar"}
           onClose={() => setImageViewerOpen(false)}
