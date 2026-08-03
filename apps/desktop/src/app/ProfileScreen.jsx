@@ -72,7 +72,7 @@ export function ProfileScreen() {
   const fullAvatarQuery = useQuery({
     queryKey: ["profile-avatar-full", profileQuery.data?.data?.avatarFileId],
     queryFn: () =>
-      atlas.files.getSignedUrl(profileQuery.data.data.avatarFileId, token, { variant: "full" }),
+      atlas.files.getSignedUrl(profileQuery.data?.data?.avatarFileId, token, { variant: "full" }),
     enabled: Boolean(token && imageViewerOpen && profileQuery.data?.data?.avatarFileId),
     staleTime: 5 * 60 * 1000,
   });
