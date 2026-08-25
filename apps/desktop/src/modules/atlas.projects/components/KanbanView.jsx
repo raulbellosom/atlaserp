@@ -11,6 +11,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Plus, GripVertical, AlertCircle, CornerDownRight, Layers, Lock, RefreshCw, Paperclip, ArrowRight } from 'lucide-react'
 import {
   EmptyState,
+  Input,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@atlas/ui'
 import { toast } from 'sonner'
@@ -171,13 +172,12 @@ function QuickCreateInput({ statusId, projectId, onDone }) {
   }
   return (
     <form onSubmit={submit} className="mt-2">
-      <input
+      <Input
         autoFocus
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => e.key === 'Escape' && onDone()}
         placeholder="Nombre de la tarea..."
-        className="w-full text-sm bg-muted border border-border rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-accent"
       />
     </form>
   )

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  X,
   MapPin,
   Video,
   Calendar,
@@ -13,7 +12,13 @@ import {
 } from "lucide-react";
 import { useDeleteEvent } from "../hooks/useCalendarData";
 import { toast } from "sonner";
-import { MarkdownViewer, ConfirmDialog, Skeleton } from "@atlas/ui";
+import {
+  Dialog,
+  DialogContent,
+  MarkdownViewer,
+  ConfirmDialog,
+  Skeleton,
+} from "@atlas/ui";
 import {
   formatReminderClock,
   formatReminderLead,
@@ -40,32 +45,17 @@ export default function EventDetailModal({
 
   if (event._isLoading) {
     return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-        onClick={onClose}
-      >
-        <div
-          className="bg-[hsl(var(--surface-1))] rounded-xl shadow-xl w-136 max-w-[calc(100vw-2rem)] overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
+      <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
+        <DialogContent size="lg" className="px-0 pt-0 pb-0 md:p-0 gap-0 overflow-hidden">
           <div className="h-1.5 bg-[hsl(var(--muted))]" />
-          <div className="flex items-center justify-end px-4 pt-3 pb-1">
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded hover:bg-[hsl(var(--muted))]"
-              title="Cerrar"
-            >
-              <X size={15} className="text-[hsl(var(--muted-foreground))]" />
-            </button>
-          </div>
-          <div className="px-5 pb-5 space-y-3">
+          <div className="px-5 pt-4 pb-5 space-y-3">
             <Skeleton className="h-6 w-3/4" />
             <Skeleton className="h-4 w-1/2" />
             <Skeleton className="h-4 w-2/3" />
             <Skeleton className="h-4 w-1/3" />
           </div>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 
@@ -92,17 +82,11 @@ export default function EventDetailModal({
 
   return (
     <>
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-        onClick={onClose}
-      >
-        <div
-          className="bg-[hsl(var(--surface-1))] rounded-xl shadow-xl w-136 max-w-[calc(100vw-2rem)] overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
+      <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
+        <DialogContent size="lg" className="px-0 pt-0 pb-0 md:p-0 gap-0 overflow-hidden">
           <div className="h-1.5" style={{ backgroundColor: calColor }} />
 
-          <div className="flex items-center justify-end gap-1 px-4 pt-3 pb-1">
+          <div className="flex items-center justify-end gap-1 px-4 pt-3 pb-1 pr-12">
             {canEdit && (
               <button
                 onClick={() => onEdit(event)}
@@ -130,12 +114,6 @@ export default function EventDetailModal({
                 />
               </button>
             )}
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded hover:bg-[hsl(var(--muted))]"
-            >
-              <X size={15} className="text-[hsl(var(--muted-foreground))]" />
-            </button>
           </div>
 
           <div className="px-5 pb-5 space-y-3">
@@ -285,8 +263,8 @@ export default function EventDetailModal({
               )}
             </div>
           </div>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={confirmOpen}

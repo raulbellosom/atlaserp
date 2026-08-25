@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
-import { TextField } from "@atlas/ui";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Button,
+  TextField,
+} from "@atlas/ui";
 import { useCreateCalendar, useUpdateCalendar } from "../hooks/useCalendarData";
 import { CALENDAR_ICONS } from "../calendarIcons";
 import { toast } from "sonner";
@@ -73,34 +80,17 @@ export default function CalendarFormModal({ calendar, onClose }) {
     [
       "w-10 h-10 rounded-lg flex items-center justify-center transition-all focus-visible:outline-none",
       selected
-        ? "ring-2 ring-violet-500"
+        ? "ring-2 ring-(--brand-primary)"
         : "hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]",
     ].join(" ");
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-      onClick={onClose}
-    >
-      <form
-        onSubmit={handleSubmit}
-        className="bg-[hsl(var(--surface-1))] rounded-xl shadow-xl w-full max-w-lg overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--border))]">
-          <h2 className="text-base font-semibold text-[hsl(var(--foreground))]">
-            {isEdit ? "Editar calendario" : "Nuevo calendario"}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded hover:bg-[hsl(var(--muted))]"
-          >
-            <X size={15} />
-          </button>
-        </div>
-
-        <div className="px-5 py-4 space-y-4">
+    <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent size="md">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Editar calendario" : "Nuevo calendario"}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <TextField
             label="Nombre"
             required
@@ -169,25 +159,17 @@ export default function CalendarFormModal({ calendar, onClose }) {
               ))}
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[hsl(var(--border))]">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3 py-1.5 text-sm rounded-lg hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={isPending}
-            className="px-4 py-1.5 text-sm rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-medium disabled:opacity-50"
-          >
-            {isPending ? "Guardando..." : isEdit ? "Actualizar" : "Crear"}
-          </button>
-        </div>
-      </form>
-    </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? "Guardando..." : isEdit ? "Actualizar" : "Crear"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

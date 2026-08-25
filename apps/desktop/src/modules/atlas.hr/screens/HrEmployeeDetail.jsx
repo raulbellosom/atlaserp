@@ -4,12 +4,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Badge,
   Button,
+  Card,
   ConfirmDialog,
+  Dialog,
+  DialogContent,
   MarkdownViewer,
   Skeleton,
   cn,
 } from "@atlas/ui";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -34,7 +37,6 @@ import {
   ShieldBan,
   User,
   Users,
-  X,
 } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
@@ -223,12 +225,7 @@ function fmtFieldValue(val) {
 
 function SectionCard({ title, icon: Icon, children, className }) {
   return (
-    <div
-      className={cn(
-        "rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-4",
-        className,
-      )}
-    >
+    <Card variant="solid" className={cn("p-5 space-y-4", className)}>
       {title && (
         <div className="flex items-center gap-2">
           {Icon && (
@@ -240,7 +237,7 @@ function SectionCard({ title, icon: Icon, children, className }) {
         </div>
       )}
       {children}
-    </div>
+    </Card>
   );
 }
 
@@ -610,19 +607,9 @@ function AuditDetailModal({ log, onClose }) {
   const isDelete = log.action === "hr.employee.file.delete";
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[hsl(var(--background))]/70 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.97, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.97, y: 8 }}
-        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-2xl overflow-hidden"
-      >
-        <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-[hsl(var(--border))]">
+    <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent size="md" className="px-0 pt-0 pb-0 md:p-0 gap-0 overflow-hidden">
+        <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-[hsl(var(--border))] pr-12">
           <div>
             <p className="font-semibold text-[hsl(var(--foreground))]">
               {actionLabel}
@@ -631,13 +618,6 @@ function AuditDetailModal({ log, onClose }) {
               {actor} · {fmtDate(log.createdAt)}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
         </div>
         <div className="max-h-96 overflow-auto px-5 py-4 space-y-3">
           {fileMeta && (
@@ -714,8 +694,8 @@ function AuditDetailModal({ log, onClose }) {
             </div>
           ))}
         </div>
-      </motion.div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -734,14 +714,12 @@ function AuditPanel({ employeeId, token }) {
 
   return (
     <>
-      <AnimatePresence>
-        {selectedLog && (
-          <AuditDetailModal
-            log={selectedLog}
-            onClose={() => setSelectedLog(null)}
-          />
-        )}
-      </AnimatePresence>
+      {selectedLog && (
+        <AuditDetailModal
+          log={selectedLog}
+          onClose={() => setSelectedLog(null)}
+        />
+      )}
 
       <SectionCard title="Historial de cambios" icon={Clock}>
         <div className="space-y-1.5 max-h-72 overflow-auto pr-0.5">

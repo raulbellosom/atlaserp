@@ -3,6 +3,7 @@ import { AlertTriangle, ChevronDown, ChevronRight, Columns2, X } from 'lucide-re
 import {
   BulkActionBar,
   Button,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogFooter,
@@ -70,14 +71,9 @@ function isWarrantyExpiringSoon(dateStr) {
 function GroupHeader({ group, isExpanded, onToggle, allGroupSelected, onToggleGroupSelect }) {
   return (
     <div className="flex items-center">
-      <label className="flex items-center px-3 py-2.5 cursor-pointer" onClick={e => e.stopPropagation()}>
-        <input
-          type="checkbox"
-          checked={allGroupSelected}
-          onChange={onToggleGroupSelect}
-          className="rounded border-[hsl(var(--border))]"
-        />
-      </label>
+      <div className="flex items-center px-3 py-2.5" onClick={e => e.stopPropagation()}>
+        <Checkbox checked={allGroupSelected} onCheckedChange={onToggleGroupSelect} />
+      </div>
       <button
         type="button"
         onClick={onToggle}
@@ -148,12 +144,10 @@ function TreeView({ groups, collapsedGroups, onToggleGroup, onItemClick, visible
                             className="border-b border-[hsl(var(--border)/0.5)] last:border-0 hover:bg-[hsl(var(--muted)/0.5)] transition-colors"
                           >
                             <td className="w-8 px-2 py-2">
-                              <input
-                                type="checkbox"
+                              <Checkbox
                                 checked={selectedIds.has(item.id)}
-                                onChange={() => onToggleSelect(item.id)}
+                                onCheckedChange={() => onToggleSelect(item.id)}
                                 onClick={e => e.stopPropagation()}
-                                className="rounded border-[hsl(var(--border))]"
                               />
                             </td>
                             <td
@@ -212,14 +206,9 @@ function CardsView({ items, onItemClick, selectedIds, onToggleSelect }) {
                 : 'border-[hsl(var(--border))] hover:border-[hsl(var(--ring))] hover:shadow-sm'
             }`}
           >
-            <label className="absolute top-2 right-2 cursor-pointer" onClick={e => e.stopPropagation()}>
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => onToggleSelect(item.id)}
-                className="rounded border-[hsl(var(--border))]"
-              />
-            </label>
+            <div className="absolute top-2 right-2" onClick={e => e.stopPropagation()}>
+              <Checkbox checked={isSelected} onCheckedChange={() => onToggleSelect(item.id)} />
+            </div>
             <button
               type="button"
               onClick={() => onItemClick(item)}

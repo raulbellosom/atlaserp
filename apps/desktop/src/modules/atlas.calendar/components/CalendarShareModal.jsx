@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Trash2, Search, UserRound, Crown } from 'lucide-react'
+import { X, Trash2, UserRound, Crown } from 'lucide-react'
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  SearchInput, Button,
 } from '@atlas/ui'
 import { useShareCalendar, useUpdateShare, useDeleteShare, useUserSearch } from '../hooks/useCalendarData'
 import { useAuth } from '../../../auth/AuthProvider'
@@ -107,17 +109,13 @@ function UserCombobox({ value, onChange, excludeIds = [] }) {
 
   return (
     <div ref={rootRef} className="flex-1 min-w-0 relative">
-      <div className="relative">
-        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" />
-        <input
-          type="text"
-          placeholder="Buscar por nombre o correo..."
-          value={inputValue}
-          onChange={(e) => { setInputValue(e.target.value); setOpen(true) }}
-          onFocus={() => setOpen(true)}
-          className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] text-[hsl(var(--foreground))] outline-none focus:border-violet-500"
-        />
-      </div>
+      <SearchInput
+        value={inputValue}
+        onChange={(e) => { setInputValue(e.target.value); setOpen(true) }}
+        onClear={() => { setInputValue(''); setOpen(false) }}
+        onFocus={() => setOpen(true)}
+        placeholder="Buscar por nombre o correo..."
+      />
 
       {open && debouncedQuery.length >= 2 && (
         <div className="absolute z-50 mt-1 w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-lg overflow-hidden">
@@ -196,28 +194,23 @@ export default function CalendarShareModal({ calendar, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
-      <div
-        className="bg-[hsl(var(--surface-1))] rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[85vh]"
-        onClick={(e) => e.stopPropagation()}
+    <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent
+        size="lg"
+        className="px-0 pt-0 pb-0 md:p-0 gap-0 flex flex-col overflow-hidden md:overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-[hsl(var(--border))] shrink-0">
+        <DialogHeader className="flex-row items-start justify-between px-6 py-5 border-b border-[hsl(var(--border))] shrink-0 mb-0 space-y-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-3 h-3 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: calColor }} />
             <div className="min-w-0">
               <p className="text-xs text-[hsl(var(--muted-foreground))] uppercase tracking-wide font-medium">
                 Gestionar acceso
               </p>
-              <h2 className="text-base font-semibold text-[hsl(var(--foreground))] truncate">
-                {calendar?.name}
-              </h2>
+              <DialogTitle className="truncate">{calendar?.name}</DialogTitle>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-[hsl(var(--muted))] shrink-0 ml-4 mt-0.5">
-            <X size={15} />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* People list — scrollable */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-1 min-h-0">
@@ -295,16 +288,16 @@ export default function CalendarShareModal({ calendar, onClose }) {
           <form onSubmit={handleAdd} className="flex gap-2 items-center">
             <UserCombobox value={selectedUser} onChange={setSelectedUser} excludeIds={excludeIds} />
             <RoleSelect value={role} onValueChange={setRole} />
-            <button
+            <Button
               type="submit"
               disabled={shareCalendar.isPending || !selectedUser}
-              className="px-4 py-2 text-sm rounded-lg bg-violet-600 text-white font-medium hover:bg-violet-700 disabled:opacity-50 whitespace-nowrap shrink-0"
+              className="whitespace-nowrap shrink-0"
             >
               Invitar
-            </button>
+            </Button>
           </form>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

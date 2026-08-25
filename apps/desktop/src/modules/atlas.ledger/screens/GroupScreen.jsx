@@ -300,14 +300,11 @@ export default function GroupScreen() {
         {activeTab === 'cuentas' && (
           accounts.length === 0
             ? (
-              <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-[hsl(var(--border))] px-6 py-14 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[hsl(var(--muted))]">
-                  <Landmark className="h-7 w-7 text-[hsl(var(--muted-foreground))]" />
-                </div>
-                <div className="space-y-1.5">
-                  <p className="text-sm font-semibold">Sin cuentas</p>
-                  <p className="text-sm text-[hsl(var(--muted-foreground))]">Este grupo no tiene cuentas todavía.</p>
-                </div>
+              <EmptyState
+                icon={Landmark}
+                title="Sin cuentas"
+                description="Este grupo no tiene cuentas todavía."
+              >
                 {canWrite && (
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => setAssignOpen(true)}>
@@ -318,7 +315,7 @@ export default function GroupScreen() {
                     </Button>
                   </div>
                 )}
-              </div>
+              </EmptyState>
             ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {accounts.map((account) => (

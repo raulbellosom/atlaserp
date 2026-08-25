@@ -1,6 +1,7 @@
 import { NodeViewWrapper } from '@tiptap/react'
 import { useRef, useState } from 'react'
 import { GripVertical } from 'lucide-react'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@atlas/ui'
 import { findDropPosition, moveNode } from '../lib/dragReorder.js'
 import { withImageVariant } from '../../../lib/imageVariants.js'
 
@@ -223,9 +224,16 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
               style={{ backgroundColor: c === '#ffffff' ? '#f3f4f6' : c }} />
           ))}
           <div className="h-4 w-px bg-gray-200" />
-          <select value={lineWidth} onChange={e => setLineWidth(Number(e.target.value))} className="text-xs border border-gray-300 rounded px-1 py-0.5">
-            {[1, 2, 3, 4, 6].map(w => <option key={w} value={w}>{w}px</option>)}
-          </select>
+          <Select value={String(lineWidth)} onValueChange={v => setLineWidth(Number(v))}>
+            <SelectTrigger className="h-6 w-auto min-w-14 px-1.5 py-0 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[1, 2, 3, 4, 6].map(w => (
+                <SelectItem key={w} value={String(w)}>{w}px</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {annotations.length > 0 && (
             <button onClick={() => updateAttributes({ annotations: '[]' })} className="ml-auto text-xs text-red-500 hover:bg-red-50 px-2 py-0.5 rounded">
               Limpiar

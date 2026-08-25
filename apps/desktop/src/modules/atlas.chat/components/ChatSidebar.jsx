@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Button, EmptyState, Skeleton } from "@atlas/ui";
-import { Plus, Search, Archive, ChevronDown, ChevronRight } from "lucide-react";
+import { Button, EmptyState, SearchInput, Skeleton } from "@atlas/ui";
+import { Plus, Archive, ChevronDown, ChevronRight } from "lucide-react";
 import { ChatConversationItem } from "./ChatConversationItem";
 import { CreateChatModal } from "./CreateChatModal";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -53,16 +53,12 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
 
       {/* Search */}
       <div className="px-3 py-2 border-b border-[hsl(var(--border))] shrink-0">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
-          <input
-            type="text"
-            placeholder="Buscar conversaciones..."
-            className="w-full pl-8 pr-3 py-1.5 text-sm bg-[hsl(var(--muted))] rounded-lg outline-none placeholder:text-[hsl(var(--muted-foreground))]"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+        <SearchInput
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onClear={() => setSearch('')}
+          placeholder="Buscar conversaciones..."
+        />
       </div>
 
       {/* Conversation list */}

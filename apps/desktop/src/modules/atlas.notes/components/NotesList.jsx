@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Search, X } from 'lucide-react'
 import { NoteCard } from './NoteCard.jsx'
-import { EmptyState } from '@atlas/ui'
+import { EmptyState, SearchInput } from '@atlas/ui'
 
 export function NotesList({ notes = [], selectedNoteId, onSelect, onTrash, isLoading, showTrash = false }) {
   const [search, setSearch] = useState('')
@@ -16,24 +15,12 @@ export function NotesList({ notes = [], selectedNoteId, onSelect, onTrash, isLoa
   return (
     <div className="flex flex-col h-full bg-card">
       <div className="px-3 py-2.5 border-b border-border">
-        <div className="relative flex items-center">
-          <Search className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar notas..."
-            className="w-full pl-8 pr-7 py-1.5 text-sm bg-muted border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 focus:border-amber-400 transition-colors placeholder:text-muted-foreground text-foreground"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="absolute right-2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
+        <SearchInput
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          onClear={() => setSearch('')}
+          placeholder="Buscar notas..."
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto">

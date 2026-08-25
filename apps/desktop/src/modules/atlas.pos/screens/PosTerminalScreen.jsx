@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Store, Landmark, Settings2, AlertTriangle, ShoppingCart, ChevronUp, Receipt, History } from 'lucide-react'
 import {
-  EmptyState, Button, Label, SelectField,
+  EmptyState, Button, Card, Label, SelectField,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
   Sheet, SheetContent, SheetTitle,
 } from '@atlas/ui'
@@ -37,7 +37,7 @@ function SetupCard({ outlets, terminals, onConfirm }) {
   }
 
   return (
-    <div className="w-full max-w-sm flex flex-col gap-6 rounded-2xl border border-border bg-card p-8 shadow-sm">
+    <Card variant="solid" className="w-full max-w-sm flex flex-col gap-6 p-8">
       <div>
         <h2 className="text-base font-semibold">Configurar terminal</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -77,7 +77,7 @@ function SetupCard({ outlets, terminals, onConfirm }) {
       >
         Comenzar
       </Button>
-    </div>
+    </Card>
   )
 }
 

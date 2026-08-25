@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import {
-  Button, ComboboxField, EmptyState, MarkdownField, NumberField,
+  Button, Card, ComboboxField, EmptyState, MarkdownField, NumberField,
   SelectField, Skeleton, Switch, TextareaField, TextField, cn,
 } from '@atlas/ui'
 import { ArrowLeft, EyeOff, Globe, Package, TrendingDown, TrendingUp } from 'lucide-react'
@@ -32,12 +32,12 @@ const CURRENCY_OPTIONS = [
 
 function SectionCard({ title, children, className }) {
   return (
-    <div className={cn('rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-4', className)}>
+    <Card variant="solid" className={cn('p-5 space-y-4', className)}>
       {title && (
         <h3 className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">{title}</h3>
       )}
       {children}
-    </div>
+    </Card>
   )
 }
 

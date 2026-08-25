@@ -6,6 +6,7 @@ import {
   ActionMenu,
   Badge,
   Button,
+  Card,
   ConfirmDialog,
   EmptyState,
   ErrorState,
@@ -149,10 +150,10 @@ function RolesCardView({ roles, onNavigate, onToggle, onEdit, onDelete, canManag
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {roles.map((role) => (
-        <div
+        <Card
           key={role.id}
           onClick={() => onNavigate(role.id)}
-          className="glass group relative flex flex-col gap-3 rounded-2xl border border-[hsl(var(--border))] p-4 text-left transition-all hover:border-[--brand-primary]/40 hover:shadow-md cursor-pointer"
+          className="group relative flex flex-col gap-3 p-4 text-left transition-all hover:border-[--brand-primary]/40 hover:shadow-md cursor-pointer"
         >
           {/* Header */}
           <div className="flex items-start gap-3">
@@ -231,7 +232,7 @@ function RolesCardView({ roles, onNavigate, onToggle, onEdit, onDelete, canManag
               </Badge>
             </div>
           </div>
-        </div>
+        </Card>
       ))}
     </div>
   );
@@ -243,10 +244,10 @@ function RolesGridView({ roles, onNavigate, onToggle, onEdit, onDelete, canManag
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
       {roles.map((role) => (
-        <div
+        <Card
           key={role.id}
           onClick={() => onNavigate(role.id)}
-          className="glass group relative flex flex-col items-center gap-2 rounded-2xl border border-[hsl(var(--border))] p-3 text-center transition-all hover:border-[--brand-primary]/40 cursor-pointer"
+          className="group relative flex flex-col items-center gap-2 p-3 text-center transition-all hover:border-[--brand-primary]/40 cursor-pointer"
         >
           <div className="h-12 w-12 rounded-xl bg-[--brand-primary]/15 flex items-center justify-center ring-1 ring-[--brand-primary]/20">
             <Shield className="h-6 w-6 text-[--brand-primary]" />
@@ -297,7 +298,7 @@ function RolesGridView({ roles, onNavigate, onToggle, onEdit, onDelete, canManag
               />
             </div>
           )}
-        </div>
+        </Card>
       ))}
     </div>
   );
@@ -310,14 +311,11 @@ function RolesSkeleton({ viewMode }) {
     return (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
         {Array.from({ length: 10 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex flex-col items-center gap-2 rounded-2xl border border-[hsl(var(--border))] p-3"
-          >
+          <Card key={i} variant="bordered" className="flex flex-col items-center gap-2 p-3">
             <Skeleton className="h-12 w-12 rounded-xl" />
             <Skeleton className="h-3.5 w-20" />
             <Skeleton className="h-5 w-12 rounded-full" />
-          </div>
+          </Card>
         ))}
       </div>
     );
@@ -326,10 +324,7 @@ function RolesSkeleton({ viewMode }) {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="rounded-2xl border border-[hsl(var(--border))] p-4 space-y-3"
-          >
+          <Card key={i} variant="bordered" className="p-4 space-y-3">
             <div className="flex items-start gap-3">
               <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
               <div className="flex-1 space-y-2">
@@ -339,7 +334,7 @@ function RolesSkeleton({ viewMode }) {
             </div>
             <Skeleton className="h-3.5 w-full" />
             <Skeleton className="h-3 w-3/4" />
-          </div>
+          </Card>
         ))}
       </div>
     );

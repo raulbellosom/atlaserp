@@ -805,11 +805,11 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
                     ))}
                   </div>
                   <form onSubmit={handleAddSubtask} className="mt-2 flex gap-2">
-                    <input
+                    <Input
                       value={newSubtask}
                       onChange={(e) => setNewSubtask(e.target.value)}
                       placeholder="Nueva subtarea..."
-                      className="flex-1 text-sm bg-muted border border-border rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-accent"
+                      className="flex-1"
                     />
                     <Button
                       size="sm"

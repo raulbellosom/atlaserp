@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Calendar, MapPin, Video, Repeat } from "lucide-react";
+import { Calendar, MapPin, Video, Repeat } from "lucide-react";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Button,
   TextField,
   MarkdownField,
   DateTimeField,
@@ -252,29 +258,12 @@ export default function EventFormModal({
     deleteReminder.isPending;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-      onClick={onClose}
-    >
-      <form
-        onSubmit={handleSubmit}
-        className="bg-[hsl(var(--surface-1))] rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--border))]">
-          <h2 className="text-base font-semibold text-[hsl(var(--foreground))]">
-            {isEdit ? "Editar evento" : "Nuevo evento"}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded hover:bg-[hsl(var(--muted))]"
-          >
-            <X size={15} />
-          </button>
-        </div>
-
-        <div className="px-5 py-4 space-y-4 max-h-[72vh] overflow-y-auto overflow-x-hidden">
+    <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent size="2xl">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Editar evento" : "Nuevo evento"}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <TextField
             label="Titulo"
             required
@@ -399,29 +388,21 @@ export default function EventFormModal({
               onChange={(e) => set("recurrenceInterval", e.target.value)}
             />
           )}
-        </div>
 
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[hsl(var(--border))]">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3 py-1.5 text-sm rounded-lg hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={isPending}
-            className="px-4 py-1.5 text-sm rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-medium disabled:opacity-50"
-          >
-            {isPending
-              ? "Guardando..."
-              : isEdit
-                ? "Actualizar"
-                : "Crear evento"}
-          </button>
-        </div>
-      </form>
-    </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending
+                ? "Guardando..."
+                : isEdit
+                  ? "Actualizar"
+                  : "Crear evento"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -7,9 +7,11 @@ import {
   DialogDescription,
   DialogFooter,
   Button,
+  Input,
+  SearchInput,
   Skeleton,
 } from "@atlas/ui";
-import { Search, X, Check, Users } from "lucide-react";
+import { X, Check, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
@@ -149,38 +151,21 @@ export function CreateChatModal({ open, onClose, onCreated }) {
 
         <div className="px-4 py-3 space-y-3">
           {/* Search input */}
-          <div className="flex items-center gap-2 bg-[hsl(var(--muted))] rounded-lg px-3 py-2">
-            <Search className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
-            <input
-              type="text"
-              className="flex-1 bg-transparent outline-none text-sm placeholder:text-[hsl(var(--muted-foreground))]"
-              placeholder="Buscar por nombre o correo..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              autoFocus
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="shrink-0 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
+          <SearchInput
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onClear={() => setSearch("")}
+            placeholder="Buscar por nombre o correo..."
+            autoFocus
+          />
 
           {/* Group name field — only when multiple selected */}
           {isGroup && (
-            <div className="flex items-center gap-2 bg-[hsl(var(--muted))] rounded-lg px-3 py-2">
-              <input
-                type="text"
-                className="flex-1 bg-transparent outline-none text-sm placeholder:text-[hsl(var(--muted-foreground))]"
-                placeholder="Nombre del grupo (opcional)"
-                value={groupTitle}
-                onChange={(e) => setGroupTitle(e.target.value)}
-              />
-            </div>
+            <Input
+              placeholder="Nombre del grupo (opcional)"
+              value={groupTitle}
+              onChange={(e) => setGroupTitle(e.target.value)}
+            />
           )}
 
           {/* Selected chips */}
