@@ -47,6 +47,9 @@ export default function TableMap({ tables = [], onTableClick }) {
           const colorClass = STATUS_COLORS[table.status] ?? STATUS_COLORS.AVAILABLE
           const dotClass   = STATUS_DOT[table.status]   ?? STATUS_DOT.AVAILABLE
           const isDisabled = table.status === 'DISABLED'
+          // table.isMine is only present when the "mis-mesas" filter is active — dim
+          // (never hide) so the real status stays visible instead of a false ghost.
+          const isDimmedByFilter = table.isMine === false
           return (
             <button
               key={table.id}
@@ -58,7 +61,9 @@ export default function TableMap({ tables = [], onTableClick }) {
                 colorClass,
                 isDisabled
                   ? 'cursor-not-allowed opacity-40'
-                  : 'cursor-pointer hover:shadow-md hover:-translate-y-px active:translate-y-0 active:shadow-sm',
+                  : isDimmedByFilter
+                    ? 'cursor-pointer opacity-45 hover:opacity-70'
+                    : 'cursor-pointer hover:shadow-md hover:-translate-y-px active:translate-y-0 active:shadow-sm',
               ].join(' ')}
             >
               {/* Status indicator dot */}

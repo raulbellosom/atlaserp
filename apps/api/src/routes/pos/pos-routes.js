@@ -203,6 +203,16 @@ export function createPosRouter({ prisma, requirePermission, broadcaster = null 
     }
   });
 
+  app.get("/pos/sessions/:id/expected-cash", requirePermission("pos.sessions.read"), async (c) => {
+    try {
+      return c.json({
+        data: await sessionSvc.getExpectedCashAmount({ ...context(c), sessionId: c.req.param("id") }),
+      });
+    } catch (err) {
+      return handleError(c, err, "No se pudo calcular el efectivo esperado.");
+    }
+  });
+
   app.post("/pos/sessions/:id/cash-movements", requirePermission("pos.cash.manage"), async (c) => {
     try {
       const data = await parseBody(c, cashMovementSchema);
@@ -335,6 +345,16 @@ export function createPosRouter({ prisma, requirePermission, broadcaster = null 
       return c.json({ data: order });
     } catch (err) {
       return handleError(c, err, "No se pudo asignar el mesero a la orden.");
+    }
+  });
+
+  app.post("/pos/orders/:id/claim", requirePermission("pos.terminal.use"), async (c) => {
+    try {
+      const order = await orderSvc.claimOrder({ ...context(c), id: c.req.param("id") });
+      broadcastPosEvent(c, order.id, "order.claim");
+      return c.json({ data: order });
+    } catch (err) {
+      return handleError(c, err, "No se pudo reclamar la orden.");
     }
   });
 

@@ -381,7 +381,7 @@ export default function PosModifiersTab() {
               step={0.01}
               value={optionForm.priceDelta}
               onChange={(e) => setOptionForm((f) => ({ ...f, priceDelta: e.target.value }))}
-              helperText="Usa 0 si la opción no tiene costo extra."
+              hint="Usa 0 si la opción no tiene costo extra."
             />
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setOptionGroup(null)}>Cancelar</Button>

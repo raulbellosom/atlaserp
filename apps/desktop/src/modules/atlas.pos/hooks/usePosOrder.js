@@ -253,6 +253,27 @@ export function useAssignOrderWaiter() {
   })
 }
 
+// Re-asserts OCCUPIED + waiterId on the order's table when resuming an
+// existing order — createOrder does this at creation time, but nothing
+// re-applied it on resume, so a table whose status had drifted back to
+// AVAILABLE stayed that way even while its order was still being worked on.
+export function useClaimOrder() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (orderId) => atlas.pos.claimOrder(orderId, token),
+    onSuccess: (_, orderId) => {
+      qc.invalidateQueries({ queryKey: ['pos', 'orders', 'detail', orderId] })
+      qc.invalidateQueries({ queryKey: ['pos', 'orders'] })
+      qc.invalidateQueries({ queryKey: ['pos', 'floors'] })
+      qc.invalidateQueries({ queryKey: ['pos', 'tables'] })
+    },
+    // Claim failing shouldn't block the user from viewing/resuming the order —
+    // the caller navigates regardless and just loses the table-status self-heal.
+    onError: (err) => toast.error(err?.message ?? 'No se pudo reclamar la mesa para esta orden'),
+  })
+}
+
 export function useOrderSeatTotals(orderId) {
   const token = useToken()
   return useQuery({

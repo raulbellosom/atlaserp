@@ -597,6 +597,64 @@ describe("createPosOrderService", () => {
     assert.equal(table.status, "OCCUPIED");
     assert.equal(table.waiterId, "user-1");
   });
+
+  // Regression: resuming an existing order never re-asserted OCCUPIED + waiterId
+  // on its table, so a table that had drifted back to AVAILABLE (stale data,
+  // a status reset elsewhere, etc.) stayed AVAILABLE even while its order kept
+  // being worked on. Only createOrder used to set this.
+  it("claimOrder re-occupies a table that drifted back to AVAILABLE for an order still being worked on", async () => {
+    const db = makePrisma();
+    const svc = createPosOrderService({ prisma: db });
+    const order = await svc.createOrder({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", fulfillmentType: "DINE_IN", guestCount: 2, tableId: "table-1" },
+    });
+    // Simulate the drift: table status reset to AVAILABLE while the order is still open.
+    db.tables.set("table-1", { ...db.tables.get("table-1"), status: "AVAILABLE", waiterId: null });
+
+    const claimed = await svc.claimOrder({ companyId: "company-1", actorId: "user-2", id: order.id });
+    assert.equal(claimed.waiterId, "user-2");
+
+    const table = db.tables.get("table-1");
+    assert.equal(table.status, "OCCUPIED");
+    assert.equal(table.waiterId, "user-2");
+
+    const auditEntry = db.audits.find((a) => a.action === "pos.order.claim");
+    assert.ok(auditEntry, "audit entry for order.claim must exist");
+  });
+
+  it("claimOrder rejects orders that are no longer editable (PAID/CANCELLED/REFUNDED)", async () => {
+    const db = makePrisma();
+    const svc = createPosOrderService({ prisma: db });
+    const order = await svc.createOrder({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", fulfillmentType: "DINE_IN", guestCount: 1, tableId: "table-1" },
+    });
+    db.orders.set(order.id, { ...db.orders.get(order.id), status: "PAID" });
+
+    await assert.rejects(
+      () => svc.claimOrder({ companyId: "company-1", actorId: "user-1", id: order.id }),
+      (err) => err instanceof PosServiceError && err.status === 409,
+    );
+  });
+
+  it("claimOrder is idempotent — calling it twice on an already-correct table is a no-op", async () => {
+    const db = makePrisma();
+    const svc = createPosOrderService({ prisma: db });
+    const order = await svc.createOrder({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", fulfillmentType: "DINE_IN", guestCount: 1, tableId: "table-1" },
+    });
+    await svc.claimOrder({ companyId: "company-1", actorId: "user-1", id: order.id });
+    const secondClaim = await svc.claimOrder({ companyId: "company-1", actorId: "user-1", id: order.id });
+    assert.equal(secondClaim.waiterId, "user-1");
+    const table = db.tables.get("table-1");
+    assert.equal(table.status, "OCCUPIED");
+    assert.equal(table.waiterId, "user-1");
+  });
 });
 
 describe("addPayment money containers", () => {

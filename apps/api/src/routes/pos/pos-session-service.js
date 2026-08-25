@@ -101,6 +101,46 @@ export function createPosSessionService({ prisma }) {
     return movement;
   }
 
+  // Shared by closeSession (persists the value) and getExpectedCashAmount
+  // (live preview for an still-OPEN session, e.g. the Cerrar Caja dialog).
+  async function computeExpectedCashAmount({ companyId, session }) {
+    const [payments, movements] = await Promise.all([
+      prisma.posPayment.findMany({
+        where: {
+          companyId,
+          status: "CAPTURED",
+          sessionId: session.id,
+        },
+        include: { paymentMethod: true, order: true },
+      }),
+      prisma.posCashMovement.findMany({
+        where: { companyId, sessionId: session.id },
+      }),
+    ]);
+
+    return {
+      expectedCashAmount: toMoney(
+        Number(session.openingCashAmount ?? 0) +
+          cashPaymentTotal(payments) +
+          movementTotal(movements, "IN") -
+          movementTotal(movements, "OUT") +
+          movementTotal(movements, "WAITER_DELIVERY"),
+      ),
+      paymentsCount: payments.length,
+      movementsCount: movements.length,
+    };
+  }
+
+  async function getExpectedCashAmount({ companyId, sessionId }) {
+    const scopedCompanyId = requireCompanyId(companyId);
+    const session = await getSessionById({ companyId: scopedCompanyId, id: sessionId });
+    const { expectedCashAmount } = await computeExpectedCashAmount({
+      companyId: scopedCompanyId,
+      session,
+    });
+    return { expectedCashAmount };
+  }
+
   async function closeSession({ companyId, sessionId, actorId, data }) {
     const scopedCompanyId = requireCompanyId(companyId);
     const before = await getSessionById({ companyId: scopedCompanyId, id: sessionId });
@@ -108,27 +148,10 @@ export function createPosSessionService({ prisma }) {
       throw new PosServiceError("La sesion de caja no esta abierta.", 409);
     }
 
-    const [payments, movements] = await Promise.all([
-      prisma.posPayment.findMany({
-        where: {
-          companyId: scopedCompanyId,
-          status: "CAPTURED",
-          sessionId,
-        },
-        include: { paymentMethod: true, order: true },
-      }),
-      prisma.posCashMovement.findMany({
-        where: { companyId: scopedCompanyId, sessionId },
-      }),
-    ]);
-
-    const expectedCashAmount = toMoney(
-      Number(before.openingCashAmount ?? 0) +
-        cashPaymentTotal(payments) +
-        movementTotal(movements, "IN") -
-        movementTotal(movements, "OUT") +
-        movementTotal(movements, "WAITER_DELIVERY"),
-    );
+    const { expectedCashAmount, paymentsCount, movementsCount } = await computeExpectedCashAmount({
+      companyId: scopedCompanyId,
+      session: before,
+    });
     const countedCashAmount = toMoney(data.countedCashAmount);
     const differenceAmount = toMoney(countedCashAmount - expectedCashAmount);
 
@@ -151,7 +174,7 @@ export function createPosSessionService({ prisma }) {
       action: "pos.session.close",
       before,
       after: updated,
-      metadata: { paymentsCount: payments.length, movementsCount: movements.length },
+      metadata: { paymentsCount, movementsCount },
     });
     return updated;
   }
@@ -162,6 +185,7 @@ export function createPosSessionService({ prisma }) {
     openSession,
     getSessionById,
     addCashMovement,
+    getExpectedCashAmount,
     closeSession,
   };
 }

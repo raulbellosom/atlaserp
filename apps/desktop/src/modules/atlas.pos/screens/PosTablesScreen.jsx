@@ -7,7 +7,7 @@ import { usePosFloors, usePosFloorDetail, useUpdateTableStatus, useUpdateTableWa
 import { useCreatePosReservation, useUpdatePosReservation, useSeatPosReservation } from '../hooks/usePosReservation'
 import { ReservationFormDialog } from '../components/ReservationFormDialog'
 import { usePosOutlets } from '../hooks/usePosSettings'
-import { useCreatePosOrder, usePosOrders } from '../hooks/usePosOrder'
+import { useCreatePosOrder, usePosOrders, useClaimOrder } from '../hooks/usePosOrder'
 import { useIsDesktop } from '../../../hooks/useIsDesktop'
 import { useAuth } from '../../../auth/AuthProvider'
 import FloorOperationalCanvas from '../components/FloorOperationalCanvas'
@@ -249,6 +249,7 @@ export default function PosTablesScreen({ comanderoMode = false }) {
     [openOrders, sentOrders, partialOrders, servedOrders],
   )
   const createOrder = useCreatePosOrder()
+  const claimOrder = useClaimOrder()
 
   function handleOutletChange(id) {
     setOutletId(id)
@@ -262,6 +263,9 @@ export default function PosTablesScreen({ comanderoMode = false }) {
     }
     const existingOrder = activeOrders.find((o) => o.tableId === table.id)
     if (existingOrder) {
+      // Re-assert OCCUPIED + waiterId on the table — resuming an order used to
+      // leave a table stuck on a stale AVAILABLE status if it had ever drifted.
+      claimOrder.mutate(existingOrder.id)
       navigate(`/app/m/atlas.pos/pos/terminal?order=${existingOrder.id}`)
       return
     }

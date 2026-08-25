@@ -346,7 +346,11 @@ describe("createPosFloorService", () => {
     );
   });
 
-  it("getActiveMap with myTablesOnly:true returns only tables where waiterId matches actorId", async () => {
+  // Regression: myTablesOnly used to filter non-mine tables out of the query
+  // entirely, which left the operational canvas with no status data for them
+  // and made it fall back to a false "Disponible" ghost. It must now return
+  // every table (real status intact) and only annotate which ones are mine.
+  it("getActiveMap with myTablesOnly:true returns every table with an isMine flag, not a filtered subset", async () => {
     const prisma = makePrisma();
     const svc = createPosFloorService({ prisma });
     const floor = await svc.createFloor({
@@ -360,7 +364,7 @@ describe("createPosFloorService", () => {
       actorId: "user-1",
       data: { floorId: floor.id, name: "Mesa A", capacity: 2 },
     });
-    await svc.createTable({
+    const otherTable = await svc.createTable({
       companyId: "company-1",
       actorId: "user-1",
       data: { floorId: floor.id, name: "Mesa B", capacity: 2 },
@@ -378,9 +382,31 @@ describe("createPosFloorService", () => {
       actorId: "user-1",
     });
     assert.ok(map, "active map must exist");
-    assert.strictEqual(map.tables.length, 1);
-    assert.strictEqual(map.tables[0].id, myTable.id);
-    assert.equal(map.tables[0].waiterName, "Mesero Principal");
+    assert.strictEqual(map.tables.length, 2, "must include every table, not just mine");
+    const mine = map.tables.find((t) => t.id === myTable.id);
+    const other = map.tables.find((t) => t.id === otherTable.id);
+    assert.equal(mine.isMine, true);
+    assert.equal(mine.waiterName, "Mesero Principal");
+    assert.equal(other.isMine, false);
+    assert.equal(other.status, "AVAILABLE", "non-mine table must still carry its real status");
+  });
+
+  it("getActiveMap without myTablesOnly never sets isMine on any table", async () => {
+    const prisma = makePrisma();
+    const svc = createPosFloorService({ prisma });
+    const floor = await svc.createFloor({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", name: "Salon" },
+    });
+    await svc.publishFloor({ companyId: "company-1", id: floor.id, actorId: "user-1" });
+    await svc.createTable({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { floorId: floor.id, name: "Mesa A", capacity: 2 },
+    });
+    const map = await svc.getActiveMap({ companyId: "company-1", outletId: "outlet-1" });
+    assert.ok(map.tables.every((t) => !("isMine" in t)));
   });
 });
 

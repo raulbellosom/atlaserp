@@ -1,6 +1,6 @@
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
-  Button, EmptyState,
+  Button, EmptyState, Alert, AlertDescription,
 } from '@atlas/ui'
 import { useOrderSeatTotals, useAddPosPayment } from '../hooks/usePosOrder'
 import { usePosPaymentMethods } from '../hooks/usePosSettings'
@@ -11,6 +11,7 @@ export default function SplitBillDialog({ open, onOpenChange, order, paymentMeth
   const { data: methods = [] } = usePosPaymentMethods()
   const enabledMethods = Array.isArray(methods) ? methods.filter((m) => m.enabled) : []
   const effectiveMethodId = paymentMethodId ?? enabledMethods[0]?.id ?? null
+  const noPaymentMethodHint = 'No hay un método de pago configurado. Ve a Configuración POS para agregar uno antes de cobrar.'
 
   function handleClose() {
     onOpenChange(false)
@@ -52,6 +53,12 @@ export default function SplitBillDialog({ open, onOpenChange, order, paymentMeth
           </DialogDescription>
         </DialogHeader>
 
+        {!effectiveMethodId && (
+          <Alert variant="warning">
+            <AlertDescription>{noPaymentMethodHint}</AlertDescription>
+          </Alert>
+        )}
+
         <div className="flex flex-col gap-2 py-1 max-h-[50vh] overflow-y-auto">
           {isLoading && (
             <p className="text-sm text-muted-foreground text-center py-4">Cargando cuentas...</p>
@@ -72,7 +79,12 @@ export default function SplitBillDialog({ open, onOpenChange, order, paymentMeth
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-semibold tabular-nums">${Number(seat.total).toFixed(2)}</span>
-                <Button size="sm" onClick={() => handleChargeSeat(seat)} disabled={addPayment.isPending}>
+                <Button
+                  size="sm"
+                  onClick={() => handleChargeSeat(seat)}
+                  disabled={addPayment.isPending || !effectiveMethodId}
+                  title={!effectiveMethodId ? noPaymentMethodHint : undefined}
+                >
                   Cobrar esta cuenta
                 </Button>
               </div>

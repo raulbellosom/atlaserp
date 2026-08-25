@@ -25,6 +25,9 @@ function OperationalTable({ el, table, onClick }) {
   const status = table?.status ?? 'AVAILABLE'
   const s = TABLE_STATUS_STYLE[status] ?? DEFAULT_STATUS
   const isDisabled = status === 'DISABLED'
+  // table.isMine is only present when the "mis-mesas" filter is active (see
+  // pos-floor-service.js) — undefined means the filter isn't in play, so no dimming.
+  const isDimmedByFilter = table?.isMine === false
   const isRound = el.kind === 'TABLE_ROUND'
 
   const tableName = table?.name ?? el.label ?? ''
@@ -54,7 +57,7 @@ function OperationalTable({ el, table, onClick }) {
         zIndex: 10,
         cursor: isDisabled ? 'not-allowed' : 'pointer',
         overflow: 'visible',
-        opacity: isDisabled ? 0.4 : 1,
+        opacity: isDisabled ? 0.4 : isDimmedByFilter ? 0.45 : 1,
         filter: isDisabled ? undefined : 'drop-shadow(0 2px 6px rgba(0,0,0,0.13))',
         transition: 'filter 150ms',
       }}

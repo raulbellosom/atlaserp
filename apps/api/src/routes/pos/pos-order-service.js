@@ -286,6 +286,41 @@ export function createPosOrderService({ prisma, waiterShifts, modifiers }) {
     return hydrateOrder(prisma, { companyId: scopedCompanyId, id });
   }
 
+  // Re-asserts OCCUPIED + waiterId on the order's table when a user resumes an
+  // already-open order. createOrder sets this at creation time, but nothing
+  // re-applied it on resume — so a table whose status had drifted back to
+  // AVAILABLE (stale data, a status reset elsewhere, etc.) stayed AVAILABLE
+  // even while its order kept being worked on. Idempotent: safe to call even
+  // when the table is already correctly OCCUPIED by the same waiter.
+  async function claimOrder({ companyId, actorId, id }) {
+    const scopedCompanyId = requireCompanyId(companyId);
+    const order = await prisma.posOrder.findFirst({ where: { id, companyId: scopedCompanyId } });
+    assertEditableOrder(order);
+
+    await prisma.$transaction(async (tx) => {
+      if (order.waiterId !== actorId) {
+        await tx.posOrder.update({ where: { id }, data: { waiterId: actorId } });
+      }
+      if (order.tableId) {
+        await tx.posTable.update({
+          where: { id: order.tableId },
+          data: { status: "OCCUPIED", waiterId: actorId },
+        });
+      }
+    });
+
+    await writeAudit(prisma, {
+      actorId,
+      entityType: "PosOrder",
+      entityId: id,
+      action: "pos.order.claim",
+      before: { waiterId: order.waiterId, tableId: order.tableId },
+      after: { waiterId: actorId, tableId: order.tableId },
+    });
+
+    return hydrateOrder(prisma, { companyId: scopedCompanyId, id });
+  }
+
   async function getSeatTotals({ companyId, id }) {
     const scopedCompanyId = requireCompanyId(companyId);
     const order = await prisma.posOrder.findFirst({ where: { id, companyId: scopedCompanyId } });
@@ -633,6 +668,7 @@ export function createPosOrderService({ prisma, waiterShifts, modifiers }) {
     cancelOrder,
     reprintReceipt,
     assignOrderWaiter,
+    claimOrder,
     getSeatTotals,
   };
 }

@@ -3,14 +3,18 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
   Button, TextField,
 } from '@atlas/ui'
-import { useClosePosSession } from '../hooks/usePosSession'
+import { useClosePosSession, useExpectedCashAmount } from '../hooks/usePosSession'
 
 export default function SessionCloseDialog({ open, onOpenChange, session, onSuccess }) {
   const close = useClosePosSession()
   const [counted, setCounted] = useState('')
   const [notes, setNotes] = useState('')
 
-  const expected = parseFloat(session?.expectedCashAmount ?? 0)
+  const { data: liveExpected, isLoading: loadingExpected } = useExpectedCashAmount(
+    open ? session?.id : null,
+    open,
+  )
+  const expected = parseFloat(liveExpected ?? session?.expectedCashAmount ?? 0)
   const countedNum = parseFloat(counted) || 0
   const diff = countedNum - expected
   const hasDiff = counted !== ''
@@ -35,7 +39,9 @@ export default function SessionCloseDialog({ open, onOpenChange, session, onSucc
           <div className="rounded-lg border border-border bg-muted/40 px-4 py-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Efectivo esperado</span>
-              <span className="font-semibold tabular-nums">${expected.toFixed(2)}</span>
+              <span className="font-semibold tabular-nums">
+                {loadingExpected ? 'Calculando...' : `$${expected.toFixed(2)}`}
+              </span>
             </div>
           </div>
 

@@ -176,6 +176,51 @@ describe("createPosSessionService", () => {
     assert.equal(closed.differenceAmount, 5);
   });
 
+  // Regression: the Cerrar Caja dialog used to read session.expectedCashAmount
+  // directly, which is only ever populated by closeSession — so the preview
+  // always showed $0.00 for a still-OPEN session even though the real total
+  // was computable. getExpectedCashAmount exposes the same computation as a
+  // read-only preview, and closeSession's persisted value must match it exactly.
+  it("getExpectedCashAmount previews the real total for a still-OPEN session (no $0.00 preview bug)", async () => {
+    const prisma = makePrisma();
+    const svc = createPosSessionService({ prisma });
+    const session = await svc.openSession({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1", terminalId: "terminal-1", openingCashAmount: 100 },
+    });
+    prisma.payments.push({
+      companyId: "company-1",
+      status: "CAPTURED",
+      amount: 80,
+      sessionId: session.id,
+      order: { sessionId: session.id },
+      paymentMethod: { kind: "CASH" },
+    });
+    await svc.addCashMovement({
+      companyId: "company-1",
+      sessionId: session.id,
+      actorId: "user-1",
+      data: { kind: "IN", amount: 20, reason: "Ingreso" },
+    });
+
+    const preview = await svc.getExpectedCashAmount({ companyId: "company-1", sessionId: session.id });
+    assert.equal(preview.expectedCashAmount, 200);
+
+    // Session is still OPEN — the preview must not have mutated/closed it.
+    const stillOpen = await svc.getSessionById({ companyId: "company-1", id: session.id });
+    assert.equal(stillOpen.status, "OPEN");
+
+    // The eventual close must land on the exact same number the preview showed.
+    const closed = await svc.closeSession({
+      companyId: "company-1",
+      sessionId: session.id,
+      actorId: "user-1",
+      data: { countedCashAmount: 200 },
+    });
+    assert.equal(closed.expectedCashAmount, preview.expectedCashAmount);
+  });
+
   it("rejects sessions outside company scope", async () => {
     const prisma = makePrisma();
     const svc = createPosSessionService({ prisma });

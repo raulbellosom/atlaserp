@@ -117,7 +117,7 @@ function GeneralTab() {
           value={currentTaxRate}
           onChange={(e) => setTaxRate(e.target.value)}
           placeholder="0"
-          helperText="Aplica a todas las líneas de orden. Usa 0 para deshabilitar el IVA."
+          hint="Aplica a todas las líneas de orden. Usa 0 para deshabilitar el IVA."
         />
         <Separator />
         <SwitchField

@@ -51,11 +51,13 @@ export function createPosFloorService({ prisma }) {
       where: { id, companyId: scopedCompanyId },
       include: {
         elements: { orderBy: { createdAt: 'asc' } },
+        // Never filter tables out by waiterId here — "mis-mesas" is a display
+        // concern (isMine flag below), not a data-visibility concern. Filtering
+        // the query left the canvas with no status data for non-mine tables and
+        // made it fall back to a pale "Disponible" ghost regardless of the
+        // table's true state.
         tables: {
-          where: {
-            enabled: true,
-            ...(myTablesOnly && actorId ? { waiterId: actorId } : {}),
-          },
+          where: { enabled: true },
           orderBy: { createdAt: 'asc' },
           include: {
             reservations: {
@@ -86,6 +88,7 @@ export function createPosFloorService({ prisma }) {
         waiterName: t.waiterId ? (waiterNames[t.waiterId] ?? null) : null,
         activeReservation: t.reservations?.[0] ?? null,
         reservations: undefined,
+        ...(myTablesOnly && actorId ? { isMine: t.waiterId === actorId } : {}),
       })),
     }
   }
@@ -363,15 +366,15 @@ export function createPosFloorService({ prisma }) {
     });
     if (!floor) return null;
 
-    const tableWhere = {
-      floorId: floor.id,
-      ...(myTablesOnly && actorId ? { waiterId: actorId } : {}),
-    };
-
+    // Fetch every table with its real status, never filtered out of the response —
+    // "mis-mesas" is a display concern (isMine), not a data-visibility concern. A
+    // previous version filtered non-mine tables out of the query entirely, which
+    // left the canvas with no status data for them and made it fall back to a
+    // pale "Disponible" ghost regardless of the table's true state.
     const [zones, elements, tables] = await Promise.all([
       prisma.posFloorZone.findMany({ where: { floorId: floor.id }, orderBy: { position: "asc" } }),
       prisma.posFloorElement.findMany({ where: { floorId: floor.id } }),
-      prisma.posTable.findMany({ where: tableWhere }),
+      prisma.posTable.findMany({ where: { floorId: floor.id } }),
     ]);
 
     const waiterIds = [...new Set(tables.map((table) => table.waiterId).filter(Boolean))];
@@ -391,6 +394,7 @@ export function createPosFloorService({ prisma }) {
       tables: tables.map((table) => ({
         ...table,
         waiterName: table.waiterId ? (waiterNames[table.waiterId] ?? null) : null,
+        ...(myTablesOnly && actorId ? { isMine: table.waiterId === actorId } : {}),
       })),
     };
   }

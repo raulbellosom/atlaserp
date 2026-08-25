@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { ChefHat, CreditCard, Receipt, AlertTriangle } from "lucide-react";
@@ -7,6 +7,7 @@ import {
   usePosOrders,
   usePosOrder,
   useCreatePosOrder,
+  useClaimOrder,
   useAddPosOrderLine,
   useAddPosGuest,
   useSendToKitchen,
@@ -62,9 +63,21 @@ export default function ComandaScreen() {
   const orderId = existingOrder?.id ?? localOrderId;
   const { data: order } = usePosOrder(orderId);
 
+  // Resuming an existing order used to never re-assert OCCUPIED + waiterId on
+  // its table, so a table that had drifted back to AVAILABLE stayed stuck that
+  // way while its order kept being worked on. Fire once per resumed order id.
+  const claimedOrderIdRef = useRef(null);
+  useEffect(() => {
+    if (!existingOrder?.id || claimedOrderIdRef.current === existingOrder.id) return;
+    claimedOrderIdRef.current = existingOrder.id;
+    claimOrder.mutate(existingOrder.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingOrder?.id]);
+
   const readOnly = order ? NON_EDITABLE_STATUSES.includes(order.status) : false;
 
   const createOrder = useCreatePosOrder();
+  const claimOrder = useClaimOrder();
   const addLine = useAddPosOrderLine();
   const addGuest = useAddPosGuest();
   const sendToKitchen = useSendToKitchen();

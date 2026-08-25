@@ -41,6 +41,17 @@ export function usePosSession(id) {
   })
 }
 
+export function useExpectedCashAmount(sessionId, enabled = true) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['pos', 'sessions', 'expected-cash', sessionId],
+    queryFn: () => atlas.pos.getExpectedCashAmount(sessionId, token),
+    select: (res) => Number(res?.data?.expectedCashAmount ?? 0),
+    enabled: Boolean(token) && Boolean(sessionId) && enabled,
+    staleTime: 0,
+  })
+}
+
 export function useOpenPosSession() {
   const token = useToken()
   const qc = useQueryClient()

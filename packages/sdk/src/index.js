@@ -1013,6 +1013,10 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
+      getExpectedCashAmount: (id, token) =>
+        request(`/pos/sessions/${encodeURIComponent(id)}/expected-cash`, {
+          headers: withAuthHeaders(token),
+        }),
       closeSession: (id, data, token) =>
         request(`/pos/sessions/${encodeURIComponent(id)}/close`, {
           method: "POST",
@@ -1161,6 +1165,11 @@ export function createAtlasClient({ baseUrl }) {
           method: "PATCH",
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
+        }),
+      claimOrder: (orderId, token) =>
+        request(`/pos/orders/${encodeURIComponent(orderId)}/claim`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
         }),
       getOrderSeatTotals: (orderId, token) =>
         request(`/pos/orders/${encodeURIComponent(orderId)}/seat-totals`, {
