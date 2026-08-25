@@ -139,12 +139,18 @@ export function createAccountsRouter({ prisma, requirePermission }) {
     requirePermission("ledger.accounts.delete"),
     async (c) => {
       try {
+        const companyId = getCompanyId(c)
+        const actorId   = getActorId(c)
+        const accountId = c.req.param("id")
+        if (!(await service.canWriteAccount({ companyId, accountId, actorId }))) {
+          return c.json({ error: 'No tienes permisos para modificar esta cuenta.' }, 403)
+        }
         const parsed = enabledSchema.safeParse(await c.req.json());
         if (!parsed.success)
           return c.json({ error: "Se requiere { enabled: boolean }." }, 400);
         const account = await service.setAccountEnabled({
-          companyId: getCompanyId(c),
-          accountId: c.req.param("id"),
+          companyId,
+          accountId,
           enabled: parsed.data.enabled,
         });
         const { actorName } = getActivityContext(c);
@@ -199,11 +205,17 @@ export function createAccountsRouter({ prisma, requirePermission }) {
     requirePermission("ledger.transactions.read"),
     async (c) => {
       try {
+        const companyId = getCompanyId(c)
+        const actorId   = getActorId(c)
+        const accountId = c.req.param("id")
+        if (!(await service.canReadAccount({ companyId, accountId, actorId }))) {
+          return c.json({ error: 'No tienes permisos para ver esta cuenta.' }, 403)
+        }
         const { from, to, page, pageSize } = c.req.query();
         return c.json(
           await service.listTransactions({
-            companyId: getCompanyId(c),
-            accountId: c.req.param("id"),
+            companyId,
+            accountId,
             dateFrom: from,
             dateTo: to,
             page,
@@ -258,6 +270,12 @@ export function createAccountsRouter({ prisma, requirePermission }) {
     requirePermission("ledger.transactions.update"),
     async (c) => {
       try {
+        const companyId = getCompanyId(c)
+        const actorId   = getActorId(c)
+        const accountId = c.req.param("id")
+        if (!(await service.canWriteAccount({ companyId, accountId, actorId }))) {
+          return c.json({ error: 'No tienes permisos para editar movimientos de esta cuenta.' }, 403)
+        }
         const parsed = updateTransactionSchema.safeParse(await c.req.json());
         if (!parsed.success)
           return c.json(
@@ -266,8 +284,8 @@ export function createAccountsRouter({ prisma, requirePermission }) {
           );
         return c.json({
           data: await service.updateTransaction({
-            companyId: getCompanyId(c),
-            accountId: c.req.param("id"),
+            companyId,
+            accountId,
             transactionId: c.req.param("txId"),
             data: parsed.data,
           }),
@@ -283,12 +301,18 @@ export function createAccountsRouter({ prisma, requirePermission }) {
     requirePermission("ledger.transactions.delete"),
     async (c) => {
       try {
+        const companyId = getCompanyId(c)
+        const actorId   = getActorId(c)
+        const accountId = c.req.param("id")
+        if (!(await service.canWriteAccount({ companyId, accountId, actorId }))) {
+          return c.json({ error: 'No tienes permisos para modificar movimientos de esta cuenta.' }, 403)
+        }
         const parsed = enabledSchema.safeParse(await c.req.json());
         if (!parsed.success)
           return c.json({ error: "Se requiere { enabled: boolean }." }, 400);
         const tx = await service.setTransactionEnabled({
-          companyId: getCompanyId(c),
-          accountId: c.req.param("id"),
+          companyId,
+          accountId,
           transactionId: c.req.param("txId"),
           enabled: parsed.data.enabled,
         });
@@ -320,11 +344,17 @@ export function createAccountsRouter({ prisma, requirePermission }) {
     requirePermission("ledger.accounts.read"),
     async (c) => {
       try {
+        const companyId = getCompanyId(c)
+        const actorId   = getActorId(c)
+        const accountId = c.req.param("id")
+        if (!(await service.canReadAccount({ companyId, accountId, actorId }))) {
+          return c.json({ error: 'No tienes permisos para ver esta cuenta.' }, 403)
+        }
         const { from, to } = c.req.query();
         return c.json(
           await summary.getAccountSummary({
-            companyId: getCompanyId(c),
-            accountId: c.req.param("id"),
+            companyId,
+            accountId,
             dateFrom: from,
             dateTo: to,
           }),
@@ -344,10 +374,12 @@ export function createAccountsRouter({ prisma, requirePermission }) {
       try {
         const { buildExcelBuffer } = await import("./export-service.js");
         const companyId = getCompanyId(c);
+        const actorId = getActorId(c);
         const { from, to } = c.req.query();
         const account = await service.getAccount({
           companyId,
           accountId: c.req.param("id"),
+          actorId,
         });
         const { data: rows } = await service.listTransactions({
           companyId,
@@ -387,8 +419,9 @@ export function createAccountsRouter({ prisma, requirePermission }) {
       try {
         const { buildCsvString } = await import("./export-service.js");
         const companyId = getCompanyId(c);
+        const actorId = getActorId(c);
         const { from, to } = c.req.query();
-        await service.getAccount({ companyId, accountId: c.req.param("id") });
+        await service.getAccount({ companyId, accountId: c.req.param("id"), actorId });
         const { data: rows } = await service.listTransactions({
           companyId,
           accountId: c.req.param("id"),
@@ -419,10 +452,12 @@ export function createAccountsRouter({ prisma, requirePermission }) {
       try {
         const { buildPdfBuffer } = await import("./export-service.js");
         const companyId = getCompanyId(c);
+        const actorId = getActorId(c);
         const { from, to } = c.req.query();
         const account = await service.getAccount({
           companyId,
           accountId: c.req.param("id"),
+          actorId,
         });
         const { data: rows } = await service.listTransactions({
           companyId,
@@ -461,7 +496,11 @@ export function createAccountsRouter({ prisma, requirePermission }) {
       try {
         const { validateImportRows } = await import("./import-service.js");
         const companyId = getCompanyId(c);
-        await service.getAccount({ companyId, accountId: c.req.param("id") });
+        const actorId = getActorId(c);
+        const accountId = c.req.param("id");
+        if (!(await service.canWriteAccount({ companyId, accountId, actorId }))) {
+          return c.json({ error: 'No tienes permisos para importar movimientos en esta cuenta.' }, 403)
+        }
         const body = await c.req.json();
         const { valid, errors } = validateImportRows(
           body.rows ?? [],
@@ -487,7 +526,11 @@ export function createAccountsRouter({ prisma, requirePermission }) {
         const { validateImportRows, commitImportRows } =
           await import("./import-service.js");
         const companyId = getCompanyId(c);
-        await service.getAccount({ companyId, accountId: c.req.param("id") });
+        const actorId = getActorId(c);
+        const accountId = c.req.param("id");
+        if (!(await service.canWriteAccount({ companyId, accountId, actorId }))) {
+          return c.json({ error: 'No tienes permisos para importar movimientos en esta cuenta.' }, 403)
+        }
         const body = await c.req.json();
         const { valid } = validateImportRows(
           body.rows ?? [],
@@ -496,7 +539,7 @@ export function createAccountsRouter({ prisma, requirePermission }) {
         const result = await commitImportRows({
           prisma,
           companyId,
-          accountId: c.req.param("id"),
+          accountId,
           rows: valid,
         });
         return c.json(result, 201);

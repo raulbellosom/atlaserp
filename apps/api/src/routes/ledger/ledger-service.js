@@ -28,8 +28,7 @@ export function createLedgerService({ prisma }) {
         WHERE a.company_id = ${companyId}::uuid
           AND a.enabled = true
           AND (
-            a.owner_id IS NULL
-            OR a.owner_id = ${actorId}::uuid
+            a.owner_id = ${actorId}::uuid
             OR EXISTS (
               SELECT 1 FROM ledger_account_member m
               WHERE m.account_id = a.id AND m.user_id = ${actorId}::uuid AND m.status = 'active'
@@ -49,7 +48,8 @@ export function createLedgerService({ prisma }) {
     }
   }
 
-  async function getAccount({ companyId, accountId, actorId = null }) {
+  async function getAccount({ companyId, accountId, actorId }) {
+    if (!actorId) throw new LedgerServiceError('Se requiere un usuario autenticado.', 401)
     try {
       const rows = await prisma.$queryRaw`
         SELECT a.*,
@@ -62,9 +62,7 @@ export function createLedgerService({ prisma }) {
         WHERE a.id = ${accountId}::uuid
           AND a.company_id = ${companyId}::uuid
           AND (
-            ${actorId}::uuid IS NULL
-            OR a.owner_id IS NULL
-            OR a.owner_id = ${actorId}::uuid
+            a.owner_id = ${actorId}::uuid
             OR EXISTS (
               SELECT 1 FROM ledger_account_member m
               WHERE m.account_id = a.id AND m.user_id = ${actorId}::uuid AND m.status = 'active'
@@ -86,7 +84,22 @@ export function createLedgerService({ prisma }) {
     }
   }
 
-  async function createAccount({ companyId, ownerId = null, groupId = null, data }) {
+  // Internal-only: fetches current field values without an ownership check.
+  // Only safe to call from write paths that already ran canWriteAccount()
+  // themselves (e.g. updateAccount below) — never expose this to a route
+  // handler directly.
+  async function getAccountUnchecked({ companyId, accountId }) {
+    const rows = await prisma.$queryRaw`
+      SELECT * FROM ledger_account
+      WHERE id = ${accountId}::uuid AND company_id = ${companyId}::uuid
+    `
+    const account = firstRow(rows)
+    if (!account) throw new LedgerServiceError('Cuenta no encontrada.', 404)
+    return account
+  }
+
+  async function createAccount({ companyId, ownerId, groupId = null, data }) {
+    if (!ownerId) throw new LedgerServiceError('Se requiere un propietario para la cuenta.', 400)
     const { name, bank, account_number, currency, opening_balance } = data
     try {
       const rows = await prisma.$queryRaw`
@@ -114,14 +127,33 @@ export function createLedgerService({ prisma }) {
     }
   }
 
+  async function canReadAccount({ companyId, accountId, actorId }) {
+    const rows = await prisma.$queryRaw`
+      SELECT 1 FROM ledger_account a
+      WHERE a.id = ${accountId}::uuid
+        AND a.company_id = ${companyId}::uuid
+        AND (
+          a.owner_id = ${actorId}::uuid
+          OR EXISTS (
+            SELECT 1 FROM ledger_account_member m
+            WHERE m.account_id = a.id AND m.user_id = ${actorId}::uuid AND m.status = 'active'
+          )
+          OR EXISTS (
+            SELECT 1 FROM ledger_group_member gm
+            WHERE gm.group_id = a.group_id AND gm.user_id = ${actorId}::uuid AND gm.status = 'active'
+          )
+        )
+    `
+    return rows.length > 0
+  }
+
   async function canWriteAccount({ companyId, accountId, actorId }) {
     const rows = await prisma.$queryRaw`
       SELECT 1 FROM ledger_account a
       WHERE a.id = ${accountId}::uuid
         AND a.company_id = ${companyId}::uuid
         AND (
-          a.owner_id IS NULL
-          OR a.owner_id = ${actorId}::uuid
+          a.owner_id = ${actorId}::uuid
           OR EXISTS (
             SELECT 1 FROM ledger_account_member m
             WHERE m.account_id = a.id AND m.user_id = ${actorId}::uuid
@@ -138,7 +170,7 @@ export function createLedgerService({ prisma }) {
   }
 
   async function updateAccount({ companyId, accountId, data }) {
-    const existing = await getAccount({ companyId, accountId })
+    const existing = await getAccountUnchecked({ companyId, accountId })
 
     const name            = hasOwn(data, 'name')            ? String(data.name).trim()                     : existing.name
     const bank            = hasOwn(data, 'bank')            ? String(data.bank).trim()                     : existing.bank
@@ -382,7 +414,7 @@ export function createLedgerService({ prisma }) {
   }
 
   return {
-    listAccounts, getAccount, createAccount, canWriteAccount, updateAccount, setAccountEnabled, setAccountGroup,
+    listAccounts, getAccount, getAccountUnchecked, createAccount, canReadAccount, canWriteAccount, updateAccount, setAccountEnabled, setAccountGroup,
     listTransactions, createTransaction, updateTransaction, setTransactionEnabled,
   }
 }

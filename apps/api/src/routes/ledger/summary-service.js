@@ -9,7 +9,8 @@ export function createSummaryService({ prisma }) {
    * @returns {{ kpis, balance_series, by_category }}
    */
   async function getAccountSummary({ companyId, accountId, dateFrom, dateTo }) {
-    const account = await ledgerService.getAccount({ companyId, accountId })
+    // Caller (accounts-routes.js) already ran canReadAccount before invoking this.
+    const account = await ledgerService.getAccountUnchecked({ companyId, accountId })
     const from = normalizeOptionalString(dateFrom) ?? null
     const to   = normalizeOptionalString(dateTo)   ?? null
 

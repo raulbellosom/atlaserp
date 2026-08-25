@@ -8,6 +8,26 @@
 - If a task is implemented but not verified yet, keep it unchecked until validation is done.
 - Prisma migration safety: never edit existing `prisma/migrations/**/migration.sql` after apply; always add a new forward migration.
 
+## Security fix — atlas.ledger account isolation [COMPLETE]
+
+Plan: `docs/superpowers/plans/2026-08-24-backlog-closure-and-security-hardening.md`
+
+Found while auditing a user report that "everyone can see everyone's accounts". Confirmed real: `ledger_account.owner_id` was nullable with a documented-but-never-cleaned-up "NULL = visible to all company members" fallback (from migration `20260605000000_add_ledger_collaboration_tables`), and several route handlers never enforced per-account ownership at all.
+
+- [x] `listAccounts`/`getAccount`/`canReadAccount`/`canWriteAccount` in `ledger-service.js`: removed the `owner_id IS NULL` public-fallback clause everywhere
+- [x] `getAccount` now requires `actorId` (throws 401 instead of silently skipping the ownership filter) — this was being hit by every export/import route, which never passed `actorId` and could act on **any** company account
+- [x] Added ownership/membership gates that were missing entirely: `PATCH /ledger/accounts/:id/enabled`, `PATCH .../transactions/:txId`, `PATCH .../transactions/:txId/enabled`, `GET .../transactions`, `GET .../summary`, `POST .../import/commit` — none of these checked `canReadAccount`/`canWriteAccount` before this fix
+- [x] `collaboration-service.js` `listAccountMembers`: removed the same `owner_id IS NULL` fallback
+- [x] Forward migration `20260824120000_ledger_account_owner_required`: backfills any remaining NULL `owner_id` to the company's earliest active `atlas.admin` member (deterministic, no per-environment hardcoding), drops the now-dead partial unique index, sets `owner_id NOT NULL`
+- [x] `schema.prisma`: `LedgerAccount.ownerId` now non-nullable; added the missing `LedgerCategory.ownerId` field (schema drift vs. the real DB column added by `20260620000000_ledger_category_owner` — was never declared)
+- [x] **Second, separate bug found in the same audit:** `apps/api/src/services/sync-service.js` — the offline-sync `/sync/pull` handler for `atlas.ledger` used the generic company-wide `makeHandler()` for `account`/`transaction`/`category`, which ignored ownership entirely. This is very likely the actual mechanism behind the reported symptom, since Phase 5 (offline Ledger SQLite cache) reads accounts/transactions straight from this synced cache in the desktop UI. Replaced with handlers that pre-resolve the accessible-account-id set (owner OR active account-member OR active group-member) before querying, and category sync now matches `categories-service.js`'s system-or-own rule. An existing test explicitly asserted the old (wrong) "must NOT filter by ownerId" behavior — rewritten to assert the fix instead.
+- [x] Regression test added: `apps/api/src/routes/ledger/__tests__/ledger-service.test.js` (8 tests) asserts no code path re-emits an `owner_id IS NULL` bypass and that `getAccount`/`createAccount` reject missing actor/owner
+- [x] `sync-service.test.js` updated: 6 `atlas.ledger module` tests now assert accessible-id scoping instead of the old company-wide behavior
+
+Verified: 2026-08-24 (`pnpm db:generate`, `pnpm db:migrate` → migration applied clean against live dev DB, re-query confirms 0 remaining NULL-owner rows and the pre-existing orphan account correctly attributed to the company's first admin; `pnpm exec prisma validate` → schema valid; `node --test apps/api/src/routes/ledger/__tests__/*.test.js` → 18/18 pass; `node --test apps/api/src/services/__tests__/sync-service.test.js` → 23/23 pass; `node --test apps/api/src/services/__tests__/rbac-granular-contract.test.js` → 5/6 pass, the 1 failure is the pre-existing unrelated calendar/catalog/inventory/notes permission-catalog drift already documented elsewhere in this file, untouched by this change; `pnpm --filter @atlas/desktop build:web` → built clean; `node --check` on every modified file)
+
+Checked in the same pass: the `atlas-notes` Supabase Storage bucket is **public** (confirmed via `storage.listBuckets()`). This looked like the same bug class at first, but project memory confirms it was a deliberate 2026-08-03 user decision (permanent embedded-image URLs over expiring signed URLs, same tradeoff as `atlas-files`) — not touched. `atlas-chat` bucket confirmed to already exist and already be private — no action needed, closes that pending TASKS.md item.
+
 ## atlas.pos — Restaurant POS
 
 Specs: `docs/superpowers/specs/2026-06-21-atlas-pos-core-design.md`, `2026-06-29-pos-waiter-split-bill.md`
@@ -67,7 +87,7 @@ Plans: `docs/superpowers/plans/CHAT_IMPLEMENTATION_PLAN.md`, `2026-06-28-chat-im
 - [x] Unified realtime layer (2026-06-28 plans A/B)
 - [ ] Message search
 - [ ] Notification integration: unread badge in topbar
-- [ ] Confirm `atlas-chat` bucket exists in Supabase Storage
+- [x] Confirm `atlas-chat` bucket exists in Supabase Storage — Verified: 2026-08-24 (`storage.listBuckets()` → `atlas-chat` present, `public=false`)
 
 Verified: 2026-07-17 (migrations confirmed applied via `prisma migrate status`; module active in dev use since 2026-06-25; no formal browser verification run recorded)
 
@@ -77,7 +97,7 @@ Plans: `docs/superpowers/plans/2026-06-27-atlas-notes-A-backend.md`, `2026-06-27
 
 - [x] Backend: migrations `20260627120000_atlas_notes_tables` + `20260627130000_atlas_notes_fixes`; services (notes/folders/tags/shares/ydoc); 26-endpoint router; SDK domain; 17 permissions in core manifest
 - [x] Frontend: `NotesScreen`, `PublicNoteScreen`, `NoteEditor` (TipTap + Yjs via `SupabaseYjsProvider`), `DrawingCanvas`, `ImageAnnotationOverlay`, `NoteShareModal`, folders/tags sidebar
-- [ ] Create `atlas-notes` private bucket in Supabase Storage
+- [x] `atlas-notes` bucket — confirmed exists 2026-08-24 (`storage.listBuckets()`). It's `public: true` by deliberate 2026-08-03 user choice (permanent embedded-image URLs), not an oversight — no action needed.
 - [ ] Live QA: collaborative editing between two sessions; public route `/p/notes/:slug`
 
 Verified: 2026-07-17 (implementation confirmed by file inventory and applied migrations via `prisma migrate status`; no live QA recorded)

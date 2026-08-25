@@ -77,6 +77,7 @@ function makePrisma(overrides = {}) {
       findMany: async () => [],
       ...(overrides.syncCursor ?? {}),
     },
+    $queryRaw: overrides.$queryRaw ?? (async () => []),
   }
 }
 
@@ -323,6 +324,7 @@ describe('sync-service', () => {
       }
       const svc = createSyncService({
         prisma: makePrisma({
+          $queryRaw: async () => [{ id: 'acc-1' }],
           ledgerAccount:          { findMany: async () => [account] },
           ledgerTransaction:      { findMany: async () => [transaction] },
           ledgerCategory:         { findMany: async () => [category] },
@@ -339,10 +341,14 @@ describe('sync-service', () => {
       assert.equal(result.records.find((r) => r.entityType === 'transaction').id, 'tx-1')
     })
 
-    it('account handler filters by companyId (not ownerId)', async () => {
+    // 2026-08-24 security fix: ledger accounts are private to their owner unless
+    // explicitly shared (ledger_account_member / ledger_group_member), so the sync
+    // handler must NEVER hand back accounts the requesting user cannot access.
+    it('account handler only syncs accounts the user can access (owner/member), never the whole company', async () => {
       let capturedWhere = null
       const svc = createSyncService({
         prisma: makePrisma({
+          $queryRaw: async () => [{ id: 'acc-1' }], // simulates the accessible-ids pre-query
           ledgerAccount: {
             findMany: async ({ where }) => { capturedWhere = where; return [] },
           },
@@ -350,13 +356,27 @@ describe('sync-service', () => {
       })
       await svc.pull({ authUserId: USER_ID, modules: ['atlas.ledger'], cursor: null })
       assert.equal(capturedWhere?.companyId, COMPANY_ID)
-      assert.equal(capturedWhere?.ownerId, undefined, 'ledger account must NOT filter by ownerId')
+      assert.deepEqual(capturedWhere?.id, { in: ['acc-1'] }, 'must restrict to the accessible-account id set')
     })
 
-    it('transaction handler filters by companyId', async () => {
+    it('account handler returns no records when the user has no accessible accounts', async () => {
+      let findManyCalled = false
+      const svc = createSyncService({
+        prisma: makePrisma({
+          $queryRaw: async () => [], // no owned/shared accounts
+          ledgerAccount: { findMany: async () => { findManyCalled = true; return [] } },
+        }),
+      })
+      const result = await svc.pull({ authUserId: USER_ID, modules: ['atlas.ledger'], cursor: null })
+      assert.equal(findManyCalled, false, 'must short-circuit instead of querying the full company')
+      assert.equal(result.records.filter((r) => r.entityType === 'account').length, 0)
+    })
+
+    it('transaction handler restricts to transactions of accessible accounts only', async () => {
       let capturedWhere = null
       const svc = createSyncService({
         prisma: makePrisma({
+          $queryRaw: async () => [{ id: 'acc-1' }],
           ledgerTransaction: {
             findMany: async ({ where }) => { capturedWhere = where; return [] },
           },
@@ -364,9 +384,10 @@ describe('sync-service', () => {
       })
       await svc.pull({ authUserId: USER_ID, modules: ['atlas.ledger'], cursor: null })
       assert.equal(capturedWhere?.companyId, COMPANY_ID)
+      assert.deepEqual(capturedWhere?.accountId, { in: ['acc-1'] })
     })
 
-    it('category handler filters by companyId', async () => {
+    it('category handler filters by companyId and restricts to system + own categories', async () => {
       let capturedWhere = null
       const svc = createSyncService({
         prisma: makePrisma({
@@ -377,6 +398,7 @@ describe('sync-service', () => {
       })
       await svc.pull({ authUserId: USER_ID, modules: ['atlas.ledger'], cursor: null })
       assert.equal(capturedWhere?.companyId, COMPANY_ID)
+      assert.deepEqual(capturedWhere?.OR, [{ ownerId: null }, { ownerId: USER_ID }])
     })
 
     it('transaction_type handler filters by companyId', async () => {

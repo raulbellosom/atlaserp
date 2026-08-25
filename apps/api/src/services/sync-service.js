@@ -96,10 +96,81 @@ const SYNC_MODULE_REGISTRY = {
     ],
   },
   'atlas.ledger': {
+    // atlas.ledger accounts are NOT company-wide: each account is private to its
+    // owner unless explicitly shared via ledger_account_member/ledger_group_member
+    // (see apps/api/src/routes/ledger/ledger-service.js canReadAccount). The generic
+    // makeHandler() only filters by companyId, which would silently sync every
+    // company member's private accounts and transactions to every other member's
+    // offline cache — so these two entity types need a scoped fetch instead.
     handlers: [
-      makeHandler('account',          'ledgerAccount'),
-      makeHandler('transaction',      'ledgerTransaction'),
-      makeHandler('category',         'ledgerCategory'),
+      {
+        entityType: 'account',
+        async fetch({ prisma, companyId, userId, cursor, limit }) {
+          const accessible = await prisma.$queryRaw`
+            SELECT a.id FROM ledger_account a
+            WHERE a.company_id = ${companyId}::uuid
+              AND (
+                a.owner_id = ${userId}::uuid
+                OR EXISTS (
+                  SELECT 1 FROM ledger_account_member m
+                  WHERE m.account_id = a.id AND m.user_id = ${userId}::uuid AND m.status = 'active'
+                )
+                OR EXISTS (
+                  SELECT 1 FROM ledger_group_member gm
+                  WHERE gm.group_id = a.group_id AND gm.user_id = ${userId}::uuid AND gm.status = 'active'
+                )
+              )
+          `
+          const ids = accessible.map((r) => r.id)
+          if (ids.length === 0) return []
+          const where = { companyId, id: { in: ids } }
+          if (cursor) where.updatedAt = { gt: new Date(cursor) }
+          return prisma.ledgerAccount.findMany({ where, take: limit, orderBy: { updatedAt: 'asc' } })
+        },
+        toRecord(row) {
+          return { id: row.id, data: row, version: row.updatedAt.toISOString(), deleted: false }
+        },
+      },
+      {
+        entityType: 'transaction',
+        async fetch({ prisma, companyId, userId, cursor, limit }) {
+          const accessible = await prisma.$queryRaw`
+            SELECT a.id FROM ledger_account a
+            WHERE a.company_id = ${companyId}::uuid
+              AND (
+                a.owner_id = ${userId}::uuid
+                OR EXISTS (
+                  SELECT 1 FROM ledger_account_member m
+                  WHERE m.account_id = a.id AND m.user_id = ${userId}::uuid AND m.status = 'active'
+                )
+                OR EXISTS (
+                  SELECT 1 FROM ledger_group_member gm
+                  WHERE gm.group_id = a.group_id AND gm.user_id = ${userId}::uuid AND gm.status = 'active'
+                )
+              )
+          `
+          const ids = accessible.map((r) => r.id)
+          if (ids.length === 0) return []
+          const where = { companyId, accountId: { in: ids } }
+          if (cursor) where.updatedAt = { gt: new Date(cursor) }
+          return prisma.ledgerTransaction.findMany({ where, take: limit, orderBy: { updatedAt: 'asc' } })
+        },
+        toRecord(row) {
+          return { id: row.id, data: row, version: row.updatedAt.toISOString(), deleted: false }
+        },
+      },
+      {
+        entityType: 'category',
+        async fetch({ prisma, companyId, userId, cursor, limit }) {
+          // Matches categories-service.js: system categories (ownerId null) + own personal ones.
+          const where = { companyId, OR: [{ ownerId: null }, { ownerId: userId }] }
+          if (cursor) where.updatedAt = { gt: new Date(cursor) }
+          return prisma.ledgerCategory.findMany({ where, take: limit, orderBy: { updatedAt: 'asc' } })
+        },
+        toRecord(row) {
+          return { id: row.id, data: row, version: row.updatedAt.toISOString(), deleted: false }
+        },
+      },
       makeHandler('transaction_type', 'ledgerTransactionType'),
     ],
   },

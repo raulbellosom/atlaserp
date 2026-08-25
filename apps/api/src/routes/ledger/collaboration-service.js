@@ -92,7 +92,7 @@ export function createCollaborationService({ prisma }) {
     const accRows = await prisma.$queryRaw`
       SELECT id FROM ledger_account
       WHERE id = ${accountId}::uuid AND company_id = ${companyId}::uuid AND enabled = true
-        AND (owner_id IS NULL OR owner_id = ${actorId}::uuid
+        AND (owner_id = ${actorId}::uuid
           OR EXISTS (
             SELECT 1 FROM ledger_account_member m
             WHERE m.account_id = ledger_account.id AND m.user_id = ${actorId}::uuid AND m.status = 'active'
