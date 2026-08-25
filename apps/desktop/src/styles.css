@@ -193,22 +193,6 @@ html {
     min-height: 2.75rem;
     min-width: 2.75rem;
   }
-  /* glass-card-responsive: glassic card with responsive padding */
-  .glass-card-responsive {
-    padding: 1rem;
-    border-radius: var(--radius-xl);
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow);
-  }
-  @media (min-width: 640px) {
-    .glass-card-responsive {
-      padding: 1.5rem;
-    }
-  }
-
   .glass {
     backdrop-filter: blur(var(--glass-blur));
     -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -238,14 +222,6 @@ html {
     -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 0.5));
     background: var(--glass-bg);
     border: 1px solid var(--glass-border-subtle);
-  }
-
-  .glow-primary {
-    box-shadow: 0 0 24px var(--glass-glow);
-  }
-
-  .glow-primary-sm {
-    box-shadow: 0 0 12px var(--glass-glow);
   }
 }
 

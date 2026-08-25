@@ -5,7 +5,8 @@ import {
 } from './Dialog.jsx'
 import { Button } from './Button.jsx'
 import { SelectField } from './FormFields.jsx'
-import { Search, User, X } from 'lucide-react'
+import { SearchInput } from './SearchInput.jsx'
+import { User, X } from 'lucide-react'
 
 export function UserSearchModal({ open, onClose, onConfirm, roles = [], excludeIds = [], apiBase, token }) {
   const [query, setQuery]       = useState('')
@@ -61,17 +62,13 @@ export function UserSearchModal({ open, onClose, onConfirm, roles = [], excludeI
 
         <div className="space-y-4 pt-2">
           {!selected && (
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Nombre o correo electrónico..."
-                className="w-full pl-8 pr-3 py-2 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] text-sm focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
-                autoFocus
-              />
-            </div>
+            <SearchInput
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onClear={() => setQuery('')}
+              placeholder="Nombre o correo electrónico..."
+              autoFocus
+            />
           )}
 
           {!selected && query.length >= 2 && (

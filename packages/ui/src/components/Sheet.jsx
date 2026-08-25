@@ -3,6 +3,7 @@ import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils.js";
+import { useDragToDismiss } from "../hooks/useDragToDismiss.js";
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(() => {
@@ -77,42 +78,19 @@ const SheetContent = forwardRef(function SheetContent(
     isMobile && (side === "right" || side === "left") ? "bottom" : side;
 
   const contentRef = useRef(null);
-  const closeRef = useRef(null);
-  const [dragY, setDragY] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const dragStartY = useRef(null);
-  const isDragging = useRef(false);
+  const {
+    closeRef,
+    dragY,
+    dragging,
+    handleDragPointerDown,
+    handleDragPointerMove,
+    handleDragPointerUp,
+  } = useDragToDismiss();
 
   function setRef(node) {
     contentRef.current = node;
     if (typeof forwardedRef === "function") forwardedRef(node);
     else if (forwardedRef) forwardedRef.current = node;
-  }
-
-  function handleDragPointerDown(e) {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    dragStartY.current = e.clientY;
-    isDragging.current = true;
-    setDragging(true);
-  }
-
-  function handleDragPointerMove(e) {
-    if (!isDragging.current || dragStartY.current === null) return;
-    const dy = Math.max(0, e.clientY - dragStartY.current);
-    setDragY(dy);
-  }
-
-  function handleDragPointerUp() {
-    if (!isDragging.current) return;
-    isDragging.current = false;
-    setDragging(false);
-    if (dragY > 80) {
-      setDragY(0);
-      closeRef.current?.click();
-    } else {
-      setDragY(0);
-    }
-    dragStartY.current = null;
   }
 
   return (
@@ -179,7 +157,7 @@ const SheetContent = forwardRef(function SheetContent(
             aria-hidden="true"
           />
         )}
-        <SheetPrimitive.Close className="absolute right-4 top-4 rounded-lg p-1 text-[hsl(var(--muted-foreground))] opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/40">
+        <SheetPrimitive.Close className="absolute right-4 top-4 rounded-lg p-1 text-[hsl(var(--muted-foreground))] opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40">
           <X className="h-4 w-4" />
           <span className="sr-only">Cerrar</span>
         </SheetPrimitive.Close>

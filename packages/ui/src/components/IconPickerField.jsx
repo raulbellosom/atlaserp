@@ -58,6 +58,8 @@ import {
 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "./Popover.jsx";
 import { Input } from "./Input.jsx";
+import { Label } from "./Label.jsx";
+import { fieldCls } from "./form-field-base.jsx";
 import { cn } from "../lib/utils.js";
 
 const ICONS = [
@@ -134,22 +136,15 @@ export function IconPickerField({
 
   return (
     <div className="space-y-1.5">
-      {label && (
-        <label className="text-sm font-medium text-[hsl(var(--foreground))]">
-          {label}
-        </label>
-      )}
+      {label && <Label>{label}</Label>}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
             type="button"
             disabled={disabled}
-            className={cn(
-              "flex items-center gap-2 h-9 px-3 rounded-md border border-[hsl(var(--border))]",
-              "bg-[hsl(var(--background))] text-sm w-full text-left",
-              "transition-colors hover:bg-[hsl(var(--accent))]",
-              "disabled:opacity-50 disabled:cursor-not-allowed",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
+            className={fieldCls(
+              false,
+              "flex items-center gap-2 text-left hover:bg-[hsl(var(--accent))] transition-colors",
             )}
           >
             {SelectedIcon ? (

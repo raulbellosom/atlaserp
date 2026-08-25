@@ -337,6 +337,8 @@ The correct import is always `import { toast } from 'sonner'`.
 
 Import from `@atlas/ui` in any component. All exports below are available.
 
+For the visual identity rules (glass tiers, radius/z-index scales, brand-token usage, component decision tree, anti-patterns), see `docs/ai-context/design-system-guide.md`. Full audit and fix backlog: `docs/superpowers/decisions/2026-08-24-design-system-unification-audit.md`.
+
 ### Core primitives
 
 | Export | Description |

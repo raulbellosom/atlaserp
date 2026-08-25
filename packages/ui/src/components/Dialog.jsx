@@ -1,7 +1,8 @@
-import { forwardRef, useRef, useState } from "react";
+import { forwardRef } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "../lib/utils.js";
+import { useDragToDismiss } from "../hooks/useDragToDismiss.js";
 
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
@@ -38,37 +39,14 @@ const DialogContent = forwardRef(function DialogContent(
   { className, style, children, size = "md", ...props },
   ref,
 ) {
-  const closeRef = useRef(null);
-  const [dragY, setDragY] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const dragStartY = useRef(null);
-  const isDragging = useRef(false);
-
-  function handleDragPointerDown(e) {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    dragStartY.current = e.clientY;
-    isDragging.current = true;
-    setDragging(true);
-  }
-
-  function handleDragPointerMove(e) {
-    if (!isDragging.current || dragStartY.current === null) return;
-    const dy = Math.max(0, e.clientY - dragStartY.current);
-    setDragY(dy);
-  }
-
-  function handleDragPointerUp() {
-    if (!isDragging.current) return;
-    isDragging.current = false;
-    setDragging(false);
-    if (dragY > 80) {
-      setDragY(0);
-      closeRef.current?.click();
-    } else {
-      setDragY(0);
-    }
-    dragStartY.current = null;
-  }
+  const {
+    closeRef,
+    dragY,
+    dragging,
+    handleDragPointerDown,
+    handleDragPointerMove,
+    handleDragPointerUp,
+  } = useDragToDismiss();
 
   return (
     <DialogPortal>

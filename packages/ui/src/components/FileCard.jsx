@@ -1,5 +1,6 @@
 import { Download, File, FileImage, FileText, Film, Music, X } from 'lucide-react'
 import { Button } from './Button.jsx'
+import { Card } from './Card.jsx'
 import { cn } from '../lib/utils.js'
 
 function getMimeIcon(mimeType = '') {
@@ -38,7 +39,7 @@ export function FileCard({ name, mimeType, sizeBytes, url, onRemove, className }
   }
 
   return (
-    <div className={cn('group relative flex items-center gap-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 transition-shadow hover:shadow-sm', className)}>
+    <Card variant="solid" className={cn('group relative flex items-center gap-3 p-3 transition-shadow hover:shadow-sm', className)}>
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--muted))]">
         <Icon className={cn('h-5 w-5', iconColor)} />
       </div>
@@ -71,6 +72,6 @@ export function FileCard({ name, mimeType, sizeBytes, url, onRemove, className }
           </Button>
         )}
       </div>
-    </div>
+    </Card>
   )
 }

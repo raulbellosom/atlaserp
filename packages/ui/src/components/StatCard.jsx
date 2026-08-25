@@ -1,10 +1,11 @@
 import { cn } from '../lib/utils.js'
+import { Card } from './Card.jsx'
 import { Skeleton } from './Skeleton.jsx'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 
 export function StatCard({ label, value, icon: Icon, trend, loading, className }) {
   return (
-    <div className={cn('relative overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 shadow-sm', className)}>
+    <Card variant="solid" className={cn('relative overflow-hidden p-5', className)}>
       <div className="flex items-start justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
           {label}
@@ -28,6 +29,6 @@ export function StatCard({ label, value, icon: Icon, trend, loading, className }
           <span>{Math.abs(trend)}%</span>
         </div>
       )}
-    </div>
+    </Card>
   )
 }

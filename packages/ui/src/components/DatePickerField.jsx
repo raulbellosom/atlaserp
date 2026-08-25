@@ -3,7 +3,7 @@ import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Popover, PopoverTrigger, PopoverContent } from "./Popover.jsx";
-import { FieldWrapper } from "./FormFields.jsx";
+import { FieldWrapper, fieldCls } from "./form-field-base.jsx";
 import { cn } from "../lib/utils.js";
 
 const MONTHS = [
@@ -208,18 +208,20 @@ export function DatePickerField({
           type="button"
           disabled={disabled}
           aria-label={label ?? "Seleccionar fecha"}
-          className={cn(
+          className={
             compact
-              ? "h-7 rounded-md border px-2 text-xs text-left flex items-center gap-1.5 bg-[hsl(var(--background))] transition-colors"
-              : "h-11 w-full rounded-lg border px-3.5 text-sm glass-subtle text-left",
-            "outline-none transition-all duration-150 flex items-center justify-between gap-2",
-            "focus:ring-2 focus:ring-primary/20 focus:border-primary",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-            error
-              ? "border-destructive focus:ring-destructive/20 focus:border-destructive"
-              : "border-border",
-            compact ? "" : "bg-card",
-          )}
+              ? cn(
+                  "h-7 rounded-md border px-2 text-xs text-left flex items-center gap-1.5 bg-[hsl(var(--background))] transition-colors",
+                  "outline-none justify-between gap-2 disabled:cursor-not-allowed disabled:opacity-50",
+                  error
+                    ? "border-destructive focus:ring-destructive/20 focus:border-destructive"
+                    : "border-border",
+                )
+              : fieldCls(
+                  error,
+                  "text-left flex items-center justify-between gap-2",
+                )
+          }
         >
           <span className={cn(!displayValue && "text-muted-foreground/70")}>
             {displayValue || placeholder}

@@ -9,9 +9,9 @@ const Checkbox = forwardRef(function Checkbox({ className, ...props }, ref) {
       ref={ref}
       className={cn(
         'peer h-4 w-4 shrink-0 rounded-md border border-[hsl(var(--border))] shadow transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:ring-offset-1',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]/40 focus-visible:ring-offset-1',
         'disabled:cursor-not-allowed disabled:opacity-50',
-        'data-[state=checked]:bg-indigo-500 data-[state=checked]:border-indigo-500 data-[state=checked]:text-white',
+        'data-[state=checked]:bg-(--brand-primary) data-[state=checked]:border-(--brand-primary) data-[state=checked]:text-(--brand-primary-foreground)',
         className
       )}
       {...props}

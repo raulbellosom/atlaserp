@@ -1,10 +1,10 @@
-import { useEffect } from "react";
-import { X } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./Sheet.jsx";
 import { ActivityTimeline } from "./ActivityTimeline.jsx";
 
 /**
  * <ActivityDrawer />
- * Slide-in drawer attached to the right side of the viewport.
+ * Slide-in drawer attached to the right side of the viewport (becomes a
+ * bottom sheet on mobile via the shared `Sheet` primitive).
  *
  * Props:
  *  - open: boolean
@@ -25,46 +25,17 @@ export function ActivityDrawer({
   onNavigate,
   onSeeAll,
 }) {
-  useEffect(() => {
-    function onKey(e) {
-      if (e.key === "Escape" && open) onClose?.();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        className={`fixed inset-0 z-60 bg-black/30 backdrop-blur-sm transition-opacity ${
-          open
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none"
-        }`}
-        aria-hidden="true"
-      />
-      {/* Panel */}
-      <aside
-        role="dialog"
-        aria-label="Actividad reciente"
-        className={`fixed top-0 right-0 z-61 h-dvh w-[min(420px,92vw)] bg-[hsl(var(--background))] border-l border-[hsl(var(--border))] shadow-2xl transition-transform duration-300 ease-out flex flex-col ${
-          open ? "translate-x-0" : "translate-x-full"
-        }`}
+    <Sheet open={open} onOpenChange={(next) => { if (!next) onClose?.(); }}>
+      <SheetContent
+        side="right"
+        aria-describedby={undefined}
+        className="w-[min(420px,92vw)] sm:max-w-105 p-0 gap-0 flex flex-col"
       >
-        <header className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[hsl(var(--border))]">
-          <h2 className="text-sm font-semibold">Actividad reciente</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]"
-            aria-label="Cerrar"
-          >
-            <X size={16} />
-          </button>
-        </header>
-        <div className="flex-1 overflow-hidden">
+        <SheetHeader className="px-4 py-3 border-b border-[hsl(var(--border))]">
+          <SheetTitle>Actividad reciente</SheetTitle>
+        </SheetHeader>
+        <div className="flex-1 min-h-0 overflow-hidden">
           <ActivityTimeline
             sdk={sdk}
             token={token}
@@ -90,8 +61,8 @@ export function ActivityDrawer({
             </button>
           </footer>
         )}
-      </aside>
-    </>
+      </SheetContent>
+    </Sheet>
   );
 }
 

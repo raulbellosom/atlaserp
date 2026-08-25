@@ -6,6 +6,7 @@ export function EmptyState({
   title,
   description,
   action,
+  children,
   variant = 'default',
   className,
 }) {
@@ -41,6 +42,7 @@ export function EmptyState({
           {action.label}
         </Button>
       )}
+      {children}
     </div>
   )
 }
