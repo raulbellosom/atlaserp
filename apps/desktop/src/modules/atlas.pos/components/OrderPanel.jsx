@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { Minus, Plus, ShoppingCart, Receipt, NotebookPen } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Minus, Plus, ShoppingCart, Receipt, NotebookPen, Users } from 'lucide-react'
 import { Button, Badge, Separator, ConfirmDialog } from '@atlas/ui'
 import {
   useUpdatePosOrderLine, useDeletePosOrderLine,
-  useCancelPosOrder,
+  useCancelPosOrder, useAddPosGuest,
 } from '../hooks/usePosOrder'
 import LineEditSheet from './LineEditSheet'
 
@@ -14,14 +14,28 @@ export default function OrderPanel({ order, onPay, onNewOrder, onSendToKitchen, 
   const updateLine = useUpdatePosOrderLine()
   const deleteLine = useDeletePosOrderLine()
   const cancelOrder = useCancelPosOrder()
+  const addGuest = useAddPosGuest()
   const [cancelConfirm, setCancelConfirm] = useState(false)
   const [editLine, setEditLine] = useState(null)
 
   const lines = order?.lines ?? []
+  const guests = order?.guests ?? []
   const isPaid = order?.status === 'PAID'
   const isCancelled = order?.status === 'CANCELLED'
   const locked = isPaid || isCancelled
   const hasServerOrder = order?.id && order.id !== 'pending'
+  // Seats only make sense for a real dine-in order tied to a table — a retail
+  // walk-up sale has no concept of "comensales".
+  const showSeats = !isRetail && hasServerOrder && Boolean(order?.table)
+  const guestLabelById = useMemo(
+    () => Object.fromEntries(guests.map((g) => [g.id, g.label])),
+    [guests],
+  )
+
+  function handleAddGuest() {
+    if (!hasServerOrder) return
+    addGuest.mutate({ orderId: order.id, label: `Comensal ${guests.length + 1}` })
+  }
 
   function changeQty(line, delta) {
     if (line.pending) {
@@ -66,6 +80,25 @@ export default function OrderPanel({ order, onPay, onNewOrder, onSendToKitchen, 
             </Button>
           )}
         </div>
+
+        {showSeats && !locked && (
+          <div className="flex items-center gap-1.5 mt-2">
+            <Users size={13} className="text-muted-foreground shrink-0" />
+            <span className="text-xs text-muted-foreground">
+              {guests.length} {guests.length === 1 ? 'comensal' : 'comensales'}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 text-[11px] px-2 ml-1 gap-1"
+              onClick={handleAddGuest}
+              disabled={addGuest.isPending}
+            >
+              <Plus size={11} />
+              Agregar
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Lines list */}
@@ -102,6 +135,9 @@ export default function OrderPanel({ order, onPay, onNewOrder, onSendToKitchen, 
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     ${parseFloat(line.unitPrice).toFixed(2)} c/u{line.pending ? ' · pendiente' : ''}
+                    {showSeats && line.guestSeatId && guestLabelById[line.guestSeatId] && (
+                      <> · {guestLabelById[line.guestSeatId]}</>
+                    )}
                   </p>
                   {line.note && (
                     <p className="text-xs text-amber-600 mt-0.5 italic leading-snug line-clamp-2">{line.note}</p>
@@ -270,6 +306,7 @@ export default function OrderPanel({ order, onPay, onNewOrder, onSendToKitchen, 
         orderId={order?.id}
         open={Boolean(editLine)}
         onOpenChange={(open) => { if (!open) setEditLine(null) }}
+        guests={showSeats ? guests : undefined}
       />
     </div>
   )

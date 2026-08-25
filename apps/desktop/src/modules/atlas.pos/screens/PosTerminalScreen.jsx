@@ -10,10 +10,11 @@ import {
 } from '@atlas/ui'
 import { usePosOutlets, usePosTerminals, usePosSettings } from '../hooks/usePosSettings'
 import { usePosCurrentSession } from '../hooks/usePosSession'
-import { useCreatePosOrder, useAddPosOrderLine, usePosOrder, useSendToKitchen } from '../hooks/usePosOrder'
+import { useCreatePosOrder, useAddPosOrderLine, usePosOrder, useSendToKitchen, useAddPosGuest } from '../hooks/usePosOrder'
 import { useUpdateTableStatus } from '../hooks/usePosFloor'
 import ProductGrid from '../components/ProductGrid'
 import OrderPanel from '../components/OrderPanel'
+import SeatChips from '../components/SeatChips'
 import PaymentDialog from '../components/PaymentDialog'
 import SessionOpenDialog from '../components/SessionOpenDialog'
 import SessionCloseDialog from '../components/SessionCloseDialog'
@@ -95,6 +96,7 @@ export default function PosTerminalScreen({ cajaTools = false }) {
   const [orderSheetOpen, setOrderSheetOpen] = useState(false)
   const [pendingLines, setPendingLines] = useState([])
   const [shiftsPanelOpen, setShiftsPanelOpen] = useState(false)
+  const [activeSeatId, setActiveSeatId] = useState(null)
 
   const { data: outlets = [], isLoading: outletsLoading } = usePosOutlets()
   const { data: allTerminals = [] } = usePosTerminals()
@@ -125,7 +127,22 @@ export default function PosTerminalScreen({ cajaTools = false }) {
   const addLine = useAddPosOrderLine()
   const sendKitchen = useSendToKitchen()
   const updateTableStatus = useUpdateTableStatus()
+  const addGuest = useAddPosGuest()
   const { data: activeOrder } = usePosOrder(activeOrderId)
+  const guests = activeOrder?.guests ?? []
+  // Seats only apply to a real dine-in order tied to a table (reached here via
+  // deep-link from the floor/Comandero) — a walk-up counter sale has none.
+  const showSeats = Boolean(activeOrder?.table)
+
+  useEffect(() => {
+    // Reset the active seat whenever we switch to a different order (or lose one).
+    setActiveSeatId(null)
+  }, [activeOrderId])
+
+  function handleAddGuest() {
+    if (!activeOrderId) return
+    addGuest.mutate({ orderId: activeOrderId, label: `Comensal ${guests.length + 1}` })
+  }
 
   // Strip the ?order= param from the URL after reading it on mount
   useEffect(() => {
@@ -198,7 +215,10 @@ export default function PosTerminalScreen({ cajaTools = false }) {
     if (!isSetupComplete || !hasActiveSession) return
     const unitPrice = parseFloat(product.price ?? product.base_price ?? 0)
     setPendingLines((prev) => {
-      const idx = prev.findIndex((l) => l.productId === product.id)
+      // Merge with an existing pending line only if it's the same product AND
+      // the same seat — otherwise two different comensales ordering the same
+      // product would incorrectly collapse into one shared line.
+      const idx = prev.findIndex((l) => l.productId === product.id && (l.guestSeatId ?? null) === (activeSeatId ?? null))
       if (idx >= 0) {
         const updated = [...prev]
         updated[idx] = { ...updated[idx], quantity: updated[idx].quantity + 1 }
@@ -210,6 +230,7 @@ export default function PosTerminalScreen({ cajaTools = false }) {
         productName: product.name,
         quantity: 1,
         unitPrice,
+        guestSeatId: activeSeatId,
       }]
     })
   }
@@ -231,6 +252,7 @@ export default function PosTerminalScreen({ cajaTools = false }) {
           productName: l.productName,
           quantity: l.quantity,
           unitPrice: l.unitPrice,
+          guestSeatId: l.guestSeatId ?? null,
         })
       )
     )
@@ -288,6 +310,7 @@ export default function PosTerminalScreen({ cajaTools = false }) {
       id: l.tempId, tempId: l.tempId, pending: true,
       productId: l.productId, productName: l.productName,
       quantity: l.quantity, unitPrice: l.unitPrice,
+      guestSeatId: l.guestSeatId ?? null,
       discountAmount: 0, taxRate: 0, taxAmount: 0,
       totalAmount: l.quantity * l.unitPrice,
     }))
@@ -430,8 +453,21 @@ export default function PosTerminalScreen({ cajaTools = false }) {
         <>
           {/* ── Desktop: side-by-side ───────────────────────────────────── */}
           <div className="hidden md:flex flex-1 overflow-hidden">
-            <div className="flex-1 min-w-0 overflow-hidden">
-              <ProductGrid onSelect={handleProductSelect} />
+            <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+              {showSeats && (
+                <div className="shrink-0 border-b border-border px-3">
+                  <SeatChips
+                    guests={guests}
+                    activeSeatId={activeSeatId}
+                    onSelect={setActiveSeatId}
+                    onAddGuest={handleAddGuest}
+                    addingGuest={addGuest.isPending}
+                  />
+                </div>
+              )}
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <ProductGrid onSelect={handleProductSelect} />
+              </div>
             </div>
             <div className="w-80 shrink-0 flex flex-col overflow-hidden">
               <OrderPanel
@@ -450,6 +486,17 @@ export default function PosTerminalScreen({ cajaTools = false }) {
 
           {/* ── Mobile: product grid + cart bar in their own flex column ─── */}
           <div className="md:hidden flex-1 flex flex-col min-h-0 overflow-hidden">
+            {showSeats && (
+              <div className="shrink-0 border-b border-border px-3">
+                <SeatChips
+                  guests={guests}
+                  activeSeatId={activeSeatId}
+                  onSelect={setActiveSeatId}
+                  onAddGuest={handleAddGuest}
+                  addingGuest={addGuest.isPending}
+                />
+              </div>
+            )}
             <div className="flex-1 min-h-0 overflow-hidden">
               <ProductGrid onSelect={handleProductSelect} />
             </div>
