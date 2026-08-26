@@ -20,29 +20,33 @@ export function AuthProvider({ children }) {
     let profileLoadedForAuthUserId = null
 
     async function forceLogout() {
-      // Before signing out permanently, try to refresh the session.
-      // A 401 from the API can be transient (network blip, token rotation race).
-      // Only sign out if the refresh token itself is also dead.
-      const { error: refreshError } = await supabase.auth.refreshSession().catch(() => ({
-        error: new Error('refresh_unavailable'),
-      }))
-      if (!refreshError) {
-        // Refresh succeeded — TOKEN_REFRESHED fires, session is alive.
-        return
-      }
-
-      // This window's own refresh attempt failed — but that can happen even
-      // when the session itself is fine, if another module window already
-      // consumed/rotated the same refresh token moments earlier (Supabase
-      // refresh tokens are single-use). Re-read the session fresh from the
-      // shared storage (not a cached value) before concluding it's actually
-      // dead — the other window's successful refresh already wrote a new,
-      // valid session there.
+      // Re-check the shared session BEFORE attempting our own refresh —
+      // another module window may have already rotated the (single-use)
+      // refresh token and written a fresh session into shared storage.
+      // Attempting our own refreshSession() first would be destructive
+      // here: Supabase treats a reused/stale refresh token as an
+      // unambiguous "invalid_grant" failure and signs the session out
+      // globally, including a cross-tab broadcast that logs out every
+      // other window — exactly the outcome this function exists to avoid.
+      // Checking first means we never make that call in the case we're
+      // trying to protect against.
       const { data: freshData } = await supabase.auth.getSession().catch(() => ({ data: null }))
       const freshSession = freshData?.session ?? null
       if (isSessionFresh(freshSession)) {
         if (!mounted) return
         setSession(freshSession)
+        await refreshProfile(freshSession)
+        return
+      }
+
+      // No fresh session already available — try refreshing ourselves.
+      // A 401 from the API can be transient (network blip, token rotation
+      // race). Only sign out if the refresh token itself is also dead.
+      const { error: refreshError } = await supabase.auth.refreshSession().catch(() => ({
+        error: new Error('refresh_unavailable'),
+      }))
+      if (!refreshError) {
+        // Refresh succeeded — TOKEN_REFRESHED fires, session is alive.
         return
       }
 
