@@ -488,6 +488,9 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     // conversation has at most one avatar source at a time. Explicitly
     // clearing one (sending null) does NOT touch the other — a "remove both"
     // action must send both fields as null itself (spec Section 23 edge case 1).
+    // If a caller sends both as real (non-null) values in the same request,
+    // avatarFileId wins and the emoji is discarded — an `if`, not parallel
+    // handling, so this branch always fires first when both are present.
     let nextAvatarFileId = updates.avatarFileId;
     let nextAvatarEmoji = updates.avatarEmoji;
     let touchAvatarFileId = hasAvatarFileId;
