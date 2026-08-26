@@ -45,8 +45,32 @@ function buildPrismaMock(queryRawResults = [], executeRawResults = []) {
     membership: {
       findFirst: async () => null,
     },
+    // Default: no FileAsset rows found, so batchSignAvatarUrls (called whenever
+    // a member/conversation avatar_file_id is truthy) resolves to an empty map
+    // instead of crashing on `.findMany` being undefined. Tests that actually
+    // need a resolved avatarUrl override this per-test.
+    fileAsset: {
+      findMany: async () => [],
+    },
   };
   return client;
+}
+
+// Builds a minimal supabaseAdmin stub for batchSignAvatarUrls / signedUrlWithVariant:
+// signedUrlByObjectKey maps objectKey -> signed URL string. Any objectKey not in the
+// map resolves to a Supabase-style `{ data: null, error }` (signedUrlWithVariant then
+// returns null, matching real "couldn't sign" behavior instead of throwing).
+function buildSupabaseAdminMock(signedUrlByObjectKey = {}) {
+  return {
+    storage: {
+      from: () => ({
+        createSignedUrl: async (objectKey) => {
+          const url = signedUrlByObjectKey[objectKey];
+          return url ? { data: { signedUrl: url }, error: null } : { data: null, error: new Error("not found") };
+        },
+      }),
+    },
+  };
 }
 
 function throwingAssertChannelPermission() {
@@ -965,6 +989,122 @@ describe("chat-service — getConversation member role fields", () => {
     // for the bug where getConversation's SQL selected every role field
     // except this one, leaving canPin permanently false client-side.
     assert.deepEqual(conv.members[0].rolePermissions, { "messages.pin": true });
+  });
+});
+
+describe("chat-service — conversation avatar resolution", () => {
+  it("getConversation resolves avatar_file_id to a signed avatarUrl and clears the dead avatar_url field", async () => {
+    const fileId = "01900000-0000-7000-8000-00000000f002";
+    const objectKey = "conv-avatar-a1/original.png";
+    const signedUrl = "https://signed.example/conv-avatar-a1";
+
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }], // resolveUserProfileId
+      [{ id: "member-row" }], // assertMember
+      [{ id: CONV_ID, avatar_file_id: fileId, avatar_url: null, avatar_emoji: null, members: null }], // getConversation main query
+    ]);
+    prisma.fileAsset.findMany = async ({ where }) => {
+      assert.deepEqual(where.id.in, [fileId], "batchSignAvatarUrls must be called with exactly the conversation's own avatar_file_id");
+      return [{ id: fileId, bucket: "chat-files", objectKey }];
+    };
+    const supabaseAdmin = buildSupabaseAdminMock({ [objectKey]: signedUrl });
+
+    const service = createChatService({ prisma, supabaseAdmin });
+    const result = await service.getConversation({ conversationId: CONV_ID, authUserId: AUTH_USER_ID });
+
+    assert.equal(result.avatarUrl, signedUrl);
+    assert.equal(result.avatar_url, undefined, "the dead raw column must not leak into the response");
+  });
+
+  it("getConversation returns avatarUrl: null when no avatar_file_id is set (emoji-only)", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "member-row" }],
+      [{ id: CONV_ID, avatar_file_id: null, avatar_url: null, avatar_emoji: "🎉", members: null }],
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    const result = await service.getConversation({ conversationId: CONV_ID, authUserId: AUTH_USER_ID });
+    assert.equal(result.avatarUrl, null);
+    assert.equal(result.avatar_emoji, "🎉");
+    assert.equal(result.avatar_url, undefined);
+  });
+
+  it("getConversation returns avatarUrl: null when there is no avatar at all (no file, no emoji)", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "member-row" }],
+      [{ id: CONV_ID, avatar_file_id: null, avatar_url: null, avatar_emoji: null, members: null }],
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    const result = await service.getConversation({ conversationId: CONV_ID, authUserId: AUTH_USER_ID });
+    assert.equal(result.avatarUrl, null);
+    assert.equal(result.avatar_emoji, null);
+    assert.equal(result.avatar_url, undefined);
+  });
+
+  it("listConversations resolves each conversation's own avatar_file_id independently from its members' avatarFileIds, across multiple rows, without mixing them up", async () => {
+    const fileConvA = "01900000-0000-7000-8000-00000000c0a1";
+    const fileConvB = "01900000-0000-7000-8000-00000000c0b1";
+    const fileMemberA = "01900000-0000-7000-8000-00000000m0a1";
+    const fileMemberB = "01900000-0000-7000-8000-00000000m0b1";
+
+    const assetById = {
+      [fileConvA]: { bucket: "chat-files", objectKey: "oc-conv-a" },
+      [fileConvB]: { bucket: "chat-files", objectKey: "oc-conv-b" },
+      [fileMemberA]: { bucket: "chat-files", objectKey: "oc-mem-a" },
+      [fileMemberB]: { bucket: "chat-files", objectKey: "oc-mem-b" },
+    };
+    const signedUrlByObjectKey = {
+      "oc-conv-a": "https://signed.example/conv-a",
+      "oc-conv-b": "https://signed.example/conv-b",
+      "oc-mem-a": "https://signed.example/mem-a",
+      "oc-mem-b": "https://signed.example/mem-b",
+    };
+
+    const rowA = {
+      id: "conv-a", type: "group", title: "Group A", avatar_url: null,
+      avatar_file_id: fileConvA, avatar_emoji: null, status: "open",
+      last_message_at: new Date(), last_message_id: null, website_id: null,
+      company_id: null, metadata: {}, created_at: new Date(), unread_count: 0,
+      last_message: null, is_archived: false,
+      members: [{ userId: "u1", role: "member", displayName: "Member A", avatarFileId: fileMemberA, authAvatarUrl: null, lastReadAt: null }],
+    };
+    const rowB = {
+      id: "conv-b", type: "group", title: "Group B", avatar_url: null,
+      avatar_file_id: fileConvB, avatar_emoji: null, status: "open",
+      last_message_at: new Date(), last_message_id: null, website_id: null,
+      company_id: null, metadata: {}, created_at: new Date(), unread_count: 0,
+      last_message: null, is_archived: false,
+      members: [{ userId: "u2", role: "member", displayName: "Member B", avatarFileId: fileMemberB, authAvatarUrl: null, lastReadAt: null }],
+    };
+
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }], // resolveUserProfileId
+      [rowA, rowB], // listConversations main query
+    ]);
+    prisma.fileAsset.findMany = async ({ where }) => {
+      const ids = where.id.in;
+      return ids.map((id) => ({ id, ...assetById[id] }));
+    };
+    const supabaseAdmin = buildSupabaseAdminMock(signedUrlByObjectKey);
+
+    const service = createChatService({ prisma, supabaseAdmin });
+    const result = await service.listConversations({ authUserId: AUTH_USER_ID });
+
+    const [a, b] = result.data;
+    assert.equal(a.avatarUrl, "https://signed.example/conv-a");
+    assert.equal(a.members[0].avatarUrl, "https://signed.example/mem-a");
+    assert.equal(b.avatarUrl, "https://signed.example/conv-b");
+    assert.equal(b.members[0].avatarUrl, "https://signed.example/mem-b");
+
+    // Risk 3 (spec Section 24): a conversation's own avatar must never resolve
+    // to a member's avatar URL (or another conversation's), even though both
+    // are keyed off the same shared avatarUrlMap.
+    assert.notEqual(a.avatarUrl, a.members[0].avatarUrl);
+    assert.notEqual(a.avatarUrl, b.avatarUrl);
+    assert.notEqual(a.members[0].avatarUrl, b.members[0].avatarUrl);
+    assert.equal(a.avatar_url, undefined);
+    assert.equal(b.avatar_url, undefined);
   });
 });
 

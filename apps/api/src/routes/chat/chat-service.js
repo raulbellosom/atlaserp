@@ -187,6 +187,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         c.type,
         c.title,
         c.avatar_url,
+        c.avatar_file_id,
+        c.avatar_emoji,
         c.status,
         c.last_message_at,
         c.last_message_id,
@@ -261,9 +263,10 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     const data = hasMore ? rows.slice(0, limit) : rows;
 
     const allFileIds = [
-      ...new Set(
-        data.flatMap((c) => (c.members ?? []).map((m) => m.avatarFileId).filter(Boolean)),
-      ),
+      ...new Set([
+        ...data.flatMap((c) => (c.members ?? []).map((m) => m.avatarFileId).filter(Boolean)),
+        ...data.map((c) => c.avatar_file_id).filter(Boolean),
+      ]),
     ];
     const avatarUrlMap = allFileIds.length ? await batchSignAvatarUrls(allFileIds) : {};
     for (const conv of data) {
@@ -275,6 +278,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
           authAvatarUrl: undefined,
         }));
       }
+      conv.avatarUrl = conv.avatar_file_id ? (avatarUrlMap[conv.avatar_file_id] ?? null) : null;
+      conv.avatar_url = undefined; // dead raw column (never written) — avatarUrl (camelCase, resolved above) is the live field
     }
 
     return {
@@ -450,9 +455,10 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     `;
     if (!rows.length) throw new ChatServiceError("Conversacion no encontrada.", 404);
     const conv = rows[0];
+    const memberFileIds = conv.members ? conv.members.map((m) => m.avatarFileId).filter(Boolean) : [];
+    const fileIds = [...new Set([...memberFileIds, conv.avatar_file_id].filter(Boolean))];
+    const avatarUrlMap = fileIds.length ? await batchSignAvatarUrls(fileIds) : {};
     if (conv.members) {
-      const fileIds = [...new Set(conv.members.map((m) => m.avatarFileId).filter(Boolean))];
-      const avatarUrlMap = fileIds.length ? await batchSignAvatarUrls(fileIds) : {};
       conv.members = conv.members.map((m) => ({
         ...m,
         avatarUrl: m.avatarFileId ? (avatarUrlMap[m.avatarFileId] ?? m.authAvatarUrl ?? null) : (m.authAvatarUrl ?? null),
@@ -460,6 +466,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         authAvatarUrl: undefined,
       }));
     }
+    conv.avatarUrl = conv.avatar_file_id ? (avatarUrlMap[conv.avatar_file_id] ?? null) : null;
+    conv.avatar_url = undefined; // dead raw column (never written) — avatarUrl (camelCase, resolved above) is the live field
     return conv;
   }
 

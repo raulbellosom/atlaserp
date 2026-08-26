@@ -220,7 +220,7 @@ git commit -m "feat(chat): mutual-exclusion avatar handling in updateConversatio
 - Modify: `apps/api/src/routes/chat/chat-service.js`
 - Test: `apps/api/src/routes/chat/__tests__/chat-service.test.js`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests** — Verified: 2026-08-26 (resolved the `batchSignAvatarUrls` mocking gap by mocking `prisma.fileAsset.findMany` directly plus a `buildSupabaseAdminMock(signedUrlByObjectKey)` stub for `supabaseAdmin.storage.from(bucket).createSignedUrl(...)`; also added a default `fileAsset: { findMany: async () => [] }` to `buildPrismaMock` since `getConversation`'s new code path now unconditionally calls `batchSignAvatarUrls` whenever `avatar_file_id` is truthy — this was required to keep an existing Task 2 test, which sets a truthy `avatar_file_id` in its final row, from crashing on `prisma.fileAsset` being undefined)
 
 ```javascript
 describe("chat-service — conversation avatar resolution", () => {
@@ -260,7 +260,7 @@ describe("chat-service — conversation avatar resolution", () => {
 
 **Implementer note**: `batchSignAvatarUrls` (defined near the top of `chat-service.js`, used already by both `getConversation` and `listConversations` for member avatars) is more involved to mock than a plain `$queryRaw`/`$executeRaw` call — it internally calls `prisma.fileAsset.findMany` (a real Prisma-modeled query, not raw SQL) and `supabaseAdmin.storage...`. Read its actual implementation before finalizing these tests' mocks; the first test above is deliberately left with a TODO-shaped gap for you to complete once you've confirmed the real mocking approach — do not ship it with that gap still open, this is a "figure out the right mock, then finish the assertion" instruction, not a placeholder to leave in committed code.
 
-- [ ] **Step 2: Implement — `getConversation`**
+- [x] **Step 2: Implement — `getConversation`** — Verified: 2026-08-26 (applied as specified, at `chat-service.js:451-464`)
 
 Read the current function in full (around line 415) first. After the existing `if (conv.members) { ... }` block that resolves member avatars, add the conversation's own avatar resolution, folding it into the SAME `fileIds`/`avatarUrlMap` computation rather than a second signing pass:
 
@@ -285,7 +285,7 @@ Read the current function in full (around line 415) first. After the existing `i
 
 This replaces the existing `if (conv.members) {...}; return conv;` tail of the function — read the surrounding code first to confirm exact placement.
 
-- [ ] **Step 3: Implement — `listConversations`**
+- [x] **Step 3: Implement — `listConversations`** — Verified: 2026-08-26 (applied as specified)
 
 Two changes. First, add the two new columns to the existing explicit SELECT list (near `c.avatar_url,` around line 189):
 
@@ -319,7 +319,7 @@ Second, extend the existing per-row avatar-resolution loop (around line 263-278)
     }
 ```
 
-- [ ] **Step 4: Run tests, iterate until green**
+- [x] **Step 4: Run tests, iterate until green** — Verified: 2026-08-26 (`node --test apps/api/src/routes/chat/__tests__/*.test.js` → 98 pass, 0 fail, 26 suites — 94 pre-existing + 4 new; no regressions)
 
 Run: `node --test apps/api/src/routes/chat/__tests__/*.test.js`
 Expected: all pass, no regression in the ~91 pre-existing tests.
