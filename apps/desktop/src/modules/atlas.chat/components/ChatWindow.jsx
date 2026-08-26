@@ -13,6 +13,7 @@ import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { ForwardMessageModal } from "./ForwardMessageModal";
 import { ChannelDetailsSheet } from "./ChannelDetailsSheet";
 import { PinnedMessagesSheet } from "./PinnedMessagesSheet";
+import { ThreadPanel } from "./ThreadPanel";
 import {
   useChatMessages, useSendMessage, useMarkRead, useDeleteMessage,
   usePinMessage, useToggleReaction,
@@ -453,6 +454,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
   const [showDetails, setShowDetails] = useState(false);
   const [showPinned, setShowPinned] = useState(false);
   const [jumpTarget, setJumpTarget] = useState(null);
+  const [threadPanelRootId, setThreadPanelRootId] = useState(null);
 
   const composerRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -472,6 +474,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
     setSearchCurrentIdx(0);
     setShowPinned(false);
     setJumpTarget(null);
+    setThreadPanelRootId(null);
   }, [conversationId, initialFilesView]);
 
   useEffect(() => {
@@ -491,8 +494,12 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
     deleteMessageMutate(messageId);
   }, [deleteMessageMutate]);
 
-  const handleJumpToMessage = useCallback((messageId) => {
+  const handleJumpToMessage = useCallback((messageId, threadRootId) => {
     setShowPinned(false);
+    if (threadRootId) {
+      setThreadPanelRootId(threadRootId);
+      return;
+    }
     setFilesView(false);
     setJumpTarget({ id: messageId, nonce: Date.now() });
   }, []);
@@ -723,6 +730,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
           onForward={setForwardMessage}
           onPinMessage={(messageId, pinned) => pinMutate({ messageId, pinned })}
           onToggleReaction={(messageId, emoji) => toggleReactionMutate({ messageId, emoji })}
+          onOpenThread={(messageId) => setThreadPanelRootId(messageId)}
           hiddenMessageIds={hiddenMessageIds}
           selectionMode={selectionMode}
           selectedMsgIds={selectedMsgIds}
@@ -774,6 +782,16 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         currentUserId={userProfile?.id}
         members={detailMembers ?? conversation.members}
         onJumpToMessage={handleJumpToMessage}
+      />
+
+      <ThreadPanel
+        open={Boolean(threadPanelRootId)}
+        onOpenChange={(open) => { if (!open) setThreadPanelRootId(null); }}
+        rootMessageId={threadPanelRootId}
+        conversationId={conversationId}
+        conversationType={conversation?.type}
+        members={detailMembers ?? conversation.members}
+        onToggleReaction={(messageId, emoji) => toggleReactionMutate({ messageId, emoji })}
       />
     </div>
   );

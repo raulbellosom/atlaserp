@@ -44,7 +44,7 @@ export function PinnedMessagesSheet({ open, onOpenChange, conversationId, curren
                 {msg.body ? renderMentionText(msg.body) : <span className="italic text-[hsl(var(--muted-foreground))]">Archivo adjunto</span>}
               </p>
               <div className="flex items-center gap-2 mt-2">
-                <Button size="sm" variant="outline" onClick={() => onJumpToMessage?.(msg.id)}>Ver en el chat</Button>
+                <Button size="sm" variant="outline" onClick={() => onJumpToMessage?.(msg.id, msg.thread_root_id)}>Ver en el chat</Button>
                 {canUnpin && (
                   <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-500" onClick={() => pinMutate({ messageId: msg.id, pinned: false })}>
                     Desfijar
