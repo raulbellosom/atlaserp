@@ -328,6 +328,18 @@ export const PERMISSION_CATALOG = {
     groupKey: "identity",
     order: 130,
   },
+  "identity.chat_reports.read": {
+    displayNameEs: "Ver reportes de chat",
+    descriptionEs: "Permite ver los reportes de usuarios de chat filtrados por otros usuarios.",
+    groupKey: "identity",
+    order: 140,
+  },
+  "identity.chat_reports.manage": {
+    displayNameEs: "Gestionar reportes de chat",
+    descriptionEs: "Permite desestimar reportes de chat o deshabilitar al usuario reportado.",
+    groupKey: "identity",
+    order: 150,
+  },
   "profile.self.read": {
     displayNameEs: "Ver perfil propio",
     descriptionEs: "Permite consultar su propio perfil.",

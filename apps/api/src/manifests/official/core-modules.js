@@ -167,6 +167,13 @@ export const identityMap = createModuleManifest({
       layout: "main",
       permissionKey: "identity.roles.read",
     },
+    {
+      label: "Reportes de chat",
+      path: "/identity/chat-reports",
+      icon: "Flag",
+      layout: "main",
+      permissionKey: "identity.chat_reports.read",
+    },
   ],
   permissions: [
     { key: "identity.access", name: "Access Identity" },
@@ -186,6 +193,8 @@ export const identityMap = createModuleManifest({
     { key: "profile.self.update", name: "Update Own Profile" },
     { key: "profile.avatar.update", name: "Update Own Avatar" },
     { key: "profile.password.update", name: "Update Own Password" },
+    { key: "identity.chat_reports.read", name: "Read Chat Reports" },
+    { key: "identity.chat_reports.manage", name: "Manage Chat Reports" },
   ],
   acl: {
     module: "identity.access",
@@ -202,6 +211,8 @@ export const identityMap = createModuleManifest({
       "identity.permissions.create": "identity.permissions.create",
       "identity.permissions.update": "identity.permissions.update",
       "identity.permissions.delete": "identity.permissions.delete",
+      "identity.chat_reports.read": "identity.chat_reports.read",
+      "identity.chat_reports.manage": "identity.chat_reports.manage",
       "profile.self.read": "profile.self.read",
       "profile.self.update": "profile.self.update",
       "profile.avatar.update": "profile.avatar.update",
