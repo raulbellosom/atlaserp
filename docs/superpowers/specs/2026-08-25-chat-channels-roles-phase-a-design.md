@@ -172,6 +172,16 @@ Body: `{ roleId: string }`
 Response: `{ data: Membership }`
 Errors: 403 (hierarchy violation), 404 (member or role not found in this conversation).
 
+### Pre-existing endpoints — new permission enforcement for `channel`/`group` conversations
+
+Found during final whole-feature review: the role hierarchy this phase builds is meaningless if the pre-existing member/conversation-management endpoints ignore it entirely. These three EXISTING endpoints (already implemented before this phase, in `chat-service.js`) must now enforce the channel-scoped permission catalog (Section 18) for `channel`/`group` conversations specifically — `direct`/`external_support` conversations have no roles and keep their exact current behavior (membership-only check, unchanged):
+
+- **`POST /chat/conversations/:id/members`** (`chatService.addMembers`) — for `channel`/`group`, additionally requires `members.manage` on `:id`.
+- **`DELETE /chat/conversations/:id/members/:userId`** (`chatService.removeMember`) — for `channel`/`group`, additionally requires `members.manage` on `:id`, AND the caller's role position must exceed the target member's role position — **except** when the caller is removing themselves (leaving), which is always allowed regardless of rank, mirroring `assignMemberRole`'s self-target exception. This is in addition to, not instead of, the existing last-Owner guard.
+- **`PATCH /chat/conversations/:id`** (`chatService.updateConversation`) — for `channel`/`group`, additionally requires `channel.manage` on `:id`.
+
+`assertChannelPermission` (previously a private helper inside `chat-permissions-service.js`) must be added to `createChatPermissionsService`'s returned object so `chat-service.js` can call it directly at these three points, alongside a way to resolve the conversation's `type` (a plain `SELECT type FROM chat_conversations WHERE id = ...`).
+
 ## 13. SDK contract
 
 Domain: `chat` (extends the existing `@atlas/sdk` chat domain)
