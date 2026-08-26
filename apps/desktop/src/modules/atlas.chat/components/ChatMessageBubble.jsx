@@ -647,13 +647,13 @@ function MessageActions({
             {isPinned ? "Desfijar mensaje" : "Fijar mensaje"}
           </DropdownMenuItem>
         )}
-        {hasBody && onReact && (
+        {onReact && (
           <DropdownMenuItem onSelect={onReact}>
             <Smile className="h-3.5 w-3.5 mr-2" />
             Reaccionar
           </DropdownMenuItem>
         )}
-        {(hasBody && onCopy || onForward || onEnterSelection || (canPin && onPin) || (hasBody && onReact)) && (onDelete || onHideForMe) && (
+        {(hasBody && onCopy || onForward || onEnterSelection || (canPin && onPin) || onReact) && (onDelete || onHideForMe) && (
           <DropdownMenuSeparator />
         )}
         {isOwn && onDelete && (
@@ -825,62 +825,62 @@ export function ChatMessageBubble({
             onReact={() => setReactionPickerOpen(true)}
           />
         )}
-        <div className="relative flex flex-col items-end max-w-[72%] sm:max-w-[65%]">
-          <MessageReactionPicker
-            open={reactionPickerOpen}
-            onOpenChange={setReactionPickerOpen}
-            onPick={(emoji) => onToggleReaction?.(message.id, emoji)}
-            anchorAlign={isOwn ? "end" : "start"}
-          />
+        <MessageReactionPicker
+          open={reactionPickerOpen}
+          onOpenChange={setReactionPickerOpen}
+          onPick={(emoji) => onToggleReaction?.(message.id, emoji)}
+          anchorAlign="end"
+        >
+          <div className="flex flex-col items-end max-w-[72%] sm:max-w-[65%]">
+            {hasText && (
+              <div
+                className={[
+                  "px-3 py-2 text-sm leading-relaxed",
+                  radius,
+                  "bg-(--brand-primary) text-(--brand-primary-foreground)",
+                  isDeleted ? "opacity-50 italic" : "",
+                ].join(" ")}
+              >
+                {isDeleted ? (
+                  <span>Mensaje eliminado</span>
+                ) : (
+                  <p className="text-left whitespace-pre-wrap wrap-break-word">
+                    <HighlightedText text={message.body} query={searchQuery} />
+                  </p>
+                )}
+              </div>
+            )}
 
-          {hasText && (
-            <div
-              className={[
-                "px-3 py-2 text-sm leading-relaxed",
-                radius,
-                "bg-(--brand-primary) text-(--brand-primary-foreground)",
-                isDeleted ? "opacity-50 italic" : "",
-              ].join(" ")}
-            >
-              {isDeleted ? (
-                <span>Mensaje eliminado</span>
-              ) : (
-                <p className="text-left whitespace-pre-wrap wrap-break-word">
-                  <HighlightedText text={message.body} query={searchQuery} />
-                </p>
-              )}
-            </div>
-          )}
+            {!isDeleted && (
+              <MessageReactions
+                reactions={message.reactions}
+                currentUserId={currentUserId}
+                onToggle={(emoji) => onToggleReaction?.(message.id, emoji)}
+              />
+            )}
 
-          {!isDeleted && (
-            <MessageReactions
-              reactions={message.reactions}
-              currentUserId={currentUserId}
-              onToggle={(emoji) => onToggleReaction?.(message.id, emoji)}
-            />
-          )}
+            {!isDeleted && attachments.length > 0 && (
+              <AttachmentsBlock attachments={attachments} onOpen={onAttachmentClick} isOwn />
+            )}
 
-          {!isDeleted && attachments.length > 0 && (
-            <AttachmentsBlock attachments={attachments} onOpen={onAttachmentClick} isOwn />
-          )}
-
-          {showMeta && (
-            <div className="flex items-center gap-1 mt-1 px-0.5">
-              {isPinned && (
-                <Pin className="h-2.5 w-2.5 text-[hsl(var(--muted-foreground))]" />
-              )}
-              {message.edited_at && !isPending && (
-                <span className="text-[10px] text-[hsl(var(--muted-foreground))] italic">editado</span>
-              )}
-              <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
-                {isPending ? "Enviando..." : formatMessageTime(message.created_at)}
-              </span>
-              {showReadReceipt && !isPending && (
-                <CheckCheck className="h-3 w-3 text-(--brand-primary)" />
-              )}
-            </div>
-          )}
-        </div>
+            {showMeta && (
+              <div className="flex items-center gap-1 mt-1 px-0.5">
+                {isPinned && (
+                  <Pin className="h-2.5 w-2.5 text-[hsl(var(--muted-foreground))]" />
+                )}
+                {message.edited_at && !isPending && (
+                  <span className="text-[10px] text-[hsl(var(--muted-foreground))] italic">editado</span>
+                )}
+                <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
+                  {isPending ? "Enviando..." : formatMessageTime(message.created_at)}
+                </span>
+                {showReadReceipt && !isPending && (
+                  <CheckCheck className="h-3 w-3 text-(--brand-primary)" />
+                )}
+              </div>
+            )}
+          </div>
+        </MessageReactionPicker>
       </div>
     );
   }
@@ -919,65 +919,65 @@ export function ChatMessageBubble({
         )}
       </div>
 
-      <div className="relative flex flex-col items-start max-w-[72%] sm:max-w-[65%]">
-        <MessageReactionPicker
-          open={reactionPickerOpen}
-          onOpenChange={setReactionPickerOpen}
-          onPick={(emoji) => onToggleReaction?.(message.id, emoji)}
-          anchorAlign={isOwn ? "end" : "start"}
-        />
-
-        {isFirst && (
-          <span className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-1 ml-1 truncate max-w-full">
-            {senderName}
-          </span>
-        )}
-
-        {hasText && (
-          <div
-            className={[
-              "px-3 py-2 text-sm leading-relaxed",
-              radius,
-              "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
-              isDeleted ? "opacity-50 italic" : "",
-            ].join(" ")}
-          >
-            {isDeleted ? (
-              <span>Mensaje eliminado</span>
-            ) : (
-              <p className="text-left whitespace-pre-wrap wrap-break-word">
-                <HighlightedText text={message.body} query={searchQuery} />
-              </p>
-            )}
-          </div>
-        )}
-
-        {!isDeleted && (
-          <MessageReactions
-            reactions={message.reactions}
-            currentUserId={currentUserId}
-            onToggle={(emoji) => onToggleReaction?.(message.id, emoji)}
-          />
-        )}
-
-        {!isDeleted && attachments.length > 0 && (
-          <AttachmentsBlock attachments={attachments} onOpen={onAttachmentClick} isOwn={false} />
-        )}
-
-        {showMeta && (
-          <div className="flex items-center gap-1 mt-1 px-0.5">
-            {isPinned && (
-              <Pin className="h-2.5 w-2.5 text-[hsl(var(--muted-foreground))]" />
-            )}
-            <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
-              {isPending ? "Enviando..." : formatMessageTime(message.created_at)}
+      <MessageReactionPicker
+        open={reactionPickerOpen}
+        onOpenChange={setReactionPickerOpen}
+        onPick={(emoji) => onToggleReaction?.(message.id, emoji)}
+        anchorAlign="start"
+      >
+        <div className="flex flex-col items-start max-w-[72%] sm:max-w-[65%]">
+          {isFirst && (
+            <span className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-1 ml-1 truncate max-w-full">
+              {senderName}
             </span>
-            {message.edited_at && !isPending && (
-              <span className="text-[10px] text-[hsl(var(--muted-foreground))] italic">editado</span>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+
+          {hasText && (
+            <div
+              className={[
+                "px-3 py-2 text-sm leading-relaxed",
+                radius,
+                "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
+                isDeleted ? "opacity-50 italic" : "",
+              ].join(" ")}
+            >
+              {isDeleted ? (
+                <span>Mensaje eliminado</span>
+              ) : (
+                <p className="text-left whitespace-pre-wrap wrap-break-word">
+                  <HighlightedText text={message.body} query={searchQuery} />
+                </p>
+              )}
+            </div>
+          )}
+
+          {!isDeleted && (
+            <MessageReactions
+              reactions={message.reactions}
+              currentUserId={currentUserId}
+              onToggle={(emoji) => onToggleReaction?.(message.id, emoji)}
+            />
+          )}
+
+          {!isDeleted && attachments.length > 0 && (
+            <AttachmentsBlock attachments={attachments} onOpen={onAttachmentClick} isOwn={false} />
+          )}
+
+          {showMeta && (
+            <div className="flex items-center gap-1 mt-1 px-0.5">
+              {isPinned && (
+                <Pin className="h-2.5 w-2.5 text-[hsl(var(--muted-foreground))]" />
+              )}
+              <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
+                {isPending ? "Enviando..." : formatMessageTime(message.created_at)}
+              </span>
+              {message.edited_at && !isPending && (
+                <span className="text-[10px] text-[hsl(var(--muted-foreground))] italic">editado</span>
+              )}
+            </div>
+          )}
+        </div>
+      </MessageReactionPicker>
 
       {!selectionMode && showActions && (
         <MessageActions

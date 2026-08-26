@@ -18,6 +18,7 @@ import {
 } from "../hooks/useChatMessages";
 import { useChatPresence } from "../hooks/useChatPresence";
 import { useChatConversations, useArchiveConversation, useUnarchiveConversation } from "../hooks/useChatConversations";
+import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import {
   getConversationDisplayName, isImageMime, formatFileSize, formatMessageTime,
 } from "../lib/chatUtils";
@@ -415,6 +416,11 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
   const { onlineUsers, typingUsersList, sendTyping } = useChatPresence(conversationId);
   const { data: convsData } = useChatConversations();
   const conversations = convsData?.data ?? [];
+  // The conversation-list preview only returns a 5-member slice with no
+  // role/permission fields — messages.pin gating needs the full member list
+  // with roleId/rolePermissions, which only the detail query returns.
+  const { data: conversationDetail } = useChatConversationDetail(conversationId);
+  const detailMembers = conversationDetail?.data?.members ?? null;
 
   const [filesView, setFilesView] = useState(initialFilesView);
   const [hiddenMessageIds, setHiddenMessageIds] = useState(() =>
@@ -677,7 +683,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
           currentUserId={userProfile?.id}
           typingUsers={typingUsersList}
           onAttachmentClick={handleAttachmentClick}
-          members={conversation.members}
+          members={detailMembers ?? conversation.members}
           conversationType={conversation?.type}
           hasMore={hasMore}
           isLoadingMore={isLoadingMore}

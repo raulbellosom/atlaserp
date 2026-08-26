@@ -1,40 +1,40 @@
-import { useRef, useEffect } from "react";
+import { Popover, PopoverAnchor, PopoverContent } from "@atlas/ui";
 import EmojiPicker from "emoji-picker-react";
 
 // A minimal popover wrapping the same EmojiPicker MessageComposer.jsx already
 // uses for its own emoji button — same library, same visual language, not a
-// reimplementation. `onPick(emoji)` receives the plain emoji character.
-export function MessageReactionPicker({ open, onOpenChange, onPick, anchorAlign = "start" }) {
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        onOpenChange(false);
-      }
-    }
-    document.addEventListener("pointerdown", handleClick);
-    return () => document.removeEventListener("pointerdown", handleClick);
-  }, [open, onOpenChange]);
-
-  if (!open) return null;
-
+// reimplementation. Uses @atlas/ui's Popover (Radix, portaled to <body>) so it
+// stays fully visible and correctly positioned regardless of where the message
+// sits inside ChatMessageList's scrolling container — a hand-rolled `absolute`
+// div here would get clipped by that ancestor's overflow-y-auto for messages
+// near the top or bottom of the visible scrollport.
+//
+// Opened externally (from the "Reaccionar" item in MessageActions' dropdown,
+// not by clicking the popover's own anchor), so this uses PopoverAnchor
+// (an invisible reference point) rather than PopoverTrigger — `children` is
+// the bubble-column element the picker should anchor to.
+// `onPick(emoji)` receives the plain emoji character.
+export function MessageReactionPicker({ open, onOpenChange, onPick, anchorAlign = "start", children }) {
   return (
-    <div
-      ref={containerRef}
-      className={["absolute bottom-full mb-1 z-50 shadow-xl rounded-xl overflow-hidden", anchorAlign === "end" ? "right-0" : "left-0"].join(" ")}
-    >
-      <EmojiPicker
-        onEmojiClick={(emojiData) => { onPick(emojiData.emoji); onOpenChange(false); }}
-        theme="dark"
-        width={260}
-        height={320}
-        searchPlaceholder="Buscar emoji..."
-        lazyLoadEmojis
-        skinTonesDisabled
-        autoFocusSearch={false}
-      />
-    </div>
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverAnchor asChild>{children}</PopoverAnchor>
+      <PopoverContent
+        align={anchorAlign === "end" ? "end" : "start"}
+        side="top"
+        className="w-auto p-0 overflow-hidden"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <EmojiPicker
+          onEmojiClick={(emojiData) => { onPick(emojiData.emoji); onOpenChange(false); }}
+          theme="dark"
+          width={260}
+          height={320}
+          searchPlaceholder="Buscar emoji..."
+          lazyLoadEmojis
+          skinTonesDisabled
+          autoFocusSearch={false}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }

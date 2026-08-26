@@ -471,6 +471,7 @@ describe("chat-service — getConversation member role fields", () => {
       id: "m1", userId: "u1", role: "owner", joinedAt: new Date(), leftAt: null, lastReadAt: null,
       displayName: "Ada", avatarFileId: null, authAvatarUrl: null, email: "ada@example.com",
       roleId: "role-owner", roleName: "Owner", roleColor: null, rolePosition: 100, roleIsSystem: true,
+      rolePermissions: { "messages.pin": true },
     };
     const prisma = buildPrismaMock([
       [{ id: "u1" }], // resolveUserProfileId
@@ -483,5 +484,10 @@ describe("chat-service — getConversation member role fields", () => {
     assert.equal(conv.members[0].roleName, "Owner");
     assert.equal(conv.members[0].rolePosition, 100);
     assert.equal(conv.members[0].roleIsSystem, true);
+    // Frontend permission gating (e.g. messages.pin for the Fijar mensaje
+    // action) reads member.rolePermissions directly — regression coverage
+    // for the bug where getConversation's SQL selected every role field
+    // except this one, leaving canPin permanently false client-side.
+    assert.deepEqual(conv.members[0].rolePermissions, { "messages.pin": true });
   });
 });

@@ -434,7 +434,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             'roleName', ccr.name,
             'roleColor', ccr.color,
             'rolePosition', ccr.position,
-            'roleIsSystem', ccr.is_system
+            'roleIsSystem', ccr.is_system,
+            'rolePermissions', ccr.permissions
           ) ORDER BY cm.joined_at)
           FROM chat_conversation_members cm
           LEFT JOIN user_profile up ON up.id = cm.user_id

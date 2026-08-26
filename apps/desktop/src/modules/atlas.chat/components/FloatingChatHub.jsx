@@ -10,7 +10,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useRealtimeContext } from "../../../providers/RealtimeProvider";
 import { Skeleton, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, renderMentionText } from "@atlas/ui";
 import { useChatFloatStore } from "../store/chatFloatStore";
-import { useChatMessages, useSendMessage, useMarkRead, useDeleteMessage } from "../hooks/useChatMessages";
+import { useChatMessages, useSendMessage, useMarkRead, useDeleteMessage, usePinMessage, useToggleReaction } from "../hooks/useChatMessages";
+import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { useCreateConversation } from "../hooks/useCreateConversation";
 import { atlas } from "../../../lib/atlas";
 import { MessageComposer } from "./MessageComposer";
@@ -89,6 +90,13 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
   const { mutateAsync: send } = useSendMessage(id);
   const { mutate: markRead } = useMarkRead(id);
   const { mutate: deleteMessageMutate } = useDeleteMessage(id);
+  const { mutate: pinMutate } = usePinMessage(id);
+  const { mutate: toggleReactionMutate } = useToggleReaction(id);
+  // `conversation` here is whatever was passed to openChat() — usually the
+  // list-preview shape (5-member slice, no role/permission fields). The
+  // detail query is needed for messages.pin gating, same as ChatWindow.
+  const { data: conversationDetail } = useChatConversationDetail(id);
+  const detailMembers = conversationDetail?.data?.members ?? null;
   const markReadRef = useRef(markRead);
   markReadRef.current = markRead;
 
@@ -269,7 +277,8 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
               currentUserId={userProfile?.id}
               typingUsers={[]}
               onAttachmentClick={handleAttachmentClick}
-              members={conversation.members}
+              members={detailMembers ?? conversation.members}
+              conversationType={conversation?.type}
               hasMore={hasMore}
               isLoadingMore={isLoadingMore}
               onLoadMore={loadMore}
@@ -277,6 +286,8 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
               onHideForMe={(msgId) => setHiddenMsgIds((prev) => { const n = new Set(prev); n.add(msgId); return n; })}
               onForward={() => { navigate(`/app/m/atlas.chat/chat/inbox/${id}`); onClose(); }}
               hiddenMessageIds={hiddenMsgIds}
+              onPinMessage={(messageId, pinned) => pinMutate({ messageId, pinned })}
+              onToggleReaction={(messageId, emoji) => toggleReactionMutate({ messageId, emoji })}
             />
             <MessageComposer
               ref={composerRef}

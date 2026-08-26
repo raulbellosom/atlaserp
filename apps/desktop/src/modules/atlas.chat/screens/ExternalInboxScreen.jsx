@@ -5,6 +5,7 @@ import { ChatMessageList } from "../components/ChatMessageList";
 import { MessageComposer } from "../components/MessageComposer";
 import { ChatTemplatePopover } from "../components/ChatTemplatePopover";
 import { useExternalInbox, useExternalMessages, useSendExternalMessage } from "../hooks/useExternalInbox";
+import { useToggleReaction } from "../hooks/useChatMessages";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
@@ -335,6 +336,7 @@ function ExternalChatPane({ conversation, onBack }) {
 
   const { data: messagesData, isLoading } = useExternalMessages(conversation?.id);
   const { mutateAsync: sendMsg } = useSendExternalMessage(conversation?.id);
+  const { mutate: toggleReactionMutate } = useToggleReaction(conversation?.id);
 
   // Mark as read when conversation is opened or new messages arrive
   useEffect(() => {
@@ -418,6 +420,8 @@ function ExternalChatPane({ conversation, onBack }) {
         typingUsers={[]}
         onHideForMe={(msgId) => setHiddenMsgIds((prev) => { const n = new Set(prev); n.add(msgId); return n; })}
         hiddenMessageIds={hiddenMsgIds}
+        conversationType={conversation?.type ?? "external_support"}
+        onToggleReaction={(messageId, emoji) => toggleReactionMutate({ messageId, emoji })}
       />
 
       {conversation.status !== "closed" && (
