@@ -293,6 +293,8 @@ export function createChatPermissionsService({ prisma }) {
   return {
     seedDefaultRoles,
     isLastOwner,
+    getMemberRole,
+    assertChannelPermission,
     listRoles,
     createRole,
     updateRole,

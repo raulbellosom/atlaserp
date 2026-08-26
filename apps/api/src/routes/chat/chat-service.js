@@ -458,6 +458,13 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
 
+    if (permissionsService) {
+      const [conv] = await prisma.$queryRaw`SELECT type FROM chat_conversations WHERE id = ${conversationId} LIMIT 1`;
+      if (conv && (conv.type === "channel" || conv.type === "group")) {
+        await permissionsService.assertChannelPermission(conversationId, profileId, "channel.manage");
+      }
+    }
+
     const sets = [];
     const values = [];
 
@@ -490,6 +497,13 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   async function addMembers({ conversationId, authUserId, userIds, role = "member" }) {
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
+
+    if (permissionsService) {
+      const [conv] = await prisma.$queryRaw`SELECT type FROM chat_conversations WHERE id = ${conversationId} LIMIT 1`;
+      if (conv && (conv.type === "channel" || conv.type === "group")) {
+        await permissionsService.assertChannelPermission(conversationId, profileId, "members.manage");
+      }
+    }
 
     const results = [];
     for (const uid of userIds) {
@@ -528,6 +542,22 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       const isLast = await permissionsService.isLastOwner(conversationId, targetUserId);
       if (isLast) {
         throw new ChatServiceError("No puedes eliminar al unico Owner de la conversacion. Asigna otro Owner primero.", 400);
+      }
+
+      // Removing someone ELSE requires members.manage + outranking them. Leaving
+      // a conversation on your own (targetUserId === profileId) is always allowed
+      // — it is not a "manage members" action — and must skip this block entirely,
+      // with no permission check at all, exactly like before this fix.
+      if (targetUserId !== profileId) {
+        const [conv] = await prisma.$queryRaw`SELECT type FROM chat_conversations WHERE id = ${conversationId} LIMIT 1`;
+        if (conv && (conv.type === "channel" || conv.type === "group")) {
+          const actorRole = await permissionsService.assertChannelPermission(conversationId, profileId, "members.manage");
+          const targetRole = await permissionsService.getMemberRole(conversationId, targetUserId);
+          const targetPosition = targetRole?.position ?? -1;
+          if (actorRole.position <= targetPosition) {
+            throw new ChatServiceError("No puedes eliminar a un miembro de rango igual o mayor al tuyo.", 403);
+          }
+        }
       }
     }
 
