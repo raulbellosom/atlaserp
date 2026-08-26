@@ -4,7 +4,6 @@ import { cors } from "hono/cors";
 import { config as loadEnv } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import crypto from "node:crypto";
 import ExcelJS from "exceljs";
 import pkg from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -42,6 +41,7 @@ import {
   CompanyServiceError,
 } from "./services/company-service.js";
 import { createHrService, HrServiceError } from "./services/hr-service.js";
+import { verifySupabaseJwt } from "./services/jwt-verification.js";
 import { createInventoryService, InventoryServiceError } from "./services/inventory-service.js";
 import { createInventoryNotificationService } from "./services/inventory-notification-service.js";
 import { createCommentsService, CommentsServiceError } from "./services/comments-service.js";
@@ -225,34 +225,6 @@ function mapSetupError(err) {
     };
   }
   return { status: 500, error: "Error interno al inicializar la instancia." };
-}
-
-// Verify a Supabase HS256 JWT locally without a network call.
-// Returns the payload if valid, null otherwise.
-function verifySupabaseJwt(token, secret) {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const [headerB64, payloadB64, signatureB64] = parts;
-
-    const expectedSig = crypto
-      .createHmac("sha256", secret)
-      .update(`${headerB64}.${payloadB64}`)
-      .digest("base64url");
-
-    const expectedBuf = Buffer.from(expectedSig);
-    const receivedBuf = Buffer.from(signatureB64);
-    // timingSafeEqual requires identical lengths; mismatch means invalid signature
-    if (expectedBuf.length !== receivedBuf.length) return null;
-    if (!crypto.timingSafeEqual(expectedBuf, receivedBuf)) return null;
-
-    const payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString("utf8"));
-    const now = Math.floor(Date.now() / 1000);
-    if (payload.exp && payload.exp <= now) return null;
-    return payload;
-  } catch {
-    return null;
-  }
 }
 
 async function authMiddleware(c, next) {
