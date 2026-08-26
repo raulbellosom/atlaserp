@@ -25,7 +25,7 @@ import { useChatPresence } from "../hooks/useChatPresence";
 import { useChatConversations, useArchiveConversation, useUnarchiveConversation } from "../hooks/useChatConversations";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import {
-  getConversationDisplayName, isImageMime, formatFileSize, formatMessageTime,
+  getConversationDisplayName, getConversationTitleLabel, isImageMime, formatFileSize, formatMessageTime,
 } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
@@ -181,6 +181,7 @@ function ChatHeader({
   const searchInputRef = useRef(null);
   const { isUserOnline, getLastSeen } = useGlobalPresence();
   const displayName = getConversationDisplayName(conversation, currentUserId);
+  const titleLabel = getConversationTitleLabel(conversation, currentUserId);
   const members = conversation?.members ?? [];
   const isChannelOrGroup = conversation?.type === "group" || conversation?.type === "channel";
   // Pinning is only ever offered for channel/group conversations (Section 8/12
@@ -319,7 +320,7 @@ function ChatHeader({
           <ConversationTypeBadge type={conversation?.type} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate">{displayName}</p>
+          <p className="text-sm font-semibold truncate">{titleLabel}</p>
           {conversation?.type === "direct" ? (
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
               {directOnline ? (

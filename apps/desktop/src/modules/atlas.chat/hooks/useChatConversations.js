@@ -34,14 +34,14 @@ export function useChatConversations() {
   return query;
 }
 
-export function useArchivedConversations() {
+export function useArchivedConversations({ enabled = true } = {}) {
   const { session } = useAuth();
   const token = session?.access_token;
 
   return useQuery({
     queryKey: ["chat-conversations-archived"],
     queryFn: () => atlas.chat.listConversations({ archived: true }, token),
-    enabled: Boolean(token),
+    enabled: Boolean(token && enabled),
     staleTime: 60_000,
   });
 }

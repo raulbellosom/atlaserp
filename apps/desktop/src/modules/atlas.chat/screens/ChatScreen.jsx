@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ChatWindow } from "../components/ChatWindow";
-import { useChatConversations } from "../hooks/useChatConversations";
+import { useChatConversations, useArchivedConversations } from "../hooks/useChatConversations";
 
 export function ChatScreen() {
   const { "*": wildcard } = useParams();
@@ -23,9 +23,23 @@ export function ChatScreen() {
   const { data, isLoading } = useChatConversations();
   const conversations = data?.data ?? [];
 
+  // A conversation opened via URL may have just been archived (or already
+  // was) — it disappears from useChatConversations' list the moment that
+  // happens, per the backend's own archiveClause default. Fall back to the
+  // archived list rather than letting activeConversation silently resolve
+  // to null and the window go blank; only fetched when actually needed.
+  const needsArchivedLookup = Boolean(
+    conversationIdFromUrl && !conversations.some((c) => c.id === conversationIdFromUrl),
+  );
+  const { data: archivedData } = useArchivedConversations({ enabled: needsArchivedLookup });
+  const archivedConversations = archivedData?.data ?? [];
+
   const activeConversation = useMemo(
-    () => conversations.find((c) => c.id === conversationIdFromUrl) ?? null,
-    [conversations, conversationIdFromUrl],
+    () =>
+      conversations.find((c) => c.id === conversationIdFromUrl) ??
+      archivedConversations.find((c) => c.id === conversationIdFromUrl) ??
+      null,
+    [conversations, archivedConversations, conversationIdFromUrl],
   );
 
   // Once the conversation list loads and the URL ID resolves, reveal the window on mobile

@@ -4,13 +4,14 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@atlas/ui";
 import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass } from "lucide-react";
+import { toast } from "sonner";
 import { ChatConversationItem } from "./ChatConversationItem";
 import { CreateChatModal } from "./CreateChatModal";
 import { CreateChannelModal } from "./CreateChannelModal";
 import { ChannelDirectorySheet } from "./ChannelDirectorySheet";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
-import { useArchivedConversations } from "../hooks/useChatConversations";
+import { useArchivedConversations, useUnarchiveConversation } from "../hooks/useChatConversations";
 
 export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCreated }) {
   const { userProfile } = useAuth();
@@ -23,6 +24,14 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
 
   const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations();
   const archivedConversations = archivedData?.data ?? [];
+  const { mutate: unarchiveMutate } = useUnarchiveConversation();
+
+  function handleUnarchive(conv) {
+    unarchiveMutate(conv.id, {
+      onSuccess: () => toast.success("Conversacion desarchivada."),
+      onError: () => toast.error("No se pudo desarchivar la conversacion."),
+    });
+  }
 
   const filtered = (conversations ?? []).filter((c) => {
     if (!search.trim()) return true;
@@ -178,6 +187,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
                       onClick={() => onSelect({ ...conv, is_archived: true })}
                       currentUserId={userProfile?.id}
                       isOnline={otherMember ? isUserOnline(otherMember.userId) : false}
+                      onUnarchive={handleUnarchive}
                     />
                   );
                 })}

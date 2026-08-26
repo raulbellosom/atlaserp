@@ -51,6 +51,16 @@ export function getConversationDisplayName(conversation, currentUserId) {
   return "Grupo";
 }
 
+// Same name, but Discord/Slack-style "#" prefixed for channels — for the
+// visible title text only (header, list row label). Never use this for an
+// avatar's initials fallback or for search matching: prefixing the raw name
+// used there would show "#" as the initial letter instead of the channel's
+// actual first letter.
+export function getConversationTitleLabel(conversation, currentUserId) {
+  const name = getConversationDisplayName(conversation, currentUserId);
+  return conversation?.type === "channel" ? `#${name}` : name;
+}
+
 export function isImageMime(mimeType) {
   return String(mimeType ?? "").startsWith("image/");
 }

@@ -18,7 +18,7 @@ import { MessageComposer } from "./MessageComposer";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { CreateChatModal } from "./CreateChatModal";
-import { getConversationDisplayName } from "../lib/chatUtils";
+import { getConversationDisplayName, getConversationTitleLabel } from "../lib/chatUtils";
 import { ConversationTypeBadge } from "./ConversationTypeBadge";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
@@ -119,6 +119,7 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
   useEffect(() => { if (!minimized) markReadRef.current(); }, [id, minimized]);
 
   const name = getConversationDisplayName(conversation, userProfile?.id);
+  const titleLabel = getConversationTitleLabel(conversation, userProfile?.id);
   const avatarUrl = getAvatarUrl(conversation, userProfile?.id);
   const avatarEmoji = getAvatarEmoji(conversation);
   const offset = BM + BS + GAP + index * (WW + GAP);
@@ -183,7 +184,7 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
           <div
             role="button"
             tabIndex={0}
-            title={name}
+            title={titleLabel}
             onClick={onMinimize}
             onKeyDown={(e) => e.key === "Enter" && onMinimize()}
             className="group flex items-center gap-1.5 px-2.5 h-11 cursor-pointer select-none"
@@ -195,7 +196,7 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
             }}
           >
             <AvatarCircle avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conversation?.type} name={name} size="sm" />
-            <p className="flex-1 text-xs font-semibold truncate">{name}</p>
+            <p className="flex-1 text-xs font-semibold truncate">{titleLabel}</p>
             {conversation?.unread_count > 0 && (
               <span
                 className="flex items-center justify-center font-bold shrink-0 group-hover:hidden"
@@ -238,7 +239,7 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
               className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer select-none text-left"
             >
               <AvatarCircle avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conversation?.type} name={name} size="sm" />
-              <p className="flex-1 text-xs font-semibold truncate">{name}</p>
+              <p className="flex-1 text-xs font-semibold truncate">{titleLabel}</p>
             </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -609,6 +610,7 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
 
           {filteredConversations.map((conv) => {
             const name = getConversationDisplayName(conv, currentUserId);
+            const titleLabel = getConversationTitleLabel(conv, currentUserId);
             const avatarUrl = getAvatarUrl(conv, currentUserId);
             const avatarEmoji = getAvatarEmoji(conv);
             return (
@@ -620,7 +622,7 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
               >
                 <AvatarCircle avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conv.type} name={name} size="md" />
                 <div className="flex-1 min-w-0">
-                  <p className={["text-xs truncate", conv.unread_count > 0 ? "font-semibold" : "font-medium"].join(" ")}>{name}</p>
+                  <p className={["text-xs truncate", conv.unread_count > 0 ? "font-semibold" : "font-medium"].join(" ")}>{titleLabel}</p>
                   {conv.last_message?.body && (
                     <p className={["text-[10px] truncate", conv.unread_count > 0 ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]"].join(" ")}>
                       {renderMentionText(conv.last_message.body)}

@@ -1,3 +1,4 @@
+import { ArchiveRestore } from "lucide-react";
 import { formatMessageTime } from "../lib/chatUtils";
 import { ConversationTypeBadge } from "./ConversationTypeBadge";
 
@@ -43,7 +44,7 @@ function Avatar({ name, avatarUrl, avatarEmoji, type, size = "md", online = fals
   );
 }
 
-export function ChatConversationItem({ conversation, isActive, onClick, currentUserId, isOnline = false }) {
+export function ChatConversationItem({ conversation, isActive, onClick, currentUserId, isOnline = false, onUnarchive }) {
   const otherMember = conversation.type === "direct"
     ? (conversation.members ?? []).find((m) => m.userId !== currentUserId)
     : null;
@@ -52,6 +53,10 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
     conversation.title ??
     otherMember?.displayName ??
     (conversation.type === "group" ? "Grupo" : "Conversacion directa");
+  // Prefixed only for the visible label — Avatar below still gets the raw
+  // displayName so its initials fallback shows the channel's real first
+  // letter, not "#".
+  const titleLabel = conversation.type === "channel" ? `#${displayName}` : displayName;
 
   const avatarUrl = conversation.avatarUrl ?? otherMember?.avatarUrl ?? null;
   const avatarEmoji = conversation.avatar_emoji ?? null;
@@ -72,37 +77,57 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
   }
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={[
-        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors",
-        isActive
-          ? "bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]"
-          : "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
-      ].join(" ")}
-    >
-      <Avatar name={displayName} avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conversation.type} online={isOnline} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium truncate">{displayName}</span>
-          {lastMsg?.createdAt && (
-            <span className="text-xs text-[hsl(var(--muted-foreground))] shrink-0">
-              {formatMessageTime(lastMsg.createdAt)}
-            </span>
-          )}
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onClick}
+        className={[
+          "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors",
+          onUnarchive ? "pr-11" : "",
+          isActive
+            ? "bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]"
+            : "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
+        ].join(" ")}
+      >
+        <Avatar name={displayName} avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conversation.type} online={isOnline} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm font-medium truncate">{titleLabel}</span>
+            {lastMsg?.createdAt && (
+              <span className="text-xs text-[hsl(var(--muted-foreground))] shrink-0">
+                {formatMessageTime(lastMsg.createdAt)}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center justify-between gap-2 mt-0.5">
+            <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">
+              {lastMsgPreview || "Sin mensajes"}
+            </p>
+            {unread > 0 && (
+              <span className="inline-flex items-center justify-center h-4.5 min-w-[1.125rem] px-1 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-[10px] font-semibold shrink-0">
+                {unread > 99 ? "99+" : unread}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center justify-between gap-2 mt-0.5">
-          <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">
-            {lastMsgPreview || "Sin mensajes"}
-          </p>
-          {unread > 0 && (
-            <span className="inline-flex items-center justify-center h-4.5 min-w-[1.125rem] px-1 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-[10px] font-semibold shrink-0">
-              {unread > 99 ? "99+" : unread}
-            </span>
-          )}
-        </div>
-      </div>
-    </button>
+      </button>
+      {onUnarchive && (
+        // A separate sibling button, not nested inside the row's own <button>
+        // (invalid HTML, and click-through would fire onClick too) — this is
+        // the direct, always-visible unarchive action the sidebar was missing;
+        // previously the only way to unarchive was to reopen the chat first.
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onUnarchive(conversation);
+          }}
+          title="Desarchivar"
+          className="absolute top-1/2 -translate-y-1/2 right-2 h-7 w-7 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted))] transition-colors touch-manipulation"
+        >
+          <ArchiveRestore className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
   );
 }
