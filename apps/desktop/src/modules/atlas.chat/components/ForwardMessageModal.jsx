@@ -23,6 +23,7 @@ function ConvButton({ conv, currentUserId, isSelected, onClick }) {
   const [avatarErr, setAvatarErr] = useState(false);
   const name = getConversationDisplayName(conv, currentUserId);
   const avatarUrl = getConvAvatar(conv, currentUserId);
+  const avatarEmoji = conv.type !== "direct" ? conv.avatar_emoji : null;
 
   return (
     <button
@@ -35,7 +36,10 @@ function ConvButton({ conv, currentUserId, isSelected, onClick }) {
           : "hover:bg-[hsl(var(--muted))]",
       ].join(" ")}
     >
-      {/* Avatar with checkmark overlay */}
+      {/* Avatar with checkmark overlay — no ConversationTypeBadge here (unlike
+          the sidebar/header/mini-window), since its corner position would
+          collide with the selection checkmark below, which this modal's own
+          UX depends on more than the type badge does. */}
       <div className="relative shrink-0">
         {avatarUrl && !avatarErr ? (
           <img
@@ -47,6 +51,15 @@ function ConvButton({ conv, currentUserId, isSelected, onClick }) {
             ].join(" ")}
             onError={() => setAvatarErr(true)}
           />
+        ) : avatarEmoji ? (
+          <div
+            className={[
+              "h-11 w-11 rounded-full flex items-center justify-center text-xl bg-[hsl(var(--muted))] transition-opacity",
+              isSelected ? "opacity-70" : "",
+            ].join(" ")}
+          >
+            {avatarEmoji}
+          </div>
         ) : (
           <div
             className={[
