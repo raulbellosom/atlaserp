@@ -1,3 +1,9 @@
+// apps/desktop/src/modules/atlas.chat/components/AddChannelMembersDialog.jsx
+//
+// "Anadir miembros" picker for ChannelMembersTab — reuses the same
+// user-search-and-multi-select pattern as CreateChatModal.jsx (shared
+// sub-components live in ./UserPicker), but excludes every user who is
+// already an active member of this conversation, not just the current user.
 import { useState } from "react";
 import {
   Dialog,
@@ -7,40 +13,38 @@ import {
   DialogDescription,
   DialogFooter,
   Button,
-  Input,
   SearchInput,
 } from "@atlas/ui";
-import { X, Users } from "lucide-react";
+import { X, UserPlus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
+import { useAddMembers } from "../hooks/useCreateConversation";
 import { UserAvatar, UserPickerItem, UserListSkeleton } from "./UserPicker";
 
-export function CreateChatModal({ open, onClose, onCreated }) {
-  const { session, userProfile } = useAuth();
+export function AddChannelMembersDialog({ open, onClose, conversationId, existingMemberIds = [] }) {
+  const { session } = useAuth();
   const token = session?.access_token;
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState([]);
-  const [groupTitle, setGroupTitle] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState(null);
+  const { mutateAsync: addMembers, isPending: isAdding } = useAddMembers(conversationId);
 
   const { data: usersData, isLoading } = useQuery({
     queryKey: ["users-for-chat-picker"],
     queryFn: () => atlas.identity.listUsers(token, { pageSize: 100 }),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && open,
     staleTime: 120_000,
   });
 
+  const existingIds = new Set(existingMemberIds);
   const users = (usersData?.data ?? []).filter(
     (u) =>
-      u.id !== userProfile?.id &&
+      !existingIds.has(u.id) &&
       (!search ||
         u.displayName?.toLowerCase().includes(search.toLowerCase()) ||
         u.email?.toLowerCase().includes(search.toLowerCase())),
   );
-
-  const isGroup = selected.length > 1;
 
   function toggleUser(u) {
     setSelected((prev) =>
@@ -48,46 +52,38 @@ export function CreateChatModal({ open, onClose, onCreated }) {
     );
   }
 
-  async function handleCreate() {
+  function resetAndClose() {
+    setSelected([]);
+    setSearch("");
+    setError(null);
+    onClose?.();
+  }
+
+  async function handleAdd() {
     if (!selected.length) return;
-    setIsCreating(true);
     setError(null);
     try {
-      const result = await atlas.chat.createConversation(
-        {
-          type: isGroup ? "group" : "direct",
-          title: isGroup && groupTitle.trim() ? groupTitle.trim() : undefined,
-          memberUserIds: selected.map((u) => u.id),
-        },
-        token,
-      );
-      onCreated?.(result?.data ?? result);
-      onClose?.();
-      setSelected([]);
-      setGroupTitle("");
-      setSearch("");
+      await addMembers({ userIds: selected.map((u) => u.id) });
+      resetAndClose();
     } catch (err) {
-      setError(err?.message ?? "Error creando conversacion.");
-    } finally {
-      setIsCreating(false);
+      setError(err?.message ?? "Error anadiendo miembros.");
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose?.()}>
+    <Dialog open={open} onOpenChange={(v) => !v && resetAndClose()}>
       <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-3 border-b border-[hsl(var(--border))]">
           <DialogTitle className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-[hsl(var(--primary))]" />
-            Nueva conversacion
+            <UserPlus className="h-4 w-4 text-[hsl(var(--primary))]" />
+            Anadir miembros
           </DialogTitle>
           <DialogDescription>
-            Selecciona uno o varios usuarios para chatear.
+            Selecciona uno o varios usuarios para anadir a este canal.
           </DialogDescription>
         </DialogHeader>
 
         <div className="px-4 py-3 space-y-3">
-          {/* Search input */}
           <SearchInput
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -96,16 +92,6 @@ export function CreateChatModal({ open, onClose, onCreated }) {
             autoFocus
           />
 
-          {/* Group name field — only when multiple selected */}
-          {isGroup && (
-            <Input
-              placeholder="Nombre del grupo (opcional)"
-              value={groupTitle}
-              onChange={(e) => setGroupTitle(e.target.value)}
-            />
-          )}
-
-          {/* Selected chips */}
           {selected.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {selected.map((u) => (
@@ -127,7 +113,6 @@ export function CreateChatModal({ open, onClose, onCreated }) {
             </div>
           )}
 
-          {/* User list */}
           <div className="max-h-56 overflow-y-auto space-y-0.5 -mx-1 px-1">
             {isLoading ? (
               <UserListSkeleton />
@@ -147,21 +132,15 @@ export function CreateChatModal({ open, onClose, onCreated }) {
             )}
           </div>
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
 
         <DialogFooter className="px-5 py-3 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)]">
-          <Button variant="outline" onClick={onClose} disabled={isCreating}>
+          <Button variant="outline" onClick={resetAndClose} disabled={isAdding}>
             Cancelar
           </Button>
-          <Button onClick={handleCreate} disabled={!selected.length || isCreating}>
-            {isCreating
-              ? "Creando..."
-              : isGroup
-              ? `Crear grupo (${selected.length})`
-              : "Iniciar chat"}
+          <Button onClick={handleAdd} disabled={!selected.length || isAdding}>
+            {isAdding ? "Anadiendo..." : `Anadir (${selected.length})`}
           </Button>
         </DialogFooter>
       </DialogContent>

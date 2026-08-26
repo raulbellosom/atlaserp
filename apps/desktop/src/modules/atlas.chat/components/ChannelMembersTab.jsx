@@ -4,11 +4,12 @@ import {
   Button, EmptyState, Skeleton, ConfirmDialog,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@atlas/ui";
-import { Users, MoreVertical, UserMinus, ShieldCheck } from "lucide-react";
+import { Users, MoreVertical, UserMinus, ShieldCheck, UserPlus } from "lucide-react";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { useChannelRoles, useAssignMemberRole } from "../hooks/useChannelRoles";
 import { useRemoveMember } from "../hooks/useCreateConversation";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
+import { AddChannelMembersDialog } from "./AddChannelMembersDialog";
 
 function RoleBadge({ name, color }) {
   if (!name) return null;
@@ -79,6 +80,7 @@ export function ChannelMembersTab({ conversationId, currentUserId }) {
   const { mutateAsync: removeMember } = useRemoveMember(conversationId);
   const { mutateAsync: assignRole } = useAssignMemberRole(conversationId);
   const [confirmTarget, setConfirmTarget] = useState(null);
+  const [showAddMembers, setShowAddMembers] = useState(false);
 
   const members = convData?.data?.members ?? [];
   const roles = rolesData?.data ?? [];
@@ -95,24 +97,35 @@ export function ChannelMembersTab({ conversationId, currentUserId }) {
     );
   }
 
-  if (!members.length) {
-    return <EmptyState icon={Users} title="Sin miembros" description="Este canal no tiene miembros activos." />;
-  }
-
   return (
-    <div className="space-y-0.5">
-      {members.map((member) => (
-        <MemberRow
-          key={member.userId}
-          member={member}
-          ownMember={ownMember}
-          canManageMembers={canManageMembers}
-          canManageRoles={canManageRoles}
-          assignableRoles={assignableRoles}
-          onRemove={(m) => setConfirmTarget(m)}
-          onAssignRole={(memberId, roleId) => assignRole({ memberId, roleId })}
-        />
-      ))}
+    <div className="space-y-2">
+      {canManageMembers && (
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => setShowAddMembers(true)}>
+            <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+            Anadir miembros
+          </Button>
+        </div>
+      )}
+
+      {!members.length ? (
+        <EmptyState icon={Users} title="Sin miembros" description="Este canal no tiene miembros activos." />
+      ) : (
+        <div className="space-y-0.5">
+          {members.map((member) => (
+            <MemberRow
+              key={member.userId}
+              member={member}
+              ownMember={ownMember}
+              canManageMembers={canManageMembers}
+              canManageRoles={canManageRoles}
+              assignableRoles={assignableRoles}
+              onRemove={(m) => setConfirmTarget(m)}
+              onAssignRole={(memberId, roleId) => assignRole({ memberId, roleId })}
+            />
+          ))}
+        </div>
+      )}
 
       <ConfirmDialog
         open={Boolean(confirmTarget)}
@@ -129,6 +142,15 @@ export function ChannelMembersTab({ conversationId, currentUserId }) {
           setConfirmTarget(null);
         }}
       />
+
+      {canManageMembers && (
+        <AddChannelMembersDialog
+          open={showAddMembers}
+          onClose={() => setShowAddMembers(false)}
+          conversationId={conversationId}
+          existingMemberIds={members.map((m) => m.userId)}
+        />
+      )}
     </div>
   );
 }
