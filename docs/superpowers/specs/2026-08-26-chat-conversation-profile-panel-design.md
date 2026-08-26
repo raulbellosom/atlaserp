@@ -257,13 +257,9 @@ N/A
 
 ## 22. Audit log requirements
 
-| Action key | Trigger | Payload |
-|---|---|---|
-| chat.user.block | POST /chat/users/:id/block | after: { blockerUserId, blockedUserId } |
-| chat.user.unblock | DELETE /chat/users/:id/block | after: { blockerUserId, blockedUserId } |
-| chat.report.create | POST /chat/reports | after: { reportId, reporterUserId, reportedUserId, reason } |
-| chat.report.resolve | PATCH /chat/reports/:id/resolve | before: { status: "open" }, after: { status, action, resolvedByUserId } |
-| identity.users.disable (existing) | disable_user resolution path | after: { userId, enabled: false } — reuses the existing audit entry already written by the users PATCH path, not a new one |
+Corrected during Plan A self-review: no route in `apps/api/src/routes/chat/` or in `apps/api/src/routes/users-routes.js` (including the existing `enabled` disable path) writes to `AuditLog` today — this module has no audit-logging precedent to extend, so the original draft's claim of "reuses the existing audit entry" was inaccurate; there is no existing entry.
+
+N/A for this version — consistent with the rest of atlas.chat and the existing user-disable path, neither of which are audited today. Adding `AuditLog` writes for only these four new actions, while nothing else in either module is audited, would introduce an inconsistent, one-off pattern rather than following an established one. Deferred to Future Enhancements (Section 28) as a module-wide concern, not specific to this feature.
 
 ## 23. Edge cases
 
@@ -322,3 +318,4 @@ The new migration (`add_chat_moderation`) is purely additive (two new tables, on
 4. Push/desktop OS-level notifications, and muting extending to them once they exist.
 5. Admin ability to view reported conversation content, with a proper audited access-override mechanism (deferred due to the security sensitivity noted in Non-goals).
 6. "Groups in common" for group/channel conversations too (e.g. showing overlap between two groups), not just direct chats.
+7. `AuditLog` integration for atlas.chat and the identity user-disable path generally — a module-wide gap discovered during this spec's review, not specific to moderation actions.
