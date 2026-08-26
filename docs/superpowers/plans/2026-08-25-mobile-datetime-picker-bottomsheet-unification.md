@@ -384,6 +384,8 @@ git commit -m "refactor(ui): adopt shared bottom-sheet geometry in Dialog's mobi
 
 ### Task 4: Manual checkpoint — bottom-sheet unification
 
+**Status:** Waived by explicit user decision — see `docs/superpowers/decisions/2026-08-25-mobile-datetime-picker-bottomsheet-unification-decision.md`. Verification closed on `pnpm build` + zero-diff check on consumer files instead of live browser QA.
+
 **Files:** none (verification only)
 
 - [ ] **Step 1: Start the dev server**
@@ -1397,6 +1399,8 @@ Expected: empty output (no changes to any of these 5 files) — this is Acceptan
 ---
 
 ### Task 11: Full manual QA pass against the spec's acceptance criteria
+
+**Status:** Steps 1–2 (live browser QA) waived by explicit user decision — see `docs/superpowers/decisions/2026-08-25-mobile-datetime-picker-bottomsheet-unification-decision.md`. Step 3 (docs/TASKS.md) checked: no matching tracked entry exists for this work, so it was correctly skipped per the plan's own instruction.
 
 **Files:** none (verification only)
 
