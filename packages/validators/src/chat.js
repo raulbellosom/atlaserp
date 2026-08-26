@@ -100,3 +100,19 @@ export const chatPinMessageSchema = z.object({
 export const chatToggleReactionSchema = z.object({
   emoji: z.string().trim().min(1).max(16),
 });
+
+export const chatMuteConversationSchema = z.object({
+  muted: z.boolean(),
+});
+
+export const chatCreateReportSchema = z.object({
+  reportedUserId: z.string().uuid(),
+  conversationId: z.string().uuid().optional(),
+  reason: z.enum(["spam", "abuse", "inappropriate", "other"]),
+  note: z.string().max(2000).optional(),
+  alsoBlock: z.boolean().optional(),
+});
+
+export const chatResolveReportSchema = z.object({
+  action: z.enum(["dismiss", "disable_user"]),
+});
