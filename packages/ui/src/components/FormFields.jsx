@@ -5,6 +5,7 @@ import {
   useCallback,
   forwardRef,
   useMemo,
+  useId,
 } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -20,6 +21,7 @@ import {
   Tag,
   Search,
   Plus,
+  CalendarDays,
 } from "lucide-react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { cn } from "../lib/utils.js";
@@ -32,6 +34,16 @@ import {
   InputIcon,
   FieldWrapper,
 } from "./form-field-base.jsx";
+import {
+  Calendar,
+  DateSelectorShell,
+  formatDateDisplay,
+  formatDateTimeDisplay,
+  parseDateTimeValue,
+  composeDateTimeValue,
+} from "./date-picker-shared.jsx";
+import { TimeWheel } from "./TimeWheel.jsx";
+import { Button } from "./Button.jsx";
 
 export { FieldWrapper };
 
@@ -580,48 +592,98 @@ export const DateField = forwardRef(function DateField(
     required,
     validate,
     onBlur,
+    onChange,
+    value,
     id,
     icon,
     className,
-    ...props
+    disabled,
+    name,
+    placeholder = "Seleccionar fecha",
   },
   ref,
 ) {
+  const autoId = useId();
+  const fieldId = id ?? autoId;
   const [localError, setLocalError] = useState("");
+  const [open, setOpen] = useState(false);
   const error = externalError || localError;
 
-  function handleBlur(e) {
-    if (validate) setLocalError(validate(e.target.value) || "");
-    onBlur?.(e);
+  function emitChange(nextValue) {
+    const next = nextValue ?? "";
+    if (validate) setLocalError(validate(next) || "");
+    onChange?.({ target: { name, value: next } });
   }
+
+  const displayValue = formatDateDisplay(value);
+
+  const trigger = (
+    <button
+      ref={ref}
+      id={fieldId}
+      name={name}
+      type="button"
+      disabled={disabled}
+      className={fieldCls(
+        error,
+        cn(
+          icon && "pl-9",
+          "text-left flex items-center justify-between gap-2",
+          className,
+        ),
+      )}
+    >
+      <span
+        className={cn(
+          "flex-1 truncate",
+          !displayValue && "text-muted-foreground/70",
+        )}
+      >
+        {displayValue || placeholder}
+      </span>
+      <CalendarDays size={14} className="text-muted-foreground/70 shrink-0" />
+    </button>
+  );
 
   return (
     <FieldWrapper
       label={label}
-      labelFor={id}
+      labelFor={fieldId}
       error={error}
       hint={hint}
       required={required}
     >
       <div className="relative">
         <InputIcon icon={icon} />
-        <input
-          ref={ref}
-          id={id}
-          type="date"
-          onBlur={handleBlur}
-          className={fieldCls(
-            error,
-            cn(
-              icon && "pl-9",
-              "[&::-webkit-calendar-picker-indicator]:opacity-40",
-              "[&::-webkit-calendar-picker-indicator]:cursor-pointer",
-              "[&::-webkit-calendar-picker-indicator]:hover:opacity-70",
-              className,
-            ),
+        <DateSelectorShell
+          open={open}
+          onOpenChange={(next) => {
+            setOpen(next);
+            if (!next) onBlur?.();
+          }}
+          trigger={trigger}
+          title={typeof label === "string" ? label : "Seleccionar fecha"}
+        >
+          <Calendar
+            value={value}
+            onChange={emitChange}
+            onClose={() => setOpen(false)}
+          />
+          {value && (
+            <div className="mt-2 pt-2 border-t border-[hsl(var(--border))] w-full">
+              <button
+                type="button"
+                onClick={() => {
+                  emitChange(undefined);
+                  setOpen(false);
+                }}
+                className="w-full text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors py-1"
+              >
+                Limpiar fecha
+              </button>
+            </div>
           )}
-          {...props}
-        />
+        </DateSelectorShell>
       </div>
     </FieldWrapper>
   );
@@ -637,49 +699,115 @@ export const DateTimeField = forwardRef(function DateTimeField(
     required,
     validate,
     onBlur,
+    onChange,
+    value,
     id,
     icon,
     className,
-    ...props
+    disabled,
+    name,
+    placeholder = "Seleccionar fecha y hora",
   },
   ref,
 ) {
+  const autoId = useId();
+  const fieldId = id ?? autoId;
   const [localError, setLocalError] = useState("");
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(() => parseDateTimeValue(value));
   const error = externalError || localError;
 
-  function handleBlur(e) {
-    if (validate) setLocalError(validate(e.target.value) || "");
-    onBlur?.(e);
+  function handleOpenChange(next) {
+    setOpen(next);
+    if (next) {
+      setDraft(parseDateTimeValue(value));
+    } else {
+      onBlur?.();
+    }
   }
+
+  function commit() {
+    const next = composeDateTimeValue(
+      draft.date,
+      draft.hour,
+      draft.minute,
+      draft.meridiem,
+    );
+    if (validate) setLocalError(validate(next) || "");
+    onChange?.({ target: { name, value: next } });
+    setOpen(false);
+  }
+
+  const displayValue = formatDateTimeDisplay(value);
+
+  const trigger = (
+    <button
+      ref={ref}
+      id={fieldId}
+      name={name}
+      type="button"
+      disabled={disabled}
+      className={fieldCls(
+        error,
+        cn(
+          icon && "pl-9",
+          "min-w-0 text-left flex items-center justify-between gap-2",
+          className,
+        ),
+      )}
+    >
+      <span
+        className={cn(
+          "flex-1 truncate",
+          !displayValue && "text-muted-foreground/70",
+        )}
+      >
+        {displayValue || placeholder}
+      </span>
+      <CalendarDays size={14} className="text-muted-foreground/70 shrink-0" />
+    </button>
+  );
 
   return (
     <FieldWrapper
       label={label}
-      labelFor={id}
+      labelFor={fieldId}
       error={error}
       hint={hint}
       required={required}
     >
       <div className="relative">
         <InputIcon icon={icon} />
-        <input
-          ref={ref}
-          id={id}
-          type="datetime-local"
-          onBlur={handleBlur}
-          className={fieldCls(
-            error,
-            cn(
-              icon && "pl-9",
-              "min-w-0",
-              "[&::-webkit-calendar-picker-indicator]:opacity-40",
-              "[&::-webkit-calendar-picker-indicator]:cursor-pointer",
-              "[&::-webkit-calendar-picker-indicator]:hover:opacity-70",
-              className,
-            ),
-          )}
-          {...props}
-        />
+        <DateSelectorShell
+          open={open}
+          onOpenChange={handleOpenChange}
+          trigger={trigger}
+          title={typeof label === "string" ? label : "Seleccionar fecha y hora"}
+          footer={
+            <Button
+              type="button"
+              size="sm"
+              className="w-full mt-3"
+              onClick={commit}
+            >
+              Aceptar
+            </Button>
+          }
+        >
+          <Calendar
+            value={draft.date}
+            onChange={(nextDate) =>
+              setDraft((d) => ({ ...d, date: nextDate }))
+            }
+            onClose={() => {}}
+          />
+          <TimeWheel
+            hour={draft.hour}
+            minute={draft.minute}
+            meridiem={draft.meridiem}
+            onChange={(next) => setDraft((d) => ({ ...d, ...next }))}
+          />
+        </DateSelectorShell>
       </div>
     </FieldWrapper>
   );
