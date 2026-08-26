@@ -25,9 +25,12 @@ function RoleBadge({ name, color }) {
   );
 }
 
-function MemberRow({ member, ownMember, canManageMembers, assignableRoles, onRemove, onAssignRole }) {
+function MemberRow({ member, ownMember, canManageMembers, canManageRoles, assignableRoles, onRemove, onAssignRole }) {
   const isSelf = member.userId === ownMember?.userId;
-  const canRemoveThis = isSelf || (canManageMembers && member.rolePosition < (ownMember?.rolePosition ?? -1));
+  const outranksTarget = member.rolePosition < (ownMember?.rolePosition ?? -1);
+  const canRemoveThis = isSelf || (canManageMembers && outranksTarget);
+  const canAssignToThis = canManageRoles && !isSelf && outranksTarget && assignableRoles.length > 0;
+  const showMenu = canRemoveThis || canAssignToThis;
 
   return (
     <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-[hsl(var(--muted))]">
@@ -42,7 +45,7 @@ function MemberRow({ member, ownMember, canManageMembers, assignableRoles, onRem
         </div>
         <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">{member.email}</p>
       </div>
-      {canRemoveThis && (
+      {showMenu && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0">
@@ -50,17 +53,19 @@ function MemberRow({ member, ownMember, canManageMembers, assignableRoles, onRem
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {canManageMembers && !isSelf && assignableRoles.map((role) => (
+            {canAssignToThis && assignableRoles.map((role) => (
               <DropdownMenuItem key={role.id} onSelect={() => onAssignRole(member.userId, role.id)}>
                 <ShieldCheck className="h-3.5 w-3.5 mr-2" />
                 Asignar rol: {role.name}
               </DropdownMenuItem>
             ))}
-            {canManageMembers && !isSelf && assignableRoles.length > 0 && <DropdownMenuSeparator />}
-            <DropdownMenuItem onSelect={() => onRemove(member)} className="text-red-500 focus:text-red-500">
-              <UserMinus className="h-3.5 w-3.5 mr-2" />
-              {isSelf ? "Salir del canal" : "Eliminar miembro"}
-            </DropdownMenuItem>
+            {canAssignToThis && <DropdownMenuSeparator />}
+            {canRemoveThis && (
+              <DropdownMenuItem onSelect={() => onRemove(member)} className="text-red-500 focus:text-red-500">
+                <UserMinus className="h-3.5 w-3.5 mr-2" />
+                {isSelf ? "Salir del canal" : "Eliminar miembro"}
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )}
@@ -79,6 +84,7 @@ export function ChannelMembersTab({ conversationId, currentUserId }) {
   const roles = rolesData?.data ?? [];
   const ownMember = findOwnMember(members, currentUserId);
   const canManageMembers = roleHasPermission(ownMember, CHAT_PERMISSIONS.MEMBERS_MANAGE);
+  const canManageRoles = roleHasPermission(ownMember, CHAT_PERMISSIONS.ROLES_MANAGE);
   const assignableRoles = roles.filter((r) => r.position < (ownMember?.rolePosition ?? -1) || (r.isSystem && ownMember?.roleIsSystem));
 
   if (isLoading) {
@@ -101,6 +107,7 @@ export function ChannelMembersTab({ conversationId, currentUserId }) {
           member={member}
           ownMember={ownMember}
           canManageMembers={canManageMembers}
+          canManageRoles={canManageRoles}
           assignableRoles={assignableRoles}
           onRemove={(m) => setConfirmTarget(m)}
           onAssignRole={(memberId, roleId) => assignRole({ memberId, roleId })}
