@@ -1283,6 +1283,30 @@ describe("chat-service — block enforcement", () => {
     );
   });
 
+  it("sendMessage rejects when blocked by any of several other members in a multi-member 'direct' conversation", async () => {
+    // Covers a pre-existing validator gap (chatCreateConversationSchema does
+    // not constrain type: "direct" to exactly one other member — out of
+    // scope to fix here, see spec edge case 8 / future enhancement 8): a
+    // raw API call could create a "direct" conversation with 2+ other
+    // members. assertNotBlocked must check the block relationship against
+    // ALL of them, not just whichever one Postgres happens to return first
+    // — here only the SECOND other member has blocked the sender, and the
+    // send must still be rejected.
+    const OTHER_PROFILE_ID_2 = "01900000-0000-7000-8000-0000000000p3";
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }], // resolveUserProfileId (sender)
+      [{ id: "member-row" }], // assertMember
+      [{ type: "direct" }], // conversation type lookup for block check
+      [{ user_id: OTHER_PROFILE_ID }, { user_id: OTHER_PROFILE_ID_2 }], // multiple other members
+      [{ blocker_user_id: OTHER_PROFILE_ID_2, blocked_user_id: PROFILE_ID }], // only the second member has blocked the sender
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: buildSupabaseAdminMock() });
+    await assert.rejects(
+      () => service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "hola" }),
+      (err) => err instanceof ChatServiceError && err.status === 403,
+    );
+  });
+
   it("sendMessage proceeds normally in a group conversation (block check skipped)", async () => {
     // Real call order traced from the current source (no notificationService/
     // broadcaster supplied, so neither the notify block nor the broadcast

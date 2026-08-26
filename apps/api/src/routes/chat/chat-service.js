@@ -90,17 +90,24 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     `;
     if (convRow?.type !== "direct") return;
 
-    const [otherRow] = await prisma.$queryRaw`
+    // The validator does not currently constrain type: "direct" conversations
+    // to exactly one other member (pre-existing gap, out of scope here), so a
+    // raw API call could in theory create one with 2+ other members. Fetch
+    // ALL active other members (no LIMIT 1) and check the block relationship
+    // against every one of them — checking only an arbitrarily-picked single
+    // member would let a real block silently go unenforced depending on
+    // Postgres's (unordered) row return order.
+    const otherRows = await prisma.$queryRaw`
       SELECT user_id FROM chat_conversation_members
       WHERE conversation_id = ${conversationId} AND user_id != ${profileId} AND user_id IS NOT NULL AND left_at IS NULL
-      LIMIT 1
     `;
-    if (!otherRow) return;
+    if (!otherRows.length) return;
 
+    const otherIds = otherRows.map((r) => r.user_id);
     const blocks = await prisma.$queryRaw`
       SELECT blocker_user_id, blocked_user_id FROM chat_blocks
-      WHERE (blocker_user_id = ${profileId} AND blocked_user_id = ${otherRow.user_id})
-         OR (blocker_user_id = ${otherRow.user_id} AND blocked_user_id = ${profileId})
+      WHERE (blocker_user_id = ${profileId} AND blocked_user_id IN (${Prisma.join(otherIds)}))
+         OR (blocked_user_id = ${profileId} AND blocker_user_id IN (${Prisma.join(otherIds)}))
       LIMIT 1
     `;
     if (blocks.length) {
