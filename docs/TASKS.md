@@ -131,6 +131,23 @@ Built via `superpowers:subagent-driven-development`, same process as Phase A. Re
 
 Verified: 2026-08-25 (`pnpm build` → clean, full Tauri bundle produced, across every task; final code review confirmed no permission-gating drift across the whole phase and signed off as complete relative to spec)
 
+### Channels & Roles — Phase C (mentions)
+
+Spec: `docs/superpowers/specs/2026-08-25-chat-mentions-phase-c-design.md`
+Plans: `docs/superpowers/plans/2026-08-25-chat-mentions-phase-c-plan-a-backend.md`, `...-plan-b-frontend.md`
+
+Third of six planned phases. Reuses `@atlas/ui`'s existing `MentionTextarea`/`renderMentionText` (already used by `atlas.projects`) — no changes to that package. Roles and `@everyone`/`@here` ride the same `@[id:name]` token format via two fixed sentinel UUIDs. No new tables — mentions stored in `chat_messages.metadata.mentions`.
+
+- [x] `chat-mentions-service.js`: parses/classifies/resolves mentions (user, role → all active holders, `@everyone`/`@here` gated on the sender's `mentions.everyone`/`mentions.here` permission), deduplicates recipients
+- [x] `sendMessage` stores `metadata.mentions` and fans out a distinct `chat.mention.new` notification (high priority) separate from the generic `chat.message.new` (mentioned recipients excluded from the generic one)
+- [x] `useMentionCandidates` hook builds the composer's autocomplete list (members + roles + permission-gated everyone/here), excluding guest (non-authenticated) chat participants
+- [x] `MessageComposer` swapped to `MentionTextarea`; `ChatMessageBubble` and 3 preview surfaces (`FloatingChatHub`, `ExternalInboxScreen`, `ForwardMessageModal`) render mention chips instead of raw `@[uuid:name]` tokens; mentioned-viewer messages get a highlight
+- [ ] Manual browser QA (deferred, same reason as Phases A/B)
+
+Built via `superpowers:subagent-driven-development`. Review caught and fixed 6 real issues: a malformed-but-regex-matching mention token could throw an unguarded Postgres UUID-cast error and fail the entire message send (now wrapped in try/catch with a safe fallback, plus a cheap pre-check avoiding a wasted DB round-trip on every mention-free message — the common case); a test fixture that never actually exercised the real parsing regex (twice — once in the backend service's own tests, once in `chat-service.test.js`'s `sendMessage` tests); a customer-facing bug where an operator could select a guest (anonymous website visitor) from the mention picker and send garbled `@[Usuario]` literal text to that visitor; a claimed "can't be cleanly styled" that turned out false (`MentionTextarea` does forward `className`, fixed with Tailwind v4's trailing-`!` important modifier); and — the most significant — the initial mention-chip rendering fix only patched the system-message branch of `ChatMessageBubble.jsx`, missing that real user messages render through a different, always-active code path (`HighlightedText`, called unconditionally regardless of search state), so mentions would have displayed as raw literal tokens to every viewer in the actual common case.
+
+Verified: 2026-08-26 (`node --test` across all 4 chat backend test files → 60/60 pass; `pnpm build` / `pnpm --filter @atlas/desktop exec vite build` → clean on every task; independent code review verified the critical send-failure fix, the guest-mention fix, and the mention-chip rendering fix each by tracing the actual code path, not just reading the diff)
+
 ## atlas.notes — Collaborative Notes
 
 Plans: `docs/superpowers/plans/2026-06-27-atlas-notes-A-backend.md`, `2026-06-27-atlas-notes-B-frontend.md`
