@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+  renderMentionText,
 } from "@atlas/ui";
 import { formatMessageTime, formatFileSize, isImageMime } from "../lib/chatUtils";
 import { atlas } from "../../../lib/atlas";
@@ -14,6 +15,17 @@ import { useAuth } from "../../../auth/AuthProvider";
 
 function isVideoMime(m) { return String(m ?? "").startsWith("video/"); }
 function isAudioMime(m) { return String(m ?? "").startsWith("audio/"); }
+
+// True when this message's resolved mentions target the current viewer
+// (directly by user id, via their role in the conversation, or an @everyone/@here broadcast).
+function isMentioned(message, currentUserId, ownRoleId) {
+  const mentions = message?.metadata?.mentions;
+  if (!mentions) return false;
+  if (mentions.everyone || mentions.here) return true;
+  if (currentUserId && mentions.userIds?.includes(currentUserId)) return true;
+  if (ownRoleId && mentions.roleIds?.includes(ownRoleId)) return true;
+  return false;
+}
 
 function getFileTypeInfo(mimeType = "") {
   const m = String(mimeType).toLowerCase();
@@ -682,6 +694,8 @@ export function ChatMessageBubble({
   searchQuery = "",
   isSearchMatch = false,
   isCurrentMatch = false,
+  currentUserId,
+  members,
 }) {
   if (message.type === "date_separator") {
     return (
@@ -699,7 +713,7 @@ export function ChatMessageBubble({
     return (
       <div className="flex justify-center my-2 px-4">
         <span className="text-xs text-[hsl(var(--muted-foreground))] bg-[hsl(var(--muted))] px-3 py-1 rounded-full">
-          {message.body}
+          {renderMentionText(message.body)}
         </span>
       </div>
     );
@@ -723,6 +737,10 @@ export function ChatMessageBubble({
   const hasBody = Boolean(message.body) && !isDeleted;
   const showActions = !isDeleted && !isPending;
 
+  // Own membership's role in this conversation — needed to detect role-targeted mentions.
+  const ownRoleId = members?.find((m) => m.userId === currentUserId)?.roleId;
+  const mentioned = !isDeleted && isMentioned(message, currentUserId, ownRoleId);
+
   if (isOwn) {
     return (
       <div
@@ -738,6 +756,7 @@ export function ChatMessageBubble({
           selectionMode ? "cursor-pointer" : "",
           selectionMode && isSelected ? "bg-[hsl(var(--primary)/0.08)]" : "",
           isCurrentMatch ? "bg-yellow-400/15" : isSearchMatch ? "bg-yellow-400/6" : "",
+          mentioned ? "bg-[hsl(var(--primary)/0.05)] border-l-2 border-[hsl(var(--primary))] pl-2" : "",
         ].join(" ")}
       >
         {selectionMode ? (
@@ -809,6 +828,7 @@ export function ChatMessageBubble({
         selectionMode ? "cursor-pointer" : "",
         selectionMode && isSelected ? "bg-[hsl(var(--primary)/0.08)]" : "",
         isCurrentMatch ? "bg-yellow-400/15" : isSearchMatch ? "bg-yellow-400/6" : "",
+        mentioned ? "bg-[hsl(var(--primary)/0.05)] border-l-2 border-[hsl(var(--primary))] pl-2" : "",
       ].join(" ")}
     >
       {selectionMode && <SelectionCircle isSelected={isSelected} />}

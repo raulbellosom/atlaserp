@@ -240,6 +240,8 @@ export function ChatMessageList({
             isOwn={isOwn}
             isFirst={item.isFirst}
             isLast={item.isLast}
+            currentUserId={currentUserId}
+            members={members}
             onAttachmentClick={handleAttachmentClick}
             showReadReceipt={item.id === lastReadMessageId}
             onCopy={!isDeleted && !isPending && item.body
