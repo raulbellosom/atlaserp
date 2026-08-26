@@ -13,6 +13,10 @@ export const chatSendMessageSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
   attachmentIds: z.array(z.string().uuid()).optional(),
   threadRootId: z.string().uuid().optional(),
+  entityRefs: z.array(z.object({
+    entityType: z.enum(["contact", "file", "ledger_account", "hr_employee"]),
+    recordId: z.string().uuid(),
+  })).max(5).optional(),
 });
 
 export const chatEditMessageSchema = z.object({
