@@ -13,6 +13,7 @@ import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { ForwardMessageModal } from "./ForwardMessageModal";
 import { ChannelDetailsSheet } from "./ChannelDetailsSheet";
 import { ConversationTypeBadge } from "./ConversationTypeBadge";
+import { MemberAvatarStack } from "./MemberAvatarStack";
 import { PinnedMessagesSheet } from "./PinnedMessagesSheet";
 import { ThreadPanel } from "./ThreadPanel";
 import {
@@ -162,6 +163,7 @@ function ChatFilesGallery({ messages, isLoading, onAttachmentClick }) {
 
 function ChatHeader({
   conversation, currentUserId, onlineUsers, onClose,
+  detailMembers,
   filesView, onToggleFilesView,
   searchMode, searchQuery, onSearchToggle, onSearchChange,
   searchMatchCount, searchCurrentIdx, onNextMatch, onPrevMatch,
@@ -317,21 +319,21 @@ function ChatHeader({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold truncate">{displayName}</p>
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            {conversation?.type === "direct" ? (
-              directOnline ? (
+          {conversation?.type === "direct" ? (
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              {directOnline ? (
                 <span className="text-green-500">En linea</span>
               ) : directLastSeen ? (
                 `Visto ${formatLastSeen(directLastSeen)}`
               ) : (
                 "Desconectado"
-              )
-            ) : (
-              onlineCount > 0
-                ? `${onlineCount} en linea`
-                : `${members.length} miembro${members.length !== 1 ? "s" : ""}`
-            )}
-          </p>
+              )}
+            </p>
+          ) : onlineCount > 0 ? (
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">{`${onlineCount} en linea`}</p>
+          ) : (
+            <MemberAvatarStack members={detailMembers ?? members} onClick={onOpenDetails} />
+          )}
         </div>
 
         {/* Search */}
@@ -684,6 +686,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         conversation={conversation}
         currentUserId={userProfile?.id}
         onlineUsers={onlineUsers}
+        detailMembers={detailMembers}
         onClose={onClose}
         filesView={filesView}
         onToggleFilesView={() => setFilesView((v) => !v)}
