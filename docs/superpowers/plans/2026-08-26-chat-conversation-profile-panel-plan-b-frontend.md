@@ -785,6 +785,8 @@ git commit -m "feat(chat): add ConversationInfoTab (block/report)"
 
 ### Task 8: `ConversationProfilePanel.jsx` — the tab-set router
 
+**Revised after user feedback on the pre-existing `ChatMembersPanel`** (screenshots of the shipped Sub-project 2 panel): clicking "Ver miembros" from anywhere always landed on the General tab (no way to request a specific tab), and there was no clear way back to messages besides remembering the header's icon toggle. Both are fixed here: the panel now accepts an `initialTab` prop, and gets its own small header row with an explicit back arrow.
+
 **Files:**
 - Create: `apps/desktop/src/modules/atlas.chat/components/ConversationProfilePanel.jsx`
 - Delete: `apps/desktop/src/modules/atlas.chat/components/ChatMembersPanel.jsx` (superseded — its General/Miembros/Roles tabs are folded into the new panel)
@@ -795,6 +797,7 @@ Create `apps/desktop/src/modules/atlas.chat/components/ConversationProfilePanel.
 
 ```jsx
 // apps/desktop/src/modules/atlas.chat/components/ConversationProfilePanel.jsx
+import { ArrowLeft, Info, FolderOpen, Users, Bell, Settings, Shield } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@atlas/ui";
 import { ChannelGeneralTab } from "./ChannelGeneralTab";
 import { ChannelMembersTab } from "./ChannelMembersTab";
@@ -811,24 +814,51 @@ import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatP
 // or MiniChatWindow's content area identically to the message list it
 // replaces), but now handles every conversation type, not just group/
 // channel. Tab set is type-dependent per spec Section 8.
-export function ConversationProfilePanel({ conversation, currentUserId }) {
+//
+// `initialTab` lets a caller open straight to a specific tab (e.g. the
+// "Ver miembros" dropdown item and MemberAvatarStack both want "members",
+// not whatever the default tab is) — the CALLER must remount this component
+// when initialTab changes (e.g. `<ConversationProfilePanel key={initialTab} .../>`),
+// since a plain uncontrolled `Tabs defaultValue` only reads its initial value
+// once and won't react to a prop change after mount otherwise.
+//
+// `onBack` renders an explicit "back to messages" row above the tabs — this
+// was the other half of the user's complaint: the only way back used to be
+// remembering that the same header icon that opened the panel also closes
+// it, which wasn't discoverable.
+export function ConversationProfilePanel({ conversation, currentUserId, initialTab, onBack }) {
   const conversationId = conversation?.id;
   const type = conversation?.type;
   const { data: convData } = useChatConversationDetail(conversationId);
   const detail = convData?.data ?? conversation;
   const isMuted = Boolean(detail?.is_muted ?? conversation?.is_muted);
 
+  const backHeader = (
+    <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-[hsl(var(--border))] shrink-0">
+      <button
+        type="button"
+        onClick={onBack}
+        title="Volver a mensajes"
+        className="h-7 w-7 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors touch-manipulation"
+      >
+        <ArrowLeft className="h-4 w-4" />
+      </button>
+      <p className="text-sm font-semibold">Perfil</p>
+    </div>
+  );
+
   if (type === "direct") {
     const otherMember = (detail?.members ?? conversation?.members ?? []).find(
       (m) => m.userId !== currentUserId,
     );
     return (
-      <Tabs defaultValue="info" className="flex-1 min-h-0 flex flex-col overflow-hidden">
+      <Tabs defaultValue={initialTab ?? "info"} className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        {backHeader}
         <TabsList className="px-3 pt-2 overflow-x-auto">
-          <TabsTrigger value="info">Info</TabsTrigger>
-          <TabsTrigger value="media">Media</TabsTrigger>
-          <TabsTrigger value="common">En comun</TabsTrigger>
-          <TabsTrigger value="notifications">Notificaciones</TabsTrigger>
+          <TabsTrigger value="info"><Info className="h-3.5 w-3.5 mr-1.5" />Info</TabsTrigger>
+          <TabsTrigger value="media"><FolderOpen className="h-3.5 w-3.5 mr-1.5" />Media</TabsTrigger>
+          <TabsTrigger value="common"><Users className="h-3.5 w-3.5 mr-1.5" />En comun</TabsTrigger>
+          <TabsTrigger value="notifications"><Bell className="h-3.5 w-3.5 mr-1.5" />Notificaciones</TabsTrigger>
         </TabsList>
         <TabsContent value="info" className="flex-1 min-h-0 overflow-y-auto">
           <ConversationInfoTab
@@ -855,13 +885,14 @@ export function ConversationProfilePanel({ conversation, currentUserId }) {
   const canManageRoles = roleHasPermission(ownMember, CHAT_PERMISSIONS.ROLES_MANAGE);
 
   return (
-    <Tabs defaultValue="general" className="flex-1 min-h-0 flex flex-col overflow-hidden">
+    <Tabs defaultValue={initialTab ?? "general"} className="flex-1 min-h-0 flex flex-col overflow-hidden">
+      {backHeader}
       <TabsList className="px-3 pt-2 overflow-x-auto">
-        <TabsTrigger value="general">General</TabsTrigger>
-        <TabsTrigger value="members">Miembros</TabsTrigger>
-        {canManageRoles && <TabsTrigger value="roles">Roles</TabsTrigger>}
-        <TabsTrigger value="media">Media</TabsTrigger>
-        <TabsTrigger value="notifications">Notificaciones</TabsTrigger>
+        <TabsTrigger value="general"><Settings className="h-3.5 w-3.5 mr-1.5" />General</TabsTrigger>
+        <TabsTrigger value="members"><Users className="h-3.5 w-3.5 mr-1.5" />Miembros</TabsTrigger>
+        {canManageRoles && <TabsTrigger value="roles"><Shield className="h-3.5 w-3.5 mr-1.5" />Roles</TabsTrigger>}
+        <TabsTrigger value="media"><FolderOpen className="h-3.5 w-3.5 mr-1.5" />Media</TabsTrigger>
+        <TabsTrigger value="notifications"><Bell className="h-3.5 w-3.5 mr-1.5" />Notificaciones</TabsTrigger>
       </TabsList>
       <TabsContent value="general" className="flex-1 min-h-0 overflow-y-auto">
         <ChannelGeneralTab conversationId={conversationId} currentUserId={currentUserId} />
@@ -884,6 +915,8 @@ export function ConversationProfilePanel({ conversation, currentUserId }) {
   );
 }
 ```
+
+**Before finalizing:** check `TabsTrigger`'s actual rendered output in `packages/ui/src/components/Tabs.jsx` — it should be a simple pass-through (`<TabsPrimitive.Trigger>{...props}</TabsPrimitive.Trigger>`-style) that lets arbitrary children (icon + text) render inline; if it does anything that would clip or misalign an icon placed before text (e.g. forces `justify-content` in a way that fights the icon+label pairing), adjust the icon/label markup (e.g. wrap in a `<span className="flex items-center">`) rather than fighting the component.
 
 This assumes `listConversations`/`getConversation` rows expose `is_muted` (Plan A Task 7) — `conversation` (the list-preview shape passed down from `ChatWindow`/`MiniChatWindow`) already has it from the list query; `detail` (the full member-list fetch) does not include it (Plan A only added it to `listConversations`, not `getConversation` — see spec Section 10, which scopes `is_muted` to the list query only), which is why the fallback `detail?.is_muted ?? conversation?.is_muted` prefers `conversation`'s value.
 
@@ -908,6 +941,8 @@ git commit -m "feat(chat): add ConversationProfilePanel, retire ChatMembersPanel
 
 ### Task 9: Wire `ConversationProfilePanel` into `ChatWindow.jsx`
 
+**Revised after user feedback**: two concrete bugs were reported against the pre-existing `ChatMembersPanel` integration — (1) clicking "Ver miembros" (the dropdown item, or the member-avatar-stack under the title) always opened the General tab instead of Miembros, because nothing ever told the panel which tab to open to; (2) clicking the title text itself did nothing (only the avatar image was clickable). Both are fixed in this revised task via a new `openProfile(tab)`/`closeProfile()` pair of handlers and an `initialTab` prop threaded into `ConversationProfilePanel` (Task 8).
+
 **Files:**
 - Modify: `apps/desktop/src/modules/atlas.chat/components/ChatWindow.jsx`
 
@@ -922,7 +957,34 @@ with:
 import { ConversationProfilePanel } from "./ConversationProfilePanel";
 ```
 
-- [ ] **Step 2: Swap the render call**
+- [ ] **Step 2: Replace `membersView` state with `openProfile`/`closeProfile` handlers**
+
+Find the existing state declaration:
+```js
+  const [membersView, setMembersView] = useState(false);
+```
+Keep it, but add a new state right after it:
+```js
+  const [profileInitialTab, setProfileInitialTab] = useState(null);
+```
+
+Add these two handler functions near the other handlers in `ChatWindow` (e.g. alongside `handleJumpToMessage`/`handleHideForMe`):
+```js
+  const openProfile = useCallback((tab = null) => {
+    setProfileInitialTab(tab);
+    setMembersView(true);
+    setFilesView(false);
+  }, []);
+
+  const closeProfile = useCallback(() => {
+    setMembersView(false);
+    setProfileInitialTab(null);
+  }, []);
+```
+
+In the existing "Reset local state when conversation changes" `useEffect`, add `setProfileInitialTab(null);` alongside the existing `setMembersView(false);` line, so switching conversations doesn't carry a stale initial tab into the next one.
+
+- [ ] **Step 3: Swap the render call, passing `initialTab` and `onBack`**
 
 Replace:
 ```jsx
@@ -933,11 +995,18 @@ Replace:
 with:
 ```jsx
       ) : membersView ? (
-        <ConversationProfilePanel conversation={conversation} currentUserId={userProfile?.id} />
+        <ConversationProfilePanel
+          key={profileInitialTab ?? "default"}
+          conversation={conversation}
+          currentUserId={userProfile?.id}
+          initialTab={profileInitialTab}
+          onBack={closeProfile}
+        />
       ) : (
 ```
+The `key` forces a remount whenever `profileInitialTab` changes — e.g. clicking "Ver miembros" while already viewing the Info tab needs the panel to re-mount with `defaultValue="members"`, since `Tabs`' uncontrolled `defaultValue` only reads its initial value once per mount.
 
-- [ ] **Step 3: Widen the header's profile-toggle button to all conversation types**
+- [ ] **Step 4: Widen the header's profile-toggle button to all conversation types, and route it through `openProfile`/`closeProfile`**
 
 In the `ChatHeader` sub-component, find the "Members toggle" block:
 
@@ -960,14 +1029,15 @@ In the `ChatHeader` sub-component, find the "Members toggle" block:
         )}
 ```
 
-Replace it with an always-rendered version (direct chats now have a profile panel too — Info/Media/En comun/Notificaciones — so this button is no longer group/channel-only):
+Replace it with an always-rendered version (direct chats now have a profile panel too — Info/Media/En comun/Notificaciones — so this button is no longer group/channel-only). It opens/closes the DEFAULT tab (it's a generic "show profile" affordance now, not specifically a members shortcut):
 
 ```jsx
         {/* Profile toggle — every conversation type now has a profile panel
-            (direct chats gained Info/Media/En comun/Notificaciones). */}
+            (direct chats gained Info/Media/En comun/Notificaciones). Opens the
+            default tab — use the avatar/title or "Ver miembros" for a specific one. */}
         <button
           type="button"
-          onClick={onToggleMembersView}
+          onClick={() => (membersView ? onCloseProfile() : onOpenProfile(null))}
           title={membersView ? "Ver mensajes" : "Ver perfil"}
           className={[
             headerBtnCls,
@@ -978,9 +1048,11 @@ Replace it with an always-rendered version (direct chats now have a profile pane
         </button>
 ```
 
-- [ ] **Step 4: Make the header avatar clickable for direct chats too**
+`ChatHeader` needs two new props for this, replacing the old `onOpenDetails`/`onToggleMembersView` pair: `onOpenProfile` (opens a specific tab, or the default when called with `null`/no arg) and `onCloseProfile`. Update `ChatHeader`'s prop destructuring accordingly (remove `onOpenDetails`, `onToggleMembersView`; add `onOpenProfile`, `onCloseProfile`), and update every other place inside `ChatHeader` that references the old props (Steps 5-6 below) to use the new ones.
 
-Find the avatar block in `ChatHeader` (the `<div className="relative shrink-0">` containing the `avatarUrl`/`avatarEmoji`/initial rendering, followed by `<ConversationTypeBadge .../>`). Wrap it in a button so clicking it opens the profile panel for every type, not just via the `MemberAvatarStack` subtitle line that only exists for group/channel:
+- [ ] **Step 5: Make BOTH the avatar and the title text open the default tab**
+
+Find the avatar block in `ChatHeader` (the `<div className="relative shrink-0">` containing the `avatarUrl`/`avatarEmoji`/initial rendering, followed by `<ConversationTypeBadge .../>`), and the title text right after it (`<p className="text-sm font-semibold truncate">{titleLabel}</p>`). Wrap BOTH in a single clickable region so clicking the name works exactly like clicking the photo (the user reported clicking "#general" — the title — did nothing):
 
 Change:
 ```jsx
@@ -989,28 +1061,67 @@ Change:
 ```
 to:
 ```jsx
-        <button type="button" onClick={onOpenDetails} className="relative shrink-0" title="Ver perfil">
+        <button type="button" onClick={() => onOpenProfile(null)} className="relative shrink-0" title="Ver perfil">
           {avatarUrl && !avatarErr ? (
 ```
+Change the matching closing tag right after `<ConversationTypeBadge type={conversation?.type} />` from `</div>` to `</button>`.
 
-And change the matching closing tag right after the `<ConversationTypeBadge type={conversation?.type} />` line from `</div>` to `</button>`.
+Then find the title/subtitle column:
+```jsx
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold truncate">{titleLabel}</p>
+```
+Change the outer `<div>` to a `<button>` so the title text is clickable too, matching the same handler:
+```jsx
+        <button type="button" onClick={() => onOpenProfile(null)} className="flex-1 min-w-0 text-left" title="Ver perfil">
+          <p className="text-sm font-semibold truncate">{titleLabel}</p>
+```
+Change this block's own closing `</div>` (the one that closes this title/subtitle column, NOT the `MemberAvatarStack`'s or the online-status paragraph's own tags nested inside it) to `</button>`.
 
-- [ ] **Step 5: Confirm `onOpenDetails` still does the right thing**
+- [ ] **Step 6: Route "Ver miembros" (dropdown item) and `MemberAvatarStack`'s click to the Miembros tab specifically**
 
-`onOpenDetails={() => { setMembersView(true); setFilesView(false); }}` (already passed to `ChatHeader` from the main `ChatWindow` render, unchanged) now opens the profile panel for every type via both the avatar click and the "Ver detalles" dropdown item — no further change needed there, since neither reads `conversation?.type` to decide whether to fire.
+Find the "..." dropdown's members item:
+```jsx
+            {(conversation?.type === "group" || conversation?.type === "channel") && (
+              <DropdownMenuItem onSelect={onOpenDetails}>
+```
+Change `onSelect={onOpenDetails}` to `onSelect={() => onOpenProfile("members")}`.
 
-- [ ] **Step 6: Build and manually verify**
+Find `MemberAvatarStack`'s usage:
+```jsx
+              <MemberAvatarStack members={detailMembers ?? members} onClick={onOpenDetails} />
+```
+Change `onClick={onOpenDetails}` to `onClick={() => onOpenProfile("members")}`.
+
+- [ ] **Step 7: Update the props passed from `ChatWindow`'s main render into `ChatHeader`**
+
+Find where `ChatHeader` is invoked from the main `ChatWindow` return and replace the old props:
+```jsx
+        onOpenDetails={() => { setMembersView(true); setFilesView(false); }}
+```
+with:
+```jsx
+        onOpenProfile={openProfile}
+        onCloseProfile={closeProfile}
+```
+Remove any now-unused `onToggleMembersView` prop passed down (its old callsite `() => { setMembersView((v) => !v); setFilesView(false); }` is superseded by `onOpenProfile`/`onCloseProfile`).
+
+- [ ] **Step 8: Build and manually verify**
 
 Run: `pnpm --filter @atlas/desktop exec vite build`
 Expected: No errors.
 
-Manual: with the dev server running (`pnpm dev:frontend` or the full `pnpm dev`), open a direct conversation, click the header avatar, confirm the Info/Media/En comun/Notificaciones tabs render. Open a group conversation, confirm General/Miembros/Roles/Media/Notificaciones all render and nothing regressed from the pre-existing panel.
+Manual, with the dev server running (`pnpm dev:frontend` or the full `pnpm dev`):
+- Open a direct conversation. Click the avatar — Info tab opens. Close it, click the title text — Info tab opens too (previously did nothing).
+- Open a group/channel conversation. Click "Ver miembros" from the "..." menu — Miembros tab opens directly (previously always opened General). Close it, click the member-avatar-stack under the title — same, opens directly to Miembros. Click the avatar/title — opens to General instead.
+- From inside the profile panel, click the new back-arrow header row (Task 8) — returns to messages. Confirm this is clearly discoverable without needing to know about the header's icon toggle.
+- Confirm General/Miembros/Roles/Media/Notificaciones all still render correctly for group/channel, and nothing regressed from the pre-existing panel.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add apps/desktop/src/modules/atlas.chat/components/ChatWindow.jsx
-git commit -m "feat(chat): wire ConversationProfilePanel into ChatWindow, open it for direct chats too"
+git commit -m "feat(chat): wire ConversationProfilePanel into ChatWindow with tab-targeting and a back affordance"
 ```
 
 ---
@@ -1080,12 +1191,19 @@ Change the `!minimized` block to branch on `profileView` first:
 
 ```jsx
         {!minimized && profileView && (
-          <ConversationProfilePanel conversation={conversation} currentUserId={userProfile?.id} />
+          <ConversationProfilePanel
+            conversation={conversation}
+            currentUserId={userProfile?.id}
+            initialTab={null}
+            onBack={() => setProfileView(false)}
+          />
         )}
         {!minimized && !profileView && (
           <>
             <ChatMessageList
 ```
+
+`onBack` is required by `ConversationProfilePanel` (Task 8) — this is what makes the panel's new back-arrow header row work inside the floating mini-window, exactly as it does in `ChatWindow`.
 
 ...and find the end of that block (the `</>` right before `)}` that closes the original `{!minimized && ( <> ... </> )}`) — leave it as `</>` )} (now closing the `!profileView` branch instead of the original single branch).
 
@@ -1348,16 +1466,89 @@ git commit -m "feat(identity): add ChatReportsScreen admin review screen"
 
 ---
 
-### Task 13: Responsive QA pass (390px and 1440px)
+### Task 13: Fix `MemberAvatarStack` overlap and align `ChatSidebar`'s header
+
+**Added after user feedback on screenshots of the shipped Sub-project 1/2 UI.** Two confirmed, concrete bugs, independent of the profile panel work but in the same header area Task 9 touches — fixing them now avoids shipping a header that still looks broken after this plan lands.
+
+**Bug A:** `MemberAvatarStack.jsx` renders every avatar with `-space-x-2` (an 8px negative margin, meant to overlap 4+ avatars into a compact stack) unconditionally, even for a channel with only 1-2 members — at that count it just looks like broken, overlapping duplicate avatars instead of an intentional stack, which combined with the channel's own header avatar right above it (36px tall) produces the "messy, non-uniform, duplicated" look reported.
+
+**Bug B:** `ChatSidebar.jsx`'s own top bar (`px-4 py-3`, no fixed height, ≈52px effective) doesn't match `ModuleSidebar.jsx`'s header (`h-14 px-3`, 56px fixed) — since `ChatScreen.jsx` renders them side by side with no shared wrapper, the two headers sit at different heights with different horizontal insets, producing a visible seam.
+
+**Files:**
+- Modify: `apps/desktop/src/modules/atlas.chat/components/MemberAvatarStack.jsx`
+- Modify: `apps/desktop/src/modules/atlas.chat/components/ChatSidebar.jsx`
+
+- [ ] **Step 1: Fix the avatar-stack overlap for small member counts**
+
+Read the current `MemberAvatarStack.jsx` in full first (it's short). Change its rendering so that for **1-2 members**, it shows plain text instead of overlapping avatar circles — e.g. the member's first name(s) joined with "y" (`"Ana y Luis"`), or "N miembros" once there are 3+ (at which point the existing avatar-stack-with-overlap treatment is appropriate and should stay, since it was designed for that count). Concretely:
+
+```jsx
+// apps/desktop/src/modules/atlas.chat/components/MemberAvatarStack.jsx
+// (keep existing imports/MAX_VISIBLE/etc. — only the render logic changes)
+
+export function MemberAvatarStack({ members = [], onClick }) {
+  const names = members.map((m) => m.displayName?.split(" ")[0]).filter(Boolean);
+
+  if (members.length <= 2) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors truncate"
+      >
+        {names.length ? names.join(" y ") : "Sin miembros"}
+      </button>
+    );
+  }
+
+  // 3+ members: keep the existing overlapping-avatar-stack treatment below
+  // (copy the current implementation's JSX here unchanged — only the
+  // `members.length <= 2` branch above is new).
+}
+```
+
+Read the actual current file to see the exact existing 3+-member JSX (avatar rendering, `MAX_VISIBLE`, the "+N" overflow badge, etc.) and preserve it verbatim as the fallback branch — this step only adds the new small-count branch, it doesn't redesign the existing many-member case.
+
+- [ ] **Step 2: Align `ChatSidebar`'s header to `ModuleSidebar`'s height/padding**
+
+In `ChatSidebar.jsx`, find the top bar:
+```jsx
+<div className="flex items-center justify-between px-4 py-3 border-b ... shrink-0">
+```
+Change `px-4 py-3` to `h-14 px-3`, matching `ModuleSidebar.jsx`'s header exactly (`h-14 px-3`) so the two sidebars' top edges align pixel-for-pixel when rendered side by side by `ChatScreen.jsx`. Adjust any child element's own spacing (e.g. the search input or "+" button's margins) only as needed to still look correct within the new fixed height — don't change anything else in this block.
+
+- [ ] **Step 3: Build and manually verify**
+
+Run: `pnpm --filter @atlas/desktop exec vite build`
+Expected: No errors.
+
+Manual, with the dev server running:
+- Open a channel/group with 1 or 2 members — confirm the header shows names as plain text, not overlapping avatar circles.
+- Open a channel/group with 3+ members — confirm the existing avatar-stack look is unchanged.
+- Compare `ChatSidebar`'s header against the main module sidebar's header at 1440px — confirm the top edges now align with no visible seam.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add apps/desktop/src/modules/atlas.chat/components/MemberAvatarStack.jsx apps/desktop/src/modules/atlas.chat/components/ChatSidebar.jsx
+git commit -m "fix(chat): show member names instead of overlapping avatars for small groups, align sidebar header height"
+```
+
+---
+
+### Task 14: Responsive QA pass (390px and 1440px)
 
 **Files:** None — verification only, per this project's standing "Responsive QA both viewports" practice.
 
 - [ ] **Step 1: Desktop viewport (1440px)**
 
 With the dev server running, resize the browser (or use device toolbar) to 1440px wide. Verify:
-- A direct chat's profile panel: all 4 tabs visible without horizontal scroll on the tab strip, Media grid renders 3 columns cleanly, the report Dialog is centered and not clipped.
-- A group's profile panel: all 5 tabs visible.
-- The floating mini-chat window's profile view at its native 300px width: tab strip scrolls horizontally if needed, no content overflow, Block/Report buttons remain tappable.
+- A direct chat's profile panel: all 4 tabs visible without horizontal scroll on the tab strip, each tab icon aligned with its label, Media grid renders 3 columns cleanly, the report Dialog is centered and not clipped.
+- A group's profile panel: all 5 tabs visible, same icon/label alignment.
+- The back-arrow header row (Task 8) is visually distinct and doesn't collide with the tab strip below it.
+- The floating mini-chat window's profile view at its native 300px width: tab strip scrolls horizontally if needed, no content overflow, Block/Report buttons remain tappable, back-arrow row present and working.
+- The `ChatWindow` header (Task 9) reads as a single uniform line: avatar, title/subtitle, action icons all vertically centered together, no element appearing to float above/below the others.
+- `ChatSidebar`'s header and the main module sidebar's header (Task 13) align at the same height with no visible seam.
 
 - [ ] **Step 2: Mobile viewport (390px)**
 
@@ -1379,7 +1570,14 @@ No commit for this task — if any issue is found during manual QA, fix it as a 
 
 ## Plan B Self-Review Notes
 
-- **Spec coverage:** UX requirements (Section 8), routes/screens (Section 9), navigation (Section 16) are covered by Tasks 4-13. Section 8's "danger zone" visual separation is implemented via a simple bordered/labeled section in `ConversationInfoTab` rather than a distinct visual treatment — acceptable given no existing "danger zone" pattern was found elsewhere in this codebase to match against.
+- **Spec coverage:** UX requirements (Section 8), routes/screens (Section 9), navigation (Section 16) are covered by Tasks 4-14. Section 8's "danger zone" visual separation is implemented via a simple bordered/labeled section in `ConversationInfoTab` rather than a distinct visual treatment — acceptable given no existing "danger zone" pattern was found elsewhere in this codebase to match against.
 - **`@atlas/ui` prop names verified, not guessed:** `CheckboxField` (`checked`/`onChange` with a raw DOM event, not `onCheckedChange`+boolean), `SelectField` (`value`/`onValueChange` with the raw value), `TextareaField` (`value`/`onChange`/`rows`), and `Badge`'s `variant` values were all confirmed against `packages/ui/src/components/FormFields.jsx` and `Badge.jsx` directly during this plan's self-review — the code in Tasks 4, 7, and 12 reflects the real signatures, including catching and fixing an initial wrong guess (`onCheckedChange`) for `CheckboxField`.
-- **Type consistency check:** `ConversationProfilePanel` is called identically from both `ChatWindow.jsx` (Task 9) and `MiniChatWindow.jsx` (Task 10) — `conversation={conversation} currentUserId={currentUserId}` in both places, matching the single signature defined in Task 8. `is_muted` is read consistently as `conversation?.is_muted` (list-query shape) with a fallback, not assumed present on the detail-query shape, matching Plan A's actual scope (Task 7 only touches `listConversations`).
-- **Dependency on Plan A:** every hook in Task 3 calls an `atlas.chat.*` SDK method Plan A Task 9 must have already added; do not start Plan B before Plan A is merged and its build/tests pass.
+- **Type consistency check:** `ConversationProfilePanel` is called consistently from both `ChatWindow.jsx` (Task 9) and `MiniChatWindow.jsx` (Task 10) — `conversation`, `currentUserId`, `initialTab`, and `onBack` in both places, matching the single signature defined in Task 8. `is_muted` is read consistently as `conversation?.is_muted` (list-query shape) with a fallback, not assumed present on the detail-query shape, matching Plan A's actual scope (Task 7 only touches `listConversations`).
+- **Dependency on Plan A:** every hook in Task 3 calls an `atlas.chat.*` SDK method Plan A Task 9 must have already added; do not start Plan B before Plan A is merged and its build/tests pass. (Confirmed complete as of this revision.)
+- **Revised 2026-08-28 after user feedback on screenshots of the pre-existing `ChatMembersPanel`/`ChatHeader` UI** (before any of Plan B had been built): four real gaps were folded into this plan rather than left to be discovered after building the old pattern once more —
+  1. No way to open the profile panel to a specific tab (Tasks 8-9): fixed via `initialTab`/`onOpenProfile(tab)`/`key`-forced-remount.
+  2. Clicking the title text did nothing, only the avatar image was clickable (Task 9 Step 5): both now share one handler.
+  3. `MemberAvatarStack` visually breaks for 1-2 members (Task 13): now shows names as text below that threshold, keeps the avatar-stack for 3+.
+  4. `ChatSidebar`'s header didn't align with the main module sidebar's header (Task 13): heights/padding now match exactly.
+  Two more reported issues — message reactions being hard to discover/use, and the emoji picker closing itself immediately — are a **separate, unrelated bug in previously-shipped work** (the chat pins/reactions phase, not part of this spec at all) and were fixed directly outside this plan, not folded in here.
+- **Not yet independently reviewed:** the Task 8/9/13 revisions above were written directly into this plan document in response to user feedback and have NOT yet been through this skill's own spec-reviewer/code-quality-reviewer cycle the way Plan A's tasks were, since no code has been written for them yet — that review will happen per-task during execution, same as every other task in this plan.
