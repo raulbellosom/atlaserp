@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, Button } from "@atlas/ui";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, Button, renderMentionText } from "@atlas/ui";
 import { Search, Share2, Check } from "lucide-react";
 import { getConversationDisplayName } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -173,7 +173,7 @@ export function ForwardMessageModal({ open, onClose, message, conversations }) {
                 Mensaje a reenviar
               </p>
               <p className="text-sm text-[hsl(var(--foreground))] leading-relaxed line-clamp-3 whitespace-pre-wrap wrap-break-word">
-                {message.body}
+                {renderMentionText(message.body)}
               </p>
             </div>
 

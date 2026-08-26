@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useRealtimeContext } from "../../../providers/RealtimeProvider";
-import { Skeleton, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@atlas/ui";
+import { Skeleton, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, renderMentionText } from "@atlas/ui";
 import { useChatFloatStore } from "../store/chatFloatStore";
 import { useChatMessages, useSendMessage, useMarkRead, useDeleteMessage } from "../hooks/useChatMessages";
 import { useCreateConversation } from "../hooks/useCreateConversation";
@@ -534,7 +534,7 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
                       <p className={["text-xs truncate", unread > 0 ? "font-semibold" : "font-medium"].join(" ")}>{name}</p>
                       {conv.last_message?.body ? (
                         <p className={["text-[10px] truncate", unread > 0 ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]"].join(" ")}>
-                          {conv.last_message.body}
+                          {renderMentionText(conv.last_message.body)}
                         </p>
                       ) : (
                         <p className="text-[10px] text-violet-400">Conversacion activa</p>
@@ -598,7 +598,7 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
                   <p className={["text-xs truncate", conv.unread_count > 0 ? "font-semibold" : "font-medium"].join(" ")}>{name}</p>
                   {conv.last_message?.body && (
                     <p className={["text-[10px] truncate", conv.unread_count > 0 ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]"].join(" ")}>
-                      {conv.last_message.body}
+                      {renderMentionText(conv.last_message.body)}
                     </p>
                   )}
                 </div>

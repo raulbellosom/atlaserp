@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Button, EmptyState, Skeleton, Badge } from "@atlas/ui";
+import { Button, EmptyState, Skeleton, Badge, renderMentionText } from "@atlas/ui";
 import { MessageSquare, Search, ExternalLink, Clock, UserCheck, ChevronDown, ArrowLeft } from "lucide-react";
 import { ChatMessageList } from "../components/ChatMessageList";
 import { MessageComposer } from "../components/MessageComposer";
@@ -103,7 +103,7 @@ function ExternalConversationItem({ conv, isActive, onClick }) {
         )}
         {conv.last_message?.body && (
           <p className={["text-xs truncate mt-0.5", unread > 0 ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]"].join(" ")}>
-            {conv.last_message.body}
+            {renderMentionText(conv.last_message.body)}
           </p>
         )}
       </div>
