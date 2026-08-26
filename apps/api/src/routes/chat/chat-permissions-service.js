@@ -226,16 +226,22 @@ export function createChatPermissionsService({ prisma }) {
     `;
     const fallbackRoleId = fallbackRows[0]?.id ?? null;
 
-    const reassigned = await prisma.$queryRaw`
-      UPDATE chat_conversation_members
-      SET role_id = ${fallbackRoleId}
-      WHERE conversation_id = ${conversationId} AND role_id = ${roleId}
-      RETURNING id
-    `;
+    // Reassignment + delete must be atomic: never leave role_id dangling on a
+    // deleted role (spec 2026-08-25-chat-channels-roles-phase-a-design.md, section 23, edge case 4).
+    const reassignedMemberCount = await prisma.$transaction(async (tx) => {
+      const reassigned = await tx.$queryRaw`
+        UPDATE chat_conversation_members
+        SET role_id = ${fallbackRoleId}
+        WHERE conversation_id = ${conversationId} AND role_id = ${roleId}
+        RETURNING id
+      `;
 
-    await prisma.$executeRaw`DELETE FROM chat_channel_roles WHERE id = ${roleId}`;
+      await tx.$executeRaw`DELETE FROM chat_channel_roles WHERE id = ${roleId}`;
 
-    return { id: roleId, reassignedMemberCount: reassigned.length };
+      return reassigned.length;
+    });
+
+    return { id: roleId, reassignedMemberCount };
   }
 
   async function assignMemberRole({ conversationId, memberUserId, roleId, authUserId }) {

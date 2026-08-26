@@ -82,13 +82,19 @@ const MEMBER_ROLE = { id: "role-member", name: "Member", position: 0, isSystem: 
 function buildPrismaMock(queryRawResults, executeRawResults = []) {
   let qIdx = 0;
   let eIdx = 0;
-  return {
+  const client = {
     $queryRaw: async () => {
       if (qIdx >= queryRawResults.length) throw new Error(`Unexpected $queryRaw call #${qIdx + 1}`);
       return queryRawResults[qIdx++];
     },
     $executeRaw: async () => executeRawResults[eIdx++] ?? { count: 1 },
+    // Mirrors the real prisma.$transaction shape closely enough for these tests:
+    // the callback receives a tx client that shares the same call-order counters,
+    // so calls made via tx.$queryRaw/tx.$executeRaw consume from the same
+    // queryRawResults/executeRawResults arrays as calls made directly on prisma.
+    $transaction: async (fn) => fn(client),
   };
+  return client;
 }
 
 describe("chat-permissions-service — assertChannelPermission", () => {
@@ -145,6 +151,101 @@ describe("chat-permissions-service — createRole", () => {
     const svc = createChatPermissionsService({ prisma });
     const result = await svc.createRole({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, name: "Support", position: 10, permissions: {} });
     assert.equal(result.name, "Support");
+  });
+});
+
+describe("chat-permissions-service — updateRole", () => {
+  it("refuses to modify the system Owner role (403)", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "m1" }],
+      [ADMIN_ROLE],
+      [{ id: "role-owner", is_system: true, position: 100, name: "Owner" }], // target role
+    ]);
+    const svc = createChatPermissionsService({ prisma });
+    await assert.rejects(
+      () => svc.updateRole({ conversationId: CONV_ID, roleId: "role-owner", authUserId: AUTH_USER_ID, updates: { name: "Renamed" } }),
+      (err) => err instanceof ChatPermissionsError && err.status === 403,
+    );
+  });
+
+  it("blocks a position update that would put the role at or above the actor's own position (403)", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "m1" }],
+      [ADMIN_ROLE], // actor: Admin, position 75
+      [{ id: "role-custom", is_system: false, position: 10, name: "Custom" }], // target role, actor outranks it
+    ]);
+    const svc = createChatPermissionsService({ prisma });
+    await assert.rejects(
+      () => svc.updateRole({ conversationId: CONV_ID, roleId: "role-custom", authUserId: AUTH_USER_ID, updates: { position: 90 } }),
+      (err) => err instanceof ChatPermissionsError && err.status === 403,
+    );
+  });
+
+  it("blocks a rename to a name that already exists in the same conversation (400)", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "m1" }],
+      [ADMIN_ROLE],
+      [{ id: "role-custom", is_system: false, position: 10, name: "Custom" }], // target role
+      [{ id: "existing-role" }], // duplicate name lookup finds one
+    ]);
+    const svc = createChatPermissionsService({ prisma });
+    await assert.rejects(
+      () => svc.updateRole({ conversationId: CONV_ID, roleId: "role-custom", authUserId: AUTH_USER_ID, updates: { name: "Moderator" } }),
+      (err) => err instanceof ChatPermissionsError && err.status === 400,
+    );
+  });
+
+  it("applies a successful partial update that changes only name, leaving permissions intact", async () => {
+    const updatedRole = {
+      id: "role-custom",
+      conversationId: CONV_ID,
+      name: "Renamed",
+      color: null,
+      position: 10,
+      isSystem: false,
+      permissions: { "messages.send": true },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "m1" }],
+      [ADMIN_ROLE],
+      [{ id: "role-custom", is_system: false, position: 10, name: "Custom", permissions: { "messages.send": true } }], // target role
+      [], // no duplicate name
+      [updatedRole], // UPDATE ... RETURNING
+    ]);
+    const svc = createChatPermissionsService({ prisma });
+    const result = await svc.updateRole({ conversationId: CONV_ID, roleId: "role-custom", authUserId: AUTH_USER_ID, updates: { name: "Renamed" } });
+    assert.equal(result.name, "Renamed");
+    assert.deepEqual(result.permissions, { "messages.send": true });
+  });
+
+  it("applies a successful position update when the actor outranks both the current and the new position", async () => {
+    const updatedRole = {
+      id: "role-custom",
+      conversationId: CONV_ID,
+      name: "Custom",
+      color: null,
+      position: 20,
+      isSystem: false,
+      permissions: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "m1" }],
+      [ADMIN_ROLE], // actor: Admin, position 75
+      [{ id: "role-custom", is_system: false, position: 10, name: "Custom" }], // target role, current position 10
+      [updatedRole], // UPDATE ... RETURNING (no name change, so no dupe-check call)
+    ]);
+    const svc = createChatPermissionsService({ prisma });
+    const result = await svc.updateRole({ conversationId: CONV_ID, roleId: "role-custom", authUserId: AUTH_USER_ID, updates: { position: 20 } });
+    assert.equal(result.position, 20);
   });
 });
 
