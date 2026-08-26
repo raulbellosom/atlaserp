@@ -201,6 +201,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
           SELECT COUNT(*)::int FROM chat_messages m
           WHERE m.conversation_id = c.id
             AND m.deleted_at IS NULL
+            AND m.thread_root_id IS NULL
             AND m.sender_type != 'system'
             AND m.sender_user_id IS DISTINCT FROM ${profileId}
             AND m.created_at > COALESCE(
@@ -220,7 +221,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             'senderUserId', m.sender_user_id
           )
           FROM chat_messages m
-          WHERE m.conversation_id = c.id AND m.deleted_at IS NULL
+          WHERE m.conversation_id = c.id AND m.deleted_at IS NULL AND m.thread_root_id IS NULL
           ORDER BY m.created_at DESC
           LIMIT 1
         ) AS last_message,
@@ -605,6 +606,9 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         m.metadata, m.created_at, m.edited_at, m.deleted_at,
         m.pinned_at,
         m.pinned_by_user_id,
+        m.thread_root_id,
+        m.thread_reply_count,
+        m.thread_last_reply_at,
         json_build_object(
           'id', up.id,
           'displayName', up.display_name,
@@ -678,6 +682,9 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         m.deleted_at,
         m.pinned_at,
         m.pinned_by_user_id,
+        m.thread_root_id,
+        m.thread_reply_count,
+        m.thread_last_reply_at,
         -- sender info
         json_build_object(
           'id', up.id,
@@ -711,6 +718,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       FROM chat_messages m
       LEFT JOIN user_profile up ON up.id = m.sender_user_id
       WHERE m.conversation_id = ${conversationId}
+        AND m.thread_root_id IS NULL
         ${before ? Prisma.sql`AND m.created_at < ${new Date(before)}` : Prisma.empty}
       ORDER BY m.created_at DESC
       LIMIT ${limit + 1}
@@ -767,9 +775,28 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     };
   }
 
-  async function sendMessage({ conversationId, authUserId, body, messageType = "text", metadata = {}, attachmentIds = [] }) {
+  async function sendMessage({ conversationId, authUserId, body, messageType = "text", metadata = {}, attachmentIds = [], threadRootId = null }) {
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
+
+    // Resolve threadRootId: validate it exists, belongs to this conversation,
+    // isn't soft-deleted, and auto-flatten a reply-to-a-reply onto its own
+    // root (spec Non-goal 1 — threads are one level deep, replying to a
+    // reply silently redirects to that reply's own root instead of erroring
+    // or creating a nested thread).
+    let resolvedThreadRootId = null;
+    if (threadRootId) {
+      const targetRows = await prisma.$queryRaw`
+        SELECT id, conversation_id, thread_root_id, deleted_at
+        FROM chat_messages
+        WHERE id = ${threadRootId} AND deleted_at IS NULL
+        LIMIT 1
+      `;
+      if (!targetRows.length || targetRows[0].conversation_id !== conversationId) {
+        throw new ChatServiceError("Mensaje no encontrado.", 404);
+      }
+      resolvedThreadRootId = targetRows[0].thread_root_id ?? targetRows[0].id;
+    }
 
     // Cheap regex scan first — skips the sender-role lookup + resolution queries
     // entirely for the common case (no @ tokens at all, e.g. every direct/
@@ -791,20 +818,43 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       ? { ...metadata, mentions: { userIds: mentionResult.userIds, roleIds: mentionResult.roleIds, everyone: mentionResult.everyone, here: mentionResult.here } }
       : metadata;
 
-    const msgRows = await prisma.$queryRaw`
-      INSERT INTO chat_messages (conversation_id, sender_user_id, sender_type, body, message_type, attachment_count, metadata)
-      VALUES (
-        ${conversationId},
-        ${profileId},
-        'user',
-        ${body},
-        ${messageType},
-        ${attachmentIds.length},
-        ${JSON.stringify(finalMetadata)}::jsonb
-      )
-      RETURNING *
-    `;
-    const msg = msgRows[0];
+    let msg;
+    if (resolvedThreadRootId) {
+      // Insert + root counter-increment must not diverge (reply inserted but
+      // counter update fails, or vice versa) — wrap both in a transaction.
+      [msg] = await prisma.$transaction(async (tx) => {
+        const inserted = await tx.$queryRaw`
+          INSERT INTO chat_messages (conversation_id, sender_user_id, sender_type, body, message_type, attachment_count, metadata, thread_root_id)
+          VALUES (
+            ${conversationId}, ${profileId}, 'user', ${body}, ${messageType}, ${attachmentIds.length},
+            ${JSON.stringify(finalMetadata)}::jsonb, ${resolvedThreadRootId}
+          )
+          RETURNING *
+        `;
+        await tx.$executeRaw`
+          UPDATE chat_messages
+          SET thread_reply_count = thread_reply_count + 1,
+              thread_last_reply_at = ${inserted[0].created_at}
+          WHERE id = ${resolvedThreadRootId}
+        `;
+        return inserted;
+      });
+    } else {
+      const msgRows = await prisma.$queryRaw`
+        INSERT INTO chat_messages (conversation_id, sender_user_id, sender_type, body, message_type, attachment_count, metadata)
+        VALUES (
+          ${conversationId},
+          ${profileId},
+          'user',
+          ${body},
+          ${messageType},
+          ${attachmentIds.length},
+          ${JSON.stringify(finalMetadata)}::jsonb
+        )
+        RETURNING *
+      `;
+      msg = msgRows[0];
+    }
 
     if (attachmentIds.length) {
       await prisma.$executeRaw`
@@ -815,7 +865,9 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       `;
     }
 
-    await updateConversationLastMessage(conversationId, msg.id, msg.created_at);
+    if (!resolvedThreadRootId) {
+      await updateConversationLastMessage(conversationId, msg.id, msg.created_at);
+    }
 
     // Fetch full message with sender + attachments joins before returning
     const fullMsg = await getMessageFull(msg.id);
@@ -847,7 +899,41 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             .filter((id) => !mentionedSet.has(id));
           const preview = body.length > 80 ? `${body.slice(0, 80)}...` : body;
 
-          if (recipientIds.length) {
+          if (resolvedThreadRootId) {
+            // Thread replies never fan out chat.message.new to the whole
+            // channel (spec Section 8 Goal 4) — only the root author + prior
+            // repliers are notified via chat.thread.reply, minus anyone who's
+            // already getting chat.mention.new below (same precedence rule
+            // applied to the non-thread path above).
+            const participantRows = await prisma.$queryRaw`
+              SELECT DISTINCT sender_user_id FROM chat_messages
+              WHERE (id = ${resolvedThreadRootId} OR thread_root_id = ${resolvedThreadRootId})
+                AND sender_user_id IS NOT NULL
+                AND sender_user_id != ${profileId}
+            `;
+            const mentionedSet2 = new Set(mentionResult.notifyUserIds);
+            const threadRecipientIds = participantRows
+              .map((r) => r.sender_user_id.toString())
+              .filter((id) => !mentionedSet2.has(id));
+            if (threadRecipientIds.length) {
+              await notificationService.publish({
+                companyId,
+                actorId: profileId,
+                input: {
+                  eventType: "chat.thread.reply",
+                  title: "Nueva respuesta en un hilo",
+                  body: preview,
+                  link: `/app/m/atlas.chat/chat/inbox`,
+                  recipients: { userIds: threadRecipientIds },
+                  channels: ["in_app", "web_push"],
+                  priority: "medium",
+                  sourceType: "chat_conversation",
+                  sourceId: conversationId,
+                  dedupeKey: `chat.thread.reply:${msg.id}`,
+                },
+              });
+            }
+          } else if (recipientIds.length) {
             await notificationService.publish({
               companyId,
               actorId: profileId,
@@ -895,6 +981,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         messageId: msg.id,
         senderId: profileId.toString(),
         senderName: fullMsg?.sender?.displayName ?? null,
+        threadRootId: resolvedThreadRootId,
       }).catch(() => {});
     }
 

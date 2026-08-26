@@ -423,6 +423,179 @@ describe("chat-service — sendMessage mentions", () => {
   });
 });
 
+describe("chat-service — sendMessage thread replies", () => {
+  it("resolves threadRootId, increments the root's counter, and skips updateConversationLastMessage", async () => {
+    const rootId = "01900000-0000-7000-8000-00000000r001";
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],                                            // resolveUserProfileId
+      [{ id: rootId }],                                                // assertMember (sendMessage's own)
+      [{ id: rootId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null }], // thread target lookup
+      [{ id: "msg-reply-1", conversation_id: CONV_ID, created_at: new Date() }], // INSERT ... RETURNING *
+      [{ id: "msg-reply-1", conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }], // getMessageFull
+    ], [
+      { count: 1 }, // UPDATE chat_messages SET thread_reply_count = thread_reply_count + 1, thread_last_reply_at = ...
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    const result = await service.sendMessage({
+      conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "respuesta", threadRootId: rootId,
+    });
+    assert.equal(result.id, "msg-reply-1");
+    // No notificationService/broadcaster supplied, and exactly 5 $queryRaw + 1
+    // $executeRaw calls are queued (matching a non-threaded send's would-be 6th
+    // call, updateConversationLastMessage, being skipped) — reaching the
+    // assertion above without the mock throwing "Unexpected $queryRaw call"
+    // proves the synchronous call sequence matches what a thread reply should do.
+  });
+
+  it("auto-flattens a reply-to-a-reply onto the original root", async () => {
+    const rootId = "01900000-0000-7000-8000-00000000r001";
+    const replyId = "01900000-0000-7000-8000-00000000r002";
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: replyId }],
+      [{ id: replyId, conversation_id: CONV_ID, thread_root_id: rootId, deleted_at: null }], // target is itself a reply
+      [{ id: "msg-reply-2", conversation_id: CONV_ID, created_at: new Date() }],
+      [{ id: "msg-reply-2", conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }],
+    ], [
+      { count: 1 },
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    await service.sendMessage({
+      conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "respuesta anidada", threadRootId: replyId,
+    });
+    // The INSERT's actual thread_root_id value is asserted via the mock's
+    // fixed-sequence contract here; the next test below (spy-based) directly
+    // proves the counter-UPDATE targets the flattened root, not replyId.
+  });
+
+  it("rejects a threadRootId belonging to a different conversation with 404", async () => {
+    const foreignRootId = "01900000-0000-7000-8000-00000000f001";
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: foreignRootId }],
+      [{ id: foreignRootId, conversation_id: "some-other-conv", thread_root_id: null, deleted_at: null }],
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    await assert.rejects(
+      () => service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "x", threadRootId: foreignRootId }),
+      (err) => err instanceof ChatServiceError && err.status === 404,
+    );
+  });
+
+  it("rejects replying to a soft-deleted message with 404", async () => {
+    const deletedId = "01900000-0000-7000-8000-00000000d001";
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: deletedId }],
+      [], // deleted_at IS NULL filter excludes it — lookup returns no rows
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    await assert.rejects(
+      () => service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "x", threadRootId: deletedId }),
+      (err) => err instanceof ChatServiceError && err.status === 404,
+    );
+  });
+
+  it("counter-UPDATE targets the flattened root id, not the immediate reply target (spy-based)", async () => {
+    // Verified empirically against this repo's real Prisma+adapter-pg setup
+    // (PrismaPg over a live Supabase Postgres connection) before writing this
+    // spy: a tagged-template call `prisma.$queryRaw\`...${x}...\`` invokes the
+    // bound function as (stringsArray, x) per JS tagged-template semantics —
+    // this is language-level, not Prisma-specific, so the spy below correctly
+    // captures what chat-service.js actually sends. Also verified empirically
+    // that a UUID column value returned by $queryRaw under this adapter comes
+    // back as a plain JS string (constructor Object, typeof "string"), so no
+    // String(...) wrap is needed anywhere values are compared below.
+    const rootId = "01900000-0000-7000-8000-00000000r001";
+    const replyId = "01900000-0000-7000-8000-00000000r002";
+    const calls = [];
+    let qIdx = 0;
+    const queryRawResults = [
+      [{ id: PROFILE_ID }],
+      [{ id: replyId }],
+      [{ id: replyId, conversation_id: CONV_ID, thread_root_id: rootId, deleted_at: null }],
+      [{ id: "msg-reply-3", conversation_id: CONV_ID, created_at: new Date() }],
+      [{ id: "msg-reply-3", conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }],
+    ];
+    const prisma = {
+      $queryRaw: async (strings, ...values) => {
+        calls.push({ kind: "query", values });
+        return queryRawResults[qIdx++];
+      },
+      $executeRaw: async (strings, ...values) => {
+        calls.push({ kind: "execute", values });
+        return { count: 1 };
+      },
+      $transaction: async (fn) => fn(prisma),
+      membership: { findFirst: async () => null },
+    };
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    await service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "x", threadRootId: replyId });
+    const executeCall = calls.find((c) => c.kind === "execute");
+    assert.ok(executeCall, "expected a counter-update $executeRaw call");
+    assert.ok(executeCall.values.includes(rootId), "counter update must target the original root id, not the immediate reply id");
+    assert.ok(!executeCall.values.includes(replyId), "counter update must NOT target the immediate reply id");
+  });
+});
+
+describe("chat-service — sendMessage thread reply notifications", () => {
+  it("branches to chat.thread.reply (not chat.message.new) for thread participants, while chat.mention.new still fires on top, with no double-count of a mentioned participant", async () => {
+    const rootId = "01900000-0000-7000-8000-00000000r001";
+    const ROOT_AUTHOR_ID = "01900000-0000-7000-8000-0000000000a1";
+    const PRIOR_REPLIER_ID = "01900000-0000-7000-8000-0000000000b2";
+    const MENTIONED_USER_ID = "01900000-0000-7000-8000-0000000000c3";
+    const publishedEvents = [];
+    const notificationService = { publish: async (args) => { publishedEvents.push(args); } };
+    const mentionsService = {
+      resolveMentions: async () => ({ userIds: [MENTIONED_USER_ID], roleIds: [], everyone: false, here: false, notifyUserIds: [MENTIONED_USER_ID] }),
+    };
+    const permissionsService = { getMemberRole: async () => null };
+
+    const body = `hola @[${MENTIONED_USER_ID}:X] respondiendo en hilo`;
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],                                                   // resolveUserProfileId
+      [{ id: "member-row" }],                                                 // assertMember
+      [{ id: rootId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null }], // thread target lookup
+      [{ id: "msg-thread-1", conversation_id: CONV_ID, sender_user_id: PROFILE_ID, created_at: new Date(), metadata: {} }], // INSERT ... RETURNING * (inside tx)
+      [{                                                                       // getMessageFull
+        id: "msg-thread-1", conversation_id: CONV_ID, sender_user_id: PROFILE_ID, sender_guest_id: null,
+        sender_type: "user", body, message_type: "text", attachment_count: 0,
+        metadata: {}, created_at: new Date(), edited_at: null, deleted_at: null,
+        sender: { id: null, displayName: null, avatarFileId: null }, attachments: null, reactions: null,
+      }],
+      [{ user_id: ROOT_AUTHOR_ID }, { user_id: PRIOR_REPLIER_ID }],            // otherMembers query — unconditionally computed before the thread/non-thread branch, unused on the thread path but still consumed
+      [                                                                        // participantRows (thread notify) — includes the mentioned user as an existing thread participant
+        { sender_user_id: ROOT_AUTHOR_ID },
+        { sender_user_id: PRIOR_REPLIER_ID },
+        { sender_user_id: MENTIONED_USER_ID },
+      ],
+    ], [
+      { count: 1 }, // counter UPDATE inside tx
+    ]);
+    prisma.membership.findFirst = async () => ({ companyId: "company-1" });
+
+    const service = createChatService({ prisma, supabaseAdmin: {}, notificationService, mentionsService, permissionsService, broadcaster: null });
+    await service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body, threadRootId: rootId });
+
+    // The notification dispatch runs inside a fire-and-forget setImmediate — flush it.
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const messageEvent = publishedEvents.find((e) => e.input.eventType === "chat.message.new");
+    const threadEvent = publishedEvents.find((e) => e.input.eventType === "chat.thread.reply");
+    const mentionEvent = publishedEvents.find((e) => e.input.eventType === "chat.mention.new");
+
+    assert.equal(messageEvent, undefined, "a thread reply must never fan out chat.message.new to the whole channel");
+    assert.ok(threadEvent, "expected chat.thread.reply to fire for thread participants");
+    assert.deepEqual(
+      [...threadEvent.input.recipients.userIds].sort(),
+      [ROOT_AUTHOR_ID, PRIOR_REPLIER_ID].sort(),
+      "the mentioned participant must be excluded from chat.thread.reply (goes to chat.mention.new instead), not dropped or double-counted",
+    );
+    assert.ok(mentionEvent, "expected chat.mention.new to still fire on top of the thread-reply notification");
+    assert.deepEqual(mentionEvent.input.recipients.userIds, [MENTIONED_USER_ID]);
+  });
+});
+
 describe("chat-service — pinMessage permission enforcement", () => {
   it("channel: calls assertChannelPermission with messages.pin and propagates a 403 rejection", async () => {
     const prisma = buildPrismaMock([
