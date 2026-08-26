@@ -613,17 +613,37 @@ function MessageActions({
   canPin, isPinned, onPin, onReact, canReply, onOpenThread,
 }) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <>
+      {/* Hover-visible quick-react affordance — same hover pattern as the "..."
+          trigger below, but opens the reaction picker directly (no dropdown
+          detour). It isn't opened from inside another overlay's onSelect, so
+          it doesn't hit the Radix close/open race the dropdown item does. */}
+      {onReact && (
         <button
           type="button"
-          className="opacity-0 group-hover/msg:opacity-100 focus:opacity-100 data-[state=open]:opacity-100 h-6 w-6 flex items-center justify-center rounded-full hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-opacity shrink-0 self-center touch-manipulation"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onReact(); }}
+          title="Reaccionar"
+          aria-label="Reaccionar"
+          className="opacity-0 group-hover/msg:opacity-100 focus:opacity-100 h-6 w-6 flex items-center justify-center rounded-full hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-opacity shrink-0 self-center touch-manipulation"
         >
-          <MoreHorizontal className="h-3.5 w-3.5" />
+          <Smile className="h-3.5 w-3.5" />
         </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align={isOwn ? "start" : "end"} style={{ zIndex: 10000 }}>
+      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="opacity-0 group-hover/msg:opacity-100 focus:opacity-100 data-[state=open]:opacity-100 h-6 w-6 flex items-center justify-center rounded-full hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-opacity shrink-0 self-center touch-manipulation"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal className="h-3.5 w-3.5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align={isOwn ? "start" : "end"}
+          style={{ zIndex: 10000 }}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
         {hasBody && onCopy && (
           <DropdownMenuItem onSelect={onCopy}>
             <Copy className="h-3.5 w-3.5 mr-2" />
@@ -649,7 +669,18 @@ function MessageActions({
           </DropdownMenuItem>
         )}
         {onReact && (
-          <DropdownMenuItem onSelect={onReact}>
+          <DropdownMenuItem
+            onSelect={() => {
+              // Defer past this DropdownMenu's own close (which runs its
+              // onCloseAutoFocus right after this callback) so the Popover
+              // this opens doesn't mount mid-close and get read as an
+              // outside interaction and immediately dismissed. Combined
+              // with onCloseAutoFocus={preventDefault} above — the two
+              // together are the standard fix for opening one Radix
+              // overlay from inside another's onSelect.
+              requestAnimationFrame(() => onReact());
+            }}
+          >
             <Smile className="h-3.5 w-3.5 mr-2" />
             Reaccionar
           </DropdownMenuItem>
@@ -676,7 +707,8 @@ function MessageActions({
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>
-    </DropdownMenu>
+      </DropdownMenu>
+    </>
   );
 }
 
