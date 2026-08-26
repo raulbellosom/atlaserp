@@ -439,7 +439,7 @@ describe("chat-service — sendMessage thread replies", () => {
     const queryRawResults = [
       [{ id: PROFILE_ID }],                                            // resolveUserProfileId
       [{ id: rootId }],                                                // assertMember (sendMessage's own)
-      [{ id: rootId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null }], // thread target lookup
+      [{ id: rootId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null, conversation_type: "channel" }], // thread target lookup
       [{ id: "msg-reply-1", conversation_id: CONV_ID, created_at: new Date() }], // INSERT ... RETURNING *
       [{ id: "msg-reply-1", conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }], // getMessageFull
     ];
@@ -474,7 +474,7 @@ describe("chat-service — sendMessage thread replies", () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
       [{ id: replyId }],
-      [{ id: replyId, conversation_id: CONV_ID, thread_root_id: rootId, deleted_at: null }], // target is itself a reply
+      [{ id: replyId, conversation_id: CONV_ID, thread_root_id: rootId, deleted_at: null, conversation_type: "channel" }], // target is itself a reply
       [{ id: "msg-reply-2", conversation_id: CONV_ID, created_at: new Date() }],
       [{ id: "msg-reply-2", conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }],
     ], [
@@ -494,11 +494,39 @@ describe("chat-service — sendMessage thread replies", () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
       [{ id: foreignRootId }],
-      [{ id: foreignRootId, conversation_id: "some-other-conv", thread_root_id: null, deleted_at: null }],
+      [{ id: foreignRootId, conversation_id: "some-other-conv", thread_root_id: null, deleted_at: null, conversation_type: "channel" }],
     ]);
     const service = createChatService({ prisma, supabaseAdmin: {} });
     await assert.rejects(
       () => service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "x", threadRootId: foreignRootId }),
+      (err) => err instanceof ChatServiceError && err.status === 404,
+    );
+  });
+
+  it("rejects a threadRootId in a direct conversation with 404 (threads are channel/group only)", async () => {
+    const directMsgId = "01900000-0000-7000-8000-00000000dm01";
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: directMsgId }],
+      [{ id: directMsgId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null, conversation_type: "direct" }],
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    await assert.rejects(
+      () => service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "x", threadRootId: directMsgId }),
+      (err) => err instanceof ChatServiceError && err.status === 404,
+    );
+  });
+
+  it("rejects a threadRootId in an external_support conversation with 404", async () => {
+    const supportMsgId = "01900000-0000-7000-8000-00000000sm01";
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: supportMsgId }],
+      [{ id: supportMsgId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null, conversation_type: "external_support" }],
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    await assert.rejects(
+      () => service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "x", threadRootId: supportMsgId }),
       (err) => err instanceof ChatServiceError && err.status === 404,
     );
   });
@@ -534,7 +562,7 @@ describe("chat-service — sendMessage thread replies", () => {
     const queryRawResults = [
       [{ id: PROFILE_ID }],
       [{ id: replyId }],
-      [{ id: replyId, conversation_id: CONV_ID, thread_root_id: rootId, deleted_at: null }],
+      [{ id: replyId, conversation_id: CONV_ID, thread_root_id: rootId, deleted_at: null, conversation_type: "channel" }],
       [{ id: "msg-reply-3", conversation_id: CONV_ID, created_at: new Date() }],
       [{ id: "msg-reply-3", conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }],
     ];
@@ -576,7 +604,7 @@ describe("chat-service — sendMessage thread reply notifications", () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],                                                   // resolveUserProfileId
       [{ id: "member-row" }],                                                 // assertMember
-      [{ id: rootId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null }], // thread target lookup
+      [{ id: rootId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null, conversation_type: "channel" }], // thread target lookup
       [{ id: "msg-thread-1", conversation_id: CONV_ID, sender_user_id: PROFILE_ID, created_at: new Date(), metadata: {} }], // INSERT ... RETURNING * (inside tx)
       [{                                                                       // getMessageFull
         id: "msg-thread-1", conversation_id: CONV_ID, sender_user_id: PROFILE_ID, sender_guest_id: null,
@@ -626,7 +654,7 @@ describe("chat-service — sendMessage thread reply notifications", () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
       [{ id: "member-row" }],
-      [{ id: rootId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null }],
+      [{ id: rootId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null, conversation_type: "channel" }],
       [{ id: "msg-thread-2", conversation_id: CONV_ID, sender_user_id: PROFILE_ID, created_at: new Date(), metadata: {} }],
       [{
         id: "msg-thread-2", conversation_id: CONV_ID, sender_user_id: PROFILE_ID, sender_guest_id: null,

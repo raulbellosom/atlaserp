@@ -874,7 +874,7 @@ export function ChatMessageBubble({
               />
             )}
 
-            {!isDeleted && message.thread_reply_count > 0 && (
+            {!isDeleted && onOpenThread && message.thread_reply_count > 0 && (
               <button
                 type="button"
                 onClick={() => onOpenThread?.()}
@@ -986,7 +986,7 @@ export function ChatMessageBubble({
             />
           )}
 
-          {!isDeleted && message.thread_reply_count > 0 && (
+          {!isDeleted && onOpenThread && message.thread_reply_count > 0 && (
             <button
               type="button"
               onClick={() => onOpenThread?.()}

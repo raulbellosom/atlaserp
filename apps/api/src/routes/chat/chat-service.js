@@ -786,13 +786,25 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     // or creating a nested thread).
     let resolvedThreadRootId = null;
     if (threadRootId) {
+      // Threads are scoped to channel/group conversations only (spec
+      // Non-goal 3) — the UI never offers "Responder en hilo" outside those
+      // types, but that's a client-side gate; enforce it here too so a
+      // direct API call can't create a thread reply in a direct/
+      // external_support conversation, where it would silently vanish from
+      // that conversation's timeline (listMessages filters thread_root_id
+      // IS NOT NULL out) with no thread UI able to surface it there.
       const targetRows = await prisma.$queryRaw`
-        SELECT id, conversation_id, thread_root_id, deleted_at
-        FROM chat_messages
-        WHERE id = ${threadRootId} AND deleted_at IS NULL
+        SELECT m.id, m.conversation_id, m.thread_root_id, m.deleted_at, c.type AS conversation_type
+        FROM chat_messages m
+        INNER JOIN chat_conversations c ON c.id = m.conversation_id
+        WHERE m.id = ${threadRootId} AND m.deleted_at IS NULL
         LIMIT 1
       `;
-      if (!targetRows.length || targetRows[0].conversation_id !== conversationId) {
+      if (
+        !targetRows.length ||
+        targetRows[0].conversation_id !== conversationId ||
+        (targetRows[0].conversation_type !== "channel" && targetRows[0].conversation_type !== "group")
+      ) {
         throw new ChatServiceError("Mensaje no encontrado.", 404);
       }
       resolvedThreadRootId = targetRows[0].thread_root_id ?? targetRows[0].id;
