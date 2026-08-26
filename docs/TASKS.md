@@ -113,6 +113,24 @@ Built via `superpowers:subagent-driven-development` — fresh implementer + spec
 
 Verified: 2026-08-25 (`node --test apps/api/src/routes/chat/__tests__/chat-service.test.js apps/api/src/routes/chat/__tests__/chat-permissions-service.test.js apps/api/src/routes/chat/__tests__/channel-directory-service.test.js` → 46/46 pass; `pnpm build` → clean, full Tauri bundle produced; `pnpm db:migrate` applied; post-migration sanity queries confirm zero orphaned `role_id`s and zero conversations with a role count other than 4; final whole-feature code review signed off as ready for Phase B)
 
+### Channels & Roles — Phase B (channel/group UX)
+
+Spec: `docs/superpowers/specs/2026-08-25-chat-channels-ux-phase-b-design.md`
+Plans: `docs/superpowers/plans/2026-08-25-chat-channels-ux-phase-b-plan-a-backend.md`, `...-plan-b-frontend.md`
+
+Second of six planned phases. Builds the UI Phase A shipped no frontend for.
+
+- [x] `GET /chat/conversations/:id` exposes each member's role (`roleId`/`roleName`/`roleColor`/`rolePosition`/`roleIsSystem`) via a `LEFT JOIN chat_channel_roles`
+- [x] `CreateChannelModal` (title/description/public-private/slug) wired into a new sidebar "+" dropdown (Nueva conversacion / Crear canal / Explorar canales)
+- [x] `ChannelDirectorySheet` — cursor-paginated public channel browser with join
+- [x] `ChannelDetailsSheet` (Miembros + Roles tabs, opened from the chat window's previously-inert "Ver miembros" item) with `ChannelMembersTab` (role badges, add/remove members, assign roles) and `ChannelRolesTab` + `RoleEditorDialog` (create/edit/delete roles, permission checkboxes)
+- [x] Client-side `chatPermissions.js` mirrors the backend's permission catalog for UI gating only (backend remains sole enforcement authority)
+- [ ] Manual browser QA at 390px/1440px (deferred, same reason as Phase A — no authenticated dev session available in this pass; `pnpm build` + code review cover static correctness)
+
+Built via `superpowers:subagent-driven-development`, same process as Phase A. Review caught and fixed 3 real issues: two instances of the plan's own example code gating a mutating UI action (assign-role, create/edit/delete-role) on `members.manage` instead of the backend's actual `roles.manage` requirement, and a spec requirement ("Añadir miembros" button reusing `CreateChatModal`'s user-picker) that the plan's own example code omitted entirely — closed with a follow-up `AddChannelMembersDialog` + extracted shared `UserPicker.jsx`.
+
+Verified: 2026-08-25 (`pnpm build` → clean, full Tauri bundle produced, across every task; final code review confirmed no permission-gating drift across the whole phase and signed off as complete relative to spec)
+
 ## atlas.notes — Collaborative Notes
 
 Plans: `docs/superpowers/plans/2026-06-27-atlas-notes-A-backend.md`, `2026-06-27-atlas-notes-B-frontend.md`
