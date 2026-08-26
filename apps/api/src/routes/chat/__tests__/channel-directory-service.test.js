@@ -14,8 +14,11 @@ beforeEach(() => {
 
 function buildPrismaMock({ queryRawResults = [], membershipResult = { companyId: COMPANY_ID } } = {}) {
   let qIdx = 0;
+  const calls = [];
   return {
-    $queryRaw: async () => {
+    _queryRawCalls: calls,
+    $queryRaw: async (strings, ...values) => {
+      calls.push({ sql: strings.join("?"), values });
       if (qIdx >= queryRawResults.length) throw new Error(`Unexpected $queryRaw call #${qIdx + 1}`);
       return queryRawResults[qIdx++];
     },
@@ -87,5 +90,22 @@ describe("channel-directory-service — joinChannel", () => {
     const svc = createChannelDirectoryService({ prisma });
     const result = await svc.joinChannel({ conversationId: CONV_ID, authUserId: AUTH_USER_ID });
     assert.equal(result.roleId, "role-member");
+  });
+
+  it("scopes the conversation lookup to the caller's own company (cross-tenant join regression)", async () => {
+    const prisma = buildPrismaMock({
+      queryRawResults: [[{ id: PROFILE_ID }], []], // conversation lookup returns empty
+      membershipResult: { companyId: COMPANY_ID },
+    });
+    const svc = createChannelDirectoryService({ prisma });
+    await assert.rejects(
+      () => svc.joinChannel({ conversationId: CONV_ID, authUserId: AUTH_USER_ID }),
+      (err) => err instanceof ChatServiceError && err.status === 404,
+    );
+    const convLookup = prisma._queryRawCalls[1];
+    assert.ok(
+      convLookup.values.includes(COMPANY_ID),
+      "the conversation lookup must filter by the caller's company_id, not just conversationId",
+    );
   });
 });

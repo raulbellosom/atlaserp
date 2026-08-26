@@ -34,9 +34,21 @@ export function createChannelDirectoryService({ prisma }) {
   async function joinChannel({ conversationId, authUserId }) {
     const profileId = await resolveUserProfileId(prisma, authUserId);
 
+    // Company-scoped on purpose: a channel ID alone (not routed through the
+    // directory, which is already company-filtered) must not let a user from a
+    // different company join — UUIDv7 IDs are not secrets anywhere else in this
+    // codebase, so this check is the only thing preventing a cross-tenant join.
+    const membership = await prisma.membership.findFirst({
+      where: { userId: profileId.toString(), enabled: true },
+      orderBy: { createdAt: "desc" },
+      select: { companyId: true },
+    });
+    const companyId = membership?.companyId ?? null;
+
     const convRows = await prisma.$queryRaw`
       SELECT id, is_public AS "isPublic" FROM chat_conversations
       WHERE id = ${conversationId} AND type = 'channel' AND is_public = true AND deleted_at IS NULL
+        AND company_id IS NOT DISTINCT FROM ${companyId}
       LIMIT 1
     `;
     if (!convRows.length) throw new ChatServiceError("Canal no encontrado.", 404);
