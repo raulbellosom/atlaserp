@@ -358,18 +358,22 @@ function ChatHeader({
           {filesView ? <MessageSquare className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
         </button>
 
-        {/* Members toggle */}
-        <button
-          type="button"
-          onClick={onToggleMembersView}
-          title={membersView ? "Ver mensajes" : "Ver miembros"}
-          className={[
-            headerBtnCls,
-            membersView ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]" : "",
-          ].join(" ")}
-        >
-          {membersView ? <MessageSquare className="h-4 w-4" /> : <Users className="h-4 w-4" />}
-        </button>
+        {/* Members toggle — channel/group only, matching the "Ver miembros"
+            dropdown item and MemberAvatarStack, both already scoped the
+            same way (a direct chat has no roles/permissions to manage). */}
+        {(conversation?.type === "group" || conversation?.type === "channel") && (
+          <button
+            type="button"
+            onClick={onToggleMembersView}
+            title={membersView ? "Ver mensajes" : "Ver miembros"}
+            className={[
+              headerBtnCls,
+              membersView ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]" : "",
+            ].join(" ")}
+          >
+            {membersView ? <MessageSquare className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+          </button>
+        )}
 
         {/* Pinned messages */}
         {pinnedCount > 0 && (
