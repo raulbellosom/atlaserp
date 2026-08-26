@@ -10,14 +10,20 @@ import {
   chatGuestSessionSchema,
   chatGuestMessageSchema,
   chatAssignOperatorSchema,
+  chatCreateChannelSchema,
+  chatCreateChannelRoleSchema,
+  chatUpdateChannelRoleSchema,
+  chatAssignMemberRoleSchema,
 } from "@atlas/validators";
 import { createChatService, ChatServiceError } from "./chat-service.js";
 import { createGuestChatService, GuestChatServiceError } from "./guest-service.js";
 import { createChatTemplateService } from "./template-service.js";
 import { expireStaleGuestSessions } from "./session-expiry-job.js";
+import { createChatPermissionsService, ChatPermissionsError } from "./chat-permissions-service.js";
+import { createChannelDirectoryService } from "./channel-directory-service.js";
 
 function handleError(c, err, fallback) {
-  if (err instanceof ChatServiceError || err instanceof GuestChatServiceError) {
+  if (err instanceof ChatServiceError || err instanceof GuestChatServiceError || err instanceof ChatPermissionsError) {
     return c.json({ error: err.message }, err.status);
   }
   console.error("[atlas.chat]", err?.message ?? err);
@@ -27,9 +33,11 @@ function handleError(c, err, fallback) {
 
 export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService = null, broadcaster = null }) {
   const app = new Hono();
-  const chatService = createChatService({ prisma, supabaseAdmin, notificationService, broadcaster });
+  const permissionsService = createChatPermissionsService({ prisma });
+  const chatService = createChatService({ prisma, supabaseAdmin, notificationService, broadcaster, permissionsService });
   const guestService = createGuestChatService({ prisma, supabaseAdmin, notificationService, broadcaster });
   const templateService = createChatTemplateService({ prisma });
+  const channelDirectoryService = createChannelDirectoryService({ prisma });
 
   // ================================================================
   // INTERNAL CHAT — all routes require authentication
@@ -216,6 +224,124 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       return c.json(result);
     } catch (err) {
       return handleError(c, err, "Error marcando como leido.");
+    }
+  });
+
+  // ================================================================
+  // CHANNELS & ROLES (Phase A foundation)
+  // ================================================================
+
+  // POST /chat/channels
+  internal.post("/channels", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const body = await c.req.json();
+      const data = chatCreateChannelSchema.parse(body);
+      const result = await chatService.createConversation({ authUserId, type: "channel", ...data });
+      return c.json({ data: result }, 201);
+    } catch (err) {
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
+      return handleError(c, err, "Error creando canal.");
+    }
+  });
+
+  // GET /chat/channels/directory
+  internal.get("/channels/directory", requirePermission("chat.conversations.read"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const { cursor, limit } = c.req.query();
+      const result = await channelDirectoryService.listChannelDirectory({
+        authUserId,
+        cursor: cursor || null,
+        limit: limit ? Math.min(parseInt(limit, 10), 100) : 30,
+      });
+      return c.json(result);
+    } catch (err) {
+      return handleError(c, err, "Error listando canales.");
+    }
+  });
+
+  // POST /chat/conversations/:id/join
+  internal.post("/conversations/:id/join", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const conversationId = c.req.param("id");
+      const result = await channelDirectoryService.joinChannel({ conversationId, authUserId });
+      return c.json({ data: result }, 201);
+    } catch (err) {
+      return handleError(c, err, "Error uniendote al canal.");
+    }
+  });
+
+  // GET /chat/conversations/:id/roles
+  internal.get("/conversations/:id/roles", requirePermission("chat.conversations.read"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const conversationId = c.req.param("id");
+      const result = await permissionsService.listRoles({ conversationId, authUserId });
+      return c.json({ data: result });
+    } catch (err) {
+      return handleError(c, err, "Error listando roles.");
+    }
+  });
+
+  // POST /chat/conversations/:id/roles
+  internal.post("/conversations/:id/roles", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const conversationId = c.req.param("id");
+      const body = await c.req.json();
+      const data = chatCreateChannelRoleSchema.parse(body);
+      const result = await permissionsService.createRole({ conversationId, authUserId, ...data });
+      return c.json({ data: result }, 201);
+    } catch (err) {
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
+      return handleError(c, err, "Error creando rol.");
+    }
+  });
+
+  // PATCH /chat/conversations/:id/roles/:roleId
+  internal.patch("/conversations/:id/roles/:roleId", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const conversationId = c.req.param("id");
+      const roleId = c.req.param("roleId");
+      const body = await c.req.json();
+      const updates = chatUpdateChannelRoleSchema.parse(body);
+      const result = await permissionsService.updateRole({ conversationId, roleId, authUserId, updates });
+      return c.json({ data: result });
+    } catch (err) {
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
+      return handleError(c, err, "Error actualizando rol.");
+    }
+  });
+
+  // DELETE /chat/conversations/:id/roles/:roleId
+  internal.delete("/conversations/:id/roles/:roleId", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const conversationId = c.req.param("id");
+      const roleId = c.req.param("roleId");
+      const result = await permissionsService.deleteRole({ conversationId, roleId, authUserId });
+      return c.json({ data: result });
+    } catch (err) {
+      return handleError(c, err, "Error eliminando rol.");
+    }
+  });
+
+  // PATCH /chat/conversations/:id/members/:memberId/role
+  internal.patch("/conversations/:id/members/:memberId/role", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const conversationId = c.req.param("id");
+      const memberUserId = c.req.param("memberId");
+      const body = await c.req.json();
+      const { roleId } = chatAssignMemberRoleSchema.parse(body);
+      const result = await permissionsService.assignMemberRole({ conversationId, memberUserId, roleId, authUserId });
+      return c.json({ data: result });
+    } catch (err) {
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
+      return handleError(c, err, "Error asignando rol.");
     }
   });
 
