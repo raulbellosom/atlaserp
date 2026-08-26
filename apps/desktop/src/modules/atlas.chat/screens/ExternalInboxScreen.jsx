@@ -443,6 +443,7 @@ function ExternalChatPane({ conversation, onBack }) {
             onSend={(data) => sendMsg(data)}
             placeholder="Responder al visitante..."
             conversationId={conversation.id}
+            conversationType="external_support"
           />
         </div>
       )}

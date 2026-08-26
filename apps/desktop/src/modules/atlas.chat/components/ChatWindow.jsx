@@ -750,6 +750,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
           onTyping={sendTyping}
           placeholder="Escribe un mensaje..."
           conversationId={conversationId}
+          conversationType={conversation?.type}
         />
       )}
 

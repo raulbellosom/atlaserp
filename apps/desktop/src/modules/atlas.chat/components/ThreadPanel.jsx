@@ -81,6 +81,7 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
             placeholder="Responder en el hilo..."
             compact
             conversationId={conversationId}
+            conversationType={conversationType}
           />
         </div>
       </SheetContent>

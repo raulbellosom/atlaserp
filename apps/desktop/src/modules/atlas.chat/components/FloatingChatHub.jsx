@@ -295,6 +295,7 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
               placeholder="Mensaje..."
               compact
               conversationId={id}
+              conversationType={conversation?.type}
             />
           </>
         )}
