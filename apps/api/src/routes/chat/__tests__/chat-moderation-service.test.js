@@ -75,6 +75,16 @@ describe("chat-moderation-service — block/unblock", () => {
     assert.equal(prisma._executeRawCallCount, 1);
   });
 
+  it("unblockUser deletes the matching chat_blocks row", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+    ]);
+    const service = createChatModerationService({ prisma });
+    const result = await service.unblockUser({ authUserId: AUTH_USER_ID, targetUserId: OTHER_PROFILE_ID });
+    assert.deepEqual(result, { blocked: false });
+    assert.equal(prisma._executeRawCallCount, 1);
+  });
+
   it("getBlockStatus reports both directions", async () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
