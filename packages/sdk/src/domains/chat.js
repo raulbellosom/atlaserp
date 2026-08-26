@@ -187,6 +187,58 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
       }),
 
     // ----------------------------------------------------------------
+    // Conversation profile / moderation (internal)
+    // ----------------------------------------------------------------
+    muteConversation: (conversationId, muted, token) =>
+      request(`/chat/conversations/${encodeURIComponent(conversationId)}/mute`, {
+        method: "PATCH",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({ muted }),
+      }),
+
+    getBlockStatus: (userId, token) =>
+      request(`/chat/users/${encodeURIComponent(userId)}/block-status`, {
+        headers: withAuthHeaders(token),
+      }),
+
+    blockUser: (userId, token) =>
+      request(`/chat/users/${encodeURIComponent(userId)}/block`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({}),
+      }),
+
+    unblockUser: (userId, token) =>
+      request(`/chat/users/${encodeURIComponent(userId)}/block`, {
+        method: "DELETE",
+        headers: withAuthHeaders(token),
+      }),
+
+    getGroupsInCommon: (userId, token) =>
+      request(`/chat/users/${encodeURIComponent(userId)}/groups-in-common`, {
+        headers: withAuthHeaders(token),
+      }),
+
+    createReport: (payload, token) =>
+      request("/chat/reports", {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify(payload),
+      }),
+
+    listReports: (query, token) =>
+      request(`/chat/reports${toQueryString(query)}`, {
+        headers: withAuthHeaders(token),
+      }),
+
+    resolveReport: (reportId, action, token) =>
+      request(`/chat/reports/${encodeURIComponent(reportId)}/resolve`, {
+        method: "PATCH",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({ action }),
+      }),
+
+    // ----------------------------------------------------------------
     // External inbox (operators)
     // ----------------------------------------------------------------
     listExternalInbox: (params, token) =>
