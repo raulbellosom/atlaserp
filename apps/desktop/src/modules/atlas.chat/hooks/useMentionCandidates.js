@@ -24,8 +24,15 @@ export function useMentionCandidates(conversationId, currentUserId) {
     const roles = rolesData?.data ?? [];
     const ownMember = findOwnMember(members, currentUserId);
 
+    // Excludes guest members (userId is NULL for a chat_conversation_members row
+    // backed by guest_session_id, e.g. an external_support visitor) — they have
+    // no real UUID to serialize into a @[id:name] token. Without this filter,
+    // MentionTextarea's insertMention silently maps the display name to a null
+    // uuid, toSerialized leaves the raw "@[Usuario]" text unconverted (it never
+    // matches the stored-token regex), and that garbled literal text ships
+    // straight to the external website visitor reading the reply.
     const memberCandidates = members
-      .filter((m) => m.userId !== currentUserId)
+      .filter((m) => m.userId && m.userId !== currentUserId)
       .map((m) => ({ id: m.userId, displayName: m.displayName ?? "Usuario", avatarUrl: m.avatarUrl, email: m.email }));
 
     const roleCandidates = roles.map((r) => ({ id: r.id, displayName: r.name }));

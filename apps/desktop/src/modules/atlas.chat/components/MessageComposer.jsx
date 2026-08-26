@@ -546,13 +546,15 @@ export const MessageComposer = forwardRef(function MessageComposer(
             <Paperclip className={iconSize} />
           </button>
 
-          {/* Textarea (with @mention autocomplete). NOTE: MentionTextarea bakes
-              its own border/background/rounded/padding into a fixed className
-              string it doesn't expose a way to cleanly override (no style prop,
-              and conflicting Tailwind utilities aren't guaranteed to win based on
-              class-attribute order), so the composer now shows MentionTextarea's
-              boxed look instead of the previous flat/transparent inline style.
-              Accepted cosmetic tradeoff — see report. */}
+          {/* Textarea (with @mention autocomplete). MentionTextarea bakes a
+              boxed look (border/bg/rounded/padding/focus-ring) into its own
+              fixed className string, but it does forward an extra `className`
+              onto that same element — Tailwind v4's trailing-`!` important
+              modifier (already used elsewhere in this codebase, e.g.
+              ProductImageManager.jsx) reliably wins regardless of class
+              declaration order, so this neutralizes the boxed look and
+              restores the original flat/transparent inline style, including
+              the compact-vs-full sizing the old plain <textarea> had. */}
           <div className="flex-1 min-w-0">
             <MentionTextarea
               value={body}
@@ -562,6 +564,10 @@ export const MessageComposer = forwardRef(function MessageComposer(
               placeholder={placeholder}
               rows={compact ? 1 : 3}
               disabled={disabled || isSending}
+              className={[
+                "border-0! bg-transparent! rounded-none! shadow-none! px-0! ring-0! focus:ring-0! leading-tight",
+                compact ? "text-xs! py-1!" : "text-sm! py-2!",
+              ].join(" ")}
             />
           </div>
 
