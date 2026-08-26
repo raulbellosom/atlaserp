@@ -806,8 +806,7 @@ describe("chat-service — listThreadReplies", () => {
     const rootId = "01900000-0000-7000-8000-00000000r001";
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],                             // resolveUserProfileId
-      [{ id: rootId, conversation_id: CONV_ID, thread_root_id: null }], // target lookup (root itself)
-      [{ id: PROFILE_ID }],                              // assertMember
+      [{ id: rootId, conversation_id: CONV_ID, thread_root_id: null }], // target lookup (membership folded in — root itself)
       [{ id: rootId, conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }], // getMessageFull(root)
       [{ id: "reply-a" }, { id: "reply-b" }],             // reply id list, ORDER BY created_at ASC
       [{ id: "reply-a", conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }], // getMessageFull(reply-a)
@@ -825,7 +824,6 @@ describe("chat-service — listThreadReplies", () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
       [{ id: replyId, conversation_id: CONV_ID, thread_root_id: rootId }], // lookup on the reply id resolves thread_root_id
-      [{ id: PROFILE_ID }],
       [{ id: rootId, conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }],
       [],
     ]);
@@ -849,6 +847,22 @@ describe("chat-service — listThreadReplies", () => {
     await assert.rejects(
       () => service.listThreadReplies({ messageId: "does-not-exist", authUserId: AUTH_USER_ID }),
       (err) => err instanceof ChatServiceError && err.status === 404,
+    );
+  });
+
+  it("throws 404 (not 403) for a message that exists but belongs to a conversation the caller isn't a member of", async () => {
+    // Membership is folded into the target lookup's INNER JOIN (same
+    // non-leaking convention as pinMessage) — a non-member gets the exact
+    // same empty-result 404 as a nonexistent id, not a distinguishing 403
+    // that would confirm the message exists.
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [], // INNER JOIN on chat_conversation_members excludes the row — caller isn't a member
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    await assert.rejects(
+      () => service.listThreadReplies({ messageId: "01900000-0000-7000-8000-00000000fff1", authUserId: AUTH_USER_ID }),
+      (err) => err instanceof ChatServiceError && err.status === 404 && err.message === "Mensaje no encontrado.",
     );
   });
 });

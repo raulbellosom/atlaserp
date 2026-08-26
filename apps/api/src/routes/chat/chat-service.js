@@ -1097,14 +1097,20 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   async function listThreadReplies({ messageId, authUserId }) {
     const profileId = await getUserProfileId(authUserId);
 
+    // Membership folded into the same query (rather than a separate
+    // assertMember call) so a nonexistent message id and a message the
+    // caller isn't a member of both produce the same 404 — same
+    // non-leaking convention pinMessage already uses (spec Section 12).
     const targetRows = await prisma.$queryRaw`
-      SELECT id, conversation_id, thread_root_id FROM chat_messages WHERE id = ${messageId} LIMIT 1
+      SELECT m.id, m.conversation_id, m.thread_root_id
+      FROM chat_messages m
+      INNER JOIN chat_conversation_members ccm
+        ON ccm.conversation_id = m.conversation_id AND ccm.user_id = ${profileId} AND ccm.left_at IS NULL
+      WHERE m.id = ${messageId}
+      LIMIT 1
     `;
     if (!targetRows.length) throw new ChatServiceError("Mensaje no encontrado.", 404);
     const rootId = targetRows[0].thread_root_id ?? targetRows[0].id;
-    const conversationId = targetRows[0].conversation_id;
-
-    await assertMember(conversationId, profileId);
 
     const root = await getMessageFull(rootId);
     const replyRows = await prisma.$queryRaw`
