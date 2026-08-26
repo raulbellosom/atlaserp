@@ -52,6 +52,12 @@ export async function resolveUserProfileId(prisma, authUserId) {
   return profileId;
 }
 
+// Test-only: clears the shared cache so unit tests with mocked prisma clients
+// don't get a cached profileId leaked from a different test's mock data.
+export function _resetProfileIdCacheForTests() {
+  _profileIdCache.clear();
+}
+
 export function createChatService({ prisma, supabaseAdmin, notificationService = null, broadcaster = null }) {
   // ------------------------------------------------------------------
   // Internal helpers
