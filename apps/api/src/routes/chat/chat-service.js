@@ -1019,7 +1019,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     const profileId = await getUserProfileId(authUserId);
 
     const rows = await prisma.$queryRaw`
-      SELECT id FROM chat_messages
+      SELECT id, thread_root_id FROM chat_messages
       WHERE id = ${messageId}
         AND sender_user_id = ${profileId}
         AND deleted_at IS NULL
@@ -1030,6 +1030,19 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     await prisma.$executeRaw`
       UPDATE chat_messages SET deleted_at = NOW(), body = '' WHERE id = ${messageId}
     `;
+
+    // Only a reply (thread_root_id set on its OWN row) decrements its root's
+    // counter. A thread root's own row always has thread_root_id = NULL, even
+    // when other messages point at it, so deleting a root never decrements
+    // anything here — matches the data model in spec Section 10.
+    if (rows[0].thread_root_id) {
+      await prisma.$executeRaw`
+        UPDATE chat_messages
+        SET thread_reply_count = GREATEST(thread_reply_count - 1, 0)
+        WHERE id = ${rows[0].thread_root_id}
+      `;
+    }
+
     return { ok: true };
   }
 
@@ -1073,6 +1086,35 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     `;
     const messages = await Promise.all(rows.map((r) => getMessageFull(r.id)));
     return { data: messages.filter(Boolean) };
+  }
+
+  // Looks up messageId, resolves it to its thread root (auto-flattening a
+  // reply-to-a-reply reference onto its own ancestor, same rule sendMessage
+  // uses), then returns the root plus its replies in chronological order.
+  // Mirrors listPinnedMessages' accepted N+1 getMessageFull-per-row pattern —
+  // expected reply volumes per thread are small, so a second aggregation
+  // strategy isn't warranted here.
+  async function listThreadReplies({ messageId, authUserId }) {
+    const profileId = await getUserProfileId(authUserId);
+
+    const targetRows = await prisma.$queryRaw`
+      SELECT id, conversation_id, thread_root_id FROM chat_messages WHERE id = ${messageId} LIMIT 1
+    `;
+    if (!targetRows.length) throw new ChatServiceError("Mensaje no encontrado.", 404);
+    const rootId = targetRows[0].thread_root_id ?? targetRows[0].id;
+    const conversationId = targetRows[0].conversation_id;
+
+    await assertMember(conversationId, profileId);
+
+    const root = await getMessageFull(rootId);
+    const replyRows = await prisma.$queryRaw`
+      SELECT id FROM chat_messages
+      WHERE thread_root_id = ${rootId}
+      ORDER BY created_at ASC
+    `;
+    const replies = await Promise.all(replyRows.map((r) => getMessageFull(r.id)));
+
+    return { root, replies: replies.filter(Boolean) };
   }
 
   async function markConversationRead({ conversationId, authUserId }) {
@@ -1299,6 +1341,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     deleteMessage,
     pinMessage,
     listPinnedMessages,
+    listThreadReplies,
     markConversationRead,
     presignAttachmentUpload,
     getAttachmentSignedUrl,

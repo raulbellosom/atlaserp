@@ -20,16 +20,24 @@ beforeEach(() => {
 // in call order for $queryRaw / $executeRaw, plus a $transaction that shares the
 // same counters (so calls inside the callback consume from the same arrays) and
 // a _transactionCallCount so a test can prove the wrapper wasn't silently dropped.
+// _executeRawCallCount mirrors that same convention for $executeRaw, so a test can
+// prove exactly how many UPDATE/etc. statements actually ran (e.g. both the
+// soft-delete UPDATE and the thread counter-decrement UPDATE) instead of a
+// vacuous assertion that would pass regardless.
 function buildPrismaMock(queryRawResults = [], executeRawResults = []) {
   let qIdx = 0;
   let eIdx = 0;
   const client = {
     _transactionCallCount: 0,
+    _executeRawCallCount: 0,
     $queryRaw: async () => {
       if (qIdx >= queryRawResults.length) throw new Error(`Unexpected $queryRaw call #${qIdx + 1}`);
       return queryRawResults[qIdx++];
     },
-    $executeRaw: async () => executeRawResults[eIdx++] ?? { count: 1 },
+    $executeRaw: async () => {
+      client._executeRawCallCount++;
+      return executeRawResults[eIdx++] ?? { count: 1 };
+    },
     $transaction: async (fn) => {
       client._transactionCallCount++;
       return fn(client);
@@ -716,5 +724,131 @@ describe("chat-service — getConversation member role fields", () => {
     // for the bug where getConversation's SQL selected every role field
     // except this one, leaving canPin permanently false client-side.
     assert.deepEqual(conv.members[0].rolePermissions, { "messages.pin": true });
+  });
+});
+
+describe("chat-service — deleteMessage decrements thread counter", () => {
+  it("decrements the root's thread_reply_count when a reply is deleted", async () => {
+    const rootId = "01900000-0000-7000-8000-00000000r001";
+    const replyId = "01900000-0000-7000-8000-00000000r003";
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }], // resolveUserProfileId
+      [{ id: replyId, thread_root_id: rootId }], // ownership lookup, now also selects thread_root_id
+    ], [
+      { count: 1 }, // UPDATE ... SET deleted_at = NOW()
+      { count: 1 }, // UPDATE chat_messages SET thread_reply_count = GREATEST(thread_reply_count - 1, 0) WHERE id = rootId
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    await service.deleteMessage({ messageId: replyId, authUserId: AUTH_USER_ID });
+    // Real proof both UPDATEs ran (not a vacuous assertion): buildPrismaMock now
+    // tracks _executeRawCallCount the same way it already tracks
+    // _transactionCallCount. If deleteMessage failed to issue the counter-decrement
+    // UPDATE, this would read 1, not 2.
+    assert.equal(prisma._executeRawCallCount, 2);
+  });
+
+  it("does not touch any counter when deleting a top-level (non-reply) message", async () => {
+    const msgId = "01900000-0000-7000-8000-00000000m001";
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: msgId, thread_root_id: null }],
+    ], [
+      { count: 1 }, // only the deleted_at UPDATE is expected
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    await service.deleteMessage({ messageId: msgId, authUserId: AUTH_USER_ID });
+    // Proves the counter-decrement branch was skipped entirely, not just that
+    // nothing threw — a top-level message (including a thread ROOT that has
+    // replies pointing at it, since a root's OWN row always has
+    // thread_root_id = null per the data model) must never trigger a decrement.
+    assert.equal(prisma._executeRawCallCount, 1);
+  });
+
+  it("decrement UPDATE targets the reply's root id with a GREATEST(...,0) floor guard (spy-based)", async () => {
+    const rootId = "01900000-0000-7000-8000-00000000r001";
+    const replyId = "01900000-0000-7000-8000-00000000r003";
+    const executeRawCalls = [];
+    const queryRawResults = [
+      [{ id: PROFILE_ID }],
+      [{ id: replyId, thread_root_id: rootId }],
+    ];
+    let qIdx = 0;
+    const prisma = {
+      $queryRaw: async () => queryRawResults[qIdx++],
+      $executeRaw: async (strings, ...values) => {
+        executeRawCalls.push({ sql: strings.join(""), values });
+        return { count: 1 };
+      },
+      $transaction: async (fn) => fn(prisma),
+      membership: { findFirst: async () => null },
+    };
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    await service.deleteMessage({ messageId: replyId, authUserId: AUTH_USER_ID });
+    assert.equal(executeRawCalls.length, 2);
+    const decrementCall = executeRawCalls[1];
+    assert.ok(
+      decrementCall.sql.includes("GREATEST") && decrementCall.sql.includes("thread_reply_count"),
+      "the decrement UPDATE must use GREATEST(thread_reply_count - 1, 0) so the counter can never go negative",
+    );
+    assert.ok(
+      decrementCall.values.includes(rootId),
+      "the decrement UPDATE must target the reply's root id",
+    );
+    assert.ok(
+      !decrementCall.values.includes(replyId),
+      "the decrement UPDATE must NOT target the reply's own id",
+    );
+  });
+});
+
+describe("chat-service — listThreadReplies", () => {
+  it("returns the root and its replies in chronological order", async () => {
+    const rootId = "01900000-0000-7000-8000-00000000r001";
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],                             // resolveUserProfileId
+      [{ id: rootId, conversation_id: CONV_ID, thread_root_id: null }], // target lookup (root itself)
+      [{ id: PROFILE_ID }],                              // assertMember
+      [{ id: rootId, conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }], // getMessageFull(root)
+      [{ id: "reply-a" }, { id: "reply-b" }],             // reply id list, ORDER BY created_at ASC
+      [{ id: "reply-a", conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }], // getMessageFull(reply-a)
+      [{ id: "reply-b", conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }], // getMessageFull(reply-b)
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    const result = await service.listThreadReplies({ messageId: rootId, authUserId: AUTH_USER_ID });
+    assert.equal(result.root.id, rootId);
+    assert.deepEqual(result.replies.map((r) => r.id), ["reply-a", "reply-b"]);
+  });
+
+  it("auto-flattens: reading a reply's own id resolves to its root's thread", async () => {
+    const rootId = "01900000-0000-7000-8000-00000000r001";
+    const replyId = "01900000-0000-7000-8000-00000000r002";
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: replyId, conversation_id: CONV_ID, thread_root_id: rootId }], // lookup on the reply id resolves thread_root_id
+      [{ id: PROFILE_ID }],
+      [{ id: rootId, conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }],
+      [],
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    const result = await service.listThreadReplies({ messageId: replyId, authUserId: AUTH_USER_ID });
+    // The queried messageId (replyId) and the returned root's id (rootId) are
+    // deliberately different values here — this only passes if listThreadReplies
+    // actually resolved thread_root_id from the lookup row instead of just
+    // echoing back whatever id it was called with.
+    assert.equal(result.root.id, rootId);
+    assert.notEqual(result.root.id, replyId);
+    assert.deepEqual(result.replies, []);
+  });
+
+  it("throws 404 for a nonexistent message id", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [],
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    await assert.rejects(
+      () => service.listThreadReplies({ messageId: "does-not-exist", authUserId: AUTH_USER_ID }),
+      (err) => err instanceof ChatServiceError && err.status === 404,
+    );
   });
 });
