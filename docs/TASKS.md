@@ -230,6 +230,22 @@ Built via `superpowers:subagent-driven-development` across 8 tasks (4 backend, 4
 
 Verified: 2026-08-27 (`node --test apps/api/src/routes/chat/__tests__/*.test.js` → 98/98 pass; `pnpm build` / `pnpm --filter @atlas/desktop exec vite build` → clean on every task and every fix; every task independently reviewed for spec compliance and code quality before being marked done)
 
+### Chat UI polish — Sub-project 2: Member management as an in-place panel
+
+Spec: `docs/superpowers/specs/2026-08-27-chat-member-panel-design.md`
+Plan: `docs/superpowers/plans/2026-08-27-chat-member-panel-plan.md`
+
+Second of three sub-projects. The user explicitly disliked member management opening as a modal (`ChannelDetailsSheet`, a `Sheet` overlay from Sub-project 1) and wanted it to behave like the existing "Fotos y videos" view — a header toggle swapping the main chat content area in place, header/composer staying put.
+
+- [x] `ChannelDetailsSheet.jsx` deleted; its `General`/`Miembros`/`Roles` tab content (unchanged internally) moved into a new `ChatMembersPanel.jsx`, rendered directly in `ChatWindow`'s content slot instead of inside a `Sheet` — a fixed `TabsList` header with each `TabsContent` independently scrollable, mirroring the "fixed header + scrollable body" idiom already used elsewhere in this file
+- [x] `filesView`/`membersView` are mutually exclusive (opening one closes the other) via a shared invariant enforced at every state-changing path — proven correct by induction across all reachable click orderings, not just spot-checked; both reset to closed on conversation switch (also fixing a pre-existing latent bug: the old sheet's open state was never reset there before, so switching conversations with it open used to leave stale state behind)
+- [x] A new header toggle button (people icon) joins the existing files-toggle button, explicitly scoped to `channel`/`group` only — matching the pre-existing "Ver miembros" dropdown item's exact condition; `MemberAvatarStack`'s own implicit "not direct" gate (broader than the other two, only safe in practice because the backend already filters `external_support` conversations out of the list a user can select from) was tightened to the same explicit condition so the three don't rely on an unrelated dependency to stay in sync
+- [ ] Manual browser QA (deferred, same reason as the chat roadmap phases and Sub-project 1)
+
+Built via `superpowers:subagent-driven-development` across 3 tasks. Review caught 1 real issue: the new header button's condition ("Important" in review) matched one sibling gate literally but not `MemberAvatarStack`'s actual gate, which was structurally different (a binary ternary's else-branch, not an explicit type check) even though all three produced the same visible result today — fixed by making all three identical and explicit rather than leaving the invariant dependent on `listConversations`' own filtering never changing. A second gap — the new button rendering for `direct` conversations at all, where there's no roles/permissions concept to manage — was caught and fixed by the implementer's own self-review before the review pass even started.
+
+Verified: 2026-08-27 (`pnpm build` / `pnpm --filter @atlas/desktop exec vite build` → clean on every task and every fix; repo-wide grep confirmed zero remaining `ChannelDetailsSheet` imports after deletion)
+
 ## atlas.notes — Collaborative Notes
 
 Plans: `docs/superpowers/plans/2026-06-27-atlas-notes-A-backend.md`, `2026-06-27-atlas-notes-B-frontend.md`
