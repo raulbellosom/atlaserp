@@ -50,6 +50,7 @@ export function ChatMessageList({
   onForward,
   onPinMessage,
   onToggleReaction,
+  onOpenThread,
   hiddenMessageIds,
   selectionMode,
   selectedMsgIds,
@@ -274,6 +275,7 @@ export function ChatMessageList({
               ? () => onPinMessage(item.id, !item.pinned_at)
               : undefined}
             onToggleReaction={!isDeleted && !isPending ? onToggleReaction : undefined}
+            onOpenThreadForMessage={onOpenThread}
             selectionMode={selectionMode}
             isSelected={selectedMsgIds?.has(item.id) ?? false}
             onSelect={onToggleSelect ? () => onToggleSelect(item.id) : undefined}

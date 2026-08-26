@@ -4,7 +4,7 @@ import {
   Loader2, Download, Play, Pause, CheckCheck, Mic, MoreHorizontal,
   FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
   FileArchive, FileCode, File, Copy, Trash2, Share2, EyeOff, CheckSquare,
-  Pin, PinOff, Smile,
+  Pin, PinOff, Smile, MessageSquare,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
@@ -609,7 +609,7 @@ function SelectionCircle({ isSelected }) {
 // ── Message action dropdown ───────────────────────────────────────────────────
 function MessageActions({
   isOwn, hasBody, onCopy, onDelete, onHideForMe, onForward, onEnterSelection,
-  canPin, isPinned, onPin, onReact,
+  canPin, isPinned, onPin, onReact, canReply, onOpenThread,
 }) {
   return (
     <DropdownMenu>
@@ -653,7 +653,13 @@ function MessageActions({
             Reaccionar
           </DropdownMenuItem>
         )}
-        {(hasBody && onCopy || onForward || onEnterSelection || (canPin && onPin) || onReact) && (onDelete || onHideForMe) && (
+        {canReply && onOpenThread && (
+          <DropdownMenuItem onSelect={onOpenThread}>
+            <MessageSquare className="h-3.5 w-3.5 mr-2" />
+            Responder en hilo
+          </DropdownMenuItem>
+        )}
+        {(hasBody && onCopy || onForward || onEnterSelection || (canPin && onPin) || onReact || (canReply && onOpenThread)) && (onDelete || onHideForMe) && (
           <DropdownMenuSeparator />
         )}
         {isOwn && onDelete && (
@@ -739,6 +745,8 @@ export function ChatMessageBubble({
   isPinned = false,
   onPin,
   onToggleReaction,
+  isThreadReplyView = false,
+  onOpenThreadForMessage,
 }) {
   if (message.type === "date_separator") {
     return (
@@ -789,6 +797,11 @@ export function ChatMessageBubble({
   const canPin =
     (conversationType === "channel" || conversationType === "group") &&
     roleHasPermission(ownMember, CHAT_PERMISSIONS.MESSAGES_PIN);
+  const canReply =
+    !isThreadReplyView &&
+    (conversationType === "channel" || conversationType === "group") &&
+    !message.thread_root_id;
+  const onOpenThread = onOpenThreadForMessage ? () => onOpenThreadForMessage(message.id) : undefined;
 
   if (isOwn) {
     return (
@@ -823,6 +836,8 @@ export function ChatMessageBubble({
             isPinned={isPinned}
             onPin={onPin}
             onReact={() => setReactionPickerOpen(true)}
+            canReply={canReply}
+            onOpenThread={onOpenThread}
           />
         )}
         <MessageReactionPicker
@@ -857,6 +872,18 @@ export function ChatMessageBubble({
                 currentUserId={currentUserId}
                 onToggle={(emoji) => onToggleReaction?.(message.id, emoji)}
               />
+            )}
+
+            {!isDeleted && message.thread_reply_count > 0 && (
+              <button
+                type="button"
+                onClick={() => onOpenThread?.()}
+                className="mt-1 inline-flex items-center gap-1.5 text-xs text-[hsl(var(--primary))] hover:underline"
+              >
+                <MessageSquare className="h-3 w-3" />
+                {message.thread_reply_count} {message.thread_reply_count === 1 ? "respuesta" : "respuestas"}
+                {message.thread_last_reply_at && ` · ${formatMessageTime(message.thread_last_reply_at)}`}
+              </button>
             )}
 
             {!isDeleted && attachments.length > 0 && (
@@ -959,6 +986,18 @@ export function ChatMessageBubble({
             />
           )}
 
+          {!isDeleted && message.thread_reply_count > 0 && (
+            <button
+              type="button"
+              onClick={() => onOpenThread?.()}
+              className="mt-1 inline-flex items-center gap-1.5 text-xs text-[hsl(var(--primary))] hover:underline"
+            >
+              <MessageSquare className="h-3 w-3" />
+              {message.thread_reply_count} {message.thread_reply_count === 1 ? "respuesta" : "respuestas"}
+              {message.thread_last_reply_at && ` · ${formatMessageTime(message.thread_last_reply_at)}`}
+            </button>
+          )}
+
           {!isDeleted && attachments.length > 0 && (
             <AttachmentsBlock attachments={attachments} onOpen={onAttachmentClick} isOwn={false} />
           )}
@@ -992,6 +1031,8 @@ export function ChatMessageBubble({
           isPinned={isPinned}
           onPin={onPin}
           onReact={() => setReactionPickerOpen(true)}
+          canReply={canReply}
+          onOpenThread={onOpenThread}
         />
       )}
     </div>
