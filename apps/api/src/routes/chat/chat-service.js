@@ -338,8 +338,11 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     const companyId = membership?.companyId ?? null;
 
     if (type === "channel" && slug) {
+      // IS NOT DISTINCT FROM (not =) because company_id can be NULL for a creator
+      // with no active membership — SQL's `NULL = NULL` is UNKNOWN, never TRUE, so
+      // a plain `=` would silently let two NULL-company channels share a slug.
       const dupe = await prisma.$queryRaw`
-        SELECT id FROM chat_conversations WHERE company_id = ${companyId} AND slug = ${slug} AND deleted_at IS NULL LIMIT 1
+        SELECT id FROM chat_conversations WHERE company_id IS NOT DISTINCT FROM ${companyId} AND slug = ${slug} AND deleted_at IS NULL LIMIT 1
       `;
       if (dupe.length) throw new ChatServiceError("Ya existe un canal con ese slug en tu empresa.", 400);
     }
@@ -363,18 +366,24 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     }
 
     if ((type === "channel" || type === "group") && permissionsService) {
-      const roleIds = await permissionsService.seedDefaultRoles(conv.id);
-      await prisma.$executeRaw`
-        UPDATE chat_conversation_members SET role_id = ${roleIds.Owner}
-        WHERE conversation_id = ${conv.id} AND user_id = ${creatorProfileId}
-      `;
-      const otherIds = allMembers.filter((id) => id !== creatorProfileId);
-      if (otherIds.length) {
-        await prisma.$executeRaw`
-          UPDATE chat_conversation_members SET role_id = ${roleIds.Member}
-          WHERE conversation_id = ${conv.id} AND user_id IN (${Prisma.join(otherIds)})
+      // Transactional: a crash between seeding the roles and assigning the Owner
+      // role would otherwise leave every member (including the creator) with
+      // role_id NULL on a channel that already has 4 fully-formed role rows —
+      // nobody, not even the nominal Owner, could then manage it (no reseed path).
+      await prisma.$transaction(async (tx) => {
+        const roleIds = await permissionsService.seedDefaultRoles(conv.id, tx);
+        await tx.$executeRaw`
+          UPDATE chat_conversation_members SET role_id = ${roleIds.Owner}
+          WHERE conversation_id = ${conv.id} AND user_id = ${creatorProfileId}
         `;
-      }
+        const otherIds = allMembers.filter((id) => id !== creatorProfileId);
+        if (otherIds.length) {
+          await tx.$executeRaw`
+            UPDATE chat_conversation_members SET role_id = ${roleIds.Member}
+            WHERE conversation_id = ${conv.id} AND user_id IN (${Prisma.join(otherIds)})
+          `;
+        }
+      });
     }
 
     // System message: group created

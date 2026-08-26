@@ -118,10 +118,13 @@ export function createChatPermissionsService({ prisma }) {
     return role;
   }
 
-  async function seedDefaultRoles(conversationId) {
+  // Accepts an optional `client` override (a prisma.$transaction `tx` handle) so
+  // callers that also need to assign the seeded role ids to members can do the
+  // whole seed-then-assign sequence atomically instead of as separate statements.
+  async function seedDefaultRoles(conversationId, client = prisma) {
     const roleIds = {};
     for (const def of DEFAULT_CHANNEL_ROLES) {
-      const rows = await prisma.$queryRaw`
+      const rows = await client.$queryRaw`
         INSERT INTO chat_channel_roles (conversation_id, name, position, is_system, permissions)
         VALUES (${conversationId}, ${def.name}, ${def.position}, ${def.isSystem}, ${JSON.stringify(def.permissions)}::jsonb)
         RETURNING id, name
