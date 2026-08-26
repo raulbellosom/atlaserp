@@ -121,6 +121,25 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         headers: withAuthHeaders(token),
       }),
 
+    pinMessage: (messageId, pinned, token) =>
+      request(`/chat/messages/${encodeURIComponent(messageId)}/pin`, {
+        method: "PATCH",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({ pinned }),
+      }),
+
+    listPinnedMessages: (conversationId, token) =>
+      request(`/chat/conversations/${encodeURIComponent(conversationId)}/pinned-messages`, {
+        headers: withAuthHeaders(token),
+      }),
+
+    toggleReaction: (messageId, emoji, token) =>
+      request(`/chat/messages/${encodeURIComponent(messageId)}/reactions`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({ emoji }),
+      }),
+
     markRead: (conversationId, token) =>
       request(`/chat/conversations/${encodeURIComponent(conversationId)}/read`, {
         method: "POST",

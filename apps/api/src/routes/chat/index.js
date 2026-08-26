@@ -14,6 +14,8 @@ import {
   chatCreateChannelRoleSchema,
   chatUpdateChannelRoleSchema,
   chatAssignMemberRoleSchema,
+  chatPinMessageSchema,
+  chatToggleReactionSchema,
 } from "@atlas/validators";
 import { createChatService, ChatServiceError } from "./chat-service.js";
 import { createGuestChatService, GuestChatServiceError } from "./guest-service.js";
@@ -22,9 +24,10 @@ import { expireStaleGuestSessions } from "./session-expiry-job.js";
 import { createChatPermissionsService, ChatPermissionsError } from "./chat-permissions-service.js";
 import { createChannelDirectoryService } from "./channel-directory-service.js";
 import { createChatMentionsService } from "./chat-mentions-service.js";
+import { createChatReactionsService, ChatReactionsError } from "./chat-reactions-service.js";
 
 function handleError(c, err, fallback) {
-  if (err instanceof ChatServiceError || err instanceof GuestChatServiceError || err instanceof ChatPermissionsError) {
+  if (err instanceof ChatServiceError || err instanceof GuestChatServiceError || err instanceof ChatPermissionsError || err instanceof ChatReactionsError) {
     return c.json({ error: err.message }, err.status);
   }
   console.error("[atlas.chat]", err?.message ?? err);
@@ -40,6 +43,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   const guestService = createGuestChatService({ prisma, supabaseAdmin, notificationService, broadcaster });
   const templateService = createChatTemplateService({ prisma });
   const channelDirectoryService = createChannelDirectoryService({ prisma });
+  const reactionsService = createChatReactionsService({ prisma });
 
   // ================================================================
   // INTERNAL CHAT — all routes require authentication
@@ -186,6 +190,48 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       return c.json(result);
     } catch (err) {
       return handleError(c, err, "Error eliminando mensaje.");
+    }
+  });
+
+  // PATCH /chat/messages/:id/pin
+  internal.patch("/messages/:id/pin", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const messageId = c.req.param("id");
+      const body = await c.req.json();
+      const { pinned } = chatPinMessageSchema.parse(body);
+      const result = await chatService.pinMessage({ messageId, authUserId, pinned });
+      return c.json({ data: result });
+    } catch (err) {
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
+      return handleError(c, err, "Error fijando el mensaje.");
+    }
+  });
+
+  // GET /chat/conversations/:id/pinned-messages
+  internal.get("/conversations/:id/pinned-messages", requirePermission("chat.conversations.read"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const conversationId = c.req.param("id");
+      const result = await chatService.listPinnedMessages({ conversationId, authUserId });
+      return c.json(result);
+    } catch (err) {
+      return handleError(c, err, "Error listando mensajes fijados.");
+    }
+  });
+
+  // POST /chat/messages/:id/reactions
+  internal.post("/messages/:id/reactions", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const messageId = c.req.param("id");
+      const body = await c.req.json();
+      const { emoji } = chatToggleReactionSchema.parse(body);
+      const result = await reactionsService.toggleReaction({ messageId, authUserId, emoji });
+      return c.json({ data: result });
+    } catch (err) {
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
+      return handleError(c, err, "Error reaccionando al mensaje.");
     }
   });
 

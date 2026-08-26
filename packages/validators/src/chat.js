@@ -83,3 +83,11 @@ export const chatUpdateChannelRoleSchema = z.object({
 export const chatAssignMemberRoleSchema = z.object({
   roleId: z.string().uuid(),
 });
+
+export const chatPinMessageSchema = z.object({
+  pinned: z.boolean(),
+});
+
+export const chatToggleReactionSchema = z.object({
+  emoji: z.string().trim().min(1).max(16),
+});
