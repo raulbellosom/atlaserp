@@ -11,7 +11,7 @@ import { ChatMessageList } from "./ChatMessageList";
 import { MessageComposer } from "./MessageComposer";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { ForwardMessageModal } from "./ForwardMessageModal";
-import { ChannelDetailsSheet } from "./ChannelDetailsSheet";
+import { ChatMembersPanel } from "./ChatMembersPanel";
 import { ConversationTypeBadge } from "./ConversationTypeBadge";
 import { MemberAvatarStack } from "./MemberAvatarStack";
 import { PinnedMessagesSheet } from "./PinnedMessagesSheet";
@@ -165,6 +165,7 @@ function ChatHeader({
   conversation, currentUserId, onlineUsers, onClose,
   detailMembers,
   filesView, onToggleFilesView,
+  membersView, onToggleMembersView,
   searchMode, searchQuery, onSearchToggle, onSearchChange,
   searchMatchCount, searchCurrentIdx, onNextMatch, onPrevMatch,
   selectionMode, selectionCount, hasOwnSelected,
@@ -357,6 +358,19 @@ function ChatHeader({
           {filesView ? <MessageSquare className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
         </button>
 
+        {/* Members toggle */}
+        <button
+          type="button"
+          onClick={onToggleMembersView}
+          title={membersView ? "Ver mensajes" : "Ver miembros"}
+          className={[
+            headerBtnCls,
+            membersView ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]" : "",
+          ].join(" ")}
+        >
+          {membersView ? <MessageSquare className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+        </button>
+
         {/* Pinned messages */}
         {pinnedCount > 0 && (
           <button type="button" onClick={onOpenPinned} title="Mensajes fijados" className={[headerBtnCls, "relative"].join(" ")}>
@@ -463,7 +477,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
   const [selectedMsgIds, setSelectedMsgIds] = useState(new Set());
   const [searchMode, setSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showDetails, setShowDetails] = useState(false);
+  const [membersView, setMembersView] = useState(false);
   const [showPinned, setShowPinned] = useState(false);
   const [jumpTarget, setJumpTarget] = useState(null);
   const [threadPanelRootId, setThreadPanelRootId] = useState(null);
@@ -484,6 +498,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
     setSearchMode(false);
     setSearchQuery("");
     setSearchCurrentIdx(0);
+    setMembersView(false);
     setShowPinned(false);
     setJumpTarget(null);
     setThreadPanelRootId(null);
@@ -692,7 +707,9 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         detailMembers={detailMembers}
         onClose={onClose}
         filesView={filesView}
-        onToggleFilesView={() => setFilesView((v) => !v)}
+        onToggleFilesView={() => { setFilesView((v) => !v); setMembersView(false); }}
+        membersView={membersView}
+        onToggleMembersView={() => { setMembersView((v) => !v); setFilesView(false); }}
         searchMode={searchMode}
         searchQuery={searchQuery}
         onSearchToggle={() => { setSearchMode((v) => !v); setSearchQuery(""); setSearchCurrentIdx(0); }}
@@ -710,7 +727,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         onForwardSelected={handleForwardSelected}
         onEnterSelection={() => enterSelectionMode(null)}
         onDeleteConversation={handleDeleteConversation}
-        onOpenDetails={() => setShowDetails(true)}
+        onOpenDetails={() => { setMembersView(true); setFilesView(false); }}
         onOpenPinned={() => setShowPinned(true)}
         isArchived={conversation?.is_archived ?? false}
         onArchive={conversationId
@@ -726,6 +743,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
           isLoading={isLoading}
           onAttachmentClick={handleAttachmentClick}
         />
+      ) : membersView ? (
+        <ChatMembersPanel conversationId={conversationId} currentUserId={userProfile?.id} />
       ) : (
         <ChatMessageList
           messages={messages}
@@ -756,7 +775,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         />
       )}
 
-      {!filesView && (
+      {!filesView && !membersView && (
         <MessageComposer
           ref={composerRef}
           onSend={handleSend}
@@ -780,13 +799,6 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         onClose={() => setForwardMessage(null)}
         message={forwardMessage}
         conversations={conversations}
-      />
-
-      <ChannelDetailsSheet
-        open={showDetails}
-        onOpenChange={setShowDetails}
-        conversationId={conversationId}
-        currentUserId={userProfile?.id}
       />
 
       <PinnedMessagesSheet
