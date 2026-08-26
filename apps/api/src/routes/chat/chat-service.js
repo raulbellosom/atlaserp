@@ -474,25 +474,41 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       }
     }
 
-    const sets = [];
-    const values = [];
+    const hasTitle = updates.title !== undefined;
+    const hasStatus = updates.status !== undefined;
+    const hasAvatarFileId = updates.avatarFileId !== undefined;
+    const hasAvatarEmoji = updates.avatarEmoji !== undefined;
 
-    if (updates.title !== undefined) {
-      sets.push("title");
-      values.push(updates.title);
-    }
-    if (updates.status !== undefined) {
-      sets.push("status");
-      values.push(updates.status);
+    if (!hasTitle && !hasStatus && !hasAvatarFileId && !hasAvatarEmoji) {
+      return getConversation({ conversationId, authUserId });
     }
 
-    if (!sets.length) return getConversation({ conversationId, authUserId });
+    // Mutual exclusivity: setting a real (non-null) avatar of one kind clears
+    // the other kind, even if the caller didn't explicitly touch it — a
+    // conversation has at most one avatar source at a time. Explicitly
+    // clearing one (sending null) does NOT touch the other — a "remove both"
+    // action must send both fields as null itself (spec Section 23 edge case 1).
+    let nextAvatarFileId = updates.avatarFileId;
+    let nextAvatarEmoji = updates.avatarEmoji;
+    let touchAvatarFileId = hasAvatarFileId;
+    let touchAvatarEmoji = hasAvatarEmoji;
+    if (hasAvatarFileId && nextAvatarFileId !== null) {
+      nextAvatarEmoji = null;
+      touchAvatarEmoji = true;
+    } else if (hasAvatarEmoji && nextAvatarEmoji !== null) {
+      nextAvatarFileId = null;
+      touchAvatarFileId = true;
+    }
+
+    const sets = [Prisma.sql`updated_at = NOW()`];
+    if (hasTitle) sets.push(Prisma.sql`title = ${updates.title}`);
+    if (hasStatus) sets.push(Prisma.sql`status = ${updates.status}`);
+    if (touchAvatarFileId) sets.push(Prisma.sql`avatar_file_id = ${nextAvatarFileId}`);
+    if (touchAvatarEmoji) sets.push(Prisma.sql`avatar_emoji = ${nextAvatarEmoji}`);
 
     await prisma.$executeRaw`
       UPDATE chat_conversations
-      SET title = COALESCE(${updates.title ?? null}, title),
-          status = COALESCE(${updates.status ?? null}, status),
-          updated_at = NOW()
+      SET ${Prisma.join(sets, ", ")}
       WHERE id = ${conversationId}
     `;
 

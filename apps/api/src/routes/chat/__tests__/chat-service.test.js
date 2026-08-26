@@ -121,6 +121,106 @@ describe("chat-service — updateConversation permission enforcement", () => {
   });
 });
 
+describe("chat-service — updateConversation avatar mutual exclusion", () => {
+  // Real call sequence (traced from the current source, not guessed): with a
+  // permissionsService supplied, updateConversation issues exactly 3 of its
+  // own $queryRaw calls (profile resolution, assertMember, conversation-type
+  // lookup) before the UPDATE, then the trailing getConversation call issues
+  // 2 more (assertMember again — profileId itself is cached per-authUserId
+  // and NOT re-queried — plus the main SELECT). That's 5 $queryRaw results
+  // total, matching buildPrismaMock's fixed-sequence contract used
+  // throughout this file. A "channel" type is used so assertChannelPermission
+  // is genuinely exercised (matching the realistic scenario — avatar changes
+  // only make sense for channel/group conversations per spec Goal 2), not
+  // skipped via an under-specified mock row.
+  //
+  // Prisma.join(sets, ", ") interpolated into another tagged template does
+  // NOT flatten its own bound values into the outer $executeRaw call's
+  // `values` array — verified empirically against this repo's real
+  // @prisma/client (7.8.0): the joined fragment arrives as a single `_Sql`
+  // object (capturedValues[0]) whose own `.values`/`.strings` hold the
+  // per-column bindings. Assertions below inspect that nested object rather
+  // than the outer `values` array directly.
+  const permissionsServiceOk = { assertChannelPermission: async () => ({ position: 100, isSystem: true }) };
+
+  it("setting avatarFileId clears any existing avatarEmoji in the same UPDATE", async () => {
+    const fileId = "01900000-0000-7000-8000-00000000f001";
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }], // resolveUserProfileId
+      [{ id: "member-row" }], // assertMember (updateConversation)
+      [{ type: "channel" }], // conversation type lookup
+      [{ id: "member-row-2" }], // assertMember (inside the trailing getConversation call)
+      [{ id: CONV_ID, avatar_file_id: fileId, avatar_emoji: null, members: null }], // SELECT c.*, members inside getConversation
+    ]);
+    let capturedValues = null;
+    prisma.$executeRaw = async (strings, ...values) => { capturedValues = values; return { count: 1 }; };
+
+    const service = createChatService({ prisma, supabaseAdmin: {}, permissionsService: permissionsServiceOk });
+    await service.updateConversation({
+      conversationId: CONV_ID, authUserId: AUTH_USER_ID, updates: { avatarFileId: fileId },
+    });
+
+    const setFragment = capturedValues[0];
+    assert.ok(setFragment.values.includes(fileId), "avatar_file_id must be set to the new file id");
+    assert.ok(setFragment.values.includes(null), "avatar_emoji must be cleared to null in the same statement");
+  });
+
+  it("setting avatarEmoji clears any existing avatarFileId", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "member-row" }],
+      [{ type: "channel" }],
+      [{ id: "member-row-2" }],
+      [{ id: CONV_ID, avatar_file_id: null, avatar_emoji: "🚀", members: null }],
+    ]);
+    let capturedValues = null;
+    prisma.$executeRaw = async (strings, ...values) => { capturedValues = values; return { count: 1 }; };
+
+    const service = createChatService({ prisma, supabaseAdmin: {}, permissionsService: permissionsServiceOk });
+    await service.updateConversation({
+      conversationId: CONV_ID, authUserId: AUTH_USER_ID, updates: { avatarEmoji: "🚀" },
+    });
+
+    const setFragment = capturedValues[0];
+    assert.ok(setFragment.values.includes("🚀"), "avatar_emoji must be set to the new emoji");
+    assert.ok(setFragment.values.includes(null), "avatar_file_id must be cleared to null in the same statement");
+  });
+
+  it("explicitly clearing only avatarFileId (to null) does not touch avatarEmoji", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "member-row" }],
+      [{ type: "channel" }],
+      [{ id: "member-row-2" }],
+      [{ id: CONV_ID, avatar_file_id: null, avatar_emoji: "🎉", members: null }],
+    ]);
+    let executeCallCount = 0;
+    let capturedValues = null;
+    prisma.$executeRaw = async (strings, ...values) => { executeCallCount++; capturedValues = values; return { count: 1 }; };
+
+    const service = createChatService({ prisma, supabaseAdmin: {}, permissionsService: permissionsServiceOk });
+    await service.updateConversation({
+      conversationId: CONV_ID, authUserId: AUTH_USER_ID, updates: { avatarFileId: null },
+    });
+
+    assert.equal(executeCallCount, 1);
+    const setFragment = capturedValues[0];
+    // Real, non-vacuous check: the avatar_emoji SET fragment must be entirely
+    // ABSENT from the generated SQL text (proving touchAvatarEmoji stayed
+    // false), not merely bound to a null value — the "clear both" case would
+    // also produce a bound null for avatar_emoji, so checking the value alone
+    // wouldn't distinguish the two cases. Checking the fragment text itself
+    // (nothing mentioning avatar_emoji) plus the exact bound-values list
+    // (only avatar_file_id's null) makes this genuinely fail if the
+    // implementation regresses to always touching both columns.
+    assert.ok(
+      !setFragment.strings.join("").includes("avatar_emoji"),
+      "avatar_emoji must not appear in the UPDATE at all when only avatarFileId is explicitly cleared",
+    );
+    assert.deepEqual(setFragment.values, [null], "only avatar_file_id's cleared value should be bound");
+  });
+});
+
 describe("chat-service — addMembers permission enforcement", () => {
   it("group: calls assertChannelPermission with members.manage and propagates a 403 rejection", async () => {
     const prisma = buildPrismaMock([
