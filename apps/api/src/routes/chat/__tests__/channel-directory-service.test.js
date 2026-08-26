@@ -108,4 +108,21 @@ describe("channel-directory-service — joinChannel", () => {
       "the conversation lookup must filter by the caller's company_id, not just conversationId",
     );
   });
+
+  it("rejects a caller with no active company membership, even if a companyless channel exists", async () => {
+    const prisma = buildPrismaMock({
+      queryRawResults: [[{ id: PROFILE_ID }]], // resolveUserProfileId only — must reject before any conversation lookup
+      membershipResult: null,
+    });
+    const svc = createChannelDirectoryService({ prisma });
+    await assert.rejects(
+      () => svc.joinChannel({ conversationId: CONV_ID, authUserId: AUTH_USER_ID }),
+      (err) => err instanceof ChatServiceError && err.status === 404,
+    );
+    assert.equal(
+      prisma._queryRawCalls.length,
+      1,
+      "must reject before querying chat_conversations — a companyless caller must never match a companyless channel via IS NOT DISTINCT FROM",
+    );
+  });
 });

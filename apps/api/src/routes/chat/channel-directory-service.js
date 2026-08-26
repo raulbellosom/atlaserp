@@ -44,6 +44,13 @@ export function createChannelDirectoryService({ prisma }) {
       select: { companyId: true },
     });
     const companyId = membership?.companyId ?? null;
+    // A companyless caller must not match a companyless channel row: company_id
+    // CAN legitimately be NULL (createConversation leaves it NULL when the
+    // creator has no active membership — see chat-service.js), and without this
+    // guard `IS NOT DISTINCT FROM` would treat "both sides have no company" as
+    // "same company," letting any companyless caller join any companyless
+    // public channel. listChannelDirectory already guards this same case.
+    if (!companyId) throw new ChatServiceError("Canal no encontrado.", 404);
 
     const convRows = await prisma.$queryRaw`
       SELECT id, is_public AS "isPublic" FROM chat_conversations
