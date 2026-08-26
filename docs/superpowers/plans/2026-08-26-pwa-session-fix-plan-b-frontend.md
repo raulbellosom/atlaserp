@@ -2,7 +2,7 @@
 
 Date: 2026-08-26
 Spec: docs/superpowers/specs/2026-08-26-pwa-multi-window-session-recovery-design.md
-Status: Draft
+Status: Complete
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -35,11 +35,13 @@ Both changes are localized to `apps/desktop/src/auth/AuthProvider.jsx`. `forceLo
 **Files:**
 - Modify: `apps/desktop/src/auth/AuthProvider.jsx`
 
-- [ ] **Step 1: Read the current `forceLogout()` in full (required)**
+- [x] **Step 1: Read the current `forceLogout()` in full (required)**
 
 Confirm its exact current shape before editing — it currently calls `supabase.auth.refreshSession()`, and only on error proceeds straight to `signOut()`. The fix inserts one more check between those two steps.
 
-- [ ] **Step 2: Extract a pure freshness-check helper (testable without a DOM)**
+- [x] **Step 2: Extract a pure freshness-check helper (testable without a DOM)**
+
+Nota: se creó como archivo separado `apps/desktop/src/auth/sessionFreshness.js` (no inline en `AuthProvider.jsx`) para evitar el problema de import de `.jsx` en `node --test` señalado en la nota de la Step 1 del Task 2 — se aplicó la contingencia descrita ahí directamente, sin pasar primero por el intento inline.
 
 Add near the top of `AuthProvider.jsx`, outside the component (module scope, no dependencies on React state):
 
@@ -57,7 +59,7 @@ export function isSessionFresh(session, nowMs = Date.now()) {
 }
 ```
 
-- [ ] **Step 3: Use it in `forceLogout()`**
+- [x] **Step 3: Use it in `forceLogout()`**
 
 Replace the current body (read it first — this shows the intended end state, not necessarily matching current line-for-line spacing):
 
@@ -102,16 +104,11 @@ Replace the current body (read it first — this shows the intended end state, n
 
 Note `setUserProfile`/`profileLoadedForAuthUserId` are deliberately NOT touched in the "adopted a fresh session" branch — the existing `onAuthStateChange` handler (already in this file) or the next natural profile-load path will pick up the newly-adopted session; forcing a profile reload here would be redundant with logic that already exists elsewhere in this same file for the `TOKEN_REFRESHED` case.
 
-- [ ] **Step 4: Build check**
+- [x] **Step 4: Build check**
 
-Run: `pnpm --filter @atlas/desktop exec vite build`
+Run: `pnpm --filter @atlas/desktop exec vite build` — build OK (5.00s, sin errores; solo warnings preexistentes de chunk size no relacionados).
 
-- [ ] **Step 5: Commit**
-
-```bash
-git add apps/desktop/src/auth/AuthProvider.jsx
-git commit -m "fix(auth): don't sign out a window whose own refresh raced another window's"
-```
+- [x] **Step 5: Commit** (se comitea junto con Task 2 y 3 al final del plan, ver commit final).
 
 ---
 
@@ -120,7 +117,7 @@ git commit -m "fix(auth): don't sign out a window whose own refresh raced anothe
 **Files:**
 - Create: `apps/desktop/src/auth/__tests__/session-freshness.test.js`
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test** (importando desde `../sessionFreshness.js`, no desde `../AuthProvider.jsx` — ver nota del Task 1)
 
 ```javascript
 import { describe, it } from "node:test";
@@ -159,19 +156,9 @@ describe("isSessionFresh", () => {
 
 **Verify before trusting this**: confirm `node --test` can actually import a `.jsx` file directly in this project's current Node/ESM setup — CLAUDE.md notes elsewhere in this project's history that `node --check` does NOT work on `.jsx` files in this repo's environment; confirm whether `node --test` (which actually executes the module, not just parses it) behaves differently, or whether `isSessionFresh`/`SESSION_FRESHNESS_LEEWAY_SECS` need to be moved into a separate `.js` (non-JSX) helper module that `AuthProvider.jsx` imports from, so the test file can import plain `.js` without needing JSX transform support. If `node --test` fails to import the `.jsx` file with a syntax error, do the extraction (create `apps/desktop/src/auth/sessionFreshness.js` with both exports, have `AuthProvider.jsx` import from it) rather than fighting the test runner — this is a small, mechanical adjustment, not a design change.
 
-- [ ] **Step 2: Run and confirm, adjusting per the note above if needed**
+- [x] **Step 2: Run and confirm** — 5/5 pass (`node --test apps/desktop/src/auth/__tests__/session-freshness.test.js`); también verificado junto con el resto de `apps/desktop/src/auth/__tests__/*.test.js` (7/7 pass, incluye `auth-return-path.test.js` preexistente sin regresión).
 
-Run: `node --test apps/desktop/src/auth/__tests__/session-freshness.test.js`
-Expected: 5/5 pass (after whichever import strategy actually works in this environment).
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add apps/desktop/src/auth/__tests__/session-freshness.test.js apps/desktop/src/auth/AuthProvider.jsx apps/desktop/src/auth/sessionFreshness.js
-git commit -m "test(auth): add regression coverage for isSessionFresh"
-```
-
-(File list above includes `sessionFreshness.js` only if Step 1's extraction was needed — adjust `git add` to match what actually exists.)
+- [x] **Step 3: Commit** (se comitea al final del plan, junto con Task 1 y 3).
 
 ---
 
@@ -180,7 +167,7 @@ git commit -m "test(auth): add regression coverage for isSessionFresh"
 **Files:**
 - Modify: `apps/desktop/src/auth/AuthProvider.jsx`
 
-- [ ] **Step 1: Add a `visibilitychange` effect**
+- [x] **Step 1: Add a `visibilitychange` effect**
 
 Add a second `useEffect` in `AuthProvider` (separate from the existing large mount effect — this one only needs `session` as a dependency, keeping it independently readable rather than folding into the already-large existing effect):
 
@@ -202,20 +189,14 @@ Add a second `useEffect` in `AuthProvider` (separate from the existing large mou
 
 Note this deliberately does NOT call `forceLogout()` on failure — a failed proactive refresh here isn't evidence of a dead session (the same in-flight-elsewhere race Task 1 handles could apply here too), it just means the next real API call will go through its normal `shouldForceLogout`/`forceLogout` path if it turns out the session really is dead. This effect's only job is to get ahead of the common case (a valid-but-expiring session in a long-backgrounded window) proactively, not to duplicate the existing dead-session detection logic.
 
-- [ ] **Step 2: Build check**
+- [x] **Step 2: Build check** — `pnpm --filter @atlas/desktop exec vite build` OK.
 
-Run: `pnpm --filter @atlas/desktop exec vite build`
+- [x] **Step 3: Self-review**
 
-- [ ] **Step 3: Self-review**
+(a) Confirmado: `addEventListener('visibilitychange', ...)` solo dispara en el evento, no al montar — no hay llamada espuria a `refreshSession()` en la carga inicial aunque la sesión ya esté cerca de vencer en ese momento.
+(b) Riesgo aceptado y documentado, sin fix adicional: si un 401 real ocurre justo cuando la ventana recupera foco, tanto este efecto como `forceLogout()` pueden llamar a `supabase.auth.refreshSession()` casi al mismo tiempo. `supabase-js` serializa sus propios refreshes vía `navigator.locks` internamente en entornos de browser, así que no debería producir una doble rotación de refresh token desde la misma ventana — pero no se verificó el código interno de la librería instalada (`@supabase/supabase-js@^2.105.1`) línea por línea. Riesgo bajo, no bloqueante para este fix.
 
-Trace explicitly: (a) does this new effect fire on the INITIAL mount (when `document.visibilityState` is already `'visible'` from the start)? If so, is that harmless (an extra `refreshSession()` call on every app load when the session happens to already be near-expiry) or does it need an initial-mount guard? Read `useEffect`'s actual firing semantics for `visibilitychange` — the listener itself only fires on the EVENT, not on mount, so this should NOT fire spuriously on initial load; confirm this reasoning holds. (b) Does this interact badly with Task 1's `forceLogout()` re-check if both fire around the same time (e.g. a real API 401 happens right as the window refocuses)? Both independently call `supabase.auth.refreshSession()` — confirm whether concurrent calls to `refreshSession()` from the same window are safe (supabase-js internally queues/dedupes them) or could cause a problem; if unsure, note it as a known, accepted risk rather than guessing a fix.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add apps/desktop/src/auth/AuthProvider.jsx
-git commit -m "feat(auth): proactively refresh a stale session when a module window regains focus"
-```
+- [x] **Step 4: Commit** (se comitea junto con Task 1 y 2 en un solo commit — ver abajo).
 
 ---
 
@@ -229,6 +210,6 @@ Each task is an independent, small, revertable commit to a single file (`AuthPro
 
 Before marking this plan complete:
 
-- [ ] `node --test apps/desktop/src/auth/__tests__/session-freshness.test.js` passes.
-- [ ] `pnpm --filter @atlas/desktop exec vite build` — no errors, on every task.
-- [ ] Manual (if a session is available): open two module windows, force one to hit a 401 while the other has a live session, confirm the first window recovers instead of both signing out. Background a window past its access-token expiry, refocus it, confirm no login prompt on the first subsequent action.
+- [x] `node --test apps/desktop/src/auth/__tests__/session-freshness.test.js` passes (5/5; 7/7 counting the pre-existing `auth-return-path.test.js` in the same directory).
+- [x] `pnpm --filter @atlas/desktop exec vite build` — no errors, on every task.
+- [ ] Manual (if a session is available): open two module windows, force one to hit a 401 while the other has a live session, confirm the first window recovers instead of both signing out. Background a window past its access-token expiry, refocus it, confirm no login prompt on the first subsequent action. **Pendiente** — requiere un entorno con Supabase configurado y dos ventanas reales; no se ejecutó en esta sesión.

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { atlas } from '../lib/atlas'
 import { getApiUrl } from '../lib/runtimeConfig.js'
 import { AtlasOfflineDatabase, SessionVault } from '@atlas/offline'
+import { isSessionFresh } from './sessionFreshness.js'
 
 const _vaultDb = new AtlasOfflineDatabase()
 const _sessionVault = new SessionVault(_vaultDb)
@@ -29,6 +30,22 @@ export function AuthProvider({ children }) {
         // Refresh succeeded — TOKEN_REFRESHED fires, session is alive.
         return
       }
+
+      // This window's own refresh attempt failed — but that can happen even
+      // when the session itself is fine, if another module window already
+      // consumed/rotated the same refresh token moments earlier (Supabase
+      // refresh tokens are single-use). Re-read the session fresh from the
+      // shared storage (not a cached value) before concluding it's actually
+      // dead — the other window's successful refresh already wrote a new,
+      // valid session there.
+      const { data: freshData } = await supabase.auth.getSession().catch(() => ({ data: null }))
+      const freshSession = freshData?.session ?? null
+      if (isSessionFresh(freshSession)) {
+        if (!mounted) return
+        setSession(freshSession)
+        return
+      }
+
       try {
         await supabase.auth.signOut()
       } catch {}
@@ -142,6 +159,20 @@ export function AuthProvider({ children }) {
       subscription.unsubscribe()
     }
   }, [])
+
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState !== 'visible') return
+      if (!session) return
+      if (isSessionFresh(session)) return
+      // Window regained focus and the session we last knew about is at/near
+      // expiry — refresh proactively instead of waiting for the next API
+      // call to fail first.
+      supabase.auth.refreshSession().catch(() => {})
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [session])
 
   async function refreshProfile(activeSession = session) {
     if (!activeSession?.access_token) return null

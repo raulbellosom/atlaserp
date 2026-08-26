@@ -1,7 +1,7 @@
 # Recuperación de sesión entre ventanas PWA por módulo
 
 Date: 2026-08-26
-Status: Approved
+Status: In Progress (código implementado y verificado con tests automatizados + build; verificación manual multi-ventana pendiente — ver Plan B, Verification Gate)
 Author: Claude Code
 Spec file: docs/superpowers/specs/2026-08-26-pwa-multi-window-session-recovery-design.md
 Plan file: docs/superpowers/plans/2026-08-26-pwa-session-fix-plan-a-api.md (backend)
@@ -15,7 +15,7 @@ Recuperación de sesión entre ventanas PWA por módulo (fix de re-logins frecue
 
 ## 2. Status
 
-Approved
+In Progress (código implementado y verificado con tests automatizados + build; verificación manual multi-ventana pendiente — ver Plan B, Verification Gate)
 
 ## 3. Context
 
