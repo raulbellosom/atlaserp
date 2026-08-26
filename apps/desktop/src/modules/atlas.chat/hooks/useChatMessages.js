@@ -277,3 +277,30 @@ export function useDeleteMessage(conversationId) {
     },
   });
 }
+
+export function usePinMessage(conversationId) {
+  const { session } = useAuth();
+  const token = session?.access_token;
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ messageId, pinned }) => atlas.chat.pinMessage(messageId, pinned, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
+      queryClient.invalidateQueries({ queryKey: ["chat-pinned-messages", conversationId] });
+    },
+  });
+}
+
+export function useToggleReaction(conversationId) {
+  const { session } = useAuth();
+  const token = session?.access_token;
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ messageId, emoji }) => atlas.chat.toggleReaction(messageId, emoji, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
+    },
+  });
+}
