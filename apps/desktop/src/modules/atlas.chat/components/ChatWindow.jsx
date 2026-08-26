@@ -12,7 +12,10 @@ import { MessageComposer } from "./MessageComposer";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { ForwardMessageModal } from "./ForwardMessageModal";
 import { ChannelDetailsSheet } from "./ChannelDetailsSheet";
-import { useChatMessages, useSendMessage, useMarkRead, useDeleteMessage } from "../hooks/useChatMessages";
+import {
+  useChatMessages, useSendMessage, useMarkRead, useDeleteMessage,
+  usePinMessage, useToggleReaction,
+} from "../hooks/useChatMessages";
 import { useChatPresence } from "../hooks/useChatPresence";
 import { useChatConversations, useArchiveConversation, useUnarchiveConversation } from "../hooks/useChatConversations";
 import {
@@ -405,6 +408,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
   const { mutateAsync: sendMessage } = useSendMessage(conversationId);
   const { mutate: markReadMutate } = useMarkRead(conversationId);
   const { mutate: deleteMessageMutate } = useDeleteMessage(conversationId);
+  const { mutate: pinMutate } = usePinMessage(conversationId);
+  const { mutate: toggleReactionMutate } = useToggleReaction(conversationId);
   const { mutate: archiveMutate } = useArchiveConversation();
   const { mutate: unarchiveMutate } = useUnarchiveConversation();
   const { onlineUsers, typingUsersList, sendTyping } = useChatPresence(conversationId);
@@ -673,12 +678,15 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
           typingUsers={typingUsersList}
           onAttachmentClick={handleAttachmentClick}
           members={conversation.members}
+          conversationType={conversation?.type}
           hasMore={hasMore}
           isLoadingMore={isLoadingMore}
           onLoadMore={loadMore}
           onDeleteMessage={handleDeleteMessage}
           onHideForMe={handleHideForMe}
           onForward={setForwardMessage}
+          onPinMessage={(messageId, pinned) => pinMutate({ messageId, pinned })}
+          onToggleReaction={(messageId, emoji) => toggleReactionMutate({ messageId, emoji })}
           hiddenMessageIds={hiddenMessageIds}
           selectionMode={selectionMode}
           selectedMsgIds={selectedMsgIds}

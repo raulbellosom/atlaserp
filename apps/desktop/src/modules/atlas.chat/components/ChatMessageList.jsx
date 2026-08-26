@@ -41,12 +41,15 @@ export function ChatMessageList({
   typingUsers,
   onAttachmentClick,
   members,
+  conversationType,
   hasMore,
   isLoadingMore,
   onLoadMore,
   onDeleteMessage,
   onHideForMe,
   onForward,
+  onPinMessage,
+  onToggleReaction,
   hiddenMessageIds,
   selectionMode,
   selectedMsgIds,
@@ -242,6 +245,7 @@ export function ChatMessageList({
             isLast={item.isLast}
             currentUserId={currentUserId}
             members={members}
+            conversationType={conversationType}
             onAttachmentClick={handleAttachmentClick}
             showReadReceipt={item.id === lastReadMessageId}
             onCopy={!isDeleted && !isPending && item.body
@@ -256,6 +260,11 @@ export function ChatMessageList({
             onForward={!isDeleted && !isPending && onForward
               ? () => onForward(item)
               : undefined}
+            isPinned={Boolean(item.pinnedAt)}
+            onPin={!isDeleted && !isPending && onPinMessage
+              ? () => onPinMessage(item.id, !item.pinnedAt)
+              : undefined}
+            onToggleReaction={!isDeleted && !isPending ? onToggleReaction : undefined}
             selectionMode={selectionMode}
             isSelected={selectedMsgIds?.has(item.id) ?? false}
             onSelect={onToggleSelect ? () => onToggleSelect(item.id) : undefined}

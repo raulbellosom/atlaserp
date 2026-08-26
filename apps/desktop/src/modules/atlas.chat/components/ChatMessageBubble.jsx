@@ -4,6 +4,7 @@ import {
   Loader2, Download, Play, Pause, CheckCheck, Mic, MoreHorizontal,
   FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
   FileArchive, FileCode, File, Copy, Trash2, Share2, EyeOff, CheckSquare,
+  Pin, PinOff, Smile,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
@@ -12,6 +13,9 @@ import {
 import { formatMessageTime, formatFileSize, isImageMime } from "../lib/chatUtils";
 import { atlas } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
+import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
+import { MessageReactions } from "./MessageReactions";
+import { MessageReactionPicker } from "./MessageReactionPicker";
 
 function isVideoMime(m) { return String(m ?? "").startsWith("video/"); }
 function isAudioMime(m) { return String(m ?? "").startsWith("audio/"); }
@@ -603,7 +607,10 @@ function SelectionCircle({ isSelected }) {
 }
 
 // ── Message action dropdown ───────────────────────────────────────────────────
-function MessageActions({ isOwn, hasBody, onCopy, onDelete, onHideForMe, onForward, onEnterSelection }) {
+function MessageActions({
+  isOwn, hasBody, onCopy, onDelete, onHideForMe, onForward, onEnterSelection,
+  canPin, isPinned, onPin, onReact,
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -634,7 +641,19 @@ function MessageActions({ isOwn, hasBody, onCopy, onDelete, onHideForMe, onForwa
             Seleccionar
           </DropdownMenuItem>
         )}
-        {(hasBody && onCopy || onForward || onEnterSelection) && (onDelete || onHideForMe) && (
+        {canPin && onPin && (
+          <DropdownMenuItem onSelect={onPin}>
+            {isPinned ? <PinOff className="h-3.5 w-3.5 mr-2" /> : <Pin className="h-3.5 w-3.5 mr-2" />}
+            {isPinned ? "Desfijar mensaje" : "Fijar mensaje"}
+          </DropdownMenuItem>
+        )}
+        {hasBody && onReact && (
+          <DropdownMenuItem onSelect={onReact}>
+            <Smile className="h-3.5 w-3.5 mr-2" />
+            Reaccionar
+          </DropdownMenuItem>
+        )}
+        {(hasBody && onCopy || onForward || onEnterSelection || (canPin && onPin) || (hasBody && onReact)) && (onDelete || onHideForMe) && (
           <DropdownMenuSeparator />
         )}
         {isOwn && onDelete && (
@@ -716,6 +735,10 @@ export function ChatMessageBubble({
   isCurrentMatch = false,
   currentUserId,
   members,
+  conversationType,
+  isPinned = false,
+  onPin,
+  onToggleReaction,
 }) {
   if (message.type === "date_separator") {
     return (
@@ -740,6 +763,7 @@ export function ChatMessageBubble({
   }
 
   const [avatarErr, setAvatarErr] = useState(false);
+  const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const isDeleted = Boolean(message.deleted_at);
   const isPending = String(message.id ?? "").startsWith("temp-");
   const attachments = message.attachments ?? [];
@@ -757,9 +781,14 @@ export function ChatMessageBubble({
   const hasBody = Boolean(message.body) && !isDeleted;
   const showActions = !isDeleted && !isPending;
 
-  // Own membership's role in this conversation — needed to detect role-targeted mentions.
-  const ownRoleId = members?.find((m) => m.userId === currentUserId)?.roleId;
+  // Own membership entry in this conversation — needed to detect role-targeted mentions
+  // and to gate the pin action by permission.
+  const ownMember = findOwnMember(members, currentUserId);
+  const ownRoleId = ownMember?.roleId;
   const mentioned = !isDeleted && isMentioned(message, currentUserId, ownRoleId);
+  const canPin =
+    (conversationType === "channel" || conversationType === "group") &&
+    roleHasPermission(ownMember, CHAT_PERMISSIONS.MESSAGES_PIN);
 
   if (isOwn) {
     return (
@@ -790,9 +819,20 @@ export function ChatMessageBubble({
             onHideForMe={onHideForMe}
             onForward={onForward}
             onEnterSelection={onEnterSelection}
+            canPin={canPin}
+            isPinned={isPinned}
+            onPin={onPin}
+            onReact={() => setReactionPickerOpen(true)}
           />
         )}
-        <div className="flex flex-col items-end max-w-[72%] sm:max-w-[65%]">
+        <div className="relative flex flex-col items-end max-w-[72%] sm:max-w-[65%]">
+          <MessageReactionPicker
+            open={reactionPickerOpen}
+            onOpenChange={setReactionPickerOpen}
+            onPick={(emoji) => onToggleReaction?.(message.id, emoji)}
+            anchorAlign={isOwn ? "end" : "start"}
+          />
+
           {hasText && (
             <div
               className={[
@@ -812,12 +852,23 @@ export function ChatMessageBubble({
             </div>
           )}
 
+          {!isDeleted && (
+            <MessageReactions
+              reactions={message.reactions}
+              currentUserId={currentUserId}
+              onToggle={(emoji) => onToggleReaction?.(message.id, emoji)}
+            />
+          )}
+
           {!isDeleted && attachments.length > 0 && (
             <AttachmentsBlock attachments={attachments} onOpen={onAttachmentClick} isOwn />
           )}
 
           {showMeta && (
             <div className="flex items-center gap-1 mt-1 px-0.5">
+              {isPinned && (
+                <Pin className="h-2.5 w-2.5 text-[hsl(var(--muted-foreground))]" />
+              )}
               {message.edited_at && !isPending && (
                 <span className="text-[10px] text-[hsl(var(--muted-foreground))] italic">editado</span>
               )}
@@ -868,7 +919,14 @@ export function ChatMessageBubble({
         )}
       </div>
 
-      <div className="flex flex-col items-start max-w-[72%] sm:max-w-[65%]">
+      <div className="relative flex flex-col items-start max-w-[72%] sm:max-w-[65%]">
+        <MessageReactionPicker
+          open={reactionPickerOpen}
+          onOpenChange={setReactionPickerOpen}
+          onPick={(emoji) => onToggleReaction?.(message.id, emoji)}
+          anchorAlign={isOwn ? "end" : "start"}
+        />
+
         {isFirst && (
           <span className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-1 ml-1 truncate max-w-full">
             {senderName}
@@ -894,12 +952,23 @@ export function ChatMessageBubble({
           </div>
         )}
 
+        {!isDeleted && (
+          <MessageReactions
+            reactions={message.reactions}
+            currentUserId={currentUserId}
+            onToggle={(emoji) => onToggleReaction?.(message.id, emoji)}
+          />
+        )}
+
         {!isDeleted && attachments.length > 0 && (
           <AttachmentsBlock attachments={attachments} onOpen={onAttachmentClick} isOwn={false} />
         )}
 
         {showMeta && (
           <div className="flex items-center gap-1 mt-1 px-0.5">
+            {isPinned && (
+              <Pin className="h-2.5 w-2.5 text-[hsl(var(--muted-foreground))]" />
+            )}
             <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
               {isPending ? "Enviando..." : formatMessageTime(message.created_at)}
             </span>
@@ -919,6 +988,10 @@ export function ChatMessageBubble({
           onHideForMe={onHideForMe}
           onForward={onForward}
           onEnterSelection={onEnterSelection}
+          canPin={canPin}
+          isPinned={isPinned}
+          onPin={onPin}
+          onReact={() => setReactionPickerOpen(true)}
         />
       )}
     </div>
