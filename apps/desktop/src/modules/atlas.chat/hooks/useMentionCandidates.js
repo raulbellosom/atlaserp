@@ -1,0 +1,43 @@
+import { useMemo } from "react";
+import { useChatConversationDetail } from "./useChatConversationDetail";
+import { useChannelRoles } from "./useChannelRoles";
+import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
+
+// Fixed sentinel UUIDs — must stay byte-identical to
+// apps/api/src/routes/chat/chat-mentions-service.js's EVERYONE_MENTION_ID /
+// HERE_MENTION_ID. Never a real UUIDv7 (version/variant nibbles are both 0
+// here; a real generated id can never match), so these safely ride the same
+// @[id:name] token format MentionTextarea already uses for real users/roles.
+export const EVERYONE_MENTION_ID = "00000000-0000-0000-0000-000000000000";
+export const HERE_MENTION_ID = "00000000-0000-0000-0000-000000000001";
+
+// Only meaningful for `channel`/`group` conversations — for `direct`/
+// `external_support`, roles/everyone/here don't exist, and this hook simply
+// returns the other member(s) as plain mention candidates (still useful:
+// mentioning the other party in a direct chat is harmless, just redundant).
+export function useMentionCandidates(conversationId, currentUserId) {
+  const { data: convData } = useChatConversationDetail(conversationId);
+  const { data: rolesData } = useChannelRoles(conversationId);
+
+  return useMemo(() => {
+    const members = convData?.data?.members ?? [];
+    const roles = rolesData?.data ?? [];
+    const ownMember = findOwnMember(members, currentUserId);
+
+    const memberCandidates = members
+      .filter((m) => m.userId !== currentUserId)
+      .map((m) => ({ id: m.userId, displayName: m.displayName ?? "Usuario", avatarUrl: m.avatarUrl, email: m.email }));
+
+    const roleCandidates = roles.map((r) => ({ id: r.id, displayName: r.name }));
+
+    const sentinelCandidates = [];
+    if (roleHasPermission(ownMember, CHAT_PERMISSIONS.MENTIONS_EVERYONE)) {
+      sentinelCandidates.push({ id: EVERYONE_MENTION_ID, displayName: "everyone" });
+    }
+    if (roleHasPermission(ownMember, CHAT_PERMISSIONS.MENTIONS_HERE)) {
+      sentinelCandidates.push({ id: HERE_MENTION_ID, displayName: "here" });
+    }
+
+    return [...memberCandidates, ...roleCandidates, ...sentinelCandidates];
+  }, [convData, rolesData, currentUserId]);
+}
