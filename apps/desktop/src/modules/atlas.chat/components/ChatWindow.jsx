@@ -178,7 +178,10 @@ function ChatHeader({
   const displayName = getConversationDisplayName(conversation, currentUserId);
   const members = conversation?.members ?? [];
   const isChannelOrGroup = conversation?.type === "group" || conversation?.type === "channel";
-  const { data: pinnedData } = usePinnedMessages(conversation?.id);
+  // Pinning is only ever offered for channel/group conversations (Section 8/12
+  // of the spec) — skip the fetch entirely for direct/external_support so every
+  // conversation open/switch doesn't fire a request the UI will never use.
+  const { data: pinnedData } = usePinnedMessages(conversation?.id, { enabled: isChannelOrGroup });
   const pinnedCount = isChannelOrGroup ? (pinnedData?.data?.length ?? 0) : 0;
   const onlineCount = Object.keys(onlineUsers ?? {}).length;
   const otherMember =

@@ -7,7 +7,7 @@ import { formatMessageTime } from "../lib/chatUtils";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 
 export function PinnedMessagesSheet({ open, onOpenChange, conversationId, currentUserId, members, onJumpToMessage }) {
-  const { data, isLoading } = usePinnedMessages(conversationId);
+  const { data, isLoading } = usePinnedMessages(conversationId, { enabled: open });
   const { mutate: pinMutate } = usePinMessage(conversationId);
   const messages = data?.data ?? [];
   const ownMember = findOwnMember(members ?? [], currentUserId);
@@ -40,7 +40,9 @@ export function PinnedMessagesSheet({ open, onOpenChange, conversationId, curren
                 <span className="text-xs font-medium truncate">{msg.sender?.displayName ?? "Usuario"}</span>
                 <span className="text-[10px] text-[hsl(var(--muted-foreground))] shrink-0">{formatMessageTime(msg.created_at)}</span>
               </div>
-              <p className="text-sm line-clamp-3 whitespace-pre-wrap wrap-break-word">{renderMentionText(msg.body)}</p>
+              <p className="text-sm line-clamp-3 whitespace-pre-wrap wrap-break-word">
+                {msg.body ? renderMentionText(msg.body) : <span className="italic text-[hsl(var(--muted-foreground))]">Archivo adjunto</span>}
+              </p>
               <div className="flex items-center gap-2 mt-2">
                 <Button size="sm" variant="outline" onClick={() => onJumpToMessage?.(msg.id)}>Ver en el chat</Button>
                 {canUnpin && (
