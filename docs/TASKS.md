@@ -92,6 +92,26 @@ Plans: `docs/superpowers/plans/CHAT_IMPLEMENTATION_PLAN.md`, `2026-06-28-chat-im
 
 Verified: 2026-07-17 (migrations confirmed applied via `prisma migrate status`; module active in dev use since 2026-06-25; no formal browser verification run recorded)
 
+### Channels & Roles — Phase A (foundation)
+
+Spec: `docs/superpowers/specs/2026-08-25-chat-channels-roles-phase-a-design.md`
+Plan: `docs/superpowers/plans/2026-08-25-chat-channels-roles-phase-a.md`
+
+First of six planned phases toward a Discord/WhatsApp-style ecosystem (channels, groups, mentions, roles/permissions, rich messages, threads, cross-module references). This phase: data model + permission engine only, no UI.
+
+- [x] `chat_channel_roles` table, `channel` conversation type, `is_public`/`slug`/`description` columns, `role_id` on members, backfill of pre-existing `group` conversations onto 4 default roles (migration `20260825000000_chat_channels_roles`)
+- [x] Permission catalog + default role definitions (`chat-permissions-service.js`): `CHAT_PERMISSIONS`, `DEFAULT_CHANNEL_ROLES` (Owner/Admin/Moderator/Member), deep-frozen against accidental mutation
+- [x] Role engine: `listRoles`/`createRole`/`updateRole`/`deleteRole` (transactional reassignment)/`assignMemberRole` with position-hierarchy enforcement, self-demotion allowed, Owner-role grant restricted to existing Owners, last-Owner-removal guard
+- [x] `chat-service.js` wiring: `createConversation` populates `company_id` (previously always NULL) and seeds roles transactionally; `addMembers` backfills default role; `removeMember` blocks removing the last Owner
+- [x] `channel-directory-service.js`: company-scoped public channel directory + join flow (cross-tenant join gap found and closed during review — see decision note below)
+- [x] 8 new HTTP routes: `POST /chat/channels`, `GET /chat/channels/directory`, `POST /chat/conversations/:id/join`, `GET/POST /chat/conversations/:id/roles`, `PATCH/DELETE /chat/conversations/:id/roles/:roleId`, `PATCH /chat/conversations/:id/members/:memberId/role`
+- [x] SDK methods for all 8 endpoints (`packages/sdk/src/domains/chat.js`)
+- [ ] Manual live-HTTP smoke test (deferred — requires an authenticated dev session; automated + code-review verification below covers correctness, but no real end-to-end HTTP request was made against a running server)
+
+Built via `superpowers:subagent-driven-development` — fresh implementer + spec-compliance reviewer + code-quality reviewer per task, across 10 tasks. Review caught and fixed 7 real issues before they shipped: a non-transactional `deleteRole`, a non-transactional role-seed in `createConversation`, a `company_id = NULL` SQL comparison bug (twice — once in slug dedupe, once in `joinChannel`'s cross-tenant check), a shallow-freeze mutability hole in `DEFAULT_CHANNEL_ROLES`, a shared-cache test-isolation bug, and a cross-tenant channel-join authorization gap (two rounds — the first fix was itself incomplete for companyless callers).
+
+Verified: 2026-08-25 (`node --test apps/api/src/routes/chat/__tests__/chat-permissions-service.test.js apps/api/src/routes/chat/__tests__/channel-directory-service.test.js` → 33/33 pass; `pnpm build` → clean, full Tauri bundle produced; `pnpm db:migrate` applied; post-migration sanity queries confirm zero orphaned `role_id`s and zero conversations with a role count other than 4)
+
 ## atlas.notes — Collaborative Notes
 
 Plans: `docs/superpowers/plans/2026-06-27-atlas-notes-A-backend.md`, `2026-06-27-atlas-notes-B-frontend.md`
