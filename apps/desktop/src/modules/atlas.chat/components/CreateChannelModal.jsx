@@ -1,0 +1,132 @@
+import { useState, useMemo } from "react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Button, Input, Textarea, Switch, Label,
+} from "@atlas/ui";
+import { Hash } from "lucide-react";
+import { useCreateChannel } from "../hooks/useChannels";
+
+function slugify(text) {
+  return text
+    .toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "") // strip accents
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .slice(0, 60);
+}
+
+export function CreateChannelModal({ open, onClose, onCreated }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [isPublic, setIsPublic] = useState(true);
+  const [slug, setSlug] = useState("");
+  const [slugEdited, setSlugEdited] = useState(false);
+  const [error, setError] = useState(null);
+  const { mutateAsync: createChannel, isPending } = useCreateChannel();
+
+  const effectiveSlug = useMemo(
+    () => (slugEdited ? slug : slugify(title)),
+    [slug, slugEdited, title],
+  );
+
+  function handleTitleChange(e) {
+    setTitle(e.target.value);
+  }
+
+  function handleSlugChange(e) {
+    setSlugEdited(true);
+    setSlug(slugify(e.target.value));
+  }
+
+  function reset() {
+    setTitle("");
+    setDescription("");
+    setIsPublic(true);
+    setSlug("");
+    setSlugEdited(false);
+    setError(null);
+  }
+
+  async function handleCreate() {
+    if (!title.trim()) return;
+    setError(null);
+    try {
+      const result = await createChannel({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        isPublic,
+        slug: effectiveSlug || undefined,
+      });
+      onCreated?.(result?.data ?? result);
+      onClose?.();
+      reset();
+    } catch (err) {
+      setError(err?.message ?? "Error creando canal.");
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { onClose?.(); reset(); } }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Hash className="h-4 w-4 text-[hsl(var(--primary))]" />
+            Crear canal
+          </DialogTitle>
+          <DialogDescription>
+            Un canal es un espacio persistente para tu equipo, con roles y permisos propios.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3 py-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="channel-title">Nombre</Label>
+            <Input
+              id="channel-title"
+              value={title}
+              onChange={handleTitleChange}
+              placeholder="general"
+              autoFocus
+            />
+            {effectiveSlug && (
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">#{effectiveSlug}</p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="channel-description">Descripcion (opcional)</Label>
+            <Textarea
+              id="channel-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="De que trata este canal..."
+              rows={2}
+            />
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border border-[hsl(var(--border))] px-3 py-2.5">
+            <div>
+              <p className="text-sm font-medium">Canal publico</p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                Cualquiera en tu empresa puede encontrarlo y unirse.
+              </p>
+            </div>
+            <Switch checked={isPublic} onCheckedChange={setIsPublic} />
+          </div>
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { onClose?.(); reset(); }} disabled={isPending}>
+            Cancelar
+          </Button>
+          <Button onClick={handleCreate} disabled={!title.trim() || isPending}>
+            {isPending ? "Creando..." : "Crear canal"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -1,8 +1,13 @@
 import { useState } from "react";
-import { Button, EmptyState, SearchInput, Skeleton } from "@atlas/ui";
-import { Plus, Archive, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  Button, EmptyState, SearchInput, Skeleton,
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from "@atlas/ui";
+import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass } from "lucide-react";
 import { ChatConversationItem } from "./ChatConversationItem";
 import { CreateChatModal } from "./CreateChatModal";
+import { CreateChannelModal } from "./CreateChannelModal";
+import { ChannelDirectorySheet } from "./ChannelDirectorySheet";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 import { useArchivedConversations } from "../hooks/useChatConversations";
@@ -12,6 +17,8 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
   const { isUserOnline } = useGlobalPresence();
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [showDirectory, setShowDirectory] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
 
   const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations();
@@ -40,15 +47,27 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[hsl(var(--border))] shrink-0">
         <h2 className="text-sm font-semibold">Chat</h2>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-7 w-7"
-          onClick={() => setShowCreate(true)}
-          title="Nueva conversacion"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="icon" variant="ghost" className="h-7 w-7" title="Nueva conversacion o canal">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => setShowCreate(true)}>
+              <MessageSquarePlus className="h-3.5 w-3.5 mr-2" />
+              Nueva conversacion
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setShowCreateChannel(true)}>
+              <Hash className="h-3.5 w-3.5 mr-2" />
+              Crear canal
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setShowDirectory(true)}>
+              <Compass className="h-3.5 w-3.5 mr-2" />
+              Explorar canales
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Search */}
@@ -173,6 +192,24 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
         onClose={() => setShowCreate(false)}
         onCreated={(conv) => {
           setShowCreate(false);
+          onCreated?.(conv);
+        }}
+      />
+
+      <CreateChannelModal
+        open={showCreateChannel}
+        onClose={() => setShowCreateChannel(false)}
+        onCreated={(conv) => {
+          setShowCreateChannel(false);
+          onCreated?.(conv);
+        }}
+      />
+
+      <ChannelDirectorySheet
+        open={showDirectory}
+        onOpenChange={setShowDirectory}
+        onJoined={(conv) => {
+          setShowDirectory(false);
           onCreated?.(conv);
         }}
       />
