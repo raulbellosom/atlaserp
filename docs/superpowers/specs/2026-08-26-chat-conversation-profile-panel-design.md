@@ -44,7 +44,7 @@ Users are used to WhatsApp/Telegram-style conversation profiles: shared media, a
 3. Muting only suppresses the realtime toast popup. It does not change unread counts, badge numbers, or in-app sound (no sound exists today).
 4. No push/desktop OS-level notifications are affected — none exist in this codebase today; only the existing in-app `sonner` toast in `RealtimeProvider.jsx` is in scope.
 5. No rate-limiting or duplicate-report prevention — the same reporter can file multiple reports against the same user; the admin screen shows every report as its own row.
-6. No email/notification to the reported user when they are disabled, and no in-app "you have been blocked" indicator shown to the blocked user (their messages simply get rejected with an error).
+6. No email/notification to the reported user when they are disabled. Corrected during Task 4 code review — this spec originally also claimed "no in-app 'you have been blocked' indicator shown to the blocked user," which directly contradicted this same section's own enforcement design: `sendMessage` rejects a blocked user's message with an explicit 403 "No puedes enviar mensajes a este usuario" (Section 12), and `GET /chat/users/:userId/block-status` is symmetric by design — either party can query it, which is required so the profile panel's Block/Unblock button shows correctly no matter who opens the profile. Unlike WhatsApp's silent-delivery-failure model, blocking here is intentionally overt on both sides (the approach the user explicitly chose during brainstorming was "Block only, enforced," not a covert/silent block) — a blocked user finds out via a clear error when they try to message, not via delivery ambiguity. Building true covert blocking (messages appear to send but silently vanish, block-status only queryable by the blocker) would be a materially larger feature than what was scoped and is not part of this version.
 7. This spec does not add "block" or "report" actions inside group/channel conversations — both are direct-chat-contact-scoped only, matching WhatsApp.
 
 ## 7. User stories
@@ -134,7 +134,7 @@ Auth: required
 Permission: `chat.conversations.read` (any active member of the conversation may mute their own membership row)
 Body: `{ muted: boolean }`
 Response: `{ data: { conversationId: string, muted: boolean } }`
-Errors: 403 if not a member of the conversation; 404 if conversation not found.
+Errors: none — corrected during Task 4 code review. The original draft promised "403 if not a member; 404 if not found," but the codebase's own `archiveConversation`/`unarchiveConversation` (`chat-service.js`, which this endpoint was explicitly designed to mirror — see Section 10) don't enforce membership either: both scope their `UPDATE` to `WHERE conversation_id = ... AND user_id = <caller's own resolved profile id> AND left_at IS NULL` and silently no-op if that row doesn't exist, always returning success. `muteConversation` follows that same established pattern intentionally, not as an oversight. This is safe: the `WHERE` clause is always scoped to the caller's own `user_id`, so a non-member can never affect another user's row or learn anything about a conversation they can't already see — at worst, a non-member's mute call is a harmless no-op.
 
 ### GET /chat/users/:userId/block-status
 
@@ -265,7 +265,7 @@ N/A for this version — consistent with the rest of atlas.chat and the existing
 
 1. Blocking someone you already blocked: `POST /chat/users/:id/block` is idempotent (unique constraint, upsert semantics) — returns success either way.
 2. Reporting a user who reports you back: independent rows, no special handling needed.
-3. Muting a conversation you're not (or no longer) a member of: 403/404, same as other member-scoped mutations.
+3. Muting a conversation you're not (or no longer) a member of: silent no-op, matching `archiveConversation`/`unarchiveConversation`'s established behavior (see the corrected Section 12) — not 403/404.
 4. Sending a message to a conversation where the recipient blocked you AFTER the conversation already existed: `sendMessage` checks `chat_blocks` on every send (not just at conversation creation), so the block takes effect immediately on the next message attempt, not just for new conversations.
 5. Either party blocking the other stops messages in both directions: `sendMessage`'s check must reject if a `chat_blocks` row exists for `(sender, recipient)` OR `(recipient, sender)`, not just one direction.
 6. "Groups in common" while the other user has left a shared group: excluded, since the query filters `left_at IS NULL` for both members.
