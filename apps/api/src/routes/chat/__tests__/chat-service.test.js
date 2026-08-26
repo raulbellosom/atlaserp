@@ -423,6 +423,48 @@ describe("chat-service — sendMessage mentions", () => {
   });
 });
 
+describe("chat-service — pinMessage permission enforcement", () => {
+  it("channel: calls assertChannelPermission with messages.pin and propagates a 403 rejection", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],                                             // resolveUserProfileId
+      [{ id: "msg-1", conversation_id: CONV_ID, conversation_type: "channel" }], // message+membership+type lookup
+    ]);
+    let calledWith = null;
+    const permissionsService = {
+      assertChannelPermission: async (convId, profileId, key) => {
+        calledWith = { convId, profileId, key };
+        const err = new Error("No tienes permiso para realizar esta accion.");
+        err.status = 403;
+        throw err;
+      },
+    };
+    const svc = createChatService({ prisma, permissionsService });
+    await assert.rejects(
+      () => svc.pinMessage({ messageId: "msg-1", authUserId: AUTH_USER_ID, pinned: true }),
+      (err) => err.status === 403,
+    );
+    assert.deepEqual(calledWith, { convId: CONV_ID, profileId: PROFILE_ID, key: "messages.pin" });
+  });
+
+  it("direct: never calls assertChannelPermission — behavior unaffected", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "msg-1", conversation_id: CONV_ID, conversation_type: "direct" }],
+      [{  // getMessageFull's query
+        id: "msg-1", conversation_id: CONV_ID, sender_user_id: PROFILE_ID, sender_guest_id: null,
+        sender_type: "user", body: "hola", message_type: "text", attachment_count: 0,
+        metadata: {}, created_at: new Date(), edited_at: null, deleted_at: null,
+        pinned_at: new Date(), pinned_by_user_id: PROFILE_ID,
+        sender: { id: null, displayName: null, avatarFileId: null }, attachments: null, reactions: null,
+      }],
+    ]);
+    const permissionsService = { assertChannelPermission: throwingAssertChannelPermission };
+    const svc = createChatService({ prisma, permissionsService });
+    const result = await svc.pinMessage({ messageId: "msg-1", authUserId: AUTH_USER_ID, pinned: true });
+    assert.ok(result);
+  });
+});
+
 describe("chat-service — getConversation member role fields", () => {
   it("includes roleId/roleName/roleColor/rolePosition/roleIsSystem for each member", async () => {
     const memberRow = {

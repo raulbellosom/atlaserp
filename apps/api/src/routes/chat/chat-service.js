@@ -602,6 +602,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         m.id, m.conversation_id, m.sender_user_id, m.sender_guest_id,
         m.sender_type, m.body, m.message_type, m.attachment_count,
         m.metadata, m.created_at, m.edited_at, m.deleted_at,
+        m.pinned_at,
+        m.pinned_by_user_id,
         json_build_object(
           'id', up.id,
           'displayName', up.display_name,
@@ -619,7 +621,17 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             'bucket', a.bucket
           ) ORDER BY a.created_at)
           FROM chat_attachments a WHERE a.message_id = m.id
-        ) AS attachments
+        ) AS attachments,
+        -- reactions, grouped by emoji
+        (
+          SELECT json_agg(json_build_object('emoji', r.emoji, 'userIds', r.user_ids))
+          FROM (
+            SELECT emoji, json_agg(user_id) AS user_ids
+            FROM chat_message_reactions
+            WHERE message_id = m.id
+            GROUP BY emoji
+          ) r
+        ) AS reactions
       FROM chat_messages m
       LEFT JOIN user_profile up ON up.id = m.sender_user_id
       WHERE m.id = ${messageId}
@@ -663,6 +675,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         m.created_at,
         m.edited_at,
         m.deleted_at,
+        m.pinned_at,
+        m.pinned_by_user_id,
         -- sender info
         json_build_object(
           'id', up.id,
@@ -682,7 +696,17 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             'bucket', a.bucket
           ) ORDER BY a.created_at)
           FROM chat_attachments a WHERE a.message_id = m.id
-        ) AS attachments
+        ) AS attachments,
+        -- reactions, grouped by emoji
+        (
+          SELECT json_agg(json_build_object('emoji', r.emoji, 'userIds', r.user_ids))
+          FROM (
+            SELECT emoji, json_agg(user_id) AS user_ids
+            FROM chat_message_reactions
+            WHERE message_id = m.id
+            GROUP BY emoji
+          ) r
+        ) AS reactions
       FROM chat_messages m
       LEFT JOIN user_profile up ON up.id = m.sender_user_id
       WHERE m.conversation_id = ${conversationId}
@@ -916,6 +940,48 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     return { ok: true };
   }
 
+  async function pinMessage({ messageId, authUserId, pinned }) {
+    const profileId = await getUserProfileId(authUserId);
+
+    const rows = await prisma.$queryRaw`
+      SELECT m.id, m.conversation_id, c.type AS conversation_type
+      FROM chat_messages m
+      INNER JOIN chat_conversation_members ccm
+        ON ccm.conversation_id = m.conversation_id AND ccm.user_id = ${profileId} AND ccm.left_at IS NULL
+      INNER JOIN chat_conversations c ON c.id = m.conversation_id
+      WHERE m.id = ${messageId} AND m.deleted_at IS NULL
+      LIMIT 1
+    `;
+    if (!rows.length) throw new ChatServiceError("Mensaje no encontrado.", 404);
+    const { conversation_id: conversationId, conversation_type: conversationType } = rows[0];
+
+    if (permissionsService && (conversationType === "channel" || conversationType === "group")) {
+      await permissionsService.assertChannelPermission(conversationId, profileId, "messages.pin");
+    }
+
+    await prisma.$executeRaw`
+      UPDATE chat_messages
+      SET pinned_at = ${pinned ? new Date() : null},
+          pinned_by_user_id = ${pinned ? profileId : null}
+      WHERE id = ${messageId}
+    `;
+
+    return getMessageFull(messageId);
+  }
+
+  async function listPinnedMessages({ conversationId, authUserId }) {
+    const profileId = await getUserProfileId(authUserId);
+    await assertMember(conversationId, profileId);
+
+    const rows = await prisma.$queryRaw`
+      SELECT m.id FROM chat_messages m
+      WHERE m.conversation_id = ${conversationId} AND m.pinned_at IS NOT NULL AND m.deleted_at IS NULL
+      ORDER BY m.pinned_at DESC
+    `;
+    const messages = await Promise.all(rows.map((r) => getMessageFull(r.id)));
+    return { data: messages.filter(Boolean) };
+  }
+
   async function markConversationRead({ conversationId, authUserId }) {
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
@@ -1138,6 +1204,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     sendMessage,
     editMessage,
     deleteMessage,
+    pinMessage,
+    listPinnedMessages,
     markConversationRead,
     presignAttachmentUpload,
     getAttachmentSignedUrl,
