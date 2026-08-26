@@ -3844,6 +3844,25 @@ app.post(
   },
 );
 
+app.get(
+  "/contacts/:id",
+  authMiddleware,
+  requirePermission("contacts.contacts.read"),
+  async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const id = c.req.param("id");
+      const contact = await contactsService.getById({ authUserId, id });
+      return c.json({ data: contact });
+    } catch (err) {
+      if (err instanceof ContactsServiceError) {
+        return c.json({ error: err.message }, err.status);
+      }
+      return c.json({ error: "No se pudo cargar el contacto." }, 500);
+    }
+  },
+);
+
 app.put(
   "/contacts/:id",
   authMiddleware,

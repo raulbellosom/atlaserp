@@ -111,6 +111,15 @@ export function createContactsService({ prisma }) {
       return { rows: contacts, total, page: parsedPage, pageSize: parsedPageSize };
     },
 
+    async getById({ authUserId, id }) {
+      const companyId = await getCompanyContext(authUserId);
+      const contact = await prisma.contact.findFirst({ where: { id, companyId } });
+      if (!contact) {
+        throw new ContactsServiceError("Contacto no encontrado.", 404);
+      }
+      return contact;
+    },
+
     async create({ authUserId, payload }) {
       const companyId = await getCompanyContext(authUserId);
       const data = contactCreateSchema.parse(payload);

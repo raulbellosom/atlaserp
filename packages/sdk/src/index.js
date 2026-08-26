@@ -566,6 +566,10 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
+      getById: (id, token) =>
+        request(`/contacts/${encodeURIComponent(id)}`, {
+          headers: withAuthHeaders(token),
+        }),
       update: (id, data, token) =>
         request(`/contacts/${encodeURIComponent(id)}`, {
           method: "PUT",
