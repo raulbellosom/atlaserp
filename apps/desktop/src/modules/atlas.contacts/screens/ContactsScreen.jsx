@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AtlasTable, Button, ConfirmDialog, ErrorState, PageHeader } from "@atlas/ui";
 import { FileSpreadsheet, FileText, Power, PowerOff, Trash2, UserPlus } from "lucide-react";
@@ -105,11 +106,36 @@ export default function ContactsScreen() {
   const [refreshSignal, setRefreshSignal] = useState(0);
   const [bulkState, setBulkState] = useState(null);
 
+  const { "*": wildcard } = useParams();
+  const navigate = useNavigate();
+  const urlContactMatch = wildcard?.match(/^contacts\/([^/]+)$/);
+  const urlContactId = urlContactMatch?.[1] ?? null;
+
   const blueprintsQuery = useQuery({
     queryKey: ["blueprints", "contacts", authUserId],
     queryFn: () => atlas.blueprints.list(token),
     enabled: Boolean(token),
   });
+
+  // A URL-referenced contact may not be in the currently-loaded list page
+  // (pagination) — always fetch it independently by id, never assume it's
+  // already among the loaded rows.
+  const urlContactQuery = useQuery({
+    queryKey: ["contact", urlContactId, authUserId],
+    queryFn: () => atlas.contacts.getById(urlContactId, token),
+    enabled: Boolean(urlContactId && token),
+  });
+
+  useEffect(() => {
+    if (!urlContactId) return;
+    if (urlContactQuery.data?.data) {
+      setEditingContact(urlContactQuery.data.data);
+      setSheetOpen(true);
+    } else if (urlContactQuery.isError) {
+      toast.error("No se pudo cargar el contacto.");
+      navigate("/app/m/atlas.contacts/contacts");
+    }
+  }, [urlContactId, urlContactQuery.data, urlContactQuery.isError, navigate]);
 
   const formBlueprint = useMemo(
     () => resolveContactsBlueprint(blueprintsQuery.data?.data ?? []),
@@ -124,6 +150,7 @@ export default function ContactsScreen() {
   function openEdit(contact) {
     setEditingContact(contact);
     setSheetOpen(true);
+    navigate(`/app/m/atlas.contacts/contacts/${contact.id}`);
   }
 
   const createMutation = useMutation({
@@ -302,7 +329,10 @@ export default function ContactsScreen() {
         open={sheetOpen}
         onOpenChange={(v) => {
           setSheetOpen(v);
-          if (!v) setEditingContact(null);
+          if (!v) {
+            setEditingContact(null);
+            if (urlContactId) navigate("/app/m/atlas.contacts/contacts");
+          }
         }}
         contact={editingContact}
         blueprint={formBlueprint}

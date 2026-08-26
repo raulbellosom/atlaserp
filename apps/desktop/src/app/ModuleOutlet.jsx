@@ -57,6 +57,9 @@ const SCREEN_MAP = {
   "atlas.contacts:/contacts": lazy(
     () => import("../modules/atlas.contacts/screens/ContactsScreen.jsx"),
   ),
+  "atlas.contacts:/contacts/:id": lazy(
+    () => import("../modules/atlas.contacts/screens/ContactsScreen.jsx"),
+  ),
   "atlas.files:/": lazy(
     () => import("../modules/atlas.files/screens/FilesScreen.jsx"),
   ),
@@ -452,6 +455,9 @@ function resolveScreen(moduleKey, subPath) {
   }
   if (moduleKey === "atlas.hr" && subPath.startsWith("/hr/employees/")) {
     return SCREEN_MAP["atlas.hr:/hr/employees/:id"] ?? null;
+  }
+  if (moduleKey === "atlas.contacts" && subPath.startsWith("/contacts/")) {
+    return SCREEN_MAP["atlas.contacts:/contacts/:id"] ?? null;
   }
   if (moduleKey === "atlas.fleet") {
     if (subPath === "/vehicles" || subPath === "/vehicles/new") return SCREEN_MAP["atlas.fleet:/vehicles"] ?? null;
