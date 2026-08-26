@@ -108,3 +108,98 @@ describe("chat-moderation-service — getGroupsInCommon", () => {
     assert.equal(result[0].id, CONV_ID);
   });
 });
+
+describe("chat-moderation-service — reports", () => {
+  it("createReport rejects reporting yourself", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+    ]);
+    const service = createChatModerationService({ prisma });
+    await assert.rejects(
+      () => service.createReport({ authUserId: AUTH_USER_ID, reportedUserId: PROFILE_ID, reason: "spam" }),
+      (err) => err instanceof ChatModerationServiceError && err.status === 400,
+    );
+  });
+
+  it("createReport inserts a row and optionally blocks", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }], // resolveUserProfileId
+      [{ id: "report-1", status: "open" }], // INSERT ... RETURNING
+    ], [
+      { count: 1 }, // block insert (alsoBlock: true)
+    ]);
+    const service = createChatModerationService({ prisma });
+    const result = await service.createReport({
+      authUserId: AUTH_USER_ID,
+      reportedUserId: OTHER_PROFILE_ID,
+      conversationId: CONV_ID,
+      reason: "abuse",
+      note: "Mensajes ofensivos",
+      alsoBlock: true,
+    });
+    assert.deepEqual(result, { id: "report-1", status: "open" });
+    assert.equal(prisma._executeRawCallCount, 1);
+  });
+
+  it("listReports returns rows with joined display names", async () => {
+    const prisma = buildPrismaMock([
+      [{
+        id: "report-1",
+        reporter_user_id: PROFILE_ID,
+        reporter_display_name: "Ana",
+        reported_user_id: OTHER_PROFILE_ID,
+        reported_display_name: "Beto",
+        conversation_id: CONV_ID,
+        reason: "spam",
+        note: null,
+        status: "open",
+        reviewed_by_user_id: null,
+        reviewed_at: null,
+        created_at: new Date("2026-08-26T00:00:00Z"),
+      }],
+    ]);
+    const service = createChatModerationService({ prisma });
+    const result = await service.listReports({ status: "open" });
+    assert.equal(result.length, 1);
+    assert.equal(result[0].reporterDisplayName, "Ana");
+    assert.equal(result[0].reportedDisplayName, "Beto");
+  });
+
+  it("resolveReport with action:dismiss updates status only", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: "report-1", reported_user_id: OTHER_PROFILE_ID, status: "open" }], // fetch report
+      [{ id: PROFILE_ID }], // resolveUserProfileId for reviewer
+    ], [
+      { count: 1 }, // UPDATE chat_reports
+    ]);
+    const service = createChatModerationService({ prisma });
+    const result = await service.resolveReport({ reportId: "report-1", authUserId: AUTH_USER_ID, action: "dismiss" });
+    assert.deepEqual(result, { id: "report-1", status: "dismissed" });
+    assert.equal(prisma._executeRawCallCount, 1);
+  });
+
+  it("resolveReport with action:disable_user updates status AND disables the user", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: "report-1", reported_user_id: OTHER_PROFILE_ID, status: "open" }], // fetch report
+      [{ id: PROFILE_ID }], // resolveUserProfileId for reviewer
+    ], [
+      { count: 1 }, // UPDATE user_profile SET enabled = false
+      { count: 1 }, // UPDATE chat_reports
+    ]);
+    const service = createChatModerationService({ prisma });
+    const result = await service.resolveReport({ reportId: "report-1", authUserId: AUTH_USER_ID, action: "disable_user" });
+    assert.deepEqual(result, { id: "report-1", status: "user_disabled" });
+    assert.equal(prisma._executeRawCallCount, 2);
+  });
+
+  it("resolveReport rejects an already-resolved report", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: "report-1", reported_user_id: OTHER_PROFILE_ID, status: "dismissed" }],
+    ]);
+    const service = createChatModerationService({ prisma });
+    await assert.rejects(
+      () => service.resolveReport({ reportId: "report-1", authUserId: AUTH_USER_ID, action: "dismiss" }),
+      (err) => err instanceof ChatModerationServiceError && err.status === 400,
+    );
+  });
+});
