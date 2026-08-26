@@ -32,12 +32,9 @@ async function fetchOptions(entityType, token) {
     return (res?.data ?? []).map((f) => ({ label: f.originalName, value: f.id }));
   }
   if (entityType === "hr_employee") {
-    // NOTE: the SDK's listEmployees only forwards q/status/enabled/limit —
-    // NOT pageSize — so `limit` (not `pageSize`) is required here to avoid
-    // silently falling back to the default. `limit` (not page/pageSize) also
-    // takes the "legacy" service path, which returns camelCase
-    // firstName/lastName fields instead of the paginated path's snake_case
-    // full_name.
+    // The SDK's listEmployees only forwards q/status/enabled/limit — NOT
+    // pageSize (silently dropped) — so `limit` is used explicitly here
+    // rather than relying on the server's own default `limit` fallback.
     const res = await atlas.hr.listEmployees(token, { limit: 100 });
     return (res?.data ?? []).map((e) => ({ label: `${e.firstName} ${e.lastName}`.trim(), value: e.id }));
   }
