@@ -69,6 +69,10 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
           {conversation?.avatarUrl ? (
             <img src={conversation.avatarUrl} alt="" className="h-full w-full object-cover" />
           ) : conversation?.avatar_emoji ? (
+            // snake_case is correct here, not a typo: getConversation/listConversations
+            // rename avatar_file_id's resolved URL to camelCase avatarUrl, but pass
+            // avatar_emoji straight through unaliased from `SELECT c.*` — the backend's
+            // own response shape is genuinely inconsistent between these two fields.
             <span className="text-3xl">{conversation.avatar_emoji}</span>
           ) : (
             <span className="text-lg font-semibold text-[hsl(var(--muted-foreground))]">
@@ -89,7 +93,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
             <Button
               size="sm"
               variant="outline"
-              disabled={!canManage || uploadMutation.isPending}
+              disabled={!canManage || uploadMutation.isPending || updateMutation.isPending}
               onClick={() => fileInputRef.current?.click()}
             >
               <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
@@ -97,7 +101,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
             </Button>
             <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
               <PopoverTrigger asChild>
-                <Button size="sm" variant="outline" disabled={!canManage}>
+                <Button size="sm" variant="outline" disabled={!canManage || uploadMutation.isPending || updateMutation.isPending}>
                   <Smile className="h-3.5 w-3.5 mr-1.5" />
                   Cambiar emoji
                 </Button>
