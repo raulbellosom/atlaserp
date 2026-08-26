@@ -35,23 +35,30 @@ function setCachedSignedUrl(bucket, objectKey, variant, url) {
   });
 }
 
+// Exported so sibling chat services (chat-permissions-service.js,
+// channel-directory-service.js) can resolve auth_user_id -> user_profile.id
+// without duplicating the cache.
+export async function resolveUserProfileId(prisma, authUserId) {
+  const cached = _profileIdCache.get(authUserId);
+  if (cached && cached.expiresAt > Date.now()) return cached.profileId;
+
+  const rows = await prisma.$queryRaw`
+    SELECT id FROM user_profile WHERE auth_user_id = ${authUserId} LIMIT 1
+  `;
+  if (!rows.length) throw new ChatServiceError("Usuario no encontrado.", 404);
+
+  const profileId = rows[0].id;
+  _profileIdCache.set(authUserId, { profileId, expiresAt: Date.now() + PROFILE_CACHE_TTL_MS });
+  return profileId;
+}
+
 export function createChatService({ prisma, supabaseAdmin, notificationService = null, broadcaster = null }) {
   // ------------------------------------------------------------------
   // Internal helpers
   // ------------------------------------------------------------------
 
   async function getUserProfileId(authUserId) {
-    const cached = _profileIdCache.get(authUserId);
-    if (cached && cached.expiresAt > Date.now()) return cached.profileId;
-
-    const rows = await prisma.$queryRaw`
-      SELECT id FROM user_profile WHERE auth_user_id = ${authUserId} LIMIT 1
-    `;
-    if (!rows.length) throw new ChatServiceError("Usuario no encontrado.", 404);
-
-    const profileId = rows[0].id;
-    _profileIdCache.set(authUserId, { profileId, expiresAt: Date.now() + PROFILE_CACHE_TTL_MS });
-    return profileId;
+    return resolveUserProfileId(prisma, authUserId);
   }
 
   async function assertMember(conversationId, userProfileId) {
