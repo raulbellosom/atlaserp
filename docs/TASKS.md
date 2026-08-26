@@ -212,6 +212,24 @@ Verified: 2026-08-27 (`node --test apps/api/src/routes/chat/__tests__/*.test.js`
 
 **This closes the 6-phase Discord/WhatsApp-style chat ecosystem roadmap** (Phases A–F: foundation/permissions, channel & group UX, mentions, pinning & reactions, threads, cross-module references) — see each phase's entry above for what shipped and what review caught.
 
+### Chat UI polish — Sub-project 1: Conversation identity & member accessibility
+
+Spec: `docs/superpowers/specs/2026-08-27-chat-conversation-identity-design.md`
+Plans: `docs/superpowers/plans/2026-08-27-chat-conversation-identity-plan-a-backend.md`, `...-plan-b-frontend.md`
+
+First of three sub-projects from user-provided screenshot feedback on the chat UI (2026-08-27), post-roadmap: no visual signal distinguished a channel from a group from a direct chat, every channel/group looked identical (initial-letter avatar only), and member access was a plain "N miembro(s)" text buried in the header.
+
+- [x] `chat_conversations.avatar_file_id`/`avatar_emoji` (nullable, mutually exclusive — setting one server-side clears the other, even if the caller only mentioned one; explicitly clearing just one via `null` does NOT touch the other, matching the spec's "remove-both must send both nulls" contract); `updateConversation` rewritten to build its SQL from conditionally-included `Prisma.sql` fragments instead of the old hardcoded `COALESCE`, since COALESCE can't express "explicitly clear to null" vs. "leave untouched"
+- [x] `getConversation`/`listConversations` resolve `avatar_file_id` to a live signed URL via the SAME batch-signing pass already used for member avatars (no second signing call, no id-mixup risk), exposed as computed `avatarUrl` (camelCase) — the old, permanently-dead `avatar_url` (snake_case) column is explicitly overwritten to `undefined` in every response so no consumer can read the wrong field; the validator's equally-dead `avatarUrl` field was removed and replaced with real `avatarFileId`/`avatarEmoji`
+- [x] `ConversationTypeBadge` (a `#`/people-icon corner badge) and emoji-avatar rendering reach all 3 real conversation-avatar surfaces (`ChatConversationItem`, `ChatWindow`'s header, `FloatingChatHub`'s mini-window) plus a 4th found and fixed along the way (`ForwardMessageModal`, deliberately given emoji support but not the badge itself — its corner is already occupied by a selection checkmark)
+- [x] `ChannelGeneralTab` (new first tab in `ChannelDetailsSheet`) lets an admin upload an image or pick an emoji as the channel/group's avatar, gated (disabled, not hidden) by the existing `channel.manage` permission — same gate `title`/`status` edits already used
+- [x] `MemberAvatarStack` (up to 4 overlapping avatars + a "+N" bubble) replaces the header's member-count text, wired to the SAME existing "Ver miembros" handler rather than a new one; shown unconditionally for channel/group (not only when nobody's online — the first version made the stack and the "N en línea" text mutually exclusive, silently hiding the feature's own headline element for the common case of an active conversation with anyone online, found by review)
+- [ ] Manual browser QA (deferred, same reason as the chat roadmap phases)
+
+Built via `superpowers:subagent-driven-development` across 8 tasks (4 backend, 4 frontend). Review caught and fixed 5 real issues: the stack/online-count mutual exclusivity described above (the most significant — it silently defeated the feature for its most common real-world case); two disabled-state races in `ChannelGeneralTab` (only the upload mutation, not the follow-up update mutation, blocked the buttons — a fast double-click could fire a redundant request); a `toast` import the plan itself got wrong (`@atlas/ui` only exports a `Toaster` container, not a `toast()` function — every real caller in this codebase imports it from `sonner` directly, caught before it shipped rather than after); and the `ForwardMessageModal` gap above. The central historical risk for this exact kind of change — a live camelCase computed field vs. a dead snake_case raw column, which shipped for real twice in the chat roadmap above — did not recur: a repo-wide grep after the frontend casing-fix task found zero remaining instances.
+
+Verified: 2026-08-27 (`node --test apps/api/src/routes/chat/__tests__/*.test.js` → 98/98 pass; `pnpm build` / `pnpm --filter @atlas/desktop exec vite build` → clean on every task and every fix; every task independently reviewed for spec compliance and code quality before being marked done)
+
 ## atlas.notes — Collaborative Notes
 
 Plans: `docs/superpowers/plans/2026-06-27-atlas-notes-A-backend.md`, `2026-06-27-atlas-notes-B-frontend.md`
