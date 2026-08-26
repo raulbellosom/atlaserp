@@ -84,6 +84,7 @@ import {
   Clock,
   Trash2,
   Folder,
+  Flag,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "../lib/utils.js";
@@ -200,6 +201,7 @@ const ICON_MAP = {
   Clock,
   Trash2,
   Folder,
+  Flag,
   FleetVehicle: FleetVehicleIcon,
 };
 
