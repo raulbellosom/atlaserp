@@ -3,6 +3,11 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "../lib/utils.js";
 import { useDragToDismiss } from "../hooks/useDragToDismiss.js";
+import {
+  BOTTOM_SHEET_SURFACE_CLASS,
+  bottomSheetDragStyle,
+  BottomSheetHandle,
+} from "./bottom-sheet-shared.jsx";
 
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
@@ -55,19 +60,14 @@ const DialogContent = forwardRef(function DialogContent(
         ref={ref}
         aria-describedby={undefined}
         {...props}
-        style={{
-          paddingBottom: "calc(2rem + env(safe-area-inset-bottom, 0px))",
-          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
-          transition: dragging ? "none" : "transform 280ms cubic-bezier(0.32, 0.72, 0, 1)",
-          ...style,
-        }}
+        style={bottomSheetDragStyle({ dragY, dragging, style })}
         className={cn(
           "fixed z-50 glass-strong shadow-xl focus:outline-none",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           // ── Mobile: full-width bottom sheet ──────────────────────────────
-          "inset-x-0 bottom-0 w-full min-h-[30dvh] max-h-[85dvh] overflow-y-auto overscroll-contain touch-pan-y",
-          "rounded-t-2xl px-5 pt-5 pb-8",
+          "inset-x-0 bottom-0 w-full min-h-[30dvh]",
+          BOTTOM_SHEET_SURFACE_CLASS,
           "data-[state=open]:slide-in-from-bottom-full",
           "data-[state=closed]:slide-out-to-bottom-full",
           "duration-300",
@@ -85,22 +85,16 @@ const DialogContent = forwardRef(function DialogContent(
           className,
         )}
       >
-        {/* Drag handle — mobile only; handles swipe-to-dismiss */}
-        <div
-          className="mx-auto mb-4 h-1.5 w-16 shrink-0 rounded-full bg-foreground/25 md:hidden cursor-grab active:cursor-grabbing touch-none"
-          aria-hidden="true"
-          onPointerDown={handleDragPointerDown}
-          onPointerMove={handleDragPointerMove}
-          onPointerUp={handleDragPointerUp}
-          onPointerCancel={handleDragPointerUp}
-        />
-        {/* Hidden close button for programmatic swipe-to-dismiss */}
-        <DialogPrimitive.Close
-          ref={closeRef}
-          className="sr-only"
-          tabIndex={-1}
-          aria-hidden="true"
-        />
+        {/* Drag handle — mobile only; handles swipe-to-dismiss. md:hidden
+            because the desktop variant is a centered modal with no handle. */}
+        <div className="md:hidden">
+          <BottomSheetHandle
+            closeRef={closeRef}
+            onPointerDown={handleDragPointerDown}
+            onPointerMove={handleDragPointerMove}
+            onPointerUp={handleDragPointerUp}
+          />
+        </div>
         {children}
         <DialogPrimitive.Close className="absolute right-4 top-4 rounded-lg p-1 text-[hsl(var(--muted-foreground))] opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40">
           <X className="h-4 w-4" />
