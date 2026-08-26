@@ -220,6 +220,18 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     }
   });
 
+  // GET /chat/messages/:id/thread
+  internal.get("/messages/:id/thread", requirePermission("chat.conversations.read"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const messageId = c.req.param("id");
+      const result = await chatService.listThreadReplies({ messageId, authUserId });
+      return c.json({ data: result });
+    } catch (err) {
+      return handleError(c, err, "Error listando el hilo.");
+    }
+  });
+
   // POST /chat/messages/:id/reactions
   internal.post("/messages/:id/reactions", requirePermission("chat.conversations.create"), async (c) => {
     try {

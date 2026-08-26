@@ -133,6 +133,11 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         headers: withAuthHeaders(token),
       }),
 
+    getThread: (messageId, token) =>
+      request(`/chat/messages/${encodeURIComponent(messageId)}/thread`, {
+        headers: withAuthHeaders(token),
+      }),
+
     toggleReaction: (messageId, emoji, token) =>
       request(`/chat/messages/${encodeURIComponent(messageId)}/reactions`, {
         method: "POST",

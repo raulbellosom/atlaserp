@@ -12,6 +12,7 @@ export const chatSendMessageSchema = z.object({
   messageType: z.enum(["text", "image", "file", "system"]).default("text"),
   metadata: z.record(z.unknown()).optional(),
   attachmentIds: z.array(z.string().uuid()).optional(),
+  threadRootId: z.string().uuid().optional(),
 });
 
 export const chatEditMessageSchema = z.object({
