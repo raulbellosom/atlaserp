@@ -11,6 +11,7 @@ import { ChatMessageList } from "./ChatMessageList";
 import { MessageComposer } from "./MessageComposer";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { ForwardMessageModal } from "./ForwardMessageModal";
+import { ChannelDetailsSheet } from "./ChannelDetailsSheet";
 import { useChatMessages, useSendMessage, useMarkRead, useDeleteMessage } from "../hooks/useChatMessages";
 import { useChatPresence } from "../hooks/useChatPresence";
 import { useChatConversations, useArchiveConversation, useUnarchiveConversation } from "../hooks/useChatConversations";
@@ -161,6 +162,7 @@ function ChatHeader({
   onEnterSelection,
   onDeleteConversation,
   onArchive, isArchived,
+  onOpenDetails,
 }) {
   const [avatarErr, setAvatarErr] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -337,8 +339,8 @@ function ChatHeader({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {conversation?.type === "group" && (
-              <DropdownMenuItem>
+            {(conversation?.type === "group" || conversation?.type === "channel") && (
+              <DropdownMenuItem onSelect={onOpenDetails}>
                 <Users className="h-3.5 w-3.5 mr-2" />
                 Ver miembros
               </DropdownMenuItem>
@@ -418,6 +420,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
   const [selectedMsgIds, setSelectedMsgIds] = useState(new Set());
   const [searchMode, setSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showDetails, setShowDetails] = useState(false);
 
   const composerRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -647,6 +650,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         onForwardSelected={handleForwardSelected}
         onEnterSelection={() => enterSelectionMode(null)}
         onDeleteConversation={handleDeleteConversation}
+        onOpenDetails={() => setShowDetails(true)}
         isArchived={conversation?.is_archived ?? false}
         onArchive={conversationId
           ? () => conversation?.is_archived
@@ -709,6 +713,13 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         onClose={() => setForwardMessage(null)}
         message={forwardMessage}
         conversations={conversations}
+      />
+
+      <ChannelDetailsSheet
+        open={showDetails}
+        onOpenChange={setShowDetails}
+        conversationId={conversationId}
+        currentUserId={userProfile?.id}
       />
     </div>
   );
