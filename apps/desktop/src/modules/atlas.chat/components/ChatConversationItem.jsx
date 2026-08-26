@@ -1,4 +1,5 @@
 import { formatMessageTime } from "../lib/chatUtils";
+import { ConversationTypeBadge } from "./ConversationTypeBadge";
 
 function getInitials(name) {
   if (!name) return "?";
@@ -10,7 +11,7 @@ function getInitials(name) {
     .toUpperCase();
 }
 
-function Avatar({ name, avatarUrl, size = "md", online = false }) {
+function Avatar({ name, avatarUrl, avatarEmoji, type, size = "md", online = false }) {
   const sizeClass = size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm";
   return (
     <div className="relative shrink-0">
@@ -20,6 +21,12 @@ function Avatar({ name, avatarUrl, size = "md", online = false }) {
           alt={name}
           className={`${sizeClass} rounded-full object-cover`}
         />
+      ) : avatarEmoji ? (
+        <div
+          className={`${sizeClass} rounded-full flex items-center justify-center bg-[hsl(var(--muted))]`}
+        >
+          <span className="text-lg leading-none">{avatarEmoji}</span>
+        </div>
       ) : (
         <div
           className={`${sizeClass} rounded-full flex items-center justify-center font-semibold`}
@@ -31,6 +38,7 @@ function Avatar({ name, avatarUrl, size = "md", online = false }) {
       {online && (
         <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[hsl(var(--background))]" />
       )}
+      <ConversationTypeBadge type={type} />
     </div>
   );
 }
@@ -45,7 +53,8 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
     otherMember?.displayName ??
     (conversation.type === "group" ? "Grupo" : "Conversacion directa");
 
-  const avatarUrl = conversation.avatar_url ?? otherMember?.avatarUrl ?? null;
+  const avatarUrl = conversation.avatarUrl ?? otherMember?.avatarUrl ?? null;
+  const avatarEmoji = conversation.avatar_emoji ?? null;
   const lastMsg = conversation.last_message;
   const unread = conversation.unread_count ?? 0;
 
@@ -73,7 +82,7 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
           : "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
       ].join(" ")}
     >
-      <Avatar name={displayName} avatarUrl={avatarUrl} online={isOnline} />
+      <Avatar name={displayName} avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conversation.type} online={isOnline} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-medium truncate">{displayName}</span>

@@ -19,6 +19,7 @@ import { ChatMessageList } from "./ChatMessageList";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { CreateChatModal } from "./CreateChatModal";
 import { getConversationDisplayName } from "../lib/chatUtils";
+import { ConversationTypeBadge } from "./ConversationTypeBadge";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 
@@ -30,7 +31,7 @@ const WH_MIN = 44; // minimized height px
 const GAP = 8;     // gap between elements px
 
 function getAvatarUrl(conversation, currentUserId) {
-  if (conversation.avatar_url) return conversation.avatar_url;
+  if (conversation.avatarUrl) return conversation.avatarUrl;
   if (conversation.type === "direct") {
     const other = (conversation.members ?? []).find((m) => m.userId !== currentUserId);
     return other?.avatarUrl ?? null;
@@ -38,28 +39,38 @@ function getAvatarUrl(conversation, currentUserId) {
   return null;
 }
 
-function AvatarCircle({ avatarUrl, name, size = "md" }) {
+function getAvatarEmoji(conversation) {
+  return conversation?.avatar_emoji ?? null;
+}
+
+function AvatarCircle({ avatarUrl, avatarEmoji, type, name, size = "md" }) {
   const [avatarErr, setAvatarErr] = useState(false);
   const sizeClass = size === "sm" ? "h-7 w-7 text-[10px]" : "h-8 w-8 text-xs";
 
   useEffect(() => { setAvatarErr(false); }, [avatarUrl]);
 
-  if (avatarUrl && !avatarErr) {
-    return (
-      <img
-        src={avatarUrl}
-        alt={name}
-        className={`${sizeClass} rounded-full object-cover shrink-0`}
-        onError={() => setAvatarErr(true)}
-      />
-    );
-  }
   return (
-    <div
-      className={`${sizeClass} rounded-full flex items-center justify-center font-bold shrink-0`}
-      style={{ backgroundColor: "var(--brand-primary)", color: "var(--brand-primary-foreground)" }}
-    >
-      {name?.[0]?.toUpperCase() ?? "?"}
+    <div className="relative shrink-0">
+      {avatarUrl && !avatarErr ? (
+        <img
+          src={avatarUrl}
+          alt={name}
+          className={`${sizeClass} rounded-full object-cover`}
+          onError={() => setAvatarErr(true)}
+        />
+      ) : avatarEmoji ? (
+        <div className={`${sizeClass} rounded-full flex items-center justify-center bg-[hsl(var(--muted))]`}>
+          <span className="text-sm leading-none">{avatarEmoji}</span>
+        </div>
+      ) : (
+        <div
+          className={`${sizeClass} rounded-full flex items-center justify-center font-bold`}
+          style={{ backgroundColor: "var(--brand-primary)", color: "var(--brand-primary-foreground)" }}
+        >
+          {name?.[0]?.toUpperCase() ?? "?"}
+        </div>
+      )}
+      <ConversationTypeBadge type={type} />
     </div>
   );
 }
@@ -109,6 +120,7 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
 
   const name = getConversationDisplayName(conversation, userProfile?.id);
   const avatarUrl = getAvatarUrl(conversation, userProfile?.id);
+  const avatarEmoji = getAvatarEmoji(conversation);
   const offset = BM + BS + GAP + index * (WW + GAP);
 
   const handleAttachmentClick = useCallback((attachments, activeIndex) => {
@@ -182,7 +194,7 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
               borderLeft: "4px solid transparent",
             }}
           >
-            <AvatarCircle avatarUrl={avatarUrl} name={name} size="sm" />
+            <AvatarCircle avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conversation?.type} name={name} size="sm" />
             <p className="flex-1 text-xs font-semibold truncate">{name}</p>
             {conversation?.unread_count > 0 && (
               <span
@@ -225,7 +237,7 @@ function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }
               onClick={onMinimize}
               className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer select-none text-left"
             >
-              <AvatarCircle avatarUrl={avatarUrl} name={name} size="sm" />
+              <AvatarCircle avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conversation?.type} name={name} size="sm" />
               <p className="flex-1 text-xs font-semibold truncate">{name}</p>
             </button>
             <DropdownMenu>
@@ -598,6 +610,7 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
           {filteredConversations.map((conv) => {
             const name = getConversationDisplayName(conv, currentUserId);
             const avatarUrl = getAvatarUrl(conv, currentUserId);
+            const avatarEmoji = getAvatarEmoji(conv);
             return (
               <button
                 key={conv.id}
@@ -605,7 +618,7 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
                 onClick={() => handleSelect(conv)}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[hsl(var(--muted))] active:bg-[hsl(var(--muted))] transition-colors text-left touch-manipulation"
               >
-                <AvatarCircle avatarUrl={avatarUrl} name={name} size="md" />
+                <AvatarCircle avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conv.type} name={name} size="md" />
                 <div className="flex-1 min-w-0">
                   <p className={["text-xs truncate", conv.unread_count > 0 ? "font-semibold" : "font-medium"].join(" ")}>{name}</p>
                   {conv.last_message?.body && (

@@ -7,7 +7,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 
 function getConvAvatar(conv, currentUserId) {
-  if (conv.avatar_url) return conv.avatar_url;
+  if (conv.avatarUrl) return conv.avatarUrl;
   if (conv.type === "direct") {
     return (conv.members ?? []).find((m) => m.userId !== currentUserId)?.avatarUrl ?? null;
   }
