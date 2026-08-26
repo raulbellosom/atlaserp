@@ -81,6 +81,45 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     }
   }
 
+  // Only direct conversations can be blocked (spec Non-goal 2 — a block never
+  // affects shared groups/channels). Checks both directions: either party
+  // blocking the other stops messages both ways.
+  async function assertNotBlocked(conversationId, profileId) {
+    const [convRow] = await prisma.$queryRaw`
+      SELECT type FROM chat_conversations WHERE id = ${conversationId} LIMIT 1
+    `;
+    if (convRow?.type !== "direct") return;
+
+    const [otherRow] = await prisma.$queryRaw`
+      SELECT user_id FROM chat_conversation_members
+      WHERE conversation_id = ${conversationId} AND user_id != ${profileId} AND user_id IS NOT NULL AND left_at IS NULL
+      LIMIT 1
+    `;
+    if (!otherRow) return;
+
+    const blocks = await prisma.$queryRaw`
+      SELECT blocker_user_id, blocked_user_id FROM chat_blocks
+      WHERE (blocker_user_id = ${profileId} AND blocked_user_id = ${otherRow.user_id})
+         OR (blocker_user_id = ${otherRow.user_id} AND blocked_user_id = ${profileId})
+      LIMIT 1
+    `;
+    if (blocks.length) {
+      throw new ChatServiceError("No puedes enviar mensajes a este usuario.", 403);
+    }
+  }
+
+  async function assertNotBlockedByTarget(profileId, targetUserId) {
+    const blocks = await prisma.$queryRaw`
+      SELECT blocker_user_id, blocked_user_id FROM chat_blocks
+      WHERE (blocker_user_id = ${profileId} AND blocked_user_id = ${targetUserId})
+         OR (blocker_user_id = ${targetUserId} AND blocked_user_id = ${profileId})
+      LIMIT 1
+    `;
+    if (blocks.length) {
+      throw new ChatServiceError("No puedes iniciar una conversacion con este usuario.", 403);
+    }
+  }
+
   async function updateConversationLastMessage(conversationId, messageId, createdAt) {
     await prisma.$executeRaw`
       UPDATE chat_conversations
@@ -320,6 +359,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     // For direct conversations, enforce uniqueness (find existing)
     if (type === "direct" && memberUserIds.length === 1) {
       const otherId = memberUserIds[0];
+      await assertNotBlockedByTarget(creatorProfileId, otherId);
       const existing = await prisma.$queryRaw`
         SELECT c.id FROM chat_conversations c
         WHERE c.type = 'direct'
@@ -805,6 +845,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   async function sendMessage({ conversationId, authUserId, body, messageType = "text", metadata = {}, attachmentIds = [], threadRootId = null, entityRefs = [] }) {
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
+    await assertNotBlocked(conversationId, profileId);
 
     // Resolve threadRootId: validate it exists, belongs to this conversation,
     // isn't soft-deleted, and auto-flatten a reply-to-a-reply onto its own

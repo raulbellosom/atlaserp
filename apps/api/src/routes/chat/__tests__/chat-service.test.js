@@ -459,6 +459,7 @@ describe("chat-service — sendMessage mentions", () => {
     const prisma = buildPrismaMock([
       [{ id: "sender-profile" }], // resolveUserProfileId
       [{ id: "m1" }],             // assertMember
+      [{ type: "channel" }],      // assertNotBlocked: conversation type lookup — not direct, short-circuits
       [{ id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", created_at: new Date(), metadata: {} }], // INSERT ... RETURNING *
       [{                          // getMessageFull's internal query
         id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", sender_guest_id: null,
@@ -496,6 +497,7 @@ describe("chat-service — sendMessage mentions", () => {
     const prisma = buildPrismaMock([
       [{ id: "sender-profile" }],
       [{ id: "m1" }],
+      [{ type: "channel" }], // assertNotBlocked: conversation type lookup — not direct, short-circuits
       [{ id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", created_at: new Date(), metadata: {} }],
       [{
         id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", sender_guest_id: null,
@@ -535,6 +537,7 @@ describe("chat-service — sendMessage mentions", () => {
     const prisma = buildPrismaMock([
       [{ id: "sender-profile" }],
       [{ id: "m1" }],
+      [{ type: "channel" }], // assertNotBlocked: conversation type lookup — not direct, short-circuits
       [{ id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", created_at: new Date(), metadata: {} }],
       [{
         id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", sender_guest_id: null,
@@ -561,12 +564,15 @@ describe("chat-service — sendMessage entity references (Phase F)", () => {
   // are absent:
   //   1. resolveUserProfileId          -> $queryRaw
   //   2. assertMember                  -> $queryRaw
-  //   3. entityRefs: fresh conversation-type lookup (NOT reused from the
-  //      threadRootId branch, which only queries when threadRootId is set)
+  //   3. assertNotBlocked: conversation-type lookup (unconditional, runs
+  //      before the entityRefs check regardless of entityRefs)
   //                                     -> $queryRaw
-  //   4. INSERT INTO chat_messages ... RETURNING *   -> $queryRaw
-  //   5. getMessageFull                -> $queryRaw
-  // This differs from the plan's best-effort guess (which omitted step 3).
+  //   4. entityRefs: fresh conversation-type lookup (NOT reused from either
+  //      assertNotBlocked's lookup above or the threadRootId branch, which
+  //      only queries when threadRootId is set)
+  //                                     -> $queryRaw
+  //   5. INSERT INTO chat_messages ... RETURNING *   -> $queryRaw
+  //   6. getMessageFull                -> $queryRaw
 
   it("resolves entityRefs and round-trips them into metadata.entityRefs on the actual INSERT statement", async () => {
     const resolved = [{ entityType: "contact", recordId: "contact-1", title: "Ada", subtitle: null, url: "/app/m/atlas.contacts/contacts/contact-1" }];
@@ -581,6 +587,7 @@ describe("chat-service — sendMessage entity references (Phase F)", () => {
     const prisma = buildPrismaMock([
       [{ id: "sender-profile" }],                 // resolveUserProfileId
       [{ id: "m1" }],                              // assertMember
+      [{ type: "channel" }],                       // assertNotBlocked: conversation-type lookup
       [{ type: "channel" }],                       // entityRefs: conversation-type lookup
       [{ id: "msg1", conversation_id: "conv1", created_at: new Date(), metadata: {} }], // INSERT ... RETURNING *
       [{                                            // getMessageFull
@@ -623,6 +630,7 @@ describe("chat-service — sendMessage entity references (Phase F)", () => {
     const prisma = buildPrismaMock([
       [{ id: "sender-profile" }],       // resolveUserProfileId
       [{ id: "m1" }],                    // assertMember
+      [{ type: "external_support" }],    // assertNotBlocked: conversation-type lookup — not direct, short-circuits
       [{ type: "external_support" }],    // entityRefs: conversation-type lookup — rejects here
     ]);
     // If the rejection didn't happen strictly before resolution, this stub
@@ -646,9 +654,11 @@ describe("chat-service — sendMessage entity references (Phase F)", () => {
     const prisma = buildPrismaMock([
       [{ id: "sender-profile" }],   // resolveUserProfileId
       [{ id: "m1" }],                // assertMember
-      // No conversation-type lookup queued — if sendMessage issued one
-      // unconditionally, the next $queryRaw call below would throw
-      // "Unexpected $queryRaw call #3" and fail this test.
+      [{ type: "channel" }],         // assertNotBlocked: conversation-type lookup (unconditional)
+      // No SECOND (entityRefs-driven) conversation-type lookup queued — if
+      // sendMessage issued one despite entityRefs being empty, the next
+      // $queryRaw call below would throw "Unexpected $queryRaw call #4" and
+      // fail this test.
       [{ id: "msg1", conversation_id: "conv1", created_at: new Date(), metadata: {} }], // INSERT ... RETURNING *
       [{                              // getMessageFull
         id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", sender_guest_id: null,
@@ -676,6 +686,7 @@ describe("chat-service — sendMessage thread replies", () => {
     const queryRawResults = [
       [{ id: PROFILE_ID }],                                            // resolveUserProfileId
       [{ id: rootId }],                                                // assertMember (sendMessage's own)
+      [{ type: "channel" }],                                           // assertNotBlocked: conversation-type lookup — not direct, short-circuits
       [{ id: rootId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null, conversation_type: "channel" }], // thread target lookup
       [{ id: "msg-reply-1", conversation_id: CONV_ID, created_at: new Date() }], // INSERT ... RETURNING *
       [{ id: "msg-reply-1", conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }], // getMessageFull
@@ -711,6 +722,7 @@ describe("chat-service — sendMessage thread replies", () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
       [{ id: replyId }],
+      [{ type: "channel" }], // assertNotBlocked: conversation-type lookup — not direct, short-circuits
       [{ id: replyId, conversation_id: CONV_ID, thread_root_id: rootId, deleted_at: null, conversation_type: "channel" }], // target is itself a reply
       [{ id: "msg-reply-2", conversation_id: CONV_ID, created_at: new Date() }],
       [{ id: "msg-reply-2", conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }],
@@ -731,6 +743,7 @@ describe("chat-service — sendMessage thread replies", () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
       [{ id: foreignRootId }],
+      [{ type: "channel" }], // assertNotBlocked: conversation-type lookup — not direct, short-circuits
       [{ id: foreignRootId, conversation_id: "some-other-conv", thread_root_id: null, deleted_at: null, conversation_type: "channel" }],
     ]);
     const service = createChatService({ prisma, supabaseAdmin: {} });
@@ -745,6 +758,7 @@ describe("chat-service — sendMessage thread replies", () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
       [{ id: directMsgId }],
+      [{ type: "channel" }], // assertNotBlocked: conversation-type lookup for CONV_ID — deliberately non-direct here (a distinct query from the thread target's own conversation_type below) so this test stays focused on the threadRootId/direct-conversation rejection alone
       [{ id: directMsgId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null, conversation_type: "direct" }],
     ]);
     const service = createChatService({ prisma, supabaseAdmin: {} });
@@ -759,6 +773,7 @@ describe("chat-service — sendMessage thread replies", () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
       [{ id: supportMsgId }],
+      [{ type: "channel" }], // assertNotBlocked: conversation-type lookup for CONV_ID — deliberately non-direct here (a distinct query from the thread target's own conversation_type below)
       [{ id: supportMsgId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null, conversation_type: "external_support" }],
     ]);
     const service = createChatService({ prisma, supabaseAdmin: {} });
@@ -773,6 +788,7 @@ describe("chat-service — sendMessage thread replies", () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
       [{ id: deletedId }],
+      [{ type: "channel" }], // assertNotBlocked: conversation-type lookup — not direct, short-circuits
       [], // deleted_at IS NULL filter excludes it — lookup returns no rows
     ]);
     const service = createChatService({ prisma, supabaseAdmin: {} });
@@ -799,6 +815,7 @@ describe("chat-service — sendMessage thread replies", () => {
     const queryRawResults = [
       [{ id: PROFILE_ID }],
       [{ id: replyId }],
+      [{ type: "channel" }], // assertNotBlocked: conversation-type lookup — not direct, short-circuits
       [{ id: replyId, conversation_id: CONV_ID, thread_root_id: rootId, deleted_at: null, conversation_type: "channel" }],
       [{ id: "msg-reply-3", conversation_id: CONV_ID, created_at: new Date() }],
       [{ id: "msg-reply-3", conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }],
@@ -841,6 +858,7 @@ describe("chat-service — sendMessage thread reply notifications", () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],                                                   // resolveUserProfileId
       [{ id: "member-row" }],                                                 // assertMember
+      [{ type: "channel" }],                                                  // assertNotBlocked: conversation-type lookup — not direct, short-circuits
       [{ id: rootId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null, conversation_type: "channel" }], // thread target lookup
       [{ id: "msg-thread-1", conversation_id: CONV_ID, sender_user_id: PROFILE_ID, created_at: new Date(), metadata: {} }], // INSERT ... RETURNING * (inside tx)
       [{                                                                       // getMessageFull
@@ -891,6 +909,7 @@ describe("chat-service — sendMessage thread reply notifications", () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
       [{ id: "member-row" }],
+      [{ type: "channel" }], // assertNotBlocked: conversation-type lookup — not direct, short-circuits
       [{ id: rootId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null, conversation_type: "channel" }],
       [{ id: "msg-thread-2", conversation_id: CONV_ID, sender_user_id: PROFILE_ID, created_at: new Date(), metadata: {} }],
       [{
@@ -1244,6 +1263,66 @@ describe("chat-service — listThreadReplies", () => {
     await assert.rejects(
       () => service.listThreadReplies({ messageId: "01900000-0000-7000-8000-00000000fff1", authUserId: AUTH_USER_ID }),
       (err) => err instanceof ChatServiceError && err.status === 404 && err.message === "Mensaje no encontrado.",
+    );
+  });
+});
+
+describe("chat-service — block enforcement", () => {
+  it("sendMessage rejects when the recipient has blocked the sender", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }], // resolveUserProfileId (sender)
+      [{ id: "member-row" }], // assertMember
+      [{ type: "direct" }], // assertNotBlocked: conversation type lookup
+      [{ user_id: OTHER_PROFILE_ID }], // assertNotBlocked: other member lookup
+      [{ blocker_user_id: OTHER_PROFILE_ID, blocked_user_id: PROFILE_ID }], // assertNotBlocked: block row found
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: buildSupabaseAdminMock() });
+    await assert.rejects(
+      () => service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "hola" }),
+      (err) => err instanceof ChatServiceError && err.status === 403,
+    );
+  });
+
+  it("sendMessage proceeds normally in a group conversation (block check skipped)", async () => {
+    // Real call order traced from the current source (no notificationService/
+    // broadcaster supplied, so neither the notify block nor the broadcast
+    // block issue any query here): resolveUserProfileId -> assertMember ->
+    // assertNotBlocked's conversation-type lookup (short-circuits on "group",
+    // no otherRow/block queries) -> INSERT ... RETURNING * -> (executeRaw)
+    // updateConversationLastMessage -> getMessageFull. That's 5 $queryRaw
+    // calls total, not the 4 a naive guess at "mention scan etc." would
+    // assume — mentionsService is absent here so parseMentionIds' cheap
+    // regex short-circuit never even fires a query.
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }], // resolveUserProfileId
+      [{ id: "member-row" }], // assertMember
+      [{ type: "group" }], // assertNotBlocked: conversation type lookup — not direct, short-circuits
+      [{ id: "msg-1", conversation_id: CONV_ID, created_at: new Date(), body: "hola", sender_user_id: PROFILE_ID, sender_type: "user", message_type: "text", attachment_count: 0, metadata: {} }], // INSERT ... RETURNING *
+      [], // getMessageFull finds no row — sendMessage falls back to the raw insert row via `fullMsg ?? msg`
+    ], [
+      { count: 1 }, // updateConversationLastMessage
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: buildSupabaseAdminMock() });
+    const result = await service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "hola" });
+    assert.equal(result.id, "msg-1");
+  });
+
+  it("createConversation rejects starting a direct chat with someone who blocked you", async () => {
+    // assertNotBlockedByTarget runs BEFORE the existing-direct-conversation
+    // uniqueness lookup (chat-service.js createConversation), so only 2
+    // $queryRaw calls happen: resolveUserProfileId, then the block check
+    // itself. If the existing-conversation lookup ran first (or at all), a
+    // 3rd call here would throw "Unexpected $queryRaw call" and fail this
+    // test — proving a blocked user can't even discover whether a prior
+    // conversation exists.
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }], // resolveUserProfileId (creator)
+      [{ blocker_user_id: OTHER_PROFILE_ID, blocked_user_id: PROFILE_ID }], // assertNotBlockedByTarget: block row found
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: buildSupabaseAdminMock() });
+    await assert.rejects(
+      () => service.createConversation({ authUserId: AUTH_USER_ID, type: "direct", memberUserIds: [OTHER_PROFILE_ID] }),
+      (err) => err instanceof ChatServiceError && err.status === 403,
     );
   });
 });
