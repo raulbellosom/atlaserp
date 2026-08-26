@@ -2,7 +2,9 @@
 
 Date: 2026-08-26
 Spec: docs/superpowers/specs/2026-08-26-pwa-multi-window-session-recovery-design.md
-Status: Complete
+Status: Complete, with a follow-up correctness fix (see note below)
+
+**Post-completion review note (commit afbd3bb):** independent review after this plan's own commit (138f9c3) found that `forceLogout()`'s original ordering — attempt our own `refreshSession()` first, only re-check `getSession()` on failure — could itself trigger the exact cross-window logout this fix targets. In the scenario this plan describes (another window already rotated the shared, single-use refresh token), Supabase's `refreshSession()` treats the reused token as `invalid_grant` and signs the session out globally, including a cross-tab broadcast that logs out every other window — before the re-check ever gets a chance to run. Fixed by checking `getSession()` FIRST and only attempting our own refresh if that shows no fresh session already available, so the destructive call is never made in the case it's meant to protect against. Also fixed: the self-heal branch wasn't reloading `userProfile`, leaving permission-gated screens stuck on a loading state after adopting a fresh session.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
