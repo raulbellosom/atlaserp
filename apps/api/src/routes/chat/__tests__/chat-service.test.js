@@ -431,6 +431,119 @@ describe("chat-service — sendMessage mentions", () => {
   });
 });
 
+describe("chat-service — sendMessage entity references (Phase F)", () => {
+  // sendMessage's real call order (traced from the current source, not
+  // guessed) when entityRefs is non-empty and threadRootId/mentionsService
+  // are absent:
+  //   1. resolveUserProfileId          -> $queryRaw
+  //   2. assertMember                  -> $queryRaw
+  //   3. entityRefs: fresh conversation-type lookup (NOT reused from the
+  //      threadRootId branch, which only queries when threadRootId is set)
+  //                                     -> $queryRaw
+  //   4. INSERT INTO chat_messages ... RETURNING *   -> $queryRaw
+  //   5. getMessageFull                -> $queryRaw
+  // This differs from the plan's best-effort guess (which omitted step 3).
+
+  it("resolves entityRefs and round-trips them into metadata.entityRefs on the actual INSERT statement", async () => {
+    const resolved = [{ entityType: "contact", recordId: "contact-1", title: "Ada", subtitle: null, url: "/app/m/atlas.contacts/contacts/contact-1" }];
+    const entityReferencesService = {
+      resolveEntityRefs: async ({ authUserId, entityRefs }) => {
+        assert.equal(authUserId, "auth-1");
+        assert.deepEqual(entityRefs, [{ entityType: "contact", recordId: "contact-1" }]);
+        return resolved;
+      },
+    };
+
+    const prisma = buildPrismaMock([
+      [{ id: "sender-profile" }],                 // resolveUserProfileId
+      [{ id: "m1" }],                              // assertMember
+      [{ type: "channel" }],                       // entityRefs: conversation-type lookup
+      [{ id: "msg1", conversation_id: "conv1", created_at: new Date(), metadata: {} }], // INSERT ... RETURNING *
+      [{                                            // getMessageFull
+        id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", sender_guest_id: null,
+        sender_type: "user", body: "mira este contacto", message_type: "text", attachment_count: 0,
+        metadata: {}, created_at: new Date(), edited_at: null, deleted_at: null,
+        sender: { id: null, displayName: null, avatarFileId: null }, attachments: null,
+      }],
+    ]);
+
+    // Prove the round-trip all the way to the SQL, not just to the in-memory
+    // finalMetadata variable — buildPrismaMock's default $queryRaw ignores
+    // its arguments entirely, which would let a "computed but never actually
+    // bound into the query" regression pass silently.
+    let capturedInsertValues = null;
+    const baseQueryRaw = prisma.$queryRaw;
+    prisma.$queryRaw = async (strings, ...values) => {
+      if (typeof strings?.[0] === "string" && strings[0].includes("INSERT INTO chat_messages")) {
+        capturedInsertValues = values;
+      }
+      return baseQueryRaw(strings, ...values);
+    };
+
+    const service = createChatService({ prisma, supabaseAdmin: {}, entityReferencesService });
+    const result = await service.sendMessage({
+      conversationId: "conv1",
+      authUserId: "auth-1",
+      body: "mira este contacto",
+      entityRefs: [{ entityType: "contact", recordId: "contact-1" }],
+    });
+    assert.ok(result);
+
+    assert.ok(capturedInsertValues, "expected the INSERT INTO chat_messages statement to have been issued");
+    const metadataJson = capturedInsertValues.find((v) => typeof v === "string" && v.includes("entityRefs"));
+    assert.ok(metadataJson, "expected finalMetadata JSON (containing entityRefs) among the INSERT's bound values");
+    assert.deepEqual(JSON.parse(metadataJson).entityRefs, resolved);
+  });
+
+  it("rejects entityRefs on an external_support conversation with 400, before attempting any resolution", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: "sender-profile" }],       // resolveUserProfileId
+      [{ id: "m1" }],                    // assertMember
+      [{ type: "external_support" }],    // entityRefs: conversation-type lookup — rejects here
+    ]);
+    // If the rejection didn't happen strictly before resolution, this stub
+    // throwing would surface as an unrelated error, not the expected 400.
+    const entityReferencesService = {
+      resolveEntityRefs: async () => { throw new Error("resolveEntityRefs should not be called for a rejected send"); },
+    };
+    const service = createChatService({ prisma, supabaseAdmin: {}, entityReferencesService });
+    await assert.rejects(
+      () => service.sendMessage({
+        conversationId: "conv1",
+        authUserId: "auth-1",
+        body: "x",
+        entityRefs: [{ entityType: "contact", recordId: "c1" }],
+      }),
+      (err) => err instanceof ChatServiceError && err.status === 400,
+    );
+  });
+
+  it("omits metadata.entityRefs and issues no extra query/service call when no entityRefs are sent", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: "sender-profile" }],   // resolveUserProfileId
+      [{ id: "m1" }],                // assertMember
+      // No conversation-type lookup queued — if sendMessage issued one
+      // unconditionally, the next $queryRaw call below would throw
+      // "Unexpected $queryRaw call #3" and fail this test.
+      [{ id: "msg1", conversation_id: "conv1", created_at: new Date(), metadata: {} }], // INSERT ... RETURNING *
+      [{                              // getMessageFull
+        id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", sender_guest_id: null,
+        sender_type: "user", body: "hola", message_type: "text", attachment_count: 0,
+        metadata: {}, created_at: new Date(), edited_at: null, deleted_at: null,
+        sender: { id: null, displayName: null, avatarFileId: null }, attachments: null,
+      }],
+    ]);
+    // Supplied but must never be invoked — proves the branch is skipped
+    // entirely (not merely resolved with an empty entityRefs array).
+    const entityReferencesService = {
+      resolveEntityRefs: async () => { throw new Error("resolveEntityRefs should not be called when entityRefs is empty"); },
+    };
+    const service = createChatService({ prisma, supabaseAdmin: {}, entityReferencesService });
+    const result = await service.sendMessage({ conversationId: "conv1", authUserId: "auth-1", body: "hola" });
+    assert.ok(result);
+  });
+});
+
 describe("chat-service — sendMessage thread replies", () => {
   it("resolves threadRootId, increments the root's counter, and skips updateConversationLastMessage", async () => {
     const rootId = "01900000-0000-7000-8000-00000000r001";

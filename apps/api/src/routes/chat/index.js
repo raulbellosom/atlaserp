@@ -25,6 +25,11 @@ import { createChatPermissionsService, ChatPermissionsError } from "./chat-permi
 import { createChannelDirectoryService } from "./channel-directory-service.js";
 import { createChatMentionsService } from "./chat-mentions-service.js";
 import { createChatReactionsService, ChatReactionsError } from "./chat-reactions-service.js";
+import { createChatEntityReferencesService } from "./chat-entity-references-service.js";
+import { createContactsService } from "../../services/contacts-service.js";
+import { createFilesService } from "../../services/files-service.js";
+import { createHrService } from "../../services/hr-service.js";
+import { createLedgerService } from "../ledger/ledger-service.js";
 
 function handleError(c, err, fallback) {
   if (err instanceof ChatServiceError || err instanceof GuestChatServiceError || err instanceof ChatPermissionsError || err instanceof ChatReactionsError) {
@@ -39,7 +44,14 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   const app = new Hono();
   const permissionsService = createChatPermissionsService({ prisma });
   const mentionsService = createChatMentionsService({ prisma });
-  const chatService = createChatService({ prisma, supabaseAdmin, notificationService, broadcaster, permissionsService, mentionsService });
+  const entityReferencesService = createChatEntityReferencesService({
+    prisma,
+    contactsService: createContactsService({ prisma }),
+    filesService: createFilesService({ prisma, supabaseAdmin }),
+    hrService: createHrService({ prisma }),
+    ledgerService: createLedgerService({ prisma }),
+  });
+  const chatService = createChatService({ prisma, supabaseAdmin, notificationService, broadcaster, permissionsService, mentionsService, entityReferencesService });
   const guestService = createGuestChatService({ prisma, supabaseAdmin, notificationService, broadcaster });
   const templateService = createChatTemplateService({ prisma });
   const channelDirectoryService = createChannelDirectoryService({ prisma });

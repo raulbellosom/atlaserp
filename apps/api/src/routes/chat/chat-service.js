@@ -59,7 +59,7 @@ export function _resetProfileIdCacheForTests() {
   _profileIdCache.clear();
 }
 
-export function createChatService({ prisma, supabaseAdmin, notificationService = null, broadcaster = null, permissionsService = null, mentionsService = null }) {
+export function createChatService({ prisma, supabaseAdmin, notificationService = null, broadcaster = null, permissionsService = null, mentionsService = null, entityReferencesService = null }) {
   // ------------------------------------------------------------------
   // Internal helpers
   // ------------------------------------------------------------------
@@ -775,7 +775,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     };
   }
 
-  async function sendMessage({ conversationId, authUserId, body, messageType = "text", metadata = {}, attachmentIds = [], threadRootId = null }) {
+  async function sendMessage({ conversationId, authUserId, body, messageType = "text", metadata = {}, attachmentIds = [], threadRootId = null, entityRefs = [] }) {
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
 
@@ -826,9 +826,31 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       }
     }
     const hasMentions = mentionResult.userIds.length || mentionResult.roleIds.length || mentionResult.everyone || mentionResult.here;
-    const finalMetadata = hasMentions
+    let finalMetadata = hasMentions
       ? { ...metadata, mentions: { userIds: mentionResult.userIds, roleIds: mentionResult.roleIds, everyone: mentionResult.everyone, here: mentionResult.here } }
       : metadata;
+
+    // Cross-module entity references (Phase F). Only when the caller actually
+    // sends entityRefs — the overwhelmingly common plain-text send pays no
+    // extra query or service call here at all. Reject the whole send for an
+    // external_support conversation BEFORE attempting any resolution (defense
+    // in depth: a guest-facing conversation must never expose a clickable
+    // link to an internal record, even via a stray direct API call bypassing
+    // the composer's hidden button — spec Non-goal 3 / edge case 4). This is
+    // a fresh conversation-type lookup rather than reusing the threadRootId
+    // block's query above, since that one only runs when threadRootId is set.
+    if (entityRefs?.length) {
+      const [convRow] = await prisma.$queryRaw`SELECT type FROM chat_conversations WHERE id = ${conversationId} LIMIT 1`;
+      if (convRow?.type === "external_support") {
+        throw new ChatServiceError("No se pueden adjuntar referencias en conversaciones de soporte externo.", 400);
+      }
+      if (entityReferencesService) {
+        const resolvedEntityRefs = await entityReferencesService.resolveEntityRefs({ authUserId, entityRefs });
+        if (resolvedEntityRefs.length) {
+          finalMetadata = { ...finalMetadata, entityRefs: resolvedEntityRefs };
+        }
+      }
+    }
 
     let msg;
     if (resolvedThreadRootId) {
