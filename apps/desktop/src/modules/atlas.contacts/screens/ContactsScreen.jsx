@@ -142,7 +142,19 @@ export default function ContactsScreen() {
     [blueprintsQuery.data],
   );
 
+  // Single close path for the sheet, used regardless of how it's closing
+  // (X/backdrop/Escape via onOpenChange, or a successful create/update) — a
+  // contact reached via /contacts/:id must always return the URL to the list
+  // on close, not just on the interactive-close path (spec Section 23 edge
+  // case 3 / acceptance criterion 4).
+  function closeSheet() {
+    setSheetOpen(false);
+    setEditingContact(null);
+    if (urlContactId) navigate("/app/m/atlas.contacts/contacts");
+  }
+
   function openCreate() {
+    if (urlContactId) navigate("/app/m/atlas.contacts/contacts");
     setEditingContact(null);
     setSheetOpen(true);
   }
@@ -156,7 +168,7 @@ export default function ContactsScreen() {
   const createMutation = useMutation({
     mutationFn: (data) => atlas.contacts.create(data, token),
     onSuccess: () => {
-      setSheetOpen(false);
+      closeSheet();
       setRefreshSignal((s) => s + 1);
       toast.success("Contacto creado");
     },
@@ -166,8 +178,7 @@ export default function ContactsScreen() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => atlas.contacts.update(id, data, token),
     onSuccess: () => {
-      setSheetOpen(false);
-      setEditingContact(null);
+      closeSheet();
       setRefreshSignal((s) => s + 1);
       toast.success("Contacto actualizado");
     },
@@ -328,11 +339,8 @@ export default function ContactsScreen() {
       <ContactFormSheet
         open={sheetOpen}
         onOpenChange={(v) => {
-          setSheetOpen(v);
-          if (!v) {
-            setEditingContact(null);
-            if (urlContactId) navigate("/app/m/atlas.contacts/contacts");
-          }
+          if (v) setSheetOpen(true);
+          else closeSheet();
         }}
         contact={editingContact}
         blueprint={formBlueprint}
