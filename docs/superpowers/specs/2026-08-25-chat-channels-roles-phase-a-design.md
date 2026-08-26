@@ -167,7 +167,7 @@ Errors: 403 (system role), 404.
 
 ### PATCH /chat/conversations/:id/members/:memberId/role
 
-Auth: required, requires `roles.manage` on `:id`; caller's position must exceed both the target member's current role position and the new role's position
+Auth: required, requires `roles.manage` on `:id`. Caller's position must exceed the target member's *current* role position. Caller's position must also exceed the *new* role's position — **except** when the new role is the system `Owner` role, which only an existing `Owner` (i.e. another `is_system` role holder) may grant (this is the one case where position-equality is allowed, since Owner's position is the ceiling).
 Body: `{ roleId: string }`
 Response: `{ data: Membership }`
 Errors: 403 (hierarchy violation), 404 (member or role not found in this conversation).
@@ -189,7 +189,8 @@ Domain: `chat` (extends the existing `@atlas/sdk` chat domain)
 
 In `packages/validators/src/chat.js`:
 
-- `chatCreateConversationSchema` — extend `type` enum to `["direct", "group", "channel", "external_support"]`; add optional `isPublic: z.boolean()`, `slug: z.string().trim().min(1).max(60).regex(/^[a-z0-9-]+$/).optional()`, `description: z.string().trim().max(500).optional()`.
+- `chatCreateChannelSchema` — new schema dedicated to `POST /chat/channels` (kept separate from `chatCreateConversationSchema` so the generic direct/group creation flow is untouched): `title: z.string().trim().min(1).max(200)`, `description: z.string().trim().max(500).optional()`, `isPublic: z.boolean().optional().default(false)`, `slug: z.string().trim().min(1).max(60).regex(/^[a-z0-9-]+$/).optional()`, `memberUserIds: z.array(z.string().uuid()).max(50).optional().default([])` (no minimum — a channel can be created with zero explicit invites since the creator always becomes Owner).
+- `chatCreateConversationSchema` — unchanged in shape; the DB-level `type` CHECK constraint gains `'channel'` regardless, since `createConversation` in `chat-service.js` is reused internally by the `/chat/channels` route, but the existing `/chat/conversations` endpoint continues to only accept `direct`/`group`/`external_support` from this schema.
 - `chatCreateChannelRoleSchema` — `name: z.string().trim().min(1).max(50)`, `color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional()`, `position: z.number().int().min(0).max(99)` (100 reserved for Owner), `permissions: z.record(z.boolean())`.
 - `chatUpdateChannelRoleSchema` — same shape, all fields optional.
 - `chatAssignMemberRoleSchema` — `roleId: z.string().uuid()`.
