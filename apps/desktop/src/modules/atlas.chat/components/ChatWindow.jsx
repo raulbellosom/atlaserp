@@ -329,10 +329,13 @@ function ChatHeader({
                 "Desconectado"
               )}
             </p>
-          ) : onlineCount > 0 ? (
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">{`${onlineCount} en linea`}</p>
           ) : (
-            <MemberAvatarStack members={detailMembers ?? members} onClick={onOpenDetails} />
+            <div className="flex items-center gap-2">
+              <MemberAvatarStack members={detailMembers ?? members} onClick={onOpenDetails} />
+              {onlineCount > 0 && (
+                <span className="text-xs text-[hsl(var(--muted-foreground))] shrink-0">{`${onlineCount} en linea`}</span>
+              )}
+            </div>
           )}
         </div>
 
