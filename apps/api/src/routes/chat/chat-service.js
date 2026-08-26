@@ -58,7 +58,7 @@ export function _resetProfileIdCacheForTests() {
   _profileIdCache.clear();
 }
 
-export function createChatService({ prisma, supabaseAdmin, notificationService = null, broadcaster = null }) {
+export function createChatService({ prisma, supabaseAdmin, notificationService = null, broadcaster = null, permissionsService = null }) {
   // ------------------------------------------------------------------
   // Internal helpers
   // ------------------------------------------------------------------
@@ -302,7 +302,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     return { ok: true };
   }
 
-  async function createConversation({ authUserId, type, title, memberUserIds, metadata = {} }) {
+  async function createConversation({ authUserId, type, title, memberUserIds, metadata = {}, isPublic = false, slug = null, description = null }) {
     const creatorProfileId = await getUserProfileId(authUserId);
 
     // Prevent self-chat
@@ -330,9 +330,23 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       }
     }
 
+    const membership = await prisma.membership.findFirst({
+      where: { userId: creatorProfileId.toString(), enabled: true },
+      orderBy: { createdAt: "desc" },
+      select: { companyId: true },
+    });
+    const companyId = membership?.companyId ?? null;
+
+    if (type === "channel" && slug) {
+      const dupe = await prisma.$queryRaw`
+        SELECT id FROM chat_conversations WHERE company_id = ${companyId} AND slug = ${slug} AND deleted_at IS NULL LIMIT 1
+      `;
+      if (dupe.length) throw new ChatServiceError("Ya existe un canal con ese slug en tu empresa.", 400);
+    }
+
     const convRows = await prisma.$queryRaw`
-      INSERT INTO chat_conversations (type, title, created_by_user_id, metadata)
-      VALUES (${type}, ${title ?? null}, ${creatorProfileId}, ${JSON.stringify(metadata)}::jsonb)
+      INSERT INTO chat_conversations (type, title, created_by_user_id, company_id, is_public, slug, description, metadata)
+      VALUES (${type}, ${title ?? null}, ${creatorProfileId}, ${companyId}, ${isPublic}, ${slug}, ${description}, ${JSON.stringify(metadata)}::jsonb)
       RETURNING *
     `;
     const conv = convRows[0];
@@ -346,6 +360,21 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         VALUES (${conv.id}, ${uid}, ${role})
         ON CONFLICT DO NOTHING
       `;
+    }
+
+    if ((type === "channel" || type === "group") && permissionsService) {
+      const roleIds = await permissionsService.seedDefaultRoles(conv.id);
+      await prisma.$executeRaw`
+        UPDATE chat_conversation_members SET role_id = ${roleIds.Owner}
+        WHERE conversation_id = ${conv.id} AND user_id = ${creatorProfileId}
+      `;
+      const otherIds = allMembers.filter((id) => id !== creatorProfileId);
+      if (otherIds.length) {
+        await prisma.$executeRaw`
+          UPDATE chat_conversation_members SET role_id = ${roleIds.Member}
+          WHERE conversation_id = ${conv.id} AND user_id IN (${Prisma.join(otherIds)})
+        `;
+      }
     }
 
     // System message: group created
@@ -461,6 +490,12 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         ON CONFLICT DO NOTHING
       `;
 
+      await prisma.$executeRaw`
+        UPDATE chat_conversation_members
+        SET role_id = (SELECT id FROM chat_channel_roles WHERE conversation_id = ${conversationId} AND name = 'Member' LIMIT 1)
+        WHERE conversation_id = ${conversationId} AND user_id = ${uid} AND role_id IS NULL
+      `;
+
       // System message
       const [newUser] = await prisma.$queryRaw`
         SELECT display_name FROM user_profile WHERE id = ${uid} LIMIT 1
@@ -479,6 +514,13 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   async function removeMember({ conversationId, authUserId, targetUserId }) {
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
+
+    if (permissionsService) {
+      const isLast = await permissionsService.isLastOwner(conversationId, targetUserId);
+      if (isLast) {
+        throw new ChatServiceError("No puedes eliminar al unico Owner de la conversacion. Asigna otro Owner primero.", 400);
+      }
+    }
 
     await prisma.$executeRaw`
       UPDATE chat_conversation_members
