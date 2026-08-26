@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { signedUrlWithVariant } from "../../lib/image-variants.js";
+import { parseMentionIds } from "../../lib/mention-utils.js";
 
 export class ChatServiceError extends Error {
   constructor(message, status = 400) {
@@ -745,10 +746,20 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
 
+    // Cheap regex scan first — skips the sender-role lookup + resolution queries
+    // entirely for the common case (no @ tokens at all, e.g. every direct/
+    // external_support message and most channel/group messages too).
     let mentionResult = { userIds: [], roleIds: [], everyone: false, here: false, notifyUserIds: [] };
-    if (mentionsService) {
-      const senderRole = permissionsService ? await permissionsService.getMemberRole(conversationId, profileId) : null;
-      mentionResult = await mentionsService.resolveMentions({ conversationId, senderProfileId: profileId, body, senderRole });
+    if (mentionsService && parseMentionIds(body).length) {
+      try {
+        const senderRole = permissionsService ? await permissionsService.getMemberRole(conversationId, profileId) : null;
+        mentionResult = await mentionsService.resolveMentions({ conversationId, senderProfileId: profileId, body, senderRole });
+      } catch (err) {
+        // A malformed-but-regex-matching mention token (e.g. one that fails
+        // Postgres's uuid parser) must never block sending the message itself —
+        // degrade to "no mentions resolved" instead of failing the whole request.
+        console.error("[atlas.chat] mention resolution failed, sending without mentions", err?.message ?? err);
+      }
     }
     const hasMentions = mentionResult.userIds.length || mentionResult.roleIds.length || mentionResult.everyone || mentionResult.here;
     const finalMetadata = hasMentions
