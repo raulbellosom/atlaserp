@@ -330,14 +330,14 @@ function ChatHeader({
                 "Desconectado"
               )}
             </p>
-          ) : (
+          ) : conversation?.type === "group" || conversation?.type === "channel" ? (
             <div className="flex items-center gap-2">
               <MemberAvatarStack members={detailMembers ?? members} onClick={onOpenDetails} />
               {onlineCount > 0 && (
                 <span className="text-xs text-[hsl(var(--muted-foreground))] shrink-0">{`${onlineCount} en linea`}</span>
               )}
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Search */}
