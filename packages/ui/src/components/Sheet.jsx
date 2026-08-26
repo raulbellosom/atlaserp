@@ -5,6 +5,11 @@ import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils.js";
 import { useDragToDismiss } from "../hooks/useDragToDismiss.js";
 import { useIsMobile } from "../hooks/useIsMobile.js";
+import {
+  BOTTOM_SHEET_SURFACE_CLASS,
+  bottomSheetDragStyle,
+  BottomSheetHandle,
+} from "./bottom-sheet-shared.jsx";
 
 const Sheet = SheetPrimitive.Root;
 const SheetTrigger = SheetPrimitive.Trigger;
@@ -36,7 +41,7 @@ const sheetVariants = cva(
       side: {
         top: "inset-x-0 top-0 rounded-b-2xl data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
         bottom:
-          "inset-x-0 bottom-0 rounded-t-2xl sm:mx-auto sm:max-w-lg data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+          "inset-x-0 bottom-0 sm:mx-auto sm:max-w-lg data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
         left: "inset-y-0 left-0 h-full w-3/4 rounded-r-2xl data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
         right:
           "inset-y-0 right-0 h-full w-3/4 rounded-l-2xl data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
@@ -97,7 +102,7 @@ const SheetContent = forwardRef(function SheetContent(
         }}
         className={cn(
           sheetVariants({ side: effectiveSide }),
-          effectiveSide === "bottom" && "max-h-[85dvh] overflow-y-auto overscroll-contain touch-pan-y",
+          effectiveSide === "bottom" && BOTTOM_SHEET_SURFACE_CLASS,
           // On non-bottom panels (right/left/top) clip overflow so children can
           // use flex-1 / min-h-0 to fill the panel height without causing scroll
           // on the panel itself.
@@ -107,12 +112,7 @@ const SheetContent = forwardRef(function SheetContent(
         {...props}
         style={
           effectiveSide === "bottom"
-            ? {
-                paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
-                transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
-                transition: dragging ? "none" : "transform 280ms cubic-bezier(0.32, 0.72, 0, 1)",
-                ...style,
-              }
+            ? bottomSheetDragStyle({ dragY, dragging, style })
             : effectiveSide === "right" || effectiveSide === "left"
             ? {
                 paddingTop: "calc(1.5rem + env(safe-area-inset-top, 0px))",
@@ -126,22 +126,11 @@ const SheetContent = forwardRef(function SheetContent(
       >
         {/* Drag handle — visible only on bottom sheet; handles swipe-to-dismiss */}
         {effectiveSide === "bottom" && (
-          <div
-            className="mx-auto -mt-1 mb-3 h-1.5 w-16 shrink-0 rounded-full bg-foreground/25 cursor-grab active:cursor-grabbing touch-none"
-            aria-hidden="true"
+          <BottomSheetHandle
+            closeRef={closeRef}
             onPointerDown={handleDragPointerDown}
             onPointerMove={handleDragPointerMove}
             onPointerUp={handleDragPointerUp}
-            onPointerCancel={handleDragPointerUp}
-          />
-        )}
-        {/* Hidden close button for programmatic swipe-to-dismiss */}
-        {effectiveSide === "bottom" && (
-          <SheetPrimitive.Close
-            ref={closeRef}
-            className="sr-only"
-            tabIndex={-1}
-            aria-hidden="true"
           />
         )}
         <SheetPrimitive.Close className="absolute right-4 top-4 rounded-lg p-1 text-[hsl(var(--muted-foreground))] opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40">
