@@ -28,3 +28,17 @@ export function useAddMembers(conversationId) {
     },
   });
 }
+
+export function useRemoveMember(conversationId) {
+  const { session } = useAuth();
+  const token = session?.access_token;
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId) => atlas.chat.removeMember(conversationId, userId, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["chat-conversation", conversationId] });
+    },
+  });
+}
