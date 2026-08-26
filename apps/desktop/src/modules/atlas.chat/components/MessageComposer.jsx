@@ -10,13 +10,25 @@ import { Button, MentionTextarea } from "@atlas/ui";
 import {
   Send, Paperclip, Smile, X, Loader2, AlertCircle, Mic,
   Play, FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
-  FileArchive, FileCode, File as FileIcon,
+  FileArchive, FileCode, File as FileIcon, Link2, User, Landmark, IdCard,
 } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import { useChatUpload } from "../hooks/useChatUpload";
 import { useMentionCandidates } from "../hooks/useMentionCandidates";
 import { formatFileSize } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
+import { EntityReferencePicker } from "./EntityReferencePicker";
+
+// Maps a stored/pending entityType string to its chip/card icon — same 4-way
+// mapping used by EntityReferenceCard.jsx for the resolved cards.
+const ENTITY_REF_ICON = {
+  contact: User,
+  file: Paperclip,
+  ledger_account: Landmark,
+  hr_employee: IdCard,
+};
+
+const MAX_ENTITY_REFS = 5;
 
 // Preferred audio MIME type for recording — safe for iOS (audio/mp4 only) and Android
 function getRecordingMime() {
@@ -168,6 +180,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
     placeholder = "Escribe un mensaje...",
     compact = false,
     conversationId,
+    conversationType,
   },
   ref,
 ) {
@@ -179,6 +192,13 @@ export const MessageComposer = forwardRef(function MessageComposer(
   const [recording, setRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [recordingError, setRecordingError] = useState(null);
+  const [pendingEntityRefs, setPendingEntityRefs] = useState([]);
+  const [showEntityPicker, setShowEntityPicker] = useState(false);
+
+  // spec Non-goal 3: entity references must never be offered in
+  // external_support conversations — composer-level enforcement only, the
+  // real safety net is Plan A's backend Zod validation + resolver.
+  const canAttachEntityRefs = Boolean(conversationType) && conversationType !== "external_support";
 
   const { userProfile } = useAuth();
   const currentUserId = userProfile?.id;
@@ -335,6 +355,21 @@ export const MessageComposer = forwardRef(function MessageComposer(
     delete uploadingRef.current[localId];
   }
 
+  // ── Entity references ────────────────────────────────────────────────────
+  function addEntityRef(ref) {
+    setPendingEntityRefs((prev) => {
+      if (prev.length >= MAX_ENTITY_REFS) return prev;
+      if (prev.some((r) => r.entityType === ref.entityType && r.recordId === ref.recordId)) return prev;
+      return [...prev, ref];
+    });
+  }
+
+  function removeEntityRef(entityType, recordId) {
+    setPendingEntityRefs((prev) =>
+      prev.filter((r) => !(r.entityType === entityType && r.recordId === recordId)),
+    );
+  }
+
   // ── Emoji ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!showEmoji) return;
@@ -388,17 +423,22 @@ export const MessageComposer = forwardRef(function MessageComposer(
         body: trimmed || null,
         messageType: hasFiles && !trimmed ? "file" : "text",
         attachmentIds,
+        // Only entityType/recordId — never the client-side echo `label`,
+        // which the backend never reads and always re-derives the real
+        // title/subtitle/url from the target module's own service.
+        entityRefs: pendingEntityRefs.map(({ entityType, recordId }) => ({ entityType, recordId })),
       });
 
       setBody("");
       setPendingFiles([]);
+      setPendingEntityRefs([]);
     } finally {
       // NOTE: auto-refocus after send is dropped — MentionTextarea doesn't
       // expose its internal textarea ref (accepted UX regression, see
       // spec Section 8/24 risk 1).
       setIsSending(false);
     }
-  }, [body, isSending, onSend, onTyping, pendingFiles]);
+  }, [body, isSending, onSend, onTyping, pendingFiles, pendingEntityRefs]);
 
   // Keep ref in sync so the auto-send effect never holds a stale closure
   handleSendRef.current = handleSend;
@@ -492,6 +532,35 @@ export const MessageComposer = forwardRef(function MessageComposer(
         </div>
       )}
 
+      {/* Pending entity reference chips */}
+      {pendingEntityRefs.length > 0 && (
+        <div
+          className="flex gap-2 overflow-x-auto pb-1 mb-2"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {pendingEntityRefs.map((ref) => {
+            const Icon = ENTITY_REF_ICON[ref.entityType] ?? Link2;
+            return (
+              <div
+                key={`${ref.entityType}:${ref.recordId}`}
+                className="relative flex items-center gap-1.5 bg-[hsl(var(--muted))] rounded-full pl-2.5 pr-7 py-1.5 shrink-0 max-w-45"
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--muted-foreground))]" />
+                <span className="text-xs font-medium truncate">{ref.label}</span>
+                <button
+                  type="button"
+                  onClick={() => removeEntityRef(ref.entityType, ref.recordId)}
+                  className="absolute top-1/2 -translate-y-1/2 right-1.5 h-4 w-4 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center transition-colors touch-manipulation"
+                  aria-label="Quitar referencia"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* ── Recording mode ── */}
       {recording ? (
         <div className="flex items-center gap-2 bg-[hsl(var(--muted))] rounded-2xl px-3 py-2">
@@ -545,6 +614,38 @@ export const MessageComposer = forwardRef(function MessageComposer(
           >
             <Paperclip className={iconSize} />
           </button>
+
+          {/* Entity reference — hidden entirely in external_support
+              conversations (spec Non-goal 3); this is composer-level
+              enforcement only, Plan A's backend Zod validation is the real
+              safety net. */}
+          {canAttachEntityRefs && (
+            <EntityReferencePicker
+              open={showEntityPicker}
+              onOpenChange={setShowEntityPicker}
+              onPick={addEntityRef}
+            >
+              <button
+                type="button"
+                onClick={() => setShowEntityPicker((v) => !v)}
+                disabled={disabled || pendingEntityRefs.length >= MAX_ENTITY_REFS}
+                className={[
+                  "shrink-0 flex items-center justify-center rounded-full transition-colors touch-manipulation",
+                  btnSize,
+                  showEntityPicker
+                    ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]"
+                    : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))]",
+                ].join(" ")}
+                title={
+                  pendingEntityRefs.length >= MAX_ENTITY_REFS
+                    ? "Maximo 5 referencias por mensaje"
+                    : "Referenciar registro"
+                }
+              >
+                <Link2 className={iconSize} />
+              </button>
+            </EntityReferencePicker>
+          )}
 
           {/* Textarea (with @mention autocomplete). MentionTextarea bakes a
               boxed look (border/bg/rounded/padding/focus-ring) into its own
