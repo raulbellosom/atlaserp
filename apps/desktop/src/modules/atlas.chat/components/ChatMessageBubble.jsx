@@ -893,8 +893,8 @@ export function ChatMessageBubble({
 
             {!isDeleted && message.metadata?.entityRefs?.length > 0 && (
               <div className="flex flex-col gap-1 mt-1">
-                {message.metadata.entityRefs.map((ref) => (
-                  <EntityReferenceCard key={`${ref.entityType}:${ref.recordId}`} reference={ref} />
+                {message.metadata.entityRefs.map((ref, i) => (
+                  <EntityReferenceCard key={`${ref.entityType}:${ref.recordId}:${i}`} reference={ref} />
                 ))}
               </div>
             )}
@@ -1013,8 +1013,8 @@ export function ChatMessageBubble({
 
           {!isDeleted && message.metadata?.entityRefs?.length > 0 && (
             <div className="flex flex-col gap-1 mt-1">
-              {message.metadata.entityRefs.map((ref) => (
-                <EntityReferenceCard key={`${ref.entityType}:${ref.recordId}`} reference={ref} />
+              {message.metadata.entityRefs.map((ref, i) => (
+                <EntityReferenceCard key={`${ref.entityType}:${ref.recordId}:${i}`} reference={ref} />
               ))}
             </div>
           )}

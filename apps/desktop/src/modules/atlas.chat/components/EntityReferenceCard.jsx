@@ -11,7 +11,7 @@ export function EntityReferenceCard({ reference }) {
     <button
       type="button"
       onClick={() => navigate(reference.url)}
-      className="mt-1 flex items-center gap-2 rounded-lg border border-[hsl(var(--border))] px-2.5 py-1.5 text-left hover:bg-[hsl(var(--muted))] transition-colors max-w-full"
+      className="flex items-center gap-2 rounded-lg border border-[hsl(var(--border))] px-2.5 py-1.5 text-left hover:bg-[hsl(var(--muted))] transition-colors max-w-full"
     >
       <Icon className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--muted-foreground))]" />
       <div className="min-w-0">
