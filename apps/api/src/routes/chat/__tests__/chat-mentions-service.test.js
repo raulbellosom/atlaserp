@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   createChatMentionsService,
@@ -132,5 +132,32 @@ describe("chat-mentions-service — resolveMentions", () => {
     });
     assert.equal(result.notifyUserIds.length, 2);
     assert.deepEqual(new Set(result.notifyUserIds), new Set([USER_A, USER_B]));
+  });
+
+  it("handles @everyone and @here together, granting only the one the sender actually has", async () => {
+    const prisma = buildPrismaMock([
+      [{ user_id: USER_A }, { user_id: USER_B }], // single "all active members" query — fires once for (everyone || here)
+    ]);
+    const svc = createChatMentionsService({ prisma });
+    const result = await svc.resolveMentions({
+      conversationId: CONV_ID, senderProfileId: SENDER_ID,
+      body: `@[${EVERYONE_MENTION_ID}:everyone] @[${HERE_MENTION_ID}:here]`,
+      senderRole: { isSystem: false, permissions: { "mentions.here": true } },
+    });
+    assert.equal(result.everyone, false);
+    assert.equal(result.here, true);
+    assert.deepEqual(new Set(result.notifyUserIds), new Set([USER_A, USER_B]));
+  });
+
+  it("does not confuse an unrelated granted permission (roles.manage) with mentions.everyone", async () => {
+    const prisma = buildPrismaMock([]); // pure @everyone token, no candidateIds, and permission check fails before any query
+    const svc = createChatMentionsService({ prisma });
+    const result = await svc.resolveMentions({
+      conversationId: CONV_ID, senderProfileId: SENDER_ID,
+      body: `@[${EVERYONE_MENTION_ID}:everyone]`,
+      senderRole: { isSystem: false, permissions: { "roles.manage": true, "members.manage": true } },
+    });
+    assert.equal(result.everyone, false);
+    assert.deepEqual(result.notifyUserIds, []);
   });
 });

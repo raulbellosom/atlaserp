@@ -6,6 +6,13 @@ import { parseMentionIds } from "../../lib/mention-utils.js";
 export const EVERYONE_MENTION_ID = "00000000-0000-0000-0000-000000000000";
 export const HERE_MENTION_ID = "00000000-0000-0000-0000-000000000001";
 
+// Deliberately duplicated from chat-permissions-service.js's roleHasPermission
+// rather than imported: chat-service.js is about to import this file (Task 2),
+// and chat-permissions-service.js already imports from chat-service.js, so
+// importing chat-permissions-service.js here would close a real dependency
+// cycle across the sibling services. Keep the two permission keys below
+// ("mentions.everyone"/"mentions.here") in sync with CHAT_PERMISSIONS in
+// chat-permissions-service.js if either is ever renamed.
 function hasPermission(role, key) {
   if (!role) return false;
   if (role.isSystem) return true;
