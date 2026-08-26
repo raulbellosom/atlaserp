@@ -1283,27 +1283,59 @@ describe("chat-service — block enforcement", () => {
     );
   });
 
-  it("sendMessage rejects when blocked by any of several other members in a multi-member 'direct' conversation", async () => {
-    // Covers a pre-existing validator gap (chatCreateConversationSchema does
-    // not constrain type: "direct" to exactly one other member — out of
-    // scope to fix here, see spec edge case 8 / future enhancement 8): a
-    // raw API call could create a "direct" conversation with 2+ other
-    // members. assertNotBlocked must check the block relationship against
-    // ALL of them, not just whichever one Postgres happens to return first
-    // — here only the SECOND other member has blocked the sender, and the
-    // send must still be rejected.
+  it("assertNotBlocked's blocks query is parameterized with ALL other members' ids, not just one (regression guard for the LIMIT-1 bug)", async () => {
+    // buildPrismaMock is call-order-indexed and blind to actual SQL/params —
+    // it can't distinguish "checked all members correctly" from "checked one
+    // arbitrary member and got lucky", so a canned-response-only test here
+    // would be vacuous (it would pass identically against the old buggy
+    // `LIMIT 1` implementation). This test uses its own $queryRaw spy that
+    // records the raw tagged-template values for every call, so the
+    // assertions below can prove BOTH other members' ids actually reached the
+    // blocks-lookup query — the one thing the LIMIT 1 bug could never do,
+    // since its "other members" query fetched at most one id in the first
+    // place.
     const OTHER_PROFILE_ID_2 = "01900000-0000-7000-8000-0000000000p3";
-    const prisma = buildPrismaMock([
-      [{ id: PROFILE_ID }], // resolveUserProfileId (sender)
-      [{ id: "member-row" }], // assertMember
-      [{ type: "direct" }], // conversation type lookup for block check
-      [{ user_id: OTHER_PROFILE_ID }, { user_id: OTHER_PROFILE_ID_2 }], // multiple other members
-      [{ blocker_user_id: OTHER_PROFILE_ID_2, blocked_user_id: PROFILE_ID }], // only the second member has blocked the sender
-    ]);
+    const capturedCalls = [];
+    const prisma = {
+      $queryRaw: async (strings, ...values) => {
+        capturedCalls.push(values);
+        const callIndex = capturedCalls.length;
+        if (callIndex === 1) return [{ id: PROFILE_ID }]; // resolveUserProfileId
+        if (callIndex === 2) return [{ id: "member-row" }]; // assertMember
+        if (callIndex === 3) return [{ type: "direct" }]; // assertNotBlocked: conversation type lookup
+        if (callIndex === 4) return [{ user_id: OTHER_PROFILE_ID }, { user_id: OTHER_PROFILE_ID_2 }]; // assertNotBlocked: other members (both, no LIMIT)
+        if (callIndex === 5) return [{ blocker_user_id: OTHER_PROFILE_ID_2, blocked_user_id: PROFILE_ID }]; // assertNotBlocked: blocks lookup — found
+        throw new Error(`Unexpected $queryRaw call #${callIndex}`);
+      },
+      $executeRaw: async () => ({ count: 1 }),
+    };
     const service = createChatService({ prisma, supabaseAdmin: buildSupabaseAdminMock() });
     await assert.rejects(
       () => service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "hola" }),
       (err) => err instanceof ChatServiceError && err.status === 403,
+    );
+
+    // The 5th $queryRaw call is the blocks lookup. Its interpolated values
+    // include two Prisma.join(otherIds) fragments (one per IN (...) clause,
+    // for the two OR'd block directions). Verified empirically against this
+    // repo's real @prisma/client: Prisma.join(['a','b']) interpolated into a
+    // tagged template produces a `_Sql` object shaped
+    // { values: ['a','b'], strings: [...] } — same pattern this test file
+    // already documents elsewhere for Prisma.join(sets, ", ") in the
+    // updateConversation avatar tests above. Flatten defensively so this
+    // assertion survives either a raw array value or a Prisma.join fragment.
+    assert.equal(capturedCalls.length, 5, "expected exactly 5 $queryRaw calls before the rejection");
+    const blocksCallValues = capturedCalls[4];
+    const flatIds = blocksCallValues.flatMap((v) =>
+      v && typeof v === "object" && Array.isArray(v.values) ? v.values : [v],
+    );
+    assert.ok(
+      flatIds.includes(OTHER_PROFILE_ID),
+      "blocks query must include the FIRST other member's id",
+    );
+    assert.ok(
+      flatIds.includes(OTHER_PROFILE_ID_2),
+      "blocks query must include the SECOND other member's id — the old LIMIT 1 bug's other-members query could never have surfaced this id at all",
     );
   });
 
