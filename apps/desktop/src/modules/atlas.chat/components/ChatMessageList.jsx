@@ -269,9 +269,9 @@ export function ChatMessageList({
             onForward={!isDeleted && !isPending && onForward
               ? () => onForward(item)
               : undefined}
-            isPinned={Boolean(item.pinnedAt)}
+            isPinned={Boolean(item.pinned_at)}
             onPin={!isDeleted && !isPending && onPinMessage
-              ? () => onPinMessage(item.id, !item.pinnedAt)
+              ? () => onPinMessage(item.id, !item.pinned_at)
               : undefined}
             onToggleReaction={!isDeleted && !isPending ? onToggleReaction : undefined}
             selectionMode={selectionMode}
