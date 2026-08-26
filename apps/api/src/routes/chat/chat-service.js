@@ -428,11 +428,17 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             'displayName', up.display_name,
             'avatarFileId', up.avatar_file_id::text,
             'authAvatarUrl', au.raw_user_meta_data->>'avatar_url',
-            'email', up.email
+            'email', up.email,
+            'roleId', cm.role_id,
+            'roleName', ccr.name,
+            'roleColor', ccr.color,
+            'rolePosition', ccr.position,
+            'roleIsSystem', ccr.is_system
           ) ORDER BY cm.joined_at)
           FROM chat_conversation_members cm
           LEFT JOIN user_profile up ON up.id = cm.user_id
           LEFT JOIN auth.users au ON au.id = up.auth_user_id
+          LEFT JOIN chat_channel_roles ccr ON ccr.id = cm.role_id
           WHERE cm.conversation_id = c.id AND cm.left_at IS NULL
         ) AS members
       FROM chat_conversations c

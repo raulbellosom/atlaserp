@@ -306,3 +306,24 @@ describe("chat-service — createConversation transactional role-seeding regress
     assert.equal(prisma._transactionCallCount, 1);
   });
 });
+
+describe("chat-service — getConversation member role fields", () => {
+  it("includes roleId/roleName/roleColor/rolePosition/roleIsSystem for each member", async () => {
+    const memberRow = {
+      id: "m1", userId: "u1", role: "owner", joinedAt: new Date(), leftAt: null, lastReadAt: null,
+      displayName: "Ada", avatarFileId: null, authAvatarUrl: null, email: "ada@example.com",
+      roleId: "role-owner", roleName: "Owner", roleColor: null, rolePosition: 100, roleIsSystem: true,
+    };
+    const prisma = buildPrismaMock([
+      [{ id: "u1" }], // resolveUserProfileId
+      [{ id: "m1" }], // assertMember
+      [{ id: "conv1", type: "channel", members: [memberRow] }], // getConversation main query
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    const conv = await service.getConversation({ conversationId: "conv1", authUserId: "auth-1" });
+    assert.equal(conv.members[0].roleId, "role-owner");
+    assert.equal(conv.members[0].roleName, "Owner");
+    assert.equal(conv.members[0].rolePosition, 100);
+    assert.equal(conv.members[0].roleIsSystem, true);
+  });
+});
