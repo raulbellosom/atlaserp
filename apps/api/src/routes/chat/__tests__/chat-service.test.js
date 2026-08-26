@@ -1382,3 +1382,20 @@ describe("chat-service — block enforcement", () => {
     );
   });
 });
+
+describe("chat-service — listConversations exposes is_muted", () => {
+  it("passes through ccm.muted_at IS NOT NULL as is_muted on each row", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }], // resolveUserProfileId
+      [{
+        id: CONV_ID, type: "direct", title: null, avatar_url: null, avatar_file_id: null,
+        avatar_emoji: null, status: "active", last_message_at: new Date(), last_message_id: null,
+        website_id: null, company_id: null, metadata: {}, created_at: new Date(),
+        unread_count: 0, last_message: null, members: [], is_archived: false, is_muted: true,
+      }],
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: buildSupabaseAdminMock() });
+    const result = await service.listConversations({ authUserId: AUTH_USER_ID });
+    assert.equal(result.data[0].is_muted, true);
+  });
+});
