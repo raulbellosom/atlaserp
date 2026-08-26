@@ -426,25 +426,38 @@ describe("chat-service — sendMessage mentions", () => {
 describe("chat-service — sendMessage thread replies", () => {
   it("resolves threadRootId, increments the root's counter, and skips updateConversationLastMessage", async () => {
     const rootId = "01900000-0000-7000-8000-00000000r001";
-    const prisma = buildPrismaMock([
+    let qIdx = 0;
+    const executeRawCalls = [];
+    const queryRawResults = [
       [{ id: PROFILE_ID }],                                            // resolveUserProfileId
       [{ id: rootId }],                                                // assertMember (sendMessage's own)
       [{ id: rootId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null }], // thread target lookup
       [{ id: "msg-reply-1", conversation_id: CONV_ID, created_at: new Date() }], // INSERT ... RETURNING *
       [{ id: "msg-reply-1", conversation_id: CONV_ID, sender: null, attachments: null, reactions: null }], // getMessageFull
-    ], [
-      { count: 1 }, // UPDATE chat_messages SET thread_reply_count = thread_reply_count + 1, thread_last_reply_at = ...
-    ]);
+    ];
+    const prisma = {
+      $queryRaw: async () => queryRawResults[qIdx++],
+      $executeRaw: async (strings, ...values) => { executeRawCalls.push(values); return { count: 1 }; },
+      $transaction: async (fn) => fn(prisma),
+      membership: { findFirst: async () => null },
+    };
     const service = createChatService({ prisma, supabaseAdmin: {} });
     const result = await service.sendMessage({
       conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "respuesta", threadRootId: rootId,
     });
     assert.equal(result.id, "msg-reply-1");
-    // No notificationService/broadcaster supplied, and exactly 5 $queryRaw + 1
-    // $executeRaw calls are queued (matching a non-threaded send's would-be 6th
-    // call, updateConversationLastMessage, being skipped) — reaching the
-    // assertion above without the mock throwing "Unexpected $queryRaw call"
-    // proves the synchronous call sequence matches what a thread reply should do.
+    // updateConversationLastMessage (chat-service.js:84-92) issues its own
+    // $executeRaw against chat_conversations, targeting conversationId, not
+    // the message/root id — asserting exactly one $executeRaw call happened,
+    // and that its only interpolated value is rootId (the counter update's
+    // WHERE target), proves updateConversationLastMessage's UPDATE never ran.
+    // Unlike buildPrismaMock's $executeRaw (which silently no-ops on overrun),
+    // this inline mock has no fallback array to fall through to, so a second,
+    // unaccounted-for call would push a second entry here and this assertion
+    // would genuinely fail.
+    assert.equal(executeRawCalls.length, 1, "expected exactly one $executeRaw call (the counter increment)");
+    assert.ok(executeRawCalls[0].includes(rootId), "the one $executeRaw call must target the root's counter update");
+    assert.ok(!executeRawCalls[0].includes(CONV_ID), "updateConversationLastMessage (keyed on conversationId) must not have run");
   });
 
   it("auto-flattens a reply-to-a-reply onto the original root", async () => {
@@ -593,6 +606,47 @@ describe("chat-service — sendMessage thread reply notifications", () => {
     );
     assert.ok(mentionEvent, "expected chat.mention.new to still fire on top of the thread-reply notification");
     assert.deepEqual(mentionEvent.input.recipients.userIds, [MENTIONED_USER_ID]);
+  });
+
+  it("excludes a former member from chat.thread.reply even though they're in the thread's message history", async () => {
+    const rootId = "01900000-0000-7000-8000-00000000r001";
+    const ROOT_AUTHOR_ID = "01900000-0000-7000-8000-0000000000a1";
+    const FORMER_MEMBER_ID = "01900000-0000-7000-8000-0000000000d4"; // replied in the thread, then left the conversation
+    const publishedEvents = [];
+    const notificationService = { publish: async (args) => { publishedEvents.push(args); } };
+
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "member-row" }],
+      [{ id: rootId, conversation_id: CONV_ID, thread_root_id: null, deleted_at: null }],
+      [{ id: "msg-thread-2", conversation_id: CONV_ID, sender_user_id: PROFILE_ID, created_at: new Date(), metadata: {} }],
+      [{
+        id: "msg-thread-2", conversation_id: CONV_ID, sender_user_id: PROFILE_ID, sender_guest_id: null,
+        sender_type: "user", body: "sigo aqui", message_type: "text", attachment_count: 0,
+        metadata: {}, created_at: new Date(), edited_at: null, deleted_at: null,
+        sender: { id: null, displayName: null, avatarFileId: null }, attachments: null, reactions: null,
+      }],
+      [{ user_id: ROOT_AUTHOR_ID }],                                    // otherMembers — FORMER_MEMBER_ID already left (left_at IS NOT NULL), so it's absent here
+      [                                                                  // participantRows — derived from message history, still includes the former member
+        { sender_user_id: ROOT_AUTHOR_ID },
+        { sender_user_id: FORMER_MEMBER_ID },
+      ],
+    ], [
+      { count: 1 },
+    ]);
+    prisma.membership.findFirst = async () => ({ companyId: "company-1" });
+
+    const service = createChatService({ prisma, supabaseAdmin: {}, notificationService, broadcaster: null });
+    await service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "sigo aqui", threadRootId: rootId });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const threadEvent = publishedEvents.find((e) => e.input.eventType === "chat.thread.reply");
+    assert.ok(threadEvent);
+    assert.deepEqual(
+      threadEvent.input.recipients.userIds,
+      [ROOT_AUTHOR_ID],
+      "a former member who replied in the thread before leaving must not keep receiving chat.thread.reply after leaving",
+    );
   });
 });
 

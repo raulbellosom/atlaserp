@@ -911,10 +911,15 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
                 AND sender_user_id IS NOT NULL
                 AND sender_user_id != ${profileId}
             `;
-            const mentionedSet2 = new Set(mentionResult.notifyUserIds);
+            // Thread participation is derived from message history (who's
+            // ever posted in this thread), which can include someone who has
+            // since left the conversation — otherMembers (above) is already
+            // scoped to currently-active members (left_at IS NULL), so
+            // intersect against it rather than notifying a former member.
+            const activeMemberIds = new Set(otherMembers.map((m) => m.user_id.toString()));
             const threadRecipientIds = participantRows
               .map((r) => r.sender_user_id.toString())
-              .filter((id) => !mentionedSet2.has(id));
+              .filter((id) => activeMemberIds.has(id) && !mentionedSet.has(id));
             if (threadRecipientIds.length) {
               await notificationService.publish({
                 companyId,
