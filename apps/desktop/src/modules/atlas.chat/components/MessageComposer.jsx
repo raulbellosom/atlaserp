@@ -6,7 +6,7 @@ import {
   useImperativeHandle,
   forwardRef,
 } from "react";
-import { Button } from "@atlas/ui";
+import { Button, MentionTextarea } from "@atlas/ui";
 import {
   Send, Paperclip, Smile, X, Loader2, AlertCircle, Mic,
   Play, FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
@@ -14,7 +14,9 @@ import {
 } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import { useChatUpload } from "../hooks/useChatUpload";
+import { useMentionCandidates } from "../hooks/useMentionCandidates";
 import { formatFileSize } from "../lib/chatUtils";
+import { useAuth } from "../../../auth/AuthProvider";
 
 // Preferred audio MIME type for recording — safe for iOS (audio/mp4 only) and Android
 function getRecordingMime() {
@@ -178,7 +180,10 @@ export const MessageComposer = forwardRef(function MessageComposer(
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [recordingError, setRecordingError] = useState(null);
 
-  const textareaRef = useRef(null);
+  const { userProfile } = useAuth();
+  const currentUserId = userProfile?.id;
+  const mentionCandidates = useMentionCandidates(conversationId, currentUserId);
+
   const emojiContainerRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeout = useRef(null);
@@ -340,37 +345,18 @@ export const MessageComposer = forwardRef(function MessageComposer(
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [showEmoji]);
 
-  const insertEmoji = useCallback(
-    (emojiData) => {
-      const emoji = emojiData.emoji;
-      const textarea = textareaRef.current;
-      if (!textarea) { setBody((prev) => prev + emoji); return; }
-      const start = textarea.selectionStart ?? body.length;
-      const end = textarea.selectionEnd ?? body.length;
-      setBody(body.slice(0, start) + emoji + body.slice(end));
-      requestAnimationFrame(() => {
-        textarea.focus();
-        const pos = start + emoji.length;
-        textarea.setSelectionRange(pos, pos);
-      });
-    },
-    [body],
-  );
-
-  // ── Auto-resize textarea (covers programmatic setBody from templates) ────
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    const base = compact ? "28px" : "36px";
-    const max = compact ? 80 : 200;
-    el.style.height = base;
-    el.style.height = `${Math.min(el.scrollHeight, max)}px`;
-  }, [body, compact]);
+  // NOTE: MentionTextarea does not expose its internal textarea DOM node to
+  // the parent, so cursor-position-aware insertion is not possible here.
+  // Emoji is appended at the end of the body instead (accepted simplification
+  // — see spec Section 8/24 risk 1).
+  const insertEmoji = useCallback((emojiData) => {
+    setBody((prev) => prev + emojiData.emoji);
+  }, []);
 
   // ── Typing ───────────────────────────────────────────────────────────────
   const handleChange = useCallback(
-    (e) => {
-      setBody(e.target.value);
+    (newValue) => {
+      setBody(newValue);
       if (!isTypingRef.current) { isTypingRef.current = true; onTyping?.(true); }
       clearTimeout(typingTimeout.current);
       typingTimeout.current = setTimeout(() => { isTypingRef.current = false; onTyping?.(false); }, 2000);
@@ -406,10 +392,11 @@ export const MessageComposer = forwardRef(function MessageComposer(
 
       setBody("");
       setPendingFiles([]);
-      if (textareaRef.current) textareaRef.current.style.height = "auto";
     } finally {
+      // NOTE: auto-refocus after send is dropped — MentionTextarea doesn't
+      // expose its internal textarea ref (accepted UX regression, see
+      // spec Section 8/24 risk 1).
       setIsSending(false);
-      textareaRef.current?.focus();
     }
   }, [body, isSending, onSend, onTyping, pendingFiles]);
 
@@ -559,27 +546,24 @@ export const MessageComposer = forwardRef(function MessageComposer(
             <Paperclip className={iconSize} />
           </button>
 
-          {/* Textarea */}
-          <textarea
-            ref={textareaRef}
-            className={[
-              "flex-1 bg-transparent resize-none outline-none placeholder:text-[hsl(var(--muted-foreground))] leading-tight",
-              compact ? "text-xs min-h-7 max-h-20 py-1" : "text-sm min-h-9 max-h-50 py-2",
-            ].join(" ")}
-            rows={1}
-            placeholder={placeholder}
-            value={body}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            disabled={disabled || isSending}
-            style={{ height: compact ? "28px" : "36px" }}
-            onInput={(e) => {
-              const base = compact ? "28px" : "36px";
-              const max = compact ? 80 : 128;
-              e.target.style.height = base;
-              e.target.style.height = `${Math.min(e.target.scrollHeight, max)}px`;
-            }}
-          />
+          {/* Textarea (with @mention autocomplete). NOTE: MentionTextarea bakes
+              its own border/background/rounded/padding into a fixed className
+              string it doesn't expose a way to cleanly override (no style prop,
+              and conflicting Tailwind utilities aren't guaranteed to win based on
+              class-attribute order), so the composer now shows MentionTextarea's
+              boxed look instead of the previous flat/transparent inline style.
+              Accepted cosmetic tradeoff — see report. */}
+          <div className="flex-1 min-w-0">
+            <MentionTextarea
+              value={body}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              members={mentionCandidates}
+              placeholder={placeholder}
+              rows={compact ? 1 : 3}
+              disabled={disabled || isSending}
+            />
+          </div>
 
           {/* Emoji */}
           <button
