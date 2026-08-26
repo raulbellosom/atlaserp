@@ -16,6 +16,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 import { MessageReactions } from "./MessageReactions";
 import { MessageReactionPicker } from "./MessageReactionPicker";
+import { EntityReferenceCard } from "./EntityReferenceCard";
 
 function isVideoMime(m) { return String(m ?? "").startsWith("video/"); }
 function isAudioMime(m) { return String(m ?? "").startsWith("audio/"); }
@@ -890,6 +891,14 @@ export function ChatMessageBubble({
               <AttachmentsBlock attachments={attachments} onOpen={onAttachmentClick} isOwn />
             )}
 
+            {!isDeleted && message.metadata?.entityRefs?.length > 0 && (
+              <div className="flex flex-col gap-1 mt-1">
+                {message.metadata.entityRefs.map((ref) => (
+                  <EntityReferenceCard key={`${ref.entityType}:${ref.recordId}`} reference={ref} />
+                ))}
+              </div>
+            )}
+
             {showMeta && (
               <div className="flex items-center gap-1 mt-1 px-0.5">
                 {isPinned && (
@@ -1000,6 +1009,14 @@ export function ChatMessageBubble({
 
           {!isDeleted && attachments.length > 0 && (
             <AttachmentsBlock attachments={attachments} onOpen={onAttachmentClick} isOwn={false} />
+          )}
+
+          {!isDeleted && message.metadata?.entityRefs?.length > 0 && (
+            <div className="flex flex-col gap-1 mt-1">
+              {message.metadata.entityRefs.map((ref) => (
+                <EntityReferenceCard key={`${ref.entityType}:${ref.recordId}`} reference={ref} />
+              ))}
+            </div>
           )}
 
           {showMeta && (
