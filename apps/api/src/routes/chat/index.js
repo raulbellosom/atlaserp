@@ -412,6 +412,9 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     try {
       const authUserId = c.get("authUserId");
       const reportId = c.req.param("id");
+      if (!uuidParamSchema.safeParse(reportId).success) {
+        return c.json({ error: "Identificador de reporte invalido." }, 422);
+      }
       const body = await c.req.json();
       const { action } = chatResolveReportSchema.parse(body);
       const result = await moderationService.resolveReport({ reportId, authUserId, action });
