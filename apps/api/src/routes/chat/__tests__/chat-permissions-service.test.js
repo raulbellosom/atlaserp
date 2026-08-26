@@ -83,6 +83,7 @@ function buildPrismaMock(queryRawResults, executeRawResults = []) {
   let qIdx = 0;
   let eIdx = 0;
   const client = {
+    _transactionCallCount: 0,
     $queryRaw: async () => {
       if (qIdx >= queryRawResults.length) throw new Error(`Unexpected $queryRaw call #${qIdx + 1}`);
       return queryRawResults[qIdx++];
@@ -92,7 +93,13 @@ function buildPrismaMock(queryRawResults, executeRawResults = []) {
     // the callback receives a tx client that shares the same call-order counters,
     // so calls made via tx.$queryRaw/tx.$executeRaw consume from the same
     // queryRawResults/executeRawResults arrays as calls made directly on prisma.
-    $transaction: async (fn) => fn(client),
+    // _transactionCallCount lets a test assert the wrapper wasn't silently dropped
+    // (the shared counters alone can't distinguish "wrapped in $transaction" from
+    // "called directly on prisma" — the call-sequence looks identical either way).
+    $transaction: async (fn) => {
+      client._transactionCallCount++;
+      return fn(client);
+    },
   };
   return client;
 }
@@ -278,6 +285,9 @@ describe("chat-permissions-service — deleteRole", () => {
     const svc = createChatPermissionsService({ prisma });
     const result = await svc.deleteRole({ conversationId: CONV_ID, roleId: "role-custom", authUserId: AUTH_USER_ID });
     assert.equal(result.reassignedMemberCount, 2);
+    // Catches a regression that strips the $transaction wrapper back out — the
+    // shared-counter mock can't tell "wrapped" from "unwrapped" any other way.
+    assert.equal(prisma._transactionCallCount, 1);
   });
 });
 
