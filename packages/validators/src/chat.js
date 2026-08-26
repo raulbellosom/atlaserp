@@ -57,3 +57,29 @@ export const chatGuestMessageSchema = z.object({
 export const chatAssignOperatorSchema = z.object({
   operatorUserId: z.string().uuid(),
 });
+
+export const chatCreateChannelSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(500).optional(),
+  isPublic: z.boolean().optional().default(false),
+  slug: z.string().trim().min(1).max(60).regex(/^[a-z0-9-]+$/, "El slug solo puede contener minusculas, numeros y guiones.").optional(),
+  memberUserIds: z.array(z.string().uuid()).max(50).optional().default([]),
+});
+
+export const chatCreateChannelRoleSchema = z.object({
+  name: z.string().trim().min(1).max(50),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  position: z.number().int().min(0).max(99),
+  permissions: z.record(z.boolean()),
+});
+
+export const chatUpdateChannelRoleSchema = z.object({
+  name: z.string().trim().min(1).max(50).optional(),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  position: z.number().int().min(0).max(99).optional(),
+  permissions: z.record(z.boolean()).optional(),
+});
+
+export const chatAssignMemberRoleSchema = z.object({
+  roleId: z.string().uuid(),
+});
