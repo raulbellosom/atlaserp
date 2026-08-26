@@ -655,24 +655,44 @@ function MessageActions({ isOwn, hasBody, onCopy, onDelete, onHideForMe, onForwa
 }
 
 // ── Search text highlight ──────────────────────────────────────────────────────
+// NOTE: despite the name/original design, this is the render path for EVERY
+// real (non-system) message body, not just search results — it's called
+// unconditionally at both call sites below with `query={searchQuery}`, which
+// is "" whenever the user isn't actively searching. So mention-chip rendering
+// has to live HERE (composed with the existing substring highlight), not in a
+// separate "plain" render path — there isn't one for real messages.
 function HighlightedText({ text, query }) {
-  if (!query || !text) return <>{text}</>;
+  if (!text) return null;
+  const mentionParts = renderMentionText(text);
+  const parts = Array.isArray(mentionParts) ? mentionParts : [mentionParts ?? text];
+  if (!query) return <>{parts}</>;
+
   const q = query.toLowerCase();
-  const parts = [];
-  let lastIndex = 0;
-  const lower = text.toLowerCase();
-  while (lastIndex < text.length) {
-    const idx = lower.indexOf(q, lastIndex);
-    if (idx === -1) { parts.push(text.slice(lastIndex)); break; }
-    if (idx > lastIndex) parts.push(text.slice(lastIndex, idx));
-    parts.push(
-      <mark key={idx} className="bg-yellow-300 text-black rounded-xs px-0.5">
-        {text.slice(idx, idx + q.length)}
-      </mark>
-    );
-    lastIndex = idx + q.length;
+  const highlighted = [];
+  let key = 0;
+  for (const part of parts) {
+    if (typeof part !== "string") {
+      // Already a mention chip <span> from renderMentionText — pass through
+      // unchanged rather than searching for query matches inside its markup.
+      highlighted.push(part);
+      continue;
+    }
+    const lower = part.toLowerCase();
+    let lastIndex = 0;
+    let idx = lower.indexOf(q, lastIndex);
+    while (idx !== -1) {
+      if (idx > lastIndex) highlighted.push(part.slice(lastIndex, idx));
+      highlighted.push(
+        <mark key={`hl-${key++}`} className="bg-yellow-300 text-black rounded-xs px-0.5">
+          {part.slice(idx, idx + q.length)}
+        </mark>
+      );
+      lastIndex = idx + q.length;
+      idx = lower.indexOf(q, lastIndex);
+    }
+    if (lastIndex < part.length) highlighted.push(part.slice(lastIndex));
   }
-  return <>{parts}</>;
+  return <>{highlighted}</>;
 }
 
 // ── Main bubble ───────────────────────────────────────────────────────────────
