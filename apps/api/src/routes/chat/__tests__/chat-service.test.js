@@ -385,6 +385,13 @@ describe("chat-service — sendMessage mentions", () => {
   });
 
   it("does not fan out chat.mention.new when resolveMentions finds nothing to notify", async () => {
+    // Body deliberately DOES contain a real (valid-hex) mention token — e.g. a
+    // member who has since left the conversation — so this test genuinely
+    // exercises resolveMentions legitimately resolving to zero notifiable
+    // recipients, rather than the parseMentionIds short-circuit skipping
+    // resolveMentions entirely (which a token-free body like "hola equipo"
+    // would trigger, silently no longer testing this scenario at all).
+    const DEPARTED_USER_ID = "01900000-0000-7000-8000-0000000000bb";
     const publishedEvents = [];
     const notificationService = { publish: async (args) => { publishedEvents.push(args); } };
     const mentionsService = {
@@ -392,13 +399,14 @@ describe("chat-service — sendMessage mentions", () => {
     };
     const permissionsService = { getMemberRole: async () => null };
 
+    const body = `hola @[${DEPARTED_USER_ID}:ExMiembro]`;
     const prisma = buildPrismaMock([
       [{ id: "sender-profile" }],
       [{ id: "m1" }],
       [{ id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", created_at: new Date(), metadata: {} }],
       [{
         id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", sender_guest_id: null,
-        sender_type: "user", body: "hola equipo", message_type: "text", attachment_count: 0,
+        sender_type: "user", body, message_type: "text", attachment_count: 0,
         metadata: {}, created_at: new Date(), edited_at: null, deleted_at: null,
         sender: { id: null, displayName: null, avatarFileId: null }, attachments: null,
       }],
@@ -407,7 +415,7 @@ describe("chat-service — sendMessage mentions", () => {
     prisma.membership.findFirst = async () => ({ companyId: "company-1" });
 
     const service = createChatService({ prisma, supabaseAdmin: {}, notificationService, mentionsService, permissionsService, broadcaster: null });
-    await service.sendMessage({ conversationId: "conv1", authUserId: "auth-1", body: "hola equipo" });
+    await service.sendMessage({ conversationId: "conv1", authUserId: "auth-1", body });
     await new Promise((resolve) => setImmediate(resolve));
 
     assert.equal(publishedEvents.some((e) => e.input.eventType === "chat.mention.new"), false);
