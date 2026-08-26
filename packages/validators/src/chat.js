@@ -26,7 +26,11 @@ export const chatEditMessageSchema = z.object({
 export const chatUpdateConversationSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
   status: z.enum(["open", "pending", "closed", "archived"]).optional(),
-  avatarUrl: z.string().url().optional(),
+  // .min(1) so an empty string can never be treated as "setting a real emoji"
+  // by updateConversation's mutual-exclusion logic (which only special-cases
+  // an explicit null as "clear this field," not falsy-but-truthy values).
+  avatarFileId: z.string().uuid().nullable().optional(),
+  avatarEmoji: z.string().min(1).max(16).nullable().optional(),
   metadata: z.record(z.unknown()).optional(),
 });
 
