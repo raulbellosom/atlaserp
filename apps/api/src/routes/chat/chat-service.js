@@ -58,7 +58,7 @@ export function _resetProfileIdCacheForTests() {
   _profileIdCache.clear();
 }
 
-export function createChatService({ prisma, supabaseAdmin, notificationService = null, broadcaster = null, permissionsService = null }) {
+export function createChatService({ prisma, supabaseAdmin, notificationService = null, broadcaster = null, permissionsService = null, mentionsService = null }) {
   // ------------------------------------------------------------------
   // Internal helpers
   // ------------------------------------------------------------------
@@ -745,6 +745,16 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
 
+    let mentionResult = { userIds: [], roleIds: [], everyone: false, here: false, notifyUserIds: [] };
+    if (mentionsService) {
+      const senderRole = permissionsService ? await permissionsService.getMemberRole(conversationId, profileId) : null;
+      mentionResult = await mentionsService.resolveMentions({ conversationId, senderProfileId: profileId, body, senderRole });
+    }
+    const hasMentions = mentionResult.userIds.length || mentionResult.roleIds.length || mentionResult.everyone || mentionResult.here;
+    const finalMetadata = hasMentions
+      ? { ...metadata, mentions: { userIds: mentionResult.userIds, roleIds: mentionResult.roleIds, everyone: mentionResult.everyone, here: mentionResult.here } }
+      : metadata;
+
     const msgRows = await prisma.$queryRaw`
       INSERT INTO chat_messages (conversation_id, sender_user_id, sender_type, body, message_type, attachment_count, metadata)
       VALUES (
@@ -754,7 +764,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         ${body},
         ${messageType},
         ${attachmentIds.length},
-        ${JSON.stringify(metadata)}::jsonb
+        ${JSON.stringify(finalMetadata)}::jsonb
       )
       RETURNING *
     `;
@@ -795,24 +805,49 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
           `;
           if (!otherMembers.length) return;
 
-          const recipientIds = otherMembers.map((m) => m.user_id.toString());
+          const mentionedSet = new Set(mentionResult.notifyUserIds);
+          const recipientIds = otherMembers
+            .map((m) => m.user_id.toString())
+            .filter((id) => !mentionedSet.has(id));
           const preview = body.length > 80 ? `${body.slice(0, 80)}...` : body;
-          await notificationService.publish({
-            companyId,
-            actorId: profileId,
-            input: {
-              eventType: "chat.message.new",
-              title: "Nuevo mensaje de chat",
-              body: preview,
-              link: `/app/m/atlas.chat/chat/inbox`,
-              recipients: { userIds: recipientIds },
-              channels: ["in_app", "web_push"],
-              priority: "medium",
-              sourceType: "chat_conversation",
-              sourceId: conversationId,
-              dedupeKey: `chat.message.new:${msg.id}`,
-            },
-          });
+
+          if (recipientIds.length) {
+            await notificationService.publish({
+              companyId,
+              actorId: profileId,
+              input: {
+                eventType: "chat.message.new",
+                title: "Nuevo mensaje de chat",
+                body: preview,
+                link: `/app/m/atlas.chat/chat/inbox`,
+                recipients: { userIds: recipientIds },
+                channels: ["in_app", "web_push"],
+                priority: "medium",
+                sourceType: "chat_conversation",
+                sourceId: conversationId,
+                dedupeKey: `chat.message.new:${msg.id}`,
+              },
+            });
+          }
+
+          if (mentionResult.notifyUserIds.length) {
+            await notificationService.publish({
+              companyId,
+              actorId: profileId,
+              input: {
+                eventType: "chat.mention.new",
+                title: "Te mencionaron en un chat",
+                body: preview,
+                link: `/app/m/atlas.chat/chat/inbox`,
+                recipients: { userIds: mentionResult.notifyUserIds },
+                channels: ["in_app", "web_push"],
+                priority: "high",
+                sourceType: "chat_conversation",
+                sourceId: conversationId,
+                dedupeKey: `chat.mention.new:${msg.id}`,
+              },
+            });
+          }
         } catch {}
       });
     }

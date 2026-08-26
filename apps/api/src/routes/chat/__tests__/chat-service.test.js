@@ -307,6 +307,74 @@ describe("chat-service — createConversation transactional role-seeding regress
   });
 });
 
+describe("chat-service — sendMessage mentions", () => {
+  it("stores metadata.mentions and fans out a chat.mention.new notification separate from chat.message.new", async () => {
+    const publishedEvents = [];
+    const notificationService = { publish: async (args) => { publishedEvents.push(args); } };
+    const mentionsService = {
+      resolveMentions: async () => ({ userIds: ["u-mentioned"], roleIds: [], everyone: false, here: false, notifyUserIds: ["u-mentioned"] }),
+    };
+    const permissionsService = { getMemberRole: async () => null };
+
+    const prisma = buildPrismaMock([
+      [{ id: "sender-profile" }], // resolveUserProfileId
+      [{ id: "m1" }],             // assertMember
+      [{ id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", created_at: new Date(), metadata: {} }], // INSERT ... RETURNING *
+      [{                          // getMessageFull's internal query
+        id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", sender_guest_id: null,
+        sender_type: "user", body: "hola @[u-mentioned:X]", message_type: "text", attachment_count: 0,
+        metadata: {}, created_at: new Date(), edited_at: null, deleted_at: null,
+        sender: { id: null, displayName: null, avatarFileId: null }, attachments: null,
+      }],
+      [{ user_id: "u-mentioned" }, { user_id: "other-user" }], // otherMembers query inside the notification setImmediate block
+    ]);
+    prisma.membership.findFirst = async () => ({ companyId: "company-1" });
+
+    const service = createChatService({ prisma, supabaseAdmin: {}, notificationService, mentionsService, permissionsService, broadcaster: null });
+    await service.sendMessage({ conversationId: "conv1", authUserId: "auth-1", body: "hola @[u-mentioned:X]" });
+
+    // The notification dispatch runs inside a fire-and-forget setImmediate — flush it.
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const mentionEvent = publishedEvents.find((e) => e.input.eventType === "chat.mention.new");
+    const messageEvent = publishedEvents.find((e) => e.input.eventType === "chat.message.new");
+    assert.ok(mentionEvent, "expected a chat.mention.new notification to be published");
+    assert.deepEqual(mentionEvent.input.recipients.userIds, ["u-mentioned"]);
+    assert.ok(messageEvent, "expected the generic chat.message.new notification to still fire for non-mentioned members");
+    assert.deepEqual(messageEvent.input.recipients.userIds, ["other-user"]);
+  });
+
+  it("does not fan out chat.mention.new when resolveMentions finds nothing to notify", async () => {
+    const publishedEvents = [];
+    const notificationService = { publish: async (args) => { publishedEvents.push(args); } };
+    const mentionsService = {
+      resolveMentions: async () => ({ userIds: [], roleIds: [], everyone: false, here: false, notifyUserIds: [] }),
+    };
+    const permissionsService = { getMemberRole: async () => null };
+
+    const prisma = buildPrismaMock([
+      [{ id: "sender-profile" }],
+      [{ id: "m1" }],
+      [{ id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", created_at: new Date(), metadata: {} }],
+      [{
+        id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", sender_guest_id: null,
+        sender_type: "user", body: "hola equipo", message_type: "text", attachment_count: 0,
+        metadata: {}, created_at: new Date(), edited_at: null, deleted_at: null,
+        sender: { id: null, displayName: null, avatarFileId: null }, attachments: null,
+      }],
+      [{ user_id: "other-user" }],
+    ]);
+    prisma.membership.findFirst = async () => ({ companyId: "company-1" });
+
+    const service = createChatService({ prisma, supabaseAdmin: {}, notificationService, mentionsService, permissionsService, broadcaster: null });
+    await service.sendMessage({ conversationId: "conv1", authUserId: "auth-1", body: "hola equipo" });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(publishedEvents.some((e) => e.input.eventType === "chat.mention.new"), false);
+    assert.equal(publishedEvents.filter((e) => e.input.eventType === "chat.message.new").length, 1);
+  });
+});
+
 describe("chat-service — getConversation member role fields", () => {
   it("includes roleId/roleName/roleColor/rolePosition/roleIsSystem for each member", async () => {
     const memberRow = {

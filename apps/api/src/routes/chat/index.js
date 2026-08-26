@@ -21,6 +21,7 @@ import { createChatTemplateService } from "./template-service.js";
 import { expireStaleGuestSessions } from "./session-expiry-job.js";
 import { createChatPermissionsService, ChatPermissionsError } from "./chat-permissions-service.js";
 import { createChannelDirectoryService } from "./channel-directory-service.js";
+import { createChatMentionsService } from "./chat-mentions-service.js";
 
 function handleError(c, err, fallback) {
   if (err instanceof ChatServiceError || err instanceof GuestChatServiceError || err instanceof ChatPermissionsError) {
@@ -34,7 +35,8 @@ function handleError(c, err, fallback) {
 export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService = null, broadcaster = null }) {
   const app = new Hono();
   const permissionsService = createChatPermissionsService({ prisma });
-  const chatService = createChatService({ prisma, supabaseAdmin, notificationService, broadcaster, permissionsService });
+  const mentionsService = createChatMentionsService({ prisma });
+  const chatService = createChatService({ prisma, supabaseAdmin, notificationService, broadcaster, permissionsService, mentionsService });
   const guestService = createGuestChatService({ prisma, supabaseAdmin, notificationService, broadcaster });
   const templateService = createChatTemplateService({ prisma });
   const channelDirectoryService = createChannelDirectoryService({ prisma });
