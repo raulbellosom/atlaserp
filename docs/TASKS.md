@@ -148,6 +148,26 @@ Built via `superpowers:subagent-driven-development`. Review caught and fixed 6 r
 
 Verified: 2026-08-26 (`node --test` across all 4 chat backend test files → 60/60 pass; `pnpm build` / `pnpm --filter @atlas/desktop exec vite build` → clean on every task; independent code review verified the critical send-failure fix, the guest-mention fix, and the mention-chip rendering fix each by tracing the actual code path, not just reading the diff)
 
+### Channels & Roles — Phase D (pinned messages & reactions)
+
+Spec: `docs/superpowers/specs/2026-08-26-chat-pins-reactions-phase-d-design.md`
+Plans: `docs/superpowers/plans/2026-08-26-chat-pins-reactions-phase-d-plan-a-backend.md`, `...-plan-b-frontend.md`
+
+Fourth of six planned phases. Enforces the `messages.pin` permission (defined but unused since Phase A) and adds unprivileged emoji reactions, reusing `emoji-picker-react` (already a dependency, already used by `MessageComposer`'s own emoji button).
+
+- [x] `chat_messages.pinned_at`/`pinned_by_user_id` (nullable) and new `chat_message_reactions` table, unique on `(message_id, user_id, emoji)` for toggle semantics (migration `20260826000000_chat_pins_reactions`)
+- [x] `chat-reactions-service.js`: `toggleReaction` (add/remove based on existing-row check)
+- [x] `chat-service.js`: `pinMessage` (permission-gated via `messages.pin` for `channel`/`group` only; any active member may pin in `direct`/`external_support`, matching those types having no role system), `listPinnedMessages`; `listMessages`/`getMessageFull` gained `pinnedAt`/`pinnedByUserId` and a `reactions` aggregation subquery (`json_agg` grouped by emoji, validated against a real throwaway Postgres container, not just the mock test suite)
+- [x] 3 new routes: `PATCH /chat/messages/:id/pin`, `GET /chat/conversations/:id/pinned-messages`, `POST /chat/messages/:id/reactions`
+- [x] `usePinMessage`/`useToggleReaction`/`usePinnedMessages` hooks; `MessageReactions` (pill row, grouped, "you reacted" highlight) and `MessageReactionPicker` extracted as separate components from the start (`ChatMessageBubble.jsx` was already ~926 lines)
+- [x] `MessageActions` gained "Fijar/Desfijar mensaje" (permission-gated, `channel`/`group` only) and "Reaccionar" (unprivileged, every conversation type) items; reaction pills + pinned indicator render in both own-message and other-message bubble branches
+- [x] `PinnedMessagesSheet` (same `Sheet` pattern as `ChannelDetailsSheet`) reachable from a new header button with a pinned-count badge; "Ver en el chat" reuses/extends the existing search-jump-to-match scroll mechanism (a second, independent `scrollToMessage`-keyed effect in `ChatMessageList`, kept separate from search's yellow-highlight semantics)
+- [ ] Manual browser QA (deferred, same reason as Phases A–C)
+
+Built via `superpowers:subagent-driven-development`. Review caught and fixed 6 real issues, the most severe on the highest-risk task (wiring pin/react into the bubble): `canPin` was permanently `false` for every user in the actual chat window, because `ChatWindow` sourced `members` from the conversation-*list* preview query (no role/permission fields) instead of the detail query, and even the detail query's own SQL never selected `ccr.permissions` in the first place — both layers had to be fixed together. The same reaction wiring never reached `FloatingChatHub`/`ExternalInboxScreen`, which render full message threads through the identical `ChatMessageList`/`ChatMessageBubble` pipeline as the main chat window but hadn't been passed the new props — the "Reaccionar" menu item rendered anyway and silently no-op'd on pick, the exact reached-one-path-not-another failure mode Phase C's own review had already caught once. Also fixed: a hand-rolled `absolute`-positioned emoji-picker popover that would clip against `ChatMessageList`'s scroll container for messages near the top of the viewport (replaced with `@atlas/ui`'s existing Radix-based `Popover`, portaled to `<body>`); a gating inconsistency where reaction *display* was allowed on any non-deleted message but the "Reaccionar" *trigger* required message text, silently blocking reactions on attachment-only messages; and an unconditional `usePinnedMessages` fetch firing on every conversation open regardless of type, wasting a request on every `direct`/`external_support` conversation where pinning is never offered.
+
+Verified: 2026-08-26 (`node --test apps/api/src/routes/chat/__tests__/*.test.js` → 65/65 pass, including new regression coverage for the `rolePermissions` field; `pnpm --filter @atlas/desktop exec vite build` → clean on every task and every fix; two independent review passes on the bubble-wiring task alone — first found 4 issues, second confirmed all 4 fixed with no new regressions by tracing the actual code paths, not just re-reading the diff)
+
 ## atlas.notes — Collaborative Notes
 
 Plans: `docs/superpowers/plans/2026-06-27-atlas-notes-A-backend.md`, `2026-06-27-atlas-notes-B-frontend.md`
