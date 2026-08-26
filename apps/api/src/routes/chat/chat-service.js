@@ -553,7 +553,10 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         if (conv && (conv.type === "channel" || conv.type === "group")) {
           const actorRole = await permissionsService.assertChannelPermission(conversationId, profileId, "members.manage");
           const targetRole = await permissionsService.getMemberRole(conversationId, targetUserId);
-          const targetPosition = targetRole?.position ?? -1;
+          // Default to the base Member floor (0), not below it — a role_id-less
+          // member (only reachable via the already-documented Member-role-deletion
+          // gap) should be exactly as protected as a normal Member, not less.
+          const targetPosition = targetRole?.position ?? 0;
           if (actorRole.position <= targetPosition) {
             throw new ChatServiceError("No puedes eliminar a un miembro de rango igual o mayor al tuyo.", 403);
           }
