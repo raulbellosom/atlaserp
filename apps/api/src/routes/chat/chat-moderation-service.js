@@ -9,6 +9,24 @@ export class ChatModerationServiceError extends Error {
   }
 }
 
+// Mirrors PROTECTED_IDENTITY_ROLE_KEYS / hasProtectedIdentityAdminRole in apps/api/src/index.js
+// (used by the identity user-delete endpoint). Kept as a local copy here because
+// resolveReport is reachable via the narrower identity.chat_reports.manage permission
+// (not identity.users.update), so someone granted only "review chat reports" must not
+// be able to disable an Atlas Admin / System Admin account through this side door.
+const PROTECTED_IDENTITY_ROLE_KEYS = new Set(["atlas.admin", "system.admin"]);
+
+function hasProtectedIdentityAdminRole(user) {
+  const memberships = Array.isArray(user?.memberships) ? user.memberships : [];
+  return memberships.some((membership) => {
+    if (!membership?.enabled) return false;
+    const roleKey = String(membership?.role?.key ?? "")
+      .trim()
+      .toLowerCase();
+    return PROTECTED_IDENTITY_ROLE_KEYS.has(roleKey);
+  });
+}
+
 export function createChatModerationService({ prisma }) {
   async function getUserProfileId(authUserId) {
     return resolveUserProfileId(prisma, authUserId);
@@ -134,6 +152,10 @@ export function createChatModerationService({ prisma }) {
   }
 
   async function resolveReport({ reportId, authUserId, action }) {
+    if (action !== "dismiss" && action !== "disable_user") {
+      throw new ChatModerationServiceError("Accion invalida.", 400);
+    }
+
     const reportRows = await prisma.$queryRaw`
       SELECT id, reported_user_id, status FROM chat_reports WHERE id = ${reportId} LIMIT 1
     `;
@@ -145,15 +167,42 @@ export function createChatModerationService({ prisma }) {
     const newStatus = action === "disable_user" ? "user_disabled" : "dismissed";
 
     if (action === "disable_user") {
+      const targetUser = await prisma.userProfile.findUnique({
+        where: { id: reportRows[0].reported_user_id },
+        include: {
+          memberships: {
+            where: { enabled: true },
+            include: { role: { select: { key: true } } },
+          },
+        },
+      });
+      if (hasProtectedIdentityAdminRole(targetUser)) {
+        throw new ChatModerationServiceError(
+          "No se puede deshabilitar un usuario con rol Atlas Admin o System Admin.",
+          400,
+        );
+      }
+
+      // Both writes must land together: a crash between them would otherwise
+      // leave the user disabled while the report still shows status "open".
+      await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`
+          UPDATE user_profile SET enabled = false WHERE id = ${reportRows[0].reported_user_id}
+        `;
+        await tx.$executeRaw`
+          UPDATE chat_reports
+          SET status = ${newStatus}, reviewed_by_user_id = ${reviewerProfileId}, reviewed_at = NOW()
+          WHERE id = ${reportId}
+        `;
+      });
+    } else {
       await prisma.$executeRaw`
-        UPDATE user_profile SET enabled = false WHERE id = ${reportRows[0].reported_user_id}
+        UPDATE chat_reports
+        SET status = ${newStatus}, reviewed_by_user_id = ${reviewerProfileId}, reviewed_at = NOW()
+        WHERE id = ${reportId}
       `;
     }
-    await prisma.$executeRaw`
-      UPDATE chat_reports
-      SET status = ${newStatus}, reviewed_by_user_id = ${reviewerProfileId}, reviewed_at = NOW()
-      WHERE id = ${reportId}
-    `;
+
     return { id: reportId, status: newStatus };
   }
 

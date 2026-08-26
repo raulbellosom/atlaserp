@@ -20,6 +20,7 @@ function buildPrismaMock(queryRawResults = [], executeRawResults = []) {
   let eIdx = 0;
   const client = {
     _executeRawCallCount: 0,
+    _transactionCallCount: 0,
     $queryRaw: async () => {
       if (qIdx >= queryRawResults.length) throw new Error(`Unexpected $queryRaw call #${qIdx + 1}`);
       return queryRawResults[qIdx++];
@@ -27,6 +28,15 @@ function buildPrismaMock(queryRawResults = [], executeRawResults = []) {
     $executeRaw: async () => {
       client._executeRawCallCount++;
       return executeRawResults[eIdx++] ?? { count: 1 };
+    },
+    $transaction: async (fn) => {
+      client._transactionCallCount++;
+      return fn(client);
+    },
+    // Default: target user has no protected role, so the disable_user path's
+    // hasProtectedIdentityAdminRole guard doesn't fire unless a test overrides it.
+    userProfile: {
+      findUnique: async () => ({ memberships: [] }),
     },
   };
   return client;
@@ -186,10 +196,41 @@ describe("chat-moderation-service — reports", () => {
       { count: 1 }, // UPDATE user_profile SET enabled = false
       { count: 1 }, // UPDATE chat_reports
     ]);
+    // Target user has no protected role — the disable_user path should proceed normally.
+    prisma.userProfile.findUnique = async () => ({
+      memberships: [{ enabled: true, role: { key: "member" } }],
+    });
     const service = createChatModerationService({ prisma });
     const result = await service.resolveReport({ reportId: "report-1", authUserId: AUTH_USER_ID, action: "disable_user" });
     assert.deepEqual(result, { id: "report-1", status: "user_disabled" });
     assert.equal(prisma._executeRawCallCount, 2);
+    assert.equal(prisma._transactionCallCount, 1);
+  });
+
+  it("resolveReport rejects disabling a user with a protected Atlas Admin / System Admin role", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: "report-1", reported_user_id: OTHER_PROFILE_ID, status: "open" }], // fetch report
+      [{ id: PROFILE_ID }], // resolveUserProfileId for reviewer
+    ]);
+    prisma.userProfile.findUnique = async () => ({
+      memberships: [{ enabled: true, role: { key: "atlas.admin" } }],
+    });
+    const service = createChatModerationService({ prisma });
+    await assert.rejects(
+      () => service.resolveReport({ reportId: "report-1", authUserId: AUTH_USER_ID, action: "disable_user" }),
+      (err) => err instanceof ChatModerationServiceError && err.status === 400,
+    );
+    assert.equal(prisma._executeRawCallCount, 0);
+    assert.equal(prisma._transactionCallCount, 0);
+  });
+
+  it("resolveReport rejects an unrecognized action", async () => {
+    const prisma = buildPrismaMock([]);
+    const service = createChatModerationService({ prisma });
+    await assert.rejects(
+      () => service.resolveReport({ reportId: "report-1", authUserId: AUTH_USER_ID, action: "delete_everything" }),
+      (err) => err instanceof ChatModerationServiceError && err.status === 400,
+    );
   });
 
   it("resolveReport rejects an already-resolved report", async () => {
@@ -199,6 +240,17 @@ describe("chat-moderation-service — reports", () => {
     const service = createChatModerationService({ prisma });
     await assert.rejects(
       () => service.resolveReport({ reportId: "report-1", authUserId: AUTH_USER_ID, action: "dismiss" }),
+      (err) => err instanceof ChatModerationServiceError && err.status === 400,
+    );
+  });
+
+  it("resolveReport rejects action:disable_user against an already-resolved report", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: "report-1", reported_user_id: OTHER_PROFILE_ID, status: "dismissed" }],
+    ]);
+    const service = createChatModerationService({ prisma });
+    await assert.rejects(
+      () => service.resolveReport({ reportId: "report-1", authUserId: AUTH_USER_ID, action: "disable_user" }),
       (err) => err instanceof ChatModerationServiceError && err.status === 400,
     );
   });
