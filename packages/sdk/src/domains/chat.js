@@ -41,6 +41,57 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         body: JSON.stringify(data),
       }),
 
+    createChannel: (data, token) =>
+      request("/chat/channels", {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify(data),
+      }),
+
+    listChannelDirectory: (params, token) =>
+      request(`/chat/channels/directory${toQueryString(params)}`, {
+        headers: withAuthHeaders(token),
+      }),
+
+    joinChannel: (conversationId, token) =>
+      request(`/chat/conversations/${encodeURIComponent(conversationId)}/join`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({}),
+      }),
+
+    listChannelRoles: (conversationId, token) =>
+      request(`/chat/conversations/${encodeURIComponent(conversationId)}/roles`, {
+        headers: withAuthHeaders(token),
+      }),
+
+    createChannelRole: (conversationId, data, token) =>
+      request(`/chat/conversations/${encodeURIComponent(conversationId)}/roles`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify(data),
+      }),
+
+    updateChannelRole: (conversationId, roleId, data, token) =>
+      request(`/chat/conversations/${encodeURIComponent(conversationId)}/roles/${encodeURIComponent(roleId)}`, {
+        method: "PATCH",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify(data),
+      }),
+
+    deleteChannelRole: (conversationId, roleId, token) =>
+      request(`/chat/conversations/${encodeURIComponent(conversationId)}/roles/${encodeURIComponent(roleId)}`, {
+        method: "DELETE",
+        headers: withAuthHeaders(token),
+      }),
+
+    assignMemberRole: (conversationId, memberId, roleId, token) =>
+      request(`/chat/conversations/${encodeURIComponent(conversationId)}/members/${encodeURIComponent(memberId)}/role`, {
+        method: "PATCH",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({ roleId }),
+      }),
+
     // ----------------------------------------------------------------
     // Messages (internal)
     // ----------------------------------------------------------------
