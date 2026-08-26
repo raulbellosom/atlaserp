@@ -5,17 +5,19 @@ import {
   FileText, FileType2, FileSpreadsheet, FileVideo, FileAudio,
   FileArchive, FileCode, File as FileIconBase, FileImage,
   MoreVertical, Trash2, X as XIcon, Search, Share2, CheckSquare,
-  ChevronUp, ChevronDown, Archive, ArchiveRestore,
+  ChevronUp, ChevronDown, Archive, ArchiveRestore, Pin,
 } from "lucide-react";
 import { ChatMessageList } from "./ChatMessageList";
 import { MessageComposer } from "./MessageComposer";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { ForwardMessageModal } from "./ForwardMessageModal";
 import { ChannelDetailsSheet } from "./ChannelDetailsSheet";
+import { PinnedMessagesSheet } from "./PinnedMessagesSheet";
 import {
   useChatMessages, useSendMessage, useMarkRead, useDeleteMessage,
   usePinMessage, useToggleReaction,
 } from "../hooks/useChatMessages";
+import { usePinnedMessages } from "../hooks/usePinnedMessages";
 import { useChatPresence } from "../hooks/useChatPresence";
 import { useChatConversations, useArchiveConversation, useUnarchiveConversation } from "../hooks/useChatConversations";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
@@ -167,6 +169,7 @@ function ChatHeader({
   onDeleteConversation,
   onArchive, isArchived,
   onOpenDetails,
+  onOpenPinned,
 }) {
   const [avatarErr, setAvatarErr] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -174,6 +177,9 @@ function ChatHeader({
   const { isUserOnline, getLastSeen } = useGlobalPresence();
   const displayName = getConversationDisplayName(conversation, currentUserId);
   const members = conversation?.members ?? [];
+  const isChannelOrGroup = conversation?.type === "group" || conversation?.type === "channel";
+  const { data: pinnedData } = usePinnedMessages(conversation?.id);
+  const pinnedCount = isChannelOrGroup ? (pinnedData?.data?.length ?? 0) : 0;
   const onlineCount = Object.keys(onlineUsers ?? {}).length;
   const otherMember =
     conversation?.type === "direct"
@@ -335,6 +341,16 @@ function ChatHeader({
           {filesView ? <MessageSquare className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
         </button>
 
+        {/* Pinned messages */}
+        {pinnedCount > 0 && (
+          <button type="button" onClick={onOpenPinned} title="Mensajes fijados" className={[headerBtnCls, "relative"].join(" ")}>
+            <Pin className="h-4 w-4" />
+            <span className="absolute -top-1 -right-1 h-4 min-w-4 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-[9px] font-bold flex items-center justify-center px-1 ring-2 ring-[hsl(var(--background))]">
+              {pinnedCount > 9 ? "9+" : pinnedCount}
+            </span>
+          </button>
+        )}
+
         {/* More menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -432,6 +448,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
   const [searchMode, setSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showDetails, setShowDetails] = useState(false);
+  const [showPinned, setShowPinned] = useState(false);
+  const [jumpTarget, setJumpTarget] = useState(null);
 
   const composerRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -449,6 +467,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
     setSearchMode(false);
     setSearchQuery("");
     setSearchCurrentIdx(0);
+    setShowPinned(false);
+    setJumpTarget(null);
   }, [conversationId, initialFilesView]);
 
   useEffect(() => {
@@ -467,6 +487,12 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
   const handleDeleteMessage = useCallback((messageId) => {
     deleteMessageMutate(messageId);
   }, [deleteMessageMutate]);
+
+  const handleJumpToMessage = useCallback((messageId) => {
+    setShowPinned(false);
+    setFilesView(false);
+    setJumpTarget({ id: messageId, nonce: Date.now() });
+  }, []);
 
   const handleHideForMe = useCallback((messageId) => {
     setHiddenMessageIds((prev) => {
@@ -662,6 +688,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         onEnterSelection={() => enterSelectionMode(null)}
         onDeleteConversation={handleDeleteConversation}
         onOpenDetails={() => setShowDetails(true)}
+        onOpenPinned={() => setShowPinned(true)}
         isArchived={conversation?.is_archived ?? false}
         onArchive={conversationId
           ? () => conversation?.is_archived
@@ -701,6 +728,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
           searchQuery={searchMode ? searchQuery : ""}
           searchMatchIds={searchMode && searchMatchIds.length ? new Set(searchMatchIds) : null}
           currentMatchId={currentMatchId}
+          scrollToMessage={jumpTarget}
         />
       )}
 
@@ -734,6 +762,15 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         onOpenChange={setShowDetails}
         conversationId={conversationId}
         currentUserId={userProfile?.id}
+      />
+
+      <PinnedMessagesSheet
+        open={showPinned}
+        onOpenChange={setShowPinned}
+        conversationId={conversationId}
+        currentUserId={userProfile?.id}
+        members={detailMembers ?? conversation.members}
+        onJumpToMessage={handleJumpToMessage}
       />
     </div>
   );

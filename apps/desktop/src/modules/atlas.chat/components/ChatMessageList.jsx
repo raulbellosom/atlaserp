@@ -58,6 +58,7 @@ export function ChatMessageList({
   searchQuery,
   searchMatchIds,
   currentMatchId,
+  scrollToMessage,
 }) {
   const bottomRef = useRef(null);
   const listRef = useRef(null);
@@ -117,6 +118,14 @@ export function ChatMessageList({
     const el = listRef.current.querySelector(`[data-msg-id="${currentMatchId}"]`);
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [currentMatchId]);
+
+  // Scroll to a message jumped to from outside (e.g. "Ver en el chat" in PinnedMessagesSheet).
+  // `nonce` lets the same message be re-targeted twice in a row (id alone wouldn't re-trigger the effect).
+  useEffect(() => {
+    if (!scrollToMessage?.id || !listRef.current) return;
+    const el = listRef.current.querySelector(`[data-msg-id="${scrollToMessage.id}"]`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [scrollToMessage?.id, scrollToMessage?.nonce]);
 
   const lastReadMessageId = useMemo(() => {
     if (!members?.length || !messages?.length) return null;
