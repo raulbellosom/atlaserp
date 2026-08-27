@@ -563,7 +563,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
 
       {/* ── Recording mode ── */}
       {recording ? (
-        <div className="flex items-center gap-2 bg-[hsl(var(--muted))] rounded-2xl px-3 py-2">
+        <div className="chat-glass flex items-center gap-2 rounded-full px-3 py-2">
           {/* Cancel */}
           <button
             type="button"
@@ -591,7 +591,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
           </button>
         </div>
       ) : (
-        <div className="flex items-end gap-1 bg-[hsl(var(--muted))] rounded-2xl px-2 py-1.5">
+        <div className="chat-glass flex items-end gap-1 rounded-full px-2 py-1.5">
           {/* Paperclip */}
           <input
             ref={fileInputRef}
