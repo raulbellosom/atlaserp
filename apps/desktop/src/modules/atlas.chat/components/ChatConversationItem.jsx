@@ -82,17 +82,17 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
         type="button"
         onClick={onClick}
         className={[
-          "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors",
+          "w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left transition-colors",
           onUnarchive ? "pr-11" : "",
           isActive
-            ? "bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]"
+            ? "bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] shadow-[0_0_16px_hsl(var(--primary)/0.18)] ring-1 ring-[hsl(var(--primary)/0.25)]"
             : "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
         ].join(" ")}
       >
         <Avatar name={displayName} avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conversation.type} online={isOnline} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-medium truncate">{titleLabel}</span>
+            <span className="text-sm font-medium truncate chat-font-display font-semibold">{titleLabel}</span>
             {lastMsg?.createdAt && (
               <span className="text-xs text-[hsl(var(--muted-foreground))] shrink-0">
                 {formatMessageTime(lastMsg.createdAt)}
