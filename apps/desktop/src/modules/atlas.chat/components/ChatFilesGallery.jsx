@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EmptyState, Skeleton, ImageViewer } from "@atlas/ui";
 import {
   FileText, FileType2, FileSpreadsheet, FileVideo, FileAudio,
@@ -6,8 +6,6 @@ import {
 } from "lucide-react";
 import { isImageMime, formatFileSize, formatMessageTime } from "../lib/chatUtils";
 import { useFileRefSignedUrl } from "./FileReferenceAttachment";
-import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
 
 // Stable fallback so a caller passing selectionMode without selectedIds gets
 // a real (empty) Set instead of undefined — keeps selectedIds?.has(...) below
@@ -54,6 +52,70 @@ function ChatFilesGalleryImageViewer({ recordId, title, open, onClose }) {
   return <ImageViewer src={fullUrl} alt={title} fileName={title} open={open} onClose={onClose} />;
 }
 
+// Own row component (rather than an inline click handler in the .map())
+// because entity-ref downloads need per-row hook state (loading/disabled,
+// auto-fire-on-resolve) — mirrors FileRefDownloadRow's pattern in
+// FileReferenceAttachment.jsx exactly, avoiding a silent no-feedback fetch
+// and the double-click-fires-two-downloads risk a bare async onClick has.
+function ArchivoRow({ att, onAttachmentClick }) {
+  const [wantsUrl, setWantsUrl] = useState(false);
+  const { data: url, isLoading, isError } = useFileRefSignedUrl(att.id, "full", att.isEntityRef && wantsUrl);
+
+  useEffect(() => {
+    if (!att.isEntityRef || !url) return;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = att.fileName ?? "archivo";
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.click();
+  }, [url, att.isEntityRef, att.fileName]);
+
+  useEffect(() => {
+    if (isError) setWantsUrl(false);
+  }, [isError]);
+
+  function handleClick() {
+    if (!att.isEntityRef) {
+      const idx = att.msgAttachments.findIndex((a) => a.id === att.id);
+      onAttachmentClick(att.msgAttachments, idx >= 0 ? idx : 0);
+      return;
+    }
+    if (url) {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = att.fileName ?? "archivo";
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.click();
+      return;
+    }
+    setWantsUrl(true);
+  }
+
+  const busy = att.isEntityRef && isLoading;
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={busy}
+      className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-[hsl(var(--muted))] transition-colors text-left disabled:opacity-60"
+    >
+      <div className="h-9 w-9 rounded-lg bg-[hsl(var(--border))] flex items-center justify-center shrink-0">
+        {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileTypeIcon mimeType={att.mimeType} />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium truncate">{att.fileName ?? "Archivo"}</p>
+        <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
+          {att.sizeBytes ? `${formatFileSize(att.sizeBytes)} · ` : ""}
+          {att.createdAt ? formatMessageTime(att.createdAt) : ""}
+        </p>
+      </div>
+    </button>
+  );
+}
+
 function MediaSelectionCircle({ isSelected }) {
   return (
     <div
@@ -84,8 +146,6 @@ export function ChatFilesGallery({
   // column instead, so it must NOT own a second one.
   scrollable = true,
 }) {
-  const { session } = useAuth();
-  const token = session?.access_token;
   const [entityRefViewer, setEntityRefViewer] = useState({ open: false, recordId: null, title: null });
   const scrollableClass = scrollable ? "flex-1 min-h-0 overflow-y-auto" : "";
   const allAttachments = useMemo(() => {
@@ -200,38 +260,7 @@ export function ChatFilesGallery({
           </p>
           <div className="space-y-1">
             {otherFiles.map((att) => (
-              <button
-                key={att.id}
-                type="button"
-                onClick={async () => {
-                  if (att.isEntityRef) {
-                    const res = await atlas.files.getSignedUrl(att.id, token, { variant: "full" });
-                    const url = res?.data?.signedUrl;
-                    if (!url) return;
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = att.fileName ?? "archivo";
-                    a.target = "_blank";
-                    a.rel = "noopener noreferrer";
-                    a.click();
-                    return;
-                  }
-                  const idx = att.msgAttachments.findIndex((a) => a.id === att.id);
-                  onAttachmentClick(att.msgAttachments, idx >= 0 ? idx : 0);
-                }}
-                className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-[hsl(var(--muted))] transition-colors text-left"
-              >
-                <div className="h-9 w-9 rounded-lg bg-[hsl(var(--border))] flex items-center justify-center shrink-0">
-                  <FileTypeIcon mimeType={att.mimeType} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{att.fileName ?? "Archivo"}</p>
-                  <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
-                    {att.sizeBytes ? `${formatFileSize(att.sizeBytes)} · ` : ""}
-                    {att.createdAt ? formatMessageTime(att.createdAt) : ""}
-                  </p>
-                </div>
-              </button>
+              <ArchivoRow key={att.id} att={att} onAttachmentClick={onAttachmentClick} />
             ))}
           </div>
         </div>
