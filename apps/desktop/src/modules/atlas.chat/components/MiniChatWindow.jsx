@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   X, Minus, ChevronUp,
-  ExternalLink, FolderOpen, MoreVertical,
+  ExternalLink, FolderOpen, MoreVertical, User,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@atlas/ui";
 import { useChatMessages, useSendMessage, useMarkRead, useDeleteMessage, usePinMessage, useToggleReaction } from "../hooks/useChatMessages";
@@ -10,6 +10,7 @@ import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { MessageComposer } from "./MessageComposer";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
+import { ConversationProfilePanel } from "./ConversationProfilePanel";
 import { getConversationDisplayName, getConversationTitleLabel } from "../lib/chatUtils";
 import { ConversationTypeBadge } from "./ConversationTypeBadge";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -90,6 +91,7 @@ export function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMin
   const [isDragOver, setIsDragOver] = useState(false);
   const [viewer, setViewer] = useState({ open: false, attachments: [], activeIndex: 0 });
   const [hiddenMsgIds, setHiddenMsgIds] = useState(() => new Set());
+  const [profileView, setProfileView] = useState(false);
 
   useEffect(() => { if (!minimized) markReadRef.current(); }, [id, minimized]);
 
@@ -216,6 +218,19 @@ export function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMin
               <AvatarCircle avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conversation?.type} name={name} size="sm" />
               <p className="flex-1 text-xs font-semibold truncate">{titleLabel}</p>
             </button>
+            <button
+              type="button"
+              onClick={() => setProfileView((v) => !v)}
+              title={profileView ? "Ver mensajes" : "Ver perfil"}
+              className={[
+                "shrink-0 h-6 w-6 flex items-center justify-center rounded transition-colors touch-manipulation",
+                profileView
+                  ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]"
+                  : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]",
+              ].join(" ")}
+            >
+              <User className="h-3 w-3" />
+            </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -257,7 +272,17 @@ export function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMin
           </div>
         )}
 
-        {!minimized && (
+        {!minimized && profileView && (
+          <ConversationProfilePanel
+            conversation={conversation}
+            currentUserId={userProfile?.id}
+            initialTab={null}
+            onBack={() => setProfileView(false)}
+            messages={data?.data ?? []}
+            isLoadingMessages={isLoading}
+          />
+        )}
+        {!minimized && !profileView && (
           <>
             <ChatMessageList
               messages={data?.data ?? []}
