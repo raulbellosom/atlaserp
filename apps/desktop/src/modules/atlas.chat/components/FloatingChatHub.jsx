@@ -20,9 +20,6 @@ import { MiniChatWindow, AvatarCircle, getAvatarUrl, getAvatarEmoji } from "./Mi
 
 const BS = 56;     // bubble size px
 const BM = 16;     // margin from edge px
-const WW = 300;    // mini-window width px
-const WH = 380;    // mini-window height px
-const WH_MIN = 44; // minimized height px
 const GAP = 8;     // gap between elements px
 
 function BubbleAvatar({ avatarUrl, name }) {
