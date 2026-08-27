@@ -71,6 +71,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
             type="button"
             onClick={() => setAvatarViewerOpen(true)}
             title="Ver imagen del canal"
+            aria-label="Ver imagen del canal"
             className="h-16 w-16 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center overflow-hidden shrink-0 hover:opacity-90 transition-opacity"
           >
             <img src={conversation.avatarUrl} alt="" className="h-full w-full object-cover" />

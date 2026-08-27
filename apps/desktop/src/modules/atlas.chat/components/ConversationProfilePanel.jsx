@@ -90,6 +90,7 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
           type="button"
           onClick={() => setAvatarViewerOpen(true)}
           title="Ver foto de perfil"
+          aria-label="Ver foto de perfil"
           className="h-20 w-20 rounded-full overflow-hidden bg-[hsl(var(--muted))] flex items-center justify-center hover:opacity-90 transition-opacity"
         >
           <img
