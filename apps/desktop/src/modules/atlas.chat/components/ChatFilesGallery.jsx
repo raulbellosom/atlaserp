@@ -239,12 +239,17 @@ export function ChatFilesGallery({
                 key={att.id}
                 type="button"
                 onClick={() => {
-                  if (selectionMode) {
-                    onToggleSelect(att.id);
-                    return;
-                  }
+                  // Entity-ref images have no embedded url and no resolved-download
+                  // entry in ConversationMediaTab's own attachment list for bulk
+                  // download to use — selecting one would silently drop it from
+                  // "Descargar (N)" with no feedback. Not selectable; always opens
+                  // the single-image viewer instead, selection mode or not.
                   if (att.isEntityRef) {
                     setEntityRefViewer({ open: true, recordId: att.id, title: att.fileName });
+                    return;
+                  }
+                  if (selectionMode) {
+                    onToggleSelect(att.id);
                     return;
                   }
                   const idx = att.msgAttachments.findIndex((a) => a.id === att.id);
@@ -253,7 +258,7 @@ export function ChatFilesGallery({
                 className="relative aspect-square bg-[hsl(var(--muted))] rounded-lg overflow-hidden hover:opacity-80 transition-opacity"
               >
                 <MediaImageThumb att={att} />
-                {selectionMode && <MediaSelectionCircle isSelected={selectedIds.has(att.id)} />}
+                {selectionMode && !att.isEntityRef && <MediaSelectionCircle isSelected={selectedIds.has(att.id)} />}
               </button>
             ))}
           </div>
