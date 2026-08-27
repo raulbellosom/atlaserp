@@ -64,16 +64,16 @@ export function ConversationInfoTab({ conversationId, otherUserId, otherDisplayN
 
   return (
     <div className="p-4 flex flex-col items-center gap-2">
-      <div className="pt-4 border-t border-[hsl(var(--border))] space-y-2">
+      <div className="w-full max-w-xs space-y-2">
         {blockedByMe ? (
-          <Button variant="outline" className="w-full max-w-xs justify-center" onClick={handleUnblock} disabled={unblocking}>
+          <Button variant="outline" className="w-full justify-center" onClick={handleUnblock} disabled={unblocking}>
             <Ban className="h-3.5 w-3.5 mr-2" />
             Desbloquear a {otherDisplayName ?? "este usuario"}
           </Button>
         ) : (
           <Button
             variant="outline"
-            className="w-full max-w-xs justify-center text-red-500 border-red-500/40 hover:bg-red-500/10"
+            className="w-full justify-center text-red-500 border-red-500/40 hover:bg-red-500/10"
             onClick={() => setConfirmBlock(true)}
             disabled={blocking}
           >
@@ -83,7 +83,7 @@ export function ConversationInfoTab({ conversationId, otherUserId, otherDisplayN
         )}
         <Button
           variant="outline"
-          className="w-full max-w-xs justify-center text-red-500 border-red-500/40 hover:bg-red-500/10"
+          className="w-full justify-center text-red-500 border-red-500/40 hover:bg-red-500/10"
           onClick={() => setReportOpen(true)}
         >
           <Flag className="h-3.5 w-3.5 mr-2" />
