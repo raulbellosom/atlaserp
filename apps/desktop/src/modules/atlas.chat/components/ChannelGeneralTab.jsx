@@ -1,7 +1,7 @@
 // apps/desktop/src/modules/atlas.chat/components/ChannelGeneralTab.jsx
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Popover, PopoverTrigger, PopoverContent } from "@atlas/ui";
+import { Button, Popover, PopoverTrigger, PopoverContent, ImageViewer } from "@atlas/ui";
 import { Image as ImageIcon, Smile, X } from "lucide-react";
 import { toast } from "sonner";
 import EmojiPicker from "emoji-picker-react";
@@ -24,6 +24,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
 
   const { data: convData } = useChatConversationDetail(conversationId);
   const conversation = convData?.data;
@@ -65,21 +66,30 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center gap-4">
-        <div className="h-16 w-16 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center overflow-hidden shrink-0">
-          {conversation?.avatarUrl ? (
+        {conversation?.avatarUrl ? (
+          <button
+            type="button"
+            onClick={() => setAvatarViewerOpen(true)}
+            title="Ver imagen del canal"
+            className="h-16 w-16 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center overflow-hidden shrink-0 hover:opacity-90 transition-opacity"
+          >
             <img src={conversation.avatarUrl} alt="" className="h-full w-full object-cover" />
-          ) : conversation?.avatar_emoji ? (
-            // snake_case is correct here, not a typo: getConversation/listConversations
-            // rename avatar_file_id's resolved URL to camelCase avatarUrl, but pass
-            // avatar_emoji straight through unaliased from `SELECT c.*` — the backend's
-            // own response shape is genuinely inconsistent between these two fields.
-            <span className="text-3xl">{conversation.avatar_emoji}</span>
-          ) : (
-            <span className="text-lg font-semibold text-[hsl(var(--muted-foreground))]">
-              {(conversation?.title ?? "?")[0]?.toUpperCase()}
-            </span>
-          )}
-        </div>
+          </button>
+        ) : (
+          <div className="h-16 w-16 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center overflow-hidden shrink-0">
+            {conversation?.avatar_emoji ? (
+              // snake_case is correct here, not a typo: getConversation/listConversations
+              // rename avatar_file_id's resolved URL to camelCase avatarUrl, but pass
+              // avatar_emoji straight through unaliased from `SELECT c.*` — the backend's
+              // own response shape is genuinely inconsistent between these two fields.
+              <span className="text-3xl">{conversation.avatar_emoji}</span>
+            ) : (
+              <span className="text-lg font-semibold text-[hsl(var(--muted-foreground))]">
+                {(conversation?.title ?? "?")[0]?.toUpperCase()}
+              </span>
+            )}
+          </div>
+        )}
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
             <input
@@ -140,6 +150,12 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
           Solo un administrador del canal puede cambiar esta imagen.
         </p>
       )}
+      <ImageViewer
+        src={conversation?.avatarUrl}
+        alt={conversation?.title ?? "Canal"}
+        open={avatarViewerOpen}
+        onClose={() => setAvatarViewerOpen(false)}
+      />
     </div>
   );
 }
