@@ -2,14 +2,10 @@ import crypto from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { signedUrlWithVariant } from "../../lib/image-variants.js";
 import { parseMentionIds } from "../../lib/mention-utils.js";
+import { ChatServiceError } from "./chat-service-error.js";
+import { createChatConversationReadsService } from "./chat-conversation-reads-service.js";
 
-export class ChatServiceError extends Error {
-  constructor(message, status = 400) {
-    super(message);
-    this.name = "ChatServiceError";
-    this.status = status;
-  }
-}
+export { ChatServiceError };
 
 // auth_user_id → user_profile.id never changes; cache per-process to avoid
 // one extra DB round-trip on every chat request when the pool is under load.
@@ -219,164 +215,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   // Conversations
   // ------------------------------------------------------------------
 
-  async function listConversations({ authUserId, limit = 50, cursor = null, archived = false }) {
-    const profileId = await getUserProfileId(authUserId);
-
-    const cursorClause = cursor ? Prisma.sql`AND c.last_message_at < ${new Date(cursor)}` : Prisma.empty;
-    const archiveClause = archived
-      ? Prisma.sql`AND ccm.archived_at IS NOT NULL`
-      : Prisma.sql`AND ccm.archived_at IS NULL`;
-
-    const rows = await prisma.$queryRaw`
-      SELECT
-        c.id,
-        c.type,
-        c.title,
-        c.avatar_url,
-        c.avatar_file_id,
-        c.avatar_emoji,
-        c.status,
-        c.last_message_at,
-        c.last_message_id,
-        c.website_id,
-        c.company_id,
-        c.metadata,
-        c.created_at,
-        -- unread count
-        -- IS DISTINCT FROM handles NULL sender_user_id (guest messages) correctly
-        -- != would evaluate NULL != profileId as NULL (falsy), missing guest messages
-        (
-          SELECT COUNT(*)::int FROM chat_messages m
-          WHERE m.conversation_id = c.id
-            AND m.deleted_at IS NULL
-            AND m.thread_root_id IS NULL
-            AND m.sender_type != 'system'
-            AND m.sender_user_id IS DISTINCT FROM ${profileId}
-            AND m.created_at > COALESCE(
-              (SELECT last_read_at FROM chat_conversation_members
-               WHERE conversation_id = c.id AND user_id = ${profileId}),
-              '1970-01-01'::timestamptz
-            )
-        ) AS unread_count,
-        -- unread messages that mention the caller directly, via their role in
-        -- this conversation, or an @everyone/@here broadcast — mirrors the
-        -- isMentioned() check ChatMessageBubble.jsx uses to highlight a message,
-        -- so the sidebar badge and the in-chat highlight never disagree.
-        (
-          SELECT COUNT(*)::int FROM chat_messages m
-          WHERE m.conversation_id = c.id
-            AND m.deleted_at IS NULL
-            AND m.thread_root_id IS NULL
-            AND m.sender_type != 'system'
-            AND m.sender_user_id IS DISTINCT FROM ${profileId}
-            AND m.created_at > COALESCE(
-              (SELECT last_read_at FROM chat_conversation_members
-               WHERE conversation_id = c.id AND user_id = ${profileId}),
-              '1970-01-01'::timestamptz
-            )
-            AND (
-              (m.metadata->'mentions'->>'everyone')::boolean IS TRUE
-              OR (m.metadata->'mentions'->>'here')::boolean IS TRUE
-              OR m.metadata->'mentions'->'userIds' ? ${profileId}::text
-              OR (ccm.role_id IS NOT NULL AND m.metadata->'mentions'->'roleIds' ? ccm.role_id::text)
-            )
-        ) AS unread_mention_count,
-        -- last message preview
-        (
-          SELECT json_build_object(
-            'id', m.id,
-            'body', m.body,
-            'senderType', m.sender_type,
-            'messageType', m.message_type,
-            'createdAt', m.created_at,
-            'senderUserId', m.sender_user_id
-          )
-          FROM chat_messages m
-          WHERE m.conversation_id = c.id AND m.deleted_at IS NULL AND m.thread_root_id IS NULL
-          ORDER BY m.created_at DESC
-          LIMIT 1
-        ) AS last_message,
-        -- members preview (up to 5)
-        (
-          SELECT json_agg(json_build_object(
-            'userId', cm.user_id,
-            'role', cm.role,
-            'displayName', up.display_name,
-            'avatarFileId', up.avatar_file_id::text,
-            'authAvatarUrl', au.raw_user_meta_data->>'avatar_url',
-            'lastReadAt', cm.last_read_at
-          ) ORDER BY cm.joined_at)
-          FROM (
-            SELECT * FROM chat_conversation_members
-            WHERE conversation_id = c.id AND user_id IS NOT NULL AND left_at IS NULL
-            LIMIT 5
-          ) cm
-          LEFT JOIN user_profile up ON up.id = cm.user_id
-          LEFT JOIN auth.users au ON au.id = up.auth_user_id
-        ) AS members,
-        ccm.archived_at IS NOT NULL AS is_archived,
-        ccm.muted_at IS NOT NULL AS is_muted
-      FROM chat_conversations c
-      INNER JOIN chat_conversation_members ccm
-        ON ccm.conversation_id = c.id
-        AND ccm.user_id = ${profileId}
-        AND ccm.left_at IS NULL
-      WHERE c.deleted_at IS NULL
-        AND c.type != 'external_support'
-        ${archiveClause}
-        ${cursorClause}
-      ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
-      LIMIT ${limit + 1}
-    `;
-
-    const hasMore = rows.length > limit;
-    const data = hasMore ? rows.slice(0, limit) : rows;
-
-    const allFileIds = [
-      ...new Set([
-        ...data.flatMap((c) => (c.members ?? []).map((m) => m.avatarFileId).filter(Boolean)),
-        ...data.map((c) => c.avatar_file_id).filter(Boolean),
-      ]),
-    ];
-    const avatarUrlMap = allFileIds.length ? await batchSignAvatarUrls(allFileIds) : {};
-    for (const conv of data) {
-      if (conv.members) {
-        conv.members = conv.members.map((m) => ({
-          ...m,
-          avatarUrl: m.avatarFileId ? (avatarUrlMap[m.avatarFileId] ?? m.authAvatarUrl ?? null) : (m.authAvatarUrl ?? null),
-          authAvatarUrl: undefined,
-        }));
-      }
-      conv.avatarUrl = conv.avatar_file_id ? (avatarUrlMap[conv.avatar_file_id] ?? null) : null;
-      conv.avatar_url = undefined; // dead raw column (never written) — avatarUrl (camelCase, resolved above) is the live field
-    }
-
-    return {
-      data,
-      hasMore,
-      nextCursor: hasMore ? data[data.length - 1].last_message_at?.toISOString() : null,
-    };
-  }
-
-  async function archiveConversation({ conversationId, authUserId }) {
-    const profileId = await getUserProfileId(authUserId);
-    await prisma.$executeRaw`
-      UPDATE chat_conversation_members
-      SET archived_at = NOW()
-      WHERE conversation_id = ${conversationId} AND user_id = ${profileId} AND left_at IS NULL
-    `;
-    return { ok: true };
-  }
-
-  async function unarchiveConversation({ conversationId, authUserId }) {
-    const profileId = await getUserProfileId(authUserId);
-    await prisma.$executeRaw`
-      UPDATE chat_conversation_members
-      SET archived_at = NULL
-      WHERE conversation_id = ${conversationId} AND user_id = ${profileId} AND left_at IS NULL
-    `;
-    return { ok: true };
-  }
+  const conversationReadsService = createChatConversationReadsService({ prisma, getUserProfileId, assertMember, batchSignAvatarUrls });
+  const { listConversations, archiveConversation, unarchiveConversation, getConversation } = conversationReadsService;
 
   async function createConversation({ authUserId, type, title, memberUserIds, metadata = {}, isPublic = false, slug = null, description = null, linkedModule = null, linkedEntityId = null }) {
     if (channelLinksService) channelLinksService.assertBothOrNeither(linkedModule, linkedEntityId);
@@ -493,59 +333,6 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     }
 
     return newConv;
-  }
-
-  async function getConversation({ conversationId, authUserId }) {
-    const profileId = await getUserProfileId(authUserId);
-    await assertMember(conversationId, profileId);
-
-    const rows = await prisma.$queryRaw`
-      SELECT
-        c.*,
-        (
-          SELECT json_agg(json_build_object(
-            'id', cm.id,
-            'userId', cm.user_id,
-            'role', cm.role,
-            'joinedAt', cm.joined_at,
-            'leftAt', cm.left_at,
-            'lastReadAt', cm.last_read_at,
-            'displayName', up.display_name,
-            'avatarFileId', up.avatar_file_id::text,
-            'authAvatarUrl', au.raw_user_meta_data->>'avatar_url',
-            'email', up.email,
-            'roleId', cm.role_id,
-            'roleName', ccr.name,
-            'roleColor', ccr.color,
-            'rolePosition', ccr.position,
-            'roleIsSystem', ccr.is_system,
-            'rolePermissions', ccr.permissions
-          ) ORDER BY cm.joined_at)
-          FROM chat_conversation_members cm
-          LEFT JOIN user_profile up ON up.id = cm.user_id
-          LEFT JOIN auth.users au ON au.id = up.auth_user_id
-          LEFT JOIN chat_channel_roles ccr ON ccr.id = cm.role_id
-          WHERE cm.conversation_id = c.id AND cm.left_at IS NULL
-        ) AS members
-      FROM chat_conversations c
-      WHERE c.id = ${conversationId} AND c.deleted_at IS NULL
-      LIMIT 1
-    `;
-    if (!rows.length) throw new ChatServiceError("Conversacion no encontrada.", 404);
-    const conv = rows[0];
-    const memberFileIds = conv.members ? conv.members.map((m) => m.avatarFileId).filter(Boolean) : [];
-    const fileIds = [...new Set([...memberFileIds, conv.avatar_file_id].filter(Boolean))];
-    const avatarUrlMap = fileIds.length ? await batchSignAvatarUrls(fileIds) : {};
-    if (conv.members) {
-      conv.members = conv.members.map((m) => ({
-        ...m,
-        avatarUrl: m.avatarFileId ? (avatarUrlMap[m.avatarFileId] ?? m.authAvatarUrl ?? null) : (m.authAvatarUrl ?? null),
-        authAvatarUrl: undefined,
-      }));
-    }
-    conv.avatarUrl = conv.avatar_file_id ? (avatarUrlMap[conv.avatar_file_id] ?? null) : null;
-    conv.avatar_url = undefined; // dead raw column (never written) — avatarUrl (camelCase, resolved above) is the live field
-    return conv;
   }
 
   async function updateConversation({ conversationId, authUserId, updates }) {
