@@ -1092,12 +1092,16 @@ export function CheckboxField({
   onChange,
   className,
   children,
+  disabled = false,
 }) {
   return (
     <div className={cn("flex flex-col gap-1", className)}>
       <label
         htmlFor={id}
-        className="flex items-start gap-3 cursor-pointer select-none group"
+        className={cn(
+          "flex items-start gap-3 select-none group",
+          disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+        )}
       >
         <div
           className={cn(
@@ -1105,7 +1109,7 @@ export function CheckboxField({
             "flex items-center justify-center",
             checked
               ? "bg-primary border-primary"
-              : "border-border group-hover:border-primary/50",
+              : cn("border-border", !disabled && "group-hover:border-primary/50"),
             error && !checked && "border-destructive",
           )}
         >
@@ -1118,12 +1122,18 @@ export function CheckboxField({
           id={id}
           checked={checked}
           onChange={onChange}
+          disabled={disabled}
           className="sr-only"
           required={required}
         />
         <div className="flex flex-col gap-0.5">
           {label && (
-            <span className="text-sm font-medium text-foreground/80 leading-tight">
+            <span
+              className={cn(
+                "text-sm font-medium leading-tight",
+                disabled ? "text-muted-foreground" : "text-foreground/80",
+              )}
+            >
               {label}
               {required && (
                 <span className="text-destructive ml-1 text-[11px]">*</span>
