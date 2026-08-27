@@ -97,6 +97,14 @@ export default function EventFormModal({
   event,
   defaultDate,
   defaultCalendarId,
+  // Opened-from-chat context ("Agendar reunión" in atlas.chat): fixed,
+  // non-editable for this iteration (YAGNI — no attendee-editing UI is
+  // added here, only pass-through of what the caller already knows).
+  // sourceModule/sourceEntityId only apply to NEW events; they're not
+  // sent on update.
+  initialAttendeeIds,
+  sourceModule,
+  sourceEntityId,
   onClose,
   onSaved,
 }) {
@@ -202,6 +210,13 @@ export default function EventFormModal({
     if (!isEdit && form.reminderMinutes && form.reminderMinutes !== "NONE") {
       payload.reminderMinutes = [Number(form.reminderMinutes)];
     }
+    if (!isEdit && initialAttendeeIds?.length) {
+      payload.attendeeIds = initialAttendeeIds;
+    }
+    if (!isEdit && sourceModule && sourceEntityId) {
+      payload.sourceModule = sourceModule;
+      payload.sourceEntityId = sourceEntityId;
+    }
 
     try {
       if (isEdit) {
@@ -264,6 +279,12 @@ export default function EventFormModal({
           <DialogTitle>{isEdit ? "Editar evento" : "Nuevo evento"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {!isEdit && initialAttendeeIds?.length > 0 && (
+            <p className="text-xs text-[hsl(var(--muted-foreground))] px-1">
+              Se invitará a los {initialAttendeeIds.length} miembros de esta conversación.
+            </p>
+          )}
+
           <TextField
             label="Titulo"
             required
