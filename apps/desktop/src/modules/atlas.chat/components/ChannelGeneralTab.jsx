@@ -1,7 +1,7 @@
 // apps/desktop/src/modules/atlas.chat/components/ChannelGeneralTab.jsx
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Popover, PopoverTrigger, PopoverContent, ImageViewer } from "@atlas/ui";
+import { Button, Popover, PopoverTrigger, PopoverContent, ImageViewer, ComboboxField, Label } from "@atlas/ui";
 import { Image as ImageIcon, Smile, X } from "lucide-react";
 import { toast } from "sonner";
 import EmojiPicker from "emoji-picker-react";
@@ -31,6 +31,19 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
   const ownMember = findOwnMember(conversation?.members ?? [], currentUserId);
   const canManage = roleHasPermission(ownMember, CHAT_PERMISSIONS.CHANNEL_MANAGE);
 
+  const isChannel = conversation?.type === "channel";
+  const projectsQuery = useQuery({
+    queryKey: ["chat-channel-tab-projects", token],
+    queryFn: async () => {
+      // GET /projects returns a raw array, not { data: [...] } — see the
+      // same note in CreateChannelModal.jsx's equivalent query.
+      const res = await atlas.projects.listProjects(token);
+      return (res?.data ?? res ?? []).map((p) => ({ label: p.name, value: p.id }));
+    },
+    enabled: Boolean(isChannel && token),
+    staleTime: 30_000,
+  });
+
   const updateMutation = useMutation({
     mutationFn: (updates) => atlas.chat.updateConversation(conversationId, updates, token),
     onSuccess: () => {
@@ -38,6 +51,18 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
     },
     onError: () => toast.error("No se pudo actualizar la imagen del canal."),
+  });
+
+  const linkMutation = useMutation({
+    mutationFn: (linkedProjectId) => atlas.chat.updateConversation(conversationId, {
+      linkedModule: linkedProjectId ? "atlas.projects" : null,
+      linkedEntityId: linkedProjectId,
+    }, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-conversation", conversationId] });
+      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+    },
+    onError: (err) => toast.error(err?.status === 409 ? "Ese proyecto ya tiene un canal vinculado." : "No se pudo vincular el proyecto."),
   });
 
   const uploadMutation = useMutation({
@@ -160,6 +185,29 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
         <p className="text-xs text-[hsl(var(--muted-foreground))]">
           Solo un administrador del canal puede cambiar esta imagen.
         </p>
+      )}
+      {isChannel && (
+        <div className="space-y-1.5">
+          <Label>Proyecto vinculado</Label>
+          <ComboboxField
+            options={projectsQuery.data ?? []}
+            value={conversation?.linked_module === "atlas.projects" ? conversation.linked_entity_id : null}
+            onChange={(projectId) => linkMutation.mutate(projectId)}
+            placeholder="Buscar proyecto..."
+            emptyText={projectsQuery.isLoading ? "Cargando..." : "Sin resultados"}
+            disabled={!canManage || linkMutation.isPending}
+          />
+          {conversation?.linked_module === "atlas.projects" && canManage && (
+            <button
+              type="button"
+              onClick={() => linkMutation.mutate(null)}
+              disabled={linkMutation.isPending}
+              className="text-xs text-[hsl(var(--muted-foreground))] hover:text-red-500 transition-colors"
+            >
+              Quitar vinculo
+            </button>
+          )}
+        </div>
       )}
       <ImageViewer
         src={fullAvatarUrl ?? conversation?.avatarUrl}
