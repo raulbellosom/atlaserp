@@ -180,7 +180,7 @@ function ChatHeader({
               src={avatarUrl}
               alt={displayName}
               className={[
-                "h-9 w-9 rounded-full object-cover ring-2 ring-offset-2 ring-offset-[hsl(var(--surface-2))]",
+                "h-9 w-9 rounded-full object-cover ring-2 ring-offset-2 ring-offset-[hsl(var(--surface-2)/0.6)]",
                 conversation?.type === "direct" && directOnline ? "ring-green-500/60" : "ring-[hsl(var(--border))]",
               ].join(" ")}
               onError={() => setAvatarErr(true)}
