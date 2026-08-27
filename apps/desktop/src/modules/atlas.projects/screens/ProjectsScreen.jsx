@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
   LayoutGrid,
@@ -11,6 +12,7 @@ import {
   X,
   SlidersHorizontal,
   Download,
+  MessageSquare,
 } from "lucide-react";
 import { Button, Badge, EmptyState, ErrorState, LoadingState } from "@atlas/ui";
 import { useProjects, useWorkspaceUsers } from "../hooks/useProjectsData";
@@ -105,6 +107,9 @@ export default function ProjectsScreen() {
   }, [isLoading]);
 
   const { session } = useAuth();
+  const token = session?.access_token;
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const projectList = projects?.data ?? projects ?? [];
   const selectedProject =
@@ -112,6 +117,50 @@ export default function ProjectsScreen() {
   const effectiveId = selectedProject?.id ?? null;
 
   useProjectRealtime(effectiveId);
+
+  const linkedChannelQuery = useQuery({
+    queryKey: ["project-linked-channel", effectiveId],
+    queryFn: async () => {
+      const res = await atlas.chat.getLinkedChannel("atlas.projects", effectiveId, token);
+      return res?.data ?? null;
+    },
+    enabled: Boolean(effectiveId && token),
+    staleTime: 30_000,
+  });
+
+  const createChannelMutation = useMutation({
+    mutationFn: async () => {
+      // GET /projects/:id/members returns a raw array, not { data: [...] }.
+      const membersRes = await atlas.projects.listMembers(effectiveId, token);
+      const memberUserIds = (membersRes?.data ?? membersRes ?? [])
+        .map((m) => m.userId)
+        .filter(Boolean);
+      return atlas.chat.createChannel(
+        {
+          title: selectedProject?.name ?? "Proyecto",
+          linkedModule: "atlas.projects",
+          linkedEntityId: effectiveId,
+          memberUserIds,
+        },
+        token
+      );
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["project-linked-channel", effectiveId] });
+      const conversationId = res?.data?.id;
+      if (conversationId) navigate(`/app/m/atlas.chat/chat/inbox/${conversationId}`);
+    },
+    onError: () => toast.error("No se pudo crear el canal."),
+  });
+
+  function handleChatChannelClick() {
+    const existing = linkedChannelQuery.data;
+    if (existing?.id) {
+      navigate(`/app/m/atlas.chat/chat/inbox/${existing.id}`);
+    } else {
+      createChannelMutation.mutate();
+    }
+  }
 
   async function handleExport() {
     if (!effectiveId) return;
@@ -298,6 +347,17 @@ export default function ProjectsScreen() {
                   onClick={() => setMembersOpen(true)}
                 >
                   <Users size={15} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden sm:flex"
+                  onClick={handleChatChannelClick}
+                  disabled={createChannelMutation.isPending || linkedChannelQuery.isLoading}
+                  title={linkedChannelQuery.data?.id ? "Ir al canal" : "Crear canal de chat"}
+                >
+                  <MessageSquare size={15} className="mr-1" />
+                  {linkedChannelQuery.data?.id ? "Ir al canal" : "Crear canal"}
                 </Button>
                 <Button
                   variant="ghost"
