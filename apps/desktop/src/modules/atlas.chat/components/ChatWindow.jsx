@@ -10,7 +10,7 @@ import { ChatMessageList } from "./ChatMessageList";
 import { MessageComposer } from "./MessageComposer";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { ForwardMessageModal } from "./ForwardMessageModal";
-import { ChatMembersPanel } from "./ChatMembersPanel";
+import { ConversationProfilePanel } from "./ConversationProfilePanel";
 import { ConversationTypeBadge } from "./ConversationTypeBadge";
 import { MemberAvatarStack } from "./MemberAvatarStack";
 import { PinnedMessagesSheet } from "./PinnedMessagesSheet";
@@ -45,7 +45,7 @@ function ChatHeader({
   conversation, currentUserId, onlineUsers, onClose,
   detailMembers,
   filesView, onToggleFilesView,
-  membersView, onToggleMembersView,
+  membersView,
   searchMode, searchQuery, onSearchToggle, onSearchChange,
   searchMatchCount, searchCurrentIdx, onNextMatch, onPrevMatch,
   selectionMode, selectionCount, hasOwnSelected,
@@ -53,7 +53,7 @@ function ChatHeader({
   onEnterSelection,
   onDeleteConversation,
   onArchive, isArchived,
-  onOpenDetails,
+  onOpenProfile, onCloseProfile,
   onOpenPinned,
 }) {
   const [avatarErr, setAvatarErr] = useState(false);
@@ -174,7 +174,7 @@ function ChatHeader({
             <ArrowLeft className="h-5 w-5" />
           </button>
         )}
-        <div className="relative shrink-0">
+        <button type="button" onClick={() => onOpenProfile(null)} className="relative shrink-0" title="Ver perfil">
           {avatarUrl && !avatarErr ? (
             <img
               src={avatarUrl}
@@ -198,9 +198,11 @@ function ChatHeader({
             <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[hsl(var(--background))]" />
           )}
           <ConversationTypeBadge type={conversation?.type} />
-        </div>
+        </button>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate">{titleLabel}</p>
+          <button type="button" onClick={() => onOpenProfile(null)} className="block max-w-full text-left" title="Ver perfil">
+            <p className="text-sm font-semibold truncate">{titleLabel}</p>
+          </button>
           {conversation?.type === "direct" ? (
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
               {directOnline ? (
@@ -213,7 +215,7 @@ function ChatHeader({
             </p>
           ) : conversation?.type === "group" || conversation?.type === "channel" ? (
             <div className="flex items-center gap-2">
-              <MemberAvatarStack members={detailMembers ?? members} onClick={onOpenDetails} />
+              <MemberAvatarStack members={detailMembers ?? members} onClick={() => onOpenProfile("members")} />
               {onlineCount > 0 && (
                 <span className="text-xs text-[hsl(var(--muted-foreground))] shrink-0">{`${onlineCount} en linea`}</span>
               )}
@@ -239,22 +241,21 @@ function ChatHeader({
           {filesView ? <MessageSquare className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
         </button>
 
-        {/* Members toggle — channel/group only, matching the "Ver miembros"
-            dropdown item and MemberAvatarStack, both already scoped the
-            same way (a direct chat has no roles/permissions to manage). */}
-        {(conversation?.type === "group" || conversation?.type === "channel") && (
-          <button
-            type="button"
-            onClick={onToggleMembersView}
-            title={membersView ? "Ver mensajes" : "Ver miembros"}
-            className={[
-              headerBtnCls,
-              membersView ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]" : "",
-            ].join(" ")}
-          >
-            {membersView ? <MessageSquare className="h-4 w-4" /> : <Users className="h-4 w-4" />}
-          </button>
-        )}
+        {/* Profile toggle — every conversation type now has a profile panel
+            (direct chats gained Info/Media/En comun/Notificaciones). Opens
+            the default tab — use the avatar/title or "Ver miembros" for a
+            specific one. */}
+        <button
+          type="button"
+          onClick={() => (membersView ? onCloseProfile() : onOpenProfile(null))}
+          title={membersView ? "Ver mensajes" : "Ver perfil"}
+          className={[
+            headerBtnCls,
+            membersView ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]" : "",
+          ].join(" ")}
+        >
+          {membersView ? <MessageSquare className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+        </button>
 
         {/* Pinned messages */}
         {pinnedCount > 0 && (
@@ -275,7 +276,7 @@ function ChatHeader({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {(conversation?.type === "group" || conversation?.type === "channel") && (
-              <DropdownMenuItem onSelect={onOpenDetails}>
+              <DropdownMenuItem onSelect={() => onOpenProfile("members")}>
                 <Users className="h-3.5 w-3.5 mr-2" />
                 Ver miembros
               </DropdownMenuItem>
@@ -363,6 +364,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
   const [searchMode, setSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [membersView, setMembersView] = useState(false);
+  const [profileInitialTab, setProfileInitialTab] = useState(null);
   const [showPinned, setShowPinned] = useState(false);
   const [jumpTarget, setJumpTarget] = useState(null);
   const [threadPanelRootId, setThreadPanelRootId] = useState(null);
@@ -384,6 +386,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
     setSearchQuery("");
     setSearchCurrentIdx(0);
     setMembersView(false);
+    setProfileInitialTab(null);
     setShowPinned(false);
     setJumpTarget(null);
     setThreadPanelRootId(null);
@@ -400,6 +403,17 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
 
   const handleAttachmentClick = useCallback((attachments, activeIndex) => {
     setViewer({ open: true, attachments, activeIndex });
+  }, []);
+
+  const openProfile = useCallback((tab = null) => {
+    setProfileInitialTab(tab);
+    setMembersView(true);
+    setFilesView(false);
+  }, []);
+
+  const closeProfile = useCallback(() => {
+    setMembersView(false);
+    setProfileInitialTab(null);
   }, []);
 
   const handleDeleteMessage = useCallback((messageId) => {
@@ -592,9 +606,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         detailMembers={detailMembers}
         onClose={onClose}
         filesView={filesView}
-        onToggleFilesView={() => { setFilesView((v) => !v); setMembersView(false); }}
+        onToggleFilesView={() => { setFilesView((v) => !v); setMembersView(false); setProfileInitialTab(null); }}
         membersView={membersView}
-        onToggleMembersView={() => { setMembersView((v) => !v); setFilesView(false); }}
         searchMode={searchMode}
         searchQuery={searchQuery}
         onSearchToggle={() => { setSearchMode((v) => !v); setSearchQuery(""); setSearchCurrentIdx(0); }}
@@ -612,7 +625,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         onForwardSelected={handleForwardSelected}
         onEnterSelection={() => enterSelectionMode(null)}
         onDeleteConversation={handleDeleteConversation}
-        onOpenDetails={() => { setMembersView(true); setFilesView(false); }}
+        onOpenProfile={openProfile}
+        onCloseProfile={closeProfile}
         onOpenPinned={() => setShowPinned(true)}
         isArchived={conversation?.is_archived ?? false}
         onArchive={conversationId
@@ -629,7 +643,15 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
           onAttachmentClick={handleAttachmentClick}
         />
       ) : membersView ? (
-        <ChatMembersPanel conversationId={conversationId} currentUserId={userProfile?.id} />
+        <ConversationProfilePanel
+          key={profileInitialTab ?? "default"}
+          conversation={conversation}
+          currentUserId={userProfile?.id}
+          initialTab={profileInitialTab}
+          onBack={closeProfile}
+          messages={messages}
+          isLoadingMessages={isLoading}
+        />
       ) : (
         <ChatMessageList
           messages={messages}
