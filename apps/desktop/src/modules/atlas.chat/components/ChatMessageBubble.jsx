@@ -908,33 +908,44 @@ export function ChatMessageBubble({
           anchorAlign="end"
         >
           <div className="flex flex-col items-end max-w-[72%] sm:max-w-[65%]">
-            {hasText && (
-              <div
-                className={[
-                  "px-3 py-2 text-sm leading-relaxed",
-                  radius,
-                  firstEntityRefAttached ? "rounded-b-none!" : "",
-                  "bg-(--brand-primary) text-(--brand-primary-foreground)",
-                  isDeleted ? "opacity-50 italic" : "",
-                ].join(" ")}
-              >
-                {isDeleted ? (
-                  <span>Mensaje eliminado</span>
-                ) : (
-                  <p className="text-left whitespace-pre-wrap wrap-break-word">
-                    <HighlightedText text={message.body} query={searchQuery} />
-                  </p>
+            {/* Text bubble + the one entity ref that visually merges with it
+                (when applicable) share a grid wrapper so they resolve to the
+                SAME width — a flex column with items-end sizes each child to
+                its own shrink-to-fit content width independently, which is
+                what made a text bubble and its "attached" ref card render
+                with mismatched widths despite matching color/radius. A
+                single-column grid's own width tracks its widest child, and
+                grid's default justify-items:stretch makes the narrower one
+                fill that width instead. When nothing merges (no text, or the
+                first ref is a file — those never merge), this wrapper is
+                display:contents so it's invisible to layout and the text
+                bubble renders exactly as if it were a direct child, same as
+                before this existed. */}
+            {(hasText || firstEntityRefAttached) && (
+              <div className={firstEntityRefAttached ? "grid" : "contents"}>
+                {hasText && (
+                  <div
+                    className={[
+                      "px-3 py-2 text-sm leading-relaxed",
+                      radius,
+                      firstEntityRefAttached ? "rounded-b-none!" : "",
+                      "bg-(--brand-primary) text-(--brand-primary-foreground)",
+                      isDeleted ? "opacity-50 italic" : "",
+                    ].join(" ")}
+                  >
+                    {isDeleted ? (
+                      <span>Mensaje eliminado</span>
+                    ) : (
+                      <p className="text-left whitespace-pre-wrap wrap-break-word">
+                        <HighlightedText text={message.body} query={searchQuery} />
+                      </p>
+                    )}
+                  </div>
+                )}
+                {firstEntityRefAttached && (
+                  <EntityReferenceCard reference={entityRefs[0]} attached isOwn={true} />
                 )}
               </div>
-            )}
-
-            {!isDeleted && (
-              <MessageReactions
-                reactions={message.reactions}
-                members={members}
-                currentUserId={currentUserId}
-                onToggle={(emoji) => onToggleReaction?.(message.id, emoji)}
-              />
             )}
 
             {!isDeleted && onOpenThread && message.thread_reply_count > 0 && (
@@ -953,27 +964,43 @@ export function ChatMessageBubble({
               <AttachmentsBlock attachments={attachments} onOpen={onAttachmentClick} isOwn />
             )}
 
-            {!isDeleted && message.metadata?.entityRefs?.length > 0 && (
+            {!isDeleted && entityRefs.length > (firstEntityRefAttached ? 1 : 0) && (
               <div
                 className={[
                   "flex flex-col gap-1",
-                  hasText ? "mt-0" : "mt-1",
-                  entityRefsOnlyBubble ? [radius, "overflow-hidden", "bg-(--brand-primary)"].join(" ") : "",
+                  firstEntityRefAttached ? "mt-1" : (hasText ? "mt-0" : "mt-1"),
+                  entityRefsOnlyBubble ? [radius, "overflow-hidden", "grid", "bg-(--brand-primary)"].join(" ") : "",
                 ].join(" ")}
               >
-                {message.metadata.entityRefs.map((ref, i) => (
-                  ref.entityType === "file" && ref.mimeType ? (
+                {entityRefs.slice(firstEntityRefAttached ? 1 : 0).map((ref, idx) => {
+                  const i = firstEntityRefAttached ? idx + 1 : idx;
+                  return ref.entityType === "file" && ref.mimeType ? (
                     <FileReferenceAttachment key={`${ref.entityType}:${ref.recordId}:${i}`} reference={ref} isOwn={true} />
                   ) : (
                     <EntityReferenceCard
                       key={`${ref.entityType}:${ref.recordId}:${i}`}
                       reference={ref}
-                      attached={hasText ? i === 0 : entityRefsOnlyBubble}
+                      attached={entityRefsOnlyBubble}
                       isOwn={true}
                     />
-                  )
-                ))}
+                  );
+                })}
               </div>
+            )}
+
+            {/* Reactions render LAST, below every other message part (text,
+                attachments, entity refs) — not wedged between the text
+                bubble and whatever follows it, which is what visually "cut"
+                a message in two regardless of any bubble-color/radius
+                matching. Matches how reactions sit under the whole message
+                in WhatsApp/Telegram/Discord, not under just its first part. */}
+            {!isDeleted && (
+              <MessageReactions
+                reactions={message.reactions}
+                members={members}
+                currentUserId={currentUserId}
+                onToggle={(emoji) => onToggleReaction?.(message.id, emoji)}
+              />
             )}
 
             {showMeta && (
@@ -1045,33 +1072,31 @@ export function ChatMessageBubble({
             </span>
           )}
 
-          {hasText && (
-            <div
-              className={[
-                "px-3 py-2 text-sm leading-relaxed",
-                radius,
-                firstEntityRefAttached ? "rounded-b-none!" : "",
-                "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
-                isDeleted ? "opacity-50 italic" : "",
-              ].join(" ")}
-            >
-              {isDeleted ? (
-                <span>Mensaje eliminado</span>
-              ) : (
-                <p className="text-left whitespace-pre-wrap wrap-break-word">
-                  <HighlightedText text={message.body} query={searchQuery} />
-                </p>
+          {(hasText || firstEntityRefAttached) && (
+            <div className={firstEntityRefAttached ? "grid" : "contents"}>
+              {hasText && (
+                <div
+                  className={[
+                    "px-3 py-2 text-sm leading-relaxed",
+                    radius,
+                    firstEntityRefAttached ? "rounded-b-none!" : "",
+                    "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
+                    isDeleted ? "opacity-50 italic" : "",
+                  ].join(" ")}
+                >
+                  {isDeleted ? (
+                    <span>Mensaje eliminado</span>
+                  ) : (
+                    <p className="text-left whitespace-pre-wrap wrap-break-word">
+                      <HighlightedText text={message.body} query={searchQuery} />
+                    </p>
+                  )}
+                </div>
+              )}
+              {firstEntityRefAttached && (
+                <EntityReferenceCard reference={entityRefs[0]} attached isOwn={false} />
               )}
             </div>
-          )}
-
-          {!isDeleted && (
-            <MessageReactions
-              reactions={message.reactions}
-              members={members}
-              currentUserId={currentUserId}
-              onToggle={(emoji) => onToggleReaction?.(message.id, emoji)}
-            />
           )}
 
           {!isDeleted && onOpenThread && message.thread_reply_count > 0 && (
@@ -1090,27 +1115,37 @@ export function ChatMessageBubble({
             <AttachmentsBlock attachments={attachments} onOpen={onAttachmentClick} isOwn={false} />
           )}
 
-          {!isDeleted && message.metadata?.entityRefs?.length > 0 && (
+          {!isDeleted && entityRefs.length > (firstEntityRefAttached ? 1 : 0) && (
             <div
               className={[
                 "flex flex-col gap-1",
-                hasText ? "mt-0" : "mt-1",
-                entityRefsOnlyBubble ? [radius, "overflow-hidden", "bg-[hsl(var(--muted))]"].join(" ") : "",
+                firstEntityRefAttached ? "mt-1" : (hasText ? "mt-0" : "mt-1"),
+                entityRefsOnlyBubble ? [radius, "overflow-hidden", "grid", "bg-[hsl(var(--muted))]"].join(" ") : "",
               ].join(" ")}
             >
-              {message.metadata.entityRefs.map((ref, i) => (
-                ref.entityType === "file" && ref.mimeType ? (
+              {entityRefs.slice(firstEntityRefAttached ? 1 : 0).map((ref, idx) => {
+                const i = firstEntityRefAttached ? idx + 1 : idx;
+                return ref.entityType === "file" && ref.mimeType ? (
                   <FileReferenceAttachment key={`${ref.entityType}:${ref.recordId}:${i}`} reference={ref} isOwn={false} />
                 ) : (
                   <EntityReferenceCard
                     key={`${ref.entityType}:${ref.recordId}:${i}`}
                     reference={ref}
-                    attached={hasText ? i === 0 : entityRefsOnlyBubble}
+                    attached={entityRefsOnlyBubble}
                     isOwn={false}
                   />
-                )
-              ))}
+                );
+              })}
             </div>
+          )}
+
+          {!isDeleted && (
+            <MessageReactions
+              reactions={message.reactions}
+              members={members}
+              currentUserId={currentUserId}
+              onToggle={(emoji) => onToggleReaction?.(message.id, emoji)}
+            />
           )}
 
           {showMeta && (
