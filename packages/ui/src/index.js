@@ -235,5 +235,6 @@ export { CommentThread } from "./components/CommentThread.jsx";
 
 export { OfflineIndicator } from "./components/OfflineIndicator.jsx";
 export { SyncStatusBar } from "./components/SyncStatusBar.jsx";
+export { SyncStatusPopover } from "./components/SyncStatusPopover.jsx";
 export { PendingMutationsPanel } from "./components/PendingMutationsPanel.jsx";
 export { ConflictDialog } from "./components/ConflictDialog.jsx";

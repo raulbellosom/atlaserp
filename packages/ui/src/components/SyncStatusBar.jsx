@@ -1,3 +1,4 @@
+// DEPRECATED: superseded by SyncStatusPopover. Kept only for the devkit export manifest; no app consumers.
 import { RefreshCw, CheckCircle, WifiOff } from 'lucide-react'
 import { useState, useEffect } from 'react'
 

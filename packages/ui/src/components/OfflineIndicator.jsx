@@ -1,3 +1,4 @@
+// DEPRECATED: superseded by SyncStatusPopover. Kept only for the devkit export manifest; no app consumers.
 import { WifiOff } from 'lucide-react'
 
 export function OfflineIndicator({ pendingCount = 0, isOnline = true, onClick }) {
