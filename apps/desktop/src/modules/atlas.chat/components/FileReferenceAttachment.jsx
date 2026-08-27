@@ -16,7 +16,7 @@
 // the generic files-module endpoint (GET /files/:id/signed-url), the same
 // endpoint any other module already uses to preview/download a company
 // file — this introduces no new access exposure over what already exists.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Download } from "lucide-react";
 import { ImageViewer } from "@atlas/ui";
@@ -39,6 +39,9 @@ export function useFileRefSignedUrl(recordId, variant, enabled) {
   });
 }
 
+// `isOwn` is accepted for symmetry with FileRefDownloadRow's call site but
+// unused here — image thumbnails look identical regardless of sender,
+// matching ImageCard's own behavior in ChatMessageBubble.jsx.
 function FileRefImage({ reference, isOwn }) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const { data: cardUrl, isLoading } = useFileRefSignedUrl(reference.recordId, "card", true);
@@ -77,7 +80,26 @@ function FileRefImage({ reference, isOwn }) {
 
 function FileRefDownloadRow({ reference, isOwn }) {
   const [wantsUrl, setWantsUrl] = useState(false);
-  const { data: url, isLoading } = useFileRefSignedUrl(reference.recordId, "full", wantsUrl);
+  const { data: url, isLoading, isError } = useFileRefSignedUrl(reference.recordId, "full", wantsUrl);
+
+  // Auto-download the moment the signed URL resolves, so clicking once is
+  // enough — the first click only requests the URL (wantsUrl gates the
+  // query), it doesn't have one yet to act on synchronously.
+  useEffect(() => {
+    if (!url) return;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = reference.title ?? "archivo";
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.click();
+  }, [url, reference.title]);
+
+  // On failure, reset so the next click starts a fresh fetch instead of
+  // leaving the button permanently inert (wantsUrl already true = no-op).
+  useEffect(() => {
+    if (isError) setWantsUrl(false);
+  }, [isError]);
 
   function handleClick() {
     if (url) {
