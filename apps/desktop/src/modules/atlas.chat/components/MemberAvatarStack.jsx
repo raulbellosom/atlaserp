@@ -2,6 +2,20 @@ const MAX_VISIBLE = 4;
 
 export function MemberAvatarStack({ members = [], onClick }) {
   if (!members.length) return null;
+
+  if (members.length <= 2) {
+    const names = members.map((m) => m.displayName?.split(" ")[0]).filter(Boolean);
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors truncate"
+      >
+        {names.length ? names.join(" y ") : "Sin miembros"}
+      </button>
+    );
+  }
+
   const visible = members.slice(0, MAX_VISIBLE);
   const extra = members.length - visible.length;
 
