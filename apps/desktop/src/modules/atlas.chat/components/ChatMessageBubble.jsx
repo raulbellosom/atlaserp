@@ -573,16 +573,16 @@ function AttachmentsBlock({ attachments, onOpen, isOwn }) {
 
 // ── Corner radius for grouped bubbles ─────────────────────────────────────────
 function bubbleRadius(isOwn, isFirst, isLast) {
-  const FULL = "rounded-2xl";
+  const FULL = "rounded-[var(--chat-radius-bubble)]";
   if (isFirst && isLast) return FULL;
   if (isOwn) {
-    if (isFirst) return `${FULL} rounded-br-[4px]`;
-    if (isLast)  return `${FULL} rounded-tr-[4px]`;
-    return `${FULL} rounded-r-[4px]`;
+    if (isFirst) return `${FULL} rounded-br-[var(--chat-radius-bubble-tail)]`;
+    if (isLast)  return `${FULL} rounded-tr-[var(--chat-radius-bubble-tail)]`;
+    return `${FULL} rounded-r-[var(--chat-radius-bubble-tail)]`;
   } else {
-    if (isFirst) return `${FULL} rounded-bl-[4px]`;
-    if (isLast)  return `${FULL} rounded-tl-[4px]`;
-    return `${FULL} rounded-l-[4px]`;
+    if (isFirst) return `${FULL} rounded-bl-[var(--chat-radius-bubble-tail)]`;
+    if (isLast)  return `${FULL} rounded-tl-[var(--chat-radius-bubble-tail)]`;
+    return `${FULL} rounded-l-[var(--chat-radius-bubble-tail)]`;
   }
 }
 
@@ -939,7 +939,7 @@ export function ChatMessageBubble({
                 {message.edited_at && !isPending && (
                   <span className="text-[10px] text-[hsl(var(--muted-foreground))] italic">editado</span>
                 )}
-                <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
+                <span className="chat-font-mono tabular-nums text-[10px] text-[hsl(var(--muted-foreground))]">
                   {isPending ? "Enviando..." : formatMessageTime(message.created_at)}
                 </span>
                 {showReadReceipt && !isPending && (
@@ -1056,7 +1056,7 @@ export function ChatMessageBubble({
               {isPinned && (
                 <Pin className="h-2.5 w-2.5 text-[hsl(var(--muted-foreground))]" />
               )}
-              <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
+              <span className="chat-font-mono tabular-nums text-[10px] text-[hsl(var(--muted-foreground))]">
                 {isPending ? "Enviando..." : formatMessageTime(message.created_at)}
               </span>
               {message.edited_at && !isPending && (
