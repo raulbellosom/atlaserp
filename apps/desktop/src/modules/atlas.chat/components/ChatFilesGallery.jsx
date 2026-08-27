@@ -22,7 +22,29 @@ export function FileTypeIcon({ mimeType }) {
   return <FileIconBase className="h-5 w-5 text-[hsl(var(--muted-foreground))]" />;
 }
 
-export function ChatFilesGallery({ messages, isLoading, onAttachmentClick }) {
+function MediaSelectionCircle({ isSelected }) {
+  return (
+    <div
+      className={[
+        "absolute top-1 right-1 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors",
+        isSelected
+          ? "bg-[hsl(var(--primary))] border-[hsl(var(--primary))]"
+          : "border-white/70 bg-black/20",
+      ].join(" ")}
+    >
+      {isSelected && (
+        <svg viewBox="0 0 10 8" className="w-2.5 h-2" fill="none">
+          <path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+export function ChatFilesGallery({
+  messages, isLoading, onAttachmentClick,
+  selectionMode = false, selectedIds, onToggleSelect, onEnterSelection, onCancelSelection,
+}) {
   const allAttachments = useMemo(() => {
     if (!messages?.length) return [];
     const result = [];
@@ -61,19 +83,47 @@ export function ChatFilesGallery({ messages, isLoading, onAttachmentClick }) {
     <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-4">
       {images.length > 0 && (
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))] mb-2">
-            Fotos y videos
-          </p>
-          <div className="grid grid-cols-3 gap-1">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+              Fotos y videos
+            </p>
+            {selectionMode ? (
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
+                  {selectedIds?.size ?? 0} seleccionados
+                </span>
+                <button
+                  type="button"
+                  onClick={onCancelSelection}
+                  className="text-[10px] font-medium text-[hsl(var(--primary))] hover:underline"
+                >
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={onEnterSelection}
+                className="text-[10px] font-medium text-[hsl(var(--primary))] hover:underline"
+              >
+                Seleccionar
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-4 gap-1">
             {images.map((att) => (
               <button
                 key={att.id}
                 type="button"
                 onClick={() => {
+                  if (selectionMode) {
+                    onToggleSelect(att.id);
+                    return;
+                  }
                   const idx = att.msgAttachments.findIndex((a) => a.id === att.id);
                   onAttachmentClick(att.msgAttachments, idx >= 0 ? idx : 0);
                 }}
-                className="aspect-square bg-[hsl(var(--muted))] rounded-lg overflow-hidden hover:opacity-80 transition-opacity"
+                className="relative aspect-square bg-[hsl(var(--muted))] rounded-lg overflow-hidden hover:opacity-80 transition-opacity"
               >
                 {att.url ? (
                   <img src={att.url} alt={att.fileName ?? ""} className="w-full h-full object-cover" />
@@ -82,6 +132,7 @@ export function ChatFilesGallery({ messages, isLoading, onAttachmentClick }) {
                     <FileImage className="h-6 w-6 text-[hsl(var(--muted-foreground))]" />
                   </div>
                 )}
+                {selectionMode && <MediaSelectionCircle isSelected={selectedIds?.has(att.id)} />}
               </button>
             ))}
           </div>
