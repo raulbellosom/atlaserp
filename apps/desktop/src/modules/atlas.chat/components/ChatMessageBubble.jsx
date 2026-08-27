@@ -17,6 +17,7 @@ import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatP
 import { MessageReactions } from "./MessageReactions";
 import { MessageReactionPicker } from "./MessageReactionPicker";
 import { EntityReferenceCard } from "./EntityReferenceCard";
+import { FileReferenceAttachment } from "./FileReferenceAttachment";
 
 function isVideoMime(m) { return String(m ?? "").startsWith("video/"); }
 function isAudioMime(m) { return String(m ?? "").startsWith("audio/"); }
@@ -827,6 +828,10 @@ export function ChatMessageBubble({
   // the chip's now-flat top edge and produces the exact seam this feature
   // exists to remove.
   const firstEntityRefAttached = hasBody && message.metadata?.entityRefs?.length > 0;
+  // When a message carries entity refs but no text body, the refs ARE the whole
+  // message — wrap them in a bubble-colored container instead of leaving them
+  // floating bare, so the message still reads as a chat bubble.
+  const entityRefsOnlyBubble = !hasBody && message.metadata?.entityRefs?.length > 0;
 
   // Own membership entry in this conversation — needed to detect role-targeted mentions
   // and to gate the pin action by permission.
@@ -932,14 +937,24 @@ export function ChatMessageBubble({
             )}
 
             {!isDeleted && message.metadata?.entityRefs?.length > 0 && (
-              <div className={["flex flex-col gap-1", hasText ? "mt-0" : "mt-1"].join(" ")}>
+              <div
+                className={[
+                  "flex flex-col gap-1",
+                  hasText ? "mt-0" : "mt-1",
+                  entityRefsOnlyBubble ? [radius, "overflow-hidden", "bg-(--brand-primary)"].join(" ") : "",
+                ].join(" ")}
+              >
                 {message.metadata.entityRefs.map((ref, i) => (
-                  <EntityReferenceCard
-                    key={`${ref.entityType}:${ref.recordId}:${i}`}
-                    reference={ref}
-                    attached={hasText && i === 0}
-                    isOwn={true}
-                  />
+                  ref.entityType === "file" && ref.mimeType ? (
+                    <FileReferenceAttachment key={`${ref.entityType}:${ref.recordId}:${i}`} reference={ref} isOwn={true} />
+                  ) : (
+                    <EntityReferenceCard
+                      key={`${ref.entityType}:${ref.recordId}:${i}`}
+                      reference={ref}
+                      attached={hasText ? i === 0 : entityRefsOnlyBubble}
+                      isOwn={true}
+                    />
+                  )
                 ))}
               </div>
             )}
@@ -1059,14 +1074,24 @@ export function ChatMessageBubble({
           )}
 
           {!isDeleted && message.metadata?.entityRefs?.length > 0 && (
-            <div className={["flex flex-col gap-1", hasText ? "mt-0" : "mt-1"].join(" ")}>
+            <div
+              className={[
+                "flex flex-col gap-1",
+                hasText ? "mt-0" : "mt-1",
+                entityRefsOnlyBubble ? [radius, "overflow-hidden", "bg-[hsl(var(--muted))]"].join(" ") : "",
+              ].join(" ")}
+            >
               {message.metadata.entityRefs.map((ref, i) => (
-                <EntityReferenceCard
-                  key={`${ref.entityType}:${ref.recordId}:${i}`}
-                  reference={ref}
-                  attached={hasText && i === 0}
-                  isOwn={false}
-                />
+                ref.entityType === "file" && ref.mimeType ? (
+                  <FileReferenceAttachment key={`${ref.entityType}:${ref.recordId}:${i}`} reference={ref} isOwn={false} />
+                ) : (
+                  <EntityReferenceCard
+                    key={`${ref.entityType}:${ref.recordId}:${i}`}
+                    reference={ref}
+                    attached={hasText ? i === 0 : entityRefsOnlyBubble}
+                    isOwn={false}
+                  />
+                )
               ))}
             </div>
           )}
