@@ -17,6 +17,9 @@ const ENTITY_TYPES = [
   { value: "file", label: "Archivo" },
   { value: "ledger_account", label: "Cuenta contable" },
   { value: "hr_employee", label: "Colaborador" },
+  { value: "project", label: "Proyecto" },
+  { value: "task", label: "Tarea" },
+  { value: "calendar_event", label: "Evento" },
 ];
 
 // ComboboxField (packages/ui/src/components/FormFields.jsx) does NOT do
@@ -58,6 +61,25 @@ async function fetchOptions(entityType, token) {
     // own client-side filter narrow it.
     const res = await atlas.ledger.listAccounts(token, {});
     return (res?.data ?? []).map((a) => ({ label: a.bank ? `${a.name} · ${a.bank}` : a.name, value: a.id }));
+  }
+  if (entityType === "project") {
+    // GET /projects (projects-routes.js) returns the array directly —
+    // `c.json(projects)`, not `{ data: [...] }` — unlike contact/hr_employee/
+    // ledger_account above. `res?.data ?? res ?? []` covers both shapes, same
+    // defensive pattern ProjectsScreen.jsx already uses for this same call.
+    const res = await atlas.projects.listProjects(token);
+    return (res?.data ?? res ?? []).map((p) => ({ label: p.name, value: p.id }));
+  }
+  if (entityType === "calendar_event") {
+    // A fixed 90-days-back / 365-days-ahead window — this is a "mention an
+    // event you'd realistically want to reference," not the full calendar
+    // history. listEvents requires start/end (calendar-event-service.js
+    // throws 400 without them).
+    const now = Date.now();
+    const start = new Date(now - 90 * 86400000).toISOString();
+    const end = new Date(now + 365 * 86400000).toISOString();
+    const res = await atlas.calendar.listEvents(token, { start, end });
+    return (res ?? []).map((e) => ({ label: e.title, value: e.id }));
   }
   return [];
 }
@@ -226,16 +248,74 @@ function FilePickerGrid({ options, isLoading, maxSelect, onConfirm }) {
   );
 }
 
+// `task` can't use the flat fetchOptions path: GET /projects/:id/tasks is
+// per-project only, there's no cross-project task list endpoint. Mirrors
+// FilePickerGrid's precedent just above (a type-specific sub-component
+// instead of forcing every type through the same single ComboboxField).
+function TaskPickerCascade({ token, onPick }) {
+  const [projectId, setProjectId] = useState(null);
+
+  const projectsQuery = useQuery({
+    queryKey: ["chat-entity-ref-task-projects", token],
+    queryFn: async () => {
+      // Same unwrapped-array response as the `project` fetchOptions case
+      // above — see the comment there.
+      const res = await atlas.projects.listProjects(token);
+      return (res?.data ?? res ?? []).map((p) => ({ label: p.name, value: p.id }));
+    },
+    enabled: Boolean(token),
+    staleTime: 30_000,
+  });
+
+  const tasksQuery = useQuery({
+    queryKey: ["chat-entity-ref-task-tasks", projectId, token],
+    queryFn: async () => {
+      const res = await atlas.projects.listTasks(projectId, {}, token);
+      return (res?.data ?? res ?? []).map((t) => ({ label: t.title, value: t.id }));
+    },
+    enabled: Boolean(projectId && token),
+    staleTime: 30_000,
+  });
+
+  return (
+    <div className="space-y-2">
+      <ComboboxField
+        label="Proyecto"
+        options={projectsQuery.data ?? []}
+        value={projectId}
+        onChange={setProjectId}
+        placeholder="Selecciona un proyecto..."
+        emptyText={projectsQuery.isLoading ? "Cargando..." : "Sin resultados"}
+      />
+      {projectId && (
+        <ComboboxField
+          label="Tarea"
+          options={tasksQuery.data ?? []}
+          value={null}
+          onChange={(recordId) => {
+            const opt = (tasksQuery.data ?? []).find((o) => o.value === recordId);
+            if (!opt) return;
+            onPick(recordId, opt.label);
+          }}
+          placeholder="Buscar tarea..."
+          emptyText={tasksQuery.isLoading ? "Cargando..." : "Sin tareas en este proyecto"}
+        />
+      )}
+    </div>
+  );
+}
+
 export function EntityReferencePicker({ open, onOpenChange, onPick, maxSelect, children }) {
   const { session } = useAuth();
   const token = session?.access_token;
   const [entityType, setEntityType] = useState(null);
   const isFileType = entityType === "file";
+  const isTaskType = entityType === "task";
 
   const optionsQuery = useQuery({
     queryKey: ["chat-entity-ref-options", entityType, token],
     queryFn: () => fetchOptions(entityType, token),
-    enabled: Boolean(entityType && token),
+    enabled: Boolean(entityType && token && entityType !== "task"),
     staleTime: 30_000,
   });
 
@@ -263,7 +343,7 @@ export function EntityReferencePicker({ open, onOpenChange, onPick, maxSelect, c
       }}
     >
       <PopoverAnchor asChild>{children}</PopoverAnchor>
-      <PopoverContent side="top" align="start" className={["p-3 space-y-2", isFileType ? "w-96" : "w-72"].join(" ")}>
+      <PopoverContent side="top" align="start" className={["p-3 space-y-2", isFileType ? "w-96" : "w-72", isTaskType ? "min-w-72" : ""].join(" ")}>
         <SelectField
           label="Tipo"
           value={entityType ?? ""}
@@ -279,7 +359,10 @@ export function EntityReferencePicker({ open, onOpenChange, onPick, maxSelect, c
             onConfirm={handleConfirmFiles}
           />
         )}
-        {entityType && !isFileType && (
+        {entityType && isTaskType && (
+          <TaskPickerCascade token={token} onPick={handlePick} />
+        )}
+        {entityType && !isFileType && !isTaskType && (
           <ComboboxField
             label="Registro"
             options={optionsQuery.data ?? []}
