@@ -6,7 +6,7 @@ import { useCommandStore } from "../stores/command";
 import { ThemeToggle } from "./ThemeToggle";
 import { CompanySwitcher } from "./CompanySwitcher";
 import { useState } from "react";
-import { ActivityBellTrigger, OfflineIndicator, SyncStatusBar } from "@atlas/ui";
+import { ActivityBellTrigger, SyncStatusPopover } from "@atlas/ui";
 import { NotificationBell } from "./NotificationBell";
 import { UserMenu } from "./UserMenu";
 import { atlas } from "../lib/atlas";
@@ -31,6 +31,7 @@ export function Topbar({
   const pendingCount = useOfflineStore((s) => s.pendingCount);
   const isSyncing    = useOfflineStore((s) => s.isSyncing);
   const lastSyncAt   = useOfflineStore((s) => s.lastSyncAt);
+  const syncError    = useOfflineStore((s) => s.syncError);
   const canReadNotifications = Boolean(
     userProfile?.isAdmin ||
     (userProfile?.permissions ?? []).includes("notifications.read"),
@@ -132,18 +133,14 @@ export function Topbar({
 
         {/* Right section — pushed to the right */}
         <div className="ml-auto flex items-center gap-1 shrink-0">
-          <SyncStatusBar
+          <SyncStatusPopover
             isOnline={isOnline}
             isSyncing={isSyncing}
             lastSyncAt={lastSyncAt}
+            pendingCount={pendingCount}
+            syncError={syncError}
+            networkBusy={networkBusy}
           />
-          <OfflineIndicator isOnline={isOnline} pendingCount={pendingCount} />
-          {networkBusy && (
-            <div className="hidden md:flex items-center gap-2 rounded-full border border-[hsl(var(--border))] px-2.5 py-1 text-xs text-[hsl(var(--muted-foreground))]">
-              <span className="h-1.5 w-1.5 rounded-full bg-(--brand-primary) animate-pulse" />
-              Sincronizando...
-            </div>
-          )}
           {token && (
             <span className="hidden md:contents">
               <CompanySwitcher token={token} />
