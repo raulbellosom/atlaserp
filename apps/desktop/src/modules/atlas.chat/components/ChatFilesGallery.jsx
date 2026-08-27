@@ -49,7 +49,15 @@ function MediaSelectionCircle({ isSelected }) {
 export function ChatFilesGallery({
   messages, isLoading, onAttachmentClick,
   selectionMode = false, selectedIds = EMPTY_SELECTION, onToggleSelect, onEnterSelection, onCancelSelection,
+  // Two callers, two different layout contracts: ChatWindow.jsx's standalone
+  // "files view" swaps this in as the entire message-area content (its own
+  // wrapper provides no scrolling, same as ChatMessageList's own roots), so
+  // it needs to own its scroll region — the default. ConversationMediaTab
+  // nests this inside ConversationProfilePanel's single flat-sections scroll
+  // column instead, so it must NOT own a second one.
+  scrollable = true,
 }) {
+  const scrollableClass = scrollable ? "flex-1 min-h-0 overflow-y-auto" : "";
   const allAttachments = useMemo(() => {
     if (!messages?.length) return [];
     const result = [];
@@ -66,7 +74,7 @@ export function ChatFilesGallery({
 
   if (isLoading) {
     return (
-      <div className="p-4 space-y-2">
+      <div className={[scrollableClass, "p-4 space-y-2"].join(" ")}>
         {Array.from({ length: 6 }).map((_, i) => (
           <Skeleton key={i} className="h-12 w-full rounded-lg" />
         ))}
@@ -77,7 +85,7 @@ export function ChatFilesGallery({
   if (!allAttachments.length) {
     return (
       <EmptyState
-        className="py-8"
+        className={scrollable ? "flex-1 min-h-0" : "py-8"}
         title="Sin archivos"
         description="Aun no se han compartido archivos en esta conversacion."
       />
@@ -85,7 +93,7 @@ export function ChatFilesGallery({
   }
 
   return (
-    <div className="p-3 space-y-4">
+    <div className={[scrollableClass, "p-3 space-y-4"].join(" ")}>
       {images.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-2">

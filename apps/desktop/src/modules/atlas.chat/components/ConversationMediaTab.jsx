@@ -66,6 +66,7 @@ export function ConversationMediaTab({ messages, isLoading }) {
         messages={messages ?? []}
         isLoading={isLoading}
         onAttachmentClick={(attachments, activeIndex) => setViewer({ open: true, attachments, activeIndex })}
+        scrollable={false}
         selectionMode={selectionMode}
         selectedIds={selectedIds}
         onToggleSelect={toggleSelect}
