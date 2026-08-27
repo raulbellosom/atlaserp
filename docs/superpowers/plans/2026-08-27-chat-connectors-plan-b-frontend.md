@@ -151,8 +151,9 @@ In `fetchOptions`, right before the final `return [];`, add:
 
 ```js
   if (entityType === "project") {
+    // GET /projects returns a raw array (c.json(projects)), not { data: [...] }.
     const res = await atlas.projects.listProjects(token);
-    return (res?.data ?? []).map((p) => ({ label: p.name, value: p.id }));
+    return (res?.data ?? res ?? []).map((p) => ({ label: p.name, value: p.id }));
   }
   if (entityType === "calendar_event") {
     // A fixed 90-days-back / 365-days-ahead window — this is a "mention an
@@ -184,8 +185,9 @@ function TaskPickerCascade({ token, onPick }) {
   const projectsQuery = useQuery({
     queryKey: ["chat-entity-ref-task-projects", token],
     queryFn: async () => {
+      // GET /projects returns a raw array, not { data: [...] }.
       const res = await atlas.projects.listProjects(token);
-      return (res?.data ?? []).map((p) => ({ label: p.name, value: p.id }));
+      return (res?.data ?? res ?? []).map((p) => ({ label: p.name, value: p.id }));
     },
     enabled: Boolean(token),
     staleTime: 30_000,
@@ -194,8 +196,9 @@ function TaskPickerCascade({ token, onPick }) {
   const tasksQuery = useQuery({
     queryKey: ["chat-entity-ref-task-tasks", projectId, token],
     queryFn: async () => {
+      // GET /projects/:id/tasks also returns a raw array (c.json(tasks)).
       const res = await atlas.projects.listTasks(projectId, {}, token);
-      return (res?.data ?? []).map((t) => ({ label: t.title, value: t.id }));
+      return (res?.data ?? res ?? []).map((t) => ({ label: t.title, value: t.id }));
     },
     enabled: Boolean(projectId && token),
     staleTime: 30_000,
@@ -447,8 +450,11 @@ export function CreateChannelModal({ open, onClose, onCreated }) {
   const projectsQuery = useQuery({
     queryKey: ["chat-create-channel-projects", token],
     queryFn: async () => {
+      // GET /projects returns a raw array (c.json(projects)), not { data: [...] }
+      // — verified against apps/api/src/routes/projects/projects-routes.js.
+      // ProjectsScreen.jsx already hedges the same way (`projects?.data ?? projects ?? []`).
       const res = await atlas.projects.listProjects(token);
-      return (res?.data ?? []).map((p) => ({ label: p.name, value: p.id }));
+      return (res?.data ?? res ?? []).map((p) => ({ label: p.name, value: p.id }));
     },
     enabled: Boolean(open && token),
     staleTime: 30_000,
@@ -612,8 +618,10 @@ Then, right after the `const ownMember = ...` / `const canManage = ...` lines, a
   const projectsQuery = useQuery({
     queryKey: ["chat-channel-tab-projects", token],
     queryFn: async () => {
+      // GET /projects returns a raw array, not { data: [...] } — see the
+      // same note in CreateChannelModal.jsx's equivalent query.
       const res = await atlas.projects.listProjects(token);
-      return (res?.data ?? []).map((p) => ({ label: p.name, value: p.id }));
+      return (res?.data ?? res ?? []).map((p) => ({ label: p.name, value: p.id }));
     },
     enabled: Boolean(isChannel && token),
     staleTime: 30_000,
@@ -1097,8 +1105,10 @@ Right after the existing `const { session } = useAuth();`-equivalent line (this 
 
   const createChannelMutation = useMutation({
     mutationFn: async () => {
+      // GET /projects/:id/members returns a raw array (c.json(project.members)),
+      // not { data: [...] } — same shape caveat as listProjects above.
       const membersRes = await atlas.projects.listMembers(selectedId, token);
-      const memberUserIds = (membersRes?.data ?? []).map((m) => m.userId).filter(Boolean);
+      const memberUserIds = (membersRes?.data ?? membersRes ?? []).map((m) => m.userId).filter(Boolean);
       return atlas.chat.createChannel({
         title: selectedProject?.name ?? "Proyecto",
         linkedModule: "atlas.projects",
