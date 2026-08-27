@@ -921,7 +921,7 @@ export function ChatMessageBubble({
                 display:contents so it's invisible to layout and the text
                 bubble renders exactly as if it were a direct child, same as
                 before this existed. */}
-            {(hasText || firstEntityRefAttached) && (
+            {hasText && (
               <div className={firstEntityRefAttached ? "grid" : "contents"}>
                 {hasText && (
                   <div
@@ -967,9 +967,10 @@ export function ChatMessageBubble({
             {!isDeleted && entityRefs.length > (firstEntityRefAttached ? 1 : 0) && (
               <div
                 className={[
-                  "flex flex-col gap-1",
+                  entityRefsOnlyBubble ? "grid" : "flex flex-col",
+                  "gap-1",
                   firstEntityRefAttached ? "mt-1" : (hasText ? "mt-0" : "mt-1"),
-                  entityRefsOnlyBubble ? [radius, "overflow-hidden", "grid", "bg-(--brand-primary)"].join(" ") : "",
+                  entityRefsOnlyBubble ? [radius, "overflow-hidden", "bg-(--brand-primary)"].join(" ") : "",
                 ].join(" ")}
               >
                 {entityRefs.slice(firstEntityRefAttached ? 1 : 0).map((ref, idx) => {
@@ -1072,7 +1073,7 @@ export function ChatMessageBubble({
             </span>
           )}
 
-          {(hasText || firstEntityRefAttached) && (
+          {hasText && (
             <div className={firstEntityRefAttached ? "grid" : "contents"}>
               {hasText && (
                 <div
@@ -1118,9 +1119,10 @@ export function ChatMessageBubble({
           {!isDeleted && entityRefs.length > (firstEntityRefAttached ? 1 : 0) && (
             <div
               className={[
-                "flex flex-col gap-1",
+                entityRefsOnlyBubble ? "grid" : "flex flex-col",
+                "gap-1",
                 firstEntityRefAttached ? "mt-1" : (hasText ? "mt-0" : "mt-1"),
-                entityRefsOnlyBubble ? [radius, "overflow-hidden", "grid", "bg-[hsl(var(--muted))]"].join(" ") : "",
+                entityRefsOnlyBubble ? [radius, "overflow-hidden", "bg-[hsl(var(--muted))]"].join(" ") : "",
               ].join(" ")}
             >
               {entityRefs.slice(firstEntityRefAttached ? 1 : 0).map((ref, idx) => {
