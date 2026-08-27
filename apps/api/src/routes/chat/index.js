@@ -35,6 +35,10 @@ import { createContactsService } from "../../services/contacts-service.js";
 import { createFilesService } from "../../services/files-service.js";
 import { createHrService } from "../../services/hr-service.js";
 import { createLedgerService } from "../ledger/ledger-service.js";
+import { createChatChannelLinksService } from "./chat-channel-links-service.js";
+import { createProjectsService } from "../projects/projects-service.js";
+import { createTasksService } from "../projects/tasks-service.js";
+import { createCalendarEventService } from "../calendar/calendar-event-service.js";
 
 function handleError(c, err, fallback) {
   if (err instanceof ChatServiceError || err instanceof GuestChatServiceError || err instanceof ChatPermissionsError || err instanceof ChatReactionsError || err instanceof ChatModerationServiceError) {
@@ -51,14 +55,18 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   const app = new Hono();
   const permissionsService = createChatPermissionsService({ prisma });
   const mentionsService = createChatMentionsService({ prisma });
+  const channelLinksService = createChatChannelLinksService({ prisma });
   const entityReferencesService = createChatEntityReferencesService({
     prisma,
     contactsService: createContactsService({ prisma }),
     filesService: createFilesService({ prisma, supabaseAdmin }),
     hrService: createHrService({ prisma }),
     ledgerService: createLedgerService({ prisma }),
+    projectsService: createProjectsService({ prisma }),
+    tasksService: createTasksService({ prisma }),
+    calendarEventService: createCalendarEventService({ prisma }),
   });
-  const chatService = createChatService({ prisma, supabaseAdmin, notificationService, broadcaster, permissionsService, mentionsService, entityReferencesService });
+  const chatService = createChatService({ prisma, supabaseAdmin, notificationService, broadcaster, permissionsService, mentionsService, entityReferencesService, channelLinksService });
   const guestService = createGuestChatService({ prisma, supabaseAdmin, notificationService, broadcaster });
   const templateService = createChatTemplateService({ prisma });
   const channelDirectoryService = createChannelDirectoryService({ prisma });
@@ -456,6 +464,23 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       return c.json(result);
     } catch (err) {
       return handleError(c, err, "Error listando canales.");
+    }
+  });
+
+  // GET /chat/channels/linked?module=atlas.projects&entityId=<uuid>
+  // Used by the source module's UI (e.g. a project's detail screen) to know
+  // whether it already has a linked channel before rendering "Crear canal"
+  // vs. "Ir al canal".
+  internal.get("/channels/linked", requirePermission("chat.conversations.read"), async (c) => {
+    try {
+      const { module: linkedModule, entityId } = c.req.query();
+      if (!linkedModule || !entityId) {
+        return c.json({ error: "module y entityId son requeridos." }, 422);
+      }
+      const conversation = await channelLinksService.findByLink(linkedModule, entityId);
+      return c.json({ data: conversation });
+    } catch (err) {
+      return handleError(c, err, "Error buscando el canal vinculado.");
     }
   });
 
