@@ -453,6 +453,24 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
     setSelectedMsgIds(new Set());
   }, []);
 
+  // Escape closes whichever plain-state overlay is currently on top of the
+  // base message view, one layer at a time — selection mode, then search,
+  // then the profile panel, then the files view. Dialog/Sheet-based overlays
+  // (ForwardMessageModal, PinnedMessagesSheet, ThreadPanel, ConfirmDialog)
+  // already close on Escape via Radix's own built-in handling and don't need
+  // anything here.
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.key !== "Escape") return;
+      if (selectionMode) { exitSelectionMode(); return; }
+      if (searchMode) { setSearchMode(false); setSearchQuery(""); return; }
+      if (membersView) { closeProfile(); return; }
+      if (filesView) { setFilesView(false); return; }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [selectionMode, searchMode, membersView, filesView, exitSelectionMode, closeProfile]);
+
   const toggleSelectMessage = useCallback((msgId) => {
     setSelectedMsgIds((prev) => {
       const next = new Set(prev);

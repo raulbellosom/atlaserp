@@ -96,6 +96,17 @@ export function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMin
 
   useEffect(() => { if (!minimized) markReadRef.current(); }, [id, minimized]);
 
+  // Escape closes the profile view (back to messages) if it's open, matching
+  // ChatWindow's equivalent handling for its own plain-state overlays.
+  useEffect(() => {
+    if (!profileView) return;
+    function onKeyDown(e) {
+      if (e.key === "Escape") setProfileView(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [profileView]);
+
   const name = getConversationDisplayName(conversation, userProfile?.id);
   const titleLabel = getConversationTitleLabel(conversation, userProfile?.id);
   const avatarUrl = getAvatarUrl(conversation, userProfile?.id);
