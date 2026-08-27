@@ -527,42 +527,138 @@ git commit -m "feat(chat): createConversation accepts linkedModule/linkedEntityI
 
 ### Task 5: `chat-service.js` — extend `updateConversation` (link / unlink)
 
-**Files:**
-- Modify: `apps/api/src/routes/chat/chat-service.js:543-596` (`updateConversation`)
-- Test: `apps/api/src/routes/chat/__tests__/chat-service.test.js`
+**Revised during execution:** after Task 4 landed, `chat-service.js` was measured at 1498/1500 lines (the file had grown since this plan was written — the original 1469 baseline was stale). Only 2 lines of headroom remained, and the original design below would have pushed well past the hard ceiling. Per the user's explicit choice ("minimal extraction now"), the availability-check + SET-fragment-building logic that Step 3 originally inlined into `updateConversation` is now built by a new `applyLinkUpdate` function on `channelLinksService` (Step 0 below, added to the already-shipped `chat-channel-links-service.js`), so `chat-service.js` itself only gains ~2-3 lines net.
 
-- [ ] **Step 1: Write the failing tests**
+**Files:**
+- Modify: `apps/api/src/routes/chat/chat-channel-links-service.js` (add `applyLinkUpdate`)
+- Modify: `apps/api/src/routes/chat/chat-service.js` (`updateConversation` — exact line range shifted since the plan was written; find the function by name)
+- Test: `apps/api/src/routes/chat/__tests__/chat-channel-links-service.test.js`, `apps/api/src/routes/chat/__tests__/chat-service.test.js`
+
+- [ ] **Step 0: Add `applyLinkUpdate` to `chat-channel-links-service.js`, with its own tests**
+
+Append to `apps/api/src/routes/chat/__tests__/chat-channel-links-service.test.js`:
+
+```js
+describe("chat-channel-links-service — applyLinkUpdate", () => {
+  it("returns an empty array (no-op) when linkedModule is not present in updates", async () => {
+    const svc = createChatChannelLinksService({ prisma: {} });
+    const result = await svc.applyLinkUpdate({}, CONV_ID);
+    assert.deepEqual(result, []);
+  });
+
+  it("checks availability (excluding this conversation) and returns SET fragments when linking", async () => {
+    const prisma = buildPrismaMock([[]]); // assertLinkAvailable finds no collision
+    const svc = createChatChannelLinksService({ prisma });
+    const result = await svc.applyLinkUpdate({ linkedModule: "atlas.projects", linkedEntityId: PROJECT_ID }, CONV_ID);
+    assert.equal(result.length, 2);
+    assert.match(prisma._queryRawCalls[0].sql, /id != \?/);
+    assert.equal(prisma._queryRawCalls[0].values.at(-1), CONV_ID);
+  });
+
+  it("propagates the 409 from assertLinkAvailable when the project is already linked elsewhere", async () => {
+    const prisma = buildPrismaMock([[{ id: OTHER_CONV_ID }]]);
+    const svc = createChatChannelLinksService({ prisma });
+    await assert.rejects(
+      () => svc.applyLinkUpdate({ linkedModule: "atlas.projects", linkedEntityId: PROJECT_ID }, CONV_ID),
+      (err) => { assert.equal(err.status, 409); return true; },
+    );
+  });
+
+  it("skips the availability check and returns clearing SET fragments when unlinking (both null)", async () => {
+    const prisma = buildPrismaMock([]); // no $queryRaw call expected at all
+    const svc = createChatChannelLinksService({ prisma });
+    const result = await svc.applyLinkUpdate({ linkedModule: null, linkedEntityId: null }, CONV_ID);
+    assert.equal(result.length, 2);
+  });
+});
+```
+
+Run: `node --test apps/api/src/routes/chat/__tests__/chat-channel-links-service.test.js` — expect these 4 new tests to FAIL (`svc.applyLinkUpdate is not a function`).
+
+In `apps/api/src/routes/chat/chat-channel-links-service.js`, add the `Prisma` import and the new function:
+
+Replace:
+```js
+import { ChatServiceError } from "./chat-service.js";
+```
+with:
+```js
+import { Prisma } from "@prisma/client";
+import { ChatServiceError } from "./chat-service.js";
+```
+
+Then, right before the final `return { findByLink, assertLinkAvailable, assertBothOrNeither };` line, add:
+
+```js
+  // Single entry point for updateConversation's SET-clause building: checks
+  // availability (skipped entirely when clearing the link — an unlink can
+  // never collide) and returns the Prisma.sql fragments to push into the
+  // caller's `sets` array. Returns [] when `updates` doesn't touch the link
+  // at all (linkedModule absent from the object), so the caller can always
+  // spread the result into `sets` unconditionally without its own branching.
+  async function applyLinkUpdate(updates, conversationId) {
+    if (updates.linkedModule === undefined) return [];
+    if (updates.linkedModule !== null) {
+      await assertLinkAvailable(updates.linkedModule, updates.linkedEntityId, conversationId);
+    }
+    return [
+      Prisma.sql`linked_module = ${updates.linkedModule}`,
+      Prisma.sql`linked_entity_id = ${updates.linkedEntityId ?? null}`,
+    ];
+  }
+```
+
+And change the return statement to:
+```js
+  return { findByLink, assertLinkAvailable, assertBothOrNeither, applyLinkUpdate };
+```
+
+Run: `node --test apps/api/src/routes/chat/__tests__/chat-channel-links-service.test.js` — expect all 13 tests (9 pre-existing + 4 new) to PASS.
+
+Commit this step on its own:
+```bash
+git add apps/api/src/routes/chat/chat-channel-links-service.js apps/api/src/routes/chat/__tests__/chat-channel-links-service.test.js
+git commit -m "feat(chat): add applyLinkUpdate to chat-channel-links-service (keeps chat-service.js's diff minimal)"
+```
+
+- [ ] **Step 1: Write the failing tests for `updateConversation` itself**
 
 Append to `apps/api/src/routes/chat/__tests__/chat-service.test.js`:
 
 ```js
 describe("chat-service — updateConversation link/unlink", () => {
-  it("links a channel to a project after checking availability", async () => {
+  it("links a channel to a project via applyLinkUpdate, called with the right updates/conversationId", async () => {
     const prisma = buildPrismaMock(
       [
         [{ id: PROFILE_ID }],       // getUserProfileId
         [{ id: "member-row" }],     // assertMember
         [{ type: "channel" }],      // conversation type lookup
-        [{ ...{}, id: CONV_ID, members: null }], // getConversation
+        [{ id: CONV_ID, members: null }], // getConversation
       ],
-      [],
+      [{ count: 1 }], // the UPDATE itself
     );
-    let assertedWith = null;
+    let calledWith = null;
     const channelLinksService = {
       assertBothOrNeither: () => {},
-      findByLink: async () => null,
-      assertLinkAvailable: async (mod, id, excludeId) => { assertedWith = { mod, id, excludeId }; },
+      // Returns [] here deliberately — applyLinkUpdate's own fragment-building
+      // is already covered by Step 0's tests; this test only verifies
+      // updateConversation calls it correctly and handles the result.
+      applyLinkUpdate: async (updates, conversationId) => {
+        calledWith = { updates, conversationId };
+        return [];
+      },
     };
     const permissionsService = { assertChannelPermission: async () => {} };
     const chatService = createChatService({ prisma, permissionsService, channelLinksService });
-    await chatService.updateConversation({
+    const result = await chatService.updateConversation({
       conversationId: CONV_ID, authUserId: AUTH_USER_ID,
       updates: { linkedModule: "atlas.projects", linkedEntityId: "proj-1" },
     });
-    assert.deepEqual(assertedWith, { mod: "atlas.projects", id: "proj-1", excludeId: CONV_ID });
+    assert.deepEqual(calledWith, { updates: { linkedModule: "atlas.projects", linkedEntityId: "proj-1" }, conversationId: CONV_ID });
+    assert.equal(result.id, CONV_ID);
   });
 
-  it("unlinks a channel by sending both link fields as null, without an availability check", async () => {
+  it("unlinks a channel by sending both link fields as null — applyLinkUpdate still gets called (it decides internally that no availability check is needed)", async () => {
     const prisma = buildPrismaMock(
       [
         [{ id: PROFILE_ID }],
@@ -570,12 +666,12 @@ describe("chat-service — updateConversation link/unlink", () => {
         [{ type: "channel" }],
         [{ id: CONV_ID, members: null }],
       ],
-      [],
+      [{ count: 1 }],
     );
+    let called = false;
     const channelLinksService = {
       assertBothOrNeither: () => {},
-      assertLinkAvailable: async () => { throw new Error("should not be called when unlinking"); },
-      findByLink: async () => null,
+      applyLinkUpdate: async () => { called = true; return []; },
     };
     const permissionsService = { assertChannelPermission: async () => {} };
     const chatService = createChatService({ prisma, permissionsService, channelLinksService });
@@ -583,7 +679,32 @@ describe("chat-service — updateConversation link/unlink", () => {
       conversationId: CONV_ID, authUserId: AUTH_USER_ID,
       updates: { linkedModule: null, linkedEntityId: null },
     });
+    assert.equal(called, true);
     assert.equal(result.id, CONV_ID);
+  });
+
+  it("propagates a 409 raised inside applyLinkUpdate (project already linked elsewhere)", async () => {
+    const prisma = buildPrismaMock(
+      [
+        [{ id: PROFILE_ID }],
+        [{ id: "member-row" }],
+        [{ type: "channel" }],
+      ],
+      [],
+    );
+    const channelLinksService = {
+      assertBothOrNeither: () => {},
+      applyLinkUpdate: async () => { throw new ChatServiceError("Ese registro ya tiene un canal vinculado.", 409); },
+    };
+    const permissionsService = { assertChannelPermission: async () => {} };
+    const chatService = createChatService({ prisma, permissionsService, channelLinksService });
+    await assert.rejects(
+      () => chatService.updateConversation({
+        conversationId: CONV_ID, authUserId: AUTH_USER_ID,
+        updates: { linkedModule: "atlas.projects", linkedEntityId: "proj-1" },
+      }),
+      (err) => { assert.equal(err.status, 409); return true; },
+    );
   });
 
   it("propagates a 422 from assertBothOrNeither when only linkedEntityId is provided, before touching prisma beyond membership checks", async () => {
@@ -597,8 +718,7 @@ describe("chat-service — updateConversation link/unlink", () => {
     );
     const channelLinksService = {
       assertBothOrNeither: () => { throw new ChatServiceError("linkedModule y linkedEntityId deben enviarse juntos.", 422); },
-      findByLink: async () => { throw new Error("should not be called"); },
-      assertLinkAvailable: async () => { throw new Error("should not be called"); },
+      applyLinkUpdate: async () => { throw new Error("should not be called"); },
     };
     const permissionsService = { assertChannelPermission: async () => {} };
     const chatService = createChatService({ prisma, permissionsService, channelLinksService });
@@ -616,93 +736,44 @@ describe("chat-service — updateConversation link/unlink", () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `node --test apps/api/src/routes/chat/__tests__/chat-service.test.js`
-Expected: FAIL — `updateConversation` currently ignores `updates.linkedModule`/`updates.linkedEntityId` entirely (falls into the `!hasTitle && !hasStatus && !hasAvatarFileId && !hasAvatarEmoji` early-return branch and never touches `channelLinksService`), so `assertedWith` stays `null` in the first test.
+Expected: FAIL — `updateConversation` currently ignores `updates.linkedModule`/`updates.linkedEntityId` entirely (falls into the `!hasTitle && !hasStatus && !hasAvatarFileId && !hasAvatarEmoji` early-return branch and never calls `channelLinksService.applyLinkUpdate`), so `calledWith`/`called` stay unset in the first two tests, and no 409/422 is thrown in the other two.
 
-- [ ] **Step 3: Implement**
+- [ ] **Step 3: Implement — minimal-footprint version (find `updateConversation` by name; line numbers below are approximate, the file has grown since this plan was written)**
 
-In `apps/api/src/routes/chat/chat-service.js:543`, replace the whole `updateConversation` function with:
+Find the current `updateConversation` function in `apps/api/src/routes/chat/chat-service.js` (search for `async function updateConversation`). Make exactly these 3 edits — do NOT do a wholesale function replace, and do NOT touch the avatar mutual-exclusion block at all:
+
+**Edit A** — right after the existing permission-check block (`if (permissionsService) { ... }`) and its closing brace, insert one line:
 
 ```js
-  async function updateConversation({ conversationId, authUserId, updates }) {
-    const profileId = await getUserProfileId(authUserId);
-    await assertMember(conversationId, profileId);
-
-    if (permissionsService) {
-      const [conv] = await prisma.$queryRaw`SELECT type FROM chat_conversations WHERE id = ${conversationId} LIMIT 1`;
-      if (conv && (conv.type === "channel" || conv.type === "group")) {
-        await permissionsService.assertChannelPermission(conversationId, profileId, "channel.manage");
-      }
-    }
-
     if (channelLinksService) channelLinksService.assertBothOrNeither(updates.linkedModule, updates.linkedEntityId);
-
-    const hasTitle = updates.title !== undefined;
-    const hasStatus = updates.status !== undefined;
-    const hasAvatarFileId = updates.avatarFileId !== undefined;
-    const hasAvatarEmoji = updates.avatarEmoji !== undefined;
-    const hasLinkedModule = updates.linkedModule !== undefined;
-
-    if (!hasTitle && !hasStatus && !hasAvatarFileId && !hasAvatarEmoji && !hasLinkedModule) {
-      return getConversation({ conversationId, authUserId });
-    }
-
-    // Mutual exclusivity: setting a real (non-null) avatar of one kind clears
-    // the other kind, even if the caller didn't explicitly touch it — a
-    // conversation has at most one avatar source at a time. Explicitly
-    // clearing one (sending null) does NOT touch the other — a "remove both"
-    // action must send both fields as null itself (spec Section 23 edge case 1).
-    // If a caller sends both as real (non-null) values in the same request,
-    // avatarFileId wins and the emoji is discarded — an `if`, not parallel
-    // handling, so this branch always fires first when both are present.
-    let nextAvatarFileId = updates.avatarFileId;
-    let nextAvatarEmoji = updates.avatarEmoji;
-    let touchAvatarFileId = hasAvatarFileId;
-    let touchAvatarEmoji = hasAvatarEmoji;
-    if (hasAvatarFileId && nextAvatarFileId !== null) {
-      nextAvatarEmoji = null;
-      touchAvatarEmoji = true;
-    } else if (hasAvatarEmoji && nextAvatarEmoji !== null) {
-      nextAvatarFileId = null;
-      touchAvatarFileId = true;
-    }
-
-    // Setting a real link (both fields non-null) checks availability first —
-    // excluding this conversation itself, so re-saving the same link is a
-    // no-op, not a false-positive collision. Clearing the link (both null)
-    // skips the check entirely: an unlink can never collide with anything.
-    if (hasLinkedModule && updates.linkedModule !== null && channelLinksService) {
-      await channelLinksService.assertLinkAvailable(updates.linkedModule, updates.linkedEntityId, conversationId);
-    }
-
-    const sets = [Prisma.sql`updated_at = NOW()`];
-    if (hasTitle) sets.push(Prisma.sql`title = ${updates.title}`);
-    if (hasStatus) sets.push(Prisma.sql`status = ${updates.status}`);
-    if (touchAvatarFileId) sets.push(Prisma.sql`avatar_file_id = ${nextAvatarFileId}`);
-    if (touchAvatarEmoji) sets.push(Prisma.sql`avatar_emoji = ${nextAvatarEmoji}`);
-    if (hasLinkedModule) {
-      sets.push(Prisma.sql`linked_module = ${updates.linkedModule}`);
-      sets.push(Prisma.sql`linked_entity_id = ${updates.linkedEntityId ?? null}`);
-    }
-
-    await prisma.$executeRaw`
-      UPDATE chat_conversations
-      SET ${Prisma.join(sets, ", ")}
-      WHERE id = ${conversationId}
-    `;
-
-    return getConversation({ conversationId, authUserId });
-  }
 ```
+
+**Edit B** — in the existing early-return line:
+```js
+    if (!hasTitle && !hasStatus && !hasAvatarFileId && !hasAvatarEmoji) {
+```
+add one more condition (do NOT introduce a `hasLinkedModule` named const — inline the check to avoid an extra line):
+```js
+    if (!hasTitle && !hasStatus && !hasAvatarFileId && !hasAvatarEmoji && updates.linkedModule === undefined) {
+```
+
+**Edit C** — in the existing `sets` array construction, right after the last `if (touchAvatarEmoji) sets.push(...)` line and before the `await prisma.$executeRaw` call, insert one line:
+
+```js
+    if (channelLinksService) sets.push(...(await channelLinksService.applyLinkUpdate(updates, conversationId)));
+```
+
+That's the entire change to `chat-service.js` for this task: 3 single-line insertions (Edit A, Edit C) plus a one-line edit to an existing condition (Edit B, net zero new lines). No other line in `updateConversation`, or anywhere else in the file, should change. This should add roughly 2 net lines to the file total.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `node --test apps/api/src/routes/chat/__tests__/chat-service.test.js`
-Expected: PASS, all tests including the 3 new ones.
+Expected: PASS, all tests including the 4 new ones.
 
-- [ ] **Step 5: Confirm the file is still under the 1500-line hard ceiling**
+- [ ] **Step 5: Confirm the file is still comfortably under the 1500-line hard ceiling**
 
 Run: `wc -l apps/api/src/routes/chat/chat-service.js`
-Expected: a number below 1500 (starting point was 1469; Tasks 4+5 add roughly 25 lines total, so expect ~1494). If this is at or over 1500, stop and extract `updateConversation`'s link-handling block into a call to a new `channelLinksService.buildUpdateFragment(...)` helper instead of inlining it, before proceeding to Task 6.
+Expected: a number well below 1500 (measured at 1498 right before this task started; this task's 3 single-line edits should land around 1500-1501 in the worst case). If the result is at or over 1499, do NOT touch any pre-existing logic to fix it — only compact whitespace/blank-line formatting in code you personally just added in this task (the same kind of harmless compaction the Task 4 implementer already did successfully), re-measure, and report the exact before/after count either way. If you cannot get under 1500 through formatting alone without touching pre-existing code or Task 5's own logic, STOP and report BLOCKED — do not invent a further extraction on your own judgment; that needs a human decision.
 
 - [ ] **Step 6: Commit**
 
