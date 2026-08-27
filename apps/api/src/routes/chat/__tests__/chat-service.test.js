@@ -1399,3 +1399,62 @@ describe("chat-service — listConversations exposes is_muted", () => {
     assert.equal(result.data[0].is_muted, true);
   });
 });
+
+describe("chat-service — createConversation with a channel link", () => {
+  it("returns the existing conversation when one already holds the requested link (idempotent)", async () => {
+    const existing = { id: CONV_ID, linked_module: "atlas.projects", linked_entity_id: "proj-1" };
+    const prisma = buildPrismaMock(
+      [
+        [{ id: PROFILE_ID }], // getUserProfileId
+        [{ id: "member-row" }], // assertMember, inside the final getConversation call
+        [{ ...existing, members: null }], // getConversation's SELECT c.*, members
+      ],
+      [],
+    );
+    const channelLinksService = {
+      assertBothOrNeither: () => {},
+      findByLink: async (mod, id) => { assert.equal(mod, "atlas.projects"); assert.equal(id, "proj-1"); return existing; },
+      assertLinkAvailable: async () => { throw new Error("should not be called when a link already exists"); },
+    };
+    const chatService = createChatService({ prisma, channelLinksService });
+    const result = await chatService.createConversation({
+      authUserId: AUTH_USER_ID, type: "channel", title: "Proyecto X", memberUserIds: [],
+      linkedModule: "atlas.projects", linkedEntityId: "proj-1",
+    });
+    assert.equal(result.id, CONV_ID);
+  });
+
+  it("propagates a 409 from assertLinkAvailable instead of creating a duplicate channel", async () => {
+    const prisma = buildPrismaMock([[{ id: PROFILE_ID }]], []);
+    const channelLinksService = {
+      assertBothOrNeither: () => {},
+      findByLink: async () => null,
+      assertLinkAvailable: async () => { throw new ChatServiceError("Ese registro ya tiene un canal vinculado.", 409); },
+    };
+    const chatService = createChatService({ prisma, channelLinksService });
+    await assert.rejects(
+      () => chatService.createConversation({
+        authUserId: AUTH_USER_ID, type: "channel", title: "Proyecto X", memberUserIds: [],
+        linkedModule: "atlas.projects", linkedEntityId: "proj-1",
+      }),
+      (err) => { assert.equal(err.status, 409); return true; },
+    );
+  });
+
+  it("propagates a 422 from assertBothOrNeither when only linkedModule is provided, before touching prisma", async () => {
+    const prisma = buildPrismaMock([], []); // no $queryRaw/$executeRaw calls expected — must fail before any DB access
+    const channelLinksService = {
+      assertBothOrNeither: () => { throw new ChatServiceError("linkedModule y linkedEntityId deben enviarse juntos.", 422); },
+      findByLink: async () => { throw new Error("should not be called"); },
+      assertLinkAvailable: async () => { throw new Error("should not be called"); },
+    };
+    const chatService = createChatService({ prisma, channelLinksService });
+    await assert.rejects(
+      () => chatService.createConversation({
+        authUserId: AUTH_USER_ID, type: "channel", title: "Proyecto X", memberUserIds: [],
+        linkedModule: "atlas.projects",
+      }),
+      (err) => { assert.equal(err.status, 422); return true; },
+    );
+  });
+});

@@ -59,7 +59,7 @@ export function _resetProfileIdCacheForTests() {
   _profileIdCache.clear();
 }
 
-export function createChatService({ prisma, supabaseAdmin, notificationService = null, broadcaster = null, permissionsService = null, mentionsService = null, entityReferencesService = null }) {
+export function createChatService({ prisma, supabaseAdmin, notificationService = null, broadcaster = null, permissionsService = null, mentionsService = null, entityReferencesService = null, channelLinksService = null }) {
   // ------------------------------------------------------------------
   // Internal helpers
   // ------------------------------------------------------------------
@@ -378,7 +378,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     return { ok: true };
   }
 
-  async function createConversation({ authUserId, type, title, memberUserIds, metadata = {}, isPublic = false, slug = null, description = null }) {
+  async function createConversation({ authUserId, type, title, memberUserIds, metadata = {}, isPublic = false, slug = null, description = null, linkedModule = null, linkedEntityId = null }) {
+    if (channelLinksService) channelLinksService.assertBothOrNeither(linkedModule, linkedEntityId);
     const creatorProfileId = await getUserProfileId(authUserId);
 
     // Prevent self-chat
@@ -407,6 +408,13 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       }
     }
 
+    // Same "find existing, return it" idempotency as above, applied to channel<->module links.
+    if (linkedModule && linkedEntityId && channelLinksService) {
+      const existing = await channelLinksService.findByLink(linkedModule, linkedEntityId);
+      if (existing) return getConversation({ conversationId: existing.id, authUserId });
+      await channelLinksService.assertLinkAvailable(linkedModule, linkedEntityId);
+    }
+
     const membership = await prisma.membership.findFirst({
       where: { userId: creatorProfileId.toString(), enabled: true },
       orderBy: { createdAt: "desc" },
@@ -425,8 +433,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     }
 
     const convRows = await prisma.$queryRaw`
-      INSERT INTO chat_conversations (type, title, created_by_user_id, company_id, is_public, slug, description, metadata)
-      VALUES (${type}, ${title ?? null}, ${creatorProfileId}, ${companyId}, ${isPublic}, ${slug}, ${description}, ${JSON.stringify(metadata)}::jsonb)
+      INSERT INTO chat_conversations (type, title, created_by_user_id, company_id, is_public, slug, description, metadata, linked_module, linked_entity_id)
+      VALUES (${type}, ${title ?? null}, ${creatorProfileId}, ${companyId}, ${isPublic}, ${slug}, ${description}, ${JSON.stringify(metadata)}::jsonb, ${linkedModule}, ${linkedEntityId})
       RETURNING *
     `;
     const conv = convRows[0];
