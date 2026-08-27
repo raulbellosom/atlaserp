@@ -10,7 +10,7 @@ import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 // and subscribeToMessages() defensively tears down any existing channel
 // with the same topic before subscribing — silently killing the main
 // message list's live updates the moment this tab mounts.
-export function ConversationMediaTab({ messages, isLoading }) {
+export function ConversationMediaTab({ messages, isLoading, preview = false, onShowAll }) {
   const [viewer, setViewer] = useState({ open: false, attachments: [], activeIndex: 0 });
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -72,7 +72,17 @@ export function ConversationMediaTab({ messages, isLoading }) {
         onToggleSelect={toggleSelect}
         onEnterSelection={() => setSelectionMode(true)}
         onCancelSelection={cancelSelection}
+        previewLimit={preview ? 6 : undefined}
       />
+      {preview && !selectionMode && allAttachments.length > 6 && (
+        <button
+          type="button"
+          onClick={onShowAll}
+          className="mx-3 mb-3 text-xs font-medium text-[hsl(var(--primary))] hover:underline text-center"
+        >
+          Mostrar mas
+        </button>
+      )}
       {selectionMode && selectedIds.size > 0 && (
         <div className="sticky bottom-0 px-4 py-2.5 border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] flex items-center justify-between">
           <span className="text-xs text-[hsl(var(--muted-foreground))]">

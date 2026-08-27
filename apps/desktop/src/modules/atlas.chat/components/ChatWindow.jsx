@@ -419,6 +419,12 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
     setProfileInitialTab(null);
   }, []);
 
+  const showAllFiles = useCallback(() => {
+    setMembersView(false);
+    setProfileInitialTab(null);
+    setFilesView(true);
+  }, []);
+
   const handleDeleteMessage = useCallback((messageId) => {
     deleteMessageMutate(messageId);
   }, [deleteMessageMutate]);
@@ -709,6 +715,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
               onBack={closeProfile}
               messages={messages}
               isLoadingMessages={isLoading}
+              onShowAllFiles={showAllFiles}
             />
           </div>
         )}

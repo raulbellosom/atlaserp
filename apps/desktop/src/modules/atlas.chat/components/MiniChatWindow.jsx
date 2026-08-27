@@ -292,6 +292,7 @@ export function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMin
             onBack={() => setProfileView(false)}
             messages={data?.data ?? []}
             isLoadingMessages={isLoading}
+            onShowAllFiles={handleViewFiles}
           />
         )}
         {!minimized && !profileView && (

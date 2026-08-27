@@ -47,7 +47,7 @@ function SectionHeader({ icon: Icon, label }) {
 // useChatMessages(conversationId) call — never call that hook a second time
 // here, it would open a second Supabase Realtime subscription for the same
 // conversation and silently kill the caller's own live updates.
-export function ConversationProfilePanel({ conversation, currentUserId, initialTab, onBack, messages, isLoadingMessages }) {
+export function ConversationProfilePanel({ conversation, currentUserId, initialTab, onBack, messages, isLoadingMessages, onShowAllFiles }) {
   const conversationId = conversation?.id;
   const type = conversation?.type;
   const { data: convData } = useChatConversationDetail(conversationId);
@@ -160,7 +160,7 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
           </div>
           <div data-section="media">
             <SectionHeader icon={FolderOpen} label="Multimedia" />
-            <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} />
+            <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} preview onShowAll={onShowAllFiles} />
           </div>
           <div data-section="common">
             <SectionHeader icon={Users} label="En comun" />

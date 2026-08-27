@@ -145,6 +145,7 @@ export function ChatFilesGallery({
   // nests this inside ConversationProfilePanel's single flat-sections scroll
   // column instead, so it must NOT own a second one.
   scrollable = true,
+  previewLimit,
 }) {
   const [entityRefViewer, setEntityRefViewer] = useState({ open: false, recordId: null, title: null });
   const scrollableClass = scrollable ? "flex-1 min-h-0 overflow-y-auto" : "";
@@ -171,8 +172,14 @@ export function ChatFilesGallery({
     return result;
   }, [messages]);
 
-  const images = useMemo(() => allAttachments.filter((a) => isImageMime(a.mimeType)), [allAttachments]);
-  const otherFiles = useMemo(() => allAttachments.filter((a) => !isImageMime(a.mimeType)), [allAttachments]);
+  const images = useMemo(() => {
+    const all = allAttachments.filter((a) => isImageMime(a.mimeType));
+    return previewLimit ? all.slice(0, previewLimit) : all;
+  }, [allAttachments, previewLimit]);
+  const otherFiles = useMemo(() => {
+    const all = allAttachments.filter((a) => !isImageMime(a.mimeType));
+    return previewLimit ? all.slice(0, previewLimit) : all;
+  }, [allAttachments, previewLimit]);
 
   if (isLoading) {
     return (
