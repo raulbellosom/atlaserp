@@ -27,7 +27,14 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
       if (entityType === "contact") {
         const row = await contactsService.getById({ authUserId, id: recordId });
         if (!row) return null;
-        return { entityType, recordId, title: row.name, subtitle: null, url: `/app/m/atlas.contacts/contacts/${recordId}` };
+        // Contact has no photo/avatar column at all (checked the Prisma model —
+        // genuinely absent, not just unread here) — phone/email is the richest
+        // "at a glance" subtitle available without a schema change.
+        return {
+          entityType, recordId, title: row.name,
+          subtitle: row.phone ?? row.email ?? null,
+          url: `/app/m/atlas.contacts/contacts/${recordId}`,
+        };
       }
       if (entityType === "file") {
         const row = await filesService.getById({ authUserId, id: recordId });
@@ -42,15 +49,35 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
       if (entityType === "hr_employee") {
         const row = await hrService.getEmployee({ authUserId, id: recordId });
         if (!row) return null;
-        return { entityType, recordId, title: `${row.firstName} ${row.lastName}`.trim(), subtitle: null, url: `/app/m/atlas.hr/hr/employees/${recordId}` };
+        return {
+          entityType, recordId, title: `${row.firstName} ${row.lastName}`.trim(),
+          subtitle: row.jobTitleRef?.name ?? row.jobTitle ?? row.departmentRef?.name ?? row.department ?? null,
+          url: `/app/m/atlas.hr/hr/employees/${recordId}`,
+          // hrService already includes both the employee's own profile photo
+          // and their linked user account's avatar — prefer the employee
+          // record's own photo, fall back to the account avatar.
+          photoFileId: row.profileImageFileId ?? row.userProfile?.avatarFileId ?? null,
+        };
       }
       if (entityType === "ledger_account") {
         const ctx = await resolveActorContext(prisma, authUserId);
         if (!ctx) return null;
         const row = await ledgerService.getAccount({ companyId: ctx.companyId, accountId: recordId, actorId: ctx.profileId });
         if (!row) return null;
-        const subtitle = row.bank ? row.bank : null;
-        return { entityType, recordId, title: subtitle ? `${row.name} · ${row.bank}` : row.name, subtitle, url: `/app/m/atlas.ledger/accounts/${recordId}` };
+        // getAccount is a raw $queryRaw result, not a Prisma-mapped select —
+        // multi-word columns come back snake_case (account_number,
+        // current_balance), not camelCase. bank/name/currency happen to be
+        // single-word and camelCase-compatible either way.
+        const maskedNumber = row.account_number ? `····${String(row.account_number).slice(-4)}` : null;
+        const subtitle = [row.bank, maskedNumber].filter(Boolean).join(" · ") || null;
+        return {
+          entityType, recordId,
+          title: row.bank ? `${row.name} · ${row.bank}` : row.name,
+          subtitle,
+          url: `/app/m/atlas.ledger/accounts/${recordId}`,
+          currency: row.currency ?? null,
+          balance: row.current_balance != null ? Number(row.current_balance) : null,
+        };
       }
       return null; // unknown entityType — drop silently
     } catch {
