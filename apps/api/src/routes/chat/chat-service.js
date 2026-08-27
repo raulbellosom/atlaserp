@@ -321,7 +321,6 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         conv.members = conv.members.map((m) => ({
           ...m,
           avatarUrl: m.avatarFileId ? (avatarUrlMap[m.avatarFileId] ?? m.authAvatarUrl ?? null) : (m.authAvatarUrl ?? null),
-          avatarFileId: undefined,
           authAvatarUrl: undefined,
         }));
       }
@@ -510,7 +509,6 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       conv.members = conv.members.map((m) => ({
         ...m,
         avatarUrl: m.avatarFileId ? (avatarUrlMap[m.avatarFileId] ?? m.authAvatarUrl ?? null) : (m.authAvatarUrl ?? null),
-        avatarFileId: undefined,
         authAvatarUrl: undefined,
       }));
     }
