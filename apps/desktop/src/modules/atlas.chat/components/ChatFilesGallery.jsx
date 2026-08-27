@@ -6,6 +6,11 @@ import {
 } from "lucide-react";
 import { isImageMime, formatFileSize, formatMessageTime } from "../lib/chatUtils";
 
+// Stable fallback so a caller passing selectionMode without selectedIds gets
+// a real (empty) Set instead of undefined — keeps selectedIds?.has(...) below
+// from being the only thing standing between a missing prop and a thrown error.
+const EMPTY_SELECTION = new Set();
+
 export function FileTypeIcon({ mimeType }) {
   const m = String(mimeType ?? "").toLowerCase();
   if (m === "application/pdf") return <FileType2 className="h-5 w-5 text-red-400" />;
@@ -43,7 +48,7 @@ function MediaSelectionCircle({ isSelected }) {
 
 export function ChatFilesGallery({
   messages, isLoading, onAttachmentClick,
-  selectionMode = false, selectedIds, onToggleSelect, onEnterSelection, onCancelSelection,
+  selectionMode = false, selectedIds = EMPTY_SELECTION, onToggleSelect, onEnterSelection, onCancelSelection,
 }) {
   const allAttachments = useMemo(() => {
     if (!messages?.length) return [];
@@ -90,7 +95,7 @@ export function ChatFilesGallery({
             {selectionMode ? (
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
-                  {selectedIds?.size ?? 0} seleccionados
+                  {selectedIds.size} seleccionados
                 </span>
                 <button
                   type="button"
@@ -132,7 +137,7 @@ export function ChatFilesGallery({
                     <FileImage className="h-6 w-6 text-[hsl(var(--muted-foreground))]" />
                   </div>
                 )}
-                {selectionMode && <MediaSelectionCircle isSelected={selectedIds?.has(att.id)} />}
+                {selectionMode && <MediaSelectionCircle isSelected={selectedIds.has(att.id)} />}
               </button>
             ))}
           </div>
