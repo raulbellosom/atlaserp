@@ -209,7 +209,7 @@ export function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMin
           </div>
         ) : (
           <div
-            className="flex items-center gap-2 px-3 h-11 bg-[hsl(var(--surface-2))] border-b border-[hsl(var(--border))] shrink-0"
+            className="chat-glass flex items-center gap-2 px-3 h-11 shrink-0"
           >
             <button
               type="button"
@@ -217,7 +217,7 @@ export function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMin
               className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer select-none text-left"
             >
               <AvatarCircle avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conversation?.type} name={name} size="sm" />
-              <p className="flex-1 text-xs font-semibold truncate">{titleLabel}</p>
+              <p className="chat-font-display flex-1 text-xs font-semibold truncate">{titleLabel}</p>
             </button>
             <button
               type="button"
