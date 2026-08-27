@@ -1,10 +1,13 @@
 import { useState, useMemo } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-  Button, Input, Textarea, Switch, Label,
+  Button, Input, Textarea, Switch, Label, ComboboxField,
 } from "@atlas/ui";
 import { Hash } from "lucide-react";
 import { useCreateChannel } from "../hooks/useChannels";
+import { useAuth } from "../../../auth/AuthProvider";
+import { atlas } from "../../../lib/atlas";
+import { useQuery } from "@tanstack/react-query";
 
 function slugify(text) {
   return text
@@ -22,8 +25,22 @@ export function CreateChannelModal({ open, onClose, onCreated }) {
   const [isPublic, setIsPublic] = useState(true);
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
+  const [linkedProjectId, setLinkedProjectId] = useState(null);
   const [error, setError] = useState(null);
   const { mutateAsync: createChannel, isPending } = useCreateChannel();
+  const { session } = useAuth();
+  const token = session?.access_token;
+  const projectsQuery = useQuery({
+    queryKey: ["chat-create-channel-projects", token],
+    queryFn: async () => {
+      // GET /projects returns a raw array (c.json(projects)), not { data: [...] }
+      // — verified against apps/api/src/routes/projects/projects-routes.js.
+      const res = await atlas.projects.listProjects(token);
+      return (res?.data ?? res ?? []).map((p) => ({ label: p.name, value: p.id }));
+    },
+    enabled: Boolean(open && token),
+    staleTime: 30_000,
+  });
 
   const effectiveSlug = useMemo(
     () => (slugEdited ? slug : slugify(title)),
@@ -45,6 +62,7 @@ export function CreateChannelModal({ open, onClose, onCreated }) {
     setIsPublic(true);
     setSlug("");
     setSlugEdited(false);
+    setLinkedProjectId(null);
     setError(null);
   }
 
@@ -57,12 +75,14 @@ export function CreateChannelModal({ open, onClose, onCreated }) {
         description: description.trim() || undefined,
         isPublic,
         slug: effectiveSlug || undefined,
+        linkedModule: linkedProjectId ? "atlas.projects" : undefined,
+        linkedEntityId: linkedProjectId ?? undefined,
       });
       onCreated?.(result?.data ?? result);
       onClose?.();
       reset();
     } catch (err) {
-      setError(err?.message ?? "Error creando canal.");
+      setError(err?.status === 409 ? "Ese proyecto ya tiene un canal vinculado." : (err?.message ?? "Error creando canal."));
     }
   }
 
@@ -113,6 +133,17 @@ export function CreateChannelModal({ open, onClose, onCreated }) {
               </p>
             </div>
             <Switch checked={isPublic} onCheckedChange={setIsPublic} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Proyecto vinculado (opcional)</Label>
+            <ComboboxField
+              options={projectsQuery.data ?? []}
+              value={linkedProjectId}
+              onChange={setLinkedProjectId}
+              placeholder="Buscar proyecto..."
+              emptyText={projectsQuery.isLoading ? "Cargando..." : "Sin resultados"}
+            />
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
