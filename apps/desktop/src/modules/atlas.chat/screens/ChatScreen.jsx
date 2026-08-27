@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import "../chat-theme.css";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ChatWindow } from "../components/ChatWindow";
 import { useChatConversations, useArchivedConversations } from "../hooks/useChatConversations";
@@ -67,7 +68,7 @@ export function ChatScreen() {
   }
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="chat-glass-theme flex h-full overflow-hidden">
       {/* Conversation list — full width on mobile, fixed 288px on desktop */}
       <div
         className={[

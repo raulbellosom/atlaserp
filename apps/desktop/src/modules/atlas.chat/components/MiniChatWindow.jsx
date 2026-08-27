@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import "../chat-theme.css";
 import {
   X, Minus, ChevronUp,
   ExternalLink, FolderOpen, MoreVertical, User,
@@ -144,7 +145,7 @@ export function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMin
           height: minimized ? WH_MIN : WH,
           transition: "height 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
-        className="rounded-xl shadow-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] flex flex-col overflow-hidden relative"
+        className="chat-glass-theme rounded-xl shadow-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] flex flex-col overflow-hidden relative"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
