@@ -721,15 +721,23 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         )}
       </div>
 
-      {!filesView && !membersView && (
-        <MessageComposer
-          ref={composerRef}
-          onSend={handleSend}
-          onTyping={sendTyping}
-          placeholder="Escribe un mensaje..."
-          conversationId={conversationId}
-          conversationType={conversation?.type}
-        />
+      {/* Below xl: the profile sidebar fully replaces the message view (no
+          room for both), so hide the composer too while it's open — nothing
+          to type into. At xl and up the message view stays visible next to
+          the sidebar (see the row above), so the composer stays too — you
+          can keep chatting while looking at the profile, same as the
+          message list itself never disappears there. */}
+      {!filesView && (
+        <div className={membersView ? "hidden xl:block" : ""}>
+          <MessageComposer
+            ref={composerRef}
+            onSend={handleSend}
+            onTyping={sendTyping}
+            placeholder="Escribe un mensaje..."
+            conversationId={conversationId}
+            conversationType={conversation?.type}
+          />
+        </div>
       )}
 
       <ChatAttachmentViewer
