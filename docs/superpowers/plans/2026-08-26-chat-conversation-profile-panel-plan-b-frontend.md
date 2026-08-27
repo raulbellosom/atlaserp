@@ -826,7 +826,7 @@ import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatP
 // was the other half of the user's complaint: the only way back used to be
 // remembering that the same header icon that opened the panel also closes
 // it, which wasn't discoverable.
-export function ConversationProfilePanel({ conversation, currentUserId, initialTab, onBack }) {
+export function ConversationProfilePanel({ conversation, currentUserId, initialTab, onBack, messages, isLoadingMessages }) {
   const conversationId = conversation?.id;
   const type = conversation?.type;
   const { data: convData } = useChatConversationDetail(conversationId);
@@ -868,7 +868,7 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
           />
         </TabsContent>
         <TabsContent value="media" className="flex-1 min-h-0 overflow-y-auto">
-          <ConversationMediaTab conversationId={conversationId} />
+          <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} />
         </TabsContent>
         <TabsContent value="common" className="flex-1 min-h-0 overflow-y-auto">
           <GroupsInCommonTab otherUserId={otherMember?.userId} />
@@ -906,7 +906,7 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
         </TabsContent>
       )}
       <TabsContent value="media" className="flex-1 min-h-0 overflow-y-auto">
-        <ConversationMediaTab conversationId={conversationId} />
+        <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} />
       </TabsContent>
       <TabsContent value="notifications" className="flex-1 min-h-0 overflow-y-auto">
         <NotificationsTab conversationId={conversationId} isMuted={isMuted} />
@@ -1001,10 +1001,14 @@ with:
           currentUserId={userProfile?.id}
           initialTab={profileInitialTab}
           onBack={closeProfile}
+          messages={messages}
+          isLoadingMessages={isLoading}
         />
       ) : (
 ```
 The `key` forces a remount whenever `profileInitialTab` changes — e.g. clicking "Ver miembros" while already viewing the Info tab needs the panel to re-mount with `defaultValue="members"`, since `Tabs`' uncontrolled `defaultValue` only reads its initial value once per mount.
+
+**Important — fixed after a Task 5 code review caught a real bug:** `ConversationProfilePanel`'s Media tab (`ConversationMediaTab`) takes `messages`/`isLoading` as props rather than calling `useChatMessages(conversationId)` itself, specifically to avoid opening a SECOND Supabase Realtime subscription for the same conversation. `ChatWindow.jsx` already calls `useChatMessages(conversationId)` once (its own `messages`/`isLoading` variables, already in scope from existing code) — `messages={messages} isLoadingMessages={isLoading}` above passes that same already-fetched data through, no second fetch or second realtime channel. Do NOT have `ConversationProfilePanel` or `ConversationMediaTab` call `useChatMessages` on their own — `subscribeToMessages` defensively tears down any existing channel with the same topic (`chat:messages:${conversationId}`) before subscribing, so a second independent hook instance for the same conversation would silently kill the main message list's live updates the moment the Media tab is opened.
 
 - [ ] **Step 4: Widen the header's profile-toggle button to all conversation types, and route it through `openProfile`/`closeProfile`**
 
@@ -1196,6 +1200,8 @@ Change the `!minimized` block to branch on `profileView` first:
             currentUserId={userProfile?.id}
             initialTab={null}
             onBack={() => setProfileView(false)}
+            messages={data?.data ?? []}
+            isLoadingMessages={isLoading}
           />
         )}
         {!minimized && !profileView && (
@@ -1203,7 +1209,7 @@ Change the `!minimized` block to branch on `profileView` first:
             <ChatMessageList
 ```
 
-`onBack` is required by `ConversationProfilePanel` (Task 8) — this is what makes the panel's new back-arrow header row work inside the floating mini-window, exactly as it does in `ChatWindow`.
+`onBack` is required by `ConversationProfilePanel` (Task 8) — this is what makes the panel's new back-arrow header row work inside the floating mini-window, exactly as it does in `ChatWindow`. `messages`/`isLoadingMessages` reuse `MiniChatWindow`'s own existing `data`/`isLoading` from its already-in-scope `useChatMessages(id)` call (same rationale as Task 9 — never call `useChatMessages` a second time for the same conversation, it would collide with the realtime subscription this component's own call already holds).
 
 ...and find the end of that block (the `</>` right before `)}` that closes the original `{!minimized && ( <> ... </> )}`) — leave it as `</>` )} (now closing the `!profileView` branch instead of the original single branch).
 
