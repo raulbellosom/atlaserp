@@ -121,7 +121,7 @@ function ChatHeader({
   if (searchMode) {
     const hasMatches = searchMatchCount > 0;
     return (
-      <div className="flex items-center gap-1.5 border-b border-[hsl(var(--border))] px-3 py-2.5 shrink-0">
+      <div className="chat-glass flex items-center gap-1.5 rounded-full mx-2 mt-2 px-3 py-2.5 shrink-0">
         <button type="button" onClick={onSearchToggle} className={headerBtnCls} title="Cerrar busqueda">
           <XIcon className="h-4 w-4" />
         </button>
@@ -163,7 +163,7 @@ function ChatHeader({
   // ── Normal mode ─────────────────────────────────────────────────────────────
   return (
     <>
-      <div className="flex items-center gap-3 border-b border-[hsl(var(--border))] px-3 sm:px-4 py-3 shrink-0">
+      <div className="chat-glass flex items-center gap-3 px-3 sm:px-4 py-3 shrink-0">
         {onClose && (
           <button
             type="button"
@@ -179,7 +179,10 @@ function ChatHeader({
             <img
               src={avatarUrl}
               alt={displayName}
-              className="h-9 w-9 rounded-full object-cover"
+              className={[
+                "h-9 w-9 rounded-full object-cover ring-2 ring-offset-2 ring-offset-[hsl(var(--surface-2))]",
+                conversation?.type === "direct" && directOnline ? "ring-green-500/60" : "ring-[hsl(var(--border))]",
+              ].join(" ")}
               onError={() => setAvatarErr(true)}
             />
           ) : avatarEmoji ? (
@@ -201,7 +204,7 @@ function ChatHeader({
         </button>
         <div className="flex-1 min-w-0">
           <button type="button" onClick={() => onOpenProfile(null)} className="block max-w-full text-left" title="Ver perfil">
-            <p className="text-sm font-semibold truncate">{titleLabel}</p>
+            <p className="chat-font-display text-sm font-semibold truncate">{titleLabel}</p>
           </button>
           {conversation?.type === "direct" ? (
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
