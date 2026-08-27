@@ -1,10 +1,13 @@
-import { useMemo } from "react";
-import { EmptyState, Skeleton } from "@atlas/ui";
+import { useMemo, useState } from "react";
+import { EmptyState, Skeleton, ImageViewer } from "@atlas/ui";
 import {
   FileText, FileType2, FileSpreadsheet, FileVideo, FileAudio,
-  FileArchive, FileCode, File as FileIconBase, FileImage,
+  FileArchive, FileCode, File as FileIconBase, FileImage, Loader2,
 } from "lucide-react";
 import { isImageMime, formatFileSize, formatMessageTime } from "../lib/chatUtils";
+import { useFileRefSignedUrl } from "./FileReferenceAttachment";
+import { useAuth } from "../../../auth/AuthProvider";
+import { atlas } from "../../../lib/atlas";
 
 // Stable fallback so a caller passing selectionMode without selectedIds gets
 // a real (empty) Set instead of undefined — keeps selectedIds?.has(...) below
@@ -25,6 +28,30 @@ export function FileTypeIcon({ mimeType }) {
   if (m.startsWith("text/") || m.includes("json") || m.includes("xml"))
     return <FileCode className="h-5 w-5 text-cyan-400" />;
   return <FileIconBase className="h-5 w-5 text-[hsl(var(--muted-foreground))]" />;
+}
+
+function MediaImageThumb({ att }) {
+  const { data: lazyUrl, isLoading } = useFileRefSignedUrl(att.id, "card", att.isEntityRef);
+  const url = att.isEntityRef ? lazyUrl : att.url;
+
+  if (att.isEntityRef && isLoading) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin opacity-40" />
+      </div>
+    );
+  }
+  if (url) return <img src={url} alt={att.fileName ?? ""} className="w-full h-full object-cover" />;
+  return (
+    <div className="w-full h-full flex items-center justify-center">
+      <FileImage className="h-6 w-6 text-[hsl(var(--muted-foreground))]" />
+    </div>
+  );
+}
+
+function ChatFilesGalleryImageViewer({ recordId, title, open, onClose }) {
+  const { data: fullUrl } = useFileRefSignedUrl(recordId, "full", open);
+  return <ImageViewer src={fullUrl} alt={title} fileName={title} open={open} onClose={onClose} />;
 }
 
 function MediaSelectionCircle({ isSelected }) {
@@ -57,13 +84,28 @@ export function ChatFilesGallery({
   // column instead, so it must NOT own a second one.
   scrollable = true,
 }) {
+  const { session } = useAuth();
+  const token = session?.access_token;
+  const [entityRefViewer, setEntityRefViewer] = useState({ open: false, recordId: null, title: null });
   const scrollableClass = scrollable ? "flex-1 min-h-0 overflow-y-auto" : "";
   const allAttachments = useMemo(() => {
     if (!messages?.length) return [];
     const result = [];
     for (const msg of [...messages].reverse()) {
       for (const att of (msg.attachments ?? [])) {
-        result.push({ ...att, createdAt: msg.created_at, msgAttachments: msg.attachments });
+        result.push({ ...att, createdAt: msg.created_at, msgAttachments: msg.attachments, isEntityRef: false });
+      }
+      for (const ref of (msg.metadata?.entityRefs ?? [])) {
+        if (ref.entityType !== "file" || !ref.mimeType) continue;
+        result.push({
+          id: ref.recordId,
+          mimeType: ref.mimeType,
+          fileName: ref.title,
+          sizeBytes: ref.sizeBytes,
+          createdAt: msg.created_at,
+          url: null,
+          isEntityRef: true,
+        });
       }
     }
     return result;
@@ -93,6 +135,7 @@ export function ChatFilesGallery({
   }
 
   return (
+    <>
     <div className={[scrollableClass, "p-3 space-y-4"].join(" ")}>
       {images.length > 0 && (
         <div>
@@ -133,18 +176,16 @@ export function ChatFilesGallery({
                     onToggleSelect(att.id);
                     return;
                   }
+                  if (att.isEntityRef) {
+                    setEntityRefViewer({ open: true, recordId: att.id, title: att.fileName });
+                    return;
+                  }
                   const idx = att.msgAttachments.findIndex((a) => a.id === att.id);
                   onAttachmentClick(att.msgAttachments, idx >= 0 ? idx : 0);
                 }}
                 className="relative aspect-square bg-[hsl(var(--muted))] rounded-lg overflow-hidden hover:opacity-80 transition-opacity"
               >
-                {att.url ? (
-                  <img src={att.url} alt={att.fileName ?? ""} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <FileImage className="h-6 w-6 text-[hsl(var(--muted-foreground))]" />
-                  </div>
-                )}
+                <MediaImageThumb att={att} />
                 {selectionMode && <MediaSelectionCircle isSelected={selectedIds.has(att.id)} />}
               </button>
             ))}
@@ -162,7 +203,19 @@ export function ChatFilesGallery({
               <button
                 key={att.id}
                 type="button"
-                onClick={() => {
+                onClick={async () => {
+                  if (att.isEntityRef) {
+                    const res = await atlas.files.getSignedUrl(att.id, token, { variant: "full" });
+                    const url = res?.data?.signedUrl;
+                    if (!url) return;
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = att.fileName ?? "archivo";
+                    a.target = "_blank";
+                    a.rel = "noopener noreferrer";
+                    a.click();
+                    return;
+                  }
                   const idx = att.msgAttachments.findIndex((a) => a.id === att.id);
                   onAttachmentClick(att.msgAttachments, idx >= 0 ? idx : 0);
                 }}
@@ -184,5 +237,12 @@ export function ChatFilesGallery({
         </div>
       )}
     </div>
+    <ChatFilesGalleryImageViewer
+      recordId={entityRefViewer.recordId}
+      title={entityRefViewer.title}
+      open={entityRefViewer.open}
+      onClose={() => setEntityRefViewer((v) => ({ ...v, open: false }))}
+    />
+    </>
   );
 }
