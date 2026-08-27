@@ -1,7 +1,7 @@
 // apps/desktop/src/modules/atlas.chat/components/ConversationProfilePanel.jsx
 import { useState } from "react";
 import { ArrowLeft, Info, FolderOpen, Users, Bell, Settings, Shield } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@atlas/ui";
+import { Tabs, TabsList, TabsTrigger, TabsContent, ImageViewer } from "@atlas/ui";
 import { ChannelGeneralTab } from "./ChannelGeneralTab";
 import { ChannelMembersTab } from "./ChannelMembersTab";
 import { ChannelRolesTab } from "./ChannelRolesTab";
@@ -67,6 +67,7 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
     statusLine = `${memberCount} ${memberCount === 1 ? "miembro" : "miembros"}`;
   }
   const [avatarErr, setAvatarErr] = useState(false);
+  const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
 
   const backHeader = (
     <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-[hsl(var(--border))] shrink-0">
@@ -84,22 +85,31 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
 
   const hero = (
     <div className="flex flex-col items-center gap-2 px-4 py-5 text-center">
-      <div className="h-20 w-20 rounded-full overflow-hidden bg-[hsl(var(--muted))] flex items-center justify-center">
-        {heroAvatarUrl && !avatarErr ? (
+      {heroAvatarUrl && !avatarErr ? (
+        <button
+          type="button"
+          onClick={() => setAvatarViewerOpen(true)}
+          title="Ver foto de perfil"
+          className="h-20 w-20 rounded-full overflow-hidden bg-[hsl(var(--muted))] flex items-center justify-center hover:opacity-90 transition-opacity"
+        >
           <img
             src={heroAvatarUrl}
             alt={displayName}
             className="h-full w-full object-cover"
             onError={() => setAvatarErr(true)}
           />
-        ) : heroAvatarEmoji ? (
-          <span className="text-4xl">{heroAvatarEmoji}</span>
-        ) : (
-          <span className="text-2xl font-semibold text-[hsl(var(--muted-foreground))]">
-            {(displayName ?? "?")[0]?.toUpperCase()}
-          </span>
-        )}
-      </div>
+        </button>
+      ) : (
+        <div className="h-20 w-20 rounded-full overflow-hidden bg-[hsl(var(--muted))] flex items-center justify-center">
+          {heroAvatarEmoji ? (
+            <span className="text-4xl">{heroAvatarEmoji}</span>
+          ) : (
+            <span className="text-2xl font-semibold text-[hsl(var(--muted-foreground))]">
+              {(displayName ?? "?")[0]?.toUpperCase()}
+            </span>
+          )}
+        </div>
+      )}
       <p className="chat-font-display text-lg font-bold">{displayName}</p>
       <p className="text-xs text-[hsl(var(--muted-foreground))]">{statusLine}</p>
     </div>
@@ -107,32 +117,40 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
 
   if (type === "direct") {
     return (
-      <Tabs defaultValue={initialTab ?? "info"} className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        {backHeader}
-        {hero}
-        <TabsList className="chat-glass mx-3 mt-1 mb-2 rounded-full p-1 overflow-x-auto">
-          <TabsTrigger value="info" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Info className="h-3.5 w-3.5 mr-1.5" />Info</TabsTrigger>
-          <TabsTrigger value="media" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><FolderOpen className="h-3.5 w-3.5 mr-1.5" />Media</TabsTrigger>
-          <TabsTrigger value="common" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Users className="h-3.5 w-3.5 mr-1.5" />En comun</TabsTrigger>
-          <TabsTrigger value="notifications" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Bell className="h-3.5 w-3.5 mr-1.5" />Notificaciones</TabsTrigger>
-        </TabsList>
-        <TabsContent value="info" className="flex-1 min-h-0 overflow-y-auto">
-          <ConversationInfoTab
-            conversationId={conversationId}
-            otherUserId={otherMemberForHero?.userId}
-            otherDisplayName={otherMemberForHero?.displayName}
-          />
-        </TabsContent>
-        <TabsContent value="media" className="flex-1 min-h-0 overflow-y-auto">
-          <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} />
-        </TabsContent>
-        <TabsContent value="common" className="flex-1 min-h-0 overflow-y-auto">
-          <GroupsInCommonTab otherUserId={otherMemberForHero?.userId} />
-        </TabsContent>
-        <TabsContent value="notifications" className="flex-1 min-h-0 overflow-y-auto">
-          <NotificationsTab conversationId={conversationId} isMuted={isMuted} />
-        </TabsContent>
-      </Tabs>
+      <>
+        <Tabs defaultValue={initialTab ?? "info"} className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          {backHeader}
+          {hero}
+          <TabsList className="chat-glass mx-3 mt-1 mb-2 rounded-full p-1 overflow-x-auto">
+            <TabsTrigger value="info" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Info className="h-3.5 w-3.5 mr-1.5" />Info</TabsTrigger>
+            <TabsTrigger value="media" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><FolderOpen className="h-3.5 w-3.5 mr-1.5" />Media</TabsTrigger>
+            <TabsTrigger value="common" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Users className="h-3.5 w-3.5 mr-1.5" />En comun</TabsTrigger>
+            <TabsTrigger value="notifications" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Bell className="h-3.5 w-3.5 mr-1.5" />Notificaciones</TabsTrigger>
+          </TabsList>
+          <TabsContent value="info" className="flex-1 min-h-0 overflow-y-auto">
+            <ConversationInfoTab
+              conversationId={conversationId}
+              otherUserId={otherMemberForHero?.userId}
+              otherDisplayName={otherMemberForHero?.displayName}
+            />
+          </TabsContent>
+          <TabsContent value="media" className="flex-1 min-h-0 overflow-y-auto">
+            <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} />
+          </TabsContent>
+          <TabsContent value="common" className="flex-1 min-h-0 overflow-y-auto">
+            <GroupsInCommonTab otherUserId={otherMemberForHero?.userId} />
+          </TabsContent>
+          <TabsContent value="notifications" className="flex-1 min-h-0 overflow-y-auto">
+            <NotificationsTab conversationId={conversationId} isMuted={isMuted} />
+          </TabsContent>
+        </Tabs>
+        <ImageViewer
+          src={heroAvatarUrl}
+          alt={displayName}
+          open={avatarViewerOpen}
+          onClose={() => setAvatarViewerOpen(false)}
+        />
+      </>
     );
   }
 
@@ -141,33 +159,41 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
   const canManageRoles = roleHasPermission(ownMember, CHAT_PERMISSIONS.ROLES_MANAGE);
 
   return (
-    <Tabs defaultValue={initialTab ?? "general"} className="flex-1 min-h-0 flex flex-col overflow-hidden">
-      {backHeader}
-      {hero}
-      <TabsList className="chat-glass mx-3 mt-1 mb-2 rounded-full p-1 overflow-x-auto">
-        <TabsTrigger value="general" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Settings className="h-3.5 w-3.5 mr-1.5" />General</TabsTrigger>
-        <TabsTrigger value="members" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Users className="h-3.5 w-3.5 mr-1.5" />Miembros</TabsTrigger>
-        {canManageRoles && <TabsTrigger value="roles" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Shield className="h-3.5 w-3.5 mr-1.5" />Roles</TabsTrigger>}
-        <TabsTrigger value="media" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><FolderOpen className="h-3.5 w-3.5 mr-1.5" />Media</TabsTrigger>
-        <TabsTrigger value="notifications" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Bell className="h-3.5 w-3.5 mr-1.5" />Notificaciones</TabsTrigger>
-      </TabsList>
-      <TabsContent value="general" className="flex-1 min-h-0 overflow-y-auto">
-        <ChannelGeneralTab conversationId={conversationId} currentUserId={currentUserId} />
-      </TabsContent>
-      <TabsContent value="members" className="flex-1 min-h-0 overflow-y-auto">
-        <ChannelMembersTab conversationId={conversationId} currentUserId={currentUserId} />
-      </TabsContent>
-      {canManageRoles && (
-        <TabsContent value="roles" className="flex-1 min-h-0 overflow-y-auto">
-          <ChannelRolesTab conversationId={conversationId} currentUserId={currentUserId} />
+    <>
+      <Tabs defaultValue={initialTab ?? "general"} className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        {backHeader}
+        {hero}
+        <TabsList className="chat-glass mx-3 mt-1 mb-2 rounded-full p-1 overflow-x-auto">
+          <TabsTrigger value="general" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Settings className="h-3.5 w-3.5 mr-1.5" />General</TabsTrigger>
+          <TabsTrigger value="members" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Users className="h-3.5 w-3.5 mr-1.5" />Miembros</TabsTrigger>
+          {canManageRoles && <TabsTrigger value="roles" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Shield className="h-3.5 w-3.5 mr-1.5" />Roles</TabsTrigger>}
+          <TabsTrigger value="media" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><FolderOpen className="h-3.5 w-3.5 mr-1.5" />Media</TabsTrigger>
+          <TabsTrigger value="notifications" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Bell className="h-3.5 w-3.5 mr-1.5" />Notificaciones</TabsTrigger>
+        </TabsList>
+        <TabsContent value="general" className="flex-1 min-h-0 overflow-y-auto">
+          <ChannelGeneralTab conversationId={conversationId} currentUserId={currentUserId} />
         </TabsContent>
-      )}
-      <TabsContent value="media" className="flex-1 min-h-0 overflow-y-auto">
-        <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} />
-      </TabsContent>
-      <TabsContent value="notifications" className="flex-1 min-h-0 overflow-y-auto">
-        <NotificationsTab conversationId={conversationId} isMuted={isMuted} />
-      </TabsContent>
-    </Tabs>
+        <TabsContent value="members" className="flex-1 min-h-0 overflow-y-auto">
+          <ChannelMembersTab conversationId={conversationId} currentUserId={currentUserId} />
+        </TabsContent>
+        {canManageRoles && (
+          <TabsContent value="roles" className="flex-1 min-h-0 overflow-y-auto">
+            <ChannelRolesTab conversationId={conversationId} currentUserId={currentUserId} />
+          </TabsContent>
+        )}
+        <TabsContent value="media" className="flex-1 min-h-0 overflow-y-auto">
+          <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} />
+        </TabsContent>
+        <TabsContent value="notifications" className="flex-1 min-h-0 overflow-y-auto">
+          <NotificationsTab conversationId={conversationId} isMuted={isMuted} />
+        </TabsContent>
+      </Tabs>
+      <ImageViewer
+        src={heroAvatarUrl}
+        alt={displayName}
+        open={avatarViewerOpen}
+        onClose={() => setAvatarViewerOpen(false)}
+      />
+    </>
   );
 }
