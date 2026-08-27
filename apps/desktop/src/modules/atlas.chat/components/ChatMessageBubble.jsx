@@ -925,9 +925,14 @@ export function ChatMessageBubble({
             )}
 
             {!isDeleted && message.metadata?.entityRefs?.length > 0 && (
-              <div className="flex flex-col gap-1 mt-1">
+              <div className={["flex flex-col gap-1", hasText ? "mt-0" : "mt-1"].join(" ")}>
                 {message.metadata.entityRefs.map((ref, i) => (
-                  <EntityReferenceCard key={`${ref.entityType}:${ref.recordId}:${i}`} reference={ref} />
+                  <EntityReferenceCard
+                    key={`${ref.entityType}:${ref.recordId}:${i}`}
+                    reference={ref}
+                    attached={hasText}
+                    isOwn={true}
+                  />
                 ))}
               </div>
             )}
@@ -1046,9 +1051,14 @@ export function ChatMessageBubble({
           )}
 
           {!isDeleted && message.metadata?.entityRefs?.length > 0 && (
-            <div className="flex flex-col gap-1 mt-1">
+            <div className={["flex flex-col gap-1", hasText ? "mt-0" : "mt-1"].join(" ")}>
               {message.metadata.entityRefs.map((ref, i) => (
-                <EntityReferenceCard key={`${ref.entityType}:${ref.recordId}:${i}`} reference={ref} />
+                <EntityReferenceCard
+                  key={`${ref.entityType}:${ref.recordId}:${i}`}
+                  reference={ref}
+                  attached={hasText}
+                  isOwn={false}
+                />
               ))}
             </div>
           )}
