@@ -24,7 +24,7 @@ export default function ChatReportsScreen() {
   const [statusFilter, setStatusFilter] = useState("open");
   const [resolveTarget, setResolveTarget] = useState(null); // { report, action }
 
-  const { data, isLoading, isError } = useChatReports(statusFilter === "all" ? undefined : statusFilter);
+  const { data, isLoading, isError, refetch } = useChatReports(statusFilter === "all" ? undefined : statusFilter);
   const { mutate: resolveMutate, isPending: resolving } = useResolveReport();
   const reports = data?.data ?? [];
 
@@ -69,11 +69,15 @@ export default function ChatReportsScreen() {
     resolveMutate(
       { reportId: resolveTarget.report.id, action: resolveTarget.action },
       {
-        onSuccess: () => toast.success(resolveTarget.action === "dismiss" ? "Reporte desestimado." : "Usuario deshabilitado."),
-        onError: () => toast.error("No se pudo resolver el reporte."),
+        onSuccess: () => {
+          toast.success(resolveTarget.action === "dismiss" ? "Reporte desestimado." : "Usuario deshabilitado.");
+          setResolveTarget(null);
+        },
+        onError: (error) => {
+          toast.error(error?.message || "No se pudo resolver el reporte.");
+        },
       },
     );
-    setResolveTarget(null);
   }
 
   return (
@@ -100,18 +104,16 @@ export default function ChatReportsScreen() {
             />
           </div>
 
-          {isError ? (
-            <ErrorState description="No se pudieron cargar los reportes." />
-          ) : (
-            <DataTable
-              columns={columns}
-              data={reports}
-              isLoading={isLoading}
-              emptyTitle="Sin reportes"
-              emptyDescription="No hay reportes de chat con este filtro."
-              emptyIcon={Flag}
-            />
-          )}
+          <DataTable
+            columns={columns}
+            data={reports}
+            isLoading={isLoading}
+            isError={isError}
+            onRetry={() => refetch()}
+            emptyTitle="Sin reportes"
+            emptyDescription="No hay reportes de chat con este filtro."
+            emptyIcon={Flag}
+          />
         </>
       ) : (
         <ErrorState description="No tienes permisos para consultar reportes de chat." />
