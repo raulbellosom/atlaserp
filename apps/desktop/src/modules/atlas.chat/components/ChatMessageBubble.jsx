@@ -902,6 +902,7 @@ export function ChatMessageBubble({
             {!isDeleted && (
               <MessageReactions
                 reactions={message.reactions}
+                members={members}
                 currentUserId={currentUserId}
                 onToggle={(emoji) => onToggleReaction?.(message.id, emoji)}
               />
@@ -1022,6 +1023,7 @@ export function ChatMessageBubble({
           {!isDeleted && (
             <MessageReactions
               reactions={message.reactions}
+              members={members}
               currentUserId={currentUserId}
               onToggle={(emoji) => onToggleReaction?.(message.id, emoji)}
             />
