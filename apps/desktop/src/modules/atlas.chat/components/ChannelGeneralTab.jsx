@@ -1,6 +1,6 @@
 // apps/desktop/src/modules/atlas.chat/components/ChannelGeneralTab.jsx
 import { useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Popover, PopoverTrigger, PopoverContent, ImageViewer } from "@atlas/ui";
 import { Image as ImageIcon, Smile, X } from "lucide-react";
 import { toast } from "sonner";
@@ -62,6 +62,16 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
   }
 
   const hasAvatar = Boolean(conversation?.avatarUrl || conversation?.avatar_emoji);
+
+  const { data: fullAvatarUrl } = useQuery({
+    queryKey: ["chat-avatar-full-url", conversation?.avatar_file_id],
+    queryFn: async () => {
+      const res = await atlas.files.getSignedUrl(conversation.avatar_file_id, token, { variant: "full" });
+      return res?.data?.signedUrl ?? null;
+    },
+    enabled: Boolean(avatarViewerOpen && conversation?.avatar_file_id && token),
+    staleTime: 50 * 60 * 1000,
+  });
 
   return (
     <div className="p-4 space-y-4">
@@ -152,7 +162,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
         </p>
       )}
       <ImageViewer
-        src={conversation?.avatarUrl}
+        src={fullAvatarUrl ?? conversation?.avatarUrl}
         alt={conversation?.title ?? "Canal"}
         open={avatarViewerOpen}
         onClose={() => setAvatarViewerOpen(false)}

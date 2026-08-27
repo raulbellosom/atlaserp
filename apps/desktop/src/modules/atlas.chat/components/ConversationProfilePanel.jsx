@@ -1,5 +1,6 @@
 // apps/desktop/src/modules/atlas.chat/components/ConversationProfilePanel.jsx
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Info, FolderOpen, Users, Bell, Settings, Shield } from "lucide-react";
 import { ImageViewer } from "@atlas/ui";
 import { ChannelGeneralTab } from "./ChannelGeneralTab";
@@ -13,6 +14,8 @@ import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 import { getConversationDisplayName } from "../lib/chatUtils";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
+import { atlas } from "../../../lib/atlas";
+import { useAuth } from "../../../auth/AuthProvider";
 
 function SectionHeader({ icon: Icon, label }) {
   return (
@@ -63,6 +66,7 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
     ? (detail?.members ?? conversation?.members ?? []).find((m) => m.userId !== currentUserId)
     : null;
   const heroAvatarUrl = conversation?.avatarUrl ?? otherMemberForHero?.avatarUrl ?? null;
+  const heroAvatarFileId = conversation?.avatar_file_id ?? otherMemberForHero?.avatarFileId ?? null;
   const heroAvatarEmoji = conversation?.avatar_emoji ?? null;
   const memberCount = (detail?.members ?? conversation?.members ?? []).length;
   let statusLine;
@@ -79,6 +83,17 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
   }
   const [avatarErr, setAvatarErr] = useState(false);
   const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
+
+  const { session } = useAuth();
+  const { data: fullAvatarUrl } = useQuery({
+    queryKey: ["chat-avatar-full-url", heroAvatarFileId],
+    queryFn: async () => {
+      const res = await atlas.files.getSignedUrl(heroAvatarFileId, session?.access_token, { variant: "full" });
+      return res?.data?.signedUrl ?? null;
+    },
+    enabled: Boolean(avatarViewerOpen && heroAvatarFileId && session?.access_token),
+    staleTime: 50 * 60 * 1000,
+  });
 
   const scrollRef = useRef(null);
 
@@ -137,7 +152,7 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
 
   const avatarViewer = (
     <ImageViewer
-      src={heroAvatarUrl}
+      src={fullAvatarUrl ?? heroAvatarUrl}
       alt={displayName}
       open={avatarViewerOpen}
       onClose={() => setAvatarViewerOpen(false)}
