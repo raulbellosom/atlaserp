@@ -5,11 +5,11 @@
 // group gets a "Quitar" button that calls `onRemoveOwn(emoji)`, which the
 // caller wires to the same toggle-reaction mutation that already exists
 // (toggling an existing reaction removes it — no new backend call).
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@atlas/ui";
 import { X } from "lucide-react";
 
-function ReactorRow({ userId, member, isOwn, onRemove }) {
+function ReactorRow({ member, isOwn, onRemove }) {
   const [avatarErr, setAvatarErr] = useState(false);
   const displayName = member?.displayName ?? "Usuario";
 
@@ -43,7 +43,18 @@ function ReactorRow({ userId, member, isOwn, onRemove }) {
 }
 
 export function MessageReactionsModal({ open, onOpenChange, reactions, members, currentUserId, onRemoveOwn }) {
-  if (!reactions?.length) return null;
+  const isEmpty = !reactions?.length;
+
+  // Removing the last remaining reaction while this modal is open drops
+  // `reactions` to []. Rather than yanking the Dialog out from under the
+  // caller with a hard unmount (which never tells the parent's `open` state
+  // to reset), tell the parent explicitly via onOpenChange so it stays in
+  // sync if the same message's reactions are reopened later.
+  useEffect(() => {
+    if (open && isEmpty) onOpenChange(false);
+  }, [open, isEmpty, onOpenChange]);
+
+  if (isEmpty) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -60,7 +71,6 @@ export function MessageReactionsModal({ open, onOpenChange, reactions, members, 
               {(userIds ?? []).map((userId) => (
                 <ReactorRow
                   key={userId}
-                  userId={userId}
                   member={members?.find((m) => m.userId === userId)}
                   isOwn={userId === currentUserId}
                   onRemove={() => onRemoveOwn(emoji)}
