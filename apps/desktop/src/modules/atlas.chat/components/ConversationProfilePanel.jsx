@@ -1,7 +1,7 @@
 // apps/desktop/src/modules/atlas.chat/components/ConversationProfilePanel.jsx
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Info, FolderOpen, Users, Bell, Settings, Shield } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger, TabsContent, ImageViewer } from "@atlas/ui";
+import { ImageViewer } from "@atlas/ui";
 import { ChannelGeneralTab } from "./ChannelGeneralTab";
 import { ChannelMembersTab } from "./ChannelMembersTab";
 import { ChannelRolesTab } from "./ChannelRolesTab";
@@ -14,23 +14,34 @@ import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatP
 import { getConversationDisplayName } from "../lib/chatUtils";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 
+function SectionHeader({ icon: Icon, label }) {
+  return (
+    <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+      <Icon className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+        {label}
+      </p>
+    </div>
+  );
+}
+
 // Replaces ChatMembersPanel — same swap-into-content-slot contract (root
 // carries flex-1/min-h-0/flex-col/overflow-hidden so it fills ChatWindow's
 // or MiniChatWindow's content area identically to the message list it
 // replaces), but now handles every conversation type, not just group/
-// channel. Tab set is type-dependent per spec Section 8.
+// channel. Renders a single flat scrollable column of stacked sections
+// (no tabs) — section set is type-dependent per spec Section 8.
 //
-// `initialTab` lets a caller open straight to a specific tab (e.g. the
-// "Ver miembros" dropdown item and MemberAvatarStack both want "members",
-// not whatever the default tab is) — the CALLER must remount this component
-// when initialTab changes (e.g. `<ConversationProfilePanel key={initialTab} .../>`),
-// since a plain uncontrolled `Tabs defaultValue` only reads its initial value
-// once and won't react to a prop change after mount otherwise.
+// `initialTab` lets a caller open straight to a specific section (e.g. the
+// "Ver miembros" dropdown item and MemberAvatarStack both want "members")
+// by scrolling it into view on mount — the CALLER must remount this
+// component when initialTab changes (e.g. `<ConversationProfilePanel key={initialTab} .../>`),
+// since the scroll-into-view effect only runs once per mount.
 //
-// `onBack` renders an explicit "back to messages" row above the tabs — this
-// was the other half of the user's complaint: the only way back used to be
-// remembering that the same header icon that opened the panel also closes
-// it, which wasn't discoverable.
+// `onBack` renders an explicit "back to messages" row above the sections —
+// this was the other half of the user's complaint: the only way back used
+// to be remembering that the same header icon that opened the panel also
+// closes it, which wasn't discoverable.
 //
 // `messages`/`isLoadingMessages` come from the caller's own already-mounted
 // useChatMessages(conversationId) call — never call that hook a second time
@@ -68,6 +79,14 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
   }
   const [avatarErr, setAvatarErr] = useState(false);
   const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
+
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (!initialTab || !scrollRef.current) return;
+    const target = scrollRef.current.querySelector(`[data-section="${initialTab}"]`);
+    target?.scrollIntoView({ block: "start" });
+  }, [initialTab]);
 
   const backHeader = (
     <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-[hsl(var(--border))] shrink-0">
@@ -128,32 +147,30 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
   if (type === "direct") {
     return (
       <>
-        <Tabs defaultValue={initialTab ?? "info"} className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          {backHeader}
-          {hero}
-          <TabsList className="chat-glass mx-3 mt-1 mb-2 rounded-full p-1 overflow-x-auto">
-            <TabsTrigger value="info" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Info className="h-3.5 w-3.5 mr-1.5" />Info</TabsTrigger>
-            <TabsTrigger value="media" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><FolderOpen className="h-3.5 w-3.5 mr-1.5" />Media</TabsTrigger>
-            <TabsTrigger value="common" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Users className="h-3.5 w-3.5 mr-1.5" />En comun</TabsTrigger>
-            <TabsTrigger value="notifications" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Bell className="h-3.5 w-3.5 mr-1.5" />Notificaciones</TabsTrigger>
-          </TabsList>
-          <TabsContent value="info" className="flex-1 min-h-0 overflow-y-auto">
+        {backHeader}
+        {hero}
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
+          <div data-section="info">
+            <SectionHeader icon={Info} label="Info" />
             <ConversationInfoTab
               conversationId={conversationId}
               otherUserId={otherMemberForHero?.userId}
               otherDisplayName={otherMemberForHero?.displayName}
             />
-          </TabsContent>
-          <TabsContent value="media" className="flex-1 min-h-0 overflow-y-auto">
+          </div>
+          <div data-section="media">
+            <SectionHeader icon={FolderOpen} label="Multimedia" />
             <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} />
-          </TabsContent>
-          <TabsContent value="common" className="flex-1 min-h-0 overflow-y-auto">
+          </div>
+          <div data-section="common">
+            <SectionHeader icon={Users} label="En comun" />
             <GroupsInCommonTab otherUserId={otherMemberForHero?.userId} />
-          </TabsContent>
-          <TabsContent value="notifications" className="flex-1 min-h-0 overflow-y-auto">
+          </div>
+          <div data-section="notifications">
+            <SectionHeader icon={Bell} label="Notificaciones" />
             <NotificationsTab conversationId={conversationId} isMuted={isMuted} />
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
         {avatarViewer}
       </>
     );
@@ -165,34 +182,32 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
 
   return (
     <>
-      <Tabs defaultValue={initialTab ?? "general"} className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        {backHeader}
-        {hero}
-        <TabsList className="chat-glass mx-3 mt-1 mb-2 rounded-full p-1 overflow-x-auto">
-          <TabsTrigger value="general" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Settings className="h-3.5 w-3.5 mr-1.5" />General</TabsTrigger>
-          <TabsTrigger value="members" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Users className="h-3.5 w-3.5 mr-1.5" />Miembros</TabsTrigger>
-          {canManageRoles && <TabsTrigger value="roles" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Shield className="h-3.5 w-3.5 mr-1.5" />Roles</TabsTrigger>}
-          <TabsTrigger value="media" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><FolderOpen className="h-3.5 w-3.5 mr-1.5" />Media</TabsTrigger>
-          <TabsTrigger value="notifications" className="rounded-full! data-[state=active]:bg-[hsl(var(--primary)/0.15)]! data-[state=active]:text-[hsl(var(--primary))]!"><Bell className="h-3.5 w-3.5 mr-1.5" />Notificaciones</TabsTrigger>
-        </TabsList>
-        <TabsContent value="general" className="flex-1 min-h-0 overflow-y-auto">
+      {backHeader}
+      {hero}
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
+        <div data-section="general">
+          <SectionHeader icon={Settings} label="General" />
           <ChannelGeneralTab conversationId={conversationId} currentUserId={currentUserId} />
-        </TabsContent>
-        <TabsContent value="members" className="flex-1 min-h-0 overflow-y-auto">
+        </div>
+        <div data-section="members">
+          <SectionHeader icon={Users} label="Miembros" />
           <ChannelMembersTab conversationId={conversationId} currentUserId={currentUserId} />
-        </TabsContent>
+        </div>
         {canManageRoles && (
-          <TabsContent value="roles" className="flex-1 min-h-0 overflow-y-auto">
+          <div data-section="roles">
+            <SectionHeader icon={Shield} label="Roles" />
             <ChannelRolesTab conversationId={conversationId} currentUserId={currentUserId} />
-          </TabsContent>
+          </div>
         )}
-        <TabsContent value="media" className="flex-1 min-h-0 overflow-y-auto">
+        <div data-section="media">
+          <SectionHeader icon={FolderOpen} label="Multimedia" />
           <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} />
-        </TabsContent>
-        <TabsContent value="notifications" className="flex-1 min-h-0 overflow-y-auto">
+        </div>
+        <div data-section="notifications">
+          <SectionHeader icon={Bell} label="Notificaciones" />
           <NotificationsTab conversationId={conversationId} isMuted={isMuted} />
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
       {avatarViewer}
     </>
   );
