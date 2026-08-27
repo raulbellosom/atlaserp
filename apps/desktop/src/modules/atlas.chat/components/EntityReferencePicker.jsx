@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Popover, PopoverAnchor, PopoverContent, SelectField, ComboboxField } from "@atlas/ui";
+import { Popover, PopoverAnchor, PopoverContent, SelectField, ComboboxField, SearchInput } from "@atlas/ui";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
+import { isImageMime } from "../lib/chatUtils";
+import { FileTypeIcon } from "./ChatFilesGallery";
 
 // Fixed 4-type set — values match the backend's `entityType` enum in
 // chatSendMessageSchema (packages/validators/src/chat.js) byte-for-byte,
@@ -28,8 +30,16 @@ async function fetchOptions(entityType, token) {
   }
   if (entityType === "file") {
     // Params first, token second — different arg order than the other three.
+    // GET /files already returns mimeType per row, and for image/pdf files a
+    // ready-to-use signedUrl (see files-service.js's batchEnrichFileAssets) —
+    // no extra per-file fetch needed to show real thumbnails here.
     const res = await atlas.files.list({ pageSize: 100 }, token);
-    return (res?.data ?? []).map((f) => ({ label: f.originalName, value: f.id }));
+    return (res?.data ?? []).map((f) => ({
+      label: f.originalName,
+      value: f.id,
+      mimeType: f.mimeType ?? null,
+      thumbnailUrl: f.signedUrl ?? null,
+    }));
   }
   if (entityType === "hr_employee") {
     // The SDK's listEmployees only forwards q/status/enabled/limit — NOT
@@ -48,10 +58,71 @@ async function fetchOptions(entityType, token) {
   return [];
 }
 
+// A real thumbnail grid for the "Archivo" type instead of a filename-only
+// text dropdown — the point of attaching a file reference is usually to
+// pick a specific photo/document by how it LOOKS, not by remembering its
+// exact filename. Non-image files fall back to an icon + filename tile in
+// the same grid rather than a separate list, so the picker stays one
+// consistent surface regardless of what's in the folder.
+function FilePickerGrid({ options, isLoading, onPick }) {
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return options;
+    const q = search.toLowerCase();
+    return options.filter((o) => o.label?.toLowerCase().includes(q));
+  }, [options, search]);
+
+  return (
+    <div className="space-y-2">
+      <SearchInput
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        onClear={() => setSearch("")}
+        placeholder="Buscar archivo..."
+      />
+      {isLoading ? (
+        <p className="text-xs text-[hsl(var(--muted-foreground))] py-6 text-center">Cargando...</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-xs text-[hsl(var(--muted-foreground))] py-6 text-center">Sin resultados</p>
+      ) : (
+        <div className="grid grid-cols-4 gap-1.5 max-h-72 overflow-y-auto pr-1">
+          {filtered.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onPick(opt)}
+              title={opt.label}
+              className="aspect-square rounded-lg overflow-hidden bg-[hsl(var(--muted))] hover:opacity-80 transition-opacity"
+            >
+              {isImageMime(opt.mimeType) && opt.thumbnailUrl ? (
+                <img
+                  src={opt.thumbnailUrl}
+                  alt={opt.label}
+                  loading="lazy"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-1 p-1">
+                  <FileTypeIcon mimeType={opt.mimeType} />
+                  <span className="text-[9px] text-[hsl(var(--muted-foreground))] truncate w-full text-center">
+                    {opt.label}
+                  </span>
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function EntityReferencePicker({ open, onOpenChange, onPick, children }) {
   const { session } = useAuth();
   const token = session?.access_token;
   const [entityType, setEntityType] = useState(null);
+  const isFileType = entityType === "file";
 
   const optionsQuery = useQuery({
     queryKey: ["chat-entity-ref-options", entityType, token],
@@ -59,6 +130,12 @@ export function EntityReferencePicker({ open, onOpenChange, onPick, children }) 
     enabled: Boolean(entityType && token),
     staleTime: 30_000,
   });
+
+  function handlePick(recordId, label) {
+    onPick({ entityType, recordId, label });
+    onOpenChange(false);
+    setEntityType(null);
+  }
 
   return (
     <Popover
@@ -69,7 +146,7 @@ export function EntityReferencePicker({ open, onOpenChange, onPick, children }) 
       }}
     >
       <PopoverAnchor asChild>{children}</PopoverAnchor>
-      <PopoverContent side="top" align="start" className="w-72 p-3 space-y-2">
+      <PopoverContent side="top" align="start" className={["p-3 space-y-2", isFileType ? "w-96" : "w-72"].join(" ")}>
         <SelectField
           label="Tipo"
           value={entityType ?? ""}
@@ -77,7 +154,14 @@ export function EntityReferencePicker({ open, onOpenChange, onPick, children }) 
           options={ENTITY_TYPES}
           placeholder="Selecciona un tipo..."
         />
-        {entityType && (
+        {entityType && isFileType && (
+          <FilePickerGrid
+            options={optionsQuery.data ?? []}
+            isLoading={optionsQuery.isLoading}
+            onPick={(opt) => handlePick(opt.value, opt.label)}
+          />
+        )}
+        {entityType && !isFileType && (
           <ComboboxField
             label="Registro"
             options={optionsQuery.data ?? []}
@@ -85,9 +169,7 @@ export function EntityReferencePicker({ open, onOpenChange, onPick, children }) 
             onChange={(recordId) => {
               const opt = (optionsQuery.data ?? []).find((o) => o.value === recordId);
               if (!opt) return;
-              onPick({ entityType, recordId, label: opt.label });
-              onOpenChange(false);
-              setEntityType(null);
+              handlePick(recordId, opt.label);
             }}
             placeholder="Buscar..."
             emptyText={optionsQuery.isLoading ? "Cargando..." : "Sin resultados"}
