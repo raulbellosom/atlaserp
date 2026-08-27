@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { ChatServiceError } from "./chat-service.js";
 
 // Backs both the "1 channel per project" rule and the generic
@@ -46,5 +47,22 @@ export function createChatChannelLinksService({ prisma }) {
     }
   }
 
-  return { findByLink, assertLinkAvailable, assertBothOrNeither };
+  // Single entry point for updateConversation's SET-clause building: checks
+  // availability (skipped entirely when clearing the link — an unlink can
+  // never collide) and returns the Prisma.sql fragments to push into the
+  // caller's `sets` array. Returns [] when `updates` doesn't touch the link
+  // at all (linkedModule absent from the object), so the caller can always
+  // spread the result into `sets` unconditionally without its own branching.
+  async function applyLinkUpdate(updates, conversationId) {
+    if (updates.linkedModule === undefined) return [];
+    if (updates.linkedModule !== null) {
+      await assertLinkAvailable(updates.linkedModule, updates.linkedEntityId, conversationId);
+    }
+    return [
+      Prisma.sql`linked_module = ${updates.linkedModule}`,
+      Prisma.sql`linked_entity_id = ${updates.linkedEntityId ?? null}`,
+    ];
+  }
+
+  return { findByLink, assertLinkAvailable, assertBothOrNeither, applyLinkUpdate };
 }
