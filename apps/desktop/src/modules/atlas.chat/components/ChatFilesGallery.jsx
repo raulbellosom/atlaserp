@@ -5,7 +5,7 @@ import {
   FileArchive, FileCode, File as FileIconBase, FileImage, Loader2,
 } from "lucide-react";
 import { isImageMime, formatFileSize, formatMessageTime } from "../lib/chatUtils";
-import { useFileRefSignedUrl } from "./FileReferenceAttachment";
+import { useFileRefSignedUrl } from "../hooks/useFileRefSignedUrl";
 
 // Stable fallback so a caller passing selectionMode without selectedIds gets
 // a real (empty) Set instead of undefined — keeps selectedIds?.has(...) below

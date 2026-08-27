@@ -17,27 +17,11 @@
 // endpoint any other module already uses to preview/download a company
 // file — this introduces no new access exposure over what already exists.
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Loader2, Download } from "lucide-react";
 import { ImageViewer } from "@atlas/ui";
-import { atlas } from "../../../lib/atlas";
-import { useAuth } from "../../../auth/AuthProvider";
 import { formatFileSize, isImageMime } from "../lib/chatUtils";
 import { FileTypeIcon } from "./ChatFilesGallery";
-
-export function useFileRefSignedUrl(recordId, variant, enabled) {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  return useQuery({
-    queryKey: ["chat-file-ref-signed-url", recordId, variant],
-    queryFn: async () => {
-      const res = await atlas.files.getSignedUrl(recordId, token, { variant });
-      return res?.data?.signedUrl ?? null;
-    },
-    enabled: Boolean(enabled && recordId && token),
-    staleTime: 50 * 60 * 1000,
-  });
-}
+import { useFileRefSignedUrl } from "../hooks/useFileRefSignedUrl";
 
 // `isOwn` is accepted for symmetry with FileRefDownloadRow's call site but
 // unused here — image thumbnails look identical regardless of sender,
