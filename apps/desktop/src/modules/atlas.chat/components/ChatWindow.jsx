@@ -657,51 +657,59 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
           : undefined}
       />
 
-      {filesView ? (
-        <ChatFilesGallery
-          messages={messages}
-          isLoading={isLoading}
-          onAttachmentClick={handleAttachmentClick}
-        />
-      ) : membersView ? (
-        <ConversationProfilePanel
-          key={profileInitialTab ?? "default"}
-          conversation={conversation}
-          currentUserId={userProfile?.id}
-          initialTab={profileInitialTab}
-          onBack={closeProfile}
-          messages={messages}
-          isLoadingMessages={isLoading}
-        />
-      ) : (
-        <ChatMessageList
-          messages={messages}
-          isLoading={isLoading}
-          currentUserId={userProfile?.id}
-          typingUsers={typingUsersList}
-          onAttachmentClick={handleAttachmentClick}
-          members={detailMembers ?? conversation.members}
-          conversationType={conversation?.type}
-          hasMore={hasMore}
-          isLoadingMore={isLoadingMore}
-          onLoadMore={loadMore}
-          onDeleteMessage={handleDeleteMessage}
-          onHideForMe={handleHideForMe}
-          onForward={setForwardMessage}
-          onPinMessage={(messageId, pinned) => pinMutate({ messageId, pinned })}
-          onToggleReaction={(messageId, emoji) => toggleReactionMutate({ messageId, emoji })}
-          onOpenThread={(messageId) => setThreadPanelRootId(messageId)}
-          hiddenMessageIds={hiddenMessageIds}
-          selectionMode={selectionMode}
-          selectedMsgIds={selectedMsgIds}
-          onToggleSelect={toggleSelectMessage}
-          onEnterSelection={enterSelectionMode}
-          searchQuery={searchMode ? searchQuery : ""}
-          searchMatchIds={searchMode && searchMatchIds.length ? new Set(searchMatchIds) : null}
-          currentMatchId={currentMatchId}
-          scrollToMessage={jumpTarget}
-        />
-      )}
+      <div className="flex-1 min-w-0 min-h-0 flex">
+        <div className={membersView ? "hidden xl:flex xl:flex-1 min-w-0 min-h-0 flex-col" : "flex flex-1 min-w-0 min-h-0 flex-col"}>
+          {filesView ? (
+            <ChatFilesGallery
+              messages={messages}
+              isLoading={isLoading}
+              onAttachmentClick={handleAttachmentClick}
+            />
+          ) : (
+            <ChatMessageList
+              messages={messages}
+              isLoading={isLoading}
+              currentUserId={userProfile?.id}
+              typingUsers={typingUsersList}
+              onAttachmentClick={handleAttachmentClick}
+              members={detailMembers ?? conversation.members}
+              conversationType={conversation?.type}
+              hasMore={hasMore}
+              isLoadingMore={isLoadingMore}
+              onLoadMore={loadMore}
+              onDeleteMessage={handleDeleteMessage}
+              onHideForMe={handleHideForMe}
+              onForward={setForwardMessage}
+              onPinMessage={(messageId, pinned) => pinMutate({ messageId, pinned })}
+              onToggleReaction={(messageId, emoji) => toggleReactionMutate({ messageId, emoji })}
+              onOpenThread={(messageId) => setThreadPanelRootId(messageId)}
+              hiddenMessageIds={hiddenMessageIds}
+              selectionMode={selectionMode}
+              selectedMsgIds={selectedMsgIds}
+              onToggleSelect={toggleSelectMessage}
+              onEnterSelection={enterSelectionMode}
+              searchQuery={searchMode ? searchQuery : ""}
+              searchMatchIds={searchMode && searchMatchIds.length ? new Set(searchMatchIds) : null}
+              currentMatchId={currentMatchId}
+              scrollToMessage={jumpTarget}
+            />
+          )}
+        </div>
+
+        {membersView && (
+          <div className="w-full xl:w-96 xl:shrink-0 xl:border-l xl:border-[hsl(var(--border))] flex flex-col min-h-0">
+            <ConversationProfilePanel
+              key={profileInitialTab ?? "default"}
+              conversation={conversation}
+              currentUserId={userProfile?.id}
+              initialTab={profileInitialTab}
+              onBack={closeProfile}
+              messages={messages}
+              isLoadingMessages={isLoading}
+            />
+          </div>
+        )}
+      </div>
 
       {!filesView && !membersView && (
         <MessageComposer
