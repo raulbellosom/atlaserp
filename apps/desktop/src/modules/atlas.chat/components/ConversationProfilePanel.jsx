@@ -150,14 +150,6 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
         {backHeader}
         {hero}
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
-          <div data-section="info">
-            <SectionHeader icon={Info} label="Info" />
-            <ConversationInfoTab
-              conversationId={conversationId}
-              otherUserId={otherMemberForHero?.userId}
-              otherDisplayName={otherMemberForHero?.displayName}
-            />
-          </div>
           <div data-section="media">
             <SectionHeader icon={FolderOpen} label="Multimedia" />
             <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} preview onShowAll={onShowAllFiles} />
@@ -169,6 +161,14 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
           <div data-section="notifications">
             <SectionHeader icon={Bell} label="Notificaciones" />
             <NotificationsTab conversationId={conversationId} isMuted={isMuted} />
+          </div>
+          <div data-section="info">
+            <SectionHeader icon={Info} label="Zona de peligro" />
+            <ConversationInfoTab
+              conversationId={conversationId}
+              otherUserId={otherMemberForHero?.userId}
+              otherDisplayName={otherMemberForHero?.displayName}
+            />
           </div>
         </div>
         {avatarViewer}
