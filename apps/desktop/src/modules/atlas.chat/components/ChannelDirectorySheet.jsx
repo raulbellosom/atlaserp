@@ -19,7 +19,12 @@ function ChannelDirectoryRow({ channel, onJoin, isJoining }) {
           <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">{channel.description}</p>
         )}
       </div>
-      <Button size="sm" onClick={() => onJoin(channel.id)} disabled={isJoining} className="shrink-0">
+      <Button
+        size="sm"
+        onClick={() => onJoin(channel.id)}
+        disabled={isJoining}
+        className="shrink-0 bg-accent text-white hover:bg-accent/90"
+      >
         Unirse
       </Button>
     </div>
@@ -45,8 +50,13 @@ export function ChannelDirectorySheet({ open, onOpenChange, onJoined }) {
     setJoinError(null);
     setJoiningId(channelId);
     try {
-      const result = await joinChannel(channelId);
-      onJoined?.(result?.data ?? result);
+      // The join endpoint returns the new *membership* row (its `id` is the
+      // member row id, not the conversation). Navigating on that id lands on a
+      // nonexistent conversation and the window stays blank — so hand back the
+      // channel we already have from the directory row instead.
+      await joinChannel(channelId);
+      const channel = rows.find((r) => r.id === channelId);
+      onJoined?.({ id: channelId, type: "channel", title: channel?.title });
     } catch (err) {
       setJoinError(err?.message ?? "Error uniendote al canal.");
     } finally {

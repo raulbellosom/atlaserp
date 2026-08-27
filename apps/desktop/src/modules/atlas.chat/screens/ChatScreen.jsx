@@ -4,8 +4,17 @@ import "../chat-theme.css";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ChatWindow } from "../components/ChatWindow";
 import { useChatConversations, useArchivedConversations } from "../hooks/useChatConversations";
+import { ChatPreferencesProvider, useChatPreferences, chatPreferencesStyle } from "../hooks/useChatPreferences";
 
 export function ChatScreen() {
+  return (
+    <ChatPreferencesProvider>
+      <ChatScreenInner />
+    </ChatPreferencesProvider>
+  );
+}
+
+function ChatScreenInner() {
   const { "*": wildcard } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -67,8 +76,10 @@ export function ChatScreen() {
     setMobileShowWindow(false);
   }
 
+  const { prefs } = useChatPreferences();
+
   return (
-    <div className="chat-glass-theme flex h-full overflow-hidden">
+    <div className="chat-glass-theme flex h-full overflow-hidden" style={chatPreferencesStyle(prefs)}>
       {/* Conversation list — full width on mobile, fixed 288px on desktop */}
       <div
         className={[

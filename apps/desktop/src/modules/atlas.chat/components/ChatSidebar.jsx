@@ -3,12 +3,13 @@ import {
   Button, EmptyState, SearchInput, Skeleton,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@atlas/ui";
-import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass } from "lucide-react";
+import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { ChatConversationItem } from "./ChatConversationItem";
 import { CreateChatModal } from "./CreateChatModal";
 import { CreateChannelModal } from "./CreateChannelModal";
 import { ChannelDirectorySheet } from "./ChannelDirectorySheet";
+import { ChatSettingsDialog } from "./ChatSettingsDialog";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 import { useArchivedConversations, useUnarchiveConversation } from "../hooks/useChatConversations";
@@ -21,6 +22,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showDirectory, setShowDirectory] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations();
   const archivedConversations = archivedData?.data ?? [];
@@ -56,28 +58,41 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
       {/* Header */}
       <div className="flex items-center justify-between h-14 px-3 border-b border-[hsl(var(--border))] shrink-0">
         <h2 className="text-sm font-semibold">Chat</h2>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="icon" variant="ghost" className="h-7 w-7" title="Nueva conversacion o canal">
-              <Plus className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => setShowCreate(true)}>
-              <MessageSquarePlus className="h-3.5 w-3.5 mr-2" />
-              Nueva conversacion
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setShowCreateChannel(true)}>
-              <Hash className="h-3.5 w-3.5 mr-2" />
-              Crear canal
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setShowDirectory(true)}>
-              <Compass className="h-3.5 w-3.5 mr-2" />
-              Explorar canales
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            title="Configuracion del chat"
+            onClick={() => setShowSettings(true)}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-7 w-7" title="Nueva conversacion o canal">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setShowCreate(true)}>
+                <MessageSquarePlus className="h-3.5 w-3.5 mr-2" />
+                Nueva conversacion
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setShowCreateChannel(true)}>
+                <Hash className="h-3.5 w-3.5 mr-2" />
+                Crear canal
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setShowDirectory(true)}>
+                <Compass className="h-3.5 w-3.5 mr-2" />
+                Explorar canales
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
+
+      <ChatSettingsDialog open={showSettings} onOpenChange={setShowSettings} />
 
       {/* Search */}
       <div className="px-3 py-2 border-b border-[hsl(var(--border))] shrink-0">

@@ -279,14 +279,27 @@ export function AdvancedFileViewer({
     setPan({ x: 0, y: 0 });
   }
 
-  function downloadCurrent() {
+  // `download` is silently ignored by the browser for cross-origin URLs
+  // (every Supabase Storage signed URL is cross-origin from this app's own
+  // origin) — it just navigates there instead, so a PDF opens in a new
+  // tab/window rather than saving to disk. Fetching the bytes first and
+  // downloading via a same-origin blob: URL is what actually forces a save.
+  async function downloadCurrent() {
     if (!signedUrl || !file) return;
-    const anchor = document.createElement("a");
-    anchor.href = signedUrl;
-    anchor.download = file.originalName ?? file.name ?? "archivo";
-    anchor.target = "_blank";
-    anchor.rel = "noopener noreferrer";
-    anchor.click();
+    const filename = file.originalName ?? file.name ?? "archivo";
+    try {
+      const res = await fetch(signedUrl);
+      if (!res.ok) throw new Error(`download fetch failed: ${res.status}`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = blobUrl;
+      anchor.download = filename;
+      anchor.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(signedUrl, "_blank", "noopener,noreferrer");
+    }
   }
 
   const gestureActive = dragging || pinching;

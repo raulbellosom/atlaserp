@@ -32,3 +32,17 @@ export function findOwnMember(members, currentUserId) {
   if (!members?.length) return null;
   return members.find((m) => m.userId === currentUserId) ?? null;
 }
+
+// True when this message's resolved mentions target the current viewer
+// (directly by user id, via their role in the conversation, or an @everyone/@here
+// broadcast). Shared by ChatMessageBubble (highlighting) and ChatMessageList
+// (the "jump to mention" button) so the two never disagree on what counts as
+// "mentioning me".
+export function isMentioned(message, currentUserId, ownRoleId) {
+  const mentions = message?.metadata?.mentions;
+  if (!mentions) return false;
+  if (mentions.everyone || mentions.here) return true;
+  if (currentUserId && mentions.userIds?.includes(currentUserId)) return true;
+  if (ownRoleId && mentions.roleIds?.includes(ownRoleId)) return true;
+  return false;
+}

@@ -13,25 +13,14 @@ import {
 import { formatMessageTime, formatFileSize, isImageMime } from "../lib/chatUtils";
 import { atlas } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
-import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
+import { roleHasPermission, findOwnMember, isMentioned, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 import { MessageReactions } from "./MessageReactions";
 import { MessageReactionPicker } from "./MessageReactionPicker";
 import { EntityReferenceCard } from "./EntityReferenceCard";
-import { FileReferenceAttachment } from "./FileReferenceAttachment";
+import { FileReferenceGroup } from "./FileReferenceGroup";
 
 function isVideoMime(m) { return String(m ?? "").startsWith("video/"); }
 function isAudioMime(m) { return String(m ?? "").startsWith("audio/"); }
-
-// True when this message's resolved mentions target the current viewer
-// (directly by user id, via their role in the conversation, or an @everyone/@here broadcast).
-function isMentioned(message, currentUserId, ownRoleId) {
-  const mentions = message?.metadata?.mentions;
-  if (!mentions) return false;
-  if (mentions.everyone || mentions.here) return true;
-  if (currentUserId && mentions.userIds?.includes(currentUserId)) return true;
-  if (ownRoleId && mentions.roleIds?.includes(ownRoleId)) return true;
-  return false;
-}
 
 function getFileTypeInfo(mimeType = "") {
   const m = String(mimeType).toLowerCase();
@@ -849,6 +838,14 @@ export function ChatMessageBubble({
     !hasBody &&
     entityRefs.length > 0 &&
     entityRefs.every((r) => !(r.entityType === "file" && r.mimeType));
+  // All file-type refs in this message (after the same lead-ref slice the
+  // render blocks below apply), rendered together as ONE FileReferenceGroup
+  // so multiple images lay out in a grid and share a single carousel —
+  // instead of each ref rendering its own independent, full-width card with
+  // its own private single-item viewer.
+  const fileRefs = entityRefs
+    .slice(firstEntityRefAttached ? 1 : 0)
+    .filter((ref) => ref.entityType === "file" && Boolean(ref.mimeType));
 
   // Own membership entry in this conversation — needed to detect role-targeted mentions
   // and to gate the pin action by permission.
@@ -973,19 +970,15 @@ export function ChatMessageBubble({
                   entityRefsOnlyBubble ? [radius, "overflow-hidden", "bg-(--brand-primary)"].join(" ") : "",
                 ].join(" ")}
               >
-                {entityRefs.slice(firstEntityRefAttached ? 1 : 0).map((ref, idx) => {
-                  const i = firstEntityRefAttached ? idx + 1 : idx;
-                  return ref.entityType === "file" && ref.mimeType ? (
-                    <FileReferenceAttachment key={`${ref.entityType}:${ref.recordId}:${i}`} reference={ref} isOwn={true} />
-                  ) : (
-                    <EntityReferenceCard
-                      key={`${ref.entityType}:${ref.recordId}:${i}`}
-                      reference={ref}
-                      attached={entityRefsOnlyBubble}
-                      isOwn={true}
-                    />
-                  );
-                })}
+                {entityRefs.slice(firstEntityRefAttached ? 1 : 0).filter((ref) => !(ref.entityType === "file" && ref.mimeType)).map((ref, idx) => (
+                  <EntityReferenceCard
+                    key={`${ref.entityType}:${ref.recordId}:${idx}`}
+                    reference={ref}
+                    attached={entityRefsOnlyBubble}
+                    isOwn={true}
+                  />
+                ))}
+                {fileRefs.length > 0 && <FileReferenceGroup references={fileRefs} isOwn={true} onOpen={onAttachmentClick} />}
               </div>
             )}
 
@@ -1125,19 +1118,15 @@ export function ChatMessageBubble({
                 entityRefsOnlyBubble ? [radius, "overflow-hidden", "bg-[hsl(var(--muted))]"].join(" ") : "",
               ].join(" ")}
             >
-              {entityRefs.slice(firstEntityRefAttached ? 1 : 0).map((ref, idx) => {
-                const i = firstEntityRefAttached ? idx + 1 : idx;
-                return ref.entityType === "file" && ref.mimeType ? (
-                  <FileReferenceAttachment key={`${ref.entityType}:${ref.recordId}:${i}`} reference={ref} isOwn={false} />
-                ) : (
-                  <EntityReferenceCard
-                    key={`${ref.entityType}:${ref.recordId}:${i}`}
-                    reference={ref}
-                    attached={entityRefsOnlyBubble}
-                    isOwn={false}
-                  />
-                );
-              })}
+              {entityRefs.slice(firstEntityRefAttached ? 1 : 0).filter((ref) => !(ref.entityType === "file" && ref.mimeType)).map((ref, idx) => (
+                <EntityReferenceCard
+                  key={`${ref.entityType}:${ref.recordId}:${idx}`}
+                  reference={ref}
+                  attached={entityRefsOnlyBubble}
+                  isOwn={false}
+                />
+              ))}
+              {fileRefs.length > 0 && <FileReferenceGroup references={fileRefs} isOwn={false} onOpen={onAttachmentClick} />}
             </div>
           )}
 

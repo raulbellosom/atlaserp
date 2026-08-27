@@ -1,4 +1,5 @@
-import { ArchiveRestore } from "lucide-react";
+import { ArchiveRestore, AtSign } from "lucide-react";
+import { renderMentionText } from "@atlas/ui";
 import { formatMessageTime } from "../lib/chatUtils";
 import { ConversationTypeBadge } from "./ConversationTypeBadge";
 
@@ -62,6 +63,7 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
   const avatarEmoji = conversation.avatar_emoji ?? null;
   const lastMsg = conversation.last_message;
   const unread = conversation.unread_count ?? 0;
+  const unreadMentions = conversation.unread_mention_count ?? 0;
 
   let lastMsgPreview = "";
   if (lastMsg) {
@@ -101,13 +103,24 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
           </div>
           <div className="flex items-center justify-between gap-2 mt-0.5">
             <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">
-              {lastMsgPreview || "Sin mensajes"}
+              {lastMsgPreview ? renderMentionText(lastMsgPreview) : "Sin mensajes"}
             </p>
-            {unread > 0 && (
-              <span className="inline-flex items-center justify-center h-4.5 min-w-[1.125rem] px-1 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-[10px] font-semibold shrink-0">
-                {unread > 99 ? "99+" : unread}
-              </span>
-            )}
+            <div className="flex items-center gap-1 shrink-0">
+              {unreadMentions > 0 && (
+                <span
+                  title={`${unreadMentions} mencion${unreadMentions === 1 ? "" : "es"} sin leer`}
+                  className="inline-flex items-center justify-center h-4.5 min-w-[1.125rem] px-1 rounded-full bg-accent text-white text-[10px] font-semibold"
+                >
+                  <AtSign className="h-2.5 w-2.5" strokeWidth={3} />
+                  {unreadMentions > 9 ? "9+" : unreadMentions}
+                </span>
+              )}
+              {unread > 0 && (
+                <span className="inline-flex items-center justify-center h-4.5 min-w-[1.125rem] px-1 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-[10px] font-semibold">
+                  {unread > 99 ? "99+" : unread}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </button>

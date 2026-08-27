@@ -16,6 +16,22 @@
   --chat-radius-bubble-tail: 0.375rem;
   --chat-radius-panel: 1.25rem;
   --chat-radius-pill: 9999px;
+  /* Overridden inline per-instance from stored chat preferences (see
+     useChatPreferences.jsx) — this default keeps every consumer of
+     --chat-zoom correct even before prefs load on first paint. */
+  --chat-zoom: 1;
+}
+
+/* Chat font-size preference — applied to the message list and composer only
+   (see the chat-scale-target class), not the sidebar or header, matching
+   what "chat font size" means in most messaging apps: bigger/smaller
+   message text, not the whole app chrome. `zoom` (not transform: scale)
+   because it reflows layout instead of just visually stretching it — text
+   stays crisp and click targets stay accurate at every size. Supported by
+   the Chromium/WebView2 engines this app actually ships on.
+*/
+.chat-glass-theme .chat-scale-target {
+  zoom: var(--chat-zoom);
 }
 
 .chat-glass-theme .chat-glass {
@@ -31,4 +47,82 @@
 
 .chat-glass-theme .chat-font-mono {
   font-family: var(--chat-font-mono);
+}
+
+/*
+ * Chat wallpaper — a restrained, tileable geometric pattern behind the
+ * message list (the way WhatsApp's chat background works), redesigned
+ * toward a cleaner/more "product UI" look than the original organic-doodle
+ * version: sparse hollow rings, two minimal message-bubble glyphs, and a
+ * few pixel dots on a large 160px tile so the repeat is barely perceptible
+ * rather than reading as an obvious wallpaper. `currentColor` doesn't
+ * inherit into an SVG loaded as a CSS background-image (it's a separate
+ * document context), so the pattern is baked in twice — once per theme —
+ * rather than relying on CSS custom properties inside the data URI, which
+ * plain `url(data:...)` values can't reference either.
+ */
+.chat-glass-theme .chat-wallpaper {
+  background-color: hsl(var(--background));
+  background-repeat: repeat;
+  background-size: 160px 160px;
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='none' stroke='rgba(15,23,42,0.035)' stroke-width='1.3' stroke-linejoin='round'><circle cx='24' cy='30' r='5'/><circle cx='122' cy='20' r='3'/><circle cx='140' cy='96' r='6'/><circle cx='38' cy='122' r='3.5'/><rect x='68' y='50' width='26' height='18' rx='5'/><path d='M78 68l-5 7v-7'/><rect x='104' y='118' width='20' height='14' rx='4'/><path d='M112 132l-4 5v-5'/></g><g fill='rgba(15,23,42,0.035)'><circle cx='10' cy='90' r='1.4'/><circle cx='150' cy='55' r='1.4'/><circle cx='58' cy='10' r='1.2'/><circle cx='100' cy='150' r='1.3'/></g></svg>");
+}
+
+.dark .chat-glass-theme .chat-wallpaper {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='none' stroke='rgba(255,255,255,0.045)' stroke-width='1.3' stroke-linejoin='round'><circle cx='24' cy='30' r='5'/><circle cx='122' cy='20' r='3'/><circle cx='140' cy='96' r='6'/><circle cx='38' cy='122' r='3.5'/><rect x='68' y='50' width='26' height='18' rx='5'/><path d='M78 68l-5 7v-7'/><rect x='104' y='118' width='20' height='14' rx='4'/><path d='M112 132l-4 5v-5'/></g><g fill='rgba(255,255,255,0.045)'><circle cx='10' cy='90' r='1.4'/><circle cx='150' cy='55' r='1.4'/><circle cx='58' cy='10' r='1.2'/><circle cx='100' cy='150' r='1.3'/></g></svg>");
+}
+
+/*
+ * Accent-tinted wallpaper variants — when the user picks an accent color
+ * other than "brand" (see useChatPreferences.jsx's ACCENT_PRESETS), the
+ * background pattern leans toward that same hue instead of staying a flat
+ * neutral gray. "brand" has no fixed hex known at CSS-authoring time (it's
+ * whatever the company configured), so it keeps the neutral pattern above;
+ * these six are the fixed presets, same geometry, just a recolored
+ * stroke/fill baked into each data URI (an SVG loaded as a background-image
+ * can't read CSS custom properties, so this can't be done with one shared
+ * pattern + a CSS variable). Dark mode uses a slightly higher alpha than
+ * light — a saturated color otherwise reads weaker against a dark
+ * background than the neutral gray it replaced.
+ */
+.chat-glass-theme .chat-wallpaper[data-accent="violet"] {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='none' stroke='rgba(124,92,255,0.05)' stroke-width='1.3' stroke-linejoin='round'><circle cx='24' cy='30' r='5'/><circle cx='122' cy='20' r='3'/><circle cx='140' cy='96' r='6'/><circle cx='38' cy='122' r='3.5'/><rect x='68' y='50' width='26' height='18' rx='5'/><path d='M78 68l-5 7v-7'/><rect x='104' y='118' width='20' height='14' rx='4'/><path d='M112 132l-4 5v-5'/></g><g fill='rgba(124,92,255,0.05)'><circle cx='10' cy='90' r='1.4'/><circle cx='150' cy='55' r='1.4'/><circle cx='58' cy='10' r='1.2'/><circle cx='100' cy='150' r='1.3'/></g></svg>");
+}
+.dark .chat-glass-theme .chat-wallpaper[data-accent="violet"] {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='none' stroke='rgba(124,92,255,0.09)' stroke-width='1.3' stroke-linejoin='round'><circle cx='24' cy='30' r='5'/><circle cx='122' cy='20' r='3'/><circle cx='140' cy='96' r='6'/><circle cx='38' cy='122' r='3.5'/><rect x='68' y='50' width='26' height='18' rx='5'/><path d='M78 68l-5 7v-7'/><rect x='104' y='118' width='20' height='14' rx='4'/><path d='M112 132l-4 5v-5'/></g><g fill='rgba(124,92,255,0.09)'><circle cx='10' cy='90' r='1.4'/><circle cx='150' cy='55' r='1.4'/><circle cx='58' cy='10' r='1.2'/><circle cx='100' cy='150' r='1.3'/></g></svg>");
+}
+
+.chat-glass-theme .chat-wallpaper[data-accent="green"] {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='none' stroke='rgba(22,163,74,0.05)' stroke-width='1.3' stroke-linejoin='round'><circle cx='24' cy='30' r='5'/><circle cx='122' cy='20' r='3'/><circle cx='140' cy='96' r='6'/><circle cx='38' cy='122' r='3.5'/><rect x='68' y='50' width='26' height='18' rx='5'/><path d='M78 68l-5 7v-7'/><rect x='104' y='118' width='20' height='14' rx='4'/><path d='M112 132l-4 5v-5'/></g><g fill='rgba(22,163,74,0.05)'><circle cx='10' cy='90' r='1.4'/><circle cx='150' cy='55' r='1.4'/><circle cx='58' cy='10' r='1.2'/><circle cx='100' cy='150' r='1.3'/></g></svg>");
+}
+.dark .chat-glass-theme .chat-wallpaper[data-accent="green"] {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='none' stroke='rgba(22,163,74,0.09)' stroke-width='1.3' stroke-linejoin='round'><circle cx='24' cy='30' r='5'/><circle cx='122' cy='20' r='3'/><circle cx='140' cy='96' r='6'/><circle cx='38' cy='122' r='3.5'/><rect x='68' y='50' width='26' height='18' rx='5'/><path d='M78 68l-5 7v-7'/><rect x='104' y='118' width='20' height='14' rx='4'/><path d='M112 132l-4 5v-5'/></g><g fill='rgba(22,163,74,0.09)'><circle cx='10' cy='90' r='1.4'/><circle cx='150' cy='55' r='1.4'/><circle cx='58' cy='10' r='1.2'/><circle cx='100' cy='150' r='1.3'/></g></svg>");
+}
+
+.chat-glass-theme .chat-wallpaper[data-accent="blue"] {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='none' stroke='rgba(37,99,235,0.05)' stroke-width='1.3' stroke-linejoin='round'><circle cx='24' cy='30' r='5'/><circle cx='122' cy='20' r='3'/><circle cx='140' cy='96' r='6'/><circle cx='38' cy='122' r='3.5'/><rect x='68' y='50' width='26' height='18' rx='5'/><path d='M78 68l-5 7v-7'/><rect x='104' y='118' width='20' height='14' rx='4'/><path d='M112 132l-4 5v-5'/></g><g fill='rgba(37,99,235,0.05)'><circle cx='10' cy='90' r='1.4'/><circle cx='150' cy='55' r='1.4'/><circle cx='58' cy='10' r='1.2'/><circle cx='100' cy='150' r='1.3'/></g></svg>");
+}
+.dark .chat-glass-theme .chat-wallpaper[data-accent="blue"] {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='none' stroke='rgba(37,99,235,0.09)' stroke-width='1.3' stroke-linejoin='round'><circle cx='24' cy='30' r='5'/><circle cx='122' cy='20' r='3'/><circle cx='140' cy='96' r='6'/><circle cx='38' cy='122' r='3.5'/><rect x='68' y='50' width='26' height='18' rx='5'/><path d='M78 68l-5 7v-7'/><rect x='104' y='118' width='20' height='14' rx='4'/><path d='M112 132l-4 5v-5'/></g><g fill='rgba(37,99,235,0.09)'><circle cx='10' cy='90' r='1.4'/><circle cx='150' cy='55' r='1.4'/><circle cx='58' cy='10' r='1.2'/><circle cx='100' cy='150' r='1.3'/></g></svg>");
+}
+
+.chat-glass-theme .chat-wallpaper[data-accent="pink"] {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='none' stroke='rgba(219,39,119,0.05)' stroke-width='1.3' stroke-linejoin='round'><circle cx='24' cy='30' r='5'/><circle cx='122' cy='20' r='3'/><circle cx='140' cy='96' r='6'/><circle cx='38' cy='122' r='3.5'/><rect x='68' y='50' width='26' height='18' rx='5'/><path d='M78 68l-5 7v-7'/><rect x='104' y='118' width='20' height='14' rx='4'/><path d='M112 132l-4 5v-5'/></g><g fill='rgba(219,39,119,0.05)'><circle cx='10' cy='90' r='1.4'/><circle cx='150' cy='55' r='1.4'/><circle cx='58' cy='10' r='1.2'/><circle cx='100' cy='150' r='1.3'/></g></svg>");
+}
+.dark .chat-glass-theme .chat-wallpaper[data-accent="pink"] {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='none' stroke='rgba(219,39,119,0.09)' stroke-width='1.3' stroke-linejoin='round'><circle cx='24' cy='30' r='5'/><circle cx='122' cy='20' r='3'/><circle cx='140' cy='96' r='6'/><circle cx='38' cy='122' r='3.5'/><rect x='68' y='50' width='26' height='18' rx='5'/><path d='M78 68l-5 7v-7'/><rect x='104' y='118' width='20' height='14' rx='4'/><path d='M112 132l-4 5v-5'/></g><g fill='rgba(219,39,119,0.09)'><circle cx='10' cy='90' r='1.4'/><circle cx='150' cy='55' r='1.4'/><circle cx='58' cy='10' r='1.2'/><circle cx='100' cy='150' r='1.3'/></g></svg>");
+}
+
+.chat-glass-theme .chat-wallpaper[data-accent="orange"] {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='none' stroke='rgba(234,88,12,0.05)' stroke-width='1.3' stroke-linejoin='round'><circle cx='24' cy='30' r='5'/><circle cx='122' cy='20' r='3'/><circle cx='140' cy='96' r='6'/><circle cx='38' cy='122' r='3.5'/><rect x='68' y='50' width='26' height='18' rx='5'/><path d='M78 68l-5 7v-7'/><rect x='104' y='118' width='20' height='14' rx='4'/><path d='M112 132l-4 5v-5'/></g><g fill='rgba(234,88,12,0.05)'><circle cx='10' cy='90' r='1.4'/><circle cx='150' cy='55' r='1.4'/><circle cx='58' cy='10' r='1.2'/><circle cx='100' cy='150' r='1.3'/></g></svg>");
+}
+.dark .chat-glass-theme .chat-wallpaper[data-accent="orange"] {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='none' stroke='rgba(234,88,12,0.09)' stroke-width='1.3' stroke-linejoin='round'><circle cx='24' cy='30' r='5'/><circle cx='122' cy='20' r='3'/><circle cx='140' cy='96' r='6'/><circle cx='38' cy='122' r='3.5'/><rect x='68' y='50' width='26' height='18' rx='5'/><path d='M78 68l-5 7v-7'/><rect x='104' y='118' width='20' height='14' rx='4'/><path d='M112 132l-4 5v-5'/></g><g fill='rgba(234,88,12,0.09)'><circle cx='10' cy='90' r='1.4'/><circle cx='150' cy='55' r='1.4'/><circle cx='58' cy='10' r='1.2'/><circle cx='100' cy='150' r='1.3'/></g></svg>");
+}
+
+.chat-glass-theme .chat-wallpaper[data-accent="teal"] {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='none' stroke='rgba(8,145,178,0.05)' stroke-width='1.3' stroke-linejoin='round'><circle cx='24' cy='30' r='5'/><circle cx='122' cy='20' r='3'/><circle cx='140' cy='96' r='6'/><circle cx='38' cy='122' r='3.5'/><rect x='68' y='50' width='26' height='18' rx='5'/><path d='M78 68l-5 7v-7'/><rect x='104' y='118' width='20' height='14' rx='4'/><path d='M112 132l-4 5v-5'/></g><g fill='rgba(8,145,178,0.05)'><circle cx='10' cy='90' r='1.4'/><circle cx='150' cy='55' r='1.4'/><circle cx='58' cy='10' r='1.2'/><circle cx='100' cy='150' r='1.3'/></g></svg>");
+}
+.dark .chat-glass-theme .chat-wallpaper[data-accent="teal"] {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='none' stroke='rgba(8,145,178,0.09)' stroke-width='1.3' stroke-linejoin='round'><circle cx='24' cy='30' r='5'/><circle cx='122' cy='20' r='3'/><circle cx='140' cy='96' r='6'/><circle cx='38' cy='122' r='3.5'/><rect x='68' y='50' width='26' height='18' rx='5'/><path d='M78 68l-5 7v-7'/><rect x='104' y='118' width='20' height='14' rx='4'/><path d='M112 132l-4 5v-5'/></g><g fill='rgba(8,145,178,0.09)'><circle cx='10' cy='90' r='1.4'/><circle cx='150' cy='55' r='1.4'/><circle cx='58' cy='10' r='1.2'/><circle cx='100' cy='150' r='1.3'/></g></svg>");
 }

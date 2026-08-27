@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { createPortal } from 'react-dom'
 
 // Stored format:  @[uuid:DisplayName]
@@ -84,7 +84,7 @@ function MemberAvatar({ member }) {
  *   placeholder, rows, className
  *   disabled
  */
-export default function MentionTextarea({
+const MentionTextarea = forwardRef(function MentionTextarea({
   value = '',
   onChange,
   onBlur,
@@ -95,7 +95,7 @@ export default function MentionTextarea({
   className = '',
   disabled = false,
   portalContainer = null,
-}) {
+}, ref) {
   const mentionMap = useRef(new Map())
   const [displayValue, setDisplayValue] = useState(() => toDisplay(value, mentionMap.current))
   const lastSerializedRef = useRef(value)
@@ -115,6 +115,14 @@ export default function MentionTextarea({
   const [activeIdx, setActiveIdx] = useState(0)
   const textareaRef = useRef(null)
   const containerRef = useRef(null)
+
+  // Exposes the internal textarea's imperative API to the parent — needed so
+  // callers (e.g. MessageComposer) can refocus after sending, which they
+  // otherwise have no way to do since this component owns its own ref.
+  useImperativeHandle(ref, () => ({
+    focus: (opts) => textareaRef.current?.focus(opts),
+    blur: () => textareaRef.current?.blur(),
+  }))
 
   const filtered = query
     ? members.filter((m) => {
@@ -318,4 +326,6 @@ export default function MentionTextarea({
       )}
     </div>
   )
-}
+})
+
+export default MentionTextarea

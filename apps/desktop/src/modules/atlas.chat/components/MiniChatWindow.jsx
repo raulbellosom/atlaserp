@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import "../chat-theme.css";
 import {
@@ -9,10 +9,12 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { useChatMessages, useSendMessage, useMarkRead, useDeleteMessage, usePinMessage, useToggleReaction } from "../hooks/useChatMessages";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { MessageComposer } from "./MessageComposer";
+import { DropZoneOverlay } from "./DropZoneOverlay";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { ConversationProfilePanel } from "./ConversationProfilePanel";
-import { getConversationDisplayName, getConversationTitleLabel } from "../lib/chatUtils";
+import { getConversationDisplayName, getConversationTitleLabel, buildAllAttachments } from "../lib/chatUtils";
+import { ChatPreferencesProvider, useChatPreferences, chatPreferencesStyle } from "../hooks/useChatPreferences";
 import { ConversationTypeBadge } from "./ConversationTypeBadge";
 import { useAuth } from "../../../auth/AuthProvider";
 
@@ -36,7 +38,7 @@ export function getAvatarEmoji(conversation) {
   return conversation?.avatar_emoji ?? null;
 }
 
-export function AvatarCircle({ avatarUrl, avatarEmoji, type, name, size = "md" }) {
+export function AvatarCircle({ avatarUrl, avatarEmoji, type, name, size = "md", online = false }) {
   const [avatarErr, setAvatarErr] = useState(false);
   const sizeClass = size === "sm" ? "h-7 w-7 text-[10px]" : "h-8 w-8 text-xs";
 
@@ -44,6 +46,9 @@ export function AvatarCircle({ avatarUrl, avatarEmoji, type, name, size = "md" }
 
   return (
     <div className="relative shrink-0">
+      {online && (
+        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[hsl(var(--card))] z-10" />
+      )}
       {avatarUrl && !avatarErr ? (
         <img
           src={avatarUrl}
@@ -70,7 +75,21 @@ export function AvatarCircle({ avatarUrl, avatarEmoji, type, name, size = "md" }
 
 // --- Mini chat window (desktop) ---
 
-export function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMinimize }) {
+// Wrapped so useChatPreferences() (called below, to size the font and set
+// the accent color on this window's own .chat-glass-theme root) has a
+// provider to read from — each floating mini window gets its own Provider
+// instance, all reading/writing the same localStorage key, so a change made
+// from the main ChatScreen settings dialog applies here the next time this
+// widget mounts.
+export function MiniChatWindow(props) {
+  return (
+    <ChatPreferencesProvider>
+      <MiniChatWindowInner {...props} />
+    </ChatPreferencesProvider>
+  );
+}
+
+function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinimize }) {
   const { id, conversation, minimized } = entry;
   const { userProfile } = useAuth();
   const navigate = useNavigate();
@@ -85,12 +104,17 @@ export function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMin
   // detail query is needed for messages.pin gating, same as ChatWindow.
   const { data: conversationDetail } = useChatConversationDetail(id);
   const detailMembers = conversationDetail?.data?.members ?? null;
+  const { prefs } = useChatPreferences();
   const markReadRef = useRef(markRead);
   markReadRef.current = markRead;
 
   const composerRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [viewer, setViewer] = useState({ open: false, attachments: [], activeIndex: 0 });
+  // No local attachments array — the viewer always renders allAttachments
+  // below, positioned at the clicked file's index in it, same reasoning as
+  // ChatWindow.jsx's own viewer state.
+  const [viewer, setViewer] = useState({ open: false, activeIndex: 0 });
+  const allAttachments = useMemo(() => buildAllAttachments(data?.data ?? []), [data]);
   const [hiddenMsgIds, setHiddenMsgIds] = useState(() => new Set());
   const [profileView, setProfileView] = useState(false);
 
@@ -114,8 +138,10 @@ export function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMin
   const offset = BM + BS + GAP + index * (WW + GAP);
 
   const handleAttachmentClick = useCallback((attachments, activeIndex) => {
-    setViewer({ open: true, attachments, activeIndex });
-  }, []);
+    const clickedId = attachments?.[activeIndex]?.id;
+    const globalIdx = allAttachments.findIndex((f) => f.id === clickedId);
+    setViewer({ open: true, activeIndex: globalIdx >= 0 ? globalIdx : 0 });
+  }, [allAttachments]);
 
   function handleViewInChat() {
     navigate(`/app/m/atlas.chat/chat/inbox/${id}`);
@@ -155,6 +181,7 @@ export function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMin
           zIndex,
           height: minimized ? WH_MIN : WH,
           transition: "height 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+          ...chatPreferencesStyle(prefs),
         }}
         className="chat-glass-theme rounded-xl shadow-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] flex flex-col overflow-hidden relative"
         onDragOver={handleDragOver}
@@ -162,11 +189,7 @@ export function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMin
         onDrop={handleDrop}
       >
         {/* Drop overlay */}
-        {isDragOver && !minimized && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center border-2 border-dashed border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.08)] pointer-events-none rounded-xl">
-            <p className="text-xs font-medium text-[hsl(var(--primary))]">Suelta aqui</p>
-          </div>
-        )}
+        {isDragOver && !minimized && <DropZoneOverlay compact rounded="rounded-xl" />}
 
         {/* Header — two modes */}
         {minimized ? (
@@ -322,6 +345,7 @@ export function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMin
               compact
               conversationId={id}
               conversationType={conversation?.type}
+              dropZoneDisabled
             />
           </>
         )}
@@ -330,7 +354,7 @@ export function MiniChatWindow({ entry, index, edge, zIndex = 45, onClose, onMin
       <ChatAttachmentViewer
         open={viewer.open}
         onOpenChange={(open) => setViewer((v) => ({ ...v, open }))}
-        attachments={viewer.attachments}
+        attachments={allAttachments}
         activeIndex={viewer.activeIndex}
         onIndexChange={(i) => setViewer((v) => ({ ...v, activeIndex: i }))}
       />

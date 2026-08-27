@@ -34,8 +34,11 @@ export function useJoinChannel() {
 
   return useMutation({
     mutationFn: (conversationId) => atlas.chat.joinChannel(conversationId, token),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+    // Await the conversations refetch so the caller can navigate straight to the
+    // freshly joined channel without the window flashing its empty state while
+    // the list catches up.
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
       queryClient.invalidateQueries({ queryKey: ["chat-channel-directory"] });
     },
   });

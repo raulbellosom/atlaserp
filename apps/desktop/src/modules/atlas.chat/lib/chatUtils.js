@@ -65,11 +65,62 @@ export function isImageMime(mimeType) {
   return String(mimeType ?? "").startsWith("image/");
 }
 
+// Every file ever shared in a conversation, oldest first — real attachments
+// and file-type entity references combined into one normalized list
+// ({id, mimeType, fileName, sizeBytes, isEntityRef}). This is the "whole
+// chat" ordering behind the conversation-wide media carousel (opening any
+// file inline pages through every file in the chat, not just siblings in
+// that one message — see ChatAttachmentViewer.jsx) and behind the
+// Archivos/Media gallery view (ChatFilesGallery.jsx uses the same shape).
+export function buildAllAttachments(messages) {
+  if (!messages?.length) return [];
+  const result = [];
+  for (const msg of [...messages].reverse()) {
+    for (const att of (msg.attachments ?? [])) {
+      result.push({ ...att, createdAt: msg.created_at, isEntityRef: false });
+    }
+    for (const ref of (msg.metadata?.entityRefs ?? [])) {
+      if (ref.entityType !== "file" || !ref.mimeType) continue;
+      result.push({
+        id: ref.recordId,
+        mimeType: ref.mimeType,
+        fileName: ref.title,
+        sizeBytes: ref.sizeBytes,
+        createdAt: msg.created_at,
+        url: null,
+        isEntityRef: true,
+      });
+    }
+  }
+  return result;
+}
+
 export function formatFileSize(bytes) {
   if (!bytes) return "";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+// Plain `<a download href={signedUrl}>` silently ignores the `download`
+// attribute for cross-origin URLs (every Supabase Storage signed URL is
+// cross-origin from the app's own origin) — the browser just navigates
+// there instead, which for a PDF means it opens in a new tab/window rather
+// than saving to disk. Fetching the bytes first and downloading via a
+// same-origin blob: URL is what actually forces a save prompt.
+export async function downloadViaBlob(url, filename) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`download fetch failed: ${res.status}`);
+  const blob = await res.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename ?? "archivo";
+    a.click();
+  } finally {
+    URL.revokeObjectURL(blobUrl);
+  }
 }
 
 const GUEST_TOKEN_KEY = "atlas_chat_guest_token";

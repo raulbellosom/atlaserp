@@ -18,6 +18,7 @@ import { useMentionCandidates } from "../hooks/useMentionCandidates";
 import { formatFileSize } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
 import { EntityReferencePicker } from "./EntityReferencePicker";
+import { DropZoneOverlay } from "./DropZoneOverlay";
 
 // Maps a stored/pending entityType string to its chip/card icon — same 4-way
 // mapping used by EntityReferenceCard.jsx for the resolved cards.
@@ -181,6 +182,16 @@ export const MessageComposer = forwardRef(function MessageComposer(
     compact = false,
     conversationId,
     conversationType,
+    // Set by callers (ChatWindow, MiniChatWindow) that already wrap this
+    // composer in their own outer drag-and-drop zone covering the whole
+    // message area. Without this, dropping a file directly on the composer
+    // fired BOTH zones' handlers (the drop event bubbles up to the outer
+    // one), double-queuing every dropped file — and since the outer zone
+    // never saw its own dragover/dragleave pair once events stopped
+    // propagating past the composer, its overlay got stuck visible. Standalone
+    // callers (ThreadPanel, ExternalInboxScreen) have no outer zone, so they
+    // leave this false and keep the composer's own handling.
+    dropZoneDisabled = false,
   },
   ref,
 ) {
@@ -214,6 +225,8 @@ export const MessageComposer = forwardRef(function MessageComposer(
   const recordTimerRef = useRef(null);
   const voiceAutoSendRef = useRef(false);
   const handleSendRef = useRef(null);
+  const mentionTaRef = useRef(null);
+  const wasSendingRef = useRef(false);
 
   const { uploadFile } = useChatUpload(conversationId);
 
@@ -434,15 +447,23 @@ export const MessageComposer = forwardRef(function MessageComposer(
       setPendingFiles([]);
       setPendingEntityRefs([]);
     } finally {
-      // NOTE: auto-refocus after send is dropped — MentionTextarea doesn't
-      // expose its internal textarea ref (accepted UX regression, see
-      // spec Section 8/24 risk 1).
       setIsSending(false);
     }
   }, [body, isSending, onSend, onTyping, pendingFiles, pendingEntityRefs]);
 
   // Keep ref in sync so the auto-send effect never holds a stale closure
   handleSendRef.current = handleSend;
+
+  // Refocus the textarea once a send completes — runs after the DOM commit
+  // (isSending flips back to false, lifting the `disabled` attribute), so
+  // .focus() actually lands instead of silently no-op'ing on a disabled field.
+  // MentionTextarea now forwards its internal textarea's imperative handle
+  // (see packages/ui/src/components/MentionTextarea.jsx), which is what
+  // makes this possible — it previously had no ref to focus at all.
+  useEffect(() => {
+    if (wasSendingRef.current && !isSending) mentionTaRef.current?.focus();
+    wasSendingRef.current = isSending;
+  }, [isSending]);
 
   // ── Voice auto-send ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -462,10 +483,21 @@ export const MessageComposer = forwardRef(function MessageComposer(
     e.target.value = "";
   }
 
-  function handleDragOver(e) { e.preventDefault(); setIsDragOver(true); }
-  function handleDragLeave(e) { if (!e.currentTarget.contains(e.relatedTarget)) setIsDragOver(false); }
+  // ChatWindow.jsx wraps the whole message area (composer included) in its
+  // own drag-and-drop zone, calling this same addFilesToQueue via the
+  // composer ref's addFiles(). Without stopPropagation, dropping directly
+  // on the composer fired BOTH this handler and ChatWindow's — since a drop
+  // event bubbles up through the DOM — queuing every dropped file twice and
+  // showing both drop-zone overlays stacked on top of each other at once.
+  function handleDragOver(e) { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }
+  function handleDragLeave(e) {
+    e.stopPropagation();
+    if (!e.currentTarget.contains(e.relatedTarget)) setIsDragOver(false);
+  }
   function handleDrop(e) {
-    e.preventDefault(); setIsDragOver(false);
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
     const files = Array.from(e.dataTransfer.files);
     if (files.length) addFilesToQueue(files);
   }
@@ -476,20 +508,18 @@ export const MessageComposer = forwardRef(function MessageComposer(
   return (
     <div
       className={[
-        "border-t border-[hsl(var(--border))] relative shrink-0 transition-colors",
+        "chat-scale-target border-t border-[hsl(var(--border))] relative shrink-0 transition-colors",
         compact ? "px-2 py-1.5" : "px-3 py-2 sm:px-4 sm:py-3 safe-bottom",
-        isDragOver ? "bg-[hsl(var(--primary)/0.05)]" : "",
+        !dropZoneDisabled && isDragOver ? "bg-[hsl(var(--primary)/0.05)]" : "",
       ].join(" ")}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      onDragOver={dropZoneDisabled ? undefined : handleDragOver}
+      onDragLeave={dropZoneDisabled ? undefined : handleDragLeave}
+      onDrop={dropZoneDisabled ? undefined : handleDrop}
     >
-      {/* Drop overlay */}
-      {isDragOver && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center border-2 border-dashed border-[hsl(var(--primary))] rounded-lg bg-[hsl(var(--primary)/0.08)] pointer-events-none">
-          <p className="text-xs font-medium text-[hsl(var(--primary))]">Suelta los archivos aqui</p>
-        </div>
-      )}
+      {/* Drop overlay — skipped entirely when a parent (ChatWindow,
+          MiniChatWindow) already owns the drop zone for this whole area;
+          see the dropZoneDisabled prop comment above. */}
+      {!dropZoneDisabled && isDragOver && <DropZoneOverlay compact={compact} />}
 
       {/* Emoji picker */}
       {showEmoji && (
@@ -564,7 +594,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
 
       {/* ── Recording mode ── */}
       {recording ? (
-        <div className="chat-glass flex items-center gap-2 rounded-full px-3 py-2">
+        <div className="chat-glass flex items-center gap-2 rounded-2xl px-3 py-2">
           {/* Cancel */}
           <button
             type="button"
@@ -592,134 +622,144 @@ export const MessageComposer = forwardRef(function MessageComposer(
           </button>
         </div>
       ) : (
-        <div className="chat-glass flex items-center gap-1 rounded-full px-2 py-1.5">
-          {/* Paperclip */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,audio/*,video/*,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.*,application/zip"
-            className="hidden"
-            onChange={handleFileInputChange}
-            disabled={disabled}
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className={[
-              "shrink-0 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors touch-manipulation",
-              btnSize,
-            ].join(" ")}
-            title="Adjuntar archivo"
-            disabled={disabled}
-          >
-            <Paperclip className={iconSize} />
-          </button>
-
-          {/* Entity reference — hidden entirely in external_support
-              conversations (spec Non-goal 3); this is composer-level
-              enforcement only, Plan A's backend Zod validation is the real
-              safety net. */}
-          {canAttachEntityRefs && (
-            <EntityReferencePicker
-              open={showEntityPicker}
-              onOpenChange={setShowEntityPicker}
-              onPick={addEntityRef}
-            >
-              <button
-                type="button"
-                onClick={() => setShowEntityPicker((v) => !v)}
-                disabled={disabled || pendingEntityRefs.length >= MAX_ENTITY_REFS}
-                className={[
-                  "shrink-0 flex items-center justify-center rounded-full transition-colors touch-manipulation",
-                  btnSize,
-                  showEntityPicker
-                    ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]"
-                    : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))]",
-                ].join(" ")}
-                title={
-                  pendingEntityRefs.length >= MAX_ENTITY_REFS
-                    ? "Maximo 5 referencias por mensaje"
-                    : "Referenciar registro"
-                }
-              >
-                <Link2 className={iconSize} />
-              </button>
-            </EntityReferencePicker>
-          )}
-
-          {/* Textarea (with @mention autocomplete). MentionTextarea bakes a
-              boxed look (border/bg/rounded/padding/focus-ring) into its own
-              fixed className string, but it does forward an extra `className`
-              onto that same element — Tailwind v4's trailing-`!` important
+        <div className="chat-glass flex flex-col rounded-2xl overflow-hidden">
+          {/* Textarea (with @mention autocomplete) — its own full-width row,
+              above the action toolbar, so typing space is never squeezed by
+              icons sitting beside it. MentionTextarea bakes a boxed look
+              (border/bg/rounded/padding/focus-ring) into its own fixed
+              className string, but it does forward an extra `className` onto
+              that same element — Tailwind v4's trailing-`!` important
               modifier (already used elsewhere in this codebase, e.g.
               ProductImageManager.jsx) reliably wins regardless of class
               declaration order, so this neutralizes the boxed look and
               restores the original flat/transparent inline style, including
               the compact-vs-full sizing the old plain <textarea> had. */}
-          <div className="flex-1 min-w-0">
-            <MentionTextarea
-              value={body}
-              onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              members={mentionCandidates}
-              placeholder={placeholder}
-              rows={compact ? 1 : 3}
-              disabled={disabled || isSending}
-              className={[
-                "border-0! bg-transparent! rounded-none! shadow-none! px-0! ring-0! focus:ring-0! leading-tight",
-                compact ? "text-xs! py-1!" : "text-sm! py-2!",
-              ].join(" ")}
-            />
-          </div>
-
-          {/* Emoji */}
-          <button
-            type="button"
-            onClick={() => setShowEmoji((v) => !v)}
-            disabled={disabled}
+          <MentionTextarea
+            ref={mentionTaRef}
+            value={body}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            members={mentionCandidates}
+            placeholder={placeholder}
+            rows={compact ? 1 : 3}
+            disabled={disabled || isSending}
             className={[
-              "shrink-0 flex items-center justify-center rounded-full transition-colors touch-manipulation",
-              btnSize,
-              showEmoji
-                ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]"
-                : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))]",
+              "border-0! bg-transparent! rounded-none! shadow-none! ring-0! focus:ring-0! leading-tight",
+              compact ? "text-xs! px-2! pt-1.5! pb-0.5!" : "text-sm! px-3! pt-2.5! pb-1!",
             ].join(" ")}
-            title="Emojis"
-          >
-            <Smile className={iconSize} />
-          </button>
+          />
 
-          {/* Mic — only shown when there's nothing else ready to send */}
-          {!body.trim() && !pendingFiles.length && !pendingEntityRefs.length && (
+          {/* Action toolbar — attach / reference / emoji / mic grouped on the
+              left, send on the far right. Previously these lived inline next
+              to the textarea inside one pill-shaped row, which both looked
+              cluttered and ate into the width available for typing. */}
+          <div className={["flex items-center gap-0.5", compact ? "px-1 pb-1" : "px-1.5 pb-1.5"].join(" ")}>
+            {/* Paperclip */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,audio/*,video/*,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.*,application/zip"
+              className="hidden"
+              onChange={handleFileInputChange}
+              disabled={disabled}
+            />
             <button
               type="button"
-              onClick={startRecording}
-              disabled={disabled}
+              onClick={() => fileInputRef.current?.click()}
               className={[
                 "shrink-0 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors touch-manipulation",
                 btnSize,
               ].join(" ")}
-              title="Nota de voz"
+              title="Adjuntar archivo"
+              disabled={disabled}
             >
-              <Mic className={iconSize} />
+              <Paperclip className={iconSize} />
             </button>
-          )}
 
-          {/* Send */}
-          <Button
-            size="sm"
-            className={["shrink-0 rounded-full p-0 touch-manipulation", btnSize].join(" ")}
-            onClick={handleSend}
-            onMouseDown={(e) => e.preventDefault()}
-            disabled={(!body.trim() && !pendingFiles.length && !pendingEntityRefs.length) || isSending || disabled}
-          >
-            {isSending ? (
-              <Loader2 className={compact ? "h-3 w-3 animate-spin" : "h-3.5 w-3.5 animate-spin"} />
-            ) : (
-              <Send className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} />
+            {/* Entity reference — hidden entirely in external_support
+                conversations (spec Non-goal 3); this is composer-level
+                enforcement only, Plan A's backend Zod validation is the real
+                safety net. */}
+            {canAttachEntityRefs && (
+              <EntityReferencePicker
+                open={showEntityPicker}
+                onOpenChange={setShowEntityPicker}
+                onPick={addEntityRef}
+                maxSelect={MAX_ENTITY_REFS - pendingEntityRefs.length}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowEntityPicker((v) => !v)}
+                  disabled={disabled || pendingEntityRefs.length >= MAX_ENTITY_REFS}
+                  className={[
+                    "shrink-0 flex items-center justify-center rounded-full transition-colors touch-manipulation",
+                    btnSize,
+                    showEntityPicker
+                      ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]"
+                      : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))]",
+                  ].join(" ")}
+                  title={
+                    pendingEntityRefs.length >= MAX_ENTITY_REFS
+                      ? "Maximo 5 referencias por mensaje"
+                      : "Referenciar registro"
+                  }
+                >
+                  <Link2 className={iconSize} />
+                </button>
+              </EntityReferencePicker>
             )}
-          </Button>
+
+            {/* Emoji */}
+            <button
+              type="button"
+              onClick={() => setShowEmoji((v) => !v)}
+              disabled={disabled}
+              className={[
+                "shrink-0 flex items-center justify-center rounded-full transition-colors touch-manipulation",
+                btnSize,
+                showEmoji
+                  ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]"
+                  : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))]",
+              ].join(" ")}
+              title="Emojis"
+            >
+              <Smile className={iconSize} />
+            </button>
+
+            {/* Mic — only shown when there's nothing else ready to send */}
+            {!body.trim() && !pendingFiles.length && !pendingEntityRefs.length && (
+              <button
+                type="button"
+                onClick={startRecording}
+                disabled={disabled}
+                className={[
+                  "shrink-0 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors touch-manipulation",
+                  btnSize,
+                ].join(" ")}
+                title="Nota de voz"
+              >
+                <Mic className={iconSize} />
+              </button>
+            )}
+
+            <div className="flex-1" />
+
+            {/* Send */}
+            <Button
+              size="sm"
+              className={["shrink-0 rounded-full p-0 touch-manipulation", btnSize].join(" ")}
+              onClick={handleSend}
+              onMouseDown={(e) => e.preventDefault()}
+              disabled={(!body.trim() && !pendingFiles.length && !pendingEntityRefs.length) || isSending || disabled}
+            >
+              {isSending ? (
+                <Loader2 className={compact ? "h-3 w-3 animate-spin" : "h-3.5 w-3.5 animate-spin"} />
+              ) : (
+                <Send className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} />
+              )}
+            </Button>
+          </div>
         </div>
       )}
 

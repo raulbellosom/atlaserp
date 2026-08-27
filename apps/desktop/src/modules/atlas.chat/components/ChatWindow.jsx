@@ -6,6 +6,7 @@ import {
   ChevronUp, ChevronDown, Archive, ArchiveRestore, Pin,
 } from "lucide-react";
 import { ChatFilesGallery } from "./ChatFilesGallery";
+import { DropZoneOverlay } from "./DropZoneOverlay";
 import { ChatMessageList } from "./ChatMessageList";
 import { MessageComposer } from "./MessageComposer";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
@@ -24,7 +25,7 @@ import { useChatPresence } from "../hooks/useChatPresence";
 import { useChatConversations, useArchiveConversation, useUnarchiveConversation } from "../hooks/useChatConversations";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import {
-  getConversationDisplayName, getConversationTitleLabel,
+  getConversationDisplayName, getConversationTitleLabel, buildAllAttachments,
 } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
@@ -364,6 +365,12 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
   const [forwardMessage, setForwardMessage] = useState(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedMsgIds, setSelectedMsgIds] = useState(new Set());
+  // Separate selection state for the standalone Files view (reached from the
+  // header's file icon) — this is a distinct surface from
+  // ConversationMediaTab.jsx's own copy of the same pattern (profile panel's
+  // Media tab), not shared with it, so each needs its own state.
+  const [filesSelectionMode, setFilesSelectionMode] = useState(false);
+  const [filesSelectedIds, setFilesSelectedIds] = useState(new Set());
   const [searchMode, setSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [membersView, setMembersView] = useState(false);
@@ -374,7 +381,17 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
 
   const composerRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [viewer, setViewer] = useState({ open: false, attachments: [], activeIndex: 0 });
+  // No longer stores its own attachments array — the viewer always renders
+  // the conversation-wide allAttachments list below, positioned at whichever
+  // index the click resolved to, so it can page through every file in the
+  // chat rather than being scoped to one message.
+  const [viewer, setViewer] = useState({ open: false, activeIndex: 0 });
+  // Every file ever shared in this conversation (real attachments + file-type
+  // entity references), oldest first — see buildAllAttachments in
+  // chatUtils.js. Opening ANY file inline resolves to its position in THIS
+  // list, not a per-message one, so the viewer can page through the whole
+  // chat's media.
+  const allAttachments = useMemo(() => buildAllAttachments(messagesData?.data ?? []), [messagesData]);
 
   const markReadRef = useRef(markReadMutate);
   markReadRef.current = markReadMutate;
@@ -385,6 +402,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
     setHiddenMessageIds(conversationId ? loadHidden(conversationId) : new Set());
     setSelectionMode(false);
     setSelectedMsgIds(new Set());
+    setFilesSelectionMode(false);
+    setFilesSelectedIds(new Set());
     setSearchMode(false);
     setSearchQuery("");
     setSearchCurrentIdx(0);
@@ -404,9 +423,55 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
     [sendMessage],
   );
 
+  // Ignores the (attachments, activeIndex) pair's CONTENTS beyond the
+  // clicked item's id — that pair is whatever local list the caller had on
+  // hand (a message's own attachments, or one message's file-type entity
+  // refs), just enough to identify which file was clicked. This always opens
+  // the SAME viewer positioned at that file's spot in the conversation-wide
+  // allAttachments list, so paging from here walks the whole chat's media.
   const handleAttachmentClick = useCallback((attachments, activeIndex) => {
-    setViewer({ open: true, attachments, activeIndex });
-  }, []);
+    const clickedId = attachments?.[activeIndex]?.id;
+    const globalIdx = allAttachments.findIndex((f) => f.id === clickedId);
+    setViewer({ open: true, activeIndex: globalIdx >= 0 ? globalIdx : 0 });
+  }, [allAttachments]);
+
+  function toggleFilesSelect(id) {
+    setFilesSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function cancelFilesSelection() {
+    setFilesSelectionMode(false);
+    setFilesSelectedIds(new Set());
+  }
+
+  // Direct sequential downloads — same staggered pattern as
+  // ConversationMediaTab.jsx's handleBulkDownload, avoiding Chrome's
+  // multi-download permission prompt on a burst of simultaneous downloads.
+  function handleFilesBulkDownload() {
+    const targets = [];
+    for (const msg of messagesData?.data ?? []) {
+      for (const att of msg.attachments ?? []) {
+        if (filesSelectedIds.has(att.id)) targets.push(att);
+      }
+    }
+    targets.forEach((att, i) => {
+      setTimeout(() => {
+        if (!att.url) return;
+        const a = document.createElement("a");
+        a.href = att.url;
+        a.download = att.fileName ?? "archivo";
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.click();
+      }, i * 150);
+    });
+    cancelFilesSelection();
+  }
 
   const openProfile = useCallback((tab = null) => {
     setProfileInitialTab(tab);
@@ -615,17 +680,25 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
 
   return (
     <div
-      className="flex flex-col flex-1 min-h-0 relative"
+      className="flex flex-1 min-h-0 relative"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {isDragOver && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center border-2 border-dashed border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.06)] pointer-events-none rounded-none">
-          <p className="text-sm font-medium text-[hsl(var(--primary))]">Suelta los archivos aqui</p>
-        </div>
-      )}
+      {isDragOver && <DropZoneOverlay rounded="rounded-none" />}
 
+      {/* Header + message body + composer all live in ONE column now, so the
+          profile sidebar (below) sits alongside the WHOLE chat — header
+          included — instead of being nested inside just the message-body
+          row below a second, separate header. That nesting used to leave
+          ConversationProfilePanel's own header stacked under ChatHeader
+          instead of flush with the top of the window, and left the composer
+          spanning full width underneath the sidebar instead of stopping at
+          this column's edge. */}
+      <div className={[
+        "min-w-0 min-h-0 flex-col",
+        membersView ? "hidden xl:flex xl:flex-1" : "flex flex-1",
+      ].join(" ")}>
       <ChatHeader
         conversation={conversation}
         currentUserId={userProfile?.id}
@@ -663,17 +736,34 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
           : undefined}
       />
 
-      <div className="flex-1 min-w-0 min-h-0 flex">
-        <div className={[
-          "min-w-0 min-h-0 flex-col",
-          membersView ? "hidden xl:flex xl:flex-1" : "flex flex-1",
-        ].join(" ")}>
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
           {filesView ? (
-            <ChatFilesGallery
-              messages={messages}
-              isLoading={isLoading}
-              onAttachmentClick={handleAttachmentClick}
-            />
+            <div className="flex-1 min-h-0 flex flex-col">
+              <ChatFilesGallery
+                messages={messages}
+                isLoading={isLoading}
+                onAttachmentClick={handleAttachmentClick}
+                selectionMode={filesSelectionMode}
+                selectedIds={filesSelectedIds}
+                onToggleSelect={toggleFilesSelect}
+                onEnterSelection={() => setFilesSelectionMode(true)}
+                onCancelSelection={cancelFilesSelection}
+              />
+              {filesSelectionMode && filesSelectedIds.size > 0 && (
+                <div className="shrink-0 px-4 py-2.5 border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] flex items-center justify-between">
+                  <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                    {filesSelectedIds.size} {filesSelectedIds.size === 1 ? "archivo" : "archivos"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleFilesBulkDownload}
+                    className="text-xs font-medium px-3 py-1.5 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:opacity-90 transition-opacity"
+                  >
+                    Descargar ({filesSelectedIds.size})
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <ChatMessageList
               messages={messages}
@@ -703,39 +793,39 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
               scrollToMessage={jumpTarget}
             />
           )}
-        </div>
-
-        {membersView && (
-          <div className="w-full xl:w-96 xl:shrink-0 xl:border-l xl:border-[hsl(var(--border))] flex flex-col min-h-0 min-w-0">
-            <ConversationProfilePanel
-              key={profileInitialTab ?? "default"}
-              conversation={conversation}
-              currentUserId={userProfile?.id}
-              initialTab={profileInitialTab}
-              onBack={closeProfile}
-              messages={messages}
-              isLoadingMessages={isLoading}
-              onShowAllFiles={showAllFiles}
-            />
-          </div>
-        )}
       </div>
 
-      {/* Below xl: the profile sidebar fully replaces the message view (no
-          room for both), so hide the composer too while it's open — nothing
-          to type into. At xl and up the message view stays visible next to
-          the sidebar (see the row above), so the composer stays too — you
-          can keep chatting while looking at the profile, same as the
-          message list itself never disappears there. */}
+      {/* Below xl: the profile sidebar fully replaces this whole column (no
+          room for both) — the column div's own "hidden xl:flex" above
+          handles that. At xl and up this column stays visible alongside the
+          sidebar (see below), composer included, so you can keep chatting
+          while looking at the profile. */}
       {!filesView && (
-        <div className={membersView ? "hidden xl:block" : ""}>
-          <MessageComposer
-            ref={composerRef}
-            onSend={handleSend}
-            onTyping={sendTyping}
-            placeholder="Escribe un mensaje..."
-            conversationId={conversationId}
-            conversationType={conversation?.type}
+        <MessageComposer
+          ref={composerRef}
+          onSend={handleSend}
+          onTyping={sendTyping}
+          placeholder="Escribe un mensaje..."
+          conversationId={conversationId}
+          conversationType={conversation?.type}
+          dropZoneDisabled
+        />
+      )}
+      </div>
+
+      {/* True full-height sidebar, alongside the whole chat column above —
+          header included — not nested inside just the message-body row. */}
+      {membersView && (
+        <div className="w-full xl:w-96 xl:shrink-0 xl:border-l xl:border-[hsl(var(--border))] flex flex-col min-h-0 min-w-0">
+          <ConversationProfilePanel
+            key={profileInitialTab ?? "default"}
+            conversation={conversation}
+            currentUserId={userProfile?.id}
+            initialTab={profileInitialTab}
+            onBack={closeProfile}
+            messages={messages}
+            isLoadingMessages={isLoading}
+            onShowAllFiles={showAllFiles}
           />
         </div>
       )}
@@ -743,7 +833,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
       <ChatAttachmentViewer
         open={viewer.open}
         onOpenChange={(open) => setViewer((v) => ({ ...v, open }))}
-        attachments={viewer.attachments}
+        attachments={allAttachments}
         activeIndex={viewer.activeIndex}
         onIndexChange={(i) => setViewer((v) => ({ ...v, activeIndex: i }))}
       />

@@ -109,7 +109,7 @@ function OnlineUserPill({ user, currentUserId, conversations, onOpen }) {
 function ConversationPanel({ conversations, externalConversations, isLoading, edge, bottomPx, zIndex = 45, currentUserId }) {
   const { openChat, close } = useChatFloatStore();
   const navigate = useNavigate();
-  const { onlineUsers } = useGlobalPresence();
+  const { onlineUsers, isUserOnline } = useGlobalPresence();
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -326,6 +326,12 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
             const titleLabel = getConversationTitleLabel(conv, currentUserId);
             const avatarUrl = getAvatarUrl(conv, currentUserId);
             const avatarEmoji = getAvatarEmoji(conv);
+            // Same online-dot the main ChatSidebar list shows (ChatConversationItem) —
+            // this popover was rendering the identical direct-conversation row without it.
+            const otherMember = conv.type === "direct"
+              ? (conv.members ?? []).find((m) => m.userId !== currentUserId)
+              : null;
+            const online = otherMember ? isUserOnline(otherMember.userId) : false;
             return (
               <button
                 key={conv.id}
@@ -333,7 +339,7 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
                 onClick={() => handleSelect(conv)}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[hsl(var(--muted))] active:bg-[hsl(var(--muted))] transition-colors text-left touch-manipulation"
               >
-                <AvatarCircle avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conv.type} name={name} size="md" />
+                <AvatarCircle avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conv.type} name={name} size="md" online={online} />
                 <div className="flex-1 min-w-0">
                   <p className={["text-xs truncate", conv.unread_count > 0 ? "font-semibold" : "font-medium"].join(" ")}>{titleLabel}</p>
                   {conv.last_message?.body && (

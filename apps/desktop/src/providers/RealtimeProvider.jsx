@@ -122,13 +122,18 @@ export function RealtimeProvider({ children }) {
           await channel.track({
             userId: userProfile.id,
             displayName: userProfile.displayName ?? userProfile.email ?? userProfile.id,
+            // Without this, every "online now" widget (FloatingChatHub's pill
+            // strip included) falls back to initials for everyone, even users
+            // who do have a real photo elsewhere in the app — the presence
+            // payload is the only source those widgets read from.
+            avatarUrl: userProfile.avatarUrl ?? null,
             status: 'online',
           })
         }
       })
 
     return () => { client.removeChannel(channel) }
-  }, [userProfile?.id, userProfile?.companyId, userProfile?.displayName, userProfile?.email])
+  }, [userProfile?.id, userProfile?.companyId, userProfile?.displayName, userProfile?.email, userProfile?.avatarUrl])
 
   // Company events channel — receives broadcast events for POS, Calendar, and other company-wide modules
   useEffect(() => {

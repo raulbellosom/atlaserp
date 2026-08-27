@@ -258,6 +258,29 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
               '1970-01-01'::timestamptz
             )
         ) AS unread_count,
+        -- unread messages that mention the caller directly, via their role in
+        -- this conversation, or an @everyone/@here broadcast — mirrors the
+        -- isMentioned() check ChatMessageBubble.jsx uses to highlight a message,
+        -- so the sidebar badge and the in-chat highlight never disagree.
+        (
+          SELECT COUNT(*)::int FROM chat_messages m
+          WHERE m.conversation_id = c.id
+            AND m.deleted_at IS NULL
+            AND m.thread_root_id IS NULL
+            AND m.sender_type != 'system'
+            AND m.sender_user_id IS DISTINCT FROM ${profileId}
+            AND m.created_at > COALESCE(
+              (SELECT last_read_at FROM chat_conversation_members
+               WHERE conversation_id = c.id AND user_id = ${profileId}),
+              '1970-01-01'::timestamptz
+            )
+            AND (
+              (m.metadata->'mentions'->>'everyone')::boolean IS TRUE
+              OR (m.metadata->'mentions'->>'here')::boolean IS TRUE
+              OR m.metadata->'mentions'->'userIds' ? ${profileId}::text
+              OR (ccm.role_id IS NOT NULL AND m.metadata->'mentions'->'roleIds' ? ccm.role_id::text)
+            )
+        ) AS unread_mention_count,
         -- last message preview
         (
           SELECT json_build_object(

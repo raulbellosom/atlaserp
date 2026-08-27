@@ -282,7 +282,10 @@ export function AtlasApp() {
   return (
     <OfflineProvider apiBaseUrl={apiBaseUrl} onTransportReady={handleTransportReady}>
       <ModuleBundleLoader>
-        <div className="h-dvh overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
+        {/* fixed inset-0 (not h-dvh) so the shell pins to the real PWA viewport
+            edges on iOS/Android standalone, where 100dvh can fall short of the
+            webview and leave a blank band of body background at the bottom. */}
+        <div className="fixed inset-0 overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       <Topbar
         onLauncherOpen={openLauncher}
         onMobileMenuToggle={showSidebar ? () => setMobileOpen((o) => !o) : undefined}
