@@ -66,7 +66,7 @@ export function ChatFilesGallery({
 
   if (isLoading) {
     return (
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2">
+      <div className="p-4 space-y-2">
         {Array.from({ length: 6 }).map((_, i) => (
           <Skeleton key={i} className="h-12 w-full rounded-lg" />
         ))}
@@ -77,7 +77,7 @@ export function ChatFilesGallery({
   if (!allAttachments.length) {
     return (
       <EmptyState
-        className="flex-1 min-h-0"
+        className="py-8"
         title="Sin archivos"
         description="Aun no se han compartido archivos en esta conversacion."
       />
