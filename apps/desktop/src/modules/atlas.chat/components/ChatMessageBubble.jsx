@@ -821,6 +821,12 @@ export function ChatMessageBubble({
 
   const hasBody = Boolean(message.body) && !isDeleted;
   const showActions = !isDeleted && !isPending;
+  // Only the first entity ref visually merges with the text bubble above it
+  // (EntityReferenceCard's `attached` prop) — flatten the BUBBLE's own bottom
+  // corners to match, otherwise the bubble's still-rounded bottom edge meets
+  // the chip's now-flat top edge and produces the exact seam this feature
+  // exists to remove.
+  const firstEntityRefAttached = hasBody && message.metadata?.entityRefs?.length > 0;
 
   // Own membership entry in this conversation — needed to detect role-targeted mentions
   // and to gate the pin action by permission.
@@ -885,6 +891,7 @@ export function ChatMessageBubble({
                 className={[
                   "px-3 py-2 text-sm leading-relaxed",
                   radius,
+                  firstEntityRefAttached ? "rounded-b-none!" : "",
                   "bg-(--brand-primary) text-(--brand-primary-foreground)",
                   isDeleted ? "opacity-50 italic" : "",
                 ].join(" ")}
@@ -930,7 +937,7 @@ export function ChatMessageBubble({
                   <EntityReferenceCard
                     key={`${ref.entityType}:${ref.recordId}:${i}`}
                     reference={ref}
-                    attached={hasText}
+                    attached={hasText && i === 0}
                     isOwn={true}
                   />
                 ))}
@@ -1011,6 +1018,7 @@ export function ChatMessageBubble({
               className={[
                 "px-3 py-2 text-sm leading-relaxed",
                 radius,
+                firstEntityRefAttached ? "rounded-b-none!" : "",
                 "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
                 isDeleted ? "opacity-50 italic" : "",
               ].join(" ")}
@@ -1056,7 +1064,7 @@ export function ChatMessageBubble({
                 <EntityReferenceCard
                   key={`${ref.entityType}:${ref.recordId}:${i}`}
                   reference={ref}
-                  attached={hasText}
+                  attached={hasText && i === 0}
                   isOwn={false}
                 />
               ))}

@@ -14,7 +14,7 @@ export function EntityReferenceCard({ reference, attached = false, isOwn = false
   const Icon = ICON_BY_TYPE[reference.entityType] ?? ExternalLink;
 
   const attachedClasses = isOwn
-    ? "bg-(--brand-primary)/90 text-(--brand-primary-foreground) border-transparent rounded-t-none"
+    ? "bg-(--brand-primary) text-(--brand-primary-foreground) border-transparent rounded-t-none"
     : "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] border-transparent rounded-t-none";
   const standaloneClasses = "border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]";
 
