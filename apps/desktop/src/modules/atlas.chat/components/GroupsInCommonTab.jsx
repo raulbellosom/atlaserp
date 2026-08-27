@@ -60,7 +60,7 @@ export function GroupsInCommonTab({ otherUserId }) {
   if (!groups.length) {
     return (
       <EmptyState
-        className="flex-1 min-h-0"
+        className="py-8"
         icon={Users}
         title="Sin grupos en comun"
         description="No comparten grupos en comun."
