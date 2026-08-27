@@ -61,7 +61,9 @@ export function RealtimeProvider({ children }) {
           const openChats = useChatFloatStore.getState().openChats
           const isOpenAndVisible = convId && openChats.some((c) => c.id === convId && !c.minimized)
           const isOnRoute = convId && window.location.pathname.includes(`/atlas.chat/chat/inbox/${convId}`)
-          if (!isOpenAndVisible && !isOnRoute) {
+          const cachedConversations = queryClient.getQueryData(['chat-conversations'])?.data ?? []
+          const isMuted = convId && cachedConversations.some((c) => c.id === convId && c.is_muted)
+          if (!isOpenAndVisible && !isOnRoute && !isMuted) {
             toast(payload.senderName, {
               description: 'Nuevo mensaje',
               duration: 5000,
