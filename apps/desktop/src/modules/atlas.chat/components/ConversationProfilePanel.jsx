@@ -61,7 +61,7 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
     statusLine = online
       ? "En linea"
       : lastSeen
-        ? `Visto ${new Date(lastSeen).toLocaleString("es-MX", { hour: "2-digit", minute: "2-digit" })}`
+        ? `Visto ${lastSeen.toLocaleString("es-MX", { hour: "2-digit", minute: "2-digit" })}`
         : "Desconectado";
   } else {
     statusLine = `${memberCount} ${memberCount === 1 ? "miembro" : "miembros"}`;
@@ -106,9 +106,6 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
   );
 
   if (type === "direct") {
-    const otherMember = (detail?.members ?? conversation?.members ?? []).find(
-      (m) => m.userId !== currentUserId,
-    );
     return (
       <Tabs defaultValue={initialTab ?? "info"} className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {backHeader}
@@ -122,15 +119,15 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
         <TabsContent value="info" className="flex-1 min-h-0 overflow-y-auto">
           <ConversationInfoTab
             conversationId={conversationId}
-            otherUserId={otherMember?.userId}
-            otherDisplayName={otherMember?.displayName}
+            otherUserId={otherMemberForHero?.userId}
+            otherDisplayName={otherMemberForHero?.displayName}
           />
         </TabsContent>
         <TabsContent value="media" className="flex-1 min-h-0 overflow-y-auto">
           <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} />
         </TabsContent>
         <TabsContent value="common" className="flex-1 min-h-0 overflow-y-auto">
-          <GroupsInCommonTab otherUserId={otherMember?.userId} />
+          <GroupsInCommonTab otherUserId={otherMemberForHero?.userId} />
         </TabsContent>
         <TabsContent value="notifications" className="flex-1 min-h-0 overflow-y-auto">
           <NotificationsTab conversationId={conversationId} isMuted={isMuted} />
