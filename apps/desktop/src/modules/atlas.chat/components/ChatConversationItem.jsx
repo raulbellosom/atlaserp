@@ -92,7 +92,7 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
         <Avatar name={displayName} avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conversation.type} online={isOnline} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-medium truncate chat-font-display font-semibold">{titleLabel}</span>
+            <span className="text-sm truncate chat-font-display font-semibold">{titleLabel}</span>
             {lastMsg?.createdAt && (
               <span className="text-xs text-[hsl(var(--muted-foreground))] shrink-0">
                 {formatMessageTime(lastMsg.createdAt)}
