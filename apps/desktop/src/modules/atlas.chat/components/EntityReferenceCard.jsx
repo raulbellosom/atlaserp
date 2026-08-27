@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Paperclip, Landmark, IdCard, ExternalLink } from "lucide-react";
+import { User, Paperclip, Landmark, IdCard, ExternalLink, SquareKanban, CheckSquare, CalendarDays } from "lucide-react";
 import { useFileRefSignedUrl } from "../hooks/useFileRefSignedUrl";
 
-const ICON_BY_TYPE = { contact: User, file: Paperclip, ledger_account: Landmark, hr_employee: IdCard };
+const ICON_BY_TYPE = {
+  contact: User, file: Paperclip, ledger_account: Landmark, hr_employee: IdCard,
+  project: SquareKanban, task: CheckSquare, calendar_event: CalendarDays,
+};
 
 function formatBalance(balance, currency) {
   try {
