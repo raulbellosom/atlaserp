@@ -51,6 +51,9 @@ const SCREEN_MAP = {
   "atlas.identity:/identity/roles/:id": lazy(
     () => import("../modules/atlas.identity/screens/RoleEditorScreen.jsx"),
   ),
+  "atlas.identity:/identity/chat-reports": lazy(
+    () => import("../modules/atlas.identity/screens/ChatReportsScreen.jsx"),
+  ),
   "atlas.contacts:/": lazy(
     () => import("../modules/atlas.contacts/screens/ContactsScreen.jsx"),
   ),
