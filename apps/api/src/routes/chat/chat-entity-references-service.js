@@ -16,7 +16,7 @@ async function resolveActorContext(prisma, authUserId) {
   return { profileId: profile.id, companyId: membership.companyId };
 }
 
-export function createChatEntityReferencesService({ prisma, contactsService, filesService, hrService, ledgerService }) {
+export function createChatEntityReferencesService({ prisma, contactsService, filesService, hrService, ledgerService, projectsService, tasksService, calendarEventService }) {
   // Not a static registry object keyed by entityType — each type's
   // underlying call shape genuinely differs (three take authUserId+id
   // directly, ledger needs companyId/actorId derived separately), so a
@@ -57,6 +57,39 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
           // and their linked user account's avatar — prefer the employee
           // record's own photo, fall back to the account avatar.
           photoFileId: row.profileImageFileId ?? row.userProfile?.avatarFileId ?? null,
+        };
+      }
+      if (entityType === "project") {
+        const ctx = await resolveActorContext(prisma, authUserId);
+        if (!ctx) return null;
+        const row = await projectsService.getProject(recordId, ctx.profileId);
+        return {
+          entityType, recordId, title: row.name, subtitle: null,
+          url: `/app/m/atlas.projects/${recordId}`,
+          color: row.color ?? null,
+          icon: row.icon ?? null,
+        };
+      }
+      if (entityType === "task") {
+        const row = await tasksService.getTask(recordId);
+        if (!row) return null;
+        return {
+          entityType, recordId, title: row.title,
+          subtitle: row.status?.name ?? null,
+          url: `/app/m/atlas.projects/tasks/${recordId}`,
+        };
+      }
+      if (entityType === "calendar_event") {
+        const ctx = await resolveActorContext(prisma, authUserId);
+        if (!ctx) return null;
+        const row = await calendarEventService.getEvent(ctx.profileId, recordId);
+        const startDate = new Date(row.startAt);
+        const subtitle = Number.isNaN(startDate.getTime())
+          ? null
+          : startDate.toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
+        return {
+          entityType, recordId, title: row.title, subtitle,
+          url: `/app/m/atlas.calendar/events/${recordId}`,
         };
       }
       if (entityType === "ledger_account") {

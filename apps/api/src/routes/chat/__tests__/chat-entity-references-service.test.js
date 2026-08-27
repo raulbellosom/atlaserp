@@ -225,3 +225,81 @@ describe("chat-entity-references-service — resolveEntityRefs", () => {
     assert.deepEqual(order, ["contact-start", "file-start", "file-end", "contact-end"]);
   });
 });
+
+describe("chat-entity-references-service — project/task/calendar_event", () => {
+  it("resolves a project reference, deriving profileId from authUserId (not passing authUserId through)", async () => {
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: "profile-1" }) },
+      membership: { findFirst: async () => ({ companyId: "company-1" }) },
+    };
+    let capturedArgs = null;
+    const deps = {
+      projectsService: { getProject: async (id, userId) => { capturedArgs = { id, userId }; return { id: "proj-1", name: "Relanzamiento web", color: "#6366f1", icon: "Rocket" }; } },
+      tasksService: {}, calendarEventService: {}, contactsService: {}, filesService: {}, hrService: {}, ledgerService: {}, prisma,
+    };
+    const service = createChatEntityReferencesService(deps);
+    const result = await service.resolveEntityRefs({
+      authUserId: "auth-1",
+      entityRefs: [{ entityType: "project", recordId: "proj-1" }],
+    });
+    assert.deepEqual(capturedArgs, { id: "proj-1", userId: "profile-1" });
+    assert.deepEqual(result, [{
+      entityType: "project", recordId: "proj-1", title: "Relanzamiento web",
+      subtitle: null, url: "/app/m/atlas.projects/proj-1", color: "#6366f1", icon: "Rocket",
+    }]);
+  });
+
+  it("drops a project reference the caller cannot access (404 from getProject)", async () => {
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: "profile-1" }) },
+      membership: { findFirst: async () => ({ companyId: "company-1" }) },
+    };
+    const deps = {
+      projectsService: { getProject: async () => { throw new Error("Proyecto no encontrado."); } },
+      tasksService: {}, calendarEventService: {}, contactsService: {}, filesService: {}, hrService: {}, ledgerService: {}, prisma,
+    };
+    const service = createChatEntityReferencesService(deps);
+    const result = await service.resolveEntityRefs({
+      authUserId: "auth-1",
+      entityRefs: [{ entityType: "project", recordId: "proj-1" }],
+    });
+    assert.deepEqual(result, []);
+  });
+
+  it("resolves a task reference, using the task's status name as subtitle", async () => {
+    const deps = {
+      tasksService: { getTask: async (id) => { assert.equal(id, "task-1"); return { id: "task-1", title: "Diseñar landing", status: { name: "En progreso" } }; } },
+      projectsService: {}, calendarEventService: {}, contactsService: {}, filesService: {}, hrService: {}, ledgerService: {}, prisma: {},
+    };
+    const service = createChatEntityReferencesService(deps);
+    const result = await service.resolveEntityRefs({
+      authUserId: "auth-1",
+      entityRefs: [{ entityType: "task", recordId: "task-1" }],
+    });
+    assert.deepEqual(result, [{
+      entityType: "task", recordId: "task-1", title: "Diseñar landing",
+      subtitle: "En progreso", url: "/app/m/atlas.projects/tasks/task-1",
+    }]);
+  });
+
+  it("resolves a calendar_event reference, deriving profileId from authUserId", async () => {
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: "profile-1" }) },
+      membership: { findFirst: async () => ({ companyId: "company-1" }) },
+    };
+    let capturedArgs = null;
+    const deps = {
+      calendarEventService: { getEvent: async (userId, id) => { capturedArgs = { userId, id }; return { id: "evt-1", title: "Reunion de seguimiento", startAt: "2026-09-01T15:00:00.000Z" }; } },
+      projectsService: {}, tasksService: {}, contactsService: {}, filesService: {}, hrService: {}, ledgerService: {}, prisma,
+    };
+    const service = createChatEntityReferencesService(deps);
+    const result = await service.resolveEntityRefs({
+      authUserId: "auth-1",
+      entityRefs: [{ entityType: "calendar_event", recordId: "evt-1" }],
+    });
+    assert.deepEqual(capturedArgs, { userId: "profile-1", id: "evt-1" });
+    assert.equal(result[0].title, "Reunion de seguimiento");
+    assert.equal(result[0].url, "/app/m/atlas.calendar/events/evt-1");
+    assert.equal(typeof result[0].subtitle, "string");
+  });
+});
