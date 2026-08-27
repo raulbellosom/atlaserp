@@ -658,7 +658,10 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
       />
 
       <div className="flex-1 min-w-0 min-h-0 flex">
-        <div className={membersView ? "hidden xl:flex xl:flex-1 min-w-0 min-h-0 flex-col" : "flex flex-1 min-w-0 min-h-0 flex-col"}>
+        <div className={[
+          "min-w-0 min-h-0 flex-col",
+          membersView ? "hidden xl:flex xl:flex-1" : "flex flex-1",
+        ].join(" ")}>
           {filesView ? (
             <ChatFilesGallery
               messages={messages}
@@ -697,7 +700,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         </div>
 
         {membersView && (
-          <div className="w-full xl:w-96 xl:shrink-0 xl:border-l xl:border-[hsl(var(--border))] flex flex-col min-h-0">
+          <div className="w-full xl:w-96 xl:shrink-0 xl:border-l xl:border-[hsl(var(--border))] flex flex-col min-h-0 min-w-0">
             <ConversationProfilePanel
               key={profileInitialTab ?? "default"}
               conversation={conversation}

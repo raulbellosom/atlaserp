@@ -130,7 +130,7 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
           )}
         </div>
       )}
-      <p className="chat-font-display text-lg font-bold">{displayName}</p>
+      <p className="chat-font-display text-lg font-bold truncate max-w-full">{displayName}</p>
       <p className="text-xs text-[hsl(var(--muted-foreground))]">{statusLine}</p>
     </div>
   );
