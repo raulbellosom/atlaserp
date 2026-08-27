@@ -2,6 +2,9 @@
 import { useState, useMemo } from "react";
 import { ChatFilesGallery } from "./ChatFilesGallery";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
+import { isImageMime } from "../lib/chatUtils";
+
+const PREVIEW_LIMIT = 6;
 
 // Receives messages as a prop rather than calling useChatMessages itself —
 // the parent (ChatWindow/MiniChatWindow) already has this data from its own
@@ -15,16 +18,39 @@ export function ConversationMediaTab({ messages, isLoading, preview = false, onS
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
 
-  // Same lookup ChatFilesGallery builds internally, needed here too so
-  // "Descargar" can resolve each selected id back to its url/fileName.
+  // Same lookup ChatFilesGallery builds internally (including file-type
+  // entity refs, per that component's own allAttachments), needed here too
+  // so "Descargar" can resolve each selected id back to its url/fileName,
+  // and so the "Mostrar mas" gate below can tell whether ChatFilesGallery's
+  // previewLimit is actually truncating anything.
   const allAttachments = useMemo(() => {
     if (!messages?.length) return [];
     const result = [];
     for (const msg of messages) {
       for (const att of (msg.attachments ?? [])) result.push(att);
+      for (const ref of (msg.metadata?.entityRefs ?? [])) {
+        if (ref.entityType !== "file" || !ref.mimeType) continue;
+        result.push({ id: ref.recordId, mimeType: ref.mimeType, fileName: ref.title, url: null });
+      }
     }
     return result;
   }, [messages]);
+
+  // ChatFilesGallery caps images and non-image files INDEPENDENTLY at
+  // previewLimit each (up to 2x previewLimit total on screen) — gating
+  // "Mostrar mas" on the combined count alone would show it even when
+  // neither category was actually truncated (e.g. 4 images + 4 files: 8
+  // total, nothing cut). Check each category against the same limit
+  // ChatFilesGallery itself uses instead.
+  const hasMoreToShow = useMemo(() => {
+    let images = 0;
+    let otherFiles = 0;
+    for (const att of allAttachments) {
+      if (isImageMime(att.mimeType)) images += 1;
+      else otherFiles += 1;
+    }
+    return images > PREVIEW_LIMIT || otherFiles > PREVIEW_LIMIT;
+  }, [allAttachments]);
 
   function toggleSelect(id) {
     setSelectedIds((prev) => {
@@ -72,9 +98,9 @@ export function ConversationMediaTab({ messages, isLoading, preview = false, onS
         onToggleSelect={toggleSelect}
         onEnterSelection={() => setSelectionMode(true)}
         onCancelSelection={cancelSelection}
-        previewLimit={preview ? 6 : undefined}
+        previewLimit={preview ? PREVIEW_LIMIT : undefined}
       />
-      {preview && !selectionMode && allAttachments.length > 6 && (
+      {preview && !selectionMode && hasMoreToShow && (
         <button
           type="button"
           onClick={onShowAll}
