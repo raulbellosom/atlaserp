@@ -1486,6 +1486,8 @@ export function createAtlasClient({ baseUrl }) {
         const params = new URLSearchParams();
         if (query.start) params.set("start", query.start);
         if (query.end) params.set("end", query.end);
+        if (query.source_module) params.set("source_module", query.source_module);
+        if (query.source_entity_id) params.set("source_entity_id", query.source_entity_id);
         if (Array.isArray(query.calendar_ids)) {
           query.calendar_ids.forEach((id) => params.append("calendar_ids", id));
         }

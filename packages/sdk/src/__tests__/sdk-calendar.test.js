@@ -164,6 +164,18 @@ describe('atlas SDK â€” calendar namespace', () => {
     fetchMock.mock.restore()
   })
 
+  it('listEvents forwards source_module and source_entity_id as query params', async () => {
+    const fetchMock = makeFetch()
+    const { createAtlasClient } = await import('../index.js')
+    const client = createAtlasClient({ baseUrl: 'http://api' })
+    globalThis.fetch = fetchMock
+    await client.calendar.listEvents('tok', { start: '2026-01-01', end: '2026-01-31', source_module: 'atlas.chat', source_entity_id: 'conv-1' })
+    const [url] = fetchMock.mock.calls[0].arguments
+    assert.ok(url.includes('source_module=atlas.chat'), `url should include source_module=atlas.chat, got: ${url}`)
+    assert.ok(url.includes('source_entity_id=conv-1'), `url should include source_entity_id=conv-1, got: ${url}`)
+    fetchMock.mock.restore()
+  })
+
   it('markNotificationRead PATCHes /calendar/notifications/:id/read', async () => {
     const fetchMock = makeFetch()
     const { createAtlasClient } = await import('../index.js')
