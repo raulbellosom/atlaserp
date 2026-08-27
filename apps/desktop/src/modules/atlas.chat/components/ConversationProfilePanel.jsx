@@ -201,7 +201,7 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
         )}
         <div data-section="media">
           <SectionHeader icon={FolderOpen} label="Multimedia" />
-          <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} />
+          <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} preview onShowAll={onShowAllFiles} />
         </div>
         <div data-section="notifications">
           <SectionHeader icon={Bell} label="Notificaciones" />
