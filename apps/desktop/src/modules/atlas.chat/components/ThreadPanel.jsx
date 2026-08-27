@@ -5,6 +5,7 @@ import { useThreadReplies, useSendThreadReply } from "../hooks/useThreadReplies"
 import { ChatMessageBubble } from "./ChatMessageBubble";
 import { MessageComposer } from "./MessageComposer";
 import { useAuth } from "../../../auth/AuthProvider";
+import "../chat-theme.css";
 
 export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId, conversationType, members, onToggleReaction }) {
   const { userProfile } = useAuth();
@@ -21,7 +22,7 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col p-0">
+      <SheetContent side="right" className="chat-glass-theme w-full sm:max-w-md flex flex-col p-0">
         <SheetHeader className="px-4 pt-4">
           <SheetTitle className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4 text-[hsl(var(--primary))]" />
