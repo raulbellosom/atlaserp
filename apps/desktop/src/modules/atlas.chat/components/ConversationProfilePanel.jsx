@@ -115,6 +115,15 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
     </div>
   );
 
+  const avatarViewer = (
+    <ImageViewer
+      src={heroAvatarUrl}
+      alt={displayName}
+      open={avatarViewerOpen}
+      onClose={() => setAvatarViewerOpen(false)}
+    />
+  );
+
   if (type === "direct") {
     return (
       <>
@@ -144,12 +153,7 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
             <NotificationsTab conversationId={conversationId} isMuted={isMuted} />
           </TabsContent>
         </Tabs>
-        <ImageViewer
-          src={heroAvatarUrl}
-          alt={displayName}
-          open={avatarViewerOpen}
-          onClose={() => setAvatarViewerOpen(false)}
-        />
+        {avatarViewer}
       </>
     );
   }
@@ -188,12 +192,7 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
           <NotificationsTab conversationId={conversationId} isMuted={isMuted} />
         </TabsContent>
       </Tabs>
-      <ImageViewer
-        src={heroAvatarUrl}
-        alt={displayName}
-        open={avatarViewerOpen}
-        onClose={() => setAvatarViewerOpen(false)}
-      />
+      {avatarViewer}
     </>
   );
 }
