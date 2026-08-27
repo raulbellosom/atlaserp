@@ -591,7 +591,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
           </button>
         </div>
       ) : (
-        <div className="chat-glass flex items-end gap-1 rounded-full px-2 py-1.5">
+        <div className="chat-glass flex items-center gap-1 rounded-full px-2 py-1.5">
           {/* Paperclip */}
           <input
             ref={fileInputRef}
