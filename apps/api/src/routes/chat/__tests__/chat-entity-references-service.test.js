@@ -23,9 +23,9 @@ describe("chat-entity-references-service — resolveEntityRefs", () => {
     }]);
   });
 
-  it("resolves a file reference with originalName as title", async () => {
+  it("resolves a file reference with originalName as title, includes mimeType and sizeBytes", async () => {
     const deps = {
-      filesService: { getById: async () => ({ id: "file-1", originalName: "contrato.pdf" }) },
+      filesService: { getById: async () => ({ id: "file-1", originalName: "contrato.pdf", mimeType: "application/pdf", sizeBytes: 12345 }) },
       contactsService: {}, hrService: {}, ledgerService: {}, prisma: {},
     };
     const service = createChatEntityReferencesService(deps);
@@ -33,8 +33,26 @@ describe("chat-entity-references-service — resolveEntityRefs", () => {
       authUserId: "auth-1",
       entityRefs: [{ entityType: "file", recordId: "file-1" }],
     });
-    assert.equal(result[0].title, "contrato.pdf");
-    assert.equal(result[0].url, "/app/m/atlas.files/files/file-1");
+    assert.deepEqual(result[0], {
+      entityType: "file", recordId: "file-1", title: "contrato.pdf", subtitle: null,
+      url: "/app/m/atlas.files/files/file-1", mimeType: "application/pdf", sizeBytes: 12345,
+    });
+  });
+
+  it("resolves a file reference with null mimeType and sizeBytes when not provided", async () => {
+    const deps = {
+      filesService: { getById: async () => ({ id: "file-1", originalName: "data.csv" }) },
+      contactsService: {}, hrService: {}, ledgerService: {}, prisma: {},
+    };
+    const service = createChatEntityReferencesService(deps);
+    const result = await service.resolveEntityRefs({
+      authUserId: "auth-1",
+      entityRefs: [{ entityType: "file", recordId: "file-1" }],
+    });
+    assert.deepEqual(result[0], {
+      entityType: "file", recordId: "file-1", title: "data.csv", subtitle: null,
+      url: "/app/m/atlas.files/files/file-1", mimeType: null, sizeBytes: null,
+    });
   });
 
   it("resolves an hr_employee reference joining first/last name", async () => {

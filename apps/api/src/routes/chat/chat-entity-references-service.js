@@ -32,7 +32,12 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
       if (entityType === "file") {
         const row = await filesService.getById({ authUserId, id: recordId });
         if (!row) return null;
-        return { entityType, recordId, title: row.originalName, subtitle: null, url: `/app/m/atlas.files/files/${recordId}` };
+        return {
+          entityType, recordId, title: row.originalName, subtitle: null,
+          url: `/app/m/atlas.files/files/${recordId}`,
+          mimeType: row.mimeType ?? null,
+          sizeBytes: row.sizeBytes ?? null,
+        };
       }
       if (entityType === "hr_employee") {
         const row = await hrService.getEmployee({ authUserId, id: recordId });
