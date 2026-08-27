@@ -46,39 +46,43 @@ export function MessageReactionsModal({ open, onOpenChange, reactions, members, 
   const isEmpty = !reactions?.length;
 
   // Removing the last remaining reaction while this modal is open drops
-  // `reactions` to []. Rather than yanking the Dialog out from under the
-  // caller with a hard unmount (which never tells the parent's `open` state
-  // to reset), tell the parent explicitly via onOpenChange so it stays in
-  // sync if the same message's reactions are reopened later.
+  // `reactions` to []. Gate the Dialog's own `open` prop on `!isEmpty` (rather
+  // than unmounting this component outright) so Radix sees a true->false
+  // transition on `open` and runs its normal close animation instead of the
+  // dialog vanishing mid-frame. The effect then tells the caller explicitly,
+  // so its `open` state resyncs to false too — see MessageReactions.jsx,
+  // which keeps rendering this component (instead of unmounting it) for as
+  // long as either reactions exist OR the caller still thinks it's open, for
+  // exactly this handoff to complete.
   useEffect(() => {
     if (open && isEmpty) onOpenChange(false);
   }, [open, isEmpty, onOpenChange]);
 
-  if (isEmpty) return null;
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open && !isEmpty} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Reacciones</DialogTitle>
         </DialogHeader>
-        <div className="max-h-80 overflow-y-auto -mx-1 px-1">
-          {reactions.map(({ emoji, userIds }, i) => (
-            <div key={emoji} className={i > 0 ? "mt-3 pt-3 border-t border-[hsl(var(--border))]" : ""}>
-              <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-1">
-                {emoji} <span className="tabular-nums">{userIds?.length ?? 0}</span>
-              </p>
-              {(userIds ?? []).map((userId) => (
-                <ReactorRow
-                  key={userId}
-                  member={members?.find((m) => m.userId === userId)}
-                  isOwn={userId === currentUserId}
-                  onRemove={() => onRemoveOwn(emoji)}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
+        {!isEmpty && (
+          <div className="max-h-80 overflow-y-auto -mx-1 px-1">
+            {reactions.map(({ emoji, userIds }, i) => (
+              <div key={emoji} className={i > 0 ? "mt-3 pt-3 border-t border-[hsl(var(--border))]" : ""}>
+                <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-1">
+                  {emoji} <span className="tabular-nums">{userIds?.length ?? 0}</span>
+                </p>
+                {(userIds ?? []).map((userId) => (
+                  <ReactorRow
+                    key={userId}
+                    member={members?.find((m) => m.userId === userId)}
+                    isOwn={userId === currentUserId}
+                    onRemove={() => onRemoveOwn(emoji)}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

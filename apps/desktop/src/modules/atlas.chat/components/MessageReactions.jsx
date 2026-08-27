@@ -13,32 +13,42 @@ import { MessageReactionsModal } from "./MessageReactionsModal";
 
 export function MessageReactions({ reactions, members, currentUserId, onToggle }) {
   const [modalOpen, setModalOpen] = useState(false);
+  const hasReactions = Boolean(reactions?.length);
 
-  if (!reactions?.length) return null;
+  // Removing the message's last reaction while this modal is open drops
+  // `reactions` to []. Bailing out here immediately (the old `!hasReactions`
+  // check) would unmount MessageReactionsModal mid-open, before it gets a
+  // chance to close itself gracefully and tell us via onOpenChange. Keep
+  // rendering (with the pill row hidden) for as long as the modal still
+  // thinks it's open — it closes itself and flips `modalOpen` back to
+  // false via onOpenChange, and only then does this early-return fire.
+  if (!hasReactions && !modalOpen) return null;
 
   return (
     <>
-      <div className="flex flex-wrap gap-1 mt-1">
-        {reactions.map(({ emoji, userIds }) => {
-          const mine = currentUserId && userIds?.includes(currentUserId);
-          return (
-            <button
-              key={emoji}
-              type="button"
-              onClick={() => setModalOpen(true)}
-              className={[
-                "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs border transition-colors",
-                mine
-                  ? "bg-[hsl(var(--primary)/0.15)] border-[hsl(var(--primary))] text-[hsl(var(--primary))]"
-                  : "bg-[hsl(var(--muted))] border-transparent hover:border-[hsl(var(--border))]",
-              ].join(" ")}
-            >
-              <span>{emoji}</span>
-              <span className="tabular-nums">{userIds?.length ?? 0}</span>
-            </button>
-          );
-        })}
-      </div>
+      {hasReactions && (
+        <div className="flex flex-wrap gap-1 mt-1">
+          {reactions.map(({ emoji, userIds }) => {
+            const mine = currentUserId && userIds?.includes(currentUserId);
+            return (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => setModalOpen(true)}
+                className={[
+                  "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs border transition-colors",
+                  mine
+                    ? "bg-[hsl(var(--primary)/0.15)] border-[hsl(var(--primary))] text-[hsl(var(--primary))]"
+                    : "bg-[hsl(var(--muted))] border-transparent hover:border-[hsl(var(--border))]",
+                ].join(" ")}
+              >
+                <span>{emoji}</span>
+                <span className="tabular-nums">{userIds?.length ?? 0}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
       <MessageReactionsModal
         open={modalOpen}
         onOpenChange={setModalOpen}
