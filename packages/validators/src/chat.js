@@ -14,7 +14,7 @@ export const chatSendMessageSchema = z.object({
   attachmentIds: z.array(z.string().uuid()).optional(),
   threadRootId: z.string().uuid().optional(),
   entityRefs: z.array(z.object({
-    entityType: z.enum(["contact", "file", "ledger_account", "hr_employee"]),
+    entityType: z.enum(["contact", "file", "ledger_account", "hr_employee", "project", "task", "calendar_event"]),
     recordId: z.string().uuid(),
   })).max(5).optional(),
 });
@@ -32,6 +32,12 @@ export const chatUpdateConversationSchema = z.object({
   avatarFileId: z.string().uuid().nullable().optional(),
   avatarEmoji: z.string().min(1).max(16).nullable().optional(),
   metadata: z.record(z.unknown()).optional(),
+  // Both must be sent together (both a string+uuid, or both null) — enforced
+  // in chat-service.js, not here, since Zod can't easily express "both or
+  // neither" across two independent optional fields without .refine noise
+  // that would obscure the simpler two-field shape for the common case.
+  linkedModule: z.string().trim().min(1).max(64).nullable().optional(),
+  linkedEntityId: z.string().uuid().nullable().optional(),
 });
 
 export const chatAddMembersSchema = z.object({
@@ -73,6 +79,8 @@ export const chatCreateChannelSchema = z.object({
   isPublic: z.boolean().optional().default(false),
   slug: z.string().trim().min(1).max(60).regex(/^[a-z0-9-]+$/, "El slug solo puede contener minusculas, numeros y guiones.").optional(),
   memberUserIds: z.array(z.string().uuid()).max(50).optional().default([]),
+  linkedModule: z.string().trim().min(1).max(64).optional(),
+  linkedEntityId: z.string().uuid().optional(),
 });
 
 export const chatCreateChannelRoleSchema = z.object({
