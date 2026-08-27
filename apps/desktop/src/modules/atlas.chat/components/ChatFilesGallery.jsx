@@ -85,7 +85,7 @@ export function ChatFilesGallery({
   }
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-4">
+    <div className="p-3 space-y-4">
       {images.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-2">
