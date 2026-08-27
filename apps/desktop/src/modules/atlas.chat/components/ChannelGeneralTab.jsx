@@ -10,7 +10,7 @@ import { atlas } from "../../../lib/atlas";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 
-// "General" tab of ChatMembersPanel — avatar-editing UI for a channel/group
+// "General" tab of ConversationProfilePanel — avatar-editing UI for a channel/group
 // conversation. Mirrors MessageReactionPicker.jsx's Popover + emoji-picker-react
 // pattern for the emoji button (but with a real PopoverTrigger, since the button
 // itself is the trigger here, not opened externally) and CompanyBranding.jsx's

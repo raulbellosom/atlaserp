@@ -38,7 +38,10 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
   const type = conversation?.type;
   const { data: convData } = useChatConversationDetail(conversationId);
   const detail = convData?.data ?? conversation;
-  const isMuted = Boolean(detail?.is_muted ?? conversation?.is_muted);
+  // is_muted only ever comes from `conversation` (the listConversations row) —
+  // getConversation's own `SELECT c.*` never joins the per-member muted_at the
+  // way listConversations does, so `detail.is_muted` is always undefined here.
+  const isMuted = Boolean(conversation?.is_muted);
 
   const backHeader = (
     <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-[hsl(var(--border))] shrink-0">
