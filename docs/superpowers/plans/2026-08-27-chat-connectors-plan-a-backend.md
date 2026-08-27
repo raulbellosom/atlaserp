@@ -247,6 +247,34 @@ describe("chat-channel-links-service — assertLinkAvailable", () => {
     assert.equal(prisma._queryRawCalls[0].values.at(-1), CONV_ID);
   });
 });
+
+describe("chat-channel-links-service — assertBothOrNeither", () => {
+  it("does not throw when both are null", () => {
+    const svc = createChatChannelLinksService({ prisma: {} });
+    svc.assertBothOrNeither(null, null);
+  });
+
+  it("does not throw when both are set", () => {
+    const svc = createChatChannelLinksService({ prisma: {} });
+    svc.assertBothOrNeither("atlas.projects", PROJECT_ID);
+  });
+
+  it("throws a 422 ChatServiceError when only linkedModule is set", () => {
+    const svc = createChatChannelLinksService({ prisma: {} });
+    assert.throws(
+      () => svc.assertBothOrNeither("atlas.projects", null),
+      (err) => { assert.equal(err.name, "ChatServiceError"); assert.equal(err.status, 422); return true; },
+    );
+  });
+
+  it("throws a 422 ChatServiceError when only linkedEntityId is set", () => {
+    const svc = createChatChannelLinksService({ prisma: {} });
+    assert.throws(
+      () => svc.assertBothOrNeither(null, PROJECT_ID),
+      (err) => { assert.equal(err.status, 422); return true; },
+    );
+  });
+});
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -263,6 +291,20 @@ import { ChatServiceError } from "./chat-service.js";
 // generic future-proofing that motivated linked_module/linked_entity_id
 // over a project-specific column — see the spec's §3 "Principio de diseño".
 export function createChatChannelLinksService({ prisma }) {
+  // linkedModule/linkedEntityId must travel together — a row with one set and
+  // the other null is a "half-linked" state the partial unique index in
+  // Task 1's migration cannot catch (Postgres unique indexes never treat two
+  // NULLs as colliding, so N rows could all have the same linked_module with
+  // a null linked_entity_id). Synchronous — pure validation, no I/O — so
+  // callers can call it before touching prisma at all.
+  function assertBothOrNeither(linkedModule, linkedEntityId) {
+    const hasModule = linkedModule !== null && linkedModule !== undefined;
+    const hasEntityId = linkedEntityId !== null && linkedEntityId !== undefined;
+    if (hasModule !== hasEntityId) {
+      throw new ChatServiceError("linkedModule y linkedEntityId deben enviarse juntos.", 422);
+    }
+  }
+
   async function findByLink(linkedModule, linkedEntityId) {
     const rows = await prisma.$queryRaw`
       SELECT * FROM chat_conversations
@@ -290,14 +332,14 @@ export function createChatChannelLinksService({ prisma }) {
     }
   }
 
-  return { findByLink, assertLinkAvailable };
+  return { findByLink, assertLinkAvailable, assertBothOrNeither };
 }
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `node --test apps/api/src/routes/chat/__tests__/chat-channel-links-service.test.js`
-Expected: PASS, 4 tests.
+Expected: PASS, 8 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -331,6 +373,7 @@ describe("chat-service — createConversation with a channel link", () => {
       [],
     );
     const channelLinksService = {
+      assertBothOrNeither: () => {},
       findByLink: async (mod, id) => { assert.equal(mod, "atlas.projects"); assert.equal(id, "proj-1"); return existing; },
       assertLinkAvailable: async () => { throw new Error("should not be called when a link already exists"); },
     };
@@ -345,6 +388,7 @@ describe("chat-service — createConversation with a channel link", () => {
   it("propagates a 409 from assertLinkAvailable instead of creating a duplicate channel", async () => {
     const prisma = buildPrismaMock([[{ id: PROFILE_ID }]], []);
     const channelLinksService = {
+      assertBothOrNeither: () => {},
       findByLink: async () => null,
       assertLinkAvailable: async () => { throw new ChatServiceError("Ese registro ya tiene un canal vinculado.", 409); },
     };
@@ -355,6 +399,23 @@ describe("chat-service — createConversation with a channel link", () => {
         linkedModule: "atlas.projects", linkedEntityId: "proj-1",
       }),
       (err) => { assert.equal(err.status, 409); return true; },
+    );
+  });
+
+  it("propagates a 422 from assertBothOrNeither when only linkedModule is provided, before touching prisma", async () => {
+    const prisma = buildPrismaMock([], []); // no $queryRaw/$executeRaw calls expected — must fail before any DB access
+    const channelLinksService = {
+      assertBothOrNeither: () => { throw new ChatServiceError("linkedModule y linkedEntityId deben enviarse juntos.", 422); },
+      findByLink: async () => { throw new Error("should not be called"); },
+      assertLinkAvailable: async () => { throw new Error("should not be called"); },
+    };
+    const chatService = createChatService({ prisma, channelLinksService });
+    await assert.rejects(
+      () => chatService.createConversation({
+        authUserId: AUTH_USER_ID, type: "channel", title: "Proyecto X", memberUserIds: [],
+        linkedModule: "atlas.projects",
+      }),
+      (err) => { assert.equal(err.status, 422); return true; },
     );
   });
 });
@@ -385,6 +446,8 @@ In `apps/api/src/routes/chat/chat-service.js:381`, replace the function signatur
 
 ```js
   async function createConversation({ authUserId, type, title, memberUserIds, metadata = {}, isPublic = false, slug = null, description = null, linkedModule = null, linkedEntityId = null }) {
+    if (channelLinksService) channelLinksService.assertBothOrNeither(linkedModule, linkedEntityId);
+
     const creatorProfileId = await getUserProfileId(authUserId);
 
     // Prevent self-chat
@@ -451,7 +514,7 @@ with:
 - [ ] **Step 6: Run tests to verify they pass**
 
 Run: `node --test apps/api/src/routes/chat/__tests__/chat-service.test.js`
-Expected: PASS, including the 2 new tests. (If an unrelated existing test now fails because `getConversation`'s mocked `$queryRaw` sequence assumed a different call count, that means this step changed call ordering — it should not have; re-check Step 4 only added calls inside the new `if (linkedModule && ...)` branch, which existing tests that don't pass `linkedModule` never enter.)
+Expected: PASS, including the 3 new tests. (If an unrelated existing test now fails because `getConversation`'s mocked `$queryRaw` sequence assumed a different call count, that means this step changed call ordering — it should not have; re-check Step 4 only added calls inside the new `if (linkedModule && ...)` branch, which existing tests that don't pass `linkedModule` never enter. Also note: existing tests that don't set `channelLinksService` at all pass `channelLinksService: undefined` implicitly via the factory's `channelLinksService = null` default — `assertBothOrNeither` is only called `if (channelLinksService)`, so those tests are unaffected.)
 
 - [ ] **Step 7: Commit**
 
@@ -486,6 +549,7 @@ describe("chat-service — updateConversation link/unlink", () => {
     );
     let assertedWith = null;
     const channelLinksService = {
+      assertBothOrNeither: () => {},
       findByLink: async () => null,
       assertLinkAvailable: async (mod, id, excludeId) => { assertedWith = { mod, id, excludeId }; },
     };
@@ -509,6 +573,7 @@ describe("chat-service — updateConversation link/unlink", () => {
       [],
     );
     const channelLinksService = {
+      assertBothOrNeither: () => {},
       assertLinkAvailable: async () => { throw new Error("should not be called when unlinking"); },
       findByLink: async () => null,
     };
@@ -519,6 +584,31 @@ describe("chat-service — updateConversation link/unlink", () => {
       updates: { linkedModule: null, linkedEntityId: null },
     });
     assert.equal(result.id, CONV_ID);
+  });
+
+  it("propagates a 422 from assertBothOrNeither when only linkedEntityId is provided, before touching prisma beyond membership checks", async () => {
+    const prisma = buildPrismaMock(
+      [
+        [{ id: PROFILE_ID }],   // getUserProfileId
+        [{ id: "member-row" }], // assertMember
+        [{ type: "channel" }],  // conversation type lookup
+      ],
+      [],
+    );
+    const channelLinksService = {
+      assertBothOrNeither: () => { throw new ChatServiceError("linkedModule y linkedEntityId deben enviarse juntos.", 422); },
+      findByLink: async () => { throw new Error("should not be called"); },
+      assertLinkAvailable: async () => { throw new Error("should not be called"); },
+    };
+    const permissionsService = { assertChannelPermission: async () => {} };
+    const chatService = createChatService({ prisma, permissionsService, channelLinksService });
+    await assert.rejects(
+      () => chatService.updateConversation({
+        conversationId: CONV_ID, authUserId: AUTH_USER_ID,
+        updates: { linkedEntityId: "proj-1" },
+      }),
+      (err) => { assert.equal(err.status, 422); return true; },
+    );
   });
 });
 ```
@@ -543,6 +633,8 @@ In `apps/api/src/routes/chat/chat-service.js:543`, replace the whole `updateConv
         await permissionsService.assertChannelPermission(conversationId, profileId, "channel.manage");
       }
     }
+
+    if (channelLinksService) channelLinksService.assertBothOrNeither(updates.linkedModule, updates.linkedEntityId);
 
     const hasTitle = updates.title !== undefined;
     const hasStatus = updates.status !== undefined;
@@ -605,7 +697,7 @@ In `apps/api/src/routes/chat/chat-service.js:543`, replace the whole `updateConv
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `node --test apps/api/src/routes/chat/__tests__/chat-service.test.js`
-Expected: PASS, all tests including the 2 new ones.
+Expected: PASS, all tests including the 3 new ones.
 
 - [ ] **Step 5: Confirm the file is still under the 1500-line hard ceiling**
 
@@ -947,4 +1039,6 @@ If clean (all prior task commits already cover everything), no further commit is
 
 **Placeholder scan:** none — every step has literal code.
 
-**Type/name consistency:** `channelLinksService.findByLink(linkedModule, linkedEntityId)` and `.assertLinkAvailable(linkedModule, linkedEntityId, excludeConversationId)` are used with the same names and argument order in Tasks 3, 4, and 5. `entityReferencesService`'s new deps (`projectsService`, `tasksService`, `calendarEventService`) are named identically in Task 6's factory signature and Task 7's instantiation call.
+**Type/name consistency:** `channelLinksService.findByLink(linkedModule, linkedEntityId)`, `.assertLinkAvailable(linkedModule, linkedEntityId, excludeConversationId)`, and `.assertBothOrNeither(linkedModule, linkedEntityId)` are used with the same names and argument order in Tasks 3, 4, and 5. `entityReferencesService`'s new deps (`projectsService`, `tasksService`, `calendarEventService`) are named identically in Task 6's factory signature and Task 7's instantiation call.
+
+**Post-Task-2-review fix (applied during execution, not in the original written plan):** the code quality reviews for Tasks 1 and 2 independently flagged the same gap — nothing enforced that `linkedModule`/`linkedEntityId` travel together, so a caller could persist a "half-linked" row the partial unique index can't catch (Postgres unique indexes never treat two NULLs as colliding). Task 3 gained a synchronous `assertBothOrNeither` guard, called from both `createConversation` (Task 4, before any DB access) and `updateConversation` (Task 5, right after the permission check). This is reflected in the task text above, not left as a follow-up.
