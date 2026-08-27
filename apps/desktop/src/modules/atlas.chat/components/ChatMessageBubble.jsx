@@ -822,16 +822,33 @@ export function ChatMessageBubble({
 
   const hasBody = Boolean(message.body) && !isDeleted;
   const showActions = !isDeleted && !isPending;
+  const entityRefs = message.metadata?.entityRefs ?? [];
+  const firstRefIsFile = entityRefs[0]?.entityType === "file" && Boolean(entityRefs[0]?.mimeType);
+  // Only EntityReferenceCard knows how to blend into a bubble (matching
+  // background, flush corners) — FileReferenceAttachment always renders its
+  // own independent card, same as a real image/file attachment does
+  // elsewhere in this app. So the "merge with the bubble above/around it"
+  // treatment only ever applies when the ref(s) involved are non-file — the
+  // first ref specifically for firstEntityRefAttached (only it ever merges
+  // with preceding text), every ref for entityRefsOnlyBubble (the synthetic
+  // bubble wrapper only makes sense if nothing inside it is going to render
+  // as its own separately-styled attachment card).
+  //
   // Only the first entity ref visually merges with the text bubble above it
   // (EntityReferenceCard's `attached` prop) — flatten the BUBBLE's own bottom
   // corners to match, otherwise the bubble's still-rounded bottom edge meets
   // the chip's now-flat top edge and produces the exact seam this feature
   // exists to remove.
-  const firstEntityRefAttached = hasBody && message.metadata?.entityRefs?.length > 0;
+  const firstEntityRefAttached = hasBody && entityRefs.length > 0 && !firstRefIsFile;
   // When a message carries entity refs but no text body, the refs ARE the whole
   // message — wrap them in a bubble-colored container instead of leaving them
-  // floating bare, so the message still reads as a chat bubble.
-  const entityRefsOnlyBubble = !hasBody && message.metadata?.entityRefs?.length > 0;
+  // floating bare, so the message still reads as a chat bubble. Only when
+  // EVERY ref is non-file — a single file ref in the mix would sit inside
+  // this wrapper as its own visually distinct card, reintroducing a seam.
+  const entityRefsOnlyBubble =
+    !hasBody &&
+    entityRefs.length > 0 &&
+    entityRefs.every((r) => !(r.entityType === "file" && r.mimeType));
 
   // Own membership entry in this conversation — needed to detect role-targeted mentions
   // and to gate the pin action by permission.
