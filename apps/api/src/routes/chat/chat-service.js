@@ -345,13 +345,14 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         await permissionsService.assertChannelPermission(conversationId, profileId, "channel.manage");
       }
     }
+    if (channelLinksService) channelLinksService.assertBothOrNeither(updates.linkedModule, updates.linkedEntityId);
 
     const hasTitle = updates.title !== undefined;
     const hasStatus = updates.status !== undefined;
     const hasAvatarFileId = updates.avatarFileId !== undefined;
     const hasAvatarEmoji = updates.avatarEmoji !== undefined;
 
-    if (!hasTitle && !hasStatus && !hasAvatarFileId && !hasAvatarEmoji) {
+    if (!hasTitle && !hasStatus && !hasAvatarFileId && !hasAvatarEmoji && updates.linkedModule === undefined) {
       return getConversation({ conversationId, authUserId });
     }
 
@@ -380,6 +381,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     if (hasStatus) sets.push(Prisma.sql`status = ${updates.status}`);
     if (touchAvatarFileId) sets.push(Prisma.sql`avatar_file_id = ${nextAvatarFileId}`);
     if (touchAvatarEmoji) sets.push(Prisma.sql`avatar_emoji = ${nextAvatarEmoji}`);
+    if (channelLinksService) sets.push(...(await channelLinksService.applyLinkUpdate(updates, conversationId)));
 
     await prisma.$executeRaw`
       UPDATE chat_conversations

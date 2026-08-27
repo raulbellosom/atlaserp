@@ -1458,3 +1458,111 @@ describe("chat-service — createConversation with a channel link", () => {
     );
   });
 });
+
+describe("chat-service — updateConversation link/unlink", () => {
+  it("links a channel to a project via applyLinkUpdate, called with the right updates/conversationId", async () => {
+    const prisma = buildPrismaMock(
+      [
+        [{ id: PROFILE_ID }],       // getUserProfileId
+        [{ id: "member-row" }],     // assertMember (in updateConversation)
+        [{ type: "channel" }],      // conversation type lookup
+        [{ id: "member-row" }],     // assertMember (again, inside the final getConversation call)
+        [{ id: CONV_ID, members: null }], // getConversation's main SELECT
+      ],
+      [{ count: 1 }], // the UPDATE itself
+    );
+    let calledWith = null;
+    const channelLinksService = {
+      assertBothOrNeither: () => {},
+      // Returns [] here deliberately — applyLinkUpdate's own fragment-building
+      // is already covered by Step 0's tests; this test only verifies
+      // updateConversation calls it correctly and handles the result.
+      applyLinkUpdate: async (updates, conversationId) => {
+        calledWith = { updates, conversationId };
+        return [];
+      },
+    };
+    const permissionsService = { assertChannelPermission: async () => {} };
+    const chatService = createChatService({ prisma, permissionsService, channelLinksService });
+    const result = await chatService.updateConversation({
+      conversationId: CONV_ID, authUserId: AUTH_USER_ID,
+      updates: { linkedModule: "atlas.projects", linkedEntityId: "proj-1" },
+    });
+    assert.deepEqual(calledWith, { updates: { linkedModule: "atlas.projects", linkedEntityId: "proj-1" }, conversationId: CONV_ID });
+    assert.equal(result.id, CONV_ID);
+  });
+
+  it("unlinks a channel by sending both link fields as null — applyLinkUpdate still gets called (it decides internally that no availability check is needed)", async () => {
+    const prisma = buildPrismaMock(
+      [
+        [{ id: PROFILE_ID }],
+        [{ id: "member-row" }],
+        [{ type: "channel" }],
+        [{ id: "member-row" }],
+        [{ id: CONV_ID, members: null }],
+      ],
+      [{ count: 1 }],
+    );
+    let called = false;
+    const channelLinksService = {
+      assertBothOrNeither: () => {},
+      applyLinkUpdate: async () => { called = true; return []; },
+    };
+    const permissionsService = { assertChannelPermission: async () => {} };
+    const chatService = createChatService({ prisma, permissionsService, channelLinksService });
+    const result = await chatService.updateConversation({
+      conversationId: CONV_ID, authUserId: AUTH_USER_ID,
+      updates: { linkedModule: null, linkedEntityId: null },
+    });
+    assert.equal(called, true);
+    assert.equal(result.id, CONV_ID);
+  });
+
+  it("propagates a 409 raised inside applyLinkUpdate (project already linked elsewhere)", async () => {
+    const prisma = buildPrismaMock(
+      [
+        [{ id: PROFILE_ID }],
+        [{ id: "member-row" }],
+        [{ type: "channel" }],
+      ],
+      [],
+    );
+    const channelLinksService = {
+      assertBothOrNeither: () => {},
+      applyLinkUpdate: async () => { throw new ChatServiceError("Ese registro ya tiene un canal vinculado.", 409); },
+    };
+    const permissionsService = { assertChannelPermission: async () => {} };
+    const chatService = createChatService({ prisma, permissionsService, channelLinksService });
+    await assert.rejects(
+      () => chatService.updateConversation({
+        conversationId: CONV_ID, authUserId: AUTH_USER_ID,
+        updates: { linkedModule: "atlas.projects", linkedEntityId: "proj-1" },
+      }),
+      (err) => { assert.equal(err.status, 409); return true; },
+    );
+  });
+
+  it("propagates a 422 from assertBothOrNeither when only linkedEntityId is provided, before touching prisma beyond membership checks", async () => {
+    const prisma = buildPrismaMock(
+      [
+        [{ id: PROFILE_ID }],   // getUserProfileId
+        [{ id: "member-row" }], // assertMember
+        [{ type: "channel" }],  // conversation type lookup
+      ],
+      [],
+    );
+    const channelLinksService = {
+      assertBothOrNeither: () => { throw new ChatServiceError("linkedModule y linkedEntityId deben enviarse juntos.", 422); },
+      applyLinkUpdate: async () => { throw new Error("should not be called"); },
+    };
+    const permissionsService = { assertChannelPermission: async () => {} };
+    const chatService = createChatService({ prisma, permissionsService, channelLinksService });
+    await assert.rejects(
+      () => chatService.updateConversation({
+        conversationId: CONV_ID, authUserId: AUTH_USER_ID,
+        updates: { linkedEntityId: "proj-1" },
+      }),
+      (err) => { assert.equal(err.status, 422); return true; },
+    );
+  });
+});
