@@ -5,6 +5,7 @@ import { Button, Popover, PopoverTrigger, PopoverContent, ImageViewer, ComboboxF
 import { Image as ImageIcon, Smile, X } from "lucide-react";
 import { toast } from "sonner";
 import EmojiPicker from "emoji-picker-react";
+import EventFormModal from "../../atlas.calendar/components/EventFormModal";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
@@ -25,6 +26,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
   const fileInputRef = useRef(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   const { data: convData } = useChatConversationDetail(conversationId);
   const conversation = convData?.data;
@@ -207,7 +209,28 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
               Quitar vinculo
             </button>
           )}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="mt-1"
+            onClick={() => setScheduleOpen(true)}
+          >
+            Agendar reunion
+          </Button>
         </div>
+      )}
+      {scheduleOpen && (
+        <EventFormModal
+          initialAttendeeIds={(conversation?.members ?? []).map((m) => m.userId)}
+          sourceModule="atlas.chat"
+          sourceEntityId={conversationId}
+          onClose={() => setScheduleOpen(false)}
+          onSaved={() => {
+            setScheduleOpen(false);
+            queryClient.invalidateQueries({ queryKey: ["channel-events", conversationId] });
+          }}
+        />
       )}
       <ImageViewer
         src={fullAvatarUrl ?? conversation?.avatarUrl}

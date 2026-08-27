@@ -1,13 +1,14 @@
 // apps/desktop/src/modules/atlas.chat/components/ConversationProfilePanel.jsx
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Info, FolderOpen, Users, Bell, Settings, Shield } from "lucide-react";
+import { ArrowLeft, Info, FolderOpen, Users, Bell, Settings, Shield, CalendarDays } from "lucide-react";
 import { ImageViewer } from "@atlas/ui";
 import { ChannelGeneralTab } from "./ChannelGeneralTab";
 import { ChannelMembersTab } from "./ChannelMembersTab";
 import { ChannelRolesTab } from "./ChannelRolesTab";
 import { ConversationInfoTab } from "./ConversationInfoTab";
 import { ConversationMediaTab } from "./ConversationMediaTab";
+import { ChannelEventsTab } from "./ChannelEventsTab";
 import { GroupsInCommonTab } from "./GroupsInCommonTab";
 import { NotificationsTab } from "./NotificationsTab";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
@@ -217,6 +218,10 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
         <div data-section="media">
           <SectionHeader icon={FolderOpen} label="Multimedia" />
           <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} preview onShowAll={onShowAllFiles} />
+        </div>
+        <div data-section="events">
+          <SectionHeader icon={CalendarDays} label="Eventos" />
+          <ChannelEventsTab conversationId={conversationId} />
         </div>
         <div data-section="notifications">
           <SectionHeader icon={Bell} label="Notificaciones" />
