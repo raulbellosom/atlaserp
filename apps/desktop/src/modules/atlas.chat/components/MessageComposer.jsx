@@ -403,7 +403,8 @@ export const MessageComposer = forwardRef(function MessageComposer(
   const handleSend = useCallback(async () => {
     const trimmed = body.trim();
     const hasFiles = pendingFiles.length > 0;
-    if ((!trimmed && !hasFiles) || isSending) return;
+    const hasEntityRefs = pendingEntityRefs.length > 0;
+    if ((!trimmed && !hasFiles && !hasEntityRefs) || isSending) return;
 
     clearTimeout(typingTimeout.current);
     isTypingRef.current = false;
@@ -689,8 +690,8 @@ export const MessageComposer = forwardRef(function MessageComposer(
             <Smile className={iconSize} />
           </button>
 
-          {/* Mic — only shown when nothing typed and no pending files */}
-          {!body.trim() && !pendingFiles.length && (
+          {/* Mic — only shown when there's nothing else ready to send */}
+          {!body.trim() && !pendingFiles.length && !pendingEntityRefs.length && (
             <button
               type="button"
               onClick={startRecording}
@@ -711,7 +712,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
             className={["shrink-0 rounded-full p-0 touch-manipulation", btnSize].join(" ")}
             onClick={handleSend}
             onMouseDown={(e) => e.preventDefault()}
-            disabled={(!body.trim() && !pendingFiles.length) || isSending || disabled}
+            disabled={(!body.trim() && !pendingFiles.length && !pendingEntityRefs.length) || isSending || disabled}
           >
             {isSending ? (
               <Loader2 className={compact ? "h-3 w-3 animate-spin" : "h-3.5 w-3.5 animate-spin"} />

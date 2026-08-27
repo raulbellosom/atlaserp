@@ -845,7 +845,7 @@ export function ChatMessageBubble({
         onClick={selectionMode ? onSelect : undefined}
         onKeyDown={selectionMode ? (e) => e.key === "Enter" && onSelect?.() : undefined}
         className={[
-          "group/msg flex justify-end items-end gap-1 px-3 sm:px-4",
+          "group/msg flex justify-end items-start gap-1 px-3 sm:px-4",
           rowPaddingY,
           isPending ? "opacity-60" : "",
           selectionMode ? "cursor-pointer" : "",
@@ -962,7 +962,7 @@ export function ChatMessageBubble({
       onClick={selectionMode ? onSelect : undefined}
       onKeyDown={selectionMode ? (e) => e.key === "Enter" && onSelect?.() : undefined}
       className={[
-        "group/msg flex items-end gap-1 px-3 sm:px-4",
+        "group/msg flex items-start gap-1 px-3 sm:px-4",
         rowPaddingY,
         isPending ? "opacity-60" : "",
         selectionMode ? "cursor-pointer" : "",
