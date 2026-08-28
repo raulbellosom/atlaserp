@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
-  renderMentionText,
+  renderMentionText, ConfirmDialog,
 } from "@atlas/ui";
 import { formatMessageTime, formatFileSize, isImageMime } from "../lib/chatUtils";
 import { atlas } from "../../../lib/atlas";
@@ -64,44 +64,158 @@ function useAttachmentUrl(att) {
   });
 }
 
+// ── Per-tile action icons (react + delete) ─────────────────────────────────
+// Shared by every grid cell type (ImageCard, ImageCoverCell, VideoCard) so
+// the hover affordance, the reaction picker anchor, and the delete confirm
+// flow are defined exactly once. `messageId` + `att.id` together identify
+// which reaction/deletion this targets — never the whole message.
+function AttachmentTileActions({ att, messageId, isOwn, onToggleReaction, onDeleteAttachment, deleting }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  if (!onToggleReaction && !(isOwn && onDeleteAttachment)) return null;
+
+  return (
+    <>
+      {/* stopPropagation on the wrapper (not each button) so a click on
+          either icon never also fires the tile's own onClick={() => onOpen(...)},
+          which would open the full-screen viewer underneath the picker/dialog. */}
+      <div
+        className="absolute top-1 right-1 flex items-center gap-1 opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {onToggleReaction && (
+          <MessageReactionPicker
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
+            onPick={(emoji) => onToggleReaction(messageId, emoji, att.id)}
+            anchorAlign={isOwn ? "end" : "start"}
+          >
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="h-6 w-6 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors touch-manipulation"
+              aria-label="Reaccionar a este archivo"
+              title="Reaccionar"
+            >
+              <Smile className="h-3.5 w-3.5 text-white" />
+            </button>
+          </MessageReactionPicker>
+        )}
+        {isOwn && onDeleteAttachment && (
+          <button
+            type="button"
+            onClick={() => setConfirmOpen(true)}
+            className="h-6 w-6 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors touch-manipulation"
+            aria-label="Eliminar este archivo"
+            title="Eliminar"
+          >
+            <Trash2 className="h-3.5 w-3.5 text-white" />
+          </button>
+        )}
+      </div>
+      {isOwn && onDeleteAttachment && (
+        <ConfirmDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          title="Eliminar archivo"
+          description="Esta accion no se puede deshacer."
+          confirmLabel="Eliminar"
+          loading={deleting}
+          onConfirm={() => { onDeleteAttachment(att.id); setConfirmOpen(false); }}
+        />
+      )}
+    </>
+  );
+}
+
+// ── Per-tile reaction pills ──────────────────────────────────────────────────
+// Smaller, simpler sibling of MessageReactions.jsx: no "who reacted" modal
+// (there isn't room for it inside a ~110px tile) — clicking a pill you
+// reacted with removes it directly; clicking one you didn't react with does
+// nothing (view-only for other people's reactions on this small surface).
+function AttachmentReactionPills({ reactions, currentUserId, onToggleReaction, messageId, attachmentId }) {
+  if (!reactions?.length) return null;
+  return (
+    <div
+      className="absolute bottom-1 left-1 flex flex-wrap gap-0.5 z-10"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {reactions.map(({ emoji, userIds }) => {
+        const mine = currentUserId && userIds?.includes(currentUserId);
+        return (
+          <button
+            key={emoji}
+            type="button"
+            onClick={() => mine && onToggleReaction?.(messageId, emoji, attachmentId)}
+            className={[
+              "inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[10px] bg-black/60 text-white",
+              mine ? "ring-1 ring-white cursor-pointer" : "cursor-default",
+            ].join(" ")}
+          >
+            <span>{emoji}</span>
+            <span className="tabular-nums">{userIds?.length ?? 0}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Image card ────────────────────────────────────────────────────────────────
-function ImageCard({ att, index, allAttachments, onOpen }) {
+function ImageCard({ att, index, allAttachments, onOpen, messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId }) {
   const { data: url, isLoading, isError } = useAttachmentUrl(att);
   const [imgErr, setImgErr] = useState(false);
 
   return (
-    <button
-      type="button"
-      onClick={() => onOpen?.(allAttachments, index)}
-      className="block rounded-xl overflow-hidden relative hover:opacity-90 transition-opacity bg-black/10"
-      style={{ minHeight: 80 }}
-    >
-      {isLoading ? (
-        <div className="flex items-center justify-center h-20 w-32">
-          <Loader2 className="h-5 w-5 animate-spin opacity-40" />
-        </div>
-      ) : url && !imgErr ? (
-        <img
-          src={url}
-          alt={att.fileName}
-          className="block w-full object-cover"
-          style={{ maxHeight: 220 }}
-          onError={() => {
-            console.warn("[chat] image load failed", { url, id: att.id });
-            setImgErr(true);
-          }}
-        />
-      ) : (
-        <div className="flex items-center justify-center h-20 w-32 opacity-40">
-          <FileText className="h-6 w-6" />
-        </div>
-      )}
-    </button>
+    <div className="relative group block rounded-xl overflow-hidden" style={{ minHeight: 80 }}>
+      <button
+        type="button"
+        onClick={() => onOpen?.(allAttachments, index)}
+        className="block w-full rounded-xl overflow-hidden hover:opacity-90 transition-opacity bg-black/10"
+      >
+        {isLoading ? (
+          <div className="flex items-center justify-center h-20 w-32">
+            <Loader2 className="h-5 w-5 animate-spin opacity-40" />
+          </div>
+        ) : url && !imgErr ? (
+          <img
+            src={url}
+            alt={att.fileName}
+            className="block w-full object-cover"
+            style={{ maxHeight: 220 }}
+            onError={() => {
+              console.warn("[chat] image load failed", { url, id: att.id });
+              setImgErr(true);
+            }}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-20 w-32 opacity-40">
+            <FileText className="h-6 w-6" />
+          </div>
+        )}
+      </button>
+      <AttachmentTileActions
+        att={att}
+        messageId={messageId}
+        isOwn={isOwn}
+        onToggleReaction={onToggleReaction}
+        onDeleteAttachment={onDeleteAttachment}
+        deleting={deletingAttachmentId === att.id}
+      />
+      <AttachmentReactionPills
+        reactions={att.reactions}
+        currentUserId={currentUserId}
+        onToggleReaction={onToggleReaction}
+        messageId={messageId}
+        attachmentId={att.id}
+      />
+    </div>
   );
 }
 
 // ── Video card ────────────────────────────────────────────────────────────────
-function VideoCard({ att, index, allAttachments, onOpen }) {
+function VideoCard({ att, index, allAttachments, onOpen, messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId }) {
   const { data: url, isLoading } = useAttachmentUrl(att);
   const [videoErr, setVideoErr] = useState(false);
 
@@ -109,47 +223,66 @@ function VideoCard({ att, index, allAttachments, onOpen }) {
   const videoSrc = url ? `${url}#t=0.001` : null;
 
   return (
-    <button
-      type="button"
-      onClick={() => onOpen?.(allAttachments, index)}
-      className="relative block rounded-xl overflow-hidden bg-black/25 hover:opacity-90 active:opacity-70 transition-opacity mt-1.5"
+    <div
+      className="relative group block rounded-xl overflow-hidden bg-black/25 mt-1.5"
       style={{ width: 220, height: 140, maxWidth: "100%" }}
     >
-      {isLoading && (
+      <button
+        type="button"
+        onClick={() => onOpen?.(allAttachments, index)}
+        className="absolute inset-0 w-full h-full hover:opacity-90 active:opacity-70 transition-opacity"
+      >
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-white/50" />
+          </div>
+        )}
+
+        {videoSrc && !videoErr ? (
+          <video
+            src={videoSrc}
+            className="absolute inset-0 w-full h-full object-cover"
+            muted
+            playsInline
+            preload="auto"
+            onError={() => setVideoErr(true)}
+          />
+        ) : !isLoading ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <FileVideo className="h-10 w-10 text-white/40" />
+          </div>
+        ) : null}
+
+        {/* Play overlay — always visible */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-white/50" />
+          <div className="h-12 w-12 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center shadow-lg">
+            <Play className="h-6 w-6 text-white fill-white ml-0.5" />
+          </div>
         </div>
-      )}
 
-      {videoSrc && !videoErr ? (
-        <video
-          src={videoSrc}
-          className="absolute inset-0 w-full h-full object-cover"
-          muted
-          playsInline
-          preload="auto"
-          onError={() => setVideoErr(true)}
-        />
-      ) : !isLoading ? (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <FileVideo className="h-10 w-10 text-white/40" />
-        </div>
-      ) : null}
-
-      {/* Play overlay — always visible */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="h-12 w-12 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center shadow-lg">
-          <Play className="h-6 w-6 text-white fill-white ml-0.5" />
-        </div>
-      </div>
-
-      {/* Filename label at bottom */}
-      {att.fileName && (
-        <div className="absolute bottom-0 left-0 right-0 px-2 py-1 bg-linear-to-t from-black/60 to-transparent">
-          <p className="text-[10px] text-white/80 truncate">{att.fileName}</p>
-        </div>
-      )}
-    </button>
+        {/* Filename label at bottom */}
+        {att.fileName && (
+          <div className="absolute bottom-0 left-0 right-0 px-2 py-1 bg-linear-to-t from-black/60 to-transparent">
+            <p className="text-[10px] text-white/80 truncate">{att.fileName}</p>
+          </div>
+        )}
+      </button>
+      <AttachmentTileActions
+        att={att}
+        messageId={messageId}
+        isOwn={isOwn}
+        onToggleReaction={onToggleReaction}
+        onDeleteAttachment={onDeleteAttachment}
+        deleting={deletingAttachmentId === att.id}
+      />
+      <AttachmentReactionPills
+        reactions={att.reactions}
+        currentUserId={currentUserId}
+        onToggleReaction={onToggleReaction}
+        messageId={messageId}
+        attachmentId={att.id}
+      />
+    </div>
   );
 }
 
@@ -397,55 +530,80 @@ function FileCard({ att, index, allAttachments, onOpen, isOwn }) {
 }
 
 // ── Cover cell for image grids ────────────────────────────────────────────────
-function ImageCoverCell({ att, index, allAttachments, onOpen, overflowCount = 0 }) {
+function ImageCoverCell({ att, index, allAttachments, onOpen, overflowCount = 0, messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId }) {
   const { data: url, isLoading } = useAttachmentUrl(att);
   const [imgErr, setImgErr] = useState(false);
 
   return (
-    <button
-      type="button"
-      onClick={() => onOpen?.(allAttachments, index)}
-      className="absolute inset-0 w-full h-full hover:opacity-90 transition-opacity bg-black/10"
-    >
-      {isLoading ? (
-        <div className="flex items-center justify-center w-full h-full">
-          <Loader2 className="h-4 w-4 animate-spin opacity-40" />
-        </div>
-      ) : url && !imgErr ? (
-        <img
-          src={url}
-          alt={att.fileName}
-          className="w-full h-full object-cover"
-          onError={() => {
-            console.warn("[chat] image load failed", { url, id: att.id });
-            setImgErr(true);
-          }}
-        />
-      ) : (
-        <div className="flex items-center justify-center w-full h-full opacity-40">
-          <FileImage className="h-5 w-5" />
-        </div>
+    <div className="absolute inset-0 w-full h-full group">
+      <button
+        type="button"
+        onClick={() => onOpen?.(allAttachments, index)}
+        className="block w-full h-full hover:opacity-90 transition-opacity bg-black/10"
+      >
+        {isLoading ? (
+          <div className="flex items-center justify-center w-full h-full">
+            <Loader2 className="h-4 w-4 animate-spin opacity-40" />
+          </div>
+        ) : url && !imgErr ? (
+          <img
+            src={url}
+            alt={att.fileName}
+            className="w-full h-full object-cover"
+            onError={() => {
+              console.warn("[chat] image load failed", { url, id: att.id });
+              setImgErr(true);
+            }}
+          />
+        ) : (
+          <div className="flex items-center justify-center w-full h-full opacity-40">
+            <FileImage className="h-5 w-5" />
+          </div>
+        )}
+        {overflowCount > 0 && (
+          <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-white font-bold text-xl pointer-events-none">
+            +{overflowCount}
+          </span>
+        )}
+      </button>
+      {overflowCount === 0 && (
+        <>
+          <AttachmentTileActions
+            att={att}
+            messageId={messageId}
+            isOwn={isOwn}
+            onToggleReaction={onToggleReaction}
+            onDeleteAttachment={onDeleteAttachment}
+            deleting={deletingAttachmentId === att.id}
+          />
+          <AttachmentReactionPills
+            reactions={att.reactions}
+            currentUserId={currentUserId}
+            onToggleReaction={onToggleReaction}
+            messageId={messageId}
+            attachmentId={att.id}
+          />
+        </>
       )}
-      {overflowCount > 0 && (
-        <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-white font-bold text-xl pointer-events-none">
-          +{overflowCount}
-        </span>
-      )}
-    </button>
+    </div>
   );
 }
 
 // ── Image grid (Telegram-style layouts) ───────────────────────────────────────
-function ImageGrid({ images, allAttachments, onOpen, startIndex }) {
+function ImageGrid({ images, allAttachments, onOpen, startIndex, messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId }) {
   const shown = images.slice(0, 4);
   const overflowCount = Math.max(0, images.length - 4);
   const count = shown.length;
+  // Per-tile action/reaction props are identical for every cell — bundle
+  // them once and spread, rather than repeating six props across five call
+  // sites.
+  const tileProps = { messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId };
 
   // 1 image: natural aspect ratio
   if (count === 1) {
     return (
       <div className="mt-1.5" style={{ maxWidth: 220 }}>
-        <ImageCard att={images[0]} index={startIndex} allAttachments={allAttachments} onOpen={onOpen} />
+        <ImageCard att={images[0]} index={startIndex} allAttachments={allAttachments} onOpen={onOpen} {...tileProps} />
       </div>
     );
   }
@@ -456,7 +614,7 @@ function ImageGrid({ images, allAttachments, onOpen, startIndex }) {
       <div className="mt-1.5 flex gap-0.5 rounded-xl overflow-hidden" style={{ width: 220, maxWidth: '100%' }}>
         {shown.map((att, i) => (
           <div key={att.id} className="relative flex-1" style={{ height: 110 }}>
-            <ImageCoverCell att={att} index={startIndex + i} allAttachments={allAttachments} onOpen={onOpen} />
+            <ImageCoverCell att={att} index={startIndex + i} allAttachments={allAttachments} onOpen={onOpen} {...tileProps} />
           </div>
         ))}
       </div>
@@ -468,12 +626,12 @@ function ImageGrid({ images, allAttachments, onOpen, startIndex }) {
     return (
       <div className="mt-1.5 rounded-xl overflow-hidden" style={{ width: 220, maxWidth: '100%' }}>
         <div className="relative" style={{ height: 132 }}>
-          <ImageCoverCell att={shown[0]} index={startIndex} allAttachments={allAttachments} onOpen={onOpen} />
+          <ImageCoverCell att={shown[0]} index={startIndex} allAttachments={allAttachments} onOpen={onOpen} {...tileProps} />
         </div>
         <div className="flex gap-0.5 mt-0.5">
           {shown.slice(1).map((att, i) => (
             <div key={att.id} className="relative flex-1" style={{ height: 86 }}>
-              <ImageCoverCell att={att} index={startIndex + 1 + i} allAttachments={allAttachments} onOpen={onOpen} />
+              <ImageCoverCell att={att} index={startIndex + 1 + i} allAttachments={allAttachments} onOpen={onOpen} {...tileProps} />
             </div>
           ))}
         </div>
@@ -487,7 +645,7 @@ function ImageGrid({ images, allAttachments, onOpen, startIndex }) {
       <div className="flex gap-0.5">
         {shown.slice(0, 2).map((att, i) => (
           <div key={att.id} className="relative flex-1" style={{ height: 110 }}>
-            <ImageCoverCell att={att} index={startIndex + i} allAttachments={allAttachments} onOpen={onOpen} />
+            <ImageCoverCell att={att} index={startIndex + i} allAttachments={allAttachments} onOpen={onOpen} {...tileProps} />
           </div>
         ))}
       </div>
@@ -500,6 +658,7 @@ function ImageGrid({ images, allAttachments, onOpen, startIndex }) {
               allAttachments={allAttachments}
               onOpen={onOpen}
               overflowCount={i === 1 ? overflowCount : 0}
+              {...tileProps}
             />
           </div>
         ))}
@@ -509,7 +668,7 @@ function ImageGrid({ images, allAttachments, onOpen, startIndex }) {
 }
 
 // ── Attachments renderer ──────────────────────────────────────────────────────
-function AttachmentsBlock({ attachments, onOpen, isOwn }) {
+function AttachmentsBlock({ attachments, onOpen, isOwn, messageId, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId }) {
   if (!attachments?.length) return null;
 
   // Group images together for grid layout
@@ -520,6 +679,9 @@ function AttachmentsBlock({ attachments, onOpen, isOwn }) {
   // Reorder: images first (for viewer indexing), then others
   const ordered = [...imageAtts, ...others];
 
+  // Same six per-tile props for the grid and every video card.
+  const tileProps = { messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId };
+
   return (
     <>
       {imageAtts.length > 0 && (
@@ -528,6 +690,7 @@ function AttachmentsBlock({ attachments, onOpen, isOwn }) {
           allAttachments={ordered}
           onOpen={onOpen}
           startIndex={0}
+          {...tileProps}
         />
       )}
       {others.map((att, i) => {
@@ -540,6 +703,7 @@ function AttachmentsBlock({ attachments, onOpen, isOwn }) {
               index={globalIdx}
               allAttachments={ordered}
               onOpen={onOpen}
+              {...tileProps}
             />
           );
         }
@@ -768,6 +932,8 @@ export function ChatMessageBubble({
   isPinned = false,
   onPin,
   onToggleReaction,
+  onDeleteAttachment,
+  deletingAttachmentId,
   isThreadReplyView = false,
   onOpenThreadForMessage,
 }) {
@@ -958,7 +1124,16 @@ export function ChatMessageBubble({
             )}
 
             {!isDeleted && attachments.length > 0 && (
-              <AttachmentsBlock attachments={attachments} onOpen={onAttachmentClick} isOwn />
+              <AttachmentsBlock
+                attachments={attachments}
+                onOpen={onAttachmentClick}
+                isOwn
+                messageId={message.id}
+                currentUserId={currentUserId}
+                onToggleReaction={onToggleReaction}
+                onDeleteAttachment={onDeleteAttachment}
+                deletingAttachmentId={deletingAttachmentId}
+              />
             )}
 
             {!isDeleted && entityRefs.length > (firstEntityRefAttached ? 1 : 0) && (
@@ -1106,7 +1281,16 @@ export function ChatMessageBubble({
           )}
 
           {!isDeleted && attachments.length > 0 && (
-            <AttachmentsBlock attachments={attachments} onOpen={onAttachmentClick} isOwn={false} />
+            <AttachmentsBlock
+              attachments={attachments}
+              onOpen={onAttachmentClick}
+              isOwn={false}
+              messageId={message.id}
+              currentUserId={currentUserId}
+              onToggleReaction={onToggleReaction}
+              onDeleteAttachment={onDeleteAttachment}
+              deletingAttachmentId={deletingAttachmentId}
+            />
           )}
 
           {!isDeleted && entityRefs.length > (firstEntityRefAttached ? 1 : 0) && (
