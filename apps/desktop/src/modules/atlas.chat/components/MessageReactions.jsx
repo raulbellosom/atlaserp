@@ -37,10 +37,15 @@ export function MessageReactions({ reactions, members, currentUserId, onToggle }
                 onClick={() => setModalOpen(true)}
                 className={[
                   "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs border border-transparent transition-colors",
-                  mine
-                    ? "bg-[--brand-primary]/15 text-[--brand-primary] font-medium"
-                    : "bg-[hsl(var(--muted))] hover:bg-[hsl(var(--border))]",
+                  mine ? "font-medium" : "bg-[hsl(var(--muted))] hover:bg-[hsl(var(--border))]",
                 ].join(" ")}
+                // "you reacted" = a brand-tinted fill (no hard border). Inline
+                // color-mix because Tailwind's /alpha on an arbitrary CSS var
+                // colour doesn't produce valid CSS for an hsl()-string token.
+                style={mine ? {
+                  backgroundColor: "color-mix(in srgb, var(--brand-primary) 20%, transparent)",
+                  color: "var(--brand-primary)",
+                } : undefined}
               >
                 <span>{emoji}</span>
                 <span className="tabular-nums">{userIds?.length ?? 0}</span>

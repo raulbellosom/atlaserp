@@ -81,6 +81,9 @@ export function ChatMessageList({
   const isInitialLoadRef = useRef(true);
   const prevScrollHeightRef = useRef(0);
   const restoreScrollRef = useRef(false);
+  // The last jump request we've already acted on — keyed by nonce so an
+  // unrelated re-render never re-scrolls you back to the same message.
+  const jumpHandledRef = useRef(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
   // All attachments across all messages — used so clicking any file navigates the full set
@@ -260,7 +263,14 @@ export function ChatMessageList({
   // same id be re-targeted twice in a row. If the message isn't in the DOM
   // yet, load older pages (up to 5 times) and retry before giving up.
   useEffect(() => {
-    if (!scrollToMessage?.id || !listRef.current) return;
+    const target = scrollToMessage;
+    if (!target?.id || !listRef.current) return;
+    // One scroll per distinct request. Without this the effect re-fires on
+    // every unrelated re-render (an inline onJumpFailed, a new handleLoadMore
+    // after isLoadingMore toggles, ...) and keeps yanking you back.
+    const key = target.nonce ?? target.id;
+    if (jumpHandledRef.current === key) return;
+
     let cancelled = false;
     let attempts = 0;
 
@@ -274,16 +284,16 @@ export function ChatMessageList({
 
     function tryScroll() {
       if (cancelled) return;
-      const el = listRef.current?.querySelector(`[data-msg-id="${scrollToMessage.id}"]`);
-      if (el) { flash(el); return; }
-      if (attempts >= 5 || !hasMore) { onJumpFailed?.(); return; }
+      const el = listRef.current?.querySelector(`[data-msg-id="${target.id}"]`);
+      if (el) { jumpHandledRef.current = key; flash(el); return; }
+      if (attempts >= 5 || !hasMore) { jumpHandledRef.current = key; onJumpFailed?.(); return; }
       attempts += 1;
       handleLoadMore();
       setTimeout(tryScroll, 600);
     }
     tryScroll();
     return () => { cancelled = true; };
-  }, [scrollToMessage?.id, scrollToMessage?.nonce, hasMore, handleLoadMore, onJumpFailed]);
+  }, [scrollToMessage, hasMore, handleLoadMore, onJumpFailed]);
 
   // Auto-load when user scrolls up to the sentinel near the top of the list
   useEffect(() => {

@@ -21,10 +21,14 @@ const KIND_ICON = { image: Image, video: Video, audio: Mic, file: FileText, enti
 const STYLES = {
   onBrand: {
     className: "",
-    wrapStyle: { backgroundColor: "color-mix(in srgb, var(--brand-primary-foreground) 16%, transparent)" },
-    accentStyle: { backgroundColor: "color-mix(in srgb, var(--brand-primary-foreground) 60%, transparent)" },
+    // A shade of the bubble's OWN colour nudged toward its text colour — an
+    // opaque same-hue inset that works whether the brand foreground is white
+    // or near-black (a translucent white wash turned into a dark box on
+    // light-brand themes).
+    wrapStyle: { backgroundColor: "color-mix(in srgb, var(--brand-primary) 78%, var(--brand-primary-foreground))" },
+    accentStyle: { backgroundColor: "color-mix(in srgb, var(--brand-primary-foreground) 55%, transparent)" },
     nameStyle: { color: "var(--brand-primary-foreground)" },
-    textStyle: { color: "color-mix(in srgb, var(--brand-primary-foreground) 78%, transparent)" },
+    textStyle: { color: "color-mix(in srgb, var(--brand-primary-foreground) 75%, transparent)" },
   },
   onMuted: {
     className: "",
@@ -111,7 +115,7 @@ export function MessageQuote({ reply, variant = "inline", context = "standalone"
       onPointerDown={(e) => e.stopPropagation()}
       onPointerUp={(e) => e.stopPropagation()}
       className={[
-        "w-full mb-1.5 block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[--brand-primary]/40",
+        "w-full mb-1.5 block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.35)]",
         reply.isDeleted ? "cursor-default" : "cursor-pointer hover:opacity-90",
       ].join(" ")}
     >
