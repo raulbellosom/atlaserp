@@ -48,6 +48,8 @@ export function ChatMessageList({
   isLoadingMore,
   onLoadMore,
   onDeleteMessage,
+  onDeleteAttachment,
+  deletingAttachmentId,
   onHideForMe,
   onForward,
   onPinMessage,
@@ -62,6 +64,11 @@ export function ChatMessageList({
   searchMatchIds,
   currentMatchId,
   scrollToMessage,
+  // Unread count for this conversation captured the instant it was opened —
+  // see ChatWindow.jsx/MiniChatWindow.jsx's unreadSnapshotRef comment. Used
+  // to land the initial scroll on the first unread message instead of the
+  // bottom, and to scope the mention jump button to unread mentions only.
+  unreadCountAtOpen = 0,
 }) {
   const { prefs } = useChatPreferences();
   const wallpaperClass = prefs.wallpaper ? "chat-wallpaper" : "";
@@ -71,7 +78,6 @@ export function ChatMessageList({
   const isInitialLoadRef = useRef(true);
   const prevScrollHeightRef = useRef(0);
   const restoreScrollRef = useRef(false);
-  const mentionCursorRef = useRef(-1);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
   // All attachments across all messages — used so clicking any file navigates the full set
@@ -92,6 +98,21 @@ export function ChatMessageList({
     onAttachmentClick(attachments, index);
   }
 
+  // First unread message + total unread count, WhatsApp-style — mirrors the
+  // backend's unread_count filter (own/system messages don't count) so the
+  // boundary lands on the same message the sidebar badge is counting from.
+  // Null once everything was already read when the conversation was opened.
+  const unreadBoundary = useMemo(() => {
+    if (!unreadCountAtOpen || !messages?.length) return null;
+    const countable = messages.filter(
+      (m) => !m.deleted_at && m.sender_type !== "system" && m.sender_user_id !== currentUserId,
+    );
+    if (!countable.length) return null;
+    const idx = Math.max(0, countable.length - unreadCountAtOpen);
+    const firstUnread = countable[idx] ?? countable[0];
+    return firstUnread ? { id: firstUnread.id, count: unreadCountAtOpen } : null;
+  }, [messages, unreadCountAtOpen, currentUserId]);
+
   // Preserve scroll position when older messages are prepended
   useLayoutEffect(() => {
     if (restoreScrollRef.current && listRef.current) {
@@ -105,14 +126,24 @@ export function ChatMessageList({
     if (!messages?.length) return;
     if (isInitialLoadRef.current) {
       isInitialLoadRef.current = false;
-      if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+      if (unreadBoundary?.id) {
+        // Land on the first unread message, not the very bottom — the
+        // banner effect below re-arms itself against this same id.
+        requestAnimationFrame(() => {
+          const el = listRef.current?.querySelector(`[data-msg-id="${unreadBoundary.id}"]`);
+          if (el) el.scrollIntoView({ block: "start" });
+          else if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+        });
+      } else if (listRef.current) {
+        listRef.current.scrollTop = listRef.current.scrollHeight;
+      }
       return;
     }
     // Only auto-scroll if NOT triggered by load-more (scroll restore handles that)
     if (!restoreScrollRef.current) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages?.length]);
+  }, [messages?.length, unreadBoundary]);
 
   useEffect(() => {
     if (!typingUsers?.length) return;
@@ -152,24 +183,47 @@ export function ChatMessageList({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  // Messages (in any of the loaded pages) that mention the current viewer —
-  // backs the "@" jump button below, WhatsApp-style: each click advances to
-  // the next one in the conversation, wrapping back to the first.
+  // "N mensajes sin leer" banner — visible for a few seconds after opening a
+  // conversation with unread messages, then fades out on its own (WhatsApp
+  // shows it persistently; this codebase's ask was specifically time-based).
+  const [showUnreadBanner, setShowUnreadBanner] = useState(false);
+  useEffect(() => {
+    if (!unreadBoundary?.id) return;
+    setShowUnreadBanner(true);
+    const t = setTimeout(() => setShowUnreadBanner(false), 4000);
+    return () => clearTimeout(t);
+  }, [unreadBoundary?.id]);
+
+  // Mentions of the current viewer that are still unread — scoped to the
+  // unread boundary (a mention in an already-read message doesn't need
+  // pointing out) — plus a "visited" set. Each jump-button click goes to the
+  // earliest one still pending and marks it visited, so the button's count
+  // shrinks and the button itself disappears once every unread mention has
+  // been jumped to at least once — it does not just cycle forever.
   const ownRoleId = findOwnMember(members, currentUserId)?.roleId;
-  const ownMentionIds = useMemo(() => {
-    if (!messages?.length) return [];
-    return messages
+  const [visitedMentionIds, setVisitedMentionIds] = useState(() => new Set());
+
+  const unreadMentionIds = useMemo(() => {
+    if (!unreadBoundary?.id || !messages?.length) return [];
+    const boundaryIdx = messages.findIndex((m) => m.id === unreadBoundary.id);
+    const scope = boundaryIdx >= 0 ? messages.slice(boundaryIdx) : messages;
+    return scope
       .filter((m) => !m.deleted_at && isMentioned(m, currentUserId, ownRoleId))
       .map((m) => m.id);
-  }, [messages, currentUserId, ownRoleId]);
+  }, [messages, unreadBoundary, currentUserId, ownRoleId]);
+
+  const pendingMentionIds = useMemo(
+    () => unreadMentionIds.filter((id) => !visitedMentionIds.has(id)),
+    [unreadMentionIds, visitedMentionIds],
+  );
 
   const handleJumpToMention = useCallback(() => {
-    if (!ownMentionIds.length || !listRef.current) return;
-    mentionCursorRef.current = (mentionCursorRef.current + 1) % ownMentionIds.length;
-    const id = ownMentionIds[mentionCursorRef.current];
-    const el = listRef.current.querySelector(`[data-msg-id="${id}"]`);
+    const nextId = pendingMentionIds[0];
+    if (!nextId || !listRef.current) return;
+    const el = listRef.current.querySelector(`[data-msg-id="${nextId}"]`);
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [ownMentionIds]);
+    setVisitedMentionIds((prev) => new Set(prev).add(nextId));
+  }, [pendingMentionIds]);
 
   const lastReadMessageId = useMemo(() => {
     if (!members?.length || !messages?.length) return null;
@@ -301,7 +355,24 @@ export function ChatMessageList({
           const isOwn = item.sender_user_id === currentUserId;
           const isDeleted = Boolean(item.deleted_at);
           const isPending = String(item.id ?? "").startsWith("temp-");
-          return (
+          const isUnreadDivider = unreadBoundary?.id === item.id;
+          return [
+            // Rendered continuously (not just while showUnreadBanner is true)
+            // so the opacity/max-height classes below actually transition on
+            // the same node instead of the div popping in and out of the DOM.
+            isUnreadDivider && (
+              <div
+                key={`unread-${item.id}`}
+                className={[
+                  "flex items-center justify-center overflow-hidden transition-all duration-700 ease-out",
+                  showUnreadBanner ? "opacity-100 max-h-10 my-2" : "opacity-0 max-h-0 my-0",
+                ].join(" ")}
+              >
+                <span className="text-[11px] font-semibold px-3 py-1 rounded-full bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))] whitespace-nowrap">
+                  {unreadBoundary.count} mensaje{unreadBoundary.count === 1 ? "" : "s"} sin leer
+                </span>
+              </div>
+            ),
             <ChatMessageBubble
               key={item.id}
               message={item}
@@ -330,6 +401,8 @@ export function ChatMessageList({
                 ? () => onPinMessage(item.id, !item.pinned_at)
                 : undefined}
               onToggleReaction={!isDeleted && !isPending ? onToggleReaction : undefined}
+              onDeleteAttachment={!isDeleted && !isPending ? onDeleteAttachment : undefined}
+              deletingAttachmentId={deletingAttachmentId}
               onOpenThreadForMessage={onOpenThread}
               selectionMode={selectionMode}
               isSelected={selectedMsgIds?.has(item.id) ?? false}
@@ -338,8 +411,8 @@ export function ChatMessageList({
               searchQuery={searchQuery}
               isSearchMatch={searchMatchIds ? searchMatchIds.has(item.id) : false}
               isCurrentMatch={item.id === currentMatchId}
-            />
-          );
+            />,
+          ];
         })}
 
         {typingUsers?.length > 0 && <TypingIndicator names={typingUsers} />}
@@ -347,16 +420,21 @@ export function ChatMessageList({
         <div ref={bottomRef} />
       </div>
 
-      {(ownMentionIds.length > 0 || showScrollButton) && (
+      {(pendingMentionIds.length > 0 || showScrollButton) && (
         <div className="absolute bottom-3 right-3 flex flex-col items-end gap-2 z-10">
-          {ownMentionIds.length > 0 && (
+          {pendingMentionIds.length > 0 && (
             <button
               type="button"
               onClick={handleJumpToMention}
-              title="Ir a la siguiente mencion"
-              className="h-9 w-9 flex items-center justify-center rounded-full bg-accent text-white shadow-lg hover:brightness-110 active:scale-[0.97] transition"
+              title="Ir a la siguiente mencion sin leer"
+              className="relative h-9 w-9 flex items-center justify-center rounded-full bg-accent text-white shadow-lg hover:brightness-110 active:scale-[0.97] transition"
             >
               <AtSign className="h-4 w-4" />
+              {pendingMentionIds.length > 1 && (
+                <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-[hsl(var(--card))]">
+                  {pendingMentionIds.length}
+                </span>
+              )}
             </button>
           )}
           {showScrollButton && (

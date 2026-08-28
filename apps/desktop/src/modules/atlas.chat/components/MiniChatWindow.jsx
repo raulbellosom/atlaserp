@@ -3,20 +3,22 @@ import { useNavigate } from "react-router-dom";
 import "../chat-theme.css";
 import {
   X, Minus, ChevronUp,
-  ExternalLink, FolderOpen, MoreVertical, User,
+  ExternalLink, FolderOpen, MoreVertical, User, Phone, Video,
 } from "lucide-react";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@atlas/ui";
-import { useChatMessages, useSendMessage, useMarkRead, useDeleteMessage, usePinMessage, useToggleReaction } from "../hooks/useChatMessages";
+import { Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@atlas/ui";
+import { useChatMessages, useSendMessage, useMarkRead, useDeleteMessage, useDeleteAttachment, usePinMessage, useToggleReaction } from "../hooks/useChatMessages";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { MessageComposer } from "./MessageComposer";
 import { DropZoneOverlay } from "./DropZoneOverlay";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { ConversationProfilePanel } from "./ConversationProfilePanel";
+import { useChatFloatStore } from "../store/chatFloatStore";
+import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 import { getConversationDisplayName, getConversationTitleLabel, buildAllAttachments } from "../lib/chatUtils";
 import { ChatPreferencesProvider, useChatPreferences, chatPreferencesStyle } from "../hooks/useChatPreferences";
-import { ConversationTypeBadge } from "./ConversationTypeBadge";
 import { useAuth } from "../../../auth/AuthProvider";
+import { useCalls } from "../calls/CallsProvider";
 
 const BS = 56;     // bubble size px
 const BM = 16;     // margin from edge px
@@ -38,40 +40,7 @@ export function getAvatarEmoji(conversation) {
   return conversation?.avatar_emoji ?? null;
 }
 
-export function AvatarCircle({ avatarUrl, avatarEmoji, type, name, size = "md", online = false }) {
-  const [avatarErr, setAvatarErr] = useState(false);
-  const sizeClass = size === "sm" ? "h-7 w-7 text-[10px]" : "h-8 w-8 text-xs";
-
-  useEffect(() => { setAvatarErr(false); }, [avatarUrl]);
-
-  return (
-    <div className="relative shrink-0">
-      {online && (
-        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[hsl(var(--card))] z-10" />
-      )}
-      {avatarUrl && !avatarErr ? (
-        <img
-          src={avatarUrl}
-          alt={name}
-          className={`${sizeClass} rounded-full object-cover`}
-          onError={() => setAvatarErr(true)}
-        />
-      ) : avatarEmoji ? (
-        <div className={`${sizeClass} rounded-full flex items-center justify-center bg-[hsl(var(--muted))]`}>
-          <span className="text-sm leading-none">{avatarEmoji}</span>
-        </div>
-      ) : (
-        <div
-          className={`${sizeClass} rounded-full flex items-center justify-center font-bold`}
-          style={{ backgroundColor: "var(--brand-primary)", color: "var(--brand-primary-foreground)" }}
-        >
-          {name?.[0]?.toUpperCase() ?? "?"}
-        </div>
-      )}
-      <ConversationTypeBadge type={type} />
-    </div>
-  );
-}
+export { AvatarCircle } from "./AvatarCircle";
 
 // --- Mini chat window (desktop) ---
 
@@ -92,11 +61,14 @@ export function MiniChatWindow(props) {
 function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinimize }) {
   const { id, conversation, minimized } = entry;
   const { userProfile } = useAuth();
+  const { enabled: callsEnabled, isStarting: callPending, startCall } = useCalls();
   const navigate = useNavigate();
+  const { openChat } = useChatFloatStore();
   const { data, isLoading, hasMore, isLoadingMore, loadMore } = useChatMessages(id);
   const { mutateAsync: send } = useSendMessage(id);
   const { mutate: markRead } = useMarkRead(id);
   const { mutate: deleteMessageMutate } = useDeleteMessage(id);
+  const { mutate: deleteAttachmentMutate, isPending: isDeletingAttachment, variables: deletingAttachmentId } = useDeleteAttachment(id);
   const { mutate: pinMutate } = usePinMessage(id);
   const { mutate: toggleReactionMutate } = useToggleReaction(id);
   // `conversation` here is whatever was passed to openChat() — usually the
@@ -104,9 +76,22 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
   // detail query is needed for messages.pin gating, same as ChatWindow.
   const { data: conversationDetail } = useChatConversationDetail(id);
   const detailMembers = conversationDetail?.data?.members ?? null;
+  const isChannelOrGroupType = conversation?.type === "channel" || conversation?.type === "group";
+  const ownMemberForComposer = findOwnMember(detailMembers ?? conversation?.members ?? [], userProfile?.id);
+  const canSendMessages = !isChannelOrGroupType || roleHasPermission(ownMemberForComposer, CHAT_PERMISSIONS.MESSAGES_SEND);
   const { prefs } = useChatPreferences();
   const markReadRef = useRef(markRead);
   markReadRef.current = markRead;
+
+  // Same snapshot ChatWindow.jsx takes — captured during render, before the
+  // markRead effect's mutation invalidates the conversations list and zeroes
+  // this out. Lets ChatMessageList open scrolled to the first unread message
+  // instead of the bottom, and scope the mention jump button to what's
+  // actually unread.
+  const unreadSnapshotRef = useRef({ id: null, count: 0 });
+  if (unreadSnapshotRef.current.id !== id) {
+    unreadSnapshotRef.current = { id, count: conversation?.unread_count ?? 0 };
+  }
 
   const composerRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -266,6 +251,32 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
             >
               <User className="h-3 w-3" />
             </button>
+            {callsEnabled && conversation?.type !== "external_support" && (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 shrink-0"
+                  onClick={() => startCall({ conversationId: id, kind: "AUDIO" })}
+                  disabled={callPending}
+                  title="Iniciar llamada de voz"
+                >
+                  <Phone className="h-3 w-3" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 shrink-0"
+                  onClick={() => startCall({ conversationId: id, kind: "VIDEO" })}
+                  disabled={callPending}
+                  title="Iniciar videollamada"
+                >
+                  <Video className="h-3 w-3" />
+                </Button>
+              </>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -316,6 +327,8 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
             messages={data?.data ?? []}
             isLoadingMessages={isLoading}
             onShowAllFiles={handleViewFiles}
+            onOpenConversation={(conv) => openChat(conv)}
+            onDeleted={onClose}
           />
         )}
         {!minimized && !profileView && (
@@ -331,21 +344,25 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
               hasMore={hasMore}
               isLoadingMore={isLoadingMore}
               onLoadMore={loadMore}
+              unreadCountAtOpen={unreadSnapshotRef.current.count}
               onDeleteMessage={(msgId) => deleteMessageMutate(msgId)}
+              onDeleteAttachment={(attachmentId) => deleteAttachmentMutate(attachmentId)}
+              deletingAttachmentId={isDeletingAttachment ? deletingAttachmentId : null}
               onHideForMe={(msgId) => setHiddenMsgIds((prev) => { const n = new Set(prev); n.add(msgId); return n; })}
               onForward={() => { navigate(`/app/m/atlas.chat/chat/inbox/${id}`); onClose(); }}
               hiddenMessageIds={hiddenMsgIds}
               onPinMessage={(messageId, pinned) => pinMutate({ messageId, pinned })}
-              onToggleReaction={(messageId, emoji) => toggleReactionMutate({ messageId, emoji })}
+              onToggleReaction={(messageId, emoji, attachmentId) => toggleReactionMutate({ messageId, emoji, attachmentId })}
             />
             <MessageComposer
               ref={composerRef}
               onSend={send}
-              placeholder="Mensaje..."
+              placeholder={canSendMessages ? "Mensaje..." : "Solo un administrador puede escribir aqui"}
               compact
               conversationId={id}
               conversationType={conversation?.type}
               dropZoneDisabled
+              disabled={!canSendMessages}
             />
           </>
         )}

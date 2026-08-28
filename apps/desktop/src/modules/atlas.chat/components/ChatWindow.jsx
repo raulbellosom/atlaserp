@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, ConfirmDialog } from "@atlas/ui";
 import {
   ArrowLeft, Users, FolderOpen, MessageSquare,
   MoreVertical, Trash2, X as XIcon, Search, Share2, CheckSquare,
   ChevronUp, ChevronDown, Archive, ArchiveRestore, Pin,
+  Phone, Video,
 } from "lucide-react";
 import { ChatFilesGallery } from "./ChatFilesGallery";
 import { DropZoneOverlay } from "./DropZoneOverlay";
@@ -17,18 +19,20 @@ import { MemberAvatarStack } from "./MemberAvatarStack";
 import { PinnedMessagesSheet } from "./PinnedMessagesSheet";
 import { ThreadPanel } from "./ThreadPanel";
 import {
-  useChatMessages, useSendMessage, useMarkRead, useDeleteMessage,
+  useChatMessages, useSendMessage, useMarkRead, useDeleteMessage, useDeleteAttachment,
   usePinMessage, useToggleReaction,
 } from "../hooks/useChatMessages";
 import { usePinnedMessages } from "../hooks/usePinnedMessages";
 import { useChatPresence } from "../hooks/useChatPresence";
 import { useChatConversations, useArchiveConversation, useUnarchiveConversation } from "../hooks/useChatConversations";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
+import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 import {
   getConversationDisplayName, getConversationTitleLabel, buildAllAttachments,
 } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
+import { useCalls } from "../calls/CallsProvider";
 
 function formatLastSeen(date) {
   if (!date) return null;
@@ -56,6 +60,7 @@ function ChatHeader({
   onArchive, isArchived,
   onOpenProfile, onCloseProfile,
   onOpenPinned,
+  callsEnabled, callPending, onStartAudioCall, onStartVideoCall,
 }) {
   const [avatarErr, setAvatarErr] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -227,6 +232,33 @@ function ChatHeader({
           ) : null}
         </div>
 
+        {callsEnabled && conversation?.type !== "external_support" && (
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={headerBtnCls}
+              onClick={onStartAudioCall}
+              disabled={callPending}
+              title="Iniciar llamada de voz"
+            >
+              <Phone className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={headerBtnCls}
+              onClick={onStartVideoCall}
+              disabled={callPending}
+              title="Iniciar videollamada"
+            >
+              <Video className="h-4 w-4" />
+            </Button>
+          </>
+        )}
+
         {/* Search */}
         <button type="button" onClick={onSearchToggle} className={headerBtnCls} title="Buscar mensajes">
           <Search className="h-4 w-4" />
@@ -337,7 +369,9 @@ function saveHidden(conversationId, set) {
 // ── Main ChatWindow ───────────────────────────────────────────────────────────
 
 export function ChatWindow({ conversation, onClose, initialFilesView = false }) {
+  const navigate = useNavigate();
   const { userProfile, session } = useAuth();
+  const { enabled: callsEnabled, isStarting: callPending, startCall } = useCalls();
   const token = session?.access_token;
   const conversationId = conversation?.id;
 
@@ -345,6 +379,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
   const { mutateAsync: sendMessage } = useSendMessage(conversationId);
   const { mutate: markReadMutate } = useMarkRead(conversationId);
   const { mutate: deleteMessageMutate } = useDeleteMessage(conversationId);
+  const { mutate: deleteAttachmentMutate, isPending: isDeletingAttachment, variables: deletingAttachmentId } = useDeleteAttachment(conversationId);
   const { mutate: pinMutate } = usePinMessage(conversationId);
   const { mutate: toggleReactionMutate } = useToggleReaction(conversationId);
   const { mutate: archiveMutate } = useArchiveConversation();
@@ -357,6 +392,12 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
   // with roleId/rolePermissions, which only the detail query returns.
   const { data: conversationDetail } = useChatConversationDetail(conversationId);
   const detailMembers = conversationDetail?.data?.members ?? null;
+  // messages.send is only meaningful for channel/group (direct/external_support
+  // have no roles, so roleHasPermission would just resolve false for them —
+  // guard by type instead of relying on that, same as the backend's own gate).
+  const isChannelOrGroupType = conversation?.type === "channel" || conversation?.type === "group";
+  const ownMemberForComposer = findOwnMember(detailMembers ?? conversation?.members ?? [], userProfile?.id);
+  const canSendMessages = !isChannelOrGroupType || roleHasPermission(ownMemberForComposer, CHAT_PERMISSIONS.MESSAGES_SEND);
 
   const [filesView, setFilesView] = useState(initialFilesView);
   const [hiddenMessageIds, setHiddenMessageIds] = useState(() =>
@@ -395,6 +436,17 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
 
   const markReadRef = useRef(markReadMutate);
   markReadRef.current = markReadMutate;
+
+  // Snapshot the unread count the instant this conversation is opened —
+  // captured during render (before the markRead effect below fires and its
+  // mutation's onSuccess invalidates the conversations list, zeroing this
+  // same field out). ChatMessageList uses it to land the initial scroll on
+  // the first unread message (WhatsApp-style) instead of the very bottom,
+  // and to scope the "@" jump button to mentions that are actually unread.
+  const unreadSnapshotRef = useRef({ id: null, count: 0 });
+  if (unreadSnapshotRef.current.id !== conversationId) {
+    unreadSnapshotRef.current = { id: conversationId, count: conversation?.unread_count ?? 0 };
+  }
 
   // Reset local state when conversation changes
   useEffect(() => {
@@ -493,6 +545,10 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
   const handleDeleteMessage = useCallback((messageId) => {
     deleteMessageMutate(messageId);
   }, [deleteMessageMutate]);
+
+  const handleDeleteAttachment = useCallback((attachmentId) => {
+    deleteAttachmentMutate(attachmentId);
+  }, [deleteAttachmentMutate]);
 
   const handleJumpToMessage = useCallback((messageId, threadRootId) => {
     setShowPinned(false);
@@ -728,6 +784,10 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         onOpenProfile={openProfile}
         onCloseProfile={closeProfile}
         onOpenPinned={() => setShowPinned(true)}
+        callsEnabled={callsEnabled}
+        callPending={callPending}
+        onStartAudioCall={() => startCall({ conversationId, kind: "AUDIO" })}
+        onStartVideoCall={() => startCall({ conversationId, kind: "VIDEO" })}
         isArchived={conversation?.is_archived ?? false}
         onArchive={conversationId
           ? () => conversation?.is_archived
@@ -777,10 +837,12 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
               isLoadingMore={isLoadingMore}
               onLoadMore={loadMore}
               onDeleteMessage={handleDeleteMessage}
+              onDeleteAttachment={handleDeleteAttachment}
+              deletingAttachmentId={isDeletingAttachment ? deletingAttachmentId : null}
               onHideForMe={handleHideForMe}
               onForward={setForwardMessage}
               onPinMessage={(messageId, pinned) => pinMutate({ messageId, pinned })}
-              onToggleReaction={(messageId, emoji) => toggleReactionMutate({ messageId, emoji })}
+              onToggleReaction={(messageId, emoji, attachmentId) => toggleReactionMutate({ messageId, emoji, attachmentId })}
               onOpenThread={(messageId) => setThreadPanelRootId(messageId)}
               hiddenMessageIds={hiddenMessageIds}
               selectionMode={selectionMode}
@@ -791,6 +853,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
               searchMatchIds={searchMode && searchMatchIds.length ? new Set(searchMatchIds) : null}
               currentMatchId={currentMatchId}
               scrollToMessage={jumpTarget}
+              unreadCountAtOpen={unreadSnapshotRef.current.count}
             />
           )}
       </div>
@@ -805,10 +868,11 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
           ref={composerRef}
           onSend={handleSend}
           onTyping={sendTyping}
-          placeholder="Escribe un mensaje..."
+          placeholder={canSendMessages ? "Escribe un mensaje..." : "Solo un administrador puede escribir en este canal"}
           conversationId={conversationId}
           conversationType={conversation?.type}
           dropZoneDisabled
+          disabled={!canSendMessages}
         />
       )}
       </div>
@@ -826,6 +890,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
             messages={messages}
             isLoadingMessages={isLoading}
             onShowAllFiles={showAllFiles}
+            onOpenConversation={(conv) => navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}`)}
+            onDeleted={onClose}
           />
         </div>
       )}
@@ -861,7 +927,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         conversationId={conversationId}
         conversationType={conversation?.type}
         members={detailMembers ?? conversation.members}
-        onToggleReaction={(messageId, emoji) => toggleReactionMutate({ messageId, emoji })}
+        onToggleReaction={(messageId, emoji, attachmentId) => toggleReactionMutate({ messageId, emoji, attachmentId })}
       />
     </div>
   );
