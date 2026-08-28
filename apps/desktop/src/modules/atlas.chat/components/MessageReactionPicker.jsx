@@ -1,5 +1,5 @@
 import { Popover, PopoverAnchor, PopoverContent } from "@atlas/ui";
-import EmojiPicker from "emoji-picker-react";
+import EmojiPicker, { EmojiStyle } from "emoji-picker-react";
 
 // A minimal popover wrapping the same EmojiPicker MessageComposer.jsx already
 // uses for its own emoji button — same library, same visual language, not a
@@ -34,6 +34,11 @@ export function MessageReactionPicker({ open, onOpenChange, onPick, anchorAlign 
         <EmojiPicker
           onEmojiClick={(emojiData) => { onPick(emojiData.emoji); onOpenChange(false); }}
           theme="dark"
+          // Render native OS emoji so the picker matches the reaction pills,
+          // the quick-reaction row and composed message text (all native
+          // Unicode). The library's default is an Apple image sprite, which
+          // reads as a different emoji set from what actually lands.
+          emojiStyle={EmojiStyle.NATIVE}
           width={260}
           height={320}
           searchPlaceholder="Buscar emoji..."

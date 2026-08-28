@@ -12,7 +12,7 @@ import {
   Play, FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
   FileArchive, FileCode, File as FileIcon, Link2, User, Landmark, IdCard,
 } from "lucide-react";
-import EmojiPicker from "emoji-picker-react";
+import EmojiPicker, { EmojiStyle } from "emoji-picker-react";
 import { useChatUpload } from "../hooks/useChatUpload";
 import { useMentionCandidates } from "../hooks/useMentionCandidates";
 import { formatFileSize } from "../lib/chatUtils";
@@ -631,6 +631,9 @@ export const MessageComposer = forwardRef(function MessageComposer(
           <EmojiPicker
             onEmojiClick={insertEmoji}
             theme="dark"
+            // Native OS emoji — consistent with reaction pills and message
+            // text (see MessageReactionPicker.jsx for the same note).
+            emojiStyle={EmojiStyle.NATIVE}
             width={compact ? "min(230px, calc(100vw - 1rem))" : "min(300px, calc(100vw - 1.5rem))"}
             height={compact ? 280 : 360}
             searchPlaceholder="Buscar emoji..."

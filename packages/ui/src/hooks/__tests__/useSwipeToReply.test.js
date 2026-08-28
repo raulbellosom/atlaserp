@@ -2,10 +2,18 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createSwipeController } from "../useSwipeToReply.js";
 
-const target = { setPointerCapture() {}, releasePointerCapture() {} };
+function makeTarget() {
+  const calls = { capture: 0, release: 0 };
+  return {
+    calls,
+    setPointerCapture() { calls.capture++; },
+    releasePointerCapture() { calls.release++; },
+  };
+}
+const target = makeTarget();
 
-function drag(ctrl, points) {
-  ctrl.onPointerDown({ clientX: points[0][0], clientY: points[0][1], pointerId: 1, currentTarget: target });
+function drag(ctrl, points, tgt = target) {
+  ctrl.onPointerDown({ clientX: points[0][0], clientY: points[0][1], pointerId: 1, currentTarget: tgt });
   for (const [x, y] of points.slice(1)) ctrl.onPointerMove({ clientX: x, clientY: y });
   ctrl.onPointerUp();
 }
@@ -53,5 +61,31 @@ describe("createSwipeController", () => {
     const ctrl = createSwipeController({ threshold: 64, direction: "right", onReply: () => {}, onTranslate: (v) => translates.push(v) });
     drag(ctrl, [[0, 0], [30, 0]]);
     assert.equal(translates[translates.length - 1], 0);
+  });
+
+  // Regression: capturing on pointerdown retargets `click` in Chromium and
+  // kills every button/link inside the message row. Must NOT capture on a
+  // plain tap, and must only capture once a horizontal drag is confirmed.
+  it("does not capture the pointer on a plain press/release (no move)", () => {
+    const tgt = makeTarget();
+    const ctrl = createSwipeController({ threshold: 64, direction: "right", onReply: () => {}, onTranslate: () => {} });
+    ctrl.onPointerDown({ clientX: 0, clientY: 0, pointerId: 1, currentTarget: tgt });
+    ctrl.onPointerUp();
+    assert.equal(tgt.calls.capture, 0);
+  });
+
+  it("does not capture the pointer on a vertical drag (scroll)", () => {
+    const tgt = makeTarget();
+    const ctrl = createSwipeController({ threshold: 64, direction: "right", onReply: () => {}, onTranslate: () => {} });
+    drag(ctrl, [[0, 0], [4, 40], [8, 120]], tgt);
+    assert.equal(tgt.calls.capture, 0);
+  });
+
+  it("captures the pointer once a horizontal drag is confirmed, releases on up", () => {
+    const tgt = makeTarget();
+    const ctrl = createSwipeController({ threshold: 64, direction: "right", onReply: () => {}, onTranslate: () => {} });
+    drag(ctrl, [[0, 0], [30, 2], [80, 4]], tgt);
+    assert.equal(tgt.calls.capture, 1);
+    assert.equal(tgt.calls.release, 1);
   });
 });

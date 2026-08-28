@@ -7,12 +7,21 @@ const MAX_TRANSLATE = 96;  // rubber-band cap
 // (drag right to reply) and "left" for own messages (drag left). `onTranslate`
 // receives the signed px offset the caller should apply as translateX.
 export function createSwipeController({ threshold = 64, direction = "right", onReply, onTranslate } = {}) {
-  let start = null;
+  let start = null;         // { x, y, el, pointerId }
   let horizontal = false;
   let engaged = false;
+  let captured = null;      // { el, pointerId } once the swipe is claimed
   const sign = direction === "left" ? -1 : 1;
 
+  function releaseCapture() {
+    if (captured) {
+      try { captured.el?.releasePointerCapture?.(captured.pointerId); } catch { /* noop */ }
+      captured = null;
+    }
+  }
+
   function reset() {
+    releaseCapture();
     start = null;
     horizontal = false;
     engaged = false;
@@ -21,10 +30,13 @@ export function createSwipeController({ threshold = 64, direction = "right", onR
 
   return {
     onPointerDown(e) {
-      start = { x: e.clientX, y: e.clientY };
+      start = { x: e.clientX, y: e.clientY, el: e.currentTarget, pointerId: e.pointerId };
       horizontal = false;
       engaged = false;
-      try { e.currentTarget?.setPointerCapture?.(e.pointerId); } catch { /* noop */ }
+      // Do NOT setPointerCapture here. Capturing the whole message row on
+      // every press makes Chromium retarget the synthesized `click` to the
+      // row, silently killing every button/link inside the bubble. Capture
+      // lazily in onPointerMove once we know this is actually a swipe.
     },
     onPointerMove(e) {
       if (!start) return;
@@ -34,8 +46,15 @@ export function createSwipeController({ threshold = 64, direction = "right", onR
         if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
         horizontal = Math.abs(dx) > Math.abs(dy) * H_RATIO;
         if (!horizontal) { start = null; return; } // vertical intent -> yield to scroll
+        // Now that it's a swipe, claim the pointer so we keep getting moves
+        // even if the finger slides off the row. A drag produces no `click`,
+        // so this no longer breaks button activation.
+        try {
+          start.el?.setPointerCapture?.(start.pointerId);
+          captured = { el: start.el, pointerId: start.pointerId };
+        } catch { /* noop */ }
       }
-      const projected = dx * sign;                 // positive when swiping the intended way
+      const projected = dx * sign;                // positive when swiping the intended way
       if (projected <= 0) { onTranslate?.(0); return; }
       const clamped = Math.min(projected, MAX_TRANSLATE);
       engaged = projected >= threshold;
