@@ -1,4 +1,5 @@
 // apps/desktop/src/modules/atlas.chat/components/ThreadPanel.jsx
+import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, Skeleton } from "@atlas/ui";
 import { MessageSquare } from "lucide-react";
 import { useThreadReplies, useSendThreadReply } from "../hooks/useThreadReplies";
@@ -12,12 +13,17 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
   const currentUserId = userProfile?.id;
   const { data, isLoading } = useThreadReplies(open ? rootMessageId : null);
   const { mutateAsync: sendReply } = useSendThreadReply(rootMessageId, conversationId);
+  const [replyingTo, setReplyingTo] = useState(null);
+
+  // Clear any pending quote when the panel closes or retargets to another root.
+  useEffect(() => { setReplyingTo(null); }, [rootMessageId, open]);
 
   const root = data?.data?.root;
   const replies = data?.data?.replies ?? [];
 
   const handleSend = async (payload) => {
     await sendReply(payload);
+    setReplyingTo(null);
   };
 
   return (
@@ -48,6 +54,7 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
                 members={members}
                 conversationType={conversationType}
                 onToggleReaction={onToggleReaction}
+                onReply={(m) => setReplyingTo(m)}
                 isThreadReplyView
               />
               <div className="border-b border-[hsl(var(--border))] my-2 mx-2" />
@@ -69,6 +76,7 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
                   members={members}
                   conversationType={conversationType}
                   onToggleReaction={onToggleReaction}
+                  onReply={(m) => setReplyingTo(m)}
                   isThreadReplyView
                 />
               ))}
@@ -83,6 +91,8 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
             compact
             conversationId={conversationId}
             conversationType={conversationType}
+            replyingTo={replyingTo}
+            onCancelReply={() => setReplyingTo(null)}
           />
         </div>
       </SheetContent>

@@ -55,6 +55,9 @@ export function ChatMessageList({
   onPinMessage,
   onToggleReaction,
   onOpenThread,
+  onReplyToMessage,
+  onJumpToMessage,
+  onJumpFailed,
   hiddenMessageIds,
   selectionMode,
   selectedMsgIds,
@@ -157,14 +160,6 @@ export function ChatMessageList({
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [currentMatchId]);
 
-  // Scroll to a message jumped to from outside (e.g. "Ver en el chat" in PinnedMessagesSheet).
-  // `nonce` lets the same message be re-targeted twice in a row (id alone wouldn't re-trigger the effect).
-  useEffect(() => {
-    if (!scrollToMessage?.id || !listRef.current) return;
-    const el = listRef.current.querySelector(`[data-msg-id="${scrollToMessage.id}"]`);
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [scrollToMessage?.id, scrollToMessage?.nonce]);
-
   // Distance-from-bottom tracking for the "jump to latest" button — recomputed
   // on scroll AND whenever the message count changes (a new message arriving
   // while scrolled up grows scrollHeight without firing a scroll event).
@@ -259,6 +254,36 @@ export function ChatMessageList({
     }
     onLoadMore?.();
   }, [hasMore, isLoadingMore, onLoadMore]);
+
+  // Scroll to a message jumped to from outside — "Ver en el chat" in
+  // PinnedMessagesSheet, or tapping an inline reply quote. `nonce` lets the
+  // same id be re-targeted twice in a row. If the message isn't in the DOM
+  // yet, load older pages (up to 5 times) and retry before giving up.
+  useEffect(() => {
+    if (!scrollToMessage?.id || !listRef.current) return;
+    let cancelled = false;
+    let attempts = 0;
+
+    function flash(el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.remove("chat-msg-flash");
+      void el.offsetWidth; // reflow so the animation restarts on a repeat target
+      el.classList.add("chat-msg-flash");
+      setTimeout(() => el.classList.remove("chat-msg-flash"), 1400);
+    }
+
+    function tryScroll() {
+      if (cancelled) return;
+      const el = listRef.current?.querySelector(`[data-msg-id="${scrollToMessage.id}"]`);
+      if (el) { flash(el); return; }
+      if (attempts >= 5 || !hasMore) { onJumpFailed?.(); return; }
+      attempts += 1;
+      handleLoadMore();
+      setTimeout(tryScroll, 600);
+    }
+    tryScroll();
+    return () => { cancelled = true; };
+  }, [scrollToMessage?.id, scrollToMessage?.nonce, hasMore, handleLoadMore, onJumpFailed]);
 
   // Auto-load when user scrolls up to the sentinel near the top of the list
   useEffect(() => {
@@ -404,6 +429,8 @@ export function ChatMessageList({
               onDeleteAttachment={!isDeleted && !isPending ? onDeleteAttachment : undefined}
               deletingAttachmentId={deletingAttachmentId}
               onOpenThreadForMessage={onOpenThread}
+              onReply={!isDeleted && !isPending && onReplyToMessage ? onReplyToMessage : undefined}
+              onJumpToMessage={onJumpToMessage}
               selectionMode={selectionMode}
               isSelected={selectedMsgIds?.has(item.id) ?? false}
               onSelect={onToggleSelect ? () => onToggleSelect(item.id) : undefined}

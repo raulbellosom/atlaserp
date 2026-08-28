@@ -103,6 +103,10 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
   const allAttachments = useMemo(() => buildAllAttachments(data?.data ?? []), [data]);
   const [hiddenMsgIds, setHiddenMsgIds] = useState(() => new Set());
   const [profileView, setProfileView] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [jumpTarget, setJumpTarget] = useState(null);
+
+  useEffect(() => { setReplyingTo(null); }, [id]);
 
   useEffect(() => { if (!minimized) markReadRef.current(); }, [id, minimized]);
 
@@ -358,6 +362,9 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
               hiddenMessageIds={hiddenMsgIds}
               onPinMessage={(messageId, pinned) => pinMutate({ messageId, pinned })}
               onToggleReaction={(messageId, emoji, attachmentId) => toggleReactionMutate({ messageId, emoji, attachmentId })}
+              onReplyToMessage={(msg) => setReplyingTo(msg)}
+              onJumpToMessage={(msgId) => setJumpTarget({ id: msgId, nonce: Date.now() })}
+              scrollToMessage={jumpTarget}
             />
             <MessageComposer
               ref={composerRef}
@@ -366,6 +373,8 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
               compact
               conversationId={id}
               conversationType={conversation?.type}
+              replyingTo={replyingTo}
+              onCancelReply={() => setReplyingTo(null)}
               dropZoneDisabled
               disabled={!canSendMessages}
             />

@@ -19,6 +19,31 @@ import { formatFileSize } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
 import { EntityReferencePicker } from "./EntityReferencePicker";
 import { DropZoneOverlay } from "./DropZoneOverlay";
+import { MessageQuote } from "./MessageQuote";
+
+// A replyingTo value may be a full message object (from a bubble) or an
+// already-shaped preview. Normalise to the API preview shape MessageQuote wants.
+function toReplyPreview(m) {
+  if (!m) return null;
+  if (m.kind && "senderName" in m) return m; // already a preview
+  const att = (m.attachments ?? [])[0];
+  const hasRefs = Array.isArray(m.metadata?.entityRefs) && m.metadata.entityRefs.length > 0;
+  const body = (m.body ?? "").trim();
+  let kind = "text";
+  if (!body && att?.mimeType?.startsWith("image/")) kind = "image";
+  else if (!body && att?.mimeType?.startsWith("video/")) kind = "video";
+  else if (!body && att?.mimeType?.startsWith("audio/")) kind = "audio";
+  else if (!body && att) kind = "file";
+  else if (!body && hasRefs) kind = "entity";
+  return {
+    id: m.id,
+    senderUserId: m.sender_user_id ?? m.sender?.id ?? null,
+    senderName: m.sender?.displayName ?? "Usuario",
+    bodyPreview: body ? (body.length > 120 ? body.slice(0, 120) : body) : null,
+    kind,
+    isDeleted: Boolean(m.deleted_at),
+  };
+}
 
 // Maps a stored/pending entityType string to its chip/card icon — same 4-way
 // mapping used by EntityReferenceCard.jsx for the resolved cards.
@@ -182,6 +207,8 @@ export const MessageComposer = forwardRef(function MessageComposer(
     compact = false,
     conversationId,
     conversationType,
+    replyingTo = null,
+    onCancelReply,
     // Set by callers (ChatWindow, MiniChatWindow) that already wrap this
     // composer in their own outer drag-and-drop zone covering the whole
     // message area. Without this, dropping a file directly on the composer
@@ -476,6 +503,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
         // which the backend never reads and always re-derives the real
         // title/subtitle/url from the target module's own service.
         entityRefs: pendingEntityRefs.map(({ entityType, recordId }) => ({ entityType, recordId })),
+        replyToMessageId: replyingTo?.id ?? undefined,
       });
 
       for (const file of pendingFiles) {
@@ -486,10 +514,11 @@ export const MessageComposer = forwardRef(function MessageComposer(
       setBody("");
       setPendingFiles([]);
       setPendingEntityRefs([]);
+      onCancelReply?.();
     } finally {
       setIsSending(false);
     }
-  }, [body, isSending, onSend, onTyping, pendingFiles, pendingEntityRefs]);
+  }, [body, isSending, onSend, onTyping, pendingFiles, pendingEntityRefs, replyingTo, onCancelReply]);
 
   // Keep ref in sync so the auto-send effect never holds a stale closure.
   useEffect(() => {
@@ -506,6 +535,12 @@ export const MessageComposer = forwardRef(function MessageComposer(
     if (wasSendingRef.current && !isSending) mentionTaRef.current?.focus();
     wasSendingRef.current = isSending;
   }, [isSending]);
+
+  // Focus the input the moment a reply target is picked (swipe / long-press /
+  // menu / right-click all set replyingTo), so the user can type immediately.
+  useEffect(() => {
+    if (replyingTo) mentionTaRef.current?.focus?.();
+  }, [replyingTo]);
 
   // ── Voice auto-send ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -574,6 +609,15 @@ export const MessageComposer = forwardRef(function MessageComposer(
           MiniChatWindow) already owns the drop zone for this whole area;
           see the dropZoneDisabled prop comment above. */}
       {!dropZoneDisabled && isDragOver && <DropZoneOverlay compact={compact} />}
+
+      {/* Reply-to preview — the message the next send will quote */}
+      {replyingTo && (
+        <MessageQuote
+          variant="compose"
+          reply={toReplyPreview(replyingTo)}
+          onCancel={onCancelReply}
+        />
+      )}
 
       {/* Emoji picker */}
       {showEmoji && (

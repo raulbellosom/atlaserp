@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, ConfirmDialog } from "@atlas/ui";
 import {
   ArrowLeft, Users, FolderOpen, MessageSquare,
@@ -419,6 +420,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
   const [showPinned, setShowPinned] = useState(false);
   const [jumpTarget, setJumpTarget] = useState(null);
   const [threadPanelRootId, setThreadPanelRootId] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
 
   const composerRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -464,6 +466,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
     setShowPinned(false);
     setJumpTarget(null);
     setThreadPanelRootId(null);
+    setReplyingTo(null);
   }, [conversationId, initialFilesView]);
 
   useEffect(() => {
@@ -844,6 +847,9 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
               onPinMessage={(messageId, pinned) => pinMutate({ messageId, pinned })}
               onToggleReaction={(messageId, emoji, attachmentId) => toggleReactionMutate({ messageId, emoji, attachmentId })}
               onOpenThread={(messageId) => setThreadPanelRootId(messageId)}
+              onReplyToMessage={(msg) => setReplyingTo(msg)}
+              onJumpToMessage={(id) => setJumpTarget({ id, nonce: Date.now() })}
+              onJumpFailed={() => toast.error("No se pudo cargar el mensaje original.")}
               hiddenMessageIds={hiddenMessageIds}
               selectionMode={selectionMode}
               selectedMsgIds={selectedMsgIds}
@@ -871,6 +877,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
           placeholder={canSendMessages ? "Escribe un mensaje..." : "Solo un administrador puede escribir en este canal"}
           conversationId={conversationId}
           conversationType={conversation?.type}
+          replyingTo={replyingTo}
+          onCancelReply={() => setReplyingTo(null)}
           dropZoneDisabled
           disabled={!canSendMessages}
         />

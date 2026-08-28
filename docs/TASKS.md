@@ -246,6 +246,26 @@ Built via `superpowers:subagent-driven-development` across 3 tasks. Review caugh
 
 Verified: 2026-08-27 (`pnpm build` / `pnpm --filter @atlas/desktop exec vite build` → clean on every task and every fix; repo-wide grep confirmed zero remaining `ChannelDetailsSheet` imports after deletion)
 
+### Chat UI polish — Sub-project 3: Reply-to-message + mobile gesture layer
+
+Spec: `docs/superpowers/specs/2026-08-28-chat-reply-to-message-and-mobile-gestures-design.md`
+Plans: `docs/superpowers/plans/2026-08-28-chat-reply-to-message-plan-a-api.md`, `...-plan-b-ui.md`
+
+User feedback (2026-08-28): on touch devices the per-message hover affordances (quick-react face, "..." menu) are unreachable, so reactions and the message menu can't be used at all; and there was no lightweight "reply to a message" (only Phase E threads, channel/group-only, opened from that same hover-gated menu).
+
+- [x] `chat_messages.reply_to_message_id` (migration `20260828030000_chat_reply_to`), self-referencing FK `ON DELETE SET NULL` — deleting a quoted original leaves the reply intact, its quote resolves to "Mensaje eliminado" on read
+- [x] `sendMessage` gains optional `replyToMessageId`: validates the target exists, isn't soft-deleted, and shares the conversation (400 `reply_target_invalid` otherwise); independent of `threadRootId` (a thread reply may also quote). Broadcast payload carries `replyToMessageId`
+- [x] `listMessages` / `getMessageFull` / `listThreadReplies` attach a resolved `reply_to` preview `{ id, senderUserId, senderName, bodyPreview, kind, isDeleted }` — one extra batched query per page (`buildReplyPreview` is a pure, separately-unit-tested helper); `kind` ∈ text/image/video/audio/file/entity/deleted
+- [x] `around` list-window param deferred (spec §6.4 permits it) — the frontend's load-older-until-found is the shipped jump mechanism
+- [x] To stay under the 1500-line hard ceiling, the self-contained external-inbox operator functions were first extracted from `chat-service.js` into `chat-external-inbox-service.js` (pure move, existing tests green)
+- [x] `@atlas/ui` gains `useLongPress` + `useSwipeToReply` (generic, injectable pure controllers with unit tests) and now exports `useIsMobile`
+- [x] `ChatMessageBubble.jsx` first slimmed by extracting all attachment rendering into `MessageAttachments.jsx` (mandated by CLAUDE.md — the file was 1367 lines); then wired with long-press → `MessageActionSheet` (bottom `Sheet` on mobile / cursor-anchored `DropdownMenu` on desktop right-click), horizontal swipe → reply, double-tap → ❤️ toggle. Desktop hover menu unchanged except it now lists "Responder" (both menus render from one shared `buildMessageActions` descriptor)
+- [x] `MessageQuote.jsx` renders the quote inline (inside the bubble, tap → jump-to-original with a flash highlight) and in compose (above the composer, with cancel); `replyingTo` state owned per view in `ChatWindow`, `MiniChatWindow`, `ThreadPanel`; optimistic `reply_to` built client-side on send. A message quoting one of your own gets the mention-style left border
+- [x] `ChatMessageList.scrollToMessage` upgraded: flash keyframe + load-older-up-to-5×-then-toast when the quoted original isn't loaded
+- [ ] Manual browser QA at 390px + 1440px (deferred, same as prior chat sub-projects) — long-press / swipe / double-tap / right-click / jump-to-quote / vertical-scroll-not-captured
+
+Verified: 2026-08-28 (`node --test packages/ui/src/hooks/__tests__/*.test.js` + `apps/api/src/routes/chat/__tests__/*.test.js` → 190/190 pass; `pnpm --filter @atlas/desktop build` full Tauri build + `build:web` → clean). PinnedMessagesSheet renders its own summary card (not `ChatMessageBubble`) so it needed no gesture wiring; `ExternalInboxScreen` deliberately out of scope.
+
 ## atlas.notes — Collaborative Notes
 
 Plans: `docs/superpowers/plans/2026-06-27-atlas-notes-A-backend.md`, `2026-06-27-atlas-notes-B-frontend.md`

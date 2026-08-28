@@ -125,6 +125,9 @@ export function useChatMessages(conversationId) {
     if (!conversationId) return;
     return on("chat.message.new", ({ conversationId: cid }) => {
       if (cid === conversationId) {
+        // Full refetch — this also pulls the server-resolved `reply_to`
+        // preview for any quoted reply in the incoming message, so the
+        // broadcast payload's raw `replyToMessageId` needs no handling here.
         queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
       }
     });
@@ -177,6 +180,32 @@ export function useSendMessage(conversationId) {
       await queryClient.cancelQueries({ queryKey: ["chat-messages", conversationId] });
       const previous = queryClient.getQueryData(["chat-messages", conversationId]);
 
+      // Build the quoted-reply preview client-side from the known original so
+      // the quote shows instantly; the server value replaces it on refetch.
+      let optimisticReplyTo = null;
+      if (data.replyToMessageId) {
+        const cache = queryClient.getQueryData(["chat-messages", conversationId]);
+        const orig = (cache?.data ?? []).find((m) => m.id === data.replyToMessageId);
+        if (orig) {
+          const b = (orig.body ?? "").trim();
+          const mime = orig.attachments?.[0]?.mimeType ?? "";
+          optimisticReplyTo = {
+            id: orig.id,
+            senderUserId: orig.sender_user_id ?? orig.sender?.id ?? null,
+            senderName: orig.sender?.displayName ?? "Usuario",
+            bodyPreview: b ? (b.length > 120 ? b.slice(0, 120) : b) : null,
+            kind: b ? "text"
+              : mime.startsWith("image/") ? "image"
+              : mime.startsWith("video/") ? "video"
+              : mime.startsWith("audio/") ? "audio"
+              : orig.attachments?.length ? "file"
+              : Array.isArray(orig.metadata?.entityRefs) && orig.metadata.entityRefs.length ? "entity"
+              : "text",
+            isDeleted: Boolean(orig.deleted_at),
+          };
+        }
+      }
+
       const tempId = `temp-${Date.now()}-${Math.random()}`;
       const optimistic = {
         id: tempId,
@@ -196,6 +225,7 @@ export function useSendMessage(conversationId) {
           avatarUrl: userProfile?.avatarUrl ?? null,
         },
         attachments: null,
+        reply_to: optimisticReplyTo,
         _pending: true,
       };
 
