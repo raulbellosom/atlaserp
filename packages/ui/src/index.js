@@ -211,6 +211,9 @@ export {
 export { MobileFiltersSheet } from "./components/MobileFiltersSheet.jsx";
 export { ListLayout } from "./components/ListLayout.jsx";
 export { useAttachmentsController, resolveAttachmentFileType } from "./hooks/useAttachmentsController.js";
+export { useIsMobile } from "./hooks/useIsMobile.js";
+export { useLongPress, createLongPressController } from "./hooks/useLongPress.js";
+export { useSwipeToReply, createSwipeController } from "./hooks/useSwipeToReply.js";
 
 // atlas.activity
 export { ActivityTimeline } from "./components/ActivityTimeline.jsx";
