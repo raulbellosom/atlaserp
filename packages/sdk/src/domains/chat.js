@@ -41,6 +41,12 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         body: JSON.stringify(data),
       }),
 
+    deleteConversation: (id, token) =>
+      request(`/chat/conversations/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: withAuthHeaders(token),
+      }),
+
     createChannel: (data, token) =>
       request("/chat/channels", {
         method: "POST",
@@ -129,6 +135,12 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         headers: withAuthHeaders(token),
       }),
 
+    deleteAttachment: (attachmentId, token) =>
+      request(`/chat/attachments/${encodeURIComponent(attachmentId)}`, {
+        method: "DELETE",
+        headers: withAuthHeaders(token),
+      }),
+
     pinMessage: (messageId, pinned, token) =>
       request(`/chat/messages/${encodeURIComponent(messageId)}/pin`, {
         method: "PATCH",
@@ -146,11 +158,11 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         headers: withAuthHeaders(token),
       }),
 
-    toggleReaction: (messageId, emoji, token) =>
+    toggleReaction: (messageId, emoji, token, { attachmentId } = {}) =>
       request(`/chat/messages/${encodeURIComponent(messageId)}/reactions`, {
         method: "POST",
         headers: withAuthHeaders(token),
-        body: JSON.stringify({ emoji }),
+        body: JSON.stringify({ emoji, attachmentId: attachmentId ?? null }),
       }),
 
     markRead: (conversationId, token) =>

@@ -161,6 +161,18 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     }
   });
 
+  // DELETE /chat/conversations/:id
+  internal.delete("/conversations/:id", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const conversationId = c.req.param("id");
+      const result = await chatService.deleteConversation({ conversationId, authUserId });
+      return c.json(result);
+    } catch (err) {
+      return handleError(c, err, "Error eliminando conversacion.");
+    }
+  });
+
   // GET /chat/conversations/:id/messages
   internal.get("/conversations/:id/messages", requirePermission("chat.conversations.read"), async (c) => {
     try {
@@ -266,12 +278,24 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const authUserId = c.get("authUserId");
       const messageId = c.req.param("id");
       const body = await c.req.json();
-      const { emoji } = chatToggleReactionSchema.parse(body);
-      const result = await reactionsService.toggleReaction({ messageId, authUserId, emoji });
+      const { emoji, attachmentId } = chatToggleReactionSchema.parse(body);
+      const result = await reactionsService.toggleReaction({ messageId, authUserId, emoji, attachmentId: attachmentId ?? null });
       return c.json({ data: result });
     } catch (err) {
       if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
       return handleError(c, err, "Error reaccionando al mensaje.");
+    }
+  });
+
+  // DELETE /chat/attachments/:id
+  internal.delete("/attachments/:id", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const attachmentId = c.req.param("id");
+      const result = await chatService.deleteAttachment({ attachmentId, authUserId });
+      return c.json({ data: result });
+    } catch (err) {
+      return handleError(c, err, "Error eliminando archivo.");
     }
   });
 

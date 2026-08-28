@@ -31,6 +31,7 @@ export const chatUpdateConversationSchema = z.object({
   // an explicit null as "clear this field," not falsy-but-truthy values).
   avatarFileId: z.string().uuid().nullable().optional(),
   avatarEmoji: z.string().min(1).max(16).nullable().optional(),
+  description: z.string().trim().max(2000).nullable().optional(),
   metadata: z.record(z.unknown()).optional(),
   // Both must be sent together (both a string+uuid, or both null) — enforced
   // in chat-service.js, not here, since Zod can't easily express "both or
@@ -107,6 +108,7 @@ export const chatPinMessageSchema = z.object({
 
 export const chatToggleReactionSchema = z.object({
   emoji: z.string().trim().min(1).max(16),
+  attachmentId: z.string().uuid().nullable().optional(),
 });
 
 export const chatMuteConversationSchema = z.object({
@@ -123,4 +125,10 @@ export const chatCreateReportSchema = z.object({
 
 export const chatResolveReportSchema = z.object({
   action: z.enum(["dismiss", "disable_user"]),
+});
+
+export const callCreateSchema = z.object({
+  conversationId: z.string().uuid(),
+  kind: z.enum(["AUDIO", "VIDEO"]),
+  calendarEventId: z.string().uuid().optional(),
 });
