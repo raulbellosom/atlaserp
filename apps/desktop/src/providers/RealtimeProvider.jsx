@@ -82,6 +82,9 @@ export function RealtimeProvider({ children }) {
       .on('broadcast', { event: 'chat.call.incoming' }, ({ payload }) => {
         dispatch('chat.call.incoming', payload)
       })
+      .on('broadcast', { event: 'chat.call.ended' }, ({ payload }) => {
+        dispatch('chat.call.ended', payload)
+      })
       .on('broadcast', { event: 'projects.task.updated' }, ({ payload }) => {
         dispatch('projects.task.updated', payload)
       })
