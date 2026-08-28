@@ -439,8 +439,11 @@ export function ChatMessageBubble({
           anchorAlign="end"
         >
           <div className="flex flex-col items-end max-w-[72%] sm:max-w-[65%]">
-            {message.reply_to && (
-              <MessageQuote reply={message.reply_to} variant="inline" isOwn onJump={onJumpToMessage} />
+            {/* Quote sits INSIDE the text bubble (below) when there's a body,
+                tinted to match it; only floats on its own when the reply has
+                no text bubble to nest into (attachment-only reply). */}
+            {message.reply_to && !hasText && (
+              <MessageQuote reply={message.reply_to} variant="inline" context="standalone" onJump={onJumpToMessage} />
             )}
             {/* Text bubble + the one entity ref that visually merges with it
                 (when applicable) share a grid wrapper so they resolve to the
@@ -467,6 +470,9 @@ export function ChatMessageBubble({
                       isDeleted ? "opacity-50 italic" : "",
                     ].join(" ")}
                   >
+                    {message.reply_to && !isDeleted && (
+                      <MessageQuote reply={message.reply_to} variant="inline" context="onBrand" onJump={onJumpToMessage} />
+                    )}
                     {isDeleted ? (
                       <span>Mensaje eliminado</span>
                     ) : (
@@ -626,8 +632,8 @@ export function ChatMessageBubble({
             </span>
           )}
 
-          {message.reply_to && (
-            <MessageQuote reply={message.reply_to} variant="inline" isOwn={false} onJump={onJumpToMessage} />
+          {message.reply_to && !hasText && (
+            <MessageQuote reply={message.reply_to} variant="inline" context="standalone" onJump={onJumpToMessage} />
           )}
 
           {hasText && (
@@ -642,6 +648,9 @@ export function ChatMessageBubble({
                     isDeleted ? "opacity-50 italic" : "",
                   ].join(" ")}
                 >
+                  {message.reply_to && !isDeleted && (
+                    <MessageQuote reply={message.reply_to} variant="inline" context="onMuted" onJump={onJumpToMessage} />
+                  )}
                   {isDeleted ? (
                     <span>Mensaje eliminado</span>
                   ) : (

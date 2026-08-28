@@ -9,32 +9,71 @@ const KIND_LABEL = {
 };
 const KIND_ICON = { image: Image, video: Video, audio: Mic, file: FileText, entity: Link2 };
 
-// The quoted-message chip. `variant="inline"` renders inside a bubble above the
-// body (tap jumps to the original). `variant="compose"` renders above the
-// composer with a cancel button. `reply` is the API preview object:
-// { id, senderUserId, senderName, bodyPreview, kind, isDeleted }.
-export function MessageQuote({ reply, variant = "inline", isOwn = false, onJump, onCancel }) {
-  if (!reply) return null;
+// `context` picks a palette so the quote reads as part of whatever surface it
+// sits on, in both light and dark themes:
+//   "onBrand"    – nested inside an own (brand-coloured) bubble
+//   "onMuted"    – nested inside a received (muted) bubble
+//   "standalone" – on the page background (compose bar, attachment-only reply)
+//
+// `--brand-primary-foreground` is a plain hex (white or near-black), so its
+// translucent shades go through color-mix rather than the hsl(var/alpha)
+// form used for the design-system tokens.
+const STYLES = {
+  onBrand: {
+    className: "",
+    wrapStyle: { backgroundColor: "color-mix(in srgb, var(--brand-primary-foreground) 16%, transparent)" },
+    accentStyle: { backgroundColor: "color-mix(in srgb, var(--brand-primary-foreground) 60%, transparent)" },
+    nameStyle: { color: "var(--brand-primary-foreground)" },
+    textStyle: { color: "color-mix(in srgb, var(--brand-primary-foreground) 78%, transparent)" },
+  },
+  onMuted: {
+    className: "bg-[hsl(var(--foreground)/0.06)]",
+    accentClassName: "bg-[hsl(var(--primary))]",
+    nameClassName: "text-[hsl(var(--primary))]",
+    textClassName: "text-[hsl(var(--muted-foreground))]",
+  },
+  standalone: {
+    className: "bg-[hsl(var(--muted))] border border-[hsl(var(--border))]",
+    accentClassName: "bg-[hsl(var(--primary))]",
+    nameClassName: "text-[hsl(var(--primary))]",
+    textClassName: "text-[hsl(var(--muted-foreground))]",
+  },
+};
 
+// The quoted-message chip. `variant="inline"` renders inside/above a bubble
+// (tap jumps to the original). `variant="compose"` renders above the composer
+// with a cancel button. `reply` is the API preview object:
+// { id, senderUserId, senderName, bodyPreview, kind, isDeleted }.
+export function MessageQuote({ reply, variant = "inline", context = "standalone", onJump, onCancel }) {
+  if (!reply) return null;
+  const s = STYLES[context] ?? STYLES.standalone;
   const Icon = KIND_ICON[reply.kind];
   const label = reply.isDeleted
     ? "Mensaje eliminado"
     : reply.bodyPreview || KIND_LABEL[reply.kind] || "Mensaje";
 
-  // Solid theme-token surface so the quote is clearly legible in BOTH light
-  // and dark themes — it sits on the page background (above the bubble), not
-  // inside the coloured bubble, so translucent white/black washes were nearly
-  // invisible in light mode.
   const body = (
-    <div className="flex flex-col gap-0.5 pl-2 pr-2 py-1 rounded-md min-w-0 text-left bg-[hsl(var(--muted))] border border-[hsl(var(--border))] border-l-[3px] border-l-[hsl(var(--primary))]">
-      <span className="text-[11px] font-semibold truncate text-[hsl(var(--primary))]">
+    <div
+      className={[
+        "relative flex flex-col gap-0.5 pl-2.5 pr-2 py-1 rounded-md min-w-0 text-left overflow-hidden",
+        s.className ?? "",
+      ].join(" ")}
+      style={s.wrapStyle}
+    >
+      <span
+        className={["absolute left-0 top-0 bottom-0 w-0.75", s.accentClassName ?? ""].join(" ")}
+        style={s.accentStyle}
+      />
+      <span className={["text-[11px] font-semibold truncate", s.nameClassName ?? ""].join(" ")} style={s.nameStyle}>
         {reply.senderName}
       </span>
       <span
         className={[
-          "text-xs truncate flex items-center gap-1 text-[hsl(var(--muted-foreground))]",
+          "text-xs truncate flex items-center gap-1",
+          s.textClassName ?? "",
           reply.isDeleted ? "italic" : "",
         ].join(" ")}
+        style={s.textStyle}
       >
         {Icon && !reply.bodyPreview && !reply.isDeleted && <Icon className="h-3 w-3 shrink-0" />}
         {label}
@@ -64,7 +103,7 @@ export function MessageQuote({ reply, variant = "inline", isOwn = false, onJump,
       type="button"
       onClick={reply.isDeleted ? undefined : () => onJump?.(reply.id)}
       className={[
-        "w-full mb-1 block",
+        "w-full mb-1.5 block",
         reply.isDeleted ? "cursor-default" : "cursor-pointer hover:opacity-90",
       ].join(" ")}
     >
