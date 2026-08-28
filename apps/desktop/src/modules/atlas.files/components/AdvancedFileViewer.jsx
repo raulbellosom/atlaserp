@@ -1,8 +1,12 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { toast } from "sonner";
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  Copy,
   Download,
   ExternalLink,
   FlipHorizontal2,
@@ -18,6 +22,34 @@ import {
 import { getFileKind, getKindLabel, formatBytes } from "../lib/file-kind";
 import { FileVisual } from "./FileVisual";
 import { PDFViewer } from "./PDFViewer";
+
+// Re-encodes an arbitrary image blob as PNG via an offscreen canvas. Some
+// browsers only accept image/png for navigator.clipboard.write, so this is
+// the fallback when the source blob's own MIME type (e.g. image/webp) is
+// rejected.
+function blobToPng(blob) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((pngBlob) => {
+        if (pngBlob) resolve(pngBlob);
+        else reject(new Error("canvas toBlob failed"));
+      }, "image/png");
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("image decode failed"));
+    };
+    img.src = url;
+  });
+}
 
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 4;
@@ -69,8 +101,10 @@ export function AdvancedFileViewer({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const [pinching, setPinching] = useState(false);
+  const [filmstripOpen, setFilmstripOpen] = useState(true);
 
   const imageContainerRef = useRef(null);
+  const thumbRefs = useRef(new Map());
   const pointersRef = useRef(new Map());
   const gestureRef = useRef({
     mode: null,
@@ -134,6 +168,14 @@ export function AdvancedFileViewer({
       setPan({ x: 0, y: 0 });
     }
   }, [zoom]);
+
+  // Keep the active thumbnail visible when paging via arrows/keyboard, not
+  // just when clicking a thumbnail directly.
+  useEffect(() => {
+    if (!filmstripOpen) return;
+    const el = thumbRefs.current.get(activeIndex);
+    el?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [activeIndex, filmstripOpen]);
 
   const nudgeZoom = useCallback((direction) => {
     setZoom((value) =>
@@ -302,6 +344,33 @@ export function AdvancedFileViewer({
     }
   }
 
+  // Native right-click "copy image" is unreliable for cross-origin signed
+  // URLs (and unavailable at all in some webviews), so this gives users an
+  // explicit, always-working copy action instead.
+  async function copyCurrentImage() {
+    if (!signedUrl || kind !== "image") return;
+    try {
+      if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+        throw new Error("Clipboard API no disponible");
+      }
+      const res = await fetch(signedUrl);
+      if (!res.ok) throw new Error(`copy fetch failed: ${res.status}`);
+      const blob = await res.blob();
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      } catch {
+        // Some browsers only accept image/png on the clipboard — re-encode
+        // and retry once before giving up.
+        const pngBlob = await blobToPng(blob);
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
+      }
+      toast.success("Imagen copiada al portapapeles");
+    } catch (err) {
+      console.warn("[files] copy image to clipboard failed", err);
+      toast.error("No se pudo copiar la imagen");
+    }
+  }
+
   const gestureActive = dragging || pinching;
 
   const imageTransformStyle = {
@@ -400,6 +469,17 @@ export function AdvancedFileViewer({
               >
                 <ExternalLink className="h-3.5 w-3.5" />
               </button>
+              {kind === "image" && (
+                <button
+                  onClick={copyCurrentImage}
+                  disabled={!signedUrl}
+                  aria-label="Copiar imagen"
+                  title="Copiar imagen"
+                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
+              )}
               <button
                 onClick={downloadCurrent}
                 disabled={!signedUrl}
@@ -582,6 +662,52 @@ export function AdvancedFileViewer({
               </>
             )}
           </div>
+
+          {/* ── FILMSTRIP (multi-file) ──────────────────── */}
+          {(files?.length ?? 0) > 1 && (
+            <div className="shrink-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60">
+              <button
+                onClick={() => setFilmstripOpen((v) => !v)}
+                aria-label={filmstripOpen ? "Ocultar miniaturas" : "Mostrar miniaturas"}
+                title={filmstripOpen ? "Ocultar miniaturas" : "Mostrar miniaturas"}
+                className="w-full h-6 flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]/40 transition-colors duration-150"
+              >
+                {filmstripOpen ? (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronUp className="h-3.5 w-3.5" />
+                )}
+              </button>
+              {filmstripOpen && (
+                <div className="flex items-center gap-2 px-3 pb-2.5 overflow-x-auto">
+                  {files.map((f, i) => (
+                    <button
+                      key={f.id ?? i}
+                      ref={(node) => {
+                        if (node) thumbRefs.current.set(i, node);
+                        else thumbRefs.current.delete(i);
+                      }}
+                      onClick={() => onIndexChange(i)}
+                      aria-label={`Ir a ${f.originalName ?? f.name ?? `archivo ${i + 1}`}`}
+                      aria-current={i === activeIndex}
+                      className={[
+                        "h-12 w-12 shrink-0 rounded-lg overflow-hidden transition-all duration-150",
+                        i === activeIndex
+                          ? "ring-2 ring-[hsl(var(--primary))] opacity-100"
+                          : "opacity-50 hover:opacity-90",
+                      ].join(" ")}
+                    >
+                      <FileVisual
+                        file={f}
+                        previewUrl={f.thumbnailUrl ?? null}
+                        className="h-12 w-12 object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── BOTTOM TOOLBAR (images only) ────────────── */}
           {kind === "image" && !loading && signedUrl && (

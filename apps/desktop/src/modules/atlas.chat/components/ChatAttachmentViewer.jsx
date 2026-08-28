@@ -43,13 +43,17 @@ export function ChatAttachmentViewer({ open, onOpenChange, attachments, activeIn
     [token],
   );
 
-  // AdvancedFileViewer expects originalName + sizeBytes
+  // AdvancedFileViewer expects originalName + sizeBytes. thumbnailUrl feeds
+  // the filmstrip only — it's the small "card" variant already embedded by
+  // listMessages for real attachments (entity refs carry none, so their
+  // filmstrip thumbnail falls back to a generic file-type icon).
   const files = (attachments ?? []).map((att) => ({
     id: att.id,
     mimeType: att.mimeType,
     originalName: att.fileName,
     sizeBytes: att.sizeBytes,
     isEntityRef: att.isEntityRef ?? false,
+    thumbnailUrl: att.url ?? null,
   }));
 
   return (
