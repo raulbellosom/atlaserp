@@ -3297,7 +3297,7 @@ app.route("/pwa", pwaRouter);
 // mountWithAuth intercept every request via secured.use("*", authMiddleware), which returns
 // 401 before the chat/notes public routes (e.g. POST /public/chat/session) can be reached.
 app.route("/", createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService, broadcaster }));
-app.route("/", createCallsRouter({ prisma, authMiddleware, notificationService, broadcaster }));
+app.route("/", createCallsRouter({ prisma, authMiddleware, notificationService, broadcaster, deliveryWorker: notificationDeliveryWorker }));
 app.route("/", createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster }));
 
 app.get("/public", (c) => {

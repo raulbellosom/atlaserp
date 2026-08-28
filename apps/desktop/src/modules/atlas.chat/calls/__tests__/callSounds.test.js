@@ -11,9 +11,10 @@ afterEach(() => {
 describe("call sounds", () => {
   it("maps every call event to its packaged public asset", () => {
     assert.deepEqual(CALL_SOUND_URLS, {
-      ringtone: "/sounds/calls/ringtone.wav",
-      join: "/sounds/calls/join-call-sound.wav",
-      exit: "/sounds/calls/exit-call-sound.wav",
+      ringtone: "/sounds/calls/ringtone.mp3",
+      join: "/sounds/calls/join-call-sound.mp3",
+      exit: "/sounds/calls/exit-call-sound.mp3",
+      notification: "/sounds/notification.mp3",
     });
   });
 

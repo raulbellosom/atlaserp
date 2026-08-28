@@ -239,6 +239,124 @@ describe("createCallService", () => {
     assert.equal(updates.find((entry) => entry.model === "call").operation.data.status, "ACTIVE");
   });
 
+  it("ends a direct call for everyone when the invited participant hangs up", async () => {
+    const participantUpdates = [];
+    let countWhere;
+    let callUpdate;
+    let broadcastCall;
+    let deletedRoom;
+    const activeCall = {
+      id: CALL_ID,
+      conversationId: CONVERSATION_ID,
+      kind: "AUDIO",
+      status: "ACTIVE",
+      initiatedByUserId: CALLER_ID,
+      livekitRoomName: `call_${CALL_ID}`,
+      participants: [
+        { userId: CALLER_ID, status: "JOINED", user: { displayName: "Caller" } },
+        { userId: CALLEE_ID, status: "JOINED", user: { displayName: "Callee" } },
+      ],
+      initiator: { id: CALLER_ID, displayName: "Caller" },
+      calendarEvent: null,
+    };
+    const endedCall = { ...activeCall, status: "ENDED" };
+    let reads = 0;
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: CALLEE_ID, displayName: "Callee" }) },
+      call: {
+        findUnique: async () => (reads++ === 0 ? activeCall : endedCall),
+        update: (operation) => { callUpdate = operation; return Promise.resolve({}); },
+      },
+      callParticipant: {
+        update: (operation) => { participantUpdates.push(operation); return Promise.resolve({}); },
+        updateMany: (operation) => { participantUpdates.push(operation); return Promise.resolve({ count: 1 }); },
+        count: async ({ where }) => { countWhere = where; return 0; },
+      },
+      $queryRaw: async () => [{ id: "membership" }],
+      $transaction: async (operations) => Promise.all(operations),
+    };
+    class FakeRoomServiceClient {
+      async deleteRoom(roomName) { deletedRoom = roomName; }
+    }
+    const service = createCallService({
+      prisma,
+      env: enabledEnv(),
+      RoomServiceClientImpl: FakeRoomServiceClient,
+      broadcaster: {
+        broadcastToUsers: async (userIds, event, payload) => {
+          broadcastCall = { userIds, event, payload };
+        },
+      },
+    });
+
+    const result = await service.leaveCall({ authUserId: "callee-auth", callId: CALL_ID });
+
+    assert.equal(result.status, "ENDED");
+    assert.deepEqual(countWhere, {
+      callId: CALL_ID,
+      userId: { not: CALLER_ID },
+      status: "JOINED",
+    });
+    assert.equal(callUpdate.data.status, "ENDED");
+    assert.equal(deletedRoom, `call_${CALL_ID}`);
+    assert.deepEqual(broadcastCall, {
+      userIds: [CALLER_ID, CALLEE_ID],
+      event: "chat.call.ended",
+      payload: { callId: CALL_ID, reason: "ended" },
+    });
+    assert.equal(participantUpdates.some((operation) => operation.data.status === "LEFT"), true);
+  });
+
+  it("ends a ringing direct call when the invited participant declines it", async () => {
+    let callUpdate;
+    let directParticipantUpdate;
+    const ringingCall = {
+      id: CALL_ID,
+      conversationId: CONVERSATION_ID,
+      kind: "VIDEO",
+      status: "RINGING",
+      initiatedByUserId: CALLER_ID,
+      livekitRoomName: `call_${CALL_ID}`,
+      participants: [
+        { userId: CALLER_ID, status: "JOINED", user: { displayName: "Caller" } },
+        { userId: CALLEE_ID, status: "RINGING", user: { displayName: "Callee" } },
+      ],
+      initiator: { id: CALLER_ID, displayName: "Caller" },
+      calendarEvent: null,
+    };
+    const endedCall = { ...ringingCall, status: "ENDED", endReason: "rejected" };
+    let reads = 0;
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: CALLEE_ID, displayName: "Callee" }) },
+      call: {
+        findMany: async () => [],
+        findUnique: async () => (reads++ === 0 ? ringingCall : endedCall),
+        update: (operation) => { callUpdate = operation; return Promise.resolve({}); },
+      },
+      callParticipant: {
+        update: (operation) => { directParticipantUpdate = operation; return Promise.resolve({}); },
+        updateMany: async () => ({ count: 1 }),
+        count: async () => 0,
+      },
+      $queryRaw: async () => [{ id: "membership" }],
+      $transaction: async (operations) => Promise.all(operations),
+    };
+    class FakeRoomServiceClient {
+      async deleteRoom() {}
+    }
+    const service = createCallService({
+      prisma,
+      env: enabledEnv(),
+      RoomServiceClientImpl: FakeRoomServiceClient,
+    });
+
+    const result = await service.declineCall({ authUserId: "callee-auth", callId: CALL_ID });
+
+    assert.equal(result.status, "ENDED");
+    assert.equal(directParticipantUpdate.data.status, "DECLINED");
+    assert.equal(callUpdate.data.endReason, "rejected");
+  });
+
   it("marks unanswered calls missed after the ringing window and closes the room", async () => {
     const participantUpdates = [];
     let callUpdate;

@@ -1,11 +1,21 @@
+// App-wide short-sound layer. Named for calls (its first consumer) but also
+// owns the in-app notification chime — one unlock gesture, one priming pass,
+// covers every one-shot sound so they all work on iOS PWA where audio is
+// otherwise blocked outside a user gesture.
 export const CALL_SOUND_URLS = Object.freeze({
-  ringtone: "/sounds/calls/ringtone.wav",
-  join: "/sounds/calls/join-call-sound.wav",
-  exit: "/sounds/calls/exit-call-sound.wav",
+  ringtone: "/sounds/calls/ringtone.mp3",
+  join: "/sounds/calls/join-call-sound.mp3",
+  exit: "/sounds/calls/exit-call-sound.mp3",
+  notification: "/sounds/notification.mp3",
 });
 
 let audioContext = null;
 const bufferPromises = new Map();
+// One reusable, gesture-primed HTMLAudioElement per sound. iOS only lets an
+// <audio> element play without a user gesture AFTER it has been played once
+// during a gesture — so we prime each during unlockCallSounds() and then
+// replay the same element later (currentTime = 0), never `new Audio()`.
+const primedElements = new Map();
 
 function getAudioContext() {
   if (audioContext) return audioContext;
@@ -32,14 +42,46 @@ async function loadBuffer(name, context) {
   return bufferPromises.get(name);
 }
 
+// Create + silently play-then-pause an <audio> element so a later gestureless
+// .play() is allowed on iOS. Safe to call repeatedly — only primes once.
+function primeElement(name) {
+  if (typeof globalThis.Audio !== "function") return null;
+  let el = primedElements.get(name);
+  if (el) return el;
+  el = new globalThis.Audio(CALL_SOUND_URLS[name]);
+  el.preload = "auto";
+  el.muted = true;
+  const done = el.play();
+  if (done && typeof done.then === "function") {
+    done.then(() => {
+      el.pause();
+      el.currentTime = 0;
+      el.muted = false;
+    }).catch(() => {
+      // Even a rejected play() attempt inside the gesture is often enough to
+      // unlock iOS for a later real play; just restore the element either way.
+      el.muted = false;
+    });
+  } else {
+    el.pause();
+    el.currentTime = 0;
+    el.muted = false;
+  }
+  primedElements.set(name, el);
+  return el;
+}
+
 // Browsers only allow programmatic audio after a user gesture. CallsProvider
 // invokes this from the first pointer/key event anywhere in Atlas so a later
-// incoming call can ring even when the user is outside the chat module.
+// incoming call (or notification chime) can play even when the user is outside
+// the chat module.
 export async function unlockCallSounds() {
+  Object.keys(CALL_SOUND_URLS).forEach((name) => primeElement(name));
+
   const context = getAudioContext();
-  if (!context) return false;
+  if (!context) return primedElements.size > 0;
   if (context.state === "suspended") await context.resume();
-  if (context.state !== "running") return false;
+  if (context.state !== "running") return primedElements.size > 0;
   await Promise.allSettled(Object.keys(CALL_SOUND_URLS).map((name) => loadBuffer(name, context)));
   return true;
 }
@@ -56,7 +98,7 @@ export function playCallSound(name, { loop = false, volume = 0.65 } = {}) {
 
   let stopped = false;
   let sourceNode = null;
-  let fallbackAudio = null;
+  let elementAudio = null;
 
   async function start() {
     const context = getAudioContext();
@@ -80,12 +122,14 @@ export function playCallSound(name, { loop = false, volume = 0.65 } = {}) {
       }
     }
 
+    // Fallback: the gesture-primed element (reused, never a fresh Audio()).
     try {
-      fallbackAudio = new globalThis.Audio(src);
-      fallbackAudio.preload = "auto";
-      fallbackAudio.loop = loop;
-      fallbackAudio.volume = Math.min(1, Math.max(0, volume));
-      await fallbackAudio.play();
+      elementAudio = primedElements.get(name) ?? primeElement(name);
+      if (!elementAudio) return;
+      elementAudio.loop = loop;
+      elementAudio.volume = Math.min(1, Math.max(0, volume));
+      elementAudio.currentTime = 0;
+      await elementAudio.play();
     } catch (error) {
       console.warn(`[atlas.calls] El navegador bloqueo el sonido ${name}:`, error);
     }
@@ -96,9 +140,10 @@ export function playCallSound(name, { loop = false, volume = 0.65 } = {}) {
   return () => {
     stopped = true;
     try { sourceNode?.stop(); } catch {}
-    if (fallbackAudio) {
-      fallbackAudio.pause();
-      fallbackAudio.currentTime = 0;
+    if (elementAudio) {
+      elementAudio.pause();
+      elementAudio.currentTime = 0;
+      elementAudio.loop = false;
     }
   };
 }

@@ -39,6 +39,7 @@ export function createCallService({
   RoomServiceClientImpl = RoomServiceClient,
   notificationService = null,
   broadcaster = null,
+  deliveryWorker = null,
   now = () => new Date(),
 }) {
   function getConfig() {
@@ -381,7 +382,7 @@ export function createCallService({
             select: { companyId: true },
           });
           if (!membership?.companyId) return;
-          await notificationService.publish({
+          const published = await notificationService.publish({
             companyId: membership.companyId,
             actorId: profile.id,
             input: {
@@ -399,6 +400,20 @@ export function createCallService({
               expiresAt: new Date(now().getTime() + RING_TIMEOUT_MS),
             },
           });
+
+          // A ringing call can't wait for the background delivery worker's
+          // ~30s poll — push THIS notification's web_push deliveries out now,
+          // scoped by notificationId so we don't drain everyone else's queue.
+          const notificationIds = (published?.data ?? [])
+            .map((n) => n?.id)
+            .filter(Boolean);
+          if (deliveryWorker?.processPendingNotificationDeliveries && notificationIds.length) {
+            deliveryWorker
+              .processPendingNotificationDeliveries({ channel: "web_push", notificationIds, limit: notificationIds.length })
+              .catch((error) => {
+                console.warn("[atlas.calls] Entrega inmediata de push fallo; el worker lo reintentara:", error?.message ?? error);
+              });
+          }
         } catch (error) {
           console.warn("[atlas.calls] No se pudo publicar el aviso de llamada:", error?.message ?? error);
         }
@@ -511,6 +526,23 @@ export function createCallService({
       }),
     ]);
     await closeLiveKitRoom(call);
+    const participantIds = [];
+    for (const participant of call.participants ?? []) {
+      if (participant.userId && !participantIds.includes(participant.userId)) {
+        participantIds.push(participant.userId);
+      }
+    }
+    if (participantIds.length) {
+      try {
+        await broadcaster?.broadcastToUsers?.(
+          participantIds,
+          "chat.call.ended",
+          { callId: call.id, reason },
+        );
+      } catch (error) {
+        console.warn("[atlas.calls] No se pudo emitir el cierre de llamada:", error?.message ?? error);
+      }
+    }
   }
 
   async function leaveCall({ authUserId, callId }) {
@@ -523,10 +555,14 @@ export function createCallService({
       where: { callId_userId: { callId, userId: profile.id } },
       data: { status: "LEFT", leftAt: now() },
     });
-    const joinedCount = await prisma.callParticipant.count({
-      where: { callId, status: "JOINED" },
+    const remainingPeerCount = await prisma.callParticipant.count({
+      where: {
+        callId,
+        userId: { not: call.initiatedByUserId },
+        status: "JOINED",
+      },
     });
-    if (profile.id === call.initiatedByUserId || joinedCount === 0) {
+    if (profile.id === call.initiatedByUserId || remainingPeerCount === 0) {
       await endCallRecord(call, "ended");
     }
     return getCallRecord(callId);

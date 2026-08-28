@@ -19,6 +19,7 @@ import { usePushAutoSubscribe } from "../hooks/usePushAutoSubscribe.js";
 import { toast } from "sonner";
 import { atlas } from '../lib/atlas.js'
 import { FloatingChatHub } from '../modules/atlas.chat/components/FloatingChatHub.jsx'
+import { playCallSound } from '../modules/atlas.chat/calls/callSounds.js'
 import { MODULE_SIDEBAR_SLOTS } from './sidebar-slots.js'
 
 function getSidebarCollapsed() {
@@ -193,11 +194,10 @@ export function AtlasApp() {
             : "";
         const link = resolveLink(message.link);
 
-        try {
-          const audio = new Audio("/sounds/notification.mp3");
-          audio.volume = 0.6;
-          audio.play().catch(() => {});
-        } catch {}
+        // Routed through the shared sound layer (not a bare `new Audio()`) so
+        // it uses the same gesture-primed element that lets it play on iOS
+        // PWA — CallsProvider primes every sound on the first user gesture.
+        playCallSound("notification", { volume: 0.6 });
 
         toast(title, {
           description: body || undefined,

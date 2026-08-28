@@ -270,6 +270,10 @@ export function createNotificationDeliveryWorker({
   async function processPendingNotificationDeliveries({
     channel = "email",
     limit = DEFAULT_BATCH_SIZE,
+    // Optional: restrict this pass to a specific set of notifications. Used by
+    // latency-critical flows (incoming calls) to push THEIR own deliveries
+    // out immediately without draining every other queued delivery too.
+    notificationIds = null,
   } = {}) {
     const appBaseUrl = await resolveAppBaseUrl({ prisma });
     const rows = await prisma.notificationDelivery.findMany({
@@ -277,6 +281,9 @@ export function createNotificationDeliveryWorker({
         channel,
         status: "queued",
         attempts: { lt: maxAttempts },
+        ...(Array.isArray(notificationIds) && notificationIds.length
+          ? { notificationId: { in: notificationIds } }
+          : {}),
       },
       include: {
         notification: {

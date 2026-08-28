@@ -58,6 +58,22 @@ export function CallsProvider({ children }) {
 
   const token = session?.access_token;
 
+  const finishLocalCall = useCallback((callId) => {
+    if (!callId) return false;
+    const matchesIncoming = incomingRef.current?.id === callId;
+    const matchesActive = activeRef.current?.call?.id === callId;
+    if (!matchesIncoming && !matchesActive) return false;
+    incomingRef.current = null;
+    activeRef.current = null;
+    setIncomingCall(null);
+    setActiveSession(null);
+    playCallSound("exit");
+    dismissSystemCallNotification(callId).catch(() => {});
+    sessionStorage.removeItem("atlas-active-call-id");
+    toast.info("La llamada ha terminado.");
+    return true;
+  }, []);
+
   useEffect(() => {
     preloadCallSounds();
     let unlocked = false;
@@ -111,6 +127,12 @@ export function CallsProvider({ children }) {
 
   const presentIncomingCall = useCallback((call) => {
     if (!call?.id || call.status === "ENDED" || call.initiatedByUserId === userProfile?.id) return;
+    // Already connected to THIS call — a stale RINGING postgres_changes row or
+    // a poll that lands right after you answer must not re-open the incoming
+    // dialog, which restarts its looping ringtone over the CallRoom's own
+    // "join" sound. (rejectIncomingWhileBusy deliberately returns false for
+    // callId === activeCallId, so it can't catch this case.)
+    if (activeRef.current?.call?.id === call.id) return;
     if (rejectIncomingWhileBusy(call.id)) return;
     const isNewCall = incomingRef.current?.id !== call.id;
     incomingRef.current = call;
@@ -196,6 +218,10 @@ export function CallsProvider({ children }) {
     fetchCall(callId).then(presentIncomingCall).catch(() => syncCurrentCall().catch(() => {}));
   }), [on, fetchCall, presentIncomingCall, rejectIncomingWhileBusy, syncCurrentCall]);
 
+  useEffect(() => on("chat.call.ended", ({ callId } = {}) => {
+    finishLocalCall(callId);
+  }), [on, finishLocalCall]);
+
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return undefined;
     function handlePushMessage(event) {
@@ -234,8 +260,7 @@ export function CallsProvider({ children }) {
             return;
           }
           if (["LEFT", "DECLINED", "MISSED"].includes(next?.status)) {
-            setIncomingCall((current) => current?.id === callId ? null : current);
-            if (activeRef.current?.call?.id === callId) setActiveSession(null);
+            finishLocalCall(callId);
           }
         },
       )
@@ -245,7 +270,7 @@ export function CallsProvider({ children }) {
         }
       });
     return () => { client.removeChannel(channel); };
-  }, [config.enabled, userProfile?.id, fetchCall, presentIncomingCall, rejectIncomingWhileBusy]);
+  }, [config.enabled, userProfile?.id, fetchCall, presentIncomingCall, rejectIncomingWhileBusy, finishLocalCall]);
 
   const watchedCallId = activeSession?.call?.id ?? incomingCall?.id ?? null;
   useEffect(() => {
@@ -257,21 +282,45 @@ export function CallsProvider({ children }) {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "call", filter: `id=eq.${watchedCallId}` },
         ({ new: next }) => {
-          if (next?.status === "ENDED") {
-            playCallSound("exit");
-            setIncomingCall(null);
-            setActiveSession(null);
-            incomingRef.current = null;
-            activeRef.current = null;
-            dismissSystemCallNotification(watchedCallId).catch(() => {});
-            sessionStorage.removeItem("atlas-active-call-id");
-            toast.info("La llamada ha terminado.");
-          }
+          if (next?.status === "ENDED") finishLocalCall(watchedCallId);
         },
       )
       .subscribe();
     return () => { client.removeChannel(channel); };
-  }, [config.enabled, watchedCallId]);
+  }, [config.enabled, watchedCallId, finishLocalCall]);
+
+  // Broadcast/Postgres Changes normally close the remote UI immediately. This
+  // HTTP check covers suspended tabs and transient Realtime reconnects.
+  useEffect(() => {
+    const callId = activeSession?.call?.id;
+    if (!config.enabled || !token || !callId) return undefined;
+    let running = false;
+    async function syncActiveCall() {
+      if (running) return;
+      running = true;
+      try {
+        const call = await fetchCall(callId);
+        if (call?.status === "ENDED") finishLocalCall(callId);
+      } catch (error) {
+        console.warn("[atlas.calls] No se pudo verificar la llamada activa:", error);
+      } finally {
+        running = false;
+      }
+    }
+    const timer = window.setInterval(syncActiveCall, CURRENT_CALL_POLL_MS);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") syncActiveCall();
+    };
+    window.addEventListener("focus", syncActiveCall);
+    window.addEventListener("online", syncActiveCall);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", syncActiveCall);
+      window.removeEventListener("online", syncActiveCall);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [config.enabled, token, activeSession?.call?.id, fetchCall, finishLocalCall]);
 
   useEffect(() => {
     if (!activeSession?.call?.id || !token) return undefined;
