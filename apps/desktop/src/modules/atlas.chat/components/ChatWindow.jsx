@@ -51,7 +51,6 @@ function ChatHeader({
   conversation, currentUserId, onlineUsers, onClose,
   detailMembers,
   filesView, onToggleFilesView,
-  membersView,
   searchMode, searchQuery, onSearchToggle, onSearchChange,
   searchMatchCount, searchCurrentIdx, onNextMatch, onPrevMatch,
   selectionMode, selectionCount, hasOwnSelected,
@@ -59,7 +58,7 @@ function ChatHeader({
   onEnterSelection,
   onDeleteConversation,
   onArchive, isArchived,
-  onOpenProfile, onCloseProfile,
+  onOpenProfile,
   onOpenPinned,
   callsEnabled, callPending, onStartAudioCall, onStartVideoCall,
 }) {
@@ -278,21 +277,8 @@ function ChatHeader({
           {filesView ? <MessageSquare className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
         </button>
 
-        {/* Profile toggle — every conversation type now has a profile panel
-            (direct chats gained Info/Media/En comun/Notificaciones). Opens
-            the default tab — use the avatar/title or "Ver miembros" for a
-            specific one. */}
-        <button
-          type="button"
-          onClick={() => (membersView ? onCloseProfile() : onOpenProfile(null))}
-          title={membersView ? "Ver mensajes" : "Ver perfil"}
-          className={[
-            headerBtnCls,
-            membersView ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]" : "",
-          ].join(" ")}
-        >
-          {membersView ? <MessageSquare className="h-4 w-4" /> : <Users className="h-4 w-4" />}
-        </button>
+        {/* Profile / members access lives in the three-dots menu below — the
+            header row keeps only the avatar/title as the tap target for it. */}
 
         {/* Pinned messages */}
         {pinnedCount > 0 && (
@@ -312,12 +298,10 @@ function ChatHeader({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {(conversation?.type === "group" || conversation?.type === "channel") && (
-              <DropdownMenuItem onSelect={() => onOpenProfile("members")}>
-                <Users className="h-3.5 w-3.5 mr-2" />
-                Ver miembros
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem onSelect={() => onOpenProfile(isChannelOrGroup ? "members" : null)}>
+              <Users className="h-3.5 w-3.5 mr-2" />
+              {isChannelOrGroup ? "Ver miembros" : "Ver perfil"}
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={onEnterSelection}>
               <CheckSquare className="h-3.5 w-3.5 mr-2" />
               Seleccionar mensajes
@@ -399,6 +383,12 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
   const isChannelOrGroupType = conversation?.type === "channel" || conversation?.type === "group";
   const ownMemberForComposer = findOwnMember(detailMembers ?? conversation?.members ?? [], userProfile?.id);
   const canSendMessages = !isChannelOrGroupType || roleHasPermission(ownMemberForComposer, CHAT_PERMISSIONS.MESSAGES_SEND);
+  // Pinned messages also drive the anchored strip above the message list (not
+  // just the header badge / sheet). Same query key as ChatHeader's own call,
+  // so React Query serves both from one request.
+  const { data: pinnedData } = usePinnedMessages(conversationId, { enabled: isChannelOrGroupType });
+  const pinnedMessages = isChannelOrGroupType ? (pinnedData?.data ?? []) : [];
+  const canPinMessages = isChannelOrGroupType && roleHasPermission(ownMemberForComposer, CHAT_PERMISSIONS.MESSAGES_PIN);
 
   const [filesView, setFilesView] = useState(initialFilesView);
   const [hiddenMessageIds, setHiddenMessageIds] = useState(() =>
@@ -766,7 +756,6 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         onClose={onClose}
         filesView={filesView}
         onToggleFilesView={() => { setFilesView((v) => !v); setMembersView(false); setProfileInitialTab(null); }}
-        membersView={membersView}
         searchMode={searchMode}
         searchQuery={searchQuery}
         onSearchToggle={() => { setSearchMode((v) => !v); setSearchQuery(""); setSearchCurrentIdx(0); }}
@@ -785,7 +774,6 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         onEnterSelection={() => enterSelectionMode(null)}
         onDeleteConversation={handleDeleteConversation}
         onOpenProfile={openProfile}
-        onCloseProfile={closeProfile}
         onOpenPinned={() => setShowPinned(true)}
         callsEnabled={callsEnabled}
         callPending={callPending}
@@ -860,6 +848,11 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
               currentMatchId={currentMatchId}
               scrollToMessage={jumpTarget}
               unreadCountAtOpen={unreadSnapshotRef.current.count}
+              pinnedMessages={pinnedMessages}
+              onOpenPinnedList={() => setShowPinned(true)}
+              onJumpToPinnedMessage={handleJumpToMessage}
+              onUnpinMessage={(id) => pinMutate({ messageId: id, pinned: false })}
+              canUnpinMessages={canPinMessages}
             />
           )}
       </div>

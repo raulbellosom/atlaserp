@@ -242,7 +242,15 @@ export function ChatMessageBubble({
 
   const longPress = useLongPress({
     disabled: gesturesDisabled,
-    onLongPress: () => setActionSheet({ open: true, point: null }),
+    // Capture the press coordinates so the desktop/tablet action menu
+    // (MessageActionSheet's non-mobile DropdownMenu path) anchors next to the
+    // finger instead of jumping to the top-left corner (point:null -> 0,0).
+    // On true-mobile widths MessageActionSheet ignores the point and always
+    // raises its bottom Sheet.
+    onLongPress: (e) => setActionSheet({
+      open: true,
+      point: e && Number.isFinite(e.clientX) ? { x: e.clientX, y: e.clientY } : null,
+    }),
   });
   const { handlers: swipeHandlers, translateX } = useSwipeToReply({
     disabled: gesturesDisabled || !onReply,

@@ -3,15 +3,18 @@ import { useNavigate } from "react-router-dom";
 import "../chat-theme.css";
 import {
   X, Minus, ChevronUp,
-  ExternalLink, FolderOpen, MoreVertical, User, Phone, Video,
+  ExternalLink, FolderOpen, MoreVertical, User, Users, Phone, Video, Pin,
 } from "lucide-react";
-import { Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@atlas/ui";
+import { Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@atlas/ui";
 import { useChatMessages, useSendMessage, useMarkRead, useDeleteMessage, useDeleteAttachment, usePinMessage, useToggleReaction } from "../hooks/useChatMessages";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
+import { usePinnedMessages } from "../hooks/usePinnedMessages";
 import { MessageComposer } from "./MessageComposer";
 import { DropZoneOverlay } from "./DropZoneOverlay";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
+import { PinnedMessagesSheet } from "./PinnedMessagesSheet";
+import { ThreadPanel } from "./ThreadPanel";
 import { ConversationProfilePanel } from "./ConversationProfilePanel";
 import { AvatarCircle } from "./AvatarCircle";
 import { useChatFloatStore } from "../store/chatFloatStore";
@@ -80,6 +83,9 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
   const isChannelOrGroupType = conversation?.type === "channel" || conversation?.type === "group";
   const ownMemberForComposer = findOwnMember(detailMembers ?? conversation?.members ?? [], userProfile?.id);
   const canSendMessages = !isChannelOrGroupType || roleHasPermission(ownMemberForComposer, CHAT_PERMISSIONS.MESSAGES_SEND);
+  const { data: pinnedData } = usePinnedMessages(id, { enabled: isChannelOrGroupType });
+  const pinnedMessages = isChannelOrGroupType ? (pinnedData?.data ?? []) : [];
+  const canPinMessages = isChannelOrGroupType && roleHasPermission(ownMemberForComposer, CHAT_PERMISSIONS.MESSAGES_PIN);
   const { prefs } = useChatPreferences();
   const markReadRef = useRef(markRead);
   markReadRef.current = markRead;
@@ -105,8 +111,17 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
   const [profileView, setProfileView] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [jumpTarget, setJumpTarget] = useState(null);
+  const [threadRootId, setThreadRootId] = useState(null);
+  const [showPinned, setShowPinned] = useState(false);
 
-  useEffect(() => { setReplyingTo(null); }, [id]);
+  useEffect(() => { setReplyingTo(null); setThreadRootId(null); setShowPinned(false); }, [id]);
+
+  const handleJumpToMessage = useCallback((messageId, rootId) => {
+    setShowPinned(false);
+    if (rootId) { setThreadRootId(rootId); return; }
+    setProfileView(false);
+    setJumpTarget({ id: messageId, nonce: Date.now() });
+  }, []);
 
   useEffect(() => { if (!minimized) markReadRef.current(); }, [id, minimized]);
 
@@ -243,19 +258,9 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
               <AvatarCircle avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conversation?.type} name={name} size="sm" />
               <p className="chat-font-display flex-1 text-xs font-semibold truncate">{titleLabel}</p>
             </button>
-            <button
-              type="button"
-              onClick={() => setProfileView((v) => !v)}
-              title={profileView ? "Ver mensajes" : "Ver perfil"}
-              className={[
-                "shrink-0 h-6 w-6 flex items-center justify-center rounded transition-colors touch-manipulation",
-                profileView
-                  ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]"
-                  : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]",
-              ].join(" ")}
-            >
-              <User className="h-3 w-3" />
-            </button>
+            {/* Only call / video-call stay in the header row (per request) —
+                the 300px window can't fit more without hiding the name. Every
+                other control moved into the three-dots menu below. */}
             {callsEnabled && conversation?.type !== "external_support" && (
               <>
                 <Button
@@ -294,6 +299,18 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" style={{ zIndex: 10000 }}>
+                <DropdownMenuItem onSelect={() => setProfileView((v) => !v)}>
+                  {isChannelOrGroupType
+                    ? <><Users className="h-3.5 w-3.5 mr-2" />{profileView ? "Ver mensajes" : "Ver miembros"}</>
+                    : <><User className="h-3.5 w-3.5 mr-2" />{profileView ? "Ver mensajes" : "Ver perfil"}</>}
+                </DropdownMenuItem>
+                {pinnedMessages.length > 0 && (
+                  <DropdownMenuItem onSelect={() => setShowPinned(true)}>
+                    <Pin className="h-3.5 w-3.5 mr-2" />
+                    Mensajes fijados ({pinnedMessages.length})
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={handleViewInChat}>
                   <ExternalLink className="h-3.5 w-3.5 mr-2" />
                   Ver conversacion en el chat
@@ -362,9 +379,15 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
               hiddenMessageIds={hiddenMsgIds}
               onPinMessage={(messageId, pinned) => pinMutate({ messageId, pinned })}
               onToggleReaction={(messageId, emoji, attachmentId) => toggleReactionMutate({ messageId, emoji, attachmentId })}
+              onOpenThread={(messageId) => setThreadRootId(messageId)}
               onReplyToMessage={(msg) => setReplyingTo(msg)}
               onJumpToMessage={(msgId) => setJumpTarget({ id: msgId, nonce: Date.now() })}
               scrollToMessage={jumpTarget}
+              pinnedMessages={pinnedMessages}
+              onOpenPinnedList={() => setShowPinned(true)}
+              onJumpToPinnedMessage={handleJumpToMessage}
+              onUnpinMessage={(mid) => pinMutate({ messageId: mid, pinned: false })}
+              canUnpinMessages={canPinMessages}
             />
             <MessageComposer
               ref={composerRef}
@@ -388,6 +411,25 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
         attachments={allAttachments}
         activeIndex={viewer.activeIndex}
         onIndexChange={(i) => setViewer((v) => ({ ...v, activeIndex: i }))}
+      />
+
+      <PinnedMessagesSheet
+        open={showPinned}
+        onOpenChange={setShowPinned}
+        conversationId={id}
+        currentUserId={userProfile?.id}
+        members={detailMembers ?? conversation.members}
+        onJumpToMessage={handleJumpToMessage}
+      />
+
+      <ThreadPanel
+        open={Boolean(threadRootId)}
+        onOpenChange={(o) => { if (!o) setThreadRootId(null); }}
+        rootMessageId={threadRootId}
+        conversationId={id}
+        conversationType={conversation?.type}
+        members={detailMembers ?? conversation.members}
+        onToggleReaction={(messageId, emoji, attachmentId) => toggleReactionMutate({ messageId, emoji, attachmentId })}
       />
     </>
   );

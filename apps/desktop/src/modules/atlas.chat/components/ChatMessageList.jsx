@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, useMemo, useCallback } fr
 import { Skeleton } from "@atlas/ui";
 import { Loader2, ChevronDown, AtSign } from "lucide-react";
 import { ChatMessageBubble } from "./ChatMessageBubble";
+import { PinnedMessagesBar } from "./PinnedMessagesBar";
 import { TypingIndicator } from "./TypingIndicator";
 import { groupMessagesByDate, formatDateSeparator } from "../lib/chatUtils";
 import { findOwnMember, isMentioned } from "../lib/chatPermissions";
@@ -67,6 +68,15 @@ export function ChatMessageList({
   searchMatchIds,
   currentMatchId,
   scrollToMessage,
+  // Pinned messages for the anchored strip above the list. Empty/omitted =>
+  // the strip renders nothing. onJumpToPinnedMessage(id, threadRootId) and
+  // onOpenPinnedList are optional; onUnpinMessage(id) enables the inline
+  // unpin affordance.
+  pinnedMessages = [],
+  onOpenPinnedList,
+  onJumpToPinnedMessage,
+  onUnpinMessage,
+  canUnpinMessages = false,
   // Unread count for this conversation captured the instant it was opened —
   // see ChatWindow.jsx/MiniChatWindow.jsx's unreadSnapshotRef comment. Used
   // to land the initial scroll on the first unread message instead of the
@@ -348,14 +358,28 @@ export function ChatMessageList({
 
   return (
     <div className="relative flex-1 min-h-0 flex flex-col">
+      <PinnedMessagesBar
+        pinnedMessages={pinnedMessages}
+        onJump={onJumpToPinnedMessage ?? onJumpToMessage}
+        onOpenList={onOpenPinnedList}
+        onUnpin={onUnpinMessage}
+        canUnpin={canUnpinMessages}
+      />
       <div
         ref={listRef}
         onScroll={handleScroll}
-        className={["chat-scale-target", wallpaperClass, "flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain py-3"].join(" ")}
+        className={["chat-scale-target", wallpaperClass, "flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain py-3"].join(" ")}
         data-accent={prefs.accentColorKey}
       >
         {/* Sentinel watched by IntersectionObserver — triggers auto-load when scrolled into view */}
         <div ref={topSentinelRef} className="h-px" />
+
+        {/* Pins the message column to the bottom of the viewport when the
+            conversation is too short to fill it — otherwise a tall screen
+            leaves a dead band of empty space between the last message and the
+            composer. Collapses to 0 once the content overflows and the list
+            actually scrolls. */}
+        <div className="mt-auto" />
 
         {/* Visible load-more indicator */}
         {hasMore && (

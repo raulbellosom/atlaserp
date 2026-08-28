@@ -77,14 +77,17 @@ export function MessageQuote({ reply, variant = "inline", context = "standalone"
       </span>
       <span
         className={[
-          "text-xs truncate flex items-center gap-1",
+          "text-xs flex items-start gap-1",
           s.textClassName ?? "",
           reply.isDeleted ? "italic" : "",
         ].join(" ")}
         style={s.textStyle}
       >
-        {Icon && !reply.bodyPreview && !reply.isDeleted && <Icon className="h-3 w-3 shrink-0" />}
-        {label}
+        {Icon && !reply.bodyPreview && !reply.isDeleted && <Icon className="h-3 w-3 shrink-0 mt-0.5" />}
+        {/* Clamp long quoted bodies to two lines — a full multi-line quote
+            balloons the bubble and buries the actual reply (flex + `truncate`
+            together silently disabled the old single-line clamp). */}
+        <span className="min-w-0 line-clamp-2 wrap-anywhere">{label}</span>
       </span>
     </div>
   );

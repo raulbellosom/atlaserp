@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useIsFetching, useIsMutating, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ModuleSidebar, BrandFooter } from "@atlas/ui";
 import { OfflineProvider } from "@atlas/offline";
@@ -16,15 +16,16 @@ import { useAuth } from "../auth/AuthProvider";
 import { usePwaManifest } from "../hooks/usePwaManifest.js";
 import { usePwaInstall } from "../hooks/usePwaInstall.js";
 import { usePushAutoSubscribe } from "../hooks/usePushAutoSubscribe.js";
-import { toast } from "sonner";
 import { atlas } from '../lib/atlas.js'
 import { FloatingChatHub } from '../modules/atlas.chat/components/FloatingChatHub.jsx'
-import { playCallSound } from '../modules/atlas.chat/calls/callSounds.js'
 import { MODULE_SIDEBAR_SLOTS } from './sidebar-slots.js'
+import { useServiceWorkerNotifications } from './useServiceWorkerNotifications.js'
+
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "atlas:v1:sidebar-collapsed";
 
 function getSidebarCollapsed() {
   try {
-    return JSON.parse(localStorage.getItem("atlas-sidebar-collapsed")) ?? false;
+    return JSON.parse(localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY)) ?? false;
   } catch {
     return false;
   }
@@ -32,7 +33,7 @@ function getSidebarCollapsed() {
 
 function persistSidebarCollapsed(val) {
   try {
-    localStorage.setItem("atlas-sidebar-collapsed", JSON.stringify(val));
+    localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, JSON.stringify(val));
   } catch {}
 }
 
@@ -100,7 +101,6 @@ export function AtlasApp() {
     document.title = name ? `${name} — Atlas ERP` : 'Atlas ERP'
   }, [instanceConfigData?.data?.instanceName])
   const { moduleMap, isPending: modulesLoading } = useRuntimeModules();
-  const seenRealtimeNotificationIds = useRef(new Set());
   const apiBaseUrl = getApiUrl();
   const handleTransportReady = useCallback((t) => atlas.setOfflineTransport(t), [])
 
@@ -145,100 +145,7 @@ export function AtlasApp() {
     useThemeStore.getState().init();
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
-
-    function resolveLink(href) {
-      if (!href || typeof href !== "string") return null;
-      if (/^https?:\/\//i.test(href)) return href;
-      return href.startsWith("/m/") ? `/app${href}` : href;
-    }
-
-    function handleServiceWorkerMessage(event) {
-      const message = event?.data;
-      if (!message || typeof message !== "object") return;
-
-      if (message.type === "atlas.notifications.push") {
-        const notificationId = message.notificationId ?? null;
-        if (
-          notificationId &&
-          seenRealtimeNotificationIds.current.has(notificationId)
-        ) {
-          return;
-        }
-        if (notificationId) {
-          seenRealtimeNotificationIds.current.add(notificationId);
-          if (seenRealtimeNotificationIds.current.size > 200) {
-            seenRealtimeNotificationIds.current.clear();
-          }
-        }
-
-        // Don't show an in-app toast for chat messages when the user is
-        // already inside the chat module — they can see the message directly.
-        if (
-          message.eventType === "chat.message.new" &&
-          window.location.pathname.includes("/m/atlas.chat")
-        ) {
-          queryClient.invalidateQueries({ queryKey: ["notifications"] });
-          queryClient.invalidateQueries({ queryKey: ["notifications-inbox"] });
-          return;
-        }
-
-        const title =
-          typeof message.title === "string" && message.title.trim()
-            ? message.title
-            : "Nueva notificacion";
-        const body =
-          typeof message.body === "string" && message.body.trim()
-            ? message.body
-            : "";
-        const link = resolveLink(message.link);
-
-        // Routed through the shared sound layer (not a bare `new Audio()`) so
-        // it uses the same gesture-primed element that lets it play on iOS
-        // PWA — CallsProvider primes every sound on the first user gesture.
-        playCallSound("notification", { volume: 0.6 });
-
-        toast(title, {
-          description: body || undefined,
-          action: link
-            ? {
-                label: "Abrir",
-                onClick: () => {
-                  if (/^https?:\/\//i.test(link)) {
-                    window.open(link, "_blank", "noopener,noreferrer");
-                    return;
-                  }
-                  navigate(link);
-                },
-              }
-            : undefined,
-        });
-
-        queryClient.invalidateQueries({ queryKey: ["notifications"] });
-        queryClient.invalidateQueries({ queryKey: ["notifications-inbox"] });
-        return;
-      }
-
-      if (message.type === "atlas.notifications.click") {
-        const link = resolveLink(message.link);
-        if (!link) return;
-        if (/^https?:\/\//i.test(link)) {
-          window.open(link, "_blank", "noopener,noreferrer");
-          return;
-        }
-        navigate(link);
-      }
-    }
-
-    navigator.serviceWorker.addEventListener("message", handleServiceWorkerMessage);
-    return () => {
-      navigator.serviceWorker.removeEventListener(
-        "message",
-        handleServiceWorkerMessage,
-      );
-    };
-  }, [navigate, queryClient, session?.access_token]);
+  useServiceWorkerNotifications({ navigate, queryClient });
 
   const layoutMode = getLayoutMode(activeModule);
 
@@ -303,8 +210,10 @@ export function AtlasApp() {
 
       {/* Mobile backdrop */}
       {showSidebar && mobileOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+        <button
+          type="button"
+          aria-label="Cerrar menu lateral"
+          className="fixed inset-0 z-30 border-0 bg-black/50 p-0 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -345,8 +254,10 @@ export function AtlasApp() {
         <>
           {/* Backdrop */}
           {sidebarOverlayOpen && (
-            <div
-              className="fixed inset-0 z-30 bg-black/25 backdrop-blur-[1px]"
+            <button
+              type="button"
+              aria-label="Cerrar menu del modulo"
+              className="fixed inset-0 z-30 border-0 bg-black/25 p-0 backdrop-blur-[1px]"
               onClick={() => setSidebarOverlayOpen(false)}
             />
           )}
