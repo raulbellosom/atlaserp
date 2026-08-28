@@ -4,6 +4,7 @@ import { signedUrlWithVariant } from "../../lib/image-variants.js";
 import { parseMentionIds } from "../../lib/mention-utils.js";
 import { ChatServiceError } from "./chat-service-error.js";
 import { createChatConversationReadsService } from "./chat-conversation-reads-service.js";
+import { buildReplyPreview } from "./chat-reply-preview.js";
 
 export { ChatServiceError };
 
@@ -545,6 +546,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         m.thread_root_id,
         m.thread_reply_count,
         m.thread_last_reply_at,
+        m.reply_to_message_id,
         json_build_object(
           'id', up.id,
           'displayName', up.display_name,
@@ -593,8 +595,12 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     const m = rows[0];
     const avatarFileIds = m.sender?.avatarFileId ? [m.sender.avatarFileId] : [];
     const urlMap = avatarFileIds.length ? await batchSignAvatarUrls(avatarFileIds) : {};
+    const replyMap = m.reply_to_message_id ? await fetchReplyPreviewRows([m]) : null;
     return {
       ...m,
+      reply_to: m.reply_to_message_id
+        ? buildReplyPreview(replyMap?.get(m.reply_to_message_id) ?? null)
+        : null,
       sender: m.sender
         ? {
             ...m.sender,
@@ -603,6 +609,43 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
           }
         : m.sender,
     };
+  }
+
+  // Given message rows that may carry `reply_to_message_id`, fetch every
+  // referenced original once and return a Map<id, previewRow> ready for
+  // buildReplyPreview. One query regardless of page size.
+  async function fetchReplyPreviewRows(rows) {
+    const ids = [...new Set(rows.map((r) => r.reply_to_message_id).filter(Boolean))];
+    if (!ids.length) return new Map();
+    const previewRows = await prisma.$queryRaw`
+      SELECT
+        m.id,
+        m.sender_user_id,
+        m.body,
+        m.message_type,
+        m.deleted_at,
+        up.display_name AS sender_name,
+        (SELECT a.mime_type FROM chat_attachments a
+           WHERE a.message_id = m.id ORDER BY a.created_at LIMIT 1) AS attachment_mime,
+        (m.metadata ? 'entityRefs') AS has_entity_refs
+      FROM chat_messages m
+      LEFT JOIN user_profile up ON up.id = m.sender_user_id
+      WHERE m.id IN (${Prisma.join(ids)})
+    `;
+    const map = new Map();
+    for (const pr of previewRows) map.set(pr.id, pr);
+    return map;
+  }
+
+  // Attach `reply_to` (built preview or null) to each row and return the new
+  // array. A deleted original still yields a preview object (isDeleted:true)
+  // so the client can render "Mensaje eliminado".
+  async function attachReplyPreviews(rows) {
+    const map = await fetchReplyPreviewRows(rows);
+    return rows.map((r) => ({
+      ...r,
+      reply_to: r.reply_to_message_id ? buildReplyPreview(map.get(r.reply_to_message_id) ?? null) : null,
+    }));
   }
 
   // ------------------------------------------------------------------
@@ -632,6 +675,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         m.thread_root_id,
         m.thread_reply_count,
         m.thread_last_reply_at,
+        m.reply_to_message_id,
         -- sender info
         json_build_object(
           'id', up.id,
@@ -709,37 +753,60 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       attachmentPairs.length ? batchSignAttachmentUrls(attachmentPairs) : Promise.resolve({}),
     ]);
 
-    return {
-      data: data.reverse().map((m) => ({
-        ...m,
-        attachments: (m.attachments ?? []).map((a) => ({
-          ...a,
-          url: attachmentUrlMap[`${a.bucket}:${a.objectKey}`] ?? null,
-          objectKey: undefined,
-          bucket: undefined,
-        })),
-        sender: m.sender
-          ? {
-              ...m.sender,
-              avatarUrl: m.sender.avatarFileId
-                ? (avatarUrlMap[m.sender.avatarFileId] ?? null)
-                : null,
-              avatarFileId: undefined,
-            }
-          : m.sender,
+    const mapped = data.reverse().map((m) => ({
+      ...m,
+      attachments: (m.attachments ?? []).map((a) => ({
+        ...a,
+        url: attachmentUrlMap[`${a.bucket}:${a.objectKey}`] ?? null,
+        objectKey: undefined,
+        bucket: undefined,
       })),
+      sender: m.sender
+        ? {
+            ...m.sender,
+            avatarUrl: m.sender.avatarFileId
+              ? (avatarUrlMap[m.sender.avatarFileId] ?? null)
+              : null,
+            avatarFileId: undefined,
+          }
+        : m.sender,
+    }));
+
+    const withReplies = await attachReplyPreviews(mapped);
+
+    return {
+      data: withReplies,
       hasMore,
       nextCursor: hasMore ? data[data.length - 1]?.created_at?.toISOString() : null,
     };
   }
 
-  async function sendMessage({ conversationId, authUserId, body, messageType = "text", metadata = {}, attachmentIds = [], threadRootId = null, entityRefs = [] }) {
+  async function sendMessage({ conversationId, authUserId, body, messageType = "text", metadata = {}, attachmentIds = [], threadRootId = null, entityRefs = [], replyToMessageId = null }) {
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
 
     const [convRow] = await prisma.$queryRaw`SELECT type FROM chat_conversations WHERE id = ${conversationId} LIMIT 1`;
     const conversationType = convRow?.type ?? null;
     await assertNotBlocked(conversationId, profileId, conversationType);
+
+    // Validate the quoted message (WhatsApp-style inline reply): must exist,
+    // not be soft-deleted, and live in THIS conversation — a quote never
+    // crosses conversations (the client only ever offers reply within the
+    // open conversation). Independent of threadRootId: a thread reply may
+    // also quote another message, so both columns can be set.
+    let resolvedReplyToId = null;
+    if (replyToMessageId) {
+      const [replyTarget] = await prisma.$queryRaw`
+        SELECT id, conversation_id, deleted_at
+        FROM chat_messages
+        WHERE id = ${replyToMessageId}
+        LIMIT 1
+      `;
+      if (!replyTarget || replyTarget.conversation_id !== conversationId || replyTarget.deleted_at) {
+        throw new ChatServiceError("No se puede responder a ese mensaje.", 400);
+      }
+      resolvedReplyToId = replyToMessageId;
+    }
 
     // messages.send is a real, editable permission (RoleEditorDialog already
     // exposes an "Enviar mensajes" checkbox) but was never actually enforced
@@ -831,10 +898,10 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       // counter update fails, or vice versa) — wrap both in a transaction.
       [msg] = await prisma.$transaction(async (tx) => {
         const inserted = await tx.$queryRaw`
-          INSERT INTO chat_messages (conversation_id, sender_user_id, sender_type, body, message_type, attachment_count, metadata, thread_root_id)
+          INSERT INTO chat_messages (conversation_id, sender_user_id, sender_type, body, message_type, attachment_count, metadata, thread_root_id, reply_to_message_id)
           VALUES (
             ${conversationId}, ${profileId}, 'user', ${body}, ${messageType}, ${attachmentIds.length},
-            ${JSON.stringify(finalMetadata)}::jsonb, ${resolvedThreadRootId}
+            ${JSON.stringify(finalMetadata)}::jsonb, ${resolvedThreadRootId}, ${resolvedReplyToId}
           )
           RETURNING *
         `;
@@ -848,7 +915,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       });
     } else {
       const msgRows = await prisma.$queryRaw`
-        INSERT INTO chat_messages (conversation_id, sender_user_id, sender_type, body, message_type, attachment_count, metadata)
+        INSERT INTO chat_messages (conversation_id, sender_user_id, sender_type, body, message_type, attachment_count, metadata, reply_to_message_id)
         VALUES (
           ${conversationId},
           ${profileId},
@@ -856,7 +923,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
           ${body},
           ${messageType},
           ${attachmentIds.length},
-          ${JSON.stringify(finalMetadata)}::jsonb
+          ${JSON.stringify(finalMetadata)}::jsonb,
+          ${resolvedReplyToId}
         )
         RETURNING *
       `;
@@ -994,6 +1062,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         senderId: profileId.toString(),
         senderName: fullMsg?.sender?.displayName ?? null,
         threadRootId: resolvedThreadRootId,
+        replyToMessageId: resolvedReplyToId,
       }).catch(() => {});
     }
 

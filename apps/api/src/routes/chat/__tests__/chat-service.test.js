@@ -1836,3 +1836,138 @@ describe("chat-service — deleteAttachment", () => {
     assert.deepEqual(result, { ok: true, messageDeleted: false });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Reply-to-message (inline quoted reply) — 2026-08-28
+// ---------------------------------------------------------------------------
+describe("chat-service — listMessages reply_to preview", () => {
+  const MSG_A = "01900000-0000-7000-8000-0000000000a1"; // quoted original
+  const MSG_B = "01900000-0000-7000-8000-0000000000b2"; // the reply
+
+  function mainRow(overrides = {}) {
+    return {
+      id: MSG_B, conversation_id: CONV_ID, sender_user_id: PROFILE_ID, sender_guest_id: null,
+      sender_type: "user", body: "de acuerdo", message_type: "text", attachment_count: 0,
+      metadata: {}, created_at: new Date(), edited_at: null, deleted_at: null,
+      pinned_at: null, pinned_by_user_id: null,
+      thread_root_id: null, thread_reply_count: 0, thread_last_reply_at: null,
+      reply_to_message_id: MSG_A, sender: null, attachments: null, reactions: null,
+      ...overrides,
+    };
+  }
+
+  it("attaches a resolved reply_to preview to a reply row", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],           // resolveUserProfileId
+      [{ id: "member-row" }],         // assertMember
+      [mainRow()],                    // listMessages main SELECT
+      [                              // fetchReplyPreviewRows
+        { id: MSG_A, sender_user_id: "01900000-0000-7000-8000-0000000000u9",
+          body: "\u00bfVamos con A?", message_type: "text", deleted_at: null,
+          sender_name: "Ana", attachment_mime: null, has_entity_refs: false },
+      ],
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    const res = await service.listMessages({ conversationId: CONV_ID, authUserId: AUTH_USER_ID });
+    const reply = res.data.find((m) => m.id === MSG_B);
+    assert.equal(reply.reply_to.id, MSG_A);
+    assert.equal(reply.reply_to.senderName, "Ana");
+    assert.equal(reply.reply_to.kind, "text");
+    assert.equal(reply.reply_to.bodyPreview, "\u00bfVamos con A?");
+  });
+
+  it("sets reply_to to null when the row has no reply_to_message_id", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "member-row" }],
+      [mainRow({ reply_to_message_id: null })],
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    const res = await service.listMessages({ conversationId: CONV_ID, authUserId: AUTH_USER_ID });
+    assert.equal(res.data[0].reply_to, null);
+  });
+
+  it("returns a preview with isDeleted:true when the quoted original was soft-deleted", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "member-row" }],
+      [mainRow()],
+      [
+        { id: MSG_A, sender_user_id: "01900000-0000-7000-8000-0000000000u9",
+          body: "original", message_type: "text", deleted_at: new Date(),
+          sender_name: "Ana", attachment_mime: null, has_entity_refs: false },
+      ],
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    const res = await service.listMessages({ conversationId: CONV_ID, authUserId: AUTH_USER_ID });
+    assert.equal(res.data[0].reply_to.isDeleted, true);
+    assert.equal(res.data[0].reply_to.kind, "deleted");
+  });
+});
+
+describe("chat-service — sendMessage replyToMessageId", () => {
+  const MSG_A = "01900000-0000-7000-8000-0000000000a1";
+  const MSG_B = "01900000-0000-7000-8000-0000000000b2";
+
+  it("rejects a reply target from another conversation with 400", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],                                  // resolveUserProfileId
+      [{ id: "member-row" }],                                // assertMember
+      [{ type: "direct" }],                                  // conversation type
+      [],                                                    // assertNotBlocked: other members
+      [{ id: MSG_A, conversation_id: "OTHER-CONV", deleted_at: null }], // reply target lookup
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    await assert.rejects(
+      () => service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "x", replyToMessageId: MSG_A }),
+      (err) => err instanceof ChatServiceError && err.status === 400,
+    );
+  });
+
+  it("rejects a soft-deleted reply target with 400", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "member-row" }],
+      [{ type: "direct" }],
+      [],
+      [{ id: MSG_A, conversation_id: CONV_ID, deleted_at: new Date() }],
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    await assert.rejects(
+      () => service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "x", replyToMessageId: MSG_A }),
+      (err) => err instanceof ChatServiceError && err.status === 400,
+    );
+  });
+
+  it("persists reply_to_message_id in the INSERT when the target is valid", async () => {
+    let insertSql = "";
+    let qIdx = 0;
+    const results = [
+      [{ id: PROFILE_ID }],
+      [{ id: "member-row" }],
+      [{ type: "direct" }],
+      [],
+      [{ id: MSG_A, conversation_id: CONV_ID, deleted_at: null }],       // reply target OK
+      [{ id: MSG_B, created_at: new Date(), reply_to_message_id: MSG_A }], // INSERT ... RETURNING *
+      [{ id: MSG_B, sender: null, attachments: null, reactions: null, reply_to_message_id: MSG_A }], // getMessageFull SELECT
+      [{ id: MSG_A, sender_user_id: "u9", body: "orig", message_type: "text", deleted_at: null,
+         sender_name: "Ana", attachment_mime: null, has_entity_refs: false }], // fetchReplyPreviewRows
+    ];
+    const prisma = {
+      $queryRaw: async (strings) => {
+        const sql = Array.isArray(strings) ? strings.join("?") : String(strings);
+        if (sql.includes("INSERT INTO chat_messages")) insertSql = sql;
+        return results[qIdx++];
+      },
+      $executeRaw: async () => ({ count: 1 }),
+      $transaction: async (fn) => fn(prisma),
+      membership: { findFirst: async () => null },
+    };
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    const out = await service.sendMessage({
+      conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "de acuerdo", replyToMessageId: MSG_A,
+    });
+    assert.ok(insertSql.includes("reply_to_message_id"), "INSERT should name reply_to_message_id");
+    assert.equal(out.reply_to.id, MSG_A);
+  });
+});
