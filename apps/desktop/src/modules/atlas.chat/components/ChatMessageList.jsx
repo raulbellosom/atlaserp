@@ -269,7 +269,7 @@ export function ChatMessageList({
       el.classList.remove("chat-msg-flash");
       void el.offsetWidth; // reflow so the animation restarts on a repeat target
       el.classList.add("chat-msg-flash");
-      setTimeout(() => el.classList.remove("chat-msg-flash"), 1400);
+      setTimeout(() => el.classList.remove("chat-msg-flash"), 2100);
     }
 
     function tryScroll() {
