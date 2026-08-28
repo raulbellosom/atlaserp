@@ -28,8 +28,11 @@ const STYLES = {
   },
   onMuted: {
     className: "",
-    wrapStyle: { backgroundColor: "color-mix(in srgb, var(--brand-primary) 14%, transparent)" },
-    accentStyle: { backgroundColor: "var(--brand-primary)" },
+    // Opaque, gently warm panel (mixed INTO the muted bubble, not a
+    // translucent wash) so it reads as a soft inset rather than an
+    // aggressive coloured box.
+    wrapStyle: { backgroundColor: "color-mix(in srgb, var(--brand-primary) 9%, hsl(var(--muted)))" },
+    accentStyle: { backgroundColor: "color-mix(in srgb, var(--brand-primary) 75%, transparent)" },
     nameStyle: { color: "var(--brand-primary)" },
     textClassName: "text-[hsl(var(--muted-foreground))]",
   },
@@ -108,7 +111,7 @@ export function MessageQuote({ reply, variant = "inline", context = "standalone"
       onPointerDown={(e) => e.stopPropagation()}
       onPointerUp={(e) => e.stopPropagation()}
       className={[
-        "w-full mb-1.5 block",
+        "w-full mb-1.5 block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[--brand-primary]/40",
         reply.isDeleted ? "cursor-default" : "cursor-pointer hover:opacity-90",
       ].join(" ")}
     >

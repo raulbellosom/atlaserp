@@ -36,10 +36,10 @@ export function MessageReactions({ reactions, members, currentUserId, onToggle }
                 type="button"
                 onClick={() => setModalOpen(true)}
                 className={[
-                  "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs border transition-colors",
+                  "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs border border-transparent transition-colors",
                   mine
-                    ? "bg-[hsl(var(--primary)/0.15)] border-[hsl(var(--primary))] text-[hsl(var(--primary))]"
-                    : "bg-[hsl(var(--muted))] border-transparent hover:border-[hsl(var(--border))]",
+                    ? "bg-[--brand-primary]/15 text-[--brand-primary] font-medium"
+                    : "bg-[hsl(var(--muted))] hover:bg-[hsl(var(--border))]",
                 ].join(" ")}
               >
                 <span>{emoji}</span>
