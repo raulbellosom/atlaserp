@@ -115,6 +115,8 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         { headers: withAuthHeaders(token) },
       ),
 
+    // `data` may include `replyToMessageId` (uuid) — the message this one
+    // quotes (WhatsApp-style inline reply). Independent of `threadRootId`.
     sendMessage: (conversationId, data, token) =>
       request(`/chat/conversations/${encodeURIComponent(conversationId)}/messages`, {
         method: "POST",
