@@ -19,7 +19,9 @@ const { PrismaClient } = pkg
 const currentDir = path.dirname(fileURLToPath(import.meta.url))
 loadEnv({
   path: [
+    path.resolve(currentDir, '../.env.local'),
     path.resolve(currentDir, '../.env'),
+    path.resolve(currentDir, '../../../.env.local'),
     path.resolve(currentDir, '../../../.env'),
   ],
 })

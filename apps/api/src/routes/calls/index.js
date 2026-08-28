@@ -18,13 +18,14 @@ function handleError(c, error, fallback) {
 
 export function createCallsRouter({ prisma, authMiddleware, service = null }) {
   const app = new Hono();
+  const internal = new Hono();
   const calls = service ?? createCallService({ prisma });
   if (!service) calls.startExpirySweeper();
-  app.use("*", authMiddleware);
+  internal.use("*", authMiddleware);
 
-  app.get("/calls/config", async (c) => c.json({ data: await calls.getConfigStatus() }));
+  internal.get("/config", async (c) => c.json({ data: await calls.getConfigStatus() }));
 
-  app.get("/calls/current", async (c) => {
+  internal.get("/current", async (c) => {
     try {
       const data = await calls.getCurrentCall({ authUserId: c.get("authUserId") });
       return c.json({ data });
@@ -33,7 +34,7 @@ export function createCallsRouter({ prisma, authMiddleware, service = null }) {
     }
   });
 
-  app.post("/calls", async (c) => {
+  internal.post("/", async (c) => {
     try {
       const payload = callCreateSchema.parse(await c.req.json());
       const data = await calls.createCall({ authUserId: c.get("authUserId"), ...payload });
@@ -43,7 +44,7 @@ export function createCallsRouter({ prisma, authMiddleware, service = null }) {
     }
   });
 
-  app.get("/calls/:id", async (c) => {
+  internal.get("/:id", async (c) => {
     try {
       const callId = callIdSchema.parse(c.req.param("id"));
       return c.json({ data: await calls.getCall({ authUserId: c.get("authUserId"), callId }) });
@@ -58,7 +59,7 @@ export function createCallsRouter({ prisma, authMiddleware, service = null }) {
     ["leave", "leaveCall"],
     ["end", "endCall"],
   ]) {
-    app.post(`/calls/:id/${action}`, async (c) => {
+    internal.post(`/:id/${action}`, async (c) => {
       try {
         const callId = callIdSchema.parse(c.req.param("id"));
         const data = await calls[method]({ authUserId: c.get("authUserId"), callId });
@@ -69,5 +70,6 @@ export function createCallsRouter({ prisma, authMiddleware, service = null }) {
     });
   }
 
+  app.route("/calls", internal);
   return app;
 }

@@ -1,9 +1,9 @@
 // apps/desktop/src/modules/atlas.chat/components/ConversationProfilePanel.jsx
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Info, FolderOpen, Users, Bell, Settings, Shield, AlertTriangle, CalendarDays, Mail, Phone, ChevronDown } from "lucide-react";
+import { ArrowLeft, Info, FolderOpen, Users, Bell, Settings, Shield, AlertTriangle, CalendarDays, Mail, Phone, Video, ChevronDown } from "lucide-react";
 import {
-  ImageViewer, Tabs, TabsList, TabsTrigger, TabsContent,
+  Button, ImageViewer, Tabs, TabsList, TabsTrigger, TabsContent,
   Accordion, AccordionItem, AccordionTrigger, AccordionContent,
 } from "@atlas/ui";
 import { ChannelGeneralTab } from "./ChannelGeneralTab";
@@ -29,6 +29,46 @@ function SectionHeader({ icon: Icon, label }) {
       <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
         {label}
       </p>
+    </div>
+  );
+}
+
+function ProfileCallActions({ disabled, onStartAudioCall, onStartVideoCall }) {
+  const actions = [
+    {
+      label: "Llamada",
+      description: "Solo audio",
+      icon: Phone,
+      onClick: onStartAudioCall,
+    },
+    {
+      label: "Videollamada",
+      description: "Audio y video",
+      icon: Video,
+      onClick: onStartVideoCall,
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-2 px-4 pb-4">
+      {actions.map(({ label, description, icon: Icon, onClick }) => (
+        <Button
+          key={label}
+          type="button"
+          variant="outline"
+          onClick={onClick}
+          disabled={disabled}
+          aria-label={`Iniciar ${label.toLowerCase()}`}
+          aria-busy={disabled || undefined}
+          className="h-auto min-h-[72px] flex-col gap-1.5 rounded-xl border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-3 text-center shadow-sm hover:border-[hsl(var(--primary)/0.45)] hover:bg-[hsl(var(--primary)/0.06)]"
+        >
+          <Icon className="h-4 w-4 text-[hsl(var(--primary))]" />
+          <span className="text-xs font-semibold leading-none">{label}</span>
+          <span className="text-[10px] font-normal leading-none text-[hsl(var(--muted-foreground))]">
+            {disabled ? "Conectando..." : description}
+          </span>
+        </Button>
+      ))}
     </div>
   );
 }
@@ -63,7 +103,21 @@ function SectionHeader({ icon: Icon, label }) {
 // useChatMessages(conversationId) call — never call that hook a second time
 // here, it would open a second Supabase Realtime subscription for the same
 // conversation and silently kill the caller's own live updates.
-export function ConversationProfilePanel({ conversation, currentUserId, initialTab, onBack, messages, isLoadingMessages, onShowAllFiles, onOpenConversation, onDeleted }) {
+export function ConversationProfilePanel({
+  conversation,
+  currentUserId,
+  initialTab,
+  onBack,
+  messages,
+  isLoadingMessages,
+  onShowAllFiles,
+  onOpenConversation,
+  onDeleted,
+  callsEnabled,
+  callPending,
+  onStartAudioCall,
+  onStartVideoCall,
+}) {
   const conversationId = conversation?.id;
   const type = conversation?.type;
   const { data: convData } = useChatConversationDetail(conversationId);
@@ -198,6 +252,13 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
       <>
         {backHeader}
         {hero}
+        {callsEnabled && (
+          <ProfileCallActions
+            disabled={callPending}
+            onStartAudioCall={onStartAudioCall}
+            onStartVideoCall={onStartVideoCall}
+          />
+        )}
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
           {hasContactInfo && (
             <div data-section="contact-info">

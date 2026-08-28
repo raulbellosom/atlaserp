@@ -95,14 +95,20 @@ import {
   signedUrlWithVariant,
   signedUrlsWithVariant,
 } from "./lib/image-variants.js";
+import { loadInstallerLiveKitDevEnv } from "./lib/livekit-dev-env.js";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 loadEnv({
   path: [
+    path.resolve(currentDir, "../.env.local"),
     path.resolve(currentDir, "../.env"),
+    path.resolve(currentDir, "../../../.env.local"),
     path.resolve(currentDir, "../../../.env"),
   ],
 });
+if (loadInstallerLiveKitDevEnv({ currentDir })) {
+  console.log("[env] LiveKit development config loaded from infra/installer/.env.local");
+}
 
 const prismaConnectionString =
   process.env.DATABASE_URL ?? process.env.DIRECT_URL;

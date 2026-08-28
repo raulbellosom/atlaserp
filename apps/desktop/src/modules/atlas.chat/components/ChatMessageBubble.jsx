@@ -18,6 +18,7 @@ import { MessageReactions } from "./MessageReactions";
 import { MessageReactionPicker } from "./MessageReactionPicker";
 import { EntityReferenceCard } from "./EntityReferenceCard";
 import { FileReferenceGroup } from "./FileReferenceGroup";
+import { isSignedUrlUsable } from "../lib/signedUrl";
 
 function isVideoMime(m) { return String(m ?? "").startsWith("video/"); }
 function isAudioMime(m) { return String(m ?? "").startsWith("audio/"); }
@@ -44,10 +45,11 @@ function getFileTypeInfo(mimeType = "") {
 // so we skip the network call entirely when it's already present.
 function useAttachmentUrl(att) {
   const { session } = useAuth();
+  const embeddedUrl = isSignedUrlUsable(att.url) ? att.url : null;
   return useQuery({
     queryKey: ["chat-attachment-url", att.id],
     queryFn: async () => {
-      if (att.url) return att.url;
+      if (isSignedUrlUsable(att.url)) return att.url;
       try {
         const res = await atlas.chat.getAttachmentSignedUrl(att.id, session?.access_token);
         return res?.data?.url ?? null;
@@ -57,8 +59,11 @@ function useAttachmentUrl(att) {
       }
     },
     // Seed the cache with the embedded URL so it resolves synchronously
-    initialData: att.url ? att.url : undefined,
-    staleTime: 50 * 60 * 1000,
+    initialData: embeddedUrl ?? undefined,
+    // The API may reuse a signed URL for up to 55 minutes. Keeping this query
+    // stale for only five minutes ensures a restored offline cache never marks
+    // an already-expired Storage URL as fresh for another hour.
+    staleTime: 5 * 60 * 1000,
     retry: 2,
     enabled: Boolean(session?.access_token),
   });
@@ -164,8 +169,8 @@ function AttachmentReactionPills({ reactions, currentUserId, onToggleReaction, m
 
 // ── Image card ────────────────────────────────────────────────────────────────
 function ImageCard({ att, index, allAttachments, onOpen, messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId }) {
-  const { data: url, isLoading, isError } = useAttachmentUrl(att);
-  const [imgErr, setImgErr] = useState(false);
+  const { data: url, isLoading } = useAttachmentUrl(att);
+  const [failedUrl, setFailedUrl] = useState(null);
 
   return (
     <div className="relative group block rounded-xl overflow-hidden" style={{ minHeight: 80 }}>
@@ -178,7 +183,7 @@ function ImageCard({ att, index, allAttachments, onOpen, messageId, isOwn, curre
           <div className="flex items-center justify-center h-20 w-32">
             <Loader2 className="h-5 w-5 animate-spin opacity-40" />
           </div>
-        ) : url && !imgErr ? (
+        ) : url && failedUrl !== url ? (
           <img
             src={url}
             alt={att.fileName}
@@ -186,7 +191,7 @@ function ImageCard({ att, index, allAttachments, onOpen, messageId, isOwn, curre
             style={{ maxHeight: 220 }}
             onError={() => {
               console.warn("[chat] image load failed", { url, id: att.id });
-              setImgErr(true);
+              setFailedUrl(url);
             }}
           />
         ) : (
@@ -532,7 +537,7 @@ function FileCard({ att, index, allAttachments, onOpen, isOwn }) {
 // ── Cover cell for image grids ────────────────────────────────────────────────
 function ImageCoverCell({ att, index, allAttachments, onOpen, overflowCount = 0, messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId }) {
   const { data: url, isLoading } = useAttachmentUrl(att);
-  const [imgErr, setImgErr] = useState(false);
+  const [failedUrl, setFailedUrl] = useState(null);
 
   return (
     <div className="absolute inset-0 w-full h-full group">
@@ -545,14 +550,14 @@ function ImageCoverCell({ att, index, allAttachments, onOpen, overflowCount = 0,
           <div className="flex items-center justify-center w-full h-full">
             <Loader2 className="h-4 w-4 animate-spin opacity-40" />
           </div>
-        ) : url && !imgErr ? (
+        ) : url && failedUrl !== url ? (
           <img
             src={url}
             alt={att.fileName}
             className="w-full h-full object-cover"
             onError={() => {
               console.warn("[chat] image load failed", { url, id: att.id });
-              setImgErr(true);
+              setFailedUrl(url);
             }}
           />
         ) : (
@@ -937,6 +942,9 @@ export function ChatMessageBubble({
   isThreadReplyView = false,
   onOpenThreadForMessage,
 }) {
+  const [avatarErr, setAvatarErr] = useState(false);
+  const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
+
   if (message.type === "date_separator") {
     return (
       <div className="flex items-center gap-3 my-4 px-4">
@@ -959,8 +967,6 @@ export function ChatMessageBubble({
     );
   }
 
-  const [avatarErr, setAvatarErr] = useState(false);
-  const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const isDeleted = Boolean(message.deleted_at);
   const isPending = String(message.id ?? "").startsWith("temp-");
   const attachments = message.attachments ?? [];

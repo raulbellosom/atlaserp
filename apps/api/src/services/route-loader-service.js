@@ -61,6 +61,14 @@ export function collectRouteSignatures(moduleRouter) {
   return signatures
 }
 
+function createRouteMatcher(routeSignatures) {
+  const matcher = new Hono()
+  for (const routeInfo of routeSignatures) {
+    matcher.on(routeInfo.method, routeInfo.path, () => new Response(null, { status: 204 }))
+  }
+  return matcher
+}
+
 class RouteCollisionError extends Error {
   constructor({ moduleKey, method, path: routePath, conflictingModuleKey }) {
     super(
@@ -351,11 +359,13 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     }
 
     const securedRouter = wrapWithAuth(moduleRouter)
+    const routeMatcher = createRouteMatcher(routeSignatures)
     routerMap.set(moduleKey, {
       moduleKey,
       apiPath,
       router: moduleRouter,
       securedRouter,
+      routeMatcher,
       routeSignatures,
       loadedAt: new Date().toISOString(),
     })
@@ -406,7 +416,12 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
       const requestPath = c.req.path
 
       for (const entry of routerMap.values()) {
-        const matches = entry.router.router.match(method, requestPath)
+        // Match only concrete HTTP endpoints declared by the module. A module
+        // router commonly contains `app.use('*', ...)` middleware; matching
+        // against the original router made that middleware claim every core
+        // Atlas URL (including public bundle.js assets) and route it through
+        // the module auth wrapper before core routes had a chance to respond.
+        const matches = entry.routeMatcher.router.match(method, requestPath)
         const hasMatch = Array.isArray(matches?.[0]) && matches[0].length > 0
         if (!hasMatch) continue
 

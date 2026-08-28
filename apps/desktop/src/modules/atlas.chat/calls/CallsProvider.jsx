@@ -16,6 +16,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 import { getApiUrl } from "../../../lib/runtimeConfig";
 import { getSupabaseClient } from "../../../lib/supabase";
+import { playCallSound } from "./callSounds";
 
 const CallRoom = lazy(() =>
   import("./CallRoom").then((module) => ({ default: module.CallRoom })),
@@ -41,6 +42,11 @@ export function CallsProvider({ children }) {
 
   const token = session?.access_token;
 
+  useEffect(() => {
+    if (!incomingCall?.id) return undefined;
+    return playCallSound("ringtone", { loop: true, volume: 0.5 });
+  }, [incomingCall?.id]);
+
   const fetchCall = useCallback(async (callId) => {
     const response = await atlas.calls.get(callId, token);
     return unwrap(response);
@@ -58,12 +64,10 @@ export function CallsProvider({ children }) {
   useEffect(() => {
     if (!token || !userProfile?.id) return undefined;
     let cancelled = false;
-    async function bootstrap() {
+    let retryTimer = null;
+
+    async function restoreCurrentCall() {
       try {
-        const status = unwrap(await atlas.calls.getConfig(token));
-        if (cancelled) return;
-        setConfig({ ...status, loading: false });
-        if (!status?.enabled) return;
         const current = unwrap(await atlas.calls.getCurrent(token));
         if (cancelled || !current?.call) return;
         if (current.participantStatus === "RINGING" && current.call.initiatedByUserId !== userProfile.id) {
@@ -75,14 +79,29 @@ export function CallsProvider({ children }) {
           if (!cancelled) connectWithResponse(joined);
         }
       } catch (error) {
-        if (!cancelled) {
-          setConfig({ enabled: false, mode: "disabled", loading: false });
-          if (error?.status !== 501) console.warn("[atlas.calls]", error);
-        }
+        if (!cancelled) console.warn("[atlas.calls] No se pudo restaurar la llamada actual:", error);
+      }
+    }
+
+    async function bootstrap(attempt = 0) {
+      try {
+        const status = unwrap(await atlas.calls.getConfig(token));
+        if (cancelled) return;
+        setConfig({ ...status, loading: false });
+        if (status?.enabled) await restoreCurrentCall();
+      } catch (error) {
+        if (cancelled) return;
+        setConfig({ enabled: false, mode: "unavailable", loading: false });
+        if (attempt === 0) console.warn("[atlas.calls] Configuracion no disponible; se reintentara.", error);
+        const delay = Math.min(1_000 * (2 ** attempt), 30_000);
+        retryTimer = window.setTimeout(() => bootstrap(attempt + 1), delay);
       }
     }
     bootstrap();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+    };
   }, [token, userProfile?.id, connectWithResponse]);
 
   useEffect(() => {
@@ -131,6 +150,7 @@ export function CallsProvider({ children }) {
         { event: "UPDATE", schema: "public", table: "call", filter: `id=eq.${watchedCallId}` },
         ({ new: next }) => {
           if (next?.status === "ENDED") {
+            playCallSound("exit");
             setIncomingCall(null);
             setActiveSession(null);
             sessionStorage.removeItem("atlas-active-call-id");
@@ -257,7 +277,12 @@ export function CallsProvider({ children }) {
       </Dialog>
       {activeSession && (
         <Suspense fallback={<div className="fixed inset-0 z-[10020] bg-slate-950" />}>
-          <CallRoom key={activeSession.call.id} session={activeSession} onLeave={leaveActive} />
+          <CallRoom
+            key={activeSession.call.id}
+            session={activeSession}
+            onLeave={leaveActive}
+            isInitiator={activeSession.call.initiatedByUserId === userProfile?.id}
+          />
         </Suspense>
       )}
     </CallsContext.Provider>

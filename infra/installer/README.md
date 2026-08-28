@@ -214,9 +214,12 @@ claves, configura `host-gateway`, inicia Caddy y espera un certificado público
 válido antes de continuar. El DNS debe apuntar previamente a la VPS y los puertos
 `80/tcp`, `443/tcp`, `443/udp`, `7881/tcp` y `7882/udp` deben estar permitidos.
 
-Con `LIVEKIT_TLS_MODE=external` Atlas no inicia Caddy. Genera
-`livekit/reverse-proxy.nginx.conf` para integrarlo con el proxy existente y exige
-que `wss://LIVEKIT_DOMAIN` tenga TLS válido antes de declarar la instalación lista.
+Con `LIVEKIT_TLS_MODE=external` Atlas no inicia Caddy, no modifica Nginx, no emite
+certificados y no asume rutas de archivos TLS. El administrador conserva por
+completo la configuración del proxy existente y debe dirigir el dominio de
+LiveKit a `http://127.0.0.1:7880` con soporte WebSocket. El instalador únicamente
+exige que `wss://LIVEKIT_DOMAIN` tenga TLS válido antes de declarar la instalación
+lista.
 
 En Linux, LiveKit usa `network_mode: host`; Redis escucha exclusivamente en
 `127.0.0.1:6380` y no se expone públicamente. Antes de imprimir `ready`, el

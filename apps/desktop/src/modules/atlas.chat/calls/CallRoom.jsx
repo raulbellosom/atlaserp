@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Room, RoomEvent, Track } from "livekit-client";
 import { toast } from "sonner";
+import { playCallSound } from "./callSounds";
 
 function formatDuration(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -92,7 +93,16 @@ function RemoteAudio({ participant }) {
   return <audio ref={audioRef} autoPlay />;
 }
 
-export function CallRoom({ session, onLeave }) {
+function OutgoingCallTone({ active }) {
+  useEffect(() => {
+    if (!active) return undefined;
+    return playCallSound("ringtone", { loop: true, volume: 0.5 });
+  }, [active]);
+
+  return null;
+}
+
+export function CallRoom({ session, onLeave, isInitiator = false }) {
   const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true }), [session.callId]);
   const [renderVersion, setRenderVersion] = useState(0);
   const [connectionState, setConnectionState] = useState("connecting");
@@ -101,14 +111,13 @@ export function CallRoom({ session, onLeave }) {
   const [screenEnabled, setScreenEnabled] = useState(false);
   const [needsAudio, setNeedsAudio] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [hasRemoteJoined, setHasRemoteJoined] = useState(false);
 
   const refresh = useCallback(() => setRenderVersion((value) => value + 1), []);
 
   useEffect(() => {
     let cancelled = false;
     const events = [
-      RoomEvent.ParticipantConnected,
-      RoomEvent.ParticipantDisconnected,
       RoomEvent.TrackSubscribed,
       RoomEvent.TrackUnsubscribed,
       RoomEvent.TrackMuted,
@@ -119,8 +128,22 @@ export function CallRoom({ session, onLeave }) {
     ];
     const handleReconnecting = () => setConnectionState("reconnecting");
     const handleReconnected = () => setConnectionState("connected");
-    const handleDisconnected = () => setConnectionState("disconnected");
+    const handleDisconnected = () => {
+      setConnectionState("disconnected");
+      playCallSound("exit");
+    };
+    const handleParticipantConnected = () => {
+      setHasRemoteJoined(true);
+      playCallSound("join");
+      refresh();
+    };
+    const handleParticipantDisconnected = () => {
+      playCallSound("exit");
+      refresh();
+    };
     events.forEach((event) => room.on(event, refresh));
+    room.on(RoomEvent.ParticipantConnected, handleParticipantConnected);
+    room.on(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected);
     room.on(RoomEvent.Reconnecting, handleReconnecting);
     room.on(RoomEvent.Reconnected, handleReconnected);
     room.on(RoomEvent.Disconnected, handleDisconnected);
@@ -129,6 +152,7 @@ export function CallRoom({ session, onLeave }) {
       try {
         await room.connect(session.livekitUrl, session.token);
         if (cancelled) return;
+        if (room.remoteParticipants.size > 0) setHasRemoteJoined(true);
         setConnectionState("connected");
         try {
           await room.localParticipant.setMicrophoneEnabled(true);
@@ -163,6 +187,8 @@ export function CallRoom({ session, onLeave }) {
     return () => {
       cancelled = true;
       events.forEach((event) => room.off(event, refresh));
+      room.off(RoomEvent.ParticipantConnected, handleParticipantConnected);
+      room.off(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected);
       room.off(RoomEvent.Reconnecting, handleReconnecting);
       room.off(RoomEvent.Reconnected, handleReconnected);
       room.off(RoomEvent.Disconnected, handleDisconnected);
@@ -211,6 +237,11 @@ export function CallRoom({ session, onLeave }) {
     }
   }
 
+  function handleLeave() {
+    playCallSound("exit");
+    onLeave();
+  }
+
   const remoteParticipants = Array.from(room.remoteParticipants.values());
   const participants = [
     { participant: room.localParticipant, isLocal: true },
@@ -220,6 +251,9 @@ export function CallRoom({ session, onLeave }) {
 
   return (
     <div className="fixed inset-0 z-[10020] flex flex-col bg-slate-950 text-white">
+      <OutgoingCallTone
+        active={isInitiator && !hasRemoteJoined && !["failed", "disconnected"].includes(connectionState)}
+      />
       <header className="flex items-center justify-between border-b border-white/10 px-4 py-3 sm:px-6">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">
@@ -276,7 +310,7 @@ export function CallRoom({ session, onLeave }) {
             </Button>
           </>
         )}
-        <Button type="button" variant="destructive" className="rounded-full px-6" onClick={onLeave}>
+        <Button type="button" variant="destructive" className="rounded-full px-6" onClick={handleLeave}>
           <PhoneOff className="mr-2 h-5 w-5" />
           Colgar
         </Button>

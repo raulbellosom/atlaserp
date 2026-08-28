@@ -9,7 +9,6 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import {
   getLiveKitComposeProfiles,
-  renderExternalProxyGuide,
   renderLiveKitConfig,
   renderManagedCaddyfile,
   resolveLiveKitConfig,
@@ -35,7 +34,7 @@ const supabaseConfig = path.resolve(supabaseWorkdir, "supabase", "config.toml");
 const devKitDir = path.resolve(__dirname, "custom-modules", "_atlas-devkit");
 const liveKitConfigFile = path.resolve(__dirname, "livekit", "livekit.yaml");
 const liveKitCaddyFile = path.resolve(__dirname, "livekit", "Caddyfile");
-const liveKitExternalProxyFile = path.resolve(__dirname, "livekit", "reverse-proxy.nginx.conf");
+const legacyLiveKitExternalProxyFile = path.resolve(__dirname, "livekit", "reverse-proxy.nginx.conf");
 
 // Docker Desktop (Windows/macOS) injects host.docker.internal automatically.
 // Linux Docker Engine does not — we handle it via --add-host for docker run and
@@ -266,7 +265,7 @@ async function writeLiveKitArtifacts(config) {
     await Promise.all([
       fs.rm(liveKitConfigFile, { force: true }),
       fs.rm(liveKitCaddyFile, { force: true }),
-      fs.rm(liveKitExternalProxyFile, { force: true }),
+      fs.rm(legacyLiveKitExternalProxyFile, { force: true }),
     ]);
     return;
   }
@@ -285,19 +284,19 @@ async function writeLiveKitArtifacts(config) {
       { encoding: "utf8", mode: 0o600 },
     );
     try { await fs.chmod(liveKitCaddyFile, 0o600); } catch { /* Windows does not apply POSIX modes. */ }
-    await fs.rm(liveKitExternalProxyFile, { force: true });
+    await fs.rm(legacyLiveKitExternalProxyFile, { force: true });
   } else if (config.domain && config.tlsMode === "external") {
-    await fs.writeFile(
-      liveKitExternalProxyFile,
-      renderExternalProxyGuide({ domain: config.domain }),
-      { encoding: "utf8", mode: 0o600 },
+    await Promise.all([
+      fs.rm(liveKitCaddyFile, { force: true }),
+      fs.rm(legacyLiveKitExternalProxyFile, { force: true }),
+    ]);
+    console.log(
+      `  External TLS: Atlas will not modify the host reverse proxy; proxy ${config.domain} to 127.0.0.1:7880.`,
     );
-    try { await fs.chmod(liveKitExternalProxyFile, 0o600); } catch { /* Windows does not apply POSIX modes. */ }
-    await fs.rm(liveKitCaddyFile, { force: true });
   } else {
     await Promise.all([
       fs.rm(liveKitCaddyFile, { force: true }),
-      fs.rm(liveKitExternalProxyFile, { force: true }),
+      fs.rm(legacyLiveKitExternalProxyFile, { force: true }),
     ]);
   }
 }

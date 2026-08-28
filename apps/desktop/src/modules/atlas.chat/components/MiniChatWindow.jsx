@@ -13,6 +13,7 @@ import { DropZoneOverlay } from "./DropZoneOverlay";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { ConversationProfilePanel } from "./ConversationProfilePanel";
+import { AvatarCircle } from "./AvatarCircle";
 import { useChatFloatStore } from "../store/chatFloatStore";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 import { getConversationDisplayName, getConversationTitleLabel, buildAllAttachments } from "../lib/chatUtils";
@@ -329,6 +330,10 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
             onShowAllFiles={handleViewFiles}
             onOpenConversation={(conv) => openChat(conv)}
             onDeleted={onClose}
+            callsEnabled={callsEnabled}
+            callPending={callPending}
+            onStartAudioCall={() => startCall({ conversationId: id, kind: "AUDIO" })}
+            onStartVideoCall={() => startCall({ conversationId: id, kind: "VIDEO" })}
           />
         )}
         {!minimized && !profileView && (

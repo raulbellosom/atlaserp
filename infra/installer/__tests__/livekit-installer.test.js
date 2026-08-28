@@ -154,6 +154,8 @@ describe("LiveKit installer contract", () => {
       assert.match(setup, /LIVEKIT_CADDY_IMAGE/);
       assert.match(setup, /removeInactiveLiveKitServices/);
       assert.match(setup, /fs\.chmod\(liveKitConfigFile, 0o600\)/);
+      assert.match(setup, /will not modify/);
+      assert.doesNotMatch(setup, /renderExternalProxyGuide/);
     }
     for (const file of ["stop-local.mjs", "stop-external.mjs"]) {
       const stop = await read(file);

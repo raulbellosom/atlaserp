@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { Hono } from 'hono'
 import { createRouteLoaderService } from '../route-loader-service.js'
 
 async function writeModuleApi(projectRoot, moduleKey, routePath) {
@@ -60,6 +61,34 @@ async function writeExternalModule(projectRoot, customModulesDir, moduleKey) {
     path.join(moduleDir, 'components', 'index.js'),
     `export async function register(registry) {
       registry.register('${moduleKey}:ExternalWidget', function ExternalWidget() { return null })
+    }`,
+    'utf8'
+  )
+}
+
+async function writeModuleWithWildcardMiddleware(projectRoot, moduleKey) {
+  const moduleDir = path.join(projectRoot, 'modules', 'custom', moduleKey, 'api')
+  await fs.mkdir(moduleDir, { recursive: true })
+  await fs.writeFile(
+    path.join(moduleDir, 'index.js'),
+    `export default function createRouter() {
+      return {
+        routes: [
+          { method: 'ALL', path: '/*' },
+          { method: 'GET', path: '/custom/owned' },
+        ],
+        router: {
+          match() {
+            return [[{}]]
+          },
+        },
+        fetch() {
+          return new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        },
+      }
     }`,
     'utf8'
   )
@@ -210,4 +239,47 @@ test('route-loader loads API and components from ATLAS_MODULES_DIR custom root',
     delete process.env.ATLAS_MODULES_DIR
   }
   await fs.rm(projectRoot, { recursive: true, force: true })
+})
+
+test('route-loader wildcard middleware does not intercept unrelated core routes', async () => {
+  const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'atlas-route-loader-wildcard-'))
+  await fs.writeFile(path.join(projectRoot, 'pnpm-workspace.yaml'), 'packages:\n  - "apps/*"\n', 'utf8')
+  await fs.writeFile(path.join(projectRoot, 'package.json'), '{"name":"tmp","type":"module"}', 'utf8')
+  await fs.mkdir(path.join(projectRoot, 'modules', 'official'), { recursive: true })
+  await writeModuleWithWildcardMiddleware(projectRoot, 'custom.wildcard')
+
+  const prisma = createPrismaMock([
+    {
+      key: 'custom.wildcard',
+      status: 'INSTALLED',
+      enabled: true,
+      manifest: { key: 'custom.wildcard' },
+      lifecycleConfig: { discovery: { localPath: 'modules/custom/custom.wildcard' } },
+      core: false,
+    },
+  ])
+  const previousRoot = process.env.ATLAS_PROJECT_ROOT
+  process.env.ATLAS_PROJECT_ROOT = projectRoot
+
+  try {
+    const app = new Hono()
+    const routeLoader = createRouteLoaderService({
+      prisma,
+      authMiddleware: async (c) => c.json({ error: 'No autorizado' }, 401),
+      requirePermission: () => async (_c, next) => next(),
+    })
+    await routeLoader.initialize(app)
+    app.get('/modules/:key/bundle.js', (c) => c.text(`bundle:${c.req.param('key')}`))
+
+    const response = await app.request('/modules/atlas.ledger/bundle.js')
+    assert.equal(response.status, 200)
+    assert.equal(await response.text(), 'bundle:atlas.ledger')
+  } finally {
+    if (typeof previousRoot === 'string') {
+      process.env.ATLAS_PROJECT_ROOT = previousRoot
+    } else {
+      delete process.env.ATLAS_PROJECT_ROOT
+    }
+    await fs.rm(projectRoot, { recursive: true, force: true })
+  }
 })

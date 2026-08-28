@@ -892,6 +892,10 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
             onShowAllFiles={showAllFiles}
             onOpenConversation={(conv) => navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}`)}
             onDeleted={onClose}
+            callsEnabled={callsEnabled}
+            callPending={callPending}
+            onStartAudioCall={() => startCall({ conversationId, kind: "AUDIO" })}
+            onStartVideoCall={() => startCall({ conversationId, kind: "VIDEO" })}
           />
         </div>
       )}

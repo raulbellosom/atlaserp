@@ -17,6 +17,22 @@ function createApp(service) {
 }
 
 describe("calls routes", () => {
+  it("does not apply call authentication to unrelated Atlas routes", async () => {
+    let authCalls = 0;
+    const app = createCallsRouter({
+      prisma: {},
+      service: {},
+      authMiddleware: async (_c, next) => {
+        authCalls += 1;
+        await next();
+      },
+    });
+
+    const response = await app.request("/modules/atlas.ledger/bundle.js");
+    assert.equal(response.status, 404);
+    assert.equal(authCalls, 0);
+  });
+
   it("validates and forwards create payloads", async () => {
     let received;
     const app = createApp({
