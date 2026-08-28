@@ -15,12 +15,19 @@ import EmojiPicker from "emoji-picker-react";
 // the bubble-column element the picker should anchor to.
 // `onPick(emoji)` receives the plain emoji character.
 export function MessageReactionPicker({ open, onOpenChange, onPick, anchorAlign = "start", children }) {
+  // Opens to the side of the message bubble instead of above/below it — for
+  // an own (right-aligned, anchorAlign="end") message that means to its
+  // left, toward the center of the column; for a received (left-aligned,
+  // anchorAlign="start") message, to its right. Radix still auto-flips to
+  // the opposite side on its own if that side has no room (e.g. a very
+  // narrow viewport), so this is the preferred side, not the only one.
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverAnchor asChild>{children}</PopoverAnchor>
       <PopoverContent
-        align={anchorAlign === "end" ? "end" : "start"}
-        side="top"
+        side={anchorAlign === "end" ? "left" : "right"}
+        align="start"
+        sideOffset={8}
         className="w-auto p-0 overflow-hidden"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
