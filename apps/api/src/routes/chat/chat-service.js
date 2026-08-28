@@ -79,12 +79,11 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
 
   // Only direct conversations can be blocked (spec Non-goal 2 — a block never
   // affects shared groups/channels). Checks both directions: either party
-  // blocking the other stops messages both ways.
-  async function assertNotBlocked(conversationId, profileId) {
-    const [convRow] = await prisma.$queryRaw`
-      SELECT type FROM chat_conversations WHERE id = ${conversationId} LIMIT 1
-    `;
-    if (convRow?.type !== "direct") return;
+  // blocking the other stops messages both ways. `conversationType` is passed
+  // in by the caller (sendMessage already needs it for the messages.send
+  // permission check too) rather than queried here a second time.
+  async function assertNotBlocked(conversationId, profileId, conversationType) {
+    if (conversationType !== "direct") return;
 
     // The validator does not currently constrain type: "direct" conversations
     // to exactly one other member (pre-existing gap, out of scope here), so a
@@ -351,8 +350,9 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     const hasStatus = updates.status !== undefined;
     const hasAvatarFileId = updates.avatarFileId !== undefined;
     const hasAvatarEmoji = updates.avatarEmoji !== undefined;
+    const hasDescription = updates.description !== undefined;
 
-    if (!hasTitle && !hasStatus && !hasAvatarFileId && !hasAvatarEmoji && updates.linkedModule === undefined) {
+    if (!hasTitle && !hasStatus && !hasAvatarFileId && !hasAvatarEmoji && !hasDescription && updates.linkedModule === undefined) {
       return getConversation({ conversationId, authUserId });
     }
 
@@ -381,6 +381,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     if (hasStatus) sets.push(Prisma.sql`status = ${updates.status}`);
     if (touchAvatarFileId) sets.push(Prisma.sql`avatar_file_id = ${nextAvatarFileId}`);
     if (touchAvatarEmoji) sets.push(Prisma.sql`avatar_emoji = ${nextAvatarEmoji}`);
+    if (hasDescription) sets.push(Prisma.sql`description = ${updates.description}`);
     if (channelLinksService) sets.push(...(await channelLinksService.applyLinkUpdate(updates, conversationId)));
 
     await prisma.$executeRaw`
@@ -390,6 +391,48 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     `;
 
     return getConversation({ conversationId, authUserId });
+  }
+
+  // Permanently removes a channel/group for every member — gated on
+  // channel.manage (Owner + Admin by default), same tier as updateConversation's
+  // other channel-level changes. Scoped to channel/group only: direct/
+  // external_support already have their own "leave"/block-based exits and no
+  // roles to gate this against. Soft-delete (deleted_at) matches the existing
+  // convention every read already filters on (getConversation, listConversations,
+  // channel-directory-service) — no cascade needed, messages/members just become
+  // permanently unreachable through those filters.
+  async function deleteConversation({ conversationId, authUserId }) {
+    const profileId = await getUserProfileId(authUserId);
+    await assertMember(conversationId, profileId);
+
+    const [conv] = await prisma.$queryRaw`
+      SELECT type FROM chat_conversations WHERE id = ${conversationId} AND deleted_at IS NULL LIMIT 1
+    `;
+    if (!conv) throw new ChatServiceError("Conversacion no encontrada.", 404);
+    if (conv.type !== "channel" && conv.type !== "group") {
+      throw new ChatServiceError("Solo se pueden eliminar canales o grupos.", 400);
+    }
+
+    let memberIds = [];
+    if (permissionsService) {
+      await permissionsService.assertChannelPermission(conversationId, profileId, "channel.manage");
+    }
+    if (broadcaster) {
+      const memberRows = await prisma.$queryRaw`
+        SELECT user_id FROM chat_conversation_members WHERE conversation_id = ${conversationId} AND left_at IS NULL
+      `;
+      memberIds = memberRows.map((r) => r.user_id.toString());
+    }
+
+    await prisma.$executeRaw`
+      UPDATE chat_conversations SET deleted_at = NOW() WHERE id = ${conversationId}
+    `;
+
+    if (broadcaster && memberIds.length) {
+      broadcaster.broadcastToUsers(memberIds, "chat.conversation.deleted", { conversationId }).catch(() => {});
+    }
+
+    return { ok: true };
   }
 
   // ------------------------------------------------------------------
@@ -516,17 +559,28 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             'width', a.width,
             'height', a.height,
             'objectKey', a.object_key,
-            'bucket', a.bucket
+            'bucket', a.bucket,
+            'reactions', (
+              SELECT json_agg(json_build_object('emoji', ar.emoji, 'userIds', ar.user_ids))
+              FROM (
+                SELECT emoji, json_agg(user_id) AS user_ids
+                FROM chat_message_reactions
+                WHERE attachment_id = a.id
+                GROUP BY emoji
+              ) ar
+            )
           ) ORDER BY a.created_at)
           FROM chat_attachments a WHERE a.message_id = m.id
         ) AS attachments,
-        -- reactions, grouped by emoji
+        -- reactions, grouped by emoji — message-level ONLY. Attachment-scoped
+        -- reactions are nested inside each attachment object above instead,
+        -- so a single reaction never shows up in both places.
         (
           SELECT json_agg(json_build_object('emoji', r.emoji, 'userIds', r.user_ids))
           FROM (
             SELECT emoji, json_agg(user_id) AS user_ids
             FROM chat_message_reactions
-            WHERE message_id = m.id
+            WHERE message_id = m.id AND attachment_id IS NULL
             GROUP BY emoji
           ) r
         ) AS reactions
@@ -594,17 +648,28 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             'width', a.width,
             'height', a.height,
             'objectKey', a.object_key,
-            'bucket', a.bucket
+            'bucket', a.bucket,
+            'reactions', (
+              SELECT json_agg(json_build_object('emoji', ar.emoji, 'userIds', ar.user_ids))
+              FROM (
+                SELECT emoji, json_agg(user_id) AS user_ids
+                FROM chat_message_reactions
+                WHERE attachment_id = a.id
+                GROUP BY emoji
+              ) ar
+            )
           ) ORDER BY a.created_at)
           FROM chat_attachments a WHERE a.message_id = m.id
         ) AS attachments,
-        -- reactions, grouped by emoji
+        -- reactions, grouped by emoji — message-level ONLY. Attachment-scoped
+        -- reactions are nested inside each attachment object above instead,
+        -- so a single reaction never shows up in both places.
         (
           SELECT json_agg(json_build_object('emoji', r.emoji, 'userIds', r.user_ids))
           FROM (
             SELECT emoji, json_agg(user_id) AS user_ids
             FROM chat_message_reactions
-            WHERE message_id = m.id
+            WHERE message_id = m.id AND attachment_id IS NULL
             GROUP BY emoji
           ) r
         ) AS reactions
@@ -671,7 +736,21 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   async function sendMessage({ conversationId, authUserId, body, messageType = "text", metadata = {}, attachmentIds = [], threadRootId = null, entityRefs = [] }) {
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
-    await assertNotBlocked(conversationId, profileId);
+
+    const [convRow] = await prisma.$queryRaw`SELECT type FROM chat_conversations WHERE id = ${conversationId} LIMIT 1`;
+    const conversationType = convRow?.type ?? null;
+    await assertNotBlocked(conversationId, profileId, conversationType);
+
+    // messages.send is a real, editable permission (RoleEditorDialog already
+    // exposes an "Enviar mensajes" checkbox) but was never actually enforced
+    // here — every default role happens to grant it, so this only starts
+    // rejecting sends once an Owner/Admin explicitly revokes it from a role
+    // (e.g. an announcements-only channel). Same conv-type gate pattern as
+    // updateConversation/removeMember: direct/external_support conversations
+    // have no roles, so skip the check entirely for them.
+    if (permissionsService && (conversationType === "channel" || conversationType === "group")) {
+      await permissionsService.assertChannelPermission(conversationId, profileId, "messages.send");
+    }
 
     // Resolve threadRootId: validate it exists, belongs to this conversation,
     // isn't soft-deleted, and auto-flatten a reply-to-a-reply onto its own
@@ -1267,6 +1346,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     createConversation,
     getConversation,
     updateConversation,
+    deleteConversation,
     addMembers,
     removeMember,
     listMessages,

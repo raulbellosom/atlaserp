@@ -243,6 +243,27 @@ describe("chat-service — updateConversation avatar mutual exclusion", () => {
     );
     assert.deepEqual(setFragment.values, [null], "only avatar_file_id's cleared value should be bound");
   });
+
+  it("setting description includes it in the UPDATE", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "member-row" }],
+      [{ type: "channel" }],
+      [{ id: "member-row-2" }],
+      [{ id: CONV_ID, avatar_file_id: null, avatar_emoji: null, description: "Equipo de soporte", members: null }],
+    ]);
+    let capturedValues = null;
+    prisma.$executeRaw = async (strings, ...values) => { capturedValues = values; return { count: 1 }; };
+
+    const service = createChatService({ prisma, supabaseAdmin: {}, permissionsService: permissionsServiceOk });
+    await service.updateConversation({
+      conversationId: CONV_ID, authUserId: AUTH_USER_ID, updates: { description: "Equipo de soporte" },
+    });
+
+    const setFragment = capturedValues[0];
+    assert.ok(setFragment.strings.join("").includes("description"), "description must appear in the UPDATE");
+    assert.ok(setFragment.values.includes("Equipo de soporte"), "description must be bound to the new value");
+  });
 });
 
 describe("chat-service — addMembers permission enforcement", () => {
@@ -453,7 +474,11 @@ describe("chat-service — sendMessage mentions", () => {
     const mentionsService = {
       resolveMentions: async () => ({ userIds: [MENTIONED_USER_ID], roleIds: [], everyone: false, here: false, notifyUserIds: [MENTIONED_USER_ID] }),
     };
-    const permissionsService = { getMemberRole: async () => null };
+    // assertChannelPermission stub added alongside getMemberRole: sendMessage now
+    // calls it (messages.send enforcement) whenever permissionsService is truthy
+    // and the conversation is a channel/group — these tests aren't exercising
+    // that gate, so just let it pass through.
+    const permissionsService = { getMemberRole: async () => null, assertChannelPermission: async () => ({}) };
 
     const body = `hola @[${MENTIONED_USER_ID}:X]`;
     const prisma = buildPrismaMock([
@@ -491,7 +516,11 @@ describe("chat-service — sendMessage mentions", () => {
     const mentionsService = {
       resolveMentions: async () => { throw new Error("invalid input syntax for type uuid"); },
     };
-    const permissionsService = { getMemberRole: async () => null };
+    // assertChannelPermission stub added alongside getMemberRole: sendMessage now
+    // calls it (messages.send enforcement) whenever permissionsService is truthy
+    // and the conversation is a channel/group — these tests aren't exercising
+    // that gate, so just let it pass through.
+    const permissionsService = { getMemberRole: async () => null, assertChannelPermission: async () => ({}) };
 
     const body = `hola @[${MENTIONED_USER_ID}:X]`;
     const prisma = buildPrismaMock([
@@ -531,7 +560,11 @@ describe("chat-service — sendMessage mentions", () => {
     const mentionsService = {
       resolveMentions: async () => ({ userIds: [], roleIds: [], everyone: false, here: false, notifyUserIds: [] }),
     };
-    const permissionsService = { getMemberRole: async () => null };
+    // assertChannelPermission stub added alongside getMemberRole: sendMessage now
+    // calls it (messages.send enforcement) whenever permissionsService is truthy
+    // and the conversation is a channel/group — these tests aren't exercising
+    // that gate, so just let it pass through.
+    const permissionsService = { getMemberRole: async () => null, assertChannelPermission: async () => ({}) };
 
     const body = `hola @[${DEPARTED_USER_ID}:ExMiembro]`;
     const prisma = buildPrismaMock([
@@ -852,7 +885,11 @@ describe("chat-service — sendMessage thread reply notifications", () => {
     const mentionsService = {
       resolveMentions: async () => ({ userIds: [MENTIONED_USER_ID], roleIds: [], everyone: false, here: false, notifyUserIds: [MENTIONED_USER_ID] }),
     };
-    const permissionsService = { getMemberRole: async () => null };
+    // assertChannelPermission stub added alongside getMemberRole: sendMessage now
+    // calls it (messages.send enforcement) whenever permissionsService is truthy
+    // and the conversation is a channel/group — these tests aren't exercising
+    // that gate, so just let it pass through.
+    const permissionsService = { getMemberRole: async () => null, assertChannelPermission: async () => ({}) };
 
     const body = `hola @[${MENTIONED_USER_ID}:X] respondiendo en hilo`;
     const prisma = buildPrismaMock([
@@ -1383,6 +1420,129 @@ describe("chat-service — block enforcement", () => {
   });
 });
 
+describe("chat-service — sendMessage messages.send permission enforcement", () => {
+  it("rejects sending in a channel when the sender's role lacks messages.send", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],   // resolveUserProfileId
+      [{ id: "member-row" }], // assertMember
+      [{ type: "channel" }],  // conversation type lookup (shared by assertNotBlocked + the permission gate)
+    ]);
+    const permissionsService = {
+      assertChannelPermission: async () => { throw new (class extends Error { constructor() { super("No tienes permiso para realizar esta accion."); this.status = 403; } })(); },
+    };
+    const service = createChatService({ prisma, supabaseAdmin: {}, permissionsService });
+    await assert.rejects(
+      () => service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "hola" }),
+      (err) => err.status === 403,
+    );
+  });
+
+  it("allows sending in a channel when the sender's role grants messages.send", async () => {
+    let assertedWith = null;
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "member-row" }],
+      [{ type: "channel" }],
+      [{ id: "msg1", conversation_id: CONV_ID, sender_user_id: PROFILE_ID, created_at: new Date(), metadata: {} }], // INSERT ... RETURNING *
+      [{
+        id: "msg1", conversation_id: CONV_ID, sender_user_id: PROFILE_ID, sender_guest_id: null,
+        sender_type: "user", body: "hola", message_type: "text", attachment_count: 0,
+        metadata: {}, created_at: new Date(), edited_at: null, deleted_at: null,
+        sender: { id: null, displayName: null, avatarFileId: null }, attachments: null,
+      }],
+    ]);
+    const permissionsService = {
+      assertChannelPermission: async (conversationId, profileId, permissionKey) => {
+        assertedWith = { conversationId, profileId, permissionKey };
+        return { position: 0, isSystem: false };
+      },
+    };
+    const service = createChatService({ prisma, supabaseAdmin: {}, permissionsService });
+    await service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "hola" });
+    assert.deepEqual(assertedWith, { conversationId: CONV_ID, profileId: PROFILE_ID, permissionKey: "messages.send" });
+  });
+
+  it("skips the permission check entirely for direct conversations (no roles to gate against)", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "member-row" }],
+      [{ type: "direct" }],
+      [{ user_id: OTHER_PROFILE_ID }], // assertNotBlocked: other member lookup
+      [], // assertNotBlocked: no block found
+      [{ id: "msg1", conversation_id: CONV_ID, sender_user_id: PROFILE_ID, created_at: new Date(), metadata: {} }],
+      [{
+        id: "msg1", conversation_id: CONV_ID, sender_user_id: PROFILE_ID, sender_guest_id: null,
+        sender_type: "user", body: "hola", message_type: "text", attachment_count: 0,
+        metadata: {}, created_at: new Date(), edited_at: null, deleted_at: null,
+        sender: { id: null, displayName: null, avatarFileId: null }, attachments: null,
+      }],
+    ]);
+    const permissionsService = {
+      assertChannelPermission: async () => { throw new Error("must not be called for a direct conversation"); },
+    };
+    const service = createChatService({ prisma, supabaseAdmin: {}, permissionsService });
+    await service.sendMessage({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, body: "hola" });
+  });
+});
+
+describe("chat-service — deleteConversation", () => {
+  it("soft-deletes a channel when the actor has channel.manage, and broadcasts to every active member", async () => {
+    let executeCallCount = 0;
+    let executedText = "";
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],               // getUserProfileId
+      [{ id: "member-row" }],             // assertMember
+      [{ type: "channel" }],              // conv-type + deleted_at IS NULL lookup
+      [{ user_id: PROFILE_ID }, { user_id: OTHER_PROFILE_ID }], // broadcaster member-ids query
+    ]);
+    prisma.$executeRaw = async (strings) => { executeCallCount++; executedText = strings.join(""); return { count: 1 }; };
+    let broadcastCall = null;
+    const broadcaster = { broadcastToUsers: async (userIds, event, payload) => { broadcastCall = { userIds, event, payload }; } };
+    const permissionsService = { assertChannelPermission: async () => ({ position: 100, isSystem: true }) };
+
+    const service = createChatService({ prisma, supabaseAdmin: {}, permissionsService, broadcaster });
+    const result = await service.deleteConversation({ conversationId: CONV_ID, authUserId: AUTH_USER_ID });
+
+    assert.deepEqual(result, { ok: true });
+    assert.equal(executeCallCount, 1);
+    assert.ok(executedText.includes("deleted_at"), "the UPDATE must touch deleted_at");
+    assert.deepEqual(broadcastCall, {
+      userIds: [PROFILE_ID.toString(), OTHER_PROFILE_ID.toString()],
+      event: "chat.conversation.deleted",
+      payload: { conversationId: CONV_ID },
+    });
+  });
+
+  it("rejects deleting a direct conversation (only channel/group are deletable)", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "member-row" }],
+      [{ type: "direct" }],
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    await assert.rejects(
+      () => service.deleteConversation({ conversationId: CONV_ID, authUserId: AUTH_USER_ID }),
+      (err) => err instanceof ChatServiceError && err.status === 400,
+    );
+  });
+
+  it("propagates a 403 when the actor lacks channel.manage", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: "member-row" }],
+      [{ type: "group" }],
+    ]);
+    const permissionsService = {
+      assertChannelPermission: async () => { const e = new Error("No tienes permiso para realizar esta accion."); e.status = 403; throw e; },
+    };
+    const service = createChatService({ prisma, supabaseAdmin: {}, permissionsService });
+    await assert.rejects(
+      () => service.deleteConversation({ conversationId: CONV_ID, authUserId: AUTH_USER_ID }),
+      (err) => err.status === 403,
+    );
+  });
+});
+
 describe("chat-service — listConversations exposes is_muted", () => {
   it("passes through ccm.muted_at IS NOT NULL as is_muted on each row", async () => {
     const prisma = buildPrismaMock([
@@ -1564,5 +1724,45 @@ describe("chat-service — updateConversation link/unlink", () => {
       }),
       (err) => { assert.equal(err.status, 422); return true; },
     );
+  });
+});
+
+describe("chat-service — listMessages separates message-level and attachment-level reactions", () => {
+  it("returns message-level reactions in `reactions` and per-attachment reactions nested in `attachments`", async () => {
+    const msgId = "01900000-0000-7000-8000-00000000m005";
+    const attId = "01900000-0000-7000-8000-00000000a001";
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }], // resolveUserProfileId
+      [{ id: PROFILE_ID }], // assertMember lookup
+      [
+        {
+          id: msgId,
+          conversation_id: CONV_ID,
+          sender_user_id: PROFILE_ID,
+          sender_type: "user",
+          body: null,
+          message_type: "image",
+          attachment_count: 1,
+          metadata: {},
+          created_at: new Date(),
+          edited_at: null,
+          deleted_at: null,
+          pinned_at: null,
+          pinned_by_user_id: null,
+          thread_root_id: null,
+          thread_reply_count: 0,
+          thread_last_reply_at: null,
+          sender: { id: PROFILE_ID, displayName: "Ada", avatarFileId: null },
+          attachments: [
+            { id: attId, fileName: "foto.jpg", mimeType: "image/jpeg", sizeBytes: 100, width: null, height: null, objectKey: "k", bucket: "atlas-chat", reactions: [{ emoji: "\u{1F602}", userIds: [OTHER_PROFILE_ID] }] },
+          ],
+          reactions: [{ emoji: "\u{1F44D}", userIds: [PROFILE_ID] }],
+        },
+      ],
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: {} });
+    const result = await service.listMessages({ conversationId: CONV_ID, authUserId: AUTH_USER_ID });
+    assert.deepEqual(result.data[0].reactions, [{ emoji: "\u{1F44D}", userIds: [PROFILE_ID] }]);
+    assert.deepEqual(result.data[0].attachments[0].reactions, [{ emoji: "\u{1F602}", userIds: [OTHER_PROFILE_ID] }]);
   });
 });
