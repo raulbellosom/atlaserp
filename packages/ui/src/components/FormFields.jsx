@@ -717,13 +717,16 @@ export const DateTimeField = forwardRef(function DateTimeField(
   const [draft, setDraft] = useState(() => parseDateTimeValue(value));
   const error = externalError || localError;
 
+  // Keep the working draft in sync with the committed value whenever the
+  // picker is closed, instead of only re-syncing inside the open-transition
+  // handler — removes any dependency on exact click/render-order timing.
+  useEffect(() => {
+    if (!open) setDraft(parseDateTimeValue(value));
+  }, [value, open]);
+
   function handleOpenChange(next) {
     setOpen(next);
-    if (next) {
-      setDraft(parseDateTimeValue(value));
-    } else {
-      onBlur?.();
-    }
+    if (!next) onBlur?.();
   }
 
   function commit() {

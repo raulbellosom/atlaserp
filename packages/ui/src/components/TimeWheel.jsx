@@ -18,7 +18,14 @@ function WheelColumn({ items, value, onChange, formatItem, ariaLabel }) {
     if (!el) return;
     const targetIndex = items.indexOf(value);
     if (targetIndex < 0) return;
-    el.scrollTop = targetIndex * ITEM_HEIGHT;
+    const target = targetIndex * ITEM_HEIGHT;
+    // Only force scrollTop when it's actually out of sync (initial open, or
+    // an external reset). If it's already at/near the target — the normal
+    // case right after the user's own scroll settles — skip the write so we
+    // never fight the browser's native scroll-snap mid-gesture.
+    if (Math.abs(el.scrollTop - target) > 1) {
+      el.scrollTop = target;
+    }
   }, [value, items]);
 
   useEffect(() => {
@@ -32,9 +39,12 @@ function WheelColumn({ items, value, onChange, formatItem, ariaLabel }) {
     scrollTimeout.current = setTimeout(() => {
       const el = containerRef.current;
       if (!el) return;
+      // Read-only: CSS scroll-snap (mandatory, below) already settles the
+      // element's scrollTop on an exact item boundary natively. Calling
+      // el.scrollTo here on top of that was fighting the native snap and is
+      // what made wheel scrolling feel locked — just read where it landed.
       const nearestIndex = Math.round(el.scrollTop / ITEM_HEIGHT);
       const clamped = Math.max(0, Math.min(items.length - 1, nearestIndex));
-      el.scrollTo({ top: clamped * ITEM_HEIGHT, behavior: "smooth" });
       const next = items[clamped];
       if (next !== value) onChange(next);
     }, 120);
@@ -57,7 +67,7 @@ function WheelColumn({ items, value, onChange, formatItem, ariaLabel }) {
       onScroll={handleScroll}
       onKeyDown={handleKeyDown}
       className="h-45 w-16 overflow-y-auto rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-      style={{ scrollSnapType: "y proximity" }}
+      style={{ scrollSnapType: "y mandatory" }}
     >
       <div style={{ height: PAD_ROWS * ITEM_HEIGHT }} aria-hidden="true" />
       {items.map((item) => (
