@@ -16,27 +16,24 @@ const KIND_ICON = { image: Image, video: Video, audio: Mic, file: FileText, enti
 export function MessageQuote({ reply, variant = "inline", isOwn = false, onJump, onCancel }) {
   if (!reply) return null;
 
-  const accent = isOwn ? "rgba(255,255,255,0.65)" : "var(--brand-primary)";
   const Icon = KIND_ICON[reply.kind];
   const label = reply.isDeleted
     ? "Mensaje eliminado"
     : reply.bodyPreview || KIND_LABEL[reply.kind] || "Mensaje";
 
+  // Solid theme-token surface so the quote is clearly legible in BOTH light
+  // and dark themes — it sits on the page background (above the bubble), not
+  // inside the coloured bubble, so translucent white/black washes were nearly
+  // invisible in light mode.
   const body = (
-    <div
-      className={[
-        "flex flex-col gap-0.5 pl-2 pr-2 py-1 rounded-md min-w-0 text-left",
-        isOwn ? "bg-white/10" : "bg-black/5",
-      ].join(" ")}
-      style={{ borderLeft: `3px solid ${accent}` }}
-    >
-      <span className="text-[11px] font-semibold truncate" style={{ color: accent }}>
+    <div className="flex flex-col gap-0.5 pl-2 pr-2 py-1 rounded-md min-w-0 text-left bg-[hsl(var(--muted))] border border-[hsl(var(--border))] border-l-[3px] border-l-[hsl(var(--primary))]">
+      <span className="text-[11px] font-semibold truncate text-[hsl(var(--primary))]">
         {reply.senderName}
       </span>
       <span
         className={[
-          "text-xs truncate flex items-center gap-1",
-          reply.isDeleted ? "italic opacity-60" : "opacity-80",
+          "text-xs truncate flex items-center gap-1 text-[hsl(var(--muted-foreground))]",
+          reply.isDeleted ? "italic" : "",
         ].join(" ")}
       >
         {Icon && !reply.bodyPreview && !reply.isDeleted && <Icon className="h-3 w-3 shrink-0" />}

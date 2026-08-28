@@ -341,7 +341,7 @@ export function ChatMessageList({
       <div
         ref={listRef}
         onScroll={handleScroll}
-        className={["chat-scale-target", wallpaperClass, "flex-1 min-h-0 overflow-y-auto overscroll-contain py-3"].join(" ")}
+        className={["chat-scale-target", wallpaperClass, "flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain py-3"].join(" ")}
         data-accent={prefs.accentColorKey}
       >
         {/* Sentinel watched by IntersectionObserver — triggers auto-load when scrolled into view */}

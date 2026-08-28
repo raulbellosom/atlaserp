@@ -56,15 +56,23 @@ function SelectionCircle({ isSelected }) {
 }
 
 // ── Swipe-to-reply hint ──────────────────────────────────────────────────────
-// The curved-arrow badge that fades in as the bubble is dragged sideways.
+// The curved-arrow badge revealed as the bubble is dragged sideways. It lives
+// inside the transformed row, so it is counter-translated to stay pinned to
+// the row's edge while the message content slides past it (WhatsApp-style).
+const SWIPE_THRESHOLD = 56;
 function SwipeReplyHint({ translateX, isOwn }) {
   if (!translateX) return null;
+  const progress = Math.min(1, Math.abs(translateX) / SWIPE_THRESHOLD);
   return (
     <span
-      className="absolute top-1/2 -translate-y-1/2 flex items-center justify-center h-7 w-7 rounded-full bg-[hsl(var(--primary))] text-white pointer-events-none"
-      style={{ [isOwn ? "right" : "left"]: 8, opacity: Math.min(1, Math.abs(translateX) / 64) }}
+      className="absolute top-1/2 z-10 flex items-center justify-center h-8 w-8 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-md pointer-events-none"
+      style={{
+        [isOwn ? "right" : "left"]: 6,
+        transform: `translateX(${-translateX}px) translateY(-50%) scale(${0.6 + 0.4 * progress})`,
+        opacity: progress,
+      }}
     >
-      <CornerUpLeft className="h-4 w-4" />
+      <CornerUpLeft className="h-4 w-4" style={isOwn ? { transform: "scaleX(-1)" } : undefined} />
     </span>
   );
 }
@@ -239,6 +247,7 @@ export function ChatMessageBubble({
   const { handlers: swipeHandlers, translateX } = useSwipeToReply({
     disabled: gesturesDisabled || !onReply,
     direction: isOwn ? "left" : "right",
+    threshold: SWIPE_THRESHOLD,
     onReply: () => onReply?.(message),
   });
 
@@ -273,6 +282,10 @@ export function ChatMessageBubble({
     style: {
       transform: translateX ? `translateX(${translateX}px)` : undefined,
       transition: translateX ? "none" : "transform 0.18s ease-out",
+      // Let the browser own vertical scroll but hand horizontal drags to the
+      // swipe handlers — without this the browser claims the gesture and
+      // fires pointercancel mid-drag, so the swipe never completes.
+      touchAction: gesturesDisabled ? undefined : "pan-y",
     },
   };
 
