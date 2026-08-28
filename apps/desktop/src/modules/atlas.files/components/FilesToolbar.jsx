@@ -22,6 +22,7 @@ const FILTERS = [
     label: "Tipo",
     options: [
       { value: "image", label: "Imagen" },
+      { value: "video", label: "Video" },
       { value: "pdf", label: "PDF" },
       { value: "sheet", label: "Hoja" },
       { value: "doc", label: "Documento" },

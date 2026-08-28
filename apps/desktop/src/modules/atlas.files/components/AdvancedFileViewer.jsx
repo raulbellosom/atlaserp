@@ -102,9 +102,17 @@ export function AdvancedFileViewer({
   const [dragging, setDragging] = useState(false);
   const [pinching, setPinching] = useState(false);
   const [filmstripOpen, setFilmstripOpen] = useState(true);
+  // Real video thumbnails (browser-painted first frame, same trick as
+  // MessageAttachments.jsx's VideoCard) resolved only for a small window
+  // around the active index -- resolving+loading all of them at once for a
+  // 21-item gallery is exactly the loading-cost problem the filmstrip must
+  // avoid. Farther-away videos just show the generic file icon until they
+  // enter the window.
+  const [videoThumbUrls, setVideoThumbUrls] = useState({});
 
   const imageContainerRef = useRef(null);
   const thumbRefs = useRef(new Map());
+  const videoThumbFetching = useRef(new Set());
   const pointersRef = useRef(new Map());
   const gestureRef = useRef({
     mode: null,
@@ -176,6 +184,31 @@ export function AdvancedFileViewer({
     const el = thumbRefs.current.get(activeIndex);
     el?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   }, [activeIndex, filmstripOpen]);
+
+  // Resolve real thumbnails for video files within +/-3 of the active index.
+  const THUMB_WINDOW = 3;
+  useEffect(() => {
+    if (!filmstripOpen || !onResolveSignedUrl || (files?.length ?? 0) <= 1) return;
+    const start = Math.max(0, activeIndex - THUMB_WINDOW);
+    const end = Math.min(files.length - 1, activeIndex + THUMB_WINDOW);
+    for (let i = start; i <= end; i++) {
+      const f = files[i];
+      if (!f || getFileKind(f.mimeType) !== "video") continue;
+      if (videoThumbUrls[f.id] || videoThumbFetching.current.has(f.id)) continue;
+      videoThumbFetching.current.add(f.id);
+      onResolveSignedUrl(f)
+        .then((url) => {
+          if (url) setVideoThumbUrls((prev) => ({ ...prev, [f.id]: url }));
+        })
+        .finally(() => {
+          videoThumbFetching.current.delete(f.id);
+        });
+    }
+    // videoThumbUrls intentionally omitted: it's only read here as an
+    // already-fetched guard, and videoThumbFetching's ref-based in-flight
+    // guard is what actually prevents duplicate requests.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex, files, filmstripOpen, onResolveSignedUrl]);
 
   const nudgeZoom = useCallback((direction) => {
     setZoom((value) =>
@@ -680,38 +713,64 @@ export function AdvancedFileViewer({
               </button>
               {filmstripOpen && (
                 <div className="flex items-center gap-2 px-3 pb-2.5 overflow-x-auto">
-                  {files.map((f, i) => (
-                    <button
-                      key={f.id ?? i}
-                      ref={(node) => {
-                        if (node) thumbRefs.current.set(i, node);
-                        else thumbRefs.current.delete(i);
-                      }}
-                      onClick={() => onIndexChange(i)}
-                      aria-label={`Ir a ${f.originalName ?? f.name ?? `archivo ${i + 1}`}`}
-                      aria-current={i === activeIndex}
-                      className={[
-                        "h-12 w-12 shrink-0 rounded-lg overflow-hidden transition-all duration-150",
-                        i === activeIndex
-                          ? "ring-2 ring-[hsl(var(--primary))] opacity-100"
-                          : "opacity-50 hover:opacity-90",
-                      ].join(" ")}
-                    >
-                      <FileVisual
-                        file={f}
-                        previewUrl={f.thumbnailUrl ?? null}
-                        className="h-12 w-12 object-cover"
-                      />
-                    </button>
-                  ))}
+                  {files.map((f, i) => {
+                    const fKind = getFileKind(f.mimeType);
+                    const videoThumbUrl =
+                      fKind === "video" ? videoThumbUrls[f.id] : null;
+                    return (
+                      <button
+                        key={f.id ?? i}
+                        ref={(node) => {
+                          if (node) thumbRefs.current.set(i, node);
+                          else thumbRefs.current.delete(i);
+                        }}
+                        onClick={() => onIndexChange(i)}
+                        aria-label={`Ir a ${f.originalName ?? f.name ?? `archivo ${i + 1}`}`}
+                        aria-current={i === activeIndex}
+                        className={[
+                          "h-12 w-12 shrink-0 rounded-lg overflow-hidden transition-all duration-150",
+                          i === activeIndex
+                            ? "ring-2 ring-[hsl(var(--primary))] opacity-100"
+                            : "opacity-50 hover:opacity-90",
+                        ].join(" ")}
+                      >
+                        {videoThumbUrl ? (
+                          // Appending #t=0.1 forces the browser to seek and
+                          // paint that frame as a thumbnail -- same trick as
+                          // MessageAttachments.jsx's VideoCard, but with
+                          // preload="metadata" (not "auto") since this can
+                          // run for up to 7 thumbnails at once.
+                          <video
+                            src={`${videoThumbUrl}#t=0.1`}
+                            className="h-12 w-12 object-cover pointer-events-none"
+                            muted
+                            playsInline
+                            preload="metadata"
+                          />
+                        ) : (
+                          <FileVisual
+                            file={f}
+                            previewUrl={f.thumbnailUrl ?? null}
+                            className="h-12 w-12 object-cover"
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
           )}
 
-          {/* ── BOTTOM TOOLBAR (images only) ────────────── */}
-          {kind === "image" && !loading && signedUrl && (
+          {/* ── BOTTOM TOOLBAR ───────────────────────────── */}
+          {/* Always reserved at the same height once a file is loaded, so
+              the modal's shape stays uniform across file kinds instead of
+              growing/shrinking as you page between an image and a video —
+              only the image kind actually populates it with controls. */}
+          {!loading && signedUrl && (
             <div className="flex items-center justify-center gap-1.5 px-3 h-12 safe-bottom shrink-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60 overflow-x-auto">
+              {kind === "image" && (
+                <>
               {/* Zoom group */}
               <div className="flex items-center rounded-lg bg-[hsl(var(--muted))]/60 p-0.5 shrink-0">
                 <ToolbarBtn
@@ -786,6 +845,8 @@ export function AdvancedFileViewer({
                   <RefreshCw className="h-3.5 w-3.5" />
                 </ToolbarBtn>
               </div>
+                </>
+              )}
             </div>
           )}
         </DialogPrimitive.Content>
