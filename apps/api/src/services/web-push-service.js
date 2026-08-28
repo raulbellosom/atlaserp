@@ -84,10 +84,14 @@ export function buildPushPayload({ notification }) {
       notificationId: notification?.id ?? null,
       eventType: notification?.eventType ?? null,
       priority: notification?.priority ?? "medium",
+      sourceId: notification?.sourceId ?? null,
+      metadata: notification?.metadata ?? null,
     },
-    tag: notification?.eventType === 'chat.message.new' && notification?.sourceId
-      ? `chat:${notification.sourceId}`
-      : (notification?.id ?? undefined),
+    tag: notification?.eventType === "chat.call.incoming" && notification?.sourceId
+      ? `call:${notification.sourceId}`
+      : notification?.eventType === "chat.message.new" && notification?.sourceId
+        ? `chat:${notification.sourceId}`
+        : (notification?.id ?? undefined),
   };
 }
 

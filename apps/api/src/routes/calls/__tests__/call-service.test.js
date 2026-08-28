@@ -48,6 +48,7 @@ describe("createCallService", () => {
     let participantData;
     let tokenOptions;
     let tokenGrant;
+    let broadcastCall;
     const createdCall = {
       id: CALL_ID,
       conversationId: CONVERSATION_ID,
@@ -97,6 +98,11 @@ describe("createCallService", () => {
       prisma,
       env: enabledEnv(),
       AccessTokenImpl: FakeToken,
+      broadcaster: {
+        broadcastToUsers: async (userIds, event, payload) => {
+          broadcastCall = { userIds, event, payload };
+        },
+      },
     });
 
     const result = await service.createCall({
@@ -118,6 +124,17 @@ describe("createCallService", () => {
       canPublishData: true,
     });
     assert.deepEqual(participantData.map((entry) => entry.status), ["JOINED", "RINGING"]);
+    assert.deepEqual(broadcastCall, {
+      userIds: [CALLEE_ID],
+      event: "chat.call.incoming",
+      payload: {
+        callId: CALL_ID,
+        conversationId: CONVERSATION_ID,
+        kind: "VIDEO",
+        initiatorId: CALLER_ID,
+        initiatorName: "Caller",
+      },
+    });
   });
 
   it("rejects a duplicate live call with the existing id", async () => {
@@ -137,6 +154,44 @@ describe("createCallService", () => {
       service.createCall({ authUserId: "auth", conversationId: CONVERSATION_ID, kind: "AUDIO" }),
       (error) => error.status === 409 && error.details.callId === CALL_ID,
     );
+  });
+
+  it("does not ring a participant who is already in another call", async () => {
+    const otherCallId = "55555555-5555-4555-8555-555555555555";
+    let queryNumber = 0;
+    let participantsCreated = false;
+    const tx = {
+      $queryRaw: async () => {
+        queryNumber += 1;
+        if (queryNumber === 1) return [{ id: CALLER_ID }, { id: CALLEE_ID }];
+        return [{ userId: CALLEE_ID, callId: otherCallId }];
+      },
+      callParticipant: {
+        createMany: async () => { participantsCreated = true; },
+      },
+    };
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: CALLER_ID, displayName: "Caller" }) },
+      calendarEvent: { findFirst: async () => null },
+      call: {
+        findMany: async () => [],
+        findFirst: async () => null,
+      },
+      $queryRaw: async () => [
+        { userId: CALLER_ID, displayName: "Caller" },
+        { userId: CALLEE_ID, displayName: "Callee" },
+      ],
+      $transaction: async (callback) => callback(tx),
+    };
+    const service = createCallService({ prisma, env: enabledEnv() });
+
+    await assert.rejects(
+      service.createCall({ authUserId: "auth", conversationId: CONVERSATION_ID, kind: "AUDIO" }),
+      (error) => error.status === 409
+        && error.details.code === "recipient_busy"
+        && error.details.busyUserIds[0] === CALLEE_ID,
+    );
+    assert.equal(participantsCreated, false);
   });
 
   it("activates a ringing call when an invited participant joins", async () => {
@@ -184,7 +239,7 @@ describe("createCallService", () => {
     assert.equal(updates.find((entry) => entry.model === "call").operation.data.status, "ACTIVE");
   });
 
-  it("marks unanswered calls missed after sixty seconds and closes the room", async () => {
+  it("marks unanswered calls missed after the ringing window and closes the room", async () => {
     const participantUpdates = [];
     let callUpdate;
     let deletedRoom;

@@ -12,7 +12,7 @@ import {
   Skeleton,
   Switch,
 } from "@atlas/ui";
-import { BellRing, CalendarClock, CheckSquare2, Globe2, MessageCircle, ShieldAlert, Users } from "lucide-react";
+import { BellRing, CalendarClock, CheckSquare2, Globe2, MessageCircle, PhoneCall, ShieldAlert, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../auth/AuthProvider";
 import { atlas } from "../../lib/atlas";
@@ -38,6 +38,13 @@ const EVENT_CATALOG = [
     title: "Mensaje de chat",
     description: "Cuando alguien te envia un mensaje directo o de grupo.",
     icon: MessageCircle,
+  },
+  {
+    eventType: "chat.call.incoming",
+    title: "Llamada entrante",
+    description: "Cuando alguien te llama o inicia una videollamada.",
+    icon: PhoneCall,
+    pushEnabledByDefault: true,
   },
   // atlas.projects
   {
@@ -244,8 +251,10 @@ export default function NotificationSettingsScreen() {
   }, [token]);
 
   function getPreference(eventType) {
+    const catalogEntry = EVENT_CATALOG.find((entry) => entry.eventType === eventType);
     return {
       ...DEFAULT_PREFS,
+      pushEnabled: catalogEntry?.pushEnabledByDefault ?? DEFAULT_PREFS.pushEnabled,
       ...(preferencesMap.get(eventType) ?? {}),
     };
   }

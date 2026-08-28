@@ -16,31 +16,66 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 import { getApiUrl } from "../../../lib/runtimeConfig";
 import { getSupabaseClient } from "../../../lib/supabase";
-import { playCallSound } from "./callSounds";
+import { useRealtimeContext } from "../../../providers/RealtimeProvider";
+import { playCallSound, preloadCallSounds, unlockCallSounds } from "./callSounds";
 
 const CallRoom = lazy(() =>
   import("./CallRoom").then((module) => ({ default: module.CallRoom })),
 );
 
 const CallsContext = createContext(null);
+const CURRENT_CALL_POLL_MS = 4_000;
 
 function unwrap(response) {
   return response?.data ?? response;
 }
 
+async function dismissSystemCallNotification(callId) {
+  if (!callId || !("serviceWorker" in navigator)) return;
+  const registration = await navigator.serviceWorker.getRegistration("/");
+  const notifications = await registration?.getNotifications?.({ tag: `call:${callId}` });
+  notifications?.forEach((notification) => notification.close());
+}
+
 export function CallsProvider({ children }) {
   const { session, userProfile } = useAuth();
+  const { on } = useRealtimeContext();
   const [config, setConfig] = useState({ enabled: false, mode: "disabled", loading: true });
   const [incomingCall, setIncomingCall] = useState(null);
   const [activeSession, setActiveSession] = useState(null);
   const [isStarting, setIsStarting] = useState(false);
   const activeRef = useRef(null);
+  const incomingRef = useRef(null);
+  const busyNoticeRef = useRef(new Set());
 
   useEffect(() => {
     activeRef.current = activeSession;
   }, [activeSession]);
 
+  useEffect(() => {
+    incomingRef.current = incomingCall;
+  }, [incomingCall]);
+
   const token = session?.access_token;
+
+  useEffect(() => {
+    preloadCallSounds();
+    let unlocked = false;
+    async function unlock() {
+      if (unlocked) return;
+      unlocked = await unlockCallSounds().catch(() => false);
+      if (unlocked) {
+        document.removeEventListener("pointerdown", unlock, true);
+        document.removeEventListener("keydown", unlock, true);
+      }
+    }
+    document.addEventListener("pointerdown", unlock, true);
+    document.addEventListener("keydown", unlock, true);
+    return () => {
+      document.removeEventListener("pointerdown", unlock, true);
+      document.removeEventListener("keydown", unlock, true);
+    };
+  }, []);
 
   useEffect(() => {
     if (!incomingCall?.id) return undefined;
@@ -57,38 +92,64 @@ export function CallsProvider({ children }) {
     if (!payload?.call || !payload?.token || !payload?.livekitUrl) return false;
     setIncomingCall(null);
     setActiveSession(payload);
+    activeRef.current = payload;
+    dismissSystemCallNotification(payload.call.id).catch(() => {});
     sessionStorage.setItem("atlas-active-call-id", payload.callId ?? payload.call.id);
     return true;
   }, []);
+
+  const rejectIncomingWhileBusy = useCallback((callId) => {
+    const activeCallId = activeRef.current?.call?.id;
+    if (!callId || !activeCallId || callId === activeCallId) return false;
+    if (busyNoticeRef.current.has(callId)) return true;
+    if (busyNoticeRef.current.size > 100) busyNoticeRef.current.clear();
+    busyNoticeRef.current.add(callId);
+    toast.info("Otra persona intento llamarte mientras estabas ocupado.");
+    atlas.calls.decline(callId, token).catch(() => {});
+    return true;
+  }, [token]);
+
+  const presentIncomingCall = useCallback((call) => {
+    if (!call?.id || call.status === "ENDED" || call.initiatedByUserId === userProfile?.id) return;
+    if (rejectIncomingWhileBusy(call.id)) return;
+    const isNewCall = incomingRef.current?.id !== call.id;
+    incomingRef.current = call;
+    setIncomingCall(call);
+    if (isNewCall) globalThis.navigator?.vibrate?.([400, 180, 400, 180, 400]);
+  }, [userProfile?.id, rejectIncomingWhileBusy]);
+
+  const syncCurrentCall = useCallback(async () => {
+    if (!token || !userProfile?.id) return null;
+    const current = unwrap(await atlas.calls.getCurrent(token));
+    if (!current?.call) {
+      if (incomingRef.current) setIncomingCall(null);
+      return null;
+    }
+    if (
+      current.participantStatus === "RINGING"
+      && current.call.initiatedByUserId !== userProfile.id
+      && !activeRef.current
+    ) {
+      presentIncomingCall(current.call);
+      return current;
+    }
+    if (current.participantStatus === "JOINED" && !activeRef.current) {
+      connectWithResponse(await atlas.calls.join(current.call.id, token));
+    }
+    return current;
+  }, [token, userProfile?.id, presentIncomingCall, connectWithResponse]);
 
   useEffect(() => {
     if (!token || !userProfile?.id) return undefined;
     let cancelled = false;
     let retryTimer = null;
 
-    async function restoreCurrentCall() {
-      try {
-        const current = unwrap(await atlas.calls.getCurrent(token));
-        if (cancelled || !current?.call) return;
-        if (current.participantStatus === "RINGING" && current.call.initiatedByUserId !== userProfile.id) {
-          setIncomingCall(current.call);
-          return;
-        }
-        if (current.participantStatus === "JOINED") {
-          const joined = await atlas.calls.join(current.call.id, token);
-          if (!cancelled) connectWithResponse(joined);
-        }
-      } catch (error) {
-        if (!cancelled) console.warn("[atlas.calls] No se pudo restaurar la llamada actual:", error);
-      }
-    }
-
     async function bootstrap(attempt = 0) {
       try {
         const status = unwrap(await atlas.calls.getConfig(token));
         if (cancelled) return;
         setConfig({ ...status, loading: false });
-        if (status?.enabled) await restoreCurrentCall();
+        if (status?.enabled) await syncCurrentCall();
       } catch (error) {
         if (cancelled) return;
         setConfig({ enabled: false, mode: "unavailable", loading: false });
@@ -102,7 +163,49 @@ export function CallsProvider({ children }) {
       cancelled = true;
       if (retryTimer !== null) window.clearTimeout(retryTimer);
     };
-  }, [token, userProfile?.id, connectWithResponse]);
+  }, [token, userProfile?.id, syncCurrentCall]);
+
+  // Realtime is the fast path. Polling plus focus/visibility recovery is the
+  // reliability path for suspended mobile PWAs and channels that reconnect
+  // after the INSERT happened.
+  useEffect(() => {
+    if (!config.enabled || !token || !userProfile?.id || activeSession) return undefined;
+    let running = false;
+    async function sync() {
+      if (running) return;
+      running = true;
+      try { await syncCurrentCall(); } catch (error) {
+        console.warn("[atlas.calls] No se pudo sincronizar la llamada actual:", error);
+      } finally { running = false; }
+    }
+    const timer = window.setInterval(sync, CURRENT_CALL_POLL_MS);
+    const handleVisibility = () => { if (document.visibilityState === "visible") sync(); };
+    window.addEventListener("focus", sync);
+    window.addEventListener("online", sync);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("online", sync);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [config.enabled, token, userProfile?.id, activeSession, syncCurrentCall]);
+
+  useEffect(() => on("chat.call.incoming", ({ callId } = {}) => {
+    if (!callId || rejectIncomingWhileBusy(callId)) return;
+    fetchCall(callId).then(presentIncomingCall).catch(() => syncCurrentCall().catch(() => {}));
+  }), [on, fetchCall, presentIncomingCall, rejectIncomingWhileBusy, syncCurrentCall]);
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return undefined;
+    function handlePushMessage(event) {
+      if (event?.data?.eventType === "chat.call.incoming") {
+        syncCurrentCall().catch(() => {});
+      }
+    }
+    navigator.serviceWorker.addEventListener("message", handlePushMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", handlePushMessage);
+  }, [syncCurrentCall]);
 
   useEffect(() => {
     if (!config.enabled || !userProfile?.id) return undefined;
@@ -120,11 +223,12 @@ export function CallsProvider({ children }) {
         async ({ new: next, old }) => {
           const callId = next?.call_id ?? old?.call_id;
           if (!callId) return;
-          if (next?.status === "RINGING" && !activeRef.current) {
+          if (next?.status === "RINGING") {
+            if (rejectIncomingWhileBusy(callId)) return;
             try {
               const call = await fetchCall(callId);
               if (call?.status !== "ENDED" && call?.initiatedByUserId !== userProfile.id) {
-                setIncomingCall(call);
+                presentIncomingCall(call);
               }
             } catch {}
             return;
@@ -135,9 +239,13 @@ export function CallsProvider({ children }) {
           }
         },
       )
-      .subscribe();
+      .subscribe((status, error) => {
+        if (["CHANNEL_ERROR", "TIMED_OUT"].includes(status)) {
+          console.warn(`[atlas.calls] Canal de llamadas ${status}; se usara sincronizacion HTTP.`, error);
+        }
+      });
     return () => { client.removeChannel(channel); };
-  }, [config.enabled, userProfile?.id, fetchCall]);
+  }, [config.enabled, userProfile?.id, fetchCall, presentIncomingCall, rejectIncomingWhileBusy]);
 
   const watchedCallId = activeSession?.call?.id ?? incomingCall?.id ?? null;
   useEffect(() => {
@@ -153,6 +261,9 @@ export function CallsProvider({ children }) {
             playCallSound("exit");
             setIncomingCall(null);
             setActiveSession(null);
+            incomingRef.current = null;
+            activeRef.current = null;
+            dismissSystemCallNotification(watchedCallId).catch(() => {});
             sessionStorage.removeItem("atlas-active-call-id");
             toast.info("La llamada ha terminado.");
           }
@@ -220,6 +331,8 @@ export function CallsProvider({ children }) {
     if (!incomingCall?.id) return;
     const callId = incomingCall.id;
     setIncomingCall(null);
+    incomingRef.current = null;
+    dismissSystemCallNotification(callId).catch(() => {});
     try {
       await atlas.calls.decline(callId, token);
     } catch (error) {
@@ -227,17 +340,26 @@ export function CallsProvider({ children }) {
     }
   }, [incomingCall?.id, token]);
 
-  const leaveActive = useCallback(async () => {
-    const callId = activeRef.current?.call?.id;
+  const leaveActive = useCallback(async ({ unanswered = false } = {}) => {
+    const current = activeRef.current;
+    const callId = current?.call?.id;
+    const isInitiator = current?.call?.initiatedByUserId === userProfile?.id;
     setActiveSession(null);
+    activeRef.current = null;
     sessionStorage.removeItem("atlas-active-call-id");
     if (!callId) return;
     try {
-      await atlas.calls.leave(callId, token);
+      if (isInitiator) await atlas.calls.end(callId, token);
+      else await atlas.calls.leave(callId, token);
+      if (unanswered) toast.info("Nadie respondio la llamada.");
     } catch (error) {
       toast.error(error?.message || "No se pudo actualizar el estado de la llamada.");
     }
-  }, [token]);
+  }, [token, userProfile?.id]);
+
+  const endUnansweredCall = useCallback(() => {
+    leaveActive({ unanswered: true });
+  }, [leaveActive]);
 
   const value = useMemo(() => ({
     enabled: config.enabled,
@@ -253,7 +375,7 @@ export function CallsProvider({ children }) {
     <CallsContext.Provider value={value}>
       {children}
       <Dialog open={Boolean(incomingCall)} onOpenChange={(open) => { if (!open) declineIncoming(); }}>
-        <DialogContent size="sm">
+        <DialogContent size="sm" mobileVariant="center">
           <DialogHeader>
             <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-violet-500/15 text-violet-500">
               {incomingCall?.kind === "VIDEO" ? <Video className="h-7 w-7" /> : <Phone className="h-7 w-7" />}
@@ -281,6 +403,7 @@ export function CallsProvider({ children }) {
             key={activeSession.call.id}
             session={activeSession}
             onLeave={leaveActive}
+            onUnanswered={endUnansweredCall}
             isInitiator={activeSession.call.initiatedByUserId === userProfile?.id}
           />
         </Suspense>

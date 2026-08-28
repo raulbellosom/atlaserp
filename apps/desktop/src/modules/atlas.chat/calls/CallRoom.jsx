@@ -13,6 +13,8 @@ import { Room, RoomEvent, Track } from "livekit-client";
 import { toast } from "sonner";
 import { playCallSound } from "./callSounds";
 
+const UNANSWERED_CALL_TIMEOUT_MS = 36_000;
+
 function formatDuration(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
@@ -102,7 +104,7 @@ function OutgoingCallTone({ active }) {
   return null;
 }
 
-export function CallRoom({ session, onLeave, isInitiator = false }) {
+export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }) {
   const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true }), [session.callId]);
   const [renderVersion, setRenderVersion] = useState(0);
   const [connectionState, setConnectionState] = useState("connecting");
@@ -152,7 +154,10 @@ export function CallRoom({ session, onLeave, isInitiator = false }) {
       try {
         await room.connect(session.livekitUrl, session.token);
         if (cancelled) return;
-        if (room.remoteParticipants.size > 0) setHasRemoteJoined(true);
+        if (room.remoteParticipants.size > 0) {
+          setHasRemoteJoined(true);
+          playCallSound("join");
+        }
         setConnectionState("connected");
         try {
           await room.localParticipant.setMicrophoneEnabled(true);
@@ -203,6 +208,14 @@ export function CallRoom({ session, onLeave, isInitiator = false }) {
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
   }, [session.call.createdAt, session.call.startedAt]);
+
+  useEffect(() => {
+    if (!isInitiator || hasRemoteJoined) return undefined;
+    const createdAt = new Date(session.call.createdAt ?? Date.now()).getTime();
+    const remaining = Math.max(0, UNANSWERED_CALL_TIMEOUT_MS - (Date.now() - createdAt));
+    const timer = window.setTimeout(() => onUnanswered?.(), remaining);
+    return () => window.clearTimeout(timer);
+  }, [isInitiator, hasRemoteJoined, session.call.createdAt, onUnanswered]);
 
   async function toggleMicrophone() {
     try {
@@ -260,7 +273,8 @@ export function CallRoom({ session, onLeave, isInitiator = false }) {
             {session.call.calendarEvent?.title || session.call.initiator?.displayName || "Atlas Calls"}
           </p>
           <p className="text-xs text-white/60">
-            {connectionState === "connected" ? formatDuration(elapsed) :
+            {connectionState === "connected" && isInitiator && !hasRemoteJoined ? "Llamando..." :
+              connectionState === "connected" ? formatDuration(elapsed) :
               connectionState === "reconnecting" ? "Reconectando..." :
                 connectionState === "failed" ? "No se pudo conectar" : "Conectando..."}
           </p>

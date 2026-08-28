@@ -41,7 +41,7 @@ const SIZE_CLASSES = {
 };
 
 const DialogContent = forwardRef(function DialogContent(
-  { className, style, children, size = "md", ...props },
+  { className, style, children, size = "md", mobileVariant = "sheet", ...props },
   ref,
 ) {
   const {
@@ -60,17 +60,27 @@ const DialogContent = forwardRef(function DialogContent(
         ref={ref}
         aria-describedby={undefined}
         {...props}
-        style={bottomSheetDragStyle({ dragY, dragging, style })}
+        style={mobileVariant === "center"
+          ? style
+          : bottomSheetDragStyle({ dragY, dragging, style })}
         className={cn(
           "fixed z-50 glass-strong shadow-xl focus:outline-none",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           // ── Mobile: full-width bottom sheet ──────────────────────────────
-          "inset-x-0 bottom-0 w-full min-h-[30dvh]",
-          BOTTOM_SHEET_SURFACE_CLASS,
-          "data-[state=open]:slide-in-from-bottom-full",
-          "data-[state=closed]:slide-out-to-bottom-full",
-          "duration-300",
+          mobileVariant === "center"
+            ? [
+                "left-4 right-4 top-1/2 w-auto min-h-0 max-h-[calc(100dvh-2rem)]",
+                "-translate-y-1/2 overflow-y-auto overscroll-contain rounded-2xl p-5",
+                "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 duration-200",
+              ]
+            : [
+                "inset-x-0 bottom-0 w-full min-h-[30dvh]",
+                BOTTOM_SHEET_SURFACE_CLASS,
+                "data-[state=open]:slide-in-from-bottom-full",
+                "data-[state=closed]:slide-out-to-bottom-full",
+                "duration-300",
+              ],
           // ── Desktop md+: centered modal, wider, animations from center ───
           "md:inset-x-auto md:bottom-auto md:min-h-0",
           "md:left-1/2 md:top-1/2",
@@ -87,14 +97,16 @@ const DialogContent = forwardRef(function DialogContent(
       >
         {/* Drag handle — mobile only; handles swipe-to-dismiss. md:hidden
             because the desktop variant is a centered modal with no handle. */}
-        <div className="md:hidden">
-          <BottomSheetHandle
-            closeRef={closeRef}
-            onPointerDown={handleDragPointerDown}
-            onPointerMove={handleDragPointerMove}
-            onPointerUp={handleDragPointerUp}
-          />
-        </div>
+        {mobileVariant !== "center" && (
+          <div className="md:hidden">
+            <BottomSheetHandle
+              closeRef={closeRef}
+              onPointerDown={handleDragPointerDown}
+              onPointerMove={handleDragPointerMove}
+              onPointerUp={handleDragPointerUp}
+            />
+          </div>
+        )}
         {children}
         <DialogPrimitive.Close className="absolute right-4 top-4 rounded-lg p-1 text-[hsl(var(--muted-foreground))] opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40">
           <X className="h-4 w-4" />

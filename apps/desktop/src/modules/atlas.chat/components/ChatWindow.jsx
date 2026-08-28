@@ -736,7 +736,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
 
   return (
     <div
-      className="flex flex-1 min-h-0 relative"
+      className="relative flex w-full min-w-0 max-w-full flex-1 overflow-hidden min-h-0"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -752,7 +752,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
           spanning full width underneath the sidebar instead of stopping at
           this column's edge. */}
       <div className={[
-        "min-w-0 min-h-0 flex-col",
+        "w-full min-w-0 max-w-full min-h-0 flex-col overflow-hidden",
         membersView ? "hidden xl:flex xl:flex-1" : "flex flex-1",
       ].join(" ")}>
       <ChatHeader

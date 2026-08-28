@@ -124,6 +124,7 @@ function buildPrismaMock() {
     },
     notificationPreference: {
       findMany: async () => [],
+      findFirst: async () => null,
       upsert: async ({ create, update }) => ({ ...create, ...update }),
     },
     pushSubscription: {
@@ -135,6 +136,7 @@ function buildPrismaMock() {
       fn({
         notification: txNotification,
         notificationDelivery: prisma.notificationDelivery,
+        notificationPreference: prisma.notificationPreference,
       }),
   };
 
@@ -160,7 +162,28 @@ describe("notification-service", () => {
     assert.equal(result.created, 2);
     assert.equal(result.deduped, 0);
     assert.equal(prisma._notifications.length, 2);
-    assert.equal(prisma._deliveries.length, 4);
+    assert.equal(prisma._deliveries.length, 2);
+  });
+
+  it("enables web push by default for incoming calls", async () => {
+    const prisma = buildPrismaMock();
+    const service = createNotificationService({ prisma });
+
+    await service.publishFromContext({
+      authUserId: AUTH_USER_ID,
+      input: {
+        eventType: "chat.call.incoming",
+        title: "Llamada entrante",
+        recipients: { userIds: [RECIPIENT_A] },
+        channels: ["in_app", "web_push"],
+        priority: "critical",
+      },
+    });
+
+    assert.deepEqual(
+      prisma._deliveries.map((delivery) => delivery.channel).sort(),
+      ["in_app", "web_push"],
+    );
   });
 
   it("dedupes repeated publish with same dedupeKey in short window", async () => {

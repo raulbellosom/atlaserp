@@ -294,7 +294,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
   const idRef = useRef(`mention-ta-${Math.random().toString(36).slice(2)}`)
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative w-full min-w-0 max-w-full overflow-x-hidden">
       <textarea
         ref={textareaRef}
         id={idRef.current}
@@ -306,7 +306,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
         placeholder={placeholder}
         rows={rows}
         disabled={disabled}
-        className={`w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 ${className}`}
+        className={`w-full min-w-0 max-w-full overflow-x-hidden rounded-md border border-input bg-background px-3 py-2 text-sm resize-none [overflow-wrap:anywhere] focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 ${className}`}
       />
       {open && filtered.length > 0 && createPortal(
         <div

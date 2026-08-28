@@ -1,7 +1,7 @@
 import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
 
 const LIVE_CALL_STATUSES = ["RINGING", "ACTIVE"];
-const RING_TIMEOUT_MS = 60_000;
+const RING_TIMEOUT_MS = 36_000;
 
 function isLiveCallConflict(error) {
   return error?.code === "P2002"
@@ -37,6 +37,8 @@ export function createCallService({
   env = process.env,
   AccessTokenImpl = AccessToken,
   RoomServiceClientImpl = RoomServiceClient,
+  notificationService = null,
+  broadcaster = null,
   now = () => new Date(),
 }) {
   function getConfig() {
@@ -191,6 +193,38 @@ export function createCallService({
     return { enabled: config.enabled, mode: config.mode };
   }
 
+  function queueBusyCallNotification({ profile, conversationId, kind, recipientIds }) {
+    if (!notificationService?.publish || !recipientIds?.length) return;
+    setImmediate(async () => {
+      try {
+        const membership = await prisma.membership.findFirst({
+          where: { userId: profile.id, enabled: true },
+          orderBy: { createdAt: "desc" },
+          select: { companyId: true },
+        });
+        if (!membership?.companyId) return;
+        await notificationService.publish({
+          companyId: membership.companyId,
+          actorId: profile.id,
+          input: {
+            eventType: "chat.call.busy_attempt",
+            title: "Llamada mientras estabas ocupado",
+            body: `${profile.displayName || "Alguien"} intento iniciar una ${kind === "VIDEO" ? "videollamada" : "llamada"}.`,
+            link: `/app/m/atlas.chat/chat/inbox/${conversationId}`,
+            recipients: { userIds: recipientIds },
+            channels: ["in_app"],
+            priority: "medium",
+            sourceType: "chat_conversation",
+            sourceId: conversationId,
+            dedupeKey: `chat.call.busy_attempt:${conversationId}:${profile.id}`,
+          },
+        });
+      } catch (error) {
+        console.warn("[atlas.calls] No se pudo publicar el aviso de usuario ocupado:", error?.message ?? error);
+      }
+    });
+  }
+
   async function createCall({ authUserId, conversationId, kind, calendarEventId = null }) {
     const config = assertEnabled();
     await expireStaleCalls();
@@ -202,6 +236,13 @@ export function createCallService({
     if (members.length < 2) {
       throw new CallServiceError("No hay otra persona disponible en esta conversacion.", 422);
     }
+    const memberIds = [];
+    const candidateRecipientIds = [];
+    for (const member of members) {
+      memberIds.push(member.userId);
+      if (member.userId !== profile.id) candidateRecipientIds.push(member.userId);
+    }
+    const candidateRecipientSet = new Set(candidateRecipientIds);
     await assertCalendarLink(calendarEventId, conversationId);
 
     const existing = await prisma.call.findFirst({
@@ -215,8 +256,52 @@ export function createCallService({
     }
 
     let created;
+    let invitedMembers = members;
+    let busyRecipientIds = [];
     try {
       created = await prisma.$transaction(async (tx) => {
+        // Serialize call creation for the same users. Locking in UUID order
+        // avoids deadlocks when two people call each other simultaneously.
+        await tx.$queryRaw`
+          SELECT id
+          FROM user_profile
+          WHERE id = ANY(${memberIds}::uuid[])
+          ORDER BY id
+          FOR UPDATE
+        `;
+        const busyRows = await tx.$queryRaw`
+          SELECT DISTINCT ON (cp.user_id)
+                 cp.user_id AS "userId", cp.call_id AS "callId"
+          FROM call_participant cp
+          JOIN "call" c ON c.id = cp.call_id
+          WHERE cp.user_id = ANY(${memberIds}::uuid[])
+            AND cp.status IN ('RINGING', 'JOINED')
+            AND c.status IN ('RINGING', 'ACTIVE')
+          ORDER BY cp.user_id, c.created_at DESC
+        `;
+        const callerBusy = busyRows.find((row) => row.userId === profile.id);
+        if (callerBusy) {
+          throw new CallServiceError("Ya tienes una llamada en curso.", 409, {
+            code: "caller_busy",
+            callId: callerBusy.callId,
+          });
+        }
+
+        const busySet = new Set();
+        for (const row of busyRows) {
+          if (candidateRecipientSet.has(row.userId)) busySet.add(row.userId);
+        }
+        busyRecipientIds = [...busySet];
+        invitedMembers = members.filter(
+          (member) => member.userId === profile.id || !busySet.has(member.userId),
+        );
+        if (invitedMembers.length < 2) {
+          throw new CallServiceError("El usuario ya esta en otra llamada.", 409, {
+            code: "recipient_busy",
+            busyUserIds: busyRecipientIds,
+          });
+        }
+
         const rows = await tx.$queryRaw`
           WITH generated AS (SELECT uuidv7() AS id)
           INSERT INTO "call" (
@@ -230,7 +315,7 @@ export function createCallService({
         `;
         const callId = rows[0].id;
         await tx.callParticipant.createMany({
-          data: members.map((member) => ({
+          data: invitedMembers.map((member) => ({
             callId,
             userId: member.userId,
             status: member.userId === profile.id ? "JOINED" : "RINGING",
@@ -250,10 +335,75 @@ export function createCallService({
           callId: active?.id ?? null,
         });
       }
+      if (error instanceof CallServiceError && error.details?.code === "recipient_busy") {
+        queueBusyCallNotification({
+          profile,
+          conversationId,
+          kind,
+          recipientIds: busyRecipientIds,
+        });
+      }
       throw error;
     }
 
     const call = await getCallRecord(created.id);
+    const recipientIds = [];
+    for (const member of invitedMembers) {
+      if (member.userId !== profile.id) recipientIds.push(member.userId);
+    }
+    if (busyRecipientIds.length) {
+      queueBusyCallNotification({
+        profile,
+        conversationId,
+        kind,
+        recipientIds: busyRecipientIds,
+      });
+    }
+    const incomingPayload = {
+      callId: call.id,
+      conversationId,
+      kind,
+      initiatorId: profile.id,
+      initiatorName: profile.displayName,
+    };
+    await broadcaster?.broadcastToUsers?.(
+      recipientIds,
+      "chat.call.incoming",
+      incomingPayload,
+    ).catch(() => {});
+
+    if (notificationService?.publish) {
+      setImmediate(async () => {
+        try {
+          const membership = await prisma.membership.findFirst({
+            where: { userId: profile.id, enabled: true },
+            orderBy: { createdAt: "desc" },
+            select: { companyId: true },
+          });
+          if (!membership?.companyId) return;
+          await notificationService.publish({
+            companyId: membership.companyId,
+            actorId: profile.id,
+            input: {
+              eventType: "chat.call.incoming",
+              title: profile.displayName || "Llamada entrante",
+              body: kind === "VIDEO" ? "Videollamada entrante" : "Llamada entrante",
+              link: `/app/m/atlas.chat/chat/inbox/${conversationId}`,
+              recipients: { userIds: recipientIds },
+              channels: ["in_app", "web_push"],
+              priority: "critical",
+              sourceType: "call",
+              sourceId: call.id,
+              metadata: incomingPayload,
+              dedupeKey: `chat.call.incoming:${call.id}`,
+              expiresAt: new Date(now().getTime() + RING_TIMEOUT_MS),
+            },
+          });
+        } catch (error) {
+          console.warn("[atlas.calls] No se pudo publicar el aviso de llamada:", error?.message ?? error);
+        }
+      });
+    }
     return {
       callId: call.id,
       call,

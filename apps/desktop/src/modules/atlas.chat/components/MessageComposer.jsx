@@ -550,7 +550,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
   return (
     <div
       className={[
-        "chat-scale-target border-t border-[hsl(var(--border))] relative shrink-0 min-w-0 transition-colors",
+        "chat-scale-target relative w-full min-w-0 max-w-full shrink-0 overflow-x-hidden border-t border-[hsl(var(--border))] transition-colors",
         // Explicit calc() instead of stacking a `py-*` class with the
         // `.safe-bottom` utility — both set padding-bottom at equal
         // specificity, so whichever one lands later in the compiled
@@ -587,7 +587,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
           <EmojiPicker
             onEmojiClick={insertEmoji}
             theme="dark"
-            width={compact ? 230 : 300}
+            width={compact ? "min(230px, calc(100vw - 1rem))" : "min(300px, calc(100vw - 1.5rem))"}
             height={compact ? 280 : 360}
             searchPlaceholder="Buscar emoji..."
             lazyLoadEmojis
@@ -676,7 +676,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
           </button>
         </div>
       ) : (
-        <div className="chat-glass flex flex-col min-w-0 rounded-2xl overflow-hidden">
+        <div className="chat-glass flex w-full min-w-0 max-w-full flex-col overflow-hidden rounded-2xl">
           {/* Textarea (with @mention autocomplete) — its own full-width row,
               above the action toolbar, so typing space is never squeezed by
               icons sitting beside it. MentionTextarea bakes a boxed look
@@ -698,7 +698,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
               textarea inside it via width:100% — grow to fit that content
               instead of wrapping, blowing out the composer and the page's
               horizontal bounds. */}
-          <div className="min-w-0">
+          <div className="w-full min-w-0 max-w-full overflow-hidden">
             <MentionTextarea
               ref={mentionTaRef}
               value={body}
@@ -716,7 +716,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
               // .github/instructions/responsive-mobile.instructions.md). The
               // previous text-xs!/text-sm! here was exactly that bug.
               className={[
-                "border-0! bg-transparent! rounded-none! shadow-none! ring-0! focus:ring-0! leading-tight break-words!",
+                "w-full! min-w-0! max-w-full! overflow-x-hidden! border-0! bg-transparent! rounded-none! shadow-none! ring-0! focus:ring-0! leading-tight break-words! [overflow-wrap:anywhere]!",
                 compact ? "text-base! sm:text-xs! px-2! pt-1.5! pb-0.5!" : "text-base! sm:text-sm! px-3! pt-2.5! pb-1!",
               ].join(" ")}
             />
@@ -727,7 +727,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
               inline next to the textarea inside one pill-shaped row, which
               both looked cluttered and ate into the width available for
               typing. */}
-          <div className={["flex items-center gap-0.5", compact ? "px-1 pb-1" : "px-1.5 pb-1.5"].join(" ")}>
+          <div className={["flex w-full min-w-0 max-w-full items-center gap-0.5 overflow-hidden", compact ? "px-1 pb-1" : "px-1.5 pb-1.5"].join(" ")}>
             {/* Paperclip */}
             <input
               ref={fileInputRef}

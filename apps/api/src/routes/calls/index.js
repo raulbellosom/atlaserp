@@ -16,10 +16,10 @@ function handleError(c, error, fallback) {
   return c.json({ error: fallback }, 500);
 }
 
-export function createCallsRouter({ prisma, authMiddleware, service = null }) {
+export function createCallsRouter({ prisma, authMiddleware, notificationService = null, broadcaster = null, service = null }) {
   const app = new Hono();
   const internal = new Hono();
-  const calls = service ?? createCallService({ prisma });
+  const calls = service ?? createCallService({ prisma, notificationService, broadcaster });
   if (!service) calls.startExpirySweeper();
   internal.use("*", authMiddleware);
 

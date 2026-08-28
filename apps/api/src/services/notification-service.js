@@ -71,6 +71,7 @@ function buildListWhere({ userId, companyId, query }) {
 }
 
 export function createNotificationService({ prisma, broadcaster = null }) {
+  const pushEnabledByDefault = new Set(["chat.call.incoming"]);
   async function resolveCompanyContext(authUserId) {
     const profile = await prisma.userProfile.findUnique({
       where: { authUserId },
@@ -266,7 +267,8 @@ export function createNotificationService({ prisma, broadcaster = null }) {
         });
 
         // Filter delivery channels by user's saved preferences for this eventType.
-        // Defaults: in_app=on, email=off, push=off (matches DEFAULT_PREFS in the UI).
+        // Incoming calls are time-sensitive and enable push by default. Other
+        // event types keep the conservative opt-in default used by Settings.
         const pref = await tx.notificationPreference.findFirst({
           where: { userId, eventType: parsed.eventType },
           select: { inAppEnabled: true, emailEnabled: true, pushEnabled: true },
@@ -274,7 +276,9 @@ export function createNotificationService({ prisma, broadcaster = null }) {
         const allowedChannels = parsed.channels.filter((ch) => {
           if (ch === 'in_app')  return pref ? pref.inAppEnabled  !== false : true;
           if (ch === 'email')   return pref ? pref.emailEnabled  === true  : false;
-          if (ch === 'web_push') return pref ? pref.pushEnabled  === true  : false;
+          if (ch === 'web_push') return pref
+            ? pref.pushEnabled === true
+            : pushEnabledByDefault.has(parsed.eventType);
           return true;
         });
 
@@ -421,4 +425,3 @@ export function createNotificationService({ prisma, broadcaster = null }) {
     unsubscribeWebPush,
   };
 }
-

@@ -31,6 +31,7 @@ self.addEventListener("push", (event) => {
   }
 
   const title = payload?.title || "Atlas Notifications";
+  const isIncomingCall = payload?.data?.eventType === "chat.call.incoming";
   const link =
     payload?.data?.link || payload?.link || "/app/m/atlas.notifications";
   const options = {
@@ -40,6 +41,9 @@ self.addEventListener("push", (event) => {
     tag: payload?.tag,
     // renotify only on iOS — Android Chrome triggers a spam warning on rapid pushes
     renotify: Boolean(payload?.tag) && /iphone|ipad|ipod/i.test(self.navigator?.userAgent ?? ""),
+    requireInteraction: isIncomingCall,
+    vibrate: isIncomingCall ? [500, 200, 500, 200, 500] : undefined,
+    actions: isIncomingCall ? [{ action: "open-call", title: "Contestar" }] : undefined,
     data: {
       ...(payload?.data || {}),
       link,
@@ -55,6 +59,7 @@ self.addEventListener("push", (event) => {
         link,
         notificationId: payload?.data?.notificationId ?? null,
         eventType: payload?.data?.eventType ?? null,
+        callId: payload?.data?.metadata?.callId ?? payload?.data?.sourceId ?? null,
       }),
       self.registration.showNotification(title, options),
     ]),

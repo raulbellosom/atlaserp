@@ -135,6 +135,21 @@ describe("web-push-service", () => {
     assert.equal(payload.data.notificationId, "n1");
     assert.equal(payload.data.link, "/app/m/atlas.notifications");
   });
+
+  it("builds a stable incoming-call tag and forwards call metadata", () => {
+    const payload = buildPushPayload({
+      notification: {
+        id: "n-call",
+        title: "Raul",
+        eventType: "chat.call.incoming",
+        sourceId: "call-1",
+        metadata: { callId: "call-1", kind: "VIDEO" },
+      },
+    });
+
+    assert.equal(payload.tag, "call:call-1");
+    assert.deepEqual(payload.data.metadata, { callId: "call-1", kind: "VIDEO" });
+  });
 });
 
 describe("notification-delivery-worker web_push channel", () => {
