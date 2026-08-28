@@ -3,10 +3,16 @@ import { Button } from "@atlas/ui";
 import {
   Camera,
   CameraOff,
+  Flashlight,
+  FlashlightOff,
+  LayoutGrid,
   Mic,
   MicOff,
   MonitorUp,
   PhoneOff,
+  PictureInPicture2,
+  ScreenShareOff,
+  SwitchCamera,
   Volume2,
 } from "lucide-react";
 import { Room, RoomEvent, Track } from "livekit-client";
@@ -45,7 +51,7 @@ function TrackRenderer({ participant, source, muted = false, mirror = false }) {
   );
 }
 
-function ParticipantTile({ participant, isLocal }) {
+function ParticipantTile({ participant, isLocal, mirrorLocalCamera = true, className = "" }) {
   const screen = participant?.getTrackPublication?.(Track.Source.ScreenShare);
   const camera = participant?.getTrackPublication?.(Track.Source.Camera);
   const hasVideo = Boolean(
@@ -55,16 +61,16 @@ function ParticipantTile({ participant, isLocal }) {
   const name = participant?.name || (isLocal ? "Tu" : participant?.identity) || "Participante";
 
   return (
-    <div className="relative min-h-44 overflow-hidden rounded-2xl bg-slate-900 ring-1 ring-white/10">
+    <div className={`relative h-full min-h-0 overflow-hidden rounded-2xl bg-slate-900 ring-1 ring-white/10 ${className}`}>
       {hasVideo ? (
         <TrackRenderer
           participant={participant}
           source={source}
           muted={isLocal}
-          mirror={isLocal && source === Track.Source.Camera}
+          mirror={isLocal && source === Track.Source.Camera && mirrorLocalCamera}
         />
       ) : (
-        <div className="flex h-full min-h-44 items-center justify-center bg-gradient-to-br from-slate-800 to-slate-950">
+        <div className="flex h-full min-h-0 items-center justify-center bg-gradient-to-br from-slate-800 to-slate-950">
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-violet-500/20 text-3xl font-semibold text-violet-100 ring-1 ring-violet-400/30">
             {name.slice(0, 1).toUpperCase()}
           </div>
@@ -111,11 +117,35 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(session.call.kind === "VIDEO");
   const [screenEnabled, setScreenEnabled] = useState(false);
+  const [layoutMode, setLayoutMode] = useState("focus");
+  const [cameraFacing, setCameraFacing] = useState("user");
+  const [canSwitchCamera, setCanSwitchCamera] = useState(false);
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [torchEnabled, setTorchEnabled] = useState(false);
   const [needsAudio, setNeedsAudio] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [hasRemoteJoined, setHasRemoteJoined] = useState(false);
 
   const refresh = useCallback(() => setRenderVersion((value) => value + 1), []);
+  const screenShareSupported = Boolean(globalThis.navigator?.mediaDevices?.getDisplayMedia);
+
+  const refreshCameraCapabilities = useCallback(async () => {
+    const publication = room.localParticipant.getTrackPublication(Track.Source.Camera);
+    const mediaTrack = publication?.track?.mediaStreamTrack;
+    const settings = mediaTrack?.getSettings?.() ?? {};
+    const capabilities = mediaTrack?.getCapabilities?.() ?? {};
+    if (settings.facingMode === "user" || settings.facingMode === "environment") {
+      setCameraFacing(settings.facingMode);
+    }
+    setTorchSupported(Boolean(capabilities.torch));
+    setTorchEnabled(Boolean(settings.torch));
+    try {
+      const devices = await Room.getLocalDevices("videoinput", false);
+      setCanSwitchCamera(devices.length > 1);
+    } catch {
+      setCanSwitchCamera(false);
+    }
+  }, [room]);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,8 +154,6 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
       RoomEvent.TrackUnsubscribed,
       RoomEvent.TrackMuted,
       RoomEvent.TrackUnmuted,
-      RoomEvent.LocalTrackPublished,
-      RoomEvent.LocalTrackUnpublished,
       RoomEvent.ActiveSpeakersChanged,
     ];
     const handleReconnecting = () => setConnectionState("reconnecting");
@@ -143,12 +171,26 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
       playCallSound("exit");
       refresh();
     };
+    const handleMediaDevicesChanged = () => {
+      refreshCameraCapabilities().catch(() => {});
+    };
+    const handleLocalTrackPublished = (publication) => {
+      if (publication?.source === Track.Source.ScreenShare) setScreenEnabled(true);
+      refresh();
+    };
+    const handleLocalTrackUnpublished = (publication) => {
+      if (publication?.source === Track.Source.ScreenShare) setScreenEnabled(false);
+      refresh();
+    };
     events.forEach((event) => room.on(event, refresh));
     room.on(RoomEvent.ParticipantConnected, handleParticipantConnected);
     room.on(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected);
     room.on(RoomEvent.Reconnecting, handleReconnecting);
     room.on(RoomEvent.Reconnected, handleReconnected);
     room.on(RoomEvent.Disconnected, handleDisconnected);
+    room.on(RoomEvent.MediaDevicesChanged, handleMediaDevicesChanged);
+    room.on(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
+    room.on(RoomEvent.LocalTrackUnpublished, handleLocalTrackUnpublished);
 
     async function connect() {
       try {
@@ -170,6 +212,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
         if (session.call.kind === "VIDEO") {
           try {
             await room.localParticipant.setCameraEnabled(true);
+            await refreshCameraCapabilities();
           } catch (error) {
             if (!cancelled) {
               setCameraEnabled(false);
@@ -197,9 +240,12 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
       room.off(RoomEvent.Reconnecting, handleReconnecting);
       room.off(RoomEvent.Reconnected, handleReconnected);
       room.off(RoomEvent.Disconnected, handleDisconnected);
+      room.off(RoomEvent.MediaDevicesChanged, handleMediaDevicesChanged);
+      room.off(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
+      room.off(RoomEvent.LocalTrackUnpublished, handleLocalTrackUnpublished);
       room.disconnect();
     };
-  }, [room, session, refresh]);
+  }, [room, session, refresh, refreshCameraCapabilities]);
 
   useEffect(() => {
     const started = new Date(session.call.startedAt ?? session.call.createdAt ?? Date.now()).getTime();
@@ -233,20 +279,64 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
       const next = !cameraEnabled;
       await room.localParticipant.setCameraEnabled(next);
       setCameraEnabled(next);
+      if (next) await refreshCameraCapabilities();
+      else {
+        setTorchEnabled(false);
+        setTorchSupported(false);
+      }
       refresh();
     } catch (error) {
       toast.error(error?.message || "No se pudo cambiar la camara.");
     }
   }
 
+  async function switchCamera() {
+    try {
+      const cameraTrack = room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+      if (!cameraTrack?.restartTrack) throw new Error("No hay una camara activa.");
+      const nextFacing = cameraFacing === "environment" ? "user" : "environment";
+      await cameraTrack.restartTrack({ facingMode: nextFacing });
+      setCameraFacing(nextFacing);
+      setTorchEnabled(false);
+      await refreshCameraCapabilities();
+      refresh();
+    } catch (error) {
+      toast.error(error?.message || "No se pudo cambiar de camara.");
+    }
+  }
+
+  async function toggleTorch() {
+    try {
+      const mediaTrack = room.localParticipant
+        .getTrackPublication(Track.Source.Camera)?.track?.mediaStreamTrack;
+      if (!mediaTrack || !torchSupported) {
+        toast.info("La camara activa no permite controlar la linterna.");
+        return;
+      }
+      const next = !torchEnabled;
+      await mediaTrack.applyConstraints({ advanced: [{ torch: next }] });
+      setTorchEnabled(next);
+    } catch (error) {
+      toast.error(error?.message || "No se pudo cambiar la linterna.");
+    }
+  }
+
   async function toggleScreen() {
+    if (!screenShareSupported) {
+      toast.info("Tu navegador no permite compartir pantalla durante una llamada. Prueba desde Chrome o Edge en una computadora.");
+      return;
+    }
     try {
       const next = !screenEnabled;
       await room.localParticipant.setScreenShareEnabled(next);
       setScreenEnabled(next);
       refresh();
     } catch (error) {
-      toast.error(error?.message || "No se pudo compartir la pantalla.");
+      if (error?.name === "NotAllowedError") {
+        toast.info("No se concedio permiso para compartir la pantalla.");
+      } else {
+        toast.error(error?.message || "No se pudo compartir la pantalla.");
+      }
     }
   }
 
@@ -256,18 +346,32 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
   }
 
   const remoteParticipants = Array.from(room.remoteParticipants.values());
-  const participants = [
-    { participant: room.localParticipant, isLocal: true },
-    ...remoteParticipants.map((participant) => ({ participant, isLocal: false })),
-  ];
+  const localEntry = { participant: room.localParticipant, isLocal: true };
+  const remoteEntries = remoteParticipants.map((participant) => ({ participant, isLocal: false }));
+  const participants = [localEntry, ...remoteEntries];
+  const isDirectVideo = session.call.kind === "VIDEO" && participants.length === 2;
+  const useFocusLayout = isDirectVideo && layoutMode === "focus";
+  const mirrorLocalCamera = cameraFacing !== "environment";
+  const gridClass = participants.length === 1
+    ? "grid-cols-1 grid-rows-1"
+    : participants.length === 2
+      ? "grid-cols-1 grid-rows-2 md:grid-cols-2 md:grid-rows-1"
+      : "grid-cols-2 auto-rows-[minmax(10rem,1fr)] overflow-y-auto";
   void renderVersion;
 
   return (
-    <div className="fixed inset-0 z-[10020] flex flex-col bg-slate-950 text-white">
+    <div className="fixed inset-0 z-[10020] flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-slate-950 text-white">
       <OutgoingCallTone
         active={isInitiator && !hasRemoteJoined && !["failed", "disconnected"].includes(connectionState)}
       />
-      <header className="flex items-center justify-between border-b border-white/10 px-4 py-3 sm:px-6">
+      <header
+        className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 pb-3"
+        style={{
+          paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))",
+          paddingLeft: "calc(1rem + env(safe-area-inset-left, 0px))",
+          paddingRight: "calc(1rem + env(safe-area-inset-right, 0px))",
+        }}
+      >
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">
             {session.call.calendarEvent?.title || session.call.initiator?.displayName || "Atlas Calls"}
@@ -284,49 +388,108 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
         </span>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-3 sm:p-6">
-        <div className={`mx-auto grid h-full max-w-6xl gap-3 ${participants.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}>
-          {participants.map(({ participant, isLocal }) => (
+      <main className="min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
+        {useFocusLayout ? (
+          <div className="relative mx-auto h-full max-w-6xl">
             <ParticipantTile
-              key={participant.sid || participant.identity || "local-participant"}
-              participant={participant}
-              isLocal={isLocal}
+              participant={remoteEntries[0].participant}
+              isLocal={false}
+              className="rounded-[1.5rem]"
             />
-          ))}
-        </div>
+            <div className="absolute bottom-3 right-3 z-10 aspect-[3/4] w-[34%] max-w-56 overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/20 sm:aspect-video sm:w-[28%]">
+              <ParticipantTile
+                participant={localEntry.participant}
+                isLocal
+                mirrorLocalCamera={mirrorLocalCamera}
+                className="rounded-2xl"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className={`mx-auto grid h-full max-w-6xl gap-2 sm:gap-3 ${gridClass}`}>
+            {participants.map(({ participant, isLocal }) => (
+              <ParticipantTile
+                key={participant.sid || participant.identity || "local-participant"}
+                participant={participant}
+                isLocal={isLocal}
+                mirrorLocalCamera={mirrorLocalCamera}
+              />
+            ))}
+          </div>
+        )}
         {remoteParticipants.map((participant) => (
           <RemoteAudio key={`audio-${participant.identity}`} participant={participant} />
         ))}
       </main>
 
-      <footer className="safe-bottom flex flex-wrap items-center justify-center gap-2 border-t border-white/10 bg-black/30 px-4 py-4 backdrop-blur-xl">
+      <footer
+        className="flex shrink-0 flex-wrap items-center justify-center gap-1.5 border-t border-white/10 bg-black/30 pt-3 backdrop-blur-xl"
+        style={{
+          paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
+          paddingLeft: "calc(0.75rem + env(safe-area-inset-left, 0px))",
+          paddingRight: "calc(0.75rem + env(safe-area-inset-right, 0px))",
+        }}
+      >
         {needsAudio && (
           <Button
             type="button"
             variant="secondary"
             size="sm"
+            className="basis-full sm:basis-auto"
             onClick={() => room.startAudio().then(() => setNeedsAudio(false))}
           >
             <Volume2 className="mr-2 h-4 w-4" />
             Activar audio
           </Button>
         )}
-        <Button type="button" variant={micEnabled ? "secondary" : "destructive"} size="icon" onClick={toggleMicrophone} title={micEnabled ? "Silenciar" : "Activar microfono"}>
+        <Button type="button" variant={micEnabled ? "secondary" : "destructive"} size="icon" className="h-11 w-11 rounded-full" onClick={toggleMicrophone} title={micEnabled ? "Silenciar" : "Activar microfono"}>
           {micEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
         </Button>
         {session.call.kind === "VIDEO" && (
           <>
-            <Button type="button" variant={cameraEnabled ? "secondary" : "destructive"} size="icon" onClick={toggleCamera} title={cameraEnabled ? "Apagar camara" : "Encender camara"}>
+            <Button type="button" variant={cameraEnabled ? "secondary" : "destructive"} size="icon" className="h-11 w-11 rounded-full" onClick={toggleCamera} title={cameraEnabled ? "Apagar camara" : "Encender camara"}>
               {cameraEnabled ? <Camera className="h-5 w-5" /> : <CameraOff className="h-5 w-5" />}
             </Button>
-            <Button type="button" variant={screenEnabled ? "default" : "secondary"} size="icon" onClick={toggleScreen} title={screenEnabled ? "Dejar de compartir" : "Compartir pantalla"}>
-              <MonitorUp className="h-5 w-5" />
+            {cameraEnabled && canSwitchCamera && (
+              <Button type="button" variant="secondary" size="icon" className="h-11 w-11 rounded-full" onClick={switchCamera} title="Cambiar camara">
+                <SwitchCamera className="h-5 w-5" />
+              </Button>
+            )}
+            {cameraEnabled && torchSupported && (
+              <Button type="button" variant={torchEnabled ? "default" : "secondary"} size="icon" className="h-11 w-11 rounded-full" onClick={toggleTorch} title={torchEnabled ? "Apagar linterna" : "Encender linterna"}>
+                {torchEnabled ? <FlashlightOff className="h-5 w-5" /> : <Flashlight className="h-5 w-5" />}
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant={screenEnabled ? "default" : "secondary"}
+              size="icon"
+              className={`h-11 w-11 rounded-full ${screenShareSupported ? "" : "opacity-50"}`}
+              onClick={toggleScreen}
+              aria-disabled={!screenShareSupported}
+              title={screenShareSupported ? (screenEnabled ? "Dejar de compartir" : "Compartir pantalla") : "Compartir pantalla no disponible en este navegador"}
+            >
+              {screenShareSupported
+                ? <MonitorUp className="h-5 w-5" />
+                : <ScreenShareOff className="h-5 w-5" />}
             </Button>
+            {isDirectVideo && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="h-11 w-11 rounded-full"
+                onClick={() => setLayoutMode((current) => current === "focus" ? "balanced" : "focus")}
+                title={layoutMode === "focus" ? "Usar vista 50/50" : "Destacar al otro participante"}
+              >
+                {layoutMode === "focus" ? <LayoutGrid className="h-5 w-5" /> : <PictureInPicture2 className="h-5 w-5" />}
+              </Button>
+            )}
           </>
         )}
-        <Button type="button" variant="destructive" className="rounded-full px-6" onClick={handleLeave}>
-          <PhoneOff className="mr-2 h-5 w-5" />
-          Colgar
+        <Button type="button" variant="destructive" size="icon" className="h-11 w-11 rounded-full sm:w-auto sm:px-6" onClick={handleLeave} title="Colgar">
+          <PhoneOff className="h-5 w-5 sm:mr-2" />
+          <span className="hidden sm:inline">Colgar</span>
         </Button>
       </footer>
     </div>
