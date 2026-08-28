@@ -1053,6 +1053,51 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     return { ok: true };
   }
 
+  // Removes ONE attachment from a message without touching the rest of it —
+  // the message and its other attachments (if any) stay intact. If this was
+  // the message's only attachment and there's nothing else left to show
+  // (no body text, no entity refs), the whole message is soft-deleted
+  // instead, matching what deleteMessage already does for a single-
+  // attachment message (spec Section 12/Goal 5).
+  async function deleteAttachment({ attachmentId, authUserId }) {
+    const profileId = await getUserProfileId(authUserId);
+
+    const rows = await prisma.$queryRaw`
+      SELECT a.id, a.message_id, m.body, m.attachment_count, m.metadata
+      FROM chat_attachments a
+      INNER JOIN chat_messages m ON m.id = a.message_id
+      WHERE a.id = ${attachmentId}
+        AND m.sender_user_id = ${profileId}
+        AND m.deleted_at IS NULL
+      LIMIT 1
+    `;
+    if (!rows.length) throw new ChatServiceError("Archivo no encontrado o sin permiso.", 404);
+    const { message_id: messageId, body, attachment_count: attachmentCount, metadata } = rows[0];
+
+    const isLastAttachment = attachmentCount <= 1;
+    const hasBody = Boolean(body && body.trim());
+    const hasEntityRefs = Boolean(metadata?.entityRefs?.length);
+
+    if (isLastAttachment && !hasBody && !hasEntityRefs) {
+      // This UPDATE (not just the DELETE below) is what makes the change
+      // reach other open clients — the frontend's realtime sync
+      // (subscribeToMessages in supabaseRealtime.js) is a postgres_changes
+      // listener on chat_messages only; chat_attachments has no subscription
+      // of its own. Same mechanism deleteMessage already relies on.
+      await prisma.$executeRaw`
+        UPDATE chat_messages SET deleted_at = NOW(), body = '' WHERE id = ${messageId}
+      `;
+      await prisma.$executeRaw`DELETE FROM chat_attachments WHERE id = ${attachmentId}`;
+      return { ok: true, messageDeleted: true };
+    }
+
+    await prisma.$executeRaw`DELETE FROM chat_attachments WHERE id = ${attachmentId}`;
+    await prisma.$executeRaw`
+      UPDATE chat_messages SET attachment_count = GREATEST(attachment_count - 1, 0) WHERE id = ${messageId}
+    `;
+    return { ok: true, messageDeleted: false };
+  }
+
   async function pinMessage({ messageId, authUserId, pinned }) {
     const profileId = await getUserProfileId(authUserId);
 
@@ -1353,6 +1398,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     sendMessage,
     editMessage,
     deleteMessage,
+    deleteAttachment,
     pinMessage,
     listPinnedMessages,
     listThreadReplies,
