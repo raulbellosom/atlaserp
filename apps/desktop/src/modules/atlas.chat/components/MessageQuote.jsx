@@ -27,15 +27,16 @@ const STYLES = {
     textStyle: { color: "color-mix(in srgb, var(--brand-primary-foreground) 78%, transparent)" },
   },
   onMuted: {
-    className: "bg-[hsl(var(--foreground)/0.06)]",
-    accentClassName: "bg-[hsl(var(--primary))]",
-    nameClassName: "text-[hsl(var(--primary))]",
+    className: "",
+    wrapStyle: { backgroundColor: "color-mix(in srgb, var(--brand-primary) 14%, transparent)" },
+    accentStyle: { backgroundColor: "var(--brand-primary)" },
+    nameStyle: { color: "var(--brand-primary)" },
     textClassName: "text-[hsl(var(--muted-foreground))]",
   },
   standalone: {
     className: "bg-[hsl(var(--muted))] border border-[hsl(var(--border))]",
-    accentClassName: "bg-[hsl(var(--primary))]",
-    nameClassName: "text-[hsl(var(--primary))]",
+    accentStyle: { backgroundColor: "var(--brand-primary)" },
+    nameStyle: { color: "var(--brand-primary)" },
     textClassName: "text-[hsl(var(--muted-foreground))]",
   },
 };
@@ -102,6 +103,10 @@ export function MessageQuote({ reply, variant = "inline", context = "standalone"
     <button
       type="button"
       onClick={reply.isDeleted ? undefined : () => onJump?.(reply.id)}
+      // Keep the tap on the quote from being read as the start of a
+      // swipe / long-press / double-tap by the surrounding message row.
+      onPointerDown={(e) => e.stopPropagation()}
+      onPointerUp={(e) => e.stopPropagation()}
       className={[
         "w-full mb-1.5 block",
         reply.isDeleted ? "cursor-default" : "cursor-pointer hover:opacity-90",
