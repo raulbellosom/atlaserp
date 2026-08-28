@@ -16,6 +16,10 @@ const __dirname  = path.dirname(fileURLToPath(import.meta.url));
 const isWindows  = process.platform === "win32";
 const isReset    = process.argv.includes("--reset");
 const composeFile = path.resolve(__dirname, "docker-compose.yml");
+const linuxComposeOverride = path.resolve(__dirname, "docker-compose.linux.yml");
+const composeFiles = process.platform === "linux" && fs.existsSync(linuxComposeOverride)
+  ? ["-f", composeFile, "-f", linuxComposeOverride]
+  : ["-f", composeFile];
 
 function run(command, args, { cwd = __dirname, failOk = false } = {}) {
   const result = spawnSync(command, args, {
@@ -51,7 +55,14 @@ if (fs.existsSync(composeFile)) {
   console.log("\n[1] Stopping Atlas external containers...");
   run(
     "docker",
-    ["compose", "-f", composeFile, "--profile", "external", "down", "--remove-orphans"],
+    [
+      "compose", ...composeFiles,
+      "--profile", "external",
+      "--profile", "livekit",
+      "--profile", "livekit-tls",
+      "down", "--remove-orphans",
+      ...(isReset ? ["--volumes"] : []),
+    ],
     { failOk: true },
   );
 } else {
@@ -66,6 +77,9 @@ if (isReset) {
   console.log("\n[3] Removing generated files...");
   removeIfExists(path.resolve(__dirname, ".env.external"));
   removeIfExists(path.resolve(__dirname, ".env"));
+  removeIfExists(path.resolve(__dirname, "livekit", "livekit.yaml"));
+  removeIfExists(path.resolve(__dirname, "livekit", "Caddyfile"));
+  removeIfExists(path.resolve(__dirname, "livekit", "reverse-proxy.nginx.conf"));
   console.log("\nReset complete. Run `node setup-external.mjs` to start fresh.");
 } else {
   console.log(

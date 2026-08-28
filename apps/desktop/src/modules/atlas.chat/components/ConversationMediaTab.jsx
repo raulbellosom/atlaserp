@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react";
 import { ChatFilesGallery } from "./ChatFilesGallery";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
-import { isImageMime } from "../lib/chatUtils";
+import { isMediaMime } from "../lib/chatUtils";
 
 const PREVIEW_LIMIT = 6;
 
@@ -36,20 +36,23 @@ export function ConversationMediaTab({ messages, isLoading, preview = false, onS
     return result;
   }, [messages]);
 
-  // ChatFilesGallery caps images and non-image files INDEPENDENTLY at
-  // previewLimit each (up to 2x previewLimit total on screen) — gating
-  // "Mostrar mas" on the combined count alone would show it even when
-  // neither category was actually truncated (e.g. 4 images + 4 files: 8
-  // total, nothing cut). Check each category against the same limit
-  // ChatFilesGallery itself uses instead.
+  // ChatFilesGallery caps media (images+videos) and non-media files
+  // INDEPENDENTLY at previewLimit each (up to 2x previewLimit total on
+  // screen) — gating "Mostrar mas" on the combined count alone would show it
+  // even when neither category was actually truncated (e.g. 4 media + 4
+  // files: 8 total, nothing cut). Check each category against the same limit
+  // ChatFilesGallery itself uses instead. Videos used to count as
+  // "otherFiles" here (isImageMime doesn't match video/*), so the button
+  // only ever appeared once non-media files like PDFs pushed that bucket
+  // over the limit — a chat with 8 videos and no docs never showed it.
   const hasMoreToShow = useMemo(() => {
-    let images = 0;
+    let media = 0;
     let otherFiles = 0;
     for (const att of allAttachments) {
-      if (isImageMime(att.mimeType)) images += 1;
+      if (isMediaMime(att.mimeType)) media += 1;
       else otherFiles += 1;
     }
-    return images > PREVIEW_LIMIT || otherFiles > PREVIEW_LIMIT;
+    return media > PREVIEW_LIMIT || otherFiles > PREVIEW_LIMIT;
   }, [allAttachments]);
 
   function toggleSelect(id) {

@@ -18,6 +18,7 @@ import { Toaster, TooltipProvider } from "@atlas/ui";
 import { SetupWizard } from "../setup/SetupWizard";
 import { AuthProvider } from "../auth/AuthProvider";
 import { RealtimeProvider } from "../providers/RealtimeProvider";
+import { CallsProvider } from "../modules/atlas.chat/calls/CallsProvider";
 import { LoginScreen } from "../auth/LoginScreen";
 import { useAuth } from "../auth/AuthProvider";
 import { AtlasApp } from "./AtlasApp";
@@ -234,7 +235,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                 <Route path="notes/:slug" element={<PublicNoteScreen />} />
               </Route>
               <Route element={<AppAccessGuard />}>
-                <Route path="/app" element={<RealtimeProvider><AtlasApp /></RealtimeProvider>}>
+                <Route path="/app" element={<RealtimeProvider><CallsProvider><AtlasApp /></CallsProvider></RealtimeProvider>}>
                   <Route index element={<Navigate to="home" replace />} />
                   <Route path="home" element={<HomeScreen />} />
                   <Route path="m/:moduleKey/*" element={<ModuleOutlet />} />

@@ -375,6 +375,8 @@ model UserProfile {
   calendarAttendees      CalendarEventAttendee[]  @relation("CalendarAttendee")
   calendarReminders      CalendarReminder[]       @relation("CalendarReminder")
   calendarNotifications  CalendarNotification[]   @relation("CalendarNotificationUser")
+  callsInitiated         Call[]                    @relation("CallInitiator")
+  callParticipants       CallParticipant[]         @relation("CallParticipantUser")
 
   projectsOwned      Project[]       @relation("ProjectOwner")
   projectMemberships ProjectMember[] @relation("ProjectMemberUser")
@@ -1674,6 +1676,26 @@ enum GoogleCalendarSourceStatus {
   @@map("google_calendar_source_status")
 }
 
+enum CallKind {
+  AUDIO
+  VIDEO
+}
+
+enum CallStatus {
+  RINGING
+  ACTIVE
+  ENDED
+}
+
+enum CallParticipantStatus {
+  INVITED
+  RINGING
+  JOINED
+  LEFT
+  DECLINED
+  MISSED
+}
+
 model GoogleCalendarConnection {
   id                    String   @id @default(uuid(7)) @db.Uuid
   userId                String   @unique @db.Uuid @map("user_id")
@@ -1807,11 +1829,53 @@ model CalendarEvent {
   notifications CalendarNotification[]
   files         CalendarEventFile[]
   googleLink    GoogleCalendarEventLink?
+  calls         Call[]
 
   @@index([calendarId])
   @@index([startAt])
   @@index([sourceModule, sourceEntityId])
   @@map("calendar_event")
+}
+
+model Call {
+  id                String     @id @default(uuid(7)) @db.Uuid
+  conversationId    String     @db.Uuid @map("conversation_id")
+  calendarEventId   String?    @db.Uuid @map("calendar_event_id")
+  kind              CallKind
+  status            CallStatus @default(RINGING)
+  initiatedByUserId String     @db.Uuid @map("initiated_by_user_id")
+  livekitRoomName   String     @unique @map("livekit_room_name")
+  startedAt         DateTime?  @map("started_at")
+  endedAt           DateTime?  @map("ended_at")
+  endReason         String?    @map("end_reason")
+  createdAt         DateTime   @default(now()) @map("created_at")
+
+  initiator     UserProfile       @relation("CallInitiator", fields: [initiatedByUserId], references: [id])
+  calendarEvent CalendarEvent?    @relation(fields: [calendarEventId], references: [id])
+  participants  CallParticipant[]
+
+  @@index([conversationId])
+  @@index([calendarEventId])
+  @@index([initiatedByUserId])
+  @@map("call")
+}
+
+model CallParticipant {
+  id              String                @id @default(uuid(7)) @db.Uuid
+  callId          String                @db.Uuid @map("call_id")
+  userId          String                @db.Uuid @map("user_id")
+  status          CallParticipantStatus @default(INVITED)
+  livekitIdentity String?               @map("livekit_identity")
+  joinedAt        DateTime?             @map("joined_at")
+  leftAt          DateTime?             @map("left_at")
+  createdAt       DateTime              @default(now()) @map("created_at")
+
+  call Call        @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user UserProfile @relation("CallParticipantUser", fields: [userId], references: [id])
+
+  @@unique([callId, userId])
+  @@index([userId, status])
+  @@map("call_participant")
 }
 
 model CalendarEventFile {

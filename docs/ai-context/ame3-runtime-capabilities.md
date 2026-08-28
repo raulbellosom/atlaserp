@@ -309,7 +309,7 @@ Cell components used in TABLE blueprints (badge renderers, custom cells) do not 
 
 ---
 
-## Donâ€™t Guess Imports
+## Don’t Guess Imports
 
 These imports are guaranteed and should be used exactly as written:
 
@@ -391,6 +391,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 |---|---|
 | `AppShell` | Main app layout: fixed sidebar + scrollable content |
 | `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` | Tab navigation |
+| `Accordion`, `AccordionItem`, `AccordionTrigger`, `AccordionContent` | Collapsible sections (Radix accordion). Use `type="single" collapsible` on `Accordion` for one-open-at-a-time; wrap each section in `AccordionItem value="..."` |
 | `DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuSeparator`, `DropdownMenuLabel`, `DropdownMenuCheckboxItem`, `DropdownMenuRadioItem`, `DropdownMenuSub`, `DropdownMenuSubTrigger`, `DropdownMenuSubContent`, `DropdownMenuRadioGroup`, `DropdownMenuShortcut`, `DropdownMenuGroup`, `DropdownMenuPortal` | Dropdown / context menu |
 | `Breadcrumb`, `BreadcrumbList`, `BreadcrumbItem`, `BreadcrumbLink`, `BreadcrumbPage`, `BreadcrumbSeparator`, `BreadcrumbEllipsis` | Breadcrumb navigation |
 

@@ -4,12 +4,14 @@ import {
   Button, EmptyState, Skeleton, ConfirmDialog,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@atlas/ui";
-import { Users, MoreVertical, UserMinus, ShieldCheck, UserPlus } from "lucide-react";
+import { Users, MoreVertical, UserMinus, ShieldCheck, UserPlus, Check } from "lucide-react";
+import { toast } from "sonner";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { useChannelRoles, useAssignMemberRole } from "../hooks/useChannelRoles";
-import { useRemoveMember } from "../hooks/useCreateConversation";
+import { useRemoveMember, useCreateConversation } from "../hooks/useCreateConversation";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 import { AddChannelMembersDialog } from "./AddChannelMembersDialog";
+import { AvatarCircle } from "./AvatarCircle";
 
 function RoleBadge({ name, color }) {
   if (!name) return null;
@@ -26,26 +28,36 @@ function RoleBadge({ name, color }) {
   );
 }
 
-function MemberRow({ member, ownMember, canManageMembers, canManageRoles, assignableRoles, onRemove, onAssignRole }) {
+function MemberRow({ member, ownMember, canManageMembers, canManageRoles, assignableRoles, onRemove, onAssignRole, onOpenChat }) {
   const isSelf = member.userId === ownMember?.userId;
   const outranksTarget = member.rolePosition < (ownMember?.rolePosition ?? -1);
   const canRemoveThis = isSelf || (canManageMembers && outranksTarget);
-  const canAssignToThis = canManageRoles && !isSelf && outranksTarget && assignableRoles.length > 0;
+  // At least one role actually assignable (i.e. not the one this member already has) —
+  // otherwise the menu would offer nothing but a single disabled "current role" row.
+  const hasAssignableChange = assignableRoles.some((r) => r.id !== member.roleId);
+  const canAssignToThis = canManageRoles && !isSelf && outranksTarget && hasAssignableChange;
   const showMenu = canRemoveThis || canAssignToThis;
 
   return (
-    <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-[hsl(var(--muted))]">
-      <div className="h-8 w-8 rounded-full flex items-center justify-center font-semibold text-xs shrink-0"
-           style={{ backgroundColor: "var(--brand-primary)", color: "var(--brand-primary-foreground)" }}>
-        {member.displayName?.[0]?.toUpperCase() ?? "?"}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <p className="text-sm font-medium truncate">{member.displayName}</p>
-          <RoleBadge name={member.roleName} color={member.roleColor} />
+    <div className="flex items-center gap-1 rounded-lg hover:bg-[hsl(var(--muted))]">
+      {/* Own button (not nested inside the overflow menu's button) so opening a DM
+          and opening the menu are two independent, non-overlapping click targets. */}
+      <button
+        type="button"
+        onClick={() => onOpenChat(member)}
+        disabled={isSelf}
+        title={isSelf ? undefined : `Enviar mensaje a ${member.displayName}`}
+        className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 text-left rounded-lg disabled:cursor-default touch-manipulation"
+      >
+        <AvatarCircle avatarUrl={member.avatarUrl} name={member.displayName} size="md" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm font-medium truncate">{member.displayName}</p>
+            <RoleBadge name={member.roleName} color={member.roleColor} />
+          </div>
+          <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">{member.email}</p>
         </div>
-        <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">{member.email}</p>
-      </div>
+      </button>
       {showMenu && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -54,12 +66,20 @@ function MemberRow({ member, ownMember, canManageMembers, canManageRoles, assign
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {canAssignToThis && assignableRoles.map((role) => (
-              <DropdownMenuItem key={role.id} onSelect={() => onAssignRole(member.userId, role.id)}>
-                <ShieldCheck className="h-3.5 w-3.5 mr-2" />
-                Asignar rol: {role.name}
-              </DropdownMenuItem>
-            ))}
+            {canAssignToThis && assignableRoles.map((role) => {
+              const isCurrentRole = role.id === member.roleId;
+              return (
+                <DropdownMenuItem
+                  key={role.id}
+                  disabled={isCurrentRole}
+                  onSelect={() => onAssignRole(member.userId, role.id)}
+                  className={isCurrentRole ? "text-[hsl(var(--muted-foreground))]" : undefined}
+                >
+                  {isCurrentRole ? <Check className="h-3.5 w-3.5 mr-2" /> : <ShieldCheck className="h-3.5 w-3.5 mr-2" />}
+                  {isCurrentRole ? `${role.name} (rol actual)` : `Asignar rol: ${role.name}`}
+                </DropdownMenuItem>
+              );
+            })}
             {canAssignToThis && <DropdownMenuSeparator />}
             {canRemoveThis && (
               <DropdownMenuItem onSelect={() => onRemove(member)} className="text-red-500 focus:text-red-500">
@@ -74,13 +94,30 @@ function MemberRow({ member, ownMember, canManageMembers, canManageRoles, assign
   );
 }
 
-export function ChannelMembersTab({ conversationId, currentUserId }) {
+export function ChannelMembersTab({ conversationId, currentUserId, onOpenConversation }) {
   const { data: convData, isLoading } = useChatConversationDetail(conversationId);
   const { data: rolesData } = useChannelRoles(conversationId);
   const { mutateAsync: removeMember } = useRemoveMember(conversationId);
   const { mutateAsync: assignRole } = useAssignMemberRole(conversationId);
+  const { mutateAsync: createConversation } = useCreateConversation();
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [showAddMembers, setShowAddMembers] = useState(false);
+
+  // createConversation({ type: "direct" }) is idempotent server-side (see
+  // chat-service.js's createConversation: it looks up an existing direct
+  // conversation with this pair before inserting) — no need to search the
+  // caller's own conversation list first, unlike FloatingChatHub's
+  // OnlineUserPill which already has that list in memory for a different reason.
+  // MemberRow's button is `disabled` for the current user's own row, so this
+  // never fires for currentUserId.
+  async function handleOpenChat(member) {
+    try {
+      const result = await createConversation({ type: "direct", memberUserIds: [member.userId] });
+      if (result?.data) onOpenConversation?.(result.data);
+    } catch {
+      toast.error("No se pudo abrir la conversacion.");
+    }
+  }
 
   const members = convData?.data?.members ?? [];
   const roles = rolesData?.data ?? [];
@@ -122,6 +159,7 @@ export function ChannelMembersTab({ conversationId, currentUserId }) {
               assignableRoles={assignableRoles}
               onRemove={(m) => setConfirmTarget(m)}
               onAssignRole={(memberId, roleId) => assignRole({ memberId, roleId })}
+              onOpenChat={handleOpenChat}
             />
           ))}
         </div>
@@ -138,8 +176,16 @@ export function ChannelMembersTab({ conversationId, currentUserId }) {
         }
         confirmLabel={confirmTarget?.userId === currentUserId ? "Salir" : "Eliminar"}
         onConfirm={async () => {
-          if (confirmTarget) await removeMember(confirmTarget.userId);
-          setConfirmTarget(null);
+          // useRemoveMember's own onError already toasts a failure (e.g. "you're
+          // the sole Owner, assign another first") — this dialog should still
+          // close either way so the toast isn't left sitting behind a stale open modal.
+          try {
+            if (confirmTarget) await removeMember(confirmTarget.userId);
+          } catch {
+            // already toasted by useRemoveMember's onError
+          } finally {
+            setConfirmTarget(null);
+          }
         }}
       />
 

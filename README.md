@@ -22,7 +22,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/
 powershell -ExecutionPolicy Bypass -File .\bootstrap-local.ps1
 ```
 
-See [infra/installer/README.md](infra/installer/README.md) for full copy/paste steps (Windows, Linux, macOS), external Supabase setup, image tags, and reset commands.
+See [infra/installer/README.md](infra/installer/README.md) for full copy/paste steps (Windows, Linux, macOS), external Supabase setup, optional LiveKit calls, image tags, and reset commands.
 The installer also downloads an exported AME3 Dev Kit to `custom-modules/_atlas-devkit/`, including `capabilities.runtime.json`, `prompt-starter.txt`, `troubleshooting.md`, and a `golden-path-module/` sample for installer-mode module development.
 
 Stop and reset (from the installer directory):

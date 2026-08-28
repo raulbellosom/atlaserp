@@ -1,14 +1,15 @@
 // apps/desktop/src/modules/atlas.chat/components/ChannelGeneralTab.jsx
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Popover, PopoverTrigger, PopoverContent, ImageViewer, ComboboxField, Label } from "@atlas/ui";
-import { Image as ImageIcon, Smile, X } from "lucide-react";
+import { Button, Popover, PopoverTrigger, PopoverContent, ImageViewer, ComboboxField, Label, Textarea, SwitchField } from "@atlas/ui";
+import { Image as ImageIcon, Smile, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import EmojiPicker from "emoji-picker-react";
 import EventFormModal from "../../atlas.calendar/components/EventFormModal";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
+import { useChannelRoles, useUpdateChannelRole } from "../hooks/useChannelRoles";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 
 // "General" tab of ConversationProfilePanel — avatar-editing UI for a channel/group
@@ -27,11 +28,37 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState("");
 
   const { data: convData } = useChatConversationDetail(conversationId);
   const conversation = convData?.data;
   const ownMember = findOwnMember(conversation?.members ?? [], currentUserId);
   const canManage = roleHasPermission(ownMember, CHAT_PERMISSIONS.CHANNEL_MANAGE);
+  // Toggling who can post edits a role's permissions, which the backend gates on
+  // roles.manage (not channel.manage) — same two default holders (Owner/Admin)
+  // today, but a custom role could have one without the other, so gate on the
+  // permission the mutation actually requires (same reasoning already applied
+  // to ChannelRolesTab's own controls).
+  const canManageRoles = roleHasPermission(ownMember, CHAT_PERMISSIONS.ROLES_MANAGE);
+  const { data: rolesData } = useChannelRoles(conversationId);
+  const { mutate: updateRole, isPending: isUpdatingRole } = useUpdateChannelRole(conversationId);
+  // "Member" is the role every regular member gets (addMembers assigns it by
+  // name, deleteRole falls back to it by name) — toggling its own
+  // messages.send is the simple, one-click version of "only admins can post"
+  // the user asked for, as opposed to editing permissions role-by-role in
+  // Gestion de roles. Renamed/deleted-Member edge case: memberRole is
+  // undefined and the switch just doesn't render, same as "still loading".
+  const memberRole = (rolesData?.data ?? []).find((r) => r.name === "Member" && !r.isSystem);
+  const onlyAdminsCanWrite = memberRole ? memberRole.permissions?.[CHAT_PERMISSIONS.MESSAGES_SEND] !== true : false;
+
+  function handleToggleOnlyAdmins(nextChecked) {
+    if (!memberRole) return;
+    updateRole(
+      { roleId: memberRole.id, data: { permissions: { ...memberRole.permissions, [CHAT_PERMISSIONS.MESSAGES_SEND]: !nextChecked } } },
+      { onError: () => toast.error("No se pudo actualizar el permiso de escritura.") },
+    );
+  }
 
   const isChannel = conversation?.type === "channel";
   const projectsQuery = useQuery({
@@ -65,6 +92,16 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
     },
     onError: (err) => toast.error(err?.status === 409 ? "Ese proyecto ya tiene un canal vinculado." : "No se pudo vincular el proyecto."),
+  });
+
+  const descriptionMutation = useMutation({
+    mutationFn: (description) => atlas.chat.updateConversation(conversationId, { description }, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-conversation", conversationId] });
+      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+      setEditingDescription(false);
+    },
+    onError: () => toast.error("No se pudo actualizar la descripcion."),
   });
 
   const uploadMutation = useMutation({
@@ -102,7 +139,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex items-center gap-4">
+      <div className="flex items-start gap-4">
         {conversation?.avatarUrl ? (
           <button
             type="button"
@@ -128,8 +165,8 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
             )}
           </div>
         )}
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
             <input
               ref={fileInputRef}
               type="file"
@@ -187,6 +224,57 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
         <p className="text-xs text-[hsl(var(--muted-foreground))]">
           Solo un administrador del canal puede cambiar esta imagen.
         </p>
+      )}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <Label>Descripcion</Label>
+          {canManage && !editingDescription && (
+            <button
+              type="button"
+              onClick={() => {
+                setDescriptionDraft(conversation?.description ?? "");
+                setEditingDescription(true);
+              }}
+              className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
+            >
+              <Pencil className="h-3 w-3" />
+              Editar
+            </button>
+          )}
+        </div>
+        {editingDescription ? (
+          <div className="space-y-1.5">
+            <Textarea
+              value={descriptionDraft}
+              onChange={(e) => setDescriptionDraft(e.target.value)}
+              placeholder="Que trata este canal..."
+              maxLength={2000}
+              rows={3}
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <Button size="sm" disabled={descriptionMutation.isPending} onClick={() => descriptionMutation.mutate(descriptionDraft.trim() || null)}>
+                Guardar
+              </Button>
+              <Button size="sm" variant="outline" disabled={descriptionMutation.isPending} onClick={() => setEditingDescription(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-[hsl(var(--muted-foreground))] whitespace-pre-wrap">
+            {conversation?.description || "Sin descripcion."}
+          </p>
+        )}
+      </div>
+      {memberRole && canManageRoles && (
+        <SwitchField
+          label="Solo administradores pueden escribir"
+          description="Los miembros con el rol Member no podran enviar mensajes en este canal."
+          checked={onlyAdminsCanWrite}
+          onChange={handleToggleOnlyAdmins}
+          disabled={isUpdatingRole}
+        />
       )}
       {isChannel && (
         <div className="space-y-1.5">

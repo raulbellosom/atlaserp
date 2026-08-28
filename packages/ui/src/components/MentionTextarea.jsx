@@ -92,6 +92,10 @@ const MentionTextarea = forwardRef(function MentionTextarea({
   members = [],
   placeholder,
   rows = 3,
+  // Auto-grow cap — `rows` is now just the resting/minimum height, not a
+  // fixed size. The field starts at `rows` tall and grows with content up
+  // to `maxRows`, then scrolls internally past that.
+  maxRows = 6,
   className = '',
   disabled = false,
   portalContainer = null,
@@ -123,6 +127,23 @@ const MentionTextarea = forwardRef(function MentionTextarea({
     focus: (opts) => textareaRef.current?.focus(opts),
     blur: () => textareaRef.current?.blur(),
   }))
+
+  // Auto-grow: rest at `rows` tall, expand with content up to `maxRows`,
+  // then let the field itself scroll past that instead of growing further.
+  // Re-measures on every value change (typed, pasted, mention inserted, or
+  // set programmatically via the parent) and once on mount for a value that
+  // arrives already multi-line (e.g. reopening a draft).
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20
+    const minHeight = lineHeight * rows
+    const maxHeight = lineHeight * maxRows
+    const next = Math.min(Math.max(el.scrollHeight, minHeight), maxHeight)
+    el.style.height = `${next}px`
+    el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden'
+  }, [displayValue, rows, maxRows])
 
   const filtered = query
     ? members.filter((m) => {

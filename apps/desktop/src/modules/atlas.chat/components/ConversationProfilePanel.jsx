@@ -1,11 +1,15 @@
 // apps/desktop/src/modules/atlas.chat/components/ConversationProfilePanel.jsx
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Info, FolderOpen, Users, Bell, Settings, Shield, CalendarDays } from "lucide-react";
-import { ImageViewer } from "@atlas/ui";
+import { ArrowLeft, Info, FolderOpen, Users, Bell, Settings, Shield, AlertTriangle, CalendarDays, Mail, Phone, ChevronDown } from "lucide-react";
+import {
+  ImageViewer, Tabs, TabsList, TabsTrigger, TabsContent,
+  Accordion, AccordionItem, AccordionTrigger, AccordionContent,
+} from "@atlas/ui";
 import { ChannelGeneralTab } from "./ChannelGeneralTab";
 import { ChannelMembersTab } from "./ChannelMembersTab";
 import { ChannelRolesTab } from "./ChannelRolesTab";
+import { ChannelDangerZoneTab } from "./ChannelDangerZoneTab";
 import { ConversationInfoTab } from "./ConversationInfoTab";
 import { ConversationMediaTab } from "./ConversationMediaTab";
 import { ChannelEventsTab } from "./ChannelEventsTab";
@@ -33,25 +37,33 @@ function SectionHeader({ icon: Icon, label }) {
 // carries flex-1/min-h-0/flex-col/overflow-hidden so it fills ChatWindow's
 // or MiniChatWindow's content area identically to the message list it
 // replaces), but now handles every conversation type, not just group/
-// channel. Renders a single flat scrollable column of stacked sections
-// (no tabs) — section set is type-dependent per spec Section 8.
+// channel. `type === "direct"` still renders a flat scrollable column of
+// stacked sections (data-section-anchored); group/channel renders two tabs
+// (Informacion / Miembros y roles) instead — section set is type-dependent
+// per spec Section 8.
 //
-// `initialTab` lets a caller open straight to a specific section (e.g. the
-// "Ver miembros" dropdown item and MemberAvatarStack both want "members")
-// by scrolling it into view on mount — the CALLER must remount this
-// component when initialTab changes (e.g. `<ConversationProfilePanel key={initialTab} .../>`),
-// since the scroll-into-view effect only runs once per mount.
+// `initialTab` lets a caller open straight to a specific section on mount.
+// For "direct" it scrolls a `data-section` into view. For group/channel the
+// only value any caller passes is "members" (MemberAvatarStack, "Ver
+// miembros" menu item in ChatWindow.jsx), used to pick the Tabs
+// `defaultValue`. Either way the CALLER must remount this component when
+// initialTab changes (e.g. `<ConversationProfilePanel key={initialTab} .../>`),
+// since neither the scroll effect nor an uncontrolled Tabs re-derives after mount.
 //
 // `onBack` renders an explicit "back to messages" row above the sections —
 // this was the other half of the user's complaint: the only way back used
 // to be remembering that the same header icon that opened the panel also
 // closes it, which wasn't discoverable.
 //
+// `onOpenConversation(conv)` is how a clicked member's row (group/channel
+// "Miembros y roles" tab) opens a DM — each host decides what that means
+// (ChatWindow navigates the route, MiniChatWindow opens another float window).
+//
 // `messages`/`isLoadingMessages` come from the caller's own already-mounted
 // useChatMessages(conversationId) call — never call that hook a second time
 // here, it would open a second Supabase Realtime subscription for the same
 // conversation and silently kill the caller's own live updates.
-export function ConversationProfilePanel({ conversation, currentUserId, initialTab, onBack, messages, isLoadingMessages, onShowAllFiles }) {
+export function ConversationProfilePanel({ conversation, currentUserId, initialTab, onBack, messages, isLoadingMessages, onShowAllFiles, onOpenConversation, onDeleted }) {
   const conversationId = conversation?.id;
   const type = conversation?.type;
   const { data: convData } = useChatConversationDetail(conversationId);
@@ -84,6 +96,8 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
   }
   const [avatarErr, setAvatarErr] = useState(false);
   const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
+  const description = detail?.description ?? conversation?.description ?? null;
 
   const { session } = useAuth();
   const { data: fullAvatarUrl } = useQuery({
@@ -148,6 +162,23 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
       )}
       <p className="chat-font-display text-lg font-bold truncate max-w-full">{displayName}</p>
       <p className="text-xs text-[hsl(var(--muted-foreground))]">{statusLine}</p>
+      {type !== "direct" && description && (
+        <div className="w-full max-w-full">
+          <p className={["text-xs text-[hsl(var(--muted-foreground))] whitespace-pre-wrap", descExpanded ? "" : "line-clamp-2"].join(" ")}>
+            {description}
+          </p>
+          {description.length > 80 && (
+            <button
+              type="button"
+              onClick={() => setDescExpanded((v) => !v)}
+              className="mx-auto mt-0.5 flex items-center gap-0.5 text-[11px] font-medium text-[hsl(var(--primary))] hover:underline"
+            >
+              {descExpanded ? "Ver menos" : "Ver mas"}
+              <ChevronDown className={["h-3 w-3 transition-transform", descExpanded ? "rotate-180" : ""].join(" ")} />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 
@@ -160,12 +191,42 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
     />
   );
 
+  const hasContactInfo = Boolean(otherMemberForHero?.email || otherMemberForHero?.phone || otherMemberForHero?.bio);
+
   if (type === "direct") {
     return (
       <>
         {backHeader}
         {hero}
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
+          {hasContactInfo && (
+            <div data-section="contact-info">
+              <SectionHeader icon={Info} label="Informacion" />
+              <div className="px-4 pb-3 space-y-2.5">
+                {otherMemberForHero.bio && (
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">{otherMemberForHero.bio}</p>
+                )}
+                {otherMemberForHero.email && (
+                  <a
+                    href={`mailto:${otherMemberForHero.email}`}
+                    className="flex items-center gap-2.5 text-sm hover:text-[hsl(var(--primary))] transition-colors"
+                  >
+                    <Mail className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
+                    <span className="truncate">{otherMemberForHero.email}</span>
+                  </a>
+                )}
+                {otherMemberForHero.phone && (
+                  <a
+                    href={`tel:${otherMemberForHero.phone}`}
+                    className="flex items-center gap-2.5 text-sm hover:text-[hsl(var(--primary))] transition-colors"
+                  >
+                    <Phone className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
+                    <span className="truncate">{otherMemberForHero.phone}</span>
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
           <div data-section="media">
             <SectionHeader icon={FolderOpen} label="Multimedia" />
             <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} preview onShowAll={onShowAllFiles} />
@@ -192,42 +253,75 @@ export function ConversationProfilePanel({ conversation, currentUserId, initialT
     );
   }
 
-  // group / channel
+  // group / channel — two tabs (Informacion / Miembros y roles) instead of a
+  // flat scroll: this is what actually moves Eventos up out of the bottom
+  // half of the panel and gives Roles a dedicated, collapsed-by-default home
+  // instead of sitting in the middle of the member list. Both tabs are
+  // visible to every member — only the roles-management Accordion below is
+  // gated, matching the existing roleHasPermission check.
   const ownMember = findOwnMember(detail?.members ?? [], currentUserId);
   const canManageRoles = roleHasPermission(ownMember, CHAT_PERMISSIONS.ROLES_MANAGE);
+  const canManageChannel = roleHasPermission(ownMember, CHAT_PERMISSIONS.CHANNEL_MANAGE);
+  // The only initialTab value any caller ever passes for group/channel is
+  // "members" (MemberAvatarStack, "Ver miembros" menu item in ChatWindow.jsx)
+  // — used here just to pick which tab opens by default. The parent remounts
+  // this whole component on initialTab change (key={profileInitialTab}), so
+  // an uncontrolled Tabs defaultValue is enough; no controlled state needed.
+  const defaultTab = initialTab === "members" ? "members" : "info";
 
   return (
     <>
       {backHeader}
       {hero}
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
-        <div data-section="general">
-          <SectionHeader icon={Settings} label="General" />
+      <Tabs defaultValue={defaultTab} className="flex-1 min-h-0 flex flex-col">
+        <div className="px-4 pb-2 shrink-0">
+          <TabsList className="grid grid-cols-2 w-full">
+            <TabsTrigger value="info">Informacion</TabsTrigger>
+            <TabsTrigger value="members">Miembros y roles</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="info" className="flex-1 min-h-0 overflow-y-auto mt-0">
+          <SectionHeader icon={Settings} label="Ajustes" />
           <ChannelGeneralTab conversationId={conversationId} currentUserId={currentUserId} />
-        </div>
-        <div data-section="members">
-          <SectionHeader icon={Users} label="Miembros" />
-          <ChannelMembersTab conversationId={conversationId} currentUserId={currentUserId} />
-        </div>
-        {canManageRoles && (
-          <div data-section="roles">
-            <SectionHeader icon={Shield} label="Roles" />
-            <ChannelRolesTab conversationId={conversationId} currentUserId={currentUserId} />
-          </div>
-        )}
-        <div data-section="media">
-          <SectionHeader icon={FolderOpen} label="Multimedia" />
-          <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} preview onShowAll={onShowAllFiles} />
-        </div>
-        <div data-section="events">
           <SectionHeader icon={CalendarDays} label="Eventos" />
           <ChannelEventsTab conversationId={conversationId} />
-        </div>
-        <div data-section="notifications">
+          <SectionHeader icon={FolderOpen} label="Multimedia" />
+          <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} preview onShowAll={onShowAllFiles} />
           <SectionHeader icon={Bell} label="Notificaciones" />
           <NotificationsTab conversationId={conversationId} isMuted={isMuted} />
-        </div>
-      </div>
+          {canManageChannel && (
+            <>
+              <SectionHeader icon={AlertTriangle} label="Zona de peligro" />
+              <ChannelDangerZoneTab conversationId={conversationId} onDeleted={onDeleted} />
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="members" className="flex-1 min-h-0 overflow-y-auto mt-0">
+          <SectionHeader icon={Users} label="Miembros" />
+          <div className="px-4 pb-3">
+            <ChannelMembersTab conversationId={conversationId} currentUserId={currentUserId} onOpenConversation={onOpenConversation} />
+          </div>
+          {canManageRoles && (
+            <div className="px-4 pb-4">
+              <Accordion type="single" collapsible>
+                <AccordionItem value="roles">
+                  <AccordionTrigger>
+                    <span className="flex items-center gap-2">
+                      <Shield className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
+                      Gestion de roles
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <ChannelRolesTab conversationId={conversationId} currentUserId={currentUserId} />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
       {avatarViewer}
     </>
   );

@@ -19,3 +19,29 @@ services:
   atlas-worker-local:
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  atlas-api-external:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  atlas-worker-external:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  livekit-redis:
+    network_mode: host
+    expose: !reset []
+    command: ["redis-server", "--bind", "127.0.0.1", "--port", "6380", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6380", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  livekit:
+    network_mode: host
+    ports: !reset []
+
+  livekit-caddy:
+    network_mode: host
+    ports: !reset []

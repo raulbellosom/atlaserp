@@ -65,6 +65,17 @@ export function isImageMime(mimeType) {
   return String(mimeType ?? "").startsWith("image/");
 }
 
+export function isVideoMime(mimeType) {
+  return String(mimeType ?? "").startsWith("video/");
+}
+
+// "Media" = anything the Fotos y videos grid shows as a visual tile (images
+// and videos). Everything else (PDFs, docs, audio, archives...) goes in the
+// plain Archivos list below it.
+export function isMediaMime(mimeType) {
+  return isImageMime(mimeType) || isVideoMime(mimeType);
+}
+
 // Every file ever shared in a conversation, oldest first — real attachments
 // and file-type entity references combined into one normalized list
 // ({id, mimeType, fileName, sizeBytes, isEntityRef}). This is the "whole

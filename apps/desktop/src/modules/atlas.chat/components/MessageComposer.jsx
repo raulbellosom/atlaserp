@@ -214,12 +214,17 @@ export const MessageComposer = forwardRef(function MessageComposer(
   const { userProfile } = useAuth();
   const currentUserId = userProfile?.id;
   const mentionCandidates = useMentionCandidates(conversationId, currentUserId);
+  // @-mentions only make sense where there's a group of people to address —
+  // in a one-on-one conversation there's nobody else to pick from, so the
+  // autocomplete is disabled entirely rather than just being "redundant".
+  const mentionMembers = conversationType === "direct" ? [] : mentionCandidates;
 
   const emojiContainerRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeout = useRef(null);
   const isTypingRef = useRef(false);
   const uploadingRef = useRef({});
+  const objectUrlsRef = useRef(new Set());
   const recorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recordTimerRef = useRef(null);
@@ -227,6 +232,14 @@ export const MessageComposer = forwardRef(function MessageComposer(
   const handleSendRef = useRef(null);
   const mentionTaRef = useRef(null);
   const wasSendingRef = useRef(false);
+  // Per-conversation draft cache — this composer instance is reused as the
+  // user switches conversations (ChatWindow doesn't remount it), so without
+  // this the last-typed, unsent text leaked into whichever chat was opened
+  // next. Kept in a plain in-memory ref (not localStorage): each chat gets
+  // its draft back when reopened within this session, but nothing survives
+  // a reload or leaks across conversations.
+  const draftsRef = useRef(new Map());
+  const prevConversationIdRef = useRef(conversationId);
 
   const { uploadFile } = useChatUpload(conversationId);
 
@@ -235,16 +248,39 @@ export const MessageComposer = forwardRef(function MessageComposer(
     setBody: (text) => setBody(text),
   }));
 
+  // Runs on every render where conversationId just changed, while `body`
+  // still holds whatever was left typed in the PREVIOUS conversation (state
+  // updates from this same effect haven't committed yet) — stash it as that
+  // conversation's draft, then swap in the new conversation's own draft (or
+  // blank, if it has none).
+  useEffect(() => {
+    const prevId = prevConversationIdRef.current;
+    if (prevId === conversationId) return;
+    if (prevId != null) {
+      if (body.trim()) draftsRef.current.set(prevId, body);
+      else draftsRef.current.delete(prevId);
+    }
+    setBody(conversationId != null ? (draftsRef.current.get(conversationId) ?? "") : "");
+    prevConversationIdRef.current = conversationId;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
+
   function addFilesToQueue(files) {
-    const entries = Array.from(files).map((file) => ({
-      localId: `${Date.now()}-${Math.random()}`,
-      file,
-      objectUrl: (file.type.startsWith("image/") || file.type.startsWith("video/")) ? URL.createObjectURL(file) : null,
-      uploading: Boolean(conversationId),
-      done: !conversationId,
-      error: null,
-      attachmentId: null,
-    }));
+    const entries = Array.from(files).map((file) => {
+      const objectUrl = (file.type.startsWith("image/") || file.type.startsWith("video/"))
+        ? URL.createObjectURL(file)
+        : null;
+      if (objectUrl) objectUrlsRef.current.add(objectUrl);
+      return {
+        localId: `${Date.now()}-${Math.random()}`,
+        file,
+        objectUrl,
+        uploading: Boolean(conversationId),
+        done: !conversationId,
+        error: null,
+        attachmentId: null,
+      };
+    });
     setPendingFiles((prev) => [...prev, ...entries]);
     if (conversationId) {
       for (const entry of entries) startUpload(entry);
@@ -276,11 +312,9 @@ export const MessageComposer = forwardRef(function MessageComposer(
 
   useEffect(() => {
     return () => {
-      for (const f of pendingFiles) {
-        if (f.objectUrl) URL.revokeObjectURL(f.objectUrl);
-      }
+      for (const objectUrl of objectUrlsRef.current) URL.revokeObjectURL(objectUrl);
+      objectUrlsRef.current.clear();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Voice recording ──────────────────────────────────────────────────────
@@ -360,11 +394,12 @@ export const MessageComposer = forwardRef(function MessageComposer(
 
   // ── File queue ───────────────────────────────────────────────────────────
   function removeFile(localId) {
-    setPendingFiles((prev) => {
-      const entry = prev.find((f) => f.localId === localId);
-      if (entry?.objectUrl) URL.revokeObjectURL(entry.objectUrl);
-      return prev.filter((f) => f.localId !== localId);
-    });
+    const entry = pendingFiles.find((file) => file.localId === localId);
+    if (entry?.objectUrl) {
+      URL.revokeObjectURL(entry.objectUrl);
+      objectUrlsRef.current.delete(entry.objectUrl);
+    }
+    setPendingFiles((prev) => prev.filter((file) => file.localId !== localId));
     delete uploadingRef.current[localId];
   }
 
@@ -443,6 +478,11 @@ export const MessageComposer = forwardRef(function MessageComposer(
         entityRefs: pendingEntityRefs.map(({ entityType, recordId }) => ({ entityType, recordId })),
       });
 
+      for (const file of pendingFiles) {
+        if (!file.objectUrl) continue;
+        URL.revokeObjectURL(file.objectUrl);
+        objectUrlsRef.current.delete(file.objectUrl);
+      }
       setBody("");
       setPendingFiles([]);
       setPendingEntityRefs([]);
@@ -451,8 +491,10 @@ export const MessageComposer = forwardRef(function MessageComposer(
     }
   }, [body, isSending, onSend, onTyping, pendingFiles, pendingEntityRefs]);
 
-  // Keep ref in sync so the auto-send effect never holds a stale closure
-  handleSendRef.current = handleSend;
+  // Keep ref in sync so the auto-send effect never holds a stale closure.
+  useEffect(() => {
+    handleSendRef.current = handleSend;
+  }, [handleSend]);
 
   // Refocus the textarea once a send completes — runs after the DOM commit
   // (isSending flips back to false, lifting the `disabled` attribute), so
@@ -508,9 +550,21 @@ export const MessageComposer = forwardRef(function MessageComposer(
   return (
     <div
       className={[
-        "chat-scale-target border-t border-[hsl(var(--border))] relative shrink-0 transition-colors",
-        compact ? "px-2 py-1.5" : "px-3 py-2 sm:px-4 sm:py-3 safe-bottom",
-        !dropZoneDisabled && isDragOver ? "bg-[hsl(var(--primary)/0.05)]" : "",
+        "chat-scale-target border-t border-[hsl(var(--border))] relative shrink-0 min-w-0 transition-colors",
+        // Explicit calc() instead of stacking a `py-*` class with the
+        // `.safe-bottom` utility — both set padding-bottom at equal
+        // specificity, so whichever one lands later in the compiled
+        // stylesheet silently wins and the other's bottom value is dropped
+        // entirely (this codebase has hit that exact cascade-layer ordering
+        // trap before). This guarantees the real total every time.
+        compact
+          ? "px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom,0px))]"
+          : "px-3 pt-2 sm:px-4 sm:pt-3 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]",
+        // A single background class (never both at once) — the safe-area
+        // reserve below the rounded input pill must be painted the same
+        // surface as the bar itself, or it reads as a bare gap the bar
+        // "doesn't reach the bottom" instead of intentional bottom padding.
+        !dropZoneDisabled && isDragOver ? "bg-[hsl(var(--primary)/0.05)]" : "bg-[hsl(var(--background))]",
       ].join(" ")}
       onDragOver={dropZoneDisabled ? undefined : handleDragOver}
       onDragLeave={dropZoneDisabled ? undefined : handleDragLeave}
@@ -615,14 +669,14 @@ export const MessageComposer = forwardRef(function MessageComposer(
           <button
             type="button"
             onClick={() => stopRecording(false)}
-            className="shrink-0 flex items-center justify-center rounded-full bg-(--brand-primary) text-(--brand-primary-foreground) hover:opacity-90 active:scale-95 transition-all touch-manipulation h-8 w-8"
+            className="shrink-0 flex items-center justify-center rounded-full bg-(--brand-primary) text-(--brand-primary-foreground) hover:opacity-90 active:scale-95 transition-[opacity,transform] touch-manipulation h-8 w-8"
             title="Enviar nota de voz"
           >
             <Send className="h-4 w-4" />
           </button>
         </div>
       ) : (
-        <div className="chat-glass flex flex-col rounded-2xl overflow-hidden">
+        <div className="chat-glass flex flex-col min-w-0 rounded-2xl overflow-hidden">
           {/* Textarea (with @mention autocomplete) — its own full-width row,
               above the action toolbar, so typing space is never squeezed by
               icons sitting beside it. MentionTextarea bakes a boxed look
@@ -633,26 +687,46 @@ export const MessageComposer = forwardRef(function MessageComposer(
               ProductImageManager.jsx) reliably wins regardless of class
               declaration order, so this neutralizes the boxed look and
               restores the original flat/transparent inline style, including
-              the compact-vs-full sizing the old plain <textarea> had. */}
-          <MentionTextarea
-            ref={mentionTaRef}
-            value={body}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            members={mentionCandidates}
-            placeholder={placeholder}
-            rows={compact ? 1 : 3}
-            disabled={disabled || isSending}
-            className={[
-              "border-0! bg-transparent! rounded-none! shadow-none! ring-0! focus:ring-0! leading-tight",
-              compact ? "text-xs! px-2! pt-1.5! pb-0.5!" : "text-sm! px-3! pt-2.5! pb-1!",
-            ].join(" ")}
-          />
+              the compact-vs-full sizing the old plain <textarea> had.
+
+              The wrapping div's min-w-0 is load-bearing, not decorative: this
+              is now a flex COLUMN item (it used to be a row item with its own
+              flex-1 min-w-0 wrapper, removed in the toolbar-below redesign).
+              A flex item's default min-width is `auto` (= its content's
+              intrinsic width), so without min-w-0 a long unbroken run of
+              characters (no spaces to wrap on) makes this item — and the
+              textarea inside it via width:100% — grow to fit that content
+              instead of wrapping, blowing out the composer and the page's
+              horizontal bounds. */}
+          <div className="min-w-0">
+            <MentionTextarea
+              ref={mentionTaRef}
+              value={body}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              members={mentionMembers}
+              placeholder={placeholder}
+              // Rests at 1 line now (was a fixed 3, always tall even empty)
+              // and grows with content up to maxRows, per the redesign ask.
+              rows={1}
+              maxRows={compact ? 3 : 6}
+              disabled={disabled || isSending}
+              // text-base! (16px) on mobile is mandatory, not cosmetic — anything
+              // smaller makes iOS/Android auto-zoom the whole page on focus (see
+              // .github/instructions/responsive-mobile.instructions.md). The
+              // previous text-xs!/text-sm! here was exactly that bug.
+              className={[
+                "border-0! bg-transparent! rounded-none! shadow-none! ring-0! focus:ring-0! leading-tight break-words!",
+                compact ? "text-base! sm:text-xs! px-2! pt-1.5! pb-0.5!" : "text-base! sm:text-sm! px-3! pt-2.5! pb-1!",
+              ].join(" ")}
+            />
+          </div>
 
           {/* Action toolbar — attach / reference / emoji / mic grouped on the
-              left, send on the far right. Previously these lived inline next
-              to the textarea inside one pill-shaped row, which both looked
-              cluttered and ate into the width available for typing. */}
+              left, send separated on the far right. Previously these lived
+              inline next to the textarea inside one pill-shaped row, which
+              both looked cluttered and ate into the width available for
+              typing. */}
           <div className={["flex items-center gap-0.5", compact ? "px-1 pb-1" : "px-1.5 pb-1.5"].join(" ")}>
             {/* Paperclip */}
             <input

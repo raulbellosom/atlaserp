@@ -1,11 +1,20 @@
 #!/usr/bin/env node
 
 import crypto from "node:crypto";
+import { lookup } from "node:dns/promises";
 import fs from "node:fs/promises";
 import fsSync from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import {
+  getLiveKitComposeProfiles,
+  renderExternalProxyGuide,
+  renderLiveKitConfig,
+  renderManagedCaddyfile,
+  resolveLiveKitConfig,
+  toLiveKitHttpUrl,
+} from "./lib/livekit-config.mjs";
 
 const argv = new Set(process.argv.slice(2));
 const skipComposeUp = argv.has("--skip-compose-up");
@@ -24,6 +33,9 @@ const localEnvFile = path.resolve(__dirname, ".env.local");
 const supabaseWorkdir = path.resolve(__dirname, ".supabase-local");
 const supabaseConfig = path.resolve(supabaseWorkdir, "supabase", "config.toml");
 const devKitDir = path.resolve(__dirname, "custom-modules", "_atlas-devkit");
+const liveKitConfigFile = path.resolve(__dirname, "livekit", "livekit.yaml");
+const liveKitCaddyFile = path.resolve(__dirname, "livekit", "Caddyfile");
+const liveKitExternalProxyFile = path.resolve(__dirname, "livekit", "reverse-proxy.nginx.conf");
 
 // Docker Desktop (Windows/macOS) injects host.docker.internal automatically.
 // Linux Docker Engine does not — we handle it via --add-host for docker run and
@@ -49,6 +61,9 @@ const workerImage =
   "raulbellosom/atlaserp:worker-latest";
 const webImage =
   process.env.ATLAS_WEB_LOCAL_IMAGE ?? "raulbellosom/atlaserp:web-latest";
+const liveKitImage = process.env.LIVEKIT_IMAGE ?? "livekit/livekit-server:v1.12.0";
+const liveKitRedisImage = process.env.LIVEKIT_REDIS_IMAGE ?? "redis:7-alpine";
+const liveKitCaddyImage = process.env.LIVEKIT_CADDY_IMAGE ?? "caddy:2-alpine";
 
 const fallbackApiImage = "raulbellosom/atlaserp:api-latest";
 const fallbackWorkerImage = "raulbellosom/atlaserp:worker-latest";
@@ -245,6 +260,140 @@ function parseSupabaseStatusEnv(statusOutput) {
   return envMap;
 }
 
+async function writeLiveKitArtifacts(config) {
+  await fs.mkdir(path.dirname(liveKitConfigFile), { recursive: true });
+  if (config.mode !== "embedded") {
+    await Promise.all([
+      fs.rm(liveKitConfigFile, { force: true }),
+      fs.rm(liveKitCaddyFile, { force: true }),
+      fs.rm(liveKitExternalProxyFile, { force: true }),
+    ]);
+    return;
+  }
+
+  await fs.writeFile(
+    liveKitConfigFile,
+    renderLiveKitConfig({ ...config, isLinux }),
+    { encoding: "utf8", mode: 0o600 },
+  );
+  try { await fs.chmod(liveKitConfigFile, 0o600); } catch { /* Windows does not apply POSIX modes. */ }
+
+  if (config.managedTls) {
+    await fs.writeFile(
+      liveKitCaddyFile,
+      renderManagedCaddyfile({ domain: config.domain, isLinux }),
+      { encoding: "utf8", mode: 0o600 },
+    );
+    try { await fs.chmod(liveKitCaddyFile, 0o600); } catch { /* Windows does not apply POSIX modes. */ }
+    await fs.rm(liveKitExternalProxyFile, { force: true });
+  } else if (config.domain && config.tlsMode === "external") {
+    await fs.writeFile(
+      liveKitExternalProxyFile,
+      renderExternalProxyGuide({ domain: config.domain }),
+      { encoding: "utf8", mode: 0o600 },
+    );
+    try { await fs.chmod(liveKitExternalProxyFile, 0o600); } catch { /* Windows does not apply POSIX modes. */ }
+    await fs.rm(liveKitCaddyFile, { force: true });
+  } else {
+    await Promise.all([
+      fs.rm(liveKitCaddyFile, { force: true }),
+      fs.rm(liveKitExternalProxyFile, { force: true }),
+    ]);
+  }
+}
+
+function removeInactiveLiveKitServices(config) {
+  const composeArgs = [
+    "compose",
+    ...composeFiles,
+    "--profile", "livekit",
+    "--profile", "livekit-tls",
+    "rm", "--stop", "--force",
+  ];
+  if (config.mode !== "embedded") {
+    tryRun("docker", [...composeArgs, "livekit-caddy", "livekit", "livekit-redis"]);
+  } else if (!config.managedTls) {
+    tryRun("docker", [...composeArgs, "livekit-caddy"]);
+  }
+}
+
+async function validateLiveKitDns(config) {
+  if (!config.domain) return;
+  const addresses = await lookup(config.domain, { all: true });
+  if (!addresses.length) throw new Error(`LIVEKIT_DOMAIN did not resolve: ${config.domain}`);
+  console.log(`  LiveKit DNS: ${config.domain} -> ${addresses.map((item) => item.address).join(", ")}`);
+}
+
+function tryCapture(command, args, { cwd = installerDir, env = process.env } = {}) {
+  const result = spawnSync(command, args, {
+    cwd,
+    env,
+    stdio: "pipe",
+    encoding: "utf8",
+    shell: isWindows,
+  });
+  return {
+    ok: !result.error && result.status === 0,
+    output: `${result.stdout ?? ""}${result.stderr ?? ""}`.trim(),
+  };
+}
+
+async function validateLiveKitRuntime(config) {
+  if (config.mode === "disabled") return;
+
+  console.log("[LiveKit] Validating runtime...");
+  if (config.mode === "embedded") {
+    const redisPort = isLinux ? "6380" : "6379";
+    let redis = { ok: false, output: "Redis is not ready." };
+    for (let attempt = 1; attempt <= 24; attempt += 1) {
+      redis = tryCapture("docker", [
+        "exec", "atlas-livekit-redis", "redis-cli", "-p", redisPort, "ping",
+      ]);
+      if (redis.ok && /PONG/i.test(redis.output)) break;
+      await new Promise((resolve) => setTimeout(resolve, 2_500));
+    }
+    if (!redis.ok || !/PONG/i.test(redis.output)) {
+      throw new Error(`LiveKit Redis health check failed: ${redis.output || "no response"}`);
+    }
+    console.log("  Redis: PONG");
+  }
+
+  let smokeResult = { ok: false, output: "API container is not ready." };
+  for (let attempt = 1; attempt <= 24; attempt += 1) {
+    smokeResult = tryCapture("docker", [
+      "exec",
+      "atlas-api-local",
+      "node",
+      "apps/api/src/scripts/livekit-smoke.js",
+    ]);
+    if (smokeResult.ok) break;
+    await new Promise((resolve) => setTimeout(resolve, 5_000));
+  }
+  if (!smokeResult.ok) {
+    throw new Error(`API-to-LiveKit smoke test failed: ${smokeResult.output}`);
+  }
+  console.log("  API -> LiveKit: temporary room created and deleted");
+
+  if (/^wss:\/\//i.test(config.publicUrl)) {
+    const healthUrl = `${toLiveKitHttpUrl(config.publicUrl).replace(/\/$/, "")}/`;
+    let lastError = "no response";
+    for (let attempt = 1; attempt <= 24; attempt += 1) {
+      try {
+        const response = await fetch(healthUrl, { signal: AbortSignal.timeout(10_000) });
+        if (response.ok) {
+          console.log(`  Public TLS/WSS: ${config.publicUrl}`);
+          return;
+        }
+        lastError = `HTTP ${response.status}`;
+      } catch (error) {
+        lastError = error.message;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5_000));
+    }
+    throw new Error(`Public LiveKit TLS validation failed for ${config.publicUrl}: ${lastError}`);
+  }
+}
+
 async function writeLocalEnv(envMap) {
   const requiredKeys = ["API_URL", "ANON_KEY", "SERVICE_ROLE_KEY", "JWT_SECRET", "DB_URL"];
   const missing = requiredKeys.filter((key) => !envMap.get(key));
@@ -274,6 +423,21 @@ async function writeLocalEnv(envMap) {
   // Auto-generate a stable 32-byte key on first run; preserve on subsequent runs.
   const googleEncryptionKey = parseEnvValue(existingEnvContent, "GOOGLE_OAUTH_ENCRYPTION_KEY")
     || crypto.randomBytes(32).toString("base64");
+  const fromLocalEnv = (key) => parseEnvValue(existingEnvContent, key) || process.env[key] || "";
+  const liveKit = resolveLiveKitConfig({
+    deployment: "local",
+    isLinux,
+    values: {
+      mode: fromLocalEnv("LIVEKIT_MODE"),
+      domain: fromLocalEnv("LIVEKIT_DOMAIN"),
+      tlsMode: fromLocalEnv("LIVEKIT_TLS_MODE"),
+      publicUrl: fromLocalEnv("LIVEKIT_URL"),
+      internalUrl: fromLocalEnv("LIVEKIT_INTERNAL_URL"),
+      apiKey: fromLocalEnv("LIVEKIT_API_KEY"),
+      apiSecret: fromLocalEnv("LIVEKIT_API_SECRET"),
+    },
+  });
+  await writeLiveKitArtifacts(liveKit);
 
   const envContent = `# Auto-generated by infra/installer/setup-local.mjs
 # Re-run the script anytime to refresh local Supabase credentials.
@@ -313,9 +477,19 @@ GOOGLE_OAUTH_CLIENT_SECRET=${googleClientSecret}
 GOOGLE_OAUTH_REDIRECT_URI=${googleRedirectUri}
 # Stable 32-byte base64 key — auto-generated on first run. Changing it invalidates stored tokens.
 GOOGLE_OAUTH_ENCRYPTION_KEY=${googleEncryptionKey}
+
+# ── Atlas Calls / LiveKit ──────────────────────────────────────────────────
+LIVEKIT_MODE=${liveKit.mode}
+LIVEKIT_DOMAIN=${liveKit.domain}
+LIVEKIT_TLS_MODE=${liveKit.tlsMode}
+LIVEKIT_URL=${liveKit.publicUrl}
+LIVEKIT_INTERNAL_URL=${liveKit.internalUrl}
+LIVEKIT_API_KEY=${liveKit.apiKey}
+LIVEKIT_API_SECRET=${liveKit.apiSecret}
 `;
 
-  await fs.writeFile(localEnvFile, envContent, "utf8");
+  await fs.writeFile(localEnvFile, envContent, { encoding: "utf8", mode: 0o600 });
+  try { await fs.chmod(localEnvFile, 0o600); } catch { /* Windows does not apply POSIX modes. */ }
 
   // Docker Compose auto-loads a file named exactly ".env" in the same directory
   // for ${VAR} interpolation. The web service reads ${SUPABASE_URL} and
@@ -332,6 +506,7 @@ SUPABASE_ANON_KEY=${envMap.get("ANON_KEY")}
 ${process.env.ATLAS_API_URL ? `ATLAS_API_URL=${process.env.ATLAS_API_URL}` : "# ATLAS_API_URL defaults to http://localhost:4010 — override for VPS/public deployments"}
 `;
   await fs.writeFile(composeEnvFile, composeEnvContent, "utf8");
+  return liveKit;
 }
 
 async function main() {
@@ -380,7 +555,8 @@ async function main() {
     "env",
   ]);
   const envMap = parseSupabaseStatusEnv(statusOutput);
-  await writeLocalEnv(envMap);
+  const liveKit = await writeLocalEnv(envMap);
+  await validateLiveKitDns(liveKit);
   console.log(`Generated ${localEnvFile}`);
 
   await downloadDevKit();
@@ -401,6 +577,11 @@ async function main() {
     resolvedApiImage = pullWithRetry(apiImage, "API");
     resolvedWorkerImage = pullWithRetry(workerImage, "Worker");
     resolvedWebImage = pullWithRetry(webImage, "Web");
+    if (liveKit.mode === "embedded") {
+      pullWithRetry(liveKitImage, "LiveKit");
+      pullWithRetry(liveKitRedisImage, "LiveKit Redis");
+      if (liveKit.managedTls) pullWithRetry(liveKitCaddyImage, "LiveKit Caddy");
+    }
     // Remove dangling layers left behind when `latest` tags are re-pulled.
     console.log("     Pruning dangling images...");
     tryRun("docker", ["image", "prune", "-f"]);
@@ -421,18 +602,26 @@ async function main() {
   ]);
 
   console.log("[8/8] Starting Atlas local profile...");
+  removeInactiveLiveKitServices(liveKit);
+  const liveKitProfiles = getLiveKitComposeProfiles(liveKit)
+    .flatMap((profile) => ["--profile", profile]);
   run(
     "docker",
-    ["compose", ...composeFiles, "--profile", "local", "up", "-d", "--force-recreate"],
+    ["compose", ...composeFiles, "--profile", "local", ...liveKitProfiles, "up", "-d", "--force-recreate"],
     {
       env: {
         ...process.env,
         ATLAS_API_LOCAL_IMAGE: resolvedApiImage,
         ATLAS_WORKER_LOCAL_IMAGE: resolvedWorkerImage,
         ATLAS_WEB_LOCAL_IMAGE: resolvedWebImage,
+        LIVEKIT_IMAGE: liveKitImage,
+        LIVEKIT_REDIS_IMAGE: liveKitRedisImage,
+        LIVEKIT_CADDY_IMAGE: liveKitCaddyImage,
       },
     }
   );
+
+  await validateLiveKitRuntime(liveKit);
 
   console.log("");
   console.log("Local installation is ready:");
@@ -440,6 +629,7 @@ async function main() {
   console.log("- Atlas API: http://localhost:4010");
   console.log("- Supabase API gateway: http://localhost:54321");
   console.log("- Supabase Studio: http://localhost:54323");
+  if (liveKit.mode !== "disabled") console.log(`- LiveKit: ${liveKit.publicUrl}`);
   console.log(`- AME3 Dev Kit: ${devKitDir}`);
 }
 

@@ -25,9 +25,13 @@ export function useChatConversations() {
     const unsub2 = on("chat.message.new", () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
     });
+    const unsub3 = on("chat.conversation.deleted", () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+    });
     return () => {
       unsub1();
       unsub2();
+      unsub3();
     };
   }, [on, queryClient]);
 

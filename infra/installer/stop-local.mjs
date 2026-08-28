@@ -55,7 +55,18 @@ console.log(isReset ? "[stop-local] Stopping and resetting Atlas local..." : "[s
 // 1. Stop Atlas containers
 if (fs.existsSync(composeFile)) {
   console.log("\n[1] Stopping Atlas containers...");
-  run("docker", ["compose", ...composeFiles, "--profile", "local", "down", "--remove-orphans"], { failOk: true });
+  run(
+    "docker",
+    [
+      "compose", ...composeFiles,
+      "--profile", "local",
+      "--profile", "livekit",
+      "--profile", "livekit-tls",
+      "down", "--remove-orphans",
+      ...(isReset ? ["--volumes"] : []),
+    ],
+    { failOk: true },
+  );
 } else {
   console.log("[1] docker-compose.yml not found, skipping compose down.");
 }
@@ -117,6 +128,9 @@ if (isReset) {
   removeIfExists(supabaseWorkdir);
   removeIfExists(path.resolve(__dirname, ".env.local"));
   removeIfExists(path.resolve(__dirname, ".env"));
+  removeIfExists(path.resolve(__dirname, "livekit", "livekit.yaml"));
+  removeIfExists(path.resolve(__dirname, "livekit", "Caddyfile"));
+  removeIfExists(path.resolve(__dirname, "livekit", "reverse-proxy.nginx.conf"));
 
   console.log("\nReset complete. Run `node setup-local.mjs` to start fresh.");
 } else {

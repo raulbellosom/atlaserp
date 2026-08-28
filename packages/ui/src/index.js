@@ -84,6 +84,12 @@ export {
   TabsContent,
 } from "./components/Tabs.jsx";
 export {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "./components/Accordion.jsx";
+export {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,

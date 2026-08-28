@@ -56,6 +56,7 @@
     "date-fns": "^4.3.0",
     "emoji-picker-react": "^4.19.1",
     "lib0": "^0.2.117",
+    "livekit-client": "2.21.0",
     "lucide-react": "latest",
     "motion": "^12.38.0",
     "pdfjs-dist": "^5.0.0",

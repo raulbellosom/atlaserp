@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import { EmptyState, Skeleton, ImageViewer } from "@atlas/ui";
+import { EmptyState, Skeleton } from "@atlas/ui";
 import {
   FileText, FileType2, FileSpreadsheet, FileVideo, FileAudio,
-  FileArchive, FileCode, File as FileIconBase, FileImage, Loader2, Link2, Download,
+  FileArchive, FileCode, File as FileIconBase, FileImage, Loader2, Link2, Download, Play,
 } from "lucide-react";
-import { isImageMime, formatFileSize, formatMessageTime, downloadViaBlob } from "../lib/chatUtils";
+import { isImageMime, isVideoMime, isMediaMime, formatFileSize, formatMessageTime, downloadViaBlob } from "../lib/chatUtils";
 import { useFileRefSignedUrl } from "../hooks/useFileRefSignedUrl";
 import { EntityFileViewer } from "./EntityFileViewer";
 
@@ -48,9 +48,33 @@ function MediaImageThumb({ att }) {
   );
 }
 
-function ChatFilesGalleryImageViewer({ recordId, title, open, onClose }) {
-  const { data: fullUrl } = useFileRefSignedUrl(recordId, "full", open);
-  return <ImageViewer src={fullUrl} alt={title} fileName={title} open={open} onClose={onClose} />;
+// First-frame preview + play badge, same treatment MessageComposer's own
+// pending-video preview uses — videos used to be entirely absent from this
+// grid (isImageMime excluded them, so they fell into the plain Archivos
+// list below instead of the "Fotos y videos" tiles).
+function MediaVideoThumb({ att }) {
+  const { data: lazyUrl, isLoading } = useFileRefSignedUrl(att.id, "card", att.isEntityRef);
+  const url = att.isEntityRef ? lazyUrl : att.url;
+
+  if (att.isEntityRef && isLoading) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin opacity-40" />
+      </div>
+    );
+  }
+  return (
+    <div className="relative w-full h-full bg-black/25">
+      {url && (
+        <video src={`${url}#t=0.001`} preload="metadata" muted playsInline className="w-full h-full object-cover" />
+      )}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="h-7 w-7 rounded-full bg-black/55 flex items-center justify-center">
+          <Play className="h-3.5 w-3.5 text-white fill-white ml-0.5" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // Own row component (rather than an inline click handler in the .map()) so
@@ -187,7 +211,12 @@ export function ChatFilesGallery({
   scrollable = true,
   previewLimit,
 }) {
-  const [entityRefViewer, setEntityRefViewer] = useState({ open: false, recordId: null, title: null });
+  // Routes through the same rich AdvancedFileViewer real attachments use
+  // (image/PDF/video/audio, proper full-resolution fetch) instead of the
+  // image-only lightbox this used to open — that one couldn't play a video
+  // entity reference at all, and was a second, less-maintained code path for
+  // resolving the "full" variant.
+  const [entityRefViewer, setEntityRefViewer] = useState({ open: false, files: [] });
   const scrollableClass = scrollable ? "flex-1 min-h-0 overflow-y-auto" : "";
   const allAttachments = useMemo(() => {
     if (!messages?.length) return [];
@@ -212,12 +241,15 @@ export function ChatFilesGallery({
     return result;
   }, [messages]);
 
-  const images = useMemo(() => {
-    const all = allAttachments.filter((a) => isImageMime(a.mimeType));
+  // "media" = images AND videos — both render as grid tiles below. Only
+  // isImageMime was checked here before, so every video silently fell into
+  // otherFiles and rendered as a plain file row instead of a tile.
+  const media = useMemo(() => {
+    const all = allAttachments.filter((a) => isMediaMime(a.mimeType));
     return previewLimit ? all.slice(0, previewLimit) : all;
   }, [allAttachments, previewLimit]);
   const otherFiles = useMemo(() => {
-    const all = allAttachments.filter((a) => !isImageMime(a.mimeType));
+    const all = allAttachments.filter((a) => !isMediaMime(a.mimeType));
     return previewLimit ? all.slice(0, previewLimit) : all;
   }, [allAttachments, previewLimit]);
 
@@ -244,7 +276,7 @@ export function ChatFilesGallery({
   return (
     <>
     <div className={[scrollableClass, "p-3 space-y-4"].join(" ")}>
-      {images.length > 0 && (
+      {media.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-2">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
@@ -273,19 +305,22 @@ export function ChatFilesGallery({
               </button>
             )}
           </div>
-          <div className="grid grid-cols-4 gap-1">
-            {images.map((att) => (
+          <div className={["grid gap-1", scrollable ? "grid-cols-4 sm:grid-cols-6 md:grid-cols-8" : "grid-cols-4"].join(" ")}>
+            {media.map((att) => (
               <button
                 key={att.id}
                 type="button"
                 onClick={() => {
-                  // Entity-ref images have no embedded url and no resolved-download
+                  // Entity-ref media has no embedded url and no resolved-download
                   // entry in ConversationMediaTab's own attachment list for bulk
                   // download to use — selecting one would silently drop it from
                   // "Descargar (N)" with no feedback. Not selectable; always opens
-                  // the single-image viewer instead, selection mode or not.
+                  // the single-file viewer instead, selection mode or not.
                   if (att.isEntityRef) {
-                    setEntityRefViewer({ open: true, recordId: att.id, title: att.fileName });
+                    setEntityRefViewer({
+                      open: true,
+                      files: [{ id: att.id, mimeType: att.mimeType, originalName: att.fileName, sizeBytes: att.sizeBytes ?? null }],
+                    });
                     return;
                   }
                   if (selectionMode) {
@@ -297,7 +332,7 @@ export function ChatFilesGallery({
                 }}
                 className="relative aspect-square bg-[hsl(var(--muted))] rounded-lg overflow-hidden hover:opacity-80 transition-opacity"
               >
-                <MediaImageThumb att={att} />
+                {isVideoMime(att.mimeType) ? <MediaVideoThumb att={att} /> : <MediaImageThumb att={att} />}
                 {selectionMode && !att.isEntityRef && <MediaSelectionCircle isSelected={selectedIds.has(att.id)} />}
                 {selectionMode && att.isEntityRef && <EntityRefBadge />}
               </button>
@@ -319,11 +354,11 @@ export function ChatFilesGallery({
         </div>
       )}
     </div>
-    <ChatFilesGalleryImageViewer
-      recordId={entityRefViewer.recordId}
-      title={entityRefViewer.title}
+    <EntityFileViewer
       open={entityRefViewer.open}
-      onClose={() => setEntityRefViewer((v) => ({ ...v, open: false }))}
+      onOpenChange={(open) => setEntityRefViewer((v) => ({ ...v, open }))}
+      files={entityRefViewer.files}
+      activeIndex={0}
     />
     </>
   );

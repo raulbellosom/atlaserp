@@ -6,6 +6,7 @@ files=(
   docker-compose.yml
   docker-compose.linux.yml
   lib/devkit-installer.mjs
+  lib/livekit-config.mjs
   package.json
   setup-local.mjs
   setup-local.ps1

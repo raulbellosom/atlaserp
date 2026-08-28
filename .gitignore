@@ -60,3 +60,6 @@ task*.tokens.json
 
 # Installer local Supabase runtime artifacts
 infra/installer/.supabase-local/
+infra/installer/livekit/livekit.yaml
+infra/installer/livekit/Caddyfile
+infra/installer/livekit/reverse-proxy.nginx.conf

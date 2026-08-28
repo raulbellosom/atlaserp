@@ -4,7 +4,9 @@ set -euo pipefail
 base_url="https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer"
 files=(
   docker-compose.yml
+  docker-compose.linux.yml
   lib/devkit-installer.mjs
+  lib/livekit-config.mjs
   package.json
   setup-external.mjs
   setup-external.sh

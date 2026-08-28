@@ -58,10 +58,12 @@ chmod +x bootstrap-local.sh
    desde main) usando un `manifest.json` versionado. Incluye `AGENTS.md`,
    guias AME3, `capabilities.runtime.json`, `prompt-starter.txt`,
    `troubleshooting.md` y `golden-path-module/`.
-5. Hace `docker pull` de API, worker y web. Luego ejecuta `docker image prune -f`
+5. Hace `docker pull` de API, worker y web (y de LiveKit + Redis cuando
+   `LIVEKIT_MODE=embedded`). Luego ejecuta `docker image prune -f`
    para eliminar layers huerfanos de versiones anteriores.
 6. Ejecuta `pnpm db:migrate` y `pnpm db:seed` dentro del container API.
-7. Levanta `docker compose --profile local up -d`.
+7. Levanta `docker compose --profile local up -d`; agrega el perfil `livekit`
+   automaticamente cuando se usa el modo integrado.
 
 ### Opciones utiles
 
@@ -125,10 +127,12 @@ npm.cmd run atlas:external
    desde main) usando un `manifest.json` versionado. Incluye `AGENTS.md`,
    guias AME3, `capabilities.runtime.json`, `prompt-starter.txt`,
    `troubleshooting.md` y `golden-path-module/`.
-4. Hace `docker pull` de API, worker y web. Luego ejecuta `docker image prune -f`
+4. Hace `docker pull` de API, worker y web (y de LiveKit + Redis cuando
+   `LIVEKIT_MODE=embedded`). Luego ejecuta `docker image prune -f`
    para eliminar layers huerfanos de versiones anteriores y liberar espacio en disco.
 5. Ejecuta `pnpm db:migrate` y `pnpm db:seed` dentro del container API.
-6. Levanta `docker compose --profile external up -d`.
+6. Levanta `docker compose --profile external up -d`; agrega el perfil `livekit`
+   automaticamente cuando se usa el modo integrado.
 
 ### Opciones utiles
 
@@ -169,6 +173,61 @@ CORS_ORIGIN=http://localhost:5173
 
 ---
 
+## Atlas Calls / LiveKit
+
+La configuración principal vive en `.env.local` o `.env.external`. Los scripts no
+solicitan datos que ya estén definidos ahí y persisten las claves generadas para
+que una actualización no invalide instalaciones existentes:
+
+```bash
+LIVEKIT_MODE=embedded
+LIVEKIT_DOMAIN=
+LIVEKIT_TLS_MODE=managed
+LIVEKIT_URL=
+LIVEKIT_INTERNAL_URL=
+LIVEKIT_API_KEY=
+LIVEKIT_API_SECRET=
+```
+
+| Modo | Comportamiento |
+|------|----------------|
+| `embedded` | Valor predeterminado. Genera credenciales, configuración y levanta LiveKit + Redis. |
+| `external` | Atlas usa un servidor LiveKit existente; URL interna y credenciales deben corresponder a ese servidor. |
+| `disabled` | Opción explícita que oculta los controles y desactiva la API de llamadas. |
+
+En desarrollo local no se requiere dominio: `setup-local.mjs` genera
+`LIVEKIT_URL=ws://localhost:7880`. En Linux la URL interna se deriva como
+`http://host.docker.internal:7880`; en Docker Desktop se usa la red privada de
+Compose. Hono siempre usa `LIVEKIT_INTERNAL_URL`, mientras el navegador recibe
+únicamente `LIVEKIT_URL` y un token temporal.
+
+En producción embedded el único dato RTC público obligatorio es el dominio:
+
+```bash
+LIVEKIT_MODE=embedded
+LIVEKIT_DOMAIN=rtc.example.com
+LIVEKIT_TLS_MODE=managed
+```
+
+El instalador deriva `LIVEKIT_URL=wss://rtc.example.com`, genera y persiste las
+claves, configura `host-gateway`, inicia Caddy y espera un certificado público
+válido antes de continuar. El DNS debe apuntar previamente a la VPS y los puertos
+`80/tcp`, `443/tcp`, `443/udp`, `7881/tcp` y `7882/udp` deben estar permitidos.
+
+Con `LIVEKIT_TLS_MODE=external` Atlas no inicia Caddy. Genera
+`livekit/reverse-proxy.nginx.conf` para integrarlo con el proxy existente y exige
+que `wss://LIVEKIT_DOMAIN` tenga TLS válido antes de declarar la instalación lista.
+
+En Linux, LiveKit usa `network_mode: host`; Redis escucha exclusivamente en
+`127.0.0.1:6380` y no se expone públicamente. Antes de imprimir `ready`, el
+instalador valida DNS, TLS, Redis, el endpoint de LiveKit y la conexión desde Hono,
+y crea y elimina una sala temporal. Redes muy restrictivas pueden requerir TURN.
+
+Nunca expongas `LIVEKIT_API_SECRET` al frontend. Atlas solo entrega tokens de
+sala de corta duracion desde la API.
+
+---
+
 ## Iniciar / detener / resetear
 
 Los scripts de stop ejecutan `docker image prune -f` automaticamente al terminar
@@ -180,7 +239,7 @@ para eliminar layers huerfanos sin tocar imagenes de otros proyectos en el mismo
 |--------|---------|
 | Primera instalacion o tras reset | `node ./setup-local.mjs` (o `./setup-local.sh`) |
 | Detener (conserva datos) | `node ./stop-local.mjs` (o `./stop-local.sh`) |
-| Reiniciar sin reinstalar | `docker compose --profile local up -d` |
+| Reiniciar sin reinstalar | `docker compose --profile local --profile livekit --profile livekit-tls up -d` |
 | Reset total (borra todo) | `node ./stop-local.mjs --reset` |
 
 ### External / Produccion

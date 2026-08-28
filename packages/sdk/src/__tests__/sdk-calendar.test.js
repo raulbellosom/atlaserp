@@ -10,7 +10,7 @@ function makeFetch(status = 200) {
   }))
 }
 
-describe('atlas SDK â€” calendar namespace', () => {
+describe('atlas SDK — calendar namespace', () => {
   it('getGoogleStatus GETs /calendar/google/status', async () => {
     const fetchMock = makeFetch()
     const { createAtlasClient } = await import('../index.js')

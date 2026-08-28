@@ -188,6 +188,8 @@ export function createChatConversationReadsService({ prisma, getUserProfileId, a
             'avatarFileId', up.avatar_file_id::text,
             'authAvatarUrl', au.raw_user_meta_data->>'avatar_url',
             'email', up.email,
+            'phone', up.phone,
+            'bio', up.bio,
             'roleId', cm.role_id,
             'roleName', ccr.name,
             'roleColor', ccr.color,

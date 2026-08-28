@@ -90,3 +90,53 @@ services:
     depends_on:
       - atlas-api-local
     restart: unless-stopped
+
+  livekit-redis:
+    image: ${LIVEKIT_REDIS_IMAGE:-redis:7-alpine}
+    container_name: atlas-livekit-redis
+    profiles: ["livekit"]
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  livekit:
+    image: ${LIVEKIT_IMAGE:-livekit/livekit-server:v1.12.0}
+    container_name: atlas-livekit
+    profiles: ["livekit"]
+    command: ["--config", "/etc/livekit/livekit.yaml"]
+    depends_on:
+      livekit-redis:
+        condition: service_healthy
+    volumes:
+      - ./livekit/livekit.yaml:/etc/livekit/livekit.yaml:ro
+    ports:
+      - "7880:7880/tcp"
+      - "7881:7881/tcp"
+      - "7882:7882/udp"
+    restart: unless-stopped
+
+  livekit-caddy:
+    image: ${LIVEKIT_CADDY_IMAGE:-caddy:2-alpine}
+    container_name: atlas-livekit-caddy
+    profiles: ["livekit-tls"]
+    depends_on:
+      - livekit
+    volumes:
+      - ./livekit/Caddyfile:/etc/caddy/Caddyfile:ro
+      - livekit-caddy-data:/data
+      - livekit-caddy-config:/config
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+    restart: unless-stopped
+
+volumes:
+  livekit-caddy-data:
+  livekit-caddy-config:

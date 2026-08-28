@@ -18,12 +18,14 @@ import {
   MarkdownViewer,
   ConfirmDialog,
   Skeleton,
+  Button,
 } from "@atlas/ui";
 import {
   formatReminderClock,
   formatReminderLead,
   getPrimaryReminderMinutes,
 } from "../lib/reminder-utils";
+import { useCalls } from "../../atlas.chat/calls/CallsProvider";
 
 const STATUS_LABELS = {
   PENDING: "Pendiente",
@@ -40,6 +42,7 @@ export default function EventDetailModal({
 }) {
   const deleteEvent = useDeleteEvent();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const { enabled: callsEnabled, isStarting: callPending, startCall } = useCalls();
 
   if (!event) return null;
 
@@ -62,6 +65,7 @@ export default function EventDetailModal({
   const calColor = event.color || event.calendar?.color || "#6B46C1";
   const reminderMinutes = getPrimaryReminderMinutes(event);
   const reminderClock = formatReminderClock(event, reminderMinutes);
+  const isChatMeeting = event.sourceModule === "atlas.chat" && Boolean(event.sourceEntityId);
   const deleteTitle = event._isRecurrenceInstance
     ? "Eliminar serie"
     : "Eliminar evento";
@@ -120,6 +124,22 @@ export default function EventDetailModal({
             <h2 className="text-lg font-semibold text-[hsl(var(--foreground))] leading-tight">
               {event.title}
             </h2>
+
+            {isChatMeeting && callsEnabled && (
+              <Button
+                type="button"
+                className="w-full"
+                disabled={callPending}
+                onClick={() => startCall({
+                  conversationId: event.sourceEntityId,
+                  calendarEventId: event._baseEventId ?? event.id,
+                  kind: "VIDEO",
+                })}
+              >
+                <Video className="mr-2 h-4 w-4" />
+                Iniciar llamada
+              </Button>
+            )}
 
             {event.description && (
               <MarkdownViewer

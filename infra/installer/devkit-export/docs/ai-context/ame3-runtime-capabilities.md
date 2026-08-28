@@ -309,7 +309,7 @@ Cell components used in TABLE blueprints (badge renderers, custom cells) do not 
 
 ---
 
-## Donâ€™t Guess Imports
+## Don’t Guess Imports
 
 These imports are guaranteed and should be used exactly as written:
 

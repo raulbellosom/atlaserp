@@ -71,6 +71,7 @@ import { createDocumentsRouter } from "./routes/documents/documents-router.js";
 import { createSyncRouter } from "./routes/sync.js";
 import { createPwaRouter } from "./routes/pwa.js";
 import { createChatRouter } from "./routes/chat/index.js";
+import { createCallsRouter } from "./routes/calls/index.js";
 import { createNotesRouter } from "./routes/notes/index.js";
 import { createSharesService as createNotesSharesService } from "./routes/notes/shares-service.js";
 import {
@@ -3290,6 +3291,7 @@ app.route("/pwa", pwaRouter);
 // mountWithAuth intercept every request via secured.use("*", authMiddleware), which returns
 // 401 before the chat/notes public routes (e.g. POST /public/chat/session) can be reached.
 app.route("/", createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService, broadcaster }));
+app.route("/", createCallsRouter({ prisma, authMiddleware }));
 app.route("/", createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster }));
 
 app.get("/public", (c) => {
