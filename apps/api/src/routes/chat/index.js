@@ -22,6 +22,7 @@ import {
   chatResolveReportSchema,
 } from "@atlas/validators";
 import { createChatService, ChatServiceError } from "./chat-service.js";
+import { createChatExternalInboxService } from "./chat-external-inbox-service.js";
 import { createChatModerationService, ChatModerationServiceError } from "./chat-moderation-service.js";
 import { createGuestChatService, GuestChatServiceError } from "./guest-service.js";
 import { createChatTemplateService } from "./template-service.js";
@@ -67,6 +68,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     calendarEventService: createCalendarEventService({ prisma }),
   });
   const chatService = createChatService({ prisma, supabaseAdmin, notificationService, broadcaster, permissionsService, mentionsService, entityReferencesService, channelLinksService });
+  const chatExternalInboxService = createChatExternalInboxService({ prisma, broadcaster });
   const guestService = createGuestChatService({ prisma, supabaseAdmin, notificationService, broadcaster });
   const templateService = createChatTemplateService({ prisma });
   const channelDirectoryService = createChannelDirectoryService({ prisma });
@@ -647,7 +649,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     try {
       const authUserId = c.get("authUserId");
       const { status, limit, search } = c.req.query();
-      const result = await chatService.listExternalInbox({
+      const result = await chatExternalInboxService.listExternalInbox({
         authUserId,
         status: status ?? "open",
         limit: limit ? Math.min(parseInt(limit, 10), 100) : 30,
@@ -664,7 +666,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     try {
       const authUserId = c.get("authUserId");
       const conversationId = c.req.param("id");
-      const result = await chatService.markExternalRead({ conversationId, authUserId });
+      const result = await chatExternalInboxService.markExternalRead({ conversationId, authUserId });
       return c.json(result);
     } catch (err) {
       return handleError(c, err, "Error marcando conversacion como leida.");
@@ -751,7 +753,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const conversationId = c.req.param("conversationId");
       const body = await c.req.json();
       const data = chatAssignOperatorSchema.parse(body);
-      const result = await chatService.assignOperator({ conversationId, authUserId, ...data });
+      const result = await chatExternalInboxService.assignOperator({ conversationId, authUserId, ...data });
       return c.json(result);
     } catch (err) {
       if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
@@ -790,7 +792,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     try {
       const authUserId = c.get("authUserId");
       const conversationId = c.req.param("conversationId");
-      const result = await chatService.closeExternalConversation({ conversationId, authUserId });
+      const result = await chatExternalInboxService.closeExternalConversation({ conversationId, authUserId });
       return c.json(result);
     } catch (err) {
       return handleError(c, err, "Error cerrando conversacion.");
