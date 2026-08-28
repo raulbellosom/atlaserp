@@ -9,7 +9,11 @@ export class ChatReactionsError extends Error {
 }
 
 export function createChatReactionsService({ prisma }) {
-  async function toggleReaction({ messageId, authUserId, emoji }) {
+  // attachmentId omitted/null = message-level reaction (unchanged behavior).
+  // attachmentId set = scoped to that one attachment inside the message —
+  // toggled independently from the message-level reaction set and from
+  // every other attachment's own reactions.
+  async function toggleReaction({ messageId, authUserId, emoji, attachmentId = null }) {
     const profileId = await resolveUserProfileId(prisma, authUserId);
 
     const rows = await prisma.$queryRaw`
@@ -21,24 +25,43 @@ export function createChatReactionsService({ prisma }) {
     `;
     if (!rows.length) throw new ChatReactionsError("Mensaje no encontrado.", 404);
 
+    if (attachmentId) {
+      const attRows = await prisma.$queryRaw`
+        SELECT id FROM chat_attachments WHERE id = ${attachmentId} AND message_id = ${messageId} LIMIT 1
+      `;
+      if (!attRows.length) throw new ChatReactionsError("Archivo no encontrado.", 404);
+    }
+
+    // IS NOT DISTINCT FROM (not =) so a NULL attachmentId still matches NULL
+    // rows — plain `=` never matches NULL in SQL, which would silently break
+    // the message-level (attachmentId omitted) toggle-off path entirely.
     const existing = await prisma.$queryRaw`
       SELECT id FROM chat_message_reactions
-      WHERE message_id = ${messageId} AND user_id = ${profileId} AND emoji = ${emoji}
+      WHERE message_id = ${messageId}
+        AND attachment_id IS NOT DISTINCT FROM ${attachmentId}
+        AND user_id = ${profileId} AND emoji = ${emoji}
       LIMIT 1
     `;
 
     if (existing.length) {
       await prisma.$executeRaw`DELETE FROM chat_message_reactions WHERE id = ${existing[0].id}`;
-      return { added: false, emoji };
+      return { added: false, emoji, attachmentId };
     }
 
+    // No ON CONFLICT here (unlike a plain single-constraint table): the two
+    // partial unique indexes from the migration would each need their own
+    // differently-shaped ON CONFLICT target depending on whether
+    // attachmentId is null, which raw SQL can't branch on inline. The
+    // pre-check above already covers the common case; a genuine concurrent
+    // double-click race is a pre-existing, documented, low-severity
+    // possibility (spec Section 24 risk 2) that already existed for
+    // message-level reactions before this change.
     await prisma.$queryRaw`
-      INSERT INTO chat_message_reactions (message_id, user_id, emoji)
-      VALUES (${messageId}, ${profileId}, ${emoji})
-      ON CONFLICT (message_id, user_id, emoji) DO NOTHING
+      INSERT INTO chat_message_reactions (message_id, attachment_id, user_id, emoji)
+      VALUES (${messageId}, ${attachmentId}, ${profileId}, ${emoji})
       RETURNING id
     `;
-    return { added: true, emoji };
+    return { added: true, emoji, attachmentId };
   }
 
   return { toggleReaction };

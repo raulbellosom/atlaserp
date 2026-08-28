@@ -45,7 +45,7 @@ describe("chat-reactions-service — toggleReaction", () => {
     ]);
     const svc = createChatReactionsService({ prisma });
     const result = await svc.toggleReaction({ messageId: "msg-1", authUserId: "auth-1", emoji: "👍" });
-    assert.deepEqual(result, { added: true, emoji: "👍" });
+    assert.deepEqual(result, { added: true, emoji: "👍", attachmentId: null });
   });
 
   it("removes the reaction when the caller already reacted with this emoji (toggle off)", async () => {
@@ -58,6 +58,46 @@ describe("chat-reactions-service — toggleReaction", () => {
     ]);
     const svc = createChatReactionsService({ prisma });
     const result = await svc.toggleReaction({ messageId: "msg-1", authUserId: "auth-1", emoji: "👍" });
-    assert.deepEqual(result, { added: false, emoji: "👍" });
+    assert.deepEqual(result, { added: false, emoji: "👍", attachmentId: null });
+  });
+
+  it("throws 404 when attachmentId doesn't belong to the target message", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: "profile-1" }],
+      [{ id: "msg-1" }],       // message + membership lookup: found
+      [],                      // attachment ownership check: no match
+    ]);
+    const svc = createChatReactionsService({ prisma });
+    await assert.rejects(
+      () => svc.toggleReaction({ messageId: "msg-1", authUserId: "auth-1", emoji: "👍", attachmentId: "att-1" }),
+      (err) => err instanceof ChatReactionsError && err.status === 404,
+    );
+  });
+
+  it("adds an attachment-scoped reaction, keyed separately from message-level ones", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: "profile-1" }],
+      [{ id: "msg-1" }],
+      [{ id: "att-1" }],       // attachment ownership check: found
+      [],                      // existing-reaction check (scoped to this attachment): none
+      [{ id: "reaction-1" }],  // INSERT ... RETURNING id
+    ]);
+    const svc = createChatReactionsService({ prisma });
+    const result = await svc.toggleReaction({ messageId: "msg-1", authUserId: "auth-1", emoji: "😂", attachmentId: "att-1" });
+    assert.deepEqual(result, { added: true, emoji: "😂", attachmentId: "att-1" });
+  });
+
+  it("removes an attachment-scoped reaction on toggle-off", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: "profile-1" }],
+      [{ id: "msg-1" }],
+      [{ id: "att-1" }],
+      [{ id: "reaction-1" }], // existing-reaction check: found
+    ], [
+      { count: 1 }, // DELETE
+    ]);
+    const svc = createChatReactionsService({ prisma });
+    const result = await svc.toggleReaction({ messageId: "msg-1", authUserId: "auth-1", emoji: "😂", attachmentId: "att-1" });
+    assert.deepEqual(result, { added: false, emoji: "😂", attachmentId: "att-1" });
   });
 });
