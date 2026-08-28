@@ -298,8 +298,29 @@ export function useToggleReaction(conversationId) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ messageId, emoji }) => atlas.chat.toggleReaction(messageId, emoji, token),
+    // attachmentId omitted/null = message-level reaction (unchanged).
+    mutationFn: ({ messageId, emoji, attachmentId = null }) =>
+      atlas.chat.toggleReaction(messageId, emoji, token, { attachmentId }),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
+    },
+  });
+}
+
+export function useDeleteAttachment(conversationId) {
+  const { session } = useAuth();
+  const token = session?.access_token;
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (attachmentId) => atlas.chat.deleteAttachment(attachmentId, token),
+    onSuccess: () => {
+      // No optimistic update here (unlike useDeleteMessage): removing one
+      // attachment out of a message's array in the cache correctly, without
+      // also touching attachment_count / re-deriving whether the whole
+      // message got soft-deleted (messageDeleted in the response), is more
+      // bookkeeping than a straight refetch is worth for an action a user
+      // takes rarely and expects to see settle in under a second either way.
       queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
     },
   });
