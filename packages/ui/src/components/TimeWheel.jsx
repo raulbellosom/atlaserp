@@ -5,7 +5,7 @@ const ITEM_HEIGHT = 36;
 const PAD_ROWS = 2;
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
-const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);
+const MINUTES = Array.from({ length: 60 }, (_, i) => i);
 const MERIDIEMS = ["a.m.", "p.m."];
 
 function WheelColumn({ items, value, onChange, formatItem, ariaLabel }) {
@@ -57,7 +57,7 @@ function WheelColumn({ items, value, onChange, formatItem, ariaLabel }) {
       onScroll={handleScroll}
       onKeyDown={handleKeyDown}
       className="h-45 w-16 overflow-y-auto rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-      style={{ scrollSnapType: "y mandatory" }}
+      style={{ scrollSnapType: "y proximity" }}
     >
       <div style={{ height: PAD_ROWS * ITEM_HEIGHT }} aria-hidden="true" />
       {items.map((item) => (

@@ -64,8 +64,7 @@ export function parseDateTimeValue(value) {
   const meridiem = h >= 12 ? "p.m." : "a.m.";
   let hour = h % 12;
   if (hour === 0) hour = 12;
-  const minute = (Math.round(minuteRaw / 5) * 5) % 60;
-  return { date: datePart, hour, minute, meridiem };
+  return { date: datePart, hour, minute: minuteRaw, meridiem };
 }
 
 export function composeDateTimeValue(datePart, hour, minute, meridiem) {
@@ -207,13 +206,13 @@ export function Calendar({ value, onChange, onClose }) {
               disabled={!day}
               onClick={() => selectDay(day)}
               className={cn(
-                "h-8 w-full rounded-md text-sm transition-colors",
+                "h-8 w-8 mx-auto flex items-center justify-center rounded-full text-sm transition-colors",
                 !day && "invisible",
                 day &&
                   !sel &&
                   !tod &&
                   "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
-                tod && !sel && "font-semibold text-[hsl(var(--primary))]",
+                tod && !sel && "font-semibold text-[hsl(var(--primary))] ring-1 ring-inset ring-[hsl(var(--primary))]",
                 sel &&
                   "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold hover:bg-[hsl(var(--primary))]/90",
               )}
