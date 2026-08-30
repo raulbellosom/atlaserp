@@ -572,6 +572,22 @@ body,
   font-weight: 700 !important;
   opacity: 0.45;
 }
+/* Body "start writing" hint — normal text size, muted, only shown on the
+   first empty paragraph of an otherwise-empty note (see bodyPlaceholderText) */
+.tiptap p:not(:first-child).is-empty::before {
+  font-size: 0.9375rem;
+  font-weight: 400;
+  opacity: 1;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Body images: never overflow the content column, keep aspect ratio.
+   NOT !important — the crop wrapper overrides max-width on the <img>. */
+.tiptap img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
 
 /* Highlighted text — force dark text in dark mode so light pastels remain readable.
    Without this, white --foreground text on #fef08a (yellow) etc. is invisible.
