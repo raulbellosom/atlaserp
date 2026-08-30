@@ -38,7 +38,7 @@ function ToolbarButton({ onClick, active, disabled, title, children }) {
       disabled={disabled}
       title={title}
       className={[
-        'h-7 min-w-7 px-1.5 rounded flex items-center justify-center gap-1 text-sm transition-colors select-none',
+        'h-8 min-w-8 sm:h-7 sm:min-w-7 px-1.5 rounded flex items-center justify-center gap-1 text-sm transition-colors select-none shrink-0',
         active
           ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
           : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -61,7 +61,7 @@ function ColorPopover({ title, colors, onColor, onClear, isColorActive, triggerI
         <button
           onMouseDown={e => e.preventDefault()}
           className={[
-            'h-7 min-w-7 px-1.5 rounded flex items-center justify-center gap-0.5 transition-colors select-none',
+            'h-8 min-w-8 sm:h-7 sm:min-w-7 px-1.5 rounded flex items-center justify-center gap-0.5 transition-colors select-none shrink-0',
             triggerIsActive
               ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
               : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -140,7 +140,7 @@ export function NoteToolbar({ noteId, token }) {
   }
 
   return (
-    <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-border bg-background/90 backdrop-blur-sm flex-wrap sticky top-0 z-10 shadow-sm">
+    <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-border bg-background/90 backdrop-blur-sm flex-nowrap overflow-x-auto [-webkit-overflow-scrolling:touch] sm:flex-wrap sm:overflow-visible sticky top-0 z-10 shadow-sm">
 
       {/* History */}
       <ToolbarButton
@@ -298,7 +298,7 @@ export function NoteToolbar({ noteId, token }) {
       <label
         title="Insertar imagen"
         className={[
-          'h-7 min-w-7 px-1.5 rounded flex items-center justify-center gap-1 text-sm transition-colors select-none cursor-pointer',
+          'h-8 min-w-8 sm:h-7 sm:min-w-7 px-1.5 rounded flex items-center justify-center gap-1 text-sm transition-colors select-none cursor-pointer shrink-0',
           uploadingImage
             ? 'opacity-50 cursor-not-allowed'
             : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -333,7 +333,7 @@ export function NoteToolbar({ noteId, token }) {
           <button
             onMouseDown={e => e.preventDefault()}
             className={[
-              'h-7 min-w-7 px-1.5 rounded flex items-center justify-center gap-1 text-sm transition-colors select-none',
+              'h-8 min-w-8 sm:h-7 sm:min-w-7 px-1.5 rounded flex items-center justify-center gap-1 text-sm transition-colors select-none shrink-0',
               editor.isActive('link')
                 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -405,7 +405,7 @@ export function NoteToolbar({ noteId, token }) {
             <PopoverTrigger asChild>
               <button
                 onMouseDown={e => e.preventDefault()}
-                className="h-7 px-2 rounded flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors select-none"
+                className="h-8 sm:h-7 px-2 rounded flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors select-none shrink-0"
                 title="Opciones de tabla"
               >
                 <Table2 className="w-3.5 h-3.5" />
