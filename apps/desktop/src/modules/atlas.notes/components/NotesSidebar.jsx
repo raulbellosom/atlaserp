@@ -15,14 +15,14 @@ function NavItem({ label, Icon, isActive, onClick, count }) {
       onClick={onClick}
       className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150 ${
         isActive
-          ? 'bg-amber-50 text-amber-700 font-semibold'
-          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 font-medium'
+          ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 font-semibold'
+          : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] font-medium'
       }`}
     >
-      <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-600' : 'text-gray-400'}`} />
+      <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-600 dark:text-amber-400' : 'text-[hsl(var(--muted-foreground))]'}`} />
       <span className="flex-1 text-left truncate">{label}</span>
       {count != null && (
-        <span className={`text-[11px] tabular-nums ${isActive ? 'text-amber-500' : 'text-gray-400'}`}>
+        <span className={`text-[11px] tabular-nums ${isActive ? 'text-amber-500 dark:text-amber-400' : 'text-[hsl(var(--muted-foreground))]'}`}>
           {count}
         </span>
       )}
@@ -50,8 +50,8 @@ export function NotesSidebar({ activeView, onViewChange }) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-50/80 py-4 px-2 gap-0.5 overflow-y-auto">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 px-3 mb-1.5">
+    <div className="flex flex-col h-full bg-[hsl(var(--muted)/0.4)] py-4 px-2 gap-0.5 overflow-y-auto">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))] px-3 mb-1.5">
         Notas
       </p>
 
@@ -65,15 +65,15 @@ export function NotesSidebar({ activeView, onViewChange }) {
         />
       ))}
 
-      <div className="h-px bg-gray-200 my-3 mx-1" />
+      <div className="h-px bg-[hsl(var(--border))] my-3 mx-1" />
 
       <div className="flex items-center justify-between px-3 mb-1.5">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
           Carpetas
         </p>
         <button
           onClick={() => setShowNewFolder(v => !v)}
-          className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition-colors"
+          className="w-5 h-5 flex items-center justify-center rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
           title="Nueva carpeta"
         >
           {showNewFolder ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
@@ -82,7 +82,7 @@ export function NotesSidebar({ activeView, onViewChange }) {
 
       {showNewFolder && (
         <form onSubmit={handleCreateFolder} className="px-2 mb-2">
-          <div className="flex items-center gap-1 bg-white border border-amber-300 rounded-lg px-2 py-1.5 shadow-sm">
+          <div className="flex items-center gap-1 bg-[hsl(var(--background))] border border-amber-300 dark:border-amber-700 rounded-lg px-2 py-1.5 shadow-sm">
             <FolderPlus className="w-3.5 h-3.5 text-amber-500 shrink-0" />
             <input
               autoFocus
@@ -90,7 +90,7 @@ export function NotesSidebar({ activeView, onViewChange }) {
               value={newFolderName}
               onChange={e => setNewFolderName(e.target.value)}
               placeholder="Nombre de carpeta..."
-              className="flex-1 text-xs bg-transparent outline-none text-gray-800 placeholder:text-gray-400"
+              className="flex-1 text-xs bg-transparent outline-none text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))]"
               onKeyDown={e => e.key === 'Escape' && setShowNewFolder(false)}
             />
           </div>
@@ -98,7 +98,7 @@ export function NotesSidebar({ activeView, onViewChange }) {
       )}
 
       {folders.length === 0 && !showNewFolder ? (
-        <p className="text-xs text-gray-400 px-3 py-1">Sin carpetas</p>
+        <p className="text-xs text-[hsl(var(--muted-foreground))] px-3 py-1">Sin carpetas</p>
       ) : (
         folders.map(folder => (
           <NavItem

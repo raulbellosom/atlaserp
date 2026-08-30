@@ -43,6 +43,39 @@ function buildPrismaMock(overrides = {}) {
   })
 
   return {
+    userProfile: {
+      findFirst: async () => ({ id: USER_ID }),
+      ...(overrides.userProfile ?? {}),
+    },
+    // Catalog / FK-scope stubs used by assertRefInCompany + delete-in-use guards.
+    invCategory: {
+      findFirst: async () => ({ id: 'cat-1' }),
+      updateMany: async () => ({ count: 1 }),
+      update: async (args) => ({ id: args.where.id, ...args.data }),
+      ...(overrides.invCategory ?? {}),
+    },
+    invBrand: {
+      findFirst: async () => ({ id: 'brand-1' }),
+      updateMany: async () => ({ count: 1 }),
+      update: async (args) => ({ id: args.where.id, ...args.data }),
+      ...(overrides.invBrand ?? {}),
+    },
+    invLocation: {
+      findFirst: async () => ({ id: 'loc-1' }),
+      updateMany: async () => ({ count: 1 }),
+      update: async (args) => ({ id: args.where.id, ...args.data }),
+      ...(overrides.invLocation ?? {}),
+    },
+    invCustomField: {
+      findFirst: async () => ({ id: 'cf-1' }),
+      updateMany: async () => ({ count: 1 }),
+      update: async (args) => ({ id: args.where.id, ...args.data }),
+      ...(overrides.invCustomField ?? {}),
+    },
+    hrEmployee: {
+      findFirst: async () => ({ id: EMPLOYEE_ID }),
+      ...(overrides.hrEmployee ?? {}),
+    },
     invItem: {
       count: async () => 5,
       create: async (args) => ({ id: ITEM_ID, ...args.data }),

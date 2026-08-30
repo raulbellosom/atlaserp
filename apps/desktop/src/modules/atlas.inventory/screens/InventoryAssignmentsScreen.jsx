@@ -6,6 +6,7 @@ import {
   Checkbox,
   EmptyState,
   LoadingState,
+  Badge,
 } from '@atlas/ui'
 import { useInventoryAssignments } from '../hooks/useInventoryItems.js'
 
@@ -109,8 +110,8 @@ export default function InventoryAssignmentsScreen() {
                     <td className="px-4 py-2.5 text-[hsl(var(--muted-foreground))]">{formatDate(r.returnedAt)}</td>
                     <td className="px-4 py-2.5">
                       {active
-                        ? <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">Activa</span>
-                        : <span className="text-xs px-1.5 py-0.5 rounded-full bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] font-medium">Devuelta</span>
+                        ? <Badge variant="success">Activa</Badge>
+                        : <Badge variant="secondary">Devuelta</Badge>
                       }
                     </td>
                   </tr>

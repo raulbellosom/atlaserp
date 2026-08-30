@@ -1298,7 +1298,7 @@ export const inventoryMap = createModuleManifest({
       path: '/inventory/catalogs',
       icon: 'FolderOpen',
       layout: 'main',
-      permissionKey: 'inventory.catalog.manage',
+      permissionKey: 'inventory.catalog.read',
     },
   ],
   permissions: [

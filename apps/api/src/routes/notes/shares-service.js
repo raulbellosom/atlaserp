@@ -36,19 +36,54 @@ export function createSharesService({ prisma, broadcaster }) {
     return rows[0]
   }
 
+  // A note may only be shared with a user who belongs to (at least) one company
+  // the owner also belongs to. Blocks cross-tenant sharing and self-sharing.
+  async function _assertShareableTarget(ownerUserId, targetUserId) {
+    if (!targetUserId || typeof targetUserId !== 'string') {
+      throw new SharesServiceError('Usuario destino invalido', 400)
+    }
+    if (targetUserId === ownerUserId) {
+      throw new SharesServiceError('No puedes compartir una nota contigo mismo', 400)
+    }
+    const rows = await prisma.$queryRaw`
+      SELECT 1
+      FROM membership m_owner
+      JOIN membership m_target
+        ON m_target.company_id = m_owner.company_id
+      WHERE m_owner.user_id  = ${ownerUserId}::uuid  AND m_owner.enabled  = true
+        AND m_target.user_id = ${targetUserId}::uuid AND m_target.enabled = true
+      LIMIT 1
+    `
+    if (!rows.length) {
+      throw new SharesServiceError('Solo puedes compartir con usuarios de tu empresa', 403)
+    }
+  }
+
   async function listShares(noteId, userId) {
     await _verifyAccess(noteId, userId)
+    const ownerRows = await prisma.$queryRaw`
+      SELECT id FROM notes WHERE id = ${noteId} AND owner_user_id = ${userId}
+    `
+    const isOwner = ownerRows.length > 0
     const rows = await prisma.$queryRaw`
       SELECT
         ns.*,
         up.display_name,
-        up.email        AS user_email,
         up.avatar_file_id
       FROM note_shares ns
       JOIN user_profile up ON ns.shared_with_user_id = up.id
       WHERE ns.note_id = ${noteId}
     `
-    return rows
+    // Email is only exposed to the note owner (who manages the share list).
+    if (!isOwner) return rows
+    const emails = await prisma.$queryRaw`
+      SELECT ns.id, up.email
+      FROM note_shares ns
+      JOIN user_profile up ON ns.shared_with_user_id = up.id
+      WHERE ns.note_id = ${noteId}
+    `
+    const emailById = new Map(emails.map((r) => [r.id, r.email]))
+    return rows.map((r) => ({ ...r, user_email: emailById.get(r.id) ?? null }))
   }
 
   async function shareNote(noteId, userId, { targetUserId, permission }) {
@@ -56,6 +91,7 @@ export function createSharesService({ prisma, broadcaster }) {
     if (!['read', 'edit'].includes(permission)) {
       throw new SharesServiceError("El permiso debe ser 'read' o 'edit'")
     }
+    await _assertShareableTarget(userId, targetUserId)
     const rows = await prisma.$queryRaw`
       INSERT INTO note_shares (note_id, shared_with_user_id, shared_by_user_id, permission)
       VALUES (${noteId}, ${targetUserId}, ${userId}, ${permission}::text)
@@ -148,10 +184,24 @@ export function createSharesService({ prisma, broadcaster }) {
   }
 
   async function getPublicNote(slug) {
+    // Public endpoint (no auth) — expose only render-safe fields, never internal
+    // identifiers (company_id, owner_user_id, folder_id) or workflow flags.
     const rows = await prisma.$queryRaw`
       SELECT
-        notes.*,
-        up.display_name AS author_name
+        notes.id,
+        notes.title,
+        notes.content,
+        notes.content_text,
+        notes.icon,
+        notes.cover_url,
+        notes.background_color,
+        notes.background_image_url,
+        notes.word_count,
+        notes.public_slug,
+        notes.created_at,
+        notes.updated_at,
+        up.display_name AS author_name,
+        up.avatar_file_id AS author_avatar_file_id
       FROM notes
       JOIN user_profile up ON notes.owner_user_id = up.id
       WHERE notes.public_slug = ${slug}

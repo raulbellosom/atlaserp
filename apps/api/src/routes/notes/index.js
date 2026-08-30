@@ -144,8 +144,25 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
       const { userId } = getAuth(c)
       const body = await c.req.json()
       const { fileName, mimeType, noteId } = body
+      // If a real note is targeted, the caller must be able to edit it.
+      if (noteId && noteId !== 'draft') {
+        const [note] = await prisma.$queryRaw`
+          SELECT id FROM notes
+          WHERE id = ${noteId}::uuid
+            AND deleted_at IS NULL
+            AND (
+              owner_user_id = ${userId}::uuid
+              OR id IN (
+                SELECT note_id FROM note_shares
+                WHERE shared_with_user_id = ${userId}::uuid AND permission = 'edit'
+              )
+            )
+        `
+        if (!note) return c.json({ error: 'No tienes permiso para editar esta nota' }, 403)
+      }
       const ext = fileName?.split('.')?.pop()?.toLowerCase() ?? 'jpg'
-      const key = `notes/${userId}/${noteId ?? 'draft'}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const safeNoteId = noteId && noteId !== 'draft' ? noteId : 'draft'
+      const key = `notes/${userId}/${safeNoteId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
       const { data, error } = await supabaseAdmin.storage.from('atlas-notes').createSignedUploadUrl(key)
       if (error) return c.json({ error: error.message }, 500)
       const { data: publicData } = supabaseAdmin.storage.from('atlas-notes').getPublicUrl(key)

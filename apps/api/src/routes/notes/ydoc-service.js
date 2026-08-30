@@ -6,6 +6,10 @@ export class YDocServiceError extends Error {
   }
 }
 
+// Hard ceiling for a single note's Yjs state blob. A rich note is a few hundred
+// KB; anything past this is abuse or a client bug, not a real document.
+const MAX_YDOC_BYTES = 8 * 1024 * 1024 // 8 MiB
+
 export function createYDocService({ prisma }) {
   async function getState(noteId, userId) {
     const [note] = await prisma.$queryRaw`
@@ -36,6 +40,13 @@ export function createYDocService({ prisma }) {
   }
 
   async function saveState(noteId, userId, stateBase64) {
+    if (typeof stateBase64 !== 'string' || stateBase64.length === 0) {
+      throw new YDocServiceError('Estado del documento invalido', 400)
+    }
+    // base64 is ~4/3 the byte size; check before allocating the Buffer.
+    if (stateBase64.length > Math.ceil((MAX_YDOC_BYTES * 4) / 3) + 4) {
+      throw new YDocServiceError('El documento excede el tamano maximo permitido', 413)
+    }
     const [note] = await prisma.$queryRaw`
       SELECT id FROM notes
       WHERE id = ${noteId}::uuid
@@ -53,6 +64,9 @@ export function createYDocService({ prisma }) {
     }
 
     const stateBuffer = Buffer.from(stateBase64, 'base64')
+    if (stateBuffer.length === 0 || stateBuffer.length > MAX_YDOC_BYTES) {
+      throw new YDocServiceError('El documento excede el tamano maximo permitido', 413)
+    }
     await prisma.$executeRaw`
       INSERT INTO note_ydoc_state (note_id, state, version, updated_at)
       VALUES (${noteId}::uuid, ${stateBuffer}::bytea, 1, NOW())

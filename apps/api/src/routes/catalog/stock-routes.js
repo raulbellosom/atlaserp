@@ -6,10 +6,17 @@ import {
   getActivityContext,
 } from '../../services/activity-publisher.js'
 
-export function createStockRouter({ stockSvc, prisma, requirePermission }) {
+export function createStockRouter({ stockSvc, prisma, requirePermission, requireAnyPermission }) {
   const app = new Hono()
 
-  app.post('/catalog/products/:id/stock-movements', requirePermission('catalog.products.update'), async (c) => {
+  // Stock adjustment is its own granular grant; a role with full product-edit
+  // rights keeps access for backward compatibility.
+  const canAdjustStock =
+    typeof requireAnyPermission === 'function'
+      ? requireAnyPermission(['catalog.inventory.adjust', 'catalog.products.update'])
+      : requirePermission('catalog.products.update')
+
+  app.post('/catalog/products/:id/stock-movements', canAdjustStock, async (c) => {
     try {
       const companyId = c.get('companyId')
       const userId    = c.get('userId') ?? null

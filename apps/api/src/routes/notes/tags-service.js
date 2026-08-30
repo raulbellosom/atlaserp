@@ -136,16 +136,31 @@ export function createTagsService({ prisma }) {
     `
     if (!access.length) throw new TagsServiceError('No tienes permiso para editar esta nota', 403)
 
+    const requested = Array.isArray(tagIds) ? [...new Set(tagIds.filter(Boolean))] : []
+    // Only the acting user's own tags may be attached.
+    let ownTagIds = []
+    if (requested.length > 0) {
+      const owned = await prisma.$queryRaw`
+        SELECT id FROM note_tags
+        WHERE owner_user_id = ${userId}::uuid
+          AND id = ANY(${requested}::uuid[])
+      `
+      ownTagIds = owned.map((r) => r.id)
+      if (ownTagIds.length !== requested.length) {
+        throw new TagsServiceError('Una o mas etiquetas no te pertenecen', 403)
+      }
+    }
+
     await prisma.$executeRaw`DELETE FROM note_tag_assignments WHERE note_id = ${noteId}::uuid`
-    if (!tagIds || !tagIds.length) return { ok: true, count: 0 }
-    for (const tagId of tagIds) {
+    if (ownTagIds.length === 0) return { ok: true, count: 0 }
+    for (const tagId of ownTagIds) {
       await prisma.$executeRaw`
         INSERT INTO note_tag_assignments (note_id, tag_id)
         VALUES (${noteId}::uuid, ${tagId}::uuid)
         ON CONFLICT DO NOTHING
       `
     }
-    return { ok: true, count: tagIds.length }
+    return { ok: true, count: ownTagIds.length }
   }
 
   // ------------------------------------------------------------------

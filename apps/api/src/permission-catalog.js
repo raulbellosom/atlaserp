@@ -17,6 +17,11 @@ const GROUPS = {
   notifications: "Notificaciones",
   projects: "Proyectos",
   pos: "POS",
+  chat: "Chat",
+  inventory: "Inventario",
+  notes: "Notas",
+  calendar: "Calendario",
+  catalog: "Catalogo",
 };
 
 const MODULE_LABELS = {
@@ -37,6 +42,11 @@ const MODULE_LABELS = {
   notifications: "Notificaciones",
   projects: "Proyectos",
   pos: "POS",
+  chat: "Chat",
+  inventory: "Inventario",
+  notes: "Notas",
+  calendar: "Calendario",
+  catalog: "Catalogo",
 };
 
 const FEATURE_LABELS = {
@@ -1272,6 +1282,300 @@ export const PERMISSION_CATALOG = {
     displayNameEs: "Gestionar soporte externo",
     descriptionEs: "Permite ver y responder conversaciones de visitantes externos.",
     groupKey: "chat",
+    order: 40,
+  },
+  // -----------------------------------------------------------------------
+  // atlas.inventory
+  // -----------------------------------------------------------------------
+  "inventory.access": {
+    displayNameEs: "Acceder a Inventario",
+    descriptionEs: "Permite entrar al modulo de inventario.",
+    groupKey: "inventory",
+    order: 10,
+  },
+  "inventory.item.read": {
+    displayNameEs: "Ver items de inventario",
+    descriptionEs: "Permite consultar el listado y detalle de activos.",
+    groupKey: "inventory",
+    order: 20,
+  },
+  "inventory.item.create": {
+    displayNameEs: "Crear items de inventario",
+    descriptionEs: "Permite registrar nuevos activos.",
+    groupKey: "inventory",
+    order: 21,
+  },
+  "inventory.item.update": {
+    displayNameEs: "Editar items de inventario",
+    descriptionEs: "Permite actualizar activos, sus archivos y comentarios.",
+    groupKey: "inventory",
+    order: 22,
+  },
+  "inventory.item.delete": {
+    displayNameEs: "Eliminar items de inventario",
+    descriptionEs: "Permite desactivar activos.",
+    groupKey: "inventory",
+    order: 23,
+  },
+  "inventory.assignment.read": {
+    displayNameEs: "Ver asignaciones de inventario",
+    descriptionEs: "Permite consultar asignaciones y devoluciones de activos.",
+    groupKey: "inventory",
+    order: 30,
+  },
+  "inventory.assignment.manage": {
+    displayNameEs: "Gestionar asignaciones de inventario",
+    descriptionEs: "Permite asignar y devolver activos de colaboradores.",
+    groupKey: "inventory",
+    order: 31,
+  },
+  "inventory.catalog.read": {
+    displayNameEs: "Ver catalogos de inventario",
+    descriptionEs: "Permite consultar categorias, marcas y ubicaciones.",
+    groupKey: "inventory",
+    order: 40,
+  },
+  "inventory.catalog.manage": {
+    displayNameEs: "Gestionar catalogos de inventario",
+    descriptionEs: "Permite crear y editar categorias, marcas y ubicaciones.",
+    groupKey: "inventory",
+    order: 41,
+  },
+  "inventory.customfield.manage": {
+    displayNameEs: "Gestionar campos personalizados de inventario",
+    descriptionEs: "Permite definir campos personalizados para los activos.",
+    groupKey: "inventory",
+    order: 50,
+  },
+  // -----------------------------------------------------------------------
+  // atlas.notes
+  // -----------------------------------------------------------------------
+  "notes.access": {
+    displayNameEs: "Acceder a Notas",
+    descriptionEs: "Permite entrar al modulo de notas.",
+    groupKey: "notes",
+    order: 10,
+  },
+  "notes.notes.read": {
+    displayNameEs: "Leer notas",
+    descriptionEs: "Permite leer las notas propias y las compartidas.",
+    groupKey: "notes",
+    order: 20,
+  },
+  "notes.notes.create": {
+    displayNameEs: "Crear notas",
+    descriptionEs: "Permite crear nuevas notas.",
+    groupKey: "notes",
+    order: 21,
+  },
+  "notes.notes.update": {
+    displayNameEs: "Editar notas",
+    descriptionEs: "Permite editar el contenido de las notas propias o con permiso de edicion.",
+    groupKey: "notes",
+    order: 22,
+  },
+  "notes.notes.delete": {
+    displayNameEs: "Eliminar notas",
+    descriptionEs: "Permite mover notas a la papelera y borrarlas definitivamente.",
+    groupKey: "notes",
+    order: 23,
+  },
+  "notes.folders.read": {
+    displayNameEs: "Ver carpetas de notas",
+    descriptionEs: "Permite ver las carpetas de notas.",
+    groupKey: "notes",
+    order: 30,
+  },
+  "notes.folders.create": {
+    displayNameEs: "Crear carpetas de notas",
+    descriptionEs: "Permite crear carpetas de notas.",
+    groupKey: "notes",
+    order: 31,
+  },
+  "notes.folders.update": {
+    displayNameEs: "Editar carpetas de notas",
+    descriptionEs: "Permite editar carpetas de notas.",
+    groupKey: "notes",
+    order: 32,
+  },
+  "notes.folders.delete": {
+    displayNameEs: "Eliminar carpetas de notas",
+    descriptionEs: "Permite eliminar carpetas de notas.",
+    groupKey: "notes",
+    order: 33,
+  },
+  "notes.tags.read": {
+    displayNameEs: "Ver etiquetas de notas",
+    descriptionEs: "Permite ver las etiquetas de notas.",
+    groupKey: "notes",
+    order: 40,
+  },
+  "notes.tags.create": {
+    displayNameEs: "Crear etiquetas de notas",
+    descriptionEs: "Permite crear etiquetas de notas.",
+    groupKey: "notes",
+    order: 41,
+  },
+  "notes.tags.update": {
+    displayNameEs: "Editar etiquetas de notas",
+    descriptionEs: "Permite editar etiquetas de notas.",
+    groupKey: "notes",
+    order: 42,
+  },
+  "notes.tags.delete": {
+    displayNameEs: "Eliminar etiquetas de notas",
+    descriptionEs: "Permite eliminar etiquetas de notas.",
+    groupKey: "notes",
+    order: 43,
+  },
+  "notes.shares.read": {
+    displayNameEs: "Ver notas compartidas",
+    descriptionEs: "Permite ver con quien estan compartidas las notas.",
+    groupKey: "notes",
+    order: 50,
+  },
+  "notes.shares.create": {
+    displayNameEs: "Compartir notas",
+    descriptionEs: "Permite compartir notas con otros usuarios de la empresa.",
+    groupKey: "notes",
+    order: 51,
+  },
+  "notes.shares.update": {
+    displayNameEs: "Editar acceso compartido de notas",
+    descriptionEs: "Permite cambiar el permiso de una nota compartida.",
+    groupKey: "notes",
+    order: 52,
+  },
+  "notes.shares.delete": {
+    displayNameEs: "Revocar acceso compartido de notas",
+    descriptionEs: "Permite revocar el acceso a una nota compartida.",
+    groupKey: "notes",
+    order: 53,
+  },
+  // -----------------------------------------------------------------------
+  // atlas.calendar
+  // -----------------------------------------------------------------------
+  "calendar.access": {
+    displayNameEs: "Acceder al calendario",
+    descriptionEs: "Permite entrar al modulo de calendario.",
+    groupKey: "calendar",
+    order: 10,
+  },
+  "calendar.calendars.read": {
+    displayNameEs: "Ver calendarios",
+    descriptionEs: "Permite consultar los calendarios propios y compartidos.",
+    groupKey: "calendar",
+    order: 20,
+  },
+  "calendar.calendars.create": {
+    displayNameEs: "Crear calendarios",
+    descriptionEs: "Permite crear nuevos calendarios.",
+    groupKey: "calendar",
+    order: 21,
+  },
+  "calendar.calendars.update": {
+    displayNameEs: "Editar calendarios",
+    descriptionEs: "Permite actualizar nombre, color y ajustes de un calendario.",
+    groupKey: "calendar",
+    order: 22,
+  },
+  "calendar.calendars.delete": {
+    displayNameEs: "Eliminar calendarios",
+    descriptionEs: "Permite eliminar calendarios.",
+    groupKey: "calendar",
+    order: 23,
+  },
+  "calendar.events.read": {
+    displayNameEs: "Ver eventos",
+    descriptionEs: "Permite consultar eventos y recordatorios.",
+    groupKey: "calendar",
+    order: 30,
+  },
+  "calendar.events.create": {
+    displayNameEs: "Crear eventos",
+    descriptionEs: "Permite crear eventos y recordatorios.",
+    groupKey: "calendar",
+    order: 31,
+  },
+  "calendar.events.update": {
+    displayNameEs: "Editar eventos",
+    descriptionEs: "Permite actualizar eventos y recordatorios.",
+    groupKey: "calendar",
+    order: 32,
+  },
+  "calendar.events.delete": {
+    displayNameEs: "Eliminar eventos",
+    descriptionEs: "Permite eliminar eventos y recordatorios.",
+    groupKey: "calendar",
+    order: 33,
+  },
+  "calendar.share.manage": {
+    displayNameEs: "Gestionar accesos compartidos del calendario",
+    descriptionEs: "Permite compartir calendarios y cambiar los permisos de acceso.",
+    groupKey: "calendar",
+    order: 40,
+  },
+  // -----------------------------------------------------------------------
+  // atlas.catalog
+  // -----------------------------------------------------------------------
+  "catalog.access": {
+    displayNameEs: "Acceder al catalogo",
+    descriptionEs: "Permite entrar al modulo de catalogo.",
+    groupKey: "catalog",
+    order: 10,
+  },
+  "catalog.products.read": {
+    displayNameEs: "Ver productos",
+    descriptionEs: "Permite consultar productos, variantes y su stock.",
+    groupKey: "catalog",
+    order: 20,
+  },
+  "catalog.products.create": {
+    displayNameEs: "Crear productos",
+    descriptionEs: "Permite registrar productos y variantes.",
+    groupKey: "catalog",
+    order: 21,
+  },
+  "catalog.products.update": {
+    displayNameEs: "Editar productos",
+    descriptionEs: "Permite actualizar productos y variantes.",
+    groupKey: "catalog",
+    order: 22,
+  },
+  "catalog.products.delete": {
+    displayNameEs: "Eliminar productos",
+    descriptionEs: "Permite eliminar productos y variantes.",
+    groupKey: "catalog",
+    order: 23,
+  },
+  "catalog.categories.read": {
+    displayNameEs: "Ver categorias del catalogo",
+    descriptionEs: "Permite consultar las categorias de productos.",
+    groupKey: "catalog",
+    order: 30,
+  },
+  "catalog.categories.create": {
+    displayNameEs: "Crear categorias del catalogo",
+    descriptionEs: "Permite crear categorias de productos.",
+    groupKey: "catalog",
+    order: 31,
+  },
+  "catalog.categories.update": {
+    displayNameEs: "Editar categorias del catalogo",
+    descriptionEs: "Permite actualizar categorias de productos.",
+    groupKey: "catalog",
+    order: 32,
+  },
+  "catalog.categories.delete": {
+    displayNameEs: "Eliminar categorias del catalogo",
+    descriptionEs: "Permite eliminar categorias de productos.",
+    groupKey: "catalog",
+    order: 33,
+  },
+  "catalog.inventory.adjust": {
+    displayNameEs: "Ajustar stock del catalogo",
+    descriptionEs: "Permite registrar movimientos de stock (entradas, salidas, ajustes).",
+    groupKey: "catalog",
     order: 40,
   },
 };

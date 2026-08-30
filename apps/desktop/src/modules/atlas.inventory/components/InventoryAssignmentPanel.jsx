@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
+  Badge,
   Button,
   Card,
   ComboboxField,
@@ -48,7 +49,7 @@ function AssignmentHistoryRow({ record }) {
         )}
       </div>
       {active && (
-        <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">Activo</span>
+        <Badge variant="success" className="shrink-0">Activo</Badge>
       )}
     </div>
   )

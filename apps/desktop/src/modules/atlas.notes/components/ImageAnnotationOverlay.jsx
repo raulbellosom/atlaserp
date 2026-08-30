@@ -198,10 +198,10 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
   return (
     <NodeViewWrapper className="relative my-2 inline-block w-full">
       {editable && (
-        <div className="flex items-center gap-2 py-1 px-2 bg-gray-50 border border-gray-200 rounded-t text-xs flex-wrap">
+        <div className="flex items-center gap-2 py-1 px-2 bg-[hsl(var(--muted))] border border-[hsl(var(--border))] rounded-t text-xs flex-wrap">
           <button
             title="Arrastrar para mover la imagen"
-            className="flex items-center justify-center w-7 h-7 -ml-1 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700 cursor-grab active:cursor-grabbing shrink-0"
+            className="flex items-center justify-center w-7 h-7 -ml-1 rounded text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)] hover:text-[hsl(var(--foreground))] cursor-grab active:cursor-grabbing shrink-0"
             style={{ touchAction: 'none' }}
             onPointerDown={onHandlePointerDown}
             onPointerMove={onHandlePointerMove}
@@ -210,20 +210,20 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
           >
             <GripVertical className="w-4 h-4" />
           </button>
-          <div className="h-4 w-px bg-gray-200" />
+          <div className="h-4 w-px bg-[hsl(var(--border))]" />
           {['arrow', 'rect', 'text'].map(t => (
             <button key={t} onClick={() => setTool(t)}
-              className={`px-2 py-0.5 rounded font-medium capitalize ${tool === t ? 'bg-amber-100 text-amber-700' : 'text-gray-600 hover:bg-gray-100'}`}>
+              className={`px-2 py-0.5 rounded font-medium capitalize ${tool === t ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)]'}`}>
               {t === 'arrow' ? 'Flecha' : t === 'rect' ? 'Recuadro' : 'Texto'}
             </button>
           ))}
-          <div className="h-4 w-px bg-gray-200" />
+          <div className="h-4 w-px bg-[hsl(var(--border))]" />
           {COLORS.map(c => (
             <button key={c} onClick={() => setColor(c)}
               className={`w-4 h-4 rounded-full border-2 ${color === c ? 'border-amber-500 scale-110' : 'border-transparent'}`}
               style={{ backgroundColor: c === '#ffffff' ? '#f3f4f6' : c }} />
           ))}
-          <div className="h-4 w-px bg-gray-200" />
+          <div className="h-4 w-px bg-[hsl(var(--border))]" />
           <Select value={String(lineWidth)} onValueChange={v => setLineWidth(Number(v))}>
             <SelectTrigger className="h-6 w-auto min-w-14 px-1.5 py-0 text-xs">
               <SelectValue />
@@ -235,7 +235,7 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
             </SelectContent>
           </Select>
           {annotations.length > 0 && (
-            <button onClick={() => updateAttributes({ annotations: '[]' })} className="ml-auto text-xs text-red-500 hover:bg-red-50 px-2 py-0.5 rounded">
+            <button onClick={() => updateAttributes({ annotations: '[]' })} className="ml-auto text-xs text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 px-2 py-0.5 rounded">
               Limpiar
             </button>
           )}
@@ -268,7 +268,7 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
             autoFocus
             type="text"
             placeholder="Escribe una anotacion..."
-            className="absolute bg-white border border-amber-400 rounded px-2 py-1 text-sm shadow-lg outline-none z-10"
+            className="absolute bg-[hsl(var(--background))] text-[hsl(var(--foreground))] border border-amber-400 dark:border-amber-600 rounded px-2 py-1 text-sm shadow-lg outline-none z-10"
             style={{ left: textInput.screenX, top: textInput.screenY, minWidth: 180 }}
             onKeyDown={e => {
               if (e.key === 'Enter') commitTextInput(e.target.value)

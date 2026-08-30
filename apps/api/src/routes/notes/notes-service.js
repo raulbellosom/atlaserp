@@ -211,8 +211,9 @@ export function createNotesService({ prisma, broadcaster = null }) {
       )
       AND (
         ${q ?? null}::text IS NULL
-        OR to_tsvector('simple', COALESCE(a.title, '') || ' ' || COALESCE(a.content_text, ''))
-           @@ plainto_tsquery('simple', ${q ?? null}::text)
+        -- 'spanish' config must match notes_fts_idx so the GIN index is used.
+        OR to_tsvector('spanish', COALESCE(a.title, '') || ' ' || COALESCE(a.content_text, ''))
+           @@ plainto_tsquery('spanish', ${q ?? null}::text)
       )
       AND (
         ${shared ?? null}::boolean IS NULL

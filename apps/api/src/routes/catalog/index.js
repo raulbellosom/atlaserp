@@ -8,7 +8,7 @@ import { createProductsRouter }        from './products-routes.js'
 import { createVariantsRouter }        from './variants-routes.js'
 import { createStockRouter }           from './stock-routes.js'
 
-export function createCatalogRouter({ prisma, requirePermission, supabaseAdmin }) {
+export function createCatalogRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin }) {
   const app = new Hono()
 
   const productSvc = createCatalogProductService({ prisma, supabaseAdmin })
@@ -18,7 +18,7 @@ export function createCatalogRouter({ prisma, requirePermission, supabaseAdmin }
   app.route('/', createCategoriesRouter({ productSvc, prisma, requirePermission }))
   app.route('/', createProductsRouter({ productSvc, prisma, requirePermission }))
   app.route('/', createVariantsRouter({ variantSvc, requirePermission }))
-  app.route('/', createStockRouter({ stockSvc, prisma, requirePermission }))
+  app.route('/', createStockRouter({ stockSvc, prisma, requirePermission, requireAnyPermission }))
 
   return app
 }

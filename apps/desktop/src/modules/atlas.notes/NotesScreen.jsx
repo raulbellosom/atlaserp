@@ -183,7 +183,7 @@ export default function NotesScreen() {
             </button>
             <button
               onClick={() => { setNoteToAction(selectedNote); setDeleteOpen(true) }}
-              className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 border border-red-200 dark:border-red-900/50 text-red-500 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
             >
               <Trash2 size={13} />
               Eliminar
@@ -233,7 +233,7 @@ export default function NotesScreen() {
                 onClick={() => setRightPanel(p => p === 'editor' ? 'settings' : 'editor')}
                 className={`flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                   rightPanel === 'settings'
-                    ? 'bg-amber-100 text-amber-700'
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`}
               >
@@ -297,7 +297,7 @@ export default function NotesScreen() {
 function EmptyEditor({ onCreateNote, isTrash }) {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-8 select-none">
-      <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center">
+      <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center">
         <PenLine size={22} className="text-amber-400" />
       </div>
       <div>
