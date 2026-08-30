@@ -1,37 +1,64 @@
 import { NodeViewWrapper } from '@tiptap/react'
 import { useRef, useState } from 'react'
-import { GripVertical } from 'lucide-react'
+import { GripVertical, Pencil, Crop as CropIcon, Check } from 'lucide-react'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@atlas/ui'
 import { findDropPosition, moveNode } from '../lib/dragReorder.js'
 import { withImageVariant } from '../../../lib/imageVariants.js'
+import { cropToViewBox, elementFracToImageSpace } from '../lib/imageCrop.js'
+import { ImageCropModal } from './ImageCropModal.jsx'
 
 const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#1a1a1a', '#ffffff']
+const TOOLS = [
+  { id: 'pen', label: 'Lapiz' },
+  { id: 'arrow', label: 'Flecha' },
+  { id: 'rect', label: 'Recuadro' },
+  { id: 'text', label: 'Texto' },
+]
+const W = 1000
+const H = 1000
+
+function parseCrop(raw) {
+  if (!raw) return null
+  if (typeof raw === 'object') return raw
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
 
 export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos }) {
   const svgRef = useRef(null)
-  const [tool, setTool] = useState('arrow')
+  const dragRef = useRef(null) // { pointerId, dropPos } — image reorder
+  const drawRef = useRef(null) // { pointerId } — annotation drawing
+
+  const [mode, setMode] = useState('view') // 'view' | 'edit'
+  const [tool, setTool] = useState('pen')
   const [color, setColor] = useState('#ef4444')
-  const [lineWidth, setLineWidth] = useState(2)
+  const [lineWidth, setLineWidth] = useState(3)
   const [draft, setDraft] = useState(null)
-  // For inline text input — no window.prompt() allowed
   const [textInput, setTextInput] = useState(null) // { screenX, screenY, svgX, svgY }
-  // Drop indicator shown while dragging the image to reorder it (mouse + touch)
   const [dropIndicator, setDropIndicator] = useState(null) // { top, left, width }
-  const dragRef = useRef(null) // { pointerId, dropPos }
+  const [cropOpen, setCropOpen] = useState(false)
+  const [natural, setNatural] = useState(null) // { w, h }
+
   const annotations = JSON.parse(node.attrs.annotations || '[]')
-
+  const crop = parseCrop(node.attrs.crop)
   const editable = editor?.isEditable !== false
+  const isEditing = editable && mode === 'edit'
 
+  // ── image reorder drag handle (mouse + touch via Pointer Events) ─────────
   function getIndicatorRect(view, pos) {
     const { doc } = view.state
-    let dom = pos < doc.content.size ? view.nodeDOM(pos) : null
+    const dom = pos < doc.content.size ? view.nodeDOM(pos) : null
     if (dom?.getBoundingClientRect) {
       const rect = dom.getBoundingClientRect()
       return { top: rect.top, left: rect.left, width: rect.width }
     }
-    // Dropping after the last node — anchor below it
     let lastDom = null
-    doc.forEach((_n, offset) => { lastDom = view.nodeDOM(offset) ?? lastDom })
+    doc.forEach((_n, offset) => {
+      lastDom = view.nodeDOM(offset) ?? lastDom
+    })
     if (lastDom?.getBoundingClientRect) {
       const rect = lastDom.getBoundingClientRect()
       return { top: rect.bottom, left: rect.left, width: rect.width }
@@ -47,7 +74,6 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
     e.currentTarget.setPointerCapture(e.pointerId)
     dragRef.current = { pointerId: e.pointerId, dropPos: null }
   }
-
   function onHandlePointerMove(e) {
     if (!dragRef.current || dragRef.current.pointerId !== e.pointerId) return
     const view = editor.view
@@ -55,56 +81,68 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
     dragRef.current.dropPos = dropPos
     setDropIndicator(getIndicatorRect(view, dropPos))
   }
-
   function onHandlePointerUp(e) {
     if (!dragRef.current || dragRef.current.pointerId !== e.pointerId) return
     const { dropPos } = dragRef.current
     dragRef.current = null
     setDropIndicator(null)
-    if (dropPos !== null) {
-      moveNode(editor, getPos(), dropPos)
-    }
+    if (dropPos !== null) moveNode(editor, getPos(), dropPos)
   }
 
-  function getSvgPos(e) {
-    const svg = svgRef.current
-    const rect = svg.getBoundingClientRect()
-    return {
+  // ── annotation drawing (Pointer Events) ─────────────────────────────────
+  function getPoint(e) {
+    const rect = svgRef.current.getBoundingClientRect()
+    const frac = {
       x: (e.clientX - rect.left) / rect.width,
       y: (e.clientY - rect.top) / rect.height,
     }
+    return elementFracToImageSpace(frac, crop)
   }
 
-  function onMouseDown(e) {
-    if (!editable || textInput) return
+  function onDrawPointerDown(e) {
+    if (!isEditing || textInput) return
     e.preventDefault()
+    const p = getPoint(e)
     if (tool === 'text') {
-      // Show inline text input at click position — never window.prompt()
-      const pos = getSvgPos(e)
-      const svg = svgRef.current
-      const rect = svg.getBoundingClientRect()
+      const rect = svgRef.current.getBoundingClientRect()
       setTextInput({
-        svgX: pos.x,
-        svgY: pos.y,
+        svgX: p.x,
+        svgY: p.y,
         screenX: e.clientX - rect.left,
         screenY: e.clientY - rect.top,
       })
       return
     }
-    setDraft({ type: tool, color, lineWidth, start: getSvgPos(e), end: getSvgPos(e) })
+    svgRef.current.setPointerCapture(e.pointerId)
+    drawRef.current = { pointerId: e.pointerId }
+    if (tool === 'pen') setDraft({ type: 'path', color, lineWidth, points: [p] })
+    else setDraft({ type: tool, color, lineWidth, start: p, end: p })
   }
 
-  function onMouseMove(e) {
-    if (!draft || !editable) return
-    setDraft(d => ({ ...d, end: getSvgPos(e) }))
+  function onDrawPointerMove(e) {
+    if (!drawRef.current || drawRef.current.pointerId !== e.pointerId) return
+    const p = getPoint(e)
+    setDraft((d) => {
+      if (!d) return d
+      if (d.type === 'path') {
+        const last = d.points[d.points.length - 1]
+        if (last && Math.hypot(p.x - last.x, p.y - last.y) < 0.004) return d
+        return { ...d, points: [...d.points, p] }
+      }
+      return { ...d, end: p }
+    })
   }
 
-  function onMouseUp(e) {
-    if (!draft || !editable) return
-    const ann = { ...draft, id: Date.now(), end: getSvgPos(e) }
-    const updated = [...annotations, ann]
-    updateAttributes({ annotations: JSON.stringify(updated) })
+  function onDrawPointerUp(e) {
+    if (!drawRef.current || drawRef.current.pointerId !== e.pointerId) return
+    drawRef.current = null
+    const d = draft
     setDraft(null)
+    if (!d) return
+    if (d.type === 'path' && d.points.length < 2) return
+    updateAttributes({
+      annotations: JSON.stringify([...annotations, { ...d, id: Date.now() }]),
+    })
   }
 
   function commitTextInput(text) {
@@ -118,35 +156,67 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
         svgX: textInput.svgX,
         svgY: textInput.svgY,
       }
-      const updated = [...annotations, ann]
-      updateAttributes({ annotations: JSON.stringify(updated) })
+      updateAttributes({ annotations: JSON.stringify([...annotations, ann]) })
     }
     setTextInput(null)
   }
 
   function removeAnnotation(id) {
-    const updated = annotations.filter(a => a.id !== id)
-    updateAttributes({ annotations: JSON.stringify(updated) })
+    updateAttributes({
+      annotations: JSON.stringify(annotations.filter((a) => a.id !== id)),
+    })
   }
 
+  function exitEditMode() {
+    setDraft(null)
+    setTextInput(null)
+    setMode('view')
+  }
+
+  // ── rendering ──────────────────────────────────────────────────────────
   function renderAnnotation(ann) {
-    const W = 1000 // normalized SVG viewBox width
-    const H = 1000
+    const clickable = isEditing ? 'cursor-pointer' : ''
+    if (ann.type === 'path') {
+      const pts = (ann.points || []).map((p) => `${p.x * W},${p.y * H}`).join(' ')
+      return (
+        <g key={ann.id} onClick={() => isEditing && removeAnnotation(ann.id)} className={clickable}>
+          <polyline
+            points={pts}
+            fill="none"
+            stroke={ann.color}
+            strokeWidth={ann.lineWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+          {isEditing && (
+            <polyline points={pts} fill="none" stroke="transparent" strokeWidth={Math.max(ann.lineWidth + 12, 16)} />
+          )}
+        </g>
+      )
+    }
     if (ann.type === 'arrow') {
       const x1 = ann.start.x * W
       const y1 = ann.start.y * H
       const x2 = ann.end.x * W
       const y2 = ann.end.y * H
       return (
-        <g key={ann.id} onClick={() => editable && removeAnnotation(ann.id)} className="cursor-pointer">
+        <g key={ann.id} onClick={() => isEditing && removeAnnotation(ann.id)} className={clickable}>
           <defs>
             <marker id={`ah-${ann.id}`} markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
               <path d="M0,0 L0,6 L8,3 z" fill={ann.color} />
             </marker>
           </defs>
-          <line x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke={ann.color} strokeWidth={ann.lineWidth}
-            markerEnd={`url(#ah-${ann.id})`} />
+          <line
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke={ann.color}
+            strokeWidth={ann.lineWidth}
+            markerEnd={`url(#ah-${ann.id})`}
+            vectorEffect="non-scaling-stroke"
+          />
         </g>
       )
     }
@@ -156,17 +226,34 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
       const w = Math.abs(ann.end.x - ann.start.x) * W
       const h = Math.abs(ann.end.y - ann.start.y) * H
       return (
-        <rect key={ann.id} x={x} y={y} width={w} height={h}
-          stroke={ann.color} strokeWidth={ann.lineWidth} fill="none"
-          onClick={() => editable && removeAnnotation(ann.id)} className="cursor-pointer" />
+        <rect
+          key={ann.id}
+          x={x}
+          y={y}
+          width={w}
+          height={h}
+          stroke={ann.color}
+          strokeWidth={ann.lineWidth}
+          fill="none"
+          vectorEffect="non-scaling-stroke"
+          onClick={() => isEditing && removeAnnotation(ann.id)}
+          className={clickable}
+        />
       )
     }
     if (ann.type === 'text') {
       return (
-        <text key={ann.id} x={ann.svgX * W} y={ann.svgY * H}
-          fill={ann.color} fontSize={ann.lineWidth * 8 + 12}
-          fontWeight="bold" fontFamily="sans-serif"
-          onClick={() => editable && removeAnnotation(ann.id)} className="cursor-pointer select-none">
+        <text
+          key={ann.id}
+          x={ann.svgX * W}
+          y={ann.svgY * H}
+          fill={ann.color}
+          fontSize={ann.lineWidth * 8 + 12}
+          fontWeight="bold"
+          fontFamily="sans-serif"
+          onClick={() => isEditing && removeAnnotation(ann.id)}
+          className={`select-none ${clickable}`}
+        >
           {ann.text}
         </text>
       )
@@ -176,13 +263,32 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
 
   function renderDraft() {
     if (!draft) return null
-    const W = 1000
-    const H = 1000
+    if (draft.type === 'path') {
+      const pts = draft.points.map((p) => `${p.x * W},${p.y * H}`).join(' ')
+      return (
+        <polyline
+          points={pts}
+          fill="none"
+          stroke={draft.color}
+          strokeWidth={draft.lineWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      )
+    }
     if (draft.type === 'arrow') {
       return (
-        <line x1={draft.start.x * W} y1={draft.start.y * H}
-          x2={draft.end.x * W} y2={draft.end.y * H}
-          stroke={draft.color} strokeWidth={draft.lineWidth} strokeDasharray="6 3" />
+        <line
+          x1={draft.start.x * W}
+          y1={draft.start.y * H}
+          x2={draft.end.x * W}
+          y2={draft.end.y * H}
+          stroke={draft.color}
+          strokeWidth={draft.lineWidth}
+          strokeDasharray="6 3"
+          vectorEffect="non-scaling-stroke"
+        />
       )
     }
     if (draft.type === 'rect') {
@@ -190,18 +296,49 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
       const y = Math.min(draft.start.y, draft.end.y) * H
       const w = Math.abs(draft.end.x - draft.start.x) * W
       const h = Math.abs(draft.end.y - draft.start.y) * H
-      return <rect x={x} y={y} width={w} height={h} stroke={draft.color} strokeWidth={draft.lineWidth} fill="none" strokeDasharray="6 3" />
+      return (
+        <rect
+          x={x}
+          y={y}
+          width={w}
+          height={h}
+          stroke={draft.color}
+          strokeWidth={draft.lineWidth}
+          fill="none"
+          strokeDasharray="6 3"
+          vectorEffect="non-scaling-stroke"
+        />
+      )
     }
     return null
   }
 
+  const src = withImageVariant(node.attrs.src, 'content')
+  const wrapperStyle = { userSelect: 'none' }
+  const imgStyle = { display: 'block' }
+  if (crop) {
+    const ar = natural ? (crop.w * natural.w) / (crop.h * natural.h) : crop.w / crop.h
+    wrapperStyle.aspectRatio = String(ar)
+    Object.assign(imgStyle, {
+      position: 'absolute',
+      width: `${100 / crop.w}%`,
+      left: `${(-crop.x / crop.w) * 100}%`,
+      top: `${(-crop.y / crop.h) * 100}%`,
+      maxWidth: 'none',
+      height: 'auto',
+    })
+  } else {
+    imgStyle.width = '100%'
+    imgStyle.height = 'auto'
+  }
+
   return (
-    <NodeViewWrapper className="relative my-2 inline-block w-full">
-      {editable && (
-        <div className="flex items-center gap-2 py-1 px-2 bg-[hsl(var(--muted))] border border-[hsl(var(--border))] rounded-t text-xs flex-wrap">
+    <NodeViewWrapper className="group/img relative my-2 block w-full">
+      {isEditing && (
+        <div className="flex items-center gap-1.5 py-1.5 px-2 bg-[hsl(var(--muted))] border border-[hsl(var(--border))] rounded-t text-xs flex-nowrap overflow-x-auto [-webkit-overflow-scrolling:touch]">
           <button
             title="Arrastrar para mover la imagen"
-            className="flex items-center justify-center w-7 h-7 -ml-1 rounded text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)] hover:text-[hsl(var(--foreground))] cursor-grab active:cursor-grabbing shrink-0"
+            className="flex items-center justify-center w-9 h-9 rounded text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)] hover:text-[hsl(var(--foreground))] cursor-grab active:cursor-grabbing shrink-0"
             style={{ touchAction: 'none' }}
             onPointerDown={onHandlePointerDown}
             onPointerMove={onHandlePointerMove}
@@ -210,59 +347,93 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
           >
             <GripVertical className="w-4 h-4" />
           </button>
-          <div className="h-4 w-px bg-[hsl(var(--border))]" />
-          {['arrow', 'rect', 'text'].map(t => (
-            <button key={t} onClick={() => setTool(t)}
-              className={`px-2 py-0.5 rounded font-medium capitalize ${tool === t ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)]'}`}>
-              {t === 'arrow' ? 'Flecha' : t === 'rect' ? 'Recuadro' : 'Texto'}
+          <div className="h-5 w-px bg-[hsl(var(--border))] shrink-0" />
+          {TOOLS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTool(t.id)}
+              className={`px-2.5 h-9 rounded font-medium shrink-0 ${
+                tool === t.id
+                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                  : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)]'
+              }`}
+            >
+              {t.label}
             </button>
           ))}
-          <div className="h-4 w-px bg-[hsl(var(--border))]" />
-          {COLORS.map(c => (
-            <button key={c} onClick={() => setColor(c)}
-              className={`w-4 h-4 rounded-full border-2 ${color === c ? 'border-amber-500 scale-110' : 'border-transparent'}`}
-              style={{ backgroundColor: c === '#ffffff' ? '#f3f4f6' : c }} />
+          <div className="h-5 w-px bg-[hsl(var(--border))] shrink-0" />
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              onClick={() => setColor(c)}
+              className={`w-7 h-7 rounded-full border-2 shrink-0 ${color === c ? 'border-amber-500 scale-110' : 'border-transparent'}`}
+              style={{ backgroundColor: c === '#ffffff' ? '#f3f4f6' : c }}
+            />
           ))}
-          <div className="h-4 w-px bg-[hsl(var(--border))]" />
-          <Select value={String(lineWidth)} onValueChange={v => setLineWidth(Number(v))}>
-            <SelectTrigger className="h-6 w-auto min-w-14 px-1.5 py-0 text-xs">
+          <div className="h-5 w-px bg-[hsl(var(--border))] shrink-0" />
+          <Select value={String(lineWidth)} onValueChange={(v) => setLineWidth(Number(v))}>
+            <SelectTrigger className="h-9 w-auto min-w-16 px-2 py-0 text-xs shrink-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {[1, 2, 3, 4, 6].map(w => (
-                <SelectItem key={w} value={String(w)}>{w}px</SelectItem>
+              {[1, 2, 3, 4, 6, 8].map((w) => (
+                <SelectItem key={w} value={String(w)}>
+                  {w}px
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          <div className="h-5 w-px bg-[hsl(var(--border))] shrink-0" />
+          <button
+            onClick={() => setCropOpen(true)}
+            className="flex items-center gap-1 px-2.5 h-9 rounded font-medium text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)] shrink-0"
+          >
+            <CropIcon className="w-3.5 h-3.5" /> Recortar
+          </button>
           {annotations.length > 0 && (
-            <button onClick={() => updateAttributes({ annotations: '[]' })} className="ml-auto text-xs text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 px-2 py-0.5 rounded">
+            <button
+              onClick={() => updateAttributes({ annotations: '[]' })}
+              className="text-xs text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 px-2.5 h-9 rounded shrink-0"
+            >
               Limpiar
             </button>
           )}
+          <button
+            onClick={exitEditMode}
+            className="ml-auto flex items-center gap-1 px-3 h-9 rounded font-semibold bg-amber-500 hover:bg-amber-600 text-white shrink-0"
+          >
+            <Check className="w-3.5 h-3.5" /> Listo
+          </button>
         </div>
       )}
-      <div className="relative" style={{ userSelect: 'none' }}>
+
+      <div className={`relative rounded-b ${crop ? 'overflow-hidden' : ''}`} style={wrapperStyle}>
         <img
-          src={withImageVariant(node.attrs.src, 'content')}
+          src={src}
           alt={node.attrs.alt ?? ''}
-          className="w-full block rounded-b"
+          style={imgStyle}
           draggable={false}
+          onLoad={(e) => setNatural({ w: e.target.naturalWidth, h: e.target.naturalHeight })}
         />
         <svg
           ref={svgRef}
-          viewBox="0 0 1000 1000"
+          viewBox={cropToViewBox(crop)}
           preserveAspectRatio="none"
           className="absolute inset-0 w-full h-full"
-          style={{ cursor: editable ? (tool === 'text' ? 'text' : 'crosshair') : 'default' }}
-          onMouseDown={editable ? onMouseDown : undefined}
-          onMouseMove={editable ? onMouseMove : undefined}
-          onMouseUp={editable ? onMouseUp : undefined}
-          onMouseLeave={editable ? onMouseUp : undefined}
+          style={{
+            touchAction: 'none',
+            pointerEvents: isEditing ? 'auto' : 'none',
+            cursor: isEditing ? (tool === 'text' ? 'text' : 'crosshair') : 'default',
+          }}
+          onPointerDown={isEditing ? onDrawPointerDown : undefined}
+          onPointerMove={isEditing ? onDrawPointerMove : undefined}
+          onPointerUp={isEditing ? onDrawPointerUp : undefined}
+          onPointerCancel={isEditing ? onDrawPointerUp : undefined}
         >
           {annotations.map(renderAnnotation)}
           {renderDraft()}
         </svg>
-        {/* Inline text input for text annotation tool — replaces window.prompt() */}
+
         {textInput && (
           <input
             autoFocus
@@ -270,18 +441,54 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
             placeholder="Escribe una anotacion..."
             className="absolute bg-[hsl(var(--background))] text-[hsl(var(--foreground))] border border-amber-400 dark:border-amber-600 rounded px-2 py-1 text-sm shadow-lg outline-none z-10"
             style={{ left: textInput.screenX, top: textInput.screenY, minWidth: 180 }}
-            onKeyDown={e => {
+            onKeyDown={(e) => {
               if (e.key === 'Enter') commitTextInput(e.target.value)
               if (e.key === 'Escape') setTextInput(null)
             }}
-            onBlur={e => commitTextInput(e.target.value)}
+            onBlur={(e) => commitTextInput(e.target.value)}
           />
         )}
+
+        {editable && mode === 'view' && (
+          <div className="absolute bottom-2 right-2 flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover/img:opacity-100 transition-opacity">
+            <button
+              onClick={() => setMode('edit')}
+              className="flex items-center gap-1.5 text-xs font-medium bg-[hsl(var(--background)/0.9)] backdrop-blur-sm border border-[hsl(var(--border))] rounded-lg px-2.5 py-1.5 shadow-sm hover:bg-[hsl(var(--muted))] transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" /> Editar imagen
+            </button>
+            <button
+              title="Arrastrar para mover la imagen"
+              className="flex items-center justify-center w-8 h-8 rounded-lg bg-[hsl(var(--background)/0.9)] backdrop-blur-sm border border-[hsl(var(--border))] shadow-sm text-[hsl(var(--muted-foreground))] cursor-grab active:cursor-grabbing"
+              style={{ touchAction: 'none' }}
+              onPointerDown={onHandlePointerDown}
+              onPointerMove={onHandlePointerMove}
+              onPointerUp={onHandlePointerUp}
+              onPointerCancel={onHandlePointerUp}
+            >
+              <GripVertical className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
+
       {dropIndicator && (
         <div
           className="fixed h-0.5 bg-amber-500 rounded-full z-50 pointer-events-none"
           style={{ top: dropIndicator.top, left: dropIndicator.left, width: dropIndicator.width }}
+        />
+      )}
+
+      {cropOpen && (
+        <ImageCropModal
+          open={cropOpen}
+          onOpenChange={setCropOpen}
+          src={src}
+          crop={crop}
+          onApply={(next) => {
+            updateAttributes({ crop: next })
+            setCropOpen(false)
+          }}
         />
       )}
     </NodeViewWrapper>
