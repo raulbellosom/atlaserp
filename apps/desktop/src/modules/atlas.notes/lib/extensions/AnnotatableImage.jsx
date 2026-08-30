@@ -18,6 +18,20 @@ export const AnnotatableImage = Node.create({
       alt: { default: null },
       title: { default: null },
       annotations: { default: '[]' },
+      crop: {
+        default: null,
+        parseHTML: (el) => {
+          const raw = el.getAttribute('data-crop')
+          if (!raw) return null
+          try {
+            return JSON.parse(raw)
+          } catch {
+            return null
+          }
+        },
+        renderHTML: (attrs) =>
+          attrs.crop ? { 'data-crop': JSON.stringify(attrs.crop) } : {},
+      },
     }
   },
 
