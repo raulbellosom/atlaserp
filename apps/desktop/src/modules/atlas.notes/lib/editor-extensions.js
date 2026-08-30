@@ -12,6 +12,8 @@ import Link from '@tiptap/extension-link'
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
 import { SlashCommand } from './extensions/SlashCommand.jsx'
+import { TrailingNode } from './extensions/TrailingNode.js'
+import { bodyPlaceholderText } from './placeholderText.js'
 
 export function buildExtensions({
   ydoc, provider, userColor, userName, userId, userAvatarUrl,
@@ -37,14 +39,15 @@ export function buildExtensions({
     CharacterCount,
     Placeholder.configure({
       showOnlyCurrent: false,
-      placeholder: ({ editor, node }) => {
-        const isFirstNode = editor.state.doc.firstChild === node
-        if (isFirstNode) return 'Titulo de la nota...'
-        if (node.type.name === 'heading') return 'Titulo...'
-        // Don't show placeholder on empty paragraphs in the middle of existing content
-        return ''
-      },
+      placeholder: ({ editor, node }) =>
+        bodyPlaceholderText({
+          isFirst: editor.state.doc.firstChild === node,
+          nodeTypeName: node.type.name,
+          isEmpty: node.content.size === 0,
+          docChildCount: editor.state.doc.childCount,
+        }),
     }),
+    TrailingNode,
   ]
 
   if (!readOnly) {
