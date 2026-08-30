@@ -470,6 +470,7 @@ function resolveScreen(moduleKey, subPath) {
     if (subPath === "/insurance" || subPath === "/insurance/new") return SCREEN_MAP["atlas.fleet:/insurance"] ?? null;
     if (subPath.startsWith("/insurance/")) return SCREEN_MAP["atlas.fleet:/insurance/:id"] ?? null;
     if (/^\/reports\/(maintenance|service|repair|other)\/new$/.test(subPath)) return SCREEN_MAP["atlas.fleet:/reports/:type/new"] ?? null;
+    if (/^\/reports\/(maintenance|service|repair|other)\/[^/]+\/edit$/.test(subPath)) return SCREEN_MAP["atlas.fleet:/reports/:type/new"] ?? null;
     if (/^\/reports\/(maintenance|service|repair|other)$/.test(subPath)) return SCREEN_MAP["atlas.fleet:/reports/:type"] ?? null;
     if (/^\/reports\/[^/]+$/.test(subPath)) return SCREEN_MAP["atlas.fleet:/reports/:id"] ?? null;
     if (/^\/catalogs\/(vehicle-types|vehicle-brands|vehicle-models)$/.test(subPath)) return SCREEN_MAP["atlas.fleet:/catalogs/:section"] ?? null;

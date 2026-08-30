@@ -28,7 +28,14 @@ export function MessageReactionPicker({ open, onOpenChange, onPick, anchorAlign 
         side={anchorAlign === "end" ? "left" : "right"}
         align="start"
         sideOffset={8}
-        className="w-auto p-0 overflow-hidden"
+        // pointer-events-auto + an explicit high z-index are load-bearing when
+        // this picker is opened from inside a modal Sheet/Dialog (e.g. the
+        // ThreadPanel "Hilo" sheet): Radix Dialog sets `pointer-events: none`
+        // on <body> while open, and this Popover portals to <body> as a
+        // sibling — without these it renders behind the sheet and swallows no
+        // clicks ("el panel de emojis no se muestra / z-index").
+        className="w-auto p-0 overflow-hidden pointer-events-auto"
+        style={{ zIndex: 10001 }}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <EmojiPicker

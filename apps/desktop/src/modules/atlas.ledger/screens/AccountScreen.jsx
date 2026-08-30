@@ -101,8 +101,15 @@ export default function AccountScreen() {
 
   const members = membersData?.data ?? [];
   const account = accountData?.data ?? null;
+  // Account settings + collaborator management are owner-only, and only for
+  // personal (non-group) accounts — group accounts are managed from the group.
   const canEdit =
-    !isUsingLocalLedger && account != null && account.group_id == null;
+    !isUsingLocalLedger &&
+    account != null &&
+    account.group_id == null &&
+    account.is_owner === true;
+  // Transaction register write access: owner OR editor member OR group editor/admin.
+  const canWriteRegister = account == null || account.can_write !== false;
   const types = typesData?.data ?? [];
   const categories = categoriesData?.data ?? [];
 
@@ -147,10 +154,10 @@ export default function AccountScreen() {
     );
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      toast.error(err.error ?? "No se pudo invitar al colaborador.");
+      toast.error(err.error ?? "No se pudo compartir la cuenta.");
       return;
     }
-    toast.success("Colaborador invitado.");
+    toast.success("Acceso concedido.");
     refetchMembers();
   }
 
@@ -426,6 +433,7 @@ export default function AccountScreen() {
             dateTo={dateTo || undefined}
             types={types}
             categories={categories}
+            canWrite={canWriteRegister}
           />
         )}
 
@@ -474,7 +482,7 @@ export default function AccountScreen() {
                       size="sm"
                       onClick={() => setInviteOpen(true)}
                     >
-                      <UserPlus size={14} className="mr-1" /> Invitar
+                      <UserPlus size={14} className="mr-1" /> Compartir
                     </Button>
                   )}
                 </div>
@@ -482,11 +490,11 @@ export default function AccountScreen() {
                   <EmptyState
                     icon={UserPlus}
                     title="Sin colaboradores"
-                    description="Invita a otros usuarios para compartir esta cuenta."
+                    description="Comparte esta cuenta con otros usuarios para que puedan verla o editarla."
                     action={
                       canEdit
                         ? {
-                            label: "Invitar colaborador",
+                            label: "Compartir cuenta",
                             onClick: () => setInviteOpen(true),
                           }
                         : undefined

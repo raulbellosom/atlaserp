@@ -94,10 +94,14 @@ function ensureBuildxBuilder() {
   const exists = tryRun("docker", ["buildx", "inspect", BUILDER]);
   if (!exists) {
     console.log(`\n[buildx] Creating multi-platform builder "${BUILDER}"...`);
-    run("docker", ["buildx", "create", "--name", BUILDER, "--driver", "docker-container", "--bootstrap"]);
+    run("docker", ["buildx", "create", "--name", BUILDER, "--driver", "docker-container"]);
   }
   // Switch to it.
   run("docker", ["buildx", "use", BUILDER]);
+  // An existing docker-container builder may be stopped after Docker Desktop
+  // restarts. `use` only selects it; `inspect --bootstrap` starts BuildKit and
+  // waits until its worker is ready.
+  run("docker", ["buildx", "inspect", BUILDER, "--bootstrap"]);
 }
 
 if (localBuildMode) {

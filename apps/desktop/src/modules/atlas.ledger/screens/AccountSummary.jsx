@@ -12,9 +12,11 @@ import { useAccountSummary } from '../hooks/use-ledger-queries.js'
 const C_INCOME = '#22c55e'
 const C_EXPENSE = '#f43f5e'
 const C_BALANCE = '#16a34a'
-const C_MUTED = '#94a3b8'
-const C_GRID = '#f1f5f9'
-const C_BORDER = '#e2e8f0'
+// Theme-aware neutrals — resolve against the app's CSS custom properties so the
+// charts read correctly in both light and dark mode.
+const C_MUTED = 'hsl(var(--muted-foreground))'
+const C_GRID = 'hsl(var(--border) / 0.6)'
+const C_BORDER = 'hsl(var(--border))'
 
 function fmt(value, currency = 'MXN') {
   return Number(value ?? 0).toLocaleString('es-MX', {
@@ -37,11 +39,12 @@ function fmtDay(dateStr) {
 function TooltipShell({ children }) {
   return (
     <div style={{
-      background: '#fff',
-      border: `1px solid ${C_BORDER}`,
+      background: 'hsl(var(--popover))',
+      color: 'hsl(var(--popover-foreground))',
+      border: '1px solid hsl(var(--border))',
       borderRadius: 10,
       padding: '8px 14px',
-      boxShadow: '0 4px 24px rgba(0,0,0,.10)',
+      boxShadow: '0 4px 24px rgba(0,0,0,.18)',
       fontSize: 12,
       minWidth: 130,
       lineHeight: 1.6,
@@ -82,7 +85,7 @@ function PieTip({ active, payload, currency }) {
   return (
     <TooltipShell>
       <div style={{ color: entry.payload.fill, fontWeight: 700 }}>{entry.name}</div>
-      <div style={{ color: '#1e293b' }}>{fmt(entry.value, currency)}</div>
+      <div>{fmt(entry.value, currency)}</div>
     </TooltipShell>
   )
 }
@@ -129,7 +132,7 @@ function Dot({ color }) {
 }
 
 function renderLegend(value) {
-  return <span style={{ color: '#64748b', fontSize: 11 }}>{value}</span>
+  return <span style={{ color: 'hsl(var(--muted-foreground))', fontSize: 11 }}>{value}</span>
 }
 
 export default function AccountSummary({ accountId, currency = 'MXN', dateFrom, dateTo }) {
@@ -316,7 +319,7 @@ export default function AccountSummary({ accountId, currency = 'MXN', dateFrom, 
                 type="category"
                 dataKey="categoria"
                 width={110}
-                tick={{ fontSize: 11, fill: '#475569' }}
+                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                 tickLine={false}
                 axisLine={false}
               />

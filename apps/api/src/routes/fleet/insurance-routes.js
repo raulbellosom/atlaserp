@@ -7,6 +7,7 @@ import {
 import { createInsuranceService } from "./insurance-service.js";
 import { FleetServiceError } from "./fleet-service.js";
 import { buildInsuranceExcelBuffer } from "./fleet-export-service.js";
+import { resolveCompanyName } from "../../services/pdf-branding-service.js";
 
 const insuranceEnabledSchema = z.object({ enabled: z.boolean() });
 
@@ -71,12 +72,14 @@ export function createInsuranceRouter({
     async (c) => {
       try {
         const companyId = getCompanyIdFromContext(c);
-        const result = await service.listPolicies({
-          companyId,
-          page: 1,
-          pageSize: 5000,
+        const [result, companyName] = await Promise.all([
+          service.listPolicies({ companyId, page: 1, pageSize: 5000 }),
+          resolveCompanyName({ prisma, companyId }),
+        ]);
+        const buffer = await buildInsuranceExcelBuffer({
+          rows: result.data,
+          companyName,
         });
-        const buffer = await buildInsuranceExcelBuffer({ rows: result.data });
         c.header(
           "Content-Type",
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

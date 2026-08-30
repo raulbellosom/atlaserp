@@ -131,9 +131,17 @@ export default function ReportFormPage() {
   const token = session?.access_token ?? null
 
   const { reportType, recordId, mode } = useMemo(() => {
-    // wildcard: 'reports/maintenance/new' or 'reports/:id/edit'
+    // Supported shapes:
+    //   reports/<type>/new            -> create
+    //   reports/<type>/<id>/edit      -> edit (canonical, keeps the real type in the URL)
+    //   reports/<id>/edit             -> legacy edit, falls back to the maintenance form
     const segs = String(wildcard ?? '').replace(/^\/+/, '').split('/').filter(Boolean)
-    // segs[0]='reports', segs[1]=type or :id, segs[2]='new' or 'edit'
+    if (KNOWN_TYPES.includes(segs[1]) && segs[2] === 'new') {
+      return { reportType: segs[1], recordId: null, mode: 'create' }
+    }
+    if (KNOWN_TYPES.includes(segs[1]) && segs[3] === 'edit') {
+      return { reportType: segs[1], recordId: segs[2] ?? null, mode: 'edit' }
+    }
     if (KNOWN_TYPES.includes(segs[1])) {
       return { reportType: segs[1], recordId: null, mode: 'create' }
     }
@@ -142,9 +150,15 @@ export default function ReportFormPage() {
 
   const formBlueprint = FORMS_BY_TYPE[reportType] ?? FORMS_BY_TYPE.maintenance
 
-  const handleNavigate = useCallback(({ mode }) => {
-    if (mode === 'list') navigate(`/app/m/atlas.fleet/reports/${reportType}`, { replace: true })
-  }, [navigate, reportType])
+  const handleNavigate = useCallback(({ mode: nextMode }) => {
+    if (nextMode === 'list') {
+      navigate(`/app/m/atlas.fleet/reports/${reportType}`, { replace: true })
+      return
+    }
+    if (nextMode === 'detail' && recordId) {
+      navigate(`/app/m/atlas.fleet/reports/${recordId}`, { replace: true })
+    }
+  }, [navigate, reportType, recordId])
 
   const handleCreateSuccess = useCallback(() => {
     navigate(`/app/m/atlas.fleet/reports/${reportType}`, { replace: true })

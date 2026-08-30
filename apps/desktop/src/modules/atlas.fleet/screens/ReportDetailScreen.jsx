@@ -159,8 +159,14 @@ export default function ReportDetailScreen() {
   const detailBlueprint = DETAIL_BY_TYPE[reportType] ?? DETAIL_BY_TYPE.maintenance
 
   const handleNavigate = useCallback(({ mode }) => {
-    if (mode === 'list') navigate('/app/m/atlas.fleet/reports/maintenance', { replace: true })
-  }, [navigate])
+    if (mode === 'list') {
+      navigate(`/app/m/atlas.fleet/reports/${reportType}`, { replace: true })
+      return
+    }
+    if (mode === 'edit' && recordId) {
+      navigate(`/app/m/atlas.fleet/reports/${reportType}/${recordId}/edit`)
+    }
+  }, [navigate, reportType, recordId])
 
   if (!recordId) return null
 

@@ -1,7 +1,7 @@
 // apps/api/src/routes/ledger/collaboration-routes.js
 import { Hono } from 'hono'
 import {
-  inviteAccountMemberSchema, updateAccountMemberRoleSchema, moveAccountGroupSchema,
+  inviteAccountMemberSchema, updateAccountMemberRoleSchema,
 } from './validators.js'
 import { createCollaborationService, CollaborationServiceError } from './collaboration-service.js'
 import { getCompanyId, getActorId, getValidationErrorMessage } from './service-helpers.js'
@@ -17,26 +17,10 @@ export function createCollaborationRouter({ prisma, requirePermission }) {
   const app = new Hono()
   const service = createCollaborationService({ prisma })
 
-  // ── Move account ──────────────────────────────────────────────────────────
-
-  app.patch('/ledger/accounts/:id/group', requirePermission('ledger.accounts.update'), async (c) => {
-    try {
-      const parsed = moveAccountGroupSchema.safeParse(await c.req.json())
-      if (!parsed.success) return c.json({ error: getValidationErrorMessage(parsed.error) }, 400)
-      const companyId = getCompanyId(c)
-      const actorId   = getActorId(c)
-      const accountId = c.req.param('id')
-      const groupId   = parsed.data.group_id
-
-      const result = groupId
-        ? await service.moveAccountToGroup({ companyId, accountId, actorId, groupId })
-        : await service.moveAccountFromGroup({ companyId, accountId, actorId })
-
-      return c.json({ data: result })
-    } catch (err) {
-      return handleError(c, err, 'No se pudo mover la cuenta.')
-    }
-  })
+  // NOTE: PATCH /ledger/accounts/:id/group is served by accounts-routes.js
+  // (mounted first). It was previously also declared here with divergent logic —
+  // that dead duplicate has been removed. The service still exposes
+  // moveAccountToGroup/moveAccountFromGroup for reuse and unit tests.
 
   // ── Account members ───────────────────────────────────────────────────────
 

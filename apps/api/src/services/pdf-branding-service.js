@@ -2,10 +2,13 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 
 const apiPackageRequire = createRequire(
-  new URL("../../../apps/api/package.json", import.meta.url),
+  new URL("../../../../apps/api/package.json", import.meta.url),
 );
 
 let pdfDocumentCtorPromise = null;
+let supabaseCreateClientPromise = null;
+let supabaseAdminClientPromise = null;
+let sharpFactoryPromise = null;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -66,8 +69,164 @@ export async function resolvePdfDocumentCtor() {
   return pdfDocumentCtorPromise;
 }
 
+// ─── Logo loading (Supabase Storage + sharp normalization) ─────────────────────
+
+async function resolveSupabaseCreateClient() {
+  if (!supabaseCreateClientPromise) {
+    supabaseCreateClientPromise = (async () => {
+      try {
+        const moduleNs = await import("@supabase/supabase-js");
+        const fn = moduleNs?.createClient ?? moduleNs?.default?.createClient ?? null;
+        if (typeof fn === "function") return fn;
+      } catch {}
+      try {
+        const resolvedPath = apiPackageRequire.resolve("@supabase/supabase-js");
+        const moduleNs = await import(pathToFileURL(resolvedPath).href);
+        const fn = moduleNs?.createClient ?? moduleNs?.default?.createClient ?? null;
+        if (typeof fn === "function") return fn;
+      } catch {}
+      try {
+        const required = apiPackageRequire("@supabase/supabase-js");
+        const fn = required?.createClient ?? required?.default?.createClient ?? null;
+        if (typeof fn === "function") return fn;
+      } catch {}
+      return null;
+    })();
+  }
+  return supabaseCreateClientPromise;
+}
+
+async function resolveSupabaseAdminClient() {
+  if (!supabaseAdminClientPromise) {
+    supabaseAdminClientPromise = (async () => {
+      const createClient = await resolveSupabaseCreateClient();
+      const supabaseUrl = String(process.env.SUPABASE_URL ?? "").trim();
+      const serviceRoleKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
+      if (!createClient || !supabaseUrl || !serviceRoleKey) return null;
+      try {
+        return createClient(supabaseUrl, serviceRoleKey);
+      } catch {
+        return null;
+      }
+    })();
+  }
+  return supabaseAdminClientPromise;
+}
+
+function isPngBuffer(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 8) return false;
+  return (
+    buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47 &&
+    buffer[4] === 0x0d && buffer[5] === 0x0a && buffer[6] === 0x1a && buffer[7] === 0x0a
+  );
+}
+
+function isJpegBuffer(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 4) return false;
+  return (
+    buffer[0] === 0xff && buffer[1] === 0xd8 &&
+    buffer[buffer.length - 2] === 0xff && buffer[buffer.length - 1] === 0xd9
+  );
+}
+
+function hasExtension(fileName, ext) {
+  return String(fileName ?? "").toLowerCase().endsWith(ext);
+}
+
+function supportsPdfkitImage({ mimeType, originalName, buffer }) {
+  const mime = String(mimeType ?? "").toLowerCase();
+  if (mime === "image/png" || mime === "image/jpeg" || mime === "image/jpg") return true;
+  if (
+    hasExtension(originalName, ".png") ||
+    hasExtension(originalName, ".jpg") ||
+    hasExtension(originalName, ".jpeg")
+  ) return true;
+  return isPngBuffer(buffer) || isJpegBuffer(buffer);
+}
+
+async function resolveSharpFactory() {
+  if (!sharpFactoryPromise) {
+    sharpFactoryPromise = (async () => {
+      try {
+        const moduleNs = await import("sharp");
+        const fn = moduleNs?.default ?? moduleNs?.sharp ?? null;
+        if (typeof fn === "function") return fn;
+      } catch {}
+      try {
+        const resolvedPath = apiPackageRequire.resolve("sharp");
+        const moduleNs = await import(pathToFileURL(resolvedPath).href);
+        const fn = moduleNs?.default ?? moduleNs?.sharp ?? null;
+        if (typeof fn === "function") return fn;
+      } catch {}
+      try {
+        const required = apiPackageRequire("sharp");
+        const fn = required?.default ?? required?.sharp ?? required ?? null;
+        if (typeof fn === "function") return fn;
+      } catch {}
+      return null;
+    })();
+  }
+  return sharpFactoryPromise;
+}
+
+async function normalizeLogoBufferForPdf({ buffer, mimeType, originalName }) {
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) return null;
+  if (supportsPdfkitImage({ mimeType, originalName, buffer })) return buffer;
+
+  const sharp = await resolveSharpFactory();
+  if (!sharp) return null;
+  try {
+    const converted = await sharp(buffer).png({ compressionLevel: 9 }).toBuffer();
+    if (isPngBuffer(converted)) return converted;
+  } catch {}
+  return null;
+}
+
+async function loadCompanyLogoBuffer({ prisma, logoFileId }) {
+  if (!logoFileId) return null;
+  const fileAsset = await prisma.fileAsset
+    .findFirst({
+      where: { id: logoFileId, enabled: true },
+      select: { bucket: true, objectKey: true, mimeType: true, originalName: true },
+    })
+    .catch(() => null);
+  if (!fileAsset?.bucket || !fileAsset?.objectKey) return null;
+
+  const supabaseAdmin = await resolveSupabaseAdminClient();
+  if (!supabaseAdmin?.storage?.from) return null;
+  try {
+    const { data, error: signErr } = await supabaseAdmin.storage
+      .from(fileAsset.bucket)
+      .createSignedUrl(fileAsset.objectKey, 1800);
+    if (signErr || !data?.signedUrl) return null;
+    const response = await fetch(data.signedUrl);
+    if (!response.ok) return null;
+    const rawBuffer = Buffer.from(await response.arrayBuffer());
+    return await normalizeLogoBufferForPdf({
+      buffer: rawBuffer,
+      mimeType: fileAsset.mimeType || response.headers.get("content-type"),
+      originalName: fileAsset.originalName,
+    });
+  } catch {
+    return null;
+  }
+}
+
+// ─── Lightweight company-name resolver ────────────────────────────────────────
+// For contexts (Excel exports, filenames) that only need the display name and
+// must not pay the cost of loading the logo from storage.
+
+export async function resolveCompanyName({ prisma, companyId }) {
+  if (!companyId) return "";
+  const company = await prisma.company
+    .findUnique({ where: { id: companyId }, select: { name: true } })
+    .catch(() => null);
+  return toSafeText(company?.name, "");
+}
+
 // ─── Company branding resolver ─────────────────────────────────────────────────
-// Returns: { companyName, taxId, phone, email, website, addressLines, primaryColor, logoBuffer }
+// Returns: { companyName, taxId, rfc, phone, email, website, addressLines,
+//            primaryColor, logoBuffer }
 
 export async function resolveCompanyBranding({ prisma, companyId }) {
   const [company, brandingConfig] = await Promise.all([
@@ -89,15 +248,23 @@ export async function resolveCompanyBranding({ prisma, companyId }) {
   const postalLine = company?.postalCode ? `CP ${String(company.postalCode).trim()}` : "";
   const addressLines = compact([streetLine, compact([cityLine, postalLine]).join(" ")]);
 
+  const taxId = toSafeText(company?.rfc);
+  const logoBuffer = await loadCompanyLogoBuffer({
+    prisma,
+    logoFileId: brandingConfig?.logoFileId ?? null,
+  }).catch(() => null);
+
   return {
     companyName: toSafeText(company?.name, "Atlas ERP"),
-    taxId: toSafeText(company?.taxId),
+    legalName: toSafeText(company?.legalName, ""),
+    taxId,
+    rfc: taxId,
     phone: toSafeText(company?.phone),
-    email: toSafeText(company?.email),
+    email: toSafeText(company?.contactEmail),
     website: toSafeText(company?.website),
     addressLines,
-    primaryColor: toSafeText(brandingConfig?.primaryColor ?? company?.primaryColor, "#0F766E"),
-    logoBuffer: null,
+    primaryColor: normalizeHexColor(brandingConfig?.primaryColor, "#0F766E"),
+    logoBuffer: Buffer.isBuffer(logoBuffer) ? logoBuffer : null,
   };
 }
 
@@ -124,15 +291,32 @@ export function drawPdfHeader(doc, { branding, title, subtitle, folio }) {
   const LOGO_X = left + 4;
   const LOGO_Y = Math.floor((HEADER_H - LOGO_SIZE) / 2);
   doc.lineWidth(0.75).rect(LOGO_X, LOGO_Y, LOGO_SIZE, LOGO_SIZE).stroke(C_BORDER);
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(18)
-    .fillColor(brandColor)
-    .text(companyName.slice(0, 2).toUpperCase(), LOGO_X, LOGO_Y + 18, {
-      width: LOGO_SIZE,
-      align: "center",
-      lineBreak: false,
-    });
+
+  const logoBuffer = Buffer.isBuffer(branding.logoBuffer) ? branding.logoBuffer : null;
+  let logoDrawn = false;
+  if (logoBuffer) {
+    try {
+      doc.image(logoBuffer, LOGO_X + 4, LOGO_Y + 4, {
+        fit: [LOGO_SIZE - 8, LOGO_SIZE - 8],
+        align: "center",
+        valign: "center",
+      });
+      logoDrawn = true;
+    } catch {
+      logoDrawn = false;
+    }
+  }
+  if (!logoDrawn) {
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(18)
+      .fillColor(brandColor)
+      .text(companyName.slice(0, 2).toUpperCase(), LOGO_X, LOGO_Y + 18, {
+        width: LOGO_SIZE,
+        align: "center",
+        lineBreak: false,
+      });
+  }
 
   const rBlockW = Math.max(Math.floor((right - left) * 0.38), 210);
   const rBlockX = right - rBlockW;
@@ -183,7 +367,8 @@ export function drawPdfHeader(doc, { branding, title, subtitle, folio }) {
 }
 
 // ─── PDF footer renderer ───────────────────────────────────────────────────────
-// Draws a standard footer with page number and generation date.
+// Draws a standard footer: "Generado por <empresa> · fecha" on the left,
+// a discreet "Atlas ERP" watermark centered, and page numbers on the right.
 
 export function drawPdfFooter(doc, { branding, pageNumber, totalPages }) {
   const pageWidth = doc.page.width;
@@ -192,27 +377,42 @@ export function drawPdfFooter(doc, { branding, pageNumber, totalPages }) {
   const FOOTER_Y = pageHeight - 30;
   const brandColor = normalizeHexColor(branding.primaryColor, "#0F766E");
   const C_MUTED = "#94A3B8";
+  const C_WATERMARK = "#CBD5E1";
+  const companyName = toSafeText(branding.companyName, "Atlas ERP");
 
   doc.lineWidth(0.4).moveTo(MARGIN, FOOTER_Y - 6).lineTo(pageWidth - MARGIN, FOOTER_Y - 6).stroke("#E2E8F0");
+
+  const colW = (pageWidth - MARGIN * 2) / 3;
 
   doc
     .font("Helvetica")
     .fontSize(7)
     .fillColor(C_MUTED)
     .text(
-      `Generado por ${toSafeText(branding.companyName, "Atlas ERP")} · ${new Date().toLocaleDateString("es-MX")}`,
+      `Generado por ${companyName} · ${new Date().toLocaleDateString("es-MX")}`,
       MARGIN,
       FOOTER_Y,
-      { width: (pageWidth - MARGIN * 2) * 0.7, align: "left" },
+      { width: colW, align: "left", lineBreak: false, ellipsis: true },
     );
+
+  // Discreet Atlas ERP watermark, centered
+  doc
+    .font("Helvetica")
+    .fontSize(7)
+    .fillColor(C_WATERMARK)
+    .text("Hecho con Atlas ERP", MARGIN + colW, FOOTER_Y, {
+      width: colW,
+      align: "center",
+      lineBreak: false,
+    });
 
   if (totalPages > 1) {
     doc
       .font("Helvetica")
       .fontSize(7)
       .fillColor(brandColor)
-      .text(`Pag. ${pageNumber} / ${totalPages}`, MARGIN, FOOTER_Y, {
-        width: pageWidth - MARGIN * 2,
+      .text(`Pag. ${pageNumber} / ${totalPages}`, pageWidth - MARGIN - colW, FOOTER_Y, {
+        width: colW,
         align: "right",
       });
   }

@@ -1,5 +1,14 @@
 import { FleetServiceError } from "./fleet-service.js";
 import { buildReportPdfBuffer } from "./report-pdf.js";
+import { createReportSchemaEnsurer } from "./reports-schema.js";
+import {
+  normalizePagination,
+  normalizeSearch,
+  normalizeOptionalString,
+  firstRow,
+  toCount,
+  isTableNotFoundError,
+} from "./service-helpers.js";
 
 const MODULE_KEY = "atlas.fleet";
 const UUID_REGEX =
@@ -80,42 +89,6 @@ function normalizeRecordId(id, notFoundMessage) {
   if (!UUID_REGEX.test(value))
     throw new FleetServiceError(notFoundMessage, 404);
   return value.toLowerCase();
-}
-
-function toNumber(value, fallback) {
-  const parsed = Number.parseInt(String(value ?? ""), 10);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function normalizePagination({ page, pageSize }) {
-  const safePage = Math.max(1, toNumber(page, 1));
-  const safePageSize = Math.min(100, Math.max(1, toNumber(pageSize, 20)));
-  return {
-    page: safePage,
-    pageSize: safePageSize,
-    offset: (safePage - 1) * safePageSize,
-  };
-}
-
-function normalizeSearch(search) {
-  const value = String(search ?? "").trim();
-  return value.length > 0 ? value : null;
-}
-
-function normalizeOptionalString(value) {
-  if (value === undefined) return undefined;
-  if (value === null) return null;
-  const normalized = String(value).trim();
-  return normalized.length > 0 ? normalized : null;
-}
-
-function firstRow(rows) {
-  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
-}
-
-function toCount(value) {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function normalizeType(value) {
@@ -293,21 +266,6 @@ function validateTypeBusinessRules(payload) {
   }
 }
 
-function isTableNotFoundError(error) {
-  const codes = [
-    error?.code,
-    error?.meta?.code,
-    error?.cause?.code,
-    error?.originalError?.code,
-  ];
-  if (codes.includes("42P01")) return true;
-  const msg = String(error?.message ?? "").toLowerCase();
-  return (
-    msg.includes("42p01") ||
-    (msg.includes("relation") && msg.includes("does not exist"))
-  );
-}
-
 async function withDbErrorMapping(fn, onTableMissing = null) {
   try {
     return await fn();
@@ -375,100 +333,7 @@ export function createReportsService({ prisma }) {
     });
   }
 
-  let reportTablesReady = false;
-  let reportTablesBootstrapPromise = null;
-
-  async function ensureReportTables() {
-    if (reportTablesReady) return;
-    if (reportTablesBootstrapPromise) {
-      await reportTablesBootstrapPromise;
-      return;
-    }
-
-    reportTablesBootstrapPromise = (async () => {
-      const ddlStatements = [
-        `CREATE TABLE IF NOT EXISTS fleet_report (
-          id uuid PRIMARY KEY DEFAULT uuidv7(),
-          company_id uuid NOT NULL,
-          report_type varchar(40) NOT NULL,
-          folio varchar(32) NOT NULL,
-          status varchar(20) NOT NULL DEFAULT 'draft',
-          vehicle_id uuid NOT NULL,
-          title varchar(255) NOT NULL,
-          report_date date NOT NULL,
-          odometer_km integer,
-          is_inhouse_workshop boolean NOT NULL DEFAULT true,
-          workshop_name varchar(200),
-          workshop_phone varchar(50),
-          workshop_address varchar(300),
-          invoice_number varchar(80),
-          labor_cost numeric(12,2) NOT NULL DEFAULT 0,
-          parts_cost numeric(12,2) NOT NULL DEFAULT 0,
-          total_cost numeric(12,2) NOT NULL DEFAULT 0,
-          notes text,
-          finalized_at timestamptz,
-          finalized_by_profile_id uuid,
-          maintenance_subtype varchar(50),
-          next_service_date date,
-          next_service_odometer integer,
-          service_subtype varchar(50),
-          repair_priority varchar(30),
-          repair_damage_type varchar(30),
-          repair_start_date date,
-          repair_completion_date date,
-          repair_estimated_cost numeric(12,2),
-          warranty_days integer,
-          warranty_notes text,
-          other_category_label varchar(120),
-          enabled boolean NOT NULL DEFAULT true,
-          created_at timestamptz NOT NULL DEFAULT now(),
-          updated_at timestamptz NOT NULL DEFAULT now()
-        )`,
-        `CREATE TABLE IF NOT EXISTS fleet_report_part (
-          id uuid PRIMARY KEY DEFAULT uuidv7(),
-          company_id uuid NOT NULL,
-          report_id uuid NOT NULL,
-          name varchar(200) NOT NULL,
-          quantity integer NOT NULL,
-          unit_cost numeric(12,2) NOT NULL DEFAULT 0,
-          subtotal numeric(12,2) NOT NULL DEFAULT 0,
-          notes varchar(500),
-          enabled boolean NOT NULL DEFAULT true,
-          created_at timestamptz NOT NULL DEFAULT now(),
-          updated_at timestamptz NOT NULL DEFAULT now()
-        )`,
-        `CREATE TABLE IF NOT EXISTS fleet_report_document (
-          id uuid PRIMARY KEY DEFAULT uuidv7(),
-          company_id uuid NOT NULL,
-          report_id uuid NOT NULL,
-          file_asset_id uuid NOT NULL,
-          document_type varchar(50) NOT NULL DEFAULT 'document',
-          label varchar(200),
-          enabled boolean NOT NULL DEFAULT true,
-          created_at timestamptz NOT NULL DEFAULT now(),
-          updated_at timestamptz NOT NULL DEFAULT now()
-        )`,
-        "CREATE UNIQUE INDEX IF NOT EXISTS fleet_report_company_folio_uidx ON fleet_report(company_id, folio)",
-        "CREATE INDEX IF NOT EXISTS fleet_report_company_type_idx ON fleet_report(company_id, report_type)",
-        "CREATE INDEX IF NOT EXISTS fleet_report_company_status_idx ON fleet_report(company_id, status)",
-        "CREATE INDEX IF NOT EXISTS fleet_report_company_vehicle_idx ON fleet_report(company_id, vehicle_id)",
-        "CREATE INDEX IF NOT EXISTS fleet_report_company_date_idx ON fleet_report(company_id, report_date)",
-        "CREATE INDEX IF NOT EXISTS fleet_report_part_company_report_idx ON fleet_report_part(company_id, report_id)",
-        "CREATE INDEX IF NOT EXISTS fleet_report_document_company_report_idx ON fleet_report_document(company_id, report_id)",
-        "CREATE INDEX IF NOT EXISTS fleet_report_document_company_file_idx ON fleet_report_document(company_id, file_asset_id)",
-      ];
-      for (const statement of ddlStatements) {
-        await prisma.$executeRawUnsafe(statement);
-      }
-      reportTablesReady = true;
-    })();
-
-    try {
-      await reportTablesBootstrapPromise;
-    } finally {
-      reportTablesBootstrapPromise = null;
-    }
-  }
+  const ensureReportTables = createReportSchemaEnsurer(prisma);
 
   const withDb = (fn) => withDbErrorMapping(fn, ensureReportTables);
 
@@ -681,45 +546,48 @@ export function createReportsService({ prisma }) {
       reportType: data.report_type,
     });
 
+    // The report row and its parts are written in one transaction so a failed
+    // part insert cannot leave a half-created report behind.
     const row = await withDb(async () => {
-      const rows = await prisma.$queryRaw`
-        INSERT INTO fleet_report (
-          company_id, report_type, folio, status, vehicle_id, title, report_date, odometer_km,
-          is_inhouse_workshop,
-          workshop_name, workshop_phone, workshop_address, invoice_number,
-          labor_cost, parts_cost, total_cost, notes,
-          maintenance_subtype, next_service_date, next_service_odometer, service_subtype,
-          repair_priority, repair_damage_type, repair_start_date, repair_completion_date,
-          repair_estimated_cost, warranty_days, warranty_notes, other_category_label
-        )
-        VALUES (
-          ${safeCompanyId}, ${data.report_type}, ${folio}, ${data.status ?? "draft"}, ${data.vehicle_id},
-          ${data.title}, ${data.report_date}, ${data.odometer_km ?? null},
-          ${data.is_inhouse_workshop ?? true},
-          ${data.workshop_name ?? null}, ${data.workshop_phone ?? null}, ${data.workshop_address ?? null}, ${data.invoice_number ?? null},
-          ${data.labor_cost}, ${data.parts_cost}, ${data.total_cost}, ${data.notes ?? null},
-          ${data.maintenance_subtype ?? null}, ${data.next_service_date ?? null}, ${data.next_service_odometer ?? null}, ${data.service_subtype ?? null},
-          ${data.repair_priority ?? null}, ${data.repair_damage_type ?? null}, ${data.repair_start_date ?? null}, ${data.repair_completion_date ?? null},
-          ${data.repair_estimated_cost ?? null}, ${data.warranty_days ?? null}, ${data.warranty_notes ?? null}, ${data.other_category_label ?? null}
-        )
-        RETURNING *
-      `;
-      return firstRow(rows);
+      await ensureReportTables();
+      return prisma.$transaction(async (tx) => {
+        const rows = await tx.$queryRaw`
+          INSERT INTO fleet_report (
+            company_id, report_type, folio, status, vehicle_id, title, report_date, odometer_km,
+            is_inhouse_workshop,
+            workshop_name, workshop_phone, workshop_address, invoice_number,
+            labor_cost, parts_cost, total_cost, notes,
+            maintenance_subtype, next_service_date, next_service_odometer, service_subtype,
+            repair_priority, repair_damage_type, repair_start_date, repair_completion_date,
+            repair_estimated_cost, warranty_days, warranty_notes, other_category_label
+          )
+          VALUES (
+            ${safeCompanyId}, ${data.report_type}, ${folio}, ${data.status ?? "draft"}, ${data.vehicle_id},
+            ${data.title}, ${data.report_date}, ${data.odometer_km ?? null},
+            ${data.is_inhouse_workshop ?? true},
+            ${data.workshop_name ?? null}, ${data.workshop_phone ?? null}, ${data.workshop_address ?? null}, ${data.invoice_number ?? null},
+            ${data.labor_cost}, ${data.parts_cost}, ${data.total_cost}, ${data.notes ?? null},
+            ${data.maintenance_subtype ?? null}, ${data.next_service_date ?? null}, ${data.next_service_odometer ?? null}, ${data.service_subtype ?? null},
+            ${data.repair_priority ?? null}, ${data.repair_damage_type ?? null}, ${data.repair_start_date ?? null}, ${data.repair_completion_date ?? null},
+            ${data.repair_estimated_cost ?? null}, ${data.warranty_days ?? null}, ${data.warranty_notes ?? null}, ${data.other_category_label ?? null}
+          )
+          RETURNING *
+        `;
+        const created = firstRow(rows);
+        if (!created) {
+          throw new FleetServiceError("No se pudo crear el reporte.", 500);
+        }
+        for (const part of data.parts) {
+          await tx.$queryRaw`
+            INSERT INTO fleet_report_part (company_id, report_id, name, quantity, unit_cost, subtotal, notes, enabled)
+            VALUES (${safeCompanyId}, ${created.id}, ${part.name}, ${part.quantity}, ${part.unit_cost}, ${part.subtotal}, ${part.notes ?? null}, true)
+          `;
+        }
+        return created;
+      });
     });
 
     if (!row) throw new FleetServiceError("No se pudo crear el reporte.", 500);
-
-    if (data.parts.length > 0) {
-      for (const part of data.parts) {
-        await withDb(
-          () =>
-            prisma.$queryRaw`
-            INSERT INTO fleet_report_part (company_id, report_id, name, quantity, unit_cost, subtotal, notes, enabled)
-            VALUES (${safeCompanyId}, ${row.id}, ${part.name}, ${part.quantity}, ${part.unit_cost}, ${part.subtotal}, ${part.notes ?? null}, true)
-          `,
-        );
-      }
-    }
 
     await logAudit({
       actorId,
@@ -791,46 +659,53 @@ export function createReportsService({ prisma }) {
       );
     }
 
+    // Field patch and full parts replacement run in one transaction so the
+    // report is never left with the old parts disabled and no new ones inserted.
+    const hasFieldUpdates = updates.length > 0;
+    const replacesParts = payload.parts !== undefined;
     let updated = before;
-    if (updates.length > 0) {
+    if (hasFieldUpdates || replacesParts) {
       const setClauses = updates
         .map(([key], i) => `"${key}" = $${i + 3}`)
         .join(", ");
       const values = updates.map(([, value]) => value);
+      const nextParts = replacesParts ? normalizeParts(payload.parts) : [];
       updated = await withDb(async () => {
-        const rows = await prisma.$queryRawUnsafe(
-          `UPDATE fleet_report
-           SET ${setClauses}, updated_at = now()
-           WHERE id = $1 AND company_id = $2
-           RETURNING *`,
-          safeId,
-          safeCompanyId,
-          ...values,
-        );
-        return firstRow(rows);
+        await ensureReportTables();
+        return prisma.$transaction(async (tx) => {
+          let row = before;
+          if (hasFieldUpdates) {
+            const rows = await tx.$queryRawUnsafe(
+              `UPDATE fleet_report
+               SET ${setClauses}, updated_at = now()
+               WHERE id = $1 AND company_id = $2
+               RETURNING *`,
+              safeId,
+              safeCompanyId,
+              ...values,
+            );
+            row = firstRow(rows);
+            if (!row) {
+              throw new FleetServiceError("Reporte no encontrado.", 404);
+            }
+          }
+          if (replacesParts) {
+            await tx.$queryRaw`
+              UPDATE fleet_report_part
+              SET enabled = false
+              WHERE report_id = ${safeId} AND company_id = ${safeCompanyId}
+            `;
+            for (const part of nextParts) {
+              await tx.$queryRaw`
+                INSERT INTO fleet_report_part (company_id, report_id, name, quantity, unit_cost, subtotal, notes, enabled)
+                VALUES (${safeCompanyId}, ${safeId}, ${part.name}, ${part.quantity}, ${part.unit_cost}, ${part.subtotal}, ${part.notes ?? null}, true)
+              `;
+            }
+          }
+          return row;
+        });
       });
       if (!updated) throw new FleetServiceError("Reporte no encontrado.", 404);
-    }
-
-    if (payload.parts !== undefined) {
-      await withDb(
-        () =>
-          prisma.$queryRaw`
-          UPDATE fleet_report_part
-          SET enabled = false
-          WHERE report_id = ${safeId} AND company_id = ${safeCompanyId}
-        `,
-      );
-      const parts = normalizeParts(payload.parts);
-      for (const part of parts) {
-        await withDb(
-          () =>
-            prisma.$queryRaw`
-            INSERT INTO fleet_report_part (company_id, report_id, name, quantity, unit_cost, subtotal, notes, enabled)
-            VALUES (${safeCompanyId}, ${safeId}, ${part.name}, ${part.quantity}, ${part.unit_cost}, ${part.subtotal}, ${part.notes ?? null}, true)
-          `,
-        );
-      }
     }
 
     const result = await getReport({
@@ -1062,40 +937,10 @@ export function createReportsService({ prisma }) {
       id,
       reportType,
     });
-    // Pass the original companyId (CUID) for branding — fleet tables use the derived UUID
-    // but prisma.company uses the raw CUID from the membership context.
-    const pdf = await buildReportPdfBuffer({ prisma, companyId, report });
+    // companyId is the membership-context UUID v7; the shared branding resolver
+    // keys prisma.company by that same id.
+    const pdf = await buildReportPdfBuffer({ prisma, companyId: safeCompanyId, report });
     return { report, pdf };
-  }
-
-  async function purgeLegacyMaintenanceData({ companyId, actorId }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId);
-    const maintenance = await withDb(
-      () =>
-        prisma.$executeRaw`
-        UPDATE fleet_maintenance
-        SET enabled = false, updated_at = now()
-        WHERE company_id = ${safeCompanyId} AND enabled = true
-      `,
-    );
-    const maintenanceDocs = await withDb(
-      () =>
-        prisma.$executeRaw`
-        UPDATE fleet_maintenance_document
-        SET enabled = false
-        WHERE company_id = ${safeCompanyId} AND enabled = true
-      `,
-    );
-    await logAudit({
-      actorId,
-      entityType: "Report",
-      entityId: null,
-      action: "fleet.report.dev.purge_legacy",
-      before: null,
-      after: null,
-      metadata: { maintenance, maintenanceDocs },
-    });
-    return { maintenance, maintenanceDocs };
   }
 
   return {
@@ -1112,7 +957,6 @@ export function createReportsService({ prisma }) {
     addReportDocument,
     removeReportDocument,
     generateReportPdf,
-    purgeLegacyMaintenanceData,
   };
 }
 

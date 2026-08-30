@@ -9,6 +9,15 @@ export const BOTTOM_SHEET_SURFACE_CLASS =
 
 export function bottomSheetDragStyle({ dragY, dragging, style }) {
   return {
+    // Forced via inline style (not the `p-6` class BOTTOM_SHEET_SURFACE_CLASS
+    // carries) so the handle keeps its canonical clearance from the top edge
+    // even when a consumer's own className overrides padding to `p-0` for an
+    // edge-to-edge header/body/footer layout (ThreadPanel, MessageActionSheet,
+    // and several Sheet consumers across the app all do this) — inline style
+    // always wins over a class, the same trick paddingBottom below already
+    // relies on. Without this the handle rendered flush against the sheet's
+    // top edge instead of floating just below it.
+    paddingTop: "calc(1.5rem + env(safe-area-inset-top, 0px))",
     paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
     transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
     transition: dragging

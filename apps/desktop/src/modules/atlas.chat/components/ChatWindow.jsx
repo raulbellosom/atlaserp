@@ -873,6 +873,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
           replyingTo={replyingTo}
           onCancelReply={() => setReplyingTo(null)}
           dropZoneDisabled
+          edgeInset
           disabled={!canSendMessages}
         />
       )}

@@ -762,7 +762,11 @@ export function createFleetService({ prisma }) {
   async function generateVehiclePdf({ companyId, id }) {
     const safeCompanyId = toScopedCompanyUuid(companyId);
     const vehicle = await getVehicle({ companyId: safeCompanyId, id });
-    const pdf = await buildVehiclePdfBuffer({ prisma, companyId, vehicle });
+    const pdf = await buildVehiclePdfBuffer({
+      prisma,
+      companyId: safeCompanyId,
+      vehicle,
+    });
     return { vehicle, pdf };
   }
 

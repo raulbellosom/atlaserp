@@ -56,7 +56,21 @@ export function createLedgerService({ prisma }) {
           a.opening_balance + COALESCE(
             SUM(COALESCE(t.deposito, 0) - COALESCE(t.retiro, 0)) FILTER (WHERE t.enabled = true),
             0
-          ) AS current_balance
+          ) AS current_balance,
+          (
+            a.owner_id = ${actorId}::uuid
+            OR EXISTS (
+              SELECT 1 FROM ledger_account_member m
+              WHERE m.account_id = a.id AND m.user_id = ${actorId}::uuid
+                AND m.status = 'active' AND m.role = 'editor'
+            )
+            OR EXISTS (
+              SELECT 1 FROM ledger_group_member gm
+              WHERE gm.group_id = a.group_id AND gm.user_id = ${actorId}::uuid
+                AND gm.status = 'active' AND (gm.role = 'editor' OR gm.role = 'admin')
+            )
+          ) AS can_write,
+          (a.owner_id = ${actorId}::uuid) AS is_owner
         FROM ledger_account a
         LEFT JOIN ledger_transaction t ON t.account_id = a.id
         WHERE a.id = ${accountId}::uuid
@@ -234,6 +248,12 @@ export function createLedgerService({ prisma }) {
           )
       `
       if (!firstRow(groupRows)) throw new LedgerServiceError('Grupo no encontrado o sin permisos.', 403)
+
+      // Access now flows from the group — drop any direct per-account members so
+      // there is a single source of truth for who can see the account.
+      await prisma.$queryRaw`
+        DELETE FROM ledger_account_member WHERE account_id = ${accountId}::uuid
+      `
     }
 
     const rows = await prisma.$queryRaw`
@@ -247,16 +267,22 @@ export function createLedgerService({ prisma }) {
 
   // ── Transactions ─────────────────────────────────────────────────────────────
 
-  async function listTransactions({ companyId, accountId, dateFrom, dateTo, page, pageSize, maxPageSize = 2000 }) {
+  async function listTransactions({ companyId, accountId, actorId = null, dateFrom, dateTo, page, pageSize, order = 'asc', maxPageSize = 2000 }) {
     // Default cap: 2000 for spreadsheet view; callers may pass maxPageSize up to 50000 for exports
     const pag  = normalizePagination({ page, pageSize, maxPageSize: Math.min(maxPageSize, 50000) })
     const from = normalizeOptionalString(dateFrom) ?? null
     const to   = normalizeOptionalString(dateTo)   ?? null
+    // 'desc' returns the most recent slice first (used by the register to show
+    // recent movements by default); callers re-sort ascending for display.
+    const descFlag = String(order).toLowerCase() === 'desc' ? 1 : 0
 
     try {
       // Single query: window functions compute consecutive + running balance,
       // filtered CTE applies date range, COUNT(*) OVER() avoids a second round trip.
       // Account ownership is enforced by the JOIN + company_id filter on the transaction.
+      // Category name/color is only exposed when the category is a system one
+      // (owner_id IS NULL) or owned by the requesting actor — a collaborator on a
+      // shared account never sees another user's personal category label.
       const rows = await prisma.$queryRaw`
         WITH ranked AS (
           SELECT
@@ -278,6 +304,7 @@ export function createLedgerService({ prisma }) {
           JOIN ledger_account a ON a.id = t.account_id AND a.company_id = ${companyId}::uuid
           LEFT JOIN ledger_transaction_type tt ON tt.id = t.tipo_id
           LEFT JOIN ledger_category c ON c.id = t.category_id
+            AND (c.owner_id IS NULL OR c.owner_id = ${actorId}::uuid)
           WHERE t.account_id = ${accountId}::uuid
             AND t.company_id = ${companyId}::uuid
             AND t.enabled = true
@@ -286,11 +313,19 @@ export function createLedgerService({ prisma }) {
           SELECT * FROM ranked
           WHERE (${from}::date IS NULL OR fecha >= ${from}::date)
             AND (${to}::date   IS NULL OR fecha <= ${to}::date)
+        ),
+        paged AS (
+          SELECT *, COUNT(*) OVER()::int4 AS _total_count
+          FROM filtered
+          ORDER BY
+            CASE WHEN ${descFlag}::int = 1 THEN fecha      END DESC,
+            CASE WHEN ${descFlag}::int = 1 THEN created_at  END DESC,
+            CASE WHEN ${descFlag}::int = 0 THEN fecha      END ASC,
+            CASE WHEN ${descFlag}::int = 0 THEN created_at  END ASC
+          LIMIT ${pag.pageSize} OFFSET ${pag.offset}
         )
-        SELECT *, COUNT(*) OVER()::int4 AS _total_count
-        FROM filtered
+        SELECT * FROM paged
         ORDER BY fecha, created_at
-        LIMIT ${pag.pageSize} OFFSET ${pag.offset}
       `
 
       const total = rows.length > 0 ? (rows[0]._total_count ?? rows.length) : 0

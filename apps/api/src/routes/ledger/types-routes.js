@@ -10,11 +10,12 @@ function handleError(c, err, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createTypesRouter({ prisma, requirePermission }) {
+export function createTypesRouter({ prisma, requirePermission, requireAnyPermission }) {
   const app     = new Hono()
   const service = createTypesService({ prisma })
+  const canRead = requireAnyPermission(['ledger.types.read', 'ledger.types.manage'])
 
-  app.get('/ledger/types', requirePermission('ledger.types.manage'), async (c) => {
+  app.get('/ledger/types', canRead, async (c) => {
     try { return c.json(await service.listTypes({ companyId: getCompanyId(c) })) }
     catch (err) { return handleError(c, err, 'No se pudieron listar los tipos.') }
   })
@@ -27,7 +28,7 @@ export function createTypesRouter({ prisma, requirePermission }) {
     } catch (err) { return handleError(c, err, 'No se pudo crear el tipo.') }
   })
 
-  app.get('/ledger/types/:id', requirePermission('ledger.types.manage'), async (c) => {
+  app.get('/ledger/types/:id', canRead, async (c) => {
     try { return c.json({ data: await service.getType({ companyId: getCompanyId(c), typeId: c.req.param('id') }) }) }
     catch (err) { return handleError(c, err, 'No se pudo obtener el tipo.') }
   })

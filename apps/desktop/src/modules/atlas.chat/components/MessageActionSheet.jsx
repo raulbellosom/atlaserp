@@ -60,7 +60,7 @@ export function MessageActionSheet({
   if (isMobile) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" className="chat-glass-theme p-0 rounded-t-2xl">
+        <SheetContent side="bottom" className="chat-glass-theme chat-glass p-0 rounded-t-2xl">
           <SheetHeader className="sr-only">
             <SheetTitle>Acciones del mensaje</SheetTitle>
           </SheetHeader>

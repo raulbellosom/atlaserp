@@ -1,6 +1,6 @@
 // apps/desktop/src/modules/atlas.chat/components/ThreadPanel.jsx
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, Skeleton } from "@atlas/ui";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, Skeleton, useIsMobile } from "@atlas/ui";
 import { MessageSquare } from "lucide-react";
 import { useThreadReplies, useSendThreadReply } from "../hooks/useThreadReplies";
 import { ChatMessageBubble } from "./ChatMessageBubble";
@@ -22,6 +22,15 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
   // same colours, font scale and wallpaper as the main conversation.
   const { prefs } = useChatPreferences();
   const wallpaperClass = prefs.wallpaper ? "chat-wallpaper" : "";
+  // Sheet.jsx forces side="right" to a bottom sheet below the mobile
+  // breakpoint. That variant is auto-height-up-to-85dvh with the SHEET ITSELF
+  // owning the scroll, not a fixed-height flex column — so the inner
+  // `flex-1 min-h-0 overflow-y-auto` message region below (sized correctly
+  // on desktop's h-full side="right" sheet) had nothing to flex against,
+  // collapsing to its min-content size and shrinking the whole thread area.
+  // Giving the panel an explicit height (only on mobile, where it matters)
+  // restores the fixed-height-flex-column model the inner layout assumes.
+  const isMobile = useIsMobile();
 
   const { data, isLoading } = useThreadReplies(open ? rootMessageId : null);
   const { mutateAsync: sendReply } = useSendThreadReply(rootMessageId, conversationId);
@@ -81,9 +90,31 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="right"
-          className={["chat-glass-theme w-full sm:max-w-lg lg:max-w-xl flex flex-col p-0", wallpaperClass].join(" ")}
+          className={[
+            // Solid, forced (see MessageComposer.jsx for the same `!`
+            // pattern) fill in the exact token the message area's own
+            // .chat-wallpaper already paints (bg-[hsl(var(--background))]).
+            // An earlier version used the translucent .chat-glass here, which
+            // overrides the generic dialog `glass-strong` wash but reads
+            // two-toned: the base Sheet's own `gap-4` leaves the translucent
+            // glass visible in the seams BETWEEN the header / message-list /
+            // composer rows, each of which paints its own opaque background —
+            // so header and gaps read as one shade, the message list and
+            // composer as another. Matching all of it to one flat, opaque
+            // colour removes the seam instead of trying to blend two
+            // different surface treatments.
+            "chat-glass-theme bg-[hsl(var(--background))]! w-full sm:max-w-lg lg:max-w-xl flex flex-col p-0",
+            wallpaperClass,
+            isMobile ? "h-[85dvh]" : "",
+          ].join(" ")}
           data-accent={prefs.accentColorKey}
-          style={chatPreferencesStyle(prefs)}
+          // paddingBottom: 0 cancels the Sheet's own blanket bottom-sheet
+          // inset (bottom-sheet-shared.jsx forces ~1.5rem+safe-area via
+          // inline style, so it can't be dropped via className p-0) — it's
+          // pure dead space here because the composer already adds its own
+          // safe-area gap via `edgeInset` below. Without this the panel had
+          // ~24px of empty space under an already-inset composer.
+          style={{ ...chatPreferencesStyle(prefs), paddingBottom: 0 }}
         >
           <SheetHeader className="px-4 pt-4">
             <SheetTitle className="chat-font-display flex items-center gap-2">
@@ -138,6 +169,7 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
               onSend={handleSend}
               placeholder="Responder en el hilo..."
               compact
+              edgeInset
               conversationId={conversationId}
               conversationType={conversationType}
               replyingTo={replyingTo}

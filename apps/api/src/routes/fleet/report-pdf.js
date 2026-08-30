@@ -1,20 +1,30 @@
-import { createRequire } from "node:module";
-import { pathToFileURL } from "node:url";
 import { FleetServiceError } from "./fleet-service.js";
+import {
+  resolvePdfDocumentCtor,
+  resolveCompanyBranding as resolveSharedCompanyBranding,
+  toSafeText,
+  compact,
+  normalizeHexColor,
+  lightenHex,
+  formatDateEs,
+} from "../../services/pdf-branding-service.js";
 
-let pdfDocumentCtorPromise = null;
-let supabaseCreateClientPromise = null;
-let supabaseAdminClientPromise = null;
-let sharpFactoryPromise = null;
-const apiPackageRequire = createRequire(
-  new URL("../../../../apps/api/package.json", import.meta.url),
-);
-
-function formatDateEs(value) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("es-MX");
+// Adapts the shared branding resolver to the field names this report layout uses.
+async function resolveCompanyBranding({ prisma, companyId }) {
+  const shared = await resolveSharedCompanyBranding({ prisma, companyId });
+  const addressLines = Array.isArray(shared.addressLines) ? shared.addressLines : [];
+  return {
+    companyName: shared.companyName,
+    legalName: shared.legalName ?? "",
+    rfc: shared.rfc && shared.rfc !== "-" ? shared.rfc : "",
+    contactEmail: shared.email && shared.email !== "-" ? shared.email : "",
+    phone: shared.phone && shared.phone !== "-" ? shared.phone : "",
+    website: shared.website && shared.website !== "-" ? shared.website : "",
+    address1: addressLines[0] ?? "",
+    address2: addressLines.slice(1).join(" | "),
+    primaryColor: normalizeHexColor(shared.primaryColor ?? "#0F766E", "#0F766E"),
+    logoBuffer: Buffer.isBuffer(shared.logoBuffer) ? shared.logoBuffer : null,
+  };
 }
 
 function formatDateTimeEs(value) {
@@ -45,20 +55,6 @@ function formatInteger(value) {
   );
 }
 
-function normalizeHexColor(color, fallback = "#0F766E") {
-  const raw = String(color ?? "").trim();
-  return /^#[0-9a-fA-F]{6}$/.test(raw) ? raw.toUpperCase() : fallback;
-}
-
-function toSafeText(value, fallback = "-") {
-  const normalized = String(value ?? "").trim();
-  return normalized.length > 0 ? normalized : fallback;
-}
-
-function compact(values = []) {
-  return values.map((item) => String(item ?? "").trim()).filter(Boolean);
-}
-
 function reportSubtypeLabel(report) {
   const map = {
     preventive: "Preventivo",
@@ -86,293 +82,6 @@ function reportSubtypeLabel(report) {
     report?.repair_priority ??
     report?.repair_damage_type;
   return key ? (map[key] ?? key) : "-";
-}
-
-async function resolveSupabaseCreateClient() {
-  if (!supabaseCreateClientPromise) {
-    supabaseCreateClientPromise = (async () => {
-      try {
-        const moduleNs = await import("@supabase/supabase-js");
-        const fn =
-          moduleNs?.createClient ?? moduleNs?.default?.createClient ?? null;
-        if (typeof fn === "function") return fn;
-      } catch {}
-      try {
-        const resolvedPath = apiPackageRequire.resolve("@supabase/supabase-js");
-        const moduleNs = await import(pathToFileURL(resolvedPath).href);
-        const fn =
-          moduleNs?.createClient ?? moduleNs?.default?.createClient ?? null;
-        if (typeof fn === "function") return fn;
-      } catch {}
-      try {
-        const required = apiPackageRequire("@supabase/supabase-js");
-        const fn =
-          required?.createClient ?? required?.default?.createClient ?? null;
-        if (typeof fn === "function") return fn;
-      } catch {}
-      return null;
-    })();
-  }
-  return supabaseCreateClientPromise;
-}
-
-async function resolveSupabaseAdminClient() {
-  if (!supabaseAdminClientPromise) {
-    supabaseAdminClientPromise = (async () => {
-      const createClient = await resolveSupabaseCreateClient();
-      const supabaseUrl = String(process.env.SUPABASE_URL ?? "").trim();
-      const serviceRoleKey = String(
-        process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
-      ).trim();
-      if (!createClient || !supabaseUrl || !serviceRoleKey) return null;
-      try {
-        return createClient(supabaseUrl, serviceRoleKey);
-      } catch {
-        return null;
-      }
-    })();
-  }
-  return supabaseAdminClientPromise;
-}
-
-function hasExtension(fileName, ext) {
-  return String(fileName ?? "").toLowerCase().endsWith(ext);
-}
-
-function isPngBuffer(buffer) {
-  if (!Buffer.isBuffer(buffer) || buffer.length < 8) return false;
-  return (
-    buffer[0] === 0x89 &&
-    buffer[1] === 0x50 &&
-    buffer[2] === 0x4e &&
-    buffer[3] === 0x47 &&
-    buffer[4] === 0x0d &&
-    buffer[5] === 0x0a &&
-    buffer[6] === 0x1a &&
-    buffer[7] === 0x0a
-  );
-}
-
-function isJpegBuffer(buffer) {
-  if (!Buffer.isBuffer(buffer) || buffer.length < 4) return false;
-  return (
-    buffer[0] === 0xff &&
-    buffer[1] === 0xd8 &&
-    buffer[buffer.length - 2] === 0xff &&
-    buffer[buffer.length - 1] === 0xd9
-  );
-}
-
-function supportsPdfkitImage({ mimeType, originalName, buffer }) {
-  const mime = String(mimeType ?? "").toLowerCase();
-  if (mime === "image/png" || mime === "image/jpeg" || mime === "image/jpg") return true;
-  if (hasExtension(originalName, ".png") || hasExtension(originalName, ".jpg") || hasExtension(originalName, ".jpeg")) return true;
-  return isPngBuffer(buffer) || isJpegBuffer(buffer);
-}
-
-async function resolveSharpFactory() {
-  if (!sharpFactoryPromise) {
-    sharpFactoryPromise = (async () => {
-      try {
-        const moduleNs = await import("sharp");
-        const fn = moduleNs?.default ?? moduleNs?.sharp ?? null;
-        if (typeof fn === "function") return fn;
-      } catch {}
-      try {
-        const resolvedPath = apiPackageRequire.resolve("sharp");
-        const moduleNs = await import(pathToFileURL(resolvedPath).href);
-        const fn = moduleNs?.default ?? moduleNs?.sharp ?? null;
-        if (typeof fn === "function") return fn;
-      } catch {}
-      try {
-        const required = apiPackageRequire("sharp");
-        const fn = required?.default ?? required?.sharp ?? required ?? null;
-        if (typeof fn === "function") return fn;
-      } catch {}
-      return null;
-    })();
-  }
-  return sharpFactoryPromise;
-}
-
-async function normalizeLogoBufferForPdf({ buffer, mimeType, originalName }) {
-  if (!Buffer.isBuffer(buffer) || buffer.length === 0) return null;
-  if (supportsPdfkitImage({ mimeType, originalName, buffer })) return buffer;
-
-  const sharp = await resolveSharpFactory();
-  if (!sharp) {
-    console.log(
-      "[pdf-branding] logo format unsupported for PDFKit and sharp is unavailable:",
-      mimeType || "unknown",
-      originalName || "unknown",
-    );
-    return null;
-  }
-
-  try {
-    const converted = await sharp(buffer).png({ compressionLevel: 9 }).toBuffer();
-    if (isPngBuffer(converted)) {
-      console.log("[pdf-branding] logo converted to PNG for PDF rendering");
-      return converted;
-    }
-  } catch (e) {
-    console.error("[pdf-branding] sharp conversion failed:", e?.message);
-  }
-  return null;
-}
-
-async function resolveCompanyBranding({ prisma, companyId }) {
-  const [company, brandingConfig] = await Promise.all([
-    prisma.company.findUnique({ where: { id: companyId } }).catch(() => null),
-    prisma.brandingConfig
-      .findUnique({ where: { companyId } })
-      .catch(() => null),
-  ]);
-
-  const streetLine = compact([
-    company?.street,
-    company?.extNumber ? `No. ${company.extNumber}` : "",
-    company?.intNumber ? `Int. ${company.intNumber}` : "",
-  ]).join(", ");
-
-  const localityLine = compact([
-    company?.colony ? `Col. ${company.colony}` : "",
-    company?.city,
-    company?.state,
-    company?.country,
-  ]).join(", ");
-  const postalLine = company?.postalCode
-    ? `CP ${String(company.postalCode).trim()}`
-    : "";
-
-  const branding = {
-    companyName: toSafeText(company?.name, "Atlas ERP"),
-    legalName: toSafeText(company?.legalName, ""),
-    rfc: toSafeText(company?.rfc, ""),
-    contactEmail: toSafeText(company?.contactEmail, ""),
-    phone: toSafeText(company?.phone, ""),
-    website: toSafeText(company?.website, ""),
-    address1: streetLine,
-    address2: compact([localityLine, postalLine]).join(" | "),
-    primaryColor: normalizeHexColor(
-      brandingConfig?.primaryColor ?? "#0F766E",
-      "#0F766E",
-    ),
-    logoBuffer: null,
-  };
-
-  if (!brandingConfig?.logoFileId) {
-    console.log("[pdf-branding] no logoFileId on brandingConfig");
-    return branding;
-  }
-  const fileAsset = await prisma.fileAsset
-    .findFirst({
-      where: { id: brandingConfig.logoFileId, enabled: true },
-      select: { bucket: true, objectKey: true, mimeType: true, originalName: true },
-    })
-    .catch((e) => {
-      console.error("[pdf-branding] fileAsset lookup error:", e?.message);
-      return null;
-    });
-  if (!fileAsset?.bucket || !fileAsset?.objectKey) {
-    console.log(
-      "[pdf-branding] fileAsset not found or missing bucket/objectKey:",
-      fileAsset,
-    );
-    return branding;
-  }
-
-  const supabaseAdmin = await resolveSupabaseAdminClient();
-  if (!supabaseAdmin?.storage?.from) {
-    console.log(
-      "[pdf-branding] supabaseAdmin client is null — check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY",
-    );
-    return branding;
-  }
-  try {
-    const { data, error: signErr } = await supabaseAdmin.storage
-      .from(fileAsset.bucket)
-      .createSignedUrl(fileAsset.objectKey, 1800);
-    if (signErr || !data?.signedUrl) {
-      console.log(
-        "[pdf-branding] createSignedUrl failed:",
-        signErr?.message,
-        "bucket:",
-        fileAsset.bucket,
-        "key:",
-        fileAsset.objectKey,
-      );
-      return branding;
-    }
-    const response = await fetch(data.signedUrl);
-    if (!response.ok) {
-      console.log(
-        "[pdf-branding] fetch logo failed:",
-        response.status,
-        response.statusText,
-      );
-      return branding;
-    }
-    const bytes = await response.arrayBuffer();
-    const rawBuffer = Buffer.from(bytes);
-    const responseMimeType = response.headers.get("content-type");
-    const logoBufferForPdf = await normalizeLogoBufferForPdf({
-      buffer: rawBuffer,
-      mimeType: fileAsset.mimeType || responseMimeType,
-      originalName: fileAsset.originalName,
-    });
-    if (logoBufferForPdf) {
-      branding.logoBuffer = logoBufferForPdf;
-      console.log("[pdf-branding] logo loaded OK, bytes:", branding.logoBuffer.length);
-    } else {
-      console.log(
-        "[pdf-branding] logo fetched but could not normalize for PDF:",
-        fileAsset.mimeType || responseMimeType || "unknown",
-        fileAsset.originalName || "unknown",
-      );
-    }
-  } catch (e) {
-    console.error("[pdf-branding] unexpected error fetching logo:", e?.message);
-  }
-  return branding;
-}
-
-async function resolvePdfDocumentCtor() {
-  if (!pdfDocumentCtorPromise) {
-    pdfDocumentCtorPromise = (async () => {
-      try {
-        const moduleNs = await import("pdfkit");
-        return moduleNs?.default ?? moduleNs?.PDFDocument ?? null;
-      } catch {}
-      try {
-        const resolvedPath = apiPackageRequire.resolve("pdfkit");
-        const moduleNs = await import(pathToFileURL(resolvedPath).href);
-        return moduleNs?.default ?? moduleNs?.PDFDocument ?? null;
-      } catch {}
-      try {
-        const required = apiPackageRequire("pdfkit");
-        return required?.default ?? required?.PDFDocument ?? required ?? null;
-      } catch {}
-      return null;
-    })();
-  }
-  return pdfDocumentCtorPromise;
-}
-
-function lightenHex(hex, t = 0.88) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const lr = Math.round(r + (255 - r) * t)
-    .toString(16)
-    .padStart(2, "0");
-  const lg = Math.round(g + (255 - g) * t)
-    .toString(16)
-    .padStart(2, "0");
-  const lb = Math.round(b + (255 - b) * t)
-    .toString(16)
-    .padStart(2, "0");
-  return `#${lr}${lg}${lb}`.toUpperCase();
 }
 
 async function toPdfBuffer({ report, parts, branding }) {
@@ -905,21 +614,21 @@ async function toPdfBuffer({ report, parts, branding }) {
       .font("Helvetica-Bold")
       .fontSize(7.5)
       .fillColor(brandColor)
-      .text(companyName, left, footerY, {
-        width: contentWidth / 3,
-        lineBreak: false,
-        ellipsis: true,
-      });
+      .text(
+        `Generado por ${companyName}  \u00b7  ${formatDateTimeEs(new Date())}`,
+        left,
+        footerY,
+        { width: contentWidth / 3, lineBreak: false, ellipsis: true },
+      );
     doc
       .font("Helvetica")
-      .fontSize(7.5)
-      .fillColor(C_MUTED)
-      .text(
-        `Generado por Atlas ERP  \u00b7  ${formatDateTimeEs(new Date())}`,
-        left + contentWidth / 3,
-        footerY,
-        { width: contentWidth / 3, align: "center", lineBreak: false },
-      );
+      .fontSize(7)
+      .fillColor("#CBD5E1")
+      .text("Hecho con Atlas ERP", left + contentWidth / 3, footerY, {
+        width: contentWidth / 3,
+        align: "center",
+        lineBreak: false,
+      });
     doc
       .font("Helvetica")
       .fontSize(7.5)

@@ -6,7 +6,7 @@ import {
   useImperativeHandle,
   forwardRef,
 } from "react";
-import { Button, MentionTextarea } from "@atlas/ui";
+import { Button, MentionTextarea, Popover, PopoverAnchor, PopoverContent } from "@atlas/ui";
 import {
   Send, Paperclip, Smile, X, Loader2, AlertCircle, Mic,
   Play, FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
@@ -29,10 +29,14 @@ function toReplyPreview(m) {
   const att = (m.attachments ?? [])[0];
   const hasRefs = Array.isArray(m.metadata?.entityRefs) && m.metadata.entityRefs.length > 0;
   const body = (m.body ?? "").trim();
+  const attMime = String(att?.mimeType ?? "");
+  // Voice notes recorded in-app are named "nota_de_voz_*"; some mobile
+  // browsers drop or remap the blob mime on upload, so match the name too.
+  const attIsAudio = attMime.startsWith("audio/") || /^nota_de_voz/i.test(String(att?.fileName ?? ""));
   let kind = "text";
-  if (!body && att?.mimeType?.startsWith("image/")) kind = "image";
-  else if (!body && att?.mimeType?.startsWith("video/")) kind = "video";
-  else if (!body && att?.mimeType?.startsWith("audio/")) kind = "audio";
+  if (!body && attMime.startsWith("image/")) kind = "image";
+  else if (!body && attIsAudio) kind = "audio";
+  else if (!body && attMime.startsWith("video/")) kind = "video";
   else if (!body && att) kind = "file";
   else if (!body && hasRefs) kind = "entity";
   return {
@@ -219,6 +223,12 @@ export const MessageComposer = forwardRef(function MessageComposer(
     // callers (ThreadPanel, ExternalInboxScreen) have no outer zone, so they
     // leave this false and keep the composer's own handling.
     dropZoneDisabled = false,
+    // True only for the ONE caller that owns the screen's bottom edge in a
+    // given context (ChatWindow's main composer, ThreadPanel's sheet
+    // composer). Those add a single iOS home-indicator gap here. Floating /
+    // mini windows and any nested reuse leave this false so the inset is
+    // never stacked twice (the bug that pushed the input bar upward).
+    edgeInset = false,
   },
   ref,
 ) {
@@ -246,7 +256,6 @@ export const MessageComposer = forwardRef(function MessageComposer(
   // autocomplete is disabled entirely rather than just being "redundant".
   const mentionMembers = conversationType === "direct" ? [] : mentionCandidates;
 
-  const emojiContainerRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeout = useRef(null);
   const isTypingRef = useRef(false);
@@ -445,16 +454,6 @@ export const MessageComposer = forwardRef(function MessageComposer(
     );
   }
 
-  // ── Emoji ────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!showEmoji) return;
-    function handlePointerDown(e) {
-      if (!emojiContainerRef.current?.contains(e.target)) setShowEmoji(false);
-    }
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [showEmoji]);
-
   // NOTE: MentionTextarea does not expose its internal textarea DOM node to
   // the parent, so cursor-position-aware insertion is not possible here.
   // Emoji is appended at the end of the body instead (accepted simplification
@@ -586,19 +585,19 @@ export const MessageComposer = forwardRef(function MessageComposer(
     <div
       className={[
         "chat-scale-target relative w-full min-w-0 max-w-full shrink-0 overflow-x-hidden border-t border-[hsl(var(--border))] transition-colors",
-        // Explicit calc() instead of stacking a `py-*` class with the
-        // `.safe-bottom` utility — both set padding-bottom at equal
-        // specificity, so whichever one lands later in the compiled
-        // stylesheet silently wins and the other's bottom value is dropped
-        // entirely (this codebase has hit that exact cascade-layer ordering
-        // trap before). This guarantees the real total every time.
-        compact
-          ? "px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom,0px))]"
-          : "px-3 pt-2 sm:px-4 sm:pt-3 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]",
-        // A single background class (never both at once) — the safe-area
-        // reserve below the rounded input pill must be painted the same
-        // surface as the bar itself, or it reads as a bare gap the bar
-        // "doesn't reach the bottom" instead of intentional bottom padding.
+        // Horizontal padding + top padding only here — padding-bottom is set
+        // exactly once, on its own line below, so a plain `pb-*` and an
+        // `env()` calc never both compile to `padding-bottom` at equal
+        // specificity (whichever lands later in the sheet would silently win).
+        compact ? "px-2 pt-1.5" : "px-3 pt-2 sm:px-4 sm:pt-3",
+        // The iOS home-indicator gap is added once via `edgeInset` (see prop
+        // doc) by whichever caller owns the screen's bottom edge — never
+        // unconditionally, which is what stacked a second inset inside the
+        // ThreadPanel sheet and shoved the input bar upward.
+        edgeInset
+          ? "pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]"
+          : (compact ? "pb-1.5" : "pb-2 sm:pb-3"),
+        // A single background class (never both at once).
         !dropZoneDisabled && isDragOver ? "bg-[hsl(var(--primary)/0.05)]" : "bg-[hsl(var(--background))]",
       ].join(" ")}
       onDragOver={dropZoneDisabled ? undefined : handleDragOver}
@@ -617,31 +616,6 @@ export const MessageComposer = forwardRef(function MessageComposer(
           reply={toReplyPreview(replyingTo)}
           onCancel={onCancelReply}
         />
-      )}
-
-      {/* Emoji picker */}
-      {showEmoji && (
-        <div
-          ref={emojiContainerRef}
-          className={[
-            "absolute bottom-full mb-2 z-50 shadow-xl rounded-xl overflow-hidden",
-            compact ? "left-2" : "left-3 sm:left-4",
-          ].join(" ")}
-        >
-          <EmojiPicker
-            onEmojiClick={insertEmoji}
-            theme="dark"
-            // Native OS emoji — consistent with reaction pills and message
-            // text (see MessageReactionPicker.jsx for the same note).
-            emojiStyle={EmojiStyle.NATIVE}
-            width={compact ? "min(230px, calc(100vw - 1rem))" : "min(300px, calc(100vw - 1.5rem))"}
-            height={compact ? 280 : 360}
-            searchPlaceholder="Buscar emoji..."
-            lazyLoadEmojis
-            skinTonesDisabled
-            autoFocusSearch={false}
-          />
-        </div>
       )}
 
       {/* Recording error */}
@@ -831,22 +805,67 @@ export const MessageComposer = forwardRef(function MessageComposer(
               </EntityReferencePicker>
             )}
 
-            {/* Emoji */}
-            <button
-              type="button"
-              onClick={() => setShowEmoji((v) => !v)}
-              disabled={disabled}
-              className={[
-                "shrink-0 flex items-center justify-center rounded-full transition-colors touch-manipulation",
-                btnSize,
-                showEmoji
-                  ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]"
-                  : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))]",
-              ].join(" ")}
-              title="Emojis"
-            >
-              <Smile className={iconSize} />
-            </button>
+            {/* Emoji — a portaled Popover (same pattern as
+                MessageReactionPicker.jsx), not an in-flow `absolute` div. The
+                composer's own wrapper sets `overflow-x-hidden`, which per the
+                CSS overflow spec silently forces `overflow-y` to `auto` too;
+                combined with the Sheet ancestor's own overflow/height clipping
+                (ThreadPanel, MessageActionSheet), an in-flow popup positioned
+                `bottom-full` never had anywhere valid to paint outside those
+                boxes. A Radix Popover portals to <body> and is immune to any
+                of that. */}
+            <Popover open={showEmoji} onOpenChange={setShowEmoji}>
+              <PopoverAnchor asChild>
+                <button
+                  type="button"
+                  onClick={() => setShowEmoji((v) => !v)}
+                  disabled={disabled}
+                  className={[
+                    "shrink-0 flex items-center justify-center rounded-full transition-colors touch-manipulation",
+                    btnSize,
+                    showEmoji
+                      ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]"
+                      : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))]",
+                  ].join(" ")}
+                  title="Emojis"
+                >
+                  <Smile className={iconSize} />
+                </button>
+              </PopoverAnchor>
+              <PopoverContent
+                side="top"
+                align="start"
+                sideOffset={8}
+                collisionPadding={12}
+                // overflow-y-auto (not -hidden) + a max-height clamped to
+                // Radix's own collision-aware available-height variable: in
+                // a cramped anchor point (this button sits near the bottom of
+                // an 85dvh Sheet) Radix can end up with less room than the
+                // picker's own requested height, and the library's internal
+                // virtualized list has been seen to lock in whatever height
+                // it first measures — silently truncating with no working
+                // scroll of its own. This outer scroll is a plain div, so it
+                // always responds to wheel/touch regardless of what the
+                // picker's internal scroll area is doing.
+                className="w-auto max-w-[calc(100vw-1rem)] p-0 overflow-y-auto rounded-xl"
+                style={{ maxHeight: "var(--radix-popover-content-available-height, 360px)" }}
+                onOpenAutoFocus={(e) => e.preventDefault()}
+              >
+                <EmojiPicker
+                  onEmojiClick={insertEmoji}
+                  theme="dark"
+                  // Native OS emoji — consistent with reaction pills and message
+                  // text (see MessageReactionPicker.jsx for the same note).
+                  emojiStyle={EmojiStyle.NATIVE}
+                  width={compact ? "min(230px, calc(100vw - 1rem))" : "min(300px, calc(100vw - 1.5rem))"}
+                  height={compact ? 280 : 360}
+                  searchPlaceholder="Buscar emoji..."
+                  lazyLoadEmojis
+                  skinTonesDisabled
+                  autoFocusSearch={false}
+                />
+              </PopoverContent>
+            </Popover>
 
             {/* Mic — only shown when there's nothing else ready to send */}
             {!body.trim() && !pendingFiles.length && !pendingEntityRefs.length && (

@@ -9,6 +9,7 @@ import { createDriverService } from "./driver-service.js";
 import { FleetServiceError } from "./fleet-service.js";
 import { isTableNotFoundError } from "./service-helpers.js";
 import { buildDriversExcelBuffer } from "./fleet-export-service.js";
+import { resolveCompanyName } from "../../services/pdf-branding-service.js";
 
 const driverEnabledSchema = z.object({ enabled: z.boolean() });
 
@@ -76,12 +77,14 @@ export function createDriversRouter({
     async (c) => {
       try {
         const companyId = getCompanyIdFromContext(c);
-        const result = await service.listDrivers({
-          companyId,
-          page: 1,
-          pageSize: 5000,
+        const [result, companyName] = await Promise.all([
+          service.listDrivers({ companyId, page: 1, pageSize: 5000 }),
+          resolveCompanyName({ prisma, companyId }),
+        ]);
+        const buffer = await buildDriversExcelBuffer({
+          rows: result.data,
+          companyName,
         });
-        const buffer = await buildDriversExcelBuffer({ rows: result.data });
         c.header(
           "Content-Type",
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

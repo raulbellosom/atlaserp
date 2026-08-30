@@ -82,17 +82,19 @@ export function useLedgerCategories() {
   })
 }
 
-export function useAccountTransactions(accountId, { dateFrom, dateTo } = {}) {
+export function useAccountTransactions(accountId, { dateFrom, dateTo, limit = 200 } = {}) {
   const { token, localLedgerStore, isUsingLocalLedger } = useLedgerRuntime()
 
   return useQuery({
-    queryKey: ['ledger-transactions', accountId, dateFrom ?? null, dateTo ?? null, isUsingLocalLedger ? 'local' : 'remote'],
+    queryKey: ['ledger-transactions', accountId, dateFrom ?? null, dateTo ?? null, limit, isUsingLocalLedger ? 'local' : 'remote'],
     queryFn: () => ledgerClient.listTransactions({
       accountId,
       token,
       ledgerStore: localLedgerStore,
       dateFrom,
       dateTo,
+      pageSize: limit,
+      order: 'desc',
     }),
     enabled: Boolean(accountId && (token || localLedgerStore)),
     staleTime: 60 * 1000,

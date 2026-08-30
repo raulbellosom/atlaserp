@@ -796,11 +796,23 @@ export const PERMISSION_CATALOG = {
     groupKey: "ledger",
     order: 31,
   },
+  "ledger.categories.read": {
+    displayNameEs: "Ver categorias",
+    descriptionEs: "Permite consultar categorias de movimientos (necesario para clasificar en el registro).",
+    groupKey: "ledger",
+    order: 39,
+  },
   "ledger.categories.manage": {
     displayNameEs: "Administrar categorias",
     descriptionEs: "Permite gestionar categorias de movimientos.",
     groupKey: "ledger",
     order: 40,
+  },
+  "ledger.types.read": {
+    displayNameEs: "Ver tipos de movimiento",
+    descriptionEs: "Permite consultar tipos de movimiento (necesario para clasificar en el registro).",
+    groupKey: "ledger",
+    order: 42,
   },
   "ledger.types.manage": {
     displayNameEs: "Administrar tipos de movimiento",

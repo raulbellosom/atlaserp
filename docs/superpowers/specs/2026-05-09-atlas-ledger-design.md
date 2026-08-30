@@ -1,7 +1,15 @@
 # atlas.ledger — Cuentas y Movimientos (Libro Auxiliar de Cuentas)
 
+> **Superseded as the module reference (2026-08-30).** This document describes v1.
+> The shipped module has diverged substantially (Atlas ORM tables instead of Prisma
+> models, `deposito`/`retiro` instead of `direction`, no global dashboard/movements/
+> reports screens, plus categories, types, groups, collaborators and offline).
+> For the current behavior see
+> `docs/superpowers/specs/2026-08-30-atlas-ledger-current-state.md`.
+> Kept for historical context.
+
 Date: 2026-05-09
-Status: Proposed
+Status: Superseded (v1 design)
 Author: Claude Sonnet 4.6 (spec agent)
 Spec file: docs/superpowers/specs/2026-05-09-atlas-ledger-design.md
 Plan file: docs/superpowers/plans/2026-05-09-atlas-ledger.md (created after spec approval)

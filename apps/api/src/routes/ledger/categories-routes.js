@@ -10,11 +10,12 @@ function handleError(c, err, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createCategoriesRouter({ prisma, requirePermission }) {
+export function createCategoriesRouter({ prisma, requirePermission, requireAnyPermission }) {
   const app     = new Hono()
   const service = createCategoriesService({ prisma })
+  const canRead = requireAnyPermission(['ledger.categories.read', 'ledger.categories.manage'])
 
-  app.get('/ledger/categories', requirePermission('ledger.categories.manage'), async (c) => {
+  app.get('/ledger/categories', canRead, async (c) => {
     try {
       return c.json(await service.listCategories({ companyId: getCompanyId(c), actorId: getActorId(c) }))
     }
@@ -29,7 +30,7 @@ export function createCategoriesRouter({ prisma, requirePermission }) {
     } catch (err) { return handleError(c, err, 'No se pudo crear la categoria.') }
   })
 
-  app.get('/ledger/categories/:id', requirePermission('ledger.categories.manage'), async (c) => {
+  app.get('/ledger/categories/:id', canRead, async (c) => {
     try {
       return c.json({ data: await service.getCategory({ companyId: getCompanyId(c), categoryId: c.req.param('id') }) })
     }

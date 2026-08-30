@@ -21,6 +21,28 @@ function toNumber(value, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+// Days out from expiry at which a driver licence is flagged "expiring".
+const LICENSE_EXPIRY_WARNING_DAYS = 30;
+
+// Adds a computed `license_status` ('valid' | 'expiring' | 'expired' | 'unknown')
+// and `license_days_to_expiry` to a driver row, based on license_expiry_date.
+function withLicenseStatus(row) {
+  if (!row) return row;
+  const raw = row.license_expiry_date;
+  if (!raw) return { ...row, license_status: "unknown", license_days_to_expiry: null };
+  const expiry = new Date(raw);
+  if (Number.isNaN(expiry.getTime())) {
+    return { ...row, license_status: "unknown", license_days_to_expiry: null };
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.ceil((expiry.getTime() - today.getTime()) / 86400000);
+  let status = "valid";
+  if (days < 0) status = "expired";
+  else if (days <= LICENSE_EXPIRY_WARNING_DAYS) status = "expiring";
+  return { ...row, license_status: status, license_days_to_expiry: days };
+}
+
 function normalizePagination({ page, pageSize }) {
   const safePage = Math.max(1, toNumber(page, 1));
   const safePageSize = Math.min(100, Math.max(1, toNumber(pageSize, 20)));
@@ -348,7 +370,9 @@ export function createDriverService({ prisma }) {
       );
       return [dataRows, countRows];
     });
-    const enrichedRows = await enrichDriversWithHrData(rows, rawCompanyId);
+    const enrichedRows = (
+      await enrichDriversWithHrData(rows, rawCompanyId)
+    ).map(withLicenseStatus);
 
     return {
       data: enrichedRows,
@@ -390,7 +414,7 @@ export function createDriverService({ prisma }) {
     });
     if (!row) throw new FleetServiceError("Chofer no encontrado.", 404);
     const [enriched] = await enrichDriversWithHrData([row], rawCompanyId);
-    return enriched ?? row;
+    return withLicenseStatus(enriched ?? row);
   }
 
   async function createDriver({ companyId, actorId, payload }) {

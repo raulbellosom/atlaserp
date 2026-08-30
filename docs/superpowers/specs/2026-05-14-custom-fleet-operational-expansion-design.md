@@ -1,3 +1,5 @@
+> **SUPERSEDED (2026-08-30).** This spec describes the retired AME3 demo module `custom.fleet` (`modules/custom/`), not the shipping CORE module `atlas.fleet`. See `docs/superpowers/specs/2026-08-30-atlas-fleet-current-state.md`.
+
 # custom.fleet Operational Expansion — Maintenance, Drivers, Catalogs, Documents, and Media
 
 Date: 2026-05-14

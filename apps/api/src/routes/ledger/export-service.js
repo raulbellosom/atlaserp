@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs'
 import PDFDocument from 'pdfkit'
+import { drawPdfHeader, drawPdfFooter, toSafeText } from '../../services/pdf-branding-service.js'
 
 function fmt(num) {
   return Number(num ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -11,14 +12,35 @@ function fmtDate(d) {
   return date.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+function periodLabel(dateFrom, dateTo) {
+  if (dateFrom && dateTo) return `Del ${dateFrom} al ${dateTo}`
+  if (dateFrom) return `Desde ${dateFrom}`
+  if (dateTo) return `Hasta ${dateTo}`
+  return 'Todos los movimientos'
+}
+
+const EMPTY_BRANDING = {
+  companyName: 'Atlas ERP',
+  taxId: '-',
+  rfc: '-',
+  phone: '-',
+  email: '-',
+  website: '-',
+  addressLines: [],
+  primaryColor: '#0F766E',
+  logoBuffer: null,
+}
+
 /**
  * Build an ExcelJS workbook buffer.
- * @param {{ account: object, rows: object[], companyName?: string, dateFrom?: string, dateTo?: string }} opts
+ * @param {{ account: object, rows: object[], branding?: object, dateFrom?: string, dateTo?: string }} opts
  * @returns {Promise<Buffer>}
  */
-export async function buildExcelBuffer({ account, rows, companyName = '', dateFrom, dateTo }) {
+export async function buildExcelBuffer({ account, rows, branding = EMPTY_BRANDING, dateFrom, dateTo }) {
+  const companyName = toSafeText(branding?.companyName, 'Atlas ERP')
   const workbook = new ExcelJS.Workbook()
-  workbook.creator = 'Atlas ERP'
+  workbook.creator = companyName
+  workbook.company = companyName
   workbook.created = new Date()
 
   const sheet = workbook.addWorksheet('Movimientos', { views: [{ state: 'frozen', ySplit: 1 }] })
@@ -63,6 +85,10 @@ export async function buildExcelBuffer({ account, rows, companyName = '', dateFr
     })
   }
 
+  if (rows.length === 0) {
+    sheet.addRow({ concepto: 'Sin movimientos en el periodo seleccionado.' })
+  }
+
   const totalDep = rows.reduce((s, r) => s + Number(r.deposito ?? 0), 0)
   const totalRet = rows.reduce((s, r) => s + Number(r.retiro   ?? 0), 0)
   sheet.addRow([])
@@ -73,13 +99,19 @@ export async function buildExcelBuffer({ account, rows, companyName = '', dateFr
   // Resumen sheet
   const summary = workbook.addWorksheet('Resumen')
   const lastSaldo = rows.length > 0 ? Number(rows[rows.length - 1].saldo_actual ?? 0) : Number(account?.opening_balance ?? 0)
-  summary.addRow(['Cuenta',          account?.name ?? ''])
-  summary.addRow(['Banco',           account?.bank ?? ''])
-  summary.addRow(['Moneda',          currency])
-  summary.addRow(['Periodo',         `${dateFrom ?? ''} - ${dateTo ?? ''}`])
-  summary.addRow(['Total depositos', totalDep])
-  summary.addRow(['Total retiros',   totalRet])
-  summary.addRow(['Saldo final',     lastSaldo])
+  summary.addRow(['Empresa',          companyName])
+  if (toSafeText(branding?.rfc, '-') !== '-') summary.addRow(['RFC', branding.rfc])
+  summary.addRow(['Cuenta',           account?.name ?? ''])
+  summary.addRow(['Banco',            account?.bank ?? ''])
+  summary.addRow(['Moneda',           currency])
+  summary.addRow(['Periodo',          periodLabel(dateFrom, dateTo)])
+  summary.addRow(['Generado',         new Date().toLocaleString('es-MX')])
+  summary.addRow(['Total depositos',  totalDep])
+  summary.addRow(['Total retiros',    totalRet])
+  summary.addRow(['Saldo final',      lastSaldo])
+  summary.getColumn(1).width = 18
+  summary.getColumn(2).width = 32
+  summary.getRow(1).font = { bold: true }
 
   return workbook.xlsx.writeBuffer()
 }
@@ -119,13 +151,13 @@ export function buildCsvString({ rows }) {
 }
 
 /**
- * Build a PDF buffer (A4 landscape).
- * @param {{ account: object, rows: object[], companyName?: string, dateFrom?: string, dateTo?: string }} opts
+ * Build a PDF buffer (A4 landscape) with branded header/footer.
+ * @param {{ account: object, rows: object[], branding?: object, dateFrom?: string, dateTo?: string }} opts
  * @returns {Promise<Buffer>}
  */
-export async function buildPdfBuffer({ account, rows, companyName = '', dateFrom, dateTo }) {
+export async function buildPdfBuffer({ account, rows, branding = EMPTY_BRANDING, dateFrom, dateTo }) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 40, size: 'A4', layout: 'landscape' })
+    const doc = new PDFDocument({ margin: 40, size: 'A4', layout: 'landscape', bufferPages: true })
     const chunks = []
     doc.on('data', (c) => chunks.push(c))
     doc.on('end',  () => resolve(Buffer.concat(chunks)))
@@ -135,16 +167,19 @@ export async function buildPdfBuffer({ account, rows, companyName = '', dateFrom
     const totalDep = rows.reduce((s, r) => s + Number(r.deposito ?? 0), 0)
     const totalRet = rows.reduce((s, r) => s + Number(r.retiro   ?? 0), 0)
 
-    doc.fontSize(14).font('Helvetica-Bold').text(companyName || 'Atlas ERP', { align: 'left' })
-    doc.fontSize(11).font('Helvetica').text(`Cuenta: ${account?.name ?? ''} — ${currency}`, { align: 'left' })
-    if (dateFrom || dateTo) doc.text(`Periodo: ${dateFrom ?? ''} — ${dateTo ?? ''}`, { align: 'left' })
-    doc.moveDown(0.5)
+    // Branded header (company name / logo / RFC / address come from the DB)
+    let y = drawPdfHeader(doc, {
+      branding,
+      title: 'Libro de cuentas',
+      subtitle: `${account?.name ?? ''} — ${currency}`,
+      folio: periodLabel(dateFrom, dateTo),
+    })
+    doc.y = y
 
     // Landscape A4 usable width ~672pt (752 - 2*40)
     const cols   = [30, 60, 45, 60, 130, 80, 150, 70, 70, 70]
     const headers = ['#', 'Fecha', 'Tipo', 'Numero', 'Nombre', 'Referencia', 'Concepto', 'Deposito', 'Retiro', 'Saldo']
     const startX = doc.page.margins.left
-    let y = doc.y
 
     function drawRow(cells, bold = false) {
       doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(7)
@@ -155,9 +190,14 @@ export async function buildPdfBuffer({ account, rows, companyName = '', dateFrom
         x += cols[i]
       })
       y += 12
-      if (y > doc.page.height - doc.page.margins.bottom - 20) {
+      if (y > doc.page.height - doc.page.margins.bottom - 30) {
         doc.addPage()
-        y = doc.page.margins.top
+        y = drawPdfHeader(doc, {
+          branding,
+          title: 'Libro de cuentas',
+          subtitle: `${account?.name ?? ''} — ${currency}`,
+          folio: periodLabel(dateFrom, dateTo),
+        })
       }
     }
 
@@ -165,6 +205,13 @@ export async function buildPdfBuffer({ account, rows, companyName = '', dateFrom
     const totalWidth = cols.reduce((a, b) => a + b, 0)
     doc.moveTo(startX, y).lineTo(startX + totalWidth, y).stroke()
     y += 4
+
+    if (rows.length === 0) {
+      doc.font('Helvetica').fontSize(8).fillColor('#64748B')
+      doc.text('Sin movimientos en el periodo seleccionado.', startX + 2, y, { lineBreak: false })
+      doc.fillColor('#000000')
+      y += 14
+    }
 
     for (const row of rows) {
       drawRow([
@@ -184,6 +231,14 @@ export async function buildPdfBuffer({ account, rows, companyName = '', dateFrom
     doc.moveTo(startX, y).lineTo(startX + totalWidth, y).stroke()
     y += 4
     drawRow(['', '', '', '', '', '', 'TOTAL', fmt(totalDep), fmt(totalRet), ''], true)
+
+    // Branded footer on every page
+    const range = doc.bufferedPageRange()
+    for (let i = 0; i < range.count; i += 1) {
+      doc.switchToPage(range.start + i)
+      drawPdfFooter(doc, { branding, pageNumber: i + 1, totalPages: range.count })
+    }
+
     doc.end()
   })
 }

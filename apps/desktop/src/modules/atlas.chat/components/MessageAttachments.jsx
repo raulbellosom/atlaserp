@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Loader2, Download, Play, Pause, Mic,
+  Loader2, Download, Play, Pause, Mic, AlertCircle,
   FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
   FileArchive, FileCode, File, Trash2, Smile,
 } from "lucide-react";
@@ -14,6 +14,19 @@ import { isSignedUrlUsable } from "../lib/signedUrl";
 
 function isVideoMime(m) { return String(m ?? "").startsWith("video/"); }
 function isAudioMime(m) { return String(m ?? "").startsWith("audio/"); }
+
+// In-app voice notes are always named "nota_de_voz_*". Some mobile browsers
+// (and the odd proxy) hand back a Blob whose type is empty or gets remapped
+// to video/webm on upload, so an audio attachment must be recognised by
+// name/extension too — trusting mime alone made the voice note render as a
+// black video tile (or nothing at all) on those devices.
+const AUDIO_EXT_RE = /\.(m4a|mp3|mpeg|ogg|oga|opus|wav|aac|weba)$/i;
+function isVoiceNoteName(name) { return /^nota_de_voz/i.test(String(name ?? "")); }
+function isAudioAttachment(att) {
+  if (isAudioMime(att.mimeType)) return true;
+  if (isVoiceNoteName(att.fileName)) return true;
+  return AUDIO_EXT_RE.test(String(att.fileName ?? "")) && !isVideoMime(att.mimeType);
+}
 
 function getFileTypeInfo(mimeType = "") {
   const m = String(mimeType).toLowerCase();
@@ -284,8 +297,6 @@ function VideoCard({ att, index, allAttachments, onOpen, messageId, isOwn, curre
 }
 
 // ── Audio card (voice message player) ────────────────────────────────────────
-const AUDIO_SPEEDS = [1, 1.5, 2, 0.5];
-
 function fmtAudioTime(secs) {
   if (!isFinite(secs) || secs < 0) return "0:00";
   const m = Math.floor(secs / 60);
@@ -293,55 +304,62 @@ function fmtAudioTime(secs) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-// Seeded LCG so bars are deterministic per attachment (same each render)
+// Seeded LCG so the waveform is deterministic per attachment (same each render)
 function seedBars(seed, count) {
   let s = seed;
   return Array.from({ length: count }, () => {
     s = (s * 1664525 + 1013904223) | 0;
-    return 20 + (Math.abs(s) % 80); // 20-100% height
+    return 24 + (Math.abs(s) % 76); // 24-100% height
   });
 }
 
+// Minimal WhatsApp-style voice player: one play/pause control, a seekable
+// waveform, and a SINGLE time readout — elapsed while it plays/after a scrub,
+// total length when idle. Deliberately no playback-speed pill and no second
+// timer (the old card stacked "0:00" + "—:——" + "x1", which read as three
+// competing counters).
 function AudioCard({ att, isOwn }) {
   const { data: url, isLoading } = useAttachmentUrl(att);
   const audioRef = useRef(null);
   const durationFoundRef = useRef(false);
+  const seekingForDurationRef = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [speedIdx, setSpeedIdx] = useState(0);
+  const [started, setStarted] = useState(false); // has playback ever advanced?
   const [loadError, setLoadError] = useState(false);
-  const speed = AUDIO_SPEEDS[speedIdx];
 
-  // Deterministic waveform bars seeded by attachment id
   const bars = useMemo(() => {
-    const seed = Array.from(att.id).reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) | 0, 0);
-    return seedBars(seed, 32);
+    const seed = Array.from(String(att.id)).reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) | 0, 0);
+    return seedBars(seed, 30);
   }, [att.id]);
 
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.playbackRate = speed;
-  }, [speed]);
-
-  // MediaRecorder webm files report Infinity duration — seek to end to discover real duration
-  function handleLoadedMetadata(e) {
-    const audio = e.currentTarget;
+  // MediaRecorder webm/mp4 blobs frequently report Infinity/NaN duration until
+  // the media element has actually been scrubbed. Seek far past the end once
+  // to force the browser to resolve the real value, then snap back to 0.
+  function probeDuration(audio) {
+    if (!audio || durationFoundRef.current) return;
     if (isFinite(audio.duration) && audio.duration > 0) {
       durationFoundRef.current = true;
       setDuration(audio.duration);
-    } else {
-      audio.currentTime = 1e101; // triggers seeked which reveals real duration
+      return;
     }
+    try {
+      seekingForDurationRef.current = true;
+      audio.currentTime = 1e101;
+    } catch { /* ignore — some browsers throw on an out-of-range seek */ }
   }
 
   function handleSeeked(e) {
-    if (durationFoundRef.current) return;
     const audio = e.currentTarget;
+    if (durationFoundRef.current) { seekingForDurationRef.current = false; return; }
     if (isFinite(audio.duration) && audio.duration > 0) {
       durationFoundRef.current = true;
       setDuration(audio.duration);
-      audio.currentTime = 0;
     }
+    seekingForDurationRef.current = false;
+    audio.currentTime = 0;
+    setCurrentTime(0);
   }
 
   function togglePlay() {
@@ -356,23 +374,25 @@ function AudioCard({ att, isOwn }) {
     if (!audio || !duration) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const clientX = e.changedTouches?.[0]?.clientX ?? e.touches?.[0]?.clientX ?? e.clientX;
+    if (!isFinite(clientX)) return;
     const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     audio.currentTime = ratio * duration;
     setCurrentTime(ratio * duration);
+    setStarted(true);
   }
 
-  const progress = duration > 0 ? currentTime / duration : 0;
+  const progress = duration > 0 ? Math.min(1, currentTime / duration) : 0;
+  const timeLabel = fmtAudioTime(started ? currentTime : (duration || 0));
 
-  // Color tokens
   const playBg    = isOwn ? "rgba(255,255,255,0.22)" : "var(--brand-primary)";
-  const playColor = isOwn ? "white"                   : "var(--brand-primary-foreground)";
-  const barPlayed = isOwn ? "rgba(255,255,255,0.9)"  : "var(--brand-primary)";
-  const barRest   = isOwn ? "rgba(255,255,255,0.28)" : "hsl(var(--border))";
-  const metaColor = isOwn ? "rgba(255,255,255,0.65)" : "hsl(var(--muted-foreground))";
-  const speedBg   = isOwn ? "rgba(255,255,255,0.15)" : "hsl(var(--muted))";
-  const speedFg   = isOwn ? "rgba(255,255,255,0.9)"  : "hsl(var(--foreground))";
+  const playColor = isOwn ? "white"                  : "var(--brand-primary-foreground)";
+  const barPlayed = isOwn ? "rgba(255,255,255,0.95)" : "var(--brand-primary)";
+  const barRest   = isOwn ? "rgba(255,255,255,0.30)" : "hsl(var(--border))";
+  const metaColor = isOwn ? "rgba(255,255,255,0.70)" : "hsl(var(--muted-foreground))";
 
-  if (!url && !isLoading && loadError) {
+  // No signed URL could be resolved at all (getAttachmentSignedUrl itself
+  // failed, e.g. auth/network) — there's nothing to mount an <audio> against.
+  if (!isLoading && !url) {
     return (
       <div className="mt-2 flex items-center gap-2 text-xs opacity-50" style={{ width: 240 }}>
         <FileAudio className="h-4 w-4 shrink-0" />
@@ -381,15 +401,22 @@ function AudioCard({ att, isOwn }) {
     );
   }
 
+  // The signed URL DID resolve but the browser couldn't decode/play it (bad
+  // codec, or the underlying Storage object is empty/corrupt). Keep the same
+  // player chrome visible — this is the "el reproductor desaparece" complaint
+  // — just disabled, with a small "abrir archivo" escape hatch instead of
+  // silently swallowing the whole component.
+  const playDisabled = isLoading || !url || loadError;
+
   return (
-    <div className="mt-2 flex items-center gap-2.5" style={{ width: 248, maxWidth: "100%" }}>
-      {/* Hidden audio — only mount when URL is available to avoid phantom errors */}
+    <div className="mt-2 flex items-center gap-2.5" style={{ width: 244, maxWidth: "100%" }}>
       {url && (
         <audio
           ref={audioRef}
           src={url}
           preload="metadata"
-          onLoadedMetadata={handleLoadedMetadata}
+          onLoadedMetadata={(e) => probeDuration(e.currentTarget)}
+          onCanPlay={(e) => probeDuration(e.currentTarget)}
           onSeeked={handleSeeked}
           onDurationChange={(e) => {
             const d = e.currentTarget.duration;
@@ -398,42 +425,57 @@ function AudioCard({ att, isOwn }) {
               setDuration(d);
             }
           }}
-          onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-          onPlay={() => setPlaying(true)}
+          onTimeUpdate={(e) => {
+            // Ignore the giant timestamp the duration-probe seek reports.
+            if (seekingForDurationRef.current) return;
+            const t = e.currentTarget.currentTime;
+            if (!isFinite(t)) return;
+            setCurrentTime(t);
+            if (t > 0) setStarted(true);
+          }}
+          onPlay={() => { setPlaying(true); probeDuration(audioRef.current); }}
           onPause={() => setPlaying(false)}
           onEnded={() => {
             setPlaying(false);
+            setStarted(false);
             setCurrentTime(0);
             if (audioRef.current) audioRef.current.currentTime = 0;
           }}
-          onError={() => setLoadError(true)}
+          onError={(e) => {
+            console.warn("[chat] audio load failed", {
+              id: att.id, url, mimeType: att.mimeType,
+              code: e.currentTarget?.error?.code, message: e.currentTarget?.error?.message,
+            });
+            setLoadError(true);
+          }}
         />
       )}
 
-      {/* Play / pause button */}
+      {/* Play / pause */}
       <button
         type="button"
         onClick={togglePlay}
-        disabled={isLoading || !url}
+        disabled={playDisabled}
         className="shrink-0 h-10 w-10 rounded-full flex items-center justify-center touch-manipulation active:scale-95 transition-transform disabled:opacity-70 disabled:active:scale-100"
         style={{ backgroundColor: playBg, color: playColor }}
-        aria-label={isLoading ? "Cargando..." : playing ? "Pausar" : "Reproducir"}
+        aria-label={isLoading ? "Cargando..." : loadError ? "Audio no disponible" : playing ? "Pausar" : "Reproducir"}
       >
         {isLoading
           ? <Loader2 className="h-4 w-4 animate-spin" />
+          : loadError
+          ? <AlertCircle className="h-4 w-4" />
           : playing
           ? <Pause className="h-4.5 w-4.5 fill-current" />
           : <Play  className="h-4.5 w-4.5 fill-current ml-0.5" />}
       </button>
 
-      {/* Waveform + meta row */}
+      {/* Waveform + single time readout (or an error line, in place) */}
       <div className="flex-1 min-w-0 flex flex-col gap-1">
-        {/* Waveform bars — tap/click to seek */}
         <div
           className="flex items-center gap-px cursor-pointer touch-manipulation select-none"
-          style={{ height: 28 }}
-          onClick={handleSeek}
-          onTouchEnd={handleSeek}
+          style={{ height: 26, opacity: loadError ? 0.35 : 1 }}
+          onClick={loadError ? undefined : handleSeek}
+          onTouchEnd={loadError ? undefined : handleSeek}
         >
           {bars.map((h, i) => (
             <div
@@ -443,38 +485,39 @@ function AudioCard({ att, isOwn }) {
                 width: 2.5,
                 height: `${h}%`,
                 borderRadius: 2,
-                backgroundColor: i / bars.length < progress ? barPlayed : barRest,
-                transition: "background-color 0.06s",
+                backgroundColor: !loadError && (i + 0.5) / bars.length <= progress ? barPlayed : barRest,
+                transition: "background-color 0.08s linear",
               }}
             />
           ))}
         </div>
 
-        {/* Time row */}
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] leading-none tabular-nums" style={{ color: metaColor }}>
-            {fmtAudioTime(currentTime)}
-          </span>
-          <div className="flex items-center gap-1.5">
-            {/* Mic icon for voice note identity */}
-            <Mic className="h-2.5 w-2.5 shrink-0" style={{ color: metaColor }} />
-            <span className="text-[10px] leading-none tabular-nums" style={{ color: metaColor }}>
-              {duration > 0 ? fmtAudioTime(duration) : "—:——"}
-            </span>
-          </div>
+        <div className="flex items-center gap-1.5">
+          {loadError ? (
+            <>
+              <span className="text-[10px] leading-none" style={{ color: metaColor }}>
+                Audio no disponible
+              </span>
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] leading-none underline underline-offset-2 shrink-0"
+                style={{ color: metaColor }}
+              >
+                Abrir archivo
+              </a>
+            </>
+          ) : (
+            <>
+              <Mic className="h-2.5 w-2.5 shrink-0" style={{ color: metaColor }} />
+              <span className="text-[10px] leading-none tabular-nums" style={{ color: metaColor }}>
+                {timeLabel}
+              </span>
+            </>
+          )}
         </div>
       </div>
-
-      {/* Speed pill */}
-      <button
-        type="button"
-        onClick={() => setSpeedIdx((i) => (i + 1) % AUDIO_SPEEDS.length)}
-        className="shrink-0 text-[10px] font-bold rounded-full px-1.5 py-0.5 touch-manipulation active:scale-95 transition-transform leading-none"
-        style={{ backgroundColor: speedBg, color: speedFg }}
-        aria-label="Velocidad"
-      >
-        x{speed}
-      </button>
     </div>
   );
 }
@@ -691,6 +734,12 @@ export function AttachmentsBlock({ attachments, onOpen, isOwn, messageId, curren
       )}
       {others.map((att, i) => {
         const globalIdx = imageAtts.length + i;
+        // Audio is checked BEFORE video: a voice note whose mime got dropped
+        // or remapped to video/webm on upload (seen on some mobile browsers)
+        // must still render as the audio player, not a black video tile.
+        if (isAudioAttachment(att)) {
+          return <AudioCard key={att.id} att={att} isOwn={isOwn} />;
+        }
         if (isVideoMime(att.mimeType)) {
           return (
             <VideoCard
@@ -702,9 +751,6 @@ export function AttachmentsBlock({ attachments, onOpen, isOwn, messageId, curren
               {...tileProps}
             />
           );
-        }
-        if (isAudioMime(att.mimeType)) {
-          return <AudioCard key={att.id} att={att} isOwn={isOwn} />;
         }
         return (
           <FileCard

@@ -3,13 +3,6 @@ import { FleetServiceError } from './fleet-service.js'
 const MODULE_KEY = 'atlas.fleet'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-const DEFAULT_MAINTENANCE_TYPES = [
-  'preventivo', 'correctivo', 'inspección', 'cambio de aceite',
-  'servicio de neumáticos', 'servicio de batería', 'servicio de frenos',
-  'carrocería/colisión', 'eléctrico', 'mecánico', 'servicio programado',
-  'emergencia', 'garantía', 'otro',
-]
-
 function toNumber(value, fallback) {
   const parsed = Number.parseInt(String(value ?? ''), 10)
   return Number.isFinite(parsed) ? parsed : fallback
@@ -281,115 +274,6 @@ export function createCatalogService({ prisma }) {
     return updated
   }
 
-  // ── Maintenance Type ─────────────────────────────────────────────────────────
-
-  async function getMaintenanceType(safeCompanyId, safeId) {
-    const rows = await withDbErrorMapping(() => prisma.$queryRaw`
-      SELECT * FROM fleet_maintenance_type WHERE id = ${safeId} AND company_id = ${safeCompanyId} AND enabled = true LIMIT 1
-    `)
-    const row = firstRow(rows)
-    if (!row) throw new FleetServiceError('Tipo de mantenimiento no encontrado.', 404)
-    return row
-  }
-
-  async function listMaintenanceTypes({ companyId, page, pageSize, search }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const pagination = normalizePagination({ page, pageSize })
-    const normalizedSearch = normalizeSearch(search)
-    const likeValue = normalizedSearch ? `%${normalizedSearch}%` : null
-    const [rows, totalRows] = await withDbErrorMapping(async () => {
-      const data = await prisma.$queryRaw`
-        SELECT * FROM fleet_maintenance_type WHERE company_id = ${safeCompanyId} AND enabled = true
-          AND (${likeValue}::text IS NULL OR name ILIKE ${likeValue} OR description ILIKE ${likeValue})
-        ORDER BY is_system DESC, name ASC LIMIT ${pagination.pageSize} OFFSET ${pagination.offset}
-      `
-      const count = await prisma.$queryRaw`
-        SELECT COUNT(*)::bigint AS total FROM fleet_maintenance_type WHERE company_id = ${safeCompanyId} AND enabled = true
-          AND (${likeValue}::text IS NULL OR name ILIKE ${likeValue} OR description ILIKE ${likeValue})
-      `
-      return [data, count]
-    })
-    return { data: rows, pagination: { page: pagination.page, pageSize: pagination.pageSize, total: toCount(firstRow(totalRows)?.total) } }
-  }
-
-  async function createMaintenanceType({ companyId, actorId, payload }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const name = String(payload.name ?? '').trim()
-    const description = normalizeOptionalString(payload.description)
-    try {
-      const row = await withDbErrorMapping(async () => {
-        const rows = await prisma.$queryRaw`
-          INSERT INTO fleet_maintenance_type (company_id, name, description) VALUES (${safeCompanyId}, ${name}, ${description ?? null}) RETURNING *
-        `
-        return firstRow(rows)
-      })
-      await logAudit({ actorId, entityType: 'MaintenanceType', entityId: row?.id ?? null, action: 'fleet.catalog.maintenance_type.create', before: null, after: row })
-      return row
-    } catch (error) {
-      if (isUniqueViolation(error)) throw new FleetServiceError('Ya existe un tipo de mantenimiento con ese nombre.', 409)
-      throw error
-    }
-  }
-
-  async function updateMaintenanceType({ companyId, actorId, id, payload }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeId = normalizeRecordId(id, 'Tipo de mantenimiento no encontrado.')
-    const hasName = payload.name !== undefined
-    const hasDesc = payload.description !== undefined
-    if (!hasName && !hasDesc) throw new FleetServiceError('No hay campos validos para actualizar.', 400)
-    const before = await getMaintenanceType(safeCompanyId, safeId)
-    if (hasName && before.is_system) throw new FleetServiceError('Los tipos de mantenimiento del sistema no pueden ser renombrados.', 409)
-    try {
-      const updated = await withDbErrorMapping(async () => {
-        const rows = await prisma.$queryRaw`
-          UPDATE fleet_maintenance_type
-          SET name = CASE WHEN ${hasName} THEN ${payload.name ?? null} ELSE name END,
-              description = CASE WHEN ${hasDesc} THEN ${normalizeOptionalString(payload.description)} ELSE description END,
-              updated_at = now()
-          WHERE id = ${safeId} AND company_id = ${safeCompanyId} AND enabled = true RETURNING *
-        `
-        return firstRow(rows)
-      })
-      if (!updated) throw new FleetServiceError('Tipo de mantenimiento no encontrado.', 404)
-      await logAudit({ actorId, entityType: 'MaintenanceType', entityId: updated.id, action: 'fleet.catalog.maintenance_type.update', before, after: updated })
-      return updated
-    } catch (error) {
-      if (isUniqueViolation(error)) throw new FleetServiceError('Ya existe un tipo de mantenimiento con ese nombre.', 409)
-      throw error
-    }
-  }
-
-  async function setMaintenanceTypeEnabled({ companyId, actorId, id, enabled }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeId = normalizeRecordId(id, 'Tipo de mantenimiento no encontrado.')
-    const before = await getMaintenanceType(safeCompanyId, safeId)
-    if (!enabled && before.is_system) throw new FleetServiceError('Los tipos de mantenimiento del sistema no pueden ser desactivados.', 409)
-    const updated = await withDbErrorMapping(async () => {
-      const rows = await prisma.$queryRaw`
-        UPDATE fleet_maintenance_type SET enabled = ${Boolean(enabled)}, updated_at = now()
-        WHERE id = ${safeId} AND company_id = ${safeCompanyId} RETURNING *
-      `
-      return firstRow(rows)
-    })
-    if (!updated) throw new FleetServiceError('Tipo de mantenimiento no encontrado.', 404)
-    await logAudit({ actorId, entityType: 'MaintenanceType', entityId: updated.id, action: 'fleet.catalog.maintenance_type.disable', before, after: updated, metadata: { enabled: Boolean(enabled) } })
-    return updated
-  }
-
-  async function seedMaintenanceTypes({ companyId, actorId }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const names = DEFAULT_MAINTENANCE_TYPES
-    const placeholders = names.map((_, i) => `($1, $${i + 2}, true)`).join(', ')
-    await withDbErrorMapping(() =>
-      prisma.$queryRawUnsafe(
-        `INSERT INTO fleet_maintenance_type (company_id, name, is_system) VALUES ${placeholders} ON CONFLICT DO NOTHING`,
-        safeCompanyId, ...names
-      )
-    )
-    await logAudit({ actorId, entityType: 'MaintenanceType', entityId: null, action: 'fleet.catalog.maintenance_type.seed', before: null, after: null, metadata: { count: names.length } })
-    return { seeded: names.length }
-  }
-
   // ── Vehicle Model ────────────────────────────────────────────────────────────
 
   async function getVehicleModel(safeCompanyId, safeId) {
@@ -559,12 +443,6 @@ export function createCatalogService({ prisma }) {
     return getVehicleBrand(safeCompanyId, safeId)
   }
 
-  async function getMaintenanceTypeById({ companyId, id }) {
-    const safeCompanyId = toScopedCompanyUuid(companyId)
-    const safeId = normalizeRecordId(id, 'Tipo de mantenimiento no encontrado.')
-    return getMaintenanceType(safeCompanyId, safeId)
-  }
-
   async function getVehicleModelById({ companyId, id }) {
     const safeCompanyId = toScopedCompanyUuid(companyId)
     const safeId = normalizeRecordId(id, 'Modelo de vehiculo no encontrado.')
@@ -574,7 +452,6 @@ export function createCatalogService({ prisma }) {
   return {
     listVehicleTypes, getVehicleTypeById, createVehicleType, updateVehicleType, setVehicleTypeEnabled,
     listVehicleBrands, getVehicleBrandById, createVehicleBrand, updateVehicleBrand, setVehicleBrandEnabled,
-    listMaintenanceTypes, getMaintenanceTypeById, createMaintenanceType, updateMaintenanceType, setMaintenanceTypeEnabled, seedMaintenanceTypes,
     listVehicleModels, getVehicleModelById, createVehicleModel, updateVehicleModel, setVehicleModelEnabled,
   }
 }

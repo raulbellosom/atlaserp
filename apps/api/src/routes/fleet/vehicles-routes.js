@@ -11,6 +11,7 @@ import { createCatalogsRouter } from "./catalogs-routes.js";
 import { createReportsRouter } from "./reports-routes.js";
 import { createInsuranceRouter } from "./insurance-routes.js";
 import { buildVehiclesExcelBuffer } from "./fleet-export-service.js";
+import { resolveCompanyName } from "../../services/pdf-branding-service.js";
 
 const vehicleEnabledSchema = z.object({ enabled: z.boolean() });
 const vehicleStatusFilterSchema = z.enum([
@@ -87,13 +88,19 @@ export default function createFleetRouter({
     async (c) => {
       try {
         const companyId = getCompanyIdFromContext(c);
-        const result = await service.listVehicles({
-          companyId,
-          page: 1,
-          pageSize: 5000,
-          search: c.req.query("search"),
+        const [result, companyName] = await Promise.all([
+          service.listVehicles({
+            companyId,
+            page: 1,
+            pageSize: 5000,
+            search: c.req.query("search"),
+          }),
+          resolveCompanyName({ prisma, companyId }),
+        ]);
+        const buffer = await buildVehiclesExcelBuffer({
+          rows: result.data,
+          companyName,
         });
-        const buffer = await buildVehiclesExcelBuffer({ rows: result.data });
         c.header(
           "Content-Type",
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

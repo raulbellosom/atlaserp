@@ -67,12 +67,8 @@ export default function ImportWizard() {
   function handleFile(file) {
     if (!file) return
     const ext = file.name.split('.').pop().toLowerCase()
-    if (!['csv', 'xlsx'].includes(ext)) {
-      toast.error('Solo se aceptan archivos CSV o XLSX.')
-      return
-    }
-    if (ext === 'xlsx') {
-      toast.error('Por ahora use CSV. Soporte XLSX disponible via importacion en el servidor.')
+    if (ext !== 'csv') {
+      toast.error('Solo se aceptan archivos CSV. Exporta tu hoja de calculo como CSV e intenta de nuevo.')
       return
     }
 
@@ -243,13 +239,13 @@ export default function ImportWizard() {
               Sube un archivo CSV con tus movimientos bancarios. La primera fila debe contener los encabezados de columna.
             </p>
             <DistDropZone
-              accept=".csv,.xlsx"
+              accept=".csv"
               maxSizeMB={20}
               fullScreenOverlay
-              overlayLabel="Suelta tu archivo aqui"
+              overlayLabel="Suelta tu archivo CSV aqui"
               overlayHint="CSV — primera fila debe ser encabezados"
               onFile={handleFile}
-              emptyLabel="Arrastra tu archivo aqui"
+              emptyLabel="Arrastra tu archivo CSV aqui"
               emptyHint="CSV — primera fila debe ser encabezados"
             />
           </div>

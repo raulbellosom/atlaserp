@@ -60,7 +60,7 @@ export function createLedgerDataClient({ apiBaseUrl = getApiUrl(), fetchImpl } =
       return readJson(response, 'No se pudieron cargar las categorias.')
     },
 
-    async listTransactions({ accountId, token, ledgerStore, dateFrom, dateTo, pageSize = 500 }) {
+    async listTransactions({ accountId, token, ledgerStore, dateFrom, dateTo, pageSize = 200, order = 'desc' }) {
       if (ledgerStore) {
         return {
           data: await ledgerStore.queryTransactions(accountId, {
@@ -72,13 +72,15 @@ export function createLedgerDataClient({ apiBaseUrl = getApiUrl(), fetchImpl } =
         }
       }
 
-      const params = new URLSearchParams({ pageSize: String(pageSize) })
+      const params = new URLSearchParams({ pageSize: String(pageSize), order })
       if (dateFrom) params.set('from', dateFrom)
       if (dateTo) params.set('to', dateTo)
 
       const response = await request(`${baseUrl}/ledger/accounts/${accountId}/transactions?${params}`, {
         headers: createHeaders(token),
       })
+      // Server returns the page already sorted ascending for display; `pagination.total`
+      // carries the full row count so callers can offer "load older".
       return readJson(response, 'No se pudieron cargar los movimientos.')
     },
 

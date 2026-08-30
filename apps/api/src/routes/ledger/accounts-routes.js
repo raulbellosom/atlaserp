@@ -211,15 +211,17 @@ export function createAccountsRouter({ prisma, requirePermission }) {
         if (!(await service.canReadAccount({ companyId, accountId, actorId }))) {
           return c.json({ error: 'No tienes permisos para ver esta cuenta.' }, 403)
         }
-        const { from, to, page, pageSize } = c.req.query();
+        const { from, to, page, pageSize, order } = c.req.query();
         return c.json(
           await service.listTransactions({
             companyId,
             accountId,
+            actorId,
             dateFrom: from,
             dateTo: to,
             page,
             pageSize,
+            order,
           }),
         );
       } catch (err) {
@@ -355,6 +357,7 @@ export function createAccountsRouter({ prisma, requirePermission }) {
           await summary.getAccountSummary({
             companyId,
             accountId,
+            actorId,
             dateFrom: from,
             dateTo: to,
           }),
@@ -373,6 +376,9 @@ export function createAccountsRouter({ prisma, requirePermission }) {
     async (c) => {
       try {
         const { buildExcelBuffer } = await import("./export-service.js");
+        const { resolveCompanyBranding } = await import(
+          "../../services/pdf-branding-service.js"
+        );
         const companyId = getCompanyId(c);
         const actorId = getActorId(c);
         const { from, to } = c.req.query();
@@ -384,15 +390,20 @@ export function createAccountsRouter({ prisma, requirePermission }) {
         const { data: rows } = await service.listTransactions({
           companyId,
           accountId: c.req.param("id"),
+          actorId,
           dateFrom: from,
           dateTo: to,
           page: 1,
           pageSize: 50000,
           maxPageSize: 50000,
         });
+        const branding = await resolveCompanyBranding({ prisma, companyId }).catch(
+          () => undefined,
+        );
         const buffer = await buildExcelBuffer({
           account,
           rows,
+          branding,
           dateFrom: from,
           dateTo: to,
         });
@@ -425,6 +436,7 @@ export function createAccountsRouter({ prisma, requirePermission }) {
         const { data: rows } = await service.listTransactions({
           companyId,
           accountId: c.req.param("id"),
+          actorId,
           dateFrom: from,
           dateTo: to,
           page: 1,
@@ -451,6 +463,9 @@ export function createAccountsRouter({ prisma, requirePermission }) {
     async (c) => {
       try {
         const { buildPdfBuffer } = await import("./export-service.js");
+        const { resolveCompanyBranding } = await import(
+          "../../services/pdf-branding-service.js"
+        );
         const companyId = getCompanyId(c);
         const actorId = getActorId(c);
         const { from, to } = c.req.query();
@@ -462,15 +477,20 @@ export function createAccountsRouter({ prisma, requirePermission }) {
         const { data: rows } = await service.listTransactions({
           companyId,
           accountId: c.req.param("id"),
+          actorId,
           dateFrom: from,
           dateTo: to,
           page: 1,
           pageSize: 50000,
           maxPageSize: 50000,
         });
+        const branding = await resolveCompanyBranding({ prisma, companyId }).catch(
+          () => undefined,
+        );
         const buffer = await buildPdfBuffer({
           account,
           rows,
+          branding,
           dateFrom: from,
           dateTo: to,
         });

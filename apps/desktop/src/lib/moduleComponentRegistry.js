@@ -3,6 +3,7 @@ import { createModuleComponentRegistry } from "./module-component-registry-core.
 // atlas.fleet static cell components (migrated from bundle to static import)
 import VehicleStatusBadge from "../modules/atlas.fleet/components/VehicleStatusBadge.jsx";
 import DriverStatusBadge from "../modules/atlas.fleet/components/DriverStatusBadge.jsx";
+import DriverLicenseBadge from "../modules/atlas.fleet/components/DriverLicenseBadge.jsx";
 import ReportStatusBadge from "../modules/atlas.fleet/components/ReportStatusBadge.jsx";
 import DriverAvatarCell from "../modules/atlas.fleet/components/DriverAvatarCell.jsx";
 import DriverAssignedVehicleCell from "../modules/atlas.fleet/components/DriverAssignedVehicleCell.jsx";
@@ -31,6 +32,7 @@ componentRegistry.register(
   VehicleStatusBadge,
 );
 componentRegistry.register("atlas.fleet:DriverStatusBadge", DriverStatusBadge);
+componentRegistry.register("atlas.fleet:DriverLicenseBadge", DriverLicenseBadge);
 componentRegistry.register("atlas.fleet:ReportStatusBadge", ReportStatusBadge);
 componentRegistry.register("atlas.fleet:DriverAvatarCell", DriverAvatarCell);
 componentRegistry.register(

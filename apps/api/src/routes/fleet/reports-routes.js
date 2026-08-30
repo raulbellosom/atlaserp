@@ -8,6 +8,7 @@ import {
 import { FleetServiceError } from "./fleet-service.js";
 import { createReportsService } from "./reports-service.js";
 import { buildReportExcelBuffer } from "./fleet-export-service.js";
+import { resolveCompanyName } from "../../services/pdf-branding-service.js";
 
 const REPORT_TYPES = ["maintenance", "service", "repair", "other"];
 const reportEnabledSchema = z.object({ enabled: z.boolean() });
@@ -73,17 +74,21 @@ export function createReportsRouter({
         const reportType = String(c.req.query("type") ?? "maintenance")
           .trim()
           .toLowerCase();
-        const result = await service.listReports({
-          companyId,
-          reportType: REPORT_TYPES.includes(reportType)
-            ? reportType
-            : undefined,
-          page: 1,
-          pageSize: 5000,
-        });
+        const [result, companyName] = await Promise.all([
+          service.listReports({
+            companyId,
+            reportType: REPORT_TYPES.includes(reportType)
+              ? reportType
+              : undefined,
+            page: 1,
+            pageSize: 5000,
+          }),
+          resolveCompanyName({ prisma, companyId }),
+        ]);
         const buffer = await buildReportExcelBuffer({
           rows: result.data,
           reportType,
+          companyName,
         });
         const typeLabel =
           reportType === "maintenance"
@@ -591,29 +596,6 @@ export function createReportsRouter({
           route: "/fleet/reports/:id/pdf",
           moduleKey,
           operation: "generateReportPdf",
-        });
-      }
-    },
-  );
-
-  app.post(
-    "/fleet/reports/dev/purge-legacy",
-    requirePermission("fleet.reports.delete"),
-    async (c) => {
-      try {
-        const companyId = getCompanyIdFromContext(c);
-        const actorId = getActorIdFromContext(c);
-        const result = await service.purgeLegacyMaintenanceData({
-          companyId,
-          actorId,
-        });
-        return c.json({ data: result });
-      } catch (err) {
-        return handleRouteError(c, err, {
-          fallbackError: "No se pudo limpiar el legacy de mantenimiento.",
-          route: "/fleet/reports/dev/purge-legacy",
-          moduleKey,
-          operation: "purgeLegacyMaintenanceData",
         });
       }
     },

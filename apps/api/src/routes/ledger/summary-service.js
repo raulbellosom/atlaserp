@@ -8,7 +8,7 @@ export function createSummaryService({ prisma }) {
    * Returns KPI cards + chart data for the AccountScreen Resumen tab.
    * @returns {{ kpis, balance_series, by_category }}
    */
-  async function getAccountSummary({ companyId, accountId, dateFrom, dateTo }) {
+  async function getAccountSummary({ companyId, accountId, actorId = null, dateFrom, dateTo }) {
     // Caller (accounts-routes.js) already ran canReadAccount before invoking this.
     const account = await ledgerService.getAccountUnchecked({ companyId, accountId })
     const from = normalizeOptionalString(dateFrom) ?? null
@@ -76,6 +76,7 @@ export function createSummaryService({ prisma }) {
           COALESCE(SUM(COALESCE(t.retiro,   0)), 0) AS retiro
         FROM ledger_transaction t
         LEFT JOIN ledger_category c ON c.id = t.category_id
+          AND (c.owner_id IS NULL OR c.owner_id = ${actorId}::uuid)
         WHERE t.account_id = ${accountId}::uuid
           AND t.company_id = ${companyId}::uuid
           AND t.enabled = true

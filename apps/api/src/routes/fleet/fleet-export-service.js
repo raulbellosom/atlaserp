@@ -37,6 +37,17 @@ function applyAutoFilter(sheet) {
   sheet.autoFilter = `A1:${lastColLetter}1`;
 }
 
+// Stamps the workbook's document metadata with the real company as author.
+// "Atlas ERP" only appears as a discreet description, never as the creator.
+function applyWorkbookIdentity(wb, companyName) {
+  const name = String(companyName ?? "").trim() || "Atlas ERP";
+  wb.creator = name;
+  wb.lastModifiedBy = name;
+  wb.company = name;
+  wb.description = "Hecho con Atlas ERP";
+  wb.created = new Date();
+}
+
 function addInfoSheet(wb, rows) {
   const info = wb.addWorksheet("Info");
   info.getColumn(1).width = 22;
@@ -124,8 +135,7 @@ const REPAIR_DAMAGE_TYPE = {
 
 export async function buildVehiclesExcelBuffer({ rows, companyName = "" }) {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Atlas ERP";
-  wb.created = new Date();
+  applyWorkbookIdentity(wb, companyName);
 
   const sheet = wb.addWorksheet("Vehículos", {
     views: [{ state: "frozen", ySplit: 1 }],
@@ -208,8 +218,7 @@ export async function buildVehiclesExcelBuffer({ rows, companyName = "" }) {
 
 export async function buildDriversExcelBuffer({ rows, companyName = "" }) {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Atlas ERP";
-  wb.created = new Date();
+  applyWorkbookIdentity(wb, companyName);
 
   const sheet = wb.addWorksheet("Choferes", {
     views: [{ state: "frozen", ySplit: 1 }],
@@ -268,8 +277,7 @@ export async function buildDriversExcelBuffer({ rows, companyName = "" }) {
 
 export async function buildInsuranceExcelBuffer({ rows, companyName = "" }) {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Atlas ERP";
-  wb.created = new Date();
+  applyWorkbookIdentity(wb, companyName);
 
   const sheet = wb.addWorksheet("Seguros", {
     views: [{ state: "frozen", ySplit: 1 }],
@@ -332,8 +340,7 @@ export async function buildReportExcelBuffer({
   companyName = "",
 }) {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Atlas ERP";
-  wb.created = new Date();
+  applyWorkbookIdentity(wb, companyName);
 
   const typeLabel = REPORT_TYPE_LABEL[reportType] ?? "Reportes";
 

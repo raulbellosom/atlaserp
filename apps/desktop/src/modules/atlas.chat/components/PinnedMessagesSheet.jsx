@@ -5,19 +5,26 @@ import { usePinnedMessages } from "../hooks/usePinnedMessages";
 import { usePinMessage } from "../hooks/useChatMessages";
 import { formatMessageTime } from "../lib/chatUtils";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
+import { useChatPreferences, chatPreferencesStyle } from "../hooks/useChatPreferences";
+import "../chat-theme.css";
 
 export function PinnedMessagesSheet({ open, onOpenChange, conversationId, currentUserId, members, onJumpToMessage }) {
   const { data, isLoading } = usePinnedMessages(conversationId, { enabled: open });
   const { mutate: pinMutate } = usePinMessage(conversationId);
+  const { prefs } = useChatPreferences();
   const messages = data?.data ?? [];
   const ownMember = findOwnMember(members ?? [], currentUserId);
   const canUnpin = roleHasPermission(ownMember, CHAT_PERMISSIONS.MESSAGES_PIN);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col">
+      <SheetContent
+        side="right"
+        className="chat-glass-theme chat-glass w-full sm:max-w-md flex flex-col"
+        style={chatPreferencesStyle(prefs)}
+      >
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
+          <SheetTitle className="chat-font-display flex items-center gap-2">
             <Pin className="h-4 w-4 text-[hsl(var(--primary))]" />
             Mensajes fijados
           </SheetTitle>

@@ -117,29 +117,36 @@ export function validateImportRows(rawRows, mapping) {
  * @returns {Promise<{ inserted: number }>}
  */
 export async function commitImportRows({ prisma, companyId, accountId, rows }) {
-  let inserted = 0
-  for (const row of rows) {
-    await prisma.$queryRaw`
-      INSERT INTO ledger_transaction
-        (id, account_id, company_id, fecha, nombre, numero, referencia, concepto,
-         deposito, retiro, enabled, updated_at)
-      VALUES (
-        gen_random_uuid(),
-        ${accountId}::uuid,
-        ${companyId}::uuid,
-        ${row.fecha}::date,
-        ${row.nombre},
-        ${row.numero      ?? null},
-        ${row.referencia  ?? null},
-        ${row.concepto    ?? null},
-        ${row.deposito    ?? null},
-        ${row.retiro      ?? null},
-        true,
-        NOW()
-      )
-      RETURNING id
-    `
-    inserted++
-  }
+  if (!Array.isArray(rows) || rows.length === 0) return { inserted: 0 }
+
+  // All-or-nothing: a partial failure must not leave half an import behind.
+  const inserted = await prisma.$transaction(async (tx) => {
+    let count = 0
+    for (const row of rows) {
+      await tx.$queryRaw`
+        INSERT INTO ledger_transaction
+          (id, account_id, company_id, fecha, nombre, numero, referencia, concepto,
+           deposito, retiro, enabled, updated_at)
+        VALUES (
+          gen_random_uuid(),
+          ${accountId}::uuid,
+          ${companyId}::uuid,
+          ${row.fecha}::date,
+          ${row.nombre},
+          ${row.numero      ?? null},
+          ${row.referencia  ?? null},
+          ${row.concepto    ?? null},
+          ${row.deposito    ?? null},
+          ${row.retiro      ?? null},
+          true,
+          NOW()
+        )
+        RETURNING id
+      `
+      count++
+    }
+    return count
+  })
+
   return { inserted }
 }

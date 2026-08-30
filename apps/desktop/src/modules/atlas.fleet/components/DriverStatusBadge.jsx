@@ -1,23 +1,14 @@
 // Registry key: atlas.fleet:DriverStatusBadge
 // Props: { status: 'active' | 'inactive' | 'suspended' }
+import { Badge } from "@atlas/ui";
 
 const STATUS_CONFIG = {
-  active:    { label: "Activo",     bg: "bg-green-100",  text: "text-green-800" },
-  inactive:  { label: "Inactivo",   bg: "bg-gray-100",   text: "text-gray-700" },
-  suspended: { label: "Suspendido", bg: "bg-red-100",    text: "text-red-700" },
+  active: { label: "Activo", variant: "success" },
+  inactive: { label: "Inactivo", variant: "secondary" },
+  suspended: { label: "Suspendido", variant: "destructive" },
 };
 
 export default function DriverStatusBadge({ status }) {
-  const cfg = STATUS_CONFIG[status] ?? {
-    label: status,
-    bg: "bg-gray-100",
-    text: "text-gray-600",
-  };
-  return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.bg} ${cfg.text}`}
-    >
-      {cfg.label}
-    </span>
-  );
+  const cfg = STATUS_CONFIG[status] ?? { label: status ?? "—", variant: "secondary" };
+  return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
 }
