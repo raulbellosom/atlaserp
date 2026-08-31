@@ -136,6 +136,10 @@ export function createWalletsService({ prisma, calendarBridge = null }) {
   async function createWallet({ companyId, ownerId, data }) {
     if (!ownerId) throw new PfmServiceError("Se requiere un usuario autenticado.", 401);
     try {
+      const isCredit = data.kind === "CREDIT";
+      const openingBalance = isCredit
+        ? -(data.openingUsed ?? 0)
+        : (data.openingBalance ?? 0);
       const wallet = await prisma.pfmWallet.create({
         data: {
           companyId,
@@ -143,11 +147,14 @@ export function createWalletsService({ prisma, calendarBridge = null }) {
           name: data.name,
           kind: data.kind,
           currency: data.currency ?? "MXN",
-          openingBalance: data.openingBalance ?? 0,
+          openingBalance,
           color: data.color ?? null,
           icon: data.icon ?? null,
           ledgerAccountId: data.ledgerAccountId ?? null,
           reference: data.reference ?? null,
+          creditLimit: isCredit ? (data.creditLimit ?? null) : null,
+          statementDay: isCredit ? (data.statementDay ?? null) : null,
+          paymentDueDay: isCredit ? (data.paymentDueDay ?? null) : null,
         },
       });
       return normalizeWalletRow({

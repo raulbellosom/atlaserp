@@ -51,3 +51,36 @@ describe("wallets-service — access is never implicitly shared", () => {
     );
   });
 });
+
+describe("wallets-service — createWallet credit fields", () => {
+  it("CREDIT wallet stores credit fields and negative opening balance from openingUsed", async () => {
+    let createArgs = null;
+    const prisma = {
+      pfmWallet: {
+        create: async (args) => {
+          createArgs = args;
+          return { id: "01900000-0000-7000-8000-00000000c0de", ...args.data };
+        },
+      },
+    };
+    const service = createWalletsService({ prisma });
+    await service.createWallet({
+      companyId: COMPANY,
+      ownerId: OWNER,
+      data: {
+        name: "Amex",
+        kind: "CREDIT",
+        currency: "MXN",
+        openingBalance: 0,
+        creditLimit: 50000,
+        statementDay: 4,
+        paymentDueDay: 22,
+        openingUsed: 12000,
+      },
+    });
+    assert.equal(Number(createArgs.data.openingBalance), -12000);
+    assert.equal(Number(createArgs.data.creditLimit), 50000);
+    assert.equal(createArgs.data.statementDay, 4);
+    assert.equal(createArgs.data.paymentDueDay, 22);
+  });
+});
