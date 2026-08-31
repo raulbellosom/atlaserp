@@ -8,7 +8,7 @@ import {
 
 const NOT_INSTALLED = "El modulo de finanzas personales no esta instalado.";
 
-export function createWalletsService({ prisma }) {
+export function createWalletsService({ prisma, calendarBridge = null }) {
   async function listWallets({ companyId, actorId }) {
     if (!actorId) throw new PfmServiceError("Se requiere un usuario autenticado.", 401);
     try {
@@ -75,7 +75,15 @@ export function createWalletsService({ prisma }) {
       `;
       const row = firstRow(rows);
       if (!row) throw new PfmServiceError("Cartera no encontrada.", 404);
-      return normalizeWalletRow(row);
+      const wallet = normalizeWalletRow(row);
+      if (wallet.kind === "CREDIT" && wallet.statementDay) {
+        const movs = await prisma.pfmMovement.findMany({
+          where: { walletId, enabled: true, status: "POSTED" },
+          select: { direction: true, amount: true, occurredOn: true, status: true },
+        });
+        wallet.creditCycle = computeCreditCycle(wallet, movs);
+      }
+      return wallet;
     } catch (err) {
       if (err instanceof PfmServiceError) throw err;
       if (isTableNotFoundError(err)) throw new PfmServiceError(NOT_INSTALLED, 503);
@@ -166,10 +174,20 @@ export function createWalletsService({ prisma }) {
       "color",
       "icon",
       "ledgerAccountId",
+      "creditLimit",
+      "statementDay",
+      "paymentDueDay",
     ]) {
       if (Object.prototype.hasOwnProperty.call(data, key)) patch[key] = data[key];
     }
     const wallet = await prisma.pfmWallet.update({ where: { id: walletId }, data: patch });
+    if (calendarBridge && wallet.kind === "CREDIT") {
+      try {
+        await calendarBridge.syncCreditReminder(normalizeWalletRow(wallet));
+      } catch (err) {
+        console.error("[atlas.pfm] credit reminder sync failed", err?.message ?? err);
+      }
+    }
     return getWallet({ companyId, walletId: wallet.id, actorId });
   }
 
@@ -244,6 +262,13 @@ function normalizeWalletRow(row) {
     color: row.color ?? null,
     icon: row.icon ?? null,
     ledgerAccountId: row.ledger_account_id ?? row.ledgerAccountId ?? null,
+    creditLimit:
+      (row.credit_limit ?? row.creditLimit) == null
+        ? null
+        : toPlainNumber(row.credit_limit ?? row.creditLimit),
+    statementDay: row.statement_day ?? row.statementDay ?? null,
+    paymentDueDay: row.payment_due_day ?? row.paymentDueDay ?? null,
+    creditReminderEventId: row.credit_reminder_event_id ?? row.creditReminderEventId ?? null,
     enabled: row.enabled,
     currentBalance: toPlainNumber(
       row.current_balance,
@@ -253,5 +278,38 @@ function normalizeWalletRow(row) {
     canWrite: row.can_write === undefined ? undefined : Boolean(row.can_write),
     createdAt: row.created_at ?? row.createdAt,
     updatedAt: row.updated_at ?? row.updatedAt,
+  };
+}
+
+// Credit-card statement-cycle math. `movements` are the wallet's POSTED rows
+// ({ direction, amount, occurredOn }). Returns null for non-credit wallets or
+// wallets without a statement day.
+export function computeCreditCycle(wallet, movements, now = new Date()) {
+  if (wallet.kind !== "CREDIT" || !wallet.statementDay) return null;
+  const ref = new Date(now);
+  const y = ref.getUTCFullYear();
+  const mo = ref.getUTCMonth();
+  const day = ref.getUTCDate();
+  // Last statement cut: statementDay of this month if already passed, else last month.
+  const cutMonth = day >= wallet.statementDay ? mo : mo - 1;
+  const lastCut = new Date(Date.UTC(y, cutMonth, Math.min(wallet.statementDay, 28)));
+  const signed = (m) => Number(m.amount) * (m.direction === "INCOME" ? -1 : 1);
+  const posted = (movements ?? []).filter((m) => m.status === undefined || m.status === "POSTED");
+  const totalOwed = posted.reduce((s, m) => s + signed(m), 0);
+  const periodSpend = posted
+    .filter(
+      (m) =>
+        new Date(`${String(m.occurredOn ?? m.occurred_on).slice(0, 10)}T00:00:00.000Z`) >= lastCut,
+    )
+    .reduce((s, m) => s + signed(m), 0);
+  const creditLimit = wallet.creditLimit != null ? Number(wallet.creditLimit) : null;
+  return {
+    statementDay: wallet.statementDay,
+    paymentDueDay: wallet.paymentDueDay ?? null,
+    creditLimit,
+    lastStatementDate: lastCut.toISOString().slice(0, 10),
+    totalOwed,
+    periodSpend,
+    availableCredit: creditLimit != null ? creditLimit - totalOwed : null,
   };
 }
