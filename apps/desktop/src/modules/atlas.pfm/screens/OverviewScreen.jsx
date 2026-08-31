@@ -9,7 +9,7 @@ import {
   LoadingState,
   ErrorState,
 } from "@atlas/ui";
-import { Wallet, TrendingDown, TrendingUp, Scale } from "lucide-react";
+import { Wallet, TrendingDown, TrendingUp, Scale, CreditCard } from "lucide-react";
 import { usePfmSummary, useBudgets, useGoals } from "../hooks/use-pfm-queries";
 import { CategoryDonut } from "../components/CategoryDonut";
 import { SpendTrendBar } from "../components/SpendTrendBar";
@@ -52,8 +52,18 @@ export default function OverviewScreen() {
 
       {summary && (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Saldo total" value={formatMoney(summary.totalBalance)} icon={Wallet} />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatCard label="Disponible" value={formatMoney(summary.spendable)} icon={Wallet} />
+            <StatCard
+              label="Inversiones"
+              value={formatMoney(summary.investments)}
+              icon={TrendingUp}
+            />
+            <StatCard
+              label="Deuda tarjetas"
+              value={summary.creditDebt ? `-${formatMoney(summary.creditDebt)}` : formatMoney(0)}
+              icon={CreditCard}
+            />
             <StatCard
               label="Ingresos del mes"
               value={formatMoney(summary.monthIncome)}
@@ -71,6 +81,9 @@ export default function OverviewScreen() {
               icon={Scale}
             />
           </div>
+          <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))] tabular-nums">
+            Patrimonio neto: {formatMoney(summary.totalBalance)}
+          </p>
 
           <div className="mt-6">
             <UpcomingChargesCard />
