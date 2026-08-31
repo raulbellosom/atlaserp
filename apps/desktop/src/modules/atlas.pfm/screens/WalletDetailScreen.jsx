@@ -26,11 +26,13 @@ import { CreditCyclePanel } from "../components/CreditCyclePanel";
 import { InvestmentPanel } from "../components/InvestmentPanel";
 import { WalletFormSheet } from "../components/WalletFormSheet";
 import { AdjustBalanceSheet } from "../components/AdjustBalanceSheet";
+import { YieldGroupRow } from "../components/YieldGroupRow";
 import {
   formatMoney,
   currentMonthKey,
   shiftMonth,
   formatMonthLabel,
+  groupMovements,
 } from "../lib/format";
 
 export default function WalletDetailScreen() {
@@ -138,19 +140,23 @@ export default function WalletDetailScreen() {
         {!movLoading && movements.length === 0 && (
           <EmptyState title="Sin movimientos" description="Aun no hay movimientos para este filtro." />
         )}
-        {movements.map((m) => (
-          <MovementRow
-            key={`${m.source ?? "native"}-${m.id}`}
-            movement={m}
-            currency={wallet.currency}
-            onEdit={(mv) => {
-              setEditingMovement(mv);
-              setAddOpen(true);
-            }}
-            onConfirm={(mv) => setConfirmTarget(mv)}
-            onSkip={(mv) => skipMut.mutate({ movementId: mv.id, walletId: wallet.id })}
-          />
-        ))}
+        {groupMovements(movements).map((entry) =>
+          entry.type === "yield-group" ? (
+            <YieldGroupRow key={entry.key} group={entry} currency={wallet.currency} />
+          ) : (
+            <MovementRow
+              key={`${entry.item.source ?? "native"}-${entry.item.id}`}
+              movement={entry.item}
+              currency={wallet.currency}
+              onEdit={(mv) => {
+                setEditingMovement(mv);
+                setAddOpen(true);
+              }}
+              onConfirm={(mv) => setConfirmTarget(mv)}
+              onSkip={(mv) => skipMut.mutate({ movementId: mv.id, walletId: wallet.id })}
+            />
+          ),
+        )}
       </Card>
 
       {canAdd && (
