@@ -25,4 +25,19 @@ describe("computeCreditCycle", () => {
     assert.equal(c.paymentDueDay, 25);
     assert.equal(c.lastStatementDate, "2026-08-05");
   });
+
+  it("reports utilization = totalOwed / creditLimit", () => {
+    const wallet = { kind: "CREDIT", statementDay: 4, creditLimit: 10000 };
+    const movements = [
+      { direction: "EXPENSE", amount: 2500, occurredOn: "2026-08-01", status: "POSTED" },
+    ];
+    const c = computeCreditCycle(wallet, movements, new Date("2026-08-20T00:00:00.000Z"));
+    assert.equal(c.utilization, 0.25);
+  });
+
+  it("utilization is null without a credit limit", () => {
+    const wallet = { kind: "CREDIT", statementDay: 4, creditLimit: null };
+    const c = computeCreditCycle(wallet, [], new Date("2026-08-20T00:00:00.000Z"));
+    assert.equal(c.utilization, null);
+  });
 });

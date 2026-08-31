@@ -323,5 +323,6 @@ export function computeCreditCycle(wallet, movements, now = new Date()) {
     totalOwed,
     periodSpend,
     availableCredit: creditLimit != null ? creditLimit - totalOwed : null,
+    utilization: creditLimit != null && creditLimit > 0 ? totalOwed / creditLimit : null,
   };
 }
